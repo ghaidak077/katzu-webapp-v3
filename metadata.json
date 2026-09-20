@@ -1,0 +1,6 @@
+{
+  "name": "Katzu",
+  "description": "Arabic-first conversational German learning with a witty, deadpan feline tutor",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
