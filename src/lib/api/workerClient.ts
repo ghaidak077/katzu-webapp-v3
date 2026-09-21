@@ -123,6 +123,56 @@ export class WorkerClient {
     return this.baseUrl;
   }
 
+  // --- Auth Session Exchange (/auth/session) ---
+
+  async exchangeGoogleToken(idToken: string): Promise<{ session_token: string; expires_in: number } | null> {
+    if (!idToken) return null;
+    try {
+      const res = await fetchWithTimeout(`${this.baseUrl}/auth/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data.session_token === 'string') {
+          return {
+            session_token: data.session_token,
+            expires_in: data.expires_in || 30 * 86400,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Google token exchange failed:', e);
+    }
+    return null;
+  }
+
+  async getEffectiveAuthToken(explicitToken?: string): Promise<string> {
+    if (explicitToken && explicitToken.trim()) {
+      return explicitToken.trim();
+    }
+    let currentUser;
+    try {
+      currentUser = await db.users.get('current_user');
+    } catch {
+      currentUser = undefined;
+    }
+    if (currentUser?.sessionToken) {
+      return currentUser.sessionToken;
+    }
+    // If user has idToken but not sessionToken, attempt to exchange
+    if (currentUser?.idToken) {
+      const exchange = await this.exchangeGoogleToken(currentUser.idToken);
+      if (exchange?.session_token) {
+        await db.users.update('current_user', { sessionToken: exchange.session_token });
+        return exchange.session_token;
+      }
+      return currentUser.idToken;
+    }
+    return '';
+  }
+
   // --- Curriculum Content Sync ---
 
   async fetchScenarios(): Promise<ScenarioEntity[]> {
@@ -240,14 +290,10 @@ export class WorkerClient {
     isFinalTurn?: boolean;
     mode?: 'roleplay' | 'extended';
     idToken?: string;
+    sessionId?: string;
+    learnerMemory?: Array<{ rule: string; example?: string }>;
   }): Promise<TurnAiResponse> {
-    let currentUser;
-    try {
-      currentUser = await db.users.get('current_user');
-    } catch {
-      currentUser = undefined;
-    }
-    const token = params.idToken || currentUser?.idToken;
+    const token = await this.getEffectiveAuthToken(params.idToken);
 
     // Map history to worker's expected { role: 'user' | 'model', text: string }
     const historyLimit = params.mode === 'extended' ? 10 : 6;
@@ -256,7 +302,9 @@ export class WorkerClient {
       text: h.text || '',
     }));
 
-    const payload = {
+    const sessionId = params.sessionId || `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+    const payload: Record<string, any> = {
       scenario_id: params.scenarioId,
       scenario_title: params.scenarioTitle,
       persona: params.persona || 'friendly conversational partner and native German teacher',
@@ -264,8 +312,13 @@ export class WorkerClient {
       user_message: params.userMessage,
       history: formattedHistory,
       mode: params.mode || 'roleplay',
+      session_id: sessionId,
+      is_final_turn: !!params.isFinalTurn,
       id_token: token,
     };
+    if (params.learnerMemory && params.learnerMemory.length > 0) {
+      payload.learner_memory = params.learnerMemory;
+    }
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -346,35 +399,33 @@ export class WorkerClient {
     idToken?: string;
   }): Promise<ContextualHint[]> {
     try {
-      let currentUser;
-      try {
-        currentUser = await db.users.get('current_user');
-      } catch {
-        currentUser = undefined;
-      }
-      const token = params.idToken || currentUser?.idToken;
+      const token = await this.getEffectiveAuthToken(params.idToken);
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
       if (token) {
-      headers['Authorization'] = 'Bearer ' + token;
+        headers['Authorization'] = 'Bearer ' + token;
+      }
+
+      const bodyPayload: Record<string, any> = {
+        scenario_title: params.scenarioTitle,
+        cefr_level: params.cefrLevel,
+        last_ai_reply: params.lastAiReply,
+        history: (params.history || []).slice(-4).map((h) => ({
+          role: (h.sender?.toLowerCase() === 'user' || h.role === 'user') ? 'user' : 'model',
+          text: h.text || '',
+        })),
+        mode: 'hints',
+      };
+      if (token) {
+        bodyPayload.id_token = token;
       }
 
       const res = await fetchWithTimeout(`${this.baseUrl}/ai/hints`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          scenario_title: params.scenarioTitle,
-          cefr_level: params.cefrLevel,
-          last_ai_reply: params.lastAiReply,
-          history: (params.history || []).slice(-4).map((h) => ({
-            role: (h.sender?.toLowerCase() === 'user' || h.role === 'user') ? 'user' : 'model',
-            text: h.text || '',
-          })),
-          mode: 'hints',
-          id_token: token,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
 
       if (res.status === 402 || res.status === 403) {
@@ -444,7 +495,8 @@ export class WorkerClient {
     if (!cleanCode) {
       return { success: false, error: 'يرجى إدخال كود التفعيل.' };
     }
-    if (!idToken) {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) {
       return {
         success: false,
         reason: 'missing_id_token',
@@ -455,10 +507,13 @@ export class WorkerClient {
     try {
       const res = await fetch(`${this.baseUrl}/verify`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
         body: JSON.stringify({
           code: cleanCode,
-          id_token: idToken,
+          id_token: token,
         }),
       });
 
@@ -493,7 +548,8 @@ export class WorkerClient {
     expiresAt?: string | null;
     serverTime?: string;
   }> {
-    if (!idToken) {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) {
       const user = await db.users.get('current_user');
       if (user?.subscriptionExpiresAt) {
         const isActive = new Date(user.subscriptionExpiresAt).getTime() > Date.now();
@@ -505,8 +561,11 @@ export class WorkerClient {
     try {
       const res = await fetch(`${this.baseUrl}/check-status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify({ id_token: token }),
       });
 
       if (res.ok) {
@@ -593,12 +652,17 @@ export class WorkerClient {
     }
   }
 
-  private async postProgressPayload(payload: ProgressPayload, idToken: string): Promise<boolean> {
+  private async postProgressPayload(payload: ProgressPayload, idToken?: string): Promise<boolean> {
     try {
+      const token = await this.getEffectiveAuthToken(idToken);
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+      }
       const res = await fetch(`${this.baseUrl}/progress/sync`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, id_token: idToken }),
+        headers,
+        body: JSON.stringify({ ...payload, id_token: token }),
       });
       return res.ok;
     } catch (e) {
@@ -615,11 +679,12 @@ export class WorkerClient {
     });
   }
 
-  async flushPendingSync(idToken: string): Promise<void> {
-    if (!idToken) return;
+  async flushPendingSync(idToken?: string): Promise<void> {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) return;
     const pending = await db.sync_queue.where('nextRetryAt').belowOrEqual(Date.now()).toArray();
     for (const item of pending) {
-      const ok = await this.postProgressPayload(item.payload as ProgressPayload, idToken);
+      const ok = await this.postProgressPayload(item.payload as ProgressPayload, token);
       if (ok) {
         if (item.id != null) await db.sync_queue.delete(item.id);
       } else if (item.id != null) {
@@ -633,16 +698,21 @@ export class WorkerClient {
 
   // --- Progress Restore (/progress/get) ---
 
-  async restoreProgress(idToken: string): Promise<boolean> {
-    if (!idToken) return false;
+  async restoreProgress(idToken?: string): Promise<boolean> {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) return false;
     // Retry queued writes opportunistically; restoration itself remains UI-blocking only on its read.
-    void this.flushPendingSync(idToken);
+    void this.flushPendingSync(token);
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      };
       const res = await fetch(`${this.baseUrl}/progress/get`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken }),
+        headers,
+        body: JSON.stringify({ id_token: token }),
       });
 
       if (res.ok) {
@@ -746,16 +816,17 @@ export class WorkerClient {
 
   // --- Delete User Account & Cloud Data (/user/delete) ---
 
-  async deleteAccount(idToken: string): Promise<boolean> {
-    if (!idToken) return false;
+  async deleteAccount(idToken?: string): Promise<boolean> {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) return false;
     try {
       const res = await fetch(`${this.baseUrl}/user/delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + idToken,
+          'Authorization': 'Bearer ' + token,
         },
-        body: JSON.stringify({ id_token: idToken }),
+        body: JSON.stringify({ id_token: token }),
       });
       return res.ok;
     } catch (e) {

@@ -127,19 +127,32 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     const cleanEmail = userEmail.trim().toLowerCase();
     const cleanName = userDisplayName.trim() || cleanEmail.split('@')[0] || 'طالب كَاتْزُو';
 
+    // Exchange Google ID token for worker session JWT
+    let sessionToken: string | undefined = undefined;
+    try {
+      const sessionResult = await workerClient.exchangeGoogleToken(idToken);
+      if (sessionResult?.session_token) {
+        sessionToken = sessionResult.session_token;
+      }
+    } catch (sessionErr) {
+      console.warn('Could not exchange token with worker session endpoint:', sessionErr);
+    }
+
     await db.users.update('current_user', {
       email: cleanEmail,
       googleAccountEmail: cleanEmail,
       displayName: cleanName,
       idToken,
+      sessionToken,
       isLoggedIn: true,
       cefrLevel: level,
       updatedAt: Date.now(),
     });
 
     // Synchronize cloud subscription status and restore progress
+    const activeAuthToken = sessionToken || idToken;
     try {
-      const status = await workerClient.checkSubscriptionStatus(idToken);
+      const status = await workerClient.checkSubscriptionStatus(activeAuthToken);
       if (status.active) {
         await db.users.update('current_user', {
           isSubscriptionActive: true,
@@ -151,7 +164,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     }
 
     try {
-      await workerClient.restoreProgress(idToken);
+      await workerClient.restoreProgress(activeAuthToken);
     } catch (err) {
       console.warn('Progress restore error on login:', err);
     }

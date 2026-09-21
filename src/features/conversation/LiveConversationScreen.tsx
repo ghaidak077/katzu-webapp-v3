@@ -64,6 +64,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const [selectedWordForInsight, setSelectedWordForInsight] = useState<VocabularyEntity | null>(null);
   const [startTime] = useState<number>(Date.now());
   const [sessionMode, setSessionMode] = useState<SessionMode | null>(null);
+  const [sessionId] = useState<string>(() => `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
 
   const scenario = useLiveQuery(() => db.scenarios.get(scenarioId));
   const user = useLiveQuery(() => db.users.get('current_user'));
@@ -220,6 +221,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         sarcasmLevel: user?.sarcasmLevel || 'SASSY',
         isFinalTurn,
         mode: sessionMode === 'immersion' ? 'extended' : 'roleplay',
+        sessionId,
       });
 
       // 3. Form Katzu reply with pedagogical evaluation embedded
@@ -331,7 +333,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
     // Save session record in Dexie
     const sessionRecord: SessionEntity = {
-      id: `sess_${Date.now()}`,
+      id: sessionId,
       scenarioId,
       scenarioTitle: scenario?.title_ar || '',
       cefrLevel: effectiveLevel,

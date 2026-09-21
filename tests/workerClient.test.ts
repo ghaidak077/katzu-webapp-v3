@@ -203,4 +203,62 @@ describe('WorkerClient API Contract Integration', () => {
     const translation = await client.translateText('Vielen Dank');
     expect(translation).toBe('شكراً جزيلاً');
   });
+
+  it('exchanges Google ID token for session token via /auth/session', async () => {
+    let capturedUrl = '';
+    let capturedBody: any = null;
+
+    global.fetch = vi.fn().mockImplementation(async (url: string, options: any) => {
+      capturedUrl = url;
+      capturedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        json: async () => ({
+          session_token: 'mock_jwt_session_token_xyz',
+          expires_in: 2592000,
+        }),
+      };
+    });
+
+    const result = await client.exchangeGoogleToken('google_credential_id_token_123');
+    expect(capturedUrl).toBe('https://mock-worker.test/auth/session');
+    expect(capturedBody).toEqual({ id_token: 'google_credential_id_token_123' });
+    expect(result).toEqual({
+      session_token: 'mock_jwt_session_token_xyz',
+      expires_in: 2592000,
+    });
+  });
+
+  it('attaches Authorization Bearer header and session_id on /ai/turn', async () => {
+    let capturedHeaders: any = null;
+    let capturedBody: any = null;
+
+    global.fetch = vi.fn().mockImplementation(async (url: string, options: any) => {
+      capturedHeaders = options.headers;
+      capturedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        json: async () => ({
+          reply_de: 'Hallo!',
+          reply_ar: 'مرحباً!',
+          evaluation: { is_correct: true },
+        }),
+      };
+    });
+
+    await client.sendTurn({
+      scenarioId: 'cafe',
+      scenarioTitle: 'Im Café',
+      userMessage: 'Guten Tag',
+      history: [],
+      cefrLevel: 'A1',
+      idToken: 'session_token_test_abc',
+      sessionId: 'sess_123456789_abcdef',
+      isFinalTurn: true,
+    });
+
+    expect(capturedHeaders['Authorization']).toBe('Bearer session_token_test_abc');
+    expect(capturedBody.session_id).toBe('sess_123456789_abcdef');
+    expect(capturedBody.is_final_turn).toBe(true);
+  });
 });
