@@ -20,6 +20,11 @@ import {
   Volume2,
 } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
+import {
+  getNextPromotionLevel,
+  isEligibleForPromotion,
+  type PromotionSession,
+} from '@/features/report/metrics';
 
 export interface SessionReportScreenProps {
   summary: {
@@ -27,7 +32,7 @@ export interface SessionReportScreenProps {
     scenarioTitle: string;
     cefrLevel: CEFRLevel;
     sentencesSpoken: number;
-    accuracyPercent: number;
+    accuracyPercent: number | null;
     durationSeconds: number;
     independentSentences: number;
     assistedSentences: number;
@@ -41,6 +46,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   onReturnToTrail,
 }) => {
   const user = useLiveQuery(() => db.users.get('current_user'));
+  const sessions = useLiveQuery(() => db.sessions.toArray()) || [];
   const [retypedMistakes, setRetypedMistakes] = useState<Record<number, string>>({});
   const [masteredMistakes, setMasteredMistakes] = useState<Set<number>>(new Set());
   const [isLevelPromoted, setIsLevelPromoted] = useState(false);
@@ -84,21 +90,44 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
     }
   };
 
-  const nextLevelMap: Record<CEFRLevel, CEFRLevel> = {
-    A1: 'A2',
-    A2: 'B1',
-    B1: 'B2',
-    B2: 'B2',
-  };
-  const targetPromotionLevel = nextLevelMap[summary.cefrLevel];
+  const targetPromotionLevel = getNextPromotionLevel(summary.cefrLevel);
+  const currentSessionTimestamp = Date.now();
+  const currentSessionAlreadySaved = sessions.some(
+    (session) =>
+      session.cefrLevel === summary.cefrLevel &&
+      session.sentencesSpoken === summary.sentencesSpoken &&
+      session.timestamp >= currentSessionTimestamp - 10_000,
+  );
+  const promotionSessions: PromotionSession[] = [
+    ...sessions.map((session) => ({
+      cefrLevel: session.cefrLevel,
+      independentSentences:
+        (session as typeof session & { independentSentences?: number }).independentSentences ?? 0,
+      accuracyPercent: session.accuracyPercent,
+      timestamp: session.timestamp,
+    })),
+    ...(currentSessionAlreadySaved
+      ? []
+      : [
+          {
+            cefrLevel: summary.cefrLevel,
+            independentSentences: summary.independentSentences,
+            accuracyPercent: summary.accuracyPercent,
+            timestamp: currentSessionTimestamp,
+          },
+        ]),
+  ];
 
   const handlePromoteLevel = async () => {
+    if (!targetPromotionLevel) return;
     await db.users.update('current_user', { cefrLevel: targetPromotionLevel });
     setIsLevelPromoted(true);
     triggerHaptic('success');
   };
 
-  const canPromote = summary.accuracyPercent >= 75 && summary.cefrLevel !== 'B2';
+  const canPromote =
+    targetPromotionLevel !== null &&
+    isEligibleForPromotion(summary.cefrLevel, promotionSessions);
 
   return (
     <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto relative pb-20">
@@ -131,8 +160,13 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Card className="p-4 text-center border-primary/30 shadow-glow-purple">
           <span className="text-[11px] text-text-secondary block mb-1">دقة التحدث المستقلة</span>
-          <div className="text-2xl font-bold font-german text-primary">{summary.accuracyPercent}%</div>
+          <div className="text-2xl font-bold font-german text-primary">
+            {summary.accuracyPercent === null ? '—' : `${summary.accuracyPercent}%`}
+          </div>
           <span className="text-[10px] text-text-muted">بدون مساعدة تلميحات</span>
+          {summary.accuracyPercent === null && (
+            <span className="text-[10px] text-text-muted block mt-1">لا توجد جمل مستقلة كافية</span>
+          )}
         </Card>
 
         <Card className="p-4 text-center">
@@ -147,7 +181,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
       </div>
 
       {/* Level Promotion Card (Rule 9: >=75% promotion) */}
-      {canPromote && (
+      {canPromote && targetPromotionLevel && (
         <Card variant="hero" className="p-4 mb-6 border border-primary/40 shadow-glow-purple flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5 text-xs font-bold text-primary mb-1">

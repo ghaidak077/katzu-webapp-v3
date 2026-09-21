@@ -1,22 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Katzu PWA
 
-# Run and deploy your AI Studio app
+Katzu is an Arabic-first German conversation practice app for learners preparing to move, work, or study in Germany. It focuses on realistic speaking and listening practice, with honest progress tracking and offline curriculum access.
 
-This contains everything you need to run your app locally.
+## Local development
 
-View your app in AI Studio: https://ai.studio/apps/351042e1-6193-4d44-85e7-7126ad2e114d
+**Prerequisites:** Node.js 20+ and npm.
 
-## Run Locally
+```bash
+npm install
+copy .env.example .env
+npm run dev
+```
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+Set `VITE_GOOGLE_CLIENT_ID` and `VITE_WORKER_URL` for a functional sign-in and Worker-backed AI experience. Gemini secrets belong only in Cloudflare Worker configuration; never put them in `.env` values that Vite exposes to the browser.
 
+## Verification
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
-7. If you have already published your app in AI Studio, please [request upload key reset](https://support.google.com/googleplay/android-developer/answer/9842756#zippy=%2Crequest-an-upload-key-reset) in Google Play Console.
+```bash
+npm run lint
+npm test -- --run
+npm run build
+```
+
+See [DEPLOY.md](./DEPLOY.md) for Cloudflare Worker, D1/KV, Google Identity Services, and Cloudflare Pages deployment steps.

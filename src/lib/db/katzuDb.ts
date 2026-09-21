@@ -10,6 +10,7 @@ import type {
   SessionEntity,
   ScenarioTrainingEntity,
   MistakeEntity,
+  SyncQueueEntity,
 } from '@/types/models';
 
 class KatzuDatabase extends Dexie {
@@ -23,6 +24,7 @@ class KatzuDatabase extends Dexie {
   sessions!: EntityTable<SessionEntity, 'id'>;
   scenario_training!: EntityTable<ScenarioTrainingEntity, 'scenarioId'>;
   mistakes!: EntityTable<MistakeEntity, 'id'>;
+  sync_queue!: EntityTable<SyncQueueEntity, 'id'>;
 
   constructor() {
     super('KatzuWebDB');
@@ -38,6 +40,30 @@ class KatzuDatabase extends Dexie {
       sessions: 'id, scenarioId, cefrLevel, timestamp',
       scenario_training: 'scenarioId, userId, updatedAt',
       mistakes: '++id, userId, scenarioId, timestamp, wasHintUsed',
+    });
+    // Additive sync metadata. Existing rows are retained and receive safe defaults.
+    this.version(2).stores({
+      scenarios: 'id, category',
+      starter_phrases: 'id, scenario_id, level, sort_order',
+      vocabulary: 'id, level, topic, part_of_speech',
+      grammar: 'id, level',
+      saved_words: 'wordId, savedAt',
+      users: 'id, email',
+      redeemed_codes: 'code, redeemedAt',
+      sessions: 'id, scenarioId, cefrLevel, timestamp, updatedAt',
+      scenario_training: 'scenarioId, userId, updatedAt',
+      mistakes: '++id, userId, scenarioId, syncId, timestamp, wasHintUsed, updatedAt',
+      sync_queue: '++id, createdAt, nextRetryAt',
+    }).upgrade(async (tx) => {
+      await tx.table('sessions').toCollection().modify((session: SessionEntity) => {
+        session.independentSentences ??= session.sentencesSpoken;
+        session.hintAssistedSentences ??= 0;
+        session.updatedAt ??= session.timestamp;
+      });
+      await tx.table('mistakes').toCollection().modify((mistake: MistakeEntity) => {
+        mistake.updatedAt ??= mistake.timestamp;
+        mistake.syncId ??= `${mistake.userId}:${mistake.scenarioId}:${mistake.timestamp}:${mistake.original}`;
+      });
     });
   }
 }

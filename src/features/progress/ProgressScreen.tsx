@@ -20,7 +20,9 @@ export const ProgressScreen: React.FC = () => {
   );
   const averageAccuracy =
     sessions.length > 0
-      ? Math.round(sessions.reduce((acc, s) => acc + s.accuracyPercent, 0) / sessions.length)
+      ? Math.round(
+          sessions.reduce((acc, s) => acc + (s.accuracyPercent ?? 0), 0) / sessions.length
+        )
       : 85;
 
   const daysOfWeek = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];

@@ -1,6 +1,7 @@
 // TypeScript models mapping Android Kotlin Models.kt & ContentEntities.kt
 
 export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2';
+export type SessionMode = 'quick' | 'immersion';
 
 export type TrailNodeStatus = 'MASTERED' | 'ACTIVE' | 'UPCOMING' | 'LOCKED';
 
@@ -99,10 +100,14 @@ export interface SessionEntity {
   cefrLevel: CEFRLevel;
   sentencesSpoken: number;
   wordsLearned: number;
-  accuracyPercent: number;
+  accuracyPercent: number | null;
   durationSeconds: number;
   timestamp: number;
   wasIndependentOnly?: boolean;
+  independentSentences?: number;
+  hintAssistedSentences?: number;
+  updatedAt?: number;
+  mode?: SessionMode;
 }
 
 export interface ScenarioTrainingEntity {
@@ -118,6 +123,7 @@ export interface ScenarioTrainingEntity {
 
 export interface MistakeEntity {
   id?: number;
+  syncId?: string;
   userId: string;
   scenarioId: string;
   original: string;
@@ -127,6 +133,15 @@ export interface MistakeEntity {
   timestamp: number;
   wasHintUsed: boolean;
   isMastered?: boolean;
+  updatedAt?: number;
+}
+
+export interface SyncQueueEntity {
+  id?: number;
+  payload: unknown;
+  createdAt: number;
+  attempts: number;
+  nextRetryAt: number;
 }
 
 export interface ChatMessage {

@@ -60,6 +60,7 @@ describe('WorkerClient API Contract Integration', () => {
     expect(capturedBody.scenario_title).toBe('Im Café bestellen');
     expect(capturedBody.cefr_level).toBe('A1');
     expect(capturedBody.user_message).toBe('Ich will ein Kaffee');
+    expect(capturedBody.mode).toBe('roleplay');
     expect(capturedBody.history).toEqual([
       { role: 'model', text: 'Hallo!' },
       { role: 'user', text: 'Hallo Barista' },
@@ -99,12 +100,26 @@ describe('WorkerClient API Contract Integration', () => {
       scenarioTitle: 'Im Café',
       cefrLevel: 'A1',
       lastAiReply: 'Was darf es sein?',
+      history: [
+        { role: 'model', text: 'one' },
+        { role: 'user', text: 'two' },
+        { role: 'model', text: 'three' },
+        { role: 'user', text: 'four' },
+        { role: 'model', text: 'five' },
+      ],
     });
 
     expect(capturedBody).toEqual({
       scenario_title: 'Im Café',
       cefr_level: 'A1',
       last_ai_reply: 'Was darf es sein?',
+      history: [
+        { role: 'user', text: 'two' },
+        { role: 'model', text: 'three' },
+        { role: 'user', text: 'four' },
+        { role: 'model', text: 'five' },
+      ],
+      mode: 'hints',
     });
 
     expect(hints.length).toBe(2);
