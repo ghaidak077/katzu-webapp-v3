@@ -816,7 +816,49 @@ async function handleAiHints(request, env, cors) {
   }
 
   const body = await request.json().catch(() => null);
+
+  // 1. Authenticate user from Google ID token
+  const idToken = extractIdToken(request, body);
+  if (!idToken) {
+    return json({
+      error: "unauthenticated",
+      code: "UNAUTHENTICATED",
+      message: "يرجى تسجيل الدخول بحساب Google أولاً للحصول على التلميحات."
+    }, 401, cors);
+  }
+
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  if (!account) {
+    return json({
+      error: "invalid_id_token",
+      code: "UNAUTHENTICATED",
+      message: "جلسة الدخول غير صالحة أو منتهية. يرجى تسجيل الدخول مجدداً."
+    }, 401, cors);
+  }
+
+  // 2. Enforce per-user rate limiting
+  const rate = checkRateLimit(account.sub, env);
+  if (!rate.allowed) {
+    return json({
+      error: "rate_limit_exceeded",
+      code: "RATE_LIMIT_EXCEEDED",
+      message: "تم تجاوز الحد الأقصى للطلبات مؤقتاً. يرجى الانتظار دقيقة.",
+      retry_after: rate.retryAfter
+    }, 429, cors);
+  }
+
   const { scenario_title, cefr_level, last_ai_reply } = body || {};
+
+  // 3. Enforce active subscription or valid trial entitlement
+  const entitlement = await checkUserEntitlement(account, cefr_level || "A1", env);
+  if (!entitlement.allowed) {
+    return json({
+      error: "subscription_required",
+      code: entitlement.code || "PAYWALL_REQUIRED",
+      message: entitlement.message
+    }, 402, cors);
+  }
+
   const reply = (last_ai_reply || "").trim();
 
   // 1. Check in-memory Edge Cache
