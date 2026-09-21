@@ -12,6 +12,64 @@ import type {
 // Default worker URL matching deployment config
 const WORKER_BASE_URL = (import.meta as any).env?.VITE_WORKER_URL || '';
 
+export interface ProgressPayload {
+  id_token?: string;
+  stats: Record<string, any>;
+  trainings: any[];
+  saved_word_ids: number[];
+  mistakes: any[];
+  session_summaries: any[];
+}
+
+const updatedAt = (value: any): number => typeof value === 'number' ? value : -Infinity;
+
+function mergeLatest<T extends Record<string, any>>(local: T | undefined, remote: T | undefined): T | undefined {
+  if (!local) return remote;
+  if (!remote) return local;
+  return updatedAt(remote.updated_at ?? remote.updatedAt) >= updatedAt(local.updated_at ?? local.updatedAt)
+    ? { ...local, ...remote }
+    : { ...remote, ...local };
+}
+
+function mergeRecords<T extends Record<string, any>>(
+  local: T[] = [],
+  remote: T[] = [],
+  key: (record: T) => string | number | undefined,
+  merge: (a: T, b: T) => T = (a, b) => mergeLatest(a, b) as T,
+): T[] {
+  const records = new Map<string | number, T>();
+  [...local, ...remote].forEach((record) => {
+    const id = key(record);
+    if (id == null) return;
+    const existing = records.get(id);
+    records.set(id, existing ? merge(existing, record) : record);
+  });
+  return [...records.values()];
+}
+
+/** Deterministic client-side merge used both before upload and after restore. */
+export function mergeProgressPayloads(local: ProgressPayload, remote: ProgressPayload): ProgressPayload {
+  const mistakes = mergeRecords(local.mistakes, remote.mistakes, (m) => m.sync_id ?? m.syncId ?? m.id, (a, b) => {
+    const latest = mergeLatest(a, b) || a;
+    return {
+      ...latest,
+      id: a.id ?? b.id,
+      is_mastered: !!a.is_mastered || !!a.isMastered || !!b.is_mastered || !!b.isMastered,
+    };
+  });
+  return {
+    stats: mergeLatest(local.stats, remote.stats) || {},
+    trainings: mergeRecords(local.trainings, remote.trainings, (t) => t.scenario_id ?? t.scenarioId),
+    saved_word_ids: [...new Set([...(local.saved_word_ids || []), ...(remote.saved_word_ids || [])])],
+    mistakes,
+    session_summaries: mergeRecords(
+      local.session_summaries,
+      remote.session_summaries,
+      (s) => s.id,
+    ),
+  };
+}
+
 export function mapRedemptionReasonToArabic(reason?: string): string {
   switch (reason) {
     case 'missing_id_token':
@@ -34,6 +92,12 @@ export class WorkerClient {
 
   constructor(baseUrl: string = WORKER_BASE_URL) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        const token = db.users.get('current_user').then((user) => user?.idToken || '');
+        token.then((value) => { if (value) void this.flushPendingSync(value); });
+      });
+    }
   }
 
   getBaseUrl(): string {
@@ -155,13 +219,20 @@ export class WorkerClient {
     cefrLevel: CEFRLevel;
     sarcasmLevel?: string;
     isFinalTurn?: boolean;
+    mode?: 'roleplay' | 'extended';
     idToken?: string;
   }): Promise<TurnAiResponse> {
-    const currentUser = await db.users.get('current_user');
+    let currentUser;
+    try {
+      currentUser = await db.users.get('current_user');
+    } catch {
+      currentUser = undefined;
+    }
     const token = params.idToken || currentUser?.idToken;
 
     // Map history to worker's expected { role: 'user' | 'model', text: string }
-    const formattedHistory = (params.history || []).slice(-6).map((h) => ({
+    const historyLimit = params.mode === 'extended' ? 10 : 6;
+    const formattedHistory = (params.history || []).slice(-historyLimit).map((h) => ({
       role: (h.sender?.toLowerCase() === 'user' || h.role === 'user') ? 'user' : 'model',
       text: h.text || '',
     }));
@@ -173,6 +244,7 @@ export class WorkerClient {
       cefr_level: params.cefrLevel || 'A1',
       user_message: params.userMessage,
       history: formattedHistory,
+      mode: params.mode || 'roleplay',
       id_token: token,
     };
 
@@ -180,7 +252,7 @@ export class WorkerClient {
       'Content-Type': 'application/json',
     };
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers['Authorization'] = 'Bearer ' + token;
     }
 
     const res = await fetch(`${this.baseUrl}/ai/turn`, {
@@ -239,17 +311,23 @@ export class WorkerClient {
     scenarioTitle: string;
     cefrLevel: CEFRLevel;
     lastAiReply: string;
+    history?: Array<{ sender?: string; role?: string; text: string }>;
     idToken?: string;
   }): Promise<ContextualHint[]> {
     try {
-      const currentUser = await db.users.get('current_user');
+      let currentUser;
+      try {
+        currentUser = await db.users.get('current_user');
+      } catch {
+        currentUser = undefined;
+      }
       const token = params.idToken || currentUser?.idToken;
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      headers['Authorization'] = 'Bearer ' + token;
       }
 
       const res = await fetch(`${this.baseUrl}/ai/hints`, {
@@ -259,6 +337,11 @@ export class WorkerClient {
           scenario_title: params.scenarioTitle,
           cefr_level: params.cefrLevel,
           last_ai_reply: params.lastAiReply,
+          history: (params.history || []).slice(-4).map((h) => ({
+            role: (h.sender?.toLowerCase() === 'user' || h.role === 'user') ? 'user' : 'model',
+            text: h.text || '',
+          })),
+          mode: 'hints',
           id_token: token,
         }),
       });
@@ -423,9 +506,10 @@ export class WorkerClient {
       const user = await db.users.get('current_user');
       const trainings = await db.scenario_training.toArray();
       const savedWords = await db.saved_words.toArray();
+      const mistakes = await db.mistakes.toArray();
+      const sessions = await db.sessions.toArray();
 
-      const payload = {
-        id_token: idToken,
+      const payload: ProgressPayload = {
         stats: {
           level: user?.cefrLevel || 'A1',
           streak_days: user?.streakDays || 0,
@@ -442,18 +526,81 @@ export class WorkerClient {
           updated_at: t.updatedAt || Date.now(),
         })),
         saved_word_ids: savedWords.map((sw) => sw.wordId),
+        mistakes: mistakes.map((m) => ({
+          id: m.id,
+          sync_id: m.syncId || `${m.userId}:${m.scenarioId}:${m.timestamp}:${m.original}`,
+          user_id: m.userId,
+          scenario_id: m.scenarioId,
+          original: m.original,
+          corrected: m.corrected,
+          grammar_rule: m.grammarRule,
+          roast_comment: m.roastComment,
+          timestamp: m.timestamp,
+          was_hint_used: m.wasHintUsed,
+          is_mastered: !!m.isMastered,
+          updated_at: m.updatedAt || m.timestamp,
+        })),
+        session_summaries: sessions.map((s) => ({
+          id: s.id,
+          scenario_id: s.scenarioId,
+          scenario_title: s.scenarioTitle,
+          cefr_level: s.cefrLevel,
+          sentences_spoken: s.sentencesSpoken,
+          words_learned: s.wordsLearned,
+          accuracy_percent: s.accuracyPercent,
+          duration_seconds: s.durationSeconds,
+          timestamp: s.timestamp,
+          independent_sentences: s.independentSentences ?? 0,
+          hint_assisted_sentences: s.hintAssistedSentences ?? 0,
+          updated_at: s.updatedAt || s.timestamp,
+        })),
       };
 
-      const res = await fetch(`${this.baseUrl}/progress/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      return res.ok;
+      const ok = await this.postProgressPayload(payload, idToken);
+      if (ok) await this.flushPendingSync(idToken);
+      else await this.queueSyncPayload(payload);
+      return ok;
     } catch (e) {
       console.error('Progress sync failed:', e);
       return false;
+    }
+  }
+
+  private async postProgressPayload(payload: ProgressPayload, idToken: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/progress/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, id_token: idToken }),
+      });
+      return res.ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  private async queueSyncPayload(payload: ProgressPayload): Promise<void> {
+    await db.sync_queue.add({
+      payload,
+      createdAt: Date.now(),
+      attempts: 0,
+      nextRetryAt: Date.now(),
+    });
+  }
+
+  async flushPendingSync(idToken: string): Promise<void> {
+    if (!idToken) return;
+    const pending = await db.sync_queue.where('nextRetryAt').belowOrEqual(Date.now()).toArray();
+    for (const item of pending) {
+      const ok = await this.postProgressPayload(item.payload as ProgressPayload, idToken);
+      if (ok) {
+        if (item.id != null) await db.sync_queue.delete(item.id);
+      } else if (item.id != null) {
+        await db.sync_queue.update(item.id, {
+          attempts: item.attempts + 1,
+          nextRetryAt: Date.now() + Math.min(60 * 60 * 1000, 1000 * 2 ** Math.min(item.attempts, 10)),
+        });
+      }
     }
   }
 
@@ -461,6 +608,8 @@ export class WorkerClient {
 
   async restoreProgress(idToken: string): Promise<boolean> {
     if (!idToken) return false;
+    // Retry queued writes opportunistically; restoration itself remains UI-blocking only on its read.
+    void this.flushPendingSync(idToken);
 
     try {
       const res = await fetch(`${this.baseUrl}/progress/get`, {
@@ -472,17 +621,41 @@ export class WorkerClient {
       if (res.ok) {
         const data = await res.json();
         if (data && data.stats) {
-          const stats = data.stats;
+          const localTrainings = await db.scenario_training.toArray();
+          const localMistakes = await db.mistakes.toArray();
+          const localSessions = await db.sessions.toArray();
+          const localUser = await db.users.get('current_user');
+          const localPayload: ProgressPayload = {
+            stats: {
+              level: localUser?.cefrLevel || 'A1',
+              streak_days: localUser?.streakDays || 0,
+              total_points: localUser?.totalXp || 0,
+              last_active_date: localUser?.lastActiveDate || null,
+              updated_at: localUser?.updatedAt || 0,
+            },
+            trainings: localTrainings.map((t) => ({ scenario_id: t.scenarioId, studied_at: t.studiedAt, quiz_attempted: t.quizAttempted, last_score: t.lastScore, effective_level: t.effectiveLevel, updated_at: t.updatedAt })),
+            saved_word_ids: (await db.saved_words.toArray()).map((w) => w.wordId),
+            mistakes: localMistakes.map((m) => ({ ...m, sync_id: m.syncId || `${m.userId}:${m.scenarioId}:${m.timestamp}:${m.original}`, is_mastered: m.isMastered, updated_at: m.updatedAt || m.timestamp })),
+            session_summaries: localSessions,
+          };
+          const merged = mergeProgressPayloads(localPayload, {
+            stats: data.stats,
+            trainings: data.trainings || [],
+            saved_word_ids: data.saved_word_ids || [],
+            mistakes: data.mistakes || [],
+            session_summaries: data.session_summaries || data.sessions || [],
+          });
+          const stats = merged.stats;
           await db.users.update('current_user', {
             cefrLevel: stats.level || 'A1',
             streakDays: stats.streak_days ?? 0,
             totalXp: stats.total_points ?? 0,
             lastActiveDate: stats.last_active_date || null,
-            updatedAt: data.updated_at || Date.now(),
+            updatedAt: stats.updated_at || data.updated_at || Date.now(),
           });
 
-          if (Array.isArray(data.trainings) && data.trainings.length > 0) {
-            const mappedTrainings = data.trainings.map((t: any) => ({
+          if (merged.trainings.length > 0) {
+            const mappedTrainings = merged.trainings.map((t: any) => ({
               scenarioId: t.scenario_id,
               userId: 'current_user',
               studiedAt: t.studied_at || null,
@@ -494,12 +667,45 @@ export class WorkerClient {
             await db.scenario_training.bulkPut(mappedTrainings);
           }
 
-          if (Array.isArray(data.saved_word_ids) && data.saved_word_ids.length > 0) {
-            const mappedSavedWords = data.saved_word_ids.map((id: number) => ({
+          if (merged.saved_word_ids.length > 0) {
+            const mappedSavedWords = merged.saved_word_ids.map((id: number) => ({
               wordId: id,
               savedAt: Date.now(),
             }));
             await db.saved_words.bulkPut(mappedSavedWords);
+          }
+
+          if (merged.mistakes.length > 0) {
+            await db.mistakes.bulkPut(merged.mistakes.map((m: any) => ({
+              id: m.id,
+              syncId: m.sync_id || m.syncId,
+              userId: m.user_id || m.userId || 'current_user',
+              scenarioId: m.scenario_id || m.scenarioId,
+              original: m.original || '',
+              corrected: m.corrected || '',
+              grammarRule: m.grammar_rule || m.grammarRule || '',
+              roastComment: m.roast_comment || m.roastComment,
+              timestamp: m.timestamp || Date.now(),
+              wasHintUsed: !!(m.was_hint_used ?? m.wasHintUsed),
+              isMastered: !!(m.is_mastered ?? m.isMastered),
+              updatedAt: m.updated_at || m.updatedAt || m.timestamp || Date.now(),
+            })));
+          }
+          if (merged.session_summaries.length > 0) {
+            await db.sessions.bulkPut(merged.session_summaries.map((s: any) => ({
+              id: s.id,
+              scenarioId: s.scenario_id || s.scenarioId,
+              scenarioTitle: s.scenario_title || s.scenarioTitle || '',
+              cefrLevel: s.cefr_level || s.cefrLevel || 'A1',
+              sentencesSpoken: s.sentences_spoken ?? s.sentencesSpoken ?? 0,
+              wordsLearned: s.words_learned ?? s.wordsLearned ?? 0,
+              accuracyPercent: s.accuracy_percent ?? s.accuracyPercent ?? 0,
+              durationSeconds: s.duration_seconds ?? s.durationSeconds ?? 0,
+              timestamp: s.timestamp || Date.now(),
+              independentSentences: s.independent_sentences ?? s.independentSentences ?? 0,
+              hintAssistedSentences: s.hint_assisted_sentences ?? s.hintAssistedSentences ?? 0,
+              updatedAt: s.updated_at ?? s.updatedAt ?? s.timestamp ?? Date.now(),
+            })));
           }
 
           return true;
@@ -520,7 +726,7 @@ export class WorkerClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
+          'Authorization': 'Bearer ' + idToken,
         },
         body: JSON.stringify({ id_token: idToken }),
       });

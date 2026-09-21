@@ -171,27 +171,43 @@ function getGeminiApiKeys(env) {
 
 function getCorsHeaders(request, env = {}) {
   const origin = request.headers.get("Origin") || "";
-  const allowed = (env?.ALLOWED_ORIGINS || "")
+  const configuredOrigins = typeof env?.ALLOWED_ORIGINS === "string"
+    ? env.ALLOWED_ORIGINS
+    : "";
+  const allowed = configuredOrigins
     .split(",")
     .map(s => s.trim())
     .filter(Boolean);
+  const production = ["production", "prod"].includes(
+    String(env?.ENVIRONMENT || env?.NODE_ENV || "").toLowerCase()
+  );
+  const validOrigin = (value) => {
+    try {
+      const parsed = new URL(value);
+      return ["http:", "https:"].includes(parsed.protocol) && !parsed.username && !parsed.password;
+    } catch {
+      return false;
+    }
+  };
+  const validConfiguration = allowed.length > 0 && allowed.every(validOrigin);
+  const originAllowed = !origin || (validConfiguration && allowed.includes(origin));
+  const allowOrigin = origin && originAllowed ? origin : "";
 
-  let allowOrigin = "";
-  if (allowed.length === 0) {
-    allowOrigin = origin || "*";
-  } else if (allowed.includes(origin)) {
-    allowOrigin = origin;
-  } else {
-    allowOrigin = allowed[0];
-  }
-
-  return {
+  const headers = {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
     "Access-Control-Allow-Credentials": "true",
     "Vary": "Origin",
+    "X-Content-Type-Options": "nosniff",
+    "Cache-Control": "no-store",
+    ...(production && !validConfiguration ? { "X-Cors-Configuration": "invalid" } : {}),
   };
+  Object.defineProperty(headers, "_corsAllowed", {
+    value: originAllowed,
+    enumerable: false,
+  });
+  return headers;
 }
 
 function extractIdToken(request, body) {
@@ -289,6 +305,50 @@ async function checkUserEntitlement(account, cefrLevel, env = {}) {
   return { allowed: true, isSubscribed: false, trialSessionsRemaining: maxTrialSessions - trialSessionsUsed };
 }
 
+async function authenticateAiRequest(request, body, env, cors, {
+  level = null,
+  requireEntitlement = false,
+  rateLimit = true,
+} = {}) {
+  const idToken = extractIdToken(request, body);
+  if (!idToken) {
+    return { response: json({ error: "unauthenticated", code: "UNAUTHENTICATED" }, 401, cors) };
+  }
+
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  if (!account) {
+    return { response: json({ error: "invalid_id_token", code: "UNAUTHENTICATED" }, 401, cors) };
+  }
+
+  if (rateLimit) {
+    const rate = checkRateLimit(account.sub, env);
+    if (!rate.allowed) {
+      return {
+        response: json({
+          error: "rate_limit_exceeded",
+          code: "RATE_LIMIT_EXCEEDED",
+          retry_after: rate.retryAfter
+        }, 429, cors)
+      };
+    }
+  }
+
+  if (requireEntitlement) {
+    const entitlement = await checkUserEntitlement(account, level || "A1", env);
+    if (!entitlement.allowed) {
+      return {
+        response: json({
+          error: "subscription_required",
+          code: entitlement.code || "PAYWALL_REQUIRED",
+          message: entitlement.message
+        }, 402, cors)
+      };
+    }
+  }
+
+  return { account };
+}
+
 async function handleDeleteUser(request, env, cors) {
   const body = await request.json().catch(() => null);
   const idToken = extractIdToken(request, body);
@@ -326,8 +386,15 @@ export default {
     const url = new URL(request.url);
     const cors = getCorsHeaders(request, env);
 
+    if (!cors._corsAllowed) {
+      const headers = { ...cors };
+      delete headers._corsAllowed;
+      return json({ error: "origin_not_allowed" }, 403, headers);
+    }
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: cors });
+      const headers = { ...cors };
+      delete headers._corsAllowed;
+      return new Response(null, { headers });
     }
 
     // Enforce request size limit (64 KB)
@@ -441,7 +508,8 @@ export default {
 
       return json({ error: "not_found" }, 404, cors);
     } catch (err) {
-      return json({ error: "server_error", detail: String(err) }, 500, cors);
+      console.error("[Worker Error]", err);
+      return json({ error: "server_error" }, 500, cors);
     }
   },
 };
@@ -561,6 +629,7 @@ function cleanJson(raw) {
         return JSON.parse(sanitized);
       } catch (_) {}
     }
+
   }
 
   // 3. Fallback regex field extraction so an error is NEVER thrown to user
@@ -603,158 +672,82 @@ function cleanJson(raw) {
   };
 }
 
+function boundedHistory(history, mode = "roleplay") {
+  const limit = mode === "extended" ? 10 : mode === "hints" ? 4 : 6;
+  return (Array.isArray(history) ? history : []).slice(-limit);
+}
+
 // ----------------------------------------------------------------------------
-// SINGLE-PROMPT TURN FUSION (2x Speed & 50% Quota Savings)
+// SEPARATE ROLEPLAY AND PEDAGOGICAL EVALUATION
 // ----------------------------------------------------------------------------
 
 async function handleAiConversationTurn(request, env, cors) {
   const apiKeys = getGeminiApiKeys(env);
-  if (apiKeys.length === 0) {
-    return json({ error: "No Gemini API keys configured. Set GEMINI_API_KEYS in Cloudflare settings." }, 500, cors);
-  }
+  if (apiKeys.length === 0) return json({ error: "ai_unavailable" }, 503, cors);
 
   const body = await request.json().catch(() => null);
-  if (!body || !body.user_message) {
-    return json({ error: "user_message required" }, 400, cors);
-  }
+  if (!body || !body.user_message) return json({ error: "user_message required" }, 400, cors);
 
-  // 1. Authenticate user from Google ID token
   const idToken = extractIdToken(request, body);
-  if (!idToken) {
-    return json({
-      error: "unauthenticated",
-      code: "UNAUTHENTICATED",
-      message: "يرجى تسجيل الدخول بحساب Google أولاً لمتابعة المحادثة."
-    }, 401, cors);
-  }
-
+  if (!idToken) return json({ error: "unauthenticated", code: "UNAUTHENTICATED", message: "يرجى تسجيل الدخول بحساب Google أولاً لمتابعة المحادثة." }, 401, cors);
   const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
-  if (!account) {
-    return json({
-      error: "invalid_id_token",
-      code: "UNAUTHENTICATED",
-      message: "جلسة الدخول غير صالحة أو منتهية. يرجى تسجيل الدخول مجدداً."
-    }, 401, cors);
-  }
+  if (!account) return json({ error: "invalid_id_token", code: "UNAUTHENTICATED", message: "جلسة الدخول غير صالحة أو منتهية. يرجى تسجيل الدخول مجدداً." }, 401, cors);
 
-  // 2. Enforce per-user rate limiting
   const rate = checkRateLimit(account.sub, env);
-  if (!rate.allowed) {
-    return json({
-      error: "rate_limit_exceeded",
-      code: "RATE_LIMIT_EXCEEDED",
-      message: "تم تجاوز الحد الأقصى للمحادثات مؤقتاً. يرجى الانتظار دقيقة.",
-      retry_after: rate.retryAfter
-    }, 429, cors);
-  }
+  if (!rate.allowed) return json({ error: "rate_limit_exceeded", code: "RATE_LIMIT_EXCEEDED", message: "تم تجاوز الحد الأقصى للمحادثات مؤقتاً. يرجى الانتظار دقيقة.", retry_after: rate.retryAfter }, 429, cors);
 
-  // 3. Enforce active subscription or valid trial entitlement
-  const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn } = body;
+  const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn, mode } = body;
   const level = cefr_level || "A1";
-
   const entitlement = await checkUserEntitlement(account, level, env);
-  if (!entitlement.allowed) {
-    return json({
-      error: "subscription_required",
-      code: entitlement.code || "PAYWALL_REQUIRED",
-      message: entitlement.message
-    }, 402, cors);
-  }
+  if (!entitlement.allowed) return json({ error: "subscription_required", code: entitlement.code || "PAYWALL_REQUIRED", message: entitlement.message }, 402, cors);
 
-  const wrapUpInstruction = is_final_turn ? `
-- CRITICAL FINAL TURN CONCLUSION: This is the FINAL exchange of this scenario. The learner is concluding the interaction.
-- Provide a warm, friendly, realistic farewell and conclusion appropriate to this scenario (e.g. 'Auf Wiedersehen und einen schönen Tag noch!', 'Gute Besserung und tschüss!', 'Danke für Ihren Besuch, auf Wiedersehen!').
-- Strictly DO NOT ask any new questions or introduce any new topics. Conclude the interaction warmly.` : `
-- Continue the conversational German roleplay naturally in character at level ${level}.`;
-
-  const systemInstruction = `You are an expert native German language teacher and conversational counterpart in roleplay '${scenario_title || scenario_id}'.
-Persona: ${persona || "friendly conversational partner"}.
-Target Learner CEFR Level: ${level}.
-
-YOUR DUAL MISSION:
-1. Continue the conversational German roleplay naturally in character at level ${level}. ${wrapUpInstruction}
-2. Provide an accurate Modern Standard Arabic translation of your reply.
-3. Perform a rigorous pedagogical evaluation of the learner's German message: "${user_message}".
-4. Generate exactly 3 practical German response options (hints) for the learner to reply to your reply_de: Option 1 (direct answer or acceptance), Option 2 (alternative choice or preference), Option 3 (polite inquiry, question, or follow-up), with natural Modern Standard Arabic translations.
-
-CRITICAL PEDAGOGICAL & CULTURAL RULES:
-- Never translate secular German greetings ("Hallo", "Guten Tag", "Guten Morgen", "Guten Abend") into "السلام عليكم". Always use "مرحباً", "أهلاً", "صباح الخير", "مساء الخير".
-- Keep reply_de completely in natural German suitable for ${level}.
-- If the learner made a mistake: set is_correct=false, identify original_mistake, give corrected_german, name the grammar_rule in German, explain it clearly in Arabic (explanation_ar), and add warm positive encouragement in Arabic (positive_note_ar).
-- If the learner is correct: set is_correct=true, set original_mistake="", provide concise praise in positive_note_ar.
-
-Respond STRICTLY in this JSON structure:
-{
-  "reply_de": "string",
-  "reply_ar": "string",
-  "evaluation": {
-    "is_correct": boolean,
-    "original_mistake": "string",
-    "corrected_german": "string",
-    "grammar_rule": "string",
-    "explanation_ar": "string",
-    "user_message_translation_ar": "string",
-    "positive_note_ar": "string"
-  },
-  "hints": [
-    { "german": "string", "translation_ar": "string" },
-    { "german": "string", "translation_ar": "string" },
-    { "german": "string", "translation_ar": "string" }
-  ]
-}
-`;
+  const wrapUpInstruction = is_final_turn
+    ? "This is the final exchange. Give a warm realistic farewell and do not ask a new question."
+    : `Continue naturally at CEFR level ${level}.`;
+  const roleplayInstruction = `You are the in-character native German roleplay counterpart in '${scenario_title || scenario_id}'.
+Persona: ${persona || "friendly conversational partner"}. Target learner CEFR level: ${level}.
+${wrapUpInstruction}
+Return a natural German reply and its Modern Standard Arabic translation. Never translate secular German greetings as السلام عليكم.
+Respond strictly as JSON: {"reply_de":"string","reply_ar":"string"}`;
+  const evaluationInstruction = `You are Katzu, a precise Arabic-speaking German grammar coach.
+Evaluate ONLY the learner's latest German sentence against CEFR level ${level}. Do not use conversation history, scenario context, or the roleplay persona.
+Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","corrected_german":"string","grammar_rule":"string","explanation_ar":"string","user_message_translation_ar":"string","positive_note_ar":"string"}`;
 
   const conversationPayload = {
-    systemInstruction: { parts: [{ text: systemInstruction }] },
+    systemInstruction: { parts: [{ text: roleplayInstruction }] },
     contents: [
-      ...(history || []).map(h => ({
+      ...boundedHistory(history, mode).map(h => ({
         role: h.role === "user" ? "user" : "model",
-        parts: [{ text: h.text }]
+        parts: [{ text: h.text || "" }]
       })),
       { role: "user", parts: [{ text: user_message }] }
     ],
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.3,
-      maxOutputTokens: 1150
-    }
+    generationConfig: { responseMimeType: "application/json", temperature: 0.3, maxOutputTokens: 250 }
+  };
+  const evaluationPayload = {
+    systemInstruction: { parts: [{ text: evaluationInstruction }] },
+    contents: [{ role: "user", parts: [{ text: user_message }] }],
+    generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 350 }
   };
 
   try {
-    const raw = await callGeminiWithFailover(apiKeys, conversationPayload);
-    const parsed = cleanJson(raw);
-
-    const evaluation = parsed.evaluation || {
-      is_correct: true,
-      original_mistake: "",
-      corrected_german: user_message,
-      grammar_rule: "Allgemeine Kommunikation",
-      explanation_ar: "جملتك واضحة وصحيحة في سياق المحادثة.",
-      user_message_translation_ar: "",
-      positive_note_ar: "أحسنت! استمر في التحدث بثقة."
-    };
-
-    let hints = Array.isArray(parsed.hints) ? parsed.hints : [];
-    if (hints.length === 0 && typeof raw === "string") {
-      const germanMatches = [...raw.matchAll(/"german"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g)].map(m => m[1]);
-      const arMatches = [...raw.matchAll(/"translation_ar"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g)].map(m => m[1]);
-      for (let i = 0; i < germanMatches.length && i < arMatches.length; i++) {
-        hints.push({
-          german: germanMatches[i].replace(/\\"/g, '"'),
-          translation_ar: arMatches[i].replace(/\\"/g, '"')
-        });
-      }
-    }
-
+    // These calls intentionally have separate prompts/personas and independent inputs.
+    const [roleplayRaw, evaluationRaw] = await Promise.all([
+      callGeminiWithFailover(apiKeys, conversationPayload),
+      callGeminiWithFailover(apiKeys, evaluationPayload)
+    ]);
+    const roleplay = cleanJson(roleplayRaw);
+    const evaluationParsed = cleanJson(evaluationRaw);
+    const evaluation = evaluationParsed.evaluation || evaluationParsed;
     return json({
-      reply_de: parsed.reply_de || "Danke!",
-      reply_ar: parsed.reply_ar || "شكراً!",
-      evaluation: evaluation,
-      hints: hints
+      reply_de: roleplay.reply_de || "Danke!",
+      reply_ar: roleplay.reply_ar || "شكراً!",
+      evaluation: evaluation && typeof evaluation === "object" ? evaluation : {},
+      hints: []
     }, 200, cors);
   } catch (err) {
-    console.error("[Unified Turn Error]", err);
-    return json({ error: "ai_error", detail: String(err) }, 500, cors);
+    console.error("[Separated Turn Error]", err);
+    return json({ error: "ai_error", message: "تعذر إكمال دور المحادثة والتقييم." }, 502, cors);
   }
 }
 
@@ -763,14 +756,18 @@ Respond STRICTLY in this JSON structure:
 // ----------------------------------------------------------------------------
 
 async function handleAiTranslation(request, env, cors) {
-  const apiKeys = getGeminiApiKeys(env);
-  if (apiKeys.length === 0) {
-    return json({ error: "No Gemini API keys configured." }, 500, cors);
-  }
-
   const body = await request.json().catch(() => null);
+  // Translation is intentionally available to every authenticated learner (including
+  // trial users) because it supports core comprehension; it remains rate-limited.
+  const auth = await authenticateAiRequest(request, body, env, cors);
+  if (auth.response) return auth.response;
+
   const text = (body?.text || "").trim();
   if (!text) return json({ translation_ar: "" }, 200, cors);
+  const apiKeys = getGeminiApiKeys(env);
+  if (apiKeys.length === 0) {
+    return json({ error: "ai_unavailable" }, 503, cors);
+  }
 
   // 1. Check in-memory Edge Cache (0ms latency, zero quota used)
   const cacheKey = text.toLowerCase();
@@ -810,17 +807,23 @@ Respond strictly in JSON:
 // ----------------------------------------------------------------------------
 
 async function handleAiHints(request, env, cors) {
+  const body = await request.json().catch(() => null);
+  const { scenario_title, cefr_level, last_ai_reply, history } = body || {};
+  const auth = await authenticateAiRequest(request, body, env, cors, {
+    level: cefr_level || "A1",
+    requireEntitlement: true,
+  });
+  if (auth.response) return auth.response;
+
+  const reply = (last_ai_reply || "").trim();
+  const recentHistory = boundedHistory(history, "hints");
   const apiKeys = getGeminiApiKeys(env);
   if (apiKeys.length === 0) {
-    return json({ error: "No Gemini API keys configured." }, 500, cors);
+    return json({ error: "ai_unavailable" }, 503, cors);
   }
 
-  const body = await request.json().catch(() => null);
-  const { scenario_title, cefr_level, last_ai_reply } = body || {};
-  const reply = (last_ai_reply || "").trim();
-
   // 1. Check in-memory Edge Cache
-  const cacheKey = `${cefr_level || "A1"}:${scenario_title || ""}:${reply}`.toLowerCase();
+  const cacheKey = `${cefr_level || "A1"}:${scenario_title || ""}:${reply}:${JSON.stringify(recentHistory)}`.toLowerCase();
   const cached = getCache(hintsCache, cacheKey);
   if (cached) {
     return json({ hints: cached, cached: true }, 200, cors);
@@ -828,6 +831,7 @@ async function handleAiHints(request, env, cors) {
 
   const prompt = `Generate exactly 3 practical German response options for an Arabic-speaking learner to reply to: "${reply}".
 Level: ${cefr_level || "A1"}. Scenario: ${scenario_title || ""}.
+Use only this bounded recent conversation context (at most the last four messages): ${JSON.stringify(recentHistory)}.
 Never use religious greeting substitutions.
 Respond strictly in JSON:
 {
@@ -843,7 +847,7 @@ Respond strictly in JSON:
     generationConfig: {
       responseMimeType: "application/json",
       temperature: 0.3,
-      maxOutputTokens: 380
+      maxOutputTokens: 200
     }
   };
 
@@ -1027,6 +1031,8 @@ async function handleProgressSync(request, env, cors) {
   const incomingStats = body?.stats;
   const incomingTrainings = body?.trainings;
   const incomingSavedWordIds = body?.saved_word_ids;
+  const incomingMistakes = body?.mistakes;
+  const incomingSessionSummaries = body?.session_summaries;
 
   if (!idToken || typeof idToken !== "string") {
     return json({ error: "missing_id_token" }, 400, cors);
@@ -1049,6 +1055,8 @@ async function handleProgressSync(request, env, cors) {
       stats: incomingStats || {},
       trainings: incomingTrainings || [],
       saved_word_ids: incomingSavedWordIds || [],
+      mistakes: incomingMistakes || [],
+      session_summaries: incomingSessionSummaries || [],
       updated_at: now,
     };
   } else {
@@ -1056,6 +1064,8 @@ async function handleProgressSync(request, env, cors) {
       stats: mergeStats(existing.stats, incomingStats),
       trainings: mergeTrainings(existing.trainings, incomingTrainings),
       saved_word_ids: mergeSavedWordIds(existing.saved_word_ids, incomingSavedWordIds),
+      mistakes: mergeMistakes(existing.mistakes, incomingMistakes),
+      session_summaries: mergeSessionSummaries(existing.session_summaries, incomingSessionSummaries),
       updated_at: now,
     };
   }
@@ -1087,6 +1097,8 @@ async function handleProgressGet(request, env, cors) {
       stats: { level: "A1", streak_days: 0, total_points: 0, last_active_date: null },
       trainings: [],
       saved_word_ids: [],
+      mistakes: [],
+      session_summaries: [],
     }, 200, cors);
   }
 
@@ -1096,10 +1108,19 @@ async function handleProgressGet(request, env, cors) {
 function mergeStats(existingStats, incomingStats) {
   if (!existingStats) return incomingStats || {};
   if (!incomingStats) return existingStats;
-  const existingUpdated = typeof existingStats.updated_at === "number" ? existingStats.updated_at : -Infinity;
-  const incomingUpdated = typeof incomingStats.updated_at === "number" ? incomingStats.updated_at : -Infinity;
-  if (incomingUpdated >= existingUpdated) return incomingStats;
-  return existingStats;
+  const levelRank = { A1: 1, A2: 2, B1: 3, B2: 4 };
+  const latest = (incomingStats.updated_at || 0) >= (existingStats.updated_at || 0)
+    ? incomingStats
+    : existingStats;
+  return {
+    ...existingStats,
+    ...latest,
+    total_points: Math.max(existingStats.total_points || 0, incomingStats.total_points || 0),
+    streak_days: Math.max(existingStats.streak_days || 0, incomingStats.streak_days || 0),
+    level: (levelRank[incomingStats.level] || 0) >= (levelRank[existingStats.level] || 0)
+      ? (incomingStats.level || existingStats.level)
+      : existingStats.level,
+  };
 }
 
 function mergeTrainings(existingTrainings, incomingTrainings) {
@@ -1150,6 +1171,35 @@ function mergeSavedWordIds(existingIds, incomingIds) {
   return [...set];
 }
 
+function mergeMistakes(existingMistakes, incomingMistakes) {
+  const map = new Map();
+  for (const mistake of [...(existingMistakes || []), ...(incomingMistakes || [])]) {
+    if (!mistake) continue;
+    const id = mistake.sync_id || mistake.syncId || mistake.id ||
+      `${mistake.user_id || mistake.userId || ""}:${mistake.scenario_id || mistake.scenarioId || ""}:${mistake.timestamp || ""}:${mistake.original || ""}`;
+    if (!id) continue;
+    const previous = map.get(id);
+    const latest = !previous || (mistake.updated_at || mistake.updatedAt || 0) >= (previous.updated_at || previous.updatedAt || 0)
+      ? { ...(previous || {}), ...mistake }
+      : { ...mistake, ...previous };
+    latest.is_mastered = Boolean(previous?.is_mastered || previous?.isMastered || mistake.is_mastered || mistake.isMastered);
+    map.set(id, latest);
+  }
+  return [...map.values()];
+}
+
+function mergeSessionSummaries(existingSessions, incomingSessions) {
+  const map = new Map();
+  for (const session of [...(existingSessions || []), ...(incomingSessions || [])]) {
+    if (!session || session.id == null) continue;
+    const previous = map.get(session.id);
+    map.set(session.id, !previous || (session.updated_at || session.updatedAt || 0) >= (previous.updated_at || previous.updatedAt || 0)
+      ? { ...(previous || {}), ...session }
+      : { ...session, ...previous });
+  }
+  return [...map.values()];
+}
+
 function parseCode(code) {
   const match = code.trim().match(/^DE-(\d{1,2})M-([A-Z0-9]+)-([A-F0-9]+)$/i);
   if (!match) return null;
@@ -1182,11 +1232,11 @@ async function verifyGoogleIdToken(idToken, expectedClientId, env = {}) {
     return null;
   }
 
-  if (!payload || !payload.sub) return null;
+  if (!payload || typeof payload.sub !== "string" || !payload.sub) return null;
 
   // 2. Check expiration (exp in epoch seconds)
   const nowSec = Math.floor(Date.now() / 1000);
-  if (typeof payload.exp === "number" && payload.exp < nowSec) {
+  if (typeof payload.exp !== "number" || payload.exp <= nowSec) {
     return null;
   }
 
@@ -1197,7 +1247,7 @@ async function verifyGoogleIdToken(idToken, expectedClientId, env = {}) {
 
   // 4. Check issuer
   const validIssuers = ["accounts.google.com", "https://accounts.google.com"];
-  if (payload.iss && !validIssuers.includes(payload.iss)) {
+  if (!validIssuers.includes(payload.iss)) {
     return null;
   }
 
@@ -1205,7 +1255,7 @@ async function verifyGoogleIdToken(idToken, expectedClientId, env = {}) {
   try {
     const headerStr = atob(parts[0].replace(/-/g, "+").replace(/_/g, "/"));
     const header = JSON.parse(headerStr);
-    if (!header.alg || header.alg === "none") {
+    if (header.alg !== "RS256") {
       return null;
     }
   } catch {
@@ -1226,6 +1276,7 @@ async function verifyGoogleIdToken(idToken, expectedClientId, env = {}) {
     if (!data.sub) return null;
     if (data.exp && parseInt(data.exp, 10) < nowSec) return null;
     if (data.iss && !validIssuers.includes(data.iss)) return null;
+    if (!data.iss || !validIssuers.includes(data.iss)) return null;
     return { sub: data.sub, email: data.email || "" };
   } catch {
     return null;
@@ -1247,6 +1298,12 @@ function addMonthsIso(existingIso, months) {
 function json(obj, status, cors) {
   return new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json", ...cors } });
 }
+
+export {
+  checkRateLimit,
+  getCorsHeaders,
+  verifyGoogleIdToken,
+};
 
 // ============================================================================
 // WORKER 2 IMPLEMENTATION (D1 CONTENT DATABASE CMS)

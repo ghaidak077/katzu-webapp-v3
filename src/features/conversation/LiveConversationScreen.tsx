@@ -29,7 +29,10 @@ import type {
   ContextualHint,
   CEFRLevel,
   VocabularyEntity,
+  SessionEntity,
+  SessionMode,
 } from '@/types/models';
+import { calculateIndependentAccuracy } from '@/features/report/metrics';
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
@@ -39,7 +42,7 @@ export interface LiveConversationScreenProps {
     scenarioTitle: string;
     cefrLevel: CEFRLevel;
     sentencesSpoken: number;
-    accuracyPercent: number;
+    accuracyPercent: number | null;
     durationSeconds: number;
     independentSentences: number;
     assistedSentences: number;
@@ -60,6 +63,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const [isHintUsedForCurrentTurn, setIsHintUsedForCurrentTurn] = useState(false);
   const [selectedWordForInsight, setSelectedWordForInsight] = useState<VocabularyEntity | null>(null);
   const [startTime] = useState<number>(Date.now());
+  const [sessionMode, setSessionMode] = useState<SessionMode | null>(null);
 
   const scenario = useLiveQuery(() => db.scenarios.get(scenarioId));
   const user = useLiveQuery(() => db.users.get('current_user'));
@@ -80,7 +84,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const effectiveLevel = currentLevel;
 
   // Automated CEFR Exchange Target turns (Rule 7)
-  const targetTurns = effectiveLevel === 'A1' ? 3 : effectiveLevel === 'A2' ? 4 : effectiveLevel === 'B1' ? 5 : 6;
+  const targetTurns = sessionMode === 'immersion'
+    ? (effectiveLevel === 'A1' || effectiveLevel === 'A2' ? 8 : 10)
+    : effectiveLevel === 'A1' ? 3 : effectiveLevel === 'A2' ? 4 : effectiveLevel === 'B1' ? 5 : 6;
   const userTurnsCount = messages.filter((m) => m.sender === 'USER').length;
 
   // Real-time difficulty nudge handlers (Rule: Real-time difficulty nudge أسهل / أصعب)
@@ -116,7 +122,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
   // Initial message and starter hints (Rule 5: No call needed for turn 0)
   useEffect(() => {
-    if (!scenario) return;
+    if (!scenario || !sessionMode) return;
 
     const initialMsgText =
       effectiveLevel === 'A1'
@@ -149,7 +155,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           );
         }
       });
-  }, [scenario, scenarioId, effectiveLevel]);
+  }, [scenario, scenarioId, effectiveLevel, sessionMode]);
 
   // Handle German word click for insight
   const handleWordClick = (wordRaw: string) => {
@@ -213,6 +219,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         scenarioTitle: scenario?.title_de || '',
         sarcasmLevel: user?.sarcasmLevel || 'SASSY',
         isFinalTurn,
+        mode: sessionMode === 'immersion' ? 'extended' : 'roleplay',
       });
 
       // 3. Form Katzu reply with pedagogical evaluation embedded
@@ -257,6 +264,10 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           scenarioTitle: scenario?.title_de || '',
           cefrLevel: effectiveLevel,
           lastAiReply: res.germanReply,
+          history: updatedHistory.map((m) => ({
+            sender: m.sender === 'USER' ? 'user' : 'model',
+            text: m.germanText,
+          })),
         })
         .then((newHints) => {
           if (newHints && newHints.length > 0) {
@@ -304,13 +315,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     });
 
     const independentTurns = userMsgTurns.filter((t) => !t.wasHintUsed);
-    const independentErrors = independentTurns.filter((t) => t.hasError).length;
-
-    const accuracy = independentTurns.length > 0
-      ? Math.max(20, Math.round(((independentTurns.length - independentErrors) / independentTurns.length) * 100))
-      : userMsgs.length > 0
-      ? 60 // Base baseline if learner used hints on all turns
-      : 100;
+    const accuracy = calculateIndependentAccuracy(
+      independentTurns.map((turn) => ({ hasError: turn.hasError })),
+    );
 
     const mistakesList = finalMessages
       .filter((m) => m.hasCorrection && m.originalMistake && m.correctedGerman)
@@ -323,7 +330,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     const duration = Math.round((Date.now() - startTime) / 1000);
 
     // Save session record in Dexie
-    db.sessions.put({
+    const sessionRecord: SessionEntity = {
       id: `sess_${Date.now()}`,
       scenarioId,
       scenarioTitle: scenario?.title_ar || '',
@@ -334,10 +341,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       durationSeconds: duration,
       timestamp: Date.now(),
       wasIndependentOnly: assistedMsgs.length === 0,
-    });
+      independentSentences: independentMsgs.length,
+      hintAssistedSentences: assistedMsgs.length,
+      mode: sessionMode || 'quick',
+    };
+    db.sessions.put(sessionRecord);
 
     // Update user stats, XP, and decrement free trial if not Pro
-    const earnedXp = Math.round(accuracy * 1.5) + (assistedMsgs.length === 0 ? 50 : 25);
+    const earnedXp = Math.round((accuracy ?? 0) * 1.5) + (assistedMsgs.length === 0 ? 50 : 25);
     const newFreeRemaining = !user?.isSubscriptionActive
       ? Math.max(0, (user?.freeSessionsRemaining ?? 3) - 1)
       : user?.freeSessionsRemaining ?? 3;
@@ -368,6 +379,49 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       mistakes: mistakesList,
     });
   };
+
+  if (!sessionMode) {
+    return (
+      <main className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col justify-center">
+        <button
+          type="button"
+          onClick={onBack}
+          className="self-start p-2 rounded-2xl bg-surface-card border border-border-subtle mb-8"
+          aria-label="العودة"
+        >
+          <ArrowRight className="w-5 h-5 text-text-secondary" />
+        </button>
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold font-arabic mb-2">اختر طريقة التدريب</h1>
+          <p className="text-sm text-text-secondary font-arabic">
+            اختر الوقت المناسب لك، وسنحافظ على تقدمك بصراحة.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setSessionMode('quick')}
+            className="w-full text-start rounded-3xl bg-surface-card border border-primary/40 p-5 hover:bg-surface-subtle"
+          >
+            <strong className="block font-arabic text-primary mb-1">تمرين سريع</strong>
+            <span className="text-xs text-text-secondary font-arabic">
+              {effectiveLevel === 'A1' ? 3 : effectiveLevel === 'A2' ? 4 : effectiveLevel === 'B1' ? 5 : 6} جولات مركزة
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSessionMode('immersion')}
+            className="w-full text-start rounded-3xl bg-surface-card border border-border-subtle p-5 hover:bg-surface-subtle"
+          >
+            <strong className="block font-arabic text-primary mb-1">تحدي واقعي مكثف</strong>
+            <span className="text-xs text-text-secondary font-arabic">
+              {effectiveLevel === 'A1' || effectiveLevel === 'A2' ? 8 : 10} جولات مع سياق أطول
+            </span>
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-text-primary flex flex-col justify-between max-w-md mx-auto relative">
@@ -568,10 +622,17 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         )}
 
         {/* Input Bar */}
+        {!isSupported && (
+          <p className="text-[11px] text-text-muted font-arabic mb-2">
+            الإدخال الصوتي غير متاح في هذا المتصفح؛ يمكنك الكتابة بالألمانية هنا.
+          </p>
+        )}
         <div className="flex items-center gap-2">
           {/* Mic Button (STT) */}
           <button
             onClick={isListening ? stopListening : startListening}
+            disabled={!isSupported}
+            aria-label={isSupported ? 'بدء الإدخال الصوتي' : 'الإدخال الصوتي غير متاح'}
             className={`p-3.5 rounded-2xl border transition-all flex items-center justify-center flex-shrink-0 ${
               isListening
                 ? 'bg-status-error border-status-error text-white animate-pulse shadow-glow-purple'
