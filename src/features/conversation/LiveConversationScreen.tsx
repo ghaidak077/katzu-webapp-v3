@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, recordDailyActivity } from '@/lib/db/katzuDb';
+import { clearSessionDraft, db, loadSessionDraft, recordDailyActivity, saveSessionDraft } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { useSpeechInput } from '@/lib/speech/useSpeechInput';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
@@ -33,7 +33,7 @@ import type {
   SessionEntity,
   SessionMode,
 } from '@/types/models';
-import { calculateIndependentAccuracy, countUsedVocabulary } from '@/features/report/metrics';
+import { buildLearnerMemory, calculateIndependentAccuracy, countUsedVocabulary } from '@/features/report/metrics';
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
@@ -126,8 +126,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   }, [messages, isGenerating]);
 
   // Initial message and starter hints (Rule 5: No call needed for turn 0)
+  // Runs once per session: a difficulty nudge or a data refresh must never wipe the conversation.
+  const welcomeShownRef = useRef(false);
   useEffect(() => {
-    if (!scenario || !sessionMode) return;
+    if (!scenario || !sessionMode || welcomeShownRef.current) return;
+    welcomeShownRef.current = true;
 
     const initialMsgText =
       effectiveLevel === 'A1'
@@ -161,6 +164,44 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         }
       });
   }, [scenario, scenarioId, effectiveLevel, sessionMode]);
+
+  // Resume an interrupted session (same account and scenario) instead of starting over; the session_id is
+  // kept, so resuming does not use another daily session.
+  const draftEmail = user?.email || '';
+  const restoredDraftRef = useRef(false);
+  const [isResumed, setIsResumed] = useState(false);
+  useEffect(() => {
+    if (!draftEmail || restoredDraftRef.current) return;
+    restoredDraftRef.current = true;
+    const draft = loadSessionDraft<ChatMessage>(draftEmail, scenarioId);
+    if (!draft || draft.messages.length < 2) return;
+    welcomeShownRef.current = true;
+    sessionIdRef.current = draft.sessionId;
+    setCurrentLevel(draft.level as CEFRLevel);
+    setSessionMode(draft.mode as SessionMode);
+    setMessages(draft.messages);
+    setIsResumed(true);
+  }, [draftEmail, scenarioId]);
+
+  useEffect(() => {
+    if (!draftEmail || !sessionMode || isSessionCompleted || messages.length < 2) return;
+    saveSessionDraft(draftEmail, scenarioId, {
+      sessionId: sessionIdRef.current,
+      mode: sessionMode,
+      level: currentLevel,
+      messages,
+    });
+  }, [draftEmail, scenarioId, sessionMode, currentLevel, messages, isSessionCompleted]);
+
+  const handleStartOver = () => {
+    clearSessionDraft(draftEmail, scenarioId);
+    sessionIdRef.current = crypto.randomUUID();
+    welcomeShownRef.current = false;
+    setMessages([]);
+    setCurrentHints([]);
+    setSessionMode(null);
+    setIsResumed(false);
+  };
 
   // Handle German word click for insight
   const handleWordClick = (wordRaw: string) => {
@@ -210,12 +251,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     const isFinalTurn = userTurnsCount + 1 >= targetTurns;
 
     // 2. Call Worker /ai/turn (Executes Call A and Call B in parallel on Worker)
+    let replied = false;
     try {
       const historyPayload = newMessages.map((m) => ({
         sender: m.sender === 'USER' ? 'user' : 'model',
         text: m.germanText,
       }));
 
+      const learnerMemory = buildLearnerMemory(await db.mistakes.toArray());
       const res = await workerClient.sendTurn({
         scenarioId,
         userMessage: text,
@@ -226,6 +269,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         isFinalTurn,
         mode: sessionMode === 'immersion' ? 'extended' : 'roleplay',
         sessionId: sessionIdRef.current,
+        learnerMemory,
       });
 
       // 3. Form Katzu reply with pedagogical evaluation embedded
@@ -246,6 +290,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
       const updatedHistory = [...newMessages, katzuReply];
       setMessages(updatedHistory);
+      replied = true;
 
       // Speak Katzu's reply automatically
       speak(res.germanReply);
@@ -286,6 +331,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       // Check for completion (Rule 7)
       if (isFinalTurn) {
         setIsSessionCompleted(true);
+        clearSessionDraft(draftEmail, scenarioId);
         triggerHaptic('success');
         setTimeout(() => {
           finishSession(updatedHistory);
@@ -293,6 +339,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       }
     } catch (e) {
       console.error('Conversation turn failed:', e);
+      if (!replied) {
+        // Nothing was answered: take the message back so the learner can retry without retyping.
+        setMessages(messages);
+        setInputText(text);
+      }
       if (['DAILY_FREE_LIMIT', 'LEVEL_LOCKED', 'PAYWALL_REQUIRED'].includes((e as { code?: string })?.code || '')) {
         setShowPaywall(true);
       }
@@ -474,6 +525,12 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
       {/* Messages Scroll Area */}
       <div className="flex-1 p-4 space-y-4 overflow-y-auto pb-44">
+        {isResumed && (
+          <div className="flex items-center justify-between gap-2 text-[11px] font-arabic text-text-secondary bg-surface-card border border-border-subtle rounded-xl px-3 py-2">
+            <span>تم استئناف جلستك السابقة</span>
+            <button type="button" onClick={handleStartOver} className="text-primary font-bold underline">ابدأ من جديد</button>
+          </div>
+        )}
         {messages.map((msg) => {
           const isKatzu = msg.sender === 'KATZU';
           const isTransVisible = showArabicTranslation[msg.id];

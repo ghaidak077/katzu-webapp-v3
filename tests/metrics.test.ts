@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateIndependentAccuracy,
+  buildLearnerMemory,
   countUsedVocabulary,
   getAccessSummary,
   getDisplayStreak,
@@ -127,5 +128,24 @@ describe('getAccessSummary', () => {
   it('shows nothing for pro or unknown status', () => {
     expect(getAccessSummary({ tier: 'pro', sessionsLimitToday: null }, now)).toBeNull();
     expect(getAccessSummary(undefined, now)).toBeNull();
+  });
+});
+
+describe('buildLearnerMemory', () => {
+  const mistake = (grammarRule: string, corrected: string, timestamp: number, isMastered = false) => ({ grammarRule, corrected, timestamp, isMastered });
+
+  it('keeps the newest unmastered mistake per grammar rule, newest first, capped', () => {
+    const memory = buildLearnerMemory([
+      mistake('Akkusativ', 'für mich', 1),
+      mistake('Akkusativ', 'für ihn', 5),
+      mistake('Artikel', 'der Tisch', 3),
+      mistake('Wortstellung', 'ich habe gegessen', 9, true),
+      mistake('', 'ohne Regel', 10),
+    ]);
+    expect(memory).toEqual([
+      { rule: 'Akkusativ', example: 'für ihn' },
+      { rule: 'Artikel', example: 'der Tisch' },
+    ]);
+    expect(buildLearnerMemory(Array.from({ length: 9 }, (_, i) => mistake(`Regel ${i}`, 'x', i)))).toHaveLength(5);
   });
 });

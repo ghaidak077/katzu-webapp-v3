@@ -31,6 +31,7 @@ describe('Worker security controls', () => {
   const authEnv = () => ({
     GOOGLE_CLIENT_ID: 'client-id',
     GEMINI_API_KEY: 'test-key',
+    GEMINI_MODEL: 'test-model',
     SESSION_SECRET: 'session-secret',
   });
 

@@ -71,6 +71,71 @@ class KatzuDatabase extends Dexie {
 
 export const db = new KatzuDatabase();
 
+// --- In-progress live session drafts (browser storage, per account + scenario) ---
+const DRAFT_PREFIX = 'katzu:draft:';
+const DRAFT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+export interface SessionDraft<M = unknown> {
+  sessionId: string;
+  mode: string;
+  level: string;
+  messages: M[];
+  savedAt: number;
+}
+
+const draftKey = (email: string, scenarioId: string) => `${DRAFT_PREFIX}${email}:${scenarioId}`;
+
+function draftStorage(): Storage | undefined {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+export function saveSessionDraft<M>(email: string, scenarioId: string, draft: Omit<SessionDraft<M>, 'savedAt'>, storage = draftStorage(), now = Date.now()): void {
+  if (!email) return;
+  try {
+    storage?.setItem(draftKey(email, scenarioId), JSON.stringify({ ...draft, messages: draft.messages.slice(-60), savedAt: now }));
+  } catch {
+    // Storage full or blocked: resuming is a convenience, never fail the session for it.
+  }
+}
+
+export function loadSessionDraft<M>(email: string, scenarioId: string, storage = draftStorage(), now = Date.now()): SessionDraft<M> | null {
+  if (!email) return null;
+  try {
+    const raw = storage?.getItem(draftKey(email, scenarioId));
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as SessionDraft<M>;
+    const valid = typeof draft.sessionId === 'string' && Array.isArray(draft.messages) && now - draft.savedAt < DRAFT_MAX_AGE_MS;
+    if (!valid) storage?.removeItem(draftKey(email, scenarioId));
+    return valid ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearSessionDraft(email: string, scenarioId: string, storage = draftStorage()): void {
+  try {
+    storage?.removeItem(draftKey(email, scenarioId));
+  } catch {
+    // ignore
+  }
+}
+
+export function clearAllSessionDrafts(storage = draftStorage()): void {
+  try {
+    if (!storage) return;
+    for (let i = storage.length - 1; i >= 0; i -= 1) {
+      const key = storage.key(i);
+      if (key?.startsWith(DRAFT_PREFIX)) storage.removeItem(key);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 // Call once per completed learning activity (session or quiz); keeps the daily streak honest.
 export async function recordDailyActivity(): Promise<void> {
   const user = await db.users.get('current_user');
@@ -84,6 +149,7 @@ export async function recordDailyActivity(): Promise<void> {
 
 // Wipes all user-scoped data (sessions, mistakes, saved words, training, redeemed codes) on sign-out
 export async function wipeUserScopedData(): Promise<void> {
+  clearAllSessionDrafts();
   await Promise.all([
     db.sessions.clear(),
     db.mistakes.clear(),

@@ -126,3 +126,17 @@ export function getAccessSummary(
   }
   return null;
 }
+
+// Compact "what this learner keeps getting wrong" for the coach: latest unmastered mistakes, one per grammar rule.
+export function buildLearnerMemory(
+  mistakes: { grammarRule: string; corrected: string; timestamp: number; isMastered?: boolean }[],
+  limit = 5,
+): { rule: string; example: string }[] {
+  const seen = new Set<string>();
+  return [...mistakes]
+    .filter((m) => !m.isMastered && m.grammarRule)
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .filter((m) => (seen.has(m.grammarRule) ? false : (seen.add(m.grammarRule), true)))
+    .slice(0, limit)
+    .map((m) => ({ rule: m.grammarRule, example: m.corrected }));
+}

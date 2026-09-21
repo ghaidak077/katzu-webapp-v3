@@ -253,6 +253,7 @@ export class WorkerClient {
     mode?: 'roleplay' | 'extended';
     idToken?: string;
     sessionId?: string;
+    learnerMemory?: { rule: string; example: string }[];
   }): Promise<TurnAiResponse> {
     let currentUser;
     try {
@@ -263,7 +264,7 @@ export class WorkerClient {
     const token = params.idToken || currentUser?.sessionToken;
 
     // Map history to worker's expected { role: 'user' | 'model', text: string }
-    const historyLimit = params.mode === 'extended' ? 10 : 6;
+    const historyLimit = 24; // whole session; the Worker applies its own bound
     const formattedHistory = (params.history || []).slice(-historyLimit).map((h) => ({
       role: (h.sender?.toLowerCase() === 'user' || h.role === 'user') ? 'user' : 'model',
       text: h.text || '',
@@ -278,6 +279,7 @@ export class WorkerClient {
       history: formattedHistory,
       mode: params.mode || 'roleplay',
       session_id: params.sessionId,
+      learner_memory: params.learnerMemory,
     };
 
     const headers: Record<string, string> = {

@@ -7,7 +7,10 @@
 3. Create or select the D1 database used for content and user records.
 4. Create the KV namespaces used for progress and redeemed codes.
 5. Configure Worker secrets and variables. Use `.env.example` for names only; never commit values:
-   - `GEMINI_API_KEY`, `GEMINI_MODEL`, and `GEMINI_FALLBACK_MODEL`
+   - `GEMINI_API_KEY` (one key) and `GEMINI_MODEL` (required, exact model ID; there is no built-in default)
+   - Optional per-task models, each with its own quota bucket: `GEMINI_EVAL_MODEL` (grammar evaluation) and
+     `GEMINI_LIGHT_MODEL` (hints and translation); both default to `GEMINI_MODEL`
+   - `GEMINI_FALLBACK_MODEL` (used by every task when its own model is unavailable or rate-limited)
    - `SESSION_SECRET` (a new, high-entropy secret; do not reuse `HMAC_SECRET`)
    - `GOOGLE_CLIENT_ID`
    - `ALLOWED_ORIGINS`
