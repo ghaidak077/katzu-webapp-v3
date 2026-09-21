@@ -32,17 +32,21 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
     const cleanCode = code.trim().toUpperCase();
     if (!cleanCode) return;
 
-    setIsLoading(true);
     setErrorMessage('');
     setSuccessMessage('');
 
-    // Ensure we have an active token from the authenticated Google user
-    const activeToken = user?.idToken || (user?.email ? `token_${btoa(user.email)}` : 'auth_user_token');
+    const activeToken = user?.idToken?.trim();
+    if (!user?.isLoggedIn || !activeToken) {
+      setErrorMessage('يلزم تسجيل الدخول بحساب Google موثّق قبل تفعيل الكود.');
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const res = await workerClient.verifyCode(cleanCode, activeToken);
 
-      if (res.success || res.valid) {
+      if (res.success && res.valid === true && res.months && res.expiresAt) {
         // Trigger celebratory confetti
         try {
           confetti({
@@ -52,8 +56,8 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           });
         } catch (_) {}
 
-        const grantedMonths = res.months || 1;
-        const expiryIso = res.expiresAt || new Date(Date.now() + grantedMonths * 30 * 86400000).toISOString();
+        const grantedMonths = res.months;
+        const expiryIso = res.expiresAt;
 
         setSuccessMessage(`تم تفعيل اشتراك Katzu Pro بنجاح لمدة ${grantedMonths} أشهر! مبروك 🎉`);
 
@@ -171,21 +175,9 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
         </Card>
 
         {/* Plans info */}
-        <div className="grid grid-cols-2 gap-3 w-full mb-3">
-          <Card className="p-3 text-center border-border-subtle">
-            <span className="text-[11px] text-text-secondary font-medium font-arabic">اشتراك شهري</span>
-            <div className="text-lg font-bold font-german text-primary my-0.5">$9.99</div>
-            <span className="text-[10px] text-text-muted font-arabic">تجديد شهري</span>
-          </Card>
-          <Card className="p-3 text-center border-primary/50 bg-primary/10 relative overflow-hidden shadow-glow-purple">
-            <div className="absolute top-0 end-0 bg-primary text-white text-[8px] font-bold px-1.5 py-0.5 rounded-bl-lg">
-              وفر 50%
-            </div>
-            <span className="text-[11px] text-text-primary font-medium font-arabic">اشتراك سنوي</span>
-            <div className="text-lg font-bold font-german text-primary my-0.5">$59.99</div>
-            <span className="text-[10px] text-text-secondary font-arabic">الأفضل قيمة</span>
-          </Card>
-        </div>
+        <p className="w-full mb-3 text-center text-[11px] text-text-muted font-arabic">
+          التفعيل متاح حالياً عبر كود مرتبط بحسابك الموثّق.
+        </p>
       </div>
 
       <div className="pt-2 text-center">

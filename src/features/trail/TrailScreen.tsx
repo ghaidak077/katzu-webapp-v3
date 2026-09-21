@@ -27,8 +27,8 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const trainingRecords = useLiveQuery(() => db.scenario_training.toArray()) || [];
 
   const isPro = !!user?.isSubscriptionActive;
-  const freeSessions = user?.freeSessionsRemaining ?? 3;
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
+  const dailyScenario = scenarios.find((scenario) => scenario.id === 'cafe_order') || scenarios[0];
 
   const getTrainingStatus = (scenarioId: string) => {
     const record = trainingRecords.find((r) => r.scenarioId === scenarioId);
@@ -72,10 +72,10 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             <div className="flex items-center gap-1.5 text-xs text-text-secondary">
               <span className="flex items-center gap-1 text-learning font-bold">
                 <Flame className="w-3.5 h-3.5 fill-learning text-learning" />
-                {user?.streakDays || 1} أيام حماس
+                {user?.streakDays ?? 0} أيام حماس
               </span>
               <span>•</span>
-              <span className="text-primary font-bold">{user?.totalXp || 120} XP</span>
+              <span className="text-primary font-bold">{user?.totalXp ?? 0} XP</span>
             </div>
           </div>
         </div>
@@ -86,7 +86,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary text-xs font-bold shadow-glow-purple active:scale-95 transition-all"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>ترقية لـ Pro ({freeSessions} متبقية)</span>
+            <span>اكتشف مزايا Pro</span>
           </button>
         ) : (
           <Badge variant="success" size="sm">
@@ -101,12 +101,25 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           <Badge variant="primary" size="sm" className="mb-2">
             مهمتك اليومية
           </Badge>
-          <h3 className="text-base font-bold font-arabic mb-1 leading-snug">
-            طلب فنجان قهوة وكعكة بالألمانية
-          </h3>
-          <p className="text-xs text-text-secondary font-arabic">
-            تحدث مع كَاتْزُو باريستا المقهى واستخدم أداة التعريف الصحيحة.
-          </p>
+          {dailyScenario ? (
+            <>
+              <GermanText className="text-base font-bold text-text-primary block mb-1 leading-snug">
+                {dailyScenario.title_de}
+              </GermanText>
+              <p className="text-xs text-text-secondary font-arabic">
+                {dailyScenario.title_ar}
+              </p>
+            </>
+          ) : (
+            <>
+              <h3 className="text-base font-bold font-arabic mb-1 leading-snug">
+                مهمتك اليومية قيد التجهيز
+              </h3>
+              <p className="text-xs text-text-secondary font-arabic">
+                نزّل المحتوى عند توفر الاتصال لبدء تدريبك التالي.
+              </p>
+            </>
+          )}
         </div>
         <KatzuMascot name="trail_header" className="w-24 h-24 object-contain -me-2 z-10" />
       </Card>

@@ -12,7 +12,9 @@
    - `ALLOWED_ORIGINS`
    - `AI_RATE_LIMIT_PER_MINUTE`
    - `AI_RATE_LIMIT_PER_DAY`
-   - the D1/KV bindings used by the Worker
+   - the D1/KV bindings used by the Worker. `USER_PROGRESS` is required for
+     authenticated trial AI access: the Worker stores authoritative quota
+     records under `ai-quota:<google-sub>` in that existing KV namespace.
 6. Run additive D1 migrations before serving traffic.
 7. Deploy with Wrangler and record the deployed Worker URL.
 

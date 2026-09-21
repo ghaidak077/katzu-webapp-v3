@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import worker, { checkRateLimit, getCorsHeaders, verifyGoogleIdToken } from '../cloudflare-unified-worker';
+import worker, {
+  checkRateLimit,
+  checkUserEntitlement,
+  consumeTrialQuota,
+  getCorsHeaders,
+  verifyGoogleIdToken,
+} from '../cloudflare-unified-worker';
 
 function token(payload: Record<string, unknown>, header = { alg: 'RS256', typ: 'JWT' }) {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -15,6 +21,13 @@ const validPayload = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('Worker security controls', () => {
+  class MemoryKv {
+    values = new Map<string, string>();
+    async get(key: string) { return this.values.get(key) || null; }
+    async put(key: string, value: string) { this.values.set(key, value); }
+    async delete(key: string) { this.values.delete(key); }
+  }
+
   it('fails closed for missing or invalid production CORS configuration', () => {
     const request = new Request('https://worker.test/ai/hints', {
       headers: { Origin: 'https://app.example' },
@@ -77,6 +90,44 @@ describe('Worker security controls', () => {
     }), env);
     expect(response.status).toBe(402);
     expect((await response.json()).code).toBe('PAYWALL_REQUIRED');
+  });
+
+  it('uses the server quota instead of client-provided freeSessionsRemaining', async () => {
+    const progress = new MemoryKv();
+    await progress.put('ai-quota:security-test-user', JSON.stringify({ used: 3 }));
+    const env = {
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      GEMINI_API_KEY: 'test-key',
+      USER_PROGRESS: progress,
+    };
+    const response = await worker.fetch(new Request('https://worker.test/ai/hints', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token(validPayload())}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        last_ai_reply: 'Hallo',
+        cefr_level: 'A1',
+        freeSessionsRemaining: 999,
+      }),
+    }), env);
+    expect(response.status).toBe(402);
+    expect((await response.json()).code).toBe('FREE_QUOTA_EXHAUSTED');
+  });
+
+  it('increments only the authoritative server quota and floors it at the limit', async () => {
+    const progress = new MemoryKv();
+    const env = { USER_PROGRESS: progress };
+    expect(await consumeTrialQuota('quota-user', env)).toMatchObject({ allowed: true, remaining: 2 });
+    expect(await consumeTrialQuota('quota-user', env)).toMatchObject({ allowed: true, remaining: 1 });
+    expect(await consumeTrialQuota('quota-user', env)).toMatchObject({ allowed: true, remaining: 0 });
+    expect(await consumeTrialQuota('quota-user', env)).toMatchObject({ allowed: false, code: 'FREE_QUOTA_EXHAUSTED' });
+    expect(await checkUserEntitlement({ sub: 'quota-user' }, 'A1', env)).toMatchObject({
+      allowed: false,
+      code: 'FREE_QUOTA_EXHAUSTED',
+    });
   });
 
   it('limits requests per user', () => {

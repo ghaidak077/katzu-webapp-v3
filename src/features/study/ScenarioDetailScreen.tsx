@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
-import { ArrowRight, BookOpen, CheckCircle, MessagesSquare, Sparkles, Lock } from 'lucide-react';
+import { ArrowRight, BookOpen, CheckCircle, MessagesSquare, Sparkles } from 'lucide-react';
 
 export interface ScenarioDetailScreenProps {
   scenarioId: string;
@@ -38,14 +38,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
   }
 
   const isPro = !!user?.isSubscriptionActive;
-  const freeSessions = user?.freeSessionsRemaining ?? 3;
-  const isTrialExpired = !isPro && freeSessions <= 0;
-
   const handleConversationClick = () => {
-    if (isTrialExpired) {
-      setShowPaywall(true);
-      return;
-    }
     onStartConversation();
   };
 
@@ -125,31 +118,22 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         {/* Step 3: Live Conversation */}
         <div
           onClick={handleConversationClick}
-          className={`p-4 rounded-3xl bg-surface-card border cursor-pointer flex items-center justify-between transition-all active:scale-98 ${
-            isTrialExpired
-              ? 'border-border-subtle opacity-80'
-              : 'border-primary/40 hover:border-primary shadow-glow-purple'
-          }`}
+          className="p-4 rounded-3xl bg-surface-card border border-primary/40 hover:border-primary shadow-glow-purple cursor-pointer flex items-center justify-between transition-all active:scale-98"
         >
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isTrialExpired ? 'bg-surface-subtle text-text-muted' : 'bg-primary text-white'}`}>
-              {isTrialExpired ? <Lock className="w-5 h-5" /> : <MessagesSquare className="w-5 h-5" />}
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-primary text-white">
+              <MessagesSquare className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className={`text-sm font-bold font-arabic ${isTrialExpired ? 'text-text-secondary' : 'text-primary'}`}>
+                <span className="text-sm font-bold font-arabic text-primary">
                   3. المحادثة الحية مع كَاتْزُو
                 </span>
-                {!isPro && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-bold">
-                    {freeSessions > 0 ? `${freeSessions} تجريبية` : 'Pro'}
-                  </span>
-                )}
+                {!isPro && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-bold">تحقق الحصة عند البدء</span>}
               </div>
               <div className="text-xs text-text-secondary">تحدث بصوتك مباشرة وخض الحوار التفاعلي</div>
             </div>
           </div>
-          {isTrialExpired && <Lock className="w-4 h-4 text-text-muted" />}
         </div>
       </div>
 

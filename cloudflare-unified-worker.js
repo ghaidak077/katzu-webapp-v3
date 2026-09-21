@@ -3,7 +3,7 @@
  * 
  * Bindings required / supported:
  * - REDEEMED_CODES (KV)
- * - USER_PROGRESS (KV)
+ * - USER_PROGRESS (KV) (also stores authoritative AI trial quota records)
  * - DB (D1 Database)
  * - ADMIN_SECRET (Secret)
  * - HMAC_SECRET (Secret)
@@ -34,6 +34,8 @@ const keyCooldownMap = new Map(); // key -> cooldownExpiryTimestamp
 const keyConsecutiveFails = new Map(); // key -> consecutive fail count
 const translationCache = new Map(); // text.toLowerCase() -> translation_ar (LRU max 1000)
 const hintsCache = new Map(); // key -> hints array (LRU max 500)
+const MAX_FREE_AI_SESSIONS = 3;
+const quotaLocks = new Map();
 
 function isKeyCoolingDown(key) {
   const expiry = keyCooldownMap.get(key);
@@ -272,7 +274,7 @@ async function checkUserEntitlement(account, cefrLevel, env = {}) {
     }
   }
 
-  // 2. Trial access: restricted to A1 level with 3 free sessions
+  // 2. Trial access: restricted to A1 level with a server-side quota.
   const level = (cefrLevel || "A1").toUpperCase();
   if (level !== "A1") {
     return {
@@ -282,27 +284,70 @@ async function checkUserEntitlement(account, cefrLevel, env = {}) {
     };
   }
 
-  let trialSessionsUsed = 0;
-  const maxTrialSessions = 3;
-  if (env?.REDEEMED_CODES) {
-    const trialRaw = await env.REDEEMED_CODES.get(`trial:${account.sub}`);
-    if (trialRaw) {
-      try {
-        const trial = JSON.parse(trialRaw);
-        trialSessionsUsed = trial.sessionsUsed || 0;
-      } catch {}
-    }
-  }
-
-  if (trialSessionsUsed >= maxTrialSessions) {
+  const quota = await readTrialQuota(account.sub, env);
+  if (!quota.available) {
     return {
       allowed: false,
-      code: "PAYWALL_REQUIRED",
+      code: "QUOTA_UNAVAILABLE",
+      message: "تعذر التحقق من الرصيد المجاني على الخادم. يرجى المحاولة لاحقاً."
+    };
+  }
+
+  if (quota.used >= MAX_FREE_AI_SESSIONS) {
+    return {
+      allowed: false,
+      code: "FREE_QUOTA_EXHAUSTED",
       message: "انتهت الجلسات التجريبية المجانية (3 جلسات). يرجى الاشتراك في Katzu Pro لمتابعة التعلم."
     };
   }
 
-  return { allowed: true, isSubscribed: false, trialSessionsRemaining: maxTrialSessions - trialSessionsUsed };
+  return { allowed: true, isSubscribed: false, trialSessionsRemaining: MAX_FREE_AI_SESSIONS - quota.used };
+}
+
+function quotaKey(accountId) {
+  return `ai-quota:${accountId}`;
+}
+
+async function readTrialQuota(accountId, env = {}) {
+  if (!env?.USER_PROGRESS || typeof env.USER_PROGRESS.get !== "function") {
+    return { available: false, used: 0 };
+  }
+  const raw = await env.USER_PROGRESS.get(quotaKey(accountId));
+  if (!raw) return { available: true, used: 0 };
+  try {
+    const parsed = JSON.parse(raw);
+    const used = Number.isFinite(parsed?.used) ? parsed.used : Number(parsed?.sessionsUsed);
+    return { available: true, used: Math.max(0, Number.isFinite(used) ? Math.floor(used) : 0) };
+  } catch {
+    return { available: false, used: 0 };
+  }
+}
+
+async function consumeTrialQuota(accountId, env = {}) {
+  const previous = quotaLocks.get(accountId) || Promise.resolve();
+  let release;
+  const current = new Promise(resolve => { release = resolve; });
+  quotaLocks.set(accountId, current);
+  await previous;
+  try {
+    const quota = await readTrialQuota(accountId, env);
+    if (!quota.available) {
+      return { allowed: false, code: "QUOTA_UNAVAILABLE", message: "تعذر التحقق من الرصيد المجاني على الخادم. يرجى المحاولة لاحقاً." };
+    }
+    if (quota.used >= MAX_FREE_AI_SESSIONS) {
+      return { allowed: false, code: "FREE_QUOTA_EXHAUSTED", message: "انتهت الجلسات التجريبية المجانية (3 جلسات). يرجى الاشتراك في Katzu Pro لمتابعة التعلم." };
+    }
+    const used = quota.used + 1;
+    try {
+      await env.USER_PROGRESS.put(quotaKey(accountId), JSON.stringify({ used, updated_at: Date.now() }));
+    } catch {
+      return { allowed: false, code: "QUOTA_UNAVAILABLE", message: "تعذر حفظ الرصيد المجاني على الخادم. يرجى المحاولة لاحقاً." };
+    }
+    return { allowed: true, used, remaining: MAX_FREE_AI_SESSIONS - used };
+  } finally {
+    release();
+    if (quotaLocks.get(accountId) === current) quotaLocks.delete(accountId);
+  }
 }
 
 async function authenticateAiRequest(request, body, env, cors, {
@@ -336,12 +381,13 @@ async function authenticateAiRequest(request, body, env, cors, {
   if (requireEntitlement) {
     const entitlement = await checkUserEntitlement(account, level || "A1", env);
     if (!entitlement.allowed) {
+      const quotaFailure = ["FREE_QUOTA_EXHAUSTED", "QUOTA_UNAVAILABLE"].includes(entitlement.code);
       return {
         response: json({
-          error: "subscription_required",
+          error: quotaFailure ? "free_quota_error" : "subscription_required",
           code: entitlement.code || "PAYWALL_REQUIRED",
           message: entitlement.message
-        }, 402, cors)
+        }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors)
       };
     }
   }
@@ -363,6 +409,7 @@ async function handleDeleteUser(request, env, cors) {
 
   if (env.USER_PROGRESS) {
     await env.USER_PROGRESS.delete(`progress:${account.sub}`);
+    await env.USER_PROGRESS.delete(quotaKey(account.sub));
   }
   if (env.REDEEMED_CODES) {
     await env.REDEEMED_CODES.delete(`account:${account.sub}`);
@@ -699,7 +746,21 @@ async function handleAiConversationTurn(request, env, cors) {
   const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn, mode } = body;
   const level = cefr_level || "A1";
   const entitlement = await checkUserEntitlement(account, level, env);
-  if (!entitlement.allowed) return json({ error: "subscription_required", code: entitlement.code || "PAYWALL_REQUIRED", message: entitlement.message }, 402, cors);
+  if (!entitlement.allowed) {
+    const quotaFailure = ["FREE_QUOTA_EXHAUSTED", "QUOTA_UNAVAILABLE"].includes(entitlement.code);
+    return json({
+      error: quotaFailure ? "free_quota_error" : "subscription_required",
+      code: entitlement.code || "PAYWALL_REQUIRED",
+      message: entitlement.message
+    }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
+  }
+  if (!entitlement.isSubscribed) {
+    const quota = await consumeTrialQuota(account.sub, env);
+    if (!quota.allowed) {
+      const status = quota.code === "QUOTA_UNAVAILABLE" ? 503 : 402;
+      return json({ error: "free_quota_unavailable", code: quota.code, message: quota.message }, status, cors);
+    }
+  }
 
   const wrapUpInstruction = is_final_turn
     ? "This is the final exchange. Give a warm realistic farewell and do not ask a new question."
@@ -1301,7 +1362,10 @@ function json(obj, status, cors) {
 
 export {
   checkRateLimit,
+  checkUserEntitlement,
+  consumeTrialQuota,
   getCorsHeaders,
+  readTrialQuota,
   verifyGoogleIdToken,
 };
 

@@ -11,6 +11,25 @@ import type {
 
 // Default worker URL matching deployment config
 const WORKER_BASE_URL = (import.meta as any).env?.VITE_WORKER_URL || '';
+const AI_REQUEST_TIMEOUT_MS = 30000;
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = AI_REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: init.signal || controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      const timeoutError: any = new Error('انتهت مهلة الاتصال بالخادم. تحقق من الإنترنت وحاول مجدداً.');
+      timeoutError.code = 'REQUEST_TIMEOUT';
+      timeoutError.status = 408;
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeout);
+  }
+}
 
 export interface ProgressPayload {
   id_token?: string;
@@ -255,7 +274,7 @@ export class WorkerClient {
       headers['Authorization'] = 'Bearer ' + token;
     }
 
-    const res = await fetch(`${this.baseUrl}/ai/turn`, {
+    const res = await fetchWithTimeout(`${this.baseUrl}/ai/turn`, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
@@ -287,12 +306,24 @@ export class WorkerClient {
 
     if (res.ok) {
       const data = await res.json();
-      const evalData = data.evaluation || {};
+      const evalData = data.evaluation;
+      if (
+        !data ||
+        typeof data.reply_de !== 'string' ||
+        typeof data.reply_ar !== 'string' ||
+        !evalData ||
+        typeof evalData.is_correct !== 'boolean'
+      ) {
+        const error: any = new Error('تعذر التحقق من رد المحادثة. لم يتم احتساب هذه الجملة.');
+        error.code = 'INVALID_AI_RESPONSE';
+        error.status = 502;
+        throw error;
+      }
 
       return {
-        germanReply: data.reply_de || 'Danke für Ihre Nachricht!',
-        arabicTranslation: data.reply_ar || 'شكراً لرسالتك!',
-        isCorrect: typeof evalData.is_correct === 'boolean' ? evalData.is_correct : true,
+        germanReply: data.reply_de,
+        arabicTranslation: data.reply_ar,
+        isCorrect: evalData.is_correct,
         mistakeSegment: evalData.original_mistake || '',
         correctedSegment: evalData.corrected_german || '',
         grammarRule: evalData.grammar_rule || '',
@@ -330,7 +361,7 @@ export class WorkerClient {
       headers['Authorization'] = 'Bearer ' + token;
       }
 
-      const res = await fetch(`${this.baseUrl}/ai/hints`, {
+      const res = await fetchWithTimeout(`${this.baseUrl}/ai/hints`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -369,11 +400,7 @@ export class WorkerClient {
       console.warn('Hints fetch failed:', e);
     }
 
-    return [
-      { german: 'Ja, gerne.', arabic: 'نعم، بكل سرور.' },
-      { german: 'Nein, danke.', arabic: 'لا، شكراً.' },
-      { german: 'Wie bitte?', arabic: 'عفواً، ماذا قلت؟' },
-    ];
+    return [];
   }
 
   // --- Edge-Cached Translation via /ai/translate ---

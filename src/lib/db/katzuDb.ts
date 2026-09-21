@@ -91,7 +91,7 @@ export async function wipeUserScopedData(): Promise<void> {
     lastCheckedAt: Date.now(),
     updatedAt: Date.now(),
     cefrLevel: 'A1',
-    streakDays: 1,
+    streakDays: 0,
     lastActiveDate: new Date().toISOString().split('T')[0],
     totalXp: 0,
     speechSpeed: 1.0,
@@ -122,9 +122,9 @@ export async function initializeDatabaseSeed(): Promise<void> {
       lastCheckedAt: Date.now(),
       updatedAt: Date.now(),
       cefrLevel: 'A1',
-      streakDays: 1,
+      streakDays: 0,
       lastActiveDate: new Date().toISOString().split('T')[0],
-      totalXp: 120,
+      totalXp: 0,
       speechSpeed: 1.0,
       sarcasmLevel: 'SASSY',
       freeSessionsRemaining: 3,
@@ -132,6 +132,10 @@ export async function initializeDatabaseSeed(): Promise<void> {
       weeklyGoalDays: 5,
     });
   }
+
+  // Production curriculum is owned by D1/Worker. Keep local fixtures available
+  // only for development so the browser cannot silently become the source of truth.
+  if (!(import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV) return;
 
   const scenarioCount = await db.scenarios.count();
   if (scenarioCount === 0) {
