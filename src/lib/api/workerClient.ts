@@ -509,7 +509,12 @@ export class WorkerClient {
     daysRemaining?: number;
     expiresAt?: string | null;
     serverTime?: string;
-    freeSessionsRemaining?: number;
+    tier?: 'pro' | 'trial' | 'free';
+    trialEndsAt?: string | null;
+    sessionsUsedToday?: number;
+    sessionsLimitToday?: number | null;
+    quotaDay?: string;
+    allowedLevels?: CEFRLevel[];
   }> {
     if (!sessionToken) {
       const user = await db.users.get('current_user');
@@ -534,15 +539,38 @@ export class WorkerClient {
           daysRemaining: data.days_remaining ?? 0,
           expiresAt: data.expiresAt || null,
           serverTime: data.server_time,
-          freeSessionsRemaining: Number.isFinite(data.trial_sessions_remaining)
-            ? data.trial_sessions_remaining
+          tier: ['pro', 'trial', 'free'].includes(data.tier) ? data.tier : undefined,
+          trialEndsAt: data.trial_ends_at ?? null,
+          sessionsUsedToday: Number.isFinite(data.sessions_used_today) ? data.sessions_used_today : undefined,
+          sessionsLimitToday: data.sessions_limit_today === null || Number.isFinite(data.sessions_limit_today)
+            ? data.sessions_limit_today
             : undefined,
+          quotaDay: typeof data.quota_day === 'string' ? data.quota_day : undefined,
+          allowedLevels: Array.isArray(data.allowed_levels) ? data.allowed_levels : undefined,
         };
       }
     } catch (e) {
       console.warn('Check subscription failed:', e);
     }
     return { active: false };
+  }
+
+  // Fetches /check-status and stores the server's tier/quota view on the local user for display.
+  async refreshAccessStatus(sessionToken?: string) {
+    const status = await this.checkSubscriptionStatus(sessionToken);
+    if (sessionToken && status.tier) {
+      await db.users.update('current_user', {
+        isSubscriptionActive: status.active,
+        subscriptionExpiresAt: status.active ? status.expiresAt || null : null,
+        tier: status.tier,
+        trialEndsAt: status.trialEndsAt ?? null,
+        sessionsUsedToday: status.sessionsUsedToday,
+        sessionsLimitToday: status.sessionsLimitToday,
+        quotaDay: status.quotaDay,
+        allowedLevels: status.allowedLevels,
+      });
+    }
+    return status;
   }
 
   // --- Progress Sync (/progress/sync) ---

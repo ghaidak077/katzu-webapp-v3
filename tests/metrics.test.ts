@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateIndependentAccuracy,
   countUsedVocabulary,
+  getAccessSummary,
   getDisplayStreak,
   getNextPromotionLevel,
   isEligibleForPromotion,
@@ -106,5 +107,25 @@ describe('countUsedVocabulary', () => {
 
   it('returns 0 for no sentences', () => {
     expect(countUsedVocabulary([], vocab)).toBe(0);
+  });
+});
+
+describe('getAccessSummary', () => {
+  const now = Date.parse('2026-09-21T10:00:00Z');
+
+  it('shows whole trial days left and hides an expired trial', () => {
+    expect(getAccessSummary({ tier: 'trial', trialEndsAt: '2026-09-24T09:00:00Z' }, now)).toEqual({ kind: 'trial', daysLeft: 3 });
+    expect(getAccessSummary({ tier: 'trial', trialEndsAt: '2026-09-21T09:00:00Z' }, now)).toBeNull();
+  });
+
+  it('shows free sessions left today and ignores counters from another day', () => {
+    const base = { tier: 'free', sessionsLimitToday: 1 };
+    expect(getAccessSummary({ ...base, sessionsUsedToday: 1, quotaDay: '2026-09-21' }, now)).toEqual({ kind: 'free', left: 0 });
+    expect(getAccessSummary({ ...base, sessionsUsedToday: 1, quotaDay: '2026-09-20' }, now)).toEqual({ kind: 'free', left: 1 });
+  });
+
+  it('shows nothing for pro or unknown status', () => {
+    expect(getAccessSummary({ tier: 'pro', sessionsLimitToday: null }, now)).toBeNull();
+    expect(getAccessSummary(undefined, now)).toBeNull();
   });
 });

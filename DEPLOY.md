@@ -13,15 +13,24 @@
    - `ALLOWED_ORIGINS`
    - `AI_RATE_LIMIT_PER_MINUTE`
    - `AI_RATE_LIMIT_PER_DAY`
-   - `AI_DAILY_TURN_CAP` (default `150`) and `FREE_SESSIONS` (default `3`)
+   - `AI_DAILY_TURN_CAP` (default `150`)
+   - Access tiers (all optional): `TRIAL_DAYS` (default `7`), `TRIAL_DAILY_SESSIONS` (default `5`),
+     `FREE_DAILY_SESSIONS` (default `1`), `FREE_LEVELS` (default `A1`, comma list), `MAX_SESSION_TURNS` (default `12`)
    - the D1/KV bindings used by the Worker. `USER_PROGRESS` stores progress;
      quota counters are D1-authoritative.
-6. Run `migrations/001_quota.sql` before serving traffic:
-   Live-session quota uses one conditional D1 statement per turn: an existing
-   `session_id` increments only while `turns < 12`; a new `session_id` inserts
-   only while that user has fewer than `FREE_SESSIONS` rows. The Worker checks
-   D1 `meta.changes` and refunds both `usage.turns` and `trial_sessions.turns`
-   when either Gemini call fails.
+6. Run the migrations once, in order, before serving traffic:
+   `wrangler d1 execute <DB_NAME> --remote --file migrations/001_quota.sql`, then
+   `wrangler d1 execute <DB_NAME> --remote --file migrations/002_trial.sql`
+   (`002` is not repeatable; if it fails with "duplicate column", it already ran).
+
+   Access model, enforced only on the Worker:
+   - `pro` (active code): every level, limited only by `AI_DAILY_TURN_CAP`.
+   - `trial` (first `TRIAL_DAYS` days after first sign-in): every level, up to `TRIAL_DAILY_SESSIONS` new live sessions per UTC day.
+   - `free` (after the trial): only `FREE_LEVELS`, up to `FREE_DAILY_SESSIONS` new live sessions per UTC day.
+   The trial start is stored once in `accounts.trial_started_at` and survives clearing browser data.
+   A new `session_id` is admitted by one conditional D1 statement (per-day session count for that user);
+   turns inside a session increment only while `turns < MAX_SESSION_TURNS`. The Worker checks D1
+   `meta.changes` and refunds `usage.turns` and `trial_sessions.turns` when Gemini fails.
 7. Deploy with Wrangler and record the deployed Worker URL.
 
 ## 2. Prepare Google Identity Services

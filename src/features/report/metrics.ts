@@ -106,3 +106,23 @@ export function countUsedVocabulary(
   }
   return used.size;
 }
+
+export type AccessSummary = { kind: 'trial'; daysLeft: number } | { kind: 'free'; left: number } | null;
+
+// What the header shows. Display only: the Worker enforces access. Counters from another UTC day count as unused.
+export function getAccessSummary(
+  user: { tier?: string; trialEndsAt?: string | null; sessionsUsedToday?: number; sessionsLimitToday?: number | null; quotaDay?: string } | undefined,
+  nowMs: number = Date.now(),
+): AccessSummary {
+  if (!user) return null;
+  if (user.tier === 'trial' && user.trialEndsAt) {
+    const msLeft = Date.parse(user.trialEndsAt) - nowMs;
+    return msLeft > 0 ? { kind: 'trial', daysLeft: Math.ceil(msLeft / 86_400_000) } : null;
+  }
+  if (user.tier === 'free' && typeof user.sessionsLimitToday === 'number') {
+    const today = new Date(nowMs).toISOString().slice(0, 10);
+    const used = user.quotaDay === today ? user.sessionsUsedToday ?? 0 : 0;
+    return { kind: 'free', left: Math.max(0, user.sessionsLimitToday - used) };
+  }
+  return null;
+}

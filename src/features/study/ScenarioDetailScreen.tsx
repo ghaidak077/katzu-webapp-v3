@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
+import { workerClient } from '@/lib/api/workerClient';
 import { ArrowRight, BookOpen, CheckCircle, MessagesSquare, Sparkles } from 'lucide-react';
 
 export interface ScenarioDetailScreenProps {
@@ -27,6 +28,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
   onOpenSubscription,
 }) => {
   const [showPaywall, setShowPaywall] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(false);
 
   const scenario = useLiveQuery(() => db.scenarios.get(scenarioId));
   const starterPhrases = useLiveQuery(() => db.starter_phrases.where('scenario_id').equals(scenarioId).toArray()) || [];
@@ -38,7 +40,15 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
   }
 
   const isPro = !!user?.isSubscriptionActive;
-  const handleConversationClick = () => {
+  const handleConversationClick = async () => {
+    if (user?.sessionToken && !isCheckingAccess) {
+      setIsCheckingAccess(true);
+      const status = await workerClient.refreshAccessStatus(user.sessionToken).finally(() => setIsCheckingAccess(false));
+      if (typeof status.sessionsLimitToday === 'number' && (status.sessionsUsedToday ?? 0) >= status.sessionsLimitToday) {
+        setShowPaywall(true);
+        return;
+      }
+    }
     onStartConversation();
   };
 
@@ -159,6 +169,8 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         onUpgrade={() => {
           if (onOpenSubscription) onOpenSubscription();
         }}
+        title="انتهت جلساتك لليوم"
+        description="عُد غداً لجلسة جديدة، أو فعّل Katzu Pro لمحادثات أكثر كل يوم. الدراسة والاختبارات والمراجعة تبقى متاحة."
       />
     </div>
   );

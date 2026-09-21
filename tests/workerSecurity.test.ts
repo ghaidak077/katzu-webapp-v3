@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSign, generateKeyPairSync } from 'node:crypto';
+import { createSqliteD1 } from './sqliteD1';
 import worker, {
   checkRateLimit,
-  consumeTrialSession,
   getCorsHeaders,
   resolveAccount,
   verifyGoogleIdToken,
@@ -42,35 +42,6 @@ describe('Worker security controls', () => {
     expect(response.status).toBe(200);
     return (await response.json() as { session_token: string }).session_token;
   };
-
-  class MemoryD1 {
-    sessions = new Map<string, number>();
-    prepare(sql: string) {
-      return {
-        bind: (...args: string[]) => ({
-          run: async () => {
-            if (!sql.includes('INSERT INTO trial_sessions')) return { meta: { changes: 0 } };
-            const [userId, sessionId] = args;
-            const key = `${userId}:${sessionId}`;
-            const current = this.sessions.get(key);
-            if (current !== undefined) {
-              if (current >= 12) return { meta: { changes: 0 } };
-              this.sessions.set(key, current + 1);
-              return { meta: { changes: 1 } };
-            }
-            const count = [...this.sessions.keys()].filter((entry) => entry.startsWith(`${userId}:`)).length;
-            if (count >= 3) return { meta: { changes: 0 } };
-            this.sessions.set(key, 1);
-            return { meta: { changes: 1 } };
-          },
-          first: async () => {
-            const value = this.sessions.get(`${args[0]}:${args[1]}`);
-            return value === undefined ? null : { turns: value };
-          },
-        }),
-      };
-    }
-  }
 
   it('fails closed for missing or invalid production CORS configuration', () => {
     const request = new Request('https://worker.test/ai/hints', {
@@ -152,7 +123,9 @@ describe('Worker security controls', () => {
   });
 
   it('enforces entitlement on hints before calling Gemini', async () => {
-    const env = authEnv();
+    const d1 = createSqliteD1();
+    d1.raw.prepare('INSERT INTO accounts(user_id, trial_started_at) VALUES (?, ?)').run('security-test-user', 0);
+    const env = { ...authEnv(), DB: d1 };
     const sessionToken = await issueSession(env);
     const response = await worker.fetch(new Request('https://worker.test/ai/hints', {
       method: 'POST',
@@ -160,7 +133,7 @@ describe('Worker security controls', () => {
       body: JSON.stringify({ last_ai_reply: 'Hallo', cefr_level: 'B2' }),
     }), env);
     expect(response.status).toBe(402);
-    expect((await response.json()).code).toBe('PAYWALL_REQUIRED');
+    expect((await response.json()).code).toBe('LEVEL_LOCKED');
   });
 
   it('limits requests per user', () => {
@@ -171,19 +144,5 @@ describe('Worker security controls', () => {
       allowed: false,
       reason: 'minute_limit',
     });
-  });
-
-  it('atomically caps free sessions and repeated turns', async () => {
-    const db = new MemoryD1();
-    const results = await Promise.all(
-      Array.from({ length: 6 }, (_, index) => consumeTrialSession('parallel-user', `session-${index}`, { DB: db })),
-    );
-    expect(results.filter((result) => result.allowed)).toHaveLength(3);
-
-    const turns = await Promise.all(
-      Array.from({ length: 14 }, () => consumeTrialSession('parallel-user', 'session-0', { DB: db })),
-    );
-    expect(turns.filter((result) => result.allowed)).toHaveLength(11);
-    expect(turns.at(-1)?.code).toBe('SESSION_TURN_CAP');
   });
 });

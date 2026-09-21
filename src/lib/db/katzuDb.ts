@@ -109,7 +109,6 @@ export async function wipeUserScopedData(): Promise<void> {
     totalXp: 0,
     speechSpeed: 1.0,
     sarcasmLevel: 'SASSY',
-    freeSessionsRemaining: 3,
     dailyGoalMinutes: 15,
     weeklyGoalDays: 5,
   });
@@ -140,7 +139,6 @@ export async function initializeDatabaseSeed(): Promise<void> {
       totalXp: 0,
       speechSpeed: 1.0,
       sarcasmLevel: 'SASSY',
-      freeSessionsRemaining: 3,
       dailyGoalMinutes: 15,
       weeklyGoalDays: 5,
     });

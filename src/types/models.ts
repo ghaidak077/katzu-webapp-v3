@@ -83,7 +83,13 @@ export interface UserEntity {
   totalXp: number;
   speechSpeed: number; // 0.8 or 1.0
   sarcasmLevel: SarcasmLevel;
-  freeSessionsRemaining: number;
+  // Server-authoritative access status, refreshed from /check-status (never trusted for enforcement).
+  tier?: 'pro' | 'trial' | 'free';
+  trialEndsAt?: string | null;
+  sessionsUsedToday?: number;
+  sessionsLimitToday?: number | null;
+  quotaDay?: string; // server UTC day the counters above belong to
+  allowedLevels?: CEFRLevel[];
   dailyGoalMinutes: number;
   weeklyGoalDays: number;
 }

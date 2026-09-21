@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
-import { getDisplayStreak, toLocalDateKey } from '@/features/report/metrics';
+import { workerClient } from '@/lib/api/workerClient';
+import { getAccessSummary, getDisplayStreak, toLocalDateKey } from '@/features/report/metrics';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { Card } from '@/components/ui/Card';
@@ -28,6 +29,12 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const trainingRecords = useLiveQuery(() => db.scenario_training.toArray()) || [];
 
   const isPro = !!user?.isSubscriptionActive;
+  const access = getAccessSummary(user);
+  const hasFullAccess = isPro || access?.kind === 'trial';
+
+  useEffect(() => {
+    if (user?.sessionToken) void workerClient.refreshAccessStatus(user.sessionToken);
+  }, [user?.sessionToken]);
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
   const dailyScenario = scenarios.find((scenario) => scenario.id === 'cafe_order') || scenarios[0];
 
@@ -39,7 +46,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   };
 
   const handleLevelSelect = (lvl: CEFRLevel) => {
-    if (lvl !== 'A1' && !isPro) {
+    if (lvl !== 'A1' && !hasFullAccess) {
       setPaywallReason({
         title: `المستوى ${lvl} متاح لمشتركي Pro`,
         description: `يتضمن المستوى ${lvl} سيناريوهات عمل متقدمة، مواقف رسمية، ومفردات دقيقة تتطلب اشتراك Katzu Pro.`,
@@ -51,7 +58,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   };
 
   const handleScenarioClick = (scenarioId: string) => {
-    if (selectedLevel !== 'A1' && !isPro) {
+    if (selectedLevel !== 'A1' && !hasFullAccess) {
       setPaywallReason({
         title: 'سيناريو مخصص لمشتركي Pro',
         description: 'رَقِّ حسابك الآن لفتح جميع السيناريوهات المتقدمة من A1 حتى B2.',
@@ -78,6 +85,13 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
               <span>•</span>
               <span className="text-primary font-bold">{user?.totalXp ?? 0} XP</span>
             </div>
+            {access && (
+              <div className="mt-0.5 text-[11px] font-arabic text-text-secondary">
+                {access.kind === 'trial'
+                  ? `تجربة كاملة: ${access.daysLeft} ${access.daysLeft === 1 ? 'يوم متبقٍ' : 'أيام متبقية'}`
+                  : `${access.left} من ${user?.sessionsLimitToday} جلسة مجانية اليوم`}
+              </div>
+            )}
           </div>
         </div>
 

@@ -141,20 +141,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 
     // Synchronize cloud subscription status and restore progress
     try {
-      const status = await workerClient.checkSubscriptionStatus(session.sessionToken);
-      if (status.active) {
-        await db.users.update('current_user', {
-          isSubscriptionActive: true,
-          subscriptionExpiresAt: status.expiresAt || null,
-          ...(status.freeSessionsRemaining !== undefined
-            ? { freeSessionsRemaining: status.freeSessionsRemaining }
-            : {}),
-        });
-      } else if (status.freeSessionsRemaining !== undefined) {
-        await db.users.update('current_user', {
-          freeSessionsRemaining: status.freeSessionsRemaining,
-        });
-      }
+      await workerClient.refreshAccessStatus(session.sessionToken);
     } catch (err) {
       console.warn('Subscription check error on login:', err);
     }

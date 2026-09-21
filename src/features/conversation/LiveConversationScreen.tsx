@@ -11,6 +11,7 @@ import { AudioWaveform } from '@/components/common/AudioWaveform';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { PaywallModal } from '@/components/sheets/PaywallModal';
 import {
   ArrowRight,
   Mic,
@@ -37,6 +38,7 @@ import { calculateIndependentAccuracy, countUsedVocabulary } from '@/features/re
 export interface LiveConversationScreenProps {
   scenarioId: string;
   onBack: () => void;
+  onOpenSubscription?: () => void;
   onCompleteSession: (sessionSummary: {
     scenarioId: string;
     scenarioTitle: string;
@@ -53,8 +55,10 @@ export interface LiveConversationScreenProps {
 export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   scenarioId,
   onBack,
+  onOpenSubscription,
   onCompleteSession,
 }) => {
+  const [showPaywall, setShowPaywall] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -289,6 +293,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       }
     } catch (e) {
       console.error('Conversation turn failed:', e);
+      if (['DAILY_FREE_LIMIT', 'LEVEL_LOCKED', 'PAYWALL_REQUIRED'].includes((e as { code?: string })?.code || '')) {
+        setShowPaywall(true);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -672,6 +679,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         onClose={() => setSelectedWordForInsight(null)}
         isSaved={savedWords.some((sw) => sw.wordId === selectedWordForInsight?.id)}
         onToggleSave={handleToggleSaveWord}
+      />
+
+      <PaywallModal
+        isOpen={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onUpgrade={() => onOpenSubscription?.()}
+        title="وصلت إلى حد جلساتك اليوم"
+        description="عُد غداً لجلسة جديدة، أو فعّل Katzu Pro لمحادثات أكثر ومستويات أعلى. تقدمك محفوظ."
       />
     </div>
   );

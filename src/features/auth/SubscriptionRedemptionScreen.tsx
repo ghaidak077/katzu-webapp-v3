@@ -105,13 +105,13 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
 
         <h2 className="text-2xl font-bold font-arabic mb-2">أطلق العنان لقدراتك مع Pro</h2>
         <p className="text-xs text-text-secondary font-arabic mb-5 max-w-xs leading-relaxed">
-          محادثات ذكية غير محدودة بدون قيود يومية، مع تصحيح فوري للنطق والقواعد لجميع المستويات (A1 - B2).
+          محادثات ذكية يومية ضمن حد استخدام عادل، مع تصحيح فوري للقواعد وشرح بالعربية لجميع المستويات (A1 - B2).
         </p>
 
         {/* Feature Highlights */}
         <div className="w-full space-y-2 mb-5 text-start">
           {[
-            'محادثات صوتية غير محدودة مع كَاتْزُو بالذكاء الاصطناعي',
+            'جلسات محادثة يومية مع كَاتْزُو بلا حد لعدد الجلسات',
             'فتح كامل مسار المستويات الواقعية من A1 إلى B2',
             'تحليل وتصحيح فوري للقواعد مع شرح باللغة العربية',
             'بنك مخصص لمراجعة الأخطاء وتثبيت المفردات',

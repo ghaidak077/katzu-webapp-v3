@@ -19,8 +19,13 @@
 const translationCache = new Map(); // text.toLowerCase() -> translation_ar (LRU max 1000)
 const hintsCache = new Map(); // key -> hints array (LRU max 500)
 const DEFAULT_DAILY_TURN_CAP = 150;
-const DEFAULT_FREE_SESSIONS = 3;
-const MAX_TRIAL_SESSION_TURNS = 12;
+const DEFAULT_TRIAL_DAYS = 7;
+const DEFAULT_TRIAL_DAILY_SESSIONS = 5;
+const DEFAULT_FREE_DAILY_SESSIONS = 1;
+const DEFAULT_FREE_LEVELS = "A1";
+const DEFAULT_MAX_SESSION_TURNS = 12;
+const LEVELS = ["A1", "A2", "B1", "B2"];
+const DAY_MS = 86_400_000;
 
 function getCache(map, key) {
   if (!map.has(key)) return null;
@@ -132,19 +137,90 @@ function checkRateLimit(userId, env = {}) {
   return { allowed: true };
 }
 
-async function checkUserEntitlement(account, cefrLevel, env = {}) {
-  const subscription = await getActiveSubscription(account, env);
-  if (subscription) return { allowed: true, isSubscribed: true };
+function intEnv(env, name, fallback) {
+  const raw = env?.[name];
+  if (raw === undefined || raw === null || raw === "") return fallback;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : fallback;
+}
 
-  const level = (cefrLevel || "A1").toUpperCase();
-  if (level !== "A1") {
-    return {
-      allowed: false,
-      code: "PAYWALL_REQUIRED",
-      message: "المستويات المتقدمة (A2, B1, B2) تتطلب اشتراك Katzu Pro نشط أو كود تفعيل."
-    };
+function getQuotaPolicy(env = {}) {
+  return {
+    trialDays: intEnv(env, "TRIAL_DAYS", DEFAULT_TRIAL_DAYS),
+    trialDailySessions: intEnv(env, "TRIAL_DAILY_SESSIONS", DEFAULT_TRIAL_DAILY_SESSIONS),
+    freeDailySessions: intEnv(env, "FREE_DAILY_SESSIONS", DEFAULT_FREE_DAILY_SESSIONS),
+    maxSessionTurns: Math.max(1, intEnv(env, "MAX_SESSION_TURNS", DEFAULT_MAX_SESSION_TURNS)),
+    freeLevels: String(env?.FREE_LEVELS ?? DEFAULT_FREE_LEVELS)
+      .split(",")
+      .map((item) => item.trim().toUpperCase())
+      .filter(Boolean),
+  };
+}
+
+function normalizeLevel(level) {
+  const value = String(level || "A1").toUpperCase();
+  return LEVELS.includes(value) ? value : "A1";
+}
+
+// The first call inserts the trial start; later calls return the stored value, so the trial cannot be restarted.
+async function getTrialStart(accountId, env, nowMs) {
+  const row = await env.DB.prepare(`
+    INSERT INTO accounts(user_id, trial_started_at) VALUES (?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET user_id = excluded.user_id
+    RETURNING trial_started_at
+  `).bind(accountId, nowMs).first();
+  const started = Number(row?.trial_started_at);
+  if (!Number.isFinite(started)) throw new Error("trial_start_unavailable");
+  return started;
+}
+
+async function resolveTier(account, env, nowMs = Date.now()) {
+  const policy = getQuotaPolicy(env);
+  const trialStart = await getTrialStart(account.sub, env, nowMs);
+  const trialEndsAt = trialStart + policy.trialDays * DAY_MS;
+  if (await getActiveSubscription(account, env)) return { tier: "pro", policy, trialEndsAt };
+  return { tier: nowMs < trialEndsAt ? "trial" : "free", policy, trialEndsAt };
+}
+
+function sessionLimitFor({ tier, policy }) {
+  if (tier === "pro") return null;
+  return tier === "trial" ? policy.trialDailySessions : policy.freeDailySessions;
+}
+
+function allowedLevelsFor({ tier, policy }) {
+  return tier === "free" ? policy.freeLevels : LEVELS;
+}
+
+async function checkUserEntitlement(account, cefrLevel, env = {}, nowMs = Date.now()) {
+  if (!env.DB || typeof env.DB.prepare !== "function") {
+    return { allowed: false, code: "QUOTA_UNAVAILABLE" };
   }
-  return { allowed: true, isSubscribed: false };
+  const level = normalizeLevel(cefrLevel);
+  try {
+    const resolved = await resolveTier(account, env, nowMs);
+    if (!allowedLevelsFor(resolved).includes(level)) {
+      return {
+        allowed: false,
+        code: "LEVEL_LOCKED",
+        tier: resolved.tier,
+        message: "هذا المستوى متاح في Katzu Pro. الحساب المجاني يشمل المستوى A1 فقط.",
+      };
+    }
+    return { allowed: true, level, tier: resolved.tier, policy: resolved.policy, sessionLimit: sessionLimitFor(resolved) };
+  } catch (error) {
+    console.error("[Quota] entitlement lookup failed", error);
+    return { allowed: false, code: "QUOTA_UNAVAILABLE" };
+  }
+}
+
+function entitlementFailure(entitlement, cors) {
+  const unavailable = entitlement.code === "QUOTA_UNAVAILABLE";
+  return json({
+    error: unavailable ? "quota_unavailable" : "subscription_required",
+    code: entitlement.code,
+    tier: entitlement.tier,
+    message: entitlement.message,
+  }, unavailable ? 503 : 402, cors);
 }
 
 async function getActiveSubscription(account, env = {}) {
@@ -170,42 +246,38 @@ async function incrementDailyUsage(accountId, day, env = {}) {
   return Number(result?.meta?.changes || 0) === 1;
 }
 
-async function consumeTrialSession(accountId, sessionId, env = {}, level = "A1") {
-  if (String(level).toUpperCase() !== "A1" || !sessionId || !env.DB) {
-    return { allowed: false, code: "PAYWALL_REQUIRED" };
+// One atomic statement: a new session_id is admitted only while today's session count is under the limit;
+// turns inside an existing session are capped at maxSessionTurns. `day` is the day the session started.
+async function consumeSession(accountId, sessionId, dayKey, entitlement, env = {}) {
+  if (typeof sessionId !== "string" || sessionId.length < 8 || sessionId.length > 64) {
+    return { allowed: false, code: "SESSION_ID_REQUIRED" };
   }
-  const freeSessions = Math.max(0, Number(env.FREE_SESSIONS || DEFAULT_FREE_SESSIONS));
   const result = await env.DB.prepare(`
-    INSERT INTO trial_sessions(user_id, session_id, turns)
-    SELECT ?, ?, 1
+    INSERT INTO trial_sessions(user_id, session_id, day, turns)
+    SELECT ?, ?, ?, 1
     WHERE EXISTS (
       SELECT 1 FROM trial_sessions WHERE user_id = ? AND session_id = ?
     ) OR (
-      SELECT COUNT(*) FROM trial_sessions WHERE user_id = ?
+      SELECT COUNT(*) FROM trial_sessions WHERE user_id = ? AND day = ?
     ) < ?
     ON CONFLICT(user_id, session_id) DO UPDATE SET turns = trial_sessions.turns + 1
     WHERE trial_sessions.turns < ?
   `).bind(
     accountId,
     sessionId,
+    dayKey,
     accountId,
     sessionId,
     accountId,
-    freeSessions,
-    MAX_TRIAL_SESSION_TURNS,
+    dayKey,
+    entitlement.sessionLimit,
+    entitlement.policy.maxSessionTurns,
   ).run();
-  const allowed = Number(result?.meta?.changes || 0) === 1;
-  if (!allowed) {
-    const existing = await env.DB.prepare(
-      "SELECT turns FROM trial_sessions WHERE user_id = ? AND session_id = ?"
-    ).bind(accountId, sessionId).first();
-    return {
-      allowed: false,
-      code: existing ? "SESSION_TURN_CAP" : "FREE_QUOTA_EXHAUSTED",
-      remaining: Math.max(0, freeSessions - Number(existing ? 0 : 1)),
-    };
-  }
-  return { allowed: true };
+  if (Number(result?.meta?.changes || 0) === 1) return { allowed: true };
+  const existing = await env.DB.prepare(
+    "SELECT turns FROM trial_sessions WHERE user_id = ? AND session_id = ?"
+  ).bind(accountId, sessionId).first();
+  return { allowed: false, code: existing ? "SESSION_TURN_CAP" : "DAILY_FREE_LIMIT" };
 }
 
 async function refundDailyTurn(accountId, day, env = {}) {
@@ -546,23 +618,21 @@ async function handleAiConversationTurn(request, env, cors) {
   const usageDay = new Date().toISOString().slice(0, 10);
 
   const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn, mode } = body;
-  const level = cefr_level || "A1";
-  const entitlement = await checkUserEntitlement(account, level, env);
-  if (!entitlement.allowed) {
-    const quotaFailure = ["FREE_QUOTA_EXHAUSTED", "QUOTA_UNAVAILABLE"].includes(entitlement.code);
-    return json({
-      error: quotaFailure ? "free_quota_error" : "subscription_required",
-      code: entitlement.code || "PAYWALL_REQUIRED",
-      message: entitlement.message
-    }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
-  }
+  const entitlement = await checkUserEntitlement(account, cefr_level, env);
+  if (!entitlement.allowed) return entitlementFailure(entitlement, cors);
+  const level = entitlement.level;
   let trialCounted = false;
   try {
-    if (!entitlement.isSubscribed) {
-      const quota = await consumeTrialSession(account.sub, body.session_id, env, level);
+    if (entitlement.tier !== "pro") {
+      const quota = await consumeSession(account.sub, body.session_id, usageDay, entitlement, env);
       if (!quota.allowed) {
-        const status = quota.code === "PAYWALL_REQUIRED" ? 402 : 429;
-        return json({ error: "free_quota_unavailable", code: quota.code, message: "انتهت الجلسة المجانية أو وصلت إلى حدها الأقصى." }, status, cors);
+        const status = quota.code === "SESSION_ID_REQUIRED" ? 400 : quota.code === "SESSION_TURN_CAP" ? 429 : 402;
+        const message = quota.code === "DAILY_FREE_LIMIT"
+          ? (entitlement.tier === "trial"
+            ? "وصلت إلى حد جلسات اليوم في الفترة التجريبية. عُد غداً أو فعّل Katzu Pro."
+            : "استخدمت جلستك المجانية لليوم. عُد غداً لجلسة جديدة أو فعّل Katzu Pro.")
+          : "وصلت إلى الحد الأقصى لعدد الرسائل في هذه الجلسة.";
+        return json({ error: "free_quota_unavailable", code: quota.code, tier: entitlement.tier, message }, status, cors);
       }
       trialCounted = true;
     }
@@ -690,14 +760,8 @@ async function handleAiHints(request, env, cors) {
   const { scenario_title, cefr_level, last_ai_reply, history } = body || {};
   const auth = await authenticateAiRequest(request, body, env, cors);
   if (auth.response) return auth.response;
-  const entitlement = await checkUserEntitlement(auth.account, cefr_level || "A1", env);
-  if (!entitlement.allowed) {
-    return json({
-      error: "subscription_required",
-      code: entitlement.code || "PAYWALL_REQUIRED",
-      message: entitlement.message,
-    }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
-  }
+  const entitlement = await checkUserEntitlement(auth.account, cefr_level, env);
+  if (!entitlement.allowed) return entitlementFailure(entitlement, cors);
 
   const reply = (last_ai_reply || "").trim();
   const recentHistory = boundedHistory(history, "hints");
@@ -841,6 +905,22 @@ async function handleVerify(request, env, cors) {
   }, 200, cors);
 }
 
+async function getQuotaStatus(account, env, nowMs) {
+  const resolved = await resolveTier(account, env, nowMs);
+  const day = new Date(nowMs).toISOString().slice(0, 10);
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS used FROM trial_sessions WHERE user_id = ? AND day = ?"
+  ).bind(account.sub, day).first();
+  return {
+    tier: resolved.tier,
+    trial_ends_at: resolved.tier === "trial" ? new Date(resolved.trialEndsAt).toISOString() : null,
+    quota_day: day,
+    sessions_used_today: Number(row?.used || 0),
+    sessions_limit_today: sessionLimitFor(resolved),
+    allowed_levels: allowedLevelsFor(resolved),
+  };
+}
+
 async function handleCheckStatus(request, env, cors) {
   const body = await request.json().catch(() => null);
   const now = new Date();
@@ -852,15 +932,12 @@ async function handleCheckStatus(request, env, cors) {
 
   const accountKey = `account:${account.sub}`;
   const raw = await env.REDEEMED_CODES.get(accountKey);
-  let trialSessionsRemaining = null;
+  let quota = {};
   if (env.DB && typeof env.DB.prepare === "function") {
     try {
-      const row = await env.DB.prepare(
-        "SELECT COUNT(*) AS used FROM trial_sessions WHERE user_id = ?"
-      ).bind(account.sub).first();
-      trialSessionsRemaining = Math.max(0, Number(env.FREE_SESSIONS || DEFAULT_FREE_SESSIONS) - Number(row?.used || 0));
-    } catch {
-      trialSessionsRemaining = Number(env.FREE_SESSIONS || DEFAULT_FREE_SESSIONS);
+      quota = await getQuotaStatus(account, env, now.getTime());
+    } catch (error) {
+      console.error("[Quota] status lookup failed", error);
     }
   }
   if (!raw) {
@@ -869,7 +946,7 @@ async function handleCheckStatus(request, env, cors) {
       days_remaining: 0,
       server_time: now.toISOString(),
       expiresAt: null,
-      trial_sessions_remaining: trialSessionsRemaining ?? DEFAULT_FREE_SESSIONS,
+      ...quota,
     }, 200, cors);
   }
 
@@ -884,7 +961,7 @@ async function handleCheckStatus(request, env, cors) {
     days_remaining: daysRemaining,
     server_time: now.toISOString(),
     expiresAt: record.expiresAt,
-    trial_sessions_remaining: trialSessionsRemaining ?? DEFAULT_FREE_SESSIONS,
+    ...quota,
   }, 200, cors);
 }
 
@@ -1217,6 +1294,9 @@ async function handleAuthSession(request, env, cors) {
   const body = await request.json().catch(() => null);
   const account = await verifyGoogleIdToken(body?.id_token, env.GOOGLE_CLIENT_ID);
   if (!account) return json({ error: "invalid_id_token", code: "UNAUTHENTICATED" }, 401, cors);
+  if (env.DB && typeof env.DB.prepare === "function") {
+    await getTrialStart(account.sub, env, Date.now()).catch((error) => console.error("[Quota] trial start failed", error));
+  }
   return json({ session_token: await signSessionToken(account, env.SESSION_SECRET), expires_in: 30 * 86400 }, 200, cors);
 }
 
@@ -1239,7 +1319,7 @@ function json(obj, status, cors) {
 export {
   checkRateLimit,
   checkUserEntitlement,
-  consumeTrialSession,
+  consumeSession,
   getCorsHeaders,
   incrementDailyUsage,
   resolveAccount,

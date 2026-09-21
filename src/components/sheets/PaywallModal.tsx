@@ -17,7 +17,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   onClose,
   onUpgrade,
   title = 'أكمل رحلتك مع Katzu Pro',
-  description = 'لقد استنفدت الجلسات التجريبية المجانية. رَقِّ حسابك الآن لخوض محادثات غير محدودة مع الذكاء الاصطناعي.',
+  description = 'رَقِّ حسابك الآن لمزيد من جلسات المحادثة يومياً ولفتح جميع المستويات من A1 إلى B2.',
 }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="عضوية Katzu Pro">
@@ -35,7 +35,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
         {/* Pro Benefits */}
         <div className="w-full space-y-2 mb-6 text-start">
           {[
-            'محادثات صوتية غير محدودة وبدون حد يومي',
+            'محادثات صوتية بلا حد لعدد الجلسات اليومية',
             'فتح كافة السيناريوهات من المستوى A1 حتى B2',
             'تصحيح فوري فائق الدقة وشرح القواعد بالعربية',
             'توليد تلميحات ذكية مخصصة لكل خطوة في المحادثة',
