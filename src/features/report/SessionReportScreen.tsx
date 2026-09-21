@@ -143,19 +143,6 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         </p>
       </div>
 
-      {/* Trial sessions banner if not Pro */}
-      {user && !user.isSubscriptionActive && (
-        <div className="w-full p-3 rounded-2xl bg-surface-card border border-primary/30 flex items-center justify-between mb-6 shadow-glow-purple">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-xs font-arabic text-text-secondary">الجلسات التجريبية المتبقية:</span>
-          </div>
-          <span className="text-xs font-bold text-primary px-2.5 py-0.5 rounded-full bg-primary/20">
-            {user.freeSessionsRemaining ?? 0} من 3
-          </span>
-        </div>
-      )}
-
       {/* Metrics Cards Grid (Rule 6: Independent vs Assisted breakdown) */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Card className="p-4 text-center border-primary/30 shadow-glow-purple">

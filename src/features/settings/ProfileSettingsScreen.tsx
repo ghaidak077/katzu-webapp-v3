@@ -24,12 +24,14 @@ export interface ProfileSettingsScreenProps {
   onOpenSubscription: () => void;
   onSignOut: () => void;
   onGoToSignIn?: () => void;
+  onOpenTrustPage?: (page: 'privacy' | 'terms' | 'contact') => void;
 }
 
 export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   onOpenSubscription,
   onSignOut,
   onGoToSignIn,
+  onOpenTrustPage,
 }) => {
   const user = useLiveQuery(() => db.users.get('current_user'));
   const [showEditName, setShowEditName] = useState(false);
@@ -175,6 +177,11 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
 
       {/* App Info & Sign Out */}
       <div className="space-y-3">
+        <div className="flex items-center justify-center gap-4 text-xs text-text-secondary font-arabic">
+          <button onClick={() => onOpenTrustPage?.('privacy')} className="hover:text-primary underline">الخصوصية</button>
+          <button onClick={() => onOpenTrustPage?.('terms')} className="hover:text-primary underline">الشروط</button>
+          <button onClick={() => onOpenTrustPage?.('contact')} className="hover:text-primary underline">الدعم</button>
+        </div>
         <div className="p-4 rounded-2xl bg-surface-card border border-border-subtle text-center text-xs text-text-muted space-y-1">
           <div>Katzu Web App v1.0.0 (PWA)</div>
           <div className="text-text-secondary">صُنع بواسطة غيدق علوش — ghaidak.com</div>

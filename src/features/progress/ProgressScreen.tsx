@@ -1,31 +1,64 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
-import { Flame, Clock, MessageSquare, Award, Share2, Sparkles } from 'lucide-react';
+import { Flame, Share2 } from 'lucide-react';
+import type { SessionEntity } from '@/types/models';
+
+const WEEKDAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')}`;
+}
+
+export function getLastSevenDays(referenceDate = new Date()) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(referenceDate);
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+    return {
+      dateKey: toDateKey(date),
+      label: WEEKDAY_NAMES[date.getDay()],
+    };
+  });
+}
+
+export function getActivityDateKeys(sessions: Array<Pick<SessionEntity, 'timestamp'>>) {
+  return new Set(
+    sessions.map(({ timestamp }) => {
+      const date = new Date(timestamp);
+      return toDateKey(date);
+    }),
+  );
+}
 
 export const ProgressScreen: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
 
   const user = useLiveQuery(() => db.users.get('current_user'));
-  const sessions = useLiveQuery(() => db.sessions.toArray()) || [];
+  const sessionsQuery = useLiveQuery(() => db.sessions.toArray());
+  const sessions = sessionsQuery ?? [];
 
   const totalSentences = sessions.reduce((acc, s) => acc + (s.sentencesSpoken || 0), 0);
   const totalMinutes = Math.round(
     sessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0) / 60
   );
+  const accuracies = sessions
+    .map((session) => session.accuracyPercent)
+    .filter((accuracy): accuracy is number => accuracy !== null && Number.isFinite(accuracy));
   const averageAccuracy =
-    sessions.length > 0
-      ? Math.round(
-          sessions.reduce((acc, s) => acc + (s.accuracyPercent ?? 0), 0) / sessions.length
-        )
-      : 85;
-
-  const daysOfWeek = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+    accuracies.length > 0
+      ? Math.round(accuracies.reduce((total, accuracy) => total + accuracy, 0) / accuracies.length)
+      : null;
+  const activityDateKeys = useMemo(() => getActivityDateKeys(sessions), [sessions]);
+  const days = useMemo(() => getLastSevenDays(), []);
+  const hasProgress = sessions.length > 0;
+  const streakDays = hasProgress ? user?.streakDays ?? 0 : 0;
 
   return (
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto relative pb-28">
@@ -46,10 +79,10 @@ export const ProgressScreen: React.FC = () => {
             سلسلة الحماس الحالية
           </div>
           <div className="text-3xl font-bold font-german text-text-primary mb-1">
-            {user?.streakDays || 1} <span className="text-sm font-arabic font-normal">أيام متتالية</span>
+            {streakDays} <span className="text-sm font-arabic font-normal">أيام متتالية</span>
           </div>
           <p className="text-xs text-text-muted font-arabic">
-            أنت في المسار الصحيح لتثبيت العادة اليومية!
+            {hasProgress ? 'استمر في ممارسة الألمانية لبناء عادتك اليومية.' : 'لم تسجل أي جلسات بعد.'}
           </p>
         </div>
         <KatzuMascot name="thumbs_up" className="w-20 h-20 object-contain -me-1" />
@@ -59,10 +92,10 @@ export const ProgressScreen: React.FC = () => {
       <Card className="p-4 mb-4">
         <h4 className="text-xs font-bold text-text-secondary mb-3">نشاط آخر 7 أيام:</h4>
         <div className="grid grid-cols-7 gap-2 text-center">
-          {daysOfWeek.map((day, idx) => {
-            const hasActivity = idx === 6 || idx === 5; // recent active days
+          {days.map(({ dateKey, label }) => {
+            const hasActivity = activityDateKeys.has(dateKey);
             return (
-              <div key={day} className="flex flex-col items-center gap-1.5">
+              <div key={dateKey} className="flex flex-col items-center gap-1.5">
                 <div
                   className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold font-german transition-all ${
                     hasActivity
@@ -72,7 +105,7 @@ export const ProgressScreen: React.FC = () => {
                 >
                   {hasActivity ? '✓' : ''}
                 </div>
-                <span className="text-[10px] text-text-secondary font-arabic">{day.slice(0, 3)}</span>
+                <span className="text-[10px] text-text-secondary font-arabic">{label.slice(0, 3)}</span>
               </div>
             );
           })}
@@ -83,16 +116,18 @@ export const ProgressScreen: React.FC = () => {
       <div className="grid grid-cols-3 gap-2 mb-6">
         <Card className="p-3 text-center">
           <span className="text-[10px] text-text-secondary block mb-1">الدقة العامة</span>
-          <div className="text-lg font-bold font-german text-primary">{averageAccuracy}%</div>
+          <div className="text-lg font-bold font-german text-primary">
+            {averageAccuracy === null ? '—' : `${averageAccuracy}%`}
+          </div>
         </Card>
         <Card className="p-3 text-center">
           <span className="text-[10px] text-text-secondary block mb-1">إجمالي الجمل</span>
-          <div className="text-lg font-bold font-german text-text-primary">{totalSentences || 12}</div>
+          <div className="text-lg font-bold font-german text-text-primary">{totalSentences}</div>
         </Card>
         <Card className="p-3 text-center">
           <span className="text-[10px] text-text-secondary block mb-1">وقت التحدث</span>
           <div className="text-lg font-bold font-german text-status-learning">
-            {totalMinutes || 8} <span className="text-[10px] font-arabic">د</span>
+            {totalMinutes} <span className="text-[10px] font-arabic">د</span>
           </div>
         </Card>
       </div>
@@ -103,6 +138,7 @@ export const ProgressScreen: React.FC = () => {
         size="lg"
         className="w-full flex items-center justify-center gap-2 border-primary/30"
         onClick={() => setShowShareModal(true)}
+        disabled={!hasProgress}
       >
         <Share2 className="w-4 h-4 text-primary" />
         مشاركة بطاقة إنجازك
@@ -116,21 +152,21 @@ export const ProgressScreen: React.FC = () => {
       >
         <div className="p-4 rounded-3xl bg-surface-hero border border-primary/40 text-center space-y-4 mb-4 shadow-glow-purple">
           <KatzuMascot name="celebrating" glow className="w-24 h-24 mx-auto" />
-          <h3 className="text-lg font-bold font-arabic">{user?.displayName || 'مستكشف كَاتْزُو'}</h3>
+          <h3 className="text-lg font-bold font-arabic">{user?.displayName || '—'}</h3>
           <div className="flex justify-center gap-4 text-xs">
             <div>
               <span className="text-text-muted block">المستوى</span>
-              <span className="font-german font-bold text-primary text-base">{user?.cefrLevel || 'A1'}</span>
+              <span className="font-german font-bold text-primary text-base">{user?.cefrLevel ?? '—'}</span>
             </div>
             <div>
               <span className="text-text-muted block">الحماس</span>
               <span className="font-german font-bold text-status-learning text-base">
-                {user?.streakDays || 1} أيام 🔥
+                {streakDays} أيام 🔥
               </span>
             </div>
             <div>
               <span className="text-text-muted block">النقاط</span>
-              <span className="font-german font-bold text-status-success text-base">{user?.totalXp || 120} XP</span>
+              <span className="font-german font-bold text-status-success text-base">{user?.totalXp ?? 0} XP</span>
             </div>
           </div>
           <p className="text-[11px] text-text-secondary italic">
@@ -145,7 +181,7 @@ export const ProgressScreen: React.FC = () => {
             if (navigator.share) {
               navigator.share({
                 title: 'إنجازي في كَاتْزُو',
-                text: `لقد حققت سلسلة ${user?.streakDays || 1} أيام في محادثات الألمانية مع كَاتْزُو!`,
+                text: `لقد حققت سلسلة ${streakDays} أيام في محادثات الألمانية مع كَاتْزُو!`,
                 url: window.location.origin,
               });
             } else {

@@ -347,15 +347,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     };
     db.sessions.put(sessionRecord);
 
-    // Update user stats, XP, and decrement free trial if not Pro
+    // Update local learning stats; trial entitlement is enforced by the Worker.
     const earnedXp = Math.round((accuracy ?? 0) * 1.5) + (assistedMsgs.length === 0 ? 50 : 25);
-    const newFreeRemaining = !user?.isSubscriptionActive
-      ? Math.max(0, (user?.freeSessionsRemaining ?? 3) - 1)
-      : user?.freeSessionsRemaining ?? 3;
 
     db.users.update('current_user', {
       totalXp: (user?.totalXp || 0) + earnedXp,
-      freeSessionsRemaining: newFreeRemaining,
       lastActiveDate: new Date().toISOString().split('T')[0],
       updatedAt: Date.now(),
     });
