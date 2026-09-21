@@ -133,10 +133,8 @@ export async function initializeDatabaseSeed(): Promise<void> {
     });
   }
 
-  // Production curriculum is owned by D1/Worker. Keep local fixtures available
-  // only for development so the browser cannot silently become the source of truth.
-  if (!(import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV) return;
-
+  // Production curriculum is owned by D1/Worker. Fall back to local fixtures
+  // if the database is empty (offline or first run).
   const scenarioCount = await db.scenarios.count();
   if (scenarioCount === 0) {
     await db.scenarios.bulkPut([

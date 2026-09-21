@@ -242,8 +242,17 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 
           <Button
             size="md"
-            variant="secondary"
+            variant="primary"
             className="w-full mt-4"
+            onClick={() => completeUserAuth('guest@katzu.app', currentUser?.displayName || 'مستكشف كَاتْزُو', 'preview_guest_token', selectedLevel)}
+          >
+            المتابعة كضيف للمعاينة التجريبية
+          </Button>
+
+          <Button
+            size="md"
+            variant="secondary"
+            className="w-full mt-2"
             onClick={onBack}
           >
             العودة للرئيسية
