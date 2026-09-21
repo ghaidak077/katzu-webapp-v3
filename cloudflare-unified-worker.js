@@ -3,7 +3,7 @@
  * 
  * Bindings required / supported:
  * - REDEEMED_CODES (KV)
- * - USER_PROGRESS (KV) (also stores authoritative AI trial quota records)
+ * - USER_PROGRESS (KV) (progress data)
  * - DB (D1 Database)
  * - ADMIN_SECRET (Secret)
  * - HMAC_SECRET (Secret)
@@ -18,8 +18,6 @@
 
 const translationCache = new Map(); // text.toLowerCase() -> translation_ar (LRU max 1000)
 const hintsCache = new Map(); // key -> hints array (LRU max 500)
-const MAX_FREE_AI_SESSIONS = 3;
-const quotaLocks = new Map();
 const DEFAULT_DAILY_TURN_CAP = 150;
 const DEFAULT_FREE_SESSIONS = 3;
 const MAX_TRIAL_SESSION_TURNS = 12;
@@ -138,21 +136,7 @@ async function checkUserEntitlement(account, cefrLevel, env = {}) {
   const subscription = await getActiveSubscription(account, env);
   if (subscription) return { allowed: true, isSubscribed: true };
 
-  // Trial access is restricted to A1.
   const level = (cefrLevel || "A1").toUpperCase();
-  if (env.DB && level === "A1") {
-    return { allowed: true, isSubscribed: false };
-  }
-
-  // Legacy KV-backed trial access remains available during migration.
-  if (!env.DB && level === "A1") {
-    const quota = await readTrialQuota(account.sub, env);
-    if (!quota.available) return { allowed: false, code: "QUOTA_UNAVAILABLE", message: "تعذر التحقق من الرصيد المجاني على الخادم. يرجى المحاولة لاحقاً." };
-    if (quota.used >= MAX_FREE_AI_SESSIONS) return { allowed: false, code: "FREE_QUOTA_EXHAUSTED", message: "انتهت الجلسات التجريبية المجانية (3 جلسات). يرجى الاشتراك في Katzu Pro لمتابعة التعلم." };
-    return { allowed: true, isSubscribed: false, trialSessionsRemaining: MAX_FREE_AI_SESSIONS - quota.used };
-  }
-
-  // 2. Trial access: restricted to A1 level with a server-side quota.
   if (level !== "A1") {
     return {
       allowed: false,
@@ -160,25 +144,7 @@ async function checkUserEntitlement(account, cefrLevel, env = {}) {
       message: "المستويات المتقدمة (A2, B1, B2) تتطلب اشتراك Katzu Pro نشط أو كود تفعيل."
     };
   }
-
-  const quota = await readTrialQuota(account.sub, env);
-  if (!quota.available) {
-    return {
-      allowed: false,
-      code: "QUOTA_UNAVAILABLE",
-      message: "تعذر التحقق من الرصيد المجاني على الخادم. يرجى المحاولة لاحقاً."
-    };
-  }
-
-  if (quota.used >= MAX_FREE_AI_SESSIONS) {
-    return {
-      allowed: false,
-      code: "FREE_QUOTA_EXHAUSTED",
-      message: "انتهت الجلسات التجريبية المجانية (3 جلسات). يرجى الاشتراك في Katzu Pro لمتابعة التعلم."
-    };
-  }
-
-  return { allowed: true, isSubscribed: false, trialSessionsRemaining: MAX_FREE_AI_SESSIONS - quota.used };
+  return { allowed: true, isSubscribed: false };
 }
 
 async function getActiveSubscription(account, env = {}) {
@@ -193,8 +159,15 @@ async function getActiveSubscription(account, env = {}) {
   }
 }
 
-function quotaKey(accountId) {
-  return `ai-quota:${accountId}`;
+async function incrementDailyUsage(accountId, day, env = {}) {
+  const cap = Math.max(1, Number(env.AI_DAILY_TURN_CAP || DEFAULT_DAILY_TURN_CAP));
+  const result = await env.DB.prepare(`
+    INSERT INTO usage(user_id, day, turns)
+    VALUES (?, ?, 1)
+    ON CONFLICT(user_id, day) DO UPDATE SET turns = usage.turns + 1
+    WHERE usage.turns < ?
+  `).bind(accountId, day, cap).run();
+  return Number(result?.meta?.changes || 0) === 1;
 }
 
 async function consumeTrialSession(accountId, sessionId, env = {}, level = "A1") {
@@ -247,53 +220,12 @@ async function refundTrialSessionTurn(accountId, sessionId, env = {}) {
   await env.DB.prepare(
     "UPDATE trial_sessions SET turns = turns - 1 WHERE user_id = ? AND session_id = ? AND turns > 0"
   ).bind(accountId, sessionId).run();
-}
-
-async function readTrialQuota(accountId, env = {}) {
-  if (!env?.USER_PROGRESS || typeof env.USER_PROGRESS.get !== "function") {
-    return { available: false, used: 0 };
-  }
-  const raw = await env.USER_PROGRESS.get(quotaKey(accountId));
-  if (!raw) return { available: true, used: 0 };
-  try {
-    const parsed = JSON.parse(raw);
-    const used = Number.isFinite(parsed?.used) ? parsed.used : Number(parsed?.sessionsUsed);
-    return { available: true, used: Math.max(0, Number.isFinite(used) ? Math.floor(used) : 0) };
-  } catch {
-    return { available: false, used: 0 };
-  }
-}
-
-async function consumeTrialQuota(accountId, env = {}) {
-  const previous = quotaLocks.get(accountId) || Promise.resolve();
-  let release;
-  const current = new Promise(resolve => { release = resolve; });
-  quotaLocks.set(accountId, current);
-  await previous;
-  try {
-    const quota = await readTrialQuota(accountId, env);
-    if (!quota.available) {
-      return { allowed: false, code: "QUOTA_UNAVAILABLE", message: "تعذر التحقق من الرصيد المجاني على الخادم. يرجى المحاولة لاحقاً." };
-    }
-    if (quota.used >= MAX_FREE_AI_SESSIONS) {
-      return { allowed: false, code: "FREE_QUOTA_EXHAUSTED", message: "انتهت الجلسات التجريبية المجانية (3 جلسات). يرجى الاشتراك في Katzu Pro لمتابعة التعلم." };
-    }
-    const used = quota.used + 1;
-    try {
-      await env.USER_PROGRESS.put(quotaKey(accountId), JSON.stringify({ used, updated_at: Date.now() }));
-    } catch {
-      return { allowed: false, code: "QUOTA_UNAVAILABLE", message: "تعذر حفظ الرصيد المجاني على الخادم. يرجى المحاولة لاحقاً." };
-    }
-    return { allowed: true, used, remaining: MAX_FREE_AI_SESSIONS - used };
-  } finally {
-    release();
-    if (quotaLocks.get(accountId) === current) quotaLocks.delete(accountId);
-  }
+  await env.DB.prepare(
+    "DELETE FROM trial_sessions WHERE user_id = ? AND session_id = ? AND turns <= 0"
+  ).bind(accountId, sessionId).run();
 }
 
 async function authenticateAiRequest(request, body, env, cors, {
-  level = null,
-  requireEntitlement = false,
   rateLimit = true,
 } = {}) {
   const account = await resolveAccount(request, body, env);
@@ -313,48 +245,6 @@ async function authenticateAiRequest(request, body, env, cors, {
       };
     }
 
-    if (env.DB && typeof env.DB.prepare === "function") {
-      const day = new Date().toISOString().slice(0, 10);
-      try {
-        await env.DB.prepare("CREATE TABLE IF NOT EXISTS usage (user_id TEXT, day TEXT, turns INTEGER, PRIMARY KEY(user_id, day))").run();
-        await env.DB.prepare("CREATE TABLE IF NOT EXISTS trial_sessions (user_id TEXT, session_id TEXT, turns INTEGER, PRIMARY KEY(user_id, session_id))").run();
-        const usage = await env.DB.prepare(
-          "INSERT INTO usage(user_id, day, turns) VALUES (?, ?, 1) ON CONFLICT(user_id, day) DO UPDATE SET turns = usage.turns + 1 RETURNING turns"
-        ).bind(account.sub, day).first();
-        const dailyCap = Number(env.AI_DAILY_TURN_CAP || DEFAULT_DAILY_TURN_CAP);
-        if (Number(usage?.turns) > dailyCap) {
-          await env.DB.prepare("UPDATE usage SET turns = turns - 1 WHERE user_id = ? AND day = ?").bind(account.sub, day).run();
-          return { response: json({ error: "daily_quota_exhausted", code: "DAILY_TURN_CAP" }, 429, cors) };
-        }
-        if (body?.session_id) {
-          const session = await env.DB.prepare(
-            "INSERT INTO trial_sessions(user_id, session_id, turns) VALUES (?, ?, 1) ON CONFLICT(user_id, session_id) DO UPDATE SET turns = trial_sessions.turns + 1 RETURNING turns"
-          ).bind(account.sub, body.session_id).first();
-          if (Number(session?.turns) > 12) {
-            await env.DB.prepare("UPDATE trial_sessions SET turns = turns - 1 WHERE user_id = ? AND session_id = ?").bind(account.sub, body.session_id).run();
-            await env.DB.prepare("UPDATE usage SET turns = turns - 1 WHERE user_id = ? AND day = ?").bind(account.sub, day).run();
-            return { response: json({ error: "session_turn_cap", code: "SESSION_TURN_CAP" }, 429, cors) };
-          }
-        }
-      } catch (error) {
-        console.error("[Quota] D1 counter failed", error);
-        return { response: json({ error: "quota_unavailable", code: "QUOTA_UNAVAILABLE" }, 503, cors) };
-      }
-    }
-  }
-
-  if (requireEntitlement) {
-    const entitlement = await checkUserEntitlement(account, level || "A1", env);
-    if (!entitlement.allowed) {
-      const quotaFailure = ["FREE_QUOTA_EXHAUSTED", "QUOTA_UNAVAILABLE"].includes(entitlement.code);
-      return {
-        response: json({
-          error: quotaFailure ? "free_quota_error" : "subscription_required",
-          code: entitlement.code || "PAYWALL_REQUIRED",
-          message: entitlement.message
-        }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors)
-      };
-    }
   }
 
   return { account };
@@ -368,7 +258,6 @@ async function handleDeleteUser(request, env, cors) {
 
   if (env.USER_PROGRESS) {
     await env.USER_PROGRESS.delete(`progress:${account.sub}`);
-    await env.USER_PROGRESS.delete(quotaKey(account.sub));
   }
   if (env.REDEEMED_CODES) {
     await env.REDEEMED_CODES.delete(`account:${account.sub}`);
@@ -651,6 +540,9 @@ async function handleAiConversationTurn(request, env, cors) {
   const auth = await authenticateAiRequest(request, body, env, cors);
   if (auth.response) return auth.response;
   const account = auth.account;
+  if (!env.DB || typeof env.DB.prepare !== "function") {
+    return json({ error: "quota_unavailable", code: "QUOTA_UNAVAILABLE" }, 503, cors);
+  }
   const usageDay = new Date().toISOString().slice(0, 10);
 
   const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn, mode } = body;
@@ -665,22 +557,23 @@ async function handleAiConversationTurn(request, env, cors) {
     }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
   }
   let trialCounted = false;
-  if (!entitlement.isSubscribed && env.DB) {
-    const quota = await consumeTrialSession(account.sub, body.session_id, env, level);
-    if (!quota.allowed) {
-      const status = quota.code === "PAYWALL_REQUIRED" ? 402 : 429;
-      await refundDailyTurn(account.sub, usageDay, env);
-      return json({ error: "free_quota_unavailable", code: quota.code, message: "انتهت الجلسة المجانية أو وصلت إلى حدها الأقصى." }, status, cors);
+  try {
+    if (!entitlement.isSubscribed) {
+      const quota = await consumeTrialSession(account.sub, body.session_id, env, level);
+      if (!quota.allowed) {
+        const status = quota.code === "PAYWALL_REQUIRED" ? 402 : 429;
+        return json({ error: "free_quota_unavailable", code: quota.code, message: "انتهت الجلسة المجانية أو وصلت إلى حدها الأقصى." }, status, cors);
+      }
+      trialCounted = true;
     }
-    trialCounted = true;
-  } else if (!entitlement.isSubscribed) {
-    const quota = await consumeTrialQuota(account.sub, env);
-    if (!quota.allowed) {
-      const status = quota.code === "QUOTA_UNAVAILABLE" ? 503 : 402;
-      await refundDailyTurn(account.sub, usageDay, env);
-      return json({ error: "free_quota_unavailable", code: quota.code, message: quota.message }, status, cors);
+    if (!await incrementDailyUsage(account.sub, usageDay, env)) {
+      if (trialCounted) await refundTrialSessionTurn(account.sub, body.session_id, env);
+      return json({ error: "daily_quota_exhausted", code: "DAILY_TURN_CAP" }, 429, cors);
     }
-    trialCounted = true;
+  } catch (error) {
+    console.error("[Quota] D1 counter failed", error);
+    if (trialCounted) await refundTrialSessionTurn(account.sub, body.session_id, env);
+    return json({ error: "quota_unavailable", code: "QUOTA_UNAVAILABLE" }, 503, cors);
   }
 
   const wrapUpInstruction = is_final_turn
@@ -731,13 +624,7 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
     console.error("[Separated Turn Error]", err);
     await refundDailyTurn(account.sub, usageDay, env);
     if (trialCounted) {
-      if (env.DB) await refundTrialSessionTurn(account.sub, body.session_id, env);
-      else {
-        const quota = await readTrialQuota(account.sub, env);
-        if (quota.available && env.USER_PROGRESS) {
-          await env.USER_PROGRESS.put(quotaKey(account.sub), JSON.stringify({ used: Math.max(0, quota.used - 1), updated_at: Date.now() }));
-        }
-      }
+      await refundTrialSessionTurn(account.sub, body.session_id, env);
     }
     return json({ error: "ai_error", message: "تعذر إكمال دور المحادثة والتقييم." }, 502, cors);
   }
@@ -801,11 +688,16 @@ Respond strictly in JSON:
 async function handleAiHints(request, env, cors) {
   const body = await request.json().catch(() => null);
   const { scenario_title, cefr_level, last_ai_reply, history } = body || {};
-  const auth = await authenticateAiRequest(request, body, env, cors, {
-    level: cefr_level || "A1",
-    requireEntitlement: true,
-  });
+  const auth = await authenticateAiRequest(request, body, env, cors);
   if (auth.response) return auth.response;
+  const entitlement = await checkUserEntitlement(auth.account, cefr_level || "A1", env);
+  if (!entitlement.allowed) {
+    return json({
+      error: "subscription_required",
+      code: entitlement.code || "PAYWALL_REQUIRED",
+      message: entitlement.message,
+    }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
+  }
 
   const reply = (last_ai_reply || "").trim();
   const recentHistory = boundedHistory(history, "hints");
@@ -977,7 +869,7 @@ async function handleCheckStatus(request, env, cors) {
       days_remaining: 0,
       server_time: now.toISOString(),
       expiresAt: null,
-      trial_sessions_remaining: trialSessionsRemaining ?? MAX_FREE_AI_SESSIONS,
+      trial_sessions_remaining: trialSessionsRemaining ?? DEFAULT_FREE_SESSIONS,
     }, 200, cors);
   }
 
@@ -992,7 +884,7 @@ async function handleCheckStatus(request, env, cors) {
     days_remaining: daysRemaining,
     server_time: now.toISOString(),
     expiresAt: record.expiresAt,
-    trial_sessions_remaining: trialSessionsRemaining ?? MAX_FREE_AI_SESSIONS,
+    trial_sessions_remaining: trialSessionsRemaining ?? DEFAULT_FREE_SESSIONS,
   }, 200, cors);
 }
 
@@ -1225,7 +1117,7 @@ async function fetchGoogleJwks(forceRefresh = false) {
 }
 
 async function verifyGoogleIdToken(idToken, expectedClientId) {
-  if (!idToken || typeof idToken !== "string") return null;
+  if (!idToken || typeof idToken !== "string" || !expectedClientId) return null;
   const parts = idToken.split(".");
   if (parts.length !== 3) return null;
 
@@ -1237,7 +1129,12 @@ async function verifyGoogleIdToken(idToken, expectedClientId) {
     }
 
     const nowSec = Math.floor(Date.now() / 1000);
-    if (payload.exp <= nowSec || payload.iss !== "https://accounts.google.com" || payload.aud !== expectedClientId) {
+    if (
+      typeof payload.exp !== "number" ||
+      payload.exp <= nowSec ||
+      !["https://accounts.google.com", "accounts.google.com"].includes(payload.iss) ||
+      payload.aud !== expectedClientId
+    ) {
       return null;
     }
 
@@ -1294,7 +1191,13 @@ async function verifySessionToken(token, secret) {
   try {
     const header = decodeJwtPart(parts[0]);
     const payload = decodeJwtPart(parts[1]);
-    if (header.alg !== "HS256" || payload.aud !== "katzu" || !payload.sub || payload.exp <= Math.floor(Date.now() / 1000)) return null;
+    if (
+      header.alg !== "HS256" ||
+      payload.aud !== "katzu" ||
+      !payload.sub ||
+      typeof payload.exp !== "number" ||
+      payload.exp <= Math.floor(Date.now() / 1000)
+    ) return null;
     const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
     const valid = await crypto.subtle.verify("HMAC", key, decodeBase64Url(parts[2]), new TextEncoder().encode(`${parts[0]}.${parts[1]}`));
     return valid ? { sub: payload.sub, email: payload.email || "" } : null;
@@ -1337,9 +1240,8 @@ export {
   checkRateLimit,
   checkUserEntitlement,
   consumeTrialSession,
-  consumeTrialQuota,
   getCorsHeaders,
-  readTrialQuota,
+  incrementDailyUsage,
   resolveAccount,
   refundDailyTurn,
   refundTrialSessionTurn,

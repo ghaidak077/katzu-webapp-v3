@@ -2,9 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSign, generateKeyPairSync } from 'node:crypto';
 import worker, {
   checkRateLimit,
-  checkUserEntitlement,
   consumeTrialSession,
-  consumeTrialQuota,
   getCorsHeaders,
   resolveAccount,
   verifyGoogleIdToken,
@@ -44,13 +42,6 @@ describe('Worker security controls', () => {
     expect(response.status).toBe(200);
     return (await response.json() as { session_token: string }).session_token;
   };
-
-  class MemoryKv {
-    values = new Map<string, string>();
-    async get(key: string) { return this.values.get(key) || null; }
-    async put(key: string, value: string) { this.values.set(key, value); }
-    async delete(key: string) { this.values.delete(key); }
-  }
 
   class MemoryD1 {
     sessions = new Map<string, number>();
@@ -118,6 +109,9 @@ describe('Worker security controls', () => {
       `${Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT', kid: keyId })).toString('base64url')}.${Buffer.from(JSON.stringify(validPayload())).toString('base64url')}.signature`,
       'client-id',
     )).toBeNull();
+    expect(await verifyGoogleIdToken(token(validPayload()), '')).toBeNull();
+    expect(await verifyGoogleIdToken(token(validPayload({ exp: 'never' })), 'client-id')).toBeNull();
+    expect(await verifyGoogleIdToken(token(validPayload({ iss: 'accounts.google.com' })), 'client-id')).not.toBeNull();
   });
 
   it('rejects forged signatures, wrong issuers, unknown keys, and missing tokens', async () => {
@@ -167,45 +161,6 @@ describe('Worker security controls', () => {
     }), env);
     expect(response.status).toBe(402);
     expect((await response.json()).code).toBe('PAYWALL_REQUIRED');
-  });
-
-  it('uses the server quota instead of client-provided freeSessionsRemaining', async () => {
-    const progress = new MemoryKv();
-    await progress.put('ai-quota:security-test-user', JSON.stringify({ used: 3 }));
-    const env = {
-      GOOGLE_CLIENT_ID: 'client-id',
-      GEMINI_API_KEY: 'test-key',
-      SESSION_SECRET: 'session-secret',
-      USER_PROGRESS: progress,
-    };
-    const sessionToken = await issueSession(env);
-    const response = await worker.fetch(new Request('https://worker.test/ai/hints', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        last_ai_reply: 'Hallo',
-        cefr_level: 'A1',
-        freeSessionsRemaining: 999,
-      }),
-    }), env);
-    expect(response.status).toBe(402);
-    expect((await response.json()).code).toBe('FREE_QUOTA_EXHAUSTED');
-  });
-
-  it('increments only the authoritative server quota and floors it at the limit', async () => {
-    const progress = new MemoryKv();
-    const env = { USER_PROGRESS: progress };
-    expect(await consumeTrialQuota('quota-user', env)).toMatchObject({ allowed: true, remaining: 2 });
-    expect(await consumeTrialQuota('quota-user', env)).toMatchObject({ allowed: true, remaining: 1 });
-    expect(await consumeTrialQuota('quota-user', env)).toMatchObject({ allowed: true, remaining: 0 });
-    expect(await consumeTrialQuota('quota-user', env)).toMatchObject({ allowed: false, code: 'FREE_QUOTA_EXHAUSTED' });
-    expect(await checkUserEntitlement({ sub: 'quota-user' }, 'A1', env)).toMatchObject({
-      allowed: false,
-      code: 'FREE_QUOTA_EXHAUSTED',
-    });
   });
 
   it('limits requests per user', () => {

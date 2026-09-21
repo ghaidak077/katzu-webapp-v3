@@ -14,24 +14,9 @@
    - `AI_RATE_LIMIT_PER_MINUTE`
    - `AI_RATE_LIMIT_PER_DAY`
    - `AI_DAILY_TURN_CAP` (default `150`) and `FREE_SESSIONS` (default `3`)
-   - the D1/KV bindings used by the Worker. `USER_PROGRESS` is required for
-     authenticated trial AI access: the Worker stores authoritative quota
-     records under `ai-quota:<google-sub>` in that existing KV namespace.
-6. Run these additive D1 migrations before serving traffic:
-   ```sql
-   CREATE TABLE IF NOT EXISTS usage (
-     user_id TEXT NOT NULL,
-     day TEXT NOT NULL,
-     turns INTEGER NOT NULL DEFAULT 0,
-     PRIMARY KEY (user_id, day)
-   );
-   CREATE TABLE IF NOT EXISTS trial_sessions (
-     user_id TEXT NOT NULL,
-     session_id TEXT NOT NULL,
-     turns INTEGER NOT NULL DEFAULT 0,
-     PRIMARY KEY (user_id, session_id)
-   );
-   ```
+   - the D1/KV bindings used by the Worker. `USER_PROGRESS` stores progress;
+     quota counters are D1-authoritative.
+6. Run `migrations/001_quota.sql` before serving traffic:
    Live-session quota uses one conditional D1 statement per turn: an existing
    `session_id` increments only while `turns < 12`; a new `session_id` inserts
    only while that user has fewer than `FREE_SESSIONS` rows. The Worker checks
