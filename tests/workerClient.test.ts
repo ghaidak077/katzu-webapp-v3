@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+vi.mock('../src/lib/db/katzuDb', () => ({
+  db: {
+    users: {
+      get: vi.fn().mockResolvedValue({ sessionToken: 'session-token-for-test' }),
+    },
+  },
+}));
 import { WorkerClient, mapRedemptionReasonToArabic } from '../src/lib/api/workerClient';
 
 describe('WorkerClient API Contract Integration', () => {
@@ -190,8 +197,10 @@ describe('WorkerClient API Contract Integration', () => {
   });
 
   it('handles edge-cached translation via /ai/translate', async () => {
+    let capturedHeaders: Record<string, string> | undefined;
     global.fetch = vi.fn().mockImplementation(async (url: string, options: any) => {
       if (url.endsWith('/ai/translate')) {
+        capturedHeaders = options.headers;
         return {
           ok: true,
           json: async () => ({ translation_ar: 'شكراً جزيلاً' }),
@@ -202,5 +211,6 @@ describe('WorkerClient API Contract Integration', () => {
 
     const translation = await client.translateText('Vielen Dank');
     expect(translation).toBe('شكراً جزيلاً');
+    expect(capturedHeaders?.Authorization).toBe('Bearer session-token-for-test');
   });
 });

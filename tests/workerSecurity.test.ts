@@ -3,8 +3,10 @@ import { createSign, generateKeyPairSync } from 'node:crypto';
 import worker, {
   checkRateLimit,
   checkUserEntitlement,
+  consumeTrialSession,
   consumeTrialQuota,
   getCorsHeaders,
+  resolveAccount,
   verifyGoogleIdToken,
 } from '../cloudflare-unified-worker';
 
@@ -28,11 +30,55 @@ const validPayload = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('Worker security controls', () => {
+  const authEnv = () => ({
+    GOOGLE_CLIENT_ID: 'client-id',
+    GEMINI_API_KEY: 'test-key',
+    SESSION_SECRET: 'session-secret',
+  });
+
+  const issueSession = async (env: Record<string, unknown>) => {
+    const response = await worker.fetch(new Request('https://worker.test/auth/session', {
+      method: 'POST',
+      body: JSON.stringify({ id_token: token(validPayload()) }),
+    }), env);
+    expect(response.status).toBe(200);
+    return (await response.json() as { session_token: string }).session_token;
+  };
+
   class MemoryKv {
     values = new Map<string, string>();
     async get(key: string) { return this.values.get(key) || null; }
     async put(key: string, value: string) { this.values.set(key, value); }
     async delete(key: string) { this.values.delete(key); }
+  }
+
+  class MemoryD1 {
+    sessions = new Map<string, number>();
+    prepare(sql: string) {
+      return {
+        bind: (...args: string[]) => ({
+          run: async () => {
+            if (!sql.includes('INSERT INTO trial_sessions')) return { meta: { changes: 0 } };
+            const [userId, sessionId] = args;
+            const key = `${userId}:${sessionId}`;
+            const current = this.sessions.get(key);
+            if (current !== undefined) {
+              if (current >= 12) return { meta: { changes: 0 } };
+              this.sessions.set(key, current + 1);
+              return { meta: { changes: 1 } };
+            }
+            const count = [...this.sessions.keys()].filter((entry) => entry.startsWith(`${userId}:`)).length;
+            if (count >= 3) return { meta: { changes: 0 } };
+            this.sessions.set(key, 1);
+            return { meta: { changes: 1 } };
+          },
+          first: async () => {
+            const value = this.sessions.get(`${args[0]}:${args[1]}`);
+            return value === undefined ? null : { turns: value };
+          },
+        }),
+      };
+    }
   }
 
   it('fails closed for missing or invalid production CORS configuration', () => {
@@ -74,6 +120,28 @@ describe('Worker security controls', () => {
     )).toBeNull();
   });
 
+  it('rejects forged signatures, wrong issuers, unknown keys, and missing tokens', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({
+      keys: [{ ...jwk, kid: keyId, alg: 'RS256', use: 'sig' }],
+    }), { headers: { 'Cache-Control': 'max-age=0' } }));
+    const valid = token(validPayload());
+    const forged = `${valid.slice(0, valid.lastIndexOf('.') + 1)}${Buffer.from('forged').toString('base64url')}`;
+    expect(await verifyGoogleIdToken(forged, 'client-id')).toBeNull();
+    expect(await verifyGoogleIdToken(token(validPayload({ iss: 'https://evil.example' })), 'client-id')).toBeNull();
+    expect(await verifyGoogleIdToken(token(validPayload(), { alg: 'RS256', typ: 'JWT', kid: 'missing-key' }), 'client-id')).toBeNull();
+    expect(await verifyGoogleIdToken('', 'client-id')).toBeNull();
+  });
+
+  it('rejects a session token signed with the wrong secret', async () => {
+    const env = authEnv();
+    const sessionToken = await issueSession(env);
+    expect(await resolveAccount(
+      new Request('https://worker.test/ai/turn', { headers: { Authorization: `Bearer ${sessionToken}` } }),
+      null,
+      { SESSION_SECRET: 'wrong-secret' },
+    )).toBeNull();
+  });
+
   it('requires authentication on hints and translation', async () => {
     const env = { GOOGLE_CLIENT_ID: 'client-id', GEMINI_API_KEY: 'test-key' };
     for (const path of ['/ai/hints', '/ai/translate']) {
@@ -90,10 +158,11 @@ describe('Worker security controls', () => {
   });
 
   it('enforces entitlement on hints before calling Gemini', async () => {
-    const env = { GOOGLE_CLIENT_ID: 'client-id', GEMINI_API_KEY: 'test-key' };
+    const env = authEnv();
+    const sessionToken = await issueSession(env);
     const response = await worker.fetch(new Request('https://worker.test/ai/hints', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token(validPayload())}` },
+      headers: { Authorization: `Bearer ${sessionToken}` },
       body: JSON.stringify({ last_ai_reply: 'Hallo', cefr_level: 'B2' }),
     }), env);
     expect(response.status).toBe(402);
@@ -106,12 +175,14 @@ describe('Worker security controls', () => {
     const env = {
       GOOGLE_CLIENT_ID: 'client-id',
       GEMINI_API_KEY: 'test-key',
+      SESSION_SECRET: 'session-secret',
       USER_PROGRESS: progress,
     };
+    const sessionToken = await issueSession(env);
     const response = await worker.fetch(new Request('https://worker.test/ai/hints', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token(validPayload())}`,
+        Authorization: `Bearer ${sessionToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -146,5 +217,18 @@ describe('Worker security controls', () => {
       reason: 'minute_limit',
     });
   });
-});
 
+  it('atomically caps free sessions and repeated turns', async () => {
+    const db = new MemoryD1();
+    const results = await Promise.all(
+      Array.from({ length: 6 }, (_, index) => consumeTrialSession('parallel-user', `session-${index}`, { DB: db })),
+    );
+    expect(results.filter((result) => result.allowed)).toHaveLength(3);
+
+    const turns = await Promise.all(
+      Array.from({ length: 14 }, () => consumeTrialSession('parallel-user', 'session-0', { DB: db })),
+    );
+    expect(turns.filter((result) => result.allowed)).toHaveLength(11);
+    expect(turns.at(-1)?.code).toBe('SESSION_TURN_CAP');
+  });
+});

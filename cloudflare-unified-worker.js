@@ -21,6 +21,8 @@ const hintsCache = new Map(); // key -> hints array (LRU max 500)
 const MAX_FREE_AI_SESSIONS = 3;
 const quotaLocks = new Map();
 const DEFAULT_DAILY_TURN_CAP = 150;
+const DEFAULT_FREE_SESSIONS = 3;
+const MAX_TRIAL_SESSION_TURNS = 12;
 
 function getCache(map, key) {
   if (!map.has(key)) return null;
@@ -133,21 +135,24 @@ function checkRateLimit(userId, env = {}) {
 }
 
 async function checkUserEntitlement(account, cefrLevel, env = {}) {
-  // 1. Active subscription in REDEEMED_CODES KV
-  if (env?.REDEEMED_CODES) {
-    const subRaw = await env.REDEEMED_CODES.get(`account:${account.sub}`);
-    if (subRaw) {
-      try {
-        const sub = JSON.parse(subRaw);
-        if (sub.expiresAt && new Date(sub.expiresAt).getTime() > Date.now()) {
-          return { allowed: true, isSubscribed: true };
-        }
-      } catch {}
-    }
+  const subscription = await getActiveSubscription(account, env);
+  if (subscription) return { allowed: true, isSubscribed: true };
+
+  // Trial access is restricted to A1.
+  const level = (cefrLevel || "A1").toUpperCase();
+  if (env.DB && level === "A1") {
+    return { allowed: true, isSubscribed: false };
+  }
+
+  // Legacy KV-backed trial access remains available during migration.
+  if (!env.DB && level === "A1") {
+    const quota = await readTrialQuota(account.sub, env);
+    if (!quota.available) return { allowed: false, code: "QUOTA_UNAVAILABLE", message: "تعذر التحقق من الرصيد المجاني على الخادم. يرجى المحاولة لاحقاً." };
+    if (quota.used >= MAX_FREE_AI_SESSIONS) return { allowed: false, code: "FREE_QUOTA_EXHAUSTED", message: "انتهت الجلسات التجريبية المجانية (3 جلسات). يرجى الاشتراك في Katzu Pro لمتابعة التعلم." };
+    return { allowed: true, isSubscribed: false, trialSessionsRemaining: MAX_FREE_AI_SESSIONS - quota.used };
   }
 
   // 2. Trial access: restricted to A1 level with a server-side quota.
-  const level = (cefrLevel || "A1").toUpperCase();
   if (level !== "A1") {
     return {
       allowed: false,
@@ -176,8 +181,72 @@ async function checkUserEntitlement(account, cefrLevel, env = {}) {
   return { allowed: true, isSubscribed: false, trialSessionsRemaining: MAX_FREE_AI_SESSIONS - quota.used };
 }
 
+async function getActiveSubscription(account, env = {}) {
+  if (!env?.REDEEMED_CODES) return false;
+  const raw = await env.REDEEMED_CODES.get(`account:${account.sub}`);
+  if (!raw) return false;
+  try {
+    const record = JSON.parse(raw);
+    return Boolean(record.expiresAt && new Date(record.expiresAt).getTime() > Date.now());
+  } catch {
+    return false;
+  }
+}
+
 function quotaKey(accountId) {
   return `ai-quota:${accountId}`;
+}
+
+async function consumeTrialSession(accountId, sessionId, env = {}, level = "A1") {
+  if (String(level).toUpperCase() !== "A1" || !sessionId || !env.DB) {
+    return { allowed: false, code: "PAYWALL_REQUIRED" };
+  }
+  const freeSessions = Math.max(0, Number(env.FREE_SESSIONS || DEFAULT_FREE_SESSIONS));
+  const result = await env.DB.prepare(`
+    INSERT INTO trial_sessions(user_id, session_id, turns)
+    SELECT ?, ?, 1
+    WHERE EXISTS (
+      SELECT 1 FROM trial_sessions WHERE user_id = ? AND session_id = ?
+    ) OR (
+      SELECT COUNT(*) FROM trial_sessions WHERE user_id = ?
+    ) < ?
+    ON CONFLICT(user_id, session_id) DO UPDATE SET turns = trial_sessions.turns + 1
+    WHERE trial_sessions.turns < ?
+  `).bind(
+    accountId,
+    sessionId,
+    accountId,
+    sessionId,
+    accountId,
+    freeSessions,
+    MAX_TRIAL_SESSION_TURNS,
+  ).run();
+  const allowed = Number(result?.meta?.changes || 0) === 1;
+  if (!allowed) {
+    const existing = await env.DB.prepare(
+      "SELECT turns FROM trial_sessions WHERE user_id = ? AND session_id = ?"
+    ).bind(accountId, sessionId).first();
+    return {
+      allowed: false,
+      code: existing ? "SESSION_TURN_CAP" : "FREE_QUOTA_EXHAUSTED",
+      remaining: Math.max(0, freeSessions - Number(existing ? 0 : 1)),
+    };
+  }
+  return { allowed: true };
+}
+
+async function refundDailyTurn(accountId, day, env = {}) {
+  if (!env.DB) return;
+  await env.DB.prepare(
+    "UPDATE usage SET turns = CASE WHEN turns > 0 THEN turns - 1 ELSE 0 END WHERE user_id = ? AND day = ?"
+  ).bind(accountId, day).run();
+}
+
+async function refundTrialSessionTurn(accountId, sessionId, env = {}) {
+  if (!env.DB || !sessionId) return;
+  await env.DB.prepare(
+    "UPDATE trial_sessions SET turns = turns - 1 WHERE user_id = ? AND session_id = ? AND turns > 0"
+  ).bind(accountId, sessionId).run();
 }
 
 async function readTrialQuota(accountId, env = {}) {
@@ -579,11 +648,10 @@ async function handleAiConversationTurn(request, env, cors) {
   const body = await request.json().catch(() => null);
   if (!body || !body.user_message) return json({ error: "user_message required" }, 400, cors);
 
-  const account = await resolveAccount(request, body, env);
-  if (!account) return json({ error: "invalid_id_token", code: "UNAUTHENTICATED", message: "جلسة الدخول غير صالحة أو منتهية. يرجى تسجيل الدخول مجدداً." }, 401, cors);
-
-  const rate = checkRateLimit(account.sub, env);
-  if (!rate.allowed) return json({ error: "rate_limit_exceeded", code: "RATE_LIMIT_EXCEEDED", message: "تم تجاوز الحد الأقصى للمحادثات مؤقتاً. يرجى الانتظار دقيقة.", retry_after: rate.retryAfter }, 429, cors);
+  const auth = await authenticateAiRequest(request, body, env, cors);
+  if (auth.response) return auth.response;
+  const account = auth.account;
+  const usageDay = new Date().toISOString().slice(0, 10);
 
   const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn, mode } = body;
   const level = cefr_level || "A1";
@@ -596,12 +664,23 @@ async function handleAiConversationTurn(request, env, cors) {
       message: entitlement.message
     }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
   }
-  if (!entitlement.isSubscribed) {
+  let trialCounted = false;
+  if (!entitlement.isSubscribed && env.DB) {
+    const quota = await consumeTrialSession(account.sub, body.session_id, env, level);
+    if (!quota.allowed) {
+      const status = quota.code === "PAYWALL_REQUIRED" ? 402 : 429;
+      await refundDailyTurn(account.sub, usageDay, env);
+      return json({ error: "free_quota_unavailable", code: quota.code, message: "انتهت الجلسة المجانية أو وصلت إلى حدها الأقصى." }, status, cors);
+    }
+    trialCounted = true;
+  } else if (!entitlement.isSubscribed) {
     const quota = await consumeTrialQuota(account.sub, env);
     if (!quota.allowed) {
       const status = quota.code === "QUOTA_UNAVAILABLE" ? 503 : 402;
+      await refundDailyTurn(account.sub, usageDay, env);
       return json({ error: "free_quota_unavailable", code: quota.code, message: quota.message }, status, cors);
     }
+    trialCounted = true;
   }
 
   const wrapUpInstruction = is_final_turn
@@ -650,6 +729,16 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
     }, 200, cors);
   } catch (err) {
     console.error("[Separated Turn Error]", err);
+    await refundDailyTurn(account.sub, usageDay, env);
+    if (trialCounted) {
+      if (env.DB) await refundTrialSessionTurn(account.sub, body.session_id, env);
+      else {
+        const quota = await readTrialQuota(account.sub, env);
+        if (quota.available && env.USER_PROGRESS) {
+          await env.USER_PROGRESS.put(quotaKey(account.sub), JSON.stringify({ used: Math.max(0, quota.used - 1), updated_at: Date.now() }));
+        }
+      }
+    }
     return json({ error: "ai_error", message: "تعذر إكمال دور المحادثة والتقييم." }, 502, cors);
   }
 }
@@ -781,28 +870,18 @@ Respond strictly in JSON:
 // ----------------------------------------------------------------------------
 
 function handleAiHealth(env, cors) {
-  const inspection = inspectGeminiKeys(env);
-  const apiKeys = inspection.uniqueKeys;
-  const coolingDownCount = apiKeys.filter(k => isKeyCoolingDown(k)).length;
-  const healthyCount = apiKeys.length - coolingDownCount;
+  const configured = Boolean(env?.GEMINI_API_KEY);
 
   return json({
     status: "healthy",
-    service: "Katzu Unified Worker + Multi-Key AI Engine",
-    keysConfigured: inspection.uniqueCount,
-    rawKeysFound: inspection.rawCount,
-    hasDuplicateKeys: inspection.hasDuplicates,
-    duplicateWarning: inspection.hasDuplicates 
-      ? `One or more keys are duplicated: ${inspection.duplicates.join(", ")}`
-      : null,
-    healthyKeys: healthyCount,
-    coolingDownKeys: coolingDownCount,
-    primaryWorkingModel: primaryWorkingModel || "auto-pinning on first call",
+    service: "Katzu Unified Worker + Gemini AI Engine",
+    keysConfigured: configured ? 1 : 0,
+    model: env?.GEMINI_MODEL || "gemini-2.0-flash",
+    fallbackModel: env?.GEMINI_FALLBACK_MODEL || "gemini-1.5-flash",
     cachedTranslationsCount: translationCache.size,
     cachedHintsCount: hintsCache.size,
-    ready: apiKeys.length > 0,
-    strategy: "single-prompt fusion + round-robin 14-key load balancing + edge memory cache",
-    registeredKeysMasked: inspection.previews
+    ready: configured,
+    strategy: "single-key header authentication with bounded model fallback and edge cache",
   }, 200, cors);
 }
 
@@ -881,8 +960,25 @@ async function handleCheckStatus(request, env, cors) {
 
   const accountKey = `account:${account.sub}`;
   const raw = await env.REDEEMED_CODES.get(accountKey);
+  let trialSessionsRemaining = null;
+  if (env.DB && typeof env.DB.prepare === "function") {
+    try {
+      const row = await env.DB.prepare(
+        "SELECT COUNT(*) AS used FROM trial_sessions WHERE user_id = ?"
+      ).bind(account.sub).first();
+      trialSessionsRemaining = Math.max(0, Number(env.FREE_SESSIONS || DEFAULT_FREE_SESSIONS) - Number(row?.used || 0));
+    } catch {
+      trialSessionsRemaining = Number(env.FREE_SESSIONS || DEFAULT_FREE_SESSIONS);
+    }
+  }
   if (!raw) {
-    return json({ active: false, days_remaining: 0, server_time: now.toISOString(), expiresAt: null }, 200, cors);
+    return json({
+      active: false,
+      days_remaining: 0,
+      server_time: now.toISOString(),
+      expiresAt: null,
+      trial_sessions_remaining: trialSessionsRemaining ?? MAX_FREE_AI_SESSIONS,
+    }, 200, cors);
   }
 
   const record = JSON.parse(raw);
@@ -896,6 +992,7 @@ async function handleCheckStatus(request, env, cors) {
     days_remaining: daysRemaining,
     server_time: now.toISOString(),
     expiresAt: record.expiresAt,
+    trial_sessions_remaining: trialSessionsRemaining ?? MAX_FREE_AI_SESSIONS,
   }, 200, cors);
 }
 
@@ -1239,10 +1336,13 @@ function json(obj, status, cors) {
 export {
   checkRateLimit,
   checkUserEntitlement,
+  consumeTrialSession,
   consumeTrialQuota,
   getCorsHeaders,
   readTrialQuota,
   resolveAccount,
+  refundDailyTurn,
+  refundTrialSessionTurn,
   verifyGoogleIdToken,
 };
 
@@ -1639,7 +1739,7 @@ async function handleAdminDeleteContent(type, id, request, env, cors) {
 function renderAdminDashboardHtml(env) {
   const apiKeys = getGeminiApiKeys(env);
   const keysCount = apiKeys.length;
-  const coolingCount = apiKeys.filter(k => isKeyCoolingDown(k)).length;
+  const coolingCount = 0;
 
   return `<!DOCTYPE html>
 <html lang="en" class="dark">
@@ -1782,7 +1882,7 @@ function renderAdminDashboardHtml(env) {
               <h1 class="text-lg font-bold text-white tracking-tight">Katzu Unified Control Plane</h1>
               <span id="session-badge" class="px-2 py-0.5 text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full">Secret Required</span>
             </div>
-            <p class="text-xs text-slate-400">KV Auth • D1 Content DB • Progress Telemetry • 14+ Gemini Multi-Key Engine</p>
+            <p class="text-xs text-slate-400">KV Auth • D1 Content DB • Progress Telemetry • Gemini AI Engine</p>
           </div>
         </div>
 
@@ -1806,7 +1906,7 @@ function renderAdminDashboardHtml(env) {
             <div>
               <span class="text-xs font-medium text-slate-400 tracking-wide uppercase">Unified Edge & AI Engine</span>
               <h2 class="text-2xl sm:text-3xl font-bold text-white mt-0.5 tracking-tight">Welcome, Administrator</h2>
-              <p class="text-xs text-slate-400 mt-1">KV, D1 database, and 14+ Gemini AI round-robin router are live.</p>
+              <p class="text-xs text-slate-400 mt-1">KV, D1 database, and bounded Gemini fallback are live.</p>
             </div>
             <div class="px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 text-xs font-mono text-cyan-300 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>

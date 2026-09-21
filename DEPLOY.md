@@ -32,6 +32,11 @@
      PRIMARY KEY (user_id, session_id)
    );
    ```
+   Live-session quota uses one conditional D1 statement per turn: an existing
+   `session_id` increments only while `turns < 12`; a new `session_id` inserts
+   only while that user has fewer than `FREE_SESSIONS` rows. The Worker checks
+   D1 `meta.changes` and refunds both `usage.turns` and `trial_sessions.turns`
+   when either Gemini call fails.
 7. Deploy with Wrangler and record the deployed Worker URL.
 
 ## 2. Prepare Google Identity Services

@@ -509,6 +509,7 @@ export class WorkerClient {
     daysRemaining?: number;
     expiresAt?: string | null;
     serverTime?: string;
+    freeSessionsRemaining?: number;
   }> {
     if (!sessionToken) {
       const user = await db.users.get('current_user');
@@ -533,6 +534,9 @@ export class WorkerClient {
           daysRemaining: data.days_remaining ?? 0,
           expiresAt: data.expiresAt || null,
           serverTime: data.server_time,
+          freeSessionsRemaining: Number.isFinite(data.trial_sessions_remaining)
+            ? data.trial_sessions_remaining
+            : undefined,
         };
       }
     } catch (e) {

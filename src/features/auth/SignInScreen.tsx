@@ -146,6 +146,13 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
         await db.users.update('current_user', {
           isSubscriptionActive: true,
           subscriptionExpiresAt: status.expiresAt || null,
+          ...(status.freeSessionsRemaining !== undefined
+            ? { freeSessionsRemaining: status.freeSessionsRemaining }
+            : {}),
+        });
+      } else if (status.freeSessionsRemaining !== undefined) {
+        await db.users.update('current_user', {
+          freeSessionsRemaining: status.freeSessionsRemaining,
         });
       }
     } catch (err) {
@@ -416,4 +423,3 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     </div>
   );
 };
-

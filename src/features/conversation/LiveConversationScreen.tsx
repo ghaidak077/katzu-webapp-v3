@@ -71,6 +71,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const sessionIdRef = useRef<string>(crypto.randomUUID());
   const [currentLevel, setCurrentLevel] = useState<CEFRLevel>(user?.cefrLevel || 'A1');
   const [isSessionCompleted, setIsSessionCompleted] = useState(false);
 
@@ -220,6 +221,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         sarcasmLevel: user?.sarcasmLevel || 'SASSY',
         isFinalTurn,
         mode: sessionMode === 'immersion' ? 'extended' : 'roleplay',
+        sessionId: sessionIdRef.current,
       });
 
       // 3. Form Katzu reply with pedagogical evaluation embedded
@@ -268,6 +270,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             sender: m.sender === 'USER' ? 'user' : 'model',
             text: m.germanText,
           })),
+          sessionId: sessionIdRef.current,
         })
         .then((newHints) => {
           if (newHints && newHints.length > 0) {
