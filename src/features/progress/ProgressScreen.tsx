@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { getDisplayStreak, toLocalDateKey } from '@/features/report/metrics';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -58,7 +59,9 @@ export const ProgressScreen: React.FC = () => {
   const activityDateKeys = useMemo(() => getActivityDateKeys(sessions), [sessions]);
   const days = useMemo(() => getLastSevenDays(), []);
   const hasProgress = sessions.length > 0;
-  const streakDays = hasProgress ? user?.streakDays ?? 0 : 0;
+  const streakDays = hasProgress
+    ? getDisplayStreak({ streakDays: user?.streakDays ?? 0, lastActiveDate: user?.lastActiveDate || null }, toLocalDateKey())
+    : 0;
 
   return (
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto relative pb-28">

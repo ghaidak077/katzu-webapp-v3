@@ -105,6 +105,15 @@ function AppRoutes() {
 
   // Sign out handler
   const handleSignOut = async () => {
+    const current = await db.users.get('current_user');
+    if (current?.sessionToken) {
+      await workerClient.syncProgress(current.sessionToken);
+      await workerClient.flushPendingSync(current.sessionToken);
+    }
+    const unsynced = await db.sync_queue.count();
+    if (unsynced > 0 && !window.confirm('لم تتم مزامنة بعض تقدمك بعد، وسيُحذف إن سجّلت الخروج الآن. هل تريد المتابعة؟')) {
+      return;
+    }
     await wipeUserScopedData();
     navigate('/signin');
   };

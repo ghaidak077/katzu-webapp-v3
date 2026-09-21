@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db/katzuDb';
+import { db, recordDailyActivity } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { useSpeechInput } from '@/lib/speech/useSpeechInput';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
@@ -32,7 +32,7 @@ import type {
   SessionEntity,
   SessionMode,
 } from '@/types/models';
-import { calculateIndependentAccuracy } from '@/features/report/metrics';
+import { calculateIndependentAccuracy, countUsedVocabulary } from '@/features/report/metrics';
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
@@ -339,7 +339,10 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       scenarioTitle: scenario?.title_ar || '',
       cefrLevel: effectiveLevel,
       sentencesSpoken: userMsgs.length,
-      wordsLearned: userMsgs.length * 4,
+      wordsLearned: countUsedVocabulary(
+        independentMsgs.map((m) => m.germanText),
+        vocabulary.filter((v) => v.topic === scenarioId),
+      ),
       accuracyPercent: accuracy,
       durationSeconds: duration,
       timestamp: Date.now(),
@@ -353,9 +356,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     // Update local learning stats; trial entitlement is enforced by the Worker.
     const earnedXp = Math.round((accuracy ?? 0) * 1.5) + (assistedMsgs.length === 0 ? 50 : 25);
 
+    void recordDailyActivity();
     db.users.update('current_user', {
       totalXp: (user?.totalXp || 0) + earnedXp,
-      lastActiveDate: new Date().toISOString().split('T')[0],
       updatedAt: Date.now(),
     });
 

@@ -54,3 +54,55 @@ export function isEligibleForPromotion(
 
   return averageAccuracy >= 75;
 }
+
+export interface StreakState {
+  streakDays: number;
+  lastActiveDate: string | null; // local YYYY-MM-DD
+}
+
+export function toLocalDateKey(date: Date = new Date()): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+// Whole calendar days between two YYYY-MM-DD keys; UTC math keeps DST out of it.
+function dayDiff(from: string, to: string): number {
+  const [fy, fm, fd] = from.split('-').map(Number);
+  const [ty, tm, td] = to.split('-').map(Number);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000);
+}
+
+export function updateStreak(prev: StreakState, todayLocal: string): StreakState & { lastActiveDate: string } {
+  if (!prev.lastActiveDate) return { streakDays: 1, lastActiveDate: todayLocal };
+  const diff = dayDiff(prev.lastActiveDate, todayLocal);
+  if (diff < 0) return { streakDays: prev.streakDays, lastActiveDate: prev.lastActiveDate }; // clock moved backwards: never reset progress
+  if (diff === 0) return { streakDays: Math.max(prev.streakDays, 1), lastActiveDate: todayLocal };
+  if (diff === 1) return { streakDays: prev.streakDays + 1, lastActiveDate: todayLocal };
+  return { streakDays: 1, lastActiveDate: todayLocal };
+}
+
+// A missed day ends the streak on screen even before the next activity is recorded.
+export function getDisplayStreak(state: StreakState, todayLocal: string): number {
+  if (!state.lastActiveDate) return 0;
+  return dayDiff(state.lastActiveDate, todayLocal) <= 1 ? state.streakDays : 0;
+}
+
+const normalizeGerman = (text: string): string =>
+  ` ${text.toLowerCase().replace(/[^a-zäöüß]+/g, ' ').trim()} `;
+
+// Distinct scenario words (or their plural) the learner actually wrote; inflected verbs are not matched.
+export function countUsedVocabulary(
+  sentences: string[],
+  vocabulary: { german: string; plural?: string | null }[],
+): number {
+  const text = normalizeGerman(sentences.join(' . '));
+  const used = new Set<string>();
+  for (const word of vocabulary) {
+    const forms = [word.german, word.plural].filter((f): f is string => !!f);
+    if (forms.some((form) => text.includes(normalizeGerman(form)))) {
+      used.add(normalizeGerman(word.german));
+    }
+  }
+  return used.size;
+}

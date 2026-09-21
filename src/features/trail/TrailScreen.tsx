@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { getDisplayStreak, toLocalDateKey } from '@/features/report/metrics';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { Card } from '@/components/ui/Card';
@@ -72,7 +73,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             <div className="flex items-center gap-1.5 text-xs text-text-secondary">
               <span className="flex items-center gap-1 text-learning font-bold">
                 <Flame className="w-3.5 h-3.5 fill-learning text-learning" />
-                {user?.streakDays ?? 0} أيام حماس
+                {getDisplayStreak({ streakDays: user?.streakDays ?? 0, lastActiveDate: user?.lastActiveDate || null }, toLocalDateKey())} أيام حماس
               </span>
               <span>•</span>
               <span className="text-primary font-bold">{user?.totalXp ?? 0} XP</span>

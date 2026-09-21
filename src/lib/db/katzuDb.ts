@@ -12,6 +12,7 @@ import type {
   MistakeEntity,
   SyncQueueEntity,
 } from '@/types/models';
+import { toLocalDateKey, updateStreak } from '@/features/report/metrics';
 
 class KatzuDatabase extends Dexie {
   scenarios!: EntityTable<ScenarioEntity, 'id'>;
@@ -70,6 +71,17 @@ class KatzuDatabase extends Dexie {
 
 export const db = new KatzuDatabase();
 
+// Call once per completed learning activity (session or quiz); keeps the daily streak honest.
+export async function recordDailyActivity(): Promise<void> {
+  const user = await db.users.get('current_user');
+  if (!user) return;
+  const next = updateStreak(
+    { streakDays: user.streakDays || 0, lastActiveDate: user.lastActiveDate || null },
+    toLocalDateKey(),
+  );
+  await db.users.update('current_user', { ...next, updatedAt: Date.now() });
+}
+
 // Wipes all user-scoped data (sessions, mistakes, saved words, training, redeemed codes) on sign-out
 export async function wipeUserScopedData(): Promise<void> {
   await Promise.all([
@@ -78,6 +90,7 @@ export async function wipeUserScopedData(): Promise<void> {
     db.saved_words.clear(),
     db.scenario_training.clear(),
     db.redeemed_codes.clear(),
+    db.sync_queue.clear(),
   ]);
 
   await db.users.put({

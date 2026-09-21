@@ -4,7 +4,7 @@ import { triggerHaptic } from '@/lib/utils/haptics';
 import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { db } from '@/lib/db/katzuDb';
+import { db, recordDailyActivity } from '@/lib/db/katzuDb';
 import { ArrowRight, Volume2, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
 
 export interface QuizScreenProps {
@@ -89,6 +89,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
         lastScore: finalAccuracy,
         updatedAt: Date.now(),
       });
+      await recordDailyActivity();
       setIsQuizCompleted(true);
     }
   };
