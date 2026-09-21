@@ -126,12 +126,14 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   ) => {
     const cleanEmail = userEmail.trim().toLowerCase();
     const cleanName = userDisplayName.trim() || cleanEmail.split('@')[0] || 'طالب كَاتْزُو';
+    const session = await workerClient.createSession(idToken);
 
     await db.users.update('current_user', {
       email: cleanEmail,
       googleAccountEmail: cleanEmail,
       displayName: cleanName,
       idToken,
+      sessionToken: session.sessionToken,
       isLoggedIn: true,
       cefrLevel: level,
       updatedAt: Date.now(),
@@ -139,7 +141,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 
     // Synchronize cloud subscription status and restore progress
     try {
-      const status = await workerClient.checkSubscriptionStatus(idToken);
+      const status = await workerClient.checkSubscriptionStatus(session.sessionToken);
       if (status.active) {
         await db.users.update('current_user', {
           isSubscriptionActive: true,
@@ -151,7 +153,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     }
 
     try {
-      await workerClient.restoreProgress(idToken);
+      await workerClient.restoreProgress(session.sessionToken);
     } catch (err) {
       console.warn('Progress restore error on login:', err);
     }
@@ -414,5 +416,4 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     </div>
   );
 };
-
 

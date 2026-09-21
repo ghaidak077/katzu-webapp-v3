@@ -357,8 +357,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     });
 
     // Auto sync progress to cloud if authenticated
-    if (user?.idToken) {
-      workerClient.syncProgress(user.idToken).catch((err) => {
+    if (user?.sessionToken) {
+      workerClient.syncProgress(user.sessionToken).catch((err) => {
         console.warn('Background progress sync failed:', err);
       });
     }

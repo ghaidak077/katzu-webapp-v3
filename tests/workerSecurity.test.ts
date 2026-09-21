@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { createSign, generateKeyPairSync } from 'node:crypto';
 import worker, {
   checkRateLimit,
   checkUserEntitlement,
@@ -7,9 +8,15 @@ import worker, {
   verifyGoogleIdToken,
 } from '../cloudflare-unified-worker';
 
-function token(payload: Record<string, unknown>, header = { alg: 'RS256', typ: 'JWT' }) {
+const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const jwk = publicKey.export({ format: 'jwk' }) as Record<string, string>;
+const keyId = 'security-test-key';
+function token(payload: Record<string, unknown>, header = { alg: 'RS256', typ: 'JWT', kid: keyId }) {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  return `${encode(header)}.${encode(payload)}.signature`;
+  const unsigned = `${encode(header)}.${encode(payload)}`;
+  const signer = createSign('RSA-SHA256');
+  signer.update(unsigned);
+  return `${unsigned}.${signer.sign(privateKey).toString('base64url')}`;
 }
 
 const validPayload = (overrides: Record<string, unknown> = {}) => ({
@@ -56,18 +63,19 @@ describe('Worker security controls', () => {
   });
 
   it('rejects bad audience, expired, and unsigned tokens', async () => {
-    const env = { TEST_MODE: true, GOOGLE_CLIENT_ID: 'client-id' };
-    expect(await verifyGoogleIdToken(token(validPayload({ aud: 'wrong' })), 'client-id', env)).toBeNull();
-    expect(await verifyGoogleIdToken(token(validPayload({ exp: 1 })), 'client-id', env)).toBeNull();
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ keys: [{ ...jwk, kid: keyId, alg: 'RS256', use: 'sig' }] }), {
+      headers: { 'Cache-Control': 'max-age=3600' },
+    }));
+    expect(await verifyGoogleIdToken(token(validPayload({ aud: 'wrong' })), 'client-id')).toBeNull();
+    expect(await verifyGoogleIdToken(token(validPayload({ exp: 1 })), 'client-id')).toBeNull();
     expect(await verifyGoogleIdToken(
-      token(validPayload(), { alg: 'none', typ: 'JWT' }),
+      `${Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT', kid: keyId })).toString('base64url')}.${Buffer.from(JSON.stringify(validPayload())).toString('base64url')}.signature`,
       'client-id',
-      env,
     )).toBeNull();
   });
 
   it('requires authentication on hints and translation', async () => {
-    const env = { TEST_MODE: true, GOOGLE_CLIENT_ID: 'client-id', GEMINI_API_KEY: 'test-key' };
+    const env = { GOOGLE_CLIENT_ID: 'client-id', GEMINI_API_KEY: 'test-key' };
     for (const path of ['/ai/hints', '/ai/translate']) {
       const response = await worker.fetch(new Request(`https://worker.test${path}`, {
         method: 'POST',
@@ -82,7 +90,7 @@ describe('Worker security controls', () => {
   });
 
   it('enforces entitlement on hints before calling Gemini', async () => {
-    const env = { TEST_MODE: true, GOOGLE_CLIENT_ID: 'client-id', GEMINI_API_KEY: 'test-key' };
+    const env = { GOOGLE_CLIENT_ID: 'client-id', GEMINI_API_KEY: 'test-key' };
     const response = await worker.fetch(new Request('https://worker.test/ai/hints', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token(validPayload())}` },
@@ -96,7 +104,6 @@ describe('Worker security controls', () => {
     const progress = new MemoryKv();
     await progress.put('ai-quota:security-test-user', JSON.stringify({ used: 3 }));
     const env = {
-      TEST_MODE: true,
       GOOGLE_CLIENT_ID: 'client-id',
       GEMINI_API_KEY: 'test-key',
       USER_PROGRESS: progress,
@@ -140,3 +147,4 @@ describe('Worker security controls', () => {
     });
   });
 });
+

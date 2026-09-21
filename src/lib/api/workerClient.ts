@@ -32,7 +32,6 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
 }
 
 export interface ProgressPayload {
-  id_token?: string;
   stats: Record<string, any>;
   trainings: any[];
   saved_word_ids: number[];
@@ -113,7 +112,7 @@ export class WorkerClient {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
-        const token = db.users.get('current_user').then((user) => user?.idToken || '');
+        const token = db.users.get('current_user').then((user) => user?.sessionToken || '');
         token.then((value) => { if (value) void this.flushPendingSync(value); });
       });
     }
@@ -121,6 +120,19 @@ export class WorkerClient {
 
   getBaseUrl(): string {
     return this.baseUrl;
+  }
+
+  async createSession(idToken: string): Promise<{ sessionToken: string; expiresIn: number }> {
+    const res = await fetch(`${this.baseUrl}/auth/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_token: idToken }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || typeof data.session_token !== 'string') {
+      throw new Error(data.message || 'تعذر إنشاء جلسة الدخول الآمنة.');
+    }
+    return { sessionToken: data.session_token, expiresIn: data.expires_in || 0 };
   }
 
   // --- Curriculum Content Sync ---
@@ -240,6 +252,7 @@ export class WorkerClient {
     isFinalTurn?: boolean;
     mode?: 'roleplay' | 'extended';
     idToken?: string;
+    sessionId?: string;
   }): Promise<TurnAiResponse> {
     let currentUser;
     try {
@@ -247,7 +260,7 @@ export class WorkerClient {
     } catch {
       currentUser = undefined;
     }
-    const token = params.idToken || currentUser?.idToken;
+    const token = params.idToken || currentUser?.sessionToken;
 
     // Map history to worker's expected { role: 'user' | 'model', text: string }
     const historyLimit = params.mode === 'extended' ? 10 : 6;
@@ -264,11 +277,12 @@ export class WorkerClient {
       user_message: params.userMessage,
       history: formattedHistory,
       mode: params.mode || 'roleplay',
-      id_token: token,
+      session_id: params.sessionId,
     };
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
     if (token) {
       headers['Authorization'] = 'Bearer ' + token;
@@ -344,6 +358,7 @@ export class WorkerClient {
     lastAiReply: string;
     history?: Array<{ sender?: string; role?: string; text: string }>;
     idToken?: string;
+    sessionId?: string;
   }): Promise<ContextualHint[]> {
     try {
       let currentUser;
@@ -352,7 +367,7 @@ export class WorkerClient {
       } catch {
         currentUser = undefined;
       }
-      const token = params.idToken || currentUser?.idToken;
+      const token = params.idToken || currentUser?.sessionToken;
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -368,12 +383,12 @@ export class WorkerClient {
           scenario_title: params.scenarioTitle,
           cefr_level: params.cefrLevel,
           last_ai_reply: params.lastAiReply,
+          session_id: params.sessionId,
           history: (params.history || []).slice(-4).map((h) => ({
             role: (h.sender?.toLowerCase() === 'user' || h.role === 'user') ? 'user' : 'model',
             text: h.text || '',
           })),
           mode: 'hints',
-          id_token: token,
         }),
       });
 
@@ -410,9 +425,14 @@ export class WorkerClient {
     if (!trimmed) return '';
 
     try {
+      const user = await db.users.get('current_user');
+      const sessionToken = user?.sessionToken;
       const res = await fetch(`${this.baseUrl}/ai/translate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
         body: JSON.stringify({ text: trimmed }),
       });
 
@@ -430,7 +450,7 @@ export class WorkerClient {
 
   async verifyCode(
     code: string,
-    idToken?: string
+    sessionToken?: string
   ): Promise<{
     success: boolean;
     valid?: boolean;
@@ -444,7 +464,7 @@ export class WorkerClient {
     if (!cleanCode) {
       return { success: false, error: 'يرجى إدخال كود التفعيل.' };
     }
-    if (!idToken) {
+    if (!sessionToken) {
       return {
         success: false,
         reason: 'missing_id_token',
@@ -455,11 +475,8 @@ export class WorkerClient {
     try {
       const res = await fetch(`${this.baseUrl}/verify`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: cleanCode,
-          id_token: idToken,
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({ code: cleanCode }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -487,13 +504,13 @@ export class WorkerClient {
 
   // --- Subscription Status Check (/check-status) ---
 
-  async checkSubscriptionStatus(idToken?: string): Promise<{
+  async checkSubscriptionStatus(sessionToken?: string): Promise<{
     active: boolean;
     daysRemaining?: number;
     expiresAt?: string | null;
     serverTime?: string;
   }> {
-    if (!idToken) {
+    if (!sessionToken) {
       const user = await db.users.get('current_user');
       if (user?.subscriptionExpiresAt) {
         const isActive = new Date(user.subscriptionExpiresAt).getTime() > Date.now();
@@ -505,8 +522,8 @@ export class WorkerClient {
     try {
       const res = await fetch(`${this.baseUrl}/check-status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({}),
       });
 
       if (res.ok) {
@@ -526,8 +543,8 @@ export class WorkerClient {
 
   // --- Progress Sync (/progress/sync) ---
 
-  async syncProgress(idToken: string): Promise<boolean> {
-    if (!idToken) return false;
+  async syncProgress(sessionToken: string): Promise<boolean> {
+    if (!sessionToken) return false;
 
     try {
       const user = await db.users.get('current_user');
@@ -583,8 +600,8 @@ export class WorkerClient {
         })),
       };
 
-      const ok = await this.postProgressPayload(payload, idToken);
-      if (ok) await this.flushPendingSync(idToken);
+      const ok = await this.postProgressPayload(payload, sessionToken);
+      if (ok) await this.flushPendingSync(sessionToken);
       else await this.queueSyncPayload(payload);
       return ok;
     } catch (e) {
@@ -593,12 +610,12 @@ export class WorkerClient {
     }
   }
 
-  private async postProgressPayload(payload: ProgressPayload, idToken: string): Promise<boolean> {
+  private async postProgressPayload(payload: ProgressPayload, sessionToken: string): Promise<boolean> {
     try {
       const res = await fetch(`${this.baseUrl}/progress/sync`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, id_token: idToken }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify(payload),
       });
       return res.ok;
     } catch (e) {
@@ -615,11 +632,11 @@ export class WorkerClient {
     });
   }
 
-  async flushPendingSync(idToken: string): Promise<void> {
-    if (!idToken) return;
+  async flushPendingSync(sessionToken: string): Promise<void> {
+    if (!sessionToken) return;
     const pending = await db.sync_queue.where('nextRetryAt').belowOrEqual(Date.now()).toArray();
     for (const item of pending) {
-      const ok = await this.postProgressPayload(item.payload as ProgressPayload, idToken);
+      const ok = await this.postProgressPayload(item.payload as ProgressPayload, sessionToken);
       if (ok) {
         if (item.id != null) await db.sync_queue.delete(item.id);
       } else if (item.id != null) {
@@ -633,16 +650,16 @@ export class WorkerClient {
 
   // --- Progress Restore (/progress/get) ---
 
-  async restoreProgress(idToken: string): Promise<boolean> {
-    if (!idToken) return false;
+  async restoreProgress(sessionToken: string): Promise<boolean> {
+    if (!sessionToken) return false;
     // Retry queued writes opportunistically; restoration itself remains UI-blocking only on its read.
-    void this.flushPendingSync(idToken);
+    void this.flushPendingSync(sessionToken);
 
     try {
       const res = await fetch(`${this.baseUrl}/progress/get`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({}),
       });
 
       if (res.ok) {
@@ -746,16 +763,16 @@ export class WorkerClient {
 
   // --- Delete User Account & Cloud Data (/user/delete) ---
 
-  async deleteAccount(idToken: string): Promise<boolean> {
-    if (!idToken) return false;
+  async deleteAccount(sessionToken: string): Promise<boolean> {
+    if (!sessionToken) return false;
     try {
       const res = await fetch(`${this.baseUrl}/user/delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + idToken,
+          'Authorization': 'Bearer ' + sessionToken,
         },
-        body: JSON.stringify({ id_token: idToken }),
+        body: JSON.stringify({}),
       });
       return res.ok;
     } catch (e) {

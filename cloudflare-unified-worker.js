@@ -1,5 +1,5 @@
 /**
- * Unified Cloudflare Worker: Auth, D1 Content CMS, Glassmorphic Admin Dashboard & 6+ Gemini AI Engine
+ * Unified Cloudflare Worker: Auth, D1 Content CMS, Admin Dashboard & Gemini AI Engine
  * 
  * Bindings required / supported:
  * - REDEEMED_CODES (KV)
@@ -8,68 +8,19 @@
  * - ADMIN_SECRET (Secret)
  * - HMAC_SECRET (Secret)
  * - GOOGLE_CLIENT_ID (Secret)
- * - GEMINI_API_KEYS (Secret: comma-separated list of 6+ keys)
- *   OR GEMINI_API_KEY, GEMINI_API_KEY_1..6 (Individual secrets)
+ * - GEMINI_API_KEY (Secret)
+ * - GEMINI_MODEL and GEMINI_FALLBACK_MODEL
  */
 
 // ============================================================================
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
 // ============================================================================
 
-const DEFAULT_MODEL_CHAIN = [
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
-  "gemini-3.6-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-flash-latest"
-];
-
-let primaryWorkingModel = null;
-let requestCounter = 0;
-const keyCooldownMap = new Map(); // key -> cooldownExpiryTimestamp
-const keyConsecutiveFails = new Map(); // key -> consecutive fail count
 const translationCache = new Map(); // text.toLowerCase() -> translation_ar (LRU max 1000)
 const hintsCache = new Map(); // key -> hints array (LRU max 500)
 const MAX_FREE_AI_SESSIONS = 3;
 const quotaLocks = new Map();
-
-function isKeyCoolingDown(key) {
-  const expiry = keyCooldownMap.get(key);
-  if (!expiry) return false;
-  if (Date.now() > expiry) {
-    keyCooldownMap.delete(key);
-    return false;
-  }
-  return true;
-}
-
-function markKeyCooldown(key, status = 429) {
-  const fails = (keyConsecutiveFails.get(key) || 0) + 1;
-  keyConsecutiveFails.set(key, fails);
-
-  // Progressive backoff:
-  // 403 (revoked/bad): 1 hour
-  // 429: 25s for 1st fail, 60s for 2nd, 120s for 3rd+
-  let durationMs = 25000;
-  if (status === 403) {
-    durationMs = 3600000;
-  } else if (fails === 2) {
-    durationMs = 60000;
-  } else if (fails >= 3) {
-    durationMs = 120000;
-  }
-
-  keyCooldownMap.set(key, Date.now() + durationMs);
-}
-
-function markKeySuccess(key) {
-  keyConsecutiveFails.delete(key);
-  keyCooldownMap.delete(key);
-}
+const DEFAULT_DAILY_TURN_CAP = 150;
 
 function getCache(map, key) {
   if (!map.has(key)) return null;
@@ -87,84 +38,8 @@ function setCache(map, key, val, maxSize = 1000) {
   map.set(key, val);
 }
 
-function inspectGeminiKeys(env) {
-  const rawList = [];
-
-  // 1. Dynamic inspection of all env variables / secrets
-  if (env && typeof env === "object") {
-    for (const [k, v] of Object.entries(env)) {
-      if (typeof v === "string" && v.trim().length > 0) {
-        if (k === "GEMINI_API_KEYS") {
-          v.split(/[,;\n]+/).forEach(s => {
-            const trimmed = s.trim().replace(/^["']|["']$/g, "");
-            if (trimmed) rawList.push({ key: trimmed, source: k });
-          });
-        } else if (k === "GEMINI_API_KEY" || /^GEMINI_API_KEY_\d+$/i.test(k) || /^GEMINI_KEY_\d+$/i.test(k)) {
-          const trimmed = v.trim().replace(/^["']|["']$/g, "");
-          if (trimmed) rawList.push({ key: trimmed, source: k });
-        }
-      }
-    }
-  }
-
-  // 2. Explicit checks up to 30 keys in case CF secrets aren't enumerable via Object.entries
-  if (rawList.length === 0) {
-    if (env.GEMINI_API_KEYS && typeof env.GEMINI_API_KEYS === "string") {
-      env.GEMINI_API_KEYS.split(/[,;\n]+/).forEach(s => {
-        const trimmed = s.trim().replace(/^["']|["']$/g, "");
-        if (trimmed) rawList.push({ key: trimmed, source: "GEMINI_API_KEYS" });
-      });
-    }
-    for (let i = 1; i <= 30; i++) {
-      if (env[`GEMINI_API_KEY_${i}`]) {
-        const trimmed = String(env[`GEMINI_API_KEY_${i}`]).trim().replace(/^["']|["']$/g, "");
-        if (trimmed) rawList.push({ key: trimmed, source: `GEMINI_API_KEY_${i}` });
-      }
-      if (env[`GEMINI_KEY_${i}`]) {
-        const trimmed = String(env[`GEMINI_KEY_${i}`]).trim().replace(/^["']|["']$/g, "");
-        if (trimmed) rawList.push({ key: trimmed, source: `GEMINI_KEY_${i}` });
-      }
-    }
-    if (env.GEMINI_API_KEY) {
-      const trimmed = String(env.GEMINI_API_KEY).trim().replace(/^["']|["']$/g, "");
-      if (trimmed) rawList.push({ key: trimmed, source: "GEMINI_API_KEY" });
-    }
-  }
-
-  const validEntries = rawList.filter(e => e.key && e.key.length > 5);
-
-  // Count frequencies to find duplicates
-  const counts = new Map();
-  for (const entry of validEntries) {
-    counts.set(entry.key, (counts.get(entry.key) || 0) + 1);
-  }
-
-  const duplicates = [];
-  for (const [key, count] of counts.entries()) {
-    if (count > 1) {
-      const mask = key.length > 10 ? `${key.substring(0, 8)}...${key.substring(key.length - 4)}` : "key";
-      duplicates.push(`${mask} (appears ${count} times)`);
-    }
-  }
-
-  const uniqueKeys = [...new Set(validEntries.map(e => e.key))];
-  const previews = uniqueKeys.map((k, idx) => {
-    const mask = k.length > 10 ? `${k.substring(0, 8)}...${k.substring(k.length - 4)}` : k;
-    return `Key #${idx + 1}: ${mask}`;
-  });
-
-  return {
-    uniqueKeys,
-    rawCount: validEntries.length,
-    uniqueCount: uniqueKeys.length,
-    hasDuplicates: duplicates.length > 0,
-    duplicates,
-    previews
-  };
-}
-
 function getGeminiApiKeys(env) {
-  return inspectGeminiKeys(env).uniqueKeys;
+  return env?.GEMINI_API_KEY ? [String(env.GEMINI_API_KEY)] : [];
 }
 
 // ============================================================================
@@ -212,13 +87,10 @@ function getCorsHeaders(request, env = {}) {
   return headers;
 }
 
-function extractIdToken(request, body) {
+function extractBearerToken(request) {
   const authHeader = request.headers.get("Authorization") || "";
   if (authHeader.startsWith("Bearer ")) {
     return authHeader.slice(7).trim();
-  }
-  if (body && typeof body.id_token === "string" && body.id_token.trim()) {
-    return body.id_token.trim();
   }
   return null;
 }
@@ -355,14 +227,9 @@ async function authenticateAiRequest(request, body, env, cors, {
   requireEntitlement = false,
   rateLimit = true,
 } = {}) {
-  const idToken = extractIdToken(request, body);
-  if (!idToken) {
-    return { response: json({ error: "unauthenticated", code: "UNAUTHENTICATED" }, 401, cors) };
-  }
-
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  const account = await resolveAccount(request, body, env);
   if (!account) {
-    return { response: json({ error: "invalid_id_token", code: "UNAUTHENTICATED" }, 401, cors) };
+    return { response: json({ error: "unauthenticated", code: "UNAUTHENTICATED" }, 401, cors) };
   }
 
   if (rateLimit) {
@@ -375,6 +242,35 @@ async function authenticateAiRequest(request, body, env, cors, {
           retry_after: rate.retryAfter
         }, 429, cors)
       };
+    }
+
+    if (env.DB && typeof env.DB.prepare === "function") {
+      const day = new Date().toISOString().slice(0, 10);
+      try {
+        await env.DB.prepare("CREATE TABLE IF NOT EXISTS usage (user_id TEXT, day TEXT, turns INTEGER, PRIMARY KEY(user_id, day))").run();
+        await env.DB.prepare("CREATE TABLE IF NOT EXISTS trial_sessions (user_id TEXT, session_id TEXT, turns INTEGER, PRIMARY KEY(user_id, session_id))").run();
+        const usage = await env.DB.prepare(
+          "INSERT INTO usage(user_id, day, turns) VALUES (?, ?, 1) ON CONFLICT(user_id, day) DO UPDATE SET turns = usage.turns + 1 RETURNING turns"
+        ).bind(account.sub, day).first();
+        const dailyCap = Number(env.AI_DAILY_TURN_CAP || DEFAULT_DAILY_TURN_CAP);
+        if (Number(usage?.turns) > dailyCap) {
+          await env.DB.prepare("UPDATE usage SET turns = turns - 1 WHERE user_id = ? AND day = ?").bind(account.sub, day).run();
+          return { response: json({ error: "daily_quota_exhausted", code: "DAILY_TURN_CAP" }, 429, cors) };
+        }
+        if (body?.session_id) {
+          const session = await env.DB.prepare(
+            "INSERT INTO trial_sessions(user_id, session_id, turns) VALUES (?, ?, 1) ON CONFLICT(user_id, session_id) DO UPDATE SET turns = trial_sessions.turns + 1 RETURNING turns"
+          ).bind(account.sub, body.session_id).first();
+          if (Number(session?.turns) > 12) {
+            await env.DB.prepare("UPDATE trial_sessions SET turns = turns - 1 WHERE user_id = ? AND session_id = ?").bind(account.sub, body.session_id).run();
+            await env.DB.prepare("UPDATE usage SET turns = turns - 1 WHERE user_id = ? AND day = ?").bind(account.sub, day).run();
+            return { response: json({ error: "session_turn_cap", code: "SESSION_TURN_CAP" }, 429, cors) };
+          }
+        }
+      } catch (error) {
+        console.error("[Quota] D1 counter failed", error);
+        return { response: json({ error: "quota_unavailable", code: "QUOTA_UNAVAILABLE" }, 503, cors) };
+      }
     }
   }
 
@@ -396,15 +292,9 @@ async function authenticateAiRequest(request, body, env, cors, {
 }
 
 async function handleDeleteUser(request, env, cors) {
-  const body = await request.json().catch(() => null);
-  const idToken = extractIdToken(request, body);
-  if (!idToken) {
-    return json({ error: "missing_id_token", code: "UNAUTHENTICATED" }, 401, cors);
-  }
-
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  const account = await resolveAccount(request, null, env);
   if (!account) {
-    return json({ error: "invalid_id_token", code: "UNAUTHENTICATED" }, 401, cors);
+    return json({ error: "unauthenticated", code: "UNAUTHENTICATED" }, 401, cors);
   }
 
   if (env.USER_PROGRESS) {
@@ -451,7 +341,11 @@ export default {
     }
 
     try {
-      // --- AI Engine Endpoints (6+ Keys, Cooldown Tracking & Failover) ---
+      if (url.pathname === "/auth/session" && request.method === "POST") {
+        return await handleAuthSession(request, env, cors);
+      }
+
+      // --- AI Engine Endpoints ---
       if ((url.pathname === "/ai/turn" || url.pathname === "/turn") && request.method === "POST") {
         return await handleAiConversationTurn(request, env, cors);
       }
@@ -562,89 +456,39 @@ export default {
 };
 
 // ============================================================================
-// AI ROUTER ENGINE (14+ KEYS, ROUND-ROBIN, STICKY MODEL & FAST FAILOVER)
+// AI ROUTER ENGINE (single key with bounded fallback)
 // ============================================================================
 
-async function callGeminiWithFailover(apiKeys, payload) {
-  let lastError = null;
-  const numKeys = apiKeys.length;
-  if (numKeys === 0) throw new Error("No Gemini API keys configured");
-
-  // Round-robin start index distributes requests across all 14+ keys
-  const startIndex = (requestCounter++) % numKeys;
-  const orderedIndices = [];
-
-  for (let i = 0; i < numKeys; i++) {
-    orderedIndices.push((startIndex + i) % numKeys);
-  }
-
-  // Non-cooling-down keys come first
-  orderedIndices.sort((a, b) => {
-    const aCool = isKeyCoolingDown(apiKeys[a]) ? 1 : 0;
-    const bCool = isKeyCoolingDown(apiKeys[b]) ? 1 : 0;
-    return aCool - bCool;
-  });
-
-  // Prioritize primary working model first to eliminate 404 latency round-trips
-  const models = primaryWorkingModel
-    ? [primaryWorkingModel, ...DEFAULT_MODEL_CHAIN.filter(m => m !== primaryWorkingModel)]
-    : DEFAULT_MODEL_CHAIN;
-
-  for (const keyIdx of orderedIndices) {
-    const key = apiKeys[keyIdx];
-
-    for (const model of models) {
-      try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-        
-        // 3.8 second adaptive timeout per attempt to eliminate slow hangs
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3800);
-
-        const resp = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (resp.ok) {
-          const data = await resp.json();
-          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (candidate) {
-            primaryWorkingModel = model; // Pin fastest working model
-            markKeySuccess(key);
-            return candidate;
-          }
-        }
-
-        const respText = await resp.text().catch(() => "");
-
-        // If rate limited (429), quota exhausted, or permission denied (403)
-        if (resp.status === 429 || resp.status === 403 || respText.includes("RESOURCE_EXHAUSTED")) {
-          if (respText.includes("per_model") || respText.includes("per_day")) {
-            console.warn(`[AI Failover] Model ${model} daily quota hit on Key #${keyIdx + 1}. Trying next model...`);
-            lastError = new Error(`Model ${model} daily quota exhausted`);
-            continue; // try other models in chain for this key
-          }
-          console.warn(`[AI Failover] Key #${keyIdx + 1} exhausted (${resp.status}). Progressive cooldown & rotating...`);
-          markKeyCooldown(key, resp.status);
-          lastError = new Error(`Key #${keyIdx + 1} throttled (${resp.status})`);
-          break; // break model loop immediately to rotate to next key
-        } else if (resp.status === 404) {
-          // Model not found in this region/tier, try next model without penalizing key
-          lastError = new Error(`Model ${model} not available (404)`);
-        } else {
-          lastError = new Error(`Key #${keyIdx + 1} model ${model} HTTP ${resp.status}: ${respText.slice(0, 100)}`);
-        }
-      } catch (e) {
-        lastError = e;
+async function callGeminiWithFailover(env, payload) {
+  const key = env?.GEMINI_API_KEY;
+  if (!key) throw new Error("No Gemini API key configured");
+  const models = [env.GEMINI_MODEL || "gemini-2.0-flash", env.GEMINI_FALLBACK_MODEL || "gemini-1.5-flash"]
+    .filter((model, index, list) => list.indexOf(model) === index);
+  let lastError;
+  for (let index = 0; index < models.length; index += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${models[index]}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidate) return candidate;
       }
+      lastError = new Error(`Gemini HTTP ${response.status}`);
+      if (response.status !== 429 && response.status < 500) break;
+    } catch (error) {
+      lastError = error;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
-
-  throw lastError || new Error("All configured Gemini API keys and models failed");
+  throw lastError || new Error("Gemini request failed");
 }
 
 function cleanJson(raw) {
@@ -735,9 +579,7 @@ async function handleAiConversationTurn(request, env, cors) {
   const body = await request.json().catch(() => null);
   if (!body || !body.user_message) return json({ error: "user_message required" }, 400, cors);
 
-  const idToken = extractIdToken(request, body);
-  if (!idToken) return json({ error: "unauthenticated", code: "UNAUTHENTICATED", message: "يرجى تسجيل الدخول بحساب Google أولاً لمتابعة المحادثة." }, 401, cors);
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  const account = await resolveAccount(request, body, env);
   if (!account) return json({ error: "invalid_id_token", code: "UNAUTHENTICATED", message: "جلسة الدخول غير صالحة أو منتهية. يرجى تسجيل الدخول مجدداً." }, 401, cors);
 
   const rate = checkRateLimit(account.sub, env);
@@ -794,8 +636,8 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
   try {
     // These calls intentionally have separate prompts/personas and independent inputs.
     const [roleplayRaw, evaluationRaw] = await Promise.all([
-      callGeminiWithFailover(apiKeys, conversationPayload),
-      callGeminiWithFailover(apiKeys, evaluationPayload)
+      callGeminiWithFailover(env, conversationPayload),
+      callGeminiWithFailover(env, evaluationPayload)
     ]);
     const roleplay = cleanJson(roleplayRaw);
     const evaluationParsed = cleanJson(evaluationRaw);
@@ -852,7 +694,7 @@ Respond strictly in JSON:
     }
   };
 
-  const raw = await callGeminiWithFailover(apiKeys, payload);
+  const raw = await callGeminiWithFailover(env, payload);
   const parsed = cleanJson(raw);
   const translation = parsed.translation_ar || "";
 
@@ -912,7 +754,7 @@ Respond strictly in JSON:
     }
   };
 
-  const raw = await callGeminiWithFailover(apiKeys, payload);
+  const raw = await callGeminiWithFailover(env, payload);
   const parsed = cleanJson(raw);
   let hints = Array.isArray(parsed.hints) ? parsed.hints : [];
 
@@ -971,18 +813,14 @@ function handleAiHealth(env, cors) {
 async function handleVerify(request, env, cors) {
   const body = await request.json().catch(() => null);
   const code = body?.code;
-  const idToken = body?.id_token;
 
   if (!code || typeof code !== "string") {
     return json({ valid: false, reason: "malformed" }, 400, cors);
   }
-  if (!idToken || typeof idToken !== "string") {
-    return json({ valid: false, reason: "missing_id_token" }, 400, cors);
-  }
 
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID);
+  const account = await resolveAccount(request, body, env);
   if (!account) {
-    return json({ valid: false, reason: "invalid_id_token" }, 200, cors);
+    return json({ valid: false, reason: "unauthenticated" }, 401, cors);
   }
 
   const parsed = parseCode(code);
@@ -1034,16 +872,11 @@ async function handleVerify(request, env, cors) {
 
 async function handleCheckStatus(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const idToken = body?.id_token;
   const now = new Date();
 
-  if (!idToken || typeof idToken !== "string") {
-    return json({ active: false, days_remaining: 0, server_time: now.toISOString(), reason: "missing_id_token" }, 400, cors);
-  }
-
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID);
+  const account = await resolveAccount(request, body, env);
   if (!account) {
-    return json({ active: false, days_remaining: 0, server_time: now.toISOString(), reason: "invalid_id_token" }, 200, cors);
+    return json({ active: false, days_remaining: 0, server_time: now.toISOString(), reason: "unauthenticated" }, 401, cors);
   }
 
   const accountKey = `account:${account.sub}`;
@@ -1088,20 +921,15 @@ async function handleAdminGenerate(request, env, cors) {
 
 async function handleProgressSync(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const idToken = body?.id_token;
   const incomingStats = body?.stats;
   const incomingTrainings = body?.trainings;
   const incomingSavedWordIds = body?.saved_word_ids;
   const incomingMistakes = body?.mistakes;
   const incomingSessionSummaries = body?.session_summaries;
 
-  if (!idToken || typeof idToken !== "string") {
-    return json({ error: "missing_id_token" }, 400, cors);
-  }
-
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID);
+  const account = await resolveAccount(request, body, env);
   if (!account) {
-    return json({ error: "invalid_id_token" }, 200, cors);
+    return json({ error: "unauthenticated" }, 401, cors);
   }
 
   const key = `progress:${account.sub}`;
@@ -1138,15 +966,10 @@ async function handleProgressSync(request, env, cors) {
 
 async function handleProgressGet(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const idToken = body?.id_token;
 
-  if (!idToken || typeof idToken !== "string") {
-    return json({ error: "missing_id_token" }, 400, cors);
-  }
-
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID);
+  const account = await resolveAccount(request, body, env);
   if (!account) {
-    return json({ error: "invalid_id_token" }, 200, cors);
+    return json({ error: "unauthenticated" }, 401, cors);
   }
 
   const key = `progress:${account.sub}`;
@@ -1276,72 +1099,125 @@ async function sign(message, secret) {
   return [...new Uint8Array(sigBuffer)].map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase().slice(0, 16);
 }
 
-async function verifyGoogleIdToken(idToken, expectedClientId, env = {}) {
-  if (!idToken || typeof idToken !== "string") return null;
+let googleJwksCache = { keys: [], expiresAt: 0 };
 
-  // 1. Verify basic 3-part JWT structure
+function decodeBase64Url(value) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+  return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+}
+
+function decodeJwtPart(value) {
+  return JSON.parse(new TextDecoder().decode(decodeBase64Url(value)));
+}
+
+async function fetchGoogleJwks(forceRefresh = false) {
+  if (!forceRefresh && googleJwksCache.expiresAt > Date.now()) {
+    return googleJwksCache.keys;
+  }
+  const response = await fetch("https://www.googleapis.com/oauth2/v3/certs");
+  if (!response.ok) return [];
+  const cacheControl = response.headers.get("Cache-Control") || "";
+  const maxAge = Number(cacheControl.match(/max-age=(\d+)/i)?.[1] || 3600);
+  const data = await response.json();
+  googleJwksCache = {
+    keys: Array.isArray(data.keys) ? data.keys : [],
+    expiresAt: Date.now() + maxAge * 1000,
+  };
+  return googleJwksCache.keys;
+}
+
+async function verifyGoogleIdToken(idToken, expectedClientId) {
+  if (!idToken || typeof idToken !== "string") return null;
   const parts = idToken.split(".");
   if (parts.length !== 3) return null;
 
-  let payload = null;
   try {
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonStr = atob(base64);
-    payload = JSON.parse(jsonStr);
-  } catch {
-    return null;
-  }
-
-  if (!payload || typeof payload.sub !== "string" || !payload.sub) return null;
-
-  // 2. Check expiration (exp in epoch seconds)
-  const nowSec = Math.floor(Date.now() / 1000);
-  if (typeof payload.exp !== "number" || payload.exp <= nowSec) {
-    return null;
-  }
-
-  // 3. Check audience
-  if (expectedClientId && payload.aud !== expectedClientId) {
-    return null;
-  }
-
-  // 4. Check issuer
-  const validIssuers = ["accounts.google.com", "https://accounts.google.com"];
-  if (!validIssuers.includes(payload.iss)) {
-    return null;
-  }
-
-  // 5. Check for unsigned / none algorithm
-  try {
-    const headerStr = atob(parts[0].replace(/-/g, "+").replace(/_/g, "/"));
-    const header = JSON.parse(headerStr);
-    if (header.alg !== "RS256") {
+    const header = decodeJwtPart(parts[0]);
+    const payload = decodeJwtPart(parts[1]);
+    if (header.alg !== "RS256" || !header.kid || typeof payload.sub !== "string" || !payload.sub) {
       return null;
     }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (payload.exp <= nowSec || payload.iss !== "https://accounts.google.com" || payload.aud !== expectedClientId) {
+      return null;
+    }
+
+    let keys = await fetchGoogleJwks();
+    let jwk = keys.find((key) => key.kid === header.kid);
+    if (!jwk) {
+      keys = await fetchGoogleJwks(true);
+      jwk = keys.find((key) => key.kid === header.kid);
+    }
+    if (!jwk) return null;
+
+    const cryptoKey = await crypto.subtle.importKey(
+      "jwk",
+      jwk,
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+    const valid = await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5",
+      cryptoKey,
+      decodeBase64Url(parts[2]),
+      new TextEncoder().encode(`${parts[0]}.${parts[1]}`)
+    );
+    if (!valid) return null;
+    return { sub: payload.sub, email: typeof payload.email === "string" ? payload.email : "" };
   } catch {
     return null;
   }
+}
 
-  // In test mode or local test runner
-  if (env?.TEST_MODE || (typeof process !== "undefined" && process.env?.NODE_ENV === "test")) {
-    return { sub: payload.sub, email: payload.email || "" };
-  }
+async function signSessionToken(account, secret) {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = { sub: account.sub, email: account.email || "", iat: now, exp: now + 30 * 86400, aud: "katzu" };
+  const encode = (value) => {
+    const bytes = new TextEncoder().encode(JSON.stringify(value));
+    let binary = "";
+    bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+  const unsigned = `${encode(header)}.${encode(payload)}`;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signature = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(unsigned)));
+  let binary = "";
+  signature.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return `${unsigned}.${btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
+}
 
-  // 6. Cryptographic tokeninfo verification via Google OAuth2 endpoint
+async function verifySessionToken(token, secret) {
+  if (!token || !secret) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
   try {
-    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (expectedClientId && data.aud !== expectedClientId) return null;
-    if (!data.sub) return null;
-    if (data.exp && parseInt(data.exp, 10) < nowSec) return null;
-    if (data.iss && !validIssuers.includes(data.iss)) return null;
-    if (!data.iss || !validIssuers.includes(data.iss)) return null;
-    return { sub: data.sub, email: data.email || "" };
+    const header = decodeJwtPart(parts[0]);
+    const payload = decodeJwtPart(parts[1]);
+    if (header.alg !== "HS256" || payload.aud !== "katzu" || !payload.sub || payload.exp <= Math.floor(Date.now() / 1000)) return null;
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+    const valid = await crypto.subtle.verify("HMAC", key, decodeBase64Url(parts[2]), new TextEncoder().encode(`${parts[0]}.${parts[1]}`));
+    return valid ? { sub: payload.sub, email: payload.email || "" } : null;
   } catch {
     return null;
   }
+}
+
+async function resolveAccount(request, body, env = {}) {
+  const token = extractBearerToken(request);
+  if (!token || !env.SESSION_SECRET) return null;
+  return verifySessionToken(token, env.SESSION_SECRET);
+}
+
+async function handleAuthSession(request, env, cors) {
+  if (!env.SESSION_SECRET) return json({ error: "session_unavailable" }, 503, cors);
+  const body = await request.json().catch(() => null);
+  const account = await verifyGoogleIdToken(body?.id_token, env.GOOGLE_CLIENT_ID);
+  if (!account) return json({ error: "invalid_id_token", code: "UNAUTHENTICATED" }, 401, cors);
+  return json({ session_token: await signSessionToken(account, env.SESSION_SECRET), expires_in: 30 * 86400 }, 200, cors);
 }
 
 function addMonthsIso(existingIso, months) {
@@ -1366,6 +1242,7 @@ export {
   consumeTrialQuota,
   getCorsHeaders,
   readTrialQuota,
+  resolveAccount,
   verifyGoogleIdToken,
 };
 

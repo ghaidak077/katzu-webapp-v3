@@ -70,6 +70,7 @@ export interface UserEntity {
   googleAccountEmail?: string;
   displayName: string;
   idToken?: string;
+  sessionToken?: string;
   isLoggedIn: boolean;
   subscriptionExpiresAt: string | null;
   isSubscriptionActive: boolean;

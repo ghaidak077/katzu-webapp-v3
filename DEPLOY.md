@@ -7,15 +7,31 @@
 3. Create or select the D1 database used for content and user records.
 4. Create the KV namespaces used for progress and redeemed codes.
 5. Configure Worker secrets and variables. Use `.env.example` for names only; never commit values:
-   - `GEMINI_API_KEY` or `GEMINI_API_KEYS`
+   - `GEMINI_API_KEY`, `GEMINI_MODEL`, and `GEMINI_FALLBACK_MODEL`
+   - `SESSION_SECRET` (a new, high-entropy secret; do not reuse `HMAC_SECRET`)
    - `GOOGLE_CLIENT_ID`
    - `ALLOWED_ORIGINS`
    - `AI_RATE_LIMIT_PER_MINUTE`
    - `AI_RATE_LIMIT_PER_DAY`
+   - `AI_DAILY_TURN_CAP` (default `150`) and `FREE_SESSIONS` (default `3`)
    - the D1/KV bindings used by the Worker. `USER_PROGRESS` is required for
      authenticated trial AI access: the Worker stores authoritative quota
      records under `ai-quota:<google-sub>` in that existing KV namespace.
-6. Run additive D1 migrations before serving traffic.
+6. Run these additive D1 migrations before serving traffic:
+   ```sql
+   CREATE TABLE IF NOT EXISTS usage (
+     user_id TEXT NOT NULL,
+     day TEXT NOT NULL,
+     turns INTEGER NOT NULL DEFAULT 0,
+     PRIMARY KEY (user_id, day)
+   );
+   CREATE TABLE IF NOT EXISTS trial_sessions (
+     user_id TEXT NOT NULL,
+     session_id TEXT NOT NULL,
+     turns INTEGER NOT NULL DEFAULT 0,
+     PRIMARY KEY (user_id, session_id)
+   );
+   ```
 7. Deploy with Wrangler and record the deployed Worker URL.
 
 ## 2. Prepare Google Identity Services
