@@ -341,19 +341,19 @@ export class WorkerClient {
       throw error;
     }
 
-    if (res.status === 402 || res.status === 403) {
-      const data = await res.json().catch(() => ({}));
-      const error: any = new Error(data.message || 'انتهت الجلسات المجانية. يلزم تفعيل اشتراك Katzu Pro.');
-      error.code = data.code || 'PAYWALL_REQUIRED';
-      error.status = res.status;
-      throw error;
-    }
-
     if (res.status === 429) {
       const data = await res.json().catch(() => ({}));
       const error: any = new Error(data.message || 'تم تجاوز الحد الأقصى للطلبات مؤقتاً.');
       error.code = 'RATE_LIMIT_EXCEEDED';
       error.status = 429;
+      throw error;
+    }
+
+    if (res.status === 503) {
+      const data = await res.json().catch(() => ({}));
+      const error: any = new Error(data.message || 'خدمة المحادثة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً.');
+      error.code = data.code || 'SERVICE_UNAVAILABLE';
+      error.status = 503;
       throw error;
     }
 
@@ -456,15 +456,20 @@ export class WorkerClient {
 
   // --- Edge-Cached Translation via /ai/translate ---
 
-  async translateText(text: string): Promise<string> {
+  async translateText(text: string, idToken?: string): Promise<string> {
     const trimmed = text.trim();
     if (!trimmed) return '';
 
     try {
+      const token = await this.getEffectiveAuthToken(idToken);
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+      }
       const res = await fetch(`${this.baseUrl}/ai/translate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: trimmed }),
+        headers,
+        body: JSON.stringify({ text: trimmed, ...(token ? { id_token: token } : {}) }),
       });
 
       if (res.ok) {
