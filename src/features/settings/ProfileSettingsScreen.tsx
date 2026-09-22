@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
@@ -17,8 +17,13 @@ import {
   Sliders,
   Check,
   Edit2,
+  Gift,
+  Copy,
+  Share2,
+  Users,
 } from 'lucide-react';
 import type { SarcasmLevel } from '@/types/models';
+import { workerClient } from '@/lib/api/workerClient';
 
 export interface ProfileSettingsScreenProps {
   onOpenSubscription: () => void;
@@ -36,6 +41,40 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   const user = useLiveQuery(() => db.users.get('current_user'));
   const [showEditName, setShowEditName] = useState(false);
   const [newName, setNewName] = useState(user?.displayName || '');
+  const [referralInfo, setReferralInfo] = useState<Awaited<ReturnType<typeof workerClient.getReferralInfo>>>(null);
+  const [referralLoading, setReferralLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    workerClient.getReferralInfo().then((info) => {
+      if (isMounted) {
+        setReferralInfo(info);
+        setReferralLoading(false);
+      }
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleCopyReferral = async () => {
+    if (!referralInfo?.referral_code) return;
+    const shareText = `تعلّم الألمانية مع كَاتْزُو 🐱\nاستخدم كود الإحالة ${referralInfo.referral_code} عند الاشتراك، وستدعم رحلتنا معاً!`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Katzu — تعلّم الألمانية', text: shareText });
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {}
+    }
+  };
 
   const { speak } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
 
@@ -110,6 +149,54 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           <span className="text-xs font-bold font-arabic text-primary">ترقية ←</span>
         </Card>
       )}
+
+      {/* Referral Program Card */}
+      <Card className="p-4 mb-6 space-y-3 border border-status-learning/40">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Gift className="w-5 h-5 text-status-learning" />
+            <div className="text-sm font-bold font-arabic">ادعُ صديقاً، اربح شهر Pro</div>
+          </div>
+          <Badge variant="learning" size="sm">+1 شهر لكل اشتراك موثّق</Badge>
+        </div>
+        <p className="text-[11px] text-text-muted leading-relaxed">
+          شارك كودك مع الأصدقاء. عندما يشترك صديق لأول مرة في Katzu Pro، تحصل أنت على شهر Pro مجاني يُضاف تلقائياً إلى حسابك.
+        </p>
+
+        {referralLoading ? (
+          <div className="h-10 rounded-xl bg-surface-subtle animate-pulse" />
+        ) : referralInfo?.referral_code ? (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-10 flex items-center justify-center rounded-xl bg-black border border-border-subtle font-mono text-sm tracking-widest text-status-learning select-all" dir="ltr">
+              {referralInfo.referral_code}
+            </div>
+            <button
+              onClick={handleCopyReferral}
+              className="h-10 px-3 flex items-center gap-1.5 rounded-xl bg-primary/20 border border-primary text-primary text-xs font-bold font-arabic hover:bg-primary/30 transition-colors"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+              {copied ? 'تم النسخ' : 'مشاركة'}
+            </button>
+          </div>
+        ) : (
+          <div className="text-[11px] text-text-muted">تعذر تحميل كود الإحالة. تحقق من الاتصال وأعد المحاولة.</div>
+        )}
+
+        {!referralLoading && referralInfo && (
+          <div className="flex items-center gap-4 text-xs font-arabic text-text-secondary">
+            <span className="flex items-center gap-1">
+              <Users className="w-3.5 h-3.5 text-primary" />
+              إحالات موثّقة: <b className="text-status-success">{referralInfo.verified_referrals}</b>
+            </span>
+            {referralInfo.pending_referrals > 0 && (
+              <span>قيد الانتظار: <b className="text-status-learning">{referralInfo.pending_referrals}</b></span>
+            )}
+            {referralInfo.total_reward_months > 0 && (
+              <span className="text-status-success font-bold">مكاسبك: {referralInfo.total_reward_months} شهر Pro</span>
+            )}
+          </div>
+        )}
+      </Card>
 
       {/* Speech Speed Setting */}
       <Card className="p-4 mb-4 space-y-3">
