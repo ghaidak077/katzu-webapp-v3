@@ -33,6 +33,7 @@ import type {
   SessionMode,
 } from '@/types/models';
 import { calculateIndependentAccuracy } from '@/features/report/metrics';
+import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
@@ -352,9 +353,17 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     // Update local learning stats; trial entitlement is enforced by the Worker.
     const earnedXp = Math.round((accuracy ?? 0) * 1.5) + (assistedMsgs.length === 0 ? 50 : 25);
 
+    // Daily habit loop: consecutive day extends the streak, a missed day resets
+    // it honestly, same-day repeats never inflate it (all logic unit-tested).
+    const streakResult = recalculateStreak({
+      lastActiveDate: user?.lastActiveDate,
+      streakDays: user?.streakDays || 0,
+    });
+
     db.users.update('current_user', {
       totalXp: (user?.totalXp || 0) + earnedXp,
-      lastActiveDate: new Date().toISOString().split('T')[0],
+      streakDays: streakResult.streakDays,
+      lastActiveDate: localDateKey(),
       updatedAt: Date.now(),
     });
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
@@ -7,7 +7,10 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
 import type { CEFRLevel, ScenarioEntity } from '@/types/models';
-import { Sparkles, CheckCircle2, Lock, Play, Flame } from 'lucide-react';
+import { Sparkles, CheckCircle2, Lock, Play, Flame, ArrowLeft } from 'lucide-react';
+import { pickDailyMission } from '@/lib/utils/dailyMission';
+import { buildCheckInMessage } from '@/lib/utils/checkIn';
+import { getXpRank } from '@/lib/utils/xpMilestones';
 
 export interface TrailScreenProps {
   onSelectScenario: (scenarioId: string) => void;
@@ -28,7 +31,27 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
 
   const isPro = !!user?.isSubscriptionActive;
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
-  const dailyScenario = scenarios.find((scenario) => scenario.id === 'cafe_order') || scenarios[0];
+
+  // Featured daily mission rotates deterministically day by day instead of
+  // always showing the same hardcoded scenario (logic unit-tested).
+  const dailyScenario = useMemo(() => {
+    const mission = pickDailyMission(
+      scenarios.map((s) => ({ id: s.id, title_de: s.title_de, title_ar: s.title_ar, category: s.category })),
+      'A1',
+    );
+    return mission ? scenarios.find((s) => s.id === mission.scenario.id) ?? null : null;
+  }, [scenarios]);
+
+  // Katzu's daily welcome-back line reflects the user's real habit state.
+  const checkIn = useMemo(
+    () =>
+      user
+        ? buildCheckInMessage({ lastActiveDate: user.lastActiveDate, streakDays: user.streakDays || 0 })
+        : null,
+    [user?.lastActiveDate, user?.streakDays],
+  );
+
+  const xpRank = useMemo(() => getXpRank(user?.totalXp ?? 0), [user?.totalXp]);
 
   const getTrainingStatus = (scenarioId: string) => {
     const record = trainingRecords.find((r) => r.scenarioId === scenarioId);
@@ -75,7 +98,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 {user?.streakDays ?? 0} أيام حماس
               </span>
               <span>•</span>
-              <span className="text-primary font-bold">{user?.totalXp ?? 0} XP</span>
+              <span className="text-primary font-bold">{xpRank.milestone.nameAr}</span>
             </div>
           </div>
         </div>
@@ -94,6 +117,28 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           </Badge>
         )}
       </div>
+
+      {/* Katzu Daily Check-in */}
+      {checkIn && (
+        <div className="mb-4 flex items-center gap-3 rounded-3xl border border-border-subtle bg-surface-card p-4">
+          <KatzuMascot name="peace" className="h-14 w-14 shrink-0 object-contain" />
+          <div className="min-w-0">
+            <p className="font-arabic text-sm font-bold leading-snug text-text-primary">{checkIn.headline}</p>
+            <p className="mt-0.5 font-arabic text-xs leading-snug text-text-secondary">{checkIn.sub}</p>
+            {xpRank.next && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-[10px] font-arabic text-text-secondary">
+                  <span className="text-primary font-bold">{xpRank.milestone.nameAr}</span>
+                  <span>{xpRank.xpToNext} XP للرتبة التالية</span>
+                </div>
+                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${xpRank.progressPercent}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Hero Daily Focus Card */}
       <Card variant="hero" className="p-4 mb-6 relative overflow-hidden flex items-center justify-between border border-primary/40 shadow-glow-purple">
@@ -119,6 +164,15 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 نزّل المحتوى عند توفر الاتصال لبدء تدريبك التالي.
               </p>
             </>
+          )}
+          {dailyScenario && (
+            <button
+              onClick={() => handleScenarioClick(dailyScenario.id)}
+              className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-glow-purple active:scale-95 transition-all"
+            >
+              <span>ابدأ مهمة اليوم</span>
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
         <KatzuMascot name="trail_header" className="w-24 h-24 object-contain -me-2 z-10" />

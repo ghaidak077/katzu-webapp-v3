@@ -92,7 +92,7 @@ export async function wipeUserScopedData(): Promise<void> {
     updatedAt: Date.now(),
     cefrLevel: 'A1',
     streakDays: 0,
-    lastActiveDate: new Date().toISOString().split('T')[0],
+    lastActiveDate: '', // empty = never active; streak engine starts on first session
     totalXp: 0,
     speechSpeed: 1.0,
     sarcasmLevel: 'SASSY',
@@ -121,10 +121,10 @@ export async function initializeDatabaseSeed(): Promise<void> {
       isSubscriptionActive: false,
       lastCheckedAt: Date.now(),
       updatedAt: Date.now(),
-      cefrLevel: 'A1',
-      streakDays: 0,
-      lastActiveDate: new Date().toISOString().split('T')[0],
-      totalXp: 0,
+    cefrLevel: 'A1',
+    streakDays: 0,
+    lastActiveDate: '', // empty = never active; streak engine starts on first session
+    totalXp: 0,
       speechSpeed: 1.0,
       sarcasmLevel: 'SASSY',
       freeSessionsRemaining: 3,
