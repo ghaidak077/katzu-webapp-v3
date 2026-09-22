@@ -223,6 +223,61 @@ function extractIdToken(request, body) {
   return null;
 }
 
+// ----------------------------------------------------------------------------
+// SESSION TOKENS (/auth/session)
+// Google ID tokens expire after ~1h, so the app exchanges them for a longer-lived
+// opaque session token stored in USER_PROGRESS KV. Tokens are prefixed with
+// "sess_" so verifyGoogleIdToken can distinguish them from Google JWTs.
+// ----------------------------------------------------------------------------
+
+const SESSION_TOKEN_TTL_MS = 30 * 86400 * 1000; // 30 days
+
+function isSessionToken(token) {
+  return typeof token === "string" && token.startsWith("sess_");
+}
+
+async function createSessionToken(account, env) {
+  const token = `sess_${crypto.randomUUID().replace(/-/g, "")}${crypto.randomUUID().replace(/-/g, "")}`;
+  await env.USER_PROGRESS.put(`session:${token}`, JSON.stringify({
+    sub: account.sub,
+    email: account.email || "",
+    created_at: Date.now(),
+    expires_at: Date.now() + SESSION_TOKEN_TTL_MS,
+  }), { expirationTtl: Math.floor(SESSION_TOKEN_TTL_MS / 1000) });
+  return token;
+}
+
+async function resolveSessionToken(token, env) {
+  if (!env.USER_PROGRESS) return null;
+  const raw = await env.USER_PROGRESS.get(`session:${token}`);
+  if (!raw) return null;
+  try {
+    const record = JSON.parse(raw);
+    if (!record?.sub || Date.now() > record.expires_at) return null;
+    return { sub: record.sub, email: record.email || "" };
+  } catch {
+    return null;
+  }
+}
+
+async function handleAuthSession(request, env, cors) {
+  const body = await request.json().catch(() => null);
+  const idToken = body?.id_token;
+  if (!idToken || typeof idToken !== "string") {
+    return json({ error: "missing_id_token" }, 400, cors);
+  }
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  if (!account) {
+    return json({ error: "invalid_id_token" }, 401, cors);
+  }
+  if (!env.USER_PROGRESS) {
+    // KV unbound: fail open so the app can fall back to using the raw ID token.
+    return json({ error: "session_storage_unavailable" }, 503, cors);
+  }
+  const sessionToken = await createSessionToken(account, env);
+  return json({ session_token: sessionToken, expires_in: SESSION_TOKEN_TTL_MS / 1000 }, 200, cors);
+}
+
 // In-memory rate limiting per user (sub)
 const userRateLimits = new Map();
 
@@ -306,6 +361,22 @@ async function checkUserEntitlement(account, cefrLevel, env = {}) {
 
 function quotaKey(accountId) {
   return `ai-quota:${accountId}`;
+}
+
+function trialSessionKey(accountId, sessionId) {
+  // Sanitize: session_id comes from the client, keep keys bounded and readable.
+  const safe = String(sessionId).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
+  return `ai-trial-session:${accountId}:${safe || "default"}`;
+}
+
+async function isTrialSessionConsumed(accountId, sessionId, env = {}) {
+  if (!env?.USER_PROGRESS || typeof env.USER_PROGRESS.get !== "function") return false;
+  try {
+    const raw = await env.USER_PROGRESS.get(trialSessionKey(accountId, sessionId));
+    return Boolean(raw);
+  } catch {
+    return false;
+  }
 }
 
 async function readTrialQuota(accountId, env = {}) {
@@ -452,6 +523,9 @@ export default {
 
     try {
       // --- AI Engine Endpoints (6+ Keys, Cooldown Tracking & Failover) ---
+      if (url.pathname === "/auth/session" && request.method === "POST") {
+        return await handleAuthSession(request, env, cors);
+      }
       if ((url.pathname === "/ai/turn" || url.pathname === "/turn") && request.method === "POST") {
         return await handleAiConversationTurn(request, env, cors);
       }
@@ -743,7 +817,7 @@ async function handleAiConversationTurn(request, env, cors) {
   const rate = checkRateLimit(account.sub, env);
   if (!rate.allowed) return json({ error: "rate_limit_exceeded", code: "RATE_LIMIT_EXCEEDED", message: "تم تجاوز الحد الأقصى للمحادثات مؤقتاً. يرجى الانتظار دقيقة.", retry_after: rate.retryAfter }, 429, cors);
 
-  const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn, mode } = body;
+  const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn, mode, session_id } = body;
   const level = cefr_level || "A1";
   const entitlement = await checkUserEntitlement(account, level, env);
   if (!entitlement.allowed) {
@@ -754,11 +828,25 @@ async function handleAiConversationTurn(request, env, cors) {
       message: entitlement.message
     }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
   }
+  // Consume the free quota once per conversation session (tracked via session_id),
+  // NOT per individual message. Signed-in subscribers skip this entirely.
   if (!entitlement.isSubscribed) {
-    const quota = await consumeTrialQuota(account.sub, env);
-    if (!quota.allowed) {
-      const status = quota.code === "QUOTA_UNAVAILABLE" ? 503 : 402;
-      return json({ error: "free_quota_unavailable", code: quota.code, message: quota.message }, status, cors);
+    const sessionConsumed = session_id ? await isTrialSessionConsumed(account.sub, session_id, env) : false;
+    if (!sessionConsumed) {
+      const quota = await consumeTrialQuota(account.sub, env);
+      if (!quota.allowed) {
+        const status = quota.code === "QUOTA_UNAVAILABLE" ? 503 : 402;
+        return json({ error: "free_quota_unavailable", code: quota.code, message: quota.message }, status, cors);
+      }
+      if (session_id && env.USER_PROGRESS) {
+        try {
+          await env.USER_PROGRESS.put(
+            trialSessionKey(account.sub, session_id),
+            JSON.stringify({ consumed_at: Date.now() }),
+            { expirationTtl: 6 * 3600 }
+          );
+        } catch {}
+      }
     }
   }
 
@@ -1279,6 +1367,11 @@ async function sign(message, secret) {
 async function verifyGoogleIdToken(idToken, expectedClientId, env = {}) {
   if (!idToken || typeof idToken !== "string") return null;
 
+  // Opaque worker session tokens (issued by /auth/session) resolve via KV.
+  if (isSessionToken(idToken)) {
+    return resolveSessionToken(idToken, env);
+  }
+
   // 1. Verify basic 3-part JWT structure
   const parts = idToken.split(".");
   if (parts.length !== 3) return null;
@@ -1365,7 +1458,9 @@ export {
   checkUserEntitlement,
   consumeTrialQuota,
   getCorsHeaders,
+  isTrialSessionConsumed,
   readTrialQuota,
+  trialSessionKey,
   verifyGoogleIdToken,
 };
 
