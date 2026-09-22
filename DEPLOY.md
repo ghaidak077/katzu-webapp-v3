@@ -35,6 +35,11 @@ Create a production Google OAuth Web client and add the exact HTTPS Pages/custom
 - Open the site in an incognito window and confirm the missing-configuration state appears when the Google client ID is absent.
 - Sign in with Google and confirm the Worker receives the verified token.
 - Complete one free-tier A1 conversation, including a hint-assisted turn.
+- Daily habit loop: complete a first-ever session and confirm the Trail streak counter shows 1 day and the Katzu check-in card greets the user.
+- Daily habit loop: complete a second session the same day and confirm the streak counter does not double-count.
+- Daily habit loop: complete a session on the next calendar day and confirm the streak increments; skip a day and confirm it resets honestly to 1 (never inflated).
+- Daily habit loop: confirm the "مهمتك اليومية" hero card rotates to a different scenario each day, its «ابدأ مهمة اليوم» button opens that scenario, and a free account is never offered a paid-level mission.
+- Daily habit loop: confirm the XP rank name and the progress bar toward the next rank update after completing a session.
 - Confirm an unauthenticated AI request is rejected and an expired entitlement opens the redeem/paywall flow.
 - Refresh offline and confirm cached curriculum/starter phrases remain available while AI clearly reports that an internet connection is required.
 - Test microphone denial and typing fallback in Chrome and Safari.
