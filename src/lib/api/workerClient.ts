@@ -588,6 +588,80 @@ export class WorkerClient {
     return { active: false };
   }
 
+  // --- Referral Program (/referral/info, /referral/claim) ---
+
+  async getReferralInfo(idToken?: string): Promise<{
+    referral_code: string;
+    reward_months: number;
+    verified_referrals: number;
+    pending_referrals: number;
+    total_reward_months: number;
+    referrals: Array<{ invited_email_masked: string; status: 'pending' | 'verified'; awarded_at: string | null }>;
+  } | null> {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/referral/info`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify({ id_token: token }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data.referral_code === 'string') return data;
+      }
+    } catch (e) {
+      console.warn('Referral info fetch failed:', e);
+    }
+    return null;
+  }
+
+  async claimReferral(code: string, idToken?: string): Promise<{
+    success: boolean;
+    status?: 'pending' | 'verified';
+    error?: string;
+    errorCode?: string;
+  }> {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) {
+      return { success: false, errorCode: 'UNAUTHENTICATED', error: 'يرجى تسجيل الدخول أولاً لتطبيق كود الإحالة.' };
+    }
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode) {
+      return { success: false, errorCode: 'MALFORMED', error: 'يرجى إدخال كود الإحالة.' };
+    }
+    try {
+      const res = await fetch(`${this.baseUrl}/referral/claim`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify({ referral_code: cleanCode, id_token: token }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        return { success: true, status: data.status || 'pending' };
+      }
+      const errorMap: Record<string, string> = {
+        INVALID_REFERRAL: 'كود الإحالة غير صحيح. تأكد من كتابته بدقة.',
+        SELF_REFERRAL: 'لا يمكن استخدام كود الإحالة الخاص بك.',
+        ALREADY_REFERRED: 'تم ربط حسابك بكود إحالة مسبقاً.',
+        ONLY_FOR_NEW_ACCOUNTS: 'كود الإحالة متاح للحسابات الجديدة غير المشتركة فقط.',
+      };
+      return {
+        success: false,
+        errorCode: data.code || 'UNKNOWN',
+        error: errorMap[data.code] || 'تعذر تطبيق كود الإحالة. حاول لاحقاً.',
+      };
+    } catch {
+      return { success: false, errorCode: 'NETWORK', error: 'تعذر الاتصال بالخادم، تحقق من اتصالك بالإنترنت.' };
+    }
+  }
+
   // --- Progress Sync (/progress/sync) ---
 
   async syncProgress(idToken: string): Promise<boolean> {

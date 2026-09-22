@@ -544,6 +544,14 @@ export default {
         return await handleDeleteUser(request, env, cors);
       }
 
+      // --- Referral Program ---
+      if (url.pathname === "/referral/info" && request.method === "POST") {
+        return await handleReferralInfo(request, env, cors);
+      }
+      if (url.pathname === "/referral/claim" && request.method === "POST") {
+        return await handleReferralClaim(request, env, cors);
+      }
+
       // --- Admin Dashboard (GET /admin or GET /admin/) ---
       if ((url.pathname === "/admin" || url.pathname === "/admin/") && request.method === "GET") {
         return new Response(renderAdminDashboardHtml(env), {
@@ -1092,6 +1100,10 @@ async function handleVerify(request, env, cors) {
 
   const accountKey = `account:${account.sub}`;
   const existingAccountRaw = await env.REDEEMED_CODES.get(accountKey);
+
+  // First-ever redemption on this account closes any pending referral claim:
+  // the invited friend's purchase is what makes the referral "verified paid".
+  const isFirstRedemption = !existingAccountRaw;
   const existingExpiresAt = existingAccountRaw
     ? JSON.parse(existingAccountRaw).expiresAt
     : null;
@@ -1110,6 +1122,10 @@ async function handleVerify(request, env, cors) {
 
   if (account.email) {
     await env.REDEEMED_CODES.put(`email_index:${account.email.toLowerCase().trim()}`, account.sub);
+  }
+
+  if (isFirstRedemption) {
+    await awardVerifiedReferral(account, env);
   }
 
   return json({
@@ -1152,6 +1168,210 @@ async function handleCheckStatus(request, env, cors) {
     server_time: now.toISOString(),
     expiresAt: record.expiresAt,
   }, 200, cors);
+}
+
+// ----------------------------------------------------------------------------
+// VERIFIED REFERRAL SYSTEM
+// Every signed-in user has a stable personal referral code (REF-XXXXXXXX).
+// A referral pays out ONLY when the invited friend redeems their first
+// activation code on a brand-new account ("verified paid referral").
+// Payout: 1 month of Katzu Pro, stacked onto the referrer's expiry.
+// ----------------------------------------------------------------------------
+
+const REFERRAL_REWARD_MONTHS = 1;
+const REFERRAL_CODE_PREFIX = "REF-";
+
+function generateReferralCode(accountId) {
+  // Stable, collision-checked code derived from the account id.
+  // 8 chars from a 32-char alphabet => ~1 in 1.09B per-pair collision odds.
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let hash = 0;
+  for (let i = 0; i < accountId.length; i++) {
+    hash = (hash * 31 + accountId.charCodeAt(i)) >>> 0;
+  }
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+    code += alphabet[hash % 32];
+    hash = (hash * 1103515245 + 12345) >>> 0;
+  }
+  return REFERRAL_CODE_PREFIX + code;
+}
+
+async function resolveReferralCode(code, env) {
+  // Referral codes map to account ids through REDEEMED_CODES KV: "refcode:<CODE>" -> sub
+  if (!env.REDEEMED_CODES || typeof code !== "string" || code.trim().length < 6) return null;
+  const raw = await env.REDEEMED_CODES.get(`refcode:${code.trim().toUpperCase()}`);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed?.sub ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function handleReferralInfo(request, env, cors) {
+  const body = await request.json().catch(() => null);
+  const idToken = body?.id_token;
+  if (!idToken || typeof idToken !== "string") {
+    return json({ error: "missing_id_token", code: "UNAUTHENTICATED" }, 401, cors);
+  }
+
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  if (!account) {
+    return json({ error: "invalid_id_token", code: "UNAUTHENTICATED" }, 401, cors);
+  }
+
+  let envRecords = [];
+  if (env.REDEEMED_CODES) {
+    const stored = await env.REDEEMED_CODES.get(`referrals:${account.sub}`);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) envRecords = parsed;
+      } catch {}
+    }
+  }
+
+  // Publish this user's personal code so /referral/claim can resolve it.
+  // Stable per account id, so re-writing the same mapping is idempotent.
+  const referralCode = generateReferralCode(account.sub);
+  if (env.REDEEMED_CODES) {
+    await env.REDEEMED_CODES.put(`refcode:${referralCode}`, JSON.stringify({ sub: account.sub }));
+  }
+
+  return json({
+    referral_code: referralCode,
+    reward_months: REFERRAL_REWARD_MONTHS,
+    verified_referrals: envRecords.filter(r => r?.status === "verified").length,
+    pending_referrals: envRecords.filter(r => r?.status === "pending").length,
+    total_reward_months: envRecords.filter(r => r?.status === "verified").length * REFERRAL_REWARD_MONTHS,
+    referrals: envRecords.map((r) => ({
+      invited_email_masked: maskEmail(r.invited_email),
+      status: r.status,
+      awarded_at: r.awarded_at || null,
+    })),
+  }, 200, cors);
+}
+
+async function handleReferralClaim(request, env, cors) {
+  const body = await request.json().catch(() => null);
+  const idToken = body?.id_token;
+  const referralCode = body?.referral_code;
+
+  if (!idToken || typeof idToken !== "string") {
+    return json({ error: "missing_id_token", code: "UNAUTHENTICATED" }, 401, cors);
+  }
+  if (!referralCode || typeof referralCode !== "string") {
+    return json({ error: "missing_referral_code", code: "MALFORMED" }, 400, cors);
+  }
+
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  if (!account) {
+    return json({ error: "invalid_id_token", code: "UNAUTHENTICATED" }, 401, cors);
+  }
+
+  if (!env.REDEEMED_CODES || !env.USER_PROGRESS) {
+    return json({ error: "storage_unavailable", code: "QUOTA_UNAVAILABLE" }, 503, cors);
+  }
+
+  const referrer = await resolveReferralCode(referralCode, env);
+  if (!referrer) {
+    return json({ error: "invalid_referral_code", code: "INVALID_REFERRAL" }, 200, cors);
+  }
+  if (referrer.sub === account.sub) {
+    return json({ error: "cannot_refer_yourself", code: "SELF_REFERRAL" }, 200, cors);
+  }
+
+  // A referral claim is permanent: one account can only ever be referred once.
+  const claimKey = `referred-by:${account.sub}`;
+  const existingClaim = await env.REDEEMED_CODES.get(claimKey);
+  if (existingClaim) {
+    try {
+      const claim = JSON.parse(existingClaim);
+      if (claim?.referrer_sub) {
+        return json({ error: "already_referred", code: "ALREADY_REFERRED" }, 200, cors);
+      }
+    } catch {}
+  }
+
+  const inviteeKey = `account:${account.sub}`;
+  const inviteeRaw = await env.REDEEMED_CODES.get(inviteeKey);
+  if (inviteeRaw) {
+    try {
+      const invitee = JSON.parse(inviteeRaw);
+      if (invitee?.expiresAt && new Date(invitee.expiresAt).getTime() > Date.now()) {
+        return json({ error: "only_for_new_accounts", code: "ONLY_FOR_NEW_ACCOUNTS" }, 200, cors);
+      }
+    } catch {}
+  }
+
+  await env.REDEEMED_CODES.put(claimKey, JSON.stringify({
+    referrer_sub: referrer.sub,
+    referrer_code: referralCode.trim().toUpperCase(),
+    claimed_at: new Date().toISOString(),
+    status: "pending",
+  }));
+
+  return json({ success: true, status: "pending" }, 200, cors);
+}
+
+async function awardVerifiedReferral(inviteeAccount, env) {
+  // Called after a first successful activation-code redemption on this account.
+  try {
+    const claimKey = `referred-by:${inviteeAccount.sub}`;
+    const claimRaw = await env.REDEEMED_CODES?.get(claimKey);
+    if (!claimRaw) return;
+    let claim = null;
+    try { claim = JSON.parse(claimRaw); } catch { return; }
+    if (!claim?.referrer_sub || claim.status === "verified") return;
+
+    const referrerKey = `account:${claim.referrer_sub}`;
+    const referrerRaw = await env.REDEEMED_CODES.get(referrerKey);
+    const referrerExpiresAt = referrerRaw ? JSON.parse(referrerRaw).expiresAt : null;
+    const newExpiresAt = addMonthsIso(referrerExpiresAt, REFERRAL_REWARD_MONTHS);
+
+    await env.REDEEMED_CODES.put(referrerKey, JSON.stringify({
+      email: referrerRaw ? JSON.parse(referrerRaw).email : "",
+      expiresAt: newExpiresAt,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    claim.status = "verified";
+    claim.verified_at = new Date().toISOString();
+    claim.reward_months = REFERRAL_REWARD_MONTHS;
+    await env.REDEEMED_CODES.put(claimKey, JSON.stringify(claim));
+
+    // Record in referrer's referral history.
+    const historyKey = `referrals:${claim.referrer_sub}`;
+    let history = [];
+    const historyRaw = await env.REDEEMED_CODES.get(historyKey);
+    if (historyRaw) {
+      try {
+        const parsed = JSON.parse(historyRaw);
+        if (Array.isArray(parsed)) history = parsed;
+      } catch {}
+    }
+    history.push({
+      invited_sub: inviteeAccount.sub,
+      invited_email: inviteeAccount.email || "",
+      status: "verified",
+      awarded_at: new Date().toISOString(),
+      reward_months: REFERRAL_REWARD_MONTHS,
+    });
+    await env.REDEEMED_CODES.put(historyKey, JSON.stringify(history));
+  } catch (e) {
+    console.error("[Referral] Award failed:", e);
+  }
+}
+
+function maskEmail(email) {
+  if (!email || typeof email !== "string" || !email.includes("@")) return "****";
+  const [local, domain] = email.split("@");
+  const maskedLocal = local.length <= 2
+    ? local[0] + "*"
+    : local.slice(0, 2) + "***";
+  return `${maskedLocal}@${domain}`;
 }
 
 async function handleAdminGenerate(request, env, cors) {

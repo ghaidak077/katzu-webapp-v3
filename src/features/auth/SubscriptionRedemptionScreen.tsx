@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
-import { ArrowRight, Check, KeyRound, Sparkles, UserCheck, AlertCircle } from 'lucide-react';
+import { ArrowRight, Check, KeyRound, Sparkles, UserCheck, AlertCircle, Gift } from 'lucide-react';
 
 export interface SubscriptionRedemptionScreenProps {
   onBack: () => void;
@@ -23,6 +23,15 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [referralCode, setReferralCode] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return (params.get('ref') || '').toUpperCase();
+    } catch {
+      return '';
+    }
+  });
+  const [referralMessage, setReferralMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
   const user = useLiveQuery(() => db.users.get('current_user'));
   const isLoggedIn = !!user?.isLoggedIn && !!user?.email;
@@ -139,6 +148,59 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
               Google ✓
             </span>
           </div>
+        )}
+
+        {/* Referral Code Claim (new accounts, pre-purchase) */}
+        {!user?.isSubscriptionActive && (
+          <Card className="w-full p-4 bg-surface-card border-status-learning/40 text-start mb-4">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-text-secondary mb-2 font-arabic">
+              <Gift className="w-3.5 h-3.5 text-status-learning" />
+              كود إحالة من صديق؟ (اختياري)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="REF-XXXXXXXX"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                dir="ltr"
+                className="flex-1 h-11 bg-black border border-border-subtle focus:border-status-learning rounded-xl px-3 text-xs font-mono font-bold uppercase tracking-wider outline-none text-status-learning"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={!referralCode.trim()}
+                onClick={async () => {
+                  setReferralMessage(null);
+                  const activeToken = user?.idToken?.trim();
+                  if (!user?.isLoggedIn || !activeToken) {
+                    setReferralMessage({ kind: 'error', text: 'يلزم تسجيل الدخول بحساب Google أولاً.' });
+                    return;
+                  }
+                  const result = await workerClient.claimReferral(referralCode, activeToken);
+                  setReferralMessage(
+                    result.success
+                      ? { kind: 'success', text: 'تم ربط حسابك بكود الإحالة ✓ بعد أول اشتراك سيحصل صديقك على شهر Pro.' }
+                      : { kind: 'error', text: result.error || 'تعذر تطبيق كود الإحالة.' },
+                  );
+                }}
+              >
+                ربط
+              </Button>
+            </div>
+            {referralMessage && (
+              <div
+                className={`mt-2.5 p-2 rounded-lg text-[11px] font-semibold ${
+                  referralMessage.kind === 'success'
+                    ? 'bg-status-success/15 border border-status-success/30 text-status-success'
+                    : 'bg-status-error/15 border border-status-error/30 text-status-error'
+                }`}
+              >
+                {referralMessage.text}
+              </div>
+            )}
+          </Card>
         )}
 
         {/* Activation Code Redemption Box */}

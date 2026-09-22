@@ -21,6 +21,7 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea
+*.tsbuildinfo
 
 # Logs
 npm-debug.log*
