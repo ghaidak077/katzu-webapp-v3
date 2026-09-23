@@ -16,16 +16,15 @@
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
 // ============================================================================
 
+// Real, currently-served Gemini model IDs. Nonexistent model names burn ~20s of
+// 404 round-trips per request before reaching a working model, which users see as
+// the chat hanging on "Katzu is thinking...".
 const DEFAULT_MODEL_CHAIN = [
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
-  "gemini-3.6-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
   "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
   "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-flash-latest"
+  "gemini-flash-latest",
+  "gemini-1.5-flash"
 ];
 
 let primaryWorkingModel = null;
@@ -773,6 +772,7 @@ function cleanJson(raw) {
   const correctedMatch = text.match(/"corrected_german"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
   const ruleMatch = text.match(/"grammar_rule"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
   const explMatch = text.match(/"explanation_ar"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+  const roastMatch = text.match(/"roast_comment"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
   const noteMatch = text.match(/"positive_note_ar"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
 
   if (replyDeMatch || replyArMatch) {
@@ -785,6 +785,7 @@ function cleanJson(raw) {
         corrected_german: correctedMatch ? correctedMatch[1].replace(/\\"/g, '"') : "",
         grammar_rule: ruleMatch ? ruleMatch[1].replace(/\\"/g, '"') : "Kommunikation",
         explanation_ar: explMatch ? explMatch[1].replace(/\\"/g, '"') : "جملتك مفهومة ومناسبة للمحادثة.",
+        roast_comment: roastMatch ? roastMatch[1].replace(/\\"/g, '"') : "",
         user_message_translation_ar: "",
         positive_note_ar: noteMatch ? noteMatch[1].replace(/\\"/g, '"') : "أحسنت! واصل التحدث بثقة."
       }
@@ -831,7 +832,7 @@ async function handleAiConversationTurn(request, env, cors) {
   const rate = checkRateLimit(account.sub, env);
   if (!rate.allowed) return json({ error: "rate_limit_exceeded", code: "RATE_LIMIT_EXCEEDED", message: "تم تجاوز الحد الأقصى للمحادثات مؤقتاً. يرجى الانتظار دقيقة.", retry_after: rate.retryAfter }, 429, cors);
 
-  const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn, mode, session_id } = body;
+  const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn, mode, session_id, sarcasm_level } = body;
   const level = cefr_level || "A1";
   const entitlement = await checkUserEntitlement(account, level, env);
   if (!entitlement.allowed) {
@@ -872,9 +873,11 @@ Persona: ${persona || "friendly conversational partner"}. Target learner CEFR le
 ${wrapUpInstruction}
 Return a natural German reply and its Modern Standard Arabic translation. Never translate secular German greetings as السلام عليكم.
 Respond strictly as JSON: {"reply_de":"string","reply_ar":"string"}`;
-  const evaluationInstruction = `You are Katzu, a precise Arabic-speaking German grammar coach.
+  const evaluationInstruction = `You are Katzu, a witty, warm Arabic-speaking German grammar coach who roasts German grammar (not the learner).
 Evaluate ONLY the learner's latest German sentence against CEFR level ${level}. Do not use conversation history, scenario context, or the roleplay persona.
-Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","corrected_german":"string","grammar_rule":"string","explanation_ar":"string","user_message_translation_ar":"string","positive_note_ar":"string"}`;
+Sarcasm level for roast_comment (1-5, default 2): ${Math.min(5, Math.max(1, Number(sarcasm_level) || 2))}. 1 = gentle, 3 = playfully sarcastic, 5 = maximum sass about how absurd German grammar is — never mocking the learner.
+roast_comment must be in Arabic targeting German grammar absurdity (articles, cases, word order), staying encouraging.
+Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","corrected_german":"string","grammar_rule":"string","explanation_ar":"string","roast_comment":"string","user_message_translation_ar":"string","positive_note_ar":"string"}`;
 
   const conversationPayload = {
     systemInstruction: { parts: [{ text: roleplayInstruction }] },
@@ -939,9 +942,13 @@ async function handleAiTranslation(request, env, cors) {
     return json({ translation_ar: cached, cached: true }, 200, cors);
   }
 
-  const prompt = `Translate this German sentence into accurate, natural Modern Standard Arabic.
+  const prompt = `Translate this German sentence into accurate, natural, idiomatic Modern Standard Arabic.
 German: "${text}"
-Never use "السلام عليكم" for "Guten Tag" or "Hallo". Use "مرحباً".
+Rules:
+- Translate meaning, not word-by-word. Rephrase into the way a native Arabic speaker would naturally say it.
+- Never transliterate German words into Arabic letters (e.g. write المحاسبة for Buchhaltung, not بوخهالتونج) — use the established Arabic equivalent term.
+- Never use "السلام عليكم" for "Guten Tag"/"Hallo"; use "مرحباً" or "صباح الخير"/"مساء الخير".
+- Keep it natural for a learner app: concise, clear MSA, correct grammar and gender.
 Respond strictly in JSON:
 { "translation_ar": "string" }`;
 
@@ -996,6 +1003,8 @@ async function handleAiHints(request, env, cors) {
   const prompt = `Generate exactly 3 practical German response options for an Arabic-speaking learner to reply to: "${reply}".
 Level: ${cefr_level || "A1"}. Scenario: ${scenario_title || ""}.
 Use only this bounded recent conversation context (at most the last four messages): ${JSON.stringify(recentHistory)}.
+Each option must be a complete, natural sentence exactly at CEFR level ${cefr_level || "A1"} — not fragments, not grammar exercises.
+translation_ar values must convey the meaning naturally in Modern Standard Arabic (not word-by-word transliteration).
 Never use religious greeting substitutions.
 Respond strictly in JSON:
 {
