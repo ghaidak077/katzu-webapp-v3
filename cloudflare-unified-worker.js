@@ -828,6 +828,15 @@ function boundedHistory(history, mode = "roleplay") {
   return (Array.isArray(history) ? history : []).slice(-limit);
 }
 
+// Models occasionally echo a JSON schema label ("reply_de: ...") into the value
+// itself. Strip any leading "<field>:/-" prefix so labels never reach the UI.
+function sanitizeFieldLabel(value) {
+  if (typeof value !== "string") return value;
+  return value
+    .replace(/^\s*(reply_de|reply_ar|german|translation_ar|followup_question_ar|explanation_ar|positive_note_ar|roast_comment)\s*[:：\-]\s*/i, "")
+    .trim();
+}
+
 // ----------------------------------------------------------------------------
 // SEPARATE ROLEPLAY AND PEDAGOGICAL EVALUATION
 // ----------------------------------------------------------------------------
@@ -886,8 +895,12 @@ async function handleAiConversationTurn(request, env, cors) {
   const roleplayInstruction = `You are the in-character native German roleplay counterpart in '${scenario_title || scenario_id}'.
 Persona: ${persona || "friendly conversational partner"}. Target learner CEFR level: ${level}.
 ${wrapUpInstruction}
-Return a natural German reply and its Modern Standard Arabic translation. Never translate secular German greetings as السلام عليكم.
-Respond strictly as JSON: {"reply_de":"string","reply_ar":"string"}`;
+Return:
+- reply_de: your natural German reply, in character, at CEFR level ${level}. Plain sentence only — never prefix it with field labels.
+- reply_ar: its accurate, idiomatic Modern Standard Arabic translation. Never translate secular German greetings as السلام عليكم.
+- next_hint: ONE short German sentence (with its Arabic translation_ar) that the LEARNER could realistically say next in this conversation at their level — a suggestion, not your own line.
+- followup_question_ar: ONE short, inviting Arabic question that encourages the learner to keep chatting (about the scenario, e.g. about rent, appointment, order).
+Respond strictly as JSON with keys: reply_de, reply_ar, next_hint { german, translation_ar }, followup_question_ar`;
   const evaluationInstruction = `You are Katzu, a witty, warm Arabic-speaking German grammar coach who roasts German grammar (not the learner).
 Evaluate ONLY the learner's latest German sentence against CEFR level ${level}. Do not use conversation history, scenario context, or the roleplay persona.
 Sarcasm level for roast_comment (1-5, default 2): ${Math.min(5, Math.max(1, Number(sarcasm_level) || 2))}. 1 = gentle, 3 = playfully sarcastic, 5 = maximum sass about how absurd German grammar is — never mocking the learner.
@@ -903,12 +916,53 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
       })),
       { role: "user", parts: [{ text: user_message }] }
     ],
-    generationConfig: { responseMimeType: "application/json", temperature: 0.3, maxOutputTokens: 250 }
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          reply_de: { type: "STRING" },
+          reply_ar: { type: "STRING" },
+          next_hint: {
+            type: "OBJECT",
+            properties: {
+              german: { type: "STRING" },
+              translation_ar: { type: "STRING" }
+            },
+            required: ["german", "translation_ar"]
+          },
+          followup_question_ar: { type: "STRING" }
+        },
+        required: ["reply_de", "reply_ar", "next_hint", "followup_question_ar"],
+        propertyOrdering: ["reply_de", "reply_ar", "next_hint", "followup_question_ar"]
+      },
+      temperature: 0.3,
+      maxOutputTokens: 320
+    }
   };
   const evaluationPayload = {
     systemInstruction: { parts: [{ text: evaluationInstruction }] },
     contents: [{ role: "user", parts: [{ text: user_message }] }],
-    generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 350 }
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          is_correct: { type: "BOOLEAN" },
+          original_mistake: { type: "STRING" },
+          corrected_german: { type: "STRING" },
+          grammar_rule: { type: "STRING" },
+          explanation_ar: { type: "STRING" },
+          roast_comment: { type: "STRING" },
+          user_message_translation_ar: { type: "STRING" },
+          positive_note_ar: { type: "STRING" }
+        },
+        required: ["is_correct", "explanation_ar", "positive_note_ar"],
+        propertyOrdering: ["is_correct", "original_mistake", "corrected_german", "grammar_rule", "explanation_ar", "roast_comment", "user_message_translation_ar", "positive_note_ar"]
+      },
+      temperature: 0.2,
+      maxOutputTokens: 350
+    }
   };
 
   try {
@@ -920,11 +974,24 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
     const roleplay = cleanJson(roleplayRaw);
     const evaluationParsed = cleanJson(evaluationRaw);
     const evaluation = evaluationParsed.evaluation || evaluationParsed;
+    // Sanitize every string field — a model echoing schema labels ("reply_de: ...")
+    // must never reach the learner's chat bubbles.
+    const replyDe = sanitizeFieldLabel(roleplay.reply_de) || "Danke!";
+    const replyAr = sanitizeFieldLabel(roleplay.reply_ar) || "شكراً!";
+    const nextHint = roleplay.next_hint && typeof roleplay.next_hint === "object"
+      ? {
+          german: sanitizeFieldLabel(roleplay.next_hint.german) || "",
+          translation_ar: sanitizeFieldLabel(roleplay.next_hint.translation_ar) || ""
+        }
+      : null;
+    const hints = nextHint && nextHint.german ? [nextHint] : [];
+    const followupAr = sanitizeFieldLabel(roleplay.followup_question_ar) || "";
     return json({
-      reply_de: roleplay.reply_de || "Danke!",
-      reply_ar: roleplay.reply_ar || "شكراً!",
+      reply_de: replyDe,
+      reply_ar: replyAr,
       evaluation: evaluation && typeof evaluation === "object" ? evaluation : {},
-      hints: []
+      hints,
+      followup_ar: followupAr
     }, 200, cors);
   } catch (err) {
     console.error("[Separated Turn Error]", err);
@@ -1015,27 +1082,38 @@ async function handleAiHints(request, env, cors) {
     return json({ hints: cached, cached: true }, 200, cors);
   }
 
-  const prompt = `Generate exactly 3 practical German response options for an Arabic-speaking learner to reply to: "${reply}".
+  const prompt = `Generate exactly ONE practical German response option for an Arabic-speaking learner to reply to: "${reply}".
 Level: ${cefr_level || "A1"}. Scenario: ${scenario_title || ""}.
 Use only this bounded recent conversation context (at most the last four messages): ${JSON.stringify(recentHistory)}.
-Each option must be a complete, natural sentence exactly at CEFR level ${cefr_level || "A1"} — not fragments, not grammar exercises.
-translation_ar values must convey the meaning naturally in Modern Standard Arabic (not word-by-word transliteration).
+The option must be a complete, natural sentence exactly at CEFR level ${cefr_level || "A1"} — not a fragment, not a grammar exercise.
+translation_ar must convey the meaning naturally in Modern Standard Arabic (not word-by-word transliteration).
 Never use religious greeting substitutions.
 Respond strictly in JSON:
-{
-  "hints": [
-    { "german": "string", "translation_ar": "string" },
-    { "german": "string", "translation_ar": "string" },
-    { "german": "string", "translation_ar": "string" }
-  ]
-}`;
+{ "hints": [ { "german": "string", "translation_ar": "string" } ] }`;
 
   const payload = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
       responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          hints: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                german: { type: "STRING" },
+                translation_ar: { type: "STRING" }
+              },
+              required: ["german", "translation_ar"]
+            }
+          }
+        },
+        required: ["hints"]
+      },
       temperature: 0.3,
-      maxOutputTokens: 200
+      maxOutputTokens: 120
     }
   };
 

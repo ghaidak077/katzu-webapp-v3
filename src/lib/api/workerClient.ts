@@ -431,7 +431,12 @@ export class WorkerClient {
         explanationAr: evalData.explanation_ar || '',
         roastComment: evalData.roast_comment || '',
         positiveNoteAr: evalData.positive_note_ar || '',
-        hints: [],
+        hints: Array.isArray(data.hints)
+          ? data.hints
+              .filter((h: any) => h && typeof h.german === 'string' && h.german.trim())
+              .map((h: any) => ({ german: h.german, arabic: h.translation_ar || '' }))
+          : [],
+        followupAr: typeof data.followup_ar === 'string' ? data.followup_ar : '',
       };
     }
 

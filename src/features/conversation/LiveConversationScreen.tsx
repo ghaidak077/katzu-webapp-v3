@@ -308,6 +308,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         sender: 'KATZU',
         germanText: res.germanReply,
         arabicTranslation: res.arabicTranslation,
+        followupAr: res.followupAr || undefined,
         hasCorrection: res.isCorrect === false,
         originalMistake: res.mistakeSegment,
         correctedGerman: res.correctedSegment,
@@ -338,30 +339,15 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         });
       }
 
-      // Fetch fresh contextual hints from AI router for next turn; on any
-      // failure keep the cached starter phrases visible instead of clearing.
-      workerClient
-        .fetchHints({
-          scenarioTitle: scenario?.title_de || '',
-          cefrLevel: effectiveLevel,
-          lastAiReply: res.germanReply,
-          history: updatedHistory.map((m) => ({
-            sender: m.sender === 'USER' ? 'user' : 'model',
-            text: m.germanText,
-          })),
-        })
-        .then((newHints) => {
-          if (newHints && newHints.length > 0) {
-            setCurrentHints(newHints);
-            logEvent('hints', `AI hints loaded (${newHints.length})`);
-          }
-          // Empty/failure → starterHints stay visible via merged display list.
-        })
-        .catch(() => {
-          // AI hints unavailable (offline, paywall, quota): fall back to the
-          // cached starter phrases instead of silently emptying the bar.
-          void loadStarterHints();
-        });
+      // The turn response already carries ONE context-aware hint (same AI
+      // call as the reply — no extra network round-trip). Fall back to the
+      // starter-phrase floor when the model didn't provide one.
+      if (res.hints && res.hints.length > 0) {
+        setCurrentHints(res.hints);
+        logEvent('hints', `Embedded hint loaded (${res.hints.length})`);
+      } else {
+        void loadStarterHints();
+      }
 
       // Check for completion (Rule 7)
       if (isFinalTurn) {
@@ -717,6 +703,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                 {isTransVisible && msg.arabicTranslation && (
                   <div className="mt-2 pt-2 border-t border-border-subtle/50 text-xs font-arabic text-text-secondary">
                     {msg.arabicTranslation}
+                  </div>
+                )}
+
+                {/* Katzu's inviting follow-up question (keeps the conversation moving) */}
+                {msg.sender === 'KATZU' && msg.followupAr && (
+                  <div className="mt-2 flex items-start gap-1.5 text-[11px] font-arabic text-status-learning">
+                    <span aria-hidden>💬</span>
+                    <span>{msg.followupAr}</span>
                   </div>
                 )}
               </div>

@@ -150,6 +150,8 @@ export interface ChatMessage {
   sender: MessageSender;
   germanText: string;
   arabicTranslation?: string;
+  /** Arabic invitation to continue the conversation (KATZU messages only). */
+  followupAr?: string;
   hasCorrection?: boolean;
   originalMistake?: string;
   correctedGerman?: string;
@@ -171,6 +173,8 @@ export interface TurnAiResponse {
   germanReply: string;
   arabicTranslation: string;
   hints?: ContextualHint[];
+  /** Inviting Arabic question from Katzu to keep the learner chatting. */
+  followupAr?: string;
   isCorrect?: boolean;
   mistakeSegment?: string;
   correctedSegment?: string;
