@@ -47,3 +47,5 @@ binding = "AI"
 ALLOWED_ORIGINS = "https://katzu-test.ghaidakalosh008.workers.dev,https://katzu-webapp-v3.pages.dev"
 AI_RATE_LIMIT_PER_MINUTE = "10"
 AI_RATE_LIMIT_PER_DAY = "200"
+# Set to "0" to disable the Workers AI fallback (Gemini-only mode).
+AI_FALLBACK_ENABLED = "1"

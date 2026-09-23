@@ -667,13 +667,85 @@ export default {
 // AI ROUTER ENGINE (14+ KEYS, ROUND-ROBIN, STICKY MODEL & FAST FAILOVER)
 // ============================================================================
 
-async function callGeminiWithFailover(apiKeys, payload) {
+// ---------------------------------------------------------------------------
+// WORKERS AI FALLBACK — sanctions-proof secondary provider.
+// When every Gemini key/model fails (429 quota, parked keys, chain miss), the
+// request is served by the Workers AI binding baked into this same Worker —
+// no new account, no new billing relationship. Validated live against the
+// exact Katzu turn: @cf/qwen/qwen3-30b-a3b-fp8 produced valid structured JSON
+// (reply_de/reply_ar/next_hint/followup) at ~2.1-2.3s.
+// ---------------------------------------------------------------------------
+const WORKERS_AI_FALLBACK_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8";
+const aiFallbackMetrics = {
+  requests: 0,
+  served: 0,
+  failures: 0,
+  lastUsedAt: null,
+};
+let lastAiProvider = "gemini";
+
+function getAiFallbackMetrics() {
+  return { ...aiFallbackMetrics };
+}
+
+function isFallbackKillSwitchOff(env) {
+  const value = String(env?.AI_FALLBACK_ENABLED ?? "1").trim().toLowerCase();
+  return value === "0" || value === "false" || value === "off";
+}
+
+function canUseWorkersAiFallback(env) {
+  return !!env?.AI && !isFallbackKillSwitchOff(env);
+}
+
+// Convert a Gemini generateContent payload into Workers AI chat `messages`.
+function convertGeminiPayloadToMessages(payload) {
+  const messages = [];
+  const sys = payload?.systemInstruction?.parts?.map((p) => p?.text || "").join("")
+    ?? payload?.system_instruction?.parts?.map((p) => p?.text || "").join("");
+  if (sys) messages.push({ role: "system", content: sys });
+  for (const c of Array.isArray(payload?.contents) ? payload.contents : []) {
+    const content = (c?.parts || []).map((p) => p?.text || "").join("");
+    if (content) messages.push({ role: c.role === "model" ? "assistant" : "user", content });
+  }
+  return messages;
+}
+
+async function runWorkersAiFallback(payload, env) {
+  if (!env?.AI) throw new Error("Workers AI binding unavailable");
+  const messages = convertGeminiPayloadToMessages(payload);
+  if (messages.length === 0) throw new Error("Workers AI fallback: empty message list");
+  const gen = payload?.generationConfig || {};
+  const options = {
+    messages,
+    max_tokens: Math.min(Number(gen.maxOutputTokens) || 700, 700),
+    temperature: typeof gen.temperature === "number" ? gen.temperature : 0.3,
+  };
+  if (gen.responseMimeType === "application/json") {
+    options.response_format = { type: "json_object" };
+  }
+  aiFallbackMetrics.requests += 1;
+  const result = await env.AI.run(WORKERS_AI_FALLBACK_MODEL, options);
+  let text = typeof result === "string" ? result : "";
+  if (!text && result && typeof result === "object") {
+    const r = result.response ?? result.text ?? result.result ?? result;
+    text = typeof r === "string" ? r : JSON.stringify(r);
+  }
+  // qwen3 reasoning models may emit <think>…</think> blocks before the JSON.
+  text = String(text || "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  if (!text) throw new Error("Workers AI fallback returned no text");
+  aiFallbackMetrics.served += 1;
+  aiFallbackMetrics.lastUsedAt = new Date().toISOString();
+  lastAiProvider = "workers-ai";
+  return text;
+}
+
+async function callGeminiWithFailover(apiKeys, payload, env) {
+  lastAiProvider = "gemini";
   let lastError = null;
   const numKeys = apiKeys.length;
-  if (numKeys === 0) throw new Error("No Gemini API keys configured");
 
   // Round-robin start index distributes requests across all 14+ keys
-  const startIndex = (requestCounter++) % numKeys;
+  const startIndex = numKeys > 0 ? (requestCounter++) % numKeys : 0;
   const orderedIndices = [];
 
   for (let i = 0; i < numKeys; i++) {
@@ -765,6 +837,18 @@ async function callGeminiWithFailover(apiKeys, payload) {
       } catch (e) {
         lastError = e;
       }
+    }
+  }
+
+  // All Gemini keys/models failed (or none configured) — try the Workers AI
+  // fallback before giving the learner an error.
+  if (canUseWorkersAiFallback(env)) {
+    try {
+      console.warn("[AI Failover] All Gemini keys/models failed — serving via Workers AI fallback.");
+      return await runWorkersAiFallback(payload, env);
+    } catch (fallbackErr) {
+      aiFallbackMetrics.failures += 1;
+      console.error("[AI Failover] Workers AI fallback also failed:", fallbackErr);
     }
   }
 
@@ -1010,8 +1094,8 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
   try {
     // These calls intentionally have separate prompts/personas and independent inputs.
     const [roleplayRaw, evaluationRaw] = await Promise.all([
-      callGeminiWithFailover(apiKeys, conversationPayload),
-      callGeminiWithFailover(apiKeys, evaluationPayload)
+      callGeminiWithFailover(apiKeys, conversationPayload, env),
+      callGeminiWithFailover(apiKeys, evaluationPayload, env)
     ]);
     const roleplay = cleanJson(roleplayRaw);
     const evaluationParsed = cleanJson(evaluationRaw);
@@ -1044,7 +1128,8 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
       reply_ar: replyAr,
       evaluation: evaluation && typeof evaluation === "object" ? evaluation : {},
       hints,
-      followup_ar: followupAr
+      followup_ar: followupAr,
+      provider: lastAiProvider
     }, 200, cors);
   } catch (err) {
     console.error("[Separated Turn Error]", err, "| failover state:", summarizeFailoverState(apiKeys));
@@ -1097,7 +1182,7 @@ Respond strictly in JSON:
     }
   };
 
-  const raw = await callGeminiWithFailover(apiKeys, payload);
+  const raw = await callGeminiWithFailover(apiKeys, payload, env);
   const parsed = cleanJson(raw);
   const translation = parsed.translation_ar || "";
 
@@ -1171,7 +1256,7 @@ Respond strictly in JSON:
     }
   };
 
-  const raw = await callGeminiWithFailover(apiKeys, payload);
+  const raw = await callGeminiWithFailover(apiKeys, payload, env);
   const parsed = cleanJson(raw);
   let hints = Array.isArray(parsed.hints) ? parsed.hints : [];
 
@@ -1217,9 +1302,19 @@ function handleAiHealth(env, cors) {
     primaryWorkingModel: primaryWorkingModel || "auto-pinning on first call",
     cachedTranslationsCount: translationCache.size,
     cachedHintsCount: hintsCache.size,
-    ready: apiKeys.length > 0,
-    strategy: "single-prompt fusion + round-robin 14-key load balancing + edge memory cache",
-    registeredKeysMasked: inspection.previews
+    ready: apiKeys.length > 0 || !!env.AI,
+    strategy: "single-prompt fusion + round-robin 14-key load balancing + edge memory cache + Workers AI fallback",
+    registeredKeysMasked: inspection.previews,
+    aiFallback: {
+      enabled: !isFallbackKillSwitchOff(env),
+      bindingPresent: !!env.AI,
+      model: WORKERS_AI_FALLBACK_MODEL,
+      requests: aiFallbackMetrics.requests,
+      served: aiFallbackMetrics.served,
+      failures: aiFallbackMetrics.failures,
+      lastUsedAt: aiFallbackMetrics.lastUsedAt,
+      lastProvider: lastAiProvider,
+    }
   }, 200, cors);
 }
 
@@ -1845,6 +1940,12 @@ export {
   readTrialQuota,
   trialSessionKey,
   verifyGoogleIdToken,
+  canUseWorkersAiFallback,
+  convertGeminiPayloadToMessages,
+  getAiFallbackMetrics,
+  isFallbackKillSwitchOff,
+  runWorkersAiFallback,
+  WORKERS_AI_FALLBACK_MODEL,
 };
 
 // ============================================================================
