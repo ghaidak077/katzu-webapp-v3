@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { isProEffective } from '@/lib/utils/subscription';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
@@ -37,7 +38,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
     return <div className="p-6 text-center text-text-secondary">جاري التحميل...</div>;
   }
 
-  const isPro = !!user?.isSubscriptionActive;
+  const isPro = isProEffective(user);
   const handleConversationClick = () => {
     onStartConversation();
   };

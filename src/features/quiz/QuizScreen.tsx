@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { generateQuizQuestions, type QuizQuestion } from '@/lib/utils/quizGenerator';
+import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
+import type { VocabularyEntity } from '@/types/models';
 import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -11,13 +15,6 @@ export interface QuizScreenProps {
   scenarioId: string;
   onBack: () => void;
   onProceedToConversation: () => void;
-}
-
-interface QuizQuestion {
-  germanPrompt: string;
-  options: string[];
-  correctIndex: number;
-  explanation: string;
 }
 
 export const QuizScreen: React.FC<QuizScreenProps> = ({
@@ -33,38 +30,33 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
 
   const { speak } = useSpeechOutput();
 
-  // Curated scenario-specific comprehension drill questions
-  const questions: QuizQuestion[] = [
-    {
-      germanPrompt: 'Ich möchte bitte einen Kaffee.',
-      options: ['أريد ماءً من فضلك.', 'أريد قهوة من فضلك.', 'أين أجد الشاي؟', 'كم سعر القهوة؟'],
-      correctIndex: 1,
-      explanation: 'Kaffee = قهوة، و möchten هو فعل الطلب المؤدب.',
-    },
-    {
-      germanPrompt: 'Die Rechnung bitte!',
-      options: ['الحساب من فضلك!', 'قائمة الطعام لو سمحت!', 'أين الحمام؟', 'طاولة لشخصين!'],
-      correctIndex: 0,
-      explanation: 'Die Rechnung تعني الفاتورة أو الحساب في المطعم.',
-    },
-    {
-      germanPrompt: 'Haben Sie auch Tee?',
-      options: ['هل هذا الشاي ساخن؟', 'هل لديكم شاي أيضاً؟', 'لا أريد شاياً.', 'أين يصنع الشاي؟'],
-      correctIndex: 1,
-      explanation: 'auch = أيضاً، Haben Sie = هل لديكم / تمتلكون.',
-    },
-    {
-      germanPrompt: 'Ich bezahle mit Karte bitte.',
-      options: ['سأدفع نقداً.', 'سأدفع بالبطاقة من فضلك.', 'لا أملك بطاقة.', 'أين الصراف الآلي؟'],
-      correctIndex: 1,
-      explanation: 'mit Karte = بالبطاقة البنكية.',
-    },
-  ];
+  // Questions are generated from the scenario's real D1 content (vocabulary +
+  // starter phrases) — never hardcoded (rule 3). Generated once per mount with
+  // a stable seed so the quiz doesn't reshuffle on every re-render.
+  const scenarioQ = useLiveQuery(() => db.scenarios.get(scenarioId));
+  const phrasesQ = useLiveQuery(
+    () => db.starter_phrases.where('scenario_id').equals(scenarioId).toArray(),
+    [scenarioId]
+  );
+  const vocabTopic = scenarioToVocabTopic(scenarioQ);
+  const vocabQ = useLiveQuery(
+    () => (vocabTopic ? db.vocabulary.where('topic').equals(vocabTopic).toArray() : Promise.resolve<VocabularyEntity[]>([])),
+    [vocabTopic]
+  );
 
+  // Regenerates only when the underlying D1 content loads/changes — questions
+  // stay stable across unrelated re-renders (answer states, score, etc.).
+  const questions = useMemo<QuizQuestion[]>(
+    () => generateQuizQuestions(vocabQ || [], phrasesQ || []),
+    [vocabQ, phrasesQ]
+  );
+
+  // Content may still be streaming from D1; guard against an empty deck
+  // instead of rendering `undefined` properties.
   const currentQ = questions[currentIndex];
 
   const handleSelectOption = (index: number) => {
-    if (isAnswerSubmitted) return;
+    if (!currentQ || isAnswerSubmitted) return;
     setSelectedOption(index);
     setIsAnswerSubmitted(true);
 
@@ -78,12 +70,18 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
   };
 
   const handleNext = async () => {
+    // No buildable questions (content missing): continue to conversation
+    // rather than trapping the learner in an empty quiz.
+    if (questions.length === 0) {
+      onProceedToConversation();
+      return;
+    }
     if (currentIndex < questions.length - 1) {
       setCurrentIndex((i) => i + 1);
       setSelectedOption(null);
       setIsAnswerSubmitted(false);
     } else {
-      const finalAccuracy = Math.round(((score + (selectedOption === currentQ.correctIndex ? 0 : 0)) / questions.length) * 100);
+      const finalAccuracy = Math.round((score / questions.length) * 100);
       await db.scenario_training.update(scenarioId, {
         quizAttempted: true,
         lastScore: finalAccuracy,
@@ -119,7 +117,11 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
         </div>
       </div>
 
-      {!isQuizCompleted ? (
+      {!isQuizCompleted && !currentQ ? (
+        <div className="my-auto text-center">
+          <p className="text-sm font-arabic text-text-secondary">جاري تحضير الأسئلة...</p>
+        </div>
+      ) : !isQuizCompleted ? (
         <div className="my-auto space-y-6">
           {/* Prompt Card */}
           <Card variant="hero" className="p-6 text-center relative border border-primary/30 shadow-glow-purple">

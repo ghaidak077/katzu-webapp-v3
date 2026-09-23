@@ -256,7 +256,7 @@ function QuizRoute() {
 function LiveRoute({ onComplete }: { onComplete: (summary: any) => void }) {
   const navigate = useNavigate();
   const { scenarioId = 'cafe_order' } = useParams();
-  return <LiveConversationScreen scenarioId={scenarioId} onBack={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}`)} onCompleteSession={onComplete} />;
+  return <LiveConversationScreen scenarioId={scenarioId} onBack={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}`)} onOpenSubscription={() => navigate('/subscription')} onCompleteSession={onComplete} />;
 }
 
 function ReportRoute({ summary, onLoadSummary }: { summary: any; onLoadSummary: (summary: any) => void }) {

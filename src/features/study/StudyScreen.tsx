@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
 import { AudioWaveform } from '@/components/common/AudioWaveform';
@@ -25,10 +26,26 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
   const [playingText, setPlayingText] = useState<string | null>(null);
 
   const scenario = useLiveQuery(() => db.scenarios.get(scenarioId));
-  const phrases = useLiveQuery(() => db.starter_phrases.where('scenario_id').equals(scenarioId).toArray()) || [];
-  const vocabulary = useLiveQuery(() => db.vocabulary.where('topic').equals(scenarioId).toArray()) || [];
+  const phrasesQ = useLiveQuery(() => db.starter_phrases.where('scenario_id').equals(scenarioId).toArray());
+  const phrases = phrasesQ || [];
+  // Vocabulary lives in the D1 *topic* namespace (food, documents, health,
+  // housing, work) — scenarios map there via their CMS category (scenarioVocab).
+  const vocabTopic = scenarioToVocabTopic(scenario);
+  const vocabQ = useLiveQuery(
+    () => (vocabTopic ? db.vocabulary.where('topic').equals(vocabTopic).toArray() : Promise.resolve<VocabularyEntity[]>([])),
+    [vocabTopic]
+  );
+  const vocabulary = vocabQ || [];
   const grammar = useLiveQuery(() => db.grammar.toArray()) || [];
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
+
+  // Open on the fullest tab: if this scenario ships no starter phrases but has
+  // vocabulary, start the learner on words instead of an empty screen.
+  useEffect(() => {
+    if (phrasesQ !== undefined && phrasesQ.length === 0 && (vocabQ?.length ?? 0) > 0) {
+      setActiveTab('vocab');
+    }
+  }, [phrasesQ, vocabQ]);
 
   const { speak, isPlaying } = useSpeechOutput({
     speed,
@@ -117,6 +134,13 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
 
       {/* Content List */}
       <div className="space-y-3 mb-8">
+        {activeTab === 'phrases' && phrases.length === 0 && (
+          <div className="p-6 rounded-3xl bg-surface-card border border-border-subtle text-center">
+            <p className="text-xs font-arabic text-text-secondary">
+              لم تُضف عبارات لهذا السيناريو بعد — جرّب تبويب المفردات.
+            </p>
+          </div>
+        )}
         {activeTab === 'phrases' &&
           phrases.map((p: StarterPhraseEntity) => (
             <div
@@ -142,6 +166,15 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
             </div>
           ))}
 
+        {activeTab === 'vocab' && vocabulary.length === 0 && (
+          <div className="p-6 rounded-3xl bg-surface-card border border-border-subtle text-center">
+            <p className="text-xs font-arabic text-text-secondary">
+              {vocabQ === undefined
+                ? 'جاري تحميل المفردات...'
+                : 'لم يتم ربط مفردات هذا السيناريو بعد — سيتم إضافتها قريباً.'}
+            </p>
+          </div>
+        )}
         {activeTab === 'vocab' &&
           vocabulary.map((v: VocabularyEntity) => {
             const isSaved = savedWords.some((sw) => sw.wordId === v.id);

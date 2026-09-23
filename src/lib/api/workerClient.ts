@@ -341,6 +341,14 @@ export class WorkerClient {
       throw error;
     }
 
+    if (res.status === 402 || res.status === 403) {
+      const data = await res.json().catch(() => ({}));
+      const error: any = new Error(data.message || 'هذه الميزة تتطلب اشتراك Katzu Pro نشط.');
+      error.code = data.code || 'PAYWALL_REQUIRED';
+      error.status = res.status;
+      throw error;
+    }
+
     if (res.status === 429) {
       const data = await res.json().catch(() => ({}));
       const error: any = new Error(data.message || 'تم تجاوز الحد الأقصى للطلبات مؤقتاً.');

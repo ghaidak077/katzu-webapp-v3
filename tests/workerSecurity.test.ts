@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import worker, {
   checkRateLimit,
   checkUserEntitlement,
@@ -81,6 +81,39 @@ describe('Worker security controls', () => {
     }
   });
 
+  it('serves hints to free users without consuming their trial quota', async () => {
+    const progress = new MemoryKv();
+    await progress.put('ai-quota:security-test-user', JSON.stringify({ used: 3 }));
+    const env = {
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      GEMINI_API_KEY: 'test-key',
+      USER_PROGRESS: progress,
+    };
+    const geminiJson = JSON.stringify({
+      candidates: [{ content: { parts: [{ text: '{"hints":[{"german":"Ich möchte einen Kaffee, bitte.","translation_ar":"أريد قهوة من فضلك."}]}' }] } }],
+    });
+    const fetchMock = vi.fn(async () => new Response(geminiJson, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const response = await worker.fetch(new Request('https://worker.test/ai/hints', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token(validPayload())}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ last_ai_reply: 'Hallo!', cefr_level: 'A1' }),
+      }), env);
+      // Hints stay available at zero quota — only /ai/turn consumes sessions.
+      expect(response.status).toBe(200);
+      expect(Array.isArray((await response.json()).hints)).toBe(true);
+      const quota = JSON.parse(await progress.get('ai-quota:security-test-user'));
+      expect(quota.used).toBe(3); // untouched
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('enforces entitlement on hints before calling Gemini', async () => {
     const env = { TEST_MODE: true, GOOGLE_CLIENT_ID: 'client-id', GEMINI_API_KEY: 'test-key' };
     const response = await worker.fetch(new Request('https://worker.test/ai/hints', {
@@ -101,14 +134,18 @@ describe('Worker security controls', () => {
       GEMINI_API_KEY: 'test-key',
       USER_PROGRESS: progress,
     };
-    const response = await worker.fetch(new Request('https://worker.test/ai/hints', {
+    // Quota is consumed by conversation turns (/ai/turn); hints are
+    // deliberately quota-exempt so suggestions never block the chat.
+    const response = await worker.fetch(new Request('https://worker.test/ai/turn', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token(validPayload())}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        last_ai_reply: 'Hallo',
+        scenario_id: 'cafe_order',
+        scenario_title: 'Bestellung im Café',
+        user_message: 'Ich möchte einen Kaffee.',
         cefr_level: 'A1',
         freeSessionsRemaining: 999,
       }),
