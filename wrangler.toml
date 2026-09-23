@@ -33,6 +33,10 @@ id = "d901da2026dc4830940562c72935ec78"
 binding = "REDEEMED_CODES"
 id = "2c60d78d9cbf4f5fa93c620043afb404"
 
+# Workers AI — fallback inference provider for the AI engine
+[ai]
+binding = "AI"
+
 # ---------------------------------------------------------------------------
 # Non-secret variables
 # ---------------------------------------------------------------------------
