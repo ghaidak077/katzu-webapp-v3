@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { isProEffective } from '@/lib/utils/subscription';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { Card } from '@/components/ui/Card';
@@ -29,7 +30,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const scenarios = useLiveQuery(() => db.scenarios.toArray()) || [];
   const trainingRecords = useLiveQuery(() => db.scenario_training.toArray()) || [];
 
-  const isPro = !!user?.isSubscriptionActive;
+  const isPro = isProEffective(user);
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
 
   // Featured daily mission rotates deterministically day by day instead of

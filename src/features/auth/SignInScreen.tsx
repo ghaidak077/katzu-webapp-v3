@@ -158,6 +158,13 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           isSubscriptionActive: true,
           subscriptionExpiresAt: status.expiresAt || null,
         });
+      } else {
+        // Server says inactive (expired/revoked): clear the stale local flag
+        // so the downgrade takes effect immediately, not on next server check.
+        await db.users.update('current_user', {
+          isSubscriptionActive: false,
+          subscriptionExpiresAt: null,
+        });
       }
     } catch (err) {
       console.warn('Subscription check error on login:', err);

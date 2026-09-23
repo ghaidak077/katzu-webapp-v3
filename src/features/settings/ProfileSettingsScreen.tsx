@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { isProEffective } from '@/lib/utils/subscription';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Card } from '@/components/ui/Card';
@@ -124,15 +125,15 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             </span>
           </div>
 
-          <Badge variant={user?.isSubscriptionActive ? 'success' : 'primary'} size="sm">
-            {user?.isSubscriptionActive ? 'عضوية Pro نشطة' : 'الخطة المجانية'}
+          <Badge variant={isProEffective(user) ? 'success' : 'primary'} size="sm">
+            {isProEffective(user) ? 'عضوية Pro نشطة' : 'الخطة المجانية'}
           </Badge>
         </div>
         <KatzuMascot name="profile_card" className="w-20 h-20 object-contain" />
       </Card>
 
       {/* Subscription Upgrade Card */}
-      {!user?.isSubscriptionActive && (
+      {!isProEffective(user) && (
         <Card
           onClick={onOpenSubscription}
           className="p-4 mb-6 bg-gradient-to-r from-primary/20 via-surface-card to-surface-card border border-primary/40 cursor-pointer flex items-center justify-between shadow-glow-purple"

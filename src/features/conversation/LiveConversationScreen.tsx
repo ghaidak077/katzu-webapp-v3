@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
@@ -9,6 +9,8 @@ import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { AudioWaveform } from '@/components/common/AudioWaveform';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
+import { PaywallModal } from '@/components/sheets/PaywallModal';
+import { isProEffective } from '@/lib/utils/subscription';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import {
@@ -38,6 +40,7 @@ import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 export interface LiveConversationScreenProps {
   scenarioId: string;
   onBack: () => void;
+  onOpenSubscription?: () => void;
   onCompleteSession: (sessionSummary: {
     scenarioId: string;
     scenarioTitle: string;
@@ -54,14 +57,23 @@ export interface LiveConversationScreenProps {
 export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   scenarioId,
   onBack,
+  onOpenSubscription,
   onCompleteSession,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [showArabicTranslation, setShowArabicTranslation] = useState<Record<string, boolean>>({});
+  // Global switch: every Katzu message shows its Arabic translation at once.
+  // A per-message toggle still wins because an explicit override beats the global.
+  const [showAllTranslations, setShowAllTranslations] = useState(false);
   const [currentHints, setCurrentHints] = useState<ContextualHint[]>([]);
   const [isHintUsedForCurrentTurn, setIsHintUsedForCurrentTurn] = useState(false);
+  const [paywall, setPaywall] = useState<{ isOpen: boolean; title: string; description: string }>({
+    isOpen: false,
+    title: '',
+    description: '',
+  });
   const [selectedWordForInsight, setSelectedWordForInsight] = useState<VocabularyEntity | null>(null);
   const [startTime] = useState<number>(Date.now());
   const [sessionMode, setSessionMode] = useState<SessionMode | null>(null);
@@ -69,6 +81,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
   const scenario = useLiveQuery(() => db.scenarios.get(scenarioId));
   const user = useLiveQuery(() => db.users.get('current_user'));
+  const isProUser = isProEffective(user);
   const vocabulary = useLiveQuery(() => db.vocabulary.toArray()) || [];
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
 
@@ -91,8 +104,18 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     : effectiveLevel === 'A1' ? 3 : effectiveLevel === 'A2' ? 4 : effectiveLevel === 'B1' ? 5 : 6;
   const userTurnsCount = messages.filter((m) => m.sender === 'USER').length;
 
-  // Real-time difficulty nudge handlers (Rule: Real-time difficulty nudge أسهل / أصعب)
+  // Free accounts stay at their level: the أسهل/أصعب nudge is Pro-only, so a
+  // free user can never steer the AI into a level the server will reject.
   const handleNudgeDifficulty = (direction: 'easier' | 'harder') => {
+    if (!isProUser) {
+      setPaywall({
+        isOpen: true,
+        title: 'تغيير المستوى أثناء المحادثة ميزة Pro',
+        description:
+          'في الخطة المجانية تتدرب على مستواك الحالي فقط. رَقِّ حسابك لفتح التعديل الفوري للصعوبة (أسهل / أصعب) وكل المستويات من A1 حتى B2.',
+      });
+      return;
+    }
     const levelOrder: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
     const currentIndex = levelOrder.indexOf(effectiveLevel);
     if (direction === 'easier' && currentIndex > 0) {
@@ -123,6 +146,24 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   }, [messages, isGenerating]);
 
   // Initial message and starter hints (Rule 5: No call needed for turn 0)
+  // Cached D1 starter phrases are the always-available hint floor: if the AI
+  // hints call fails or is paywalled, the user still gets real suggestions.
+  const loadStarterHints = useCallback(async () => {
+    try {
+      const phrases = await db.starter_phrases
+        .where('scenario_id')
+        .equals(scenarioId)
+        .toArray();
+      if (phrases.length > 0) {
+        setCurrentHints(
+          phrases.map((p) => ({ german: p.german, arabic: p.translation_ar }))
+        );
+      }
+    } catch {
+      /* offline with empty cache — hints bar simply stays hidden */
+    }
+  }, [scenarioId]);
+
   useEffect(() => {
     if (!scenario || !sessionMode) return;
 
@@ -146,18 +187,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     setMessages([welcomeMsg]);
 
     // Load cached starter phrases as initial hints
-    db.starter_phrases
-      .where('scenario_id')
-      .equals(scenarioId)
-      .toArray()
-      .then((phrases) => {
-        if (phrases.length > 0) {
-          setCurrentHints(
-            phrases.map((p) => ({ german: p.german, arabic: p.translation_ar }))
-          );
-        }
-      });
-  }, [scenario, scenarioId, effectiveLevel, sessionMode]);
+    void loadStarterHints();
+  }, [scenario, scenarioId, effectiveLevel, sessionMode, loadStarterHints]);
 
   // Handle German word click for insight
   const handleWordClick = (wordRaw: string) => {
@@ -275,9 +306,16 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         .then((newHints) => {
           if (newHints && newHints.length > 0) {
             setCurrentHints(newHints);
+          } else {
+            // AI returned nothing usable — keep real suggestions visible.
+            void loadStarterHints();
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          // AI hints unavailable (offline, paywall, quota): fall back to the
+          // cached starter phrases instead of silently emptying the bar.
+          void loadStarterHints();
+        });
 
       // Check for completion (Rule 7)
       if (isFinalTurn) {
@@ -287,8 +325,18 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           finishSession(updatedHistory);
         }, 3200);
       }
-    } catch (e) {
-      console.error('Conversation turn failed:', e);
+    } catch (e: any) {
+      if (e?.code === 'PAYWALL_REQUIRED') {
+        // Server-side entitlement rejection (level lock or quota) — show the
+        // Katzu paywall instead of a dead error in the chat.
+        setPaywall({
+          isOpen: true,
+          title: 'هذا المستوى ميزة Pro',
+          description: e?.message || 'رَقِّ حسابك لفتح كل المستويات من A1 حتى B2 ومحادثات غير محدودة.',
+        });
+      } else {
+        console.error('Conversation turn failed:', e);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -465,8 +513,27 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         </div>
 
         {/* Turn Counter Pill (Auto-completes dynamically based on CEFR level) */}
-        <div className="px-2.5 py-1 rounded-full bg-surface-card border border-border-subtle text-[11px] font-semibold text-text-secondary">
-          الجولة {Math.min(userTurnsCount + 1, targetTurns)} / {targetTurns}
+        <div className="flex items-center gap-1.5">
+          {/* Global translation toggle: show/hide Arabic for all messages */}
+          <button
+            onClick={() => {
+              setShowAllTranslations((v) => !v);
+              setShowArabicTranslation({}); // clear per-message overrides
+              triggerHaptic('light');
+            }}
+            aria-label={showAllTranslations ? 'إخفاء كل الترجمات' : 'إظهار كل الترجمات'}
+            title={showAllTranslations ? 'إخفاء كل الترجمات' : 'إظهار كل الترجمات'}
+            className={`p-2 rounded-2xl border transition-colors ${
+              showAllTranslations
+                ? 'bg-primary/20 border-primary/50 text-primary'
+                : 'bg-surface-card border-border-subtle text-text-secondary hover:bg-surface-subtle'
+            }`}
+          >
+            <Languages className="w-4 h-4" />
+          </button>
+          <div className="px-2.5 py-1 rounded-full bg-surface-card border border-border-subtle text-[11px] font-semibold text-text-secondary">
+            الجولة {Math.min(userTurnsCount + 1, targetTurns)} / {targetTurns}
+          </div>
         </div>
       </div>
 
@@ -474,7 +541,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       <div className="flex-1 p-4 space-y-4 overflow-y-auto pb-44">
         {messages.map((msg) => {
           const isKatzu = msg.sender === 'KATZU';
-          const isTransVisible = showArabicTranslation[msg.id];
+          // Explicit per-message choice overrides the global toggle.
+          const isTransVisible =
+            msg.id in showArabicTranslation
+              ? showArabicTranslation[msg.id]
+              : showAllTranslations;
 
           return (
             <div
@@ -488,15 +559,22 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                     : 'bg-primary text-white border-primary/40 rounded-tr-sm shadow-glow-purple'
                 }`}
               >
-                {/* German text with clickable words */}
-                <div className="text-sm font-semibold leading-relaxed mb-1">
+                {/* German text with clickable words — whole sentence lives in one
+                    LTR-isolated block so RTL layout can never reorder the words
+                    (Rule 8). Words stay clickable for the word-insight sheet. */}
+                <div
+                  dir="ltr"
+                  style={{ unicodeBidi: 'isolate' }}
+                  className={`text-sm font-semibold leading-relaxed mb-1 font-german ${isKatzu ? 'text-left' : 'text-right'}`}
+                >
                   {msg.germanText.split(' ').map((word, wIdx) => (
                     <span
                       key={wIdx}
                       onClick={() => handleWordClick(word)}
-                      className="cursor-pointer hover:underline inline-block mx-0.5"
+                      className="cursor-pointer hover:underline"
                     >
-                      <GermanText>{word}</GermanText>
+                      {word}
+                      {wIdx < msg.germanText.split(' ').length - 1 ? ' ' : ''}
                     </span>
                   ))}
                 </div>
@@ -677,6 +755,18 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         onClose={() => setSelectedWordForInsight(null)}
         isSaved={savedWords.some((sw) => sw.wordId === selectedWordForInsight?.id)}
         onToggleSave={handleToggleSaveWord}
+      />
+
+      {/* Pro Paywall (level lock, quota exhaustion) */}
+      <PaywallModal
+        isOpen={paywall.isOpen}
+        onClose={() => setPaywall((p) => ({ ...p, isOpen: false }))}
+        onUpgrade={() => {
+          setPaywall((p) => ({ ...p, isOpen: false }));
+          if (onOpenSubscription) onOpenSubscription();
+        }}
+        title={paywall.title || undefined}
+        description={paywall.description || undefined}
       />
     </div>
   );

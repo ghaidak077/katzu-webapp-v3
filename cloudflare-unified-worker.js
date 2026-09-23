@@ -315,7 +315,7 @@ function checkRateLimit(userId, env = {}) {
   return { allowed: true };
 }
 
-async function checkUserEntitlement(account, cefrLevel, env = {}) {
+async function checkUserEntitlement(account, cefrLevel, env = {}, options = {}) {
   // 1. Active subscription in REDEEMED_CODES KV
   if (env?.REDEEMED_CODES) {
     const subRaw = await env.REDEEMED_CODES.get(`account:${account.sub}`);
@@ -339,6 +339,11 @@ async function checkUserEntitlement(account, cefrLevel, env = {}) {
     };
   }
 
+  // Quota-exempt callers (contextual hints) skip the free-session counter:
+  // hints must never be blocked, only conversation turns consume quota.
+  if (options.skipQuota) {
+    return { allowed: true, isSubscribed: false };
+  }
   const quota = await readTrialQuota(account.sub, env);
   if (!quota.available) {
     return {
@@ -425,6 +430,7 @@ async function authenticateAiRequest(request, body, env, cors, {
   level = null,
   requireEntitlement = false,
   rateLimit = true,
+  quotaExempt = false,
 } = {}) {
   const idToken = extractIdToken(request, body);
   if (!idToken) {
@@ -450,7 +456,7 @@ async function authenticateAiRequest(request, body, env, cors, {
   }
 
   if (requireEntitlement) {
-    const entitlement = await checkUserEntitlement(account, level || "A1", env);
+    const entitlement = await checkUserEntitlement(account, level || "A1", env, { skipQuota: quotaExempt });
     if (!entitlement.allowed) {
       const quotaFailure = ["FREE_QUOTA_EXHAUSTED", "QUOTA_UNAVAILABLE"].includes(entitlement.code);
       return {
@@ -968,6 +974,7 @@ async function handleAiHints(request, env, cors) {
   const { scenario_title, cefr_level, last_ai_reply, history } = body || {};
   const auth = await authenticateAiRequest(request, body, env, cors, {
     level: cefr_level || "A1",
+    quotaExempt: true,
     requireEntitlement: true,
   });
   if (auth.response) return auth.response;
