@@ -153,6 +153,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         'network': 'التعرف على الصوت يحتاج اتصالاً بالإنترنت. تحقق من شبكتك أو اكتب جملتك.',
         'no-speech': 'لم أسمع شيئاً — اقترب من المايك وحاول مرة أخرى.',
         'audio-capture': 'لم أتمكن من الوصول للمايك. تأكد من توصيله والمحاولة مجدداً.',
+        'language-not-supported': 'التعرف الصوتي الألماني غير مدعوم في هذا المتصفح — استخدم Edge أو Chrome على أندرويد، أو اكتب جملتك.',
       };
       setMicError(messages[error] || `تعذر الإدخال الصوتي (${error}). يمكنك الكتابة بالألمانية بدلاً من ذلك.`);
       logError('stt', `Speech recognition error: ${error}`);

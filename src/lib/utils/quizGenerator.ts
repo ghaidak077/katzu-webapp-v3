@@ -19,6 +19,14 @@ function shuffle<T>(items: T[], rng: () => number = Math.random): T[] {
 
 const MIN_OPTIONS = 4;
 
+// Guard against garbled/stale D1 rows: a translation without a single Arabic
+// letter is never a valid option (character-scrambled legacy rows historically
+// slipped through). Keeping them out protects the learner from nonsense.
+const ARABIC_RE = /[\u0600-\u06FF]/;
+export function isUsableTranslationAr(value: string | undefined | null): boolean {
+  return typeof value === 'string' && value.trim().length >= 2 && ARABIC_RE.test(value);
+}
+
 /**
  * Builds comprehension questions from the scenario's real D1 content:
  * vocabulary word → Arabic meaning, and starter phrase → Arabic meaning.
@@ -34,13 +42,13 @@ export function generateQuizQuestions(
 
   // 1) Vocabulary word → meaning
   const vocabPool = shuffle(
-    vocabulary.filter((v) => v.german && v.translation_ar),
+    vocabulary.filter((v) => v.german && isUsableTranslationAr(v.translation_ar)),
     rng
   );
   for (const target of vocabPool) {
     if (questions.length >= maxQuestions) break;
     const distractors = shuffle(
-      vocabulary.filter((v) => v.id !== target.id && v.translation_ar && v.translation_ar !== target.translation_ar),
+      vocabulary.filter((v) => v.id !== target.id && isUsableTranslationAr(v.translation_ar) && v.translation_ar !== target.translation_ar),
       rng
     )
       .slice(0, MIN_OPTIONS - 1)
@@ -57,13 +65,13 @@ export function generateQuizQuestions(
 
   // 2) Starter phrase → meaning (only if vocab questions are still short)
   const phrasePool = shuffle(
-    phrases.filter((p) => p.german && p.translation_ar),
+    phrases.filter((p) => p.german && isUsableTranslationAr(p.translation_ar)),
     rng
   );
   for (const p of phrasePool) {
     if (questions.length >= maxQuestions) break;
     const distractors = shuffle(
-      phrases.filter((q) => q.id !== p.id && q.translation_ar && q.translation_ar !== p.translation_ar),
+      phrases.filter((q) => q.id !== p.id && isUsableTranslationAr(q.translation_ar) && q.translation_ar !== p.translation_ar),
       rng
     )
       .slice(0, MIN_OPTIONS - 1)

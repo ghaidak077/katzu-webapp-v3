@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { triggerHaptic } from '@/lib/utils/haptics';
@@ -9,6 +9,8 @@ import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { db } from '@/lib/db/katzuDb';
+import { workerClient } from '@/lib/api/workerClient';
+import { logEvent, logError } from '@/lib/utils/diagnostics';
 import { ArrowRight, Volume2, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
 
 export interface QuizScreenProps {
@@ -50,6 +52,28 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
     () => generateQuizQuestions(vocabQ || [], phrasesQ || []),
     [vocabQ, phrasesQ]
   );
+
+  // Heal stale content on entry: earlier D1 uploads shipped some garbled
+  // Arabic translations that persisted in the device's Dexie cache forever,
+  // because this screen only read local rows. Re-pull this scenario's real
+  // phrases and its topic vocabulary from the worker once per mount —
+  // bulkPut overwrites bad rows and the live queries re-render automatically.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const detail = await workerClient.fetchScenarioDetail(scenarioId);
+        const topic = scenarioToVocabTopic(detail.scenario);
+        if (topic) await workerClient.fetchVocabulary(undefined, topic);
+        if (!cancelled) logEvent('quiz', 'Content refreshed from worker');
+      } catch (e) {
+        if (!cancelled) logError('quiz', `Content refresh failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [scenarioId]);
 
   // Content may still be streaming from D1; guard against an empty deck
   // instead of rendering `undefined` properties.

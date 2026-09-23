@@ -714,16 +714,36 @@ async function callGeminiWithFailover(apiKeys, payload) {
         clearTimeout(timeoutId);
 
         if (resp.ok) {
-          const data = await resp.json();
-          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (candidate) {
+          // Read the body EXACTLY ONCE — a second .text() on a consumed body
+          // throws and used to swallow the real model error forever.
+          const data = await resp.json().catch(() => null);
+          const cand = data?.candidates?.[0];
+          const candidate = cand?.content?.parts?.map(p => p?.text || "").join("") || "";
+          const finishReason = cand?.finishReason;
+          if (candidate && candidate.trim()) {
             primaryWorkingModel = model; // Pin fastest working model
             markKeySuccess(key);
             return candidate;
           }
+          // HTTP 200 but no usable text: MAX_TOKENS truncation, safety block,
+          // or an empty candidates array. Log it and walk to the next model —
+          // never silently loop on the same dead outcome.
+          console.warn(`[AI Failover] ${model} returned 200 but no text (finishReason=${finishReason || "none"}, candidates=${Array.isArray(data?.candidates) ? data.candidates.length : 0}). Trying next model...`);
+          lastError = new Error(`${model} empty text (finishReason=${finishReason || "none"})`);
+          continue;
         }
 
         const respText = await resp.text().catch(() => "");
+
+        // Invalid/unauthorized API key (400 API_KEY_INVALID or 401): park the
+        // key in a long cooldown instead of re-trying it every request —
+        // otherwise one bad key poisons a third of every turn's latency.
+        if (resp.status === 400 && respText.includes("API_KEY_INVALID")) {
+          console.warn(`[AI Failover] Key #${keyIdx + 1} is INVALID (API_KEY_INVALID). Parking it for 1 hour.`);
+          markKeyCooldown(key, 403);
+          lastError = new Error(`Key #${keyIdx + 1} invalid (API_KEY_INVALID)`);
+          break; // rotate to next key immediately
+        }
 
         // If rate limited (429), quota exhausted, or permission denied (403)
         if (resp.status === 429 || resp.status === 403 || respText.includes("RESOURCE_EXHAUSTED")) {
@@ -749,6 +769,20 @@ async function callGeminiWithFailover(apiKeys, payload) {
   }
 
   throw lastError || new Error("All configured Gemini API keys and models failed");
+}
+
+// Surface which keys/models were actually tried so a 502 in the app can be
+// matched against /health and the Cloudflare logs without guesswork.
+function summarizeFailoverState(apiKeys) {
+  try {
+    const keyStates = apiKeys.map((k, i) => {
+      const mask = k.length > 10 ? `${k.slice(0, 6)}…${k.slice(-4)}` : "key";
+      return isKeyCoolingDown(k) ? `${mask}:cooldown` : `${mask}:active`;
+    });
+    return JSON.stringify({ keys: keyStates, pinnedModel: primaryWorkingModel || "none" });
+  } catch {
+    return "unavailable";
+  }
 }
 
 function cleanJson(raw) {
@@ -1013,8 +1047,9 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
       followup_ar: followupAr
     }, 200, cors);
   } catch (err) {
-    console.error("[Separated Turn Error]", err);
-    return json({ error: "ai_error", message: "تعذر إكمال دور المحادثة والتقييم." }, 502, cors);
+    console.error("[Separated Turn Error]", err, "| failover state:", summarizeFailoverState(apiKeys));
+    const detail = String(err?.message || "").slice(0, 180);
+    return json({ error: "ai_error", code: "AI_TURN_FAILED", message: "تعذر إكمال دور المحادثة والتقييم. حاول إعادة الإرسال.", detail }, 502, cors);
   }
 }
 

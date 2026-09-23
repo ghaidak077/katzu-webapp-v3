@@ -21,6 +21,16 @@ export function useSpeechInput({ onResult, onError, lang = 'de-DE' }: UseSpeechI
   const recognitionRef = useRef<any>(null);
   const recognitionLangRef = useRef<string | null>(null);
   const listeningRef = useRef(false);
+  // Guards against browsers (notably Edge desktop) where onend never fires —
+  // a "zombie" recognizer then blocks every future start() silently.
+  const startWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStartWatchdog = useCallback(() => {
+    if (startWatchdogRef.current) {
+      clearTimeout(startWatchdogRef.current);
+      startWatchdogRef.current = null;
+    }
+  }, []);
 
   // Latest callbacks via refs — identity changes never recreate the recognizer.
   const onResultRef = useRef(onResult);
@@ -68,6 +78,7 @@ export function useSpeechInput({ onResult, onError, lang = 'de-DE' }: UseSpeechI
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
+      clearStartWatchdog();
       listeningRef.current = true;
       setIsListening(true);
     };
@@ -99,6 +110,7 @@ export function useSpeechInput({ onResult, onError, lang = 'de-DE' }: UseSpeechI
     };
 
     recognition.onend = () => {
+      clearStartWatchdog();
       listeningRef.current = false;
       setIsListening(false);
     };
@@ -116,12 +128,27 @@ export function useSpeechInput({ onResult, onError, lang = 'de-DE' }: UseSpeechI
     try {
       recognition.start();
       listeningRef.current = true;
+      // If onstart hasn't fired within 3s the recognizer is a zombie (Edge
+      // desktop bug): rebuild it from scratch so the next tap actually works.
+      clearStartWatchdog();
+      startWatchdogRef.current = setTimeout(() => {
+        if (!listeningRef.current) {
+          try {
+            recognition.abort();
+          } catch {
+            /* ignore */
+          }
+          recognitionRef.current = null;
+          recognitionLangRef.current = null;
+        }
+      }, 3000);
     } catch {
       // start() throws InvalidStateError if already started — safe to ignore.
     }
-  }, [ensureRecognition]);
+  }, [ensureRecognition, clearStartWatchdog]);
 
   const stopListening = useCallback(() => {
+    clearStartWatchdog();
     const recognition = recognitionRef.current;
     if (!recognition || !listeningRef.current) {
       setIsListening(false);
@@ -134,11 +161,12 @@ export function useSpeechInput({ onResult, onError, lang = 'de-DE' }: UseSpeechI
     }
     listeningRef.current = false;
     setIsListening(false);
-  }, []);
+  }, [clearStartWatchdog]);
 
   // Abort on unmount only — never on re-render.
   useEffect(
     () => () => {
+      if (startWatchdogRef.current) clearTimeout(startWatchdogRef.current);
       try {
         recognitionRef.current?.abort?.();
       } catch {

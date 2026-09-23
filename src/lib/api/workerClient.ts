@@ -437,11 +437,23 @@ export class WorkerClient {
     }
 
     if (!res.ok) {
-      const err: any = new Error(`Server returned status ${res.status}`);
-      err.status = res.status;
-      err.code = 'AI_TURN_HTTP_ERROR';
-      logError('ai/turn', `Unhandled AI turn failure HTTP ${res.status}`);
-      throw err;
+      // Every non-OK status carries a JSON error body from the worker with an
+      // Arabic user-facing message — read it ONCE and surface it verbatim so
+      // the error card shows the real cause, never a raw English status line.
+      const data = await res.json().catch(() => ({} as any));
+      const friendlyByStatus: Record<number, string> = {
+        500: 'حدث خطأ غير متوقع في الخادم. حاول مرة أخرى.',
+        502: 'تعذر توليد رد الذكاء الاصطناعي حالياً. حاول إعادة الإرسال بعد لحظات.',
+        504: 'استغرق توليد الرد وقتاً طويلاً جداً. حاول إعادة الإرسال.',
+      };
+      const error: any = new Error(
+        data?.message || friendlyByStatus[res.status] || `تعذر إكمال المحادثة (رمز ${res.status}). حاول مرة أخرى.`,
+      );
+      error.status = res.status;
+      error.code = data?.code || 'AI_TURN_HTTP_ERROR';
+      if (data?.detail) error.detail = data.detail;
+      logError('ai/turn', `AI turn failure HTTP ${res.status} code=${error.code}${error.detail ? ` detail=${error.detail}` : ''}`);
+      throw error;
     }
 
     if (res.ok) {
