@@ -305,7 +305,48 @@ export class WorkerClient {
 
   // --- AI Conversation Turn Loop (Unified with cloudflare-unified-worker.js) ---
 
+  /** Clears the stored session token so the next auth resolution re-exchanges. */
+  private async invalidateSession(): Promise<void> {
+    try {
+      await db.users.update('current_user', { sessionToken: undefined });
+      logEvent('auth', 'Stale session token invalidated — will re-exchange on next call');
+    } catch {
+      /* user row may not exist yet; nothing to invalidate */
+    }
+  }
+
   async sendTurn(params: {
+    scenarioId: string;
+    scenarioTitle: string;
+    persona?: string;
+    userMessage: string;
+    history: Array<{ sender?: string; role?: string; text: string }>;
+    cefrLevel: CEFRLevel;
+    sarcasmLevel?: string;
+    isFinalTurn?: boolean;
+    mode?: 'roleplay' | 'extended';
+    idToken?: string;
+    sessionId?: string;
+    learnerMemory?: Array<{ rule: string; example?: string }>;
+  }): Promise<TurnAiResponse> {
+    try {
+      return await this.sendTurnOnce(params);
+    } catch (e: any) {
+      // Google ID tokens expire after ~1h. A 401 with a stale stored session
+      // recovers automatically: clear it, re-exchange, retry ONCE — invisible
+      // to the learner. Only surface the error if the retry also fails.
+      if (e?.code === 'UNAUTHENTICATED' && !params.idToken) {
+        logError('ai/turn', '401 received — invalidating session and retrying once');
+        await this.invalidateSession();
+        const retried = await this.sendTurnOnce(params);
+        logEvent('ai/turn', 'Recovered from 401 via session re-exchange');
+        return retried;
+      }
+      throw e;
+    }
+  }
+
+  private async sendTurnOnce(params: {
     scenarioId: string;
     scenarioTitle: string;
     persona?: string;

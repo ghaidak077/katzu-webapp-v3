@@ -69,6 +69,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   // A per-message toggle still wins because an explicit override beats the global.
   const [showAllTranslations, setShowAllTranslations] = useState(false);
   const [currentHints, setCurrentHints] = useState<ContextualHint[]>([]);
+  const [isHintRevealed, setIsHintRevealed] = useState(false);
   // Cached starter phrases are the always-available hint floor — shown when AI
   // hints fail/paywall and refreshed from the Worker when the cache is empty.
   const [starterHints, setStarterHints] = useState<ContextualHint[]>([]);
@@ -341,13 +342,15 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
       // The turn response already carries ONE context-aware hint (same AI
       // call as the reply — no extra network round-trip). Fall back to the
-      // starter-phrase floor when the model didn't provide one.
+      // starter-phrase floor when the model didn't provide one. The pill
+      // re-arms so each new turn offers a fresh on-demand suggestion.
       if (res.hints && res.hints.length > 0) {
         setCurrentHints(res.hints);
         logEvent('hints', `Embedded hint loaded (${res.hints.length})`);
       } else {
         void loadStarterHints();
       }
+      setIsHintRevealed(false);
 
       // Check for completion (Rule 7)
       if (isFinalTurn) {
@@ -808,34 +811,49 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
       {/* Floating Bottom Input Bar & Pre-fetched Hints */}
       <div className="fixed bottom-0 start-0 end-0 bg-gradient-to-t from-black via-black/95 to-transparent p-4 max-w-md mx-auto z-20 space-y-2.5">
-        {/* Next-turn Contextual Hints Bar — always visible once the session
-            starts: AI hints when available, otherwise the cached starter
-            phrases floor. */}
+        {/* Hints as an on-demand button: a single 💡 pill that reveals the
+            one context-aware suggestion when tapped — no always-visible strip
+            competing with the chat. */}
         {visibleHints.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-            <div className="flex-shrink-0 p-1.5 rounded-xl bg-surface-card text-primary">
-              <Lightbulb className="w-3.5 h-3.5" />
-            </div>
-            {visibleHints.map((hint, hIdx) => (
+          <div className="flex flex-col gap-2">
+            {!isHintRevealed && (
               <button
-                key={hIdx}
-                onClick={() => handleUseHint(hint)}
-                className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-surface-card border border-border-subtle hover:border-primary/40 text-xs font-semibold text-text-secondary hover:text-text-primary transition-all flex flex-col items-start"
+                onClick={() => { setIsHintRevealed(true); triggerHaptic('light'); }}
+                className="self-start flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-surface-card border border-primary/30 text-xs font-arabic font-semibold text-primary hover:border-primary/60 transition-all"
               >
-                <GermanText className="text-primary font-bold">{hint.german}</GermanText>
-                <span className="text-[10px] text-text-muted">{hint.arabic}</span>
+                <Lightbulb className="w-3.5 h-3.5" />
+                اقتراح لردّك
               </button>
-            ))}
-            {/* Manual refresh: AI hints may fail (network/paywall) — the user
-                can always pull fresh suggestions instead of a dead bar. */}
-            <button
-              onClick={refreshHints}
-              aria-label="تحديث الاقتراحات"
-              title="تحديث الاقتراحات"
-              className="flex-shrink-0 p-2 rounded-xl bg-surface-card border border-border-subtle text-text-secondary hover:text-primary transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingHints ? 'animate-spin' : ''}`} />
-            </button>
+            )}
+            {isHintRevealed && (
+              <div className="flex items-center gap-2">
+                {visibleHints.slice(0, 1).map((hint, hIdx) => (
+                  <button
+                    key={hIdx}
+                    onClick={() => handleUseHint(hint)}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-2xl bg-surface-card border border-primary/40 text-xs font-semibold text-start transition-all flex flex-col"
+                  >
+                    <GermanText className="text-primary font-bold truncate">{hint.german}</GermanText>
+                    <span className="text-[10px] text-text-muted truncate">{hint.arabic}</span>
+                  </button>
+                ))}
+                <button
+                  onClick={refreshHints}
+                  aria-label="تحديث الاقتراحات"
+                  title="تحديث الاقتراحات"
+                  className="flex-shrink-0 p-2 rounded-xl bg-surface-card border border-border-subtle text-text-secondary hover:text-primary transition-colors"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingHints ? 'animate-spin' : ''}`} />
+                </button>
+                <button
+                  onClick={() => setIsHintRevealed(false)}
+                  aria-label="إخفاء الاقتراح"
+                  className="flex-shrink-0 p-2 rounded-xl text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
         )}
 

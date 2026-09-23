@@ -16,21 +16,23 @@
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
 // ============================================================================
 
-// Gemini Flash family, newest first (per current Gemini model docs). First
-// success pins primaryWorkingModel, so only the first request after a cold
-// start walks this list. 2.5 models are access-restricted for some accounts —
-// kept as deep fallback. gemini-2.0-flash / gemini-1.5-flash are shut down
-// and must NOT be in this chain.
+// Gemini Flash chain ordered for CONVERSATION latency (per current Gemini
+// model docs): the lite/balanced Flash models are the documented
+// "fastest, most cost-effective" tier and answer short A1–B2 JSON in 1–2s.
+// The heavyweight 3.8 reasoning model sits mid-chain as a quality fallback —
+// leading with it burned the attempt timeout on thinking and produced ~19s
+// replies. First success pins primaryWorkingModel, so this order only matters
+// on cold starts. 2.5 models are access-restricted deep fallback; 2.0/1.5 are
+// shut down and must NOT appear here.
 const DEFAULT_MODEL_CHAIN = [
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
+  "gemini-3.5-flash-lite",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
-  "gemini-3.5-flash-lite",
+  "gemini-3.8-flash",
   "gemini-3.1-flash-lite",
   "gemini-flash-latest",
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite"
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-flash"
 ];
 
 let primaryWorkingModel = null;
@@ -895,6 +897,9 @@ async function handleAiConversationTurn(request, env, cors) {
   const roleplayInstruction = `You are the in-character native German roleplay counterpart in '${scenario_title || scenario_id}'.
 Persona: ${persona || "friendly conversational partner"}. Target learner CEFR level: ${level}.
 ${wrapUpInstruction}
+CONVERSATION RULES:
+- react to what the learner ACTUALLY just said — answer their question, comment on their statement, build on it. Never reply with a generic pleasance.
+- Keep reply_de to 1-2 short sentences that feel like real spoken German.
 Return:
 - reply_de: your natural German reply, in character, at CEFR level ${level}. Plain sentence only — never prefix it with field labels.
 - reply_ar: its accurate, idiomatic Modern Standard Arabic translation. Never translate secular German greetings as السلام عليكم.
@@ -936,8 +941,11 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
         required: ["reply_de", "reply_ar", "next_hint", "followup_question_ar"],
         propertyOrdering: ["reply_de", "reply_ar", "next_hint", "followup_question_ar"]
       },
+    // Generous output budget: reasoning models spend tokens on thoughts before
+    // the JSON answer — a tight cap truncates the payload and produces empty
+    // fields that used to surface as fake fallback replies.
       temperature: 0.3,
-      maxOutputTokens: 320
+      maxOutputTokens: 700
     }
   };
   const evaluationPayload = {
@@ -976,8 +984,19 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
     const evaluation = evaluationParsed.evaluation || evaluationParsed;
     // Sanitize every string field — a model echoing schema labels ("reply_de: ...")
     // must never reach the learner's chat bubbles.
-    const replyDe = sanitizeFieldLabel(roleplay.reply_de) || "Danke!";
-    const replyAr = sanitizeFieldLabel(roleplay.reply_ar) || "شكراً!";
+    const replyDe = sanitizeFieldLabel(roleplay.reply_de) || "";
+    const replyAr = sanitizeFieldLabel(roleplay.reply_ar) || "";
+    // An empty German reply means the model output was unusable. Fail honestly
+    // (client shows the retry card) instead of fabricating a templated answer
+    // that ignores what the learner just said.
+    if (!replyDe) {
+      console.error("[ai/turn] empty reply_de after parse — raw:", String(roleplayRaw).slice(0, 200));
+      return json({
+        error: "ai_empty_reply",
+        code: "AI_EMPTY_REPLY",
+        message: "تعذر توليد رد واضح. حاول إعادة الإرسال."
+      }, 502, cors);
+    }
     const nextHint = roleplay.next_hint && typeof roleplay.next_hint === "object"
       ? {
           german: sanitizeFieldLabel(roleplay.next_hint.german) || "",
