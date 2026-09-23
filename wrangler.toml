@@ -1,0 +1,43 @@
+# Katzu Worker — Cloudflare Wrangler configuration
+#
+# Deploys cloudflare-unified-worker.js (auth, D1 content CMS, admin, AI engine).
+# Secrets (GEMINI_API_KEYS, GOOGLE_CLIENT_ID, ADMIN_SECRET, HMAC_SECRET) are NOT
+# stored here — set them once with:  npx wrangler secret put <NAME>
+#
+# The account_id is picked up automatically from CLOUDFLARE_API_TOKEN +
+# CLOUDFLARE_ACCOUNT_ID when deploying from CI/managed environments.
+
+name = "katzu-worker"
+main = "cloudflare-unified-worker.js"
+compatibility_date = "2025-01-01"
+
+# ---------------------------------------------------------------------------
+# Bindings (must match the IDs of YOUR Cloudflare resources — check
+# dash.cloudflare.com → Workers & Pages → D1 / KV, or `npx wrangler d1 list`)
+# ---------------------------------------------------------------------------
+
+# D1 database: scenarios, vocabulary, grammar, starter phrases
+[[d1_databases]]
+binding = "DB"
+database_name = "katzu-content"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# KV namespace: user progress + authoritative AI trial quota records
+[[kv_namespaces]]
+binding = "USER_PROGRESS"
+id = "REPLACE_WITH_YOUR_USER_PROGRESS_KV_ID"
+
+# KV namespace: redeemed activation codes
+[[kv_namespaces]]
+binding = "REDEEMED_CODES"
+id = "REPLACE_WITH_YOUR_REDEEMED_CODES_KV_ID"
+
+# ---------------------------------------------------------------------------
+# Non-secret variables
+# ---------------------------------------------------------------------------
+[vars]
+# Exact origins of the PWA (Cloudflare Pages / custom domain), comma-separated.
+# While this is empty/absent, the worker runs in open CORS mode (dev only).
+ALLOWED_ORIGINS = ""
+AI_RATE_LIMIT_PER_MINUTE = "10"
+AI_RATE_LIMIT_PER_DAY = "200"

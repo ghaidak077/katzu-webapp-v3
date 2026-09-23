@@ -2,21 +2,35 @@
 
 ## 1. Prepare the Worker
 
-1. Install Wrangler and authenticate with the Cloudflare account that owns the Worker and Pages project.
-2. Configure the Worker entry point as `cloudflare-unified-worker.js`.
-3. Create or select the D1 database used for content and user records.
-4. Create the KV namespaces used for progress and redeemed codes.
-5. Configure Worker secrets and variables. Use `.env.example` for names only; never commit values:
-   - `GEMINI_API_KEY` or `GEMINI_API_KEYS`
-   - `GOOGLE_CLIENT_ID`
-   - `ALLOWED_ORIGINS`
-   - `AI_RATE_LIMIT_PER_MINUTE`
-   - `AI_RATE_LIMIT_PER_DAY`
-   - the D1/KV bindings used by the Worker. `USER_PROGRESS` is required for
-     authenticated trial AI access: the Worker stores authoritative quota
-     records under `ai-quota:<google-sub>` in that existing KV namespace.
-6. Run additive D1 migrations before serving traffic.
-7. Deploy with Wrangler and record the deployed Worker URL.
+The repository ships with `wrangler.toml` (entry point `cloudflare-unified-worker.js`, D1 + KV bindings, non-secret vars) and an npm script, so deploying is a single command once the one-time setup below is done.
+
+### One-time setup
+
+1. Fill the three resource IDs in `wrangler.toml` with **your** Cloudflare resource IDs (`npx wrangler d1 list`, `npx wrangler kv namespace list`):
+   - `database_id` under `[[d1_databases]]` (DB name `katzu-content`)
+   - `id` under the two `[[kv_namespaces]]` blocks (`USER_PROGRESS`, `REDEEMED_CODES`)
+2. Set the required secrets (stored in Cloudflare, never in the repo):
+
+   ```bash
+   npx wrangler secret put GEMINI_API_KEYS   # comma-separated Gemini keys
+   npx wrangler secret put GOOGLE_CLIENT_ID  # same OAuth client ID as VITE_GOOGLE_CLIENT_ID
+   npx wrangler secret put ADMIN_SECRET      # long random string (protects /admin)
+   npx wrangler secret put HMAC_SECRET       # long random string (token signing)
+   ```
+
+3. Set `ALLOWED_ORIGINS` in the `[vars]` block of `wrangler.toml` to the exact Pages origin(s) before public launch (empty = open CORS, dev only).
+4. Run additive D1 migrations before serving traffic.
+
+### Deploy / update the Worker
+
+```bash
+npm run deploy:worker        # = wrangler deploy
+npm run tail:worker          # live request logs for debugging
+```
+
+Automated environments authenticate with `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` (both available in the Keys tab); locally, `npx wrangler login` opens a browser instead.
+
+Record the deployed Worker URL (shown after deploy) and use it as `VITE_WORKER_URL` for the Pages build. `USER_PROGRESS` is required for authenticated trial AI access: the Worker stores authoritative quota records under `ai-quota:<google-sub>` in that KV namespace.
 
 ## 2. Prepare Google Identity Services
 

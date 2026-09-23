@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "deploy:worker": "wrangler deploy",
+    "tail:worker": "wrangler tail"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.67.1",
@@ -36,6 +38,7 @@
     "vite": "^6.2.0",
     "vite-plugin-pwa": "^0.21.1",
     "vitest": "^5.0.1",
-    "workbox-window": "^7.3.0"
+    "workbox-window": "^7.3.0",
+    "wrangler": "^4.136.3"
   }
 }
