@@ -14,19 +14,44 @@ import type {
 const WORKER_BASE_URL = (import.meta as any).env?.VITE_WORKER_URL || '';
 const AI_REQUEST_TIMEOUT_MS = 30000;
 
+/**
+ * Normalizes raw browser network failures (TypeError: Failed to fetch, CORS
+ * rejection, DNS failure, aborted by user agent) into typed Arabic errors
+ * instead of leaking English browser messages into the chat UI.
+ */
+function normalizeNetworkError(error: unknown, endpoint: string): Error {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    const timeoutError: any = new Error('انتهت مهلة الاتصال بالخادم. تحقق من الإنترنت وحاول مجدداً.');
+    timeoutError.code = 'REQUEST_TIMEOUT';
+    timeoutError.status = 408;
+    return timeoutError;
+  }
+  if (!WORKER_BASE_URL) {
+    const configError: any = new Error('تعذر الاتصال بالخادم: رابط الخادم غير مضبوط في هذا الإصدار. أضف VITE_WORKER_URL في إعدادات النشر.');
+    configError.code = 'WORKER_URL_MISSING';
+    configError.status = 0;
+    logError(endpoint, 'VITE_WORKER_URL is not configured in this build');
+    return configError;
+  }
+  const networkError: any = new Error('تعذر الوصول إلى الخادم. تحقق من اتصالك بالإنترنت وحاول مجدداً.');
+  networkError.code = 'NETWORK_ERROR';
+  networkError.status = 0;
+  logNetwork(endpoint, `Network failure: ${error instanceof Error ? error.message : String(error)}`);
+  return networkError;
+}
+
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = AI_REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(input, { ...init, signal: init.signal || controller.signal });
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      const timeoutError: any = new Error('انتهت مهلة الاتصال بالخادم. تحقق من الإنترنت وحاول مجدداً.');
-      timeoutError.code = 'REQUEST_TIMEOUT';
-      timeoutError.status = 408;
-      throw timeoutError;
-    }
-    throw error;
+    const urlStr = typeof input === 'string' ? input : String(input);
+    let tag = urlStr;
+    try {
+      tag = new URL(urlStr, window.location.href).pathname;
+    } catch { /* keep raw string as tag */ }
+    throw normalizeNetworkError(error, tag);
   } finally {
     globalThis.clearTimeout(timeout);
   }

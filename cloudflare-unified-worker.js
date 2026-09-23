@@ -191,8 +191,11 @@ function getCorsHeaders(request, env = {}) {
     }
   };
   const validConfiguration = allowed.length > 0 && allowed.every(validOrigin);
-  const originAllowed = !origin || (validConfiguration && allowed.includes(origin));
-  const allowOrigin = origin && originAllowed ? origin : "";
+  // Open access while no origin allowlist is configured (local dev / first deploy).
+  // Setting ALLOWED_ORIGINS to a valid origin list immediately switches to strict mode.
+  const openMode = !validConfiguration && !production;
+  const originAllowed = openMode || !origin || (validConfiguration && allowed.includes(origin));
+  const allowOrigin = openMode && origin ? origin : (origin && originAllowed ? origin : "");
 
   const headers = {
     "Access-Control-Allow-Origin": allowOrigin,
@@ -202,7 +205,11 @@ function getCorsHeaders(request, env = {}) {
     "Vary": "Origin",
     "X-Content-Type-Options": "nosniff",
     "Cache-Control": "no-store",
+    // Diagnostic headers: when a request is blocked by the origin allowlist,
+    // these tell the developer exactly why (visible in browser devtools).
     ...(production && !validConfiguration ? { "X-Cors-Configuration": "invalid" } : {}),
+    ...(!originAllowed ? { "X-Cors-Rejection": validConfiguration ? "origin_not_in_allowlist" : "allowlist_not_configured" } : {}),
+    ...(openMode ? { "X-Cors-Mode": "open_dev_mode_set_ALLOWED_ORIGINS_in_prod" } : {}),
   };
   Object.defineProperty(headers, "_corsAllowed", {
     value: originAllowed,

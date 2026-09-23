@@ -386,7 +386,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         const message =
           e?.code === 'REQUEST_TIMEOUT'
             ? 'انتهت مهلة الاتصال بالخادم. تحقق من الإنترنت ثم أعد الإرسال.'
-            : e?.message || 'تعذر إرسال الجملة. تحقق من اتصالك وأعد المحاولة.';
+            : e?.code === 'NETWORK_ERROR'
+              ? 'تعذر الوصول إلى الخادم. تحقق من اتصالك بالإنترنت وحاول مجدداً.'
+              : e?.code === 'WORKER_URL_MISSING'
+                ? 'رابط الخادم غير مضبوط في هذا الإصدار — حدّث التطبيق أو تواصل مع الدعم.'
+                : e?.message || 'تعذر إرسال الجملة. تحقق من اتصالك وأعد المحاولة.';
         setTurnError({ failedText: text, message });
         logError('ai/turn', `Turn failed (${e?.code || 'UNKNOWN'}): ${message}`);
       }
