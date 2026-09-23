@@ -10,15 +10,11 @@
  */
 
 const DEFAULT_MODEL_CHAIN = [
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
-  "gemini-3.6-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
   "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
   "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-flash-latest"
+  "gemini-flash-latest",
+  "gemini-1.5-flash"
 ];
 
 const CORS_HEADERS = {
@@ -172,7 +168,10 @@ export default {
     const inspection = inspectGeminiKeys(env);
     const apiKeys = inspection.uniqueKeys;
 
-    if (apiKeys.length === 0) {
+    // Endpoints that need Gemini keys; health works without them for diagnosis.
+    const needsKeys = path === "/ai/turn" || path === "/turn" || path === "/ai/translate" || path === "/translate" || path === "/ai/hints" || path === "/hints";
+
+    if (needsKeys && apiKeys.length === 0) {
       return new Response(JSON.stringify({
         error: "No Gemini API keys configured on server. Add GEMINI_API_KEYS or GEMINI_API_KEY_1..14 in Cloudflare Settings -> Variables & Secrets."
       }), {
@@ -188,14 +187,23 @@ export default {
         return new Response(JSON.stringify(result), { headers: CORS_HEADERS });
       }
 
-      if (path === "/ai/translate" || path === "/translate") {
+      if (path === "/ai/turn" || path === "/turn") {
         const body = await request.json();
+        const result = await handleConversationTurn(body, apiKeys);
+        return new Response(JSON.stringify(result), { headers: CORS_HEADERS });
+      }
+
+      if (path === "/ai/translate" || path === "/translate") {
+        const body = await request.json().catch(() => ({}));
+        if (!body || typeof body.text !== "string" || !body.text.trim()) {
+          return new Response(JSON.stringify({ error: "Missing 'text' field", code: "BAD_REQUEST" }), { status: 400, headers: CORS_HEADERS });
+        }
         const result = await handleTranslation(body.text || "", apiKeys);
         return new Response(JSON.stringify(result), { headers: CORS_HEADERS });
       }
 
       if (path === "/ai/hints" || path === "/hints") {
-        const body = await request.json();
+        const body = await request.json().catch(() => ({}));
         const result = await handleHints(body, apiKeys);
         return new Response(JSON.stringify(result), { headers: CORS_HEADERS });
       }
@@ -228,10 +236,15 @@ export default {
       });
     } catch (err) {
       console.error("[Katzu-AI-Worker Error]", err);
+      const detail = err && err.message ? String(err.message).slice(0, 180) : "unknown";
+      // Surface 503 (not 500) so the client shows the friendly retry message,
+      // and include a short detail line so bug reports pinpoint the cause.
       return new Response(JSON.stringify({
-        error: err.message || "Server AI processing error"
+        error: "AI service temporarily unavailable. Please retry.",
+        code: "AI_UPSTREAM_FAILED",
+        detail
       }), {
-        status: 500,
+        status: 503,
         headers: CORS_HEADERS
       });
     }
@@ -392,8 +405,16 @@ function cleanJson(raw) {
  * Handles /ai/turn with single-prompt fusion (2x faster, 50% less quota)
  */
 async function handleConversationTurn(body, apiKeys) {
-  const { scenario_id, scenario_title, persona, cefr_level, user_message, history } = body;
+  const { scenario_id, scenario_title, persona, cefr_level, user_message, history, sarcasm_level } = body;
   const level = cefr_level || "A1";
+
+  const sarcasm = String(sarcasm_level || "SASSY");
+  const sarcasmDirective =
+    sarcasm === "DEADPAN"
+      ? "Deadpan: dry, ruthless, zero-nonsense wit (still kind underneath, never insulting the learner personally)."
+      : sarcasm === "GENTLE"
+      ? "Gentle: warm, encouraging, only playfully teasing."
+      : "Sassy: witty, deadpan, self-aware, roasting German grammar rather than the learner.";
 
   const systemInstruction = `You are an expert native German language teacher and conversational counterpart in roleplay '${scenario_title || scenario_id}'.
 Persona: ${persona || "friendly conversational partner"}.
@@ -407,7 +428,9 @@ YOUR DUAL MISSION:
 CRITICAL PEDAGOGICAL & CULTURAL RULES:
 - Never translate secular German greetings ("Hallo", "Guten Tag", "Guten Morgen", "Guten Abend") into "السلام عليكم". Always use "مرحباً", "أهلاً", "صباح الخير", "مساء الخير".
 - Keep reply_de completely in natural German suitable for ${level}.
+- reply_ar must be a faithful, natural translation of reply_de — one meaning, native phrasing, no transliteration, no mixing of English.
 - If the learner made a mistake: set is_correct=false, identify original_mistake, give corrected_german, name the grammar_rule in German, explain it clearly in Arabic (explanation_ar), and add warm positive encouragement in Arabic (positive_note_ar).
+- In roast_comment, use Katzu's coaching voice: ${sarcasmDirective}
 - If the learner is correct: set is_correct=true, set original_mistake="", provide concise praise in positive_note_ar.
 
 Respond STRICTLY in this JSON structure:
@@ -421,6 +444,7 @@ Respond STRICTLY in this JSON structure:
     "grammar_rule": "string",
     "explanation_ar": "string",
     "user_message_translation_ar": "string",
+    "roast_comment": "string",
     "positive_note_ar": "string"
   }
 }`;
@@ -476,7 +500,10 @@ async function handleTranslation(text, apiKeys) {
 
   const prompt = `Translate this German sentence into accurate, natural Modern Standard Arabic.
 German: "${trimmed}"
-Never use "السلام عليكم" for "Guten Tag" or "Hallo". Use "مرحباً".
+Rules:
+- Translate the actual meaning — idiomatic and natural in Arabic, not word-by-word.
+- Never use "السلام عليكم" for "Guten Tag" or "Hallo". Use "مرحباً", "صباح الخير" for "Guten Morgen", "مساء الخير" for "Guten Abend".
+- No transliteration, no English, no explanations — output only the translation.
 Respond strictly in JSON:
 { "translation_ar": "string" }`;
 
@@ -515,6 +542,7 @@ async function handleHints(body, apiKeys) {
 
   const prompt = `Generate exactly 3 practical German response options for an Arabic-speaking learner to reply to: "${reply}".
 Level: ${cefr_level || "A1"}. Scenario: ${scenario_title || ""}.
+Each option must be one natural sentence a ${cefr_level || "A1"} learner would realistically say, with an accurate Modern Standard Arabic translation (translation_ar).
 Never use religious greeting substitutions.
 Respond strictly in JSON:
 {

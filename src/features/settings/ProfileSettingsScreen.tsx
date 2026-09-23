@@ -22,9 +22,20 @@ import {
   Copy,
   Share2,
   Users,
+  ScrollText,
+  Download,
+  Trash2,
 } from 'lucide-react';
 import type { SarcasmLevel } from '@/types/models';
 import { workerClient } from '@/lib/api/workerClient';
+import {
+  clearDiagnostics,
+  copyDiagnostics,
+  downloadDiagnostics,
+  formatDiagnosticsText,
+  getDiagnostics,
+  subscribeDiagnostics,
+} from '@/lib/utils/diagnostics';
 
 export interface ProfileSettingsScreenProps {
   onOpenSubscription: () => void;
@@ -45,6 +56,10 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   const [referralInfo, setReferralInfo] = useState<Awaited<ReturnType<typeof workerClient.getReferralInfo>>>(null);
   const [referralLoading, setReferralLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [diagnosticsText, setDiagnosticsText] = useState('');
+  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
+  const [logCount, setLogCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -56,6 +71,30 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
     });
     return () => { isMounted = false; };
   }, []);
+
+  // Keep the diagnostics count live without re-rendering on every log line.
+  useEffect(() => {
+    setLogCount(getDiagnostics().length);
+    return subscribeDiagnostics(() => setLogCount(getDiagnostics().length));
+  }, []);
+
+  const handleCopyDiagnostics = async () => {
+    const ok = await copyDiagnostics();
+    if (ok) {
+      setDiagnosticsCopied(true);
+      setTimeout(() => setDiagnosticsCopied(false), 2000);
+    }
+  };
+
+  const handleDownloadDiagnostics = () => {
+    downloadDiagnostics();
+  };
+
+  const handleToggleDiagnostics = () => {
+    const next = !showDiagnostics;
+    setShowDiagnostics(next);
+    if (next) setDiagnosticsText(formatDiagnosticsText());
+  };
 
   const handleCopyReferral = async () => {
     if (!referralInfo?.referral_code) return;
@@ -195,6 +234,63 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             {referralInfo.total_reward_months > 0 && (
               <span className="text-status-success font-bold">مكاسبك: {referralInfo.total_reward_months} شهر Pro</span>
             )}
+          </div>
+        )}
+      </Card>
+
+      {/* Diagnostics Log (bug reporting aid) */}
+      <Card className="p-4 mb-4 space-y-3">
+        <button
+          type="button"
+          onClick={handleToggleDiagnostics}
+          className="w-full flex items-center justify-between"
+        >
+          <label className="text-xs font-bold text-text-secondary flex items-center gap-2">
+            <ScrollText className="w-4 h-4 text-primary" />
+            سجل الأخطاء التشخيصي
+          </label>
+          <span className="text-[11px] font-arabic text-text-muted">
+            {showDiagnostics ? 'إخفاء' : `${logCount} سجل`} ‹
+          </span>
+        </button>
+        <p className="text-[11px] text-text-muted">
+          سجل زمني لكل الأخطاء (مع الطوابع الزمنية) لمساعدتنا في إصلاح أي مشكلة تحدث لك. انسخه أو نزّله وأرسله لنا للدعم.
+        </p>
+
+        {showDiagnostics && (
+          <div className="space-y-2">
+            <textarea
+              readOnly
+              dir="ltr"
+              value={diagnosticsText}
+              className="w-full h-40 bg-black border border-border-subtle rounded-xl p-2 text-[10px] font-mono text-text-secondary outline-none resize-none"
+            />
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={handleCopyDiagnostics}
+                className="py-2 rounded-xl text-[11px] font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-all flex items-center justify-center gap-1"
+              >
+                {diagnosticsCopied ? <Check className="w-3.5 h-3.5 text-status-success" /> : <Copy className="w-3.5 h-3.5" />}
+                {diagnosticsCopied ? 'تم النسخ' : 'نسخ'}
+              </button>
+              <button
+                onClick={handleDownloadDiagnostics}
+                className="py-2 rounded-xl text-[11px] font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-all flex items-center justify-center gap-1"
+              >
+                <Download className="w-3.5 h-3.5" />
+                تنزيل
+              </button>
+              <button
+                onClick={() => {
+                  clearDiagnostics();
+                  setDiagnosticsText(formatDiagnosticsText());
+                }}
+                className="py-2 rounded-xl text-[11px] font-bold border bg-surface-subtle border-status-error/40 text-status-error hover:bg-status-error/10 transition-all flex items-center justify-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                مسح
+              </button>
+            </div>
           </div>
         )}
       </Card>

@@ -36,6 +36,7 @@ import type {
 } from '@/types/models';
 import { calculateIndependentAccuracy } from '@/features/report/metrics';
 import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
+import { logError, logEvent } from '@/lib/utils/diagnostics';
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
@@ -68,6 +69,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   // A per-message toggle still wins because an explicit override beats the global.
   const [showAllTranslations, setShowAllTranslations] = useState(false);
   const [currentHints, setCurrentHints] = useState<ContextualHint[]>([]);
+  // Cached starter phrases are the always-available hint floor — shown when AI
+  // hints fail/paywall and refreshed from the Worker when the cache is empty.
+  const [starterHints, setStarterHints] = useState<ContextualHint[]>([]);
+  const [turnError, setTurnError] = useState<{ failedText: string; message: string } | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
   const [isHintUsedForCurrentTurn, setIsHintUsedForCurrentTurn] = useState(false);
   const [paywall, setPaywall] = useState<{ isOpen: boolean; title: string; description: string }>({
     isOpen: false,
@@ -138,6 +144,18 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         stopListening();
       }
     },
+    onError: (error) => {
+      // Surface STT failures so the mic button never appears silently broken.
+      const messages: Record<string, string> = {
+        'not-allowed': 'لم يُسمح بالوصول للمايك. اسمح بالوصول من إعدادات المتصفح ثم أعد المحاولة.',
+        'service-not-allowed': 'خدمة التعرف على الصوت غير مفعلة في هذا المتصفح. يمكنك الكتابة بدلاً من التحدث.',
+        'network': 'التعرف على الصوت يحتاج اتصالاً بالإنترنت. تحقق من شبكتك أو اكتب جملتك.',
+        'no-speech': 'لم أسمع شيئاً — اقترب من المايك وحاول مرة أخرى.',
+        'audio-capture': 'لم أتمكن من الوصول للمايك. تأكد من توصيله والمحاولة مجدداً.',
+      };
+      setMicError(messages[error] || `تعذر الإدخال الصوتي (${error}). يمكنك الكتابة بالألمانية بدلاً من ذلك.`);
+      logError('stt', `Speech recognition error: ${error}`);
+    },
   });
 
   // Auto scroll to bottom
@@ -150,14 +168,21 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   // hints call fails or is paywalled, the user still gets real suggestions.
   const loadStarterHints = useCallback(async () => {
     try {
-      const phrases = await db.starter_phrases
+      let phrases = await db.starter_phrases
         .where('scenario_id')
         .equals(scenarioId)
         .toArray();
+      // Empty cache (first launch / fresh device): fetch this scenario's real
+      // starter phrases from the Worker, then show them.
+      if (phrases.length === 0) {
+        const detail = await workerClient.fetchScenarioDetail(scenarioId);
+        if (detail.starterPhrases.length > 0) {
+          logEvent('hints', `Starter phrases fetched from worker (${detail.starterPhrases.length})`);
+          phrases = detail.starterPhrases;
+        }
+      }
       if (phrases.length > 0) {
-        setCurrentHints(
-          phrases.map((p) => ({ german: p.german, arabic: p.translation_ar }))
-        );
+        setStarterHints(phrases.map((p) => ({ german: p.german, arabic: p.translation_ar })));
       }
     } catch {
       /* offline with empty cache — hints bar simply stays hidden */
@@ -185,9 +210,28 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     };
 
     setMessages([welcomeMsg]);
+    setTurnError(null);
 
     // Load cached starter phrases as initial hints
     void loadStarterHints();
+
+    // Give the opener a real Arabic translation (edge-cached) instead of the
+    // scenario title placeholder, so the global translation toggle works from
+    // the very first message.
+    if (welcomeMsg.germanText) {
+      workerClient
+        .translateText(welcomeMsg.germanText)
+        .then((ar) => {
+          if (ar) {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === 'msg_initial' ? { ...m, arabicTranslation: ar } : m)),
+            );
+          }
+        })
+        .catch(() => {
+          /* placeholder title stays — translation is a progressive enhancement */
+        });
+    }
   }, [scenario, scenarioId, effectiveLevel, sessionMode, loadStarterHints]);
 
   // Handle German word click for insight
@@ -234,6 +278,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setIsGenerating(true);
+    setTurnError(null);
+    setMicError(null);
 
     const isFinalTurn = userTurnsCount + 1 >= targetTurns;
 
@@ -292,7 +338,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         });
       }
 
-      // Fetch fresh contextual hints from AI router for next turn
+      // Fetch fresh contextual hints from AI router for next turn; on any
+      // failure keep the cached starter phrases visible instead of clearing.
       workerClient
         .fetchHints({
           scenarioTitle: scenario?.title_de || '',
@@ -306,10 +353,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         .then((newHints) => {
           if (newHints && newHints.length > 0) {
             setCurrentHints(newHints);
-          } else {
-            // AI returned nothing usable — keep real suggestions visible.
-            void loadStarterHints();
+            logEvent('hints', `AI hints loaded (${newHints.length})`);
           }
+          // Empty/failure → starterHints stay visible via merged display list.
         })
         .catch(() => {
           // AI hints unavailable (offline, paywall, quota): fall back to the
@@ -335,17 +381,75 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           description: e?.message || 'رَقِّ حسابك لفتح كل المستويات من A1 حتى B2 ومحادثات غير محدودة.',
         });
       } else {
-        console.error('Conversation turn failed:', e);
+        // The user's message stays in the transcript with a visible error card
+        // and a one-tap retry — never a silent spinner or a swallowed error.
+        const message =
+          e?.code === 'REQUEST_TIMEOUT'
+            ? 'انتهت مهلة الاتصال بالخادم. تحقق من الإنترنت ثم أعد الإرسال.'
+            : e?.message || 'تعذر إرسال الجملة. تحقق من اتصالك وأعد المحاولة.';
+        setTurnError({ failedText: text, message });
+        logError('ai/turn', `Turn failed (${e?.code || 'UNKNOWN'}): ${message}`);
       }
     } finally {
       setIsGenerating(false);
     }
   };
 
+  const retryFailedTurn = () => {
+    if (!turnError) return;
+    const { failedText } = turnError;
+    setTurnError(null);
+    // Remove the failed user message before re-sending so the transcript has
+    // exactly one copy of the sentence.
+    setMessages((prev) => {
+      const idx = prev.map((m) => m.germanText).lastIndexOf(failedText);
+      if (idx === -1) return prev;
+      return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
+    });
+    handleSendMessage(failedText);
+  };
+
   const handleUseHint = (hint: ContextualHint) => {
     setInputText(hint.german);
     setIsHintUsedForCurrentTurn(true);
+    setMicError(null);
     triggerHaptic('light');
+  };
+
+  // AI hints when loaded; otherwise the D1 starter-phrase floor. The user must
+  // never face an empty suggestions bar mid-conversation.
+  const visibleHints = currentHints.length > 0 ? currentHints : starterHints;
+
+  const [isRefreshingHints, setIsRefreshingHints] = useState(false);
+  const refreshHints = async () => {
+    if (isRefreshingHints) return;
+    setIsRefreshingHints(true);
+    try {
+      const lastKatzu = [...messages].reverse().find((m) => m.sender === 'KATZU');
+      if (lastKatzu) {
+        const fresh = await workerClient.fetchHints({
+          scenarioTitle: scenario?.title_de || '',
+          cefrLevel: effectiveLevel,
+          lastAiReply: lastKatzu.germanText,
+          history: messages.map((m) => ({
+            sender: m.sender === 'USER' ? 'user' : 'model',
+            text: m.germanText,
+          })),
+        });
+        if (fresh && fresh.length > 0) {
+          setCurrentHints(fresh);
+          logEvent('hints', `Hints refreshed manually (${fresh.length})`);
+        } else {
+          void loadStarterHints();
+        }
+      } else {
+        void loadStarterHints();
+      }
+    } catch {
+      void loadStarterHints();
+    } finally {
+      setIsRefreshingHints(false);
+    }
   };
 
   const finishSession = (finalMessages: ChatMessage[]) => {
@@ -666,6 +770,25 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           </div>
         )}
 
+        {/* Failed-turn error card with retry — never a silent hang */}
+        {turnError && !isGenerating && (
+          <div className="p-3.5 rounded-2xl bg-surface-subtle border border-status-error/50 space-y-2 animate-fade-in">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-status-error">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>تعذر إرسال جملتك:</span>
+            </div>
+            <div dir="ltr" className="font-german text-xs text-text-secondary">{turnError.failedText}</div>
+            <p className="text-[11px] font-arabic text-text-secondary">{turnError.message}</p>
+            <button
+              onClick={retryFailedTurn}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/20 border border-primary/50 text-primary text-xs font-bold font-arabic hover:bg-primary/30 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              إعادة المحاولة
+            </button>
+          </div>
+        )}
+
         {/* Rule 7: Celebration Card on Exchange Completion */}
         {isSessionCompleted && (
           <div className="p-4 rounded-3xl bg-surface-card border border-primary/40 shadow-glow-purple flex items-center gap-3 animate-fade-in my-2">
@@ -687,13 +810,15 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
       {/* Floating Bottom Input Bar & Pre-fetched Hints */}
       <div className="fixed bottom-0 start-0 end-0 bg-gradient-to-t from-black via-black/95 to-transparent p-4 max-w-md mx-auto z-20 space-y-2.5">
-        {/* Next-turn Contextual Hints Bar */}
-        {currentHints.length > 0 && !isGenerating && (
+        {/* Next-turn Contextual Hints Bar — always visible once the session
+            starts: AI hints when available, otherwise the cached starter
+            phrases floor. */}
+        {visibleHints.length > 0 && (
           <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
             <div className="flex-shrink-0 p-1.5 rounded-xl bg-surface-card text-primary">
               <Lightbulb className="w-3.5 h-3.5" />
             </div>
-            {currentHints.map((hint, hIdx) => (
+            {visibleHints.map((hint, hIdx) => (
               <button
                 key={hIdx}
                 onClick={() => handleUseHint(hint)}
@@ -703,6 +828,31 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                 <span className="text-[10px] text-text-muted">{hint.arabic}</span>
               </button>
             ))}
+            {/* Manual refresh: AI hints may fail (network/paywall) — the user
+                can always pull fresh suggestions instead of a dead bar. */}
+            <button
+              onClick={refreshHints}
+              aria-label="تحديث الاقتراحات"
+              title="تحديث الاقتراحات"
+              className="flex-shrink-0 p-2 rounded-xl bg-surface-card border border-border-subtle text-text-secondary hover:text-primary transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingHints ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        )}
+
+        {/* Mic / STT error banner */}
+        {micError && (
+          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-surface-subtle border border-status-learning/40 text-[11px] font-arabic text-status-learning">
+            <MicOff className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span className="flex-1">{micError}</span>
+            <button
+              onClick={() => setMicError(null)}
+              aria-label="إخفاء"
+              className="text-text-muted hover:text-text-primary"
+            >
+              ✕
+            </button>
           </div>
         )}
 
@@ -715,7 +865,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         <div className="flex items-center gap-2">
           {/* Mic Button (STT) */}
           <button
-            onClick={isListening ? stopListening : startListening}
+            onClick={() => {
+              setMicError(null);
+              if (isListening) {
+                stopListening();
+              } else {
+                startListening();
+              }
+            }}
             disabled={!isSupported}
             aria-label={isSupported ? 'بدء الإدخال الصوتي' : 'الإدخال الصوتي غير متاح'}
             className={`p-3.5 rounded-2xl border transition-all flex items-center justify-center flex-shrink-0 ${

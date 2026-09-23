@@ -1,4 +1,5 @@
 import { db } from '../db/katzuDb';
+import { logError, logEvent, logNetwork } from '../utils/diagnostics';
 import type {
   ScenarioEntity,
   StarterPhraseEntity,
@@ -314,6 +315,7 @@ export class WorkerClient {
       mode: params.mode || 'roleplay',
       session_id: sessionId,
       is_final_turn: !!params.isFinalTurn,
+      sarcasm_level: params.sarcasmLevel || 'SASSY',
       id_token: token,
     };
     if (params.learnerMemory && params.learnerMemory.length > 0) {
@@ -327,11 +329,14 @@ export class WorkerClient {
       headers['Authorization'] = 'Bearer ' + token;
     }
 
+    logNetwork('ai/turn', `POST ${this.baseUrl}/ai/turn (${formattedHistory.length} history msgs, final=${!!params.isFinalTurn})`);
     const res = await fetchWithTimeout(`${this.baseUrl}/ai/turn`, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
     });
+
+    logNetwork('ai/turn', `HTTP ${res.status}`);
 
     if (res.status === 401) {
       const data = await res.json().catch(() => ({}));
@@ -365,6 +370,14 @@ export class WorkerClient {
       throw error;
     }
 
+    if (!res.ok) {
+      const err: any = new Error(`Server returned status ${res.status}`);
+      err.status = res.status;
+      err.code = 'AI_TURN_HTTP_ERROR';
+      logError('ai/turn', `Unhandled AI turn failure HTTP ${res.status}`);
+      throw err;
+    }
+
     if (res.ok) {
       const data = await res.json();
       const evalData = data.evaluation;
@@ -378,9 +391,11 @@ export class WorkerClient {
         const error: any = new Error('تعذر التحقق من رد المحادثة. لم يتم احتساب هذه الجملة.');
         error.code = 'INVALID_AI_RESPONSE';
         error.status = 502;
+        logError('ai/turn', 'Response failed schema validation (missing reply_de/reply_ar/evaluation)');
         throw error;
       }
 
+      logEvent('ai/turn', `OK (is_correct=${evalData.is_correct}, level=${params.cefrLevel})`);
       return {
         germanReply: data.reply_de,
         arabicTranslation: data.reply_ar,
@@ -389,12 +404,18 @@ export class WorkerClient {
         correctedSegment: evalData.corrected_german || '',
         grammarRule: evalData.grammar_rule || '',
         explanationAr: evalData.explanation_ar || '',
+        roastComment: evalData.roast_comment || '',
         positiveNoteAr: evalData.positive_note_ar || '',
         hints: [],
       };
     }
 
-    throw new Error(`Server returned status ${res.status}`);
+    // Unreachable in practice: every non-OK status is handled above; this
+    // satisfies the return-type contract for unexpected response shapes.
+    const unexpected: any = new Error(`Server returned unexpected status ${res.status}`);
+    unexpected.status = res.status;
+    unexpected.code = 'AI_TURN_HTTP_ERROR';
+    throw unexpected;
   }
 
   // --- Dynamic Hints via /ai/hints ---
@@ -436,6 +457,8 @@ export class WorkerClient {
         body: JSON.stringify(bodyPayload),
       });
 
+      logNetwork('ai/hints', `HTTP ${res.status}`);
+
       if (res.status === 402 || res.status === 403) {
         const data = await res.json().catch(() => ({}));
         const err: any = new Error(data.message || 'Subscription required for hints');
@@ -451,11 +474,13 @@ export class WorkerClient {
             arabic: h.translation_ar || h.arabic || '',
           }));
         }
+        logEvent('ai/hints', '200 OK but empty hints array — will use starter phrases');
       }
     } catch (e: any) {
       if (e?.code === 'PAYWALL_REQUIRED') {
         throw e;
       }
+      logError('ai/hints', `Hints fetch failed: ${e?.code || 'NETWORK'} ${e?.status || ''}`);
       console.warn('Hints fetch failed:', e);
     }
 
