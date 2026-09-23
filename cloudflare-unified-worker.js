@@ -684,6 +684,44 @@ const aiFallbackMetrics = {
 };
 let lastAiProvider = "gemini";
 
+// Cumulative counters are persisted to KV because Workers isolate memory is
+// per-isolate: an in-memory counter on the isolate that served the fallback is
+// invisible to the isolate answering /health. Best-effort — a failed write
+// never breaks the learner's response; /health falls back to in-memory values.
+const AI_FALLBACK_METRICS_KEY = "metrics:ai-fallback";
+
+async function bumpAiFallbackMetrics(env, field) {
+  if (!env?.USER_PROGRESS || typeof env.USER_PROGRESS.get !== "function") return null;
+  try {
+    const raw = await env.USER_PROGRESS.get(AI_FALLBACK_METRICS_KEY);
+    let metrics = { requests: 0, served: 0, failures: 0 };
+    if (raw) {
+      try { metrics = { ...metrics, ...JSON.parse(raw) }; } catch {}
+    }
+    metrics[field] = (metrics[field] || 0) + 1;
+    await env.USER_PROGRESS.put(AI_FALLBACK_METRICS_KEY, JSON.stringify(metrics));
+    return metrics;
+  } catch {
+    return null;
+  }
+}
+
+async function readAiFallbackMetrics(env) {
+  if (!env?.USER_PROGRESS || typeof env.USER_PROGRESS.get !== "function") return null;
+  try {
+    const raw = await env.USER_PROGRESS.get(AI_FALLBACK_METRICS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      requests: Number(parsed.requests) || 0,
+      served: Number(parsed.served) || 0,
+      failures: Number(parsed.failures) || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function getAiFallbackMetrics() {
   return { ...aiFallbackMetrics };
 }
@@ -724,6 +762,7 @@ async function runWorkersAiFallback(payload, env) {
     options.response_format = { type: "json_object" };
   }
   aiFallbackMetrics.requests += 1;
+  void bumpAiFallbackMetrics(env, "requests");
   const result = await env.AI.run(WORKERS_AI_FALLBACK_MODEL, options);
   let text = typeof result === "string" ? result : "";
   if (!text && result && typeof result === "object") {
@@ -736,6 +775,7 @@ async function runWorkersAiFallback(payload, env) {
   aiFallbackMetrics.served += 1;
   aiFallbackMetrics.lastUsedAt = new Date().toISOString();
   lastAiProvider = "workers-ai";
+  void bumpAiFallbackMetrics(env, "served");
   return text;
 }
 
@@ -845,9 +885,11 @@ async function callGeminiWithFailover(apiKeys, payload, env) {
   if (canUseWorkersAiFallback(env)) {
     try {
       console.warn("[AI Failover] All Gemini keys/models failed — serving via Workers AI fallback.");
-      return await runWorkersAiFallback(payload, env);
+      const served = await runWorkersAiFallback(payload, env);
+      return served;
     } catch (fallbackErr) {
       aiFallbackMetrics.failures += 1;
+      void bumpAiFallbackMetrics(env, "failures");
       console.error("[AI Failover] Workers AI fallback also failed:", fallbackErr);
     }
   }
@@ -1282,11 +1324,18 @@ Respond strictly in JSON:
 // DIAGNOSTIC HEALTH & ROUTER TELEMETRY
 // ----------------------------------------------------------------------------
 
-function handleAiHealth(env, cors) {
+async function handleAiHealth(env, cors) {
   const inspection = inspectGeminiKeys(env);
   const apiKeys = inspection.uniqueKeys;
   const coolingDownCount = apiKeys.filter(k => isKeyCoolingDown(k)).length;
   const healthyCount = apiKeys.length - coolingDownCount;
+
+  // Durable cumulative counters from KV take precedence over this isolate's
+  // in-memory view (Workers isolate memory is per-isolate).
+  const kvMetrics = await readAiFallbackMetrics(env);
+  const fallbackRequests = Math.max(aiFallbackMetrics.requests, kvMetrics?.requests || 0);
+  const fallbackServed = Math.max(aiFallbackMetrics.served, kvMetrics?.served || 0);
+  const fallbackFailures = Math.max(aiFallbackMetrics.failures, kvMetrics?.failures || 0);
 
   return json({
     status: "healthy",
@@ -1309,11 +1358,12 @@ function handleAiHealth(env, cors) {
       enabled: !isFallbackKillSwitchOff(env),
       bindingPresent: !!env.AI,
       model: WORKERS_AI_FALLBACK_MODEL,
-      requests: aiFallbackMetrics.requests,
-      served: aiFallbackMetrics.served,
-      failures: aiFallbackMetrics.failures,
+      requests: fallbackRequests,
+      served: fallbackServed,
+      failures: fallbackFailures,
       lastUsedAt: aiFallbackMetrics.lastUsedAt,
       lastProvider: lastAiProvider,
+      countersSource: kvMetrics ? "kv" : "in-memory",
     }
   }, 200, cors);
 }
