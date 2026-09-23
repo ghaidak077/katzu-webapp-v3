@@ -7,7 +7,8 @@
 # The account_id is picked up automatically from CLOUDFLARE_API_TOKEN +
 # CLOUDFLARE_ACCOUNT_ID when deploying from CI/managed environments.
 
-name = "katzu-worker"
+# Deploys under the existing worker name so secrets/bindings/dashboard settings stay intact.
+name = "katzu-test"
 main = "cloudflare-unified-worker.js"
 compatibility_date = "2025-01-01"
 
@@ -20,24 +21,25 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "katzu-content"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "a80158e6-a5b4-49c0-b78a-67f390acf71d"
 
 # KV namespace: user progress + authoritative AI trial quota records
 [[kv_namespaces]]
 binding = "USER_PROGRESS"
-id = "REPLACE_WITH_YOUR_USER_PROGRESS_KV_ID"
+id = "d901da2026dc4830940562c72935ec78"
 
 # KV namespace: redeemed activation codes
 [[kv_namespaces]]
 binding = "REDEEMED_CODES"
-id = "REPLACE_WITH_YOUR_REDEEMED_CODES_KV_ID"
+id = "2c60d78d9cbf4f5fa93c620043afb404"
 
 # ---------------------------------------------------------------------------
 # Non-secret variables
 # ---------------------------------------------------------------------------
 [vars]
 # Exact origins of the PWA (Cloudflare Pages / custom domain), comma-separated.
-# While this is empty/absent, the worker runs in open CORS mode (dev only).
-ALLOWED_ORIGINS = ""
+# Trailing slashes are stripped automatically by the worker. Keep in sync with
+# the Pages custom domain when one is attached.
+ALLOWED_ORIGINS = "https://katzu-test.ghaidakalosh008.workers.dev,https://katzu-webapp-v3.pages.dev"
 AI_RATE_LIMIT_PER_MINUTE = "10"
 AI_RATE_LIMIT_PER_DAY = "200"

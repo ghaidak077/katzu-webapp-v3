@@ -177,7 +177,7 @@ function getCorsHeaders(request, env = {}) {
     : "";
   const allowed = configuredOrigins
     .split(",")
-    .map(s => s.trim())
+    .map(s => s.trim().replace(/\/+$/, "")) // strip trailing slashes: browsers send Origin without one
     .filter(Boolean);
   const production = ["production", "prod"].includes(
     String(env?.ENVIRONMENT || env?.NODE_ENV || "").toLowerCase()
