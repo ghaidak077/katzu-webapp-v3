@@ -16,15 +16,21 @@
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
 // ============================================================================
 
-// Real, currently-served Gemini model IDs. Nonexistent model names burn ~20s of
-// 404 round-trips per request before reaching a working model, which users see as
-// the chat hanging on "Katzu is thinking...".
+// Gemini Flash family, newest first (per current Gemini model docs). First
+// success pins primaryWorkingModel, so only the first request after a cold
+// start walks this list. 2.5 models are access-restricted for some accounts —
+// kept as deep fallback. gemini-2.0-flash / gemini-1.5-flash are shut down
+// and must NOT be in this chain.
 const DEFAULT_MODEL_CHAIN = [
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
   "gemini-flash-latest",
-  "gemini-1.5-flash"
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite"
 ];
 
 let primaryWorkingModel = null;
@@ -691,9 +697,11 @@ async function callGeminiWithFailover(apiKeys, payload) {
       try {
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
         
-        // 3.8 second adaptive timeout per attempt to eliminate slow hangs
+        // 6s adaptive timeout per attempt: long enough for a 3.x Flash JSON
+        // response, short enough that a full-chain miss stays well under the
+        // client's 30s request timeout.
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3800);
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
 
         const resp = await fetch(endpoint, {
           method: "POST",

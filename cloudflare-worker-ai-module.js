@@ -9,12 +9,19 @@
  * 4. Parallel Roleplay + Evaluation: Executes roleplay counterpart & pedagogical feedback concurrently.
  */
 
+// Gemini Flash family, newest first (per current Gemini model docs). First
+// success pins primaryWorkingModel. 2.5 kept as deep fallback (access-restricted
+// for some accounts); 2.0/1.5 are shut down and must NOT appear here.
 const DEFAULT_MODEL_CHAIN = [
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
   "gemini-flash-latest",
-  "gemini-1.5-flash"
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite"
 ];
 
 const CORS_HEADERS = {
@@ -286,9 +293,11 @@ async function callGeminiWithFailover(apiKeys, payload) {
       try {
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
         
-        // Timeout signal: 3.8 seconds maximum per single model attempt to eliminate latency spikes
+        // 6s adaptive timeout per attempt: long enough for a 3.x Flash JSON
+        // response, short enough that a full-chain miss stays well under the
+        // client's 30s request timeout.
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3800);
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
 
         const resp = await fetch(endpoint, {
           method: "POST",
