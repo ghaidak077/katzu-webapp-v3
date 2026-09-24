@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تم الدفع — كود تفعيل Katzu Pro</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="stylesheet" href="/sales.css" />
+</head>
+<body class="success-page">
+  <main class="wrap narrow success">
+    <img class="success-art" src="/assets/katzu_celebrating.png" alt="" />
+
+    <div id="pending" class="panel">
+      <h1>جارٍ تأكيد الدفع…</h1>
+      <p class="lede">
+        ننتظر تأكيد الشبكة من مزوّد الدفع. عادة يستغرق دقائق قليلة — اترك هذه الصفحة مفتوحة،
+        وستظهر شهادة التفعيل هنا تلقائياً.
+      </p>
+      <p class="status"><span class="spinner" aria-hidden="true"></span> <span id="status-text">بانتظار التأكيد…</span></p>
+      <p class="hint" id="order-ref"></p>
+    </div>
+
+    <div id="delivered" class="panel" hidden>
+      <h1>شكراً لك! هذا كود التفعيل</h1>
+      <p class="lede">انسخه والصقه في تطبيق Katzu: شاشة الاشتراك ← «تفعيل الكود».</p>
+      <div class="code-box">
+        <code id="code" dir="ltr"></code>
+        <button class="btn btn-primary" id="copy-code" type="button">نسخ الكود</button>
+      </div>
+      <p class="hint" id="delivered-note"></p>
+      <div class="actions">
+        <a class="btn btn-primary" id="open-app" href="#">افتح تطبيق Katzu</a>
+        <a class="btn btn-ghost" id="support" href="#" rel="noopener">مشكلة؟ راسلنا على تيليجرام</a>
+      </div>
+    </div>
+
+    <div id="failed" class="panel" hidden>
+      <h1>لم يكتمل الدفع</h1>
+      <p class="lede">
+        الفاتورة انتهت أو فشل الدفع. لا يوجد أي مبلغ مستحق — يمكنك إنشاء فاتورة جديدة،
+        أو استخدام الدفع المحلي في سوريا.
+      </p>
+      <div class="actions">
+        <a class="btn btn-primary" href="/#buy">حاول مرة أخرى</a>
+        <a class="btn btn-ghost" href="/#local">الدفع المحلي</a>
+      </div>
+    </div>
+
+    <div id="unknown" class="panel" hidden>
+      <h1>لم نجد هذا الطلب</h1>
+      <p class="lede">
+        رابط الاستعادة غير صالح أو ناقص. افتح «هل سبق أن اشتريت؟» في الصفحة الرئيسية
+        لاستعادة طلبك من هذا المتصفح، أو راسلنا على تيليجرام مع رقم الطلب.
+      </p>
+      <div class="actions">
+        <a class="btn btn-primary" href="/#recover">استعادة الطلب</a>
+      </div>
+    </div>
+
+    <p class="fineprint">
+      لم يتم تسليم الكود بعد إن ظلّت الحالة «بانتظار التأكيد» لأكثر من 30 دقيقة — راسلنا عبر
+      تيليجرام مع رقم الطلب ولن نتركك عالقاً.
+    </p>
+  </main>
+
+  <script src="/success.js"></script>
+</body>
+</html>

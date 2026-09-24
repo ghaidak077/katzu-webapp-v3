@@ -23,6 +23,44 @@ The repository ships with `wrangler.toml` (entry point `cloudflare-unified-worke
    enforces the ID token `aud` claim against it, so a mismatch rejects sign-in with
    `401 invalid_id_token`.
 
+2b. **Billing secrets (Dodo Payments)** — required before any card payment works:
+
+   ```bash
+   npx wrangler secret put DODO_API_KEY          # Dodo dashboard -> Developer -> API keys
+   npx wrangler secret put DODO_WEBHOOK_SECRET   # Webhooks -> <your endpoint> -> signing secret
+   ```
+
+   Then set the non-secret billing values in `[vars]` of `wrangler.toml`:
+   `DODO_PRODUCT_ID_MONTHLY` (required), `DODO_PRODUCT_ID_ANNUAL` (optional),
+   `DODO_ENVIRONMENT` (`test_mode` by default — it cannot move real money), and
+   optionally `CHECKOUT_RETURN_ORIGIN` (defaults to the first `ALLOWED_ORIGINS` entry).
+
+   Register the webhook endpoint in the Dodo dashboard as
+   `https://<your-worker-host>/billing/webhook` and subscribe it to the
+   subscription lifecycle: `subscription.active`, `subscription.renewed`,
+   `subscription.cancelled`, `subscription.on_hold`, `subscription.past_due`,
+   `subscription.expired`, `subscription.failed`, plus `payment.succeeded` and
+   `payment.failed`. Dodo sends Standard Webhooks headers; the worker verifies the
+   HMAC signature and rejects anything unsigned, tampered, or older than 5 minutes.
+
+2c. **Crypto sales secrets (NOWPayments)** — required before the sales site can sell a code:
+
+   ```bash
+   npx wrangler secret put NOWPAYMENTS_API_KEY      # NOWPayments dashboard -> Store Settings -> API keys
+   npx wrangler secret put NOWPAYMENTS_IPN_SECRET   # Store Settings -> IPN Secret key
+   ```
+
+   Then review the non-secret values in `[vars]`: `NOWPAYMENTS_ENVIRONMENT`
+   (`test_mode` by default — it talks to `api-sandbox.nowpayments.io` and cannot take
+   real money), `SALES_ORIGIN` (where a paying customer is returned, and the only
+   browser origin allowed to call `/crypto/checkout`), `CRYPTO_PRICE_USD` and
+   `CRYPTO_MONTHS` (price and how many months of Pro one code grants).
+
+   The provider's IPN endpoint is `https://<your-worker-host>/crypto/webhook`. It is
+   authenticated by its `x-nowpayments-sig` HMAC-SHA512 signature (over the
+   key-sorted JSON body), so it needs no IP allowlist and is reachable without an
+   `Origin` header.
+
 3. Set `ALLOWED_ORIGINS` in the `[vars]` block of `wrangler.toml` to the exact Pages origin(s) before public launch (empty = open CORS, dev only). **Keep `ENVIRONMENT = "production"` there as well**: it forces strict CORS even if the allowlist is missing or malformed, and it disables the `TEST_MODE` token-verification bypass.
 4. Run additive D1 migrations before serving traffic.
 
@@ -49,6 +87,80 @@ Create a production Google OAuth Web client and add the exact HTTPS Pages/custom
 4. Ensure `public/_headers`, `public/robots.txt`, and `public/sitemap.xml` are included in the deployment.
 5. Attach the production custom domain and update `ALLOWED_ORIGINS` to the exact origin.
 6. Store submission needs a public policy URL: `public/privacy.html` and `public/terms.html` deploy automatically as `/privacy` and `/terms` (Cloudflare Pages strips the `.html` extension with a 308). Confirm both return `200` on the live domain before submitting to Google Play or a payment provider, and use the extensionless URLs in the store listing.
+
+## 3b. Verify the billing pipeline
+
+`GET /billing/health` reports configuration booleans only (never secret values):
+
+```bash
+curl -s https://<your-worker-host>/billing/health
+```
+
+`ready: true` means the API key, webhook secret, and monthly product are all set.
+
+Then run the end-to-end check against the deployed worker — it posts a real signed
+webhook, confirms the plan update through the admin API, proves a replay does not
+double-grant, and confirms a terminal event ends the entitlement:
+
+```bash
+DODO_WEBHOOK_SECRET='whsec_...' ADMIN_SECRET='...' node scripts/verify-dodo-live.mjs
+```
+
+It writes one clearly-marked test account (`dodo-selftest-<timestamp>` /
+`dodo-selftest+<timestamp>@katzu.test`) and revokes it at the end; it never
+touches a real learner. Supply `ADMIN_SECRET` too, otherwise the "plan read-back"
+check is skipped. Exit code 0 means every check passed.
+
+**Status: the in-app card checkout is not present.** The app is redemption-only: it
+sells nothing, has no checkout screen, and only ever redeems an activation code
+through `POST /verify`. The `/billing/*` routes and this section stay documented
+because the worker module still exists, but with no Dodo keys set they answer `503`
+and nothing in the app calls them. `DODO_ENVIRONMENT`/`DODO_PRODUCT_ID_*` can stay
+empty. Do not re-add a checkout screen to the app: paid sales happen on the separate
+sales site (section 3c).
+
+## 3c. Deploy the sales site and verify the crypto pipeline
+
+`sales/` is a **separate** Cloudflare Pages project (`katzu-sales`) — plain static
+HTML/CSS/JS, no build command. It sells an activation code; it never talks to the
+app, and the app never talks to it. Live at **https://katzu-sales.pages.dev**
+(deployment `d7a6a074`, branch `main`). See `sales/README.md` for the two config
+blocks (`sales.js` and `success.js`) and fill in the local Syria payment details
+there before publishing.
+
+Deploy (from the repository root; creates the project the first time):
+
+```bash
+npx wrangler pages project create katzu-sales --production-branch=main
+npx wrangler pages deploy sales --project-name=katzu-sales --branch=main --commit-dirty=true
+```
+
+After deploying the worker with the crypto vars/secrets above:
+
+```bash
+curl -s https://<your-worker-host>/crypto/health      # booleans only, never a key
+```
+
+`ready: true` means the API key, the IPN secret, and `SALES_ORIGIN` are all set.
+(The sales origin `https://katzu-sales.pages.dev` is already in `ALLOWED_ORIGINS`, so
+the browser on the sales site is allowed to call this endpoint.)
+
+Then run the end-to-end check against the deployed worker. It creates a real
+sandbox invoice, reads the order back before payment (no code), posts a correctly
+signed `finished` notification, proves the code is delivered to the claim token and
+that re-delivery mints nothing, and prints the minted code:
+
+```bash
+NOWPAYMENTS_IPN_SECRET='<ipn secret>' node scripts/verify-crypto-live.mjs
+```
+
+To exercise the provider's own notification instead of a script-signed one, pay the
+printed sandbox checkout URL in the provider's test environment and run with
+`--poll=300` (add `--no-simulate` to require the real notification).
+
+The minted code is real and redeemable: paste it into the app once
+(**شاشة الاشتراك ← تفعيل الكود**) as the final human check. Switch
+`NOWPAYMENTS_ENVIRONMENT = "live_mode"` only after that passes.
 
 ## 4. Smoke tests after deployment
 
