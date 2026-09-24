@@ -746,6 +746,12 @@ export async function handleAdminRoutes(url, request, env, cors) {
   // Dashboard shell (same model as before: the shell is public, every data
   // endpoint below requires the admin bearer secret).
   if ((path === "/admin" || path === "/admin/") && method === "GET") {
+    // The registry tables are otherwise created lazily by ensureLedgerTables,
+    // which the AI / verify / referral paths reach — but a freshly deployed
+    // worker that only serves dashboard traffic would have no `users` table, and
+    // a free user's lookup would then fall back to KV and wrongly report
+    // "not found". Ensure the schema at the dashboard entry point (idempotent).
+    await ensureRegistryTables(env);
     return new Response(renderAdminDashboardHtml(env), {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
@@ -760,6 +766,9 @@ export async function handleAdminRoutes(url, request, env, cors) {
   }
 
   if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+
+  // Same guarantee for direct API/legacy calls that skip the dashboard shell.
+  await ensureRegistryTables(env);
 
   const body = method === "POST" ? await request.json().catch(() => null) : null;
 

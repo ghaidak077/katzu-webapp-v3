@@ -568,6 +568,46 @@ describe('Admin dashboard aggregation API', () => {
     expect(body.activity.map((a) => a.event_type)).toContain('code_redeemed');
     expect(body.redemptions).toBe(1);
   });
+
+  // Regression: on a FRESH deploy nothing has called ensureLedgerTables yet, so
+  // the registry tables do not exist. listUsers then threw, the dashboard showed
+  // "registry unavailable", and a free user's lookup fell back to KV and wrongly
+  // reported "not found" — the very bug being fixed. Loading the dashboard (or
+  // any admin API call) must create the schema.
+  it('GET /admin creates the registry schema on a fresh deploy', async () => {
+    const env = makeEnv() as Env;
+    expect(env.DB.createdTables).toEqual([]);
+
+    const res = await worker.fetch(request('/admin', { method: 'GET' }), env as never);
+    expect(res.status).toBe(200);
+    expect(env.DB.createdTables).toEqual(
+      expect.arrayContaining(['users', 'activity_log', 'error_reports']),
+    );
+  });
+
+  it('an authenticated admin API call also creates the registry schema', async () => {
+    const env = makeEnv() as Env;
+    const res = await adminGet('/admin/api/users?limit=5', env);
+    expect(res.status).toBe(200);
+    expect(env.DB.createdTables).toEqual(expect.arrayContaining(['users']));
+    // And the DDL is still additive-only.
+    expect(env.DB.statements.filter((s) => /\b(DROP|ALTER|RENAME)\b/i.test(s))).toEqual([]);
+  });
+
+  it('a free user is findable on a fresh deploy without any prior AI/verify traffic', async () => {
+    const env = makeEnv() as Env;
+    // Wipe the registry to model a freshly deployed worker with an empty DB,
+    // then let only the dashboard path touch it.
+    env.DB.tables = {};
+    await worker.fetch(request('/admin', { method: 'GET' }), env as never);
+
+    await signIn(env, 'fresh-free', 'fresh@test.dev');
+    const res = await adminPost('/admin/lookup', { email: 'fresh@test.dev' }, env);
+    const body = (await res.json()) as { found: boolean; plan: string; registered: boolean };
+    expect(body.found).toBe(true);
+    expect(body.plan).toBe('free');
+    expect(body.registered).toBe(true);
+  });
 });
 
 describe('Admin auth gate is unchanged', () => {
