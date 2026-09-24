@@ -12,9 +12,11 @@
  *   OR GEMINI_API_KEY, GEMINI_API_KEY_1..6 (Individual secrets)
  *
  * The admin control plane (user registry, telemetry, dashboard) lives in
- * ./cloudflare-admin.js — this file exceeded the edit tooling's reliable byte
- * range past ~100 KB, which is where that code used to sit. Wrangler bundles
- * the import below into the single deployed worker.
+ * ./cloudflare-admin.js. Measured: the edit tooling applied diffs to this file
+ * reliably up to ~48 KB of byte offset (16329, 18106, 37419, 48404 all fine)
+ * but failed with "old string not found" on grep-verified unique anchors at
+ * 63195, 77597 and 82988 — which is exactly where the admin handlers sat.
+ * Wrangler bundles the import below into the single deployed worker.
  */
 
 import {

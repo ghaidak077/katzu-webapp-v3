@@ -2,12 +2,12 @@
  * Katzu Admin Control Plane — user registry, telemetry, admin API and dashboard.
  *
  * WHY THIS FILE EXISTS (do not merge it back blindly):
- * cloudflare-unified-worker.js is ~171 KB. The repo's edit tooling reliably
- * applies diffs below ~100 KB of byte offset and fails ("old string not found")
- * on grep-verified unique anchors past that point — which is exactly where
- * handleAdminLookup and the dashboard renderer used to live. Moving the admin
- * surface here makes it editable again and keeps the main worker as the single
- * Wrangler entrypoint (see wrangler.toml -> main).
+ * cloudflare-unified-worker.js is ~171 KB. Measured in this repo, the edit
+ * tooling applied diffs reliably up to ~48 KB of byte offset but failed with
+ * "old string not found" on grep-verified unique anchors at ~63 KB and beyond —
+ * which is exactly where handleAdminLookup and the dashboard renderer used to
+ * live. Moving the admin surface here makes it editable again and keeps the
+ * main worker as the single Wrangler entrypoint (see wrangler.toml -> main).
  *
  * THE BUG THIS FIXES:
  * Every admin lookup resolved a user via `REDEEMED_CODES.get("email_index:<email>")`,
