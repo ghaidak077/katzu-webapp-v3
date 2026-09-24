@@ -13,12 +13,17 @@ The repository ships with `wrangler.toml` (entry point `cloudflare-unified-worke
 
    ```bash
    npx wrangler secret put GEMINI_API_KEYS   # comma-separated Gemini keys
-   npx wrangler secret put GOOGLE_CLIENT_ID  # same OAuth client ID as VITE_GOOGLE_CLIENT_ID
    npx wrangler secret put ADMIN_SECRET      # long random string (protects /admin)
    npx wrangler secret put HMAC_SECRET       # long random string (token signing)
    ```
 
-3. Set `ALLOWED_ORIGINS` in the `[vars]` block of `wrangler.toml` to the exact Pages origin(s) before public launch (empty = open CORS, dev only).
+   `GOOGLE_CLIENT_ID` is deliberately **not** a secret — it is public (it ships to every
+   browser), so it lives in the `[vars]` block of `wrangler.toml` where it can be reviewed
+   in git. Set it to the same OAuth client ID as `VITE_GOOGLE_CLIENT_ID`. The worker
+   enforces the ID token `aud` claim against it, so a mismatch rejects sign-in with
+   `401 invalid_id_token`.
+
+3. Set `ALLOWED_ORIGINS` in the `[vars]` block of `wrangler.toml` to the exact Pages origin(s) before public launch (empty = open CORS, dev only). **Keep `ENVIRONMENT = "production"` there as well**: it forces strict CORS even if the allowlist is missing or malformed, and it disables the `TEST_MODE` token-verification bypass.
 4. Run additive D1 migrations before serving traffic.
 
 ### Deploy / update the Worker
@@ -43,6 +48,7 @@ Create a production Google OAuth Web client and add the exact HTTPS Pages/custom
 3. Configure `VITE_GOOGLE_CLIENT_ID`, `VITE_WORKER_URL`, and optional `VITE_SENTRY_DSN`/`VITE_CONTACT_URL`.
 4. Ensure `public/_headers`, `public/robots.txt`, and `public/sitemap.xml` are included in the deployment.
 5. Attach the production custom domain and update `ALLOWED_ORIGINS` to the exact origin.
+6. Store submission needs a public policy URL: `/privacy.html` and `/terms.html` are static files in `public/`, so they deploy automatically. Confirm both return `200` on the live domain before submitting to Google Play or a payment provider.
 
 ## 4. Smoke tests after deployment
 

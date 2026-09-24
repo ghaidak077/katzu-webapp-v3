@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import worker, {
   checkRateLimit,
@@ -64,6 +65,53 @@ describe('Worker security controls', () => {
       'client-id',
       env,
     )).toBeNull();
+  });
+
+  it('ignores TEST_MODE in production so a forged token cannot mint a session', async () => {
+    const base = { TEST_MODE: true, GOOGLE_CLIENT_ID: 'client-id', USER_PROGRESS: new MemoryKv() };
+    // Verify-by-tokeninfo normally short-circuits whenever NODE_ENV=test (which the
+    // test runner always sets), so pin it to "production" here. That leaves
+    // TEST_MODE as the only trigger, making the assertions below non-vacuous.
+    vi.stubEnv('NODE_ENV', 'production');
+    const provider = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'invalid_token' }), { status: 400 }),
+    );
+    const signIn = (env: Record<string, unknown>) =>
+      worker.fetch(new Request('https://worker.test/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: token(validPayload()) }),
+      }), env);
+
+    try {
+      // Control: with no production marker the TEST_MODE shortcut is honoured and
+      // the forged token is accepted, so the rejection below can only come from the
+      // production guard — not from some other payload check.
+      const control = await signIn({ ...base });
+      expect(control.status).toBe(200);
+      expect((await control.json()).session_token).toMatch(/^sess_/);
+      expect(provider).not.toHaveBeenCalled();
+
+      const guarded = await signIn({ ...base, ENVIRONMENT: 'production' });
+      expect(guarded.status).toBe(401);
+      expect(await guarded.json()).toEqual({ error: 'invalid_id_token' });
+      // Verification reached the provider instead of being short-circuited.
+      expect(provider).toHaveBeenCalled();
+    } finally {
+      provider.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('deploy config hard-locks production (no token-verification bypass vars)', async () => {
+    // verifyGoogleIdToken honours env.TEST_MODE and process.env.NODE_ENV==="test" as
+    // full verification bypasses. The fetch guard neutralizes TEST_MODE in
+    // production, and NODE_ENV is inert there (nodejs_compat is off), so neither may
+    // ever be shipped as a deployed variable.
+    const config = await readFile(new URL('../wrangler.toml', import.meta.url), 'utf8');
+    expect(config).toMatch(/^ENVIRONMENT\s*=\s*"production"/m);
+    expect(config).not.toMatch(/^\s*NODE_ENV\s*=/m);
+    expect(config).not.toMatch(/^\s*TEST_MODE\s*=/m);
   });
 
   it('requires authentication on hints and translation', async () => {

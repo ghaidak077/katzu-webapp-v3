@@ -1,0 +1,46 @@
+/* Shared styles for the hosted privacy/terms pages.
+   Palette mirrors the app: AMOLED black, #1A1826 cards, #8B6FE8 accent.
+   Kept dependency-free so the pages render as plain static files (store review
+   and payment-provider crawlers fetch these without running any JavaScript). */
+:root {
+  --bg: #000000;
+  --card: #1a1826;
+  --subtle: #221f33;
+  --primary: #8b6fe8;
+  --text: #f2f0fa;
+  --muted: #b9b3ce;
+  --border: rgba(139, 111, 232, 0.22);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Cairo", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+  line-height: 1.9;
+  font-size: 16px;
+}
+main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+header { border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.75rem; }
+.brand {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  color: var(--primary); font-weight: 700; text-decoration: none; font-size: 0.95rem;
+}
+h1 { font-size: 1.6rem; margin: 0.75rem 0 0.25rem; }
+h2 { font-size: 1.12rem; margin: 2rem 0 0.5rem; color: var(--primary); }
+p, li { color: var(--muted); }
+p { margin: 0.5rem 0; }
+ul { margin: 0.5rem 0; padding-inline-start: 1.25rem; }
+li { margin: 0.3rem 0; }
+strong { color: var(--text); }
+.meta { font-size: 0.85rem; color: var(--muted); }
+.notice {
+  background: var(--card); border: 1px solid var(--border); border-radius: 1rem;
+  padding: 1rem 1.15rem; margin: 1.5rem 0;
+}
+section[lang="en"] { direction: ltr; text-align: left; border-top: 1px dashed var(--border); margin-top: 2.5rem; padding-top: 1.5rem; }
+a { color: var(--primary); }
+footer {
+  border-top: 1px solid var(--border); margin-top: 3rem; padding-top: 1.25rem;
+  font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.75rem;
+}

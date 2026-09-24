@@ -44,7 +44,17 @@ binding = "AI"
 # Exact origins of the PWA (Cloudflare Pages / custom domain), comma-separated.
 # Trailing slashes are stripped automatically by the worker. Keep in sync with
 # the Pages custom domain when one is attached.
+# Marks this as a production deploy. Two security consequences:
+# 1. CORS: open mode (ALLOW_OPEN_CORS) is ignored and the allowlist is enforced
+#    strictly, even if the allowlist is missing or malformed.
+# 2. Auth: TEST_MODE (which skips Google JWT verification) is ignored, so a
+#    stale test var can never mint sessions for real accounts.
+ENVIRONMENT = "production"
 ALLOWED_ORIGINS = "https://katzu-test.ghaidakalosh008.workers.dev,https://katzu-webapp-v3.pages.dev"
+# Public by design (shipped to every browser in the client bundle). Setting it here
+# lets the worker enforce the `aud` claim on Google ID tokens — without it that
+# check is skipped and a token minted for any other OAuth client would be accepted.
+GOOGLE_CLIENT_ID = "754341831948-76f8r0mm3gccco6n4mfr86o6ut0snsum.apps.googleusercontent.com"
 AI_RATE_LIMIT_PER_MINUTE = "10"
 AI_RATE_LIMIT_PER_DAY = "200"
 # Set to "0" to disable the Workers AI fallback (Gemini-only mode).
