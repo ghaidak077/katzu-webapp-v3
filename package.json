@@ -10,7 +10,8 @@
     "test": "vitest run",
     "lint": "tsc --noEmit",
     "deploy:worker": "wrangler deploy",
-    "tail:worker": "wrangler tail"
+    "tail:worker": "wrangler tail",
+    "test:smoke:token-hygiene": "node scripts/smoke-token-hygiene.cjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.67.1",

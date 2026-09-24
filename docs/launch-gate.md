@@ -6,7 +6,7 @@ Definition: conditions that must be TRUE before **paid public beta**. Each item 
 - [x] Worker deployed & healthy (`/health` ready, keys configured, fallback armed)
 
 ## Gate 1 — Security & data safety (Phase 1) — status: OPEN (in progress)
-- [ ] 1.1 No raw Google ID token persisted in IndexedDB; one credential transport; sessions revocable (sign-out + deletion revoke); no raw-token fallback in production. **Status: code landed (client + worker + Dexie v3 token-strip migration, 9 tests) — pending on-device verification per DEPLOY.md smoke test; deletion-side revocation lands with 1.2.**
+- [ ] 1.1 No raw Google ID token persisted in IndexedDB; one credential transport; sessions revocable (sign-out + deletion revoke); no raw-token fallback in production. **Status: landed AND on-device verified on the deployed app — 11/11 headless-browser smoke checks passed (IndexedDB has no idToken, header-only transport, sign-out revocation + wipe, real /ai/turn 401 → session invalidated → Arabic re-auth message). Deletion-side revocation lands with 1.2.**
 - [ ] 1.2 Account deletion complete (all key families + local wipe) AND exposed in UI with confirmation, success/failure states. Retention exceptions documented.
 - [ ] 1.3 Data export in UI (JSON archive, no tokens/secrets/prompts).
 - [ ] 1.4 CORS fails closed in production without valid `ALLOWED_ORIGINS`; open mode requires explicit dev flag; covered by worker tests.
