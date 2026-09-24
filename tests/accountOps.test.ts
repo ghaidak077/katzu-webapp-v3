@@ -128,6 +128,58 @@ async function makeCode(months: number, secret: string): Promise<string> {
   return `DE-${months}M-${nonce}-${sig}`;
 }
 
+describe('Pro redemption with session tokens (regression: env passed to verify)', () => {
+  it('redeems a Pro code and checks status using ONLY an opaque session token', async () => {
+    const env = makeEnv();
+    const sub = 'user-pro', email = 'pro@test.dev';
+
+    // Sign in: exchange a Google ID token for an opaque session token.
+    const sess = await worker.fetch(new Request('https://worker.test/auth/session', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload(sub, email))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }), env as never);
+    const { session_token: sessionToken } = await sess.json() as { session_token: string };
+    expect(sessionToken).toMatch(/^sess_/);
+
+    // Redeem a Pro code authenticated ONLY by the session token (header transport).
+    const code = await makeCode(6, 'test-hmac-secret');
+    const redeemRes = await worker.fetch(new Request('https://worker.test/verify', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    }), env as never);
+    expect(redeemRes.status).toBe(200);
+    const redeem = await redeemRes.json() as { valid: boolean; months: number };
+    expect(redeem.valid).toBe(true);
+    expect(redeem.months).toBe(6);
+
+    // Subscription status must also resolve through the session token.
+    const statusRes = await worker.fetch(new Request('https://worker.test/check-status', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }), env as never);
+    const status = await statusRes.json() as { active: boolean; days_remaining: number };
+    expect(status.active).toBe(true);
+    expect(status.days_remaining).toBeGreaterThanOrEqual(180);
+
+    // Progress sync/get must resolve session tokens too (same class of bug).
+    const syncRes = await worker.fetch(new Request('https://worker.test/progress/sync', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stats: { level: 'A1', total_points: 10 } }),
+    }), env as never);
+    expect(((await syncRes.json()) as { success: boolean }).success).toBe(true);
+    const getRes = await worker.fetch(new Request('https://worker.test/progress/get', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }), env as never);
+    expect(((await getRes.json()) as { stats: { total_points: number } }).stats.total_points).toBe(10);
+  });
+});
+
 describe('Phase 2: concurrency-safe redemption and referral payouts', () => {
   it('redeems a valid code exactly once — concurrent double-spend gets already_redeemed', async () => {
     const env = makeEnv();

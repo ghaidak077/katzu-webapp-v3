@@ -1856,7 +1856,7 @@ async function handleVerify(request, env, cors) {
     return json({ valid: false, reason: "missing_id_token" }, 400, cors);
   }
 
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID);
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
   if (!account) {
     return json({ valid: false, reason: "invalid_id_token" }, 200, cors);
   }
@@ -1939,7 +1939,7 @@ async function handleCheckStatus(request, env, cors) {
     return json({ active: false, days_remaining: 0, server_time: now.toISOString(), reason: "missing_id_token" }, 400, cors);
   }
 
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID);
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
   if (!account) {
     return json({ active: false, days_remaining: 0, server_time: now.toISOString(), reason: "invalid_id_token" }, 200, cors);
   }
@@ -2213,7 +2213,7 @@ async function handleProgressSync(request, env, cors) {
     return json({ error: "missing_id_token" }, 400, cors);
   }
 
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID);
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
   if (!account) {
     return json({ error: "invalid_id_token" }, 200, cors);
   }
@@ -2258,7 +2258,7 @@ async function handleProgressGet(request, env, cors) {
     return json({ error: "missing_id_token" }, 400, cors);
   }
 
-  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID);
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
   if (!account) {
     return json({ error: "invalid_id_token" }, 200, cors);
   }
