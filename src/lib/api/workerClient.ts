@@ -1037,9 +1037,11 @@ export class WorkerClient {
 
   // --- Delete User Account & Cloud Data (/user/delete) ---
 
-  async deleteAccount(idToken?: string): Promise<boolean> {
+  /** Full server-side deletion result (Phase 3): success is true only when every
+   * required deletion step completed; DELETE_INCOMPLETE is retryable. */
+  async deleteAccount(idToken?: string): Promise<{ success: boolean; message?: string; code?: string; failedSteps?: string[] }> {
     const token = await this.getEffectiveAuthToken(idToken);
-    if (!token) return false;
+    if (!token) return { success: false, message: 'جلسة الدخول غير صالحة. سجّل الدخول وأعد المحاولة.' };
     try {
       const res = await fetch(`${this.baseUrl}/user/delete`, {
         method: 'POST',
@@ -1049,9 +1051,54 @@ export class WorkerClient {
         },
         body: JSON.stringify({}),
       });
-      return res.ok;
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.success) {
+        return { success: true, message: body.message };
+      }
+      return {
+        success: false,
+        code: body.code,
+        message: body.message || 'تعذر حذف الحساب. يرجى إعادة المحاولة.',
+        failedSteps: Array.isArray(body.failed_steps) ? body.failed_steps : undefined,
+      };
     } catch (e) {
       console.error('Delete account failed:', e);
+      return { success: false, message: 'تعذر الاتصال بالخادم. تحقق من الاتصال وأعد المحاولة.' };
+    }
+  }
+
+  // --- Data Export (/user/export, Phase 4) ---
+
+  /** Downloads this learner's server-held data as katzu-data-export.json.
+   * Returns false on network/auth failure without writing a file. */
+  async exportUserData(idToken?: string): Promise<boolean> {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) return false;
+    try {
+      const res = await fetch(`${this.baseUrl}/user/export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) return false;
+      const text = await res.text();
+      // Validate the payload is JSON before offering it as a download.
+      JSON.parse(text);
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'katzu-data-export.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      return true;
+    } catch (e) {
+      console.error('Data export failed:', e);
       return false;
     }
   }

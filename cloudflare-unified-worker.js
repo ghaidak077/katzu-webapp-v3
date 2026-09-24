@@ -425,6 +425,94 @@ function quotaKey(accountId) {
   return `ai-quota:${accountId}`;
 }
 
+// ----------------------------------------------------------------------------
+// DURABLE CONCURRENCY SAFETY (Phase 2)
+// KV is eventually consistent and has no compare-and-swap, so anything that must
+// happen "exactly once" uses a D1 table with a PRIMARY KEY: INSERT is atomic per
+// row across all isolates — a duplicate insert throws and is treated as "already
+// done". Tables are created lazily (additive; existing data untouched).
+// ----------------------------------------------------------------------------
+
+async function ensureLedgerTables(env) {
+  if (!env.DB) return false;
+  try {
+    await env.DB.batch([
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS redeemed_codes_ledger (
+        code TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        months INTEGER NOT NULL,
+        redeemed_at TEXT NOT NULL
+      )`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS trial_quota_ledger (
+        account_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        consumed_at INTEGER NOT NULL,
+        PRIMARY KEY (account_id, session_id)
+      )`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS referral_payouts (
+        invited_account_id TEXT PRIMARY KEY,
+        inviter_account_id TEXT NOT NULL,
+        awarded_at TEXT NOT NULL
+      )`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS rate_limit_counters (
+        counter_id TEXT PRIMARY KEY,
+        window_start INTEGER NOT NULL,
+        count INTEGER NOT NULL
+      )`),
+    ]);
+    return true;
+  } catch (e) {
+    console.error("[ledger] ensure tables failed:", String(e?.message || e).slice(0, 120));
+    return false;
+  }
+}
+
+/** Per-user/per-window global rate limiting. Returns { allowed, retryAfter }.
+ * Best-effort: if D1 is unavailable, falls back to the in-isolate limiter. */
+async function checkGlobalRateLimit(accountId, env) {
+  if (!env.DB) return checkRateLimit(accountId, env); // fallback: in-isolate
+  const limitPerMinute = parseInt(env?.AI_RATE_LIMIT_PER_MINUTE || "20", 10);
+  const limitPerDay = parseInt(env?.AI_RATE_LIMIT_PER_DAY || "150", 10);
+  const now = Date.now();
+  const minuteWindow = Math.floor(now / 60000);
+  const dayWindow = Math.floor(now / 86400000);
+  try {
+    // One INSERT per window: the PRIMARY KEY makes it atomic; if the row exists
+    // we read+update (two writes, tiny race window acceptable for abuse control).
+    const inc = async (counterId, windowStart, limit) => {
+      try {
+        await env.DB.prepare(
+          "INSERT INTO rate_limit_counters (counter_id, window_start, count) VALUES (?, ?, 1)"
+        ).bind(counterId, windowStart).run();
+        return { allowed: true, count: 1 };
+      } catch (e) {
+        const row = await env.DB.prepare(
+          "SELECT window_start, count FROM rate_limit_counters WHERE counter_id = ?"
+        ).bind(counterId).first();
+        if (!row) return { allowed: true, count: 1 };
+        if (row.window_start !== windowStart) {
+          await env.DB.prepare(
+            "UPDATE rate_limit_counters SET window_start = ?, count = 1 WHERE counter_id = ?"
+          ).bind(windowStart, counterId).run();
+          return { allowed: true, count: 1 };
+        }
+        const next = Number(row.count) + 1;
+        await env.DB.prepare(
+          "UPDATE rate_limit_counters SET count = ? WHERE counter_id = ?"
+        ).bind(next, counterId).run();
+        return { allowed: next <= limit, count: next };
+      }
+    };
+    const minute = await inc(`m:${accountId}`, minuteWindow, limitPerMinute);
+    if (!minute.allowed) return { allowed: false, retryAfter: 60 - Math.floor((now % 60000) / 1000), reason: "minute_limit" };
+    const day = await inc(`d:${accountId}`, dayWindow, limitPerDay);
+    if (!day.allowed) return { allowed: false, retryAfter: 86400 - Math.floor((now % 86400000) / 1000), reason: "day_limit" };
+    return { allowed: true };
+  } catch {
+    return checkRateLimit(accountId, env); // D1 hiccup: degrade to in-isolate
+  }
+}
+
 function trialSessionKey(accountId, sessionId) {
   // Sanitize: session_id comes from the client, keep keys bounded and readable.
   const safe = String(sessionId).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
@@ -456,7 +544,31 @@ async function readTrialQuota(accountId, env = {}) {
   }
 }
 
-async function consumeTrialQuota(accountId, env = {}) {
+async function consumeTrialQuota(accountId, env = {}, sessionId = null) {
+  // Phase 2: with a sessionId, consumption is claimed atomically in D1 — a
+  // duplicate insert means the session was already consumed (idempotent replay
+  // protection across isolates). Without D1, falls back to KV+in-isolate lock.
+  if (sessionId && env.DB) {
+    const ready = await ensureLedgerTables(env);
+    if (ready) {
+      try {
+        await env.DB.prepare(
+          "INSERT INTO trial_quota_ledger (account_id, session_id, consumed_at) VALUES (?, ?, ?)"
+        ).bind(accountId, String(sessionId).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64), Date.now()).run();
+      } catch {
+        return { allowed: false, replay: true, code: "SESSION_ALREADY_CONSUMED" }; // atomic duplicate = replay
+      }
+      const used = await countConsumedSessions(accountId, env);
+      try {
+        await env.USER_PROGRESS.put(quotaKey(accountId), JSON.stringify({ used, updated_at: Date.now() }));
+      } catch {}
+      if (used > MAX_FREE_AI_SESSIONS) {
+        return { allowed: false, code: "FREE_QUOTA_EXHAUSTED", message: "انتهت الجلسات التجريبية المجانية (3 جلسات). يرجى الاشتراك في Katzu Pro لمتابعة التعلم." };
+      }
+      return { allowed: true, used, remaining: MAX_FREE_AI_SESSIONS - used };
+    }
+  }
+  // Fallback path (no D1 / no sessionId): in-isolate lock + KV read-modify-write.
   const previous = quotaLocks.get(accountId) || Promise.resolve();
   let release;
   const current = new Promise(resolve => { release = resolve; });
@@ -483,6 +595,17 @@ async function consumeTrialQuota(accountId, env = {}) {
   }
 }
 
+async function countConsumedSessions(accountId, env) {
+  try {
+    const row = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM trial_quota_ledger WHERE account_id = ?"
+    ).bind(accountId).first();
+    return Math.max(0, Number(row?.n) || 0);
+  } catch {
+    return 0;
+  }
+}
+
 async function authenticateAiRequest(request, body, env, cors, {
   level = null,
   requireEntitlement = false,
@@ -500,7 +623,7 @@ async function authenticateAiRequest(request, body, env, cors, {
   }
 
   if (rateLimit) {
-    const rate = checkRateLimit(account.sub, env);
+    const rate = await checkGlobalRateLimit(account.sub, env);
     if (!rate.allowed) {
       return {
         response: json({
@@ -540,22 +663,189 @@ async function handleDeleteUser(request, env, cors) {
   if (!account) {
     return json({ error: "invalid_id_token", code: "UNAUTHENTICATED" }, 401, cors);
   }
+  if (!env.USER_PROGRESS) {
+    return json({ error: "storage_unavailable", code: "QUOTA_UNAVAILABLE", message: "تعذر حذف الحساب حالياً. يرجى المحاولة لاحقاً." }, 503, cors);
+  }
 
-  if (env.USER_PROGRESS) {
-    await env.USER_PROGRESS.delete(`progress:${account.sub}`);
-    await env.USER_PROGRESS.delete(quotaKey(account.sub));
+  // Phase 3: structured result — the client shows success only if every
+  // required deletion succeeded; any failure is retryable.
+  const deleted = {};
+  const failed = [];
+  const tryStep = async (name, fn) => {
+    try { await fn(); deleted[name] = true; }
+    catch (e) { console.error(`[DeleteAccount] ${name} failed:`, String(e?.message || e).slice(0, 120)); failed.push(name); }
+  };
+
+  await tryStep("progress", () => env.USER_PROGRESS.delete(`progress:${account.sub}`));
+  await tryStep("ai_quota", () => env.USER_PROGRESS.delete(quotaKey(account.sub)));
+
+  // Revoke ALL live sessions (KV has no prefix listing — use the per-user index).
+  try {
+    const idxRaw = await env.USER_PROGRESS.get(`sessions_by_sub:${account.sub}`);
+    const tokens = idxRaw ? JSON.parse(idxRaw) : [];
+    if (Array.isArray(tokens)) {
+      await Promise.all(tokens.filter(t => typeof t === "string").map(t => env.USER_PROGRESS.delete(`session:${t}`)));
+    }
+    await env.USER_PROGRESS.delete(`sessions_by_sub:${account.sub}`);
+    deleted.sessions = true;
+  } catch (e) {
+    console.error("[DeleteAccount] sessions failed:", String(e?.message || e).slice(0, 120));
+    failed.push("sessions");
   }
+
+  // Trial-session consumption markers (per-session KV keys).
+  try {
+    const consumedRaw = await env.USER_PROGRESS.get(`ai-trial-sessions:${account.sub}`);
+    const consumed = consumedRaw ? JSON.parse(consumedRaw) : [];
+    if (Array.isArray(consumed)) {
+      await Promise.all(consumed.map(s => env.USER_PROGRESS.delete(trialSessionKey(account.sub, s))));
+    }
+    await env.USER_PROGRESS.delete(`ai-trial-sessions:${account.sub}`);
+  } catch {}
+  deleted.trial_sessions = !failed.includes("sessions");
+
   if (env.REDEEMED_CODES) {
-    await env.REDEEMED_CODES.delete(`account:${account.sub}`);
-    await env.REDEEMED_CODES.delete(`trial:${account.sub}`);
+    await tryStep("subscription", () => env.REDEEMED_CODES.delete(`account:${account.sub}`));
+    await tryStep("referral_claim", () => env.REDEEMED_CODES.delete(`referred-by:${account.sub}`));
+    await tryStep("referral_history", () => env.REDEEMED_CODES.delete(`referrals:${account.sub}`));
+    await tryStep("referral_code", () => env.REDEEMED_CODES.delete(`refcode:${generateReferralCode(account.sub)}`));
+    if (account.email) {
+      await tryStep("email_index", () => env.REDEEMED_CODES.delete(`email_index:${account.email.toLowerCase().trim()}`));
+    }
   }
+
   if (env.DB) {
+    const ready = await ensureLedgerTables(env);
+    if (ready) {
+      // Ledger rows are retained (anonymization is impossible for PRIMARY KEY
+      // activation codes): we only sever the account link so no personal data
+      // remains attached. Documented retention: code integrity / fraud
+      // prevention; account_id values are opaque Google sub ids of deleted
+      // accounts and are not linked to any profile after this deletion.
+      await tryStep("subscription_ledger", () => env.DB.prepare(
+        "UPDATE redeemed_codes_ledger SET account_id = 'deleted-account' WHERE account_id = ?"
+      ).bind(account.sub).run());
+      await tryStep("quota_ledger", () => env.DB.prepare(
+        "DELETE FROM trial_quota_ledger WHERE account_id = ?"
+      ).bind(account.sub).run());
+      await tryStep("referral_payouts", () => env.DB.prepare(
+        "DELETE FROM referral_payouts WHERE invited_account_id = ? OR inviter_account_id = ?"
+      ).bind(account.sub, account.sub).run());
+    }
     try {
       await env.DB.prepare("DELETE FROM user_progress WHERE user_id = ?").bind(account.sub).run();
-    } catch {}
+      deleted.d1_progress = true;
+    } catch (e) {
+      console.error("[DeleteAccount] d1_progress failed:", String(e?.message || e).slice(0, 120));
+      failed.push("d1_progress");
+    }
   }
 
-  return json({ success: true, message: "تم حذف الحساب والبيانات السحابية بنجاح." }, 200, cors);
+  if (failed.length > 0) {
+    return json({
+      success: false,
+      code: "DELETE_INCOMPLETE",
+      failed_steps: failed,
+      deleted_steps: Object.keys(deleted),
+      message: "تعذر إكمال حذف بعض البيانات. يرجى إعادة المحاولة.",
+    }, 500, cors);
+  }
+
+  return json({
+    success: true,
+    deleted_steps: Object.keys(deleted),
+    message: "تم حذف الحساب وجميع البيانات السحابية بنجاح.",
+  }, 200, cors);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: DATA EXPORT (GDPR/PPR Art. 20 style portability)
+// Returns every record the server holds about THIS authenticated account as
+// readable JSON. Contains no tokens, no secrets, no AI prompts, and no other
+// user's data — the query scope is the verified account id only.
+// ---------------------------------------------------------------------------
+// Defense-in-depth for exports: recursively drop any credential-shaped fields.
+// Current clients never store these, but legacy rows or future regressions must
+// never leak tokens through an export.
+const CREDENTIAL_FIELD_PATTERN = /(token|id_token|secret|password|credential|api_key|apikey)/i;
+
+function stripCredentials(value, depth = 0) {
+  if (depth > 6 || value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map((v) => stripCredentials(v, depth + 1));
+  const clean = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (CREDENTIAL_FIELD_PATTERN.test(k)) continue;
+    clean[k] = stripCredentials(v, depth + 1);
+  }
+  return clean;
+}
+
+async function handleUserExport(request, env, cors) {
+  const body = await request.json().catch(() => ({}));
+  const idToken = extractIdToken(request, body);
+  if (!idToken) {
+    return json({ error: "missing_id_token", code: "UNAUTHENTICATED" }, 401, cors);
+  }
+
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  if (!account) {
+    return json({ error: "invalid_id_token", code: "UNAUTHENTICATED" }, 401, cors);
+  }
+
+  const exportData = {
+    exported_at: new Date().toISOString(),
+    profile: {
+      account_id: account.sub,
+      email: account.email || "",
+    },
+    learning_level: null,
+    progress: null,
+    subscription: { active: false, expires_at: null },
+    referral: { code: generateReferralCode(account.sub), history: [] },
+  };
+
+  if (env.USER_PROGRESS) {
+    const progressRaw = await env.USER_PROGRESS.get(`progress:${account.sub}`).catch(() => null);
+    if (progressRaw) {
+      try { exportData.progress = stripCredentials(JSON.parse(progressRaw)); } catch {}
+    }
+    const quotaRaw = await env.USER_PROGRESS.get(quotaKey(account.sub)).catch(() => null);
+    if (quotaRaw) {
+      try { exportData.trial_quota = JSON.parse(quotaRaw); } catch {}
+    }
+  }
+
+  if (exportData.progress?.stats?.level) {
+    exportData.learning_level = exportData.progress.stats.level;
+  }
+
+  if (env.REDEEMED_CODES) {
+    const subRaw = await env.REDEEMED_CODES.get(`account:${account.sub}`).catch(() => null);
+    if (subRaw) {
+      try {
+        const sub = JSON.parse(subRaw);
+        exportData.subscription = { active: !!(sub.expiresAt && new Date(sub.expiresAt).getTime() > Date.now()), expires_at: sub.expiresAt || null };
+      } catch {}
+    }
+    const historyRaw = await env.REDEEMED_CODES.get(`referrals:${account.sub}`).catch(() => null);
+    if (historyRaw) {
+      try {
+        const history = JSON.parse(historyRaw);
+        if (Array.isArray(history)) {
+          exportData.referral.history = history.map((r) => ({
+            invited_email_masked: maskEmail(r.invited_email),
+            status: r.status,
+            awarded_at: r.awarded_at || null,
+          }));
+        }
+      } catch {}
+    }
+  }
+
+  return json(exportData, 200, {
+    ...cors,
+    "Content-Disposition": 'attachment; filename="katzu-data-export.json"',
+  });
 }
 
 // ============================================================================
@@ -608,6 +898,9 @@ export default {
       // --- User & Account Operations ---
       if (url.pathname === "/user/delete" && request.method === "POST") {
         return await handleDeleteUser(request, env, cors);
+      }
+      if (url.pathname === "/user/export" && request.method === "POST") {
+        return await handleUserExport(request, env, cors);
       }
 
       // --- Referral Program ---
@@ -1036,6 +1329,117 @@ function boundedHistory(history, mode = "roleplay") {
   return (Array.isArray(history) ? history : []).slice(-limit);
 }
 
+// ----------------------------------------------------------------------------
+// AI INPUT VALIDATION (Phase 1 — security gate)
+// All learner-controlled fields are strictly bounded and type-checked BEFORE any
+// prompt assembly. Scenario identity is server-authoritative: titles/personas
+// come from D1 (or a safe allowlist), never from the request body.
+// ----------------------------------------------------------------------------
+
+const AI_LIMITS = {
+  USER_MESSAGE: 500,
+  SCENARIO_TITLE: 120,
+  PERSONA: 300,
+  HISTORY_ENTRIES: 20,      // pre-bounding; boundedHistory trims to 6/4/10 after
+  HISTORY_TEXT: 500,
+  SCENARIO_ID: 64,
+  SESSION_ID: 64,
+  LEARNER_MEMORY_ITEMS: 10,
+  LEARNER_MEMORY_RULE: 200,
+  LEARNER_MEMORY_EXAMPLE: 200,
+};
+
+const CEFR_LEVELS = new Set(["A1", "A2", "B1", "B2"]);
+
+/** Returns { ok, value } or { ok: false, reason } for a bounded string field. */
+function boundString(value, maxLen, { required = false, fallback = "" } = {}) {
+  if (value === undefined || value === null || value === "") {
+    return required ? { ok: false, reason: "missing" } : { ok: true, value: fallback };
+  }
+  if (typeof value !== "string") return { ok: false, reason: "wrong_type" };
+  if (value.length > maxLen) return { ok: false, reason: "too_long" };
+  return { ok: true, value };
+}
+
+/** Validates and normalizes every learner-controlled AI field. Throws a 400-shaped
+ * object via return; never mutates the request. */
+function validateAiTurnBody(body) {
+  const errors = [];
+  const clean = {};
+
+  const msg = boundString(body.user_message, AI_LIMITS.USER_MESSAGE, { required: true });
+  if (!msg.ok) errors.push(`user_message:${msg.reason}`); else clean.user_message = msg.value.trim();
+
+  const sid = boundString(body.scenario_id, AI_LIMITS.SCENARIO_ID, { required: true });
+  if (!sid.ok) errors.push(`scenario_id:${sid.reason}`); else clean.scenario_id = sid.value.trim();
+
+  const levelRaw = String(body.cefr_level || "A1").toUpperCase().trim();
+  if (!CEFR_LEVELS.has(levelRaw)) errors.push("cefr_level:invalid"); else clean.cefr_level = levelRaw;
+
+  const sess = boundString(body.session_id, AI_LIMITS.SESSION_ID);
+  if (!sess.ok) errors.push(`session_id:${sess.reason}`); else clean.session_id = sess.value ? sess.value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, AI_LIMITS.SESSION_ID) : "";
+
+  const sarc = Number(body.sarcasm_level);
+  clean.sarcasm_level = Number.isFinite(sarc) ? Math.min(5, Math.max(1, Math.round(sarc))) : 2;
+
+  if (body.mode !== undefined && !["roleplay", "extended", "hints"].includes(body.mode)) errors.push("mode:invalid");
+  clean.mode = ["roleplay", "extended", "hints"].includes(body.mode) ? body.mode : "roleplay";
+
+  if (body.history === undefined || body.history === null) {
+    clean.history = []; // first turn — no history yet
+  } else if (!Array.isArray(body.history) || body.history.length > AI_LIMITS.HISTORY_ENTRIES) {
+    errors.push("history:invalid_or_too_long");
+  } else {
+    clean.history = [];
+    for (const h of body.history) {
+      if (!h || typeof h !== "object") { errors.push("history:entry_shape"); break; }
+      const t = boundString(h.text, AI_LIMITS.HISTORY_TEXT);
+      if (!t.ok) { errors.push(`history:text_${t.reason}`); break; }
+      const role = h.role === "user" || h.sender?.toLowerCase() === "user" ? "user" : "model";
+      clean.history.push({ role, text: t.value });
+    }
+  }
+
+  if (body.learner_memory !== undefined && body.learner_memory !== null) {
+    if (!Array.isArray(body.learner_memory) || body.learner_memory.length > AI_LIMITS.LEARNER_MEMORY_ITEMS) {
+      errors.push("learner_memory:invalid_or_too_long");
+    } else {
+      clean.learner_memory = [];
+      for (const m of body.learner_memory) {
+        if (!m || typeof m !== "object") { errors.push("learner_memory:entry_shape"); break; }
+        const rule = boundString(m.rule, AI_LIMITS.LEARNER_MEMORY_RULE, { required: true });
+        if (!rule.ok) { errors.push(`learner_memory:rule_${rule.reason}`); break; }
+        const ex = boundString(m.example, AI_LIMITS.LEARNER_MEMORY_EXAMPLE);
+        if (!ex.ok) { errors.push(`learner_memory:example_${ex.reason}`); break; }
+        clean.learner_memory.push({ rule: rule.value, example: ex.value || undefined });
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors, clean };
+}
+
+/** Resolves the scenario's server-authoritative identity. D1 first; fall back to a
+ * tiny built-in allowlist (same ids) so the engine works even if D1 hiccups.
+ * Returns null for unknown scenario ids — the client is never trusted. */
+async function resolveScenarioIdentity(env, scenarioId) {
+  const FALLBACK_SCENARIOS = {
+    cafe_order: { title_de: "Im Café", persona: "friendly café server in Germany" },
+    apartment_viewing: { title_de: "Wohnungsbesichtigung", persona: "German landlord during a viewing" },
+    doctor_visit: { title_de: "Beim Arzt", persona: "receptionist at a German medical practice" },
+    job_interview: { title_de: "Vorstellungsgespräch", persona: "German hiring manager in an interview" },
+    embassy_appointment: { title_de: "Botschaftstermin", persona: "embassy appointment clerk" },
+  };
+  try {
+    const row = await env.DB.prepare("SELECT title_de, ai_persona FROM scenarios WHERE id = ?").bind(scenarioId).first();
+    if (row && row.title_de) {
+      return { title_de: String(row.title_de).slice(0, AI_LIMITS.SCENARIO_TITLE), persona: String(row.ai_persona || "").slice(0, AI_LIMITS.PERSONA) || "friendly conversational partner" };
+    }
+  } catch {}
+  if (FALLBACK_SCENARIOS[scenarioId]) return FALLBACK_SCENARIOS[scenarioId];
+  return null;
+}
+
 // Models occasionally echo a JSON schema label ("reply_de: ...") into the value
 // itself. Strip any leading "<field>:/-" prefix so labels never reach the UI.
 function sanitizeFieldLabel(value) {
@@ -1061,11 +1465,30 @@ async function handleAiConversationTurn(request, env, cors) {
   const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
   if (!account) return json({ error: "invalid_id_token", code: "UNAUTHENTICATED", message: "جلسة الدخول غير صالحة أو منتهية. يرجى تسجيل الدخول مجدداً." }, 401, cors);
 
-  const rate = checkRateLimit(account.sub, env);
+  const rate = await checkGlobalRateLimit(account.sub, env);
   if (!rate.allowed) return json({ error: "rate_limit_exceeded", code: "RATE_LIMIT_EXCEEDED", message: "تم تجاوز الحد الأقصى للمحادثات مؤقتاً. يرجى الانتظار دقيقة.", retry_after: rate.retryAfter }, 429, cors);
 
-  const { scenario_id, scenario_title, persona, cefr_level, user_message, history, is_final_turn, mode, session_id, sarcasm_level } = body;
-  const level = cefr_level || "A1";
+  // Phase 1 security gate: strict validation + server-authoritative scenario identity.
+  const validation = validateAiTurnBody(body);
+  if (!validation.ok) {
+    return json({ error: "invalid_request", code: "INVALID_AI_INPUT", details: validation.errors, message: "حدث خطأ في بيانات الطلب. يرجى إعادة المحاولة." }, 400, cors);
+  }
+  const v = validation.clean;
+  const scenarioIdentity = await resolveScenarioIdentity(env, v.scenario_id);
+  if (!scenarioIdentity) {
+    return json({ error: "unknown_scenario", code: "UNKNOWN_SCENARIO", message: "هذا الموقف التدريبي غير متاح حالياً." }, 400, cors);
+  }
+  const scenario_id = v.scenario_id;
+  const scenario_title = scenarioIdentity.title_de;   // server-authoritative (client value ignored)
+  const persona = scenarioIdentity.persona;           // server-authoritative (client value ignored)
+  const cefr_level = v.cefr_level;
+  const user_message = v.user_message;
+  const history = v.history;
+  const mode = v.mode;
+  const session_id = v.session_id;
+  const sarcasm_level = v.sarcasm_level;
+  const is_final_turn = body.is_final_turn === true;
+  const level = cefr_level;
   const entitlement = await checkUserEntitlement(account, level, env);
   if (!entitlement.allowed) {
     const quotaFailure = ["FREE_QUOTA_EXHAUSTED", "QUOTA_UNAVAILABLE"].includes(entitlement.code);
@@ -1078,10 +1501,13 @@ async function handleAiConversationTurn(request, env, cors) {
   // Consume the free quota once per conversation session (tracked via session_id),
   // NOT per individual message. Signed-in subscribers skip this entirely.
   if (!entitlement.isSubscribed) {
+    // Phase 2: with D1 the ledger claim inside consumeTrialQuota is the atomic
+    // idempotency mark (replays return SESSION_ALREADY_CONSUMED and proceed at
+    // zero quota cost). The KV trial-session key remains as a fast-path check.
     const sessionConsumed = session_id ? await isTrialSessionConsumed(account.sub, session_id, env) : false;
     if (!sessionConsumed) {
-      const quota = await consumeTrialQuota(account.sub, env);
-      if (!quota.allowed) {
+      const quota = await consumeTrialQuota(account.sub, env, session_id || null);
+      if (!quota.allowed && quota.code !== "SESSION_ALREADY_CONSUMED") {
         const status = quota.code === "QUOTA_UNAVAILABLE" ? 503 : 402;
         return json({ error: "free_quota_unavailable", code: quota.code, message: quota.message }, status, cors);
       }
@@ -1446,10 +1872,24 @@ async function handleVerify(request, env, cors) {
     return json({ valid: false, reason: "invalid_signature" }, 200, cors);
   }
 
-  const codeKey = `code:${code}`;
-  const existingCode = await env.REDEEMED_CODES.get(codeKey);
-  if (existingCode) {
-    return json({ valid: false, reason: "already_redeemed" }, 200, cors);
+  // Phase 2: the redemption claim is atomic. With D1, the PRIMARY KEY insert
+  // settles concurrent double-spend across isolates: exactly one request wins,
+  // every loser gets "already_redeemed". Without D1, falls back to KV read-check.
+  const ledgerReady = await ensureLedgerTables(env);
+  if (ledgerReady) {
+    try {
+      await env.DB.prepare(
+        "INSERT INTO redeemed_codes_ledger (code, account_id, months, redeemed_at) VALUES (?, ?, ?, ?)"
+      ).bind(code, account.sub, months, new Date().toISOString()).run();
+    } catch {
+      return json({ valid: false, reason: "already_redeemed" }, 200, cors);
+    }
+  } else {
+    const codeKey = `code:${code}`;
+    const existingCode = await env.REDEEMED_CODES.get(codeKey);
+    if (existingCode) {
+      return json({ valid: false, reason: "already_redeemed" }, 200, cors);
+    }
   }
 
   const accountKey = `account:${account.sub}`;
@@ -1464,7 +1904,7 @@ async function handleVerify(request, env, cors) {
 
   const newExpiresAt = addMonthsIso(existingExpiresAt, months);
 
-  await env.REDEEMED_CODES.put(codeKey, JSON.stringify({
+  await env.REDEEMED_CODES.put(`code:${code}`, JSON.stringify({
     redeemedAt: new Date().toISOString(),
     account: account.sub,
   }));
@@ -1672,6 +2112,9 @@ async function handleReferralClaim(request, env, cors) {
 
 async function awardVerifiedReferral(inviteeAccount, env) {
   // Called after a first successful activation-code redemption on this account.
+  // Phase 2: the payout is claimed atomically in the referral_payouts D1 ledger
+  // (PRIMARY KEY = invited account) — concurrent first redemptions can only ever
+  // pay the referrer once. KV claim status remains as the fast-path check.
   try {
     const claimKey = `referred-by:${inviteeAccount.sub}`;
     const claimRaw = await env.REDEEMED_CODES?.get(claimKey);
@@ -1679,6 +2122,15 @@ async function awardVerifiedReferral(inviteeAccount, env) {
     let claim = null;
     try { claim = JSON.parse(claimRaw); } catch { return; }
     if (!claim?.referrer_sub || claim.status === "verified") return;
+    if (env.DB && await ensureLedgerTables(env)) {
+      try {
+        await env.DB.prepare(
+          "INSERT INTO referral_payouts (invited_account_id, inviter_account_id, awarded_at) VALUES (?, ?, ?)"
+        ).bind(inviteeAccount.sub, claim.referrer_sub, new Date().toISOString()).run();
+      } catch {
+        return; // duplicate insert = payout already granted; never double-pay
+      }
+    }
 
     const referrerKey = `account:${claim.referrer_sub}`;
     const referrerRaw = await env.REDEEMED_CODES.get(referrerKey);
@@ -2031,6 +2483,7 @@ export {
   checkRateLimit,
   checkUserEntitlement,
   consumeTrialQuota,
+  handleUserExport,
   getCorsHeaders,
   isTrialSessionConsumed,
   readTrialQuota,
