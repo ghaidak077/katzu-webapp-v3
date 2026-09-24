@@ -5,14 +5,15 @@ Definition: conditions that must be TRUE before **paid public beta**. Each item 
 - [x] `npm run lint` clean · 87/87 tests · build OK · CI on main green
 - [x] Worker deployed & healthy (`/health` ready, keys configured, fallback armed)
 
-## Gate 1 — Security & data safety (Phase 1) — status: OPEN (in progress)
-- [ ] 1.1 No raw Google ID token persisted in IndexedDB; one credential transport; sessions revocable (sign-out + deletion revoke); no raw-token fallback in production. **Status: landed AND on-device verified on the deployed app — 11/11 headless-browser smoke checks passed (IndexedDB has no idToken, header-only transport, sign-out revocation + wipe, real /ai/turn 401 → session invalidated → Arabic re-auth message). Deletion-side revocation lands with 1.2.**
-- [ ] 1.2 Account deletion complete (all key families + local wipe) AND exposed in UI with confirmation, success/failure states. Retention exceptions documented.
-- [ ] 1.3 Data export in UI (JSON archive, no tokens/secrets/prompts).
-- [ ] 1.4 CORS fails closed in production without valid `ALLOWED_ORIGINS`; open mode requires explicit dev flag; covered by worker tests.
-- [ ] 1.5 Atomic: code redemption, referral payout; global (durable) trial quota; progress sync versioned; AI inputs bounded + level allowlisted + server-authoritative scenario data.
-- [ ] TEST_MODE cannot silently run in production.
-- [ ] Admin surface hardened (no browser-typed secret, no innerHTML/inline handlers) or admin blocked from public worker.
+## Gate 1 — Security & data safety (Phase 1) — status: OPEN (residual items only, updated 2026-09-24)
+- [x] 1.1 No raw Google ID token persisted in IndexedDB; one credential transport; sessions revocable (sign-out + deletion revoke); no raw-token fallback in production. **Landed AND on-device verified on the deployed app — 11/11 headless-browser smoke checks passed (IndexedDB has no idToken, header-only transport, sign-out revocation + wipe, real /ai/turn 401 → session invalidated → Arabic re-auth message). Deletion revokes every session through the `sessions_by_sub:` index (worker lines 718-723).**
+- [x] 1.2 Account deletion complete (all key families + D1 ledgers + local wipe) AND exposed in UI with confirmation, success/failure states. **`tests/accountOps.test.ts` proves a second account cannot read the deleted user's data.**
+- [x] 1.3 Data export in UI (JSON archive, no tokens/secrets/prompts).
+- [x] 1.4 CORS fails closed in production without valid `ALLOWED_ORIGINS`; open mode requires explicit dev flag; covered by worker tests. **`ENVIRONMENT=production` is now declared in `wrangler.toml`, so open mode can never engage on this deploy. Live probe: unknown origin → `403 origin_not_allowed`; allowlisted origin → `200`.**
+- [x] 1.5 Atomic redemption (`redeemed_codes_ledger`), idempotent referral payout (`referral_payouts`), durable trial quota (`trial_quota_ledger`), durable rate limits (`rate_limit_counters`); AI inputs bounded + CEFR allowlisted + server-authoritative scenario identity.
+- [ ] Progress sync versioned / conflict-safe under concurrent writes. **Not separately verified — needs its own check.**
+- [x] TEST_MODE cannot silently run in production. **A guard in the worker's fetch entry strips the flag whenever `ENVIRONMENT=production`; `tests/workerSecurity.test.ts` asserts both the guard behaviour and that the deploy config defines no `TEST_MODE`/`NODE_ENV` variable. Live probe with a forged token and the correct `aud` → `401`, proving no bypass is active.**
+- [ ] Admin surface hardened (no browser-typed secret, no innerHTML/inline handlers) or admin blocked from public worker. **Partial: the dashboard now lives in `cloudflare-admin.js`, and no DB- or user-supplied value is interpolated into HTML (every field is written with `textContent`; `innerHTML` is used only to clear containers). Still open: a bearer secret typed into the browser, and static inline `onclick` handlers. Owner action — see `docs/LAUNCH-CHECKLIST.md` §2.2.**
 
 ## Gate 2 — Activation (Phases 2–3) — status: OPEN
 - [ ] Anonymous guided first lesson + limited preview conversation reachable without sign-in.
@@ -37,9 +38,11 @@ Definition: conditions that must be TRUE before **paid public beta**. Each item 
 - [ ] Paywall shows achieved → restricted → outcome, prices, trial/renewal, legal links.
 - [ ] Codes flow retained for B2B/gifts.
 
-## Gate 6 — Legal & trust (Phase 8) — status: OPEN
-- [ ] Privacy/terms final (no draft markers), refund + subscription terms, support email, business identity.
-- [ ] Copy describes *actual* behavior: deletion/export/AI-processing/retention match implementation.
+## Gate 6 — Legal & trust (Phase 8) — status: PARTIAL (updated 2026-09-24)
+- [x] Hosted privacy + terms pages exist and carry no draft markers: `/privacy.html`, `/terms.html` (static, Arabic-first with an English summary, support address `support@ghaidak.com`). The in-app trust screens link to them.
+- [x] Copy describes *actual* behavior: deletion/export/AI-processing/retention match the implementation (checked against the worker's key + ledger inventory, and against the fields the backend really stores: Google `sub` + email, IP, platform, timestamps).
+- [ ] Privacy/terms confirmed by counsel: legal entity, governing law and jurisdiction, log retention window, refund terms, and the age floor (the page currently states 16+).
+- [ ] Refund + subscription terms published for the payment provider once a provider is chosen.
 - [ ] Medical/legal/immigration disclaimers present in relevant scenarios.
 
 ## Gate 7 — Quality (Phase 10) — status: OPEN

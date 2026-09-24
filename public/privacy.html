@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>سياسة الخصوصية — Katzu</title>
+    <meta name="description" content="سياسة الخصوصية والبيانات لتطبيق Katzu لتدريب المحادثة الألمانية." />
+    <link rel="stylesheet" href="/legal.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <a class="brand" href="/">Katzu</a>
+        <h1>سياسة الخصوصية</h1>
+        <p class="meta">آخر تحديث: ٢٤ سبتمبر ٢٠٢٦ · الجهة المشغّلة: Katzu — غيدق علوش · ghaidak.com</p>
+      </header>
+
+      <p>
+        توضّح هذه الصفحة ما نجمعه عند استخدامك تطبيق <strong>Katzu</strong> لتدريب المحادثة
+        بالألمانية، وكيف نستخدمه، وكيف تحذفه. نكتب هنا ما يفعله التطبيق فعلاً، لا صيغة عامة.
+      </p>
+
+      <h2>١. ما نجمعه</h2>
+      <ul>
+        <li>
+          <strong>بيانات الحساب:</strong> عند تسجيل الدخول بحساب Google نستلم معرّف الحساب
+          وبريدك الإلكتروني. لا نرى كلمة مرورك ولا نخزّنها.
+        </li>
+        <li>
+          <strong>بيانات التعلّم:</strong> مستواك (A1–B2)، النقاط، سلسلة الأيام، الجلسات
+          والأخطاء المسجَّلة، الكلمات التي حفظتها، وسجل التدريب. هذه البيانات مرتبطة بحسابك
+          لتستطيع المتابعة من أي جهاز.
+        </li>
+        <li>
+          <strong>سجل تشغيلي:</strong> وقت آخر ظهور، آخر عنوان IP، نوع المنصة، وسجلات أحداث
+          وأخطاء داخلية لأغراض الأمان وتحسين التطبيق. هذه السجلات <strong>لا تحتوي</strong> على
+          رموز تسجيل الدخول ولا على أسرار الخدمة.
+        </li>
+        <li>
+          <strong>تخزين محلي على جهازك:</strong> نُخزّن المحتوى التعليمي وتقدّمك في متصفحك
+          (IndexedDB) لكي يعمل التطبيق دون اتصال. يبقى هذا محلياً حتى تحذف حسابك أو بيانات المتصفح.
+        </li>
+      </ul>
+
+      <h2>٢. معالجة الذكاء الاصطناعي</h2>
+      <p>
+        عندما تتحدث في «المحادثة المباشرة»، تُرسل رسالتك مع سياق السيناريو إلى خادم Katzu
+        الخاص بنا، ثم تُمرَّر إلى مزوّد الذكاء الاصطناعي <strong>Google Gemini</strong> لتوليد
+        ردّ الطرف الآخر، والترجمة العربية، والتصحيح النحوي، والاقتراحات.
+      </p>
+      <p>
+        وإذا تعذّر الوصول إلى Gemini، نستخدم <strong>Cloudflare Workers AI</strong> كمزوّد
+        بديل تلقائياً. كما تُستبدل الاقتراحات بعبارات جاهزة محفوظة على جهازك عند انقطاع الاتصال.
+      </p>
+      <p>
+        <strong>لا نبيع نصوصك ولا نستخدمها للإعلانات</strong>، ولا نستخدمها لتدريب نماذجنا.
+      </p>
+
+      <h2>٣. الجهات التي نتعامل معها</h2>
+      <ul>
+        <li><strong>Google:</strong> لتسجيل الدخول (Google Identity) ولمعالجة المحادثة (Gemini).</li>
+        <li><strong>Cloudflare:</strong> للاستضافة وقواعد البيانات (D1، KV) وللذكاء الاصطناعي البديل (Workers AI).</li>
+      </ul>
+      <p>
+        لا نشارك بياناتك مع أي جهة أخرى، ولا نستخدم شبكات إعلانات أو أدوات تتبّع تسويقية داخل
+        التطبيق. لا يوجد أي تتبّع إعلاني في هذا الموقع.
+      </p>
+
+      <h2>٤. مدة الاحتفاظ</h2>
+      <ul>
+        <li>جلسة الدخول على خادمنا تنتهي تلقائياً بعد <strong>٣٠ يوماً</strong>.</li>
+        <li>بيانات التعلم تبقى ما دام حسابك قائماً، وتُحذف عند طلب الحذف.</li>
+        <li>السجلات التشغيلية للأمان ومنع إساءة الاستخدام تُحفظ لفترة محدودة ثم تُزال دورياً.</li>
+      </ul>
+
+      <h2>٥. حقوقك: التصدير والحذف</h2>
+      <p>من داخل التطبيق ← الإعدادات يمكنك في أي وقت:</p>
+      <ul>
+        <li><strong>تصدير بياناتك</strong> بصيغة JSON قابلة للقراءة.</li>
+        <li>
+          <strong>حذف حسابك نهائياً:</strong> يمحو سجلات التقدّم والجلسات والكلمات المحفوظة
+          وسجل التدريب والحصص وسجلات الإحالة وإحصاءات البريد على الخادم، ويمسح بيانات التطبيق
+          على جهازك، ويُلغي كل جلسات الدخول الجارية.
+        </li>
+      </ul>
+      <p>
+        للتواصل بشأن أي طلب يتعلق ببياناتك:
+        <a href="mailto:support@ghaidak.com">support@ghaidak.com</a>.
+      </p>
+
+      <h2>٦. الأمن</h2>
+      <p>
+        تُنقل كل الاتصالات عبر HTTPS، ويُتحقق من هويتك على الخادم لا على الجهاز. لا نحفظ رمز
+        Google الخام على جهازك، بل نستبدله بجلسة خاصة قابلة الإلغاء عند تسجيل الخروج أو الحذف.
+      </p>
+
+      <h2>٧. الأطفال</h2>
+      <p>هذا التطبيق غير موجّه لمن هم دون ١٦ عاماً، ولا نجمع بيانات عن قصد من هذه الفئة.</p>
+
+      <h2>٨. تغييرات السياسة</h2>
+      <p>
+        عند تغيير هذه السياسة نحدّث تاريخ «آخر تحديث» أعلاه، ونُعلمك داخل التطبيق إذا كان
+        التغيير جوهرياً.
+      </p>
+
+      <div class="notice">
+        <strong>ملاحظة للنسخة الإنجليزية:</strong> النص العربي هو المرجع؛ والترجمة أدناه
+        للتوضيح فقط.
+      </div>
+
+      <section lang="en">
+        <h2>Privacy summary (English, for reference)</h2>
+        <p>
+          Katzu is an Arabic-first German conversation-practice app. We collect your Google
+          account identifier and email when you sign in, plus your learning data (level,
+          sessions, mistakes, saved words, training history) to sync your progress across
+          devices. Conversation messages are sent to our Cloudflare Worker and processed by
+          Google Gemini, with Cloudflare Workers AI as an automatic fallback; we never sell
+          your data, never use it for advertising, and never train models on it. We also keep
+          minimal operational records (last sign-in, IP, platform, error logs) without
+          credentials or secrets. You can export your data as JSON or permanently delete your
+          account from Settings; deletion removes server-side and on-device records and revokes
+          all sessions. Sessions expire after 30 days. Not directed at children under 16.
+          Contact: support@ghaidak.com. The Arabic version is authoritative.
+        </p>
+      </section>
+
+      <footer>
+        <span>صُنع بواسطة غيدق علوش — ghaidak.com</span>
+        <a href="/terms.html">شروط الاستخدام</a>
+        <a href="/">التطبيق</a>
+      </footer>
+    </main>
+  </body>
+</html>
