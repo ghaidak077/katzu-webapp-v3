@@ -68,5 +68,14 @@ Create a production Google OAuth Web client and add the exact HTTPS Pages/custom
 - Refresh offline and confirm cached curriculum/starter phrases remain available while AI clearly reports that an internet connection is required.
 - Test microphone denial and typing fallback in Chrome and Safari.
 - Confirm sign-out removes user-scoped local data and a second account cannot see it.
+- Token hygiene (Phase 1.1b): sign in and confirm the IndexedDB `users` row (`current_user`) contains `sessionToken` but **no `idToken`** (Application → IndexedDB → KatzuWebDB → users); inspect any authenticated request in the Network tab and confirm the credential travels in the `Authorization: Bearer sess_…` header only — no `id_token` field in any request body; sign out and sign back in on a device that had a legacy row to confirm the Dexie v3 upgrade stripped the old stored `idToken` without losing progress (sessions, mistakes, XP intact).
+- Session revocation: sign out and confirm `POST /auth/signout` fires (Network tab); replay a captured `sess_…` token against `/check-status` afterward and confirm it is rejected — a stolen token dies at sign-out instead of living out its TTL.
+- Re-auth path: manually clear the stored `sessionToken` (or wait for expiry) and send a chat message — the error card must ask for re-sign-in («انتهت جلسة الدخول…»); confirm no request is sent with a raw Google token.
 - Test export and account deletion only after confirming the account and data-loss warning.
 - Inspect the production bundle and network requests for API keys, tokens, or personal email addresses.
+
+## 5. Rollback notes (risky changes)
+
+- **Token hygiene (Phase 1.1b):** the worker accepts credentials from the Authorization header first and falls back to `id_token` in the body, so a pre-1.1b app build keeps working against the updated worker — deploy the worker first, ship the app second. Roll back the app build freely; roll back the worker only after old clients are gone. Legacy stored `idToken`s are stripped by the additive Dexie v2→v3 upgrade (no learning data touched); a downgrade to an older app build re-persists tokens on next sign-in — avoid downgrading below v3 schema.
+- **CORS fail-closed (Phase 1.4):** open mode now requires `ALLOW_OPEN_CORS="1"` outside production. If local development breaks, set that var in `wrangler dev` — never in production.
+- **Session revocation (Phase 1.1a):** `/auth/signout` is additive; rolling it back only removes the sign-out revocation convenience — tokens again expire by TTL only.

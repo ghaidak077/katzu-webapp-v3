@@ -155,13 +155,14 @@ describe('WorkerClient API Contract Integration', () => {
       return { ok: false };
     });
 
-    const validRes = await client.verifyCode('de-6m-abcd1234-5678efgh', 'valid_id_token');
+    // Phase 1.1b: credentials are session tokens (sess_*) — raw ID tokens are refused.
+    const validRes = await client.verifyCode('de-6m-abcd1234-5678efgh', 'sess_valid_session_token');
     expect(validRes.success).toBe(true);
     expect(validRes.valid).toBe(true);
     expect(validRes.months).toBe(6);
     expect(validRes.expiresAt).toBe('2026-10-01T00:00:00.000Z');
 
-    const invalidRes = await client.verifyCode('INVALID_CODE', 'valid_id_token');
+    const invalidRes = await client.verifyCode('INVALID_CODE', 'sess_valid_session_token');
     expect(invalidRes.success).toBe(false);
     expect(invalidRes.reason).toBe('invalid_signature');
     expect(invalidRes.error).toBeDefined();
@@ -183,7 +184,7 @@ describe('WorkerClient API Contract Integration', () => {
       return { ok: false };
     });
 
-    const status = await client.checkSubscriptionStatus('user_token_123');
+    const status = await client.checkSubscriptionStatus('sess_user_session_token');
     expect(status.active).toBe(true);
     expect(status.daysRemaining).toBe(45);
     expect(status.expiresAt).toBe('2026-05-30T12:00:00.000Z');
@@ -230,6 +231,10 @@ describe('WorkerClient API Contract Integration', () => {
   });
 
   it('attaches Authorization Bearer header and session_id on /ai/turn', async () => {
+    // Phase 1.1b: credential comes from the stored session token (never a raw ID token).
+    vi.spyOn(await import('../src/lib/db/katzuDb'), 'db', 'get').mockReturnValue({
+      users: { get: async () => ({ sessionToken: 'sess_stored_session_token' }), update: async () => 1 },
+    } as any);
     let capturedHeaders: any = null;
     let capturedBody: any = null;
 
@@ -252,13 +257,13 @@ describe('WorkerClient API Contract Integration', () => {
       userMessage: 'Guten Tag',
       history: [],
       cefrLevel: 'A1',
-      idToken: 'session_token_test_abc',
       sessionId: 'sess_123456789_abcdef',
       isFinalTurn: true,
     });
 
-    expect(capturedHeaders['Authorization']).toBe('Bearer session_token_test_abc');
+    expect(capturedHeaders['Authorization']).toBe('Bearer sess_stored_session_token');
     expect(capturedBody.session_id).toBe('sess_123456789_abcdef');
+    expect(capturedBody.id_token).toBeUndefined();
     expect(capturedBody.is_final_turn).toBe(true);
   });
 });

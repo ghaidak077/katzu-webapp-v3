@@ -127,7 +127,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     const cleanEmail = userEmail.trim().toLowerCase();
     const cleanName = userDisplayName.trim() || cleanEmail.split('@')[0] || 'طالب كَاتْزُو';
 
-    // Exchange Google ID token for worker session JWT
+    // Security (Phase 1.1b): the raw Google ID token is used ONCE here — exchanged
+    // for a server session — and is NEVER written to IndexedDB. If the exchange
+    // fails, sign-in fails honestly: the user retries sign-in (re-running the
+    // Google flow). There is no raw-token fallback.
     let sessionToken: string | undefined = undefined;
     try {
       const sessionResult = await workerClient.exchangeGoogleToken(idToken);
@@ -138,11 +141,18 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       console.warn('Could not exchange token with worker session endpoint:', sessionErr);
     }
 
+    if (!sessionToken) {
+      setErrorMessage('تعذر تأمين جلسة الدخول. تحقق من اتصالك وحاول تسجيل الدخول مرة أخرى.');
+      setIsLoading(false);
+      return;
+    }
+
     await db.users.update('current_user', {
       email: cleanEmail,
       googleAccountEmail: cleanEmail,
       displayName: cleanName,
-      idToken,
+      // idToken is deliberately NOT persisted (only cleared from any legacy row).
+      idToken: undefined,
       sessionToken,
       isLoggedIn: true,
       cefrLevel: level,
@@ -150,7 +160,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     });
 
     // Synchronize cloud subscription status and restore progress
-    const activeAuthToken = sessionToken || idToken;
+    const activeAuthToken = sessionToken;
     try {
       const status = await workerClient.checkSubscriptionStatus(activeAuthToken);
       if (status.active) {

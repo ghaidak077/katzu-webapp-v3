@@ -319,7 +319,7 @@ async function resolveSessionToken(token, env) {
 
 async function handleAuthSession(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const idToken = body?.id_token;
+  const idToken = extractIdToken(request, body);
   if (!idToken || typeof idToken !== "string") {
     return json({ error: "missing_id_token" }, 400, cors);
   }
@@ -1421,7 +1421,7 @@ async function handleAiHealth(env, cors) {
 async function handleVerify(request, env, cors) {
   const body = await request.json().catch(() => null);
   const code = body?.code;
-  const idToken = body?.id_token;
+  const idToken = extractIdToken(request, body);
 
   if (!code || typeof code !== "string") {
     return json({ valid: false, reason: "malformed" }, 400, cors);
@@ -1492,7 +1492,7 @@ async function handleVerify(request, env, cors) {
 
 async function handleCheckStatus(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const idToken = body?.id_token;
+  const idToken = extractIdToken(request, body);
   const now = new Date();
 
   if (!idToken || typeof idToken !== "string") {
@@ -1566,7 +1566,7 @@ async function resolveReferralCode(code, env) {
 
 async function handleReferralInfo(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const idToken = body?.id_token;
+  const idToken = extractIdToken(request, body);
   if (!idToken || typeof idToken !== "string") {
     return json({ error: "missing_id_token", code: "UNAUTHENTICATED" }, 401, cors);
   }
@@ -1610,7 +1610,7 @@ async function handleReferralInfo(request, env, cors) {
 
 async function handleReferralClaim(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const idToken = body?.id_token;
+  const idToken = extractIdToken(request, body);
   const referralCode = body?.referral_code;
 
   if (!idToken || typeof idToken !== "string") {
@@ -1750,7 +1750,7 @@ async function handleAdminGenerate(request, env, cors) {
 
 async function handleProgressSync(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const idToken = body?.id_token;
+  const idToken = extractIdToken(request, body);
   const incomingStats = body?.stats;
   const incomingTrainings = body?.trainings;
   const incomingSavedWordIds = body?.saved_word_ids;
@@ -1800,7 +1800,7 @@ async function handleProgressSync(request, env, cors) {
 
 async function handleProgressGet(request, env, cors) {
   const body = await request.json().catch(() => null);
-  const idToken = body?.id_token;
+  const idToken = extractIdToken(request, body);
 
   if (!idToken || typeof idToken !== "string") {
     return json({ error: "missing_id_token" }, 400, cors);

@@ -69,6 +69,9 @@ export interface UserEntity {
   email: string;
   googleAccountEmail?: string;
   displayName: string;
+  /** @deprecated Security (Phase 1.1b): raw Google ID tokens are NEVER persisted.
+   * Kept optional for schema compatibility with old local rows; credential use is
+   * session tokens only. Sign-in converts the ID token to a session and discards it. */
   idToken?: string;
   sessionToken?: string;
   isLoggedIn: boolean;

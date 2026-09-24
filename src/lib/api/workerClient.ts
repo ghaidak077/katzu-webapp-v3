@@ -139,7 +139,7 @@ export class WorkerClient {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
-        const token = db.users.get('current_user').then((user) => user?.idToken || '');
+        const token = db.users.get('current_user').then((user) => user?.sessionToken || '');
         token.then((value) => { if (value) void this.flushPendingSync(value); });
       });
     }
@@ -147,6 +147,19 @@ export class WorkerClient {
 
   getBaseUrl(): string {
     return this.baseUrl;
+  }
+
+  /** One consistent authenticated-call helper: session token in the Authorization
+   * header ONLY — the request body never carries credentials (Phase 1.1b). */
+  private async authedFetch(path: string, body: Record<string, unknown>, opts: { explicitToken?: string } = {}): Promise<Response> {
+    const token = await this.getEffectiveAuthToken(opts.explicitToken);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    return fetchWithTimeout(`${this.baseUrl}${path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
   }
 
   // --- Auth Session Exchange (/auth/session) ---
@@ -174,9 +187,18 @@ export class WorkerClient {
     return null;
   }
 
+  /**
+   * Resolves the credential for an authenticated call. Security contract (Phase 1.1b):
+   * - Session tokens are the ONLY stored credential (never raw Google ID tokens).
+   * - One consistent transport: Authorization Bearer header only.
+   * - No raw-token fallback: a missing/expired session means re-authentication
+   *   (sign-in re-runs the Google flow and re-exchanges). Returns '' when signed out.
+   */
   async getEffectiveAuthToken(explicitToken?: string): Promise<string> {
     if (explicitToken && explicitToken.trim()) {
-      return explicitToken.trim();
+      // Only session tokens may be injected explicitly; raw ID tokens are refused.
+      const t = explicitToken.trim();
+      return t.startsWith('sess_') ? t : '';
     }
     let currentUser;
     try {
@@ -184,19 +206,7 @@ export class WorkerClient {
     } catch {
       currentUser = undefined;
     }
-    if (currentUser?.sessionToken) {
-      return currentUser.sessionToken;
-    }
-    // If user has idToken but not sessionToken, attempt to exchange
-    if (currentUser?.idToken) {
-      const exchange = await this.exchangeGoogleToken(currentUser.idToken);
-      if (exchange?.session_token) {
-        await db.users.update('current_user', { sessionToken: exchange.session_token });
-        return exchange.session_token;
-      }
-      return currentUser.idToken;
-    }
-    return '';
+    return currentUser?.sessionToken || '';
   }
 
   // --- Curriculum Content Sync ---
@@ -332,15 +342,16 @@ export class WorkerClient {
     try {
       return await this.sendTurnOnce(params);
     } catch (e: any) {
-      // Google ID tokens expire after ~1h. A 401 with a stale stored session
-      // recovers automatically: clear it, re-exchange, retry ONCE — invisible
-      // to the learner. Only surface the error if the retry also fails.
-      if (e?.code === 'UNAUTHENTICATED' && !params.idToken) {
-        logError('ai/turn', '401 received — invalidating session and retrying once');
+      // Security (Phase 1.1b): no raw-token fallback exists, so a 401 cannot be
+      // silently recovered by re-exchanging. The stale session is invalidated and
+      // the learner is asked to re-sign-in — honest failure over fake recovery.
+      if (e?.code === 'UNAUTHENTICATED') {
+        logError('ai/turn', '401 received — session invalid/absent; requiring re-authentication');
         await this.invalidateSession();
-        const retried = await this.sendTurnOnce(params);
-        logEvent('ai/turn', 'Recovered from 401 via session re-exchange');
-        return retried;
+        const err: any = new Error('انتهت جلسة الدخول. يرجى تسجيل الدخول مرة أخرى للمتابعة.');
+        err.code = 'UNAUTHENTICATED';
+        err.status = 401;
+        throw err;
       }
       throw e;
     }
@@ -360,6 +371,8 @@ export class WorkerClient {
     sessionId?: string;
     learnerMemory?: Array<{ rule: string; example?: string }>;
   }): Promise<TurnAiResponse> {
+    // Resolve credential early so a signed-out user fails fast (header-only transport;
+    // the body never carries tokens).
     const token = await this.getEffectiveAuthToken(params.idToken);
 
     // Map history to worker's expected { role: 'user' | 'model', text: string }
@@ -382,7 +395,6 @@ export class WorkerClient {
       session_id: sessionId,
       is_final_turn: !!params.isFinalTurn,
       sarcasm_level: params.sarcasmLevel || 'SASSY',
-      id_token: token,
     };
     if (params.learnerMemory && params.learnerMemory.length > 0) {
       payload.learner_memory = params.learnerMemory;
@@ -512,10 +524,7 @@ export class WorkerClient {
   }): Promise<ContextualHint[]> {
     try {
       const token = await this.getEffectiveAuthToken(params.idToken);
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) {
         headers['Authorization'] = 'Bearer ' + token;
       }
@@ -530,9 +539,6 @@ export class WorkerClient {
         })),
         mode: 'hints',
       };
-      if (token) {
-        bodyPayload.id_token = token;
-      }
 
       const res = await fetchWithTimeout(`${this.baseUrl}/ai/hints`, {
         method: 'POST',
@@ -585,7 +591,7 @@ export class WorkerClient {
       const res = await fetch(`${this.baseUrl}/ai/translate`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ text: trimmed, ...(token ? { id_token: token } : {}) }),
+        body: JSON.stringify({ text: trimmed }),
       });
 
       if (res.ok) {
@@ -634,7 +640,6 @@ export class WorkerClient {
         },
         body: JSON.stringify({
           code: cleanCode,
-          id_token: token,
         }),
       });
 
@@ -686,7 +691,7 @@ export class WorkerClient {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + token,
         },
-        body: JSON.stringify({ id_token: token }),
+        body: JSON.stringify({}),
       });
 
       if (res.ok) {
@@ -723,7 +728,7 @@ export class WorkerClient {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + token,
         },
-        body: JSON.stringify({ id_token: token }),
+        body: JSON.stringify({}),
       });
       if (res.ok) {
         const data = await res.json();
@@ -756,7 +761,7 @@ export class WorkerClient {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + token,
         },
-        body: JSON.stringify({ referral_code: cleanCode, id_token: token }),
+        body: JSON.stringify({ referral_code: cleanCode }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
@@ -857,7 +862,7 @@ export class WorkerClient {
       const res = await fetch(`${this.baseUrl}/progress/sync`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ ...payload, id_token: token }),
+        body: JSON.stringify(payload),
       });
       return res.ok;
     } catch (e) {
@@ -907,7 +912,7 @@ export class WorkerClient {
       const res = await fetch(`${this.baseUrl}/progress/get`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ id_token: token }),
+        body: JSON.stringify({}),
       });
 
       if (res.ok) {
@@ -1042,7 +1047,7 @@ export class WorkerClient {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + token,
         },
-        body: JSON.stringify({ id_token: token }),
+        body: JSON.stringify({}),
       });
       return res.ok;
     } catch (e) {

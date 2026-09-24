@@ -44,7 +44,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
     setErrorMessage('');
     setSuccessMessage('');
 
-    const activeToken = user?.idToken?.trim();
+    const activeToken = user?.sessionToken?.trim();
     if (!user?.isLoggedIn || !activeToken) {
       setErrorMessage('يلزم تسجيل الدخول بحساب Google موثّق قبل تفعيل الكود.');
       return;
@@ -173,7 +173,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
                 disabled={!referralCode.trim()}
                 onClick={async () => {
                   setReferralMessage(null);
-                  const activeToken = user?.idToken?.trim();
+                  const activeToken = user?.sessionToken?.trim();
                   if (!user?.isLoggedIn || !activeToken) {
                     setReferralMessage({ kind: 'error', text: 'يلزم تسجيل الدخول بحساب Google أولاً.' });
                     return;

@@ -65,6 +65,26 @@ class KatzuDatabase extends Dexie {
         mistake.syncId ??= `${mistake.userId}:${mistake.scenarioId}:${mistake.timestamp}:${mistake.original}`;
       });
     });
+    // Security migration (Phase 1.1b): strip raw Google ID tokens from any legacy
+    // user rows. Session tokens are the only stored credential. Additive — no
+    // learning data is touched; users re-sign-in only if they had no session yet.
+    this.version(3).stores({
+      scenarios: 'id, category',
+      starter_phrases: 'id, scenario_id, level, sort_order',
+      vocabulary: 'id, level, topic, part_of_speech',
+      grammar: 'id, level',
+      saved_words: 'wordId, savedAt',
+      users: 'id, email',
+      redeemed_codes: 'code, redeemedAt',
+      sessions: 'id, scenarioId, cefrLevel, timestamp, updatedAt',
+      scenario_training: 'scenarioId, userId, updatedAt',
+      mistakes: '++id, userId, scenarioId, syncId, timestamp, wasHintUsed, updatedAt',
+      sync_queue: '++id, createdAt, nextRetryAt',
+    }).upgrade(async (tx) => {
+      await tx.table('users').toCollection().modify((user: UserEntity) => {
+        if (user.idToken) user.idToken = undefined;
+      });
+    });
   }
 }
 
