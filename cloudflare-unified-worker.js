@@ -197,6 +197,14 @@ function getGeminiApiKeys(env) {
 // CORS & SECURITY CONFIGURATION
 // ============================================================================
 
+// Single source of truth for "is this a production deploy": keeps the CORS
+// allowlist strict and disables test-only auth shortcuts (see fetch below).
+function isProductionEnv(env = {}) {
+  return ["production", "prod"].includes(
+    String(env?.ENVIRONMENT || env?.NODE_ENV || "").toLowerCase()
+  );
+}
+
 function getCorsHeaders(request, env = {}) {
   const origin = request.headers.get("Origin") || "";
   const configuredOrigins = typeof env?.ALLOWED_ORIGINS === "string"
@@ -206,9 +214,7 @@ function getCorsHeaders(request, env = {}) {
     .split(",")
     .map(s => s.trim().replace(/\/+$/, "")) // strip trailing slashes: browsers send Origin without one
     .filter(Boolean);
-  const production = ["production", "prod"].includes(
-    String(env?.ENVIRONMENT || env?.NODE_ENV || "").toLowerCase()
-  );
+  const production = isProductionEnv(env);
   const validOrigin = (value) => {
     try {
       const parsed = new URL(value);
@@ -347,7 +353,8 @@ async function handleAuthSession(request, env, cors) {
     return json({ error: "invalid_id_token" }, 401, cors);
   }
   if (!env.USER_PROGRESS) {
-    // KV unbound: fail open so the app can fall back to using the raw ID token.
+    // KV unbound: no session can be issued. The client holds no raw-token fallback
+    // (token hygiene 1.1b), so it must surface this as a retryable error.
     return json({ error: "session_storage_unavailable" }, 503, cors);
   }
   const sessionToken = await createSessionToken(account, env);
@@ -889,6 +896,15 @@ async function handleUserExport(request, env, cors) {
 
 export default {
   async fetch(request, env) {
+    // Security: TEST_MODE short-circuits Google JWT verification in
+    // verifyGoogleIdToken, so a stale var left in a production deploy would let
+    // anyone mint a session for any account. Neutralize it before any handler
+    // runs (env is a local parameter, so the bypass branch can no longer see it).
+    if (env?.TEST_MODE && isProductionEnv(env)) {
+      console.error("[security] TEST_MODE ignored: the token-verification bypass is disabled in production");
+      env = { ...env, TEST_MODE: undefined };
+    }
+
     const url = new URL(request.url);
     const cors = getCorsHeaders(request, env);
 
