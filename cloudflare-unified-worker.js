@@ -31,6 +31,13 @@ import {
   withAiTelemetry,
 } from "./cloudflare-admin.js";
 
+// Dodo Payments (merchant of record): hosted checkout + signature-verified
+// webhook that grants Pro entitlements. Same extraction rationale as the admin
+// module above — this handlers' code would otherwise sit past the edit tooling's
+// reliable byte range.
+import { handleBillingRoutes } from "./cloudflare-dodo.js";
+import { handleCryptoRoutes } from "./cloudflare-crypto.js";
+
 // ============================================================================
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
 // ============================================================================
@@ -968,6 +975,42 @@ export default {
       // generate) so those continue through the legacy handlers below.
       const adminResponse = await handleAdminRoutes(url, request, env, cors);
       if (adminResponse) return adminResponse;
+
+      // --- Billing (Dodo Payments): /billing/checkout, /billing/webhook,
+      //     /billing/status, /billing/health ---
+      // The webhook is authenticated by its HMAC signature (not by CORS or IP),
+      // so it must be reachable before any origin-specific handling below.
+      const billingResponse = await handleBillingRoutes(url, request, env, cors);
+      if (billingResponse) return billingResponse;
+
+      // --- Crypto sales (NOWPayments): /crypto/checkout, /crypto/webhook,
+      //     /crypto/order, /crypto/health ---
+      // Sold on the separate sales site (katzu-sales); the app itself never calls
+      // these — it only ever redeems a code through /verify below. The webhook is
+      // authenticated by its HMAC signature (not by CORS or IP), so it must be
+      // reachable before any origin-specific handling.
+      // `mintCode` reuses the existing activation-code generator (handleAdminGenerate,
+      // the same function POST /admin/generate serves) instead of re-implementing
+      // the HMAC-signed code format in a second place.
+      const cryptoResponse = await handleCryptoRoutes(url, request, env, cors, {
+        mintCode: async (months) => {
+          const internal = new Request("https://internal/admin/generate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${env.ADMIN_SECRET}`,
+            },
+            body: JSON.stringify({ months }),
+          });
+          const minted = await handleAdminGenerate(internal, env, cors);
+          const data = await minted.json().catch(() => null);
+          if (!minted.ok || !data?.code) {
+            throw new Error(`admin_generate_${minted.status}${data?.error ? `:${data.error}` : ""}`);
+          }
+          return data.code;
+        },
+      });
+      if (cryptoResponse) return cryptoResponse;
 
       // --- Worker 1 Core Auth & Progress Endpoints ---
       if (url.pathname === "/verify" && request.method === "POST") {

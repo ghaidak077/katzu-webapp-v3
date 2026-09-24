@@ -50,7 +50,9 @@ binding = "AI"
 # 2. Auth: TEST_MODE (which skips Google JWT verification) is ignored, so a
 #    stale test var can never mint sessions for real accounts.
 ENVIRONMENT = "production"
-ALLOWED_ORIGINS = "https://katzu-test.ghaidakalosh008.workers.dev,https://katzu-webapp-v3.pages.dev"
+# The sales site (katzu-sales) must be listed here too: the crypto checkout is
+# posted from a browser on that origin, and CORS is strict in production.
+ALLOWED_ORIGINS = "https://katzu-test.ghaidakalosh008.workers.dev,https://katzu-webapp-v3.pages.dev,https://katzu-sales.pages.dev"
 # Public by design (shipped to every browser in the client bundle). Setting it here
 # lets the worker enforce the `aud` claim on Google ID tokens — without it that
 # check is skipped and a token minted for any other OAuth client would be accepted.
@@ -59,3 +61,52 @@ AI_RATE_LIMIT_PER_MINUTE = "10"
 AI_RATE_LIMIT_PER_DAY = "200"
 # Set to "0" to disable the Workers AI fallback (Gemini-only mode).
 AI_FALLBACK_ENABLED = "1"
+
+# ---------------------------------------------------------------------------
+# Billing — Dodo Payments (merchant of record)
+#
+# Two things must be SECRETS, set once with `npx wrangler secret put <NAME>`:
+#   DODO_API_KEY          Dashboard -> Developer -> API keys
+#   DODO_WEBHOOK_SECRET   Dashboard -> Developer -> Webhooks -> <endpoint> -> signing secret
+# Both are required for billing to work: without the API key /billing/checkout
+# answers 503 and card checkout is impossible; without the webhook secret
+# /billing/webhook answers 503 and no entitlement can ever be granted.
+#
+# Everything below is non-secret and reviewable in git.
+# test_mode (default) talks to test.dodopayments.com and cannot move real money.
+# Switch to "live_mode" only once a real test payment has been verified.
+DODO_ENVIRONMENT = "test_mode"
+# Product IDs from Dashboard -> Products. Without a monthly product ID,
+# /billing/checkout answers 503 billing_not_configured.
+DODO_PRODUCT_ID_MONTHLY = ""
+DODO_PRODUCT_ID_ANNUAL = ""
+# Where Dodo returns the customer. Empty = first ALLOWED_ORIGINS entry, which is
+# already correct for the Pages deployment. Set it when a custom domain is live.
+CHECKOUT_RETURN_ORIGIN = ""
+
+# ---------------------------------------------------------------------------
+# Crypto sales — NOWPayments (one-off purchase of an N-month activation code)
+#
+# Sold on the SEPARATE sales site (Cloudflare Pages project `katzu-sales`), not in
+# the app: the buyer pays in crypto, receives an activation code, and redeems it
+# with the app's existing /verify flow. The app itself never calls /crypto/*.
+#
+# Two things must be SECRETS, set once with `npx wrangler secret put <NAME>`:
+#   NOWPAYMENTS_API_KEY      Dashboard -> Store Settings -> API keys
+#   NOWPAYMENTS_IPN_SECRET   Dashboard -> Store Settings -> IPN Secret key
+# Without the API key /crypto/checkout answers 503; without the IPN secret
+# /crypto/webhook answers 503 and no purchase can ever be fulfilled.
+#
+# Everything below is non-secret and reviewable in git.
+# test_mode (default) talks to api-sandbox.nowpayments.io and cannot take real
+# money. Switch to "live_mode" only once a sandbox round-trip has been verified.
+NOWPAYMENTS_ENVIRONMENT = "test_mode"
+# Optional full override of the API base URL. Empty = picked from the environment
+# above (api-sandbox.nowpayments.io / api.nowpayments.io).
+NOWPAYMENTS_BASE_URL = ""
+# Origin of the sales site: where a paying customer is returned, and the only
+# origin allowed to call /crypto/checkout from a browser.
+SALES_ORIGIN = "https://katzu-sales.pages.dev"
+# Price of one activation code and how many months of Pro it grants.
+CRYPTO_PRICE_USD = "5"
+CRYPTO_MONTHS = "1"

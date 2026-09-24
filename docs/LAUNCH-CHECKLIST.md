@@ -5,7 +5,8 @@ Status as of **2026-09-24**. Separated by *who* can do it: everything under
 account, your money, your business identity, or your legal review — not code.
 
 Working deployment: worker `katzu-test` → `https://katzu-test.ghaidakalosh008.workers.dev`,
-app → `https://katzu-webapp-v3.pages.dev`.
+app → `https://katzu-webapp-v3.pages.dev`, sales site → **`https://katzu-sales.pages.dev`**
+(Pages project `katzu-sales`, deployment `d7a6a074`, branch `main`).
 
 ---
 
@@ -23,27 +24,99 @@ app → `https://katzu-webapp-v3.pages.dev`.
 | Admin user registry (free + pro, activity, errors) + SaaS dashboard | live dashboard screenshots in `docs/screenshots/` |
 | `TEST_MODE` cannot bypass verification in production | fetch-entry guard + test; live forged-token probe → `401` |
 | Hosted privacy + terms pages | `/privacy`, `/terms` (required by Google Play and any PSP) |
+| Crypto sales: invoice → signed IPN → activation code → app redemption | `tests/cryptoPayments.test.ts` (24 tests, incl. an end-to-end *signed IPN → code → `/verify` redeems → `/check-status` reports Pro*); live round-trip script `scripts/verify-crypto-live.mjs` (needs the provider's IPN secret) |
+| Sales site (`katzu-sales`) is a separate property: the app has **no** checkout UI and no `billing/checkout` call | app-side checkout code reverted; the app only redeems via `/verify` |
+| Sales site **deployed and live** with product copy, $5 pricing, buy CTA, and the three local Syria payment routes | `https://katzu-sales.pages.dev` (deployment `d7a6a074`) — 22/22 live-browser checks + served-HTML assertions; `/privacy` and `/terms` links are absolute to `katzu-webapp-v3.pages.dev` and both resolve 200 |
+| `/crypto/*` routes live on the worker: health 200 `ok:true`, unauthenticated webhook 401, sales origin allowed, unknown origin 403 | live probes on worker version `7a522d2f` |
 
-Verified this pass: lint exit 0 · **154 tests / 20 files** · build OK · worker bundle 170.84 KiB.
+Verified this pass: lint exit 0 · **201 tests / 22 files** · build OK · worker bundle
+214.81 KiB · `npm run lint && npm test -- --run && npm run build` all green and,
+more importantly: the deployed PWA bundle **rebuilds byte-identical** from `main`
+(sha256 `ae8068719c…` matches `https://katzu-webapp-v3.pages.dev`), and the live
+worker version `fea4190f…` reports `ENVIRONMENT=production`, `GOOGLE_CLIENT_ID`
+set, and **no** `TEST_MODE`/`NODE_ENV` in either vars or secrets. Live browser run
+of the deployed app: 0 console errors, 0 page errors, 0 failed requests.
 
 ---
 
 ## 2. You must do — blocking a *paid* public launch
 
-### 2.1 Money (biggest remaining block)
-The app currently monetizes with **activation codes only**. Selling them needs a
-payment provider.
+### 2.1 Money — **crypto sales** (the live path) and Dodo (closed)
 
-1. **Pick a provider and open the account.** For a solo Arabic-first PWA selling
-   globally, a merchant-of-record (they handle EU VAT + invoices for you) is much
-   less work than raw Stripe: **Paddle** or **Lemon Squeezy**. Choose plain
-   **Stripe** only if you want to own tax/VAT reporting yourself.
-2. **Business identity + banking**: legal name, address, bank account, and tax ID
-   as the provider requires. Individual/sole-proprietor is usually fine to start.
-3. **Set prices** (monthly / annual, and whether the free trial stays 3 AI sessions).
-4. Then hand it to me: checkout + **server-side webhook** that writes the
-   entitlement, plus renewal/cancel/refund/restore paths. Nothing in the app
-   currently depends on a provider, so this is additive.
+**Dodo Payments is closed for this account.** Its published eligibility policy keys
+on the country that issued the founder's government ID, and the only ID available is
+Syrian, which is not on its accepted list. Do not re-open that thread; the app-side
+checkout work was reverted as part of this pass so the two properties stay separate.
+
+**The live path is a separate sales site + crypto checkout.** Architecture:
+
+```
+katzu-sales  (Cloudflare Pages, static)      Katzu webapp (Pages) + worker
+  → POST /crypto/checkout → invoice URL        → POST /verify  (activation code)
+  → NOWPayments IPN  → POST /crypto/webhook    (unchanged; no payment UI in the app)
+  → success.html shows the activation code
+```
+
+**Done in code (verified, not just written):**
+
+- `cloudflare-crypto.js` — `POST /crypto/checkout` (invoice created server-side, only
+  `checkout_url` + the buyer's claim token returned), `POST /crypto/webhook` (the only
+  fulfillment authority: HMAC-SHA512 `x-nowpayments-sig` verification over the
+  key-sorted body, `payment_id:status` replay ledger, `finished`-only delivery, a
+  conditional UPDATE as the concurrency guard, and a 5xx + released claim so a
+  provider retry can finish an unfulfilled paid order), `GET /crypto/order` (the
+  buyer's code, gated by the claim token), `GET /crypto/health` (booleans only).
+  Additive tables: `crypto_orders`, `crypto_events`.
+- Codes are minted by the **existing** generator (`handleAdminGenerate`, the same
+  function `POST /admin/generate` serves) — the code format is not duplicated.
+- `sales/` — the Arabic-first sales site: product one-screen pitch, $5/1-month price,
+  crypto checkout, a manual **local Syria** section (Syriatel Cash / MTN Cash / local
+  bank transfer + Telegram), the success page that reveals the code, and links to the
+  app's hosted `/privacy` and `/terms`.
+- No secret is in any client bundle: the app bundle and the sales site were both
+  scanned for key-shaped strings (clean); the API key and IPN secret are Worker
+  secrets and `/crypto/health` never echoes them.
+
+**What only you can do:**
+
+1. **Open the NOWPayments account** (`nowpayments.io`) and confirm at signup that no
+   ID/nationality check is required for a crypto-only merchant. Their own policy says
+   the KYB/KYC procedure is asked for "in a rare case when a certain transaction is
+   marked as suspicious", and upfront only for fiat options — do not enable fiat
+   payouts, which is what would trigger ID verification. If they reject the account
+   anyway, tell me and the fallback is a self-hosted BTCPay Server (zero third-party
+   onboarding, no KYC at all, but it needs your own VPS + wallet xpub).
+2. **Create the two secrets** (without the key `/crypto/checkout` answers 503; without
+   the IPN secret `/crypto/webhook` answers 503 and nothing can be fulfilled):
+
+   ```bash
+   npx wrangler secret put NOWPAYMENTS_API_KEY      # Store Settings -> API keys
+   npx wrangler secret put NOWPAYMENTS_IPN_SECRET   # Store Settings -> IPN Secret key
+   ```
+
+   IPN endpoint to register: `https://katzu-test.ghaidakalosh008.workers.dev/crypto/webhook`
+3. **Fill in `sales.js`**: the Telegram handle and the Syriatel/MTN/bank details, then
+   redeploy the sales site. (The Pages project `katzu-sales` is already deployed and
+   live at https://katzu-sales.pages.dev — no build command, uploaded directory
+   `sales`, so a redeploy is one command.) Until those values are filled the Telegram
+   button stays disabled and a visible warning names exactly what is missing, so an
+   unfilled value can never ship as a dead call to action; the published
+   `support@ghaidak.com` email fallback works today.
+4. **Verify end to end**: `NOWPAYMENTS_IPN_SECRET='...' node scripts/verify-crypto-live.mjs`
+   (creates a real sandbox invoice, proves no code before payment, posts a correctly
+   signed `finished` notification, prints the minted code, proves replay mints
+   nothing), then complete one **real sandbox payment** on the printed checkout URL
+   and run again with `--poll=300 --no-simulate` so the provider's own notification is
+   what fulfills the order. Finally paste the code into the app once
+   (**شاشة الاشتراك ← تفعيل الكود**) — that redemption is the human proof the loop is
+   closed. Then set `NOWPAYMENTS_ENVIRONMENT = "live_mode"`.
+5. **Local Syria payments are manual by design**: no automation, no queue. A buyer pays
+   by Syriatel Cash / MTN Cash / bank transfer, sends proof on Telegram, and you mint
+   the code by hand from the admin dashboard (`POST /admin/generate`).
+
+**Still not built** (deliberately out of this pass — say the word and it's next):
+self-serve refunds; an admin view of `crypto_orders` beyond a D1 query; and an
+in-app "manage subscription" screen (not applicable to one-off codes).
 
 ### 2.2 Security actions only you can take
 5. **Rotate `ADMIN_SECRET`.** The value you pasted in chat is now the live secret,
@@ -77,6 +150,17 @@ payment provider.
     Play Billing; short title ≤ 30 chars; zero-permission photo picker;
     `AppLogger` floating debug UI disabled when `BuildConfig.DEBUG == false`.
 
+### 2.4 Domain and indexing (found in the 2026-09-24 pass)
+12. **Attach the production domain.** `public/robots.txt` and `public/sitemap.xml`
+    advertise `https://katzu.app/`, but that host does **not** currently resolve
+    (`curl https://katzu.app/` → no DNS). The app is live on
+    `https://katzu-webapp-v3.pages.dev`. Either attach `katzu.app` to the Pages
+    project (recommended — it is what your store listing and legal URLs should
+    point at) or tell me the real domain and I will update robots, sitemap,
+    `ALLOWED_ORIGINS`, and the CSP `connect-src` in one commit. Indexing is
+    cosmetic today; the store/PSP requirement is only that the privacy URL
+    resolves somewhere you control, which it does.
+
 ---
 
 ## 3. You must do — to reach a *confident* public launch
@@ -98,6 +182,20 @@ Launch gate 3 is still open: the "أول 30 يوم في ألمانيا" track is
 D1. This is content authoring + approval, not code — and it's the single biggest
 lever on retention. I can add scenarios via the admin Content tab or the API as
 soon as you approve the outline.
+
+Measured live on 2026-09-24, so you can judge it against the outline:
+
+| Content | Live count |
+| --- | --- |
+| Scenarios | **5** — embassy appointment, café order, job interview, doctor visit, apartment viewing |
+| Conversation openers | **5 × 4 levels** — every scenario has a real `initial_message_{a1,a2,b1,b2}` |
+| Starter phrases (hint fallback) | **20** — only 1 per scenario per level |
+| Vocabulary | **114** words — A1 31 / A2 30 / B1 27 / B2 26 |
+| Grammar rules | **4** — one per level |
+
+The mechanics are finished; the library is a thin vertical slice. A 30-day track
+realistically needs ~30 scenarios and several hundred words before retention
+figures mean anything, so treat this as the main pre-marketing work item.
 
 ### 3.3 Beta cohort
 Launch gate 7: 30–50 Arabic-speaking learners, plus a plan for the feedback loop.
@@ -123,8 +221,12 @@ server-side errors, but nothing captures client-side crashes yet).
 ## 5. How to re-verify anything
 
 ```bash
-npm run lint && npm test -- --run && npm run build     # 154 tests must pass
+npm run lint && npm test -- --run && npm run build     # 201 tests must pass
+curl -sI https://katzu-sales.pages.dev/                     # live sales site must be 200
+curl -s  https://katzu-test.ghaidakalosh008.workers.dev/crypto/health   # ok:true; ready:true once the keys are set
 node scripts/verify-admin-live.mjs --secret=<ADMIN_SECRET>   # live admin + free-user lookup
+node scripts/verify-crypto-live.mjs --ipn=<NOWPAYMENTS_IPN_SECRET>  # live crypto round-trip (invoice → signed IPN → code)
+node scripts/verify-dodo-live.mjs --secret=<DODO_WEBHOOK_SECRET> --admin=<ADMIN_SECRET>  # Dodo (dormant: no keys set)
 node scripts/capture-admin-screenshots.mjs --secret=<ADMIN_SECRET>  # refresh dashboard PNGs
 ```
 
