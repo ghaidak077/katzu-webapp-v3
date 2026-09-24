@@ -199,9 +199,10 @@ function getCorsHeaders(request, env = {}) {
     }
   };
   const validConfiguration = allowed.length > 0 && allowed.every(validOrigin);
-  // Open access while no origin allowlist is configured (local dev / first deploy).
-  // Setting ALLOWED_ORIGINS to a valid origin list immediately switches to strict mode.
-  const openMode = !validConfiguration && !production;
+  // Open access ONLY when a valid origin allowlist is configured as absent AND the
+  // deploy explicitly opts in with ALLOW_OPEN_CORS="1" (local dev convenience).
+  // Production is always strict: missing/malformed config => cross-origin rejected (fail closed).
+  const openMode = !validConfiguration && !production && String(env?.ALLOW_OPEN_CORS || "") === "1";
   const originAllowed = openMode || !origin || (validConfiguration && allowed.includes(origin));
   const allowOrigin = openMode && origin ? origin : (origin && originAllowed ? origin : "");
 
@@ -258,7 +259,49 @@ async function createSessionToken(account, env) {
     created_at: Date.now(),
     expires_at: Date.now() + SESSION_TOKEN_TTL_MS,
   }), { expirationTtl: Math.floor(SESSION_TOKEN_TTL_MS / 1000) });
+  // Per-user session index so sign-out-all / account deletion can enumerate and
+  // revoke every live session (KV has no prefix listing; bounded to 20 sessions).
+  try {
+    const idxKey = `sessions_by_sub:${account.sub}`;
+    const raw = await env.USER_PROGRESS.get(idxKey);
+    const tokens = raw ? JSON.parse(raw) : [];
+    const next = Array.isArray(tokens) ? tokens.filter(t => typeof t === "string") : [];
+    next.unshift(token);
+    await env.USER_PROGRESS.put(idxKey, JSON.stringify(next.slice(0, 20)), { expirationTtl: Math.floor(SESSION_TOKEN_TTL_MS / 1000) });
+  } catch {}
   return token;
+}
+
+async function revokeSessionToken(token, env) {
+  if (!env.USER_PROGRESS || typeof token !== "string") return false;
+  await env.USER_PROGRESS.delete(`session:${token}`);
+  return true;
+}
+
+async function handleAuthSignout(request, env, cors) {
+  const body = await request.json().catch(() => null);
+  const token = extractIdToken(request, body); // same transport: Bearer header or id_token body field
+  if (!token || !isSessionToken(token)) {
+    return json({ error: "missing_session_token", code: "UNAUTHENTICATED" }, 401, cors);
+  }
+  const session = await resolveSessionToken(token, env);
+  if (!session) {
+    // Already expired/revoked — treat as idempotent success so sign-out never blocks the user.
+    return json({ success: true, revoked: false }, 200, cors);
+  }
+  await revokeSessionToken(token, env);
+  // Remove from the user's session index (best-effort).
+  try {
+    const idxKey = `sessions_by_sub:${session.sub}`;
+    const raw = await env.USER_PROGRESS.get(idxKey);
+    if (raw) {
+      const tokens = JSON.parse(raw);
+      if (Array.isArray(tokens)) {
+        await env.USER_PROGRESS.put(idxKey, JSON.stringify(tokens.filter(t => t !== token)));
+      }
+    }
+  } catch {}
+  return json({ success: true, revoked: true }, 200, cors);
 }
 
 async function resolveSessionToken(token, env) {
@@ -545,6 +588,9 @@ export default {
       // --- AI Engine Endpoints (6+ Keys, Cooldown Tracking & Failover) ---
       if (url.pathname === "/auth/session" && request.method === "POST") {
         return await handleAuthSession(request, env, cors);
+      }
+      if (url.pathname === "/auth/signout" && request.method === "POST") {
+        return await handleAuthSignout(request, env, cors);
       }
       if ((url.pathname === "/ai/turn" || url.pathname === "/turn") && request.method === "POST") {
         return await handleAiConversationTurn(request, env, cors);

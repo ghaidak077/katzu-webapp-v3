@@ -105,6 +105,7 @@ function AppRoutes() {
 
   // Sign out handler
   const handleSignOut = async () => {
+    try { await workerClient.signOutSession(); } catch { /* best-effort */ }
     await wipeUserScopedData();
     navigate('/signin');
   };

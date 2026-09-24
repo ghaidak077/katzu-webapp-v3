@@ -1009,6 +1009,27 @@ export class WorkerClient {
     return false;
   }
 
+  // --- Session revocation (/auth/signout) ---
+  // Best-effort: never blocks local sign-out; server session is revoked so a
+  // stolen/copied token dies immediately instead of living out its 30-day TTL.
+  async signOutSession(): Promise<boolean> {
+    try {
+      const token = await this.getEffectiveAuthToken();
+      if (!token) return false;
+      const res = await fetch(`${this.baseUrl}/auth/signout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify({}),
+      });
+      return res.ok;
+    } catch {
+      return false; // network failure must not prevent local sign-out
+    }
+  }
+
   // --- Delete User Account & Cloud Data (/user/delete) ---
 
   async deleteAccount(idToken?: string): Promise<boolean> {

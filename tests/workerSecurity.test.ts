@@ -176,4 +176,112 @@ describe('Worker security controls', () => {
       reason: 'minute_limit',
     });
   });
+
+  describe('session revocation (Phase 1.1)', () => {
+    const signIn = async (envOverrides: Record<string, unknown> = {}) => {
+      const env = {
+        TEST_MODE: true,
+        GOOGLE_CLIENT_ID: 'client-id',
+        USER_PROGRESS: new MemoryKv(),
+        ...envOverrides,
+      };
+      const res = await worker.fetch(new Request('https://worker.test/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: token(validPayload()) }),
+      }), env);
+      const data = await res.json() as { session_token?: string };
+      return { env, sessionToken: data.session_token as string };
+    };
+
+    it('revokes a live session on /auth/signout; subsequent use is rejected', async () => {
+      const { env, sessionToken } = await signIn();
+
+      const signout = await worker.fetch(new Request('https://worker.test/auth/signout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: '{}',
+      }), env);
+      expect(signout.status).toBe(200);
+      expect(await signout.json()).toMatchObject({ success: true, revoked: true });
+
+      // The revoked token no longer resolves.
+      const reuse = await worker.fetch(new Request('https://worker.test/auth/signout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: '{}',
+      }), env);
+      expect(await reuse.json()).toMatchObject({ success: true, revoked: false });
+    });
+
+    it('is idempotent for unknown/expired tokens and rejects non-session tokens', async () => {
+      const { env } = await signIn();
+
+      const unknown = await worker.fetch(new Request('https://worker.test/auth/signout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_doesnotexist' },
+        body: '{}',
+      }), env);
+      expect(await unknown.json()).toMatchObject({ success: true, revoked: false });
+
+      const notSession = await worker.fetch(new Request('https://worker.test/auth/signout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token(validPayload())}` },
+        body: '{}',
+      }), env);
+      expect(notSession.status).toBe(401);
+    });
+
+    it('records sessions in a per-user index for future bulk revocation/deletion', async () => {
+      const { env, sessionToken } = await signIn();
+      const raw = await env.USER_PROGRESS.get(`session:${sessionToken}`);
+      expect(raw).toBeTruthy();
+      const record = JSON.parse(raw as string) as { sub: string };
+      const idx = JSON.parse(await env.USER_PROGRESS.get(`sessions_by_sub:${record.sub}`) as string) as string[];
+      expect(idx).toContain(sessionToken);
+    });
+  });
+
+  describe('CORS matrix (Phase 1.4)', () => {
+    const req = (origin?: string) => new Request('https://worker.test/health', {
+      headers: origin ? { Origin: origin } : {},
+    });
+
+    it('allows an approved origin', () => {
+      const env = { ALLOWED_ORIGINS: 'https://app.example' };
+      expect(getCorsHeaders(req('https://app.example'), env)._corsAllowed).toBe(true);
+    });
+
+    it('rejects an unknown origin', () => {
+      const env = { ALLOWED_ORIGINS: 'https://app.example' };
+      expect(getCorsHeaders(req('https://evil.example'), env)._corsAllowed).toBe(false);
+    });
+
+    it('allows requests without an Origin header (same-origin / server-to-server)', () => {
+      const env = { ALLOWED_ORIGINS: 'https://app.example' };
+      expect(getCorsHeaders(req(), env)._corsAllowed).toBe(true);
+    });
+
+    it('fails closed in production when ALLOWED_ORIGINS is missing or malformed', () => {
+      expect(getCorsHeaders(req('https://app.example'), { ENVIRONMENT: 'production' })._corsAllowed).toBe(false);
+      expect(getCorsHeaders(req('https://app.example'), {
+        ENVIRONMENT: 'production',
+        ALLOWED_ORIGINS: 'not-an-origin,https://ok.example',
+      })._corsAllowed).toBe(false);
+    });
+
+    it('fails closed in development without the explicit open-CORS dev flag (behavior change)', () => {
+      expect(getCorsHeaders(req('https://app.example'), {})._corsAllowed).toBe(false);
+      expect(getCorsHeaders(req('https://app.example'), { ENVIRONMENT: 'dev' })._corsAllowed).toBe(false);
+    });
+
+    it('opens only with the explicit ALLOW_OPEN_CORS=1 dev flag outside production', () => {
+      const env = { ALLOW_OPEN_CORS: '1' };
+      const headers = getCorsHeaders(req('https://localhost:5173'), env);
+      expect(headers._corsAllowed).toBe(true);
+      expect(headers['Access-Control-Allow-Origin']).toBe('https://localhost:5173');
+      // The flag must never open production.
+      expect(getCorsHeaders(req('https://app.example'), { ...env, ENVIRONMENT: 'production' })._corsAllowed).toBe(false);
+    });
+  });
 });
