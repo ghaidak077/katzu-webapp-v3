@@ -22,7 +22,7 @@ app → `https://katzu-webapp-v3.pages.dev`.
 | Bounded AI inputs, CEFR allowlist, server-resolved scenario identity | `tests/workerSecurity.test.ts` (Phase 1 gate) |
 | Admin user registry (free + pro, activity, errors) + SaaS dashboard | live dashboard screenshots in `docs/screenshots/` |
 | `TEST_MODE` cannot bypass verification in production | fetch-entry guard + test; live forged-token probe → `401` |
-| Hosted privacy + terms pages | `/privacy.html`, `/terms.html` (required by Google Play and any PSP) |
+| Hosted privacy + terms pages | `/privacy`, `/terms` (required by Google Play and any PSP) |
 
 Verified this pass: lint exit 0 · **154 tests / 20 files** · build OK · worker bundle 170.84 KiB.
 
