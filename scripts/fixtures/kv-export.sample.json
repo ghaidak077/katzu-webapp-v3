@@ -1,0 +1,10 @@
+[
+  { "key": "email_index:legacy1@test.dev", "value": "sub-legacy-1" },
+  { "key": "account:sub-legacy-1", "value": "{\"email\":\"legacy1@test.dev\",\"expiresAt\":\"2027-01-01T00:00:00.000Z\",\"updatedAt\":\"2026-01-01T00:00:00.000Z\"}" },
+  { "key": "email_index:legacy2@test.dev", "value": "sub-legacy-2" },
+  { "key": "account:sub-legacy-3", "value": "{\"email\":\"legacy3@test.dev\",\"expiresAt\":null}" },
+  { "key": "code:DE-1M-ABCD1234-SIGVALUE", "value": "{\"account\":\"sub-legacy-1\"}" },
+  { "key": "referrals:sub-legacy-1", "value": "[]" },
+  { "key": "account:sub-broken", "value": "{not json" },
+  { "key": "email_index:", "value": "" }
+]

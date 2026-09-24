@@ -10,7 +10,26 @@
  * - GOOGLE_CLIENT_ID (Secret)
  * - GEMINI_API_KEYS (Secret: comma-separated list of 6+ keys)
  *   OR GEMINI_API_KEY, GEMINI_API_KEY_1..6 (Individual secrets)
+ *
+ * The admin control plane (user registry, telemetry, dashboard) lives in
+ * ./cloudflare-admin.js. Measured: the edit tooling applied diffs to this file
+ * reliably up to ~48 KB of byte offset (16329, 18106, 37419, 48404 all fine)
+ * but failed with "old string not found" on grep-verified unique anchors at
+ * 63195, 77597 and 82988 — which is exactly where the admin handlers sat.
+ * Wrangler bundles the import below into the single deployed worker.
  */
+
+import {
+  ensureRegistryTables,
+  upsertUserFromAccount,
+  markUserPro,
+  recordActivity,
+  recordError,
+  purgeUserRegistry,
+  handleAdminRoutes,
+  withVerifyRegistry,
+  withAiTelemetry,
+} from "./cloudflare-admin.js";
 
 // ============================================================================
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
@@ -332,6 +351,12 @@ async function handleAuthSession(request, env, cors) {
     return json({ error: "session_storage_unavailable" }, 503, cors);
   }
   const sessionToken = await createSessionToken(account, env);
+
+  // Registry write-through: every sign-in registers or refreshes the canonical
+  // user row, so a free user who never redeems a code is still known to admins.
+  await upsertUserFromAccount(account, request, env);
+  await recordActivity(env, account.sub, "session_created", { via: "auth_session" });
+
   return json({ session_token: sessionToken, expires_in: SESSION_TOKEN_TTL_MS / 1000 }, 200, cors);
 }
 
@@ -460,6 +485,8 @@ async function ensureLedgerTables(env) {
         count INTEGER NOT NULL
       )`),
     ]);
+    // Additive user registry + activity/error telemetry tables (SaaS admin).
+    await ensureRegistryTables(env);
     return true;
   } catch (e) {
     console.error("[ledger] ensure tables failed:", String(e?.message || e).slice(0, 120));
@@ -751,6 +778,12 @@ async function handleDeleteUser(request, env, cors) {
     }, 500, cors);
   }
 
+  // Registry + telemetry cleanup on a fully successful deletion: drop the
+  // account's email/IP registry row and its per-user telemetry, leaving only an
+  // anonymized deletion event (no user id) for the audit trail.
+  await purgeUserRegistry(env, account.sub);
+  await recordActivity(env, null, "account_deleted", { via: "user_request" });
+
   return json({
     success: true,
     deleted_steps: Object.keys(deleted),
@@ -842,6 +875,8 @@ async function handleUserExport(request, env, cors) {
     }
   }
 
+  await recordActivity(env, account.sub, "data_exported", { sections: Object.keys(exportData).length });
+
   return json(exportData, 200, {
     ...cors,
     "Content-Disposition": 'attachment; filename="katzu-data-export.json"',
@@ -883,13 +918,13 @@ export default {
         return await handleAuthSignout(request, env, cors);
       }
       if ((url.pathname === "/ai/turn" || url.pathname === "/turn") && request.method === "POST") {
-        return await handleAiConversationTurn(request, env, cors);
+        return await withAiTelemetry(() => handleAiConversationTurn(request, env, cors), request, env, "ai_turn");
       }
       if ((url.pathname === "/ai/translate" || url.pathname === "/translate") && request.method === "POST") {
-        return await handleAiTranslation(request, env, cors);
+        return await withAiTelemetry(() => handleAiTranslation(request, env, cors), request, env, "ai_translate");
       }
       if ((url.pathname === "/ai/hints" || url.pathname === "/hints") && request.method === "POST") {
-        return await handleAiHints(request, env, cors);
+        return await withAiTelemetry(() => handleAiHints(request, env, cors), request, env, "ai_hints");
       }
       if ((url.pathname === "/ai/health" || url.pathname === "/health") && request.method === "GET") {
         return handleAiHealth(env, cors);
@@ -911,19 +946,16 @@ export default {
         return await handleReferralClaim(request, env, cors);
       }
 
-      // --- Admin Dashboard (GET /admin or GET /admin/) ---
-      if ((url.pathname === "/admin" || url.pathname === "/admin/") && request.method === "GET") {
-        return new Response(renderAdminDashboardHtml(env), {
-          headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-          },
-        });
-      }
+      // --- Admin Control Plane (registry, telemetry, SaaS dashboard) ---
+      // Delegates /admin, /admin/api/* and the admin lookup/edit/revoke/progress
+      // actions. Returns null for routes it does not own (content CRUD, upload,
+      // generate) so those continue through the legacy handlers below.
+      const adminResponse = await handleAdminRoutes(url, request, env, cors);
+      if (adminResponse) return adminResponse;
 
       // --- Worker 1 Core Auth & Progress Endpoints ---
       if (url.pathname === "/verify" && request.method === "POST") {
-        return await handleVerify(request, env, cors);
+        return await withVerifyRegistry(() => handleVerify(request, env, cors), env);
       }
       if (url.pathname === "/check-status" && request.method === "POST") {
         return await handleCheckStatus(request, env, cors);
@@ -997,6 +1029,9 @@ export default {
       return json({ error: "not_found" }, 404, cors);
     } catch (err) {
       console.error("[Worker Error]", err);
+      // Telemetry: any unhandled 5xx path is recorded so it shows up in the
+      // admin error feed instead of only in tail logs.
+      await recordError(env, null, "server_error", url.pathname, err);
       return json({ error: "server_error" }, 500, cors);
     }
   },
