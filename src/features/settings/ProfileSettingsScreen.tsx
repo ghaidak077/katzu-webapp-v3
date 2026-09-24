@@ -60,6 +60,12 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   const [diagnosticsText, setDiagnosticsText] = useState('');
   const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
   const [logCount, setLogCount] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const [exportDone, setExportDone] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting' | 'success' | 'error'>('idle');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -136,6 +142,34 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
     if (!newName.trim()) return;
     await db.users.update('current_user', { displayName: newName.trim() });
     setShowEditName(false);
+  };
+
+  // --- Data export (Phase 4): server-held data as a readable JSON download ---
+  const handleExportData = async () => {
+    setExporting(true);
+    setExportDone(false);
+    try {
+      const ok = await workerClient.exportUserData();
+      setExportDone(ok);
+      if (ok) setTimeout(() => setExportDone(false), 3000);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // --- Account deletion (Phase 3): irreversible, explicit, retryable on failure ---
+  const handleDeleteAccount = async () => {
+    setDeleteStatus('deleting');
+    setDeleteError('');
+    const result = await workerClient.deleteAccount();
+    if (result.success) {
+      setDeleteStatus('success');
+      // Server sessions revoked + cloud data deleted; wipe local and return to sign-in.
+      setTimeout(() => onSignOut(), 1500);
+    } else {
+      setDeleteStatus('error');
+      setDeleteError(result.message || 'تعذر حذف الحساب. يرجى إعادة المحاولة.');
+    }
   };
 
   return (
@@ -381,6 +415,82 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           تسجيل الخروج من الحساب
         </Button>
       </div>
+
+      {/* Data Export (Phase 4) */}
+      <Card className="p-4 mt-4 mb-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <Download className="w-4 h-4 text-primary" />
+          <span className="text-xs font-bold text-text-secondary">تصدير بياناتي</span>
+        </div>
+        <p className="text-[11px] text-text-muted leading-relaxed">
+          نزّل نسخة JSON من كل ما نحتفظ به عنك على الخادم: مستواك، تقدمك، جلساتك، أخطائك، وحالة اشتراكك. لا تتضمن النسخة أي رموز دخول أو بيانات حساسة.
+        </p>
+        <button
+          onClick={handleExportData}
+          disabled={exporting}
+          className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all bg-surface-subtle border-border-subtle text-primary hover:bg-primary/10 disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          {exporting ? 'جاري التحضير…' : exportDone ? 'تم تنزيل الملف ✓' : 'تنزيل نسخة بياناتي'}
+        </button>
+      </Card>
+
+      {/* Account Deletion (Phase 3): warning → explicit confirmation → delete */}
+      <Card className="p-4 mb-4 border border-status-error/40 space-y-3">
+        <div className="flex items-center gap-2">
+          <Trash2 className="w-4 h-4 text-status-error" />
+          <span className="text-xs font-bold text-status-error">حذف الحساب نهائياً</span>
+        </div>
+        <p className="text-[11px] text-text-muted leading-relaxed">
+          حذف الحساب <b className="text-status-error">لا يمكن التراجع عنه</b>. سيتم حذف نهائي لـ: تقدمك ومستواك، جميع الجلسات والأخطاء المحفوظة، الكلمات المحفوظة، أيام التتابع، حالة الاشتراك المتبقية، وكل بياناتك السحابية، مع إنهاء جميع جلسات الدخول فوراً.
+        </p>
+        {!showDeleteConfirm ? (
+          <button
+            onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(''); setDeleteStatus('idle'); setDeleteError(''); }}
+            className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all bg-status-error/10 border-status-error/40 text-status-error hover:bg-status-error/20"
+          >
+            أريد حذف حسابي
+          </button>
+        ) : deleteStatus === 'success' ? (
+          <div className="py-2.5 rounded-xl text-xs font-bold bg-status-success/15 border border-status-success/40 text-status-success text-center">
+            تم حذف الحساب بنجاح. وداعاً… إلى اللقاء مع كاتزو 🐱
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-[11px] text-text-secondary">
+              اكتب <b className="font-mono" dir="ltr">حذف</b> للتأكيد النهائي:
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="w-full h-11 bg-black border border-border-subtle focus:border-status-error rounded-xl px-4 text-sm font-arabic outline-none"
+              placeholder="اكتب هنا للتأكيد"
+            />
+            {deleteStatus === 'error' && (
+              <div className="p-2.5 rounded-xl bg-status-error/10 border border-status-error/40 text-[11px] text-status-error">
+                {deleteError}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteStatus('idle'); }}
+                disabled={deleteStatus === 'deleting'}
+                className="py-2.5 rounded-xl text-xs font-bold border bg-surface-subtle border-border-subtle text-text-secondary disabled:opacity-50"
+              >
+                تراجع
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText.trim() !== 'حذف' || deleteStatus === 'deleting'}
+                className="py-2.5 rounded-xl text-xs font-bold bg-status-error text-white disabled:opacity-40"
+              >
+                {deleteStatus === 'deleting' ? 'جاري الحذف…' : 'تأكيد الحذف النهائي'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Edit Name Modal */}
       <Modal isOpen={showEditName} onClose={() => setShowEditName(false)} title="تعديل الاسم">
