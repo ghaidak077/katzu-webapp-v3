@@ -16,8 +16,14 @@
  * Exit code 0 = every check passed. Non-zero = at least one check failed.
  */
 
-const WORKER_URL = process.env.WORKER_URL || 'https://katzu-test.ghaidakalosh008.workers.dev';
-const SECRET = process.env.ADMIN_SECRET;
+// The secret is accepted as an argument too, because some sandboxes block
+// reading process.env outright. It is never logged or echoed.
+const ARG_SECRET = (process.argv.find((a) => a.startsWith('--secret=')) || '').slice('--secret='.length);
+const WORKER_URL =
+  (process.argv.find((a) => a.startsWith('--url=')) || '').slice('--url='.length) ||
+  process.env.WORKER_URL ||
+  'https://katzu-test.ghaidakalosh008.workers.dev';
+const SECRET = ARG_SECRET || process.env.ADMIN_SECRET;
 
 let failures = 0;
 const pass = (name, detail = '') => console.log(`PASS  ${name}${detail ? ` :: ${detail}` : ''}`);
@@ -53,11 +59,13 @@ async function main() {
 
   if (!SECRET) {
     console.log(
-      '\nADMIN_SECRET is not set in this shell — skipping the authenticated checks.\n' +
-        "Re-run as:  ADMIN_SECRET='<secret>' node scripts/verify-admin-live.mjs\n"
+      '\nNo admin secret supplied — skipping the authenticated checks.\n' +
+        "Re-run as:  ADMIN_SECRET='<secret>' node scripts/verify-admin-live.mjs\n" +
+        '        or:  node scripts/verify-admin-live.mjs --secret=<secret>\n'
     );
     process.exit(failures ? 1 : 3);
   }
+  console.log('Using supplied admin secret (value never printed).\n');
 
   const api = (path, opts = {}) =>
     fetch(`${WORKER_URL}${path}`, {
