@@ -39,7 +39,7 @@ Definition: conditions that must be TRUE before **paid public beta**. Each item 
 - [ ] Codes flow retained for B2B/gifts.
 
 ## Gate 6 — Legal & trust (Phase 8) — status: PARTIAL (updated 2026-09-24)
-- [x] Hosted privacy + terms pages exist and carry no draft markers: `/privacy.html`, `/terms.html` (static, Arabic-first with an English summary, support address `support@ghaidak.com`). The in-app trust screens link to them.
+- [x] Hosted privacy + terms pages exist and carry no draft markers: `/privacy`, `/terms` (static files in `public/`; Arabic-first with an English summary, support address `support@ghaidak.com`). Live-checked `200` on the deployed app; the in-app trust screens link to them.
 - [x] Copy describes *actual* behavior: deletion/export/AI-processing/retention match the implementation (checked against the worker's key + ledger inventory, and against the fields the backend really stores: Google `sub` + email, IP, platform, timestamps).
 - [ ] Privacy/terms confirmed by counsel: legal entity, governing law and jurisdiction, log retention window, refund terms, and the age floor (the page currently states 16+).
 - [ ] Refund + subscription terms published for the payment provider once a provider is chosen.

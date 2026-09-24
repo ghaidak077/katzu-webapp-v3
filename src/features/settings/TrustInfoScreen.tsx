@@ -62,7 +62,7 @@ export const TrustInfoScreen: React.FC<TrustInfoScreenProps> = ({ page, onBack }
             النسخة الكاملة المنشورة:{' '}
             <a
               className="text-primary underline"
-              href={page === 'privacy' ? '/privacy.html' : '/terms.html'}
+              href={page === 'privacy' ? '/privacy' : '/terms'}
               target="_blank"
               rel="noreferrer"
             >
