@@ -180,11 +180,9 @@ else, so listening gaps are not a separate forgotten list. 18 new tests.
 **Why dictation rather than "choose what you heard":** every other exercise in the app can be
 passed by recognising text on screen. Dictation cannot. It is the only one that forces the
 learner to hold the sound, segment it into words, and reconstruct German — the skill needed in
-a Bürgeramt queue or on the phone.
+a Bürgeramt queue or on the phone.**Still open in this phase:** reading texts (needs a `reading_texts` D1 table and authored content), graded writing (needs a `POST /ai/check-writing` endpoint), grammar production drills, and per-skill reporting in the session report.
 
-**Still open in this phase:** reading texts (needs a `reading_texts` D1 table and authored
-content), graded writing (needs a `POST /ai/check-writing` endpoint), grammar production
-drills, and per-skill reporting in the session report.
+**Authored but not shippable yet (2026-09-25):** five reading texts with Arabic translation and comprehension questions, five writing tasks with rubrics, and five exam-format tasks for module 1 exist in the `deferred` block of `docs/content/curriculum-30day-module1.json`. They are deliberately outside the loadable tables — no script reads them and the audit fails if a loadable table name appears there — because the three tables they need do not exist. See `docs/CURRICULUM-DRAFT.md`.
 
 - **Listening — dictation.** Play German through the existing TTS (`useSpeechOutput`), learner
   types what they heard, diff-scored with tolerance for umlauts/ß and punctuation. Include a
@@ -278,6 +276,31 @@ it is the level where learners are already paying for courses today.
 **Goal:** a library that justifies weeks of study and a monthly price.
 **Effort:** ongoing; mostly authoring, with a strict quality gate.
 
+**Shipped so far (2026-09-25): the draft pipeline and module 1.** Module 1
+(الوصول والتسجيل — 5 scenarios, 74 vocabulary rows, 30 starter phrases, 10 grammar
+points, plus five reading texts, five writing tasks and five exam-format tasks)
+is authored in `docs/content/curriculum-30day-module1.json` and **explicitly
+unreviewed**: it is in no database and no learner can see it. What *is* shipped and
+enforced is the pipeline around it. `src/lib/content/curriculumAudit.ts` validates a
+draft against the real D1 column contract, the real `scenarioToVocabTopic` join and
+the per-scenario standard — with no dependency on `@/` aliases, so a Node CLI and
+the test suite enforce identical rules. `scripts/audit-curriculum.mjs` runs it in CI
+through `npm test`; `tests/curriculumAudit.test.ts` (22 tests) gates the shipped
+draft and pins every rule; and `scripts/load-curriculum.mjs` is the only sanctioned
+load path — dry-run by default and refusing to write while `review.status` is not
+`approved`. It is idempotent (existing rows are skipped, because `vocabulary` has no
+unique key) and verifies the write against the public `/scenarios` and `/vocabulary`
+endpoints afterwards. Review surface: `docs/CURRICULUM-DRAFT.md`.
+
+**Still open in this phase:** the module cannot be loaded by an agent —
+`ADMIN_SECRET` is not in the workspace environment and the Cloudflare token has no
+`D1:Edit` scope (`code 7403`), so the owner runs one command after reviewing.
+Modules 2–6 are not written. Vocabulary pools per *topic*, not per scenario, so
+two scenarios sharing a category share one word pool — after this module loads the
+`documents` pool spans three scenarios, which dilutes quiz relevance. Fixing that
+needs a `topic` column on the scenarios table. D1 also has no `status` column, so
+the review gate is a process guarantee rather than a database constraint.
+
 - **Track: "أول 30 يوم في ألمانيا" — 6 modules × ~5 scenarios.** Arrival & registration ·
   bureaucracy & documents · housing · work & Ausbildung · health · study & university.
   Each scenario is a place a learner will actually stand in.
@@ -349,6 +372,23 @@ can score anything but conversation.
 - **Streak protection and a real weekly goal** (the `weeklyGoalDays` field already exists and
   is unused): a missed day must be recoverable, never punitive — punitive streaks generate
   churn, protective ones generate loyalty.
+**Shipped so far (2026-09-25): the public landing page.** `/` used to be a blind
+redirect to `/app/trail`, so a stranger was bounced straight into a name form and
+had nothing to read — cold traffic converted at zero.
+`src/features/marketing/LandingScreen.tsx` now states the promise in Arabic and RTL
+(Arabic-first, German for real life, speak out loud daily, honest progress), shows
+Katzu, and routes into `/welcome` and `/signin`; a signed-in learner sees "متابعة
+رحلتك" instead of the pitch. Every claim is limited to what the app actually does —
+reading, writing and exam formats are listed under "قريباً", not marketed as shipped.
+Two real funnel defects were fixed with it: the privacy and terms pages were
+unreachable to signed-out visitors (the route bounced them to sign-in), and the
+unknown-route fallback sent strangers to an onboarding form instead of the landing
+page.
+
+**Still open in this phase:** a taste before the account (one free scenario without
+sign-in), the shareable Arabic progress card, streak protection and a real weekly
+goal (`weeklyGoalDays` exists and is unused), and the free-tier rebalance below.
+
 - **Free tier rebalance.** Three AI sessions is a hard wall in front of the value. Give the
   first scenario *fully* free (all four skills, a complete conversation), then build the
   paywall around the moment the learner wants more scenarios and levels — not around their
