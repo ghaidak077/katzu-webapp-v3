@@ -1,0 +1,353 @@
+# Katzu — Learning Roadmap (A1 → B2)
+
+**Status:** plan for owner review · written 2026-09-25
+**Scope of this document:** app quality, learning method, content, and the four skills
+(speaking, listening, reading, writing) for **A1–B2 only**, with German exam readiness.
+Payment, domain, and legal items are deliberately out of scope.
+
+Everything below is grounded in what the code actually does today (verified in this
+repository), not in what the docs claim. Where a claim is measured, the measurement is
+given.
+
+---
+
+## 1. Where the product actually stands today
+
+### 1.1 The loop that exists
+
+```
+Trail  →  Scenario  →  Study (flashcards)  →  Quiz (4 multiple-choice)  →  Live Conversation  →  Session Report
+                                                                                                      ↓
+                                                                                          XP · streak · missions · promotion
+```
+
+Verified in code:
+
+| Piece | Reality |
+| --- | --- |
+| Conversation engine | Two AI calls per learner turn — an in-character roleplay reply, then a **separate** pedagogical evaluation (so the partner character never breaks to correct you). JSON-schema enforced, 6-message window, Arabic roast on German grammar absurdity, `next_hint` + an Arabic follow-up question. |
+| Quiz | `generateQuizQuestions()` builds 4 MCQ items from real D1 vocabulary + starter phrases. It already refuses ambiguous Arabic glosses (`optionsCollide`) and rejects non-Arabic translations. |
+| Progress | XP, streak, rotating daily missions, and a level-promotion rule (3 sessions at a level, ≥4 independent sentences each, ≥75% average accuracy). |
+| Hints | 2–4 *distinct conversational moves* per turn with an intent tag, plus cached starter phrases as an always-available floor. |
+| Offline | Dexie + service-worker precache; `/progress/sync` + `/progress/get` with a retry queue. |
+| Free tier | 3 AI sessions, enforced per session id server-side; paywall at exhaustion. |
+
+**This is a genuinely good core.** The roleplay/evaluation split is better than most
+competitors, and the hint-move design is real pedagogy, not decoration.
+
+### 1.2 The measured gaps
+
+| Gap | Measurement | Consequence for the learner |
+| --- | --- | --- |
+| **No memory engine** | `nextReview`, `reviewDue`, `srs` → **0 references in 46 source files** | They practise a word once and never see it again. This is the single largest learning defect in the product. |
+| **No placement** | `placement`, `levelTest` → **0 references** | Everyone starts at A1 regardless of ability. An A2 learner is bored on day one and leaves. |
+| **Only two of four skills** | Speaking (conversation) + recognition (MCQ). No reading, no listening, no writing task types exist. | Cannot honestly claim to prepare anyone for an exam — Goethe/telc/DTZ all test four modules. |
+| **Content is a thin slice** | Live: **5 scenarios**, 114 vocabulary rows, **4** grammar rules, 20 starter phrases | 5 scenarios is a demo. It cannot carry weeks of study, so retention dies before payment is ever a question. |
+| **No mistake memory** | `mistakes` rows are stored but never resurfaced except in one practice screen; no taxonomy | The app forgets your error pattern. A coach's core value is remembering what *you* keep getting wrong. |
+| **No competency model** | Progress = XP, streak, accuracy % | XP is not learning. Nobody can answer "what can I now do in German?" |
+| **No analytics** | `analytics` → **0 references** | We cannot see where learners quit, so we cannot improve the funnel. |
+| **No crash reporting** | `Sentry`/client error reporting → **0 references**; server side has `error_reports` | A silent client crash is invisible. |
+
+### 1.3 What "replacing a course and a coach" actually requires
+
+A course gives you a **sequence**, a **syllabus**, **four skills**, and **exam fidelity**.
+A coach gives you **memory of your errors**, **corrective feedback**, **accountability**,
+and **someone to speak to daily**. Katzu already has the hardest and most expensive piece
+— an always-available patient conversation partner with Arabic explanations. What it lacks
+is the *system around it*: sequence, memory, the other three skills, and proof of progress.
+
+---
+
+## 2. What the best apps do — and where the opening is
+
+| App | What it wins on | What it does badly |
+| --- | --- | --- |
+| **Duolingo** | Habit mechanics (streak, leagues, short sessions). World-class retention engineering. | Shallow spaced repetition, almost no real speaking, weak exam relevance. |
+| **Babbel** | Structured curriculum, grammar taught explicitly, real dialogues, CEFR-aligned path. | Speaking is scripted; little free production; not built for immigration timelines. |
+| **Busuu** | Native-speaker community correction on your writing/speaking; official certificates. | Feedback is slow and inconsistent; no daily conversation partner. |
+| **Pimsleur** | Audio-first, **graduated interval recall**, forces you to produce out loud. Excellent for spoken fluency. | No reading/writing depth, no visual context, dated UX. |
+| **Speak / Langua (AI)** | High-volume AI speaking with instant feedback. | English-first, not Arabic-native, thin grammar explanation, no exam formats. |
+| **Anki** | The real thing for spaced repetition; unbeatable retention per minute. | Brutal UX, no curriculum, no speaking, no feedback — you must supply everything. |
+| **italki / Preply** | Real humans: accountability and genuine interaction. | $10–25/hour. Most learners in our target market cannot sustain it. |
+
+**The consensus of the evidence is consistent:** progress comes from *comprehensible input*
++ *pushed output* + *spaced retrieval* + *immediate corrective feedback* + *interleaving*
+(practising mixed material rather than blocked repetition). No mainstream app delivers all
+five for Arabic speakers learning German for immigration.
+
+**Katzu's opening — state it plainly in marketing:**
+
+> Arabic-first · trains the German you actually need in Germany (bureaucracy, Arbeit,
+> Wohnung, Arzt, Studium) · you speak out loud every single day · it remembers your
+> mistakes and brings them back at the right time · and it trains the real Goethe/telc/DTZ
+> task formats, not a game that pretends to be an exam.
+
+Nothing in the market occupies that position. That is the whole business.
+
+---
+
+## 3. The plan
+
+Seven phases. Each is independently shippable, and each ends with something a learner can
+feel. Ordered strictly by *learning impact per unit of complexity*.
+
+### Phase 0 — Make the core honest and unbreakable
+**Goal:** no dead ends, no silent failures, no fake progress.
+**Effort:** small.
+
+1. **Client error capture → the existing `error_reports` D1 table.** Right now a client
+   crash is invisible. Hook `window.onerror` / `unhandledrejection` in `src/lib/utils/diagnostics.ts` and POST to a new `POST /client-error` route (rate-limited, body-capped, no learner text). Without this we are flying blind.
+2. **Error boundary per route.** A thrown render currently blanks the app. One `ErrorBoundary`
+   component wrapping `<Routes>` with an Arabic recovery screen ("أعد المحاولة" / "افتح بدون نت").
+3. **Mic-denied and offline paths must always end somewhere.** Every failure state gets a
+   guaranteed alternative: type instead of speak, cached hints instead of AI hints, nothing
+   lost on quota exhaustion.
+4. **Honesty audit of the session report.** Never show a metric that was not measured
+   (already true for independent vs. hint-assisted — keep that standard everywhere).
+
+**Done when:** a headless run of every route produces zero console errors, and any blocked
+action offers a working alternative.
+
+---
+
+### Phase 1 — The memory engine (spaced repetition) — *the single biggest lever*
+**Goal:** the app remembers what you are about to forget, and brings it back at the right time.
+**Effort:** medium · **Impact:** highest of anything in this document.
+
+**Why this first:** the app currently teaches a word once. Everything else — content, exam
+mode, gamification — multiplies an engine that does not yet exist. Adding scenarios without
+spaced repetition just makes more words to forget.
+
+**What to build**
+
+- **New Dexie table, `review_items` (schema v4, additive upgrade — same pattern as the
+  existing v2/v3 migrations, so no learner data is touched):**
+  `++id, userId, kind, refId, dueAt, interval, ease, lapses, reps`
+  where `kind ∈ { vocab, phrase, mistake, grammar, listening }`.
+- **`src/lib/srs/engine.ts`** — a small, boring, testable scheduler. Intervals
+  1 → 3 → 7 → 16 → 35 → 90 days with an ease adjustment and a hard "again" reset. Do **not**
+  build FSRS; a well-tuned SM-2 lite behaves nearly identically at our volume and cannot
+  regress into opacity.
+- **`src/features/review/ReviewScreen.tsx` at `/app/review`** — one mixed session that
+  **interleaves** kinds and scenarios (evidence favours mixed practice over blocked). Each
+  item is *produced*, not merely recognised: type or say the German, reveal, self-grade
+  again/hard/good. Recognition-only review is the trap that makes Duolingo graduates unable
+  to speak.
+- **Mistakes auto-enrol.** Every correction the conversation engine already produces
+  (`MistakeEntity` — it has `isMastered` but nothing ever schedules it) enters the queue and
+  is retested as production, not as a multiple-choice question.
+- **Trail shows "due today: N" as the primary action.** This is the daily hook, and it is
+  honest: the number is real.
+- **Sync it.** Extend the existing `ProgressPayload`/`/progress/sync` shape so review state
+  survives a device change — otherwise the engine dies with a cleared browser.
+
+**Done when:** a learner who studies today sees the same items again tomorrow, and not the
+day after that; and D2/D7 return rate exceeds the Phase-0 baseline by a measurable margin.
+
+---
+
+### Phase 2 — All four skills (listening, reading, writing)
+**Goal:** stop being a speaking app with flashcards. Cover the skills every exam tests.
+**Effort:** medium–large.
+
+- **Listening — dictation.** Play German through the existing TTS (`useSpeechOutput`), learner
+  types what they heard, diff-scored with tolerance for umlauts/ß and punctuation. Include a
+  slow replay (the existing `speechSpeed` preference already supports it). No new
+  infrastructure and no per-item cost. Start with one dictation item per scenario, drawn from
+  its real starter phrases.
+- **Reading — short graded texts.** New D1 table `reading_texts` (`id, scenario_id, level,
+  title_de, body_de, translation_ar, questions_json`), plus a reader screen with **tap-to-gloss**
+  — reuse the existing `WordInsightBottomSheet`, which already does exactly this job. Add
+  comprehension questions in the same MCQ shape the quiz generator already produces.
+- **Writing — graded production.** New endpoint `POST /ai/check-writing` (single call, no
+  roleplay): learner writes a short German text (B1/B2: email to a landlord, complaint,
+  application), receives a rubric-scored correction — task fulfilment, coherence, grammar,
+  vocabulary — a corrected version, and an Arabic explanation of *why*. This is where a coach
+  is most expensive and where AI is genuinely better than a course.
+- **Grammar production drills.** The `grammar` table exists but holds only 4 rules and is
+  read-only in the learner flow. Add fill-in-the-blank and sentence-transformation drill
+  types generated deterministically from grammar rows — **not** one AI call per question.
+
+**Done when:** every scenario carries at least one item in each of the four skills, and the
+session report shows per-skill progress instead of only a speaking score.
+
+---
+
+### Phase 3 — Placement and personalisation
+**Goal:** know the learner on day one; give them a reason to trust the app immediately.
+**Effort:** small · **Impact:** very high for perceived value and conversion.
+
+- **`/placement` — a 3–4 minute adaptive check** mixing listening, reading, and grammar
+  items. Start at A2 difficulty, escalate or step down on correctness. Output: a level with a
+  plain Arabic explanation of *why* ("فهمت الجمل الطويلة وتمييز الأزمنة، لكن أدوات التعريف
+  ما زالت تسبب أخطاء") — an explanation, not just a label. The learner can override it.
+- **Onboarding captures intent, not just a name:** goal (عمل / دراسة / عائلة / حياة يومية),
+  time until arrival or exam, and target certificate. Route through the existing
+  `GoalSelectionBottomSheet` pattern.
+- **The Trail is generated from that.** A learner heading to a B1 exam in six months sees a
+  different sequence from someone who arrived last week — same content library, different
+  order and weight. No new content required to make this feel personal.
+- **Seed the review queue from the placement result** so day one already has a warm-up set.
+
+**Done when:** a returning A2 learner is no longer taught `der/die/das` from zero, and the
+Trail's first three nodes visibly reflect the stated goal.
+
+---
+
+### Phase 4 — Exam mode (A1–B2)
+**Goal:** become the thing learners pay for because a certificate is at stake.
+**Effort:** large, and mostly content — but the highest-value claim in the market.
+
+Note: the German equivalences of the exams you mentioned are **Goethe-Zertifikat**
+(A1–B2, plus DTZ for the integration course), **telc**, and **TestDaF/DSH** for university
+(TOEFL is the English-language analogue — same idea, wrong language).
+
+All of these test **four modules: Lesen · Hören · Schreiben · Sprechen.** So:
+
+1. **Module training** — per-level task types that mirror the real formats (matching
+   notices, adverts, forms; short announcements; formal email; picture/plan description;
+   opinion statement).
+2. **Timed mock exam** — full run with a visible clock and a scored report per module, shown
+   against the real pass thresholds, with an honest verdict ("Lesen: 78 % — قريب جداً من
+   النجاح. Hören يحتاج عملاً.").
+3. **Report maps to action** — every wrong answer routes into the review queue and the
+   targeted drill set. The exam result is not the end of the session; it *is* the next plan.
+4. **Content first, code second.** The engine is a handful of screens plus a scoring table;
+   the real work is authored items, and it must go through the review gate below.
+
+**Sequencing recommendation:** ship **DTZ/Goethe B1 first.** That is the certificate that
+blocks residence permits and most jobs, it is the level where our audience actually is, and
+it is the level where learners are already paying for courses today.
+
+---
+
+### Phase 5 — Content depth: 5 scenarios → 30+  *(the real retention lever)*
+**Goal:** a library that justifies weeks of study and a monthly price.
+**Effort:** ongoing; mostly authoring, with a strict quality gate.
+
+- **Track: "أول 30 يوم في ألمانيا" — 6 modules × ~5 scenarios.** Arrival & registration ·
+  bureaucracy & documents · housing · work & Ausbildung · health · study & university.
+  Each scenario is a place a learner will actually stand in.
+- **Per-scenario quality standard (enforced, not aspirational):** 4 openers (already there) ·
+  15–25 vocabulary rows · 6–10 starter phrases · 2–3 grammar points · 1 reading text ·
+  2 listening items · 1 writing task · 1 exam-style task. Every scenario then feeds all four
+  skills *and* the review queue by construction.
+- **Content states in D1: draft → reviewed → approved.** Only `approved` renders as
+  production curriculum, so half-finished material can never reach a learner.
+- **Runs in CI.** `scripts/audit-quiz-content.mjs` already exists; extend it to validate
+  schema, level plausibility, Arabic sanity (no empty/non-Arabic glosses), and the
+  per-scenario standard above. A content regression should fail the build like a code one.
+- **Authoring shortcut that respects the rule "content never lives in app code":** generate a
+  first draft per scenario (AI-assisted), then require human/owner approval before it becomes
+  `approved`. AI drafts are unlimited; **unreviewed AI content never ships.**
+
+**Done when:** 30+ approved scenarios exist with full four-skill coverage, and the audit
+script gates them all.
+
+---
+
+### Phase 6 — Coach intelligence
+**Goal:** the thing a course cannot do — remember *your* mistakes and act on them.
+**Effort:** medium.
+
+- **Mistake taxonomy.** Classify each existing `MistakeEntity` into
+  article / case / word order / verb conjugation / vocabulary / spelling, derived from the
+  grammar rule the evaluator already returns.
+- **Error profile screen** ("ملف أخطائك"): your top three recurring errors, how they trend over
+  time, and a one-tap drill built from your own mistakes. This screen alone justifies
+  "coach" language.
+- **Competency model — 5 states** per can-do statement
+  (NOT_STARTED → INTRODUCED → PRACTISING → INDEPENDENT → RETAINED), fed by the review engine
+  and the conversation reports.
+- **Session report leads with capability, not points:** "you can now order in a café without
+  hints" beats "+40 XP". Keep XP as the garnish, never the headline.
+- **Weekly Arabic progress report** in-app: what improved, what regressed, what is next.
+
+**Done when:** a learner can see, in one screen, exactly which German patterns they personally
+keep breaking — and fix them without leaving the screen.
+
+---
+
+### Phase 7 — Habit and marketability
+**Goal:** make it easy to start, easy to return to, and easy to tell a friend about.
+**Effort:** small–medium.
+
+- **A real public landing page.** Today `/` bounces a stranger straight into a name form and
+  sign-in; the sales site is the only marketing surface. A public page must state the promise
+  (Arabic-first, daily speaking, real German, exam-ready), show Katzu, and offer **a taste
+  before the account** — one free scenario reachable without sign-in. Nothing else will convert
+  cold traffic, and the login wall is currently the biggest leak in the funnel.
+- **One clear daily action.** "اليوم: 5 دقائق مراجعة + مشهد واحد." One button, honest count.
+- **Shareable progress card** in Arabic — organic acquisition from a market that lives on
+  WhatsApp and Telegram.
+- **Streak protection and a real weekly goal** (the `weeklyGoalDays` field already exists and
+  is unused): a missed day must be recoverable, never punitive — punitive streaks generate
+  churn, protective ones generate loyalty.
+- **Free tier rebalance.** Three AI sessions is a hard wall in front of the value. Give the
+  first scenario *fully* free (all four skills, a complete conversation), then build the
+  paywall around the moment the learner wants more scenarios and levels — not around their
+  first conversation.
+
+---
+
+## 4. What we deliberately will NOT build (anti-bloat)
+
+Complexity is a permanent cost, and every item here is a distraction from the loop above:
+
+1. **No new backend, database, or AI provider.** Cloudflare Worker + D1 + KV + the existing
+   Gemini/Workers-AI failover is more than sufficient and already hardened.
+2. **No avatars, video tutors, or 3D anything.** They cost money, add latency, and teach
+   nothing.
+3. **No leagues, social feed, or leaderboard.** Pure retention theatre with real
+   infrastructure cost; our audience's motivation is a certificate and a job, not a badge.
+4. **No pronunciation-scoring ML.** Scores for Arabic-L1 German would be unreliable and
+   dishonest; instead let learners re-record and compare against TTS.
+5. **No C1/C2.** A1–B2 is the whole market that matters now. Depth beats range.
+6. **No free-form AI content without human approval.** Unlimited generation, gated delivery.
+7. **No second content system.** D1 + the admin dashboard + the audit script stay the one
+   pipeline.
+
+---
+
+## 5. Sequencing
+
+| Order | Phase | Effort | Depends on | Learner-visible outcome |
+| --- | --- | --- | --- | --- |
+| 1 | 0 · Stability & honesty | S | — | Nothing breaks silently; every blocked action has a way forward |
+| 2 | 1 · Memory engine (SRS) | M | Phase 0 | "It brings back exactly what I was forgetting" |
+| 3 | 3 · Placement & personalisation | S | — | "It knew my level in three minutes" |
+| 4 | 2 · Four skills | M–L | Phase 1 | "I also read, listen and write — not just talk" |
+| 5 | 5 · Content depth 5 → 30+ | L (content) | Phase 2 | "There is enough here for months" |
+| 6 | 6 · Coach intelligence | M | Phases 1–2 | "It knows my personal mistakes" |
+| 7 | 4 · Exam mode (B1 first) | L | Phases 2, 5 | "It prepares me for the certificate that changes my life" |
+| 8 | 7 · Habit & marketability | S–M | Phase 1 | "I have a reason to open it every day" |
+
+Note the deliberate ordering: **the memory engine and the placement test come before more
+content.** Adding 25 scenarios to an app that forgets everything is the most expensive
+mistake available to us.
+
+## 6. How we will know it is working
+
+**Stability (must never regress):** zero console errors on the deployed app · zero failed
+AI turns without a fallback · crash-free session rate.
+
+**Learning (the actual product):** reviews completed per active learner per day · items
+retained at 30 days · independent-sentence accuracy trend (already measured today — keep the
+honest split) · can-do statements per learner per month.
+
+**Depth:** approved scenarios per level · four-skill coverage per scenario · % of exam task
+types implemented per level.
+
+**Trust:** no metric displayed that was not measured. If we ever show progress that did not
+happen, we have become the thing we are trying to replace.
+
+## 7. Recommended next three moves
+
+1. **Phase 1 (memory engine).** Highest learning impact, no external dependency, and it makes
+   every existing scenario more valuable before a single new one is written.
+2. **Phase 3 (placement).** Small, and it converts "another app that starts at A1" into
+   "an app that knows me".
+3. **Phase 5, first module only** (Arrival & registration, 5 scenarios, full four-skill
+   standard) as the template that proves the content pipeline before scaling to 30.
+
+Phase 0 ships alongside all three as continuous hygiene, not as a separate project.
