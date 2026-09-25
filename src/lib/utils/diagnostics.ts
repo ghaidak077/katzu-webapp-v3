@@ -12,8 +12,64 @@
  *   or as a downloadable .txt file.
  */
 
+import { WORKER_BASE_URL } from '@/lib/api/workerUrl';
+
 const MAX_LOG_ENTRIES = 400;
 const MAX_LINE_LENGTH = 400;
+
+/**
+ * Crash forwarding. The ring buffer below lives on the device that crashed —
+ * the one device nobody can inspect after a launch — so uncaught errors are
+ * also sent to the worker's `error_reports` feed, which the admin dashboard
+ * already reads.
+ *
+ * Only uncaught scopes are forwarded. Console output can carry learner content,
+ * and a crash report must never become the place a learner's German sentences
+ * end up; an exception message is a defect description, not their work. Each
+ * distinct crash is sent once and a session sends at most MAX_CRASH_REPORTS, so
+ * a render loop cannot flood the endpoint (server-side it is also capped at
+ * 8/minute per IP).
+ */
+const MAX_CRASH_REPORTS = 8;
+const CRASH_SCOPES = new Set(['window', 'promise']);
+const reportedCrashes = new Set<string>();
+let crashReportsSent = 0;
+
+/**
+ * Decides whether a logged entry is worth reporting, and books it. Kept free of
+ * network and browser access on purpose: the boundary rules (which scopes may
+ * leave the device, once per distinct crash, capped per session) are the part
+ * that must not regress, and they are testable as values in, values out.
+ * Returns null when the entry must stay local.
+ */
+export function takeCrashReport(entry: DiagnosticEntry): { scope: string; message: string; page?: string } | null {
+  if (!CRASH_SCOPES.has(entry.scope) || crashReportsSent >= MAX_CRASH_REPORTS) return null;
+  const identity = `${entry.scope}:${entry.message}`;
+  if (reportedCrashes.has(identity)) return null;
+  reportedCrashes.add(identity);
+  crashReportsSent += 1;
+  return {
+    scope: entry.scope,
+    message: entry.message,
+    page: typeof location !== 'undefined' ? location.pathname : undefined,
+  };
+}
+
+function forwardCrash(entry: DiagnosticEntry): void {
+  if (!WORKER_BASE_URL || typeof fetch !== 'function') return;
+  const payload = takeCrashReport(entry);
+  if (!payload) return;
+  void fetch(`${WORKER_BASE_URL}/client-error`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    keepalive: true,
+    body: JSON.stringify(payload),
+  }).catch(() => {
+    // A crash that happens offline stays local: the buffer and the exported
+    // diagnostics still carry it on the device. Never blocking the app matters
+    // more than reporting, so there is no retry queue here.
+  });
+}
 
 export type DiagnosticLevel = 'ERROR' | 'WARN' | 'INFO' | 'NET';
 
@@ -65,6 +121,7 @@ function pushEntry(level: DiagnosticLevel, scope: string, message: string, detai
     detail: detail ? truncate(detail) : undefined,
   };
   entries = [...entries.slice(-(MAX_LOG_ENTRIES - 1)), entry];
+  if (level === 'ERROR') forwardCrash(entry);
   listeners.forEach((l) => l());
 }
 

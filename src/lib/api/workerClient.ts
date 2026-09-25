@@ -1,4 +1,6 @@
 import { db } from '../db/katzuDb';
+import { WORKER_BASE_URL } from './workerUrl';
+import { adoptRemoteReviewItems, loadReviewItems } from '@/lib/srs/store';
 import { logError, logEvent, logNetwork } from '../utils/diagnostics';
 import type {
   ScenarioEntity,
@@ -8,10 +10,9 @@ import type {
   TurnAiResponse,
   ContextualHint,
   CEFRLevel,
+  ReviewItemEntity,
 } from '@/types/models';
 
-// Default worker URL matching deployment config
-const WORKER_BASE_URL = (import.meta as any).env?.VITE_WORKER_URL || '';
 const AI_REQUEST_TIMEOUT_MS = 30000;
 
 /**
@@ -1015,6 +1016,41 @@ export class WorkerClient {
       console.error('Progress restore failed:', e);
     }
     return false;
+  }
+
+  // --- Review Queue Sync (/review/sync) ---
+
+  /**
+   * One call, both directions: this device's queue goes up, the worker merges it
+   * into the account's stored queue (it owns that rule) and returns the merged
+   * result, which is adopted locally. That is also how a new phone gets its
+   * schedule back — an empty local queue still returns the stored one.
+   *
+   * Offline or unsigned-in this is a no-op by design: the local queue remains
+   * the learner's real queue, and nothing is queued or lost.
+   */
+  async syncReviewQueue(idToken?: string): Promise<boolean> {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) return false;
+    try {
+      const items = await loadReviewItems();
+      const res = await fetch(`${this.baseUrl}/review/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify({ items }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (!Array.isArray(data?.items)) return false;
+      await adoptRemoteReviewItems(data.items as ReviewItemEntity[]);
+      return true;
+    } catch (e) {
+      logNetwork('review/sync', `Review sync failed: ${e instanceof Error ? e.message : String(e)}`);
+      return false;
+    }
   }
 
   // --- Session revocation (/auth/signout) ---

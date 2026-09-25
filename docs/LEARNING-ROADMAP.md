@@ -95,13 +95,23 @@ feel. Ordered strictly by *learning impact per unit of complexity*.
 **Goal:** no dead ends, no silent failures, no fake progress.
 **Effort:** small.
 
-1. **Client error capture → the existing `error_reports` D1 table.** Right now a client
-   crash is invisible. Hook `window.onerror` / `unhandledrejection` in `src/lib/utils/diagnostics.ts` and POST to a new `POST /client-error` route (rate-limited, body-capped, no learner text). Without this we are flying blind.
+1. **Client error capture → the existing `error_reports` D1 table. SHIPPED 2026-09-25.**
+   Uncaught `window`/`promise` errors are POSTed to `POST /client-error` and land in the
+   `error_reports` feed the admin dashboard already reads. The route is unauthenticated (the
+   app can crash before sign-in) but IP rate-limited to 8/min, body-capped, and every stored
+   message goes through the existing credential sanitizer. **Console output is deliberately
+   NOT forwarded** — it can carry a learner's own German — and each crash is sent once, at
+   most 8 per session, so a render loop cannot flood it
+   (`tests/clientErrorReport.test.ts`, `tests/clientCrashReporting.test.ts`).
 2. **Error boundary per route.** A thrown render currently blanks the app. One `ErrorBoundary`
    component wrapping `<Routes>` with an Arabic recovery screen ("أعد المحاولة" / "افتح بدون نت").
 3. **Mic-denied and offline paths must always end somewhere.** Every failure state gets a
    guaranteed alternative: type instead of speak, cached hints instead of AI hints, nothing
-   lost on quota exhaustion.
+   lost on quota exhaustion. **Offline navigation SHIPPED 2026-09-25:** the built service
+   worker had no navigation fallback, so opening the installed app with no connection showed
+   the browser's error page and *every* offline path was unreachable — the exact moment a
+   learner on a train needs the app. `navigateFallback: 'index.html'` is now pinned by
+   `tests/pwaOffline.test.ts` and verified in the generated `sw.js`.
 4. **Honesty audit of the session report.** Never show a metric that was not measured
    (already true for independent vs. hint-assisted — keep that standard everywhere).
 
@@ -121,17 +131,26 @@ bookmarked words, and every conversation correction. 32 new tests
 (`tests/srsEngine.test.ts`, `tests/reviewStore.test.ts`) cover the scheduler rules and the
 real migration over IndexedDB.
 
-**Still open in this phase:**
+**Both open items closed 2026-09-25:**
 
-- **Review state does not sync across devices yet.** The worker's `/progress/sync` handler
-  destructures a fixed field whitelist and sits past the ~63 KB edit wall, so review items
-  cannot ride it. The next step is a `POST /review/sync` route added in the editable region
-  with its own KV key. Until then the queue is local-first: it survives reloads and offline
-  use, but is wiped with the rest of the user-scoped data on sign-out, and a cleared browser
-  rebuilds it from study and conversation activity.
-- **PWA version-bump hazard.** A cached bundle older than the database now raises
-  `VersionError`. `initializeDatabaseSeed` has a one-shot reload guard for it; the general
-  fix (service-worker `skipWaiting` + an update prompt) is still worth doing.
+- **The queue syncs across devices.** `POST /review/sync` stores the schedule in
+  `USER_PROGRESS` under `review:<sub>` and is the *single* merge authority: the client uploads
+  its whole local queue, the worker merges it and returns the merged set, and the client
+  adopts exactly what comes back. It runs at sign-in (so a new phone gets its schedule back
+  instead of starting the learner's memory at zero) and when a review session finishes.
+  Unit-tested guarantees: a stale second device cannot undo a finished review, an empty
+  local queue still returns the stored one, two accounts never share a queue, and junk client
+  rows are dropped rather than stored as unanswerable cards (`tests/reviewSync.test.ts`,
+  plus adoption in `tests/reviewStore.test.ts`).
+- **The version-bump hazard is closed at the source.** `vite.config.ts` keeps
+  `registerType: 'autoUpdate'`, so the built `sw.js` sends `skipWaiting` +
+  `clientsClaim` and a new deploy takes over immediately instead of leaving a stale bundle
+  running against a newer database; `initializeDatabaseSeed` keeps its one-shot reload guard
+  as the backstop.
+
+**Still open in this phase (deliberately):** nothing. The engine is complete for the three
+kinds the model defines (`vocab`, `phrase`, `mistake`); grammar/listening items would be new
+content kinds, not new scheduling.
 
 **Why this first:** the app currently teaches a word once. Everything else — content, exam
 mode, gamification — multiplies an engine that does not yet exist. Adding scenarios without

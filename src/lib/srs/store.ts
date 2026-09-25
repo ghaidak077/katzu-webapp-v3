@@ -145,3 +145,48 @@ export async function focusMistakesForReview(
 export async function loadReviewItems(): Promise<ReviewItemEntity[]> {
   return db.review_items.where('userId').equals(USER_ID).toArray();
 }
+
+/**
+ * Adopts the worker's merged queue after a sync. The server owns the merge rule
+ * (see /review/sync in the worker), so this writes what it returns without
+ * re-deciding anything: re-implementing "which copy is newer" here would let the
+ * two copies of the rule drift, and a schedule that drifts is invisible — it
+ * just quietly wastes the learner's time.
+ *
+ * Local rows are never deleted. An item the server refused would otherwise be
+ * erased on the device that can still show it, and the next sync re-offers it.
+ */
+export async function adoptRemoteReviewItems(remote: ReviewItemEntity[]): Promise<number> {
+  let adopted = 0;
+  for (const item of remote) {
+    if (!item?.kind || !item?.refId || !item?.promptAr || !item?.answerDe) continue;
+    const row: ReviewItemEntity = {
+      userId: USER_ID,
+      kind: item.kind,
+      refId: item.refId,
+      sourceId: item.sourceId,
+      promptAr: item.promptAr,
+      answerDe: item.answerDe,
+      contextDe: item.contextDe,
+      explanationAr: item.explanationAr,
+      scenarioId: item.scenarioId,
+      level: item.level,
+      dueAt: item.dueAt,
+      intervalDays: item.intervalDays,
+      ease: item.ease,
+      reps: item.reps,
+      lapses: item.lapses,
+      reviews: item.reviews,
+      lastReviewedAt: item.lastReviewedAt,
+      createdAt: item.createdAt,
+    };
+    const existing = await db.review_items
+      .where('[kind+refId]')
+      .equals([item.kind, item.refId])
+      .first();
+    if (existing?.id != null) await db.review_items.update(existing.id, row);
+    else await db.review_items.add(row);
+    adopted += 1;
+  }
+  return adopted;
+}

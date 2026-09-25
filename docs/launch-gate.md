@@ -27,7 +27,7 @@ Definition: conditions that must be TRUE before **paid public beta**. Each item 
 - [ ] Content QA script runs in CI (schema, levels, Arabic sanity).
 
 ## Gate 4 — Learning intelligence (Phase 5) — status: OPEN
-- [ ] SRS scheduling live for vocab/mistakes/phrases/grammar; due counts on home.
+- [x] SRS scheduling live for vocab/mistakes/phrases (the three kinds the model defines); due counts on the Trail. The schedule also **survives a device change**: `POST /review/sync` is the single merge authority (client uploads its queue, worker merges, client adopts), called at sign-in and after a finished review session — `tests/reviewSync.test.ts` + `tests/reviewStore.test.ts`.
 - [ ] Competency model with 5 states; session report leads with competencies.
 - [ ] Independent vs hint-assisted reporting preserved (already exists — keep).
 
@@ -50,6 +50,7 @@ Definition: conditions that must be TRUE before **paid public beta**. Each item 
 - [ ] Worker tests: auth, CORS, concurrency (redemption/quota/referral/sync), deletion completeness, validation, limits.
 - [ ] Browser journeys: onboarding → guest lesson → sign-in → study/quiz/conversation → retry → offline → paywall → sign-out → export → deletion → second-account privacy.
 - [ ] Voice tested Chrome desktop/Android + Safari iOS; honest messaging; mic denial + fallback to typing.
+- [x] Client crashes reach the server (`POST /client-error` → `error_reports`, rate-limited + sanitized; console output stays local) and a cold offline open shows the cached app shell instead of the browser error page (`navigateFallback`, pinned by `tests/pwaOffline.test.ts`).
 - [ ] Beta cohort defined (30–50 Arabic-speaking learners) + feedback/metrics plan.
 
 ## Sequencing rule

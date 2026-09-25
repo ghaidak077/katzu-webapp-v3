@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { workerClient } from '@/lib/api/workerClient';
 import { gradeReviewItem } from '@/lib/srs/store';
 import { SESSION_LIMIT, buildReviewQueue, countDue, gradeAnswer, type AnswerVerdict } from '@/lib/srs/engine';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
@@ -45,6 +46,7 @@ function formatGap(from: number, to: number): string {
 
 export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   const items = useLiveQuery(() => db.review_items.where('userId').equals('current_user').toArray());
+  const user = useLiveQuery(() => db.users.get('current_user'));
 
   // The queue is frozen when the session starts: the learner's next question must
   // never change under them because a background write touched the table.
@@ -66,6 +68,20 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   const remainingDue = useMemo(() => (items ? countDue(items, Date.now()) : 0), [items]);
   const current = queue && index < queue.length ? queue[index] : null;
   const isFinished = queue !== null && index >= queue.length;
+
+  // A finished session is when the schedule has changed most, and it is the only
+  // moment the learner cannot notice the upload: the next device they open Katzu
+  // on already knows what they are about to forget.
+  const syncedRef = useRef(false);
+  useEffect(() => {
+    if (!isFinished || syncedRef.current) return;
+    syncedRef.current = true;
+    if (user?.sessionToken) {
+      workerClient.syncReviewQueue(user.sessionToken).catch(() => {
+        // Offline: the queue stays local and is re-offered on the next sync.
+      });
+    }
+  }, [isFinished, user?.sessionToken]);
 
   const handleCheck = (e: React.FormEvent) => {
     e.preventDefault();
