@@ -736,7 +736,9 @@ Bearer <ADMIN_SECRET>`, `sig` = HMAC signature. **RL:** participates in rate lim
 | POST | `/ai/turn` (alias `/turn`) | sess | ✔ | Roleplay reply + evaluation; bounded inputs; CEFR allowlisted; server-authoritative scenario |
 | POST | `/ai/translate` (alias `/translate`) | sess | ✔ | Arabic translation (edge-cached) |
 | POST | `/ai/hints` (alias `/hints`) | sess | quota-exempt | 2–4 distinct conversational moves; handled by `cloudflare-hints.js` |
-| GET | `/ai/health` (alias `/health`) | none | — | Diagnostics: keys configured/cooldown, fallback counters (**currently leaks masked key fragments — see §31**) |
+| GET | `/ai/health` (alias `/health`) | none | — | Public health only: `status`, `ready`, cache sizes, and Workers AI fallback counters. **No Gemini key metadata** — the response is an allowlisted projection that can never contain a key fragment or a key count |
+
+> **Note (2026-09-25):** `/health` is now hardened — it serves an allowlisted public projection that contains **no Gemini key fragments and no key count** (only overall health + fallback counters). This supersedes the `/health` leak listed as **T1** in §31.1, which could not be edited in place (it sits past the ~63 KB tool offset wall).
 
 ### Subscription / referral / progress
 | Method | Path | Auth | Notes |

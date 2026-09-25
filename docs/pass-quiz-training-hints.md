@@ -46,7 +46,7 @@ Residual (honest): the independent collision sweep still lists 5 same-topic pair
 **Deployed worker** (`katzu-test`, version `841407c4`):
 
 ```
-GET  /health                              → 200 healthy, 3 keys, fallback ready
+GET  /health                              → 200 healthy, ready:true, fallback ready (no key metadata)
 GET  /admin/api/overview   (+secret)      → 200 registry available
 GET  /admin/api/content-list (+secret)    → 200 row #54 read back
 POST /admin/api/content-update (+secret)  → 400 invalid_columns (allowlist enforced)

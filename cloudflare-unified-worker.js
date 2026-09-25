@@ -176,16 +176,15 @@ function inspectGeminiKeys(env) {
   const duplicates = [];
   for (const [key, count] of counts.entries()) {
     if (count > 1) {
-      const mask = key.length > 10 ? `${key.substring(0, 8)}...${key.substring(key.length - 4)}` : "key";
-      duplicates.push(`${mask} (appears ${count} times)`);
+      // Report a duplicate by the env-var name(s) it came from, never by any
+      // part of the key: even a truncated key is a credential fragment, and
+      // this value can reach a public endpoint.
+      const sources = validEntries.filter(e => e.key === key).map(e => e.source).join(" + ");
+      duplicates.push(`${sources || "configured secret"} (same value repeated ${count} times)`);
     }
   }
 
   const uniqueKeys = [...new Set(validEntries.map(e => e.key))];
-  const previews = uniqueKeys.map((k, idx) => {
-    const mask = k.length > 10 ? `${k.substring(0, 8)}...${k.substring(k.length - 4)}` : k;
-    return `Key #${idx + 1}: ${mask}`;
-  });
 
   return {
     uniqueKeys,
@@ -193,7 +192,9 @@ function inspectGeminiKeys(env) {
     uniqueCount: uniqueKeys.length,
     hasDuplicates: duplicates.length > 0,
     duplicates,
-    previews
+    // Deliberately empty: no key preview is ever produced here, because this
+    // object feeds a public endpoint. See handlePublicHealth.
+    previews: []
   };
 }
 
@@ -898,6 +899,57 @@ async function handleUserExport(request, env, cors) {
   });
 }
 
+// ----------------------------------------------------------------------------
+// PUBLIC HEALTH PROJECTION (unauthenticated endpoint)
+//
+// handleAiHealth() reports diagnostics meant for us, not the public internet:
+// masked Gemini key fragments ("Key #1: AQ.Ab8RN...U3xA") and the number of
+// configured keys. /health is unauthenticated, so exposing either is an
+// information disclosure (it fingerprints the secret set and confirms which
+// fragments of a key are real). The projection below is an explicit ALLOWLIST:
+// a field that is not listed here never leaves the worker, so a future field
+// added to the internal handler cannot leak by accident. It reports the health
+// of the system without any key material and without any key count.
+//
+// The endpoint is what uptime checks hit, so a failure inside the internal
+// inspection degrades to a still-200 minimal report instead of a 5xx.
+// ----------------------------------------------------------------------------
+async function handlePublicHealth(env, cors) {
+  let internal = {};
+  try {
+    const response = await handleAiHealth(env, cors);
+    internal = await response.json();
+  } catch (err) {
+    console.error("[health] internal inspection failed:", String(err?.message || err).slice(0, 120));
+    internal = {};
+  }
+
+  const fallback = internal?.aiFallback || {};
+
+  return json({
+    status: internal?.status || "healthy",
+    service: internal?.service || "Katzu Unified Worker + Multi-Key AI Engine",
+    // A boolean only: never how many keys exist, only whether the AI engine can
+    // serve at all (Gemini keys present or the Workers AI binding attached).
+    ready: internal?.ready === true,
+    primaryWorkingModel: internal?.primaryWorkingModel || "auto-pinning on first call",
+    cachedTranslationsCount: internal?.cachedTranslationsCount ?? 0,
+    cachedHintsCount: internal?.cachedHintsCount ?? 0,
+    strategy: "single-prompt fusion + round-robin key failover + edge memory cache + Workers AI fallback",
+    aiFallback: {
+      enabled: fallback.enabled === true,
+      bindingPresent: fallback.bindingPresent === true,
+      model: fallback.model || null,
+      requests: fallback.requests ?? 0,
+      served: fallback.served ?? 0,
+      failures: fallback.failures ?? 0,
+      lastUsedAt: fallback.lastUsedAt ?? null,
+      lastProvider: fallback.lastProvider ?? null,
+      countersSource: fallback.countersSource || "in-memory",
+    },
+  }, 200, cors);
+}
+
 // ============================================================================
 // MAIN ENTRY POINT
 // ============================================================================
@@ -971,7 +1023,11 @@ export default {
         );
       }
       if ((url.pathname === "/ai/health" || url.pathname === "/health") && request.method === "GET") {
-        return handleAiHealth(env, cors);
+        // Security: /health is public, and the internal AI health report carries
+        // masked Gemini key fragments and the number of configured keys. The
+        // public projection below exposes neither (allowlist built in
+        // handlePublicHealth), while still reporting system health.
+        return await handlePublicHealth(env, cors);
       }
 
       // --- User & Account Operations ---
