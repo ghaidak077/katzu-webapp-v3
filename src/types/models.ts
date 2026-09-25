@@ -241,6 +241,50 @@ export interface ContextualHint {
   intent?: string;
 }
 
+export type WritingTaskType = 'short_message' | 'appointment_request' | 'formal_email' | 'complaint';
+
+export type WritingRubricDimension = 'task' | 'coherence' | 'grammar' | 'vocabulary';
+
+export interface WritingMistake {
+  /** The learner's exact words. */
+  original: string;
+  corrected: string;
+  /** Short German rule name, e.g. "Akkusativ nach 'für'". */
+  ruleDe: string;
+  explanationAr: string;
+}
+
+/**
+ * A graded written task. `percent` and the scores come from the worker, which
+ * owns the rubric — the client only renders them, so a score shown to a learner
+ * is never a number the app invented.
+ */
+export interface WritingFeedback {
+  scores: Partial<Record<WritingRubricDimension, number>>;
+  maxScore: number;
+  percent: number;
+  correctedDe: string;
+  summaryAr: string;
+  mistakes: WritingMistake[];
+}
+
+/** The skills that can currently be measured beyond the conversation itself. */
+export type PracticeSkill = 'listening' | 'writing';
+
+/**
+ * One measured focus drill. The skills card may only show what was actually
+ * recorded — an unmeasured skill stays empty rather than becoming a zero.
+ */
+export interface SkillPracticeEntity {
+  id?: number;
+  userId: string;
+  skill: PracticeSkill;
+  /** 0-100, the one shape both drills can honestly report. */
+  score: number;
+  at: number;
+  refId?: string;
+}
+
 export interface TurnAiResponse {
   germanReply: string;
   arabicTranslation: string;

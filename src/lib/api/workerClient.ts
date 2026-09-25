@@ -11,6 +11,8 @@ import type {
   ContextualHint,
   CEFRLevel,
   ReviewItemEntity,
+  WritingFeedback,
+  WritingTaskType,
 } from '@/types/models';
 
 const AI_REQUEST_TIMEOUT_MS = 30000;
@@ -1016,6 +1018,73 @@ export class WorkerClient {
       console.error('Progress restore failed:', e);
     }
     return false;
+  }
+
+  // --- Graded Writing (/ai/check-writing) ---
+
+  /**
+   * One model call, marked against the worker's rubric. Returns a typed failure
+   * rather than throwing, because the screen must keep the learner's paragraph
+   * on any error — losing what someone just wrote is the worst possible outcome
+   * of an AI hiccup.
+   */
+  async checkWriting(params: {
+    text: string;
+    taskType: WritingTaskType;
+    cefrLevel: CEFRLevel;
+    scenarioTitle: string;
+    targetPhrases?: string[];
+    idToken?: string;
+  }): Promise<
+    | { ok: true; feedback: WritingFeedback; taskType: WritingTaskType }
+    | { ok: false; code: string; error: string }
+  > {
+    const token = await this.getEffectiveAuthToken(params.idToken);
+    if (!token) {
+      return { ok: false, code: 'UNAUTHENTICATED', error: 'انتهت جلسة الدخول. سجّل الدخول من جديد ثم أعد المحاولة — نصّك محفوظ هنا.' };
+    }
+    try {
+      const res = await fetch(`${this.baseUrl}/ai/check-writing`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify({
+          text: params.text,
+          task_type: params.taskType,
+          cefr_level: params.cefrLevel,
+          scenario_title: params.scenarioTitle,
+          target_phrases: params.targetPhrases || [],
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.feedback) {
+        return {
+          ok: true,
+          feedback: data.feedback as WritingFeedback,
+          taskType: (data.task_type as WritingTaskType) || params.taskType,
+        };
+      }
+      return { ok: false, code: data?.code || 'WRITING_FAILED', error: this.writingErrorMessage(res.status, data) };
+    } catch (e) {
+      logNetwork('ai/check-writing', `Writing check failed: ${e instanceof Error ? e.message : String(e)}`);
+      return {
+        ok: false,
+        code: 'NETWORK_ERROR',
+        error: 'تعذر الوصول إلى الخادم. نصّك محفوظ هنا — أعد المحاولة عند عودة الاتصال.',
+      };
+    }
+  }
+
+  /** Server messages are Arabic and specific (too short, wrong task); use them when present. */
+  private writingErrorMessage(status: number, data: any): string {
+    if (typeof data?.message === 'string' && data.message.trim()) return data.message;
+    if (status === 402) return 'التصحيح الكتابي متاح ضمن الاشتراك بعد انتهاء الجلسات المجانية. رقّي حسابك لمتابعة الكتابة.';
+    if (status === 429) return 'وصلت إلى الحد المسموح من الطلبات الآن. جرّب بعد دقيقة — نصّك محفوظ.';
+    if (status === 503) return 'خدمة التصحيح غير متاحة مؤقتاً. جرّب بعد قليل — نصّك محفوظ.';
+    if (status === 401) return 'انتهت جلسة الدخول. سجّل الدخول من جديد — نصّك محفوظ هنا.';
+    return 'تعذر تصحيح النص الآن. نصّك محفوظ هنا — أعد المحاولة.';
   }
 
   // --- Review Queue Sync (/review/sync) ---
