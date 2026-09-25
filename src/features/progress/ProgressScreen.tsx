@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Flame, Share2 } from 'lucide-react';
+import { buildSkillSummary, type Skill } from '@/lib/skills/summary';
 import type { SessionEntity } from '@/types/models';
 
 const WEEKDAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -37,12 +38,25 @@ export function getActivityDateKeys(sessions: Array<Pick<SessionEntity, 'timesta
   );
 }
 
+const SKILL_LABELS: Record<Skill, string> = {
+  speaking: 'التحدث (المحادثة)',
+  listening: 'الاستماع (الإملاء)',
+  writing: 'الكتابة (Schreiben)',
+  reading: 'القراءة',
+};
+
 export const ProgressScreen: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
 
   const user = useLiveQuery(() => db.users.get('current_user'));
   const sessionsQuery = useLiveQuery(() => db.sessions.toArray());
   const sessions = sessionsQuery ?? [];
+  const practiceQuery = useLiveQuery(() => db.skill_practice.toArray());
+
+  const skillSummary = useMemo(
+    () => buildSkillSummary({ sessions, practice: practiceQuery ?? [] }),
+    [sessions, practiceQuery]
+  );
 
   const totalSentences = sessions.reduce((acc, s) => acc + (s.sentencesSpoken || 0), 0);
   const totalMinutes = Math.round(
@@ -131,6 +145,31 @@ export const ProgressScreen: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* Four Skills Card — every number is measured; an unmeasured skill says so instead of showing a zero. */}
+      <Card className="p-4 mb-4">
+        <h4 className="text-xs font-bold text-text-secondary mb-1">المهارات الأربع:</h4>
+        <p className="text-[10px] font-arabic text-text-muted mb-3">
+          لا نعرض هنا إلا ما قِسناه فعلاً من تدريباتك.
+        </p>
+        <div className="space-y-2">
+          {skillSummary.stats.map((stat) => (
+            <div key={stat.skill} className="flex items-center justify-between gap-3">
+              <span className="text-[11px] font-arabic text-text-primary">{SKILL_LABELS[stat.skill]}</span>
+              {stat.score === null ? (
+                <span className="text-[10px] font-arabic text-text-muted">
+                  {stat.skill === 'reading' ? 'لم يبدأ بعد — قريباً' : 'لم تُقس بعد'}
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <span className="text-[10px] font-arabic text-text-muted">{stat.attempts} محاولة</span>
+                  <span className="text-sm font-bold font-german text-primary">{stat.score}%</span>
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
 
       {/* Share Progress CTA */}
       <Button

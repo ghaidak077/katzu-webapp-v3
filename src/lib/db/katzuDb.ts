@@ -11,6 +11,7 @@ import type {
   ScenarioTrainingEntity,
   MistakeEntity,
   ReviewItemEntity,
+  SkillPracticeEntity,
   SyncQueueEntity,
 } from '@/types/models';
 
@@ -27,6 +28,7 @@ class KatzuDatabase extends Dexie {
   mistakes!: EntityTable<MistakeEntity, 'id'>;
   sync_queue!: EntityTable<SyncQueueEntity, 'id'>;
   review_items!: EntityTable<ReviewItemEntity, 'id'>;
+  skill_practice!: EntityTable<SkillPracticeEntity, 'id'>;
 
   constructor() {
     super('KatzuWebDB');
@@ -103,6 +105,26 @@ class KatzuDatabase extends Dexie {
       sync_queue: '++id, createdAt, nextRetryAt',
       review_items: '++id, userId, dueAt, kind, refId, [kind+refId]',
     });
+
+    // v5: focus-drill results. Additive like every migration before it — the
+    // skills card must show measured practice (writing, dictation), and until
+    // now nothing recorded it, so the app could not honestly answer "how is
+    // your listening?" at all.
+    this.version(5).stores({
+      scenarios: 'id, category',
+      starter_phrases: 'id, scenario_id, level, sort_order',
+      vocabulary: 'id, level, topic, part_of_speech',
+      grammar: 'id, level',
+      saved_words: 'wordId, savedAt',
+      users: 'id, email',
+      redeemed_codes: 'code, redeemedAt',
+      sessions: 'id, scenarioId, cefrLevel, timestamp, updatedAt',
+      scenario_training: 'scenarioId, userId, updatedAt',
+      mistakes: '++id, userId, scenarioId, syncId, timestamp, wasHintUsed, updatedAt',
+      sync_queue: '++id, createdAt, nextRetryAt',
+      review_items: '++id, userId, dueAt, kind, refId, [kind+refId]',
+      skill_practice: '++id, userId, skill, at',
+    });
   }
 }
 
@@ -117,6 +139,7 @@ export async function wipeUserScopedData(): Promise<void> {
     db.scenario_training.clear(),
     db.redeemed_codes.clear(),
     db.review_items.clear(),
+    db.skill_practice.clear(),
   ]);
 
   await db.users.put({

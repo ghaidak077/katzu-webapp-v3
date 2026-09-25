@@ -77,6 +77,21 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
   const current = queue && index < queue.length ? queue[index] : null;
   const finished = queue !== null && index >= queue.length;
 
+  // The drill's result used to exist only on this screen, so "how is your
+  // listening?" had no honest answer anywhere in the app. One row per finished
+  // drill is what the skills card reads.
+  const recordedRef = useRef(false);
+  useEffect(() => {
+    if (!finished || recordedRef.current || index === 0) return;
+    recordedRef.current = true;
+    void db.skill_practice.add({
+      userId: 'current_user',
+      skill: 'listening',
+      score: Math.round((tally.correct / index) * 100),
+      at: Date.now(),
+    });
+  }, [finished, index, tally.correct]);
+
   // Play (or briefly show) the sentence when a new item appears.
   useEffect(() => {
     if (!current) return;
