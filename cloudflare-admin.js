@@ -770,6 +770,25 @@ export async function handleAdminRoutes(url, request, env, cors) {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store, no-cache, must-revalidate",
+        // This page holds a live admin bearer token in sessionStorage, but it was
+        // served with no security headers at all — so it could be framed by any
+        // site, and an injected payload could ship the token anywhere. The page
+        // is fully self-contained (one inline <script>, one inline <style>, no
+        // external asset, and every fetch is same-origin), so the policy below
+        // can be strict without breaking it: `default-src 'none'` blocks any
+        // external script/style/font/image, and `connect-src 'self'` means a
+        // token read from sessionStorage has nowhere to be exfiltrated to.
+        // `'unsafe-inline'` is still required because the shell uses inline
+        // handlers and an inline <style>; removing those is the follow-up that
+        // would let script-src drop to a hash/nonce.
+        "Content-Security-Policy":
+          "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Resource-Policy": "same-origin",
       },
     });
   }
