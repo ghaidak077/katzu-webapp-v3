@@ -27,6 +27,7 @@ import { ProgressScreen } from '@/features/progress/ProgressScreen';
 import { ProfileSettingsScreen } from '@/features/settings/ProfileSettingsScreen';
 import { TrustInfoScreen } from '@/features/settings/TrustInfoScreen';
 import { ReviewScreen } from '@/features/review/ReviewScreen';
+import { PlacementScreen } from '@/features/placement/PlacementScreen';
 
 // Navigation & Icons
 import { Map, Dumbbell, BarChart3, User } from 'lucide-react';
@@ -120,6 +121,7 @@ function AppRoutes() {
           <Route path="/welcome" element={<WelcomeScreen onContinue={() => navigate('/signin?mode=signup')} onGoToSignIn={(mode) => navigate(`/signin${mode === 'signup' ? '?mode=signup' : ''}`)} />} />
           <Route path="/signin" element={<SignInRoute />} />
           <Route path="/subscription" element={<SubscriptionRoute />} />
+          <Route path="/placement" element={<PlacementRoute />} />
           <Route path="/app/review" element={<ReviewRoute />} />
           <Route path="/app" element={<Navigate to="/app/trail" replace />} />
           <Route path="/app/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
@@ -162,11 +164,15 @@ function SignInRoute() {
     <SignInScreen
       initialMode={mode === 'signup' ? 'signup' : 'signin'}
       onBack={() => navigate('/welcome')}
-      onSuccess={() => {
+      onSuccess={async () => {
         try {
           localStorage.setItem('katzu_onboarding_completed', 'true');
         } catch {}
-        navigate('/app/trail', { replace: true });
+        // A learner who has never been measured starts with the placement check,
+        // so the Trail is built from their real level instead of a guess.
+        const user = await db.users.get('current_user');
+        const needsPlacement = !!user && !user.placementCompletedAt && !user.placementSkippedAt;
+        navigate(needsPlacement ? '/placement' : '/app/trail', { replace: true });
       }}
     />
   );
@@ -188,6 +194,11 @@ function ReviewRoute() {
   return <ReviewScreen onBack={() => navigate('/app/trail')} />;
 }
 
+function PlacementRoute() {
+  const navigate = useNavigate();
+  return <PlacementScreen onDone={() => navigate('/app/trail', { replace: true })} />;
+}
+
 function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const navigate = useNavigate();
   const { tab = 'trail' } = useParams();
@@ -205,6 +216,7 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
           onSignOut={onSignOut}
           onGoToSignIn={() => navigate('/signin')}
           onOpenTrustPage={(page) => navigate(`/trust/${page}`)}
+          onOpenPlacement={() => navigate('/placement')}
         />
       )}
       <nav className="fixed bottom-0 start-0 end-0 bg-surface-card/95 backdrop-blur-xl border-t border-border-subtle p-2 max-w-md mx-auto z-40 flex items-center justify-around shadow-2xl">

@@ -81,6 +81,12 @@ export interface UserEntity {
   updatedAt: number;
   // Preferences & Progress
   cefrLevel: CEFRLevel;
+  /** Set when the learner finished the placement check. */
+  placementCompletedAt?: number;
+  /** What the staircase estimated at that moment; `cefrLevel` may be overridden later. */
+  placementEstimatedLevel?: CEFRLevel;
+  /** Set when the learner chose to pick their own level instead of being measured. */
+  placementSkippedAt?: number;
   streakDays: number;
   lastActiveDate: string; // YYYY-MM-DD
   totalXp: number;

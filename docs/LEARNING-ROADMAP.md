@@ -196,6 +196,23 @@ session report shows per-skill progress instead of only a speaking score.
 **Goal:** know the learner on day one; give them a reason to trust the app immediately.
 **Effort:** small · **Impact:** very high for perceived value and conversion.
 
+**Status: MEASUREMENT SHIPPED 2026-09-25.** `src/lib/placement/engine.ts` (a 2-up/1-down
+staircase, convergence rule, and the Arabic result wording) and `generator.ts` (questions
+drawn from the existing D1 vocabulary and phrases at the learner's current level), the
+`/placement` screen, a post-sign-in gate so a never-measured learner is placed before the
+Trail, a level override in Profile, and the questions they missed seeding their first review
+session. 22 new tests.
+
+**Still open in this phase:**
+
+- **Intent capture.** Onboarding still collects only minutes/days/level, not goal (work /
+  study / family / daily life), time to arrival or exam, or target certificate.
+- **A Trail ordered by that intent.** Placement sets the level; it does not yet reorder or
+  weight the curriculum. Same content library, different sequence, is still unbuilt.
+- **Grammar items.** The check asks vocabulary, sentence, and listening questions only. There
+  is no grammar *question* content in D1, and inventing it inside app code would break the rule
+  that content lives in the backend — it belongs in the content work of Phase 5.
+
 - **`/placement` — a 3–4 minute adaptive check** mixing listening, reading, and grammar
   items. Start at A2 difficulty, escalate or step down on correctness. Output: a level with a
   plain Arabic explanation of *why* ("فهمت الجمل الطويلة وتمييز الأزمنة، لكن أدوات التعريف

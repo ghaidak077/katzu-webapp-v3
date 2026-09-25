@@ -26,7 +26,7 @@ import {
   Download,
   Trash2,
 } from 'lucide-react';
-import type { SarcasmLevel } from '@/types/models';
+import type { CEFRLevel, SarcasmLevel } from '@/types/models';
 import { workerClient } from '@/lib/api/workerClient';
 import {
   clearDiagnostics,
@@ -42,6 +42,7 @@ export interface ProfileSettingsScreenProps {
   onSignOut: () => void;
   onGoToSignIn?: () => void;
   onOpenTrustPage?: (page: 'privacy' | 'terms' | 'contact') => void;
+  onOpenPlacement?: () => void;
 }
 
 export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
@@ -49,6 +50,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   onSignOut,
   onGoToSignIn,
   onOpenTrustPage,
+  onOpenPlacement,
 }) => {
   const user = useLiveQuery(() => db.users.get('current_user'));
   const [showEditName, setShowEditName] = useState(false);
@@ -135,6 +137,11 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
 
   const handleUpdateSarcasm = async (level: SarcasmLevel) => {
     await db.users.update('current_user', { sarcasmLevel: level });
+  };
+
+  /** The placement result is an estimate, not a verdict — the learner always overrides it. */
+  const handleUpdateLevel = async (level: CEFRLevel) => {
+    await db.users.update('current_user', { cefrLevel: level, updatedAt: Date.now() });
   };
 
   const handleSaveName = async (e: React.FormEvent) => {
@@ -391,6 +398,42 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             </button>
           ))}
         </div>
+      </Card>
+
+      {/* Level Setting — the placement result is an estimate, never a verdict. */}
+      <Card className="p-4 mb-6 space-y-3">
+        <label className="text-xs font-bold text-text-secondary flex items-center gap-2">
+          <Sliders className="w-4 h-4 text-primary" />
+          مستواي الحالي
+        </label>
+        <p className="text-[11px] text-text-muted">
+          {user?.placementEstimatedLevel
+            ? `قدّر اختبار تحديد المستوى مستواك ${user.placementEstimatedLevel}. يمكنك تغييره في أي وقت.`
+            : 'المستوى يحدد السيناريوهات التي تظهر لك وصعوبة المحادثات.'}
+        </p>
+        <div className="grid grid-cols-4 gap-2">
+          {(['A1', 'A2', 'B1', 'B2'] as CEFRLevel[]).map((level) => (
+            <button
+              key={level}
+              onClick={() => handleUpdateLevel(level)}
+              className={`py-2.5 rounded-xl text-xs font-german font-bold border transition-all ${
+                (user?.cefrLevel || 'A1') === level
+                  ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
+                  : 'bg-surface-subtle border-border-subtle text-text-secondary'
+              }`}
+            >
+              {level}
+            </button>
+          ))}
+        </div>
+        {onOpenPlacement && (
+          <button
+            onClick={onOpenPlacement}
+            className="w-full text-center text-xs font-arabic text-primary hover:underline transition-colors"
+          >
+            أعد اختبار تحديد المستوى
+          </button>
+        )}
       </Card>
 
       {/* App Info & Sign Out */}
