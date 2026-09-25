@@ -21,14 +21,17 @@ import {
   HelpCircle,
   CheckCircle2,
   Headphones,
+  ArrowLeft,
+  Target,
 } from 'lucide-react';
 import type { VocabularyEntity, GrammarEntity, MistakeEntity } from '@/types/models';
 
 export interface PracticeScreenProps {
   onOpenListening?: () => void;
+  onOpenCoach?: () => void;
 }
 
-export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening }) => {
+export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenCoach }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
@@ -115,6 +118,29 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening 
           <div className="text-lg font-bold font-german text-status-error">{mistakes.length}</div>
         </Card>
       </div>
+
+      {/* The coach comes first: knowing which pattern to fix is worth more than
+          any single drill, and this bank is where the evidence already lives. */}
+      <button
+        onClick={() => {
+          triggerHaptic('light');
+          onOpenCoach?.();
+        }}
+        className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex items-center gap-3 text-start transition-all active:scale-[0.98]"
+      >
+        <div className="w-10 h-10 shrink-0 rounded-full bg-status-error/20 text-status-error flex items-center justify-center">
+          <Target className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-bold font-arabic block">ملف أخطائك</span>
+          <span className="text-[11px] text-text-secondary font-arabic">
+            {mistakes.length > 0
+              ? `اعرف نمط أخطائك في ${mistakes.length} تصحيحاً سابقاً، وتدرّب على الأكثر تكراراً`
+              : 'ابدأ بالحديث وسأجمع أخطاءك هنا وأخبرك بما يتكرر'}
+          </span>
+        </div>
+        <ArrowLeft className="w-4 h-4 text-text-muted shrink-0" />
+      </button>
 
       {/* Quick Action Hub */}
       <div className="grid grid-cols-4 gap-2 mb-6">

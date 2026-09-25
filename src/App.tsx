@@ -29,6 +29,7 @@ import { TrustInfoScreen } from '@/features/settings/TrustInfoScreen';
 import { ReviewScreen } from '@/features/review/ReviewScreen';
 import { PlacementScreen } from '@/features/placement/PlacementScreen';
 import { ListeningScreen } from '@/features/listening/ListeningScreen';
+import { CoachScreen } from '@/features/coach/CoachScreen';
 
 // Navigation & Icons
 import { Map, Dumbbell, BarChart3, User } from 'lucide-react';
@@ -125,6 +126,7 @@ function AppRoutes() {
           <Route path="/placement" element={<PlacementRoute />} />
           <Route path="/app/review" element={<ReviewRoute />} />
           <Route path="/app/listen" element={<ListeningRoute />} />
+          <Route path="/app/coach" element={<CoachRoute />} />
           <Route path="/app" element={<Navigate to="/app/trail" replace />} />
           <Route path="/app/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
           <Route path="/main" element={<Navigate to="/app/trail" replace />} />
@@ -206,6 +208,16 @@ function ListeningRoute() {
   return <ListeningScreen onBack={() => navigate('/app/practice')} />;
 }
 
+function CoachRoute() {
+  const navigate = useNavigate();
+  return (
+    <CoachScreen
+      onBack={() => navigate('/app/practice')}
+      onStartReview={() => navigate('/app/review')}
+    />
+  );
+}
+
 function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const navigate = useNavigate();
   const { tab = 'trail' } = useParams();
@@ -215,7 +227,12 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
   return (
     <>
       {activeTab === 'Trail' && <TrailScreen onSelectScenario={(id) => navigate(`/scenario/${encodeURIComponent(id)}`)} onOpenSubscription={() => navigate('/subscription')} onOpenReview={() => navigate('/app/review')} />}
-      {activeTab === 'Practice' && <PracticeScreen onOpenListening={() => navigate('/app/listen')} />}
+      {activeTab === 'Practice' && (
+        <PracticeScreen
+          onOpenListening={() => navigate('/app/listen')}
+          onOpenCoach={() => navigate('/app/coach')}
+        />
+      )}
       {activeTab === 'Progress' && <ProgressScreen />}
       {activeTab === 'Profile' && (
         <ProfileSettingsScreen

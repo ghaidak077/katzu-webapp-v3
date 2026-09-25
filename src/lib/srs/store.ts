@@ -111,6 +111,37 @@ export async function enrolSavedWord(wordId: number, now: number = Date.now()): 
   await enrolIfNew(newReviewItemFromVocabulary(word, now, USER_ID));
 }
 
+/**
+ * Pulls a set of mistakes forward so the review screen drills them next, used by
+ * the error-profile screen's "practise this" action: the learner has just seen
+ * their own pattern and wants it now, not on its original schedule.
+ *
+ * A mistake that was never enrolled is enrolled rather than skipped — every
+ * conversation correction is enrolled, but rows recorded before the queue
+ * existed are not, and a button that silently does nothing is a dead end.
+ */
+export async function focusMistakesForReview(
+  mistakes: Array<MistakeEntity & { id?: number }>,
+  now: number = Date.now(),
+): Promise<number> {
+  let due = 0;
+  for (const mistake of mistakes) {
+    if (!mistake?.corrected) continue;
+    const candidate = newReviewItemFromMistake(mistake, mistake.id, now, USER_ID);
+    const existing = await db.review_items
+      .where('[kind+refId]')
+      .equals([candidate.kind, candidate.refId])
+      .first();
+    if (existing?.id != null) {
+      await db.review_items.update(existing.id, { dueAt: now });
+    } else {
+      await db.review_items.add(candidate);
+    }
+    due += 1;
+  }
+  return due;
+}
+
 export async function loadReviewItems(): Promise<ReviewItemEntity[]> {
   return db.review_items.where('userId').equals(USER_ID).toArray();
 }

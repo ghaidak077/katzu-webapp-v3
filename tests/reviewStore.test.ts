@@ -1,7 +1,13 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, wipeUserScopedData } from '@/lib/db/katzuDb';
-import { enrolMistake, enrolSavedWord, enrolStudiedVocabulary, gradeReviewItem } from '@/lib/srs/store';
+import {
+  enrolMistake,
+  enrolSavedWord,
+  enrolStudiedVocabulary,
+  focusMistakesForReview,
+  gradeReviewItem,
+} from '@/lib/srs/store';
 import { DEFAULT_EASE, MIN_EASE } from '@/lib/srs/engine';
 import type { MistakeEntity, VocabularyEntity } from '@/types/models';
 
@@ -175,6 +181,47 @@ describe('grading', () => {
     const stored = await db.review_items.get(snapshot.id!);
     expect(stored?.reps).toBe(0);
     expect(stored?.intervalDays).toBe(0);
+  });
+});
+
+describe('focusing mistakes for a drill', () => {
+  it('brings an already-scheduled mistake back to due now', async () => {
+    const mistakeId = await db.mistakes.put(mistake('sub:cafe_order:3:Ich möchte ein Kaffee'));
+    const row = { ...mistake('sub:cafe_order:3:Ich möchte ein Kaffee'), id: mistakeId };
+    await enrolMistake(row, 1_000);
+
+    // Grade it forward so it is no longer due — the drill must override that.
+    const snapshot = (await db.review_items.toArray())[0];
+    await gradeReviewItem(snapshot, 'good');
+    const before = await db.review_items.get(snapshot.id!);
+    expect(before!.dueAt).toBeGreaterThan(1_000);
+
+    const before2 = Date.now();
+    expect(await focusMistakesForReview([row])).toBe(1);
+
+    const stored = await db.review_items.get(snapshot.id!);
+    expect(stored!.dueAt).toBeGreaterThanOrEqual(before2);
+    expect(stored!.intervalDays).toBe(before!.intervalDays);
+    expect(await db.review_items.count()).toBe(1);
+  });
+
+  it('enrols a mistake the queue never saw instead of silently doing nothing', async () => {
+    // Rows recorded before the queue existed are exactly this case.
+    const mistakeId = await db.mistakes.put(mistake('sub:cafe_order:4:Ich möchte ein Kaffee'));
+    const row = { ...mistake('sub:cafe_order:4:Ich möchte ein Kaffee'), id: mistakeId };
+
+    expect(await focusMistakesForReview([row], 5_000)).toBe(1);
+
+    const stored = (await db.review_items.toArray())[0];
+    expect(stored.kind).toBe('mistake');
+    expect(stored.sourceId).toBe(mistakeId);
+    expect(stored.dueAt).toBe(5_000);
+  });
+
+  it('skips a correction with no corrected text rather than queueing an empty card', async () => {
+    const empty = { ...mistake('sub:cafe_order:5:'), corrected: '', id: 1 };
+    expect(await focusMistakesForReview([empty], 5_000)).toBe(0);
+    expect(await db.review_items.count()).toBe(0);
   });
 });
 

@@ -319,6 +319,19 @@ script gates them all.
 **Done when:** a learner can see, in one screen, exactly which German patterns they personally
 keep breaking — and fix them without leaving the screen.
 
+**Shipped so far (2026-09-25):** mistake taxonomy + error profile + drill.
+`src/lib/coach/taxonomy.ts` classifies every correction into article / case / word order / verb
+forms / preposition / vocabulary / spelling, keyword-based and deterministic — no AI call per
+mistake, and it works offline. `src/lib/coach/profile.ts` aggregates it and enforces the honesty
+rules (no pattern claimed below 3 recorded mistakes; a mastered mistake is never shown as an open
+weakness). `src/features/coach/CoachScreen.tsx` at `/app/coach` shows the top three patterns with
+real examples from the learner's own corrections and pushes that category to the front of the
+review queue, so the drill is the memory engine rather than a second, parallel one.
+
+**Still open here:** the 5-state competency model, the weekly Arabic report, and session reports
+leading with capability. The competency model needs the four-skill task types (Phase 2) before it
+can score anything but conversation.
+
 ---
 
 ### Phase 7 — Habit and marketability
