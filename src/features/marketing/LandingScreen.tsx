@@ -41,7 +41,8 @@ export interface LandingScreenProps {
  * Every claim here is limited to what the app actually does today (speaking,
  * listening dictation, spaced review, error profile, placement). Reading,
  * writing and exam formats exist in the roadmap but are not built, so they are
- * listed under "قريباً" instead of marketed as shipped features.
+ * listed under "قريباً" instead of marketed as shipped features — the writing
+ * card here moved to "متاح الآن" in the same commit that shipped /app/write.
  */
 export const LandingScreen: React.FC<LandingScreenProps> = ({
   onStart,
@@ -227,8 +228,8 @@ const SKILLS = [
     icon: PenLine,
     label: 'Schreiben',
     ar: 'الكتابة',
-    body: 'مهام كتابة حقيقية (بريد رسمي، شكوى، طلب) مع تصحيح مفصّل.',
-    ready: false,
+    body: 'مهام كتابة بصيغة الامتحان (رسالة، طلب موعد، بريد رسمي، شكوى) مع تقييم من أربعة معايير وتصحيح مفصّل، وكل خطأ يعود إليك في المراجعة.',
+    ready: true,
   },
 ] as const;
 
@@ -366,7 +367,7 @@ function ComingSection() {
         </Badge>
         <h2 className="mt-4 text-xl sm:text-2xl font-bold">الطريق إلى الشهادة</h2>
         <p className="mt-3 text-[13px] sm:text-sm leading-relaxed text-text-secondary max-w-2xl">
-          نعمل حالياً على القراءة والكتابة وتدريب صيغة مهام الامتحان الحقيقية
+          نعمل حالياً على القراءة وتدريب صيغة مهام الامتحان الكاملة والتصحيح الزمني
           (<GermanText className="text-xs">Goethe</GermanText> · <GermanText className="text-xs">telc</GermanText> ·{' '}
           <GermanText className="text-xs">DTZ</GermanText> من A1 إلى B2) ليصبح كاتزو تحضيراً صادقاً للشهادة، لا لعبة.
           نُطلقها فقط عندما تكون جاهزة وقابلة للقياس.
@@ -377,8 +378,8 @@ function ComingSection() {
             نصوص قراءة متدرّجة
           </li>
           <li className="flex items-center gap-2">
-            <PenLine className="w-4 h-4 text-primary shrink-0" aria-hidden />
-            مهام كتابة مصحّحة
+            <Clock className="w-4 h-4 text-primary shrink-0" aria-hidden />
+            محاكاة امتحان بتوقيت حقيقي
           </li>
           <li className="flex items-center gap-2">
             <Target className="w-4 h-4 text-primary shrink-0" aria-hidden />

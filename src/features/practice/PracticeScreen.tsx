@@ -23,15 +23,17 @@ import {
   Headphones,
   ArrowLeft,
   Target,
+  PenLine,
 } from 'lucide-react';
 import type { VocabularyEntity, GrammarEntity, MistakeEntity } from '@/types/models';
 
 export interface PracticeScreenProps {
   onOpenListening?: () => void;
+  onOpenWriting?: () => void;
   onOpenCoach?: () => void;
 }
 
-export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenCoach }) => {
+export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenWriting, onOpenCoach }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
@@ -187,6 +189,18 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           </div>
           <span className="text-xs font-bold font-arabic">الاستماع</span>
         </button>
+
+        {onOpenWriting && (
+          <button
+            onClick={onOpenWriting}
+            className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all active:scale-95"
+          >
+            <div className="w-8 h-8 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
+              <PenLine className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-bold font-arabic">الكتابة</span>
+          </button>
+        )}
       </div>
 
       {/* Search & Category Filter */}

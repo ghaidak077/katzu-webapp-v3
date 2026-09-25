@@ -41,7 +41,7 @@ competitors, and the hint-move design is real pedagogy, not decoration.
 | --- | --- | --- |
 | **No memory engine** | `nextReview`, `reviewDue`, `srs` → **0 references in 46 source files** | They practise a word once and never see it again. This is the single largest learning defect in the product. |
 | **No placement** | `placement`, `levelTest` → **0 references** | Everyone starts at A1 regardless of ability. An A2 learner is bored on day one and leaves. |
-| **Only two of four skills** | Speaking (conversation) + recognition (MCQ). No reading, no listening, no writing task types exist. | Cannot honestly claim to prepare anyone for an exam — Goethe/telc/DTZ all test four modules. |
+| **Only two of four skills** *(partly closed 2026-09-25: listening and writing shipped; reading remains)* | Speaking (conversation) + recognition (MCQ). No reading, no listening, no writing task types exist. | Cannot honestly claim to prepare anyone for an exam — Goethe/telc/DTZ all test four modules. |
 | **Content is a thin slice** | Live: **5 scenarios**, 114 vocabulary rows, **4** grammar rules, 20 starter phrases | 5 scenarios is a demo. It cannot carry weeks of study, so retention dies before payment is ever a question. |
 | **No mistake memory** | `mistakes` rows are stored but never resurfaced except in one practice screen; no taxonomy | The app forgets your error pattern. A coach's core value is remembering what *you* keep getting wrong. |
 | **No competency model** | Progress = XP, streak, accuracy % | XP is not learning. Nobody can answer "what can I now do in German?" |
@@ -199,7 +199,34 @@ else, so listening gaps are not a separate forgotten list. 18 new tests.
 **Why dictation rather than "choose what you heard":** every other exercise in the app can be
 passed by recognising text on screen. Dictation cannot. It is the only one that forces the
 learner to hold the sound, segment it into words, and reconstruct German — the skill needed in
-a Bürgeramt queue or on the phone.**Still open in this phase:** reading texts (needs a `reading_texts` D1 table and authored content), graded writing (needs a `POST /ai/check-writing` endpoint), grammar production drills, and per-skill reporting in the session report.
+a Bürgeramt queue or on the phone.**WRITING SHIPPED 2026-09-25 — three of the four skills now train.** `POST /ai/check-writing`
+(handler + `cloudflare-writing.js`) grades a real exam-shaped task at the learner's level
+(short message → appointment request → formal email → complaint) against a four-dimension
+rubric — task, coherence, grammar, vocabulary — and returns the text with its errors fixed,
+1-2 sentences of Arabic on what to fix first, and up to five corrections each with its rule
+and an Arabic explanation. Two things are deliberately server-authoritative: the task is
+derived from the level and validated (a client cannot show one task and be graded on
+another), and `percent` is computed from the dimensions the model actually returned, so a
+missing dimension is not a zero and no score is invented. Empty or unusable model output is
+an error with an Arabic retry, never an empty sheet.
+
+`/app/write` (from the Practice hub) takes the topic from the scenario the learner most
+recently trained, so writing sits inside the situation they are preparing for. Every
+correction is written into `mistakes` and enrolled in the **same** review queue as the
+conversation's, which means what they got wrong in writing comes back in the memory loop
+instead of living in a separate screen. 20 new tests (`tests/writing.test.ts`), including the
+client/worker task contract, the clamps, and the paywall path through the real router.
+
+**Per-skill measurement, honestly.** `skill_practice` (Dexie **v5**, additive) stores one row
+per finished dictation and per graded text, and the Progress tab shows the four skills using
+only measured rows — `null` renders as «لم تُقس بعد» rather than a zero, and reading says it
+has not started. `tests/skillPractice.test.ts` pins that rule; the skills card is the easiest
+place in a language app to quietly invent a number.
+
+**Still open in this phase:** reading texts (needs a `reading_texts` D1 table plus authored
+content — the one genuinely blocked item, because this workspace's Cloudflare token has no
+`D1:Edit` scope), grammar production drills generated from the existing `grammar` rows rather
+than one AI call per question, and a per-skill breakdown inside the session report itself.
 
 **Authored but not shippable yet (2026-09-25):** five reading texts with Arabic translation and comprehension questions, five writing tasks with rubrics, and five exam-format tasks for module 1 exist in the `deferred` block of `docs/content/curriculum-30day-module1.json`. They are deliberately outside the loadable tables — no script reads them and the audit fails if a loadable table name appears there — because the three tables they need do not exist. See `docs/CURRICULUM-DRAFT.md`.
 

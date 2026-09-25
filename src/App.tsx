@@ -29,6 +29,7 @@ import { TrustInfoScreen } from '@/features/settings/TrustInfoScreen';
 import { ReviewScreen } from '@/features/review/ReviewScreen';
 import { PlacementScreen } from '@/features/placement/PlacementScreen';
 import { ListeningScreen } from '@/features/listening/ListeningScreen';
+import { WritingScreen } from '@/features/writing/WritingScreen';
 import { CoachScreen } from '@/features/coach/CoachScreen';
 import { LandingScreen } from '@/features/marketing/LandingScreen';
 
@@ -127,6 +128,7 @@ function AppRoutes() {
           <Route path="/placement" element={<PlacementRoute />} />
           <Route path="/app/review" element={<ReviewRoute />} />
           <Route path="/app/listen" element={<ListeningRoute />} />
+          <Route path="/app/write" element={<WritingRoute />} />
           <Route path="/app/coach" element={<CoachRoute />} />
           <Route path="/app" element={<Navigate to="/app/trail" replace />} />
           <Route path="/app/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
@@ -232,6 +234,16 @@ function ListeningRoute() {
   return <ListeningScreen onBack={() => navigate('/app/practice')} />;
 }
 
+function WritingRoute() {
+  const navigate = useNavigate();
+  return (
+    <WritingScreen
+      onBack={() => navigate('/app/practice')}
+      onOpenSubscription={() => navigate('/subscription')}
+    />
+  );
+}
+
 function CoachRoute() {
   const navigate = useNavigate();
   return (
@@ -254,6 +266,7 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
       {activeTab === 'Practice' && (
         <PracticeScreen
           onOpenListening={() => navigate('/app/listen')}
+          onOpenWriting={() => navigate('/app/write')}
           onOpenCoach={() => navigate('/app/coach')}
         />
       )}
