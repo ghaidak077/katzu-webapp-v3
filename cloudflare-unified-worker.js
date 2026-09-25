@@ -914,6 +914,171 @@ async function handleUserExport(request, env, cors) {
 // The endpoint is what uptime checks hit, so a failure inside the internal
 // inspection degrades to a still-200 minimal report instead of a 5xx.
 // ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// REVIEW QUEUE SYNC (/review/sync)
+// The memory engine's schedule lives in IndexedDB, which is per-browser: a
+// learner who changes phone or clears site data lost everything the app had
+// learned about what they were about to forget. Progress sync could not carry
+// it (its payload is a fixed whitelist of five fields), so the queue has its own
+// key and its own route.
+//
+// The worker is the merge authority on purpose: "which copy of this item is
+// current" is one rule, implemented once, and the client simply adopts what
+// comes back. Two merges that drift would silently corrupt a learner's schedule,
+// and a schedule that is wrong is invisible — it just wastes their time.
+// ----------------------------------------------------------------------------
+
+/** Only these three exist in the client model; anything else is dropped, not stored. */
+const REVIEW_KINDS = new Set(["vocab", "phrase", "mistake"]);
+
+/** Above this a queue is not a queue — bound the KV value and the merge cost. */
+const MAX_REVIEW_ITEMS = 500;
+
+/** Scheduling further out than this is not a schedule; it is a bad client. */
+const MAX_REVIEW_HORIZON_MS = 400 * 86400 * 1000;
+const MAX_REVIEW_TEXT = 300;
+
+function clampReviewNumber(value, fallback, min, max) {
+  const n = typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/**
+ * Client rows are untrusted input. An item that cannot be asked or answered is
+ * dropped rather than stored: an unanswerable card in the learner's queue is a
+ * dead end they cannot clear.
+ */
+function normalizeReviewItem(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const kind = typeof raw.kind === "string" ? raw.kind.trim() : "";
+  if (!REVIEW_KINDS.has(kind)) return null;
+  const refId = typeof raw.refId === "string" ? raw.refId.trim().slice(0, 120) : "";
+  const promptAr = typeof raw.promptAr === "string" ? raw.promptAr.trim().slice(0, MAX_REVIEW_TEXT) : "";
+  const answerDe = typeof raw.answerDe === "string" ? raw.answerDe.trim().slice(0, MAX_REVIEW_TEXT) : "";
+  if (!refId || !promptAr || !answerDe) return null;
+
+  const text = (value) => (typeof value === "string" && value.trim() ? value.trim().slice(0, MAX_REVIEW_TEXT) : undefined);
+  const now = Date.now();
+  const lastReviewedAt = clampReviewNumber(raw.lastReviewedAt, 0, 0, now + MAX_REVIEW_HORIZON_MS);
+
+  const item = {
+    kind,
+    refId,
+    promptAr,
+    answerDe,
+    contextDe: text(raw.contextDe),
+    explanationAr: text(raw.explanationAr),
+    scenarioId: typeof raw.scenarioId === "string" ? raw.scenarioId.trim().slice(0, 64) || undefined : undefined,
+    level: VALID_LEVELS.has(String(raw.level || "").trim()) ? String(raw.level).trim() : undefined,
+    sourceId: Number.isFinite(raw.sourceId) ? Math.floor(raw.sourceId) : undefined,
+    dueAt: clampReviewNumber(raw.dueAt, now, 0, now + MAX_REVIEW_HORIZON_MS),
+    intervalDays: clampReviewNumber(raw.intervalDays, 1, 0, 400),
+    ease: clampReviewNumber(raw.ease, 2.5, 1.3, 2.8),
+    reps: Math.floor(clampReviewNumber(raw.reps, 0, 0, 1000)),
+    lapses: Math.floor(clampReviewNumber(raw.lapses, 0, 0, 1000)),
+    reviews: Math.floor(clampReviewNumber(raw.reviews, 0, 0, 1000)),
+    createdAt: clampReviewNumber(raw.createdAt, now, 0, now + MAX_REVIEW_HORIZON_MS),
+  };
+  if (lastReviewedAt > 0) item.lastReviewedAt = lastReviewedAt;
+  return item;
+}
+
+/** Later activity wins; reviews break the tie so a second device cannot erase progress. */
+function reviewItemIsNewer(candidate, current) {
+  const a = candidate.lastReviewedAt || 0;
+  const b = current.lastReviewedAt || 0;
+  if (a !== b) return a > b;
+  return (candidate.reviews || 0) > (current.reviews || 0);
+}
+
+async function mergeReviewQueue(sub, incoming, env) {
+  const key = `review:${sub}`;
+  const existingRaw = await env.USER_PROGRESS.get(key);
+  const byRef = new Map();
+  if (existingRaw) {
+    try {
+      const existing = JSON.parse(existingRaw);
+      for (const item of Array.isArray(existing?.items) ? existing.items : []) {
+        if (item?.refId && item?.kind) byRef.set(`${item.kind}:${item.refId}`, item);
+      }
+    } catch {
+      // A corrupt value must not block the learner's queue from being saved.
+    }
+  }
+
+  for (const item of incoming) {
+    const id = `${item.kind}:${item.refId}`;
+    const current = byRef.get(id);
+    if (!current || reviewItemIsNewer(item, current)) byRef.set(id, item);
+  }
+
+  // Keep the most recently touched items when trimming: the oldest untouched
+  // ones are the least likely to still matter to this learner.
+  const items = [...byRef.values()]
+    .sort((a, b) => (b.lastReviewedAt || b.createdAt || 0) - (a.lastReviewedAt || a.createdAt || 0))
+    .slice(0, MAX_REVIEW_ITEMS);
+  const updated_at = Date.now();
+  await env.USER_PROGRESS.put(key, JSON.stringify({ updated_at, items }));
+  return { updated_at, items };
+}
+
+async function handleReviewSync(request, env, cors) {
+  const body = await request.json().catch(() => null);
+  const idToken = extractIdToken(request, body);
+  if (!idToken || typeof idToken !== "string") {
+    return json({ error: "missing_id_token" }, 400, cors);
+  }
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  if (!account) {
+    return json({ error: "invalid_id_token" }, 200, cors);
+  }
+  if (!env.USER_PROGRESS) {
+    return json({ error: "storage_unavailable" }, 503, cors);
+  }
+
+  const incoming = (Array.isArray(body?.items) ? body.items : [])
+    .map(normalizeReviewItem)
+    .filter(Boolean)
+    .slice(0, MAX_REVIEW_ITEMS);
+  const merged = await mergeReviewQueue(account.sub, incoming, env);
+  return json({ success: true, ...merged }, 200, cors);
+}
+
+// ----------------------------------------------------------------------------
+// CLIENT ERROR REPORTS (/client-error)
+// A crash in the browser was invisible: the diagnostics buffer only exists on
+// the learner's own device, which is the device nobody can inspect after a
+// launch. Uncaught errors land in the error_reports table the admin dashboard
+// already reads, so the failure shows up where we can act on it.
+//
+// The route is unauthenticated by necessity — the app can crash before sign-in
+// — so it is IP rate-limited, body-capped, and the message goes through the
+// existing sanitizer (which strips session tokens, JWTs and key-shaped
+// strings). The client never sends learner text.
+// ----------------------------------------------------------------------------
+
+/** Abuse control only; reuses the one rate-limit implementation with our own ceiling. */
+const CLIENT_ERROR_RATE_LIMITS = { AI_RATE_LIMIT_PER_MINUTE: "8", AI_RATE_LIMIT_PER_DAY: "60" };
+
+async function handleClientError(request, env, cors) {
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const limit = checkRateLimit(`client-error:${ip}`, CLIENT_ERROR_RATE_LIMITS);
+  if (!limit.allowed) {
+    return json({ success: false, error: "rate_limited" }, 429, cors);
+  }
+
+  const body = await request.json().catch(() => null);
+  const message = typeof body?.message === "string" ? body.message.trim() : "";
+  if (!message) {
+    return json({ error: "message_required" }, 400, cors);
+  }
+
+  const scope = typeof body?.scope === "string" ? body.scope.replace(/[^a-z0-9_]/gi, "").slice(0, 40) || "client" : "client";
+  const page = typeof body?.page === "string" ? body.page.slice(0, 120) : "unknown";
+  const recorded = await recordError(env, null, `client_${scope}`, page, message);
+  return json({ success: recorded }, 200, cors);
+}
+
 async function handlePublicHealth(env, cors) {
   let internal = {};
   try {
@@ -1104,6 +1269,12 @@ export default {
       }
       if (url.pathname === "/progress/get" && request.method === "POST") {
         return await handleProgressGet(request, env, cors);
+      }
+      if (url.pathname === "/review/sync" && request.method === "POST") {
+        return await handleReviewSync(request, env, cors);
+      }
+      if (url.pathname === "/client-error" && request.method === "POST") {
+        return await handleClientError(request, env, cors);
       }
 
       // --- Worker 2 D1 Content Read Endpoints ---
