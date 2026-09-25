@@ -8,6 +8,7 @@ import { triggerHaptic } from '@/lib/utils/haptics';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { AudioWaveform } from '@/components/common/AudioWaveform';
+import { HintOption } from '@/components/common/HintOption';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { isProEffective } from '@/lib/utils/subscription';
@@ -25,6 +26,8 @@ import {
   AlertTriangle,
   Languages,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import type {
   ChatMessage,
@@ -70,6 +73,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const [showAllTranslations, setShowAllTranslations] = useState(false);
   const [currentHints, setCurrentHints] = useState<ContextualHint[]>([]);
   const [isHintRevealed, setIsHintRevealed] = useState(false);
+  // The sheet shows one suggestion by default; the other conversational moves
+  // are one tap away rather than competing with the chat.
+  const [isHintExpanded, setIsHintExpanded] = useState(false);
   // Cached starter phrases are the always-available hint floor — shown when AI
   // hints fail/paywall and refreshed from the Worker when the cache is empty.
   const [starterHints, setStarterHints] = useState<ContextualHint[]>([]);
@@ -352,6 +358,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         void loadStarterHints();
       }
       setIsHintRevealed(false);
+      setIsHintExpanded(false);
 
       // Check for completion (Rule 7)
       if (isFinalTurn) {
@@ -827,17 +834,32 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
               </button>
             )}
             {isHintRevealed && (
-              <div className="flex items-center gap-2">
-                {visibleHints.slice(0, 1).map((hint, hIdx) => (
-                  <button
-                    key={hIdx}
-                    onClick={() => handleUseHint(hint)}
-                    className="flex-1 min-w-0 px-3 py-2 rounded-2xl bg-surface-card border border-primary/40 text-xs font-semibold text-start transition-all flex flex-col"
-                  >
-                    <GermanText className="text-primary font-bold truncate">{hint.german}</GermanText>
-                    <span className="text-[10px] text-text-muted truncate">{hint.arabic}</span>
-                  </button>
-                ))}
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0 space-y-2">
+                  {/* Primary suggestion stays the only thing visible by
+                      default; the expander reveals the other moves. */}
+                  <HintOption hint={visibleHints[0]} onUse={() => handleUseHint(visibleHints[0])} primary />
+                  {visibleHints.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setIsHintExpanded((v) => !v);
+                          triggerHaptic('light');
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-surface-subtle border border-border-subtle text-[11px] font-arabic font-semibold text-text-secondary hover:text-primary transition-colors"
+                      >
+                        <span>
+                          {isHintExpanded ? 'إخفاء الخيارات الأخرى' : `خيارات أخرى في هذا الموقف (${visibleHints.length - 1})`}
+                        </span>
+                        {isHintExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                      {isHintExpanded &&
+                        visibleHints.slice(1, 4).map((hint, hIdx) => (
+                          <HintOption key={hIdx} hint={hint} onUse={() => handleUseHint(hint)} />
+                        ))}
+                    </>
+                  )}
+                </div>
                 <button
                   onClick={refreshHints}
                   aria-label="تحديث الاقتراحات"

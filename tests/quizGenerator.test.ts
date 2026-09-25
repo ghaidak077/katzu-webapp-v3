@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateQuizQuestions } from '@/lib/utils/quizGenerator';
+import { generateQuizQuestions, optionsCollide } from '@/lib/utils/quizGenerator';
 import type { StarterPhraseEntity, VocabularyEntity } from '@/types/models';
 
 // Seeded rng so option order is deterministic in assertions.
@@ -38,10 +38,52 @@ describe('generateQuizQuestions', () => {
     }
   });
 
-  it('uses example sentences when available', () => {
+  it('asks about the word itself and keeps the example sentence as context', () => {
     seed = 7;
     const questions = generateQuizQuestions(vocab, [], rng, 1);
-    expect(questions[0].germanPrompt).toMatch(/Der Kaffee|Ich trinke|Die Rechnung|Ein Glas|Das Brot/);
+    const q = questions[0];
+    expect(q.kind).toBe('vocab');
+    // The prompt must identify the word being translated — never an example
+    // sentence, which was the shipped prompt/answer mismatch.
+    const source = vocab.find((v) => q.explanation.startsWith(`${v.article} ${v.german} =`));
+    expect(source).toBeTruthy();
+    expect(q.germanPrompt).toBe(`${source!.article} ${source!.german}`);
+    expect(q.exampleSentence).toBe(source!.example_de);
+    expect(q.sourceLevel).toBe(source!.level);
+    expect(q.options[q.correctIndex]).toBe(source!.translation_ar);
+  });
+
+  it('never uses an example sentence as the prompt (regression)', () => {
+    seed = 11;
+    const questions = generateQuizQuestions(vocab, phrases, rng, 20);
+    expect(questions.length).toBeGreaterThan(0);
+    for (const q of questions.filter((x) => x.kind === 'vocab')) {
+      const source = vocab.find((v) => `${v.article} ${v.german}` === q.germanPrompt);
+      expect(source, `prompt "${q.germanPrompt}" is not a vocabulary headword`).toBeTruthy();
+      if (source!.example_de) expect(q.germanPrompt).not.toBe(source!.example_de);
+    }
+  });
+
+  it('never offers an option that also means the marked-correct answer', () => {
+    // Real D1 collisions (now fixed in data, still guarded in code):
+    // vorlegen "يُبرز / يقدّم" vs einreichen "يقدّم",
+    // Symptome "أعراض" vs Beschwerden "أعراض / شكاوى".
+    const ambiguous: VocabularyEntity[] = [
+      { id: 91, german: 'einreichen', translation_ar: 'يقدّم', topic: 'documents', level: 'B1' },
+      { id: 92, german: 'vorlegen', translation_ar: 'يُبرز / يقدّم', topic: 'documents', level: 'B2' },
+      { id: 93, german: 'Symptome', translation_ar: 'أعراض', topic: 'health', level: 'B2' },
+      { id: 94, german: 'Beschwerden', translation_ar: 'أعراض / شكاوى', topic: 'health', level: 'B1' },
+      { id: 95, german: 'Termin', translation_ar: 'موعد', topic: 'documents', level: 'A1' },
+      { id: 96, german: 'Frist', translation_ar: 'مهلة', topic: 'documents', level: 'B1' },
+    ] as VocabularyEntity[];
+    seed = 5;
+    const questions = generateQuizQuestions(ambiguous, [], rng, 20);
+    expect(questions.length).toBeGreaterThan(0);
+    for (const q of questions) {
+      const correct = q.options[q.correctIndex];
+      const colliding = q.options.filter((o, i) => i !== q.correctIndex && optionsCollide(o, correct));
+      expect(colliding, `"${q.germanPrompt}" mixes "${correct}" with ${JSON.stringify(colliding)}`).toEqual([]);
+    }
   });
 
   it('mixes in starter phrases when vocabulary is thin', () => {

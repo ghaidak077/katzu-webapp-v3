@@ -31,9 +31,10 @@ Definition: conditions that must be TRUE before **paid public beta**. Each item 
 - [ ] Competency model with 5 states; session report leads with competencies.
 - [ ] Independent vs hint-assisted reporting preserved (already exists — keep).
 
-## Gate 5 — Monetization (Phase 7) — status: OPEN (owner decisions pending)
-- [ ] Payment provider chosen + business entity/banking set (owner).
-- [ ] Checkout with server-side webhook entitlement; renewal/cancel/grace/refund/restore paths.
+## Gate 5 — Monetization (Phase 7) — status: OPEN (owner action + credentials pending)
+- [~] Payment provider chosen: **crypto via NOWPayments on the separate sales site** (`katzu-sales`) — no founder-KYC dependency, which is what closed the card-processor route. Business entity/banking remain owner decisions.
+- [~] Server-side webhook entitlement is built (`POST /crypto/webhook`, HMAC-SHA512, rejects unsigned with 401) but **not yet exercisable**: `/crypto/health` reports `ready:false` until `NOWPAYMENTS_API_KEY` + `NOWPAYMENTS_IPN_SECRET` are set. Local-Syria payment details on the sales site are still `FILL` placeholders.
+- [ ] Renewal/cancel/grace/refund/restore paths (codes are one-shot, so "renewal" = buying another code; formal policy text still needs counsel).
 - [ ] Prices configurable without app release.
 - [ ] Paywall shows achieved → restricted → outcome, prices, trial/renewal, legal links.
 - [ ] Codes flow retained for B2B/gifts.

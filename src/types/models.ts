@@ -123,6 +123,13 @@ export interface ScenarioTrainingEntity {
   lastScore: number;
   effectiveLevel: CEFRLevel;
   updatedAt: number;
+  /**
+   * Set when the learner deliberately chose "skip to conversation" at scenario
+   * entry. It is an explicit override of the Study -> Quiz on-ramp only: it never
+   * skips CEFR level gating or vocabulary injection into the live prompts, which
+   * do not read this record at all. Absent on records written before this field.
+   */
+  trainingSkippedAt?: number;
 }
 
 export interface MistakeEntity {
@@ -170,6 +177,12 @@ export interface ChatMessage {
 export interface ContextualHint {
   german: string;
   arabic: string;
+  /**
+   * Which conversational move this option makes (answer / agree / disagree /
+   * add_detail / ask_followup / clarify / express_uncertainty / deflect).
+   * Absent on the single hint embedded in a conversation turn response.
+   */
+  intent?: string;
 }
 
 export interface TurnAiResponse {

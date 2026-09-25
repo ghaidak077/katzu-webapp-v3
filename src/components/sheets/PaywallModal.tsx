@@ -3,6 +3,7 @@ import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Sparkles, Check, KeyRound, ArrowRight } from 'lucide-react';
+import { PRO_PRICE_LABEL, SALES_URL } from '@/lib/utils/links';
 
 export interface PaywallModalProps {
   isOpen: boolean;
@@ -65,6 +66,17 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
             <Sparkles className="w-4 h-4" />
             ترقية الحساب أو تفعيل كود
           </Button>
+
+          <a
+            href={SALES_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onClose}
+            className="w-full py-1 flex items-center justify-center gap-1.5 text-[11px] font-arabic text-text-secondary hover:text-primary transition-colors"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            شراء كود تفعيل ({PRO_PRICE_LABEL}) — دفع بالبطاقة أو بالعملات الرقمية أو دفع محلي في سوريا
+          </a>
 
           <button
             onClick={onClose}

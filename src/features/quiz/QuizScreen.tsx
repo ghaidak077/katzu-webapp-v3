@@ -150,11 +150,21 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
           {/* Prompt Card */}
           <Card variant="hero" className="p-6 text-center relative border border-primary/30 shadow-glow-purple">
             <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider block mb-2">
-              ما هو المعنى الصحيح لهذه الجملة؟
+              {currentQ.kind === 'vocab' ? 'ما معنى هذه الكلمة؟' : 'ما معنى هذه الجملة؟'}
             </span>
             <GermanText className="text-xl font-bold text-text-primary mb-3 block">
               {currentQ.germanPrompt}
             </GermanText>
+            {/* Supporting example for word questions: context, never the question
+                itself (the prompt above is what the options translate). */}
+            {currentQ.kind === 'vocab' && currentQ.exampleSentence && (
+              <div className="mb-3">
+                <span className="text-[10px] text-text-muted font-arabic block mb-1">في جملة:</span>
+                <GermanText className="text-sm text-text-secondary italic block">
+                  {currentQ.exampleSentence}
+                </GermanText>
+              </div>
+            )}
             <button
               onClick={() => speak(currentQ.germanPrompt)}
               className="p-2.5 rounded-full bg-primary/20 text-primary hover:bg-primary/30 mx-auto inline-flex items-center gap-1.5 text-xs font-semibold"

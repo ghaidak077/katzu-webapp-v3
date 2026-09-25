@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
-import { ArrowRight, Check, KeyRound, Sparkles, UserCheck, AlertCircle, Gift } from 'lucide-react';
+import { ArrowRight, Check, KeyRound, Sparkles, UserCheck, AlertCircle, Gift, ExternalLink, ShoppingCart } from 'lucide-react';
+import { PRO_PRICE_LABEL, SALES_URL } from '@/lib/utils/links';
 
 export interface SubscriptionRedemptionScreenProps {
   onBack: () => void;
@@ -202,6 +203,34 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
             )}
           </Card>
         )}
+
+        {/* Where a code comes from: the separate sales site (cards/crypto + local
+            Syria payment). The app never takes a payment itself. */}
+        <Card className="w-full p-4 bg-surface-subtle border-primary/30 text-start mb-4">
+          <label className="flex items-center gap-1.5 text-xs font-bold text-text-secondary mb-2 font-arabic">
+            <ShoppingCart className="w-3.5 h-3.5 text-primary" />
+            لا تملك كود تفعيل بعد؟
+          </label>
+          <p className="text-[11px] text-text-secondary font-arabic leading-relaxed mb-3">
+            اشترِ كوداً من صفحة الشراء الرسمية بـ {PRO_PRICE_LABEL} — الدفع بالبطاقة أو العملات الرقمية،
+            وللمقيمين في سوريا خيارات الدفع المحلي (سيرياتيل كاش، MTN كاش، حوالة بنكية). يصل الكود
+            إليك مباشرة ثم تفعّله هنا.
+          </p>
+          <div className="flex gap-2">
+            <a
+              href={SALES_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 h-11 rounded-2xl bg-primary text-white text-xs font-bold font-arabic flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              اشترِ كود تفعيل الآن
+            </a>
+          </div>
+          <div className="mt-2 text-[10px] text-text-muted font-mono break-all text-center" dir="ltr">
+            {SALES_URL}
+          </div>
+        </Card>
 
         {/* Activation Code Redemption Box */}
         <Card className="w-full p-4 bg-surface-subtle border-border-subtle text-start mb-4">

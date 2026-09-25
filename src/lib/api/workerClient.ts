@@ -558,9 +558,12 @@ export class WorkerClient {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.hints) && data.hints.length > 0) {
+          // 2-4 distinct moves per request; the worker already filtered
+          // duplicates, this just normalizes the shape the UI renders.
           return data.hints.map((h: any) => ({
             german: h.german || '',
             arabic: h.translation_ar || h.arabic || '',
+            intent: h.intent || undefined,
           }));
         }
         logEvent('ai/hints', '200 OK but empty hints array — will use starter phrases');

@@ -732,6 +732,20 @@ function checkAdminAuth(request, env) {
 
 const ADMIN_API_PREFIX = "/admin/api/";
 
+// Content tables the admin surface may edit in place. Scenarios and grammar are
+// excluded on purpose: `/admin/upload` already upserts those by id.
+const CONTENT_EDITABLE_TYPES = ["vocabulary", "starter_phrases"];
+const CONTENT_EDITABLE_COLUMNS = {
+  vocabulary: [
+    "german", "article", "plural", "part_of_speech",
+    "translation_ar", "translation_en",
+    "example_de", "example_ar", "example_en",
+    "level", "topic",
+  ],
+  starter_phrases: ["german", "translation_ar", "translation_en", "level", "sort_order"],
+};
+const CONTENT_LEVELS = new Set(["A1", "A2", "B1", "B2"]);
+
 export async function handleAdminRoutes(url, request, env, cors) {
   const path = url.pathname;
   const method = request.method;
@@ -828,6 +842,89 @@ export async function handleAdminRoutes(url, request, env, cors) {
       if (action === "backfill-preview" && method === "GET") {
         // Read-only inventory of what a backfill could recover. Never writes.
         return json(await previewBackfill(env), 200, cors);
+      }
+
+      // ---------------- Content CRUD (vocabulary + starter_phrases) ----------
+      // `/admin/upload` only ever INSERTs into these two tables (neither one has
+      // a unique key, so no ON CONFLICT clause exists for them). Re-uploading a
+      // corrected row therefore duplicates the headword and hands the quiz two
+      // identical rows. This is the missing update path: rowid-keyed, column
+      // allowlisted, admin-authenticated, no schema change.
+      if (action === "content-list" && method === "GET") {
+        const type = url.searchParams.get("type");
+        if (!CONTENT_EDITABLE_TYPES.includes(type)) {
+          return json({ error: "invalid_type", allowed: CONTENT_EDITABLE_TYPES }, 400, cors);
+        }
+        const clauses = [];
+        const params = [];
+        const level = url.searchParams.get("level");
+        if (level) {
+          clauses.push("level = ?");
+          params.push(level);
+        }
+        const topic = url.searchParams.get("topic");
+        if (topic && type === "vocabulary") {
+          clauses.push("topic = ?");
+          params.push(topic);
+        }
+        const scenarioId = url.searchParams.get("scenario_id");
+        if (scenarioId && type === "starter_phrases") {
+          clauses.push("scenario_id = ?");
+          params.push(scenarioId);
+        }
+        const q = url.searchParams.get("q");
+        if (q) {
+          clauses.push("german LIKE ?");
+          params.push(`%${q}%`);
+        }
+        const rawLimit = Number.parseInt(url.searchParams.get("limit") || "100", 10);
+        const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 100, 1), 500);
+        const sql = `SELECT rowid AS id, * FROM ${type}${clauses.length ? ` WHERE ${clauses.join(" AND ")}` : ""} ORDER BY rowid ASC LIMIT ${limit}`;
+        const stmt = env.DB.prepare(sql);
+        const { results } = await (params.length ? stmt.bind(...params) : stmt).all();
+        return json({ type, count: (results || []).length, rows: results || [] }, 200, cors);
+      }
+
+      if (action === "content-update" && method === "POST") {
+        const type = body?.type;
+        if (!CONTENT_EDITABLE_TYPES.includes(type)) {
+          return json({ error: "invalid_type", allowed: CONTENT_EDITABLE_TYPES }, 400, cors);
+        }
+        const updates = Array.isArray(body?.updates) ? body.updates : [];
+        if (updates.length === 0) {
+          return json({ error: "invalid_body", detail: "updates must be a non-empty array of { id, fields }" }, 400, cors);
+        }
+        const allowed = CONTENT_EDITABLE_COLUMNS[type];
+        const stmts = [];
+        const ids = [];
+        for (let i = 0; i < updates.length; i++) {
+          const id = Number(updates[i]?.id);
+          const fields = updates[i]?.fields;
+          if (!Number.isInteger(id) || id <= 0) {
+            return json({ error: "invalid_id", detail: `updates[${i}].id must be the positive integer rowid of an existing row` }, 400, cors);
+          }
+          if (!fields || typeof fields !== "object" || Array.isArray(fields)) {
+            return json({ error: "invalid_fields", detail: `updates[${i}].fields must be an object` }, 400, cors);
+          }
+          const requested = Object.keys(fields);
+          const columns = requested.filter((k) => allowed.includes(k));
+          if (columns.length === 0 || columns.length !== requested.length) {
+            return json({ error: "invalid_columns", allowed, got: requested }, 400, cors);
+          }
+          if (columns.includes("level") && !CONTENT_LEVELS.has(String(fields.level).trim())) {
+            return json({ error: "invalid_level", detail: `updates[${i}].level must be one of A1, A2, B1, B2` }, 400, cors);
+          }
+          const assignments = columns.map((c) => `${c} = ?`).join(", ");
+          stmts.push(env.DB.prepare(`UPDATE ${type} SET ${assignments} WHERE rowid = ?`).bind(...columns.map((c) => fields[c]), id));
+          ids.push(id);
+        }
+        await env.DB.batch(stmts);
+        // Read the rows back so the response is the write, not a claim about it.
+        const placeholders = ids.map(() => "?").join(", ");
+        const { results } = await env.DB.prepare(
+          `SELECT rowid AS id, * FROM ${type} WHERE rowid IN (${placeholders}) ORDER BY rowid ASC`
+        ).bind(...ids).all();
+        return json({ type, updated: ids.length, rows: results || [] }, 200, cors);
       }
 
       return json({ error: "unknown_admin_api_route", action }, 404, cors);

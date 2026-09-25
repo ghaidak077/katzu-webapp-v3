@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
-import { ArrowRight, BookOpen, CheckCircle, MessagesSquare, Sparkles } from 'lucide-react';
+import { ArrowRight, BookOpen, CheckCircle, Lock, MessagesSquare, Sparkles } from 'lucide-react';
 
 export interface ScenarioDetailScreenProps {
   scenarioId: string;
@@ -28,6 +28,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
   onOpenSubscription,
 }) => {
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showSkipPrompt, setShowSkipPrompt] = useState(false);
 
   const scenario = useLiveQuery(() => db.scenarios.get(scenarioId));
   const starterPhrases = useLiveQuery(() => db.starter_phrases.where('scenario_id').equals(scenarioId).toArray()) || [];
@@ -39,12 +40,41 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
   }
 
   const isPro = isProEffective(user);
-  const handleConversationClick = () => {
-    onStartConversation();
-  };
 
   const isStudied = !!training?.studiedAt;
   const isQuizPassed = !!training?.quizAttempted && (training?.lastScore || 0) >= 60;
+  // Deliberate override recorded from the "skip to conversation" control below.
+  const hasSkipped = !!training?.trainingSkippedAt;
+  const isConversationUnlocked = isQuizPassed || hasSkipped;
+
+  /**
+   * The on-ramp is Study -> Quiz by default. Choosing to skip records that
+   * decision and goes straight to the conversation; the CEFR level gating and
+   * vocabulary injection of the live session are untouched by it.
+   */
+  const skipToConversation = async () => {
+    const existing = await db.scenario_training.get(scenarioId);
+    await db.scenario_training.put({
+      scenarioId,
+      userId: existing?.userId || 'current_user',
+      studiedAt: existing?.studiedAt ?? null,
+      quizAttempted: existing?.quizAttempted ?? false,
+      lastScore: existing?.lastScore ?? 0,
+      effectiveLevel: existing?.effectiveLevel || 'A1',
+      trainingSkippedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    onStartConversation();
+  };
+
+  const handleConversationClick = () => {
+    setShowSkipPrompt(!isConversationUnlocked);
+    if (isConversationUnlocked) onStartConversation();
+  };
+
+  // One primary action, always the next step of the on-ramp until it is done.
+  const trainingLabel = !isStudied ? 'ابدأ التدريب: دراسة العبارات' : 'أكمل التدريب: الاختبار السريع';
+  const handleTrainingStart = () => (isStudied ? onStartQuiz() : onStartStudy());
 
   return (
     <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto relative pb-16">
@@ -80,6 +110,40 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
 
       {/* 3 Step Action Cards */}
       <div className="space-y-3.5 mb-8">
+        {/* Training on-ramp is the primary path; the conversation is the reward. */}
+        {!isConversationUnlocked ? (
+          <Card variant="hero" className="p-4 border border-primary/30">
+            <div className="flex items-start gap-3 mb-3">
+              <KatzuMascot name="scenario_host" className="w-12 h-12 object-contain shrink-0" />
+              <p className="text-xs font-arabic text-text-secondary leading-relaxed">
+                خطوتان قصيرتان ثم نتحدث: بطاقات الكلمات أولاً، ثم اختبار سريع. بدونها سترتجل أمامي،
+                وأنا ألاحظ الارتجال فوراً.
+              </p>
+            </div>
+            <Button size="lg" className="w-full" onClick={handleTrainingStart}>
+              {trainingLabel}
+            </Button>
+            <button
+              onClick={skipToConversation}
+              className="mt-3 w-full text-center text-[11px] font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
+            >
+              تخطَّ التدريب وابدأ المحادثة مباشرة
+            </button>
+          </Card>
+        ) : (
+          <Card variant="hero" className="p-4 border border-primary/30">
+            <Button size="lg" className="w-full mb-2" onClick={onStartConversation}>
+              ابدأ المحادثة الحية الآن 🎙️
+            </Button>
+            <button
+              onClick={isQuizPassed ? onStartStudy : handleTrainingStart}
+              className="w-full text-center text-[11px] font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
+            >
+              {isQuizPassed ? 'أعد التدريب من بطاقات الكلمات' : 'أكمل التدريب بدلاً من ذلك'}
+            </button>
+          </Card>
+        )}
+
         <h4 className="text-xs font-bold font-arabic text-text-secondary">خطة الإتقان للموقف:</h4>
 
         {/* Step 1: Study */}
@@ -116,26 +180,49 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
           {isQuizPassed && <CheckCircle className="w-5 h-5 text-status-success" />}
         </div>
 
-        {/* Step 3: Live Conversation */}
+        {/* Step 3: Live Conversation (unlocks after the quiz, or after an explicit skip) */}
         <div
           onClick={handleConversationClick}
-          className="p-4 rounded-3xl bg-surface-card border border-primary/40 hover:border-primary shadow-glow-purple cursor-pointer flex items-center justify-between transition-all active:scale-98"
+          className={`p-4 rounded-3xl bg-surface-card border cursor-pointer flex items-center justify-between transition-all active:scale-98 ${
+            isConversationUnlocked ? 'border-primary/40 hover:border-primary shadow-glow-purple' : 'border-border-subtle opacity-80'
+          }`}
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-primary text-white">
-              <MessagesSquare className="w-5 h-5" />
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isConversationUnlocked ? 'bg-primary text-white' : 'bg-surface-subtle text-text-muted'}`}>
+              {isConversationUnlocked ? <MessagesSquare className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold font-arabic text-primary">
+                <span className={`text-sm font-bold font-arabic ${isConversationUnlocked ? 'text-primary' : 'text-text-secondary'}`}>
                   3. المحادثة الحية مع كَاتْزُو
                 </span>
                 {!isPro && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-bold">تحقق الحصة عند البدء</span>}
               </div>
-              <div className="text-xs text-text-secondary">تحدث بصوتك مباشرة وخض الحوار التفاعلي</div>
+              <div className="text-xs text-text-secondary">
+                {isConversationUnlocked ? 'تحدث بصوتك مباشرة وخض الحوار التفاعلي' : 'تُفتح بعد إتمام التدريب — أو تخطَّه صراحةً'}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Explicit, clearly secondary override — never a hidden workaround. */}
+        {showSkipPrompt && !isConversationUnlocked && (
+          <Card className="p-4 border border-border-subtle animate-fade-in">
+            <p className="text-xs font-arabic text-text-secondary mb-3">
+              التدريب يجعلك تتحدث بثقة أكبر — لكن القرار قرارك. المحادثة متاحة الآن على أي حال،
+              ومستوى الكلمات والعبارات يبقى كما هو تماماً.
+            </p>
+            <Button size="md" className="w-full mb-2" onClick={handleTrainingStart}>
+              {trainingLabel}
+            </Button>
+            <button
+              onClick={skipToConversation}
+              className="w-full text-center text-[11px] font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
+            >
+              تخطَّ إلى المحادثة الآن
+            </button>
+          </Card>
+        )}
       </div>
 
       {/* Starter Phrases Preview */}

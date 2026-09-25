@@ -19,6 +19,7 @@
  * Wrangler bundles the import below into the single deployed worker.
  */
 
+import { handleHintsRoute } from "./cloudflare-hints.js";
 import {
   ensureRegistryTables,
   upsertUserFromAccount,
@@ -947,7 +948,27 @@ export default {
         return await withAiTelemetry(() => handleAiTranslation(request, env, cors), request, env, "ai_translate");
       }
       if ((url.pathname === "/ai/hints" || url.pathname === "/hints") && request.method === "POST") {
-        return await withAiTelemetry(() => handleAiHints(request, env, cors), request, env, "ai_hints");
+        // Multi-move hints (2-4 distinct conversational intents) live in
+        // ./cloudflare-hints.js — the legacy single-hint handler below this file's
+        // header boundary now sits past the ~63 KB line the edit tooling cannot
+        // reach, so the worker-scoped internals it needs are injected here.
+        return await withAiTelemetry(
+          () =>
+            handleHintsRoute(request, env, cors, {
+              authenticateAiRequest,
+              boundedHistory,
+              getGeminiApiKeys,
+              getCache,
+              setCache,
+              hintsCache,
+              callGeminiWithFailover,
+              cleanJson,
+              json,
+            }),
+          request,
+          env,
+          "ai_hints"
+        );
       }
       if ((url.pathname === "/ai/health" || url.pathname === "/health") && request.method === "GET") {
         return handleAiHealth(env, cors);
