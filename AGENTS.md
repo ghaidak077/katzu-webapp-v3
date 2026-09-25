@@ -9,6 +9,31 @@ deliver finished, working, launch-ready outcomes — not analysis, not options, 
 
 ---
 
+## 0. The product thesis — inherit it, don't re-derive it
+
+Katzu is not "another language app". This is the position it owns, and the only one worth
+defending:
+
+> **Arabic-first · German for real life in Germany (bureaucracy, Arbeit, Wohnung, Arzt,
+> Studium) · you speak out loud every day · it remembers your mistakes and brings them back
+> at the right time · it trains the real Goethe / telc / DTZ task formats.**
+
+- **Audience:** Arabic speakers preparing to move, work, or study in Germany — plus those
+  already there. Their motivation is a **certificate and a job**, not a badge.
+- **Scope: A1–B2 only.** Depth beats range. No C1/C2 work unless the owner asks.
+- **Four skills or it is not a course:** speaking, listening, reading, writing. Every German
+  exam tests all four; a product that trains two cannot honestly claim to prepare anyone.
+- **Ordering rule for all product work — do not reorder it:**
+  **memory (spaced repetition) → placement → content depth → polish/gamification.**
+  Adding content to an app that forgets everything is the most expensive mistake available.
+- Full phase plan: `docs/LEARNING-ROADMAP.md`. Read it before proposing product work.
+
+**Anti-bloat — already considered and rejected. Do not propose them again:** leagues or social
+feeds, pronunciation-scoring ML, avatars or video tutors, C1/C2, a second backend or AI provider,
+unreviewed AI-generated content, destructive DB migrations.
+
+---
+
 ## 1. What "good" means here
 
 Every decision is judged by three things, in order:
@@ -20,6 +45,10 @@ Every decision is judged by three things, in order:
 3. **Does it make Katzu easier to sell?** Clear value, polished UI/UX, no visible glitches.
 
 Prefer the **smallest change that fully solves the problem**. Complexity is a cost you pay forever.
+
+A change that scores on none of the three is not work — it is noise. Say so instead of building it.
+The best outcome of a task is sometimes "this is already done" or "this does not need to exist".
+Both count as delivery.
 
 ## 2. Check first — never do already-done work
 
@@ -37,6 +66,19 @@ merged work is a failure, not thoroughness.
 
 **Never loop.** If two attempts at the same approach fail, the approach is wrong: change the plan
 or ask. Repeating a failed action with cosmetic variations is the one unforgivable behaviour.
+
+**Is the change already published?** Ask directly instead of assuming:
+
+```bash
+git rev-list --count origin/main..HEAD           # 0 = nothing unpushed
+git log origin/main --oneline -5                 # is the commit already on main?
+git show origin/main:<file> | grep -c <marker>   # is the code already live?
+```
+
+If it is already on `main`, **do not manufacture a PR, branch, cherry-pick, or revert-and-reapply
+to create the appearance of one.** That is ceremony, not delivery. A request that is already
+satisfied is a **finding**, not a task: report it with the evidence, in the first sentence, and
+stop. Only build an artifact when something is genuinely undelivered.
 
 ## 3. When to ask
 
@@ -59,15 +101,41 @@ Never ask the owner to run a command, open a terminal, or verify something you c
   count) so the claim is falsifiable.
 - Never claim a command passed if you did not run it.
 
-## 5. Engineering rules
+## 5. The quality bar — world-class, not "it compiles"
 
+Write code you would defend in review at a top-tier company. Concretely:
+
+- **A diff must read as if the original author wrote it.** Match the surrounding idiom, naming,
+  and comment density. A stylistic outlier is a defect.
 - **Edit, never regenerate.** Targeted diffs. Full-file rewrites only when the file is genuinely
-  new or you explain why first.
-- Match existing conventions in the repo — do not add a second way to do something that already
-  has one (a second styling system, HTTP client, state store, or backend).
-- Delete dead code you touch; leave unrelated code alone.
-- No new dependency without checking that the need cannot be met with what is already installed.
+  new, or you explain why first.
+- **One source of truth.** No duplicated logic, no parallel systems — a second styling system,
+  HTTP client, state store, or backend is never the answer.
+- **Types at the boundaries.** No `any`, no unchecked casts. Model state so invalid states cannot
+  be represented rather than validating them everywhere at runtime.
+- **Storage is a trust surface: additive migrations only.** Never destructive. Learner progress
+  must survive every upgrade — follow the existing Dexie v2/v3 upgrade pattern.
+- **Tests assert behaviour, not implementation.** Every bug you reasoned your way through gets a
+  regression test that fails before the fix and passes after.
+- **No dead ends.** Every failure state has an Arabic, actionable message and a way forward —
+  type instead of speak, cached content instead of AI, retry instead of a blank screen. Never a
+  silent `catch`.
+- **Cost and latency are quality.** Never call AI on a path that does not need it; deterministic
+  content beats generated content wherever it can.
+- **Delete dead code you touch.** No commented-out blocks, no TODO without a decision behind it.
+- **Comments explain why** — a constraint, a past bug, a non-obvious trade-off — never what.
+- **Arabic-first is correctness, not polish:** RTL layout, Arabic typography, contrast, and tap
+  targets are quality gates.
+- No new dependency without proving the installed stack cannot do the job.
 - Content never lives in app code — scenarios, vocabulary, and grammar come from the backend.
+
+**Definition of done for any code change:**
+
+1. Behaviour verified on the **live system** (curl, headless run, or preview) — not merely compiled.
+2. New logic has a test; a fixed bug has a test that fails without the fix.
+3. `npm run lint`, `node --check cloudflare-unified-worker.js`, `npm test` pass when runtime code moved.
+4. Docs describing the changed behaviour are updated **in the same commit**.
+5. No unrelated file touched, no dead code left, working tree clean.
 
 ## 6. Git & delivery rules
 
@@ -92,6 +160,10 @@ npm test                                # vitest
 The platform re-runs the full CI check after every turn, so do not burn a turn just to confirm a
 green build — but do run checks **mid-task** when the result changes your next step.
 
+**Match verification to blast radius.** Docs-only → CI already covers it; spending a turn on
+lint/tests is waste. Runtime code → run the checks mid-task *and* prove the behaviour against the
+deployed system. Prefer the cheapest check that can actually falsify your claim.
+
 ## 8. Environment facts
 
 - Worker: `https://katzu-test.ghaidakalosh008.workers.dev` — deploy with `npm run deploy:worker`.
@@ -109,7 +181,35 @@ green build — but do run checks **mid-task** when the result changes your next
 - Documentation drifts. When a doc contradicts verified live behaviour, trust the live check and
   record the correction near the top of the affected section.
 
-## 9. Never do these
+## 9. Known failure modes — recognise them and stop
+
+These are the traps that have already cost real time on this project. Each one has a rule that
+defuses it instantly.
+
+1. **Manufacturing work for an already-merged change.** → Check `origin/main` first (§2). Report
+   the finding; do not build a synthetic PR, branch, or revert/reapply cycle.
+2. **Retrying an edit a tool physically cannot make.** Large files resist the string-replace tool
+   past roughly a 63 KB byte offset. → Probe first: `awk 'NR<N' file | wc -c`. If the target is
+   unreachable, put the new logic in the editable region and reference it. Never retry the same edit.
+3. **Retrying a search tool that returns the whole repo.** → If `code_search` ignores its scope
+   once, switch immediately to `grep -rn <pattern> <dir>` in a terminal command.
+4. **Trusting a stale document.** Docs here drift badly — a baseline doc can be months of merged
+   PRs out of date. → Read docs for orientation; verify with grep/curl for truth. Trust live
+   behaviour, then record the correction near the top of the affected section.
+5. **Re-confirming a green build.** The platform re-runs the full check after every turn. → Only
+   verify mid-task, when the result changes your next decision.
+6. **Asking for a decision that is plainly derivable.** File layout, naming, wording, which
+   existing library to use — these are yours. Asking about them wastes the owner's time. → Decide,
+   deliver, and note the choice in one line.
+7. **Mistaking launch-ready engineering for a product-ready product.** A hardened backend with a
+   handful of scenarios and no spaced repetition is not a product. → Judge every proposal against
+   the product thesis (§0) and `docs/LEARNING-ROADMAP.md`.
+8. **Proposing new surface area instead of finishing the existing loop.** → Improve what exists
+   before adding what does not.
+9. **Reporting as prose.** → Paste the raw output that proves the claim, and keep reasoning short.
+   Lead with the outcome, then the evidence, then what is still open.
+
+## 10. Never do these
 
 1. Re-do or re-PR work that is already merged and verified.
 2. Rewrite or force-push published history; delete someone else's branch.
@@ -117,3 +217,6 @@ green build — but do run checks **mid-task** when the result changes your next
 4. Ship a change that makes a working flow worse to make a new flow prettier.
 5. Report a plan or an intermediate step as a finished outcome.
 6. Leave the repo dirty at the end of a task unless the dirtiness *is* the deliverable.
+7. Manufacture a PR, branch, or revert/reapply for work that is already on `main`.
+8. Ship unreviewed AI-generated content as curriculum, or claim a learner learned something
+   the app did not actually measure.
