@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, wipeUserScopedData } from '@/lib/db/katzuDb';
 import {
+  adoptRemoteReviewItems,
   enrolMistake,
   enrolSavedWord,
   enrolStudiedVocabulary,
@@ -9,7 +10,7 @@ import {
   gradeReviewItem,
 } from '@/lib/srs/store';
 import { DEFAULT_EASE, MIN_EASE } from '@/lib/srs/engine';
-import type { MistakeEntity, VocabularyEntity } from '@/types/models';
+import type { MistakeEntity, ReviewItemEntity, VocabularyEntity } from '@/types/models';
 
 /**
  * The scheduling rules are unit-tested in srsEngine.test.ts. This file covers the
@@ -221,6 +222,51 @@ describe('focusing mistakes for a drill', () => {
   it('skips a correction with no corrected text rather than queueing an empty card', async () => {
     const empty = { ...mistake('sub:cafe_order:5:'), corrected: '', id: 1 };
     expect(await focusMistakesForReview([empty], 5_000)).toBe(0);
+    expect(await db.review_items.count()).toBe(0);
+  });
+});
+
+describe('worker queue adoption', () => {
+  const remoteItem = (overrides: Partial<ReviewItemEntity> = {}): ReviewItemEntity => ({
+    userId: 'ignored-by-adoption',
+    kind: 'vocab',
+    refId: 'vocab:1',
+    promptAr: 'قهوة',
+    answerDe: 'der Kaffee',
+    dueAt: 5_000,
+    intervalDays: 7,
+    ease: DEFAULT_EASE,
+    reps: 2,
+    lapses: 0,
+    reviews: 2,
+    lastReviewedAt: 4_000,
+    createdAt: 1_000,
+    ...overrides,
+  });
+
+  it('gives a device that has never seen the queue its schedule back', async () => {
+    expect(await adoptRemoteReviewItems([remoteItem()])).toBe(1);
+
+    const stored = await db.review_items.toArray();
+    expect(stored).toHaveLength(1);
+    expect(stored[0].answerDe).toBe('der Kaffee');
+    expect(stored[0].intervalDays).toBe(7);
+    expect(stored[0].userId).toBe('current_user');
+  });
+
+  it('updates the local row in place instead of duplicating the card', async () => {
+    await enrolStudiedVocabulary([word(1, 'Kaffee', 'قهوة', 'der')], 1_000);
+
+    await adoptRemoteReviewItems([remoteItem()]);
+
+    const stored = await db.review_items.toArray();
+    expect(stored).toHaveLength(1);
+    expect(stored[0].reviews).toBe(2);
+    expect(stored[0].intervalDays).toBe(7);
+  });
+
+  it('ignores a remote row that could not be asked or answered', async () => {
+    expect(await adoptRemoteReviewItems([remoteItem({ answerDe: '' })])).toBe(0);
     expect(await db.review_items.count()).toBe(0);
   });
 });

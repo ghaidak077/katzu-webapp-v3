@@ -26,6 +26,8 @@ Local fixtures exist as offline fallback content; production content lives in D1
 - Billing (codes): `POST /verify`, `POST /check-status`
 - Referral: `POST /referral/info`, `POST /referral/claim`
 - Progress: `POST /progress/sync`, `POST /progress/get`
+- Memory queue: `POST /review/sync` (server-authoritative merge of the SRS schedule, KV `review:<sub>`); client calls it at sign-in and when a review session finishes
+- Telemetry: `POST /client-error` (unauthenticated, IP rate-limited 8/min, body-capped, credential-sanitized → `error_reports`)
 - Content (D1): `GET /scenarios`, `GET /scenarios/:id`, `GET /vocabulary`, `GET /grammar`, `POST /admin/upload`
 - Admin: `GET /admin` (HTML dashboard), `POST /admin/generate|edit|lookup|revoke|upload|progress-edit|progress-lookup`, `GET /admin/api/content-list`, `POST /admin/api/content-update` (rowid-keyed, column-allowlisted — the only way to correct an existing `vocabulary`/`starter_phrases` row, since `/admin/upload` is insert-only for those tables)
 - Crypto sales: `POST /crypto/checkout`, `POST /crypto/webhook` (NOWPayments IPN, HMAC-SHA512), `GET /crypto/health` — called by the separate sales site, never by the app
@@ -38,6 +40,11 @@ Activation-code only **in the app**: `POST /verify` (HMAC-signed codes, KV recor
 
 ## Deletion flow (current)
 `POST /user/delete` revokes every session via the `sessions_by_sub:<sub>` index (worker lines 718-723) and deletes: `progress:<sub>`, quota key, `account:<sub>`, `trial:<sub>`, `email_index:*`, referral claim/history keys, the D1 `user_progress` row, `trial_quota_ledger` and `referral_payouts` rows, and the `users` registry row. **Exposed in the UI (profile settings) with an irreversible-data warning and explicit confirmation; the client wipes Dexie locally afterwards. Every step is reported so partial failures surface as retryable instead of a false success.**
+
+## Offline & crash reporting (current)
+- The built `sw.js` answers a cold offline navigation with the cached shell (`navigateFallback: 'index.html'`, pinned by `tests/pwaOffline.test.ts`) and precaches 48 entries; content API reads use `StaleWhileRevalidate` for 7 days.
+- `registerType: 'autoUpdate'` → the built `sw.js` contains `skipWaiting` + `clientsClaim`, so a deploy takes over immediately rather than leaving a stale bundle against a newer Dexie schema.
+- Uncaught client crashes (`window` / `promise`) POST to `/client-error` and appear in the admin error feed; console output stays on the device by design.
 
 ## AI calls (current)
 `/ai/turn` = roleplay call (6-message window) + evaluation call (no history), JSON schemas enforced, sanitizer strips label echoes; `/ai/hints` returns 2–4 **distinct conversational moves** with an `intent` tag each (same-move rephrasings and duplicate sentences are dropped server-side; handler lives in `cloudflare-hints.js`), quota-exempt; Workers AI fallback after full Gemini failover (`AI_FALLBACK_ENABLED`), KV-backed fallback metrics in `/health`. Rate limits 10/min, 200/day (per-isolate Map). 64KB body cap at entry.

@@ -182,6 +182,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 
     try {
       await workerClient.restoreProgress(activeAuthToken);
+      // Same call restores the memory queue: a learner who signs in on a new
+      // device gets back the schedule of everything due for review, not an
+      // empty queue that silently starts their memory from zero again.
+      await workerClient.syncReviewQueue(activeAuthToken);
     } catch (err) {
       console.warn('Progress restore error on login:', err);
     }
