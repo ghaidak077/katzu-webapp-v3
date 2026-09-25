@@ -169,6 +169,23 @@ day after that; and D2/D7 return rate exceeds the Phase-0 baseline by a measurab
 **Goal:** stop being a speaking app with flashcards. Cover the skills every exam tests.
 **Effort:** medium–large.
 
+**Status: LISTENING SHIPPED 2026-09-25.** `src/lib/listening/drill.ts` (sentence-first drill
+queue, and a dictation scorer that forgives spelling variants but names the words that were
+missed) and `/app/listen`, reachable from the Practice hub. The drill plays German through the
+app's existing speech synthesis with a 0.8× replay, and on a device with no speech synthesis it
+shows the sentence for three seconds and hides it instead — the drill still works rather than
+becoming a dead end. Missed sentences are enrolled into the same review queue as everything
+else, so listening gaps are not a separate forgotten list. 18 new tests.
+
+**Why dictation rather than "choose what you heard":** every other exercise in the app can be
+passed by recognising text on screen. Dictation cannot. It is the only one that forces the
+learner to hold the sound, segment it into words, and reconstruct German — the skill needed in
+a Bürgeramt queue or on the phone.
+
+**Still open in this phase:** reading texts (needs a `reading_texts` D1 table and authored
+content), graded writing (needs a `POST /ai/check-writing` endpoint), grammar production
+drills, and per-skill reporting in the session report.
+
 - **Listening — dictation.** Play German through the existing TTS (`useSpeechOutput`), learner
   types what they heard, diff-scored with tolerance for umlauts/ß and punctuation. Include a
   slow replay (the existing `speechSpeed` preference already supports it). No new

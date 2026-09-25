@@ -20,10 +20,15 @@ import {
   AlertCircle,
   HelpCircle,
   CheckCircle2,
+  Headphones,
 } from 'lucide-react';
 import type { VocabularyEntity, GrammarEntity, MistakeEntity } from '@/types/models';
 
-export const PracticeScreen: React.FC = () => {
+export interface PracticeScreenProps {
+  onOpenListening?: () => void;
+}
+
+export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
@@ -112,7 +117,7 @@ export const PracticeScreen: React.FC = () => {
       </div>
 
       {/* Quick Action Hub */}
-      <div className="grid grid-cols-3 gap-2 mb-6">
+      <div className="grid grid-cols-4 gap-2 mb-6">
         <button
           onClick={() => {
             setFlashcardIndex(0);
@@ -145,6 +150,16 @@ export const PracticeScreen: React.FC = () => {
             <AlertCircle className="w-4 h-4" />
           </div>
           <span className="text-xs font-bold font-arabic">بنك الأخطاء</span>
+        </button>
+
+        <button
+          onClick={onOpenListening}
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all active:scale-95"
+        >
+          <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+            <Headphones className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-bold font-arabic">الاستماع</span>
         </button>
       </div>
 

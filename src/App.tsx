@@ -28,6 +28,7 @@ import { ProfileSettingsScreen } from '@/features/settings/ProfileSettingsScreen
 import { TrustInfoScreen } from '@/features/settings/TrustInfoScreen';
 import { ReviewScreen } from '@/features/review/ReviewScreen';
 import { PlacementScreen } from '@/features/placement/PlacementScreen';
+import { ListeningScreen } from '@/features/listening/ListeningScreen';
 
 // Navigation & Icons
 import { Map, Dumbbell, BarChart3, User } from 'lucide-react';
@@ -123,6 +124,7 @@ function AppRoutes() {
           <Route path="/subscription" element={<SubscriptionRoute />} />
           <Route path="/placement" element={<PlacementRoute />} />
           <Route path="/app/review" element={<ReviewRoute />} />
+          <Route path="/app/listen" element={<ListeningRoute />} />
           <Route path="/app" element={<Navigate to="/app/trail" replace />} />
           <Route path="/app/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
           <Route path="/main" element={<Navigate to="/app/trail" replace />} />
@@ -199,6 +201,11 @@ function PlacementRoute() {
   return <PlacementScreen onDone={() => navigate('/app/trail', { replace: true })} />;
 }
 
+function ListeningRoute() {
+  const navigate = useNavigate();
+  return <ListeningScreen onBack={() => navigate('/app/practice')} />;
+}
+
 function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const navigate = useNavigate();
   const { tab = 'trail' } = useParams();
@@ -208,7 +215,7 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
   return (
     <>
       {activeTab === 'Trail' && <TrailScreen onSelectScenario={(id) => navigate(`/scenario/${encodeURIComponent(id)}`)} onOpenSubscription={() => navigate('/subscription')} onOpenReview={() => navigate('/app/review')} />}
-      {activeTab === 'Practice' && <PracticeScreen />}
+      {activeTab === 'Practice' && <PracticeScreen onOpenListening={() => navigate('/app/listen')} />}
       {activeTab === 'Progress' && <ProgressScreen />}
       {activeTab === 'Profile' && (
         <ProfileSettingsScreen
