@@ -147,6 +147,56 @@ export interface MistakeEntity {
   updatedAt?: number;
 }
 
+/**
+ * The kinds of knowledge the review engine schedules. Each drives how a review
+ * prompt is rendered: vocabulary/phrases ask for a German production from the
+ * Arabic meaning, mistakes ask for the corrected sentence from the rule that
+ * was broken.
+ */
+export type ReviewKind = 'vocab' | 'phrase' | 'mistake';
+
+/**
+ * Self-assessed recall quality after the answer is revealed. Three grades are
+ * deliberate: 'hard' and 'good' both advance the item, 'again' resets it. More
+ * grades add decisions without adding learning.
+ */
+export type ReviewGrade = 'again' | 'hard' | 'good';
+
+/**
+ * One scheduled knowledge item. Kept local-first in Dexie: the review queue must
+ * work offline, exactly like the rest of the learning loop, and it is wiped on
+ * sign-out with all other user-scoped data.
+ */
+export interface ReviewItemEntity {
+  id?: number;
+  userId: string;
+  kind: ReviewKind;
+  /** Stable identity of the source row, so enrolment is idempotent. */
+  refId: string;
+  /** Dexie row id of the source mistake, when `kind === 'mistake'`. */
+  sourceId?: number;
+  /** The Arabic side — what the learner is asked to produce German for. */
+  promptAr: string;
+  /** What the learner must produce in German. */
+  answerDe: string;
+  /** Optional German context (example sentence, or the learner's own earlier wording). */
+  contextDe?: string;
+  /** Arabic explanation revealed with the answer. */
+  explanationAr?: string;
+  scenarioId?: string;
+  level?: CEFRLevel;
+  /** Epoch ms when this item becomes due again. */
+  dueAt: number;
+  intervalDays: number;
+  ease: number;
+  reps: number;
+  lapses: number;
+  /** How many times the learner has graded it, for honest progress display. */
+  reviews: number;
+  lastReviewedAt?: number;
+  createdAt: number;
+}
+
 export interface SyncQueueEntity {
   id?: number;
   payload: unknown;

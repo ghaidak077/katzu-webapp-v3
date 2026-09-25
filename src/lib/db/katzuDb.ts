@@ -10,6 +10,7 @@ import type {
   SessionEntity,
   ScenarioTrainingEntity,
   MistakeEntity,
+  ReviewItemEntity,
   SyncQueueEntity,
 } from '@/types/models';
 
@@ -25,6 +26,7 @@ class KatzuDatabase extends Dexie {
   scenario_training!: EntityTable<ScenarioTrainingEntity, 'scenarioId'>;
   mistakes!: EntityTable<MistakeEntity, 'id'>;
   sync_queue!: EntityTable<SyncQueueEntity, 'id'>;
+  review_items!: EntityTable<ReviewItemEntity, 'id'>;
 
   constructor() {
     super('KatzuWebDB');
@@ -85,6 +87,22 @@ class KatzuDatabase extends Dexie {
         if (user.idToken) user.idToken = undefined;
       });
     });
+    // Spaced-repetition queue (docs/LEARNING-ROADMAP.md, phase 1). Purely
+    // additive: a new table only, no existing row is read or rewritten.
+    this.version(4).stores({
+      scenarios: 'id, category',
+      starter_phrases: 'id, scenario_id, level, sort_order',
+      vocabulary: 'id, level, topic, part_of_speech',
+      grammar: 'id, level',
+      saved_words: 'wordId, savedAt',
+      users: 'id, email',
+      redeemed_codes: 'code, redeemedAt',
+      sessions: 'id, scenarioId, cefrLevel, timestamp, updatedAt',
+      scenario_training: 'scenarioId, userId, updatedAt',
+      mistakes: '++id, userId, scenarioId, syncId, timestamp, wasHintUsed, updatedAt',
+      sync_queue: '++id, createdAt, nextRetryAt',
+      review_items: '++id, userId, dueAt, kind, refId, [kind+refId]',
+    });
   }
 }
 
@@ -98,6 +116,7 @@ export async function wipeUserScopedData(): Promise<void> {
     db.saved_words.clear(),
     db.scenario_training.clear(),
     db.redeemed_codes.clear(),
+    db.review_items.clear(),
   ]);
 
   await db.users.put({
@@ -128,8 +147,34 @@ export async function wipeUserScopedData(): Promise<void> {
   } catch {}
 }
 
+/**
+ * A browser that has already run a newer bundle holds a database version this
+ * bundle does not know about, and every query would reject — leaving a returning
+ * learner on a blank screen. One reload picks the newer bundle up from the
+ * service worker; the session flag stops that from becoming a reload loop.
+ * Returns false when a reload is already in flight, so the caller does not keep
+ * querying a database that is about to be replaced.
+ */
+async function ensureDatabaseOpen(): Promise<boolean> {
+  try {
+    await db.open();
+    return true;
+  } catch (error) {
+    if ((error as { name?: string })?.name !== 'VersionError') throw error;
+    const RELOAD_FLAG = 'katzu_db_version_reload';
+    if (typeof window !== 'undefined' && !window.sessionStorage.getItem(RELOAD_FLAG)) {
+      window.sessionStorage.setItem(RELOAD_FLAG, '1');
+      window.location.reload();
+      return false;
+    }
+    throw error;
+  }
+}
+
 // Default seed data to ensure immediate offline & first-run availability
 export async function initializeDatabaseSeed(): Promise<void> {
+  if (!(await ensureDatabaseOpen())) return;
+
   const userCount = await db.users.count();
   if (userCount === 0) {
     await db.users.put({

@@ -26,6 +26,7 @@ import { PracticeScreen } from '@/features/practice/PracticeScreen';
 import { ProgressScreen } from '@/features/progress/ProgressScreen';
 import { ProfileSettingsScreen } from '@/features/settings/ProfileSettingsScreen';
 import { TrustInfoScreen } from '@/features/settings/TrustInfoScreen';
+import { ReviewScreen } from '@/features/review/ReviewScreen';
 
 // Navigation & Icons
 import { Map, Dumbbell, BarChart3, User } from 'lucide-react';
@@ -119,6 +120,7 @@ function AppRoutes() {
           <Route path="/welcome" element={<WelcomeScreen onContinue={() => navigate('/signin?mode=signup')} onGoToSignIn={(mode) => navigate(`/signin${mode === 'signup' ? '?mode=signup' : ''}`)} />} />
           <Route path="/signin" element={<SignInRoute />} />
           <Route path="/subscription" element={<SubscriptionRoute />} />
+          <Route path="/app/review" element={<ReviewRoute />} />
           <Route path="/app" element={<Navigate to="/app/trail" replace />} />
           <Route path="/app/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
           <Route path="/main" element={<Navigate to="/app/trail" replace />} />
@@ -181,6 +183,11 @@ function SubscriptionRoute() {
   );
 }
 
+function ReviewRoute() {
+  const navigate = useNavigate();
+  return <ReviewScreen onBack={() => navigate('/app/trail')} />;
+}
+
 function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const navigate = useNavigate();
   const { tab = 'trail' } = useParams();
@@ -189,7 +196,7 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
 
   return (
     <>
-      {activeTab === 'Trail' && <TrailScreen onSelectScenario={(id) => navigate(`/scenario/${encodeURIComponent(id)}`)} onOpenSubscription={() => navigate('/subscription')} />}
+      {activeTab === 'Trail' && <TrailScreen onSelectScenario={(id) => navigate(`/scenario/${encodeURIComponent(id)}`)} onOpenSubscription={() => navigate('/subscription')} onOpenReview={() => navigate('/app/review')} />}
       {activeTab === 'Practice' && <PracticeScreen />}
       {activeTab === 'Progress' && <ProgressScreen />}
       {activeTab === 'Profile' && (

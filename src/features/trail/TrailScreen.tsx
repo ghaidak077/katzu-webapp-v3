@@ -12,15 +12,19 @@ import { Sparkles, CheckCircle2, Lock, Play, Flame, ArrowLeft } from 'lucide-rea
 import { pickDailyMission } from '@/lib/utils/dailyMission';
 import { buildCheckInMessage } from '@/lib/utils/checkIn';
 import { getXpRank } from '@/lib/utils/xpMilestones';
+import { countDue } from '@/lib/srs/engine';
+import { Brain } from 'lucide-react';
 
 export interface TrailScreenProps {
   onSelectScenario: (scenarioId: string) => void;
   onOpenSubscription: () => void;
+  onOpenReview: () => void;
 }
 
 export const TrailScreen: React.FC<TrailScreenProps> = ({
   onSelectScenario,
   onOpenSubscription,
+  onOpenReview,
 }) => {
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('A1');
   const [showPaywall, setShowPaywall] = useState(false);
@@ -29,6 +33,9 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const user = useLiveQuery(() => db.users.get('current_user'));
   const scenarios = useLiveQuery(() => db.scenarios.toArray()) || [];
   const trainingRecords = useLiveQuery(() => db.scenario_training.toArray()) || [];
+  const reviewItems = useLiveQuery(() => db.review_items.toArray()) || [];
+
+  const dueCount = useMemo(() => countDue(reviewItems, Date.now()), [reviewItems]);
 
   const isPro = isProEffective(user);
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
@@ -139,6 +146,28 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* Review comes before new material: what is about to be forgotten is always
+          more urgent than what has not been seen yet. */}
+      {dueCount > 0 && (
+        <button
+          onClick={onOpenReview}
+          className="w-full mb-3 flex items-center justify-between gap-3 rounded-3xl border border-status-learning/40 bg-status-learning/10 p-4 text-start transition-all active:scale-[0.98]"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-status-learning/20 text-status-learning">
+              <Brain className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-arabic text-sm font-bold text-text-primary">مراجعة اليوم: {dueCount}</p>
+              <p className="font-arabic text-[11px] text-text-secondary">
+                كلمات وأخطاء حان وقت تثبيتها في ذاكرتك
+              </p>
+            </div>
+          </div>
+          <ArrowLeft className="h-4 w-4 shrink-0 text-status-learning" />
+        </button>
       )}
 
       {/* Hero Daily Focus Card */}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { enrolStudiedVocabulary } from '@/lib/srs/store';
 import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
@@ -76,6 +77,9 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
       effectiveLevel: 'A1',
       updatedAt: Date.now(),
     });
+    // What was studied today becomes what gets reviewed later: this enrolment is
+    // what turns a flashcard deck into memory.
+    await enrolStudiedVocabulary(vocabulary);
     onProceedToQuiz();
   };
 

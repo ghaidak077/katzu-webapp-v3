@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { enrolMistake } from '@/lib/srs/store';
 import { workerClient } from '@/lib/api/workerClient';
 import { useSpeechInput } from '@/lib/speech/useSpeechInput';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
@@ -335,7 +336,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
       // Save mistake to database if an error occurred
       if (res.isCorrect === false && res.mistakeSegment && res.correctedSegment) {
-        await db.mistakes.put({
+        const mistake = {
           userId: 'current_user',
           scenarioId,
           original: res.mistakeSegment,
@@ -344,7 +345,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           roastComment: res.roastComment,
           timestamp: Date.now(),
           wasHintUsed,
-        });
+        };
+        const mistakeId = await db.mistakes.put(mistake);
+        // Every correction earns a scheduled retrieval: the app remembers what
+        // this learner keeps getting wrong, instead of only archiving it.
+        await enrolMistake({ ...mistake, id: mistakeId });
       }
 
       // The turn response already carries ONE context-aware hint (same AI

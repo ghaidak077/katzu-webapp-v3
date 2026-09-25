@@ -113,6 +113,25 @@ action offers a working alternative.
 ### Phase 1 — The memory engine (spaced repetition) — *the single biggest lever*
 **Goal:** the app remembers what you are about to forget, and brings it back at the right time.
 **Effort:** medium · **Impact:** highest of anything in this document.
+**Status: SHIPPED 2026-09-25.** `src/lib/srs/engine.ts` (scheduler, answer grading,
+interleaved queue), `src/lib/srs/store.ts` (enrolment + grading), Dexie schema **v4**
+(`review_items`, additive), `/app/review` (`ReviewScreen`), a "مراجعة اليوم: N" entry point
+above the daily mission on the Trail, and automatic enrolment from studied vocabulary,
+bookmarked words, and every conversation correction. 32 new tests
+(`tests/srsEngine.test.ts`, `tests/reviewStore.test.ts`) cover the scheduler rules and the
+real migration over IndexedDB.
+
+**Still open in this phase:**
+
+- **Review state does not sync across devices yet.** The worker's `/progress/sync` handler
+  destructures a fixed field whitelist and sits past the ~63 KB edit wall, so review items
+  cannot ride it. The next step is a `POST /review/sync` route added in the editable region
+  with its own KV key. Until then the queue is local-first: it survives reloads and offline
+  use, but is wiped with the rest of the user-scoped data on sign-out, and a cleared browser
+  rebuilds it from study and conversation activity.
+- **PWA version-bump hazard.** A cached bundle older than the database now raises
+  `VersionError`. `initializeDatabaseSeed` has a one-shot reload guard for it; the general
+  fix (service-worker `skipWaiting` + an update prompt) is still worth doing.
 
 **Why this first:** the app currently teaches a word once. Everything else — content, exam
 mode, gamification — multiplies an engine that does not yet exist. Adding scenarios without

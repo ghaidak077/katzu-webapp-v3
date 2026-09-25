@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { enrolSavedWord } from '@/lib/srs/store';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
@@ -62,6 +63,9 @@ export const PracticeScreen: React.FC = () => {
       await db.saved_words.delete(wordId);
     } else {
       await db.saved_words.put({ wordId, savedAt: Date.now() });
+      // Bookmarking is an explicit "I want to know this" — schedule it rather
+      // than leaving it in a list the learner has to remember to open.
+      await enrolSavedWord(wordId);
     }
   };
 
