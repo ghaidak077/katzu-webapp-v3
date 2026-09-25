@@ -20,6 +20,7 @@
  */
 
 import { handleHintsRoute } from "./cloudflare-hints.js";
+import { handleWritingRoute } from "./cloudflare-writing.js";
 import {
   ensureRegistryTables,
   upsertUserFromAccount,
@@ -1185,6 +1186,22 @@ export default {
           request,
           env,
           "ai_hints"
+        );
+      }
+      if (url.pathname === "/ai/check-writing" && request.method === "POST") {
+        return await withAiTelemetry(
+          () =>
+            handleWritingRoute(request, env, cors, {
+              authenticateAiRequest,
+              getGeminiApiKeys,
+              callGeminiWithFailover,
+              cleanJson,
+              json,
+              validLevels: VALID_LEVELS,
+            }),
+          request,
+          env,
+          "ai_writing"
         );
       }
       if ((url.pathname === "/ai/health" || url.pathname === "/health") && request.method === "GET") {

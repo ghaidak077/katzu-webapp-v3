@@ -11,21 +11,24 @@ Recorded: 2026-09-24 · commit after PR #9 merge + CI. All facts verified in sou
 React 18 + TypeScript + Vite PWA · Dexie (IndexedDB) offline layer · React Router · Tailwind · Cloudflare Worker (single `cloudflare-unified-worker.js`) · D1 `katzu-content` (content CMS) · KV `USER_PROGRESS` (progress, sessions, quota, fallback metrics) · KV `REDEEMED_CODES` (codes, accounts, referrals, email index) · Gemini AI engine with Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`) fallback.
 
 ## Routes (client, `src/App.tsx`)
-`/`→`/app/trail` · `/welcome` · `/signin` · `/subscription` · `/app/:tab` (main tabs) · `/scenario/:scenarioId` · `/scenario/:scenarioId/study` · `/scenario/:scenarioId/quiz` · `/scenario/:scenarioId/live` · `/session-report` · `/trust/:page` · `*` → welcome/trail.
+`/`→`/app/trail` · `/welcome` · `/signin` · `/subscription` · `/app/:tab` (main tabs) · `/scenario/:scenarioId` · `/scenario/:scenarioId/study` · `/scenario/:scenarioId/quiz` · `/scenario/:scenarioId/live` · `/session-report` · `/app/review` · `/app/listen` · `/app/write` · `/app/coach` · `/placement` · `/trust/:page` · `*` → welcome/trail.
 **Every authenticated surface is behind sign-in** (`isAuthenticated` gate). No anonymous/preview flow exists.
 
 ## Local DB tables (Dexie, `src/lib/db/katzuDb.ts`)
 v1: scenarios, starter_phrases, vocabulary, grammar, saved_words, users, redeemed_codes, sessions, scenario_training, mistakes.
 v2 (additive + upgrade): adds sync metadata (`syncId`, `updatedAt`, `independentSentences`, `hintAssistedSentences`) + `sync_queue`.
+v4 (additive): `review_items` — the spaced-repetition queue (local-first, synced via `POST /review/sync`).
+v5 (additive): `skill_practice` — one row per finished dictation / graded text, the only source for the four-skill card in the Progress tab. Never shown as a zero when unmeasured.
 Local fixtures exist as offline fallback content; production content lives in D1.
 
 ## Worker routes (`cloudflare-unified-worker.js`)
 - Auth/session: `POST /auth/session` (Google ID token → 30-day `sess_*` KV session)
-- AI: `POST /ai/turn` (+`/turn`), `POST /ai/translate` (+`/translate`), `POST /ai/hints` (+`/hints`), `GET /ai/health` (+`/health`)
+- AI: `POST /ai/turn` (+`/turn`), `POST /ai/translate` (+`/translate`), `POST /ai/hints` (+`/hints`), `POST /ai/check-writing` (graded Schreiben; handler in `cloudflare-writing.js`), `GET /ai/health` (+`/health`)
 - Account: `POST /user/delete`
 - Billing (codes): `POST /verify`, `POST /check-status`
 - Referral: `POST /referral/info`, `POST /referral/claim`
 - Progress: `POST /progress/sync`, `POST /progress/get`
+- Writing: `POST /ai/check-writing` (authenticated, entitlement-checked, quota-exempt so practice does not spend the three free conversation sessions; text 20-900 chars; task derived from the level)
 - Memory queue: `POST /review/sync` (server-authoritative merge of the SRS schedule, KV `review:<sub>`); client calls it at sign-in and when a review session finishes
 - Telemetry: `POST /client-error` (unauthenticated, IP rate-limited 8/min, body-capped, credential-sanitized → `error_reports`)
 - Content (D1): `GET /scenarios`, `GET /scenarios/:id`, `GET /vocabulary`, `GET /grammar`, `POST /admin/upload`

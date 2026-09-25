@@ -30,6 +30,7 @@ Definition: conditions that must be TRUE before **paid public beta**. Each item 
 - [x] SRS scheduling live for vocab/mistakes/phrases (the three kinds the model defines); due counts on the Trail. The schedule also **survives a device change**: `POST /review/sync` is the single merge authority (client uploads its queue, worker merges, client adopts), called at sign-in and after a finished review session — `tests/reviewSync.test.ts` + `tests/reviewStore.test.ts`.
 - [ ] Competency model with 5 states; session report leads with competencies.
 - [ ] Independent vs hint-assisted reporting preserved (already exists — keep).
+- [x] Three of four skills are trainable and measured per learner: speaking (conversation accuracy), listening (dictation), writing (`POST /ai/check-writing` + `/app/write`, four-dimension rubric, corrections enrolled in the review queue). Reading is displayed as unmeasured rather than as a zero, and its content is the one item still blocked on a `D1:Edit` token. Evidence: `tests/writing.test.ts` (20), `tests/skillPractice.test.ts` (6).
 
 ## Gate 5 — Monetization (Phase 7) — status: OPEN (owner action + credentials pending)
 - [~] Payment provider chosen: **crypto via NOWPayments on the separate sales site** (`katzu-sales`) — no founder-KYC dependency, which is what closed the card-processor route. Business entity/banking remain owner decisions.
