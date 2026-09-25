@@ -30,6 +30,7 @@ import { ReviewScreen } from '@/features/review/ReviewScreen';
 import { PlacementScreen } from '@/features/placement/PlacementScreen';
 import { ListeningScreen } from '@/features/listening/ListeningScreen';
 import { CoachScreen } from '@/features/coach/CoachScreen';
+import { LandingScreen } from '@/features/marketing/LandingScreen';
 
 // Navigation & Icons
 import { Map, Dumbbell, BarChart3, User } from 'lucide-react';
@@ -119,7 +120,7 @@ function AppRoutes() {
       {/* Active Screen View */}
       <main className="flex-1 w-full">
         <Routes>
-          <Route path="/" element={<Navigate to="/app/trail" replace />} />
+          <Route path="/" element={<LandingRoute />} />
           <Route path="/welcome" element={<WelcomeScreen onContinue={() => navigate('/signin?mode=signup')} onGoToSignIn={(mode) => navigate(`/signin${mode === 'signup' ? '?mode=signup' : ''}`)} />} />
           <Route path="/signin" element={<SignInRoute />} />
           <Route path="/subscription" element={<SubscriptionRoute />} />
@@ -143,7 +144,7 @@ function AppRoutes() {
           }} />} />
           <Route path="/session-report" element={<ReportRoute summary={sessionSummary} onLoadSummary={setSessionSummary} />} />
           <Route path="/trust/:page" element={<TrustRoute />} />
-          <Route path="*" element={<Navigate to={isAuthenticated ? '/app/trail' : '/welcome'} replace />} />
+          <Route path="*" element={<Navigate to={isAuthenticated ? '/app/trail' : '/'} replace />} />
         </Routes>
       </main>
     </div>
@@ -151,14 +152,37 @@ function AppRoutes() {
 }
 
 function isPublicPath(pathname: string) {
-  return pathname === '/welcome' || pathname === '/signin';
+  // `/` is the public landing page, and `/trust/*` holds the privacy policy and
+  // terms — a visitor must be able to read those before creating an account.
+  return (
+    pathname === '/' ||
+    pathname === '/welcome' ||
+    pathname === '/signin' ||
+    pathname.startsWith('/trust')
+  );
 }
 
 function TrustRoute() {
   const navigate = useNavigate();
   const { page } = useParams();
+  const user = useLiveQuery(() => db.users.get('current_user'));
   const selected = page === 'terms' || page === 'contact' ? page : 'privacy';
-  return <TrustInfoScreen page={selected} onBack={() => navigate('/app/profile')} />;
+  // These pages are public, so "back" must not send a signed-out visitor into a
+  // protected route — that would bounce them straight to the sign-in screen.
+  const backTo = user?.isLoggedIn ? '/app/profile' : '/';
+  return <TrustInfoScreen page={selected} onBack={() => navigate(backTo)} />;
+}
+
+function LandingRoute() {
+  const navigate = useNavigate();
+  return (
+    <LandingScreen
+      onStart={() => navigate('/welcome')}
+      onSignIn={() => navigate('/signin')}
+      onContinue={() => navigate('/app/trail')}
+      onOpenTrustPage={(page) => navigate(`/trust/${page}`)}
+    />
+  );
 }
 
 function SignInRoute() {
