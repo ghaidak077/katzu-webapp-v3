@@ -27,6 +27,13 @@ The repository ships with `wrangler.toml` (entry point `cloudflare-unified-worke
    npx wrangler secret put NVIDIA_API_KEYS       # integrate.api.nvidia.com keys
    ```
 
+   All three slots **already exist on `katzu-test` with empty values**, so nothing has to
+   be created by hand: paste a key list over one in the dashboard
+   (Workers & Pages → katzu-test → Settings → Variables and Secrets → Edit), or re-run
+   the `wrangler secret put` above. An empty or unset list is skipped and reported as
+   `idle: {reason: "no_keys"}` in `/health` — never an error and never a failed learner
+   request — and the pool picks the keys up on the next request, with no redeploy.
+
    `GOOGLE_CLIENT_ID` is deliberately **not** a secret — it is public (it ships to every
    browser), so it lives in the `[vars]` block of `wrangler.toml` where it can be reviewed
    in git. Set it to the same OAuth client ID as `VITE_GOOGLE_CLIENT_ID`. The worker

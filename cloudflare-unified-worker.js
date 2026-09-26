@@ -1,18 +1,27 @@
 /**
- * Unified Cloudflare Worker: Auth, D1 Content CMS, Glassmorphic Admin Dashboard & 6+ Gemini AI Engine
+ * Unified Cloudflare Worker: auth, D1 content CMS, admin dashboard, and the
+ * multi-provider AI engine (Gemini · Groq · OpenRouter · NVIDIA NIM, with Workers
+ * AI as the last resort).
  * 
- * Bindings required / supported:
- * - REDEEMED_CODES (KV)
- * - USER_PROGRESS (KV) (also stores authoritative AI trial quota records)
- * - DB (D1 Database)
- * - ADMIN_SECRET (Secret)
- * - HMAC_SECRET (Secret)
- * - GOOGLE_CLIENT_ID (Secret)
- * - GEMINI_API_KEYS (Secret: comma-separated list of 6+ keys)
- *   OR GEMINI_API_KEY, GEMINI_API_KEY_1..6 (Individual secrets)
- * - GROQ_API_KEYS, OPENROUTER_API_KEYS, NVIDIA_API_KEYS (Secrets, same list
- *   format). All four are read by ./cloudflare-ai-router.js, which owns the
- *   provider pool, the terminal day-quota ledger and the tier rotation.
+ * Bindings required / supported (authoritative list and comments: wrangler.toml):
+ * - REDEEMED_CODES (KV): activation codes, accounts, email index
+ * - USER_PROGRESS (KV): progress, authoritative AI trial quota, AI pool ledger,
+ *   shared AI cache
+ * - DB (D1 Database): content CMS + user registry
+ * - AI: Workers AI binding, the fallback once the whole pool is parked
+ * - ADMIN_SECRET, HMAC_SECRET (Secrets)
+ * - GOOGLE_CLIENT_ID (a var, not a secret: it ships to every browser anyway, and
+ *   living in git is what makes the `aud` enforcement reviewable)
+ * - AI PROVIDER KEY LISTS (Secrets, read by ./cloudflare-ai-router.js, which owns
+ *   the pool, the terminal day-quota ledger and the tier rotation). Same
+ *   comma/semicolon/newline-separated key list for all four:
+ *     GEMINI_API_KEYS     (also accepts GEMINI_API_KEY / GEMINI_API_KEY_n, plus
+ *                          the legacy GEMINI_KEY / GEMINI_KEY_n names)
+ *     GROQ_API_KEYS · OPENROUTER_API_KEYS · NVIDIA_API_KEYS
+ *   An unset or empty list is skipped and reported as `no_keys` in /health — never
+ *   an error, never a failed learner request.
+ * - Payment secrets, dormant until set: DODO_API_KEY + DODO_WEBHOOK_SECRET
+ *   (billing), NOWPAYMENTS_API_KEY + NOWPAYMENTS_IPN_SECRET (crypto sales).
  *
  * The admin control plane (user registry, telemetry, dashboard) lives in
  * ./cloudflare-admin.js. Measured: the edit tooling applied diffs to this file
@@ -65,30 +74,28 @@ import { handleCryptoRoutes } from "./cloudflare-crypto.js";
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
 // ============================================================================
 
-// Gemini Flash chain ordered for CONVERSATION latency (per current Gemini
-// model docs): the lite/balanced Flash models are the documented
-// "fastest, most cost-effective" tier and answer short A1–B2 JSON in 1–2s.
-// The heavyweight 3.8 reasoning model sits mid-chain as a quality fallback —
-// leading with it burned the attempt timeout on thinking and produced ~19s
-// replies. First success pins primaryWorkingModel, so this order only matters
-// on cold starts. 2.5 models are access-restricted deep fallback; 2.0/1.5 are
-// shut down and must NOT appear here.
-// Gemini projection of PROVIDER_POOL, kept only because the legacy walker below
-// still references it — that body starts at byte ~62.2 KB and ends at ~67.4 KB,
-// past the edit boundary this file's header documents, so it could not be
-// deleted in the same change. The pool is the single source of truth, and it no
-// longer contains gemini-flash-latest (not a published endpoint) or the
-// access-restricted gemini-2.5-* models, so no path can call them again.
+// LEGACY-ONLY STATE. Every AI route now goes through the provider pool
+// (cloudflare-ai-router.js), so what follows survives for one reason only: the old
+// Gemini walker's body and the old translation/hints handlers still reference it,
+// and those bodies sit at byte ~62–67 KB — past the edit boundary this file's
+// header documents — so they could not be deleted in the same change. No live path
+// reads them, and nothing new may start to.
+//
+// `DEFAULT_MODEL_CHAIN` is a *projection* of PROVIDER_POOL, never a hand-written
+// list: the pool is the single source of truth, so a model removed from the pool
+// disappears from the chain with it. The pool no longer contains
+// gemini-flash-latest (not a published endpoint) or the access-restricted
+// gemini-2.5-* models, so no path can call them again.
 const DEFAULT_MODEL_CHAIN = PROVIDER_POOL
   .filter((entry) => entry.provider === "gemini")
   .map((entry) => entry.model);
 
-let primaryWorkingModel = null;
-let requestCounter = 0;
-const keyCooldownMap = new Map(); // key -> cooldownExpiryTimestamp
+let primaryWorkingModel = null; // pinned by the router's onModel hook, read by /health
+let requestCounter = 0; // LEGACY: the old walker's key rotation only
+const keyCooldownMap = new Map(); // key -> cooldownExpiryTimestamp (router deps)
 const keyConsecutiveFails = new Map(); // key -> consecutive fail count
-const translationCache = new Map(); // text.toLowerCase() -> translation_ar (LRU max 1000)
-const hintsCache = new Map(); // key -> hints array (LRU max 500)
+const translationCache = new Map(); // LEGACY: the live cache is KV-backed
+const hintsCache = new Map(); // LEGACY: the live cache is KV-backed
 const MAX_FREE_AI_SESSIONS = 3;
 const quotaLocks = new Map();
 

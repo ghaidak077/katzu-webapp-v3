@@ -1,8 +1,29 @@
 # Katzu Worker — Cloudflare Wrangler configuration
 #
 # Deploys cloudflare-unified-worker.js (auth, D1 content CMS, admin, AI engine).
-# Secrets (GEMINI_API_KEYS, GOOGLE_CLIENT_ID, ADMIN_SECRET, HMAC_SECRET) are NOT
-# stored here — set them once with:  npx wrangler secret put <NAME>
+#
+# SECRETS are never stored in this file: a value committed to git is a value
+# leaked. Set them once with `npx wrangler secret put <NAME>`, or edit them in the
+# dashboard (Workers & Pages → katzu-test → Settings → Variables and Secrets).
+# The deployed set, and what each name is for:
+#
+#   AI provider key lists — the pool in cloudflare-ai-router.js reads all four,
+#   same comma/semicolon/newline-separated list format. An unset or empty list is
+#   skipped and reported as `idle: {reason: "no_keys"}` in /health; it is never an
+#   error and never a failed learner request:
+#     GEMINI_API_KEYS      set — the pool's active provider
+#     GROQ_API_KEYS        created empty — paste the key list to switch it on
+#     OPENROUTER_API_KEYS  created empty — paste the key list to switch it on
+#     NVIDIA_API_KEYS      created empty — paste the key list to switch it on
+#   Auth: ADMIN_SECRET, HMAC_SECRET.
+#   Billing (Dodo, dormant until set): DODO_API_KEY, DODO_WEBHOOK_SECRET.
+#   Crypto sales (NOWPayments, dormant until set): NOWPAYMENTS_API_KEY,
+#   NOWPAYMENTS_IPN_SECRET.
+#   SESSION_SECRET is deployed but read by no code path (docs/PRODUCT-SPEC.md §31)
+#   — delete it in the dashboard, or wire it deliberately; nothing depends on it.
+#
+# GOOGLE_CLIENT_ID is deliberately a var below, not a secret: it ships to every
+# browser anyway, and living in git is what makes the `aud` enforcement reviewable.
 #
 # The account_id is picked up automatically from CLOUDFLARE_API_TOKEN +
 # CLOUDFLARE_ACCOUNT_ID when deploying from CI/managed environments.
@@ -41,22 +62,26 @@ binding = "AI"
 # Non-secret variables
 # ---------------------------------------------------------------------------
 [vars]
-# Exact origins of the PWA (Cloudflare Pages / custom domain), comma-separated.
-# Trailing slashes are stripped automatically by the worker. Keep in sync with
-# the Pages custom domain when one is attached.
 # Marks this as a production deploy. Two security consequences:
 # 1. CORS: open mode (ALLOW_OPEN_CORS) is ignored and the allowlist is enforced
 #    strictly, even if the allowlist is missing or malformed.
 # 2. Auth: TEST_MODE (which skips Google JWT verification) is ignored, so a
 #    stale test var can never mint sessions for real accounts.
+# ALLOW_OPEN_CORS and TEST_MODE are deliberately absent here: they exist for local
+# and test runs only, and this file is the production configuration.
 ENVIRONMENT = "production"
-# The sales site (katzu-sales) must be listed here too: the crypto checkout is
-# posted from a browser on that origin, and CORS is strict in production.
+# Exact origins of the app and the sales site, comma-separated. Trailing slashes
+# are stripped automatically by the worker. The sales site must be listed: the
+# crypto checkout is posted from a browser on that origin, and CORS is strict in
+# production. Keep in sync with the Pages custom domain when one is attached.
 ALLOWED_ORIGINS = "https://katzu-test.ghaidakalosh008.workers.dev,https://katzu-webapp-v3.pages.dev,https://katzu-sales.pages.dev"
 # Public by design (shipped to every browser in the client bundle). Setting it here
 # lets the worker enforce the `aud` claim on Google ID tokens — without it that
 # check is skipped and a token minted for any other OAuth client would be accepted.
 GOOGLE_CLIENT_ID = "754341831948-76f8r0mm3gccco6n4mfr86o6ut0snsum.apps.googleusercontent.com"
+# Per-account AI rate limits. These are the exact names the worker reads; its
+# built-in fallbacks are 20/min and 150/day, so a typo here silently moves the
+# ceiling instead of failing loudly.
 AI_RATE_LIMIT_PER_MINUTE = "10"
 AI_RATE_LIMIT_PER_DAY = "200"
 # Set to "0" to disable the Workers AI fallback (Gemini-only mode).
