@@ -5,8 +5,54 @@ import {
   classifyMistake,
   isSpellingOnly,
 } from '@/lib/coach/taxonomy';
-import { buildMistakeProfile, drillForCategory } from '@/lib/coach/profile';
+import { buildLearnerMemory, buildMistakeProfile, drillForCategory } from '@/lib/coach/profile';
 import type { MistakeEntity } from '@/types/models';
+
+describe('buildLearnerMemory — what the tutor is told about this learner', () => {
+  it('sends the most repeated rule first, with the newest failing sentence', () => {
+    const memory = buildLearnerMemory([
+      mistake({ grammarRule: 'ترتيب الكلمات', original: 'Gestern ich gehe', timestamp: 100 }),
+      mistake({ grammarRule: 'أدوات التعريف', original: 'Ich habe Hund', timestamp: 200 }),
+      mistake({ grammarRule: 'ترتيب الكلمات', original: 'Heute ich arbeite', timestamp: 300 }),
+      mistake({ grammarRule: 'أدوات التعريف', original: 'Ich sehe Baum', timestamp: 400 }),
+      mistake({ grammarRule: 'ترتيب الكلمات', original: 'Morgen ich lerne', timestamp: 500 }),
+    ]);
+
+    expect(memory).toHaveLength(2);
+    expect(memory[0].rule).toBe('ترتيب الكلمات');
+    // The newest sentence, not the first one stored.
+    expect(memory[0].example).toBe('Morgen ich lerne');
+    expect(memory[1].rule).toBe('أدوات التعريف');
+  });
+
+  it('drops spelling-only corrections and fully mastered rules', () => {
+    const memory = buildLearnerMemory([
+      // Umlaut mistype: the learner knew the word, so a tutor should not be told.
+      mistake({ grammarRule: 'إملاء', original: 'Ich mochte einen Kaffee', corrected: 'Ich möchte einen Kaffee' }),
+      // Every instance mastered: nothing left to target.
+      mistake({ grammarRule: 'حروف الجر', isMastered: true }),
+      mistake({ grammarRule: 'حروف الجر', isMastered: true }),
+      // Half mastered: still worth targeting.
+      mistake({ grammarRule: 'الأزمنة', isMastered: true }),
+      mistake({ grammarRule: 'الأزمنة', isMastered: false }),
+    ]);
+
+    expect(memory.map((item) => item.rule)).toEqual(['الأزمنة']);
+  });
+
+  it('caps the list and never repeats a rule', () => {
+    const many = Array.from({ length: 20 }, (_, i) => mistake({ grammarRule: `قاعدة ${i}` }));
+    const memory = buildLearnerMemory(many, 3);
+    expect(memory).toHaveLength(3);
+    expect(new Set(memory.map((item) => item.rule)).size).toBe(3);
+  });
+
+  it('is empty for a learner with nothing recorded, and never throws on junk', () => {
+    expect(buildLearnerMemory([])).toEqual([]);
+    expect(buildLearnerMemory(undefined as never)).toEqual([]);
+    expect(buildLearnerMemory([mistake({ grammarRule: '   ' })])).toEqual([]);
+  });
+});
 
 let nextId = 1;
 function mistake(overrides: Partial<MistakeEntity> = {}): MistakeEntity {

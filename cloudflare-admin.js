@@ -20,6 +20,25 @@
  * session creation, so every free user is now known, searchable, and countable.
  */
 
+// The Content Studio is a module of its own for the same reason this file is: the
+// schema/contract, the routes and the dashboard code each stay small enough to
+// edit, and the column contract lives in exactly one place.
+import {
+  contentCreate,
+  contentDelete,
+  contentExportAll,
+  contentList,
+  contentSchema,
+  contentUpdate,
+  contentUpload,
+} from "./cloudflare-content-studio.js";
+import {
+  CONTENT_STUDIO_CSS,
+  CONTENT_STUDIO_SECTIONS,
+  CONTENT_STUDIO_UI_SCRIPT,
+} from "./cloudflare-content-studio-ui.js";
+import { CONTENT_STUDIO_TOOLS_SCRIPT } from "./cloudflare-content-studio-tools.js";
+
 // ============================================================================
 // 1. ADDITIVE D1 SCHEMA
 // Lazy CREATE TABLE IF NOT EXISTS, matching the existing ensureLedgerTables
@@ -753,24 +772,23 @@ function checkAdminAuth(request, env) {
 
 const ADMIN_API_PREFIX = "/admin/api/";
 
-// Content tables the admin surface may edit in place. Scenarios and grammar are
-// excluded on purpose: `/admin/upload` already upserts those by id.
-const CONTENT_EDITABLE_TYPES = ["vocabulary", "starter_phrases"];
-const CONTENT_EDITABLE_COLUMNS = {
-  vocabulary: [
-    "german", "article", "plural", "part_of_speech",
-    "translation_ar", "translation_en",
-    "example_de", "example_ar", "example_en",
-    "level", "topic",
-  ],
-  starter_phrases: ["german", "translation_ar", "translation_en", "level", "sort_order"],
-};
-const CONTENT_LEVELS = new Set(["A1", "A2", "B1", "B2"]);
+// The editable content types and their column allow-lists are NOT declared here.
+// They come from DB_SCHEMA (cloudflare-content-schema.js), which is also what
+// `/admin/schema` serves to the dashboard and what the test suite cross-checks
+// against `CONTENT_COLUMNS` in src/lib/content/curriculumAudit.ts — so a column
+// added in one place cannot silently go missing in the other.
 
 export async function handleAdminRoutes(url, request, env, cors) {
   const path = url.pathname;
   const method = request.method;
   const isApi = path.startsWith(ADMIN_API_PREFIX);
+  // Content routes kept their pre-registry paths: `/admin/upload` is already the
+  // endpoint scripts/load-curriculum.mjs writes through, and `/admin/schema` and
+  // `/admin/export-all` are read-only companions to it.
+  const isContentStudioPath =
+    path === "/admin/schema" ||
+    path === "/admin/export-all" ||
+    path === "/admin/upload";
   const isLegacyAdminAction =
     path === "/admin/lookup" ||
     path === "/admin/edit" ||
@@ -814,8 +832,8 @@ export async function handleAdminRoutes(url, request, env, cors) {
     });
   }
 
-  if (!isApi && !isLegacyAdminAction) return null;
-  if (method !== "POST" && !(isApi && method === "GET")) {
+  if (!isApi && !isLegacyAdminAction && !isContentStudioPath) return null;
+  if (method !== "POST" && !(method === "GET" && (isApi || isContentStudioPath))) {
     if (!isApi) return null;
   }
 
@@ -825,8 +843,22 @@ export async function handleAdminRoutes(url, request, env, cors) {
   await ensureRegistryTables(env);
 
   const body = method === "POST" ? await request.json().catch(() => null) : null;
+  // Content mutations are logged so an edit shows up in the Activity tab.
+  const studioDeps = { recordActivity, recordError };
+  const asResponse = (result) => json(result.body, result.status, cors);
 
   try {
+    // ---------------- Content Studio (cloudflare-content-studio.js) --------
+    // Every studio handler returns { status, body } and this module owns the
+    // CORS/https envelope, so there is exactly one place that shapes an admin
+    // response.
+    if (isContentStudioPath) {
+      if (path === "/admin/schema" && method === "GET") return asResponse(await contentSchema(env));
+      if (path === "/admin/export-all" && method === "GET") return asResponse(await contentExportAll(env));
+      if (path === "/admin/upload" && method === "POST") return asResponse(await contentUpload(env, body, studioDeps));
+      return json({ error: "method_not_allowed" }, 405, cors);
+    }
+
     // ---------------- Registry API (new) ----------------
     if (isApi) {
       const action = path.slice(ADMIN_API_PREFIX.length);
@@ -884,87 +916,24 @@ export async function handleAdminRoutes(url, request, env, cors) {
         return json(await previewBackfill(env), 200, cors);
       }
 
-      // ---------------- Content CRUD (vocabulary + starter_phrases) ----------
-      // `/admin/upload` only ever INSERTs into these two tables (neither one has
-      // a unique key, so no ON CONFLICT clause exists for them). Re-uploading a
-      // corrected row therefore duplicates the headword and hands the quiz two
-      // identical rows. This is the missing update path: rowid-keyed, column
-      // allowlisted, admin-authenticated, no schema change.
+      // ---------------- Content CRUD (all four curriculum tables) ----------
+      // Delegated to cloudflare-content-studio.js. Extended from the original
+      // vocabulary/starter_phrases-only pair to every table, plus create and
+      // delete, and the column allow-lists now come from the one DB_SCHEMA.
       if (action === "content-list" && method === "GET") {
-        const type = url.searchParams.get("type");
-        if (!CONTENT_EDITABLE_TYPES.includes(type)) {
-          return json({ error: "invalid_type", allowed: CONTENT_EDITABLE_TYPES }, 400, cors);
-        }
-        const clauses = [];
-        const params = [];
-        const level = url.searchParams.get("level");
-        if (level) {
-          clauses.push("level = ?");
-          params.push(level);
-        }
-        const topic = url.searchParams.get("topic");
-        if (topic && type === "vocabulary") {
-          clauses.push("topic = ?");
-          params.push(topic);
-        }
-        const scenarioId = url.searchParams.get("scenario_id");
-        if (scenarioId && type === "starter_phrases") {
-          clauses.push("scenario_id = ?");
-          params.push(scenarioId);
-        }
-        const q = url.searchParams.get("q");
-        if (q) {
-          clauses.push("german LIKE ?");
-          params.push(`%${q}%`);
-        }
-        const rawLimit = Number.parseInt(url.searchParams.get("limit") || "100", 10);
-        const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 100, 1), 500);
-        const sql = `SELECT rowid AS id, * FROM ${type}${clauses.length ? ` WHERE ${clauses.join(" AND ")}` : ""} ORDER BY rowid ASC LIMIT ${limit}`;
-        const stmt = env.DB.prepare(sql);
-        const { results } = await (params.length ? stmt.bind(...params) : stmt).all();
-        return json({ type, count: (results || []).length, rows: results || [] }, 200, cors);
+        return asResponse(await contentList(env, url));
       }
 
       if (action === "content-update" && method === "POST") {
-        const type = body?.type;
-        if (!CONTENT_EDITABLE_TYPES.includes(type)) {
-          return json({ error: "invalid_type", allowed: CONTENT_EDITABLE_TYPES }, 400, cors);
-        }
-        const updates = Array.isArray(body?.updates) ? body.updates : [];
-        if (updates.length === 0) {
-          return json({ error: "invalid_body", detail: "updates must be a non-empty array of { id, fields }" }, 400, cors);
-        }
-        const allowed = CONTENT_EDITABLE_COLUMNS[type];
-        const stmts = [];
-        const ids = [];
-        for (let i = 0; i < updates.length; i++) {
-          const id = Number(updates[i]?.id);
-          const fields = updates[i]?.fields;
-          if (!Number.isInteger(id) || id <= 0) {
-            return json({ error: "invalid_id", detail: `updates[${i}].id must be the positive integer rowid of an existing row` }, 400, cors);
-          }
-          if (!fields || typeof fields !== "object" || Array.isArray(fields)) {
-            return json({ error: "invalid_fields", detail: `updates[${i}].fields must be an object` }, 400, cors);
-          }
-          const requested = Object.keys(fields);
-          const columns = requested.filter((k) => allowed.includes(k));
-          if (columns.length === 0 || columns.length !== requested.length) {
-            return json({ error: "invalid_columns", allowed, got: requested }, 400, cors);
-          }
-          if (columns.includes("level") && !CONTENT_LEVELS.has(String(fields.level).trim())) {
-            return json({ error: "invalid_level", detail: `updates[${i}].level must be one of A1, A2, B1, B2` }, 400, cors);
-          }
-          const assignments = columns.map((c) => `${c} = ?`).join(", ");
-          stmts.push(env.DB.prepare(`UPDATE ${type} SET ${assignments} WHERE rowid = ?`).bind(...columns.map((c) => fields[c]), id));
-          ids.push(id);
-        }
-        await env.DB.batch(stmts);
-        // Read the rows back so the response is the write, not a claim about it.
-        const placeholders = ids.map(() => "?").join(", ");
-        const { results } = await env.DB.prepare(
-          `SELECT rowid AS id, * FROM ${type} WHERE rowid IN (${placeholders}) ORDER BY rowid ASC`
-        ).bind(...ids).all();
-        return json({ type, updated: ids.length, rows: results || [] }, 200, cors);
+        return asResponse(await contentUpdate(env, body, studioDeps));
+      }
+
+      if (action === "content-create" && method === "POST") {
+        return asResponse(await contentCreate(env, body, studioDeps));
+      }
+
+      if (action === "content-delete" && method === "POST") {
+        return asResponse(await contentDelete(env, body, studioDeps));
       }
 
       return json({ error: "unknown_admin_api_route", action }, 404, cors);
@@ -1232,6 +1201,7 @@ export function renderAdminDashboardHtml(env) {
   code { background: var(--panel-2); padding: 1px 5px; border-radius: 5px; }
   .kbar { display: flex; gap: 8px; align-items: center; }
   .kbar input { width: 300px; }
+${CONTENT_STUDIO_CSS}
 </style>
 </head>
 <body>
@@ -1244,6 +1214,7 @@ export function renderAdminDashboardHtml(env) {
     <button id="nav-errors" onclick="showTab('errors')">Errors</button>
     <button id="nav-licenses" onclick="showTab('licenses')">Licenses &amp; Plans</button>
     <button id="nav-content" onclick="showTab('content')">Content Studio</button>
+    <button id="nav-schema" onclick="showTab('schema')">Database Schema</button>
     <div class="muted mono" style="padding:14px 12px;font-size:11px">worker: ${escapeHtml(workerName)}</div>
   </nav>
 
@@ -1386,29 +1357,15 @@ export function renderAdminDashboardHtml(env) {
       </div>
     </section>
 
-    <!-- CONTENT -->
-    <section id="view-content" class="hidden">
-      <div class="card" style="margin-bottom:14px">
-        <div class="row">
-          <select id="content-type" onchange="loadContent()">
-            <option value="scenarios">scenarios</option>
-            <option value="vocabulary">vocabulary</option>
-            <option value="grammar">grammar</option>
-            <option value="starter_phrases">starter_phrases</option>
-          </select>
-          <button class="btn" onclick="loadContent()">Refresh</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="muted" style="font-size:12px;margin-bottom:10px">Read-only view. Content edits still go through the existing CRUD endpoints and are not modified by this dashboard.</div>
-        <div id="content-out" class="mono" style="white-space:pre-wrap;max-height:520px;overflow:auto"></div>
-      </div>
-    </section>
+${CONTENT_STUDIO_SECTIONS}
   </main>
 </div>
 
 <div id="drawer-host"></div>
 <div id="toast-host"></div>
+
+${CONTENT_STUDIO_UI_SCRIPT}
+${CONTENT_STUDIO_TOOLS_SCRIPT}
 
 <script>
   var state = { tab: "overview", userOffset: 0, userLimit: 25, adminKey: "" };
@@ -1461,20 +1418,30 @@ export function renderAdminDashboardHtml(env) {
     refreshTab();
   }
 
+  // Every existing caller only wants the parsed body.
   function api(path, opts) {
+    return rawApi(path, opts).then(function (result) { return result.body; });
+  }
+
+  // The Content Studio also needs the HTTP status (a 400 carries the per-row
+  // validation report, a 409 means "already exists"), so the fetch lives here
+  // once and api() is a thin wrapper over it rather than a second client.
+  function rawApi(path, opts) {
     opts = opts || {};
     opts.headers = opts.headers || {};
     opts.headers["Authorization"] = "Bearer " + state.adminKey;
     if (opts.body) opts.headers["Content-Type"] = "application/json";
     return fetch(path, opts).then(function (res) {
       if (res.status === 401) { toast("Unauthorized — check ADMIN_SECRET", true); throw new Error("unauthorized"); }
-      return res.json().catch(function () { return {}; });
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        return { status: res.status, body: body };
+      });
     });
   }
 
   function showTab(tab) {
     state.tab = tab;
-    var ids = ["overview", "users", "activity", "errors", "licenses", "content"];
+    var ids = ["overview", "users", "activity", "errors", "licenses", "content", "schema"];
     ids.forEach(function (id) {
       var view = document.getElementById("view-" + id);
       var navBtn = document.getElementById("nav-" + id);

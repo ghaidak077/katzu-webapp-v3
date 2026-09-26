@@ -216,6 +216,13 @@ export interface ChatMessage {
   sender: MessageSender;
   germanText: string;
   arabicTranslation?: string;
+  /**
+   * Lifecycle of a translation that arrives separately from the turn itself
+   * (the scenario opener, which no AI call produces). Absent once
+   * `arabicTranslation` is set; `'unavailable'` means the fetch failed and the
+   * learner can retry it.
+   */
+  translationState?: 'pending' | 'unavailable';
   /** Arabic invitation to continue the conversation (KATZU messages only). */
   followupAr?: string;
   hasCorrection?: boolean;

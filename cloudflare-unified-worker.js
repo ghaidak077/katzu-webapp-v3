@@ -50,6 +50,7 @@ import {
   getPoolHealth,
   hasUsableProvider,
   inspectProviderKeys,
+  latencySnapshot,
   readAiCache,
   routerCountersSnapshot,
   writeAiCache,
@@ -1066,7 +1067,7 @@ async function handlePublicHealth(env, cors) {
     // still describes the legacy per-isolate Maps, which are always cold.
     cachedTranslationsCount: poolHealth.cache.translations,
     cachedHintsCount: poolHealth.cache.hints,
-    strategy: "multi-provider pool + tier rotation + terminal day-quota ledger + KV cache + Workers AI fallback",
+    strategy: "multi-provider pool + measured-latency ordering + terminal day-quota ledger + KV cache + Workers AI fallback",
     // Which entries can serve right now, which are idle, and which are parked
     // for their window. Never a key, a key count, or a key fragment: ledger
     // entries are non-reversible fingerprints and are not projected here.
@@ -1077,6 +1078,9 @@ async function handlePublicHealth(env, cors) {
       idle: poolHealth.idle,
       exhausted: poolHealth.exhausted,
       attempts: poolHealth.attempts,
+      // What the interactive routes order their walk by. Public-safe: a model
+      // name and an average millisecond figure, never a key or a prompt.
+      latency: latencySnapshot(),
     },
     aiFallback: {
       enabled: fallback.enabled === true,
@@ -1139,7 +1143,11 @@ function aiRouteDeps() {
     readAiCache,
     writeAiCache,
     validLevels: VALID_LEVELS,
-    callAiRouter: (payload, callEnv) => callAiRouter(payload, callEnv, aiRouterDeps()),
+    // `opts` lets a handler ask for router behaviour it can justify for its own
+    // route (the turn and translate routes set `preferFast`), without a second
+    // router or a per-route copy of the deps object.
+    callAiRouter: (payload, callEnv, opts) =>
+      callAiRouter(payload, callEnv, opts ? { ...aiRouterDeps(), ...opts } : aiRouterDeps()),
     routerCounters: routerCountersSnapshot,
     getProvider: () => lastAiProvider,
   };
@@ -1148,6 +1156,41 @@ function aiRouteDeps() {
 // ============================================================================
 // MAIN ENTRY POINT
 // ============================================================================
+
+/**
+ * `/progress/sync`, `/progress/get` and `/review/sync` are legacy handlers (two
+ * of them sit past the ~48 KB byte offset this tooling cannot edit) that answer
+ * an invalid or expired session with **HTTP 200** and `{ error:
+ * "invalid_id_token" }`. Measured live 2026-09-26: a forged `sess_` token on all
+ * three returned 200.
+ *
+ * That is not a cosmetic status bug. The client reads `res.ok`, so it counted the
+ * sync as completed, dropped the payload from its offline retry queue
+ * (`flushPendingSync` deletes what it believes was stored) and the learner's
+ * progress was gone — silently, on the one path where "your data was saved" and
+ * "your data was discarded" look identical. An auth failure has to look like an
+ * auth failure.
+ */
+async function withHonestSessionStatus(pending, cors) {
+  const response = await pending;
+  if (response.status !== 200) return response;
+  let payload;
+  try {
+    payload = await response.clone().json();
+  } catch {
+    return response;
+  }
+  if (!payload || payload.error !== "invalid_id_token") return response;
+  return json(
+    {
+      error: "invalid_id_token",
+      code: "UNAUTHENTICATED",
+      message: "انتهت جلسة الدخول. يرجى تسجيل الدخول مرة أخرى لمزامنة تقدمك — بياناتك محفوظة على هذا الجهاز.",
+    },
+    401,
+    cors
+  );
+}
 
 export default {
   async fetch(request, env) {
@@ -1290,13 +1333,13 @@ export default {
         return await handleAdminGenerate(request, env, cors);
       }
       if (url.pathname === "/progress/sync" && request.method === "POST") {
-        return await handleProgressSync(request, env, cors);
+        return await withHonestSessionStatus(handleProgressSync(request, env, cors), cors);
       }
       if (url.pathname === "/progress/get" && request.method === "POST") {
-        return await handleProgressGet(request, env, cors);
+        return await withHonestSessionStatus(handleProgressGet(request, env, cors), cors);
       }
       if (url.pathname === "/review/sync" && request.method === "POST") {
-        return await handleReviewSync(request, env, cors);
+        return await withHonestSessionStatus(handleReviewSync(request, env, cors), cors);
       }
       if (url.pathname === "/client-error" && request.method === "POST") {
         return await handleClientError(request, env, cors);

@@ -205,6 +205,83 @@ describe('WorkerClient API Contract Integration', () => {
     expect(translation).toBe('شكراً جزيلاً');
   });
 
+  it('recovers an opener translation whose first attempt raced the session token', async () => {
+    let calls = 0;
+    const sentAuth: Array<string | undefined> = [];
+    // The scenario opener's Arabic is fetched at mount, and the session-token
+    // exchange can still be in flight. The retry is what covers that: it
+    // re-resolves the credential, so the second call carries the token the first
+    // one left without — which is the difference between a translated first
+    // bubble and "no translation" on every fresh conversation.
+    let storedToken: string | undefined;
+    vi.spyOn(await import('../src/lib/db/katzuDb'), 'db', 'get').mockReturnValue({
+      users: { get: async () => ({ sessionToken: storedToken }) },
+    } as any);
+
+    global.fetch = vi.fn().mockImplementation(async (url: string, options: any) => {
+      if (!url.endsWith('/ai/translate')) return { ok: false };
+      sentAuth.push(options.headers.Authorization);
+      calls += 1;
+      if (calls === 1) {
+        storedToken = 'sess_minted_at_mount';
+        return { ok: false, status: 401 };
+      }
+      return { ok: true, json: async () => ({ translation_ar: 'مرحباً! أهلاً بك. هذه هي الشقة.' }) };
+    });
+
+    const translation = await client.translateTextReliable('Hallo! Willkommen. Das ist die Wohnung.', { delays: [0, 0] });
+    expect(calls).toBe(2);
+    expect(sentAuth[0]).toBeUndefined();
+    expect(sentAuth[1]).toBe('Bearer sess_minted_at_mount');
+    expect(translation).toBe('مرحباً! أهلاً بك. هذه هي الشقة.');
+  });
+
+  it('gives up after the configured attempts and reports a failure instead of inventing one', async () => {
+    let calls = 0;
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (!url.endsWith('/ai/translate')) return { ok: false };
+      calls += 1;
+      return { ok: false, status: 502 };
+    });
+
+    // A wrong translation is worse than none, and a stalled one is worse than a
+    // retry button — so the attempts are bounded.
+    expect(await client.translateTextReliable('Hallo!', { delays: [0, 0] })).toBe('');
+    expect(calls).toBe(3);
+  });
+
+  it('keeps queued progress when the worker answers 200 with an error body', async () => {
+    const deleted: number[] = [];
+    const queued = [{ id: 7, payload: { stats: { level: 'A1' } }, attempts: 0, nextRetryAt: 0 }];
+    vi.spyOn(await import('../src/lib/db/katzuDb'), 'db', 'get').mockReturnValue({
+      users: { get: async () => ({ sessionToken: 'sess_stored_session_token' }) },
+      sync_queue: {
+        where: () => ({ belowOrEqual: () => ({ toArray: async () => queued }) }),
+        delete: async (id: number) => { deleted.push(id); },
+        update: async () => 1,
+      },
+    } as any);
+
+    // The legacy worker said 200 + { error: "invalid_id_token" } for an expired
+    // session. `res.ok` alone made this look like a stored payload.
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ error: 'invalid_id_token' }),
+    });
+    await client.flushPendingSync();
+    expect(deleted).toEqual([]);
+
+    // A genuinely stored payload is still cleared, so the guard is not a leak.
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, updated_at: Date.now() }),
+    });
+    await client.flushPendingSync();
+    expect(deleted).toEqual([7]);
+  });
+
   it('exchanges Google ID token for session token via /auth/session', async () => {
     let capturedUrl = '';
     let capturedBody: any = null;

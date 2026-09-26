@@ -301,7 +301,7 @@ export async function handleWritingRoute(request, env, cors, deps) {
         temperature: 0.2,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
       },
-    }, env);
+    }, env, { preferFast: true });
   } catch (err) {
     return json({
       error: "ai_error",

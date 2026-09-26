@@ -125,6 +125,70 @@ async function main() {
     else fail(`pro user lookup ${u.email}`, JSON.stringify(body).slice(0, 160));
   }
 
+  // ---- 6. Content Studio (READ-ONLY: nothing below writes to the curriculum) -
+  // The studio's destructive paths are deliberately not exercised against live
+  // data; the write paths are covered by tests/contentStudio.test.ts, which runs
+  // against the same handlers. What is checked here is that the deployed worker
+  // actually serves the studio and that its guards are in front of the data.
+  const studioMarkers = ['cs-type-tabs', 'view-schema', 'KatzuContentStudio', 'installShellHooks', 'cs-schema-download'];
+  const missingStudio = studioMarkers.filter((m) => !html.includes(m));
+  if (!missingStudio.length) pass('dashboard serves the Content Studio', `${studioMarkers.length} markers`);
+  else fail('dashboard serves the Content Studio', `missing=${missingStudio.join(',')}`);
+
+  const schemaRes = await api('/admin/schema');
+  const schema = await schemaRes.json();
+  const tables = ['scenarios', 'vocabulary', 'grammar', 'starter_phrases'];
+  if (schemaRes.status === 200 && tables.every((t) => schema?.schema?.[t]) && schema.upload_endpoint === '/admin/upload') {
+    pass('GET /admin/schema', `tables=${tables.length} levels=${schema.valid_levels.join(',')}`);
+    info(`row counts: ${tables.map((t) => `${t}=${schema.current_row_counts[t]}`).join(' ')}`);
+  } else {
+    fail('GET /admin/schema', `status=${schemaRes.status} tables=${Object.keys(schema?.schema || {}).join(',')}`);
+  }
+
+  const exportRes = await api('/admin/export-all');
+  const exported = await exportRes.json();
+  const allPresent = tables.every((t) => Array.isArray(exported?.data?.[t]));
+  const countsMatch = tables.every((t) => exported?.counts?.[t] === exported?.data?.[t]?.length);
+  if (exportRes.status === 200 && allPresent && countsMatch) {
+    pass('GET /admin/export-all', `${tables.map((t) => `${t}=${exported.counts[t]}`).join(' ')}`);
+  } else {
+    fail('GET /admin/export-all', `status=${exportRes.status} present=${allPresent} countsMatch=${countsMatch}`);
+  }
+
+  const listRes = await api('/admin/api/content-list?type=vocabulary&limit=5&offset=0');
+  const listed = await listRes.json();
+  if (listRes.status === 200 && typeof listed.total === 'number' && Array.isArray(listed.rows) && listed.rows.length <= 5) {
+    pass('GET /admin/api/content-list paginates', `count=${listed.count} total=${listed.total} limit=${listed.limit}`);
+  } else {
+    fail('GET /admin/api/content-list paginates', JSON.stringify(listed).slice(0, 160));
+  }
+
+  // The sync guard must sit in front of the data: a sync upload whose rows carry
+  // no ids is refused outright, so it can never be the first step of a delete.
+  const firstVocab = exported?.data?.vocabulary?.[0];
+  if (firstVocab) {
+    const { id: _id, ...withoutId } = firstVocab;
+    const guardRes = await api('/admin/upload', {
+      method: 'POST',
+      body: JSON.stringify({ contentType: 'vocabulary', rows: [withoutId], sync: true, syncConfirmed: true }),
+    });
+    const guard = await guardRes.json();
+    if (guardRes.status === 400 && guard.error === 'sync_requires_ids') {
+      pass('sync mode refuses an id-less upload', 'nothing was deleted');
+    } else {
+      fail('sync mode refuses an id-less upload', `status=${guardRes.status} ${JSON.stringify(guard).slice(0, 140)}`);
+    }
+  } else {
+    fail('sync mode refuses an id-less upload', 'could not read a vocabulary row to probe with');
+  }
+
+  const bogus = await api('/admin/api/content-create', {
+    method: 'POST',
+    body: JSON.stringify({ type: 'users', row: {} }),
+  });
+  if (bogus.status === 400) pass('content-create rejects an unknown type', '400');
+  else fail('content-create rejects an unknown type', `status=${bogus.status}`);
+
   console.log(failures ? `\n${failures} check(s) FAILED.` : '\nAll checks passed.');
   process.exit(failures ? 1 : 0);
 }

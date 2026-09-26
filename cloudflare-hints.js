@@ -170,7 +170,7 @@ export async function handleHintsRoute(request, env, cors, deps) {
 
   let raw;
   try {
-    raw = await callAiRouter(payload, env);
+    raw = await callAiRouter(payload, env, { preferFast: true });
   } catch (err) {
     console.error("[ai/hints] pool exhausted:", String(err?.message || err).slice(0, 160));
     return json({ error: "ai_unavailable", code: "AI_HINTS_FAILED", message: "تعذر توليد اقتراحات الآن." }, 502, cors);

@@ -16,6 +16,8 @@ import type {
 } from '@/types/models';
 
 const AI_REQUEST_TIMEOUT_MS = 30000;
+/** A translation is one short sentence; nobody is waiting three minutes for it. */
+const TRANSLATE_TIMEOUT_MS = 12000;
 
 /**
  * Normalizes raw browser network failures (TypeError: Failed to fetch, CORS
@@ -378,9 +380,11 @@ export class WorkerClient {
     // the body never carries tokens).
     const token = await this.getEffectiveAuthToken(params.idToken);
 
-    // Map history to worker's expected { role: 'user' | 'model', text: string }
-    const historyLimit = params.mode === 'extended' ? 10 : 6;
-    const formattedHistory = (params.history || []).slice(-historyLimit).map((h) => ({
+    // Map history to worker's expected { role: 'user' | 'model', text: string }.
+    // Not sliced here: the worker owns the window (it also has to drop the
+    // duplicate of the message being answered), and two independent slices meant
+    // the client could trim away turns the worker's own window was relying on.
+    const formattedHistory = (params.history || []).map((h) => ({
       role: (h.sender?.toLowerCase() === 'user' || h.role === 'user') ? 'user' : 'model',
       text: h.text || '',
     }));
@@ -594,18 +598,48 @@ export class WorkerClient {
       if (token) {
         headers['Authorization'] = 'Bearer ' + token;
       }
-      const res = await fetch(`${this.baseUrl}/ai/translate`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ text: trimmed }),
-      });
+      const res = await fetchWithTimeout(
+        `${this.baseUrl}/ai/translate`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ text: trimmed }),
+        },
+        TRANSLATE_TIMEOUT_MS,
+      );
 
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         return data.translation_ar || '';
       }
+      logNetwork('ai/translate', `HTTP ${res.status}`);
     } catch (e) {
       console.warn('Translate fetch failed:', e);
+    }
+    return '';
+  }
+
+  /**
+   * Translation for text that has no AI behind it — the scenario opener, whose
+   * Arabic is fetched on its own at mount and can race the session-token exchange.
+   *
+   * Each attempt re-resolves the credential, so a retry is exactly what covers
+   * the race: the first call can leave before the session token is in the store
+   * and be answered 401, and the retry a moment later carries it. The delays
+   * widen (fast enough to feel immediate, long enough to outlast a cold start);
+   * a real failure still returns '', so the caller can say "translation
+   * unavailable" with a retry instead of showing a wrong translation.
+   */
+  async translateTextReliable(
+    text: string,
+    { delays = [500, 1500] }: { delays?: number[] } = {},
+  ): Promise<string> {
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+      const translation = await this.translateText(text);
+      if (translation) return translation;
+      if (attempt < delays.length) {
+        await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+      }
     }
     return '';
   }
@@ -870,7 +904,12 @@ export class WorkerClient {
         headers,
         body: JSON.stringify(payload),
       });
-      return res.ok;
+      if (!res.ok) return false;
+      // A 200 carrying an error body is NOT a stored payload. The legacy worker
+      // answered an expired session exactly that way, and trusting `res.ok` alone
+      // made flushPendingSync delete progress it had just failed to save.
+      const body = await res.json().catch(() => ({}));
+      return !body?.error;
     } catch (e) {
       return false;
     }

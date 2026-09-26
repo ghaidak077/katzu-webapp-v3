@@ -738,10 +738,26 @@ that an internet connection is required; progress writes queue and flush later.
 > - **§24.1** still lists `billing_events` / `subscriptions`: the tables exist in D1, but nothing reads or
 >   writes them any more (the module that created them is deleted).
 > - The test counts in §4.3 and §29 (“24 files / 220 tests”) are stale: `npm test` runs **39 files /
->   403 tests** as of this date.
+>   432 tests** as of this date (the Content Studio added 29).
 
 Legend — **Auth:** `none` = public, `sess` = session/JWT bearer required, `admin` = `Authorization:
 Bearer <ADMIN_SECRET>`, `sig` = HMAC signature. **RL:** participates in rate limiting.
+
+> **Content Studio (2026-09-26) — supersedes the content rows in the route table below and §20's
+> “Editing paths”.** `GET /admin/schema` and `GET /admin/export-all` are new. `POST /admin/upload` is now
+> a validated, per-row-tolerant upload: upsert-by-id for `scenarios`/`grammar`, rowid-aware edit-vs-insert
+> plus natural-key dedupe for `vocabulary`/`starter_phrases`, per-row error reporting instead of a
+> batch-wide `400`, and a `sync` mode whose first call only *reports* what it would delete (a second call
+> carrying `syncConfirmed` is required to write). `/admin/api/content-list`, `content-update`,
+> `content-create` and `content-delete` now cover **all four** tables — not just
+> `vocabulary`/`starter_phrases` — with pagination, sorting and filters, and their column allow-lists come
+> from one `DB_SCHEMA` (`cloudflare-content-schema.js`). That same object is what `/admin/schema` serves to
+> the dashboard's Schema tab, and `tests/contentStudio.test.ts` asserts it matches `CONTENT_COLUMNS` in
+> `src/lib/content/curriculumAudit.ts` column for column. The dashboard's Content tab is now a real studio
+> (type switcher, search/level/facet filters, paginated sortable table, multi-select bulk edit/delete,
+> add/edit form generated from the schema, bulk upload with .xlsx/JSON preview and sync confirmation,
+> per-table and full-database export, and a Schema tab). The route-table rows and §20 could not be edited
+> in place — they sit past this file's tool boundary.
 
 ### Auth & account
 | Method | Path | Auth | RL | Notes |

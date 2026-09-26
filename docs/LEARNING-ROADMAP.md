@@ -11,6 +11,69 @@ given.
 
 ---
 
+## 0. Audit and ranked plan (2026-09-26)
+
+Everything here is measured, not recalled. Where a number appears, it was read this session.
+
+### 0.1 Measured state
+
+| Area | Measurement |
+| --- | --- |
+| Tests | **42 files · 456 tests, all passing**; `tsc --noEmit` clean; 11 worker modules pass `node --check` |
+| Bundle (before today) | **one 619 kB chunk / 183 kB gzipped** — Vite warned on every build (`chunkSizeWarningLimit`) |
+| Bundle (after today) | entry **424.57 kB / 135.4 kB gzipped**, 21 screens in their own chunks, 83 precache entries (all 36 built chunks precached, so offline still works) |
+| Memory engine | shipped: scheduler, review screen, enrolment from study/words/conversation/writing/placement, `/review/sync` merge, Dexie v4 |
+| Placement | shipped: adaptive check, post-sign-in gate, level override, missed questions seed the review queue |
+| Skills | speaking, listening (dictation), writing (graded) — **reading is the only one absent** |
+| Content (live D1) | 5 scenarios · 114 vocabulary (A1 31 / A2 30 / B1 27 / B2 26) · 4 grammar rows · 20 starter phrases |
+| Content authoring | live Content Studio (schema, per-row validation, upsert/dedupe, gated sync deletes, export) + `docs/CONTENT-AUTHORING-PROMPT.md` |
+| AI cost shape | **one** model call per learner turn (reply + grade fused), KV-backed translation/hint caches, tiered pool with a terminal day-quota ledger, Workers AI as last resort |
+| Robustness | route error boundary, offline navigation fallback, client crash reporting, honest 401s on the session routes, no silent progress loss |
+
+### 0.2 What today's audit closed
+
+1. **The tutor never saw the learner's mistakes.** `learner_memory` was validated by the worker
+   (`≤10 items × ≤200 chars`) and then discarded, and no client code ever produced it: every
+   correction was stored, scheduled — and invisible to the model that could act on it. Now
+   `buildLearnerMemory()` (grouped by rule wording, most repeated first, spelling-only dropped,
+   fully-mastered rules dropped) is sent with each turn and appended to the prompt as a second
+   system part, so the stable half of the instruction keeps its cache prefix. Costs nothing
+   extra: same single call.
+2. **First load was the whole app.** Route-level code splitting + a guarded
+   `vite:preloadError` recovery (a deploy that swaps chunks mid-session recovers with one reload,
+   never a loop).
+
+### 0.3 The plan, ranked by learning impact per unit of complexity
+
+The ordering rule is unchanged: **memory → placement → content depth → polish**. Items above
+line "later" are the ones that change outcomes; the rest is craft.
+
+| # | Item | Effort | Why this rank |
+| --- | --- | --- | --- |
+| 1 | **Content depth: 5 → ~13 scenarios** using the studio + `CONTENT-AUTHORING-PROMPT.md`, one module per work block (registration, work, housing, health, money/contracts) | L, mostly authoring + human review | The engine is built and now authorable; content is the only thing standing between the current demo and weeks of study. Nothing else multiplies without it. |
+| 2 | **Reading — the fourth skill.** Additive `reading_texts` table (via the worker's admin schema path — the workspace token still cannot run DDL), the 5 texts already authored in the module-1 `deferred` block, a reader screen with tap-to-gloss (reuse `WordInsightBottomSheet`) and MCQ comprehension | M–L | Finishes "four skills or it is not a course" and is the last exam-credible claim we cannot make today. |
+| 3 | **Grammar drills, deterministic.** Fill-in-the-blank and sentence-transformation generated from `grammar` rows (4 today → ~10 per module after #1). No AI call per question | M | Converts a read-only table into production practice for free, and gives the correction card somewhere to send the learner. |
+| 4 | **Intent capture + a trail that reflects it.** Goal (work / study / family / daily), time to arrival, target certificate; the trail reorders and weights the same library | M | Placement already sets the level; intent is what turns "a level" into "a plan I believe in" — the conversion lever. |
+| 5 | **One call per session, not just per turn: the debrief.** A single extra call at session end that summarises what the learner did well, what recurs, and what tomorrow's review will contain | S | Highest visible value per token of anything left on this list, and it is one call per session rather than per message. |
+| 6 | **Exam-mode task bank** (Goethe/telc/DTZ formats, A1–B2) as content, trained through the screens that already exist (listening drill, graded writing, conversation) | L, content-bound | The differentiator the marketing claims, but it must follow #1 — a format with no content is a screenshot. |
+| Later | per-skill breakdown inside the session report, prompt-level personalisation tests, vendor chunk splitting (needs a `vite.config.ts` change), leagues/social, pronunciation scoring | — | Polish, not learning. The three in the middle are legitimate; the last three are on the rejected list in `AGENTS.md` and stay there. |
+
+### 0.4 How to keep exploiting the stack we already pay for
+
+- **Models:** one call per learner turn is already the floor for roleplay + grading; the next
+  saving is *per session* (debrief, #5) and *not calling the model at all* where content is
+  deterministic (#3). Never add a second provider; the pool + ledger exists to make one provider
+  outage survivable, not to multiply spend.
+- **D1/KV:** content and telemetry live in D1; the shared AI cache and the day-quota ledger live
+  in KV. Any new capability that can be content or a cache should not become a new table without
+  a reason, and no migration may be destructive.
+- **PWA/Dexie:** the app must stay fully usable offline; every new screen inherits the precache
+  and the `review_items` queue rather than inventing its own storage.
+- **Learner memory:** it is now the model's context, and it should also drive what the daily
+  mission proposes (the same `buildLearnerMemory`/mistake-profile data, no separate pipeline).
+
+---
+
 ## 1. Where the product actually stands today
 
 ### 1.1 The loop that exists

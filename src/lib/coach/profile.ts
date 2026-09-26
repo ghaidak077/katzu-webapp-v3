@@ -106,6 +106,62 @@ export function buildMistakeProfile(mistakes: MistakeEntity[]): MistakeProfile {
   };
 }
 
+/** How much of the learner's error history the tutor is told about per turn.
+ *  The worker validates the same shape (≤10 items, ≤200 chars each). */
+const MEMORY_LIMIT = 6;
+
+/** A rule the learner keeps breaking, as the tutor is told it. */
+export interface LearnerMemoryItem {
+  rule: string;
+  example?: string;
+}
+
+/**
+ * The tutor's memory of this learner, sent with the turn as `learner_memory`.
+ *
+ * The conversation endpoint has accepted and validated that field since it was
+ * written, and nothing ever produced it: the app recorded every correction and
+ * then asked the model to teach a stranger, every turn, forever. This is the
+ * producer.
+ *
+ * Grouped by the rule's own wording rather than by category, because the model is
+ * told to keep correcting a repeated error the same way, and the wording it sees
+ * is what it can stay consistent with. Spelling-only corrections are dropped —
+ * "you mistyped für" is not worth a tutor's attention — and a rule whose every
+ * instance is mastered is dropped too, since there is nothing left to target.
+ */
+export function buildLearnerMemory(
+  mistakes: MistakeEntity[],
+  limit = MEMORY_LIMIT,
+): LearnerMemoryItem[] {
+  // Oldest first so the newest failing sentence wins the example.
+  const rows = [...(Array.isArray(mistakes) ? mistakes : [])].sort(
+    (a, b) => (a?.timestamp || 0) - (b?.timestamp || 0),
+  );
+  const groups = new Map<string, { rule: string; count: number; mastered: number; example?: string }>();
+
+  for (const mistake of rows) {
+    const rule = (mistake?.grammarRule || '').trim();
+    if (!rule) continue;
+    if (classifyMistake(rule, mistake.original, mistake.corrected) === 'spelling') continue;
+    const key = rule.toLowerCase();
+    const group = groups.get(key) || { rule, count: 0, mastered: 0, example: undefined };
+    group.count += 1;
+    if (mistake.isMastered) group.mastered += 1;
+    const example = (mistake.original || '').trim();
+    if (example) group.example = example;
+    groups.set(key, group);
+  }
+
+  return [...groups.values()]
+    .filter((group) => group.mastered < group.count)
+    // Most repeated first; ties break on the rule text so the same turn cannot
+    // produce a different memory each time it is built.
+    .sort((a, b) => b.count - a.count || a.rule.localeCompare(b.rule))
+    .slice(0, limit)
+    .map(({ rule, example }) => ({ rule, example }));
+}
+
 /**
  * The mistakes to drill for one category, open ones first: a mistake the learner
  * has already mastered should never be the thing they practise again, but it is

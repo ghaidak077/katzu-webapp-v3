@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { enrolMistake } from '@/lib/srs/store';
+import { buildLearnerMemory } from '@/lib/coach/profile';
 import { workerClient } from '@/lib/api/workerClient';
 import { useSpeechInput } from '@/lib/speech/useSpeechInput';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
@@ -198,6 +199,31 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     }
   }, [scenarioId]);
 
+  /**
+   * The opener is the one Katzu message no AI call produces, so its Arabic is
+   * fetched on its own. The first attempt can race the session-token exchange at
+   * mount, hence one retry; after that the failure is shown honestly with a way
+   * back, instead of a bubble that silently cannot be translated.
+   */
+  const requestOpenerTranslation = useCallback(async (messageId: string, germanText: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, translationState: 'pending' as const } : m)),
+    );
+    const arabic = await workerClient.translateTextReliable(germanText).catch(() => '');
+    if (!arabic) {
+      logError('ai/translate', 'Opener translation unavailable after one retry');
+    }
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? arabic
+            ? { ...m, arabicTranslation: arabic, translationState: undefined }
+            : { ...m, translationState: 'unavailable' as const }
+          : m,
+      ),
+    );
+  }, []);
+
   useEffect(() => {
     if (!scenario || !sessionMode) return;
 
@@ -214,7 +240,10 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       id: 'msg_initial',
       sender: 'KATZU',
       germanText: initialMsgText || 'Hallo! Wie kann ich Ihnen helfen?',
-      arabicTranslation: scenario.title_ar,
+      // No placeholder translation: the scenario title is a TOPIC, not a
+      // translation of the opener, and showing it made the first bubble of every
+      // conversation say something the German never said.
+      translationState: 'pending',
       timestamp: Date.now(),
     };
 
@@ -224,24 +253,12 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     // Load cached starter phrases as initial hints
     void loadStarterHints();
 
-    // Give the opener a real Arabic translation (edge-cached) instead of the
-    // scenario title placeholder, so the global translation toggle works from
-    // the very first message.
-    if (welcomeMsg.germanText) {
-      workerClient
-        .translateText(welcomeMsg.germanText)
-        .then((ar) => {
-          if (ar) {
-            setMessages((prev) =>
-              prev.map((m) => (m.id === 'msg_initial' ? { ...m, arabicTranslation: ar } : m)),
-            );
-          }
-        })
-        .catch(() => {
-          /* placeholder title stays — translation is a progressive enhancement */
-        });
-    }
-  }, [scenario, scenarioId, effectiveLevel, sessionMode, loadStarterHints]);
+    // The opener's Arabic comes from the edge-cached /ai/translate route, which
+    // needs a session token — at mount it may not be exchanged yet, so a single
+    // silent failure would leave the whole first bubble untranslated. Retry once
+    // and, if it still fails, say so with a retry the learner can tap.
+    requestOpenerTranslation(welcomeMsg.id, welcomeMsg.germanText);
+  }, [scenario, scenarioId, effectiveLevel, sessionMode, loadStarterHints, requestOpenerTranslation]);
 
   // Handle German word click for insight
   const handleWordClick = (wordRaw: string) => {
@@ -294,10 +311,22 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
     // 2. Call Worker /ai/turn (Executes Call A and Call B in parallel on Worker)
     try {
-      const historyPayload = newMessages.map((m) => ({
+      // Everything BEFORE the message being sent. `newMessages` includes it, and
+      // sending it in both places made the worker hand the model the learner's
+      // sentence twice in a row — which is what let it answer the previous
+      // question instead of the one on screen.
+      const historyPayload = messages.map((m) => ({
         sender: m.sender === 'USER' ? 'user' : 'model',
         text: m.germanText,
       }));
+
+      // What this learner keeps getting wrong, so the tutor can steer the
+      // conversation into re-using it instead of meeting them as a stranger.
+      // Read per turn on purpose: the correction from THIS turn is part of it
+      // next turn, and the table is small.
+      const learnerMemory = buildLearnerMemory(
+        await db.mistakes.where('userId').equals('current_user').toArray(),
+      );
 
       const res = await workerClient.sendTurn({
         scenarioId,
@@ -309,6 +338,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         isFinalTurn,
         mode: sessionMode === 'immersion' ? 'extended' : 'roleplay',
         sessionId,
+        learnerMemory,
       });
 
       // 3. Form Katzu reply with pedagogical evaluation embedded
@@ -651,11 +681,16 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       <div className="flex-1 p-4 space-y-4 overflow-y-auto pb-44">
         {messages.map((msg) => {
           const isKatzu = msg.sender === 'KATZU';
-          // Explicit per-message choice overrides the global toggle.
+          // Explicit per-message choice overrides the global toggle. The
+          // scenario opener is the exception: it is the only message a learner
+          // has no way to guess at (no earlier turn to decode it against), so
+          // its Arabic shows unless they hide it themselves.
           const isTransVisible =
             msg.id in showArabicTranslation
               ? showArabicTranslation[msg.id]
-              : showAllTranslations;
+              : msg.id === 'msg_initial'
+                ? true
+                : showAllTranslations;
 
           return (
             <div
@@ -698,7 +733,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                     >
                       <Volume2 className="w-4 h-4" />
                     </button>
-                    {msg.arabicTranslation && (
+                    {msg.arabicTranslation ? (
                       <button
                         onClick={() =>
                           setShowArabicTranslation((prev) => ({
@@ -711,7 +746,20 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                         <Languages className="w-3.5 h-3.5" />
                         {isTransVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}
                       </button>
-                    )}
+                    ) : msg.translationState === 'pending' ? (
+                      <span className="flex items-center gap-1 text-[11px] font-arabic text-text-muted animate-pulse">
+                        <Languages className="w-3.5 h-3.5" />
+                        جارٍ الترجمة…
+                      </span>
+                    ) : msg.translationState === 'unavailable' ? (
+                      <button
+                        onClick={() => requestOpenerTranslation(msg.id, msg.germanText)}
+                        className="flex items-center gap-1 text-[11px] font-arabic text-status-learning hover:text-status-learning/80"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        تعذرت الترجمة — إعادة المحاولة
+                      </button>
+                    ) : null}
                   </div>
                 )}
 
@@ -731,46 +779,69 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                 )}
               </div>
 
-              {/* Pedagogical Evaluation Card for User Mistake */}
+              {/* Pedagogical Evaluation Card for User Mistake.
+                  Two things matter here: the learner must be able to tell the
+                  wrong line from the right one at a glance, and German text has
+                  to stay direction-isolated — an English or German rule inside
+                  this RTL card reorders its own punctuation ("…position .in
+                  statements") unless it is wrapped in <bdi dir="auto">. */}
               {msg.hasCorrection && (
-                <div className="max-w-[88%] mt-2 p-3.5 rounded-2xl bg-surface-subtle border border-status-error/40 text-xs space-y-2 animate-fade-in text-start">
-                  <div className="flex items-center gap-1.5 text-status-error font-bold">
-                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                    <span>تصحيح كَاتْزُو السريع:</span>
+                <div className="max-w-[88%] mt-2 rounded-2xl bg-surface-subtle border border-status-error/40 text-xs overflow-hidden animate-fade-in text-start">
+                  <div className="flex items-center gap-2 px-3.5 py-2 bg-status-error/10 border-b border-status-error/20">
+                    <KatzuMascot name="avatar" className="w-5 h-5" />
+                    <span className="font-arabic font-bold text-status-error">تصحيح كَاتْزُو</span>
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="text-status-error line-through text-opacity-80">
-                      <GermanText>{msg.originalMistake}</GermanText>
-                    </div>
-                    <div className="text-status-success font-bold">
-                      <GermanText>{msg.correctedGerman}</GermanText>
-                    </div>
+                  <div className="p-3.5 space-y-3">
+                    {(msg.originalMistake || msg.correctedGerman) && (
+                      <div className="space-y-2">
+                        {msg.originalMistake && (
+                          <div className="flex items-baseline gap-2">
+                            <span className="shrink-0 font-arabic text-[10px] text-text-muted">قلت</span>
+                            <GermanText className="text-status-error/80 line-through decoration-status-error/60">
+                              {msg.originalMistake}
+                            </GermanText>
+                          </div>
+                        )}
+                        {msg.correctedGerman && (
+                          <div className="flex items-baseline gap-2">
+                            <span className="shrink-0 font-arabic text-[10px] text-text-muted">الصحيح</span>
+                            <GermanText className="font-bold text-status-success">
+                              {msg.correctedGerman}
+                            </GermanText>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {msg.grammarRule && (
+                      <bdi
+                        dir="auto"
+                        className="inline-flex items-center gap-1.5 rounded-full bg-status-learning/10 border border-status-learning/25 px-2.5 py-1 font-arabic text-[11px] text-status-learning"
+                      >
+                        <span aria-hidden>📌</span>
+                        {msg.grammarRule}
+                      </bdi>
+                    )}
+
+                    {msg.explanationAr && (
+                      <p className="font-arabic text-[11px] leading-relaxed text-text-secondary">
+                        {msg.explanationAr}
+                      </p>
+                    )}
+
+                    {msg.positiveNoteAr && (
+                      <p className="font-arabic text-[11px] font-semibold text-status-success">
+                        ✦ {msg.positiveNoteAr}
+                      </p>
+                    )}
+
+                    {msg.roastComment && (
+                      <p className="font-arabic text-[11px] italic text-status-learning/90 border-s-2 border-status-learning/40 ps-2.5">
+                        «{msg.roastComment}»
+                      </p>
+                    )}
                   </div>
-
-                  {msg.grammarRule && (
-                    <div className="font-mono text-cyan-300 text-[11px] bg-surface-card p-1.5 rounded-lg border border-border-subtle">
-                      قاعدة: {msg.grammarRule}
-                    </div>
-                  )}
-
-                  {msg.explanationAr && (
-                    <p className="text-text-secondary font-arabic text-[11px] leading-relaxed">
-                      {msg.explanationAr}
-                    </p>
-                  )}
-
-                  {msg.positiveNoteAr && (
-                    <p className="text-status-success font-arabic text-[11px] font-semibold">
-                      ✦ {msg.positiveNoteAr}
-                    </p>
-                  )}
-
-                  {msg.roastComment && (
-                    <p className="text-status-learning font-arabic italic text-[11px]">
-                      «{msg.roastComment}»
-                    </p>
-                  )}
                 </div>
               )}
             </div>

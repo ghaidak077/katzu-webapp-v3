@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   BrowserRouter,
@@ -12,26 +12,67 @@ import {
 import { db, initializeDatabaseSeed, wipeUserScopedData } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 
-// Screens
+// Screens the first paint needs are eager: a visitor must see the landing page
+// (and then sign-in) without waiting on anything else.
 import { WelcomeScreen } from '@/features/auth/WelcomeScreen';
 import { SignInScreen } from '@/features/auth/SignInScreen';
-import { SubscriptionRedemptionScreen } from '@/features/auth/SubscriptionRedemptionScreen';
-import { TrailScreen } from '@/features/trail/TrailScreen';
-import { ScenarioDetailScreen } from '@/features/study/ScenarioDetailScreen';
-import { StudyScreen } from '@/features/study/StudyScreen';
-import { QuizScreen } from '@/features/quiz/QuizScreen';
-import { LiveConversationScreen } from '@/features/conversation/LiveConversationScreen';
-import { SessionReportScreen } from '@/features/report/SessionReportScreen';
-import { PracticeScreen } from '@/features/practice/PracticeScreen';
-import { ProgressScreen } from '@/features/progress/ProgressScreen';
-import { ProfileSettingsScreen } from '@/features/settings/ProfileSettingsScreen';
 import { TrustInfoScreen } from '@/features/settings/TrustInfoScreen';
-import { ReviewScreen } from '@/features/review/ReviewScreen';
-import { PlacementScreen } from '@/features/placement/PlacementScreen';
-import { ListeningScreen } from '@/features/listening/ListeningScreen';
-import { WritingScreen } from '@/features/writing/WritingScreen';
-import { CoachScreen } from '@/features/coach/CoachScreen';
 import { LandingScreen } from '@/features/marketing/LandingScreen';
+
+/**
+ * Everything behind sign-in loads on navigation, not before it.
+ *
+ * The built entry chunk was 619 KB / 183 KB gzipped — every screen, the review
+ * engine and all the sheets inside one file that a phone had to download before
+ * the landing page could paint (Vite warned about it on every build). These are
+ * named exports, so `lazy` needs the explicit re-shape; the imports stay static
+ * so a broken path fails the build rather than at runtime.
+ */
+const SubscriptionRedemptionScreen = React.lazy(() =>
+  import('@/features/auth/SubscriptionRedemptionScreen').then((m) => ({ default: m.SubscriptionRedemptionScreen })),
+);
+const TrailScreen = React.lazy(() =>
+  import('@/features/trail/TrailScreen').then((m) => ({ default: m.TrailScreen })),
+);
+const ScenarioDetailScreen = React.lazy(() =>
+  import('@/features/study/ScenarioDetailScreen').then((m) => ({ default: m.ScenarioDetailScreen })),
+);
+const StudyScreen = React.lazy(() =>
+  import('@/features/study/StudyScreen').then((m) => ({ default: m.StudyScreen })),
+);
+const QuizScreen = React.lazy(() =>
+  import('@/features/quiz/QuizScreen').then((m) => ({ default: m.QuizScreen })),
+);
+const LiveConversationScreen = React.lazy(() =>
+  import('@/features/conversation/LiveConversationScreen').then((m) => ({ default: m.LiveConversationScreen })),
+);
+const SessionReportScreen = React.lazy(() =>
+  import('@/features/report/SessionReportScreen').then((m) => ({ default: m.SessionReportScreen })),
+);
+const PracticeScreen = React.lazy(() =>
+  import('@/features/practice/PracticeScreen').then((m) => ({ default: m.PracticeScreen })),
+);
+const ProgressScreen = React.lazy(() =>
+  import('@/features/progress/ProgressScreen').then((m) => ({ default: m.ProgressScreen })),
+);
+const ProfileSettingsScreen = React.lazy(() =>
+  import('@/features/settings/ProfileSettingsScreen').then((m) => ({ default: m.ProfileSettingsScreen })),
+);
+const ReviewScreen = React.lazy(() =>
+  import('@/features/review/ReviewScreen').then((m) => ({ default: m.ReviewScreen })),
+);
+const PlacementScreen = React.lazy(() =>
+  import('@/features/placement/PlacementScreen').then((m) => ({ default: m.PlacementScreen })),
+);
+const ListeningScreen = React.lazy(() =>
+  import('@/features/listening/ListeningScreen').then((m) => ({ default: m.ListeningScreen })),
+);
+const WritingScreen = React.lazy(() =>
+  import('@/features/writing/WritingScreen').then((m) => ({ default: m.WritingScreen })),
+);
+const CoachScreen = React.lazy(() =>
+  import('@/features/coach/CoachScreen').then((m) => ({ default: m.CoachScreen })),
+);
 
 // Navigation & Icons
 import { Map, Dumbbell, BarChart3, User } from 'lucide-react';
@@ -120,35 +161,47 @@ function AppRoutes() {
     <div className="min-h-screen bg-black text-text-primary flex flex-col justify-between">
       {/* Active Screen View */}
       <main className="flex-1 w-full">
-        <Routes>
-          <Route path="/" element={<LandingRoute />} />
-          <Route path="/welcome" element={<WelcomeScreen onContinue={() => navigate('/signin?mode=signup')} onGoToSignIn={(mode) => navigate(`/signin${mode === 'signup' ? '?mode=signup' : ''}`)} />} />
-          <Route path="/signin" element={<SignInRoute />} />
-          <Route path="/subscription" element={<SubscriptionRoute />} />
-          <Route path="/placement" element={<PlacementRoute />} />
-          <Route path="/app/review" element={<ReviewRoute />} />
-          <Route path="/app/listen" element={<ListeningRoute />} />
-          <Route path="/app/write" element={<WritingRoute />} />
-          <Route path="/app/coach" element={<CoachRoute />} />
-          <Route path="/app" element={<Navigate to="/app/trail" replace />} />
-          <Route path="/app/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
-          <Route path="/main" element={<Navigate to="/app/trail" replace />} />
-          <Route path="/main/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
-          <Route path="/scenario/:scenarioId" element={<ScenarioRoute />} />
-          <Route path="/scenario/:scenarioId/study" element={<StudyRoute />} />
-          <Route path="/scenario/:scenarioId/quiz" element={<QuizRoute />} />
-          <Route path="/scenario/:scenarioId/live" element={<LiveRoute onComplete={(summary) => {
-            setSessionSummary(summary);
-            try {
-              sessionStorage.setItem('katzu_session_summary', JSON.stringify(summary));
-            } catch {}
-            navigate('/session-report');
-          }} />} />
-          <Route path="/session-report" element={<ReportRoute summary={sessionSummary} onLoadSummary={setSessionSummary} />} />
-          <Route path="/trust/:page" element={<TrustRoute />} />
-          <Route path="*" element={<Navigate to={isAuthenticated ? '/app/trail' : '/'} replace />} />
-        </Routes>
+        {/* A lazily-loaded route shows this while its code arrives. Without a
+            fallback React unmounts the tree and the learner sees a blank page. */}
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<LandingRoute />} />
+            <Route path="/welcome" element={<WelcomeScreen onContinue={() => navigate('/signin?mode=signup')} onGoToSignIn={(mode) => navigate(`/signin${mode === 'signup' ? '?mode=signup' : ''}`)} />} />
+            <Route path="/signin" element={<SignInRoute />} />
+            <Route path="/subscription" element={<SubscriptionRoute />} />
+            <Route path="/placement" element={<PlacementRoute />} />
+            <Route path="/app/review" element={<ReviewRoute />} />
+            <Route path="/app/listen" element={<ListeningRoute />} />
+            <Route path="/app/write" element={<WritingRoute />} />
+            <Route path="/app/coach" element={<CoachRoute />} />
+            <Route path="/app" element={<Navigate to="/app/trail" replace />} />
+            <Route path="/app/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
+            <Route path="/main" element={<Navigate to="/app/trail" replace />} />
+            <Route path="/main/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
+            <Route path="/scenario/:scenarioId" element={<ScenarioRoute />} />
+            <Route path="/scenario/:scenarioId/study" element={<StudyRoute />} />
+            <Route path="/scenario/:scenarioId/quiz" element={<QuizRoute />} />
+            <Route path="/scenario/:scenarioId/live" element={<LiveRoute onComplete={(summary) => {
+              setSessionSummary(summary);
+              try {
+                sessionStorage.setItem('katzu_session_summary', JSON.stringify(summary));
+              } catch {}
+              navigate('/session-report');
+            }} />} />
+            <Route path="/session-report" element={<ReportRoute summary={sessionSummary} onLoadSummary={setSessionSummary} />} />
+            <Route path="/trust/:page" element={<TrustRoute />} />
+            <Route path="*" element={<Navigate to={isAuthenticated ? '/app/trail' : '/'} replace />} />
+          </Routes>
+        </Suspense>
       </main>
+    </div>
+  );}
+
+/** Shown while a route's code is still downloading — never a blank screen. */
+function RouteFallback() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-live="polite">
+      <span className="font-arabic text-sm text-text-secondary">جارٍ التحميل…</span>
     </div>
   );
 }

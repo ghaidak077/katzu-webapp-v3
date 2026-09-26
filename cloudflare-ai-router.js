@@ -98,7 +98,10 @@ const ROUTER_BUDGET_MS = 24000;
 /** Reserve for the Workers AI last resort so a full pool miss still answers. */
 const FALLBACK_RESERVE_MS = 3000;
 /** Practical ceiling for one OpenAI-compatible completion. */
-const OPENAI_MAX_TOKENS = 1024;
+// Ceiling for OpenAI-compatible providers, not a target: a call's own
+// `generationConfig.maxOutputTokens` still decides the cap. It sits above the
+// fused turn's 1600 so the answer is never clipped by this constant alone.
+const OPENAI_MAX_TOKENS = 2048;
 
 // ---------------------------------------------------------------------------
 // Key parsing
@@ -249,6 +252,69 @@ let ledgerHydratedAt = 0;
 let ledgerHydrationPromise = null;
 
 /**
+ * Measured end-to-end latency per pool unit (provider+model), as an exponential
+ * moving average.
+ *
+ * A provider that answers in 900ms and one that answers in four seconds are
+ * interchangeable to a batch job and a four-second wait to a learner sitting in
+ * a conversation. So interactive routes order their walk by what the pool has
+ * actually been doing, not by a constant someone guessed — a provider that
+ * degrades moves itself to the back with no code change, and one that recovers
+ * moves back up. It rides the existing `ai-pool-ledger` KV blob, so learning
+ * this costs no extra round trip.
+ */
+const latencyEwma = new Map(); // "provider:model" -> { ms, samples }
+const LATENCY_ALPHA = 0.4;
+/** Below this many samples a measurement is noise, not evidence. */
+const LATENCY_MIN_SAMPLES = 3;
+const LATENCY_PERSIST_MS = 60000;
+let latencyPersistedAt = 0;
+
+const latencyId = (entry) => `${entry.provider}:${entry.model}`;
+
+/** One observed round trip folded into the running average for that unit. */
+export function recordLatency(entry, ms) {
+  if (!entry || !Number.isFinite(ms) || ms <= 0) return;
+  const id = latencyId(entry);
+  const prev = latencyEwma.get(id);
+  latencyEwma.set(
+    id,
+    prev
+      ? { ms: prev.ms * (1 - LATENCY_ALPHA) + ms * LATENCY_ALPHA, samples: prev.samples + 1 }
+      : { ms, samples: 1 },
+  );
+}
+
+/** Public-safe view of the measurements (no key material, no prompts). */
+export function latencySnapshot() {
+  return [...latencyEwma.entries()].map(([id, value]) => ({
+    id,
+    avg_ms: Math.round(value.ms),
+    samples: value.samples,
+  }));
+}
+
+/**
+ * Tier walk order. Without measurements (or when a route does not ask for this)
+ * it is exactly the rotation it always was. With them, units that have been
+ * answering fastest come first and unmeasured units keep their rotation position
+ * behind them — the order changes, the set of attempts does not.
+ */
+function orderTierEntries(entries, start, preferFast) {
+  const rotated = entries.map((_, i) => entries[(start + i) % entries.length]);
+  if (!preferFast) return rotated;
+  const measured = [];
+  const unmeasured = [];
+  for (const entry of rotated) {
+    const stats = latencyEwma.get(latencyId(entry));
+    if (stats && stats.samples >= LATENCY_MIN_SAMPLES) measured.push({ entry, ms: stats.ms });
+    else unmeasured.push(entry);
+  }
+  measured.sort((a, b) => a.ms - b.ms);
+  return [...measured.map((m) => m.entry), ...unmeasured];
+}
+
+/**
  * Window end for an exhausted unit.
  * Gemini and OpenRouter reset on a calendar day (midnight Pacific for Gemini;
  * OpenRouter's daily free cap behaves the same way), Groq publishes rolling
@@ -345,6 +411,8 @@ export function resetRouterState() {
   keyRotations.clear();
   ledgerHydratedAt = 0;
   ledgerHydrationPromise = null;
+  latencyEwma.clear();
+  latencyPersistedAt = 0;
   routerCounters.attempts = 0;
   routerCounters.served = 0;
   routerCounters.byProvider = {};
@@ -380,6 +448,16 @@ async function hydrateLedger(env) {
           until,
         });
       }
+      // Measurements only, never counters: a fresh isolate has no observe history
+      // of its own, and the fleet's average is a better prior than nothing. A
+      // local measurement always wins — it describes this instant.
+      const latency = parsed?.latency || {};
+      for (const [id, value] of Object.entries(latency)) {
+        const ms = Number(value?.ms);
+        if (!Number.isFinite(ms) || ms <= 0) continue;
+        if (latencyEwma.has(id)) continue;
+        latencyEwma.set(id, { ms, samples: Math.max(1, Number(value?.samples) || 1) });
+      }
     } catch {
       /* a corrupt or unreachable ledger is the same as an empty one */
     } finally {
@@ -397,14 +475,29 @@ function persistLedger(env) {
       const until = dayExhausted.get(id) || 0;
       if (until > Date.now()) entries[id] = { ...detail, until };
     }
+    const latency = {};
+    for (const [id, value] of latencyEwma) {
+      latency[id] = { ms: Math.round(value.ms), samples: value.samples };
+    }
     // Fire-and-forget, same idiom as the existing KV metrics: a lost write only
     // costs one duplicate attempt after this isolate dies.
     void env.USER_PROGRESS
-      .put(LEDGER_KV_KEY, JSON.stringify({ updated_at: Date.now(), entries }), { expirationTtl: 3 * 86400 })
+      .put(LEDGER_KV_KEY, JSON.stringify({ updated_at: Date.now(), entries, latency }), { expirationTtl: 3 * 86400 })
       .catch(() => {});
   } catch {
     /* persistence is best-effort */
   }
+}
+
+/**
+ * Latency is learned continuously, so it cannot persist on every call — one KV
+ * write per AI request would be a cost with no benefit. Parked units still write
+ * immediately, because a park that is lost costs real attempts.
+ */
+function persistLatency(env) {
+  if (Date.now() - latencyPersistedAt < LATENCY_PERSIST_MS) return;
+  latencyPersistedAt = Date.now();
+  persistLedger(env);
 }
 
 // ---------------------------------------------------------------------------
@@ -483,7 +576,7 @@ function stripReasoningArtifacts(text) {
   return String(text || "").replace(/<think[\s\S]*?<\/think>/gi, "").trim();
 }
 
-function buildOpenAiBody(entry, payload, useJsonMode, toMessages) {
+function buildOpenAiBody(entry, payload, { jsonMode = true, reasoningEffort = true } = {}, toMessages) {
   const gen = payload?.generationConfig || {};
   const body = {
     model: entry.model,
@@ -491,12 +584,32 @@ function buildOpenAiBody(entry, payload, useJsonMode, toMessages) {
     temperature: typeof gen.temperature === "number" ? gen.temperature : 0.3,
     max_tokens: Math.min(Number(gen.maxOutputTokens) || 700, OPENAI_MAX_TOKENS),
   };
-  if (useJsonMode && gen.responseMimeType === "application/json") {
+  if (jsonMode && gen.responseMimeType === "application/json") {
     // Best-effort: Groq and NIM honour json_object, OpenRouter forwards it to
     // whichever backend it routes to (and is retried without it on a rejection).
     body.response_format = { type: "json_object" };
   }
+  // Interactive routes ask for low reasoning effort: the reasoning tokens a
+  // gpt-oss/qwen model spends before its answer are latency the learner pays for
+  // and never sees. Only sent when the payload asks, and dropped again on a 400
+  // (see callProvider) because not every routed backend accepts the field.
+  if (reasoningEffort && typeof gen.reasoningEffort === "string") {
+    body.reasoning_effort = gen.reasoningEffort;
+  }
   return body;
+}
+
+/**
+ * Gemini rejects generationConfig fields it does not know, so the OpenAI-only
+ * knobs the shared payload carries are stripped before a Gemini request goes
+ * out. Everything else passes through untouched.
+ */
+function geminiBody(payload) {
+  const gen = payload?.generationConfig;
+  if (!gen || gen.reasoningEffort === undefined) return payload;
+  const { reasoningEffort, ...rest } = gen;
+  void reasoningEffort;
+  return { ...payload, generationConfig: rest };
 }
 
 /**
@@ -515,7 +628,7 @@ export async function callProvider(entry, payload, key, { timeoutMs = ATTEMPT_TI
       const res = await doFetch(`${GEMINI_BASE_URL}/models/${entry.model}:generateContent?key=${key}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(geminiBody(payload)),
         signal: controller.signal,
       });
       const bodyText = await res.text().catch(() => "");
@@ -532,24 +645,32 @@ export async function callProvider(entry, payload, key, { timeoutMs = ATTEMPT_TI
 
     // OpenAI-compatible: Groq, OpenRouter, NVIDIA NIM.
     const base = String(entry.baseUrl || "").replace(/\/+$/, "");
-    const send = (jsonMode) =>
+    const send = (features) =>
       doFetch(`${base}/chat/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify(buildOpenAiBody(entry, payload, jsonMode, toMessages)),
+        body: JSON.stringify(buildOpenAiBody(entry, payload, features, toMessages)),
         signal: controller.signal,
       });
 
-    let res = await send(true);
+    const features = { jsonMode: true, reasoningEffort: true };
+    let res = await send(features);
     if (res.status === 400) {
+      // A 400 that names an optional field means the backend does not support it;
+      // the same call without that one field is still usable (the handlers parse
+      // defensively). Two independent knobs, each dropped at most once.
       const firstBody = await res.text().catch(() => "");
-      if (/response_format|json_object|json mode/i.test(firstBody)) {
-        // Some routed backends reject json mode outright; the same call without
-        // it is still usable (the handlers parse defensively).
-        res = await send(false);
-      } else {
-        throw new ProviderCallError(entry, 400, firstBody);
+      let dropped = false;
+      if (features.jsonMode && /response_format|json_object|json mode/i.test(firstBody)) {
+        features.jsonMode = false;
+        dropped = true;
       }
+      if (features.reasoningEffort && /reasoning[_ ]?effort/i.test(firstBody)) {
+        features.reasoningEffort = false;
+        dropped = true;
+      }
+      if (!dropped) throw new ProviderCallError(entry, 400, firstBody);
+      res = await send(features);
     }
 
     const bodyText = await res.text().catch(() => "");
@@ -618,8 +739,11 @@ export function routerCountersSnapshot() {
  *                          converter — injected instead of copied, because the
  *                          converter's own body sits past the byte wall that
  *                          forced this module to exist), onProvider, onModel,
- *                          plus test-only overrides (pool, budgetMs,
- *                          attemptTimeoutMs, fetchImpl).
+ *                          `preferFast` (set it for anything a learner is
+ *                          waiting on: the tier walk is then ordered by measured
+ *                          latency instead of round-robin), plus test-only
+ *                          overrides (pool, budgetMs, attemptTimeoutMs,
+ *                          fetchImpl).
  * @returns {Promise<string>} the model's text
  */
 export async function callAiRouter(payload, env, deps = {}) {
@@ -643,9 +767,9 @@ export async function callAiRouter(payload, env, deps = {}) {
     const tierEntries = pool.filter((entry) => entry.tier === tier && isEntryConfigured(entry) && keysFor(entry.provider).length > 0);
     if (!tierEntries.length) continue;
     const start = nextRotation(tierRotations, `tier:${tier}`, tierEntries.length);
+    const walk = orderTierEntries(tierEntries, start, deps.preferFast === true);
 
-    for (let i = 0; i < tierEntries.length; i++) {
-      const entry = tierEntries[(start + i) % tierEntries.length];
+    for (const entry of walk) {
       const keys = keysFor(entry.provider);
       const keyStart = nextRotation(keyRotations, `keys:${entry.provider}`, keys.length);
 
@@ -659,12 +783,15 @@ export async function callAiRouter(payload, env, deps = {}) {
         if (remaining < reserveMs) break poolWalk;
 
         countAttempt(entry.provider);
+        const startedAt = Date.now();
         try {
           const text = await callProvider(entry, payload, key, {
             timeoutMs: Math.min(attemptTimeoutMs, Math.max(1000, remaining)),
             fetchImpl: deps.fetchImpl,
             toMessages,
           });
+          recordLatency(entry, Date.now() - startedAt);
+          persistLatency(env);
           deps.markKeySuccess?.(key);
           deps.onProvider?.(entry.provider);
           deps.onModel?.(entry.model);

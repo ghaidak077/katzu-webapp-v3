@@ -211,6 +211,138 @@ describe('/ai/turn through the pool', () => {
     );
   });
 
+  it('hands the model the learner sentence exactly once', async () => {
+    /**
+     * The transcript the app sends ends with the message being answered, and the
+     * request carries that message again as `user_message`. Concatenating them
+     * gave the model two identical learner turns in a row — which is how a reply
+     * ends up answering the previous question instead of the one on screen.
+     */
+    const env = makeEnv();
+    await seedSession(env, 'dup-learner', 'sess_dup_learner');
+
+    let contents: any[] = [];
+    vi.stubGlobal(
+      'fetch',
+      (async (_input: any, init: any) => {
+        contents = JSON.parse(String(init?.body)).contents;
+        return geminiText(FUSED_REPLY);
+      }) as unknown as typeof fetch,
+    );
+
+    const sentence = 'Ich möchte die Küche sehen.';
+    const res = await worker.fetch(
+      post(
+        '/ai/turn',
+        {
+          scenario_id: 'cafe_order',
+          cefr_level: 'A1',
+          user_message: sentence,
+          session_id: 'sess-dup-1',
+          history: [
+            { role: 'model', text: 'Hallo! Willkommen.' },
+            { role: 'user', text: 'Die Wohnung ist schön.' },
+            { role: 'model', text: 'Freut mich! Möchten Sie die Küche sehen?' },
+            { role: 'user', text: sentence },
+          ],
+        },
+        { Authorization: 'Bearer sess_dup_learner' },
+      ),
+      env as never,
+    );
+
+    expect(res.status).toBe(200);
+    expect(contents.map((c) => c.parts[0].text).filter((t) => t === sentence)).toHaveLength(1);
+    expect(contents.at(-1)).toEqual({ role: 'user', parts: [{ text: sentence }] });
+    const rolesSeen = contents.map((c) => c.role);
+    expect(rolesSeen.some((role, i) => i > 0 && role === rolesSeen[i - 1])).toBe(false);
+  });
+
+  it('asks for a short, low-reasoning answer because the learner is waiting on it', async () => {
+    // Gemini only, so the payload the route builds is the payload that goes out:
+    // the transport strips the OpenAI-only knobs before a Gemini request.
+    const env = makeEnv({ GEMINI_API_KEYS: undefined, GROQ_API_KEYS: 'groq-key-aaaaaaaaaa' });
+    await seedSession(env, 'budget-learner', 'sess_budget_learner');
+
+    let body: any = null;
+    vi.stubGlobal(
+      'fetch',
+      (async (_input: any, init: any) => {
+        body = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify({ choices: [{ message: { content: FUSED_REPLY } }] }), { status: 200 });
+      }) as unknown as typeof fetch,
+    );
+
+    const res = await worker.fetch(
+      post(
+        '/ai/turn',
+        { scenario_id: 'cafe_order', cefr_level: 'A1', user_message: 'Hallo', session_id: 'sess-budget-1', history: [] },
+        { Authorization: 'Bearer sess_budget_learner' },
+      ),
+      env as never,
+    );
+
+    expect(res.status).toBe(200);
+    // Not streamed, so response length IS response time.
+    expect(body.max_tokens).toBeLessThanOrEqual(1000);
+    expect(body.reasoning_effort).toBe('low');
+  });
+
+  it('tells the tutor what this learner keeps getting wrong', async () => {
+    const env = makeEnv();
+    await seedSession(env, 'memory-learner', 'sess_memory_learner');
+
+    // The prompt the provider actually receives, not the request the client sent.
+    let promptSent = '';
+    vi.stubGlobal(
+      'fetch',
+      (async (input: any, init: any) => {
+        promptSent = String(init?.body || '');
+        void input;
+        return geminiText(FUSED_REPLY);
+      }) as unknown as typeof fetch,
+    );
+
+    const res = await worker.fetch(
+      post(
+        '/ai/turn',
+        {
+          scenario_id: 'cafe_order',
+          cefr_level: 'A1',
+          user_message: 'Ich will ein Kaffee',
+          session_id: 'sess-memory-1',
+          history: [],
+          learner_memory: [
+            { rule: 'أدوات التعريف قبل الاسم', example: 'Ich habe Hund' },
+            { rule: 'ترتيب الكلمات: الفعل في المركز الثاني' },
+          ],
+        },
+        { Authorization: 'Bearer sess_memory_learner' },
+      ),
+      env as never,
+    );
+
+    expect(res.status).toBe(200);
+    // Validating the field and discarding it was the whole bug: the coach graded a
+    // stranger every turn while the app kept a list of exactly what its learner
+    // keeps getting wrong.
+    expect(promptSent).toContain('أدوات التعريف قبل الاسم');
+    expect(promptSent).toContain('Ich habe Hund');
+    expect(promptSent).toContain('ترتيب الكلمات: الفعل في المركز الثاني');
+    expect(promptSent).toContain('MEMORY');
+    // A turn with no recorded mistakes must not carry an empty memory block.
+    const clean = await worker.fetch(
+      post(
+        '/ai/turn',
+        { scenario_id: 'cafe_order', cefr_level: 'A1', user_message: 'Hallo', session_id: 'sess-memory-2', history: [] },
+        { Authorization: 'Bearer sess_memory_learner' },
+      ),
+      env as never,
+    );
+    expect(clean.status).toBe(200);
+    expect(promptSent).not.toContain('MEMORY');
+  });
+
   it('counts an exhausted provider unit for the dashboard, once', async () => {
     const env = makeEnv({ GEMINI_API_KEYS: 'test-key-aaaaaaaaaa' });
     await seedSession(env, 'park-learner', 'sess_park_learner');
@@ -255,5 +387,85 @@ describe('/ai/turn through the pool', () => {
 
     const stats = await getRegistryStats(env);
     expect(stats.provider_attempts_exhausted_24h).toBeGreaterThan(0);
+  });
+});
+
+describe('/ai/turn refuses unusable model output', () => {
+  /**
+   * A fused answer cut off inside `evaluation` — the shape that reached a
+   * learner's chat. The generic parser "rescued" it by stripping the JSON
+   * punctuation, showing `evaluation: is_correct: false, original_mistake: Jaja,
+   * corrected_german: Ja, gerne!, ...` as Katzu's reply, and stamping the turn
+   * CORRECT, so no correction card appeared and the accuracy score was invented.
+   */
+  const TRUNCATED_INSIDE_EVALUATION =
+    '{"evaluation":{"is_correct":false,"original_mistake":"Jaja","corrected_german":"Ja, gerne!","grammar_rule":"Worttrennung und Höflichkeitsformeln","explanation_ar":"يجب';
+
+  async function runTurn(raw: string, sub: string) {
+    const env = makeEnv();
+    await seedSession(env, sub, `sess_${sub}`);
+    vi.stubGlobal('fetch', (async () => geminiText(raw)) as unknown as typeof fetch);
+    const res = await worker.fetch(
+      post(
+        '/ai/turn',
+        { scenario_id: 'cafe_order', cefr_level: 'A1', user_message: 'Jaja', session_id: `sess-${sub}-1`, history: [] },
+        { Authorization: `Bearer sess_${sub}` },
+      ),
+      env as never,
+    );
+    return { res, body: (await res.json()) as any };
+  }
+
+  it('rejects a truncated answer instead of quoting the model JSON back', async () => {
+    const { res, body } = await runTurn(TRUNCATED_INSIDE_EVALUATION, 'truncated-turn');
+    expect(res.status).toBe(502);
+    expect(body.code).toBe('AI_EMPTY_REPLY');
+    expect(body.reply_de).toBeUndefined();
+  });
+
+  it('keeps a turn whose tail was cut off after the reply and grade arrived', async () => {
+    const raw =
+      '{"reply_de":"Ja, gerne! Kommen Sie mit.","reply_ar":"نعم، بكل سرور! تفضل معي.","evaluation":{"is_correct":false,"corrected_german":"Ja, gerne!","original_mistake":"Jaja","grammar_rule":"التصريف","explanation_ar":"قل: نعم بكل سرور';
+    const { res, body } = await runTurn(raw, 'cut-after-grade');
+    expect(res.status).toBe(200);
+    expect(body.reply_de).toBe('Ja, gerne! Kommen Sie mit.');
+    expect(body.evaluation.is_correct).toBe(false);
+    expect(body.evaluation.corrected_german).toBe('Ja, gerne!');
+  });
+
+  it('never invents a grade — an answer without a real boolean fails the turn', async () => {
+    const raw = JSON.stringify({ reply_de: 'Guten Tag!', reply_ar: 'نهارك سعيد!' });
+    const { res, body } = await runTurn(raw, 'ungraded-turn');
+    expect(res.status).toBe(502);
+    expect(body.code).toBe('AI_EVAL_MISSING');
+  });
+
+  it('refuses a reply field that is the schema echoed back as text', async () => {
+    // Providers that drop json mode answer with the JSON dumped into reply_de.
+    const raw = JSON.stringify({
+      reply_de: 'evaluation: is_correct: false, corrected_german: Ja, gerne!',
+      reply_ar: 'نعم، بكل سرور!',
+      evaluation: { is_correct: false, explanation_ar: 'صحيح.', positive_note_ar: 'جيد!' },
+    });
+    const { res, body } = await runTurn(raw, 'schema-echo-turn');
+    expect(res.status).toBe(502);
+    expect(body.code).toBe('AI_EMPTY_REPLY');
+  });
+
+  it('still accepts the flat evaluation some models emit instead of the nested one', async () => {
+    const raw = JSON.stringify({
+      reply_de: 'Guten Tag! Möchten Sie einen Kaffee?',
+      reply_ar: 'نهارك سعيد! هل ترغب بقهوة؟',
+      is_correct: false,
+      corrected_german: 'Guten Tag, ich möchte einen Kaffee.',
+      original_mistake: 'Guten tag kaffee',
+      grammar_rule: 'التصريف',
+      explanation_ar: 'اكتب الجملة كاملة.',
+      positive_note_ar: 'بداية جيدة!',
+    });
+    const { res, body } = await runTurn(raw, 'flat-turn');
+    expect(res.status).toBe(200);
+    expect(body.evaluation.is_correct).toBe(false);
+    expect(body.evaluation.corrected_german).toBe('Guten Tag, ich möchte einen Kaffee.');
   });
 });

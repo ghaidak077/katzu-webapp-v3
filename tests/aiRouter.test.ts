@@ -9,8 +9,10 @@ import {
   inspectProviderKeys,
   isDayExhausted,
   keyFingerprint,
+  latencySnapshot,
   ledgerKey,
   markDayExhausted,
+  recordLatency,
   nextMidnightPacific,
   nextResetTime,
   readAiCache,
@@ -371,6 +373,118 @@ describe('transports', () => {
     const stub = fetchStub(() => new Response(JSON.stringify({ choices: [{ message: { content: '{}' } }] }), { status: 200 }));
     await callAiRouter(geminiPayload, { GROQ_API_KEYS: 'groq-key-aaaaaaaaaa' } as any, deps({ fetchImpl: stub.impl, pool: [groqEntry] }));
     expect(stub.calls[0]).not.toContain('groq-key-aaaaaaaaaa');
+  });
+
+  it('forwards reasoning_effort only when the payload asks for it', async () => {
+    const stub = fetchStub(() => new Response(JSON.stringify({ choices: [{ message: { content: '{}' } }] }), { status: 200 }));
+    const asks = { ...geminiPayload, generationConfig: { ...geminiPayload.generationConfig, reasoningEffort: 'low' } };
+    await callAiRouter(asks, { GROQ_API_KEYS: 'groq-key-aaaaaaaaaa' } as any, deps({ fetchImpl: stub.impl, pool: [groqEntry] }));
+    expect(stub.bodies[0].reasoning_effort).toBe('low');
+
+    await callAiRouter(geminiPayload, { GROQ_API_KEYS: 'groq-key-aaaaaaaaaa' } as any, deps({ fetchImpl: stub.impl, pool: [groqEntry] }));
+    expect(stub.bodies[1].reasoning_effort).toBeUndefined();
+  });
+
+  it('retries without reasoning_effort when a backend does not know the field', async () => {
+    let attempt = 0;
+    const stub = fetchStub(() => {
+      attempt += 1;
+      if (attempt === 1) return new Response(JSON.stringify({ error: { message: 'unknown parameter: reasoning_effort' } }), { status: 400 });
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }] }), { status: 200 });
+    });
+    const asks = { ...geminiPayload, generationConfig: { ...geminiPayload.generationConfig, reasoningEffort: 'low' } };
+    const text = await callAiRouter(asks, { GROQ_API_KEYS: 'groq-key-aaaaaaaaaa' } as any, deps({ fetchImpl: stub.impl, pool: [groqEntry] }));
+
+    expect(text).toBe('{"ok":true}');
+    expect(stub.bodies[0].reasoning_effort).toBe('low');
+    expect(stub.bodies[1].reasoning_effort).toBeUndefined();
+    // json mode is a separate knob: dropping one must not drop the other.
+    expect(stub.bodies[1].response_format).toEqual({ type: 'json_object' });
+  });
+
+  it('never puts the OpenAI-only reasoning_effort in a Gemini request', async () => {
+    // Gemini rejects generationConfig fields it does not know, so the shared
+    // payload's OpenAI-only knobs have to be stripped at the transport.
+    const stub = fetchStub(() => geminiOk('{}'));
+    const asks = { ...geminiPayload, generationConfig: { ...geminiPayload.generationConfig, reasoningEffort: 'low' } };
+    await callAiRouter(asks, geminiEnv(), deps({ fetchImpl: stub.impl, pool: [PROVIDER_POOL[0]] }));
+    expect(stub.bodies[0].generationConfig.reasoningEffort).toBeUndefined();
+    expect(stub.bodies[0].generationConfig.maxOutputTokens).toBe(200);
+  });
+});
+
+/**
+ * The turn and translate routes are ones a learner is staring at. A provider that
+ * answers in 900ms and one that answers in four seconds cost the same quota and
+ * feel nothing alike, so those routes order the tier walk by what the pool has
+ * actually been doing — measured, never assumed.
+ */
+describe('interactive latency preference', () => {
+  const fast = { provider: 'groq', model: 'fast-model', format: 'openai', baseUrl: 'https://fast.test/v1', tier: 'flagship' };
+  const slow = { provider: 'nvidia', model: 'slow-model', format: 'openai', baseUrl: 'https://slow.test/v1', tier: 'flagship' };
+  const env = { GROQ_API_KEYS: 'groq-key-aaaaaaaaaa', NVIDIA_API_KEYS: 'nv-key-aaaaaaaaaa' } as any;
+  const okStub = () =>
+    fetchStub(() => new Response(JSON.stringify({ choices: [{ message: { content: '{}' } }] }), { status: 200 }));
+
+  const record = (entry: any, ms: number, times = 4) => {
+    for (let i = 0; i < times; i++) recordLatency(entry, ms);
+  };
+
+  it('walks the fastest measured entry first', async () => {
+    record(slow, 4000);
+    record(fast, 600);
+    const stub = okStub();
+
+    await callAiRouter(geminiPayload, env, deps({ fetchImpl: stub.impl, pool: [slow, fast], preferFast: true }));
+
+    expect(stub.calls[0]).toContain('fast.test');
+    expect(stub.calls).toHaveLength(1);
+    expect(latencySnapshot().find((l) => l.id === 'groq:fast-model')!.samples).toBeGreaterThan(0);
+  });
+
+  it('leaves a route that is not waiting on a learner on the plain rotation', async () => {
+    record(slow, 4000);
+    record(fast, 600);
+    const stub = okStub();
+
+    await callAiRouter(geminiPayload, env, deps({ fetchImpl: stub.impl, pool: [slow, fast] }));
+
+    // Rotation order, unchanged by the measurements.
+    expect(stub.calls[0]).toContain('slow.test');
+  });
+
+  it('does not trust a single sample of noise', async () => {
+    record(slow, 9000, 1);
+    record(fast, 100, 1);
+    const stub = okStub();
+
+    await callAiRouter(geminiPayload, env, deps({ fetchImpl: stub.impl, pool: [slow, fast], preferFast: true }));
+
+    expect(stub.calls[0]).toContain('slow.test');
+  });
+
+  it('carries the measurements to the next isolate through the shared ledger', async () => {
+    const kv = new MemoryKv();
+    const envWithKv = { ...env, USER_PROGRESS: kv } as any;
+    record(slow, 5000);
+    record(fast, 500);
+
+    const first = okStub();
+    await callAiRouter(geminiPayload, envWithKv, deps({ fetchImpl: first.impl, pool: [slow, fast], preferFast: true }));
+    expect(JSON.parse(kv.values.get('ai-pool-ledger')!).latency['groq:fast-model'].ms).toBe(500);
+
+    resetRouterState(); // the isolate that measured them is gone
+    const second = okStub();
+    await callAiRouter(geminiPayload, envWithKv, deps({ fetchImpl: second.impl, pool: [slow, fast], preferFast: true }));
+    expect(second.calls[0]).toContain('fast.test');
+  });
+
+  it('records a failure as no measurement at all', async () => {
+    const stub = fetchStub(() => new Response('boom', { status: 500 }));
+    await expect(
+      callAiRouter(geminiPayload, env, deps({ fetchImpl: stub.impl, pool: [slow], preferFast: true })),
+    ).rejects.toThrow();
+    expect(latencySnapshot()).toEqual([]);
   });
 });
 

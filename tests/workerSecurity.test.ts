@@ -56,6 +56,35 @@ describe('Worker security controls', () => {
     expect(await response.json()).toEqual({ error: 'origin_not_allowed' });
   });
 
+  it('answers an expired session on the progress routes with 401, not a silent 200', async () => {
+    // These three legacy handlers returned HTTP 200 + { error: "invalid_id_token" }.
+    // The client reads `res.ok`, counted the sync as done, deleted the payload from
+    // its offline retry queue, and the learner's progress was gone.
+    const env = {
+      ENVIRONMENT: 'development',
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      USER_PROGRESS: new MemoryKv(),
+    };
+
+    for (const path of ['/progress/sync', '/progress/get', '/review/sync']) {
+      const response = await worker.fetch(
+        new Request(`https://worker.test${path}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer sess_expired_but_still_on_the_device',
+          },
+          body: JSON.stringify({ stats: { level: 'A1' }, items: [] }),
+        }),
+        env as never,
+      );
+      expect(response.status, `${path} must not answer 200 for a dead session`).toBe(401);
+      const body = (await response.json()) as any;
+      expect(body.code).toBe('UNAUTHENTICATED');
+    }
+  });
+
   it('rejects bad audience, expired, and unsigned tokens', async () => {
     const env = { TEST_MODE: true, GOOGLE_CLIENT_ID: 'client-id' };
     expect(await verifyGoogleIdToken(token(validPayload({ aud: 'wrong' })), 'client-id', env)).toBeNull();
