@@ -8,12 +8,16 @@
  * (auth, entitlement, quota, validation, prompt-shaping helpers, the AI router)
  * is injected from the call site; this module owns only the handler logic.
  *
- * Two things changed while moving:
+ * Three things changed while moving:
  * - Both handlers now call `callAiRouter` (multi-provider pool + terminal
  *   day-quota ledger) instead of the Gemini-only failover walker.
  * - `/ai/translate` gained the entitlement check it never had. It was the one AI
  *   route with no entitlement gate at all, which made it the cheapest way to
  *   spend provider quota: any signed-in learner, any volume, forever.
+ * - `/ai/turn` makes ONE model call, not two. The roleplay reply and the grammar
+ *   evaluation travel in one fused prompt/schema, which halves the provider cost
+ *   of every learner message. The HTTP response shape is unchanged, so the client
+ *   (and any PWA bundle still cached on a phone) needed no update.
  */
 
 /**
@@ -132,8 +136,24 @@ Sarcasm level for roast_comment (1-5, default 2): ${Math.min(5, Math.max(1, Numb
 roast_comment must be in Arabic targeting German grammar absurdity (articles, cases, word order), staying encouraging.
 Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","corrected_german":"string","grammar_rule":"string","explanation_ar":"string","roast_comment":"string","user_message_translation_ar":"string","positive_note_ar":"string"}`;
 
-  const conversationPayload = {
-    systemInstruction: { parts: [{ text: roleplayInstruction }] },
+  // ONE call, two jobs. The halves have to stay separable in the output, so the
+  // isolation rule is explicit: the coach now sees the conversation that used to
+  // be withheld from it (it ran as its own stateless call), and left alone it
+  // would start grading the learner's history instead of their last sentence.
+  const fusionInstruction = `You have TWO jobs in this ONE response. They must not bleed into each other.
+
+JOB 1 — ROLEPLAY REPLY
+${roleplayInstruction}
+
+JOB 2 — GRAMMAR EVALUATION
+${evaluationInstruction}
+
+Isolation rule for JOB 2: grade ONLY the learner's final sentence. Earlier turns exist as context for JOB 1 and must not change the grade, the corrections, or the roast.
+Respond strictly as JSON:
+{ "evaluation": { "is_correct": boolean, "original_mistake": string, "corrected_german": string, "grammar_rule": string, "explanation_ar": string, "roast_comment": string, "user_message_translation_ar": string, "positive_note_ar": string }, "reply_de": string, "reply_ar": string, "next_hint": { "german": string, "translation_ar": string }, "followup_question_ar": string }`;
+
+  const turnPayload = {
+    systemInstruction: { parts: [{ text: fusionInstruction }] },
     contents: [
       ...boundedHistory(history, mode).map(h => ({
         role: h.role === "user" ? "user" : "model",
@@ -146,6 +166,28 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
       responseSchema: {
         type: "OBJECT",
         properties: {
+          // evaluation first, on purpose. `propertyOrdering` makes the model emit
+          // these keys in order, so a reasoning model that runs long is truncated
+          // from the END: grade-first means truncation cannot quietly drop the
+          // feedback, it drops the reply instead — and that is caught right below
+          // as a loud 502 the client already renders as a retry card. (The client
+          // also refuses a payload without a boolean `is_correct`, so a turn is
+          // never shown as graded when it was not.)
+          evaluation: {
+            type: "OBJECT",
+            properties: {
+              is_correct: { type: "BOOLEAN" },
+              original_mistake: { type: "STRING" },
+              corrected_german: { type: "STRING" },
+              grammar_rule: { type: "STRING" },
+              explanation_ar: { type: "STRING" },
+              roast_comment: { type: "STRING" },
+              user_message_translation_ar: { type: "STRING" },
+              positive_note_ar: { type: "STRING" }
+            },
+            required: ["is_correct", "explanation_ar", "positive_note_ar"],
+            propertyOrdering: ["is_correct", "original_mistake", "corrected_german", "grammar_rule", "explanation_ar", "roast_comment", "user_message_translation_ar", "positive_note_ar"]
+          },
           reply_de: { type: "STRING" },
           reply_ar: { type: "STRING" },
           next_hint: {
@@ -158,50 +200,38 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
           },
           followup_question_ar: { type: "STRING" }
         },
-        required: ["reply_de", "reply_ar", "next_hint", "followup_question_ar"],
-        propertyOrdering: ["reply_de", "reply_ar", "next_hint", "followup_question_ar"]
+        required: ["evaluation", "reply_de", "reply_ar", "next_hint", "followup_question_ar"],
+        propertyOrdering: ["evaluation", "reply_de", "reply_ar", "next_hint", "followup_question_ar"]
       },
-    // Generous output budget: reasoning models spend tokens on thoughts before
-    // the JSON answer — a tight cap truncates the payload and produces empty
-    // fields that used to surface as fake fallback replies.
+      // One budget for what used to be two calls (700 + 350). Reasoning models
+      // spend tokens on thoughts before the JSON answer, and a tight cap truncates it.
       temperature: 0.3,
-      maxOutputTokens: 700
-    }
-  };
-  const evaluationPayload = {
-    systemInstruction: { parts: [{ text: evaluationInstruction }] },
-    contents: [{ role: "user", parts: [{ text: user_message }] }],
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: "OBJECT",
-        properties: {
-          is_correct: { type: "BOOLEAN" },
-          original_mistake: { type: "STRING" },
-          corrected_german: { type: "STRING" },
-          grammar_rule: { type: "STRING" },
-          explanation_ar: { type: "STRING" },
-          roast_comment: { type: "STRING" },
-          user_message_translation_ar: { type: "STRING" },
-          positive_note_ar: { type: "STRING" }
-        },
-        required: ["is_correct", "explanation_ar", "positive_note_ar"],
-        propertyOrdering: ["is_correct", "original_mistake", "corrected_german", "grammar_rule", "explanation_ar", "roast_comment", "user_message_translation_ar", "positive_note_ar"]
-      },
-      temperature: 0.2,
-      maxOutputTokens: 350
+      maxOutputTokens: 1000
     }
   };
 
   try {
-    // These calls intentionally have separate prompts/personas and independent inputs.
-    const [roleplayRaw, evaluationRaw] = await Promise.all([
-      callAiRouter(conversationPayload, env),
-      callAiRouter(evaluationPayload, env)
-    ]);
-    const roleplay = cleanJson(roleplayRaw);
-    const evaluationParsed = cleanJson(evaluationRaw);
-    const evaluation = evaluationParsed.evaluation || evaluationParsed;
+    // Fused: one model call both answers the learner and grades them. The two
+    // separate calls used to double every message's provider cost for the same
+    // total work — and doubled every failover walk with it.
+    const raw = await callAiRouter(turnPayload, env);
+    const parsed = cleanJson(raw);
+    const roleplay = parsed;
+    // Some models flatten the nested object the schema asks for; accept the flat
+    // shape rather than dropping the learner's feedback.
+    const nested = parsed.evaluation && typeof parsed.evaluation === "object" ? parsed.evaluation : null;
+    const flat = {
+      is_correct: parsed.is_correct,
+      original_mistake: parsed.original_mistake,
+      corrected_german: parsed.corrected_german,
+      grammar_rule: parsed.grammar_rule,
+      explanation_ar: parsed.explanation_ar,
+      roast_comment: parsed.roast_comment,
+      user_message_translation_ar: parsed.user_message_translation_ar,
+      positive_note_ar: parsed.positive_note_ar
+    };
+    const hasFlatEvaluation = ["is_correct", "explanation_ar", "positive_note_ar", "corrected_german"].some((key) => flat[key] !== undefined);
+    const evaluation = nested || (hasFlatEvaluation ? flat : {});
     // Sanitize every string field — a model echoing schema labels ("reply_de: ...")
     // must never reach the learner's chat bubbles.
     const replyDe = sanitizeFieldLabel(roleplay.reply_de) || "";
@@ -210,7 +240,7 @@ Respond strictly as JSON: {"is_correct":boolean,"original_mistake":"string","cor
     // (client shows the retry card) instead of fabricating a templated answer
     // that ignores what the learner just said.
     if (!replyDe) {
-      console.error("[ai/turn] empty reply_de after parse — raw:", String(roleplayRaw).slice(0, 200));
+      console.error("[ai/turn] empty reply_de after parse — raw:", String(raw).slice(0, 200));
       return json({
         error: "ai_empty_reply",
         code: "AI_EMPTY_REPLY",

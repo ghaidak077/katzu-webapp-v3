@@ -102,17 +102,13 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
 const geminiText = (text: string) =>
   new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }), { status: 200 });
 
-const ROLEPLAY_REPLY = JSON.stringify({
+/** One fused answer: the reply and the evaluation come back from a single call. */
+const FUSED_REPLY = JSON.stringify({
+  evaluation: { is_correct: true, explanation_ar: 'جملة صحيحة.', positive_note_ar: 'أحسنت!' },
   reply_de: 'Guten Tag! Möchten Sie einen Kaffee?',
   reply_ar: 'نهارك سعيد! هل ترغب بقهوة؟',
   next_hint: { german: 'Ja, gerne.', translation_ar: 'نعم، بكل سرور.' },
   followup_question_ar: 'ماذا تحب أن تطلب؟',
-});
-
-const EVALUATION_REPLY = JSON.stringify({
-  is_correct: true,
-  explanation_ar: 'جملة صحيحة.',
-  positive_note_ar: 'أحسنت!',
 });
 
 beforeEach(() => {
@@ -174,8 +170,8 @@ describe('/ai/turn through the pool', () => {
       'fetch',
       (async (input: any, init: any) => {
         requested.push(String(input));
-        const body = String(init?.body || '');
-        return geminiText(body.includes('is_correct') ? EVALUATION_REPLY : ROLEPLAY_REPLY);
+        void init;
+        return geminiText(FUSED_REPLY);
       }) as unknown as typeof fetch,
     );
 
@@ -200,6 +196,8 @@ describe('/ai/turn through the pool', () => {
     expect(body.evaluation.is_correct).toBe(true);
     expect(body.provider).toBe('gemini');
     expect(requested[0]).toContain('gemini-3.8-flash');
+    // The fusion: one learner message is ONE provider call, not two.
+    expect(requested).toHaveLength(1);
 
     // withAiTelemetry records the completed turn in activity_log, and the admin
     // stats now read it instead of reporting a hardcoded zero.
