@@ -41,8 +41,8 @@ const modelReply = (overrides: Record<string, unknown> = {}) =>
 function makeDeps(overrides: Record<string, unknown> = {}) {
   return {
     authenticateAiRequest: async () => ({ account: { sub: 'writer' } }),
-    getGeminiApiKeys: () => ['key-1'],
-    callGeminiWithFailover: async () => modelReply(),
+    hasUsableProvider: () => true,
+    callAiRouter: async () => modelReply(),
     cleanJson: (raw: string) => JSON.parse(raw),
     json,
     validLevels: new Set(LEVELS),
@@ -124,7 +124,7 @@ describe('grading a submission', () => {
   it('sends the learner text, the topic and bounded phrases to the model', async () => {
     let prompt = '';
     const deps = makeDeps({
-      callGeminiWithFailover: async (_keys: unknown, payload: any) => {
+      callAiRouter: async (payload: any) => {
         prompt = payload.contents[0].parts[0].text;
         return modelReply();
       },
@@ -152,7 +152,7 @@ describe('grading a submission', () => {
 
   it('keeps the learner text and asks for a retry when the model fails', async () => {
     const deps = makeDeps({
-      callGeminiWithFailover: async () => {
+      callAiRouter: async () => {
         throw new Error('all keys cooling down');
       },
     });
@@ -164,7 +164,7 @@ describe('grading a submission', () => {
   });
 
   it('never invents a score when the model returned no rubric', async () => {
-    const deps = makeDeps({ callGeminiWithFailover: async () => JSON.stringify({ summary_ar: 'جيد' }) });
+    const deps = makeDeps({ callAiRouter: async () => JSON.stringify({ summary_ar: 'جيد' }) });
     const res = await handleWritingRoute(writingRequest(VALID_BODY), {}, {}, deps);
     expect(res.status).toBe(502);
     expect((await res.json() as any).code).toBe('AI_WRITING_UNUSABLE');
@@ -172,7 +172,7 @@ describe('grading a submission', () => {
 
   it('clamps scores and computes one percent the UI can trust', async () => {
     const deps = makeDeps({
-      callGeminiWithFailover: async () =>
+      callAiRouter: async () =>
         JSON.stringify({
           scores: { task: 9, coherence: -2, grammar: 2.6 },
           corrected_de: 'Text',
@@ -191,7 +191,7 @@ describe('grading a submission', () => {
   });
 
   it('returns 503 without a usable key instead of a fake correction', async () => {
-    const res = await handleWritingRoute(writingRequest(VALID_BODY), {}, {}, makeDeps({ getGeminiApiKeys: () => [] }));
+    const res = await handleWritingRoute(writingRequest(VALID_BODY), {}, {}, makeDeps({ hasUsableProvider: () => false }));
     expect(res.status).toBe(503);
   });
 
@@ -316,5 +316,33 @@ describe('route wiring', () => {
 
     expect(res.status).toBe(402);
     expect((await res.json() as any).code).toBe('PAYWALL_REQUIRED');
+  });
+
+  it('paywalls a trial learner whose free sessions are spent', async () => {
+    // Writing is part of the trial, not an exemption from it: three used
+    // sessions open the same Pro CTA the rest of the app shows. (Hints stay
+    // quota-exempt on purpose — the quota is already consumed while a learner's
+    // LAST free session is still running, so checking it there would strip
+    // hints out of a conversation they are still entitled to have.)
+    const env: any = { USER_PROGRESS: new MemoryKv(), REDEEMED_CODES: new MemoryKv() };
+    await env.USER_PROGRESS.put('session:sess_used_writer', JSON.stringify({
+      sub: 'used-writer',
+      email: 'used@test.dev',
+      created_at: Date.now(),
+      expires_at: Date.now() + 3600_000,
+    }));
+    await env.USER_PROGRESS.put('ai-quota:used-writer', JSON.stringify({ used: 3, updated_at: Date.now() }));
+
+    const res = await worker.fetch(
+      new Request('https://worker.test/ai/check-writing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_used_writer' },
+        body: JSON.stringify(VALID_BODY),
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(402);
+    expect((await res.json() as any).code).toBe('FREE_QUOTA_EXHAUSTED');
   });
 });

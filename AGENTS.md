@@ -175,9 +175,13 @@ deployed system. Prefer the cheapest check that can actually falsify your claim.
   `cloudflare-dodo.js` is dormant).
 - Bindings/secret **names** are in `wrangler.toml`; values live only in Cloudflare. Never print them.
 - **Edit-tool gotcha:** on very large files the string-replace tool cannot reach content past
-  roughly a 63 KB byte offset (`cloudflare-unified-worker.js` past ~line 1900,
-  `docs/PRODUCT-SPEC.md` past ~line 1380). When a target falls in that region, put the new logic
-  in the editable region and reference it — do not spend turns retrying the same edit.
+  roughly **48 KB of byte offset** (re-measured 2026-09-26: anchors at 62,186 and 60,178 bytes both
+  failed, while everything up to ~48 KB applied cleanly — the older "63 KB" figure in docs was
+  optimistic). In `cloudflare-unified-worker.js` that means roughly past line 1,360; in
+  `docs/PRODUCT-SPEC.md` past ~line 1,380. When a target falls in that region, put the new logic
+  in a sibling module (`cloudflare-ai-router.js`, `cloudflare-ai-chat.js`, `cloudflare-hints.js`,
+  `cloudflare-writing.js`, `cloudflare-admin.js`) and wire it from the editable region — do not
+  spend turns retrying the same edit.
 - Documentation drifts. When a doc contradicts verified live behaviour, trust the live check and
   record the correction near the top of the affected section.
 

@@ -491,6 +491,7 @@ export async function getRegistryStats(env) {
     error_rate_24h: 0,
     ai_turns_24h: 0,
     ai_failures_24h: 0,
+    provider_attempts_exhausted_24h: 0,
     signups_by_day: [],
     top_events: [],
     top_errors: [],
@@ -531,6 +532,25 @@ export async function getRegistryStats(env) {
     const errors7 = await count("SELECT COUNT(*) AS c FROM error_reports WHERE created_at > ?", now - 7 * day);
     const activity24 = await count("SELECT COUNT(*) AS c FROM activity_log WHERE created_at > ?", now - day);
     const redemptions = await count("SELECT COUNT(*) AS c FROM redeemed_codes_ledger");
+
+    // AI volume, from the events withAiTelemetry and the provider router already
+    // write. These were hardcoded zeros, so the dashboard could never show the
+    // thing that actually multiplies: provider attempts, not HTTP requests.
+    const aiTurns24 = await count(
+      "SELECT COUNT(*) AS c FROM activity_log WHERE event_type = ? AND created_at > ?",
+      "ai_turn_completed",
+      now - day
+    );
+    const aiFailures24 = await count(
+      "SELECT COUNT(*) AS c FROM activity_log WHERE event_type = ? AND created_at > ?",
+      "ai_turn_failed",
+      now - day
+    );
+    const providerExhaustions24 = await count(
+      "SELECT COUNT(*) AS c FROM activity_log WHERE event_type = ? AND created_at > ?",
+      "provider_attempt_exhausted",
+      now - day
+    );
 
     let signupsByDay = [];
     let topEvents = [];
@@ -583,8 +603,9 @@ export async function getRegistryStats(env) {
       errors_7d: errors7,
       // "Errors per 100 active users today" — the decision-useful error metric.
       error_rate_24h: active24 ? Math.round((errors24 / active24) * 1000) / 10 : 0,
-      ai_turns_24h: 0,
-      ai_failures_24h: 0,
+      ai_turns_24h: aiTurns24,
+      ai_failures_24h: aiFailures24,
+      provider_attempts_exhausted_24h: providerExhaustions24,
       signups_by_day: signupsByDay,
       top_events: topEvents,
       top_errors: topErrors,

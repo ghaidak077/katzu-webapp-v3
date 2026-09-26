@@ -162,10 +162,10 @@ are the product's design contract:
 |---|---|
 | Runtime | **Cloudflare Workers** (single unified worker) |
 | Entry | `cloudflare-unified-worker.js` (~4,115 lines) |
-| Modules | `cloudflare-admin.js` (1,862), `cloudflare-dodo.js` (802), `cloudflare-crypto.js` (711), `cloudflare-hints.js` (203), `cloudflare-worker-ai-module.js` (584) |
+| Modules | `cloudflare-admin.js` (1,862), `cloudflare-ai-router.js` (provider pool + day-quota ledger + shared cache), `cloudflare-ai-chat.js` (turn + translation), `cloudflare-hints.js` (203), `cloudflare-writing.js`, `cloudflare-dodo.js` (802), `cloudflare-crypto.js` (711) |
 | Database | **Cloudflare D1** (`katzu-content`) — curriculum + ledgers + registry |
 | KV | `USER_PROGRESS` (state/quota/sessions) + `REDEEMED_CODES` (codes/accounts/referrals) |
-| AI (primary) | **Google Gemini**, multi-key + model failover |
+| AI (primary) | **Multi-provider pool** — Gemini, Groq, OpenRouter, NVIDIA NIM (`cloudflare-ai-router.js`): tiered rotation within a tier, then across tiers, with a terminal day-quota ledger |
 | AI (fallback) | **Cloudflare Workers AI** (`@cf/qwen/qwen3-30b-a3b-fp8`) via the `AI` binding |
 | Payments (live path) | **NOWPayments** (crypto) — sales site only |
 | Payments (dormant) | **Dodo Payments** — module retained, unconfigured, nothing calls it |
@@ -712,8 +712,13 @@ that an internet connection is required; progress writes queue and flush later.
 - **AI rate limits:** per-account, **D1-backed global counters** (`rate_limit_counters`) with an
   in-isolate Map fallback. Defaults `AI_RATE_LIMIT_PER_MINUTE=10`, `AI_RATE_LIMIT_PER_DAY=200`.
 - **Free trial quota:** `MAX_FREE_AI_SESSIONS = 3`, enforced server-side via `ai-quota:<sub>` KV +
-  `trial_quota_ledger` D1 (idempotent per `session_id`). The trial is **A1-only**. Hints are
-  **quota-exempt**; only conversation turns consume quota.
+  `trial_quota_ledger` D1 (idempotent per `session_id`). The trial is **A1-only**. Only conversation
+  turns *consume* quota; `/ai/check-writing` is quota-**checked** (three used sessions open the Pro CTA),
+  while hints stay exemption by design — the quota is already consumed while a learner's last free
+  session is running, so counting hints there would remove them mid-conversation.
+- **Provider windows:** beyond the per-account limits, each pooled `(provider, key, model)` unit carries its
+  own terminal window in the day-quota ledger (`cloudflare-ai-router.js`). A unit inside its window is
+  skipped, never retried, and the park survives isolate recycling through KV `ai-pool-ledger`.
 
 ---
 
@@ -731,12 +736,23 @@ Bearer <ADMIN_SECRET>`, `sig` = HMAC signature. **RL:** participates in rate lim
 | POST | `/user/export` | sess | — | JSON export (no tokens/secrets), `Content-Disposition: katzu-data-export.json` |
 
 ### AI
+
+> **Note (2026-09-26):** these routes are served by a **multi-provider pool** (`cloudflare-ai-router.js`:
+> Gemini · Groq · OpenRouter · NVIDIA NIM) with a **terminal day-quota ledger** — an exhausted
+> `(provider, key, model)` unit is never retried before its window resets, and the park survives isolate
+> recycling through KV `ai-pool-ledger`. `/ai/translate` is now entitlement-gated (it had none) and
+> `/ai/check-writing` is trial-counted; hints stay quota-exempt by design. **§18 below still describes the
+> Gemini-only router this replaced** — that section begins at byte 57,846 of this file, past the ~48 KB
+> tool boundary, so it could not be edited in place: treat this table and `docs/current-state.md` as
+> authoritative for AI behaviour.
+
 | Method | Path | Auth | RL | Notes |
 |---|---|---|---|---|
-| POST | `/ai/turn` (alias `/turn`) | sess | ✔ | Roleplay reply + evaluation; bounded inputs; CEFR allowlisted; server-authoritative scenario |
-| POST | `/ai/translate` (alias `/translate`) | sess | ✔ | Arabic translation (edge-cached) |
-| POST | `/ai/hints` (alias `/hints`) | sess | quota-exempt | 2–4 distinct conversational moves; handled by `cloudflare-hints.js` |
-| GET | `/ai/health` (alias `/health`) | none | — | Public health only: `status`, `ready`, cache sizes, and Workers AI fallback counters. **No Gemini key metadata** — the response is an allowlisted projection that can never contain a key fragment or a key count |
+| POST | `/ai/turn` (alias `/turn`) | sess | ✔ | Roleplay reply + evaluation; bounded inputs; CEFR allowlisted; server-authoritative scenario; handler in `cloudflare-ai-chat.js`, served by the provider pool |
+| POST | `/ai/translate` (alias `/translate`) | sess **+ entitlement** | ✔ | Arabic translation, KV-cached (`ai-cache:tr:*`). Entitlement-gated since 2026-09-26 — it previously had no entitlement check at all |
+| POST | `/ai/hints` (alias `/hints`) | sess | quota-exempt | 2–4 distinct conversational moves; handled by `cloudflare-hints.js`; KV-cached (`ai-cache:hints:*`) |
+| POST | `/ai/check-writing` | sess **+ entitlement** | ✔ | Graded Schreiben (20-900 chars, task derived from the level); trial-counted since 2026-09-26; handler in `cloudflare-writing.js` |
+| GET | `/ai/health` (alias `/health`) | none | — | Public health only: `status`, `ready`, cache sizes, `aiPool` (active / idle / exhausted entries + attempt counters), and Workers AI fallback counters. **No provider key metadata** — the response is an allowlisted projection that can never contain a key fragment or a key count |
 
 > **Note (2026-09-25):** `/health` is now hardened — it serves an allowlisted public projection that contains **no Gemini key fragments and no key count** (only overall health + fallback counters). This supersedes the `/health` leak listed as **T1** in §31.1, which could not be edited in place (it sits past the ~63 KB tool offset wall).
 

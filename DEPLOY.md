@@ -17,6 +17,16 @@ The repository ships with `wrangler.toml` (entry point `cloudflare-unified-worke
    npx wrangler secret put HMAC_SECRET       # long random string (token signing)
    ```
 
+   Optional provider keys for the AI pool (same comma/semicolon/newline list format).
+   Gemini alone still works; each additional provider adds a separate free-tier window,
+   which is what keeps one exhausted quota from stopping learner conversations:
+
+   ```bash
+   npx wrangler secret put GROQ_API_KEYS         # api.groq.com keys
+   npx wrangler secret put OPENROUTER_API_KEYS   # openrouter.ai keys (50 req/day per account)
+   npx wrangler secret put NVIDIA_API_KEYS       # integrate.api.nvidia.com keys
+   ```
+
    `GOOGLE_CLIENT_ID` is deliberately **not** a secret — it is public (it ships to every
    browser), so it lives in the `[vars]` block of `wrangler.toml` where it can be reviewed
    in git. Set it to the same OAuth client ID as `VITE_GOOGLE_CLIENT_ID`. The worker

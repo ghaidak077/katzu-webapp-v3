@@ -80,11 +80,14 @@ function deps(modelReply: string) {
     value: {
       authenticateAiRequest: async () => ({}),
       boundedHistory: (history: unknown) => (Array.isArray(history) ? history.slice(-4) : []),
-      getGeminiApiKeys: () => ['key-1'],
-      getCache: (map: Map<string, unknown>, key: string) => (map.has(key) ? map.get(key) : null),
-      setCache: (map: Map<string, unknown>, key: string, val: unknown) => void map.set(key, val),
-      hintsCache,
-      callGeminiWithFailover: async () => {
+      hasUsableProvider: () => true,
+      // Stubs for the shared KV-backed cache: the same get/set contract the
+      // worker's readAiCache / writeAiCache expose, keyed by namespace.
+      readAiCache: async (_env: unknown, ns: string, key: string) => hintsCache.get(`${ns}:${key}`) ?? null,
+      writeAiCache: async (_env: unknown, ns: string, key: string, value: unknown) => {
+        hintsCache.set(`${ns}:${key}`, value);
+      },
+      callAiRouter: async () => {
         calls += 1;
         return modelReply;
       },

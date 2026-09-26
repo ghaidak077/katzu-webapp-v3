@@ -8,7 +8,7 @@ Recorded: 2026-09-24 · commit after PR #9 merge + CI. All facts verified in sou
 - No compilation errors, no failing tests, no missing runtime bindings at build time.
 
 ## Stack (unchanged, no migration proposed)
-React 18 + TypeScript + Vite PWA · Dexie (IndexedDB) offline layer · React Router · Tailwind · Cloudflare Worker (single `cloudflare-unified-worker.js`) · D1 `katzu-content` (content CMS) · KV `USER_PROGRESS` (progress, sessions, quota, fallback metrics) · KV `REDEEMED_CODES` (codes, accounts, referrals, email index) · Gemini AI engine with Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`) fallback.
+React 18 + TypeScript + Vite PWA · Dexie (IndexedDB) offline layer · React Router · Tailwind · Cloudflare Worker (`cloudflare-unified-worker.js` + sibling modules) · D1 `katzu-content` (content CMS) · KV `USER_PROGRESS` (progress, sessions, quota, AI pool ledger, shared AI cache, fallback metrics) · KV `REDEEMED_CODES` (codes, accounts, referrals, email index) · **multi-provider AI pool** (Gemini · Groq · OpenRouter · NVIDIA NIM, `cloudflare-ai-router.js`) with Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`) as the last resort.
 
 ## Routes (client, `src/App.tsx`)
 `/`→`/app/trail` · `/welcome` · `/signin` · `/subscription` · `/app/:tab` (main tabs) · `/scenario/:scenarioId` · `/scenario/:scenarioId/study` · `/scenario/:scenarioId/quiz` · `/scenario/:scenarioId/live` · `/session-report` · `/app/review` · `/app/listen` · `/app/write` · `/app/coach` · `/placement` · `/trust/:page` · `*` → welcome/trail.
@@ -23,12 +23,12 @@ Local fixtures exist as offline fallback content; production content lives in D1
 
 ## Worker routes (`cloudflare-unified-worker.js`)
 - Auth/session: `POST /auth/session` (Google ID token → 30-day `sess_*` KV session)
-- AI: `POST /ai/turn` (+`/turn`), `POST /ai/translate` (+`/translate`), `POST /ai/hints` (+`/hints`), `POST /ai/check-writing` (graded Schreiben; handler in `cloudflare-writing.js`), `GET /ai/health` (+`/health`)
+- AI: `POST /ai/turn` (+`/turn`) and `POST /ai/translate` (+`/translate`) — handlers in `cloudflare-ai-chat.js`; `POST /ai/hints` (+`/hints`) — `cloudflare-hints.js`; `POST /ai/check-writing` — `cloudflare-writing.js`; `GET /ai/health` (+`/health`). Provider routing (pool, ledger, transports, shared cache) is `cloudflare-ai-router.js`
 - Account: `POST /user/delete`
 - Billing (codes): `POST /verify`, `POST /check-status`
 - Referral: `POST /referral/info`, `POST /referral/claim`
 - Progress: `POST /progress/sync`, `POST /progress/get`
-- Writing: `POST /ai/check-writing` (authenticated, entitlement-checked, quota-exempt so practice does not spend the three free conversation sessions; text 20-900 chars; task derived from the level)
+- Writing: `POST /ai/check-writing` (authenticated, entitlement-checked, **trial-counted since 2026-09-26** — three used sessions now open the same Pro CTA as the rest of the app; text 20-900 chars; task derived from the level). Hints stay **quota-exempt on purpose**: the trial quota is consumed while a learner's *last* free session is still running, so counting hints there would strip them out of a conversation the learner is still entitled to have
 - Memory queue: `POST /review/sync` (server-authoritative merge of the SRS schedule, KV `review:<sub>`); client calls it at sign-in and when a review session finishes
 - Telemetry: `POST /client-error` (unauthenticated, IP rate-limited 8/min, body-capped, credential-sanitized → `error_reports`)
 - Content (D1): `GET /scenarios`, `GET /scenarios/:id`, `GET /vocabulary`, `GET /grammar`, `POST /admin/upload`
@@ -49,13 +49,19 @@ Activation-code only **in the app**: `POST /verify` (HMAC-signed codes, KV recor
 - `registerType: 'autoUpdate'` → the built `sw.js` contains `skipWaiting` + `clientsClaim`, so a deploy takes over immediately rather than leaving a stale bundle against a newer Dexie schema.
 - Uncaught client crashes (`window` / `promise`) POST to `/client-error` and appear in the admin error feed; console output stays on the device by design.
 
-## AI calls (current)
-`/ai/turn` = roleplay call (6-message window) + evaluation call (no history), JSON schemas enforced, sanitizer strips label echoes; `/ai/hints` returns 2–4 **distinct conversational moves** with an `intent` tag each (same-move rephrasings and duplicate sentences are dropped server-side; handler lives in `cloudflare-hints.js`), quota-exempt; Workers AI fallback after full Gemini failover (`AI_FALLBACK_ENABLED`), KV-backed fallback metrics in `/health`. Rate limits 10/min, 200/day (per-isolate Map). 64KB body cap at entry.
+## AI calls (current, 2026-09-26)
+**Provider pool** (`cloudflare-ai-router.js`): one hardcoded `PROVIDER_POOL` in three tiers — flagship (`gemini-3.8-flash`, `openai/gpt-oss-120b` on Groq, `gemini-3.7-flash`), mid (`gemini-3.6-flash`, `qwen/qwen3.8-27b`), lite (`gemini-3.5-flash-lite`, `openai/gpt-oss-20b`, OpenRouter `thinkingmachines/inkling-small:free`, plus an NVIDIA NIM entry that stays **inert** until its model is filled in). Keys come from `GEMINI_API_KEYS` / `GROQ_API_KEYS` / `OPENROUTER_API_KEYS` / `NVIDIA_API_KEYS` through one generalized parser. The router rotates within a tier before dropping a tier, rotates keys inside a provider, and bounds a whole walk to 24 s so the client's 30 s timeout cannot fire first.
+
+**Terminal day-quota ledger (the fix):** a 429 whose body carries an explicit per-day signal (Gemini's `GenerateRequestsPerDayPerProjectPerModel`, Groq's `requests per day (RPD)`) parks that `(provider, key, model)` unit until its window resets — Gemini/OpenRouter at midnight Pacific, Groq on its rolling window. Parks persist to KV `ai-pool-ledger` (identified by non-reversible fingerprints), so a recycled isolate does not re-walk the pool; a model reported "not found" is parked for every key. Per-minute throttles keep the short cooldown, and a bare 5xx/empty completion parks nothing. **Before this**, a per-day 429 was classified as per-minute (the check compared `"per_day"` against Gemini's CamelCase `PerDay`), so a day-exhausted key was retried on every message — up to 8 models × N keys × 2 calls per learner sentence.
+
+**Calls:** `/ai/turn` = roleplay call (6-message window) + evaluation call (no history), JSON schemas enforced, sanitizer strips label echoes; `/ai/hints` returns 2–4 **distinct conversational moves** with an `intent` tag each (same-move rephrasings and duplicate sentences are dropped server-side), quota-exempt; `/ai/translate` is **entitlement-gated since 2026-09-26** (it had no entitlement check at all) and caches through KV; `/ai/check-writing` is trial-counted. Workers AI is the last resort once the whole pool is parked (`AI_FALLBACK_ENABLED`), with KV-backed metrics. `/health` also reports `aiPool` (active / idle / exhausted entries + attempt counters) and the shared cache sizes. Rate limits 10/min, 200/day per account (D1-backed). 64 KB body cap at entry. Translation and hint caches are **KV-backed** (`ai-cache:*`), not per-isolate Maps — the Maps came back empty on every recycled isolate, so the same opener was re-translated after every deploy.
+
+**Known residue (past the ~48 KB edit boundary, cannot be edited in place):** the legacy Gemini-only walker `callGeminiWithFailover` (head at byte 62,186) and the legacy `handleAiHints` / `handleAiTranslation` / `handleAiConversationTurn` bodies are now **unreachable** but still present; `DEFAULT_MODEL_CHAIN` survives only as a projection of `PROVIDER_POOL` because that walker references it. Deleting them requires editing the file by hand or splitting it.
 
 ## Environment & bindings inventory
 - **Bindings (wrangler.toml):** `DB` (d1 a80158e6…), `USER_PROGRESS` (kv d901da20…), `REDEEMED_CODES` (kv 2c60d78d…), `AI` (Workers AI). Deployed worker name `katzu-test`.
 - **Vars:** `ENVIRONMENT=production`, `GOOGLE_CLIENT_ID` (the public web OAuth client, moved out of secrets so it is reviewable in git), `ALLOWED_ORIGINS` (both prod origins set), `AI_RATE_LIMIT_PER_MINUTE=10`, `AI_RATE_LIMIT_PER_DAY=200`, `AI_FALLBACK_ENABLED=1`.
-- **Secrets (deployed, write-only):** `GEMINI_API_KEYS` (3 keys live), `ADMIN_SECRET`, `HMAC_SECRET`, `SESSION_SECRET`. **`GOOGLE_CLIENT_ID` was listed here previously but `wrangler secret list` showed it was never actually set** (measured 2026-09-24), which is why the ID-token `aud` check had been skipped; it is now a var and enforced.
+- **Secrets (deployed, write-only):** `GEMINI_API_KEYS` (3 keys live), `GROQ_API_KEYS` / `OPENROUTER_API_KEYS` / `NVIDIA_API_KEYS` (new provider lists — the pool reports them as `idle: no_keys` in `/health` until they are set), `ADMIN_SECRET`, `HMAC_SECRET`, `SESSION_SECRET`. **`GOOGLE_CLIENT_ID` was listed here previously but `wrangler secret list` showed it was never actually set** (measured 2026-09-24), which is why the ID-token `aud` check had been skipped; it is now a var and enforced.
 - **D1 app tables (beyond content):** `users`, `activity_log`, `error_reports` (admin registry + telemetry), `redeemed_codes_ledger`, `trial_quota_ledger`, `referral_payouts`, `rate_limit_counters`.
 - **Missing/absent:** analytics service, email service, error-reporting service. NOWPayments is wired in code but unconfigured on the deploy (`/crypto/health` → `ready:false`).
 

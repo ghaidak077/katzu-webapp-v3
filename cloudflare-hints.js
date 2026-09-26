@@ -3,10 +3,11 @@
  *
  * Extracted from cloudflare-unified-worker.js for the same measured reason as
  * cloudflare-admin.js / cloudflare-dodo.js / cloudflare-crypto.js: this handler
- * sat at ~80 KB of byte offset, past the ~63 KB wall where the edit tooling
- * cannot apply diffs. Everything worker-scoped (auth, entitlement, key rotation,
- * Gemini failover, LRU cache, response helper) is injected from the call site,
- * so this module owns only the hint logic.
+ * sat at ~80 KB of byte offset, past the ~48 KB wall where the edit tooling
+ * cannot apply diffs. Everything worker-scoped (auth, entitlement, provider
+ * pool, KV cache, response helper) is injected from the call site,
+ * so this module owns only the hint logic: auth, entitlement, the provider pool,
+ * the KV-backed cache and the response helper all arrive through `deps`.
  *
  * One hint was the old behaviour: a single "what could you say next" sentence.
  * Real conversation offers several valid moves at the same point — agreeing,
@@ -120,11 +121,10 @@ export async function handleHintsRoute(request, env, cors, deps) {
   const {
     authenticateAiRequest,
     boundedHistory,
-    getGeminiApiKeys,
-    getCache,
-    setCache,
-    hintsCache,
-    callGeminiWithFailover,
+    hasUsableProvider,
+    readAiCache,
+    writeAiCache,
+    callAiRouter,
     cleanJson,
     json,
   } = deps;
@@ -141,8 +141,7 @@ export async function handleHintsRoute(request, env, cors, deps) {
 
   const reply = (last_ai_reply || "").trim();
   const recentHistory = boundedHistory(history, "hints");
-  const apiKeys = getGeminiApiKeys(env);
-  if (apiKeys.length === 0) {
+  if (!hasUsableProvider(env)) {
     return json({ error: "ai_unavailable" }, 503, cors);
   }
 
@@ -151,8 +150,11 @@ export async function handleHintsRoute(request, env, cors, deps) {
   // `v2` keeps single-hint entries cached by the previous version from ever
   // being served to a client that now expects 2-4 distinct moves.
   const cacheKey = `v2:${cefrLevel}:${scenarioTitle}:${reply}:${JSON.stringify(recentHistory)}`.toLowerCase();
-  const cached = getCache(hintsCache, cacheKey);
-  if (cached) {
+  // KV-backed (namespace "hints"). The per-isolate Map this replaced was cold on
+  // every recycled isolate, so the same hint set was regenerated after every
+  // deploy and every idle gap — one of the ways free-tier quota disappeared.
+  const cached = await readAiCache(env, "hints", cacheKey);
+  if (Array.isArray(cached) && cached.length > 0) {
     return json({ hints: cached, cached: true }, 200, cors);
   }
 
@@ -166,7 +168,13 @@ export async function handleHintsRoute(request, env, cors, deps) {
     },
   };
 
-  const raw = await callGeminiWithFailover(apiKeys, payload, env);
+  let raw;
+  try {
+    raw = await callAiRouter(payload, env);
+  } catch (err) {
+    console.error("[ai/hints] pool exhausted:", String(err?.message || err).slice(0, 160));
+    return json({ error: "ai_unavailable", code: "AI_HINTS_FAILED", message: "تعذر توليد اقتراحات الآن." }, 502, cors);
+  }
   const parsed = cleanJson(raw);
   let candidates = Array.isArray(parsed.hints) ? parsed.hints : [];
 
@@ -186,7 +194,7 @@ export async function handleHintsRoute(request, env, cors, deps) {
   const hints = selectDistinctHints(candidates);
 
   if (hints.length > 0) {
-    setCache(hintsCache, cacheKey, hints, 500);
+    await writeAiCache(env, "hints", cacheKey, hints, { ttlSeconds: 7 * 86400 });
   }
 
   return json(

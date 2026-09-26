@@ -10,17 +10,38 @@
  * - GOOGLE_CLIENT_ID (Secret)
  * - GEMINI_API_KEYS (Secret: comma-separated list of 6+ keys)
  *   OR GEMINI_API_KEY, GEMINI_API_KEY_1..6 (Individual secrets)
+ * - GROQ_API_KEYS, OPENROUTER_API_KEYS, NVIDIA_API_KEYS (Secrets, same list
+ *   format). All four are read by ./cloudflare-ai-router.js, which owns the
+ *   provider pool, the terminal day-quota ledger and the tier rotation.
  *
  * The admin control plane (user registry, telemetry, dashboard) lives in
  * ./cloudflare-admin.js. Measured: the edit tooling applied diffs to this file
  * reliably up to ~48 KB of byte offset (16329, 18106, 37419, 48404 all fine)
  * but failed with "old string not found" on grep-verified unique anchors at
  * 63195, 77597 and 82988 — which is exactly where the admin handlers sat.
- * Wrangler bundles the import below into the single deployed worker.
+ * Re-measured 2026-09-26: anchors at 62186 bytes (the legacy walker's head) and
+ * 60178 bytes (a helper body) both failed too, so treat ~48 KB as the real
+ * boundary and put new logic in a sibling module instead of retrying.
+ * Wrangler bundles the imports below into the single deployed worker.
  */
 
+// AI surface: chat turn + translation (cloudflare-ai-chat.js), hints
+// (cloudflare-hints.js), writing (cloudflare-writing.js). Routing between
+// providers lives in cloudflare-ai-router.js — see its header for why the
+// Gemini-only walker below is no longer reached by any route.
 import { handleHintsRoute } from "./cloudflare-hints.js";
 import { handleWritingRoute } from "./cloudflare-writing.js";
+import { handleChatTurnRoute, handleTranslateRoute } from "./cloudflare-ai-chat.js";
+import {
+  PROVIDER_POOL,
+  callAiRouter,
+  getPoolHealth,
+  hasUsableProvider,
+  inspectProviderKeys,
+  readAiCache,
+  routerCountersSnapshot,
+  writeAiCache,
+} from "./cloudflare-ai-router.js";
 import {
   ensureRegistryTables,
   upsertUserFromAccount,
@@ -52,16 +73,15 @@ import { handleCryptoRoutes } from "./cloudflare-crypto.js";
 // replies. First success pins primaryWorkingModel, so this order only matters
 // on cold starts. 2.5 models are access-restricted deep fallback; 2.0/1.5 are
 // shut down and must NOT appear here.
-const DEFAULT_MODEL_CHAIN = [
-  "gemini-3.5-flash-lite",
-  "gemini-3.6-flash",
-  "gemini-3.5-flash",
-  "gemini-3.8-flash",
-  "gemini-3.1-flash-lite",
-  "gemini-flash-latest",
-  "gemini-2.5-flash-lite",
-  "gemini-2.5-flash"
-];
+// Gemini projection of PROVIDER_POOL, kept only because the legacy walker below
+// still references it — that body starts at byte ~62.2 KB and ends at ~67.4 KB,
+// past the edit boundary this file's header documents, so it could not be
+// deleted in the same change. The pool is the single source of truth, and it no
+// longer contains gemini-flash-latest (not a published endpoint) or the
+// access-restricted gemini-2.5-* models, so no path can call them again.
+const DEFAULT_MODEL_CHAIN = PROVIDER_POOL
+  .filter((entry) => entry.provider === "gemini")
+  .map((entry) => entry.model);
 
 let primaryWorkingModel = null;
 let requestCounter = 0;
@@ -122,81 +142,14 @@ function setCache(map, key, val, maxSize = 1000) {
   map.set(key, val);
 }
 
+/**
+ * Gemini key inspection. The generalized parser lives in ./cloudflare-ai-router.js
+ * and is shared by all four providers; this is its Gemini projection, kept so the
+ * internal health report and the legacy admin dashboard keep working. The legacy
+ * GEMINI_KEY_n aliases are the only Gemini-specific part.
+ */
 function inspectGeminiKeys(env) {
-  const rawList = [];
-
-  // 1. Dynamic inspection of all env variables / secrets
-  if (env && typeof env === "object") {
-    for (const [k, v] of Object.entries(env)) {
-      if (typeof v === "string" && v.trim().length > 0) {
-        if (k === "GEMINI_API_KEYS") {
-          v.split(/[,;\n]+/).forEach(s => {
-            const trimmed = s.trim().replace(/^["']|["']$/g, "");
-            if (trimmed) rawList.push({ key: trimmed, source: k });
-          });
-        } else if (k === "GEMINI_API_KEY" || /^GEMINI_API_KEY_\d+$/i.test(k) || /^GEMINI_KEY_\d+$/i.test(k)) {
-          const trimmed = v.trim().replace(/^["']|["']$/g, "");
-          if (trimmed) rawList.push({ key: trimmed, source: k });
-        }
-      }
-    }
-  }
-
-  // 2. Explicit checks up to 30 keys in case CF secrets aren't enumerable via Object.entries
-  if (rawList.length === 0) {
-    if (env.GEMINI_API_KEYS && typeof env.GEMINI_API_KEYS === "string") {
-      env.GEMINI_API_KEYS.split(/[,;\n]+/).forEach(s => {
-        const trimmed = s.trim().replace(/^["']|["']$/g, "");
-        if (trimmed) rawList.push({ key: trimmed, source: "GEMINI_API_KEYS" });
-      });
-    }
-    for (let i = 1; i <= 30; i++) {
-      if (env[`GEMINI_API_KEY_${i}`]) {
-        const trimmed = String(env[`GEMINI_API_KEY_${i}`]).trim().replace(/^["']|["']$/g, "");
-        if (trimmed) rawList.push({ key: trimmed, source: `GEMINI_API_KEY_${i}` });
-      }
-      if (env[`GEMINI_KEY_${i}`]) {
-        const trimmed = String(env[`GEMINI_KEY_${i}`]).trim().replace(/^["']|["']$/g, "");
-        if (trimmed) rawList.push({ key: trimmed, source: `GEMINI_KEY_${i}` });
-      }
-    }
-    if (env.GEMINI_API_KEY) {
-      const trimmed = String(env.GEMINI_API_KEY).trim().replace(/^["']|["']$/g, "");
-      if (trimmed) rawList.push({ key: trimmed, source: "GEMINI_API_KEY" });
-    }
-  }
-
-  const validEntries = rawList.filter(e => e.key && e.key.length > 5);
-
-  // Count frequencies to find duplicates
-  const counts = new Map();
-  for (const entry of validEntries) {
-    counts.set(entry.key, (counts.get(entry.key) || 0) + 1);
-  }
-
-  const duplicates = [];
-  for (const [key, count] of counts.entries()) {
-    if (count > 1) {
-      // Report a duplicate by the env-var name(s) it came from, never by any
-      // part of the key: even a truncated key is a credential fragment, and
-      // this value can reach a public endpoint.
-      const sources = validEntries.filter(e => e.key === key).map(e => e.source).join(" + ");
-      duplicates.push(`${sources || "configured secret"} (same value repeated ${count} times)`);
-    }
-  }
-
-  const uniqueKeys = [...new Set(validEntries.map(e => e.key))];
-
-  return {
-    uniqueKeys,
-    rawCount: validEntries.length,
-    uniqueCount: uniqueKeys.length,
-    hasDuplicates: duplicates.length > 0,
-    duplicates,
-    // Deliberately empty: no key preview is ever produced here, because this
-    // object feeds a public endpoint. See handlePublicHealth.
-    previews: []
-  };
+  return inspectProviderKeys(env, "GEMINI_API_KEYS", { extraPatterns: [/^GEMINI_KEY$/i, /^GEMINI_KEY_\d+$/i] });
 }
 
 function getGeminiApiKeys(env) {
@@ -1091,17 +1044,31 @@ async function handlePublicHealth(env, cors) {
   }
 
   const fallback = internal?.aiFallback || {};
+  const poolHealth = getPoolHealth({ env });
 
   return json({
     status: internal?.status || "healthy",
-    service: internal?.service || "Katzu Unified Worker + Multi-Key AI Engine",
+    service: internal?.service || "Katzu Unified Worker + Multi-Provider AI Pool",
     // A boolean only: never how many keys exist, only whether the AI engine can
-    // serve at all (Gemini keys present or the Workers AI binding attached).
-    ready: internal?.ready === true,
+    // serve at all (a usable pool entry, or the Workers AI binding attached).
+    ready: internal?.ready === true || poolHealth.active.length > 0,
     primaryWorkingModel: internal?.primaryWorkingModel || "auto-pinning on first call",
-    cachedTranslationsCount: internal?.cachedTranslationsCount ?? 0,
-    cachedHintsCount: internal?.cachedHintsCount ?? 0,
-    strategy: "single-prompt fusion + round-robin key failover + edge memory cache + Workers AI fallback",
+    // Cache counts come from the shared KV-backed cache; the internal report
+    // still describes the legacy per-isolate Maps, which are always cold.
+    cachedTranslationsCount: poolHealth.cache.translations,
+    cachedHintsCount: poolHealth.cache.hints,
+    strategy: "multi-provider pool + tier rotation + terminal day-quota ledger + KV cache + Workers AI fallback",
+    // Which entries can serve right now, which are idle, and which are parked
+    // for their window. Never a key, a key count, or a key fragment: ledger
+    // entries are non-reversible fingerprints and are not projected here.
+    aiPool: {
+      entries: poolHealth.entries,
+      tiers: poolHealth.tiers,
+      active: poolHealth.active,
+      idle: poolHealth.idle,
+      exhausted: poolHealth.exhausted,
+      attempts: poolHealth.attempts,
+    },
     aiFallback: {
       enabled: fallback.enabled === true,
       bindingPresent: fallback.bindingPresent === true,
@@ -1114,6 +1081,59 @@ async function handlePublicHealth(env, cors) {
       countersSource: fallback.countersSource || "in-memory",
     },
   }, 200, cors);
+}
+
+// ----------------------------------------------------------------------------
+// AI DEPENDENCY WIRING
+//
+// The AI modules (router, chat, hints, writing) receive the worker-scoped
+// internals they need as an injected object instead of importing them, so each
+// one owns only its own logic and stays testable in isolation. One factory wires
+// every AI route: a route that needs a narrower set simply ignores the rest.
+// ----------------------------------------------------------------------------
+
+/** What the pool needs back from this worker: cooldowns, fallback, provider state. */
+function aiRouterDeps() {
+  return {
+    isKeyCoolingDown,
+    markKeyCooldown,
+    markKeySuccess,
+    canUseWorkersAiFallback,
+    runWorkersAiFallback,
+    // The pool's OpenAI-compatible transports (Groq, OpenRouter, NIM) need the
+    // same Gemini→chat conversion the Workers AI fallback uses. It is injected
+    // rather than copied: its body sits past the byte wall this file's header
+    // documents, so a second copy in the router could never be kept in sync.
+    toOpenAiMessages: convertGeminiPayloadToMessages,
+    onProvider: (provider) => { lastAiProvider = provider; },
+    onModel: (model) => { primaryWorkingModel = model; },
+  };
+}
+
+function aiRouteDeps() {
+  return {
+    json,
+    hasUsableProvider,
+    authenticateAiRequest,
+    extractIdToken,
+    verifyGoogleIdToken,
+    checkGlobalRateLimit,
+    validateAiTurnBody,
+    resolveScenarioIdentity,
+    checkUserEntitlement,
+    isTrialSessionConsumed,
+    consumeTrialQuota,
+    trialSessionKey,
+    boundedHistory,
+    sanitizeFieldLabel,
+    cleanJson,
+    readAiCache,
+    writeAiCache,
+    validLevels: VALID_LEVELS,
+    callAiRouter: (payload, callEnv) => callAiRouter(payload, callEnv, aiRouterDeps()),
+    routerCounters: routerCountersSnapshot,
+    getProvider: () => lastAiProvider,
+  };
 }
 
 // ============================================================================
@@ -1159,11 +1179,14 @@ export default {
       if (url.pathname === "/auth/signout" && request.method === "POST") {
         return await handleAuthSignout(request, env, cors);
       }
+      // Turn + translation live in ./cloudflare-ai-chat.js: both handlers sat past
+      // the ~63 KB byte offset this file's header documents, and moving them let
+      // the multi-provider router replace the Gemini-only walker everywhere.
       if ((url.pathname === "/ai/turn" || url.pathname === "/turn") && request.method === "POST") {
-        return await withAiTelemetry(() => handleAiConversationTurn(request, env, cors), request, env, "ai_turn");
+        return await withAiTelemetry(() => handleChatTurnRoute(request, env, cors, aiRouteDeps()), request, env, "ai_turn");
       }
       if ((url.pathname === "/ai/translate" || url.pathname === "/translate") && request.method === "POST") {
-        return await withAiTelemetry(() => handleAiTranslation(request, env, cors), request, env, "ai_translate");
+        return await withAiTelemetry(() => handleTranslateRoute(request, env, cors, aiRouteDeps()), request, env, "ai_translate");
       }
       if ((url.pathname === "/ai/hints" || url.pathname === "/hints") && request.method === "POST") {
         // Multi-move hints (2-4 distinct conversational intents) live in
@@ -1172,17 +1195,7 @@ export default {
         // reach, so the worker-scoped internals it needs are injected here.
         return await withAiTelemetry(
           () =>
-            handleHintsRoute(request, env, cors, {
-              authenticateAiRequest,
-              boundedHistory,
-              getGeminiApiKeys,
-              getCache,
-              setCache,
-              hintsCache,
-              callGeminiWithFailover,
-              cleanJson,
-              json,
-            }),
+            handleHintsRoute(request, env, cors, aiRouteDeps()),
           request,
           env,
           "ai_hints"
@@ -1191,14 +1204,7 @@ export default {
       if (url.pathname === "/ai/check-writing" && request.method === "POST") {
         return await withAiTelemetry(
           () =>
-            handleWritingRoute(request, env, cors, {
-              authenticateAiRequest,
-              getGeminiApiKeys,
-              callGeminiWithFailover,
-              cleanJson,
-              json,
-              validLevels: VALID_LEVELS,
-            }),
+            handleWritingRoute(request, env, cors, aiRouteDeps()),
           request,
           env,
           "ai_writing"

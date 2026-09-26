@@ -223,8 +223,8 @@ export function normalizeWritingFeedback(raw) {
 export async function handleWritingRoute(request, env, cors, deps) {
   const {
     authenticateAiRequest,
-    getGeminiApiKeys,
-    callGeminiWithFailover,
+    hasUsableProvider,
+    callAiRouter,
     cleanJson,
     json,
     validLevels,
@@ -234,13 +234,15 @@ export async function handleWritingRoute(request, env, cors, deps) {
   const text = cleanText(body?.text, MAX_WRITING_CHARS + 1);
   const level = String(body?.cefr_level || "A1").toUpperCase();
 
-  // Writing practice costs a model call but is not part of the three free
-  // conversation sessions: a learner who practises Schreiben is doing more work
-  // than the paid loop requires, and the global daily rate limit still bounds
-  // abuse. Non-A1 trial users are paywalled exactly as everywhere else.
+  // Writing is part of the trial, not an exemption from it: once the three free
+  // sessions are used, Schreiben opens the same Pro paywall as the rest of the
+  // app (the client already renders that CTA). Hints deliberately stay
+  // quota-exempt — the trial quota is consumed while the learner's LAST free
+  // session is still running, so checking it there would strip hints out of a
+  // conversation they are still entitled to have.
   const auth = await authenticateAiRequest(request, body, env, cors, {
     level,
-    quotaExempt: true,
+    quotaExempt: false,
     requireEntitlement: true,
   });
   if (auth.response) return auth.response;
@@ -277,8 +279,7 @@ export async function handleWritingRoute(request, env, cors, deps) {
     }, 400, cors);
   }
 
-  const apiKeys = getGeminiApiKeys(env);
-  if (apiKeys.length === 0) {
+  if (!hasUsableProvider(env)) {
     return json({ error: "ai_unavailable" }, 503, cors);
   }
 
@@ -292,7 +293,7 @@ export async function handleWritingRoute(request, env, cors, deps) {
 
   let raw;
   try {
-    raw = await callGeminiWithFailover(apiKeys, {
+    raw = await callAiRouter({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         responseMimeType: "application/json",
