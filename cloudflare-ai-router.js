@@ -64,6 +64,10 @@ const EXTRA_KEY_VAR_PATTERNS = {
 // `rpd` / `tpm` are the published free-tier ceilings, recorded here so the
 // health report can show what the pool is expected to deliver. They are
 // documentation, not enforcement — the ledger enforces the operator's window.
+// `rpd: null` means the provider publishes no per-model daily ceiling at all
+// (NVIDIA's is an account-wide credit allowance, visible only on its dashboard),
+// so there is nothing to check before calling: the entry is quota-untracked going
+// in and terminal-for-the-window coming out, exactly like every other entry.
 // ---------------------------------------------------------------------------
 
 export const PROVIDER_TIERS = ["flagship", "mid", "lite"];
@@ -80,10 +84,12 @@ export const PROVIDER_POOL = [
   { provider: "gemini", model: "gemini-3.5-flash-lite", format: "gemini", tier: "lite", rpd: 15 },
   { provider: "groq", model: "openai/gpt-oss-20b", format: "openai", baseUrl: GROQ_BASE_URL, tier: "lite", rpd: 1000, tpm: 8000 },
   { provider: "openrouter", model: "thinkingmachines/inkling-small:free", format: "openai", baseUrl: OPENROUTER_BASE_URL, tier: "lite", rpd: 50, sharedAccountCap: true },
-  // Model is intentionally unset until the operator reads it off the NIM
-  // dashboard: a placeholder that gets called would be one guaranteed failure
-  // per walk, which is the exact defect this module exists to remove.
-  { provider: "nvidia", model: "PLACEHOLDER-fill-in-from-account-dashboard", format: "openai", baseUrl: NVIDIA_BASE_URL, tier: "lite", rpd: null },
+  // No published per-model daily ceiling, so `rpd: null` is deliberate, not a gap:
+  // there is no number to pre-check against. Its limits are the account-wide NIM
+  // credit allowance, which the response body never names — hence the provider
+  // override in classifyFailure that parks this unit on a rate-limit answer
+  // instead of treating it as a 25s blip.
+  { provider: "nvidia", model: "openai/gpt-oss-20b", format: "openai", baseUrl: NVIDIA_BASE_URL, tier: "lite", rpd: null },
 ];
 
 /** Longest a single pool attempt may take, and the ceiling for a whole walk. */
@@ -247,7 +253,9 @@ let ledgerHydrationPromise = null;
  * Gemini and OpenRouter reset on a calendar day (midnight Pacific for Gemini;
  * OpenRouter's daily free cap behaves the same way), Groq publishes rolling
  * windows and a retry-after header, so a conservative minute is used when we
- * have no header to trust.
+ * have no header to trust. NVIDIA has no published window (account-wide credit
+ * allowance), and falls through to the conservative hour: at worst one probe an
+ * hour, versus the 25s retry loop that a per-minute cooldown would produce.
  */
 export function nextResetTime(provider, now = Date.now()) {
   if (provider === "groq") return now + 60 * 1000;
@@ -419,8 +427,13 @@ export function classifyRateLimit(status, bodyText = "") {
   return "minute";
 }
 
-/** Terminal classifications decide the ledger; the rest only decide "next entry". */
-export function classifyFailure(status, bodyText = "") {
+/**
+ * Terminal classifications decide the ledger; the rest only decide "next entry".
+ *
+ * `entry` is optional and consulted only for providers whose limits cannot be
+ * read off the response — see the NVIDIA override below.
+ */
+export function classifyFailure(status, bodyText = "", entry = null) {
   const text = String(bodyText || "");
   const lower = text.toLowerCase();
   const rate = classifyRateLimit(status, text);
@@ -436,6 +449,13 @@ export function classifyFailure(status, bodyText = "") {
   if (status === 404 || /model[_ ]?(not[_ ]?found|does not exist)|is not found for api version|unsupported model/.test(lower)) {
     return "model_missing";
   }
+
+  // NVIDIA names no window in its 429 bodies, so the ambiguity rule above would
+  // read them as per-minute and retry an exhausted account every 25 seconds for
+  // the rest of the day (which is the defect this module exists to remove). Its
+  // limits are account-wide and change on a dashboard, not in a body, so any
+  // rate-limit answer is taken as terminal for the window.
+  if (rate !== "none" && entry?.provider === "nvidia") return "day";
 
   if (rate === "day") return "day";
   if (rate === "minute") return "minute";
@@ -454,7 +474,7 @@ export class ProviderCallError extends Error {
     this.entry = entry;
     this.status = status;
     this.bodyText = String(bodyText || "");
-    this.kind = kind || classifyFailure(status, bodyText);
+    this.kind = kind || classifyFailure(status, bodyText, entry);
   }
 }
 

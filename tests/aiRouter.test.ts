@@ -129,6 +129,14 @@ describe('rate-limit classification', () => {
     expect(classifyRateLimit(200, 'Fine')).toBe('none');
   });
 
+  it('treats an NVIDIA rate limit as terminal, because its bodies name no window', () => {
+    const nvidiaEntry = { provider: 'nvidia', model: 'openai/gpt-oss-20b', format: 'openai', tier: 'lite', rpd: null };
+    expect(classifyFailure(429, '{"status":429,"title":"Too Many Requests"}', nvidiaEntry)).toBe('day');
+    expect(classifyFailure(402, 'insufficient credits', nvidiaEntry)).toBe('day');
+    // Scoped to NVIDIA: the same body stays a recoverable throttle everywhere else.
+    expect(classifyFailure(429, '{"status":429,"title":"Too Many Requests"}')).toBe('minute');
+  });
+
   it('separates key faults and dead models, which get different windows', () => {
     expect(classifyFailure(400, 'API key not valid. Please pass a valid API key.')).toBe('invalid_key');
     expect(classifyFailure(403, 'API_KEY_INVALID')).toBe('invalid_key');
@@ -262,13 +270,47 @@ describe('pool order and tiers', () => {
   });
 
   it('never calls an entry whose model is still a placeholder', async () => {
+    // The guard is generic (any future entry added before its model is known),
+    // so it is pinned with a synthetic entry rather than with the NVIDIA one.
     const stub = fetchStub(() => geminiOk('{"reply_de":"Hallo"}'));
-    const nvidiaEntry = PROVIDER_POOL.find((entry) => entry.provider === 'nvidia')!;
+    const placeholderEntry = { provider: 'nvidia', model: 'PLACEHOLDER-fill-in-from-account-dashboard', format: 'openai', tier: 'lite', rpd: null };
 
     await expect(
-      callAiRouter(geminiPayload, { NVIDIA_API_KEYS: 'nvidia-key-aaaaaaaaaa' } as any, deps({ fetchImpl: stub.impl, pool: [nvidiaEntry] })),
+      callAiRouter(geminiPayload, { NVIDIA_API_KEYS: 'nvidia-key-aaaaaaaaaa' } as any, deps({ fetchImpl: stub.impl, pool: [placeholderEntry] })),
     ).rejects.toThrow();
     expect(stub.calls).toHaveLength(0);
+  });
+
+  it('calls the wired NVIDIA entry with a bearer key, and unwraps the completion', async () => {
+    const entry = PROVIDER_POOL.find((e) => e.provider === 'nvidia')!;
+    const key = 'nv-key-aaaaaaaaaa';
+    const stub = fetchStub(() =>
+      new Response(JSON.stringify({ choices: [{ message: { content: '{"reply_de":"Hallo"}' } }] }), { status: 200 }),
+    );
+    const text = await callAiRouter(geminiPayload, { NVIDIA_API_KEYS: key } as any, deps({ fetchImpl: stub.impl, pool: [entry] }));
+
+    expect(text).toBe('{"reply_de":"Hallo"}');
+    expect(stub.calls[0]).toBe('https://integrate.api.nvidia.com/v1/chat/completions');
+    expect(stub.bodies[0].model).toBe('openai/gpt-oss-20b');
+    expect(stub.calls[0]).not.toContain(key);
+  });
+
+  it('parks the quota-untracked NVIDIA entry for the window on a 429', async () => {
+    // `rpd: null` means there is no ceiling to pre-check, NOT that the unit is
+    // allowed to be retried forever: NIM's bodies name no window, so the 429 has
+    // to come out as the same terminal park every other entry uses.
+    const entry = PROVIDER_POOL.find((e) => e.provider === 'nvidia')!;
+    const key = 'nv-key-aaaaaaaaaa';
+    const stub = fetchStub(() => new Response(JSON.stringify({ status: 429, title: 'Too Many Requests' }), { status: 429 }));
+    const runtime = deps({ fetchImpl: stub.impl, pool: [entry] });
+
+    await expect(callAiRouter(geminiPayload, { NVIDIA_API_KEYS: key } as any, runtime)).rejects.toThrow();
+    expect(stub.calls).toHaveLength(1);
+    expect(isDayExhausted(entry, key)).toBe(true);
+
+    // A second learner message inside the window never touches the unit again.
+    await expect(callAiRouter(geminiPayload, { NVIDIA_API_KEYS: key } as any, runtime)).rejects.toThrow();
+    expect(stub.calls).toHaveLength(1);
   });
 });
 
@@ -364,7 +406,10 @@ describe('key parsing', () => {
     const health = getPoolHealth({ env: { GROQ_API_KEYS: 'groq-key-aaaaaaaaaa' } as any, pool: PROVIDER_POOL });
     expect([...new Set(health.active.map((e: any) => e.provider))]).toEqual(['groq']);
     expect(health.idle.map((e: any) => e.reason)).toContain('no_keys');
-    expect(health.idle.some((e: any) => e.reason === 'model_unset')).toBe(true);
+    // Every entry now resolves to a real model: a provider with no secret is idle
+    // for the honest reason (`no_keys`), never because its model is a stub.
+    expect(health.idle.some((e: any) => e.reason === 'model_unset')).toBe(false);
+    expect(health.idle.find((e: any) => e.provider === 'nvidia')).toMatchObject({ model: 'openai/gpt-oss-20b', reason: 'no_keys' });
     expect(JSON.stringify(health)).not.toContain('groq-key-aaaaaaaaaa');
   });
 });
