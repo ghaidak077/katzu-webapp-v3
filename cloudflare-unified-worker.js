@@ -20,8 +20,11 @@
  *     GROQ_API_KEYS · OPENROUTER_API_KEYS · NVIDIA_API_KEYS
  *   An unset or empty list is skipped and reported as `no_keys` in /health — never
  *   an error, never a failed learner request.
- * - Payment secrets, dormant until set: DODO_API_KEY + DODO_WEBHOOK_SECRET
- *   (billing), NOWPAYMENTS_API_KEY + NOWPAYMENTS_IPN_SECRET (crypto sales).
+ * - NOWPAYMENTS_API_KEY + NOWPAYMENTS_IPN_SECRET (crypto sales on the separate
+ *   sales site). There is no card-billing provider: Dodo was closed for this
+ *   account (docs/LAUNCH-CHECKLIST.md §2.1) and its module, routes and
+ *   configuration were removed, so an activation code is bought with crypto or
+ *   minted in the admin dashboard after a local payment.
  *
  * The admin control plane (user registry, telemetry, dashboard) lives in
  * ./cloudflare-admin.js. Measured: the edit tooling applied diffs to this file
@@ -63,11 +66,10 @@ import {
   withAiTelemetry,
 } from "./cloudflare-admin.js";
 
-// Dodo Payments (merchant of record): hosted checkout + signature-verified
-// webhook that grants Pro entitlements. Same extraction rationale as the admin
-// module above — this handlers' code would otherwise sit past the edit tooling's
-// reliable byte range.
-import { handleBillingRoutes } from "./cloudflare-dodo.js";
+// Crypto sales (NOWPayments): the separate sales site's checkout plus its
+// signature-verified IPN. Nothing here is called by the app — a buyer redeems
+// their code in-app through /verify, which is what keeps one payment path (and one
+// secret) out of the PWA entirely.
 import { handleCryptoRoutes } from "./cloudflare-crypto.js";
 
 // ============================================================================
@@ -1247,13 +1249,6 @@ export default {
       // generate) so those continue through the legacy handlers below.
       const adminResponse = await handleAdminRoutes(url, request, env, cors);
       if (adminResponse) return adminResponse;
-
-      // --- Billing (Dodo Payments): /billing/checkout, /billing/webhook,
-      //     /billing/status, /billing/health ---
-      // The webhook is authenticated by its HMAC signature (not by CORS or IP),
-      // so it must be reachable before any origin-specific handling below.
-      const billingResponse = await handleBillingRoutes(url, request, env, cors);
-      if (billingResponse) return billingResponse;
 
       // --- Crypto sales (NOWPayments): /crypto/checkout, /crypto/webhook,
       //     /crypto/order, /crypto/health ---

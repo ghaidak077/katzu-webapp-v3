@@ -47,6 +47,10 @@ of the deployed app: 0 console errors, 0 page errors, 0 failed requests.
 on the country that issued the founder's government ID, and the only ID available is
 Syrian, which is not on its accepted list. Do not re-open that thread; the app-side
 checkout work was reverted as part of this pass so the two properties stay separate.
+**Removed outright on 2026-09-26:** the module, the `/billing/*` routes, the
+`tests/dodoBilling.test.ts` suite, `scripts/verify-dodo-live.mjs`, the `DODO_*` /
+`CHECKOUT_RETURN_ORIGIN` vars and the two Dodo secrets no longer exist. The paid paths
+are crypto (below) and a locally-paid code minted from the admin dashboard.
 
 **The live path is a separate sales site + crypto checkout.** Architecture:
 
@@ -221,12 +225,11 @@ server-side errors, but nothing captures client-side crashes yet).
 ## 5. How to re-verify anything
 
 ```bash
-npm run lint && npm test -- --run && npm run build     # 201 tests must pass
+npm run lint && npm test -- --run && npm run build     # 403 tests must pass
 curl -sI https://katzu-sales.pages.dev/                     # live sales site must be 200
 curl -s  https://katzu-test.ghaidakalosh008.workers.dev/crypto/health   # ok:true; ready:true once the keys are set
 node scripts/verify-admin-live.mjs --secret=<ADMIN_SECRET>   # live admin + free-user lookup
 node scripts/verify-crypto-live.mjs --ipn=<NOWPAYMENTS_IPN_SECRET>  # live crypto round-trip (invoice → signed IPN → code)
-node scripts/verify-dodo-live.mjs --secret=<DODO_WEBHOOK_SECRET> --admin=<ADMIN_SECRET>  # Dodo (dormant: no keys set)
 node scripts/capture-admin-screenshots.mjs --secret=<ADMIN_SECRET>  # refresh dashboard PNGs
 ```
 

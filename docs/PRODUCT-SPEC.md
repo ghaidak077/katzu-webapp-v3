@@ -32,7 +32,7 @@
 19. [Hints (multi-move)](#19-hints-multi-move)
 20. [Content (D1 curriculum CMS)](#20-content-d1-curriculum-cms)
 21. [Admin control plane](#21-admin-control-plane)
-22. [Billing — Dodo Payments (dormant)](#22-billing--dodo-payments-dormant)
+22. [Billing — Dodo (removed 2026-09-26)](#22-billing--dodo-payments-dormant)
 23. [Crypto sales — NOWPayments](#23-crypto-sales--nowpayments)
 24. [Server data model (D1 + KV)](#24-server-data-model-d1--kv)
 25. [Feature catalogue (detailed)](#25-feature-catalogue-detailed)
@@ -153,7 +153,7 @@ are the product's design contract:
 | Class utils | **clsx + tailwind-merge** | — | `cn()` exported from `components/ui/Button.tsx` |
 | Celebration | **canvas-confetti** | 1.9 | redemption success + session report |
 | PWA | **vite-plugin-pwa** | 0.21 | `generateSW` (Workbox), manifest, runtime caching |
-| Tests | **Vitest** | 5.0 | node environment; 24 files / 220 tests |
+| Tests | **Vitest** | 5.0 | node environment; 39 files / 403 tests |
 | Declared but unused today | `@tanstack/react-query`, `zod`, `workbox-window` | — | present in `package.json`; **no imports in `src/`** — do not assume they are wired up |
 
 ### 4.2 Backend (the Worker)
@@ -162,13 +162,12 @@ are the product's design contract:
 |---|---|
 | Runtime | **Cloudflare Workers** (single unified worker) |
 | Entry | `cloudflare-unified-worker.js` (~4,115 lines) |
-| Modules | `cloudflare-admin.js` (1,862), `cloudflare-ai-router.js` (provider pool + day-quota ledger + shared cache), `cloudflare-ai-chat.js` (turn + translation), `cloudflare-hints.js` (203), `cloudflare-writing.js`, `cloudflare-dodo.js` (802), `cloudflare-crypto.js` (711) |
+| Modules | `cloudflare-admin.js` (registry + CMS + dashboard), `cloudflare-ai-router.js` (provider pool + day-quota ledger + shared cache), `cloudflare-ai-chat.js` (turn + translation), `cloudflare-hints.js`, `cloudflare-writing.js`, `cloudflare-crypto.js` (sales site only) |
 | Database | **Cloudflare D1** (`katzu-content`) — curriculum + ledgers + registry |
 | KV | `USER_PROGRESS` (state/quota/sessions) + `REDEEMED_CODES` (codes/accounts/referrals) |
 | AI (primary) | **Multi-provider pool** — Gemini, Groq, OpenRouter, NVIDIA NIM (`cloudflare-ai-router.js`): tiered rotation within a tier, then across tiers, with a terminal day-quota ledger |
 | AI (fallback) | **Cloudflare Workers AI** (`@cf/qwen/qwen3-30b-a3b-fp8`) via the `AI` binding |
-| Payments (live path) | **NOWPayments** (crypto) — sales site only |
-| Payments (dormant) | **Dodo Payments** — module retained, unconfigured, nothing calls it |
+| Payments (only path) | **NOWPayments** (crypto) on the sales site, plus a locally-paid code minted in the admin dashboard. Card billing (Dodo) was removed — see §22. |
 | Config | `wrangler.toml` |
 
 ### 4.3 Tooling
@@ -200,13 +199,13 @@ are the product's design contract:
                └─────────────►│  cloudflare-unified-worker.js                 │
                               │   ├─ cloudflare-admin.js   (registry+CMS)     │
                               │   ├─ cloudflare-hints.js   (/ai/hints)        │
-                              │   ├─ cloudflare-crypto.js  (/crypto/*)        │
-                              │   ├─ cloudflare-dodo.js    (/billing/*, off)  │
-                              │   └─ cloudflare-worker-ai-module.js (fallback)│
+                              │   ├─ cloudflare-ai-chat.js  (/ai/turn)        │
+                              │   ├─ cloudflare-ai-router.js (provider pool)  │
+                              │   └─ cloudflare-crypto.js  (/crypto/*)        │
                               └───┬─────────┬─────────┬──────────┬────────────┘
                                   │         │         │          │
                         ┌─────────▼──┐ ┌────▼─────┐ ┌─▼──────┐ ┌─▼──────────────┐
-                        │ D1         │ │ KV       │ │ KV     │ │ Gemini API     │
+                        │ D1         │ │ KV       │ │ KV     │ │ AI providers   │
                         │katzu-content│ │USER_     │ │REDEEMED│ │ (+ Workers AI  │
                         │ (content + │ │PROGRESS  │ │_CODES  │ │   fallback)    │
                         │  ledgers + │ │          │ │        │ │                │
@@ -225,7 +224,7 @@ are the product's design contract:
 
 - **Two separate web properties.** `katzu-webapp-v3` (the app) and `katzu-sales` (the store)
   are distinct Cloudflare Pages projects. They share only the Worker as backend. The app has
-  **no checkout UI** and never calls `/crypto/*` or `/billing/*`; the sales site never calls
+  **no checkout UI** and never calls `/crypto/*`; the sales site never calls
   the app's authenticated endpoints. The only bridge is the **activation code** the buyer
   pastes into the app's redemption screen.
 - **The Worker is the single trust boundary.** Entitlement (free vs Pro), trial quota, rate
@@ -703,7 +702,7 @@ that an internet connection is required; progress writes queue and flush later.
    `403 origin_not_allowed`, diagnostic header `x-cors-rejection`); allowlisted → normal headers;
    `OPTIONS` preflight answered.
 3. **Body-size cap** — `Content-Length > 65536` → `413 payload_too_large`.
-4. **Route dispatch** — AI/auth/account/referral → admin → billing → crypto → core (verify, check-status,
+4. **Route dispatch** — AI/auth/account/referral → admin → crypto → core (verify, check-status,
    generate, progress) → content read/CMS → legacy admin → `404`.
 5. **Global error handling** — unhandled errors are logged, recorded into the admin error feed
    (`recordError`), and returned as `500 { error: "server_error" }`.
@@ -723,6 +722,23 @@ that an internet connection is required; progress writes queue and flush later.
 ---
 
 ## 16. Backend Worker: full endpoint reference
+
+> **Corrections (2026-09-26) — read before trusting §16-onward.** Everything past roughly byte 53 KB of
+> this file (from the end of this section onward) is beyond the edit-tool boundary and could not be
+> corrected in place, so three stale parts are recorded here instead:
+>
+> - **`### Billing — Dodo (dormant)`** at the end of this section, and **§22** in full, are stale: Dodo
+>   was closed for this account (its eligibility keys on the country that issued the founder's ID) and is
+>   now **deleted**, not dormant — `cloudflare-dodo.js`, `tests/dodoBilling.test.ts`,
+>   `scripts/verify-dodo-live.mjs`, the `/billing/*` routes, the `DODO_*` / `CHECKOUT_RETURN_ORIGIN` vars
+>   and both Dodo secrets are gone, so `/billing/*` answers `404`. The paid paths are the sales site's
+>   crypto checkout (§23) and a locally-paid code minted with `POST /admin/generate` inside the admin
+>   dashboard. The corrected copies of the route-dispatch line and of the module list are §15 step 4 and
+>   §4.2 above.
+> - **§24.1** still lists `billing_events` / `subscriptions`: the tables exist in D1, but nothing reads or
+>   writes them any more (the module that created them is deleted).
+> - The test counts in §4.3 and §29 (“24 files / 220 tests”) are stale: `npm test` runs **39 files /
+>   403 tests** as of this date.
 
 Legend — **Auth:** `none` = public, `sess` = session/JWT bearer required, `admin` = `Authorization:
 Bearer <ADMIN_SECRET>`, `sig` = HMAC signature. **RL:** participates in rate limiting.

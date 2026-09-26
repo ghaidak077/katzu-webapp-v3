@@ -2,7 +2,7 @@
  * Conversation hints (on-demand Call C) — multi-move edition.
  *
  * Extracted from cloudflare-unified-worker.js for the same measured reason as
- * cloudflare-admin.js / cloudflare-dodo.js / cloudflare-crypto.js: this handler
+ * cloudflare-admin.js / cloudflare-crypto.js: this handler
  * sat at ~80 KB of byte offset, past the ~48 KB wall where the edit tooling
  * cannot apply diffs. Everything worker-scoped (auth, entitlement, provider
  * pool, KV cache, response helper) is injected from the call site,

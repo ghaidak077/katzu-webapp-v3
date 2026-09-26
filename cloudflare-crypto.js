@@ -1,7 +1,7 @@
 /**
  * Katzu Sales — crypto payments (NOWPayments) for the SEPARATE sales site.
  *
- * WHY THIS FILE EXISTS (same reason as cloudflare-admin.js and cloudflare-dodo.js):
+ * WHY THIS FILE EXISTS (same reason as cloudflare-admin.js):
  * cloudflare-unified-worker.js is ~175 KB. Measured in this repo, the edit tooling
  * applies diffs reliably up to ~48 KB of byte offset and fails past ~63 KB, which is
  * where the auth/subscription handlers live. This module is small and editable, and

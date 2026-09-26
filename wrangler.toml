@@ -16,11 +16,9 @@
 #     OPENROUTER_API_KEYS  created empty — paste the key list to switch it on
 #     NVIDIA_API_KEYS      created empty — paste the key list to switch it on
 #   Auth: ADMIN_SECRET, HMAC_SECRET.
-#   Billing (Dodo, dormant until set): DODO_API_KEY, DODO_WEBHOOK_SECRET.
-#   Crypto sales (NOWPayments, dormant until set): NOWPAYMENTS_API_KEY,
-#   NOWPAYMENTS_IPN_SECRET.
-#   SESSION_SECRET is deployed but read by no code path (docs/PRODUCT-SPEC.md §31)
-#   — delete it in the dashboard, or wire it deliberately; nothing depends on it.
+#   Crypto sales (NOWPayments): NOWPAYMENTS_API_KEY, NOWPAYMENTS_IPN_SECRET.
+#   There is no card-billing provider — Dodo was closed for this account
+#   (docs/LAUNCH-CHECKLIST.md §2.1) and its module, routes and vars were removed.
 #
 # GOOGLE_CLIENT_ID is deliberately a var below, not a secret: it ships to every
 # browser anyway, and living in git is what makes the `aud` enforcement reviewable.
@@ -86,28 +84,6 @@ AI_RATE_LIMIT_PER_MINUTE = "10"
 AI_RATE_LIMIT_PER_DAY = "200"
 # Set to "0" to disable the Workers AI fallback (Gemini-only mode).
 AI_FALLBACK_ENABLED = "1"
-
-# ---------------------------------------------------------------------------
-# Billing — Dodo Payments (merchant of record)
-#
-# Two things must be SECRETS, set once with `npx wrangler secret put <NAME>`:
-#   DODO_API_KEY          Dashboard -> Developer -> API keys
-#   DODO_WEBHOOK_SECRET   Dashboard -> Developer -> Webhooks -> <endpoint> -> signing secret
-# Both are required for billing to work: without the API key /billing/checkout
-# answers 503 and card checkout is impossible; without the webhook secret
-# /billing/webhook answers 503 and no entitlement can ever be granted.
-#
-# Everything below is non-secret and reviewable in git.
-# test_mode (default) talks to test.dodopayments.com and cannot move real money.
-# Switch to "live_mode" only once a real test payment has been verified.
-DODO_ENVIRONMENT = "test_mode"
-# Product IDs from Dashboard -> Products. Without a monthly product ID,
-# /billing/checkout answers 503 billing_not_configured.
-DODO_PRODUCT_ID_MONTHLY = ""
-DODO_PRODUCT_ID_ANNUAL = ""
-# Where Dodo returns the customer. Empty = first ALLOWED_ORIGINS entry, which is
-# already correct for the Pages deployment. Set it when a custom domain is live.
-CHECKOUT_RETURN_ORIGIN = ""
 
 # ---------------------------------------------------------------------------
 # Crypto sales — NOWPayments (one-off purchase of an N-month activation code)
