@@ -41,26 +41,52 @@ const rec = (name, pass, evidence) => {
     await ctx.close();
   }
 
-  // ---------- 7.5 Conversation screen loads + German LTR + Arabic RTL -------
+  // ---------- 7.5 The signed-out path: the public demo -----------------------
+  // The live conversation is auth-gated, so a signed-out battery can only walk
+  // the visitor's own path: value before signup. That path is `/demo`, and it
+  // must reach its own German input without an account.
   {
     const { ctx, page, consoleErrors } = await newPage();
-    await page.goto(`${APP}/scenario/cafe_order/live`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(6000);
-    const dirInfo = await page.evaluate(() => {
-      const htmlDir = document.documentElement.getAttribute('dir');
-      const ltrInput = !!document.querySelector('input[dir="ltr"], [dir="ltr"]');
-      return { htmlDir, ltrInput };
-    });
-    rec('J5 conversation screen renders with RTL shell + LTR German input', dirInfo.htmlDir === 'rtl' && dirInfo.ltrInput, JSON.stringify(dirInfo));
-    const trainingMode = await page.evaluate(() => {
-      const b = Array.from(document.querySelectorAll('button')).find((x) => /تمرين سريع/.test(x.textContent || ''));
-      if (b) { b.click(); return true; }
-      return false;
-    });
-    await page.waitForTimeout(4000);
-    const starterPhrases = await page.evaluate(() => document.body.innerText.includes('عبارات مساعدة للبدء') || document.body.innerText.includes('Ich möchte'));
-    rec('J5 quick mode enters conversation with starter content', trainingMode && starterPhrases, `mode clicked=${trainingMode}, starter phrases=${starterPhrases}`);
-    rec('J5 no console errors in conversation', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | ') || 'clean');
+    await page.goto(`${APP}/demo`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const intro = page.getByRole('button', { name: /ابدأ الدرس التجريبي/ });
+    const introOk = await intro.waitFor({ state: 'visible', timeout: 60000 }).then(() => true).catch(() => false);
+    const shell = await page.evaluate(() => ({
+      dir: document.documentElement.getAttribute('dir'),
+      ltr: document.querySelectorAll('[dir="ltr"]').length,
+    }));
+    rec(
+      'J5 the signed-out demo opens a real lesson (RTL shell + LTR German)',
+      introOk && shell.dir === 'rtl' && shell.ltr > 0,
+      `intro=${introOk}, dir=${shell.dir}, ltrNodes=${shell.ltr}`,
+    );
+
+    let reachedInput = false;
+    let started = false;
+    if (introOk) {
+      await intro.click();
+      started = true;
+      for (let step = 0; step < 3; step++) {
+        const understood = page.getByRole('button', { name: /فهمتها/ });
+        if (!(await understood.count())) break;
+        await understood.click();
+        await page.waitForTimeout(200);
+      }
+      for (let question = 0; question < 3; question++) {
+        if (!(await page.getByText('ما معنى هذه الجملة بالألمانية؟').count())) break;
+        // Quiz options are the only buttons in the quiz card.
+        await page.locator('button[class*="p-3.5"]').first().click();
+        const next = page.getByRole('button', { name: /السؤال التالي|إلى التحدث/ });
+        if (await next.count()) { await next.click(); await page.waitForTimeout(200); }
+      }
+      const input = page.locator('input[dir="ltr"]').first();
+      reachedInput = (await input.count()) > 0;
+    }
+    rec(
+      'J5 the demo reaches its own German input without an account',
+      started && reachedInput,
+      `started=${started}, ltrInput=${reachedInput}`,
+    );
+    rec('J5 no console errors in the demo', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | ') || 'clean');
     await ctx.close();
   }
 
@@ -117,20 +143,39 @@ const rec = (name, pass, evidence) => {
   }
 
   // ---------- 7.6 Offline shell ----------------------------------------------
+  // An installed PWA open must land on the cached shell. This used to flip the
+  // network off after a fixed 5 s — mid-install on a cold cache — and report a
+  // failure the app did not have. It now waits for the worker to be *active*
+  // (`ready` only resolves after the precache install succeeded) and for the
+  // precache to actually hold entries, and records both facts either way: a
+  // worker that activates with an empty cache is exactly the shipped bug this
+  // check exists to catch.
   {
     const { ctx, page } = await newPage();
     await page.goto(APP, { waitUntil: 'load', timeout: 45000 });
-    await page.waitForTimeout(5000); // allow SW install
-    const swActive = await page.evaluate(async () => {
-      if (!navigator.serviceWorker) return false;
+    const sw = await page.evaluate(async () => {
+      if (!navigator.serviceWorker) return { ready: false, active: false, cached: 0 };
+      const ready = await Promise.race([
+        navigator.serviceWorker.ready.then(() => true),
+        new Promise((r) => setTimeout(() => r(false), 90000)),
+      ]);
       const reg = await navigator.serviceWorker.getRegistration();
-      return !!(reg && (reg.active || reg.installing || reg.waiting));
+      let cached = 0;
+      for (const key of await caches.keys()) cached += (await caches.open(key).keys()).length;
+      return { ready, active: reg?.active?.state === 'activated', cached };
     });
     await ctx.setOffline(true);
-    await page.goto(APP, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
-    await page.waitForTimeout(4000);
+    const nav = await page
+      .goto(APP, { waitUntil: 'domcontentloaded', timeout: 25000 })
+      .then(() => 'ok')
+      .catch((e) => `nav-error:${String(e).slice(0, 60)}`);
+    await page.waitForTimeout(2500);
     const offlinePopulated = await page.evaluate(() => !!document.querySelector('#root')?.children.length);
-    rec('7.6 offline shell loads (SW registered + cached shell)', swActive && offlinePopulated, `SW=${swActive}, offline root populated=${offlinePopulated}`);
+    rec(
+      '7.6 offline shell loads (SW active + precache populated + offline navigation)',
+      sw.ready && sw.active && sw.cached > 0 && nav === 'ok' && offlinePopulated,
+      `ready=${sw.ready}, active=${sw.active}, precache=${sw.cached}, nav=${nav}, root populated=${offlinePopulated}`,
+    );
     await ctx.close();
   }
 

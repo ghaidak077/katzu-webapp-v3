@@ -10,7 +10,20 @@ import path from 'path';
  */
 export const pwaOptions = {
   registerType: 'autoUpdate' as const,
-  includeAssets: ['favicon.ico', 'assets/mascot/*.png', 'assets/fonts/*.ttf'],
+  // Deliberately no `includeAssets`. Every public asset (favicon, mascot art,
+  // fonts) already matches `globPatterns` below, and listing a file twice —
+  // once unrevisioned from `includeAssets`, once revisioned from the glob —
+  // makes workbox throw `add-to-cache-list-conflicting-entries` at install.
+  // The throw is silent to the learner: the worker still activates, with an
+  // empty precache and no navigation fallback, so the installed PWA dies
+  // offline. Verified against the generated sw.js, not just these options:
+  // `tests/pwaOffline.test.ts` pins the overlap rule.
+  //
+  // `includeManifestIcons` off for the same reason seen from the other side:
+  // the two manifest icons are already precached by `globPatterns` below, and
+  // letting the plugin add a second, separately-revisioned copy of the same URL
+  // is the very conflict the comment above describes.
+  includeManifestIcons: false,
   manifest: {
     name: 'Katzu — رفيقك لتعلم الألمانية',
     short_name: 'Katzu',
@@ -35,6 +48,15 @@ export const pwaOptions = {
   },
   workbox: {
     globPatterns: ['**/*.{js,css,html,ico,png,ttf,woff2}'],
+    // The plugin treats everything under Vite's `assets/` directory as
+    // content-addressed and precaches it with `revision: null` (immutable).
+    // That is true for bundled chunks (`index-iXSWghpY.js`) but false for the
+    // public files this app copies there — fonts and mascot art keep their
+    // names across content changes, so `revision: null` would serve a replaced
+    // font or mascot from the old cache forever. Match only the hash Vite
+    // really appends; everything else then gets a content hash like any other
+    // precache entry.
+    dontCacheBustURLsMatching: /-[A-Za-z0-9_-]{8}\.(js|css)$/,
     // A cold offline open must land on the cached app shell. Without a
     // navigation fallback the installed PWA shows the browser's offline error
     // page, which makes the whole offline-first loop unreachable — exactly the

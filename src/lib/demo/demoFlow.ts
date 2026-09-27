@@ -83,6 +83,7 @@ export interface DemoState {
 }
 
 export type DemoEvent =
+  | { type: 'hydrate'; state: DemoState }
   | { type: 'study_next'; now?: number }
   | { type: 'answer_quiz'; chosenIndex: number }
   | { type: 'quiz_next' }
@@ -253,6 +254,13 @@ export function gradeProduction(expected: string, actual: string): { verdict: An
  * cannot skip the quiz, answer twice, or submit the production twice.
  */
 export function demoReducer(state: DemoState | null, event: DemoEvent): DemoState | null {
+  // The lesson comes from Dexie, so it does not exist on the first render: the
+  // reducer starts empty and is hydrated once the lesson (and any resumable
+  // progress) actually exists. A reducer cannot adopt a later initial value —
+  // React keeps the one from mount — and without this the demo read the null of
+  // render one forever and showed its "preparing" line on every device.
+  // Idempotent by design: a repeat hydrate can never wipe progress.
+  if (event.type === 'hydrate') return state ?? event.state;
   if (!state) return state;
   switch (event.type) {
     case 'study_next': {

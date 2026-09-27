@@ -173,6 +173,24 @@ describe('demo state machine', () => {
     expect(again.production?.actual).toBe(item.german);
   });
 
+  it('hydrates from null — the lesson only exists a render after mount', () => {
+    // Regression: DemoScreen mounts while the Dexie queries are still pending,
+    // so the reducer starts empty. Without `hydrate` the state kept the null of
+    // render one and the public demo showed «جارٍ تحضير الدرس التجريبي…» on
+    // every device, signed out and signed in alike.
+    const initial = createDemoState(lesson, quiz, 1);
+    expect(demoReducer(null, { type: 'hydrate', state: initial })).toBe(initial);
+  });
+
+  it('never lets a late hydrate wipe progress already made', () => {
+    let state = createDemoState(lesson, quiz, 1);
+    const progressed = demoReducer(state, { type: 'study_next' });
+    const stale = createDemoState(lesson, quiz, 99);
+    const after = demoReducer(progressed, { type: 'hydrate', state: stale });
+    expect(after).toBe(progressed);
+    expect(after.startedAt).toBe(1);
+  });
+
   it('blocks an empty production submission', () => {
     let state = createDemoState(lesson, quiz, 1);
     state = { ...state, stage: 'produce' };

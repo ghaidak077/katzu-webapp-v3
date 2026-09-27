@@ -78,7 +78,16 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
     return createDemoState(lesson, questions);
   }, [lesson, questions]);
 
-  const [state, dispatch] = useReducer(demoReducer, initialState);
+  // The lesson is read from Dexie, so on the first render it does not exist yet
+  // and `initialState` is null. A reducer cannot adopt a later initial value —
+  // React keeps the one from mount — so the state is hydrated explicitly, once,
+  // when the lesson (and any resumable progress) actually exists. Without this
+  // the demo kept the `null` of render one and showed its "preparing" line
+  // forever on every device, signed out and signed in alike.
+  const [state, dispatch] = useReducer(demoReducer, null);
+  useEffect(() => {
+    if (!state && initialState) dispatch({ type: 'hydrate', state: initialState });
+  }, [state, initialState]);
   const [input, setInput] = useState('');
   const [contentUnavailable, setContentUnavailable] = useState(false);
   // A visitor who taps the microphone and gets nothing has no way to tell a
