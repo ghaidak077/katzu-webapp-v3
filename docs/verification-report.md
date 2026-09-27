@@ -26,6 +26,8 @@ Top 5 risks (in order):
 
 **Launch recommendation:** proceed to internal testing / private alpha immediately; close Gate-1 security items (in progress: CORS fail-closed, session revocation, token hygiene already landed and verified) before any public payment link.
 
+**2026-09-27 addendum:** commit `70d8150` fixed the dead offline shell and the public demo that had never loaded; the battery re-run against the deployed app passes **12/12** — see §14 at the end. The rows above are the state of the 2026-09-24 audit and are kept as such.
+
 ---
 
 ## 2. Environment
@@ -175,3 +177,30 @@ Blocked-for-public list from the brief: concurrency abuse (S2/S3) · incomplete 
 4. **P1** — Offline app-shell navigation fallback (`navigateFallback` for SW) + trust pages made public + legal copy finalization.
 5. **P1** — S6 guest token removal (replace with honest local-preview mode or remove).
 6. **P2** — S5 admin hardening; CSP `unsafe-inline` removal; chunk splitting; D1 backup runbook; debug-UI release gating verification.
+
+---
+
+## 14. Addendum — 2026-09-27 re-run after the offline-shell and public-demo fixes (commit `70d8150`)
+
+`scripts/verification-battery.cjs` re-run against the deployed app (bundle `index-DE7WAmP5.js`, commit `70d8150`). **12/12 checks pass** — the 2026-09-24 baseline above recorded 8/12, and the run before this fix recorded 9/12.
+
+| Check | Result | Evidence |
+|---|---|---|
+| J1 landing renders | PASS | root populated; Arabic UI text present; zero console errors |
+| J1 anonymous `/app/trail` guard | PASS | lands on `/welcome` (auth-first by design) |
+| J5 signed-out demo opens a real lesson | PASS | `intro=true`, `dir=rtl`, 1 LTR German node |
+| J5 demo reaches its own German input | PASS | `started=true`, `ltrInput=true` |
+| J5 no console errors in the demo | PASS | clean |
+| 8 horizontal overflow 320→1440px | PASS | all 7 widths clean |
+| 11.1 anonymous storage | PASS | `katzu_analytics_queue_v1`, `katzu_install_id`; 0 cookies; no tokens |
+| 10.2 initial load | PASS | 279 ms, LCP 300 ms, JS 152 KB over 3 requests |
+| **7.6 offline shell** | **PASS** | `ready=true`, `precache=84`, `nav=ok`, `root populated=true` — the installed app opens offline; §7's HIGH failure is closed (root cause and fix: `KATZU_IMPLEMENTATION_LOG_CONTINUED.md` §12) |
+| 11.4 trust/privacy reachable | PASS | privacy copy visible (the 2026-09-24 MEDIUM is closed) |
+| 10.1 PWA manifest | PASS | name + 2 icons + `lang=ar` |
+
+What changed since the baseline, verified here:
+- **The J5 rows replace the old "Conversation screen RTL/LTR" audit-path failure.** That check walked `/scenario/cafe_order/live` signed out — an auth-gated screen that redirects to `/welcome`, so it could never see the conversation and reported a coverage-order failure forever. The signed-out path a visitor actually has is `/demo`, and the battery now walks it: intro card, study, quiz, and the German input, with the RTL shell and LTR German asserted. The signed-in turn flow stays covered by the token-hygiene battery (11/11).
+- **The offline shell.** Workbox threw `add-to-cache-list-conflicting-entries` while building the install handler (the same file was precached twice — `includeAssets` overlapped `globPatterns`, and the manifest icons were added by the plugin a second time), so the worker activated with **no routes and no precache** and every cold offline navigation died. `vite.config.ts` now gives every file one owner and only treats genuinely hashed chunks as immutable; the generated `sw.js` holds 84 entries with 0 conflicts. This run's `precache=84` plus the offline navigation is that fix, live.
+- **The public demo** had never loaded (`useReducer` kept the `null` of its first render, before the Dexie lesson existed) and is part of this run's J5 evidence.
+
+Still not verifiable from this battery (signed-out by design, unchanged from §7): sign-in, conversation with a real session, subscription/purchase, account deletion/export.

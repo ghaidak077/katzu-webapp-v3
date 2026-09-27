@@ -118,14 +118,17 @@ shown. Coverage added:
 | `npx playwright test` | **25 tests in 8 files** green in groups (new: `e2e/demo.spec.ts`) |
 | `node --check cloudflare-*.js` | clean on all **13** (the worker was not changed) |
 
-Live battery re-run against `https://katzu-webapp-v3.pages.dev` is recorded in
-`docs/verification-report.md` after this commit deploys.
+Live battery re-run against `https://katzu-webapp-v3.pages.dev` on the deployed
+commit (bundle `index-DE7WAmP5.js`): **12/12 checks pass** — the offline shell
+(`precache=84`, `nav=ok`, root rendered offline) and both signed-out demo checks
+included. Full table: `docs/verification-report.md` §14. The run before these
+fixes recorded 9/12.
 
 ## Known limitations
 
 1. **The Android retest is still the owner's.** Headless Chromium has no phone
-   audio stack; the device checks in §11 (orb deformation, endpointing, TTS
-   intelligibility) remain manual.
+   audio stack; the device checks in §11 of the V2 log (orb deformation,
+   endpointing, TTS intelligibility) remain manual.
 2. **The OS chime** that comes with the platform recogniser belongs to the
    operating system; no web API can mute it. Accepted cost, not a failure.
 3. **The demo needs device content once.** On a genuinely empty, offline first

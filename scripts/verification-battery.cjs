@@ -154,15 +154,19 @@ const rec = (name, pass, evidence) => {
     const { ctx, page } = await newPage();
     await page.goto(APP, { waitUntil: 'load', timeout: 45000 });
     const sw = await page.evaluate(async () => {
-      if (!navigator.serviceWorker) return { ready: false, active: false, cached: 0 };
+      if (!navigator.serviceWorker) return { ready: false, state: 'missing', cached: 0 };
+      // `ready` only resolves once an active worker exists, which in turn only
+      // happens after a successful install (the precache). The state string is
+      // reported as evidence, not asserted on: sampling it can race with the
+      // activation itself. An empty precache is the shipped bug this catches.
       const ready = await Promise.race([
         navigator.serviceWorker.ready.then(() => true),
         new Promise((r) => setTimeout(() => r(false), 90000)),
       ]);
       const reg = await navigator.serviceWorker.getRegistration();
       let cached = 0;
-      for (const key of await caches.keys()) cached += (await caches.open(key).keys()).length;
-      return { ready, active: reg?.active?.state === 'activated', cached };
+      for (const key of await caches.keys()) cached += (await (await caches.open(key)).keys()).length;
+      return { ready, state: reg?.active?.state || 'none', cached };
     });
     await ctx.setOffline(true);
     const nav = await page
@@ -173,8 +177,8 @@ const rec = (name, pass, evidence) => {
     const offlinePopulated = await page.evaluate(() => !!document.querySelector('#root')?.children.length);
     rec(
       '7.6 offline shell loads (SW active + precache populated + offline navigation)',
-      sw.ready && sw.active && sw.cached > 0 && nav === 'ok' && offlinePopulated,
-      `ready=${sw.ready}, active=${sw.active}, precache=${sw.cached}, nav=${nav}, root populated=${offlinePopulated}`,
+      sw.ready && sw.cached > 0 && nav === 'ok' && offlinePopulated,
+      `ready=${sw.ready}, worker=${sw.state}, precache=${sw.cached}, nav=${nav}, root populated=${offlinePopulated}`,
     );
     await ctx.close();
   }
