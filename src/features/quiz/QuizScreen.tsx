@@ -11,6 +11,8 @@ import { Card } from '@/components/ui/Card';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { logEvent, logError } from '@/lib/utils/diagnostics';
+import { enrolStudiedPhrases, enrolStudiedVocabulary } from '@/lib/srs/store';
+import { track } from '@/lib/analytics/client';
 import { ArrowRight, Volume2, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
 
 export interface QuizScreenProps {
@@ -90,6 +92,16 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
       setScore((s) => s + 1);
     } else {
       triggerHaptic('error');
+      // A wrong answer is the clearest possible evidence that this item is not
+      // learned yet, so it enters the review queue now (enrolment is idempotent,
+      // so re-answering it wrong later does not reset its schedule).
+      if (currentQ.sourceKind === 'vocab') {
+        const word = (vocabQ || []).find((candidate) => candidate.id === currentQ.sourceId);
+        if (word) void enrolStudiedVocabulary([word]);
+      } else {
+        const phrase = (phrasesQ || []).find((candidate) => candidate.id === currentQ.sourceId);
+        if (phrase) void enrolStudiedPhrases([phrase]);
+      }
     }
   };
 
@@ -111,6 +123,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
         lastScore: finalAccuracy,
         updatedAt: Date.now(),
       });
+      track('quiz_completed', { scenarioId, count: finalAccuracy });
       setIsQuizCompleted(true);
     }
   };

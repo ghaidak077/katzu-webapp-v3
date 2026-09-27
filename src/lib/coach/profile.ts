@@ -1,5 +1,5 @@
 import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from './taxonomy';
-import type { MistakeEntity } from '@/types/models';
+import type { MistakeEntity, ReviewItemEntity, SessionEntity } from '@/types/models';
 
 /**
  * The learner's error profile: which mistake classes recur, how often, and how
@@ -160,6 +160,174 @@ export function buildLearnerMemory(
     .sort((a, b) => b.count - a.count || a.rule.localeCompare(b.rule))
     .slice(0, limit)
     .map(({ rule, example }) => ({ rule, example }));
+}
+
+/** A week, in the unit every trend statement below is measured in. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+const TREND_WINDOW_MS = 7 * DAY_MS;
+
+/** A trend may only be claimed once the history is long enough to mean something. */
+export const MIN_TREND_EVIDENCE = 3;
+
+export type TrendDirection = 'improving' | 'worsening' | 'steady' | 'insufficient';
+
+export interface CategoryTrend {
+  category: MistakeCategory;
+  count: number;
+  open: number;
+  mastered: number;
+  trend: TrendDirection;
+  recentCount: number;
+  earlierCount: number;
+  lastPracticedAt: number | null;
+  nextReviewAt: number | null;
+  /** The learner's own sentences, newest first — never invented examples. */
+  examples: MistakeEntity[];
+}
+
+/**
+ * The due time of the next scheduled review for a category, matched through the
+ * mistake's own identity so the drill button and the schedule agree on what
+ * "this category" means.
+ */
+export function nextReviewAtForCategory(
+  mistakes: MistakeEntity[],
+  reviewItems: Array<Pick<ReviewItemEntity, 'refId' | 'dueAt' | 'kind' | 'sourceId'>>,
+  category: MistakeCategory,
+  now = Date.now(),
+): number | null {
+  const keys = new Set<string>();
+  for (const mistake of mistakes) {
+    if (classifyMistake(mistake.grammarRule, mistake.original, mistake.corrected) !== category) continue;
+    if (mistake.syncId) keys.add(`mistake:${mistake.syncId}`);
+    if (mistake.id != null) keys.add(`id:${mistake.id}`);
+  }
+  const due = (reviewItems || [])
+    .filter((item) => item.kind === 'mistake')
+    .filter((item) => keys.has(item.refId) || (item.sourceId != null && keys.has(`id:${item.sourceId}`)))
+    .map((item) => Number(item.dueAt) || 0)
+    .filter((value) => value > now)
+    .sort((a, b) => a - b);
+  return due.length ? due[0] : null;
+}
+
+/**
+ * Per-category trend for the coach screen.
+ *
+ * `improving`/`worsening` compare the last seven days against the seven before
+ * them, and are only claimed once at least MIN_TREND_EVIDENCE mistakes exist in
+ * that category — a single bad conversation is not a pattern, and telling a
+ * learner they are getting worse on that evidence would be both wrong and
+ * discouraging.
+ */
+export function buildCategoryTrends(
+  mistakes: MistakeEntity[],
+  reviewItems: Array<Pick<ReviewItemEntity, 'refId' | 'dueAt' | 'kind' | 'sourceId'>> = [],
+  now = Date.now(),
+): CategoryTrend[] {
+  const rows = Array.isArray(mistakes) ? mistakes : [];
+  const grouped = new Map<MistakeCategory, MistakeEntity[]>();
+  for (const mistake of rows) {
+    const category = classifyMistake(mistake.grammarRule, mistake.original, mistake.corrected);
+    grouped.set(category, [...(grouped.get(category) || []), mistake]);
+  }
+
+  return [...grouped.entries()]
+    .map(([category, categoryMistakes]): CategoryTrend => {
+      const sorted = [...categoryMistakes].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      const recentCount = sorted.filter((mistake) => now - (mistake.timestamp || 0) <= TREND_WINDOW_MS).length;
+      const earlierCount = sorted.filter(
+        (mistake) =>
+          now - (mistake.timestamp || 0) > TREND_WINDOW_MS &&
+          now - (mistake.timestamp || 0) <= 2 * TREND_WINDOW_MS,
+      ).length;
+      const mastered = sorted.filter((mistake) => mistake.isMastered).length;
+
+      let trend: TrendDirection = 'insufficient';
+      if (sorted.length >= MIN_TREND_EVIDENCE) {
+        if (recentCount === 0 && earlierCount === 0) trend = 'steady';
+        else if (recentCount < earlierCount) trend = 'improving';
+        else if (recentCount > earlierCount) trend = 'worsening';
+        else trend = 'steady';
+      }
+
+      return {
+        category,
+        count: sorted.length,
+        open: sorted.length - mastered,
+        mastered,
+        trend,
+        recentCount,
+        earlierCount,
+        lastPracticedAt: sorted[0]?.timestamp || null,
+        nextReviewAt: nextReviewAtForCategory(sorted, reviewItems, category, now),
+        examples: sorted.slice(0, 2),
+      };
+    })
+    .sort((a, b) => b.count - a.count || a.category.localeCompare(b.category));
+}
+
+export interface WeeklyCoachSummary {
+  /** False when there is not enough recorded activity to say anything at all. */
+  hasData: boolean;
+  improvedAr: string;
+  repeatedAr: string;
+  nextAr: string;
+}
+
+/**
+ * "What improved, what repeated, what to practise next" — from recorded data
+ * only. With too little evidence it says so instead of inventing a week.
+ */
+export function buildWeeklyCoachSummary(
+  input: {
+    mistakes: MistakeEntity[];
+    sessions?: Array<Pick<SessionEntity, 'timestamp' | 'accuracyPercent' | 'independentSentences'>>;
+    dueReviewCount?: number;
+  },
+  now = Date.now(),
+): WeeklyCoachSummary {
+  const mistakes = Array.isArray(input.mistakes) ? input.mistakes : [];
+  const sessions = Array.isArray(input.sessions) ? input.sessions : [];
+  const sessionsThisWeek = sessions.filter((session) => now - (session.timestamp || 0) <= TREND_WINDOW_MS);
+
+  if (mistakes.length < MIN_TREND_EVIDENCE && sessionsThisWeek.length === 0) {
+    return {
+      hasData: false,
+      improvedAr: '',
+      repeatedAr: '',
+      nextAr: 'تحتاج أسبوعاً من التدرّب (محادثة أو تدريبين) لأخبرك بما تحسّن فعلاً. لا أريد تخميناً.',
+    };
+  }
+
+  const trends = buildCategoryTrends(mistakes, [], now);
+  const improvedCategories = trends.filter((trend) => trend.trend === 'improving');
+  const masteredRecently = mistakes.filter(
+    (mistake) => mistake.isMastered && now - (mistake.timestamp || 0) <= TREND_WINDOW_MS,
+  ).length;
+
+  const improvedAr = improvedCategories.length
+    ? `تحسّن ${improvedCategories.map((trend) => CATEGORY_COPY[trend.category].labelAr).join(' و ')}: أخطاؤك فيه أقل من الأسبوع الماضي.`
+    : masteredRecently > 0
+      ? `أتقنت ${masteredRecently} خطأً كانت تتكرر عليك — أي أنك لم تعد تكررها.`
+      : 'لم يرصد التطبيق تحسّناً قابلاً للقياس هذا الأسبوع بعد. هذا ليس فشلاً؛ فقط لا توجد بعد بيانات تكفي للحكم.';
+
+  const repeated = [...trends]
+    .filter((trend) => trend.open > 0 && (trend.trend === 'worsening' || trend.recentCount > 0))
+    .sort((a, b) => b.recentCount - a.recentCount || b.open - a.open);
+  const repeatLead = repeated[0];
+
+  const repeatedAr = repeatLead
+    ? `ما زال يتكرر: ${CATEGORY_COPY[repeatLead.category].labelAr} (${repeatLead.open} خطأً مفتوحاً).`
+    : 'لا يوجد نمط يتكرر على أخطائك المفتوحة في هذه الفترة.';
+
+  const nextAr = input.dueReviewCount && input.dueReviewCount > 0
+    ? `التالي: ${input.dueReviewCount} عنصراً مستحقاً في المراجعة اليوم.`
+    : repeatLead
+      ? `التالي: تدرّب على ${CATEGORY_COPY[repeatLead.category].labelAr} — أثره في الأسبوع المقبل سيكون مرئياً.`
+      : 'التالي: أكمل مشهداً جديداً — سنبني عليه بيانات الأسبوع القادم.';
+
+  return { hasData: true, improvedAr, repeatedAr, nextAr };
 }
 
 /**

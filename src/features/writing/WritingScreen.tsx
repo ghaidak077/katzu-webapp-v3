@@ -10,7 +10,11 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { triggerHaptic } from '@/lib/utils/haptics';
-import { ArrowLeft, CheckCircle2, Loader2, PenLine, Sparkles, Volume2, XCircle } from 'lucide-react';
+import { isProEffective } from '@/lib/utils/subscription';
+import { servedLevel } from '@/lib/entitlement/trial';
+import { track } from '@/lib/analytics/client';
+import { ArrowLeft, CheckCircle2, PenLine, Sparkles, Volume2, XCircle } from 'lucide-react';
+import { KatzuThinking } from '@/components/effects/KatzuThinking';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import type { CEFRLevel, WritingFeedback } from '@/types/models';
 
@@ -61,7 +65,11 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { speak } = useSpeechOutput();
 
-  const level: CEFRLevel = user?.cefrLevel || 'A1';
+  // The task is built at the level the server will grade it at. Sending a free
+  // learner's measured level here used to mean an A2 learner could not write at
+  // all: the entitlement check refuses anything but A1, and the paragraph they had
+  // just composed met a paywall instead of feedback.
+  const level: CEFRLevel = servedLevel(user?.cefrLevel, isProEffective(user));
   const taskType = writingTaskForLevel(level);
   const copy = WRITING_TASK_COPY[taskType];
 
@@ -114,6 +122,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
     triggerHaptic('success');
     setIsSubmitting(false);
     await persistResult(result.feedback);
+    track('writing_completed', { skill: 'writing', count: Math.round(result.feedback.percent) });
   };
 
   /** Corrections become review cards and skill-practice data; nothing else is stored. */
@@ -342,7 +351,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         <Button type="submit" className="w-full" disabled={!canSubmit}>
           {isSubmitting ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" /> جاري التصحيح...
+              <KatzuThinking size={20} layout="inline" /> جاري التصحيح...
             </>
           ) : (
             <>

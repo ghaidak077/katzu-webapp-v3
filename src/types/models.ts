@@ -3,6 +3,35 @@
 export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2';
 export type SessionMode = 'quick' | 'immersion';
 
+/**
+ * Why the learner is learning German. This is the one personalisation input the
+ * product thesis says matters most: someone preparing for a job needs the
+ * Bürgeramt and the interview, while someone already here needs the doctor and
+ * the landlord. Choosing a goal must visibly change what the home screen asks
+ * for, otherwise the question was data collection, not personalisation.
+ */
+export type LearnerGoal = 'daily_life' | 'work' | 'university' | 'exam';
+
+/** Where the learner is in the move: it decides which situations are urgent. */
+export type ArrivalStatus = 'preparing' | 'recently_arrived' | 'living_in_germany';
+
+/** What an optional target date refers to. */
+export type TargetDateKind = 'move' | 'exam' | 'job';
+
+/**
+ * What the learner has tried before Katzu.
+ *
+ * It is asked once, and it changes one decision honestly: whether the placement
+ * check is offered first (someone who has studied German before should not be
+ * started at A1 on a guess) or the learner can simply begin. It never sets a
+ * level by itself — only the check does that.
+ */
+export type PreviousGerman = 'first_time' | 'some_basics' | 'can_hold';
+
+/** Presets the onboarding offers for daily study time. */
+export const DAILY_MINUTE_CHOICES = [5, 10, 20] as const;
+export type DailyMinuteChoice = (typeof DAILY_MINUTE_CHOICES)[number];
+
 export type TrailNodeStatus = 'MASTERED' | 'ACTIVE' | 'UPCOMING' | 'LOCKED';
 
 export type GermanGender = 'MASCULINE' | 'FEMININE' | 'NEUTER' | 'PLURAL_ONLY' | 'NONE';
@@ -95,6 +124,25 @@ export interface UserEntity {
   freeSessionsRemaining: number;
   dailyGoalMinutes: number;
   weeklyGoalDays: number;
+  // --- Onboarding preferences (all optional: rows written before onboarding
+  // existed simply lack them, and the UI asks for what is missing instead of
+  // assuming a value). `dailyMinutes` deliberately reuses `dailyGoalMinutes`
+  // above rather than adding a duplicate field. ---
+  /** Set once the learner finished the onboarding questions. */
+  onboardingCompletedAt?: number;
+  primaryGoal?: LearnerGoal;
+  arrivalStatus?: ArrivalStatus;
+  /** Self-reported prior exposure; decides the placement offer, never the level. */
+  previousGerman?: PreviousGerman;
+  /** Epoch ms of the learner's optional target date (move/exam/interview). */
+  targetDate?: number;
+  targetDateKind?: TargetDateKind;
+  /** HH:mm the learner prefers to be reminded; display only, no notifications. */
+  preferredReminderTime?: string;
+  /** BCP-47 locale the learner's device reported (e.g. 'ar'). */
+  locale?: string;
+  /** IANA timezone the learner's device reported (e.g. 'Europe/Berlin'). */
+  timezone?: string;
 }
 
 export interface RedeemedCodeEntity {
@@ -202,6 +250,14 @@ export interface ReviewItemEntity {
   lastReviewedAt?: number;
   createdAt: number;
 }
+
+/**
+ * A finished scenario's capability state, derived from recorded evidence only.
+ * The order is the honest ladder: INTRODUCED means they met it, PRACTISING
+ * means they worked it, INDEPENDENT means they produced it unaided, and
+ * RETAINED means they succeeded again after the schedule brought it back.
+ */
+export type CapabilityState = 'NOT_STARTED' | 'INTRODUCED' | 'PRACTISING' | 'INDEPENDENT' | 'RETAINED';
 
 export interface SyncQueueEntity {
   id?: number;

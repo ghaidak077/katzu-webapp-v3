@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { track } from '@/lib/analytics/client';
 import { ArrowLeft, CheckCircle2, Headphones, RotateCcw, Sparkles, Volume2, XCircle } from 'lucide-react';
 
 export interface ListeningScreenProps {
@@ -42,6 +43,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
 
   const [queue, setQueue] = useState<DrillItem[] | null>(null);
   const startedRef = useRef(false);
+  const completionTrackedRef = useRef(false);
   const [index, setIndex] = useState(0);
   const [typed, setTyped] = useState('');
   const [result, setResult] = useState<DictationResult | null>(null);
@@ -90,6 +92,11 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
       score: Math.round((tally.correct / index) * 100),
       at: Date.now(),
     });
+    // Funnel signal: a finished dictation run is the app's listening proof.
+    if (!completionTrackedRef.current) {
+      completionTrackedRef.current = true;
+      track('listening_completed', { skill: 'listening', count: tally.correct });
+    }
   }, [finished, index, tally.correct]);
 
   // Play (or briefly show) the sentence when a new item appears.

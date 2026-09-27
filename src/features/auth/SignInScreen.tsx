@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { track } from '@/lib/analytics/client';
 import {
   ArrowRight,
   AlertCircle,
@@ -191,6 +192,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     }
 
     triggerHaptic('success');
+    if (mode === 'signup') track('signup_completed');
     setSuccessMessage(
       mode === 'signup'
         ? 'تم إنشاء حسابك بنجاح! جاري الدخول...'
@@ -229,6 +231,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 
   const handleTriggerGooglePrompt = () => {
     triggerHaptic('light');
+    if (mode === 'signup') track('signup_started', { source: 'google_button' });
     setErrorMessage('');
     if (window.google?.accounts?.id) {
       window.google.accounts.id.prompt();
@@ -339,6 +342,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             type="button"
             onClick={() => {
               setMode('signup');
+              track('signup_started', { source: 'tab' });
               setErrorMessage('');
               triggerHaptic('light');
             }}

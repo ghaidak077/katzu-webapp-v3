@@ -18,6 +18,13 @@ export interface QuizQuestion {
   exampleTranslationAr?: string;
   /** CEFR level of the source D1 row. */
   sourceLevel?: string;
+  /**
+   * Which content table the question came from plus its row id, so a wrong
+   * answer can be enrolled in the review queue (the learner just proved they
+   * do not know it yet — that is exactly what the schedule is for).
+   */
+  sourceKind: 'vocab' | 'phrase';
+  sourceId: number;
   options: string[]; // Arabic options
   correctIndex: number;
   explanation: string;
@@ -119,6 +126,8 @@ export function generateQuizQuestions(
     const word = `${target.article ? target.article + ' ' : ''}${target.german}`;
     questions.push({
       kind: 'vocab',
+      sourceKind: 'vocab',
+      sourceId: target.id,
       germanPrompt: word,
       exampleSentence: target.example_de || undefined,
       exampleTranslationAr: target.example_ar || undefined,
@@ -148,6 +157,8 @@ export function generateQuizQuestions(
     const options = shuffle([p.translation_ar, ...distractors], rng);
     questions.push({
       kind: 'phrase',
+      sourceKind: 'phrase',
+      sourceId: p.id,
       germanPrompt: p.german,
       sourceLevel: p.level,
       options,

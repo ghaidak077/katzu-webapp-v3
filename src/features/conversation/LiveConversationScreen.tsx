@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useReducer } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { enrolMistake } from '@/lib/srs/store';
@@ -9,20 +9,24 @@ import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
-import { AudioWaveform } from '@/components/common/AudioWaveform';
 import { HintOption } from '@/components/common/HintOption';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { isProEffective } from '@/lib/utils/subscription';
+import { servedLevel } from '@/lib/entitlement/trial';
+import { KatzuThinking } from '@/components/effects/KatzuThinking';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { KatzuOrb, type OrbState } from '@/components/voice/KatzuOrb';
+import { GlassButton } from '@/components/glass/GlassButton';
+import { useMicLevel } from '@/lib/audio/useMicLevel';
+import { planTurns } from '@/lib/conversation/turnPlan';
 import {
   ArrowRight,
   Mic,
   MicOff,
   Send,
   Volume2,
-  Sparkles,
   RefreshCw,
   Lightbulb,
   AlertTriangle,
@@ -30,6 +34,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Keyboard,
 } from 'lucide-react';
 import type {
   ChatMessage,
@@ -42,6 +47,17 @@ import type {
 import { calculateIndependentAccuracy } from '@/features/report/metrics';
 import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 import { logError, logEvent } from '@/lib/utils/diagnostics';
+import { track } from '@/lib/analytics/client';
+import {
+  classifySpeechError,
+  classifyTurnError,
+  conversationReducer,
+  initialConversationState,
+  isTurnInFlight,
+  isUsableTranscript,
+  MIC_PERMISSION_MESSAGE_AR,
+  UNUSABLE_TRANSCRIPT_MESSAGE_AR,
+} from '@/lib/conversation/stateMachine';
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
@@ -68,7 +84,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  // One explicit conversation state machine owns every in-between state. The
+  // derived values below are the only way the UI reads them, so a spinner can
+  // never run beside an error card and two sends can never overlap.
+  const [conversation, dispatch] = useReducer(conversationReducer, undefined, initialConversationState);
+  const isGenerating = isTurnInFlight(conversation);
   const [showArabicTranslation, setShowArabicTranslation] = useState<Record<string, boolean>>({});
   // Global switch: every Katzu message shows its Arabic translation at once.
   // A per-message toggle still wins because an explicit override beats the global.
@@ -81,8 +101,21 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   // Cached starter phrases are the always-available hint floor — shown when AI
   // hints fail/paywall and refreshed from the Worker when the cache is empty.
   const [starterHints, setStarterHints] = useState<ContextualHint[]>([]);
-  const [turnError, setTurnError] = useState<{ failedText: string; message: string } | null>(null);
-  const [micError, setMicError] = useState<string | null>(null);
+  // Derived, never stored: the machine already has exactly one error.
+  const conversationError = conversation.error;
+  const turnError =
+    conversation.pendingText &&
+    conversationError &&
+    (conversationError.kind === 'network' ||
+      conversationError.kind === 'ai_service' ||
+      conversationError.kind === 'invalid_session')
+      ? { failedText: conversation.pendingText, message: conversationError.messageAr }
+      : null;
+  const micError =
+    conversationError &&
+    (conversationError.kind === 'mic_permission' || conversationError.kind === 'speech_recognition')
+      ? conversationError.messageAr
+      : null;
   const [isHintUsedForCurrentTurn, setIsHintUsedForCurrentTurn] = useState(false);
   const [paywall, setPaywall] = useState<{ isOpen: boolean; title: string; description: string }>({
     isOpen: false,
@@ -101,26 +134,29 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
 
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const [currentLevel, setCurrentLevel] = useState<CEFRLevel>(user?.cefrLevel || 'A1');
-  const [isSessionCompleted, setIsSessionCompleted] = useState(false);
+  const [currentLevel, setCurrentLevel] = useState<CEFRLevel>(servedLevel(user?.cefrLevel, isProUser));
+  const isSessionCompleted = conversation.status === 'completed';
+  const firstIndependentTrackedRef = useRef(false);
+  const inFlightRef = useRef(false);
 
-  // Sync user's default level initially if not yet changed
+  // Sync the episode's level once the learner row is loaded, and again if they
+  // upgrade mid-session — Pro unlocks the level the placement measured, and the
+  // conversation should follow without a reload.
   useEffect(() => {
-    if (user?.cefrLevel) {
-      setCurrentLevel(user.cefrLevel);
-    }
-  }, [user?.cefrLevel]);
+    setCurrentLevel(servedLevel(user?.cefrLevel, isProUser));
+  }, [user?.cefrLevel, isProUser]);
 
   const effectiveLevel = currentLevel;
 
-  // Automated CEFR Exchange Target turns (Rule 7)
-  const targetTurns = sessionMode === 'immersion'
-    ? (effectiveLevel === 'A1' || effectiveLevel === 'A2' ? 8 : 10)
-    : effectiveLevel === 'A1' ? 3 : effectiveLevel === 'A2' ? 4 : effectiveLevel === 'B1' ? 5 : 6;
+  // Turn pacing comes from the explicit, tested rule in turnPlan.ts — the screen
+  // no longer decides session length, so the documented and implemented numbers
+  // cannot drift apart.
+  const targetTurns = planTurns(sessionMode ?? 'quick', effectiveLevel);
   const userTurnsCount = messages.filter((m) => m.sender === 'USER').length;
 
-  // Free accounts stay at their level: the أسهل/أصعب nudge is Pro-only, so a
-  // free user can never steer the AI into a level the server will reject.
+  // The أسهل/أصعب nudge is Pro-only. A free conversation runs at the level the
+  // trial serves, and stepping away from it is the one thing the server would
+  // refuse — so the control that could do that is the control that asks for Pro.
   const handleNudgeDifficulty = (direction: 'easier' | 'harder') => {
     if (!isProUser) {
       setPaywall({
@@ -144,29 +180,163 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     }
   };
 
-  const { speak, isPlaying } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
+  const { speak } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
 
-  const { isListening, transcript, isSupported, startListening, stopListening } = useSpeechInput({
+  // Recognition and the analyser are two APIs over the same microphone, so both
+  // are released from the one place the learner stops speaking. The ref lets the
+  // speech hook close the audio graph without depending on its declaration order.
+  const micStopRef = useRef<() => void>(() => {});
+  const {
+    isListening,
+    isSupported,
+    startListening,
+    stopListening: stopRecognition,
+  } = useSpeechInput({
     onResult: (text, isFinal) => {
+      if (isFinal && !isUsableTranscript(text)) {
+        // Recognition fired on noise: report a failed listening attempt rather
+        // than sending a turn the learner never said. Whatever is already in the
+        // box is left untouched — it may be a sentence they typed.
+        stopRecognition();
+        micStopRef.current();
+        dispatch({ type: 'speech_failed', messageAr: UNUSABLE_TRANSCRIPT_MESSAGE_AR });
+        return;
+      }
       setInputText(text);
       if (isFinal) {
-        stopListening();
+        stopRecognition();
+        micStopRef.current();
       }
     },
     onError: (error) => {
-      // Surface STT failures so the mic button never appears silently broken.
-      const messages: Record<string, string> = {
-        'not-allowed': 'لم يُسمح بالوصول للمايك. اسمح بالوصول من إعدادات المتصفح ثم أعد المحاولة.',
-        'service-not-allowed': 'خدمة التعرف على الصوت غير مفعلة في هذا المتصفح. يمكنك الكتابة بدلاً من التحدث.',
-        'network': 'التعرف على الصوت يحتاج اتصالاً بالإنترنت. تحقق من شبكتك أو اكتب جملتك.',
-        'no-speech': 'لم أسمع شيئاً — اقترب من المايك وحاول مرة أخرى.',
-        'audio-capture': 'لم أتمكن من الوصول للمايك. تأكد من توصيله والمحاولة مجدداً.',
-        'language-not-supported': 'التعرف الصوتي الألماني غير مدعوم في هذا المتصفح — استخدم Edge أو Chrome على أندرويد، أو اكتب جملتك.',
-      };
-      setMicError(messages[error] || `تعذر الإدخال الصوتي (${error}). يمكنك الكتابة بالألمانية بدلاً من ذلك.`);
+      // Every STT failure becomes a machine state, so the mic can never appear
+      // silently broken and the typed fallback stays available.
+      const classified = classifySpeechError(error);
+      dispatch({
+        type: classified.kind === 'mic_permission' ? 'mic_denied' : 'speech_failed',
+        messageAr: classified.messageAr,
+      });
       logError('stt', `Speech recognition error: ${error}`);
     },
   });
+
+  // The orb is the microphone control, so it owns the real audio stream. Speech
+  // recognition and the analyser are separate APIs over the same permission:
+  // recognition gives words, the analyser gives the amplitude the orb moves to.
+  const mic = useMicLevel();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const characterNameAr = scenario?.title_ar || 'المحادثة';
+
+  /**
+   * The orb's state is derived from the conversation machine — never from a
+   * second set of booleans that could disagree with it. Quota and offline come
+   * first because they are terminal for the turn, not transient.
+   */
+  const orbState: OrbState =
+    conversation.status === 'quota_exhausted'
+      ? 'quota'
+      : conversation.status === 'offline'
+        ? 'offline'
+        : conversation.status === 'retryable_error'
+          ? 'error'
+          : conversation.status === 'generating_reply'
+            ? 'replying'
+            : conversation.status === 'evaluating'
+              ? 'evaluating'
+              : conversation.status === 'transcribing'
+                ? 'transcribing'
+                : isListening
+                  ? 'listening'
+                  : 'idle';
+
+  // Magenta is reserved for a turn the learner actually got right — the last
+  // evaluation produced no correction. It is never the resting colour.
+  const lastEvaluation = [...messages].reverse().find((message) => message.sender === 'KATZU' && message.id !== 'msg_initial');
+  const orbTone: 'lavender' | 'earned' =
+    conversation.status === 'showing_feedback' && lastEvaluation && !lastEvaluation.hasCorrection
+      ? 'earned'
+      : 'lavender';
+
+  const orbLabelAr = !isSupported
+    ? 'الإدخال الصوتي غير متاح — اكتب بالألمانية'
+    : isListening
+      ? 'إيقاف الاستماع'
+      : orbState === 'transcribing'
+        ? 'جارٍ التعرف على كلامك'
+        : orbState === 'evaluating' || orbState === 'replying'
+          ? 'كَاتْزُو يعمل على ردّك'
+          : orbState === 'quota'
+            ? 'انتهت الجلسات المجانية'
+            : orbState === 'offline'
+              ? 'لا يوجد اتصال'
+              : 'ابدأ التحدث';
+
+  // Releasing the microphone is one action for the whole screen: speech
+  // recognition and the audio analyser both stop, so the orb can never keep
+  // reacting to a live microphone after the learner finished speaking.
+  const stopListening = useCallback(() => {
+    stopRecognition();
+    micStopRef.current();
+  }, [stopRecognition]);
+
+  useEffect(() => {
+    micStopRef.current = mic.stop;
+  }, [mic.stop]);
+
+  /**
+   * Tap the orb to speak. The typed path is never closed by a failure: a denied
+   * microphone raises the machine's mic_denied state, which keeps the learner's
+   * existing text and points them at the input box.
+   */
+  const handleOrbPress = useCallback(async () => {
+    dispatch({ type: 'dismiss_error' });
+    if (isListening) {
+      stopListening();
+      return;
+    }
+    const failure = await mic.start();
+    if (failure) {
+      dispatch({
+        type: failure === 'denied' ? 'mic_denied' : 'speech_failed',
+        messageAr:
+          failure === 'denied'
+            ? MIC_PERMISSION_MESSAGE_AR
+            : 'تعذّر تشغيل المايك في هذا المتصفح. يمكنك الكتابة — النتيجة نفسها.',
+      });
+      return;
+    }
+    startListening();
+  }, [isListening, stopListening, startListening, mic]);
+
+  /** The always-present escape hatch: stop listening and type instead. */
+  const handleTypeInstead = useCallback(() => {
+    if (isListening) stopListening();
+    dispatch({ type: 'dismiss_error' });
+    inputRef.current?.focus();
+  }, [isListening, stopListening]);
+
+  // Connectivity is part of the conversation state, not a separate banner: a
+  // turn that cannot be sent must say so where the learner sent it from.
+  useEffect(() => {
+    const onOffline = () => dispatch({ type: 'going_offline' });
+    const onOnline = () => dispatch({ type: 'back_online' });
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+    };
+  }, []);
+
+  // Backgrounding the tab mid-turn must not lose the turn: a browser that kills
+  // the request fires the failure path, which keeps the learner's sentence.
+  useEffect(() => {
+    const onVisibility = () =>
+      dispatch({ type: document.visibilityState === 'hidden' ? 'backgrounded' : 'foregrounded' });
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -248,7 +418,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     };
 
     setMessages([welcomeMsg]);
-    setTurnError(null);
+    dispatch({ type: 'reset' });
+    track('conversation_started', { scenarioId, kind: sessionMode });
 
     // Load cached starter phrases as initial hints
     void loadStarterHints();
@@ -281,11 +452,19 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     }
   };
 
-  // Rule 5: Exactly ONE /ai/turn call per user turn
+  // Rule 5: Exactly ONE /ai/turn call per user turn. The state machine refuses
+  // a submit while a turn is in flight and the ref closes the window before the
+  // next render, so a double-tap cannot buy two calls (and two units of quota)
+  // for one sentence.
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
-    if (!text || isGenerating) return;
+    if (!text || inFlightRef.current) return;
+    inFlightRef.current = true;
+    dispatch({ type: 'submit', text, turnId: Date.now() });
+    await sendTurn(text);
+  };
 
+  const sendTurn = async (text: string) => {
     setInputText('');
     stopListening();
 
@@ -303,9 +482,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
-    setIsGenerating(true);
-    setTurnError(null);
-    setMicError(null);
 
     const isFinalTurn = userTurnsCount + 1 >= targetTurns;
 
@@ -360,6 +536,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
       const updatedHistory = [...newMessages, katzuReply];
       setMessages(updatedHistory);
+      dispatch({ type: 'turn_ok' });
+
+      // The first sentence produced without a hint is the product's real "you
+      // can speak" moment, and the funnel needs to know it happened.
+      if (!wasHintUsed && !firstIndependentTrackedRef.current) {
+        firstIndependentTrackedRef.current = true;
+        track('first_independent_turn', { scenarioId, count: 1 });
+      }
 
       // Speak Katzu's reply automatically
       speak(res.germanReply);
@@ -397,7 +581,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
       // Check for completion (Rule 7)
       if (isFinalTurn) {
-        setIsSessionCompleted(true);
+        dispatch({ type: 'complete' });
         triggerHaptic('success');
         setTimeout(() => {
           finishSession(updatedHistory);
@@ -406,7 +590,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     } catch (e: any) {
       if (e?.code === 'PAYWALL_REQUIRED') {
         // Server-side entitlement rejection (level lock or quota) — show the
-        // Katzu paywall instead of a dead error in the chat.
+        // Katzu paywall instead of a dead error in the chat, and mark the quota
+        // state so a retry cannot burn the learner's remaining allowance.
+        dispatch({ type: 'quota_exhausted', messageAr: e?.message });
         setPaywall({
           isOpen: true,
           title: 'هذا المستوى ميزة Pro',
@@ -417,24 +603,23 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         // and a one-tap retry — never a silent spinner or a swallowed error.
         const message =
           e?.code === 'REQUEST_TIMEOUT'
-            ? 'انتهت مهلة الاتصال بالخادم. تحقق من الإنترنت ثم أعد الإرسال.'
+            ? 'انتهت مهلة الاتصال بالخادم. جملتك محفوظة — أعد الإرسال عندما يعود الاتصال.'
             : e?.code === 'NETWORK_ERROR'
-              ? 'تعذر الوصول إلى الخادم. تحقق من اتصالك بالإنترنت وحاول مجدداً.'
+              ? 'تعذر الوصول إلى الخادم. جملتك محفوظة هنا، أعد المحاولة.'
               : e?.code === 'WORKER_URL_MISSING'
                 ? 'رابط الخادم غير مضبوط في هذا الإصدار — حدّث التطبيق أو تواصل مع الدعم.'
-                : e?.message || 'تعذر إرسال الجملة. تحقق من اتصالك وأعد المحاولة.';
-        setTurnError({ failedText: text, message });
+                : classifyTurnError(e).messageAr;
+        dispatch({ type: 'turn_failed', error: { ...classifyTurnError(e), messageAr: message } });
         logError('ai/turn', `Turn failed (${e?.code || 'UNKNOWN'}): ${message}`);
       }
     } finally {
-      setIsGenerating(false);
+      inFlightRef.current = false;
     }
   };
 
   const retryFailedTurn = () => {
-    if (!turnError) return;
-    const { failedText } = turnError;
-    setTurnError(null);
+    const failedText = conversation.pendingText;
+    if (!failedText || inFlightRef.current) return;
     // Remove the failed user message before re-sending so the transcript has
     // exactly one copy of the sentence.
     setMessages((prev) => {
@@ -442,13 +627,15 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       if (idx === -1) return prev;
       return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
     });
-    handleSendMessage(failedText);
+    inFlightRef.current = true;
+    dispatch({ type: 'retry' });
+    void sendTurn(failedText);
   };
 
   const handleUseHint = (hint: ContextualHint) => {
     setInputText(hint.german);
     setIsHintUsedForCurrentTurn(true);
-    setMicError(null);
+    dispatch({ type: 'dismiss_error' });
     triggerHaptic('light');
   };
 
@@ -537,6 +724,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       mode: sessionMode || 'quick',
     };
     db.sessions.put(sessionRecord);
+    track('conversation_completed', {
+      scenarioId,
+      count: independentMsgs.length,
+      state: accuracy === null ? 'unmeasured' : String(accuracy),
+    });
 
     // Update local learning stats; trial entitlement is enforced by the Worker.
     const earnedXp = Math.round((accuracy ?? 0) * 1.5) + (assistedMsgs.length === 0 ? 50 : 25);
@@ -629,27 +821,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <ArrowRight className="w-5 h-5 text-text-secondary" />
         </button>
 
-        {/* Turn Progress Pill & Real-time Difficulty Nudge (Rule: أسهل / أصعب) */}
-        <div className="flex items-center gap-1.5 p-1 rounded-full bg-surface-card border border-border-subtle text-xs font-semibold">
-          <button
-            onClick={() => handleNudgeDifficulty('easier')}
-            disabled={effectiveLevel === 'A1'}
-            className="px-2 py-0.5 rounded-full text-[11px] font-arabic text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:hover:text-text-secondary transition-colors"
-            title="تقليل الصعوبة"
-          >
-            أسهل
-          </button>
-          <Badge variant="primary" size="sm">
-            {effectiveLevel}
-          </Badge>
-          <button
-            onClick={() => handleNudgeDifficulty('harder')}
-            disabled={effectiveLevel === 'B2'}
-            className="px-2 py-0.5 rounded-full text-[11px] font-arabic text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:hover:text-text-secondary transition-colors"
-            title="زيادة الصعوبة"
-          >
-            أصعب
-          </button>
+        {/* Who the learner is speaking to, and which round this is. Navigation and
+            translation keep the corners; difficulty moves to its own quiet row so
+            the header holds one idea instead of three competing pills. */}
+        <div className="flex min-w-0 flex-col items-center px-2">
+          <span className="kz-ar-caption max-w-[44vw] truncate text-kz-ink">{characterNameAr}</span>
+          <span className="kz-ar-micro text-kz-inkFaint">
+            الجولة {Math.min(userTurnsCount + 1, targetTurns)} من {targetTurns} · {effectiveLevel}
+          </span>
         </div>
 
         {/* Turn Counter Pill (Auto-completes dynamically based on CEFR level) */}
@@ -671,10 +850,27 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           >
             <Languages className="w-4 h-4" />
           </button>
-          <div className="px-2.5 py-1 rounded-full bg-surface-card border border-border-subtle text-[11px] font-semibold text-text-secondary">
-            الجولة {Math.min(userTurnsCount + 1, targetTurns)} / {targetTurns}
-          </div>
         </div>
+      </div>
+
+      {/* Difficulty nudge: real functionality, deliberately secondary — a learner
+          who never touches it still finishes the episode. */}
+      <div className="flex items-center justify-center gap-2 px-4 pb-1.5 pt-0.5">
+        <button
+          onClick={() => handleNudgeDifficulty('easier')}
+          disabled={effectiveLevel === 'A1'}
+          className="kz-ar-micro flex min-h-[32px] items-center rounded-full border border-white/10 px-2.5 text-kz-inkFaint transition-colors hover:text-kz-inkDim disabled:opacity-30 disabled:hover:text-kz-inkFaint"
+        >
+          أسهل
+        </button>
+        <span className="kz-ar-micro text-kz-inkFaint">صعوبة المحادثة</span>
+        <button
+          onClick={() => handleNudgeDifficulty('harder')}
+          disabled={effectiveLevel === 'B2'}
+          className="kz-ar-micro flex min-h-[32px] items-center rounded-full border border-white/10 px-2.5 text-kz-inkFaint transition-colors hover:text-kz-inkDim disabled:opacity-30 disabled:hover:text-kz-inkFaint"
+        >
+          أصعب
+        </button>
       </div>
 
       {/* Messages Scroll Area */}
@@ -883,9 +1079,16 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                 <CheckCircle2 className="w-4 h-4" />
                 اكتملت محادثة السيناريو بنجاح!
               </div>
-              <p className="text-[11px] text-text-secondary font-arabic">
-                أحسنت! جاري إعداد تقرير أدائك اللغوي مع كَاتْزُو...
-              </p>
+              {/* The Debrief is compiling: the same processing motion the rest of
+                  the app uses, so "thinking" looks like one thing everywhere. */}
+              <div className="mt-1">
+                <KatzuThinking
+                  size={22}
+                  layout="inline"
+                  labelAr="أحسنت! جاري إعداد تقرير أدائك اللغوي مع كَاتْزُو..."
+                  className="gap-2"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -962,9 +1165,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             <MicOff className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <span className="flex-1">{micError}</span>
             <button
-              onClick={() => setMicError(null)}
+              onClick={() => dispatch({ type: 'dismiss_error' })}
               aria-label="إخفاء"
-              className="text-text-muted hover:text-text-primary"
+              className="text-text-muted hover:text-text-primary min-h-[44px] min-w-[44px]"
             >
               ✕
             </button>
@@ -977,32 +1180,29 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             الإدخال الصوتي غير متاح في هذا المتصفح؛ يمكنك الكتابة بالألمانية هنا.
           </p>
         )}
-        <div className="flex items-center gap-2">
-          {/* Mic Button (STT) */}
-          <button
-            onClick={() => {
-              setMicError(null);
-              if (isListening) {
-                stopListening();
-              } else {
-                startListening();
-              }
-            }}
-            disabled={!isSupported}
-            aria-label={isSupported ? 'بدء الإدخال الصوتي' : 'الإدخال الصوتي غير متاح'}
-            className={`p-3.5 rounded-2xl border transition-all flex items-center justify-center flex-shrink-0 ${
-              isListening
-                ? 'bg-status-error border-status-error text-white animate-pulse shadow-glow-purple'
-                : 'bg-surface-card border-border-subtle text-primary hover:bg-surface-subtle'
-            }`}
-          >
-            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          </button>
+        {/* The orb, one continuous object across every turn state, above the
+            typing row. It owns the microphone; the input rows below are the
+            always-available typed alternative. */}
+        <div className="flex flex-col items-center gap-1">
+          <KatzuOrb
+            state={orbState}
+            readLevel={mic.read}
+            tone={orbTone}
+            onPress={() => void handleOrbPress()}
+            disabled={!isSupported || orbState === 'quota'}
+            labelAr={orbLabelAr}
+          />
+          {orbState === 'listening' && (
+            <span className="kz-ar-micro text-kz-lavender">أنا أستمع إليك… تحدث الآن</span>
+          )}
+        </div>
 
+        <div className="flex items-center gap-2">
           <input
+            ref={inputRef}
             type="text"
             dir="ltr"
-            placeholder={isListening ? 'أنا أستمع إليك... تحدث الآن' : 'اكتب جملتك بالألمانية أو اضغط المايك...'}
+            placeholder={isListening ? 'أنا أستمع إليك... تحدث الآن' : 'اكتب جملتك بالألمانية هنا…'}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -1014,9 +1214,18 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             className="h-12 w-12 rounded-2xl p-0 flex items-center justify-center flex-shrink-0"
             disabled={!inputText.trim() || isGenerating}
             onClick={() => handleSendMessage()}
+            aria-label="أرسل جملتك"
           >
-            <Send className="w-5 h-5 rotate-180" />
+            <Send className="w-5 h-5 rotate-180" aria-hidden />
           </Button>
+        </div>
+
+        {/* Always present, never behind a failure state. */}
+        <div className="flex items-center justify-center">
+          <GlassButton variant="quiet" onClick={handleTypeInstead} className="gap-1.5">
+            <Keyboard className="h-3.5 w-3.5" />
+            {isListening ? 'اكتب بدلاً من ذلك' : 'تفضّل الكتابة؟ اكتب هنا'}
+          </GlassButton>
         </div>
       </div>
 

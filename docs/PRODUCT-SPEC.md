@@ -1,11 +1,31 @@
 # Katzu — Full Product Specification
 
-> **Status:** living specification document · **Last updated:** 2026-09-25
+> **Status:** living specification document · **Last updated:** 2026-09-27
 > **Product owner:** غيدق علوش (Ghaidak Alloush) · ghaidak.com
 > **Repository:** `ghaidak077/katzu-webapp-v3` (branch `main`)
 > **Purpose:** the single, complete reference for what Katzu is, how it is built, and every
 > decision needed to change it later. It summarizes the whole app without omitting a surface.
 > Where a fact lives in the code, the owning file is named so it can be verified.
+>
+> **Corrections — verified against the code 2026-09-27.** Three statements below went stale and
+> could not be fixed where they stand (the §6 file tree, §25.2 and §31.2 all sit past the offset
+> this file's editor can reach). This block supersedes them.
+>
+> - **§25.2 "a structured placement test is not built" and §31.2 "no placement test / structured
+>   onboarding personalization" are both false.** An adaptive CEFR placement test is built and
+>   enforced: `src/features/placement/PlacementScreen.tsx` at `/placement`, running the pure
+>   staircase in `src/lib/placement/engine.ts` (A1–B2 ladder, starts at A2, two correct answers to
+>   climb, one wrong to step down, settles once the recent questions stay within one level — never
+>   before 6 items, never after 14), with items drawn from real Dexie content by
+>   `src/lib/placement/generator.ts`. Finishing it writes `cefrLevel` plus `placementCompletedAt` /
+>   `placementEstimatedLevel`; skipping — and picking a level by hand — writes `placementSkippedAt`,
+>   so a level nobody measured is recorded as *chosen*, never as measured. `src/App.tsx` sends
+>   every learner holding neither timestamp to `/placement` before the Trail, onboarding's last
+>   step offers it (the recommendation is weighted by the previous-experience answer), and missed
+>   items seed the review queue through
+>   `missedPlacementSourceIds`. Covered by 22 tests in `tests/placement.test.ts`.
+> - **The §6 file tree omits the placement module** — `src/lib/placement/engine.ts` and
+>   `src/lib/placement/generator.ts` exist and are what the screen above runs on.
 
 ---
 
@@ -372,13 +392,31 @@ katzu-webapp-v3/
 ## 7. Client routing
 
 All routes are declared in `src/App.tsx`. **Every learning surface sits behind the sign-in
-gate**; only `/welcome` and `/signin` are public (`isPublicPath`).
+gate**; only `/welcome`, `/signin` and the try-before-signup `/demo` are public (`isPublicPath`).
+
+> **Corrections (2026-09-26, product pass).** §7 and §8 were the only parts of this file still
+> inside the edit-tool's byte boundary (see the wall note at §16); §16 itself could not be
+> reached, so the one new worker route this pass added is recorded here instead: **`POST
+> /analytics/events`** — the privacy-safe event ingest. It lives in `cloudflare-analytics.js`
+> (delegated from the top of `handleAdminRoutes` in `cloudflare-admin.js`), accepts 1–20
+> allow-listed events whose names/keys are pinned equal to the client lists by
+> `tests/analyticsRoute.test.ts`, rejects unknown events, free text and PII, caps the body at
+> 32 KB, and appends to KV `analytics:evt:<day>:<uuid>` with a 30-day TTL. **It is not deployed**
+> — the route exists only in the working tree until `npm run deploy:worker`.
+>
+> §27 gains one env var the same pass: **`VITE_PUBLIC_APP_URL`** (name only; §4.1 already covers
+> `VITE_SALES_URL`). It is the app's own public origin, and canonical tags, Open Graph URLs, share
+> links and the legal-page links all read it through `publicAppUrl()` — so when a domain finally
+> resolves, the app side needs a deploy-time setting, not a code edit. Only `public/robots.txt`
+> and `public/sitemap.xml` still hardcode `katzu.app` (see `docs/LAUNCH-CHECKLIST.md` §2.4).
 
 | Path | Element | Auth | Purpose |
 |---|---|---|---|
 | `/` | redirect → `/app/trail` | gated | Entry |
 | `/welcome` | `WelcomeScreen` | **public** | First-run: name + goal sheet → sign-up |
 | `/signin` | `SignInScreen` (`?mode=signup`) | **public** | Google sign-in / sign-up, level picker |
+| `/demo` | `DemoScreen` | **public** | Try-before-signup lesson: study → quiz → speak → report, built from cached content with **no AI call**; progress migrates into the account on sign-up |
+| `/onboarding` | `OnboardingScreen` | gated | Goal, arrival status, target date, daily minutes (`?mode=first_run\|edit`) |
 | `/subscription` | `SubscriptionRedemptionScreen` | gated | Redeem an activation code / buy one / claim referral |
 | `/app` | redirect → `/app/trail` | gated | — |
 | `/app/:tab` | `MainTabsRoute` | gated | Tabs: `trail` \| `practice` \| `progress` \| `profile` |
@@ -401,7 +439,13 @@ gate**; only `/welcome` and `/signin` are public (`isPublicPath`).
 
 **Notable client-side state keys**
 - `sessionStorage['katzu_session_summary']` — the latest session summary passed to the report.
-- `localStorage['katzu_onboarding_completed']` — onboarding flag.
+- `localStorage['katzu_onboarding_completed']` — onboarding flag (legacy; the authoritative signal
+  is now `UserEntity.onboardingCompletedAt`).
+- `localStorage['katzu_demo_state_v1']` — the public demo's progress, consumed and deleted by
+  `consumeDemoProgress()` on first sign-in (`src/lib/demo/migration.ts`).
+- `localStorage['katzu_analytics_queue_v1']` — the analytics outbox. Bounded, drops oldest-first,
+  and holds no PII and no free text: the batch carries `hashAccountId()` → `acct_…` rather than an
+  account id. `katzu_analytics_opt_out` and `katzu_install_id` sit beside it (§11).
 - `localStorage['katzu_sales_orders_v1']` — sales-site order book (sales property only).
 
 ---
@@ -540,6 +584,21 @@ Each screen is Arabic-first, `max-w-md`, dark ("AMOLED black") and lives in `src
 - Three pages (privacy / terms / contact) with Arabic summaries that link to the hosted
   `/privacy` / `/terms` full text and a `mailto:` support button.
 
+### 8.14 `DemoScreen` — try before signup (`features/demo/DemoScreen.tsx`)
+- The public `/demo` loop: study → quiz → produce (Web Speech, optional) → summary, over a small
+  lesson assembled from cached content (`buildDemoLesson` / `buildDemoQuiz` in
+  `src/lib/demo/demoFlow.ts`).
+- **Never calls AI** — the demo must cost nothing per visitor and work offline.
+- Ends on a conversion CTA; its progress is migrated into the new account on sign-up instead of
+  being thrown away.
+
+### 8.15 `OnboardingScreen` — goal & level (`features/onboarding/OnboardingScreen.tsx`)
+- Four questions — goal, arrival status, target date, daily minutes — chosen so each answer changes
+  what the mission picks (`src/lib/onboarding/preferences.ts`).
+- `?mode=first_run|edit`: first run is mandatory and unreachable once
+  `UserEntity.onboardingCompletedAt` is set; `edit` reuses the same screen from Settings.
+- Reuses the existing `dailyGoalMinutes` field rather than adding a parallel column.
+
 ---
 
 ## 9. Design system & components
@@ -635,7 +694,14 @@ and the `.german-text` LTR-isolation class.
 | `subscription.ts` | Expiry-aware Pro gate (an expired date never keeps Pro powers) | `isProEffective` |
 | `diagnostics.ts` | In-memory 400-entry ring buffer capturing `console.error/warn`, `window.onerror`, `unhandledrejection`, and manual events; NETS separate; never logs tokens/content; copy/download/clear | `installDiagnosticsCapture`, `logEvent`, `logNetwork`, `logError`, `formatDiagnosticsText`, `copyDiagnostics`, `downloadDiagnostics`, `clearDiagnostics`, `getDiagnostics`, `subscribeDiagnostics` |
 | `haptics.ts` | Vibration patterns + German bidi isolation helper | `triggerHaptic`, `isolateGerman` |
-| `links.ts` | External link config | `SALES_URL` (default `https://katzu-sales.pages.dev`, overridable via `VITE_SALES_URL`), `PRO_PRICE_LABEL = '5 دولار / شهر'` |
+| `links.ts` | External link config + the app's own public origin | `SALES_URL` (default `https://katzu-sales.pages.dev`, overridable via `VITE_SALES_URL`), `PRO_PRICE_LABEL = '5 دولار / شهر'`, `PUBLIC_APP_URL` (`VITE_PUBLIC_APP_URL`), `publicAppUrl`, `publicAppUrlFor`, `legalPageUrl`, `buildSalesUrl(ref)` |
+| `onboarding/preferences.ts` | Onboarding copy + the patch a set of answers becomes; reuses `dailyGoalMinutes` (no parallel column) | `GOAL_COPY`, `ARRIVAL_COPY`, `TARGET_DATE_COPY`, `goalMatchScore`, `onboardingPatch`, `needsOnboarding`, `placementSkipPatch`, `describeLearnerLevel` |
+| `mission/selectMission.ts` | The daily mission: one primary action, priority review → continue → weakest skill → daily → new → no content | `selectDailyMission`, `missionStatusAr` |
+| `capability/model.ts` | Honest "what you can do now" per scenario, measured from **independently** answered turns (hints do not count); retention needs a ≥7-day gap | `scenarioCapability`, `buildCapabilityModel`, `canDoStatementAr`, `capabilityFromSession`, `weakestMeasuredSkill` |
+| `conversation/stateMachine.ts` | The live conversation's 10 states, so a turn can never be in two at once; typed fallback on any failure | `conversationReducer`, `classifyTurnError`, `classifySpeechError` |
+| `share/card.ts` | Share text/card built from measured state only; no unverified fluency claims | `buildShareCard`, `buildShareText`, `isShareTextSafe`, `sanitizeDisplayName` |
+| `analytics/events.ts` | The 24 event names / 8 property keys the product may report, and batch/retry planning | `validateAnalyticsEvent`, `dedupeEvents`, `planAnalyticsBatch`, `planAnalyticsRetry`, `shouldTrackAnalytics` |
+| `analytics/client.ts` | Queue, opt-out and lifecycle wiring; sends to `POST /analytics/events` | `track`, `flushAnalytics`, `setAnalyticsOptOut`, `hashAccountId`, `installAnalyticsLifecycle` |
 | `report/metrics.ts` | Independent accuracy + promotion eligibility | `calculateIndependentAccuracy`, `getNextPromotionLevel`, `isEligibleForPromotion` |
 
 ---

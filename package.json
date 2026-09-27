@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:types": "tsc -p e2e --noEmit",
     "lint": "tsc --noEmit",
     "deploy:worker": "wrangler deploy",
     "tail:worker": "wrangler tail",
@@ -20,6 +22,7 @@
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",
     "lucide-react": "^1.16.0",
+    "ogl": "^1.0.11",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.3.0",
@@ -27,6 +30,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.13.9",
     "@types/react": "^18.3.18",

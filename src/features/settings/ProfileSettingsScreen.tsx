@@ -11,9 +11,6 @@ import { Modal } from '@/components/ui/Modal';
 import {
   Volume2,
   Sparkles,
-  Bell,
-  User,
-  Shield,
   LogOut,
   Sliders,
   Check,
@@ -28,6 +25,8 @@ import {
 } from 'lucide-react';
 import type { CEFRLevel, SarcasmLevel } from '@/types/models';
 import { workerClient } from '@/lib/api/workerClient';
+import { ARRIVAL_COPY, GOAL_COPY, TARGET_DATE_COPY, describeLearnerLevel } from '@/lib/onboarding/preferences';
+import { isAnalyticsOptedOut, setAnalyticsOptOut } from '@/lib/analytics/client';
 import {
   clearDiagnostics,
   copyDiagnostics,
@@ -43,14 +42,16 @@ export interface ProfileSettingsScreenProps {
   onGoToSignIn?: () => void;
   onOpenTrustPage?: (page: 'privacy' | 'terms' | 'contact') => void;
   onOpenPlacement?: () => void;
+  /** Opens the preference editor (goal, arrival, daily time, target date). */
+  onOpenPreferences?: () => void;
 }
 
 export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   onOpenSubscription,
   onSignOut,
-  onGoToSignIn,
   onOpenTrustPage,
   onOpenPlacement,
+  onOpenPreferences,
 }) => {
   const user = useLiveQuery(() => db.users.get('current_user'));
   const [showEditName, setShowEditName] = useState(false);
@@ -68,6 +69,9 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting' | 'success' | 'error'>('idle');
   const [deleteError, setDeleteError] = useState('');
+  const [analyticsOff, setAnalyticsOff] = useState(() => isAnalyticsOptedOut());
+
+  const levelInfo = describeLearnerLevel(user);
 
   useEffect(() => {
     let isMounted = true;
@@ -230,6 +234,41 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           <span className="text-xs font-bold font-arabic text-primary">ترقية ←</span>
         </Card>
       )}
+
+      {/* Learning preferences — the answers that steer the daily mission. */}
+      <Card className="p-4 mb-6 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sliders className="w-5 h-5 text-primary" />
+            <div className="text-sm font-bold font-arabic">تفضيلات التعلّم</div>
+          </div>
+          {onOpenPreferences && (
+            <button
+              onClick={onOpenPreferences}
+              className="text-xs font-arabic font-bold text-primary hover:underline min-h-[44px] px-2"
+            >
+              تعديل
+            </button>
+          )}
+        </div>
+        <div className="space-y-1.5 text-xs font-arabic text-text-secondary">
+          <p>الهدف: {user?.primaryGoal ? GOAL_COPY[user.primaryGoal].labelAr : 'لم تحدّده بعد'}</p>
+          <p>وضعك: {user?.arrivalStatus ? ARRIVAL_COPY[user.arrivalStatus] : 'لم تحدّده بعد'}</p>
+          <p>وقتك اليومي: {user?.dailyGoalMinutes ?? 15} دقائق</p>
+          {user?.targetDate && user.targetDateKind && (
+            <p>
+              {TARGET_DATE_COPY[user.targetDateKind]}: {new Date(user.targetDate).toLocaleDateString('ar')}
+            </p>
+          )}
+          <p className="text-text-muted">{levelInfo.detailAr}</p>
+        </div>
+        {!user?.onboardingCompletedAt && (
+          <p className="text-[11px] font-arabic text-status-learning leading-relaxed">
+            لم تُكمل هذه الأسئلة بعد — إجابتها تجعل المهمة اليومية أدقّ، ويمكنك أيضاً إجراء الاختبار التحديدي
+            من الزر أدناه.
+          </p>
+        )}
+      </Card>
 
       {/* Referral Program Card */}
       <Card className="p-4 mb-6 space-y-3 border border-status-learning/40">
@@ -438,6 +477,34 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
 
       {/* App Info & Sign Out */}
       <div className="space-y-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!analyticsOff}
+            onClick={() => {
+              const next = !analyticsOff;
+              setAnalyticsOptOut(next);
+              setAnalyticsOff(next);
+            }}
+            className="w-full flex items-center justify-between gap-3 py-3 px-3 rounded-2xl bg-surface-subtle border border-border-subtle min-h-[44px] hover:border-primary/40 transition-colors"
+          >
+            <span className="text-start">
+              <span className="block text-xs font-bold font-arabic text-text-primary">إحصاءات الاستخدام</span>
+              <span className="block text-[10px] font-arabic text-text-muted mt-0.5 leading-relaxed">
+                نرسل أحداثاً مجهولة (فتح صفحة، إكمال درس) لمعرفة أين يتوقف المتعلمون. لا نرسل نصوصك ولا بريدك.
+                إيقافها يحذف ما لم يُرسل.
+              </span>
+            </span>
+            <span
+              className={`shrink-0 w-11 h-6 rounded-full flex items-center px-0.5 transition-colors ${
+                analyticsOff ? 'bg-surface-highest justify-start' : 'bg-primary justify-end'
+              }`}
+              aria-hidden
+            >
+              <span className="w-5 h-5 rounded-full bg-white shadow" />
+            </span>
+          </button>
+
         <div className="flex items-center justify-center gap-4 text-xs text-text-secondary font-arabic">
           <button onClick={() => onOpenTrustPage?.('privacy')} className="hover:text-primary underline">الخصوصية</button>
           <button onClick={() => onOpenTrustPage?.('terms')} className="hover:text-primary underline">الشروط</button>

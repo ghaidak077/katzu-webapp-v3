@@ -12,3 +12,48 @@ const env = (import.meta as any).env || {};
 export const SALES_URL: string = String(env.VITE_SALES_URL || 'https://katzu-sales.pages.dev').replace(/\/+$/, '');
 
 export const PRO_PRICE_LABEL = '5 دولار / شهر';
+
+/**
+ * The app's own public origin. `katzu.app` does not resolve yet, so nothing may
+ * hardcode a production hostname: canonical URLs, Open Graph URLs, share links
+ * and legal-page links all read this, and a deploy sets `VITE_PUBLIC_APP_URL`
+ * once (no code change) when the domain is live.
+ */
+export const PUBLIC_APP_URL: string = String(env.VITE_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+
+/** Falls back to the origin the app is actually running on. */
+export function publicAppUrl(): string {
+  if (PUBLIC_APP_URL) return PUBLIC_APP_URL;
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  return '';
+}
+
+/** Absolute URL of a public route, for shares, canonical tags and sitemaps. */
+export function publicAppUrlFor(path = '/'): string {
+  const origin = publicAppUrl();
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return origin ? `${origin}${normalized}` : normalized;
+}
+
+export function legalPageUrl(page: 'privacy' | 'terms' | 'contact'): string {
+  return publicAppUrlFor(`/trust/${page}`);
+}
+
+/**
+ * The sales page with referral attribution preserved. Referral codes live in
+ * the URL (`?ref=REF-XXXXXXXX`) and the sales site forwards them to checkout, so
+ * a learner who was invited does not lose the attribution by leaving the app.
+ */
+export function buildSalesUrl(referralCode?: string | null): string {
+  const code = String(referralCode || '').trim().toUpperCase();
+  if (!code) return SALES_URL;
+  try {
+    const url = new URL(SALES_URL);
+    url.searchParams.set('ref', code);
+    return url.toString();
+  } catch {
+    // A malformed SALES_URL must not break the CTA: return it unchanged rather
+    // than a URL assembled by string concatenation.
+    return SALES_URL;
+  }
+}

@@ -35,3 +35,8 @@ lerna-debug.log*
 .vitest/
 .claude/
 
+# Playwright artifacts
+/test-results/
+/playwright-report/
+/blob-report/
+

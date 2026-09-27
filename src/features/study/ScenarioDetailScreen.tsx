@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { useLiveRow } from '@/lib/db/useLiveRow';
 import { isProEffective } from '@/lib/utils/subscription';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { ArrowRight, BookOpen, CheckCircle, Lock, MessagesSquare, Sparkles } from 'lucide-react';
 
 export interface ScenarioDetailScreenProps {
@@ -16,7 +16,6 @@ export interface ScenarioDetailScreenProps {
   onStartStudy: () => void;
   onStartQuiz: () => void;
   onStartConversation: () => void;
-  onOpenSubscription?: () => void;
 }
 
 export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
@@ -25,18 +24,39 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
   onStartStudy,
   onStartQuiz,
   onStartConversation,
-  onOpenSubscription,
 }) => {
-  const [showPaywall, setShowPaywall] = useState(false);
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
 
-  const scenario = useLiveQuery(() => db.scenarios.get(scenarioId));
+  // "Still reading" stays distinct from "not on this device", and a wedged read is
+  // recoverable rather than a permanent "loading" — see `useLiveRow`.
+  const scenarioRow = useLiveRow(() => db.scenarios.get(scenarioId), [scenarioId]);
+  const scenario = scenarioRow.row;
   const starterPhrases = useLiveQuery(() => db.starter_phrases.where('scenario_id').equals(scenarioId).toArray()) || [];
   const training = useLiveQuery(() => db.scenario_training.get(scenarioId));
   const user = useLiveQuery(() => db.users.get('current_user'));
 
   if (!scenario) {
-    return <div className="p-6 text-center text-text-secondary">جاري التحميل...</div>;
+    const stalled = scenarioRow.kind === 'reading' && scenarioRow.stalled;
+    return (
+      <div className="p-6 text-center">
+        <p className="text-text-secondary">
+          {scenarioRow.kind === 'missing'
+            ? 'لم نجد هذا المشهد على هذا الجهاز.'
+            : stalled
+              ? 'تأخّر تجهيز المشهد.'
+              : 'جاري التحميل...'}
+        </p>
+        {/* A missing row and a wedged read are both states with a way out. */}
+        {stalled && (
+          <Button variant="secondary" className="mt-4" onClick={scenarioRow.retry}>
+            إعادة المحاولة
+          </Button>
+        )}
+        <Button variant="ghost" className="mt-4" onClick={onBack}>
+          العودة
+        </Button>
+      </div>
+    );
   }
 
   const isPro = isProEffective(user);
@@ -240,14 +260,6 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         </div>
       )}
 
-      {/* Paywall Dialog */}
-      <PaywallModal
-        isOpen={showPaywall}
-        onClose={() => setShowPaywall(false)}
-        onUpgrade={() => {
-          if (onOpenSubscription) onOpenSubscription();
-        }}
-      />
     </div>
   );
 };

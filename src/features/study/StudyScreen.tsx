@@ -3,12 +3,13 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { enrolStudiedVocabulary } from '@/lib/srs/store';
 import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
+import { track } from '@/lib/analytics/client';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
 import { AudioWaveform } from '@/components/common/AudioWaveform';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { ArrowRight, Volume2, Bookmark, Check } from 'lucide-react';
+import { ArrowRight, Volume2, Bookmark } from 'lucide-react';
 import type { VocabularyEntity, GrammarEntity, StarterPhraseEntity } from '@/types/models';
 
 export interface StudyScreenProps {
@@ -27,6 +28,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
   const [playingText, setPlayingText] = useState<string | null>(null);
 
   const scenario = useLiveQuery(() => db.scenarios.get(scenarioId));
+  const user = useLiveQuery(() => db.users.get('current_user'));
   const phrasesQ = useLiveQuery(() => db.starter_phrases.where('scenario_id').equals(scenarioId).toArray());
   const phrases = phrasesQ || [];
   // Vocabulary lives in the D1 *topic* namespace (food, documents, health,
@@ -74,9 +76,13 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
       studiedAt: Date.now(),
       quizAttempted: false,
       lastScore: 0,
-      effectiveLevel: 'A1',
+      // The learner's measured level, not a hardcoded A1: this record is what
+      // later tells the mission selector and the capability model what was
+      // actually practised.
+      effectiveLevel: user?.cefrLevel || 'A1',
       updatedAt: Date.now(),
     });
+    track('scenario_studied', { scenarioId });
     // What was studied today becomes what gets reviewed later: this enrolment is
     // what turns a flashcard deck into memory.
     await enrolStudiedVocabulary(vocabulary);

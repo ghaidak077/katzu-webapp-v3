@@ -34,6 +34,85 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Katzu V2 material system.
+ *
+ * Four depth tiers — canvas → well → glass → floating — each defined by its own
+ * opacity, blur, tint, elevation and edge light, so a surface reads as a layered
+ * material rather than a flat card with a border. Everything a surface needs to
+ * adapt (scene tint, specular position, blur, elevation) is a custom property,
+ * which is what lets one component look different over a warm scene than over a
+ * cool one without a second style.
+ *
+ *   --kz-scene-rgb     set by SceneBackdrop per location; bleeds into any glass
+ *   --kz-spec-x / -y   pointer/scroll-driven highlight position
+ *   --kz-glass-*       tier values (see [data-tier])
+ */
+:root {
+  /* Foundation: true AMOLED black, then two near-blacks that only glass uses. */
+  --kz-black: #000000;
+  --kz-near-black: #050508;
+  --kz-soft-black: #0a0a0d;
+
+  /* Katzu's eyes. RGB triplets so alpha compositing works in one declaration. */
+  --kz-lavender: 180 160 255;
+  --kz-lavender-deep: 124 92 240;
+  --kz-magenta: 255 111 216;
+  --kz-magenta-deep: 226 63 174;
+
+  /* Text. Warm white stays legible over every scene colour we ship. */
+  --kz-ink: 246 242 238;
+  --kz-ink-dim: 167 159 196;
+  --kz-ink-faint: 126 119 150;
+
+  /* Scene-derived accents used by status/progress chrome. */
+  --kz-warm: 255 201 138;
+  --kz-neon: 111 240 208;
+
+  /* Scene lighting — replaced per scene by SceneBackdrop. */
+  --kz-scene-rgb: 255 201 138;
+  --kz-scene-warmth: 0.55;
+
+  /* Glass tier defaults (canvas). */
+  --kz-glass-base: 10 10 13;
+  --kz-glass-opacity: 0.34;
+  --kz-glass-blur: 14px;
+  --kz-glass-saturate: 135%;
+  --kz-glass-tint-rgb: var(--kz-lavender);
+  --kz-glass-tint-alpha: 0.03;
+  --kz-glass-edge: 0.09;
+  --kz-glass-elev: 1;
+  --kz-glass-radius: 28px;
+
+  --kz-spec-x: 28%;
+  --kz-spec-y: -18%;
+  --kz-spec-strength: 0.07;
+
+  /* Glow — lavender by default, magenta only on earned surfaces. */
+  --kz-glow-rgb: var(--kz-lavender);
+  --kz-glow-strength: 0.34;
+
+  /* Motion. Springs, never linear. */
+  --kz-ease-spring: cubic-bezier(0.22, 1.12, 0.36, 1);
+  --kz-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --kz-dur-fast: 160ms;
+  --kz-dur: 280ms;
+  --kz-dur-slow: 560ms;
+
+  /* Arabic typographic scale — display is heavy and roomy, body is comfortable. */
+  --kz-ar-display: clamp(1.6rem, 6.6vw, 2.1rem);
+  --kz-ar-title: clamp(1.15rem, 4.6vw, 1.4rem);
+  --kz-ar-body: 0.95rem;
+  --kz-ar-caption: 0.8rem;
+  --kz-ar-micro: 0.7rem;
+
+  /* German scale — Satoshi, always LTR, slightly looser tracking at body size. */
+  --kz-de-display: clamp(1.25rem, 5vw, 1.6rem);
+  --kz-de-title: 1.1rem;
+  --kz-de-body: 0.95rem;
+  --kz-de-caption: 0.8rem;
+}
+
 @layer base {
   * {
     border-color: #2E2640;
@@ -45,6 +124,284 @@
     color: #F2F0F7;
     overflow-x: hidden;
     font-family: 'Cairo', sans-serif;
+  }
+
+  /* Arabic display weight: Cairo is variable (100–900), so headings can be
+     genuinely heavy without a second font file. */
+  .kz-ar-display {
+    font-family: 'Cairo', sans-serif;
+    font-size: var(--kz-ar-display);
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  .kz-ar-title {
+    font-family: 'Cairo', sans-serif;
+    font-size: var(--kz-ar-title);
+    font-weight: 700;
+    line-height: 1.45;
+  }
+
+  .kz-ar-body {
+    font-family: 'Cairo', sans-serif;
+    font-size: var(--kz-ar-body);
+    font-weight: 500;
+    line-height: 1.75;
+  }
+
+  .kz-ar-caption {
+    font-family: 'Cairo', sans-serif;
+    font-size: var(--kz-ar-caption);
+    font-weight: 500;
+    line-height: 1.6;
+  }
+
+  .kz-ar-micro {
+    font-family: 'Cairo', sans-serif;
+    font-size: var(--kz-ar-micro);
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  .kz-de-display {
+    font-family: 'Satoshi', sans-serif;
+    font-size: var(--kz-de-display);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .kz-de-title {
+    font-family: 'Satoshi', sans-serif;
+    font-size: var(--kz-de-title);
+    font-weight: 700;
+  }
+
+  .kz-de-body {
+    font-family: 'Satoshi', sans-serif;
+    font-size: var(--kz-de-body);
+    font-weight: 500;
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+  }
+}
+
+@layer components {
+  /* ---------------------------------------------------------------------
+   * The layered material. One element, four painted layers: the adaptive
+   * scene tint bleeding through, the tinted glass body, the directional
+   * specular sheen, and internal edge lighting.
+   * ------------------------------------------------------------------- */
+  .kz-surface {
+    position: relative;
+    isolation: isolate;
+    border-radius: var(--kz-glass-radius);
+    background-color: rgb(var(--kz-glass-base) / var(--kz-glass-opacity));
+    background-image:
+      radial-gradient(
+        120% 90% at var(--kz-spec-x) var(--kz-spec-y),
+        rgb(255 255 255 / var(--kz-spec-strength)) 0%,
+        rgb(255 255 255 / 0) 62%
+      ),
+      linear-gradient(
+        168deg,
+        rgb(var(--kz-scene-rgb) / calc(var(--kz-glass-tint-alpha) * var(--kz-scene-warmth) * 1.6)) 0%,
+        rgb(var(--kz-scene-rgb) / 0) 58%
+      ),
+      linear-gradient(
+        180deg,
+        rgb(var(--kz-glass-tint-rgb) / var(--kz-glass-tint-alpha)) 0%,
+        rgb(var(--kz-glass-tint-rgb) / 0) 46%
+      );
+    -webkit-backdrop-filter: blur(var(--kz-glass-blur)) saturate(var(--kz-glass-saturate));
+    backdrop-filter: blur(var(--kz-glass-blur)) saturate(var(--kz-glass-saturate));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / var(--kz-glass-edge)),
+      inset 0 -1px 0 rgb(0 0 0 / 0.55),
+      inset 0 0 0 1px rgb(255 255 255 / calc(var(--kz-glass-edge) * 0.4)),
+      0 calc(16px * var(--kz-glass-elev)) calc(40px * var(--kz-glass-elev)) rgb(0 0 0 / 0.5);
+    transition:
+      box-shadow var(--kz-dur) var(--kz-ease-out),
+      background-color var(--kz-dur) var(--kz-ease-out),
+      transform var(--kz-dur) var(--kz-ease-spring);
+  }
+
+  /* Grain: a fixed 2% turbulence layer keeps large translucent panels from
+     reading as flat gradients. Painted by ::after so it never blocks taps. */
+  .kz-surface::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.16;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+
+  /* Depth tiers. Each changes opacity, blur, tint, edge light and elevation —
+     a floating control must never look like a well that happens to be darker. */
+  .kz-surface[data-tier='canvas'] {
+    --kz-glass-opacity: 0.3;
+    --kz-glass-blur: 12px;
+    --kz-glass-tint-alpha: 0.025;
+    --kz-glass-edge: 0.08;
+    --kz-glass-elev: 1;
+  }
+
+  .kz-surface[data-tier='well'] {
+    --kz-glass-base: 4 4 6;
+    --kz-glass-opacity: 0.62;
+    --kz-glass-blur: 8px;
+    --kz-glass-saturate: 115%;
+    --kz-glass-tint-alpha: 0.015;
+    --kz-glass-edge: 0.05;
+    --kz-glass-elev: 0.25;
+    box-shadow:
+      inset 0 1px 2px rgb(0 0 0 / 0.85),
+      inset 0 -1px 0 rgb(255 255 255 / 0.05),
+      inset 0 0 0 1px rgb(0 0 0 / 0.6);
+  }
+
+  .kz-surface[data-tier='glass'] {
+    --kz-glass-opacity: 0.46;
+    --kz-glass-blur: 22px;
+    --kz-glass-saturate: 150%;
+    --kz-glass-tint-alpha: 0.045;
+    --kz-glass-edge: 0.13;
+    --kz-glass-elev: 2.1;
+  }
+
+  .kz-surface[data-tier='floating'] {
+    --kz-glass-opacity: 0.58;
+    --kz-glass-blur: 30px;
+    --kz-glass-saturate: 168%;
+    --kz-glass-tint-alpha: 0.06;
+    --kz-glass-edge: 0.19;
+    --kz-glass-elev: 3.4;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / var(--kz-glass-edge)),
+      inset 0 -1px 0 rgb(0 0 0 / 0.5),
+      inset 0 0 0 1px rgb(255 255 255 / calc(var(--kz-glass-edge) * 0.5)),
+      0 20px 54px rgb(0 0 0 / 0.6),
+      0 0 34px rgb(var(--kz-glow-rgb) / calc(var(--kz-glow-strength) * 0.35));
+  }
+
+  /* Browsers without backdrop-filter (older Firefox) get an opaque-ish body so
+     contrast never depends on the effect being supported. */
+  @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+    .kz-surface {
+      --kz-glass-opacity: 0.93;
+    }
+  }
+
+  /* Liquid Glass `.interactive()`: a live highlight under the finger, not a static
+     `:active` colour swap. `useGlassInteractive` publishes where the learner is
+     touching (--kz-press-x/y) and whether the control is held (data-pressed); the
+     surface only decides how it lights up. Replaces the old static neon stroke. */
+  .kz-interactive {
+    position: relative;
+  }
+
+  .kz-interactive::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(
+      62% 82% at var(--kz-press-x, 50%) var(--kz-press-y, 40%),
+      rgb(255 255 255 / 0.16),
+      transparent 70%
+    );
+    transition: opacity 180ms var(--kz-ease-out);
+  }
+
+  .kz-interactive[data-pressed]::after,
+  .kz-interactive:active::after {
+    opacity: 1;
+    transition-duration: 90ms;
+  }
+
+  /* Reduced motion keeps the highlight — it is the touch response — and drops the
+     fade, so the surface answers instantly instead of animating at the learner. */
+  @media (prefers-reduced-motion: reduce) {
+    .kz-interactive::after,
+    .kz-interactive[data-pressed]::after {
+      transition-duration: 0ms;
+    }
+  }
+
+  /* The thinking indicator's last resort. When WebGL gives nothing — no context, a
+     context the browser already lost, a shader that will not compile — the motion
+     still has to say "working", so the same box draws a soft lavender dot instead
+     of staying empty. Sized to the element it replaces, so the layout never moves. */
+  .kz-siri-fallback {
+    border-radius: 9999px;
+    background-image: radial-gradient(
+      circle at 50% 50%,
+      rgb(var(--kz-lavender) / 0.9) 0%,
+      rgb(var(--kz-lavender) / 0) 62%
+    );
+  }
+
+  /* One primary action: a soft lavender light, not a filled neon slab. */
+  .kz-primary {
+    position: relative;
+    border-radius: 22px;
+    color: rgb(var(--kz-ink));
+    background-image: linear-gradient(
+      168deg,
+      rgb(var(--kz-lavender) / 0.34) 0%,
+      rgb(var(--kz-lavender-deep) / 0.24) 52%,
+      rgb(10 10 13 / 0.5) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.22),
+      inset 0 0 0 1px rgb(var(--kz-lavender) / 0.36),
+      0 14px 38px rgb(var(--kz-lavender-deep) / 0.3);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px) saturate(160%);
+    transition: transform var(--kz-dur) var(--kz-ease-spring), box-shadow var(--kz-dur) var(--kz-ease-out);
+  }
+
+  .kz-primary:active {
+    transform: scale(0.975);
+  }
+
+  /* Earned state: magenta, but as light on the edges — reserved for progress
+     the app actually recorded. */
+  .kz-earned {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.2),
+      inset 0 0 0 1px rgb(var(--kz-magenta) / 0.42),
+      0 12px 40px rgb(var(--kz-magenta-deep) / 0.32);
+  }
+
+  .kz-earned-text {
+    color: rgb(var(--kz-magenta));
+  }
+
+  /* Specular highlight driven by a pointer/scroll variable. Sits above the
+     surface, below content, and never intercepts input. */
+  .kz-specular {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(
+      60% 45% at var(--kz-spec-x) var(--kz-spec-y),
+      rgb(255 255 255 / calc(var(--kz-spec-strength) * 1.5)) 0%,
+      rgb(255 255 255 / 0) 70%
+    );
+    opacity: 0;
+    transition: opacity var(--kz-dur-slow) var(--kz-ease-out);
+  }
+
+  .kz-surface:hover .kz-specular,
+  .kz-surface:focus-within .kz-specular {
+    opacity: 1;
   }
 }
 
@@ -69,4 +426,28 @@
   direction: ltr;
   unicode-bidi: isolate;
   font-family: 'Satoshi', sans-serif;
+}
+
+/* The V2 equivalent: any German run — phrase, article, single word — is LTR
+   isolated and never inherits an RTL text-align from its Arabic container. */
+.kz-de {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+  font-family: 'Satoshi', sans-serif;
+}
+
+/* Reduced motion: continuous/animated decoration stops, state changes stay
+   instant-but-visible, and nothing loses its function. */
+@media (prefers-reduced-motion: reduce) {
+  .kz-animated {
+    animation: none !important;
+  }
+
+  .kz-surface,
+  .kz-surface::after,
+  .kz-primary,
+  .kz-specular {
+    transition-duration: 1ms !important;
+  }
 }

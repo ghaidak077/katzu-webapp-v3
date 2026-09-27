@@ -6,12 +6,14 @@ import { gradeReviewItem } from '@/lib/srs/store';
 import { SESSION_LIMIT, buildReviewQueue, countDue, gradeAnswer, type AnswerVerdict } from '@/lib/srs/engine';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
-import { KatzuMascot } from '@/components/common/KatzuMascot';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
+import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
+import { GlassWell } from '@/components/glass/GlassSurface';
+import { KatzuPresence } from '@/components/v2/KatzuPresence';
+import { ProgressRail } from '@/components/v2/ProgressStrip';
 import { triggerHaptic } from '@/lib/utils/haptics';
-import { ArrowLeft, CheckCircle2, RotateCcw, Sparkles, Volume2, XCircle, Brain } from 'lucide-react';
+import { track } from '@/lib/analytics/client';
+import { ArrowLeft, CheckCircle2, RotateCcw, Sparkles, Volume2, XCircle } from 'lucide-react';
 import type { ReviewGrade, ReviewItemEntity } from '@/types/models';
 
 export interface ReviewScreenProps {
@@ -24,16 +26,12 @@ const KIND_LABELS: Record<ReviewItemEntity['kind'], string> = {
   mistake: 'خطأ سابق',
 };
 
-/**
- * Retrieval practice, not recognition: the learner produces the German from the
- * Arabic prompt. Multiple choice would feel smoother and teach less, because
- * recognising an answer never requires retrieving it.
- */
-const KIND_VARIANTS = {
-  vocab: 'primary',
-  phrase: 'learning',
-  mistake: 'error',
-} as const;
+/** Chip tint per kind: the type of memory being tested, not a severity. */
+const KIND_TONE: Record<ReviewItemEntity['kind'], string> = {
+  vocab: 'text-kz-lavender',
+  phrase: 'text-kz-neon',
+  mistake: 'text-kz-warm',
+};
 
 function formatGap(from: number, to: number): string {
   const minutes = Math.max(1, Math.round((to - from) / 60000));
@@ -44,6 +42,17 @@ function formatGap(from: number, to: number): string {
   return days === 1 ? 'غداً' : `${days} أيام`;
 }
 
+/**
+ * Review — the memory loop, in the same language as the rest of V2.
+ *
+ * Retrieval practice, not recognition: the learner produces the German from the
+ * Arabic prompt. Multiple choice would feel smoother and teach less, because
+ * recognising an answer never requires retrieving it.
+ *
+ * The self-grading controls carry equal weight on purpose. Making "سهل" the
+ * highlighted button would teach the learner to press it, and the interval it
+ * buys would be unearned — the schedule is only as honest as the answer here.
+ */
 export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   const items = useLiveQuery(() => db.review_items.where('userId').equals('current_user').toArray());
   const user = useLiveQuery(() => db.users.get('current_user'));
@@ -62,7 +71,9 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   useEffect(() => {
     if (startedRef.current || !items) return;
     startedRef.current = true;
-    setQueue(buildReviewQueue(items, Date.now(), SESSION_LIMIT));
+    const due = buildReviewQueue(items, Date.now(), SESSION_LIMIT);
+    setQueue(due);
+    if (due.length > 0) track('review_started', { count: due.length });
   }, [items]);
 
   const remainingDue = useMemo(() => (items ? countDue(items, Date.now()) : 0), [items]);
@@ -76,6 +87,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   useEffect(() => {
     if (!isFinished || syncedRef.current) return;
     syncedRef.current = true;
+    track('review_completed', { count: (items || []).length });
     if (user?.sessionToken) {
       workerClient.syncReviewQueue(user.sessionToken).catch(() => {
         // Offline: the queue stays local and is re-offered on the next sync.
@@ -119,8 +131,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
 
   if (queue === null) {
     return (
-      <div className="min-h-screen bg-black text-text-primary flex items-center justify-center" role="status" aria-live="polite">
-        <span className="font-arabic text-text-secondary">جاري تجهيز المراجعة...</span>
+      <div className="flex min-h-screen items-center justify-center bg-kz-black" role="status" aria-live="polite">
+        <span className="font-arabic text-sm text-kz-inkDim">جارٍ تجهيز المراجعة…</span>
       </div>
     );
   }
@@ -131,196 +143,208 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
       .filter((dueAt) => dueAt > Date.now())
       .sort((a, b) => a - b)[0];
     return (
-      <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col items-center justify-center text-center">
-        <KatzuMascot name="peace" className="w-40 h-40 object-contain mb-4" />
-        <h2 className="text-xl font-bold font-arabic mb-2">لا توجد مراجعة مستحقة الآن</h2>
-        <p className="text-sm text-text-secondary font-arabic leading-relaxed max-w-xs">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center bg-kz-black px-6 text-center text-kz-ink">
+        <KatzuPresence state="all_caught_up" size="xl" />
+        <h1 className="mt-4 kz-ar-title text-kz-ink">لا توجد مراجعة مستحقة الآن</h1>
+        <p className="mt-2 max-w-xs kz-ar-body leading-relaxed text-kz-inkDim">
           {nextDueAt
-            ? `ذاكرتك مرتاحة. سأعيد عليك ما تعلمته ${formatGap(Date.now(), nextDueAt)} — وأنت لا تحتاج أن تتذكر شيئاً بنفسك.`
-            : 'ابدأ مشهداً جديداً وسأبني لك مراجعتك من الكلمات التي تدرسها ومن أخطائك.'}
+            ? `ذاكرتك مرتاحة. سأعيد عليك ما تعلّمته ${formatGap(Date.now(), nextDueAt)} — ولا تحتاج أن تتذكّر شيئاً بنفسك.`
+            : 'ابدأ مشهداً جديداً وسأبني مراجعتك من الكلمات التي تدرسها ومن أخطائك.'}
         </p>
-        <Button className="mt-6" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4" /> عد إلى المسار
-        </Button>
+        <div className="mt-6 w-full">
+          <PrimaryAction hintAr="الراحة بين الجلسات جزء من الحفظ، لا انقطاعاً عنه." onClick={onBack}>
+            العودة إلى الرحلة
+          </PrimaryAction>
+        </div>
       </div>
     );
   }
 
   if (isFinished) {
     const graded = tally.correct + tally.close + tally.wrong;
+    const clean = graded >= 3 && tally.wrong === 0;
     return (
-      <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col justify-center">
-        <Card variant="hero" glow className="text-center">
-          <KatzuMascot name="celebrating" className="w-28 h-28 object-contain mx-auto mb-3" />
-          <h2 className="text-xl font-bold font-arabic mb-1">أنهيت مراجعة اليوم</h2>
-          <p className="text-xs text-text-secondary font-arabic mb-4">
-            راجعت {graded} عنصراً — هذا ما جعل ما تعلمته يبقى.
-          </p>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="rounded-2xl bg-surface-subtle p-3">
-              <div className="text-lg font-bold font-german text-status-success">{tally.correct}</div>
-              <span className="text-[10px] font-arabic text-text-secondary">من أول محاولة</span>
+      <div className="relative min-h-screen bg-kz-black pb-36 text-kz-ink">
+        <div className="mx-auto max-w-md px-5 pt-10">
+          <KatzuPresence
+            state={clean ? 'independent' : 'assisted'}
+            size="lg"
+            lineAr={
+              clean
+                ? 'استرجعت كل عنصر من أول محاولة — هذا هو الأثر الذي نريده.'
+                : 'أنهيت مراجعة اليوم. ما أخطأت فيه سيعود أقرب من غيره، وهذا عمله.'
+            }
+          />
+          <h1 className="mt-5 text-center kz-ar-title text-kz-ink">مراجعة اليوم</h1>
+
+          <GlassCard className="mt-5" emphasis={clean ? 'earned' : 'none'}>
+            <p className="kz-ar-caption text-kz-inkDim">ما حدث بالأرقام</p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <GlassWell className="p-3 text-center">
+                <div className="font-german text-lg font-bold text-kz-neon">{tally.correct}</div>
+                <span className="kz-ar-micro text-kz-inkDim">من أول محاولة</span>
+              </GlassWell>
+              <GlassWell className="p-3 text-center">
+                <div className="font-german text-lg font-bold text-kz-lavender">{tally.close}</div>
+                <span className="kz-ar-micro text-kz-inkDim">أداة مختلفة</span>
+              </GlassWell>
+              <GlassWell className="p-3 text-center">
+                <div className="font-german text-lg font-bold text-kz-warm">{tally.wrong}</div>
+                <span className="kz-ar-micro text-kz-inkDim">يحتاج تثبيتاً</span>
+              </GlassWell>
             </div>
-            <div className="rounded-2xl bg-surface-subtle p-3">
-              <div className="text-lg font-bold font-german text-status-learning">{tally.close}</div>
-              <span className="text-[10px] font-arabic text-text-secondary">قريب (الأداة)</span>
-            </div>
-            <div className="rounded-2xl bg-surface-subtle p-3">
-              <div className="text-lg font-bold font-german text-status-error">{tally.wrong}</div>
-              <span className="text-[10px] font-arabic text-text-secondary">يحتاج تثبيتاً</span>
-            </div>
-          </div>
-          <p className="text-[11px] text-text-muted font-arabic mb-4">
-            {remainingDue > 0
-              ? `لا يزال ${remainingDue} عنصراً مستحقاً — جلسة أخرى قصيرة تكفي.`
-              : 'لا شيء مستحق بعد الآن. سأعيدها عليك في الوقت المناسب.'}
-          </p>
-          <Button className="w-full" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4" /> عد إلى المسار
-          </Button>
-        </Card>
+            <p className="mt-3 kz-ar-micro leading-relaxed text-kz-inkDim">
+              {remainingDue > 0
+                ? `لا يزال ${remainingDue} عنصراً مستحقاً — جلسة أخرى قصيرة تكفي.`
+                : 'لا شيء مستحق بعد الآن — سأعيدها عليك في الوقت المناسب.'}
+            </p>
+          </GlassCard>
+        </div>
+
+        <FloatingControl className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md rounded-t-[26px] border-t border-white/[0.06] p-4 pb-6">
+          <PrimaryAction
+            hintAr="المراجعة القادمة تُبنى من نتائج اليوم، وليست قائمة تنتظرك."
+            onClick={onBack}
+            icon={<ArrowLeft className="h-4 w-4 rotate-180" aria-hidden />}
+          >
+            العودة إلى الرحلة
+          </PrimaryAction>
+        </FloatingControl>
       </div>
     );
   }
 
-  const progressPercent = Math.round((index / queue.length) * 100);
-
   return (
-    <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto pb-28">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h2 className="text-lg font-bold font-arabic">مراجعة الذاكرة</h2>
-          <p className="text-[11px] text-text-secondary font-arabic">
-            اكتب الألمانية من معناها العربي — الاسترجاع هو ما يثبّت.
-          </p>
+    <div className="min-h-screen bg-kz-black pb-28 text-kz-ink">
+      <div className="mx-auto max-w-md px-5 pt-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="kz-ar-title text-kz-ink">مراجعة الذاكرة</h1>
+            <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
+              اكتب الألمانية من معناها العربي — الاسترجاع هو ما يثبّت.
+            </p>
+          </div>
+          <GlassWell className="shrink-0 px-3 py-1.5">
+            <span className="font-german text-xs font-bold text-kz-inkDim">
+              {index + 1} / {queue.length}
+            </span>
+          </GlassWell>
         </div>
-        <Badge variant="subtle" size="sm">
-          <Brain className="w-3 h-3" />
-          {index + 1} / {queue.length}
-        </Badge>
-      </div>
+        <ProgressRail value={index} max={queue.length} className="mt-4" />
 
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle mb-5">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
-      </div>
-
-      {current && (
-        <Card className="p-5 mb-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Badge variant={KIND_VARIANTS[current.kind]} size="sm">
-              {KIND_LABELS[current.kind]}
-            </Badge>
-            {current.level && (
-              <Badge variant="subtle" size="sm">
-                {current.level}
-              </Badge>
-            )}
-          </div>
-
-          {/* The Arabic side: what it means, or the rule that was broken. */}
-          <p className="text-[11px] text-text-muted font-arabic mb-1">
-            {current.kind === 'mistake' ? 'القاعدة التي أخطأت فيها' : 'المعنى بالعربية'}
-          </p>
-          <div className="text-xl font-bold font-arabic text-text-primary leading-relaxed mb-3">
-            {current.promptAr}
-          </div>
-
-          {current.kind === 'mistake' && current.contextDe && (
-            <div className="rounded-2xl bg-surface-subtle p-3 mb-3">
-              <span className="text-[10px] font-arabic text-text-muted block mb-1">ما كتبته سابقاً</span>
-              <GermanText className="text-sm text-status-error line-through">{current.contextDe}</GermanText>
+        {current && (
+          <GlassCard className="mt-5">
+            <div className="flex items-center gap-2">
+              <span className={`kz-ar-micro ${KIND_TONE[current.kind]}`}>{KIND_LABELS[current.kind]}</span>
+              {current.level && (
+                <>
+                  <span className="text-kz-inkFaint">·</span>
+                  <span className="font-german text-[0.72rem] text-kz-inkFaint">{current.level}</span>
+                </>
+              )}
             </div>
-          )}
 
-          {verdict === null ? (
-            <form onSubmit={handleCheck} className="space-y-3">
-              <input
-                type="text"
-                dir="ltr"
-                autoFocus
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="اكتب بالألمانية..."
-                aria-label="إجابتك بالألمانية"
-                className="w-full h-12 bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl px-4 text-base font-german outline-none transition-all"
-              />
-              <Button type="submit" className="w-full" disabled={!answer.trim()}>
-                تحقّق من إجابتي
-              </Button>
-            </form>
-          ) : (
-            <div className="space-y-3">
-              <div
-                className={`flex items-start gap-2 rounded-2xl p-3 ${
-                  verdict === 'correct'
-                    ? 'bg-status-success/15 border border-status-success/40'
-                    : verdict === 'close'
-                      ? 'bg-status-learning/15 border border-status-learning/40'
-                      : 'bg-status-error/15 border border-status-error/40'
-                }`}
-                role="status"
-                aria-live="polite"
-              >
-                {verdict === 'correct' ? (
-                  <CheckCircle2 className="w-4 h-4 text-status-success mt-0.5 shrink-0" />
-                ) : verdict === 'close' ? (
-                  <Sparkles className="w-4 h-4 text-status-learning mt-0.5 shrink-0" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-status-error mt-0.5 shrink-0" />
-                )}
-                <div className="min-w-0">
-                  <p className="text-xs font-bold font-arabic">
-                    {verdict === 'correct'
-                      ? 'إجابة صحيحة'
-                      : verdict === 'close'
-                        ? 'المعنى صحيح — لكن الأداة (der / die / das) ليست هي'
-                        : 'ليس بعد — هذه هي الصيغة الصحيحة'}
-                  </p>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <GermanText className="text-sm font-bold text-text-primary">{current.answerDe}</GermanText>
-                    <button
-                      type="button"
-                      onClick={() => speak(current.answerDe)}
-                      className="p-1 rounded-lg bg-surface-subtle hover:bg-primary/20 text-primary transition-colors"
-                      aria-label="استمع للنطق الصحيح"
-                    >
-                      <Volume2 className="w-3.5 h-3.5" />
-                    </button>
+            {/* The Arabic side: what it means, or the rule that was broken. */}
+            <p className="mt-4 kz-ar-micro text-kz-inkFaint">
+              {current.kind === 'mistake' ? 'القاعدة التي أخطأت فيها' : 'المعنى بالعربية'}
+            </p>
+            <p className="mt-1 kz-ar-title leading-relaxed text-kz-ink">{current.promptAr}</p>
+
+            {current.kind === 'mistake' && current.contextDe && (
+              <GlassWell className="mt-3 p-3">
+                <span className="kz-ar-micro block text-kz-inkFaint">ما كتبته سابقاً</span>
+                <GermanText className="mt-1 font-german text-sm text-kz-inkDim line-through">
+                  {current.contextDe}
+                </GermanText>
+              </GlassWell>
+            )}
+
+            {verdict === null ? (
+              <form onSubmit={handleCheck} className="mt-4 space-y-3">
+                <input
+                  type="text"
+                  dir="ltr"
+                  autoFocus
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  placeholder="اكتب بالألمانية…"
+                  aria-label="إجابتك بالألمانية"
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-base text-kz-ink outline-none placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                />
+                <GlassButton variant="primary" size="lg" fullWidth type="submit" disabled={!answer.trim()}>
+                  تحقّق من إجابتي
+                </GlassButton>
+              </form>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <GlassWell
+                  className="p-3"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div className="flex items-start gap-2">
+                    {verdict === 'correct' ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-kz-neon" aria-hidden />
+                    ) : verdict === 'close' ? (
+                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-kz-lavender" aria-hidden />
+                    ) : (
+                      <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-kz-warm" aria-hidden />
+                    )}
+                    <div className="min-w-0">
+                      <p className="kz-ar-caption font-bold text-kz-ink">
+                        {verdict === 'correct'
+                          ? 'إجابة صحيحة'
+                          : verdict === 'close'
+                            ? 'المعنى صحيح — لكن الأداة (der / die / das) ليست هي'
+                            : 'ليس بعد — هذه هي الصيغة الصحيحة'}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <GermanText className="font-german text-sm font-bold text-kz-ink">
+                          {current.answerDe}
+                        </GermanText>
+                        <button
+                          type="button"
+                          onClick={() => speak(current.answerDe)}
+                          className="rounded-full p-1.5 text-kz-lavender transition-colors hover:bg-white/5"
+                          aria-label="استمع للنطق الصحيح"
+                        >
+                          <Volume2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      {current.explanationAr && (
+                        <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">
+                          {current.explanationAr}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {current.explanationAr && (
-                    <p className="mt-1.5 text-[11px] font-arabic text-text-secondary leading-relaxed">
-                      {current.explanationAr}
-                    </p>
-                  )}
+                </GlassWell>
+
+                <p className="text-center kz-ar-micro text-kz-inkFaint">
+                  كيف كان استرجاعك؟ هذا ما يحدّد موعد عودتها.
+                </p>
+                {/* Equal weight on purpose: no option is nudged. */}
+                <div className="flex gap-2">
+                  <GlassButton variant="secondary" className="flex-1" onClick={() => handleGrade('again')}>
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                    لم أتذكّر
+                  </GlassButton>
+                  <GlassButton variant="secondary" className="flex-1" onClick={() => handleGrade('hard')}>
+                    بصعوبة
+                  </GlassButton>
+                  <GlassButton variant="secondary" className="flex-1" onClick={() => handleGrade('good')}>
+                    بسهولة
+                  </GlassButton>
                 </div>
               </div>
+            )}
+          </GlassCard>
+        )}
 
-              <p className="text-[11px] font-arabic text-text-muted text-center">
-                كيف كان استرجاعك؟ هذا ما يحدّد موعد عودتها.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="danger" size="sm" className="flex-1" onClick={() => handleGrade('again')}>
-                  <RotateCcw className="w-3.5 h-3.5" /> لم أتذكر
-                </Button>
-                <Button variant="secondary" size="sm" className="flex-1" onClick={() => handleGrade('hard')}>
-                  بصعوبة
-                </Button>
-                <Button size="sm" className="flex-1" onClick={() => handleGrade('good')}>
-                  سهل
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
-      )}
-
-      <button
-        onClick={onBack}
-        className="w-full text-center text-xs font-arabic text-text-muted hover:text-text-primary transition-colors py-2"
-      >
-        إنهاء المراجعة والعودة للمسار
-      </button>
+        <GlassButton variant="quiet" fullWidth className="mt-3" onClick={onBack}>
+          إنهاء المراجعة والعودة للرحلة
+        </GlassButton>
+      </div>
     </div>
   );
 };

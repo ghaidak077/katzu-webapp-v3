@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { PRO_PRICE_LABEL, publicAppUrl } from '@/lib/utils/links';
+import { track } from '@/lib/analytics/client';
 import {
   ArrowLeft,
   BookOpen,
@@ -28,6 +30,8 @@ export interface LandingScreenProps {
   /** Signed-in learner: skip the pitch and resume the Trail. */
   onContinue: () => void;
   onOpenTrustPage: (page: 'privacy' | 'terms' | 'contact') => void;
+  /** Public demo: a real lesson without an account. */
+  onTryDemo: () => void;
 }
 
 /**
@@ -49,9 +53,27 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
   onSignIn,
   onContinue,
   onOpenTrustPage,
+  onTryDemo,
 }) => {
   const user = useLiveQuery(() => db.users.get('current_user'));
   const isSignedIn = user?.isLoggedIn === true;
+
+  useEffect(() => {
+    track('landing_viewed', { source: isSignedIn ? 'signed_in' : 'visitor' });
+    // Canonical URL: one origin, configured rather than hardcoded, so the
+    // domain move (katzu.app) does not need a code change.
+    const origin = publicAppUrl();
+    if (!origin) return;
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    canonical.href = `${origin}/`;
+    const ogUrl = document.querySelector('meta[property="og:url"]') as HTMLMetaElement | null;
+    if (ogUrl) ogUrl.content = `${origin}/`;
+  }, [isSignedIn]);
 
   return (
     <div className="min-h-screen bg-black text-text-primary overflow-x-hidden">
@@ -80,14 +102,21 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-5">
-        <Hero isSignedIn={isSignedIn} onStart={onStart} onSignIn={onSignIn} onContinue={onContinue} />
+      <main className="max-w-5xl mx-auto px-5">          <Hero
+          isSignedIn={isSignedIn}
+          onStart={onStart}
+          onSignIn={onSignIn}
+          onContinue={onContinue}
+          onTryDemo={onTryDemo}
+        />
         <WhySection />
+        <TryDemoSection onTryDemo={onTryDemo} />
         <SkillsSection />
         <StepsSection />
         <ExampleSection />
+        <FreeVsProSection onStart={onStart} isSignedIn={isSignedIn} />
         <ComingSection />
-        <FinalCta isSignedIn={isSignedIn} onStart={onStart} onContinue={onContinue} />
+        <FinalCta isSignedIn={isSignedIn} onStart={onStart} onContinue={onContinue} onTryDemo={onTryDemo} />
       </main>
 
       <Footer onOpenTrustPage={onOpenTrustPage} />
@@ -100,7 +129,8 @@ function Hero({
   onStart,
   onSignIn,
   onContinue,
-}: Pick<LandingScreenProps, 'onStart' | 'onSignIn' | 'onContinue'> & { isSignedIn: boolean }) {
+  onTryDemo,
+}: Pick<LandingScreenProps, 'onStart' | 'onSignIn' | 'onContinue' | 'onTryDemo'> & { isSignedIn: boolean }) {
   return (
     <section className="relative pt-12 pb-16 sm:pt-20 sm:pb-24">
       <div className="absolute top-0 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 w-[28rem] h-[28rem] bg-primary/20 rounded-full blur-3xl pointer-events-none" />
@@ -135,9 +165,14 @@ function Hero({
             </Button>
           )}
           {!isSignedIn && (
-            <Button size="lg" variant="secondary" className="w-full sm:w-auto" onClick={onSignIn}>
-              لديّ حساب
-            </Button>
+            <>
+              <Button size="lg" variant="outline" className="w-full sm:w-auto" onClick={onTryDemo}>
+                جرّب درساً بدون حساب
+              </Button>
+              <Button size="lg" variant="ghost" className="w-full sm:w-auto" onClick={onSignIn}>
+                لديّ حساب
+              </Button>
+            </>
           )}
         </div>
 
@@ -197,6 +232,111 @@ function WhySection() {
             <p className="mt-2 text-[13px] leading-relaxed text-text-secondary">{body}</p>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The value-before-signup band. A visitor can complete one real lesson —
+ * study, check, speak, feedback — and only then be asked for an account. The
+ * four bullets describe what the demo actually does; the same list is rendered
+ * inside /demo, so the promise and the product cannot drift.
+ */
+function TryDemoSection({ onTryDemo }: Pick<LandingScreenProps, 'onTryDemo'>) {
+  return (
+    <section className="py-14 sm:py-20 border-t border-border-subtle/60">
+      <SectionHeading
+        eyebrow="جرّب قبل أن تسجّل"
+        title="درس واحد حقيقي، بدون حساب"
+        subtitle="لا نطلب بريداً ولا بطاقة ولا إذن إشعارات. تدرّب على موقف واحد، وقرّر بعدها إن كان كاتزو يستحق حسابك."
+      />
+      <div className="mt-10 rounded-3xl p-6 sm:p-8 bg-surface-card border border-primary/30 max-w-3xl mx-auto">
+        <ol className="grid gap-4 sm:grid-cols-2">
+          {[
+            { icon: BookOpen, text: 'تتعلّم عبارة ومفردة من مشهد واقعي — بمحتوى التطبيق الحقيقي لا بنص تجريبي.' },
+            { icon: Target, text: 'تجيب على سؤالين قصيرين للتأكد أنك فهمت المعنى.' },
+            { icon: MessagesSquare, text: 'تُنتج جملة ألمانية بنفسك — كتابةً أو بصوتك — وتأخذ تصحيحاً بالعربية.' },
+            { icon: Brain, text: 'تُنشأ لك بطاقة مراجعة من التجربة، وتنتقل معك إلى حسابك لاحقاً.' },
+          ].map(({ icon: Icon, text }) => (
+            <li key={text} className="flex items-start gap-3">
+              <Icon className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden />
+              <span className="text-[13px] leading-relaxed text-text-secondary">{text}</span>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-7 flex flex-col sm:flex-row items-center gap-3">
+          <Button size="lg" className="w-full sm:w-auto min-w-[14rem]" onClick={onTryDemo}>
+            ابدأ التجربة المجانية
+            <ArrowLeft className="w-5 h-5" aria-hidden />
+          </Button>
+          <span className="text-[11px] text-text-muted">تعمل أيضاً بدون اتصال بعد أول زيارة</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * What is free and what Pro unlocks — stated plainly, before any paywall.
+ *
+ * The free column is deliberately concrete (daily mission, review, placement,
+ * first conversations) because a learner who hits the wall later must not feel
+ * the rules changed. Nothing in onboarding, the demo, or reviewing already
+ * learned content is behind Pro.
+ */
+function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSignedIn: boolean }) {
+  return (
+    <section className="py-14 sm:py-20 border-t border-border-subtle/60">
+      <SectionHeading
+        eyebrow="الأسعار بصراحة"
+        title="ما هو مجاني، وما يفتحه Pro"
+        subtitle="الكود يُشترى من صفحة الشراء الرسمية ثم يُفعَّل داخل التطبيق. لا دفع داخل التطبيق ولا اشتراك تلقائي مفاجئ."
+      />
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 max-w-3xl mx-auto">
+        <div className="rounded-3xl p-6 bg-surface-subtle border border-border-subtle">
+          <Badge variant="subtle" size="md">
+            مجاناً دائماً
+          </Badge>
+          <ul className="mt-5 space-y-3 text-[13px] text-text-secondary">
+            {[
+              'الدرس التجريبي بدون حساب، ثم حساب مجاني يحفظ تقدّمك.',
+              'المهمة اليومية والمراجعة الذكية لكل ما تعلّمته مجاناً.',
+              'الاختبار التحديدي وبنك الأخطاء وتقرير الأداء.',
+              'جلسات محادثة تجريبية محدودة، ويمكنك دائماً كتابة الرد إذا تعذّر الصوت.',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-status-success shrink-0 mt-0.5" aria-hidden />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-3xl p-6 bg-gradient-to-br from-surface-hero to-surface-card border border-primary/30">
+          <Badge variant="primary" size="md">
+            <Sparkles className="w-3.5 h-3.5" aria-hidden />
+            Katzu Pro — {PRO_PRICE_LABEL}
+          </Badge>
+          <ul className="mt-5 space-y-3 text-[13px] text-text-secondary">
+            {[
+              'محادثات غير محدودة مع كاتزو بعد انتهاء الجلسات التجريبية.',
+              'كل المستويات والمشاهد من A1 إلى B2.',
+              'توليد تلميحات إضافية وتغيير الصعوبة أثناء المحادثة.',
+              'بنك مراجعة موسّع لا يتوقف عند حدّ الجلسات المجانية.',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" aria-hidden />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-5 text-[11px] text-text-muted leading-relaxed">
+            يمكنك دائماً إكمال ما بدأته والمراجعة بلا حدود — لن نُغلق أمامك ما تعلّمته بالفعل.
+          </p>
+          <Button size="md" className="mt-4 w-full" onClick={onStart}>
+            {isSignedIn ? 'افتح صفحة Pro' : 'ابدأ مجاناً ثم رقِّ لاحقاً'}
+          </Button>
+        </div>
       </div>
     </section>
   );
@@ -395,7 +535,8 @@ function FinalCta({
   isSignedIn,
   onStart,
   onContinue,
-}: Pick<LandingScreenProps, 'onStart' | 'onContinue'> & { isSignedIn: boolean }) {
+  onTryDemo,
+}: Pick<LandingScreenProps, 'onStart' | 'onContinue' | 'onTryDemo'> & { isSignedIn: boolean }) {
   return (
     <section className="py-14 sm:py-20 border-t border-border-subtle/60">
       <div className="flex flex-col items-center text-center">
@@ -412,6 +553,11 @@ function FinalCta({
           {isSignedIn ? 'متابعة رحلتك' : 'ابدأ مجاناً الآن'}
           <ArrowLeft className="w-5 h-5" aria-hidden />
         </Button>
+        {!isSignedIn && (
+          <Button size="md" variant="outline" className="mt-3 w-full sm:w-auto min-w-[15rem]" onClick={onTryDemo}>
+            أو جرّب درساً كاملاً بدون حساب
+          </Button>
+        )}
       </div>
     </section>
   );

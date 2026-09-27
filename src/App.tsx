@@ -11,6 +11,9 @@ import {
 } from 'react-router-dom';
 import { db, initializeDatabaseSeed, wipeUserScopedData } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
+import { needsOnboarding } from '@/lib/onboarding/preferences';
+import { isDevBuild } from '@/lib/utils/env';
+import { DAILY_MINUTE_CHOICES, type DailyMinuteChoice } from '@/types/models';
 
 // Screens the first paint needs are eager: a visitor must see the landing page
 // (and then sign-in) without waiting on anything else.
@@ -73,9 +76,31 @@ const WritingScreen = React.lazy(() =>
 const CoachScreen = React.lazy(() =>
   import('@/features/coach/CoachScreen').then((m) => ({ default: m.CoachScreen })),
 );
+const DemoScreen = React.lazy(() =>
+  import('@/features/demo/DemoScreen').then((m) => ({ default: m.DemoScreen })),
+);
+const OnboardingScreen = React.lazy(() =>
+  import('@/features/onboarding/OnboardingScreen').then((m) => ({ default: m.OnboardingScreen })),
+);
+// Katzu V2 screens (Journey Home → Story → Guided Practice → Live → Debrief).
+const JourneyHomeScreen = React.lazy(() =>
+  import('@/features/journey/JourneyHomeScreen').then((m) => ({ default: m.JourneyHomeScreen })),
+);
+const StorySetupScreen = React.lazy(() =>
+  import('@/features/journey/StorySetupScreen').then((m) => ({ default: m.StorySetupScreen })),
+);
+const GuidedPracticeScreen = React.lazy(() =>
+  import('@/features/journey/GuidedPracticeScreen').then((m) => ({ default: m.GuidedPracticeScreen })),
+);
+// Development-only design-system page; never registered in a production build.
+const DesignSystemScreen = isDevBuild
+  ? React.lazy(() => import('@/features/dev/DesignSystemScreen').then((m) => ({ default: m.DesignSystemScreen })))
+  : null;
 
 // Navigation & Icons
 import { Map, Dumbbell, BarChart3, User } from 'lucide-react';
+import { BorderBeam } from '@/components/effects/BorderBeam';
+import { GlassEffectContainer, useGlassInteractive } from '@/components/glass/GlassEffectContainer';
 
 type NavigationTab = 'Trail' | 'Practice' | 'Progress' | 'Profile';
 
@@ -166,10 +191,39 @@ function AppRoutes() {
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<LandingRoute />} />
-            <Route path="/welcome" element={<WelcomeScreen onContinue={() => navigate('/signin?mode=signup')} onGoToSignIn={(mode) => navigate(`/signin${mode === 'signup' ? '?mode=signup' : ''}`)} />} />
+            <Route
+              path="/welcome"
+              element={
+                <WelcomeScreen
+                  onGoToSignIn={(mode) => navigate(`/signin${mode === 'signup' ? '?mode=signup' : ''}`)}
+                  onTryDemo={() => navigate('/demo')}
+                />
+              }
+            />
             <Route path="/signin" element={<SignInRoute />} />
+            {/* Public demo: one real learning turn before any account exists. */}
+            <Route
+              path="/demo"
+              element={
+                <DemoScreen
+                  onHome={() => navigate('/')}
+                  onSignUp={() => navigate('/signin?mode=signup')}
+                  onStartPlacement={() => navigate('/signin?mode=signup&returnTo=%2Fplacement')}
+                />
+              }
+            />
+            <Route path="/onboarding" element={<OnboardingRoute />} />
             <Route path="/subscription" element={<SubscriptionRoute />} />
             <Route path="/placement" element={<PlacementRoute />} />
+            {/* Katzu V2 episode: Journey Home → Story → Guided Practice → Live → Debrief.
+                `/app/library` keeps the pre-V2 trail reachable for browsing every
+                scenario and level; it is navigation, not the daily mission. */}
+            <Route path="/app/library" element={<ScenarioLibraryRoute />} />
+            <Route path="/scenario/:scenarioId/story" element={<StoryRoute />} />
+            <Route path="/scenario/:scenarioId/practice" element={<GuidedPracticeRoute />} />
+            {isDevBuild && DesignSystemScreen && (
+              <Route path="/dev/system" element={<DesignSystemScreen />} />
+            )}
             <Route path="/app/review" element={<ReviewRoute />} />
             <Route path="/app/listen" element={<ListeningRoute />} />
             <Route path="/app/write" element={<WritingRoute />} />
@@ -207,12 +261,15 @@ function RouteFallback() {
 }
 
 function isPublicPath(pathname: string) {
-  // `/` is the public landing page, and `/trust/*` holds the privacy policy and
-  // terms — a visitor must be able to read those before creating an account.
+  // `/` is the public landing page, `/trust/*` holds the privacy policy and
+  // terms — a visitor must be able to read those before creating an account —
+  // and `/demo` is the value-before-signup lesson, which by definition cannot
+  // require an account.
   return (
     pathname === '/' ||
     pathname === '/welcome' ||
     pathname === '/signin' ||
+    pathname === '/demo' ||
     pathname.startsWith('/trust')
   );
 }
@@ -236,6 +293,7 @@ function LandingRoute() {
       onSignIn={() => navigate('/signin')}
       onContinue={() => navigate('/app/trail')}
       onOpenTrustPage={(page) => navigate(`/trust/${page}`)}
+      onTryDemo={() => navigate('/demo')}
     />
   );
 }
@@ -251,11 +309,68 @@ function SignInRoute() {
         try {
           localStorage.setItem('katzu_onboarding_completed', 'true');
         } catch {}
+        // Anything the visitor practised in the public demo becomes real study
+        // evidence here — the studied scenario and its review cards, and nothing
+        // else (no unverifiable demo score).
+        try {
+          const { consumeDemoProgress } = await import('@/lib/demo/migration');
+          await consumeDemoProgress();
+        } catch {}
+
+        const user = await db.users.get('current_user');
+        // A new learner answers the four onboarding questions first; only then
+        // does the placement check run, so the questions are never what blocks
+        // the first lesson.
+        if (needsOnboarding(user)) {
+          navigate('/onboarding', { replace: true });
+          return;
+        }
         // A learner who has never been measured starts with the placement check,
         // so the Trail is built from their real level instead of a guess.
-        const user = await db.users.get('current_user');
         const needsPlacement = !!user && !user.placementCompletedAt && !user.placementSkippedAt;
         navigate(needsPlacement ? '/placement' : '/app/trail', { replace: true });
+      }}
+    />
+  );
+}
+
+function OnboardingRoute() {
+  const navigate = useNavigate();
+  const user = useLiveQuery(() => db.users.get('current_user'));
+  const mode = new URLSearchParams(useLocation().search).get('mode') === 'edit' ? 'edit' : 'first_run';
+
+  // Onboarding is a signed-in surface: a visitor who lands here directly is sent
+  // to sign-in with the intent preserved by the template's usual path.
+  // `undefined` means the read has not resolved yet (the shell above already
+  // waited for the seed to write the row), never "signed out" — treating the two
+  // the same bounced every learner who opened this route directly.
+  if (user === undefined) return null;
+  if (!user.isLoggedIn) return <Navigate to="/signin?mode=signup" replace />;
+
+  return (
+    <OnboardingScreen
+      mode={mode}
+      initial={{
+        primaryGoal: user.primaryGoal ?? null,
+        arrivalStatus: user.arrivalStatus ?? null,
+        previousGerman: user.previousGerman ?? null,
+        // Prefill only when the stored number is genuinely one of the offered
+        // choices; an old value like 15 is shown as an unanswered question
+        // rather than silently rounded to a guess.
+        dailyMinutes: (DAILY_MINUTE_CHOICES as readonly number[]).includes(user.dailyGoalMinutes)
+          ? (user.dailyGoalMinutes as DailyMinuteChoice)
+          : null,
+        targetDateKind: user.targetDateKind ?? null,
+        targetDate: user.targetDate ?? null,
+        weeklyGoalDays: user.weeklyGoalDays || 5,
+      }}
+      onBack={() => navigate(mode === 'edit' ? '/app/profile' : '/welcome')}
+      onDone={(choice) => {
+        if (mode === 'edit') {
+          navigate('/app/profile', { replace: true });
+          return;
+        }
+        navigate(choice === 'take' ? '/placement' : '/app/trail', { replace: true });
       }}
     />
   );
@@ -315,7 +430,17 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
 
   return (
     <>
-      {activeTab === 'Trail' && <TrailScreen onSelectScenario={(id) => navigate(`/scenario/${encodeURIComponent(id)}`)} onOpenSubscription={() => navigate('/subscription')} onOpenReview={() => navigate('/app/review')} />}
+      {activeTab === 'Trail' && (
+        <JourneyHomeScreen
+          onStartMission={(scenarioId) =>
+            navigate(`/scenario/${encodeURIComponent(scenarioId)}/story`)
+          }
+          onOpenReview={() => navigate('/app/review')}
+          onOpenSubscription={() => navigate('/subscription')}
+          onOpenLibrary={() => navigate('/app/library')}
+          onOpenOnboarding={() => navigate('/onboarding?mode=edit')}
+        />
+      )}
       {activeTab === 'Practice' && (
         <PracticeScreen
           onOpenListening={() => navigate('/app/listen')}
@@ -323,7 +448,14 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
           onOpenCoach={() => navigate('/app/coach')}
         />
       )}
-      {activeTab === 'Progress' && <ProgressScreen />}
+      {activeTab === 'Progress' && (
+        <ProgressScreen
+          onOpenScenario={(scenarioId) =>
+            navigate(`/scenario/${encodeURIComponent(scenarioId)}/study`)
+          }
+          onOpenReview={() => navigate('/app/review')}
+        />
+      )}
       {activeTab === 'Profile' && (
         <ProfileSettingsScreen
           onOpenSubscription={() => navigate('/subscription')}
@@ -331,24 +463,57 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
           onGoToSignIn={() => navigate('/signin')}
           onOpenTrustPage={(page) => navigate(`/trust/${page}`)}
           onOpenPlacement={() => navigate('/placement')}
+          onOpenPreferences={() => navigate('/onboarding?mode=edit')}
         />
       )}
-      <nav className="fixed bottom-0 start-0 end-0 bg-surface-card/95 backdrop-blur-xl border-t border-border-subtle p-2 max-w-md mx-auto z-40 flex items-center justify-around shadow-2xl">
-        <TabButton active={activeTab === 'Trail'} onClick={() => setTab('Trail')} icon={<Map />} label="المسار" />
-        <TabButton active={activeTab === 'Practice'} onClick={() => setTab('Practice')} icon={<Dumbbell />} label="التدريب" />
-        <TabButton active={activeTab === 'Progress'} onClick={() => setTab('Progress')} icon={<BarChart3 />} label="التقدم" />
-        <TabButton active={activeTab === 'Profile'} onClick={() => setTab('Profile')} icon={<User />} label="الملف" />
+      {/* Secondary destinations only: glass, muted, and never competing with the
+          mission's single primary action.
+
+          The four tabs sit inside one glass-effect container, so their surfaces
+          blend where they meet and the active shape travels between them instead of
+          cutting. That is the Liquid Glass container behaviour — shared backdrop, one
+          identity morphing — rather than four independent panels in a row. */}
+      <nav className="fixed bottom-0 start-0 end-0 z-40 mx-auto max-w-md px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+        <GlassEffectContainer
+          spacing={10}
+          activeKey={activeTab}
+          className="kz-surface flex items-center justify-around"
+        >
+          <TabButton glassKey="Trail" active={activeTab === 'Trail'} onClick={() => setTab('Trail')} icon={<Map />} label="الرحلة" />
+          <TabButton glassKey="Practice" active={activeTab === 'Practice'} onClick={() => setTab('Practice')} icon={<Dumbbell />} label="التدريب" />
+          <TabButton glassKey="Progress" active={activeTab === 'Progress'} onClick={() => setTab('Progress')} icon={<BarChart3 />} label="التقدم" />
+          <TabButton glassKey="Profile" active={activeTab === 'Profile'} onClick={() => setTab('Profile')} icon={<User />} label="الملف" />
+        </GlassEffectContainer>
       </nav>
     </>
   );
 }
 
-function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+function TabButton({ glassKey, active, onClick, icon, label }: { glassKey: string; active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+  const press = useGlassInteractive<HTMLButtonElement>();
   return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all ${active ? 'text-primary font-bold scale-105' : 'text-text-secondary hover:text-text-primary'}`}>
-      {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: `w-5 h-5 ${active ? 'stroke-[2.5]' : ''}` })}
-      <span className="text-[11px] font-arabic">{label}</span>
-    </button>
+    // The active tab wears the travelling comet; the `glassKey` is the identity the
+    // shared container shape morphs between.
+    <BorderBeam role="active" glassKey={glassKey} enabled={active} borderRadius={16} className="flex-1">
+      <button
+        ref={press.ref}
+        onClick={onClick}
+        onPointerDown={press.onPointerDown}
+        onPointerMove={press.onPointerMove}
+        onPointerUp={press.onPointerUp}
+        onPointerCancel={press.onPointerCancel}
+        onPointerLeave={press.onPointerLeave}
+        aria-current={active ? 'page' : undefined}
+        className={`kz-interactive flex min-h-[48px] w-full flex-col items-center justify-center gap-1 rounded-2xl px-2 transition-colors ${
+          active ? 'text-kz-lavender' : 'text-kz-inkFaint hover:text-kz-inkDim'
+        }`}
+      >
+        {React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
+          className: `w-5 h-5 ${active ? 'stroke-[2.5]' : ''}`,
+        })}
+        <span className="font-arabic text-[10px]">{label}</span>
+      </button>
+    </BorderBeam>
   );
 }
 
@@ -358,6 +523,44 @@ function toNavigationTab(tab: string): NavigationTab {
   if (normalized === 'progress') return 'Progress';
   if (normalized === 'profile') return 'Profile';
   return 'Trail';
+}
+
+function StoryRoute() {
+  const navigate = useNavigate();
+  const { scenarioId = 'cafe_order' } = useParams();
+  return (
+    <StorySetupScreen
+      scenarioId={scenarioId}
+      onBack={() => navigate('/app/trail')}
+      onStart={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}/practice`)}
+    />
+  );
+}
+
+function GuidedPracticeRoute() {
+  const navigate = useNavigate();
+  const { scenarioId = 'cafe_order' } = useParams();
+  return (
+    <GuidedPracticeScreen
+      scenarioId={scenarioId}
+      onBack={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}/story`)}
+      onReady={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}/live`)}
+      onDeepPractice={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}/study`)}
+    />
+  );
+}
+
+/** The pre-V2 trail, kept as the scenario/level library. */
+function ScenarioLibraryRoute() {
+  const navigate = useNavigate();
+  return (
+    <TrailScreen
+      onSelectScenario={(id) => navigate(`/scenario/${encodeURIComponent(id)}/story`)}
+      onOpenSubscription={() => navigate('/subscription')}
+      onOpenReview={() => navigate('/app/review')}
+      onOpenOnboarding={() => navigate('/onboarding?mode=edit')}
+    />
+  );
 }
 
 function ScenarioRoute() {
@@ -370,7 +573,6 @@ function ScenarioRoute() {
       onStartStudy={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}/study`)}
       onStartQuiz={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}/quiz`)}
       onStartConversation={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}/live`)}
-      onOpenSubscription={() => navigate('/subscription')}
     />
   );
 }
@@ -404,7 +606,14 @@ function ReportRoute({ summary, onLoadSummary }: { summary: any; onLoadSummary: 
     }
   }, [summary, onLoadSummary]);
   if (!summary) return <Navigate to="/app/trail" replace />;
-  return <SessionReportScreen summary={summary} onReturnToTrail={() => navigate('/app/trail')} />;
+  return (
+    <SessionReportScreen
+      summary={summary}
+      onReturnToTrail={() => navigate('/app/trail')}
+      onOpenReview={() => navigate('/app/review')}
+      onOpenSubscription={() => navigate('/subscription')}
+    />
+  );
 }
 
 export default App;

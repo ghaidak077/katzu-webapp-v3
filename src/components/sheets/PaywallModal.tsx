@@ -1,88 +1,132 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { Sparkles, Check, KeyRound, ArrowRight } from 'lucide-react';
-import { PRO_PRICE_LABEL, SALES_URL } from '@/lib/utils/links';
+import { Badge } from '@/components/ui/Badge';
+import { Sparkles, Check, KeyRound, ExternalLink } from 'lucide-react';
+import { PRO_PRICE_LABEL, buildSalesUrl } from '@/lib/utils/links';
+import { track } from '@/lib/analytics/client';
 
 export interface PaywallModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Opens the in-app subscription screen (status + code redemption). */
   onUpgrade: () => void;
+  /** The feature the learner ran into, in Arabic. */
   title?: string;
+  /** Why it matters, in the learner's terms. */
   description?: string;
 }
 
+/** Referral attribution survives the trip to the sales site. */
+function referralFromUrl(): string {
+  try {
+    return (new URLSearchParams(window.location.search).get('ref') || '').toUpperCase();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * One paywall component for every gate in the app.
+ *
+ * The old modal appeared with different reasoning in different places and its
+ * primary button was labelled "upgrade or activate a code" — two different jobs
+ * behind one button, and no statement of what the learner keeps for free. A
+ * learner who hits a wall must be able to answer three questions in one screen:
+ * what is this, why does it matter, and what can I still do without paying.
+ */
 export const PaywallModal: React.FC<PaywallModalProps> = ({
   isOpen,
   onClose,
   onUpgrade,
-  title = 'أكمل رحلتك مع Katzu Pro',
-  description = 'لقد استنفدت الجلسات التجريبية المجانية. رَقِّ حسابك الآن لخوض محادثات غير محدودة مع الذكاء الاصطناعي.',
+  title = 'ما يفتحه Pro — وما يبقى مجانياً',
+  description = 'محادثات صوتية بلا حد، وكل المستويات من A1 إلى B2. ويبقى كل ما تعلّمته — المراجعة والمهمة اليومية وبنك أخطائك — مجانياً دائماً.',
 }) => {
+  const salesUrl = useMemo(() => buildSalesUrl(referralFromUrl()), []);
+
+  useEffect(() => {
+    if (isOpen) track('paywall_viewed', { source: title.slice(0, 64) });
+  }, [isOpen, title]);
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="عضوية Katzu Pro">
       <div className="flex flex-col items-center text-center p-2">
         <KatzuMascot name="badge" glow className="w-24 h-24 mb-3" />
 
-        <h3 className="text-xl font-bold font-arabic text-text-primary mb-2">
-          {title}
-        </h3>
+        <Badge variant="primary" size="sm" className="mb-2">
+          <Sparkles className="w-3 h-3" aria-hidden />
+          {PRO_PRICE_LABEL}
+        </Badge>
 
-        <p className="text-xs text-text-secondary font-arabic mb-5 leading-relaxed max-w-xs">
-          {description}
-        </p>
+        <h3 className="text-xl font-bold font-arabic text-text-primary mb-2">{title}</h3>
+        <p className="text-xs text-text-secondary font-arabic mb-5 leading-relaxed max-w-xs">{description}</p>
 
-        {/* Pro Benefits */}
-        <div className="w-full space-y-2 mb-6 text-start">
+        {/* A plain comparison, and nothing else: no countdown, no price framing,
+            no promise the product cannot keep ("fluent in 30 days"). */}
+        <div className="w-full space-y-2 mb-4 text-start">
+          <p className="text-[11px] font-arabic text-text-muted">ما يفتحه Pro:</p>
           {[
-            'محادثات صوتية غير محدودة وبدون حد يومي',
-            'فتح كافة السيناريوهات من المستوى A1 حتى B2',
-            'تصحيح فوري فائق الدقة وشرح القواعد بالعربية',
-            'توليد تلميحات ذكية مخصصة لكل خطوة في المحادثة',
-          ].map((benefit, i) => (
+            'محادثات صوتية بلا حد بعد الجلسات التجريبية',
+            'كل المستويات والمشاهد من A1 إلى B2',
+            'تغيير الصعوبة أثناء المحادثة وتلميحات إضافية',
+          ].map((benefit) => (
             <div
-              key={i}
+              key={benefit}
               className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-subtle border border-border-subtle text-xs font-semibold"
             >
-              <div className="w-4 h-4 rounded-full bg-status-success/20 text-status-success flex items-center justify-center flex-shrink-0">
-                <Check className="w-3 h-3" />
-              </div>
-              <span>{benefit}</span>
+              <span className="w-4 h-4 shrink-0 rounded-full bg-status-success/20 text-status-success flex items-center justify-center">
+                <Check className="w-3 h-3" aria-hidden />
+              </span>
+              <span className="font-arabic">{benefit}</span>
             </div>
           ))}
         </div>
 
-        {/* Upgrade & Redeem Action */}
+        {/* What stays free: saying this out loud is what keeps the paywall from
+            feeling like a bait-and-switch. */}
+        <div className="w-full p-3 rounded-2xl bg-status-success/10 border border-status-success/25 text-start mb-5">
+          <p className="text-[11px] font-arabic text-status-success font-bold mb-1">ويبقى مجانياً دائماً:</p>
+          <p className="text-[11px] font-arabic text-text-secondary leading-relaxed">
+            مهمة اليوم، ومراجعة كل ما تعلّمته، والاختبار التحديدي، وبنك أخطائك، ودرسك التجريبي.
+            لن نُغلق أمامك ما تعلّمته بالفعل — ولا نطلب منك شيئاً قبل أن تجرّب.
+          </p>
+        </div>
+
         <div className="w-full space-y-2.5">
+          <a
+            href={salesUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => {
+              track('purchase_clicked', { source: 'paywall' });
+              onClose();
+            }}
+            className="w-full h-14 rounded-2xl bg-primary text-white font-bold font-arabic flex items-center justify-center gap-2 shadow-glow-purple active:scale-[0.98] transition-all"
+          >
+            <ExternalLink className="w-4 h-4" aria-hidden />
+            اشترِ كود تفعيل Pro
+          </a>
+
           <Button
-            size="lg"
-            className="w-full shadow-glow-purple flex items-center justify-center gap-2 font-bold font-arabic"
+            size="md"
+            variant="secondary"
+            className="w-full"
             onClick={() => {
               onClose();
               onUpgrade();
             }}
           >
-            <Sparkles className="w-4 h-4" />
-            ترقية الحساب أو تفعيل كود
+            <KeyRound className="w-4 h-4" aria-hidden />
+            لديّ كود بالفعل — فعّله الآن
           </Button>
 
-          <a
-            href={SALES_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={onClose}
-            className="w-full py-1 flex items-center justify-center gap-1.5 text-[11px] font-arabic text-text-secondary hover:text-primary transition-colors"
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            شراء كود تفعيل ({PRO_PRICE_LABEL}) — دفع بالبطاقة أو بالعملات الرقمية أو دفع محلي في سوريا
-          </a>
-
           <button
+            type="button"
             onClick={onClose}
-            className="w-full py-2 text-xs font-semibold text-text-muted hover:text-text-secondary transition-colors"
+            className="w-full py-3 text-xs font-semibold font-arabic text-text-muted hover:text-text-secondary min-h-[44px]"
           >
-            ربما لاحقاً
+            ليس الآن — تابع بالمجاني
           </button>
         </div>
       </div>

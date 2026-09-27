@@ -38,6 +38,7 @@ import {
   CONTENT_STUDIO_UI_SCRIPT,
 } from "./cloudflare-content-studio-ui.js";
 import { CONTENT_STUDIO_TOOLS_SCRIPT } from "./cloudflare-content-studio-tools.js";
+import { handleAnalyticsRoute } from "./cloudflare-analytics.js";
 
 // ============================================================================
 // 1. ADDITIVE D1 SCHEMA
@@ -781,6 +782,15 @@ const ADMIN_API_PREFIX = "/admin/api/";
 export async function handleAdminRoutes(url, request, env, cors) {
   const path = url.pathname;
   const method = request.method;
+
+  // Product analytics ingest (`POST /analytics/events`) is not an admin route.
+  // It is delegated from here because this call site is the only dispatch point
+  // the edit tooling can reach: the worker's own routing table sits past the
+  // ~48 KB byte offset its header documents. Returning null for every other
+  // path keeps the admin router's contract unchanged.
+  const analyticsResponse = await handleAnalyticsRoute(url, request, env, cors, { json });
+  if (analyticsResponse) return analyticsResponse;
+
   const isApi = path.startsWith(ADMIN_API_PREFIX);
   // Content routes kept their pre-registry paths: `/admin/upload` is already the
   // endpoint scripts/load-curriculum.mjs writes through, and `/admin/schema` and

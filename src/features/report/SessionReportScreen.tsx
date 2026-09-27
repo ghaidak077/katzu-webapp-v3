@@ -1,25 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import confetti from 'canvas-confetti';
-import { KatzuMascot } from '@/components/common/KatzuMascot';
-import { GermanText } from '@/components/common/GermanText';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { db } from '@/lib/db/katzuDb';
+import { sceneFor } from '@/lib/design/scenes';
+import { SceneBackdrop } from '@/components/glass/SceneBackdrop';
+import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
+import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
+import { GlassWell } from '@/components/glass/GlassSurface';
+import { GermanText } from '@/components/common/GermanText';
+import { KatzuPresence, type KatzuState } from '@/components/v2/KatzuPresence';
+import { ProgressRail } from '@/components/v2/ProgressStrip';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
-import {
-  Sparkles,
-  Award,
-  CheckCircle2,
-  ArrowRight,
-  Share2,
-  TrendingUp,
-  Flame,
-  Volume2,
-} from 'lucide-react';
-import type { CEFRLevel } from '@/types/models';
+import { CAPABILITY_LABEL_AR, capabilityFromSession } from '@/lib/capability/model';
+import { completedEpisodeCount, shouldOfferPro } from '@/lib/entitlement/trial';
+import { isProEffective } from '@/lib/utils/subscription';
+import { MASTERED_REPS, gradeAnswer, reviewRefId } from '@/lib/srs/engine';
+import { enrolMistake, gradeReviewItem } from '@/lib/srs/store';
+import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
+import { Volume2, Check, TrendingUp, CalendarClock, Sparkles } from 'lucide-react';
+import type { CapabilityState, CEFRLevel, MistakeEntity } from '@/types/models';
 import {
   getNextPromotionLevel,
   isEligibleForPromotion,
@@ -39,56 +38,137 @@ export interface SessionReportScreenProps {
     mistakes: Array<{ original: string; corrected: string; grammarRule: string }>;
   };
   onReturnToTrail: () => void;
+  /** The review screen — offered when this session produced real corrections. */
+  onOpenReview?: () => void;
+  /** The subscription screen, where the Pro offer (after a win) leads. */
+  onOpenSubscription?: () => void;
 }
 
+/** One row of the retype drill: either answered, or waiting for the learner. */
+type DrillState =
+  | { status: 'correct'; mastered: boolean; messageAr: string }
+  | { status: 'wrong'; messageAr: string };
+
+/**
+ * Katzu's line per outcome, and the pose that goes with it.
+ *
+ * Deliberately not interchangeable: an assisted session never gets the earned
+ * pose or the magenta treatment, and a difficult session gets support instead of
+ * a consolation prize. The report's job is to state what happened, in one voice
+ * with the Progress screen, using the same thresholds (`capabilityFromSession`).
+ */
+const OUTCOME: Record<
+  CapabilityState,
+  { pose: KatzuState; lineAr: string; headlineAr: (title: string) => string }
+> = {
+  NOT_STARTED: {
+    pose: 'incomplete',
+    lineAr: 'لم تُسجَّل جملة بعد في هذا المشهد.',
+    headlineAr: (title) => `لم نبدأ «${title}» فعلياً بعد.`,
+  },
+  INTRODUCED: {
+    pose: 'incomplete',
+    lineAr: 'المحاولة الأولى تكون صعبة دائماً — المهم أنك أنتجت جُملًا بالألمانية.',
+    headlineAr: (title) => `تعرّفت على «${title}» وبدأت تنتج جُملك الأولى فيه.`,
+  },
+  PRACTISING: {
+    pose: 'assisted',
+    lineAr: 'أكملنا الجلسة بمساعدة تلميحاتي. المرة القادمة سنحتاج تلميحات أقل — هكذا يُبنى التدريب.',
+    headlineAr: (title) => `تدرّبت على «${title}» — لم تصبح مستقلاً فيه بعد، وهذا طبيعي في هذه المرحلة.`,
+  },
+  INDEPENDENT: {
+    pose: 'independent',
+    lineAr: 'أتممت الموقف بنفسك، بلا تلميحات. هذه هي الحالة التي نريد تكرارها.',
+    headlineAr: (title) => `أصبحت قادراً على التعامل مع «${title}» بالألمانية بدون مساعدة.`,
+  },
+  RETAINED: {
+    pose: 'independent',
+    lineAr: 'الموقف ثبت في ذاكرتك — نجحت فيه مرة أخرى بعد مراجعة مجدولة.',
+    headlineAr: (title) => `«${title}» ثابت في ذاكرتك.`,
+  },
+};
+
+/**
+ * The Debrief.
+ *
+ * The conversation just ended, so the learner's question is "did that count, and
+ * what now?" — answered with the evidence the app actually recorded: how many
+ * turns were unaided, what was corrected, and when those corrections come back.
+ * Celebration is not rendered here at all; magenta appears only when the session
+ * crossed the same independence threshold the Progress screen uses, which is why
+ * the two screens can never disagree.
+ */
 export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   summary,
   onReturnToTrail,
+  onOpenReview,
+  onOpenSubscription,
 }) => {
   const user = useLiveQuery(() => db.users.get('current_user'));
+  const scenario = useLiveQuery(() => db.scenarios.get(summary.scenarioId));
   const sessions = useLiveQuery(() => db.sessions.toArray()) || [];
-  const [retypedMistakes, setRetypedMistakes] = useState<Record<number, string>>({});
-  const [masteredMistakes, setMasteredMistakes] = useState<Set<number>>(new Set());
+  const [drill, setDrill] = useState<Record<number, { text: string; result: DrillState | null }>>({});
   const [isLevelPromoted, setIsLevelPromoted] = useState(false);
 
   const { speak } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
 
-  useEffect(() => {
-    // Fire celebratory confetti on mount
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#8B6FE8', '#7FD9A8', '#F0C674'],
-    });
-  }, []);
+  const scene = useMemo(
+    () => sceneFor(scenario ? { id: scenario.id, category: scenario.category } : { id: summary.scenarioId }),
+    [scenario, summary.scenarioId],
+  );
 
-  const handleValidateRetype = async (index: number, targetCorrected: string, originalMistake: string) => {
-    const input = (retypedMistakes[index] || '').trim().toLowerCase();
-    const target = targetCorrected.trim().toLowerCase();
+  /**
+   * One retyped correction is practice, not mastery.
+   *
+   * The old version wrote `isMastered` after a single correct retype, while the
+   * review engine defines mastery as three consecutive good recalls
+   * (`MASTERED_REPS`). Two definitions of the same word is a defect, so this
+   * grades through the review store and reports whichever of the two is true.
+   */
+  const handleValidateRetype = useCallback(
+    async (index: number, mistake: { original: string; corrected: string; grammarRule: string }) => {
+      const answer = drill[index]?.text || '';
+      const verdict = gradeAnswer(mistake.corrected, answer);
 
-    // Flexible match (ignoring final dot)
-    if (input.replace(/\.$/, '') === target.replace(/\.$/, '')) {
+      if (verdict !== 'correct') {
+        triggerHaptic('error');
+        setDrill((prev) => ({
+          ...prev,
+          [index]: { ...prev[index], result: { status: 'wrong', messageAr: 'ليست الصيغة الصحيحة بعد — قارنها بالجملة أعلاه ثم أعد الكتابة.' } },
+        }));
+        return;
+      }
+
       triggerHaptic('success');
-      setMasteredMistakes((prev) => new Set(prev).add(index));
 
-      // Rule 9 & DB: Persist mastery status in Dexie
+      let mastered = false;
+      let messageAr = 'صحيحة. ستعود هذه الجملة في مراجعتك المجدولة حتى تُتقنها.';
       try {
-        const found = await db.mistakes
+        const stored = await db.mistakes
           .where('scenarioId')
           .equals(summary.scenarioId)
-          .and((m) => m.corrected === targetCorrected || m.original === originalMistake)
+          .and((m) => m.corrected === mistake.corrected || m.original === mistake.original)
           .first();
-        if (found && found.id) {
-          await db.mistakes.update(found.id, { isMastered: true });
+        const reviewItem = stored?.id
+          ? await db.review_items.where('refId').equals(reviewRefId('mistake', stored.id)).first()
+          : undefined;
+
+        if (reviewItem) {
+          await gradeReviewItem(reviewItem, 'good');
+          mastered = (reviewItem.reps || 0) + 1 >= MASTERED_REPS;
+        } else if (stored) {
+          // Older mistakes predate the review queue; enrolling is idempotent.
+          await enrolMistake(stored as MistakeEntity);
         }
+        if (mastered) messageAr = 'أتقنتها: تذكّرتها بنجاح في ثلاث مرات متتالية.';
       } catch (err) {
-        console.warn('Could not update mistake mastery in db:', err);
+        console.warn('Could not record the retyped correction:', err);
       }
-    } else {
-      triggerHaptic('error');
-    }
-  };
+
+      setDrill((prev) => ({ ...prev, [index]: { ...prev[index], result: { status: 'correct', mastered, messageAr } } }));
+    },
+    [drill, summary.scenarioId],
+  );
 
   const targetPromotionLevel = getNextPromotionLevel(summary.cefrLevel);
   const currentSessionTimestamp = Date.now();
@@ -126,149 +206,275 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   };
 
   const canPromote =
-    targetPromotionLevel !== null &&
-    isEligibleForPromotion(summary.cefrLevel, promotionSessions);
+    targetPromotionLevel !== null && isEligibleForPromotion(summary.cefrLevel, promotionSessions);
+
+  const capabilityState = capabilityFromSession({
+    accuracyPercent: summary.accuracyPercent,
+    independentSentences: summary.independentSentences,
+    assistedSentences: summary.assistedSentences,
+  });
+  const outcome = OUTCOME[capabilityState];
+  const totalTurns = summary.independentSentences + summary.assistedSentences;
+  const weaknessCounts = new Map<MistakeCategory, number>();
+  for (const mistake of summary.mistakes) {
+    const category = classifyMistake(mistake.grammarRule, mistake.original, mistake.corrected);
+    weaknessCounts.set(category, (weaknessCounts.get(category) || 0) + 1);
+  }
+  const mainWeakness = [...weaknessCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+
+  const answeredCorrect = Object.values(drill).filter((row) => row.result?.status === 'correct').length;
+  const openCorrections = Math.max(0, summary.mistakes.length - answeredCorrect);
+
+  // This screen is where the episode ends, so it is the one place the Pro offer
+  // can be made honestly: the learner has just finished something real. Nothing
+  // is blocked by dismissing it, and the offer never appears before this point.
+  const offerPro = shouldOfferPro({
+    isPro: isProEffective(user),
+    completedEpisodes: completedEpisodeCount(sessions),
+  });
+
+  // `conversation_completed` is already emitted once by the conversation when
+  // it finishes (with the same scenario id), so this screen must not send it
+  // again — two events for one session would inflate the funnel it feeds.
 
   return (
-    <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto relative pb-20">
-      {/* Celebration Header */}
-      <div className="flex flex-col items-center text-center pt-2 mb-6">
-        <KatzuMascot name="celebrating" glow className="w-36 h-36 mb-4 animate-bounce" />
-        <Badge variant="success" size="md" className="mb-2">
-          تمت الجلسة بنجاح 🎉
-        </Badge>
-        <h2 className="text-2xl font-bold font-arabic mb-1">إنجاز رائع يا بطل!</h2>
-        <p className="text-xs text-text-secondary font-arabic">
-          أتممت محادثة «{summary.scenarioTitle}»
-        </p>
-      </div>
+    <div className="relative min-h-screen bg-kz-black text-kz-ink">
+      <SceneBackdrop scene={scene} className="pointer-events-none absolute inset-x-0 top-0 h-[300px]" />
 
-      {/* Metrics Cards Grid (Rule 6: Independent vs Assisted breakdown) */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <Card className="p-4 text-center border-primary/30 shadow-glow-purple">
-          <span className="text-[11px] text-text-secondary block mb-1">دقة التحدث المستقلة</span>
-          <div className="text-2xl font-bold font-german text-primary">
-            {summary.accuracyPercent === null ? '—' : `${summary.accuracyPercent}%`}
-          </div>
-          <span className="text-[10px] text-text-muted">بدون مساعدة تلميحات</span>
-          {summary.accuracyPercent === null && (
-            <span className="text-[10px] text-text-muted block mt-1">لا توجد جمل مستقلة كافية</span>
-          )}
-        </Card>
+      <div className="relative z-10 mx-auto max-w-md px-5 pb-40 pt-8">
+        {/* Header: the outcome first, Katzu present but not performing. */}
+        <KatzuPresence state={outcome.pose} lineAr={outcome.lineAr} size="lg" />
 
-        <Card className="p-4 text-center">
-          <span className="text-[11px] text-text-secondary block mb-1">الجمل المنطوقة</span>
-          <div className="text-2xl font-bold font-german text-text-primary">{summary.sentencesSpoken}</div>
-          <div className="flex items-center justify-center gap-1.5 text-[10px] text-text-muted mt-0.5">
-            <span className="text-status-success">{summary.independentSentences} مستقلة</span>
-            <span>•</span>
-            <span className="text-status-learning">{summary.assistedSentences} بتلميح</span>
-          </div>
-        </Card>
-      </div>
-
-      {/* Level Promotion Card (Rule 9: >=75% promotion) */}
-      {canPromote && targetPromotionLevel && (
-        <Card variant="hero" className="p-4 mb-6 border border-primary/40 shadow-glow-purple flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
-              <TrendingUp className="w-4 h-4" />
-              ترقية المستوى مستحقة!
-            </div>
-            <p className="text-xs text-text-secondary">حققت أكثر من 75% دقة في الحوار المستقل.</p>
-          </div>
-          <Button
-            size="sm"
-            disabled={isLevelPromoted}
-            onClick={handlePromoteLevel}
-            className="flex-shrink-0"
-          >
-            {isLevelPromoted ? 'تمت الترقية ✓' : `ترقية إلى ${targetPromotionLevel}`}
-          </Button>
-        </Card>
-      )}
-
-      {/* Interactive Mistake Practice & Re-type Drill (Rule 9) */}
-      {summary.mistakes.length > 0 && (
-        <div className="mb-8">
-          <h3 className="text-xs font-bold font-arabic text-text-secondary mb-3 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            تدريب تثبيت الصواب (أعد كتابة الجملة لتتقنها):
-          </h3>
-
-          <div className="space-y-3">
-            {summary.mistakes.map((m, idx) => {
-              const isMastered = masteredMistakes.has(idx);
-
-              return (
-                <div
-                  key={idx}
-                  className={`p-4 rounded-3xl border transition-all ${
-                    isMastered
-                      ? 'bg-status-success/15 border-status-success/40'
-                      : 'bg-surface-card border-border-subtle'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-xs mb-2">
-                    <span className="text-text-muted line-through">
-                      <GermanText>{m.original}</GermanText>
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => speak(m.corrected)}
-                        className="p-1 rounded-lg bg-surface-subtle hover:bg-primary/20 text-primary transition-colors"
-                        title="استمع للنطق الصحيح"
-                      >
-                        <Volume2 className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-status-success font-bold">
-                        <GermanText>{m.corrected}</GermanText>
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-[11px] text-text-secondary mb-3 font-arabic">{m.grammarRule}</p>
-
-                  {isMastered ? (
-                    <div className="flex items-center gap-1.5 text-status-success text-xs font-bold font-arabic">
-                      <CheckCircle2 className="w-4 h-4" />
-                      تم إتقان الصواب بنجاح ✓
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        dir="ltr"
-                        placeholder="أعد كتابة الجملة الصحيحة هنا..."
-                        value={retypedMistakes[idx] || ''}
-                        onChange={(e) =>
-                          setRetypedMistakes({ ...retypedMistakes, [idx]: e.target.value })
-                        }
-                        className="flex-1 h-10 bg-surface-subtle border border-border-subtle focus:border-primary rounded-xl px-3 text-xs font-german outline-none"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => handleValidateRetype(idx, m.corrected, m.original)}
-                        disabled={!(retypedMistakes[idx] || '').trim()}
-                      >
-                        تحقق
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        <div className="mt-5 text-center">
+          <p className="kz-ar-micro text-kz-inkFaint">
+            ملخّص الجلسة · <GermanText className="text-kz-inkDim">{summary.scenarioTitle}</GermanText>
+          </p>
+          <h1 className="mt-2 kz-ar-title leading-relaxed text-kz-ink">{outcome.headlineAr(summary.scenarioTitle)}</h1>
         </div>
-      )}
 
-      {/* Return CTA */}
-      <div className="space-y-2">
-        <Button size="lg" className="w-full" onClick={onReturnToTrail}>
-          العودة إلى مسار التعلم
-          <ArrowRight className="w-5 h-5 ms-2 rotate-180" />
-        </Button>
+        {/* The capability card carries the earned treatment only when the same
+            threshold the Progress screen uses was actually crossed. */}
+        <GlassCard
+          emphasis={capabilityState === 'INDEPENDENT' || capabilityState === 'RETAINED' ? 'earned' : 'primary'}
+          className="mt-5"
+        >
+          <p
+            className={
+              capabilityState === 'INDEPENDENT' || capabilityState === 'RETAINED'
+                ? 'kz-ar-caption kz-earned-text'
+                : 'kz-ar-caption text-kz-lavender'
+            }
+          >
+            {CAPABILITY_LABEL_AR[capabilityState]}
+          </p>
+          <ul className="mt-3 space-y-3">
+            <li>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="kz-ar-caption text-kz-inkDim">جُمل نطقتها بلا مساعدة</span>
+                <span className="font-german text-sm font-bold text-kz-ink">
+                  {summary.independentSentences}
+                  <span className="text-kz-inkFaint"> / {Math.max(totalTurns, summary.independentSentences)}</span>
+                </span>
+              </div>
+              <ProgressRail
+                value={summary.independentSentences}
+                max={Math.max(totalTurns, summary.independentSentences)}
+                earned={capabilityState === 'INDEPENDENT' || capabilityState === 'RETAINED'}
+                className="mt-2"
+              />
+            </li>
+            <li className="flex items-baseline justify-between gap-3">
+              <span className="kz-ar-caption text-kz-inkDim">دقة الجُمل المستقلة</span>
+              <span className="text-end">
+                <span className="font-german text-sm font-bold text-kz-ink">
+                  {summary.accuracyPercent === null ? '—' : `${summary.accuracyPercent}%`}
+                </span>
+                {summary.accuracyPercent === null && (
+                  <span className="mt-0.5 block kz-ar-micro text-kz-inkFaint">
+                    لا توجد جُمل مستقلة كافية للحكم بعد
+                  </span>
+                )}
+              </span>
+            </li>
+            <li className="flex items-baseline justify-between gap-3">
+              <span className="kz-ar-caption text-kz-inkDim">تصحيحات هذه الجلسة</span>
+              <span className="font-german text-sm font-bold text-kz-ink">
+                {summary.mistakes.length === 0 ? 'لا شيء' : summary.mistakes.length}
+              </span>
+            </li>
+            {mainWeakness && (
+              <li className="flex items-baseline justify-between gap-3">
+                <span className="kz-ar-caption text-kz-inkDim">أبرز ما يحتاج تثبيتاً</span>
+                <span className="kz-ar-caption text-kz-ink">
+                  {CATEGORY_COPY[mainWeakness[0]].labelAr} ({mainWeakness[1]})
+                </span>
+              </li>
+            )}
+            <li className="flex items-start gap-2 border-t border-white/[0.06] pt-3">
+              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-kz-neon" aria-hidden />
+              <span className="kz-ar-micro leading-relaxed text-kz-inkDim">
+                {summary.mistakes.length > 0
+                  ? 'أضفنا ما أخطأت فيه إلى مراجعتك المجدولة — أول موعد غداً، ثم تتباعد المواعيد كلما تذكّرتها بنجاح.'
+                  : 'لم تدخل جمل جديدة إلى المراجعة من هذه الجلسة — لا تصحيحات.'}
+              </span>
+            </li>
+          </ul>
+        </GlassCard>
+
+        {/* Level promotion: an offer backed by the same eligibility rule as
+            before. Still the learner's decision, so it sits in a quiet card. */}
+        {canPromote && targetPromotionLevel && (
+          <GlassCard emphasis="primary" className="mt-4">
+            <div className="flex items-start gap-2.5">
+              <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-kz-lavender" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="kz-ar-body font-bold text-kz-ink">أصبحت جاهزاً لمستوى {targetPromotionLevel}</p>
+                <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
+                  وصلت إلى دقة {summary.accuracyPercent}% في جلسة مستقلة كاملة. الترقية اختيارك — يمكنك البقاء في
+                  {' '}
+                  {summary.cefrLevel} إن أردت تثبيتاً أكثر.
+                </p>
+                <GlassButton
+                  variant="secondary"
+                  className="mt-3"
+                  disabled={isLevelPromoted}
+                  onClick={handlePromoteLevel}
+                >
+                  {isLevelPromoted ? 'تمت الترقية' : `الترقية إلى ${targetPromotionLevel}`}
+                </GlassButton>
+              </div>
+            </div>
+          </GlassCard>
+        )}
+
+        {/* The Pro offer, after the win and never before it. Plain comparison,
+            one action, and it can be ignored — the Debrief's own primary action
+            below is about the learner's next step, not about paying. */}
+        {offerPro && onOpenSubscription && (
+          <GlassCard className="mt-4">
+            <p className="kz-ar-caption text-kz-inkDim">ما يفتحه Pro — وما يبقى مجانياً</p>
+            <ul className="mt-3 space-y-2">
+              <li className="flex items-start gap-2">
+                <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-lavender" aria-hidden />
+                <span className="kz-ar-micro leading-relaxed text-kz-ink">
+                  محادثات صوتية بلا حد، وكل المستويات من A1 إلى B2
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-neon" aria-hidden />
+                <span className="kz-ar-micro leading-relaxed text-kz-inkDim">
+                  ويبقى مجانياً دائماً: مهمة اليوم، ومراجعة كل ما تعلّمته، وبنك أخطائك
+                </span>
+              </li>
+            </ul>
+            <GlassButton variant="secondary" className="mt-3" onClick={onOpenSubscription}>
+              تفاصيل Pro
+            </GlassButton>
+          </GlassCard>
+        )}
+
+        {/* Corrections: the one place where a mistake is worth something, because
+            retyping it correctly is a real second retrieval. */}
+        {summary.mistakes.length > 0 && (
+          <section className="mt-6">
+            <h2 className="kz-ar-caption text-kz-inkDim">
+              أثبّت الصيغة الصحيحة — أعد كتابتها مرة واحدة الآن
+            </h2>
+            <div className="mt-3 space-y-3">
+              {summary.mistakes.map((mistake, index) => {
+                const row = drill[index];
+                const result = row?.result || null;
+                return (
+                  <GlassWell key={index} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="min-w-0 flex-1 font-german text-[0.78rem] leading-relaxed text-kz-inkFaint line-through">
+                        <GermanText>{mistake.original}</GermanText>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => speak(mistake.corrected)}
+                        className="shrink-0 rounded-full p-1.5 text-kz-lavender transition-colors hover:bg-white/5"
+                        aria-label="استمع إلى النطق الصحيح"
+                      >
+                        <Volume2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <p className="mt-1.5 font-german text-[0.86rem] font-medium leading-relaxed text-kz-ink">
+                      <GermanText>{mistake.corrected}</GermanText>
+                    </p>
+                    <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">{mistake.grammarRule}</p>
+
+                    {result?.status === 'correct' ? (
+                      <p className="mt-3 flex items-start gap-1.5 kz-ar-micro leading-relaxed text-kz-neon">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                        <span>{result.messageAr}</span>
+                      </p>
+                    ) : (
+                      <div className="mt-3">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            dir="ltr"
+                            inputMode="text"
+                            placeholder="اكتب الجملة الصحيحة"
+                            value={row?.text || ''}
+                            onChange={(event) =>
+                              setDrill((prev) => ({
+                                ...prev,
+                                [index]: { text: event.target.value, result: prev[index]?.result || null },
+                              }))
+                            }
+                            className="h-11 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/40 px-3 font-german text-xs text-kz-ink outline-none placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                          />
+                          <GlassButton
+                            variant="secondary"
+                            disabled={!(row?.text || '').trim()}
+                            onClick={() => handleValidateRetype(index, mistake)}
+                          >
+                            تحقّق
+                          </GlassButton>
+                        </div>
+                        {result?.status === 'wrong' && (
+                          <p className="mt-2 kz-ar-micro leading-relaxed text-kz-warm">{result.messageAr}</p>
+                        )}
+                      </div>
+                    )}
+                  </GlassWell>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
+
+      {/* Dock: one obvious next action, plus the way back. */}
+      <FloatingControl className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md rounded-t-[26px] border-t border-white/[0.06] p-4 pb-6">
+        {openCorrections > 0 && onOpenReview ? (
+          <>
+            <PrimaryAction
+              hintAr={`بقي ${openCorrections} تصحيحاً لم تُثبّتها هنا — نفس الجمل ستعود في المراجعة المجدولة.`}
+              onClick={onOpenReview}
+            >
+              راجع تصحيحات هذه الجلسة
+            </PrimaryAction>
+            <GlassButton variant="quiet" fullWidth className="mt-1" onClick={onReturnToTrail}>
+              العودة إلى الرحلة
+            </GlassButton>
+          </>
+        ) : (
+          <PrimaryAction
+            hintAr={
+              capabilityState === 'INDEPENDENT' || capabilityState === 'RETAINED'
+                ? 'المحافظة على الموقف تأتي من تكراره في يوم آخر — وليس من جلسة واحدة.'
+                : 'التكرار في يوم آخر هو ما يثبّت هذا الموقف.'
+            }
+            onClick={onReturnToTrail}
+          >
+            العودة إلى الرحلة
+          </PrimaryAction>
+        )}
+      </FloatingControl>
     </div>
   );
 };

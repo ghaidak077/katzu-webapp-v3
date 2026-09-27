@@ -1,32 +1,42 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { isProEffective } from '@/lib/utils/subscription';
+import { FREE_LEVEL, isLevelFree, servedLevel } from '@/lib/entitlement/trial';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
+import { track } from '@/lib/analytics/client';
 import type { CEFRLevel, ScenarioEntity } from '@/types/models';
-import { Sparkles, CheckCircle2, Lock, Play, Flame, ArrowLeft } from 'lucide-react';
-import { pickDailyMission } from '@/lib/utils/dailyMission';
+import { Sparkles, CheckCircle2, Lock, Play, Flame, ArrowLeft, Brain } from 'lucide-react';
 import { buildCheckInMessage } from '@/lib/utils/checkIn';
 import { getXpRank } from '@/lib/utils/xpMilestones';
 import { countDue } from '@/lib/srs/engine';
-import { Brain } from 'lucide-react';
+import { missionStatusAr, selectDailyMission, type ScenarioLevelIndex } from '@/lib/mission/selectMission';
+import {
+  CAPABILITY_LABEL_AR,
+  buildCapabilityModel,
+  weakestMeasuredSkill,
+} from '@/lib/capability/model';
 
 export interface TrailScreenProps {
   onSelectScenario: (scenarioId: string) => void;
   onOpenSubscription: () => void;
   onOpenReview: () => void;
+  /** Opens the preference editor; omitted only in tests/stories. */
+  onOpenOnboarding?: () => void;
 }
 
 export const TrailScreen: React.FC<TrailScreenProps> = ({
   onSelectScenario,
   onOpenSubscription,
   onOpenReview,
+  onOpenOnboarding,
 }) => {
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('A1');
+  const [levelChosen, setLevelChosen] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallReason, setPaywallReason] = useState({ title: '', description: '' });
 
@@ -34,21 +44,82 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const scenarios = useLiveQuery(() => db.scenarios.toArray()) || [];
   const trainingRecords = useLiveQuery(() => db.scenario_training.toArray()) || [];
   const reviewItems = useLiveQuery(() => db.review_items.toArray()) || [];
+  const mistakes = useLiveQuery(() => db.mistakes.toArray()) || [];
+  const skillPractice = useLiveQuery(() => db.skill_practice.toArray()) || [];
+  const sessions = useLiveQuery(() => db.sessions.toArray()) || [];
+  const starterPhrases = useLiveQuery(() => db.starter_phrases.toArray()) || [];
+  const vocabulary = useLiveQuery(() => db.vocabulary.toArray()) || [];
 
   const dueCount = useMemo(() => countDue(reviewItems, Date.now()), [reviewItems]);
 
   const isPro = isProEffective(user);
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
+  // The learner's measured level is what this screen reports; the pills below
+  // are a filter for browsing, not the source of truth. The level an *episode*
+  // starts at is `servedLevel` — the level the server will actually serve.
+  const learnerLevel: CEFRLevel = user?.cefrLevel || 'A1';
+  const episodeLevel = servedLevel(learnerLevel, isPro);
 
-  // Featured daily mission rotates deterministically day by day instead of
-  // always showing the same hardcoded scenario (logic unit-tested).
-  const dailyScenario = useMemo(() => {
-    const mission = pickDailyMission(
-      scenarios.map((s) => ({ id: s.id, title_de: s.title_de, title_ar: s.title_ar, category: s.category })),
-      'A1',
-    );
-    return mission ? scenarios.find((s) => s.id === mission.scenario.id) ?? null : null;
-  }, [scenarios]);
+  // Which levels each scenario actually has content for, derived from real
+  // content rows (phrases + vocabulary), so an A2 learner is never sent to a
+  // scenario with only A1 material while A2 material exists.
+  const scenarioLevels = useMemo<ScenarioLevelIndex>(() => {
+    const index: ScenarioLevelIndex = {};
+    for (const phrase of starterPhrases) {
+      if (!phrase?.scenario_id) continue;
+      const levels = index[phrase.scenario_id] || [];
+      if (!levels.includes(phrase.level)) levels.push(phrase.level);
+      index[phrase.scenario_id] = levels;
+    }
+    for (const word of vocabulary) {
+      if (!word?.topic) continue;
+      const levels = index[word.topic] || [];
+      if (!levels.includes(word.level)) levels.push(word.level);
+      index[word.topic] = levels;
+    }
+    return index;
+  }, [starterPhrases, vocabulary]);
+
+  const capability = useMemo(
+    () =>
+      buildCapabilityModel({
+        scenarios,
+        training: trainingRecords,
+        sessions,
+        mistakes,
+        reviewItems,
+      }),
+    [scenarios, trainingRecords, sessions, mistakes, reviewItems],
+  );
+
+  // One primary action for today, chosen by the tested, deterministic selector
+  // (review due → unfinished → weakest skill → today's mission → new scenario).
+  const mission = useMemo(
+    () =>
+      selectDailyMission({
+        level: episodeLevel,
+        goal: user?.primaryGoal,
+        scenarios: scenarios.map((s) => ({
+          id: s.id,
+          title_de: s.title_de,
+          title_ar: s.title_ar,
+          category: s.category,
+        })),
+        training: trainingRecords.map((record) => ({
+          scenarioId: record.scenarioId,
+          studiedAt: record.studiedAt,
+          quizAttempted: record.quizAttempted,
+          lastScore: record.lastScore,
+          updatedAt: record.updatedAt,
+        })),
+        reviewItems: reviewItems.map((item) => ({ dueAt: item.dueAt, kind: item.kind, scenarioId: item.scenarioId })),
+        scenarioLevels,
+        weakestSkill: weakestMeasuredSkill({ sessions, practice: skillPractice }),
+        dailyMinutes: user?.dailyGoalMinutes,
+      }),
+    [episodeLevel, user?.primaryGoal, user?.dailyGoalMinutes, scenarios, trainingRecords, reviewItems, scenarioLevels, skillPractice, sessions],
+  );
+  const missionScenarioId = mission.scenarioId;
 
   // Katzu's daily welcome-back line reflects the user's real habit state.
   const checkIn = useMemo(
@@ -61,18 +132,36 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
 
   const xpRank = useMemo(() => getXpRank(user?.totalXp ?? 0), [user?.totalXp]);
 
-  const getTrainingStatus = (scenarioId: string) => {
-    const record = trainingRecords.find((r) => r.scenarioId === scenarioId);
-    if (record?.quizAttempted && (record?.lastScore || 0) >= 80) return 'MASTERED';
-    if (record?.studiedAt) return 'ACTIVE';
-    return 'UNLOCKED';
-  };
+  /**
+   * The scenario card's status now comes from the capability model, so "done"
+   * means a recorded unaided success — not merely opening the lesson or
+   * answering one quiz. Tests pin those transitions.
+   */
+  const capabilityFor = (scenarioId: string) => capability.byScenario[scenarioId]?.state || 'NOT_STARTED';
+
+  // The pills start on the learner's measured level (never silently A1), and a
+  // deliberate tap wins from then on.
+  useEffect(() => {
+    if (!levelChosen && user?.cefrLevel) setSelectedLevel(user.cefrLevel);
+  }, [user?.cefrLevel, levelChosen]);
+
+  /**
+   * The boundary is the Worker's, not a second opinion: free covers A1.
+   *
+   * Offering the learner's own measured level here reads better, but it promises
+   * an episode the server refuses — an A2 learner opens an A2 scenario and meets
+   * the paywall on their first turn, which is the one paywall that cannot be
+   * defended. A locked row with honest copy costs a tap; a broken episode costs
+   * the learner's trust in the whole app.
+   */
+  const levelLocked = (lvl: CEFRLevel) => !isLevelFree(lvl, isPro);
 
   const handleLevelSelect = (lvl: CEFRLevel) => {
-    if (lvl !== 'A1' && !isPro) {
+    setLevelChosen(true);
+    if (levelLocked(lvl)) {
       setPaywallReason({
-        title: `المستوى ${lvl} متاح لمشتركي Pro`,
-        description: `يتضمن المستوى ${lvl} سيناريوهات عمل متقدمة، مواقف رسمية، ومفردات دقيقة تتطلب اشتراك Katzu Pro.`,
+        title: `المستوى ${lvl} يُفتح مع Pro`,
+        description: `الخطة المجانية تغطي مستوى ${FREE_LEVEL}. Katzu Pro يفتح بقية المستويات حتى B2 — لترى أين تتجه بعد ذلك.`,
       });
       setShowPaywall(true);
       return;
@@ -81,10 +170,11 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   };
 
   const handleScenarioClick = (scenarioId: string) => {
-    if (selectedLevel !== 'A1' && !isPro) {
+    track('scenario_started', { scenarioId, source: 'trail' });
+    if (levelLocked(selectedLevel)) {
       setPaywallReason({
-        title: 'سيناريو مخصص لمشتركي Pro',
-        description: 'رَقِّ حسابك الآن لفتح جميع السيناريوهات المتقدمة من A1 حتى B2.',
+        title: `مستوى ${selectedLevel} يُفتح مع Pro`,
+        description: `في الخطة المجانية تتدرب على مستوى ${FREE_LEVEL}. Pro يفتح كل المستويات من A1 إلى B2 لمتابعة ما بعدها.`,
       });
       setShowPaywall(true);
       return;
@@ -148,61 +238,79 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         </div>
       )}
 
-      {/* Review comes before new material: what is about to be forgotten is always
-          more urgent than what has not been seen yet. */}
-      {dueCount > 0 && (
+      {/* Learners whose profile predates onboarding are prompted once here —
+          never redirected mid-task, and never asked twice after they answer. */}
+      {user?.isLoggedIn && !user.onboardingCompletedAt && onOpenOnboarding && (
         <button
-          onClick={onOpenReview}
-          className="w-full mb-3 flex items-center justify-between gap-3 rounded-3xl border border-status-learning/40 bg-status-learning/10 p-4 text-start transition-all active:scale-[0.98]"
+          onClick={onOpenOnboarding}
+          className="w-full mb-3 flex items-center justify-between gap-3 rounded-3xl border border-primary/30 bg-primary/10 p-4 text-start transition-all active:scale-[0.98] min-h-[44px]"
         >
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-status-learning/20 text-status-learning">
-              <Brain className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-arabic text-sm font-bold text-text-primary">مراجعة اليوم: {dueCount}</p>
-              <p className="font-arabic text-[11px] text-text-secondary">
-                كلمات وأخطاء حان وقت تثبيتها في ذاكرتك
-              </p>
-            </div>
-          </div>
-          <ArrowLeft className="h-4 w-4 shrink-0 text-status-learning" />
+          <span>
+            <span className="block font-arabic text-sm font-bold text-text-primary">أكمل تفضيلاتك (٣٠ ثانية)</span>
+            <span className="block font-arabic text-[11px] text-text-secondary mt-0.5">
+              هدفك ووقتك اليومي يجعلان المهمة اليومية أدق — ومستواك يبقى غير مقيس حتى تختاره.
+            </span>
+          </span>
+          <ArrowLeft className="h-4 w-4 shrink-0 text-primary" />
         </button>
       )}
 
-      {/* Hero Daily Focus Card */}
-      <Card variant="hero" className="p-4 mb-6 relative overflow-hidden flex items-center justify-between border border-primary/40 shadow-glow-purple">
+      {/* ONE primary action for today. Review-due content becomes this card
+          rather than a competing banner: the mission selector already put it
+          first, and two prominent CTAs is how a learner ends up doing neither. */}
+      <Card
+        variant="hero"
+        className={`p-4 mb-6 relative overflow-hidden flex items-center justify-between border shadow-glow-purple ${
+          mission.kind === 'review' ? 'border-status-learning/50' : 'border-primary/40'
+        }`}
+      >
         <div className="z-10 max-w-[65%]">
-          <Badge variant="primary" size="sm" className="mb-2">
-            مهمتك اليومية
+          <Badge variant={mission.kind === 'review' ? 'learning' : 'primary'} size="sm" className="mb-2">
+            {missionStatusAr(mission.kind)}
           </Badge>
-          {dailyScenario ? (
+          {mission.kind === 'review' ? (
+            <>
+              <h3 className="text-base font-bold font-arabic mb-1 leading-snug">
+                مراجعة اليوم: {dueCount} عنصر
+              </h3>
+              <p className="text-xs text-text-secondary font-arabic">{mission.subtitleAr}</p>
+            </>
+          ) : mission.scenarioId ? (
             <>
               <GermanText className="text-base font-bold text-text-primary block mb-1 leading-snug">
-                {dailyScenario.title_de}
+                {mission.titleDe || ''}
               </GermanText>
-              <p className="text-xs text-text-secondary font-arabic">
-                {dailyScenario.title_ar}
-              </p>
+              <p className="text-xs text-text-secondary font-arabic">{mission.titleAr || mission.subtitleAr}</p>
             </>
           ) : (
             <>
-              <h3 className="text-base font-bold font-arabic mb-1 leading-snug">
-                مهمتك اليومية قيد التجهيز
-              </h3>
-              <p className="text-xs text-text-secondary font-arabic">
-                نزّل المحتوى عند توفر الاتصال لبدء تدريبك التالي.
-              </p>
+              <h3 className="text-base font-bold font-arabic mb-1 leading-snug">مهمتك اليومية قيد التجهيز</h3>
+              <p className="text-xs text-text-secondary font-arabic">{mission.subtitleAr}</p>
             </>
           )}
-          {dailyScenario && (
+
+          {mission.kind === 'review' && (
             <button
-              onClick={() => handleScenarioClick(dailyScenario.id)}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-glow-purple active:scale-95 transition-all"
+              onClick={onOpenReview}
+              className="mt-2 inline-flex items-center gap-1 rounded-full bg-status-learning px-3.5 py-1.5 text-xs font-bold text-black shadow-glow-purple active:scale-95 transition-all min-h-[36px]"
             >
-              <span>ابدأ مهمة اليوم</span>
+              <Brain className="w-3.5 h-3.5" />
+              <span>{mission.ctaAr}</span>
+            </button>
+          )}
+          {missionScenarioId && mission.kind !== 'review' && (
+            <button
+              onClick={() => handleScenarioClick(missionScenarioId)}
+              className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-glow-purple active:scale-95 transition-all min-h-[36px]"
+            >
+              <span>{mission.ctaAr}</span>
               <ArrowLeft className="w-3.5 h-3.5" />
             </button>
+          )}
+          {mission.kind === 'no_content' && (
+            <p className="mt-3 text-[11px] font-arabic text-text-muted leading-relaxed">
+              يمكنك المتابعة بالمراجعة والتدريبات المتاحة على هذا الجهاز حتى يتوفر الاتصال.
+            </p>
           )}
         </div>
         <KatzuMascot name="trail_header" className="w-24 h-24 object-contain -me-2 z-10" />
@@ -211,7 +319,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
       {/* CEFR Level Selector Pills */}
       <div className="flex items-center justify-between gap-2 p-1.5 bg-surface-card border border-border-subtle rounded-2xl mb-8">
         {levels.map((lvl) => {
-          const isLvlLocked = lvl !== 'A1' && !isPro;
+          const isLvlLocked = levelLocked(lvl);
           return (
             <button
               key={lvl}
@@ -235,8 +343,8 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         <div className="absolute top-4 bottom-4 w-1 bg-gradient-to-b from-primary via-primary/30 to-border-subtle z-0" />
 
         {scenarios.map((scenario: ScenarioEntity, index: number) => {
-          const status = getTrainingStatus(scenario.id);
-          const isMastered = status === 'MASTERED';
+          const state = capabilityFor(scenario.id);
+          const isMastered = state === 'INDEPENDENT' || state === 'RETAINED';
           const isOffsetLeft = index % 2 === 0;
 
           return (
@@ -256,8 +364,8 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
               >
                 {/* Status Indicator Icon */}
                 <div className="flex items-center justify-between mb-2">
-                  <Badge variant={isMastered ? 'success' : 'primary'} size="sm">
-                    {selectedLevel}
+                  <Badge variant={isMastered ? 'success' : 'subtle'} size="sm">
+                    {CAPABILITY_LABEL_AR[state]}
                   </Badge>
                   {isMastered ? (
                     <CheckCircle2 className="w-5 h-5 text-status-success" />
@@ -274,6 +382,11 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 <div className="text-xs text-text-secondary font-arabic line-clamp-1">
                   {scenario.title_ar}
                 </div>
+                {capabilityFor(scenario.id) === 'PRACTISING' && (
+                  <p className="mt-1.5 text-[10px] font-arabic text-status-learning">
+                    تدرّبت عليه — لم تصبح مستقلاً فيه بعد
+                  </p>
+                )}
               </div>
             </div>
           );

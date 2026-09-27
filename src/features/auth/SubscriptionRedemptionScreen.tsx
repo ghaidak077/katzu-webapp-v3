@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
-import { ArrowRight, Check, KeyRound, Sparkles, UserCheck, AlertCircle, Gift, ExternalLink, ShoppingCart } from 'lucide-react';
-import { PRO_PRICE_LABEL, SALES_URL } from '@/lib/utils/links';
+import { ArrowRight, Check, KeyRound, UserCheck, AlertCircle, Gift, ExternalLink, ShoppingCart, ShieldCheck } from 'lucide-react';
+import { PRO_PRICE_LABEL, SALES_URL, buildSalesUrl } from '@/lib/utils/links';
+import { track } from '@/lib/analytics/client';
 
 export interface SubscriptionRedemptionScreenProps {
   onBack: () => void;
@@ -18,7 +19,6 @@ export interface SubscriptionRedemptionScreenProps {
 export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreenProps> = ({
   onBack,
   onSuccess,
-  onGoToSignIn,
 }) => {
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +35,6 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
   const [referralMessage, setReferralMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
   const user = useLiveQuery(() => db.users.get('current_user'));
-  const isLoggedIn = !!user?.isLoggedIn && !!user?.email;
 
   const handleRedeem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +81,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           redeemedAt: Date.now(),
           monthsGranted: grantedMonths,
         });
+        track('code_redeemed', { source: 'activation_code', count: grantedMonths });
 
         setTimeout(() => {
           onSuccess();
@@ -114,6 +114,45 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
         <KatzuMascot name="badge" glow className="w-28 h-28 mb-3" />
 
         <h2 className="text-2xl font-bold font-arabic mb-2">أطلق العنان لقدراتك مع Pro</h2>
+
+        {/* Status first: a learner must be able to see what they already have
+            before being sold anything. */}
+        <Card className="w-full p-3.5 mb-4 bg-surface-card border-border-subtle text-start">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-xs font-arabic font-bold text-text-secondary">
+              <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+              حالة الاشتراك
+            </span>
+            <span
+              className={`text-[11px] font-arabic font-bold px-2 py-0.5 rounded-full ${
+                user?.isSubscriptionActive
+                  ? 'bg-status-success/20 text-status-success'
+                  : 'bg-surface-subtle text-text-secondary border border-border-subtle'
+              }`}
+            >
+              {user?.isSubscriptionActive ? 'Pro نشط' : 'الحساب المجاني'}
+            </span>
+          </div>
+          <p className="mt-2 text-[11px] font-arabic text-text-secondary leading-relaxed">
+            {user?.isSubscriptionActive
+              ? user.subscriptionExpiresAt
+                ? `ينتهي الاشتراك في ${new Date(user.subscriptionExpiresAt).toLocaleDateString('ar')} — يمكنك تفعيل كود جديد في أي وقت لإضافة المدة.`
+                : 'اشتراكك نشط بدون تاريخ انتهاء محدد.'
+              : `لديك ${user?.freeSessionsRemaining ?? 3} جلسات محادثة تجريبية. المراجعة وكل ما تعلّمته مجانيان بلا حد.`}
+          </p>
+          <p className="mt-2 text-[10px] font-arabic text-text-muted leading-relaxed">
+            الدفع يتم على صفحة الشراء الرسمية، ثم تُفعّل الكود هنا. لا نحتفظ بأي بيانات بطاقة في التطبيق.
+          </p>
+        </Card>
+
+        {/* The fast path for someone who already paid: straight to the input. */}
+        <a
+          href="#redeem-code"
+          className="w-full mb-4 h-11 rounded-2xl border border-primary/40 bg-primary/10 text-primary text-xs font-bold font-arabic flex items-center justify-center gap-2 "
+        >
+          <KeyRound className="w-3.5 h-3.5" aria-hidden />
+          اشتريت كوداً بالفعل؟ فعّله الآن
+        </a>
         <p className="text-xs text-text-secondary font-arabic mb-5 max-w-xs leading-relaxed">
           محادثات ذكية غير محدودة بدون قيود يومية، مع تصحيح فوري للنطق والقواعد لجميع المستويات (A1 - B2).
         </p>
@@ -218,9 +257,10 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           </p>
           <div className="flex gap-2">
             <a
-              href={SALES_URL}
+              href={buildSalesUrl(referralCode)}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => track('purchase_clicked', { source: 'subscription_screen' })}
               className="flex-1 h-11 rounded-2xl bg-primary text-white text-xs font-bold font-arabic flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity"
             >
               <ExternalLink className="w-3.5 h-3.5" />
@@ -233,7 +273,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
         </Card>
 
         {/* Activation Code Redemption Box */}
-        <Card className="w-full p-4 bg-surface-subtle border-border-subtle text-start mb-4">
+        <Card id="redeem-code" className="w-full p-4 bg-surface-subtle border-border-subtle text-start mb-4 scroll-mt-24">
           <label className="flex items-center gap-1.5 text-xs font-bold text-text-secondary mb-2 font-arabic">
             <KeyRound className="w-3.5 h-3.5 text-primary" />
             هل لديك كود تفعيل؟ (مثال: DE-1M-...)

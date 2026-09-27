@@ -10,6 +10,42 @@ app → `https://katzu-webapp-v3.pages.dev`, sales site → **`https://katzu-sal
 
 ---
 
+## 0. 2026-09-26 — product pass (app-side; **nothing deployed by this pass**)
+
+Verified locally: `npm run lint` exit 0 · **577 tests / 52 files** · `npm run build`
+OK · `node --check` clean on every touched worker file. No Dexie version bump was
+needed: every field this pass added to `UserEntity` is non-indexed, so learner
+progress on existing devices is untouched.
+
+- **Try-before-signup demo** at `/demo` — a real study → quiz → speak → report loop
+  built from the cached curriculum, with **no AI call**, and progress that migrates
+  into the account on sign-up.
+- **Onboarding** at `/onboarding` — goal, arrival status, target date and daily
+  minutes; it drives the daily mission and the learner-level description.
+- **Dynamic daily mission** on the Trail (spaced review → continue → weakest skill →
+  daily → new), replacing the hardcoded `A1` pick and the "≥80% means mastered" rule.
+- **Honest progress** — a "what you can do now" capability card measured from
+  independently answered turns (not hints), and an open-mistakes list that enrols a
+  wrong quiz answer into spaced review.
+- **Conversation state machine** in the live conversation, with an in-flight guard so
+  one learner message can never be sent twice.
+- **Paywall rewritten** — price, what Pro unlocks, what stays free, and an "I already
+  have a code" path; the **share card** replaces the fake-fluency quote and `alert()`.
+- **Privacy-safe analytics** — 24 allow-listed event names / 8 property keys, an
+  opt-out switch in Settings, no PII or free text.
+
+Two actions this pass created for you:
+
+- **Deploy the worker to make analytics live.** `POST /analytics/events` (new file
+  `cloudflare-analytics.js`) exists only in the working tree — run
+  `npm run deploy:worker`. Until you do, the app still queues events and drops them
+  after `katzu_analytics_queue_v1` fills, which no learner can see.
+- **Set `VITE_PUBLIC_APP_URL` at deploy time** (name only; ask me for the value once
+  a domain resolves) — it drives the canonical tag, Open Graph URLs, share links and
+  the legal-page links, so no `pages.dev` host is hardcoded anywhere in code.
+
+---
+
 ## 1. Done and verified (live)
 
 | Area | Evidence |
@@ -163,7 +199,11 @@ in-app "manage subscription" screen (not applicable to one-off codes).
     point at) or tell me the real domain and I will update robots, sitemap,
     `ALLOWED_ORIGINS`, and the CSP `connect-src` in one commit. Indexing is
     cosmetic today; the store/PSP requirement is only that the privacy URL
-    resolves somewhere you control, which it does.
+    resolves somewhere you control, which it does. Since the 2026-09-26 pass the
+    app side of this is one setting: `VITE_PUBLIC_APP_URL` feeds canonical, Open
+    Graph, share and legal links, so the domain change needs no code edit —
+    `public/robots.txt` and `public/sitemap.xml` are the only two files that must
+    be edited by hand.
 
 ---
 
@@ -225,7 +265,8 @@ server-side errors, but nothing captures client-side crashes yet).
 ## 5. How to re-verify anything
 
 ```bash
-npm run lint && npm test -- --run && npm run build     # 403 tests must pass
+npm run lint && npm test -- --run && npm run build     # 638 tests / 56 files must pass
+npx playwright test                                 # 18 browser tests (needs the preview up on :3000)
 curl -sI https://katzu-sales.pages.dev/                     # live sales site must be 200
 curl -s  https://katzu-test.ghaidakalosh008.workers.dev/crypto/health   # ok:true; ready:true once the keys are set
 node scripts/verify-admin-live.mjs --secret=<ADMIN_SECRET>   # live admin + free-user lookup

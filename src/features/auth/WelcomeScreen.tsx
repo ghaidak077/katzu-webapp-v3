@@ -8,11 +8,12 @@ import type { CEFRLevel } from '@/types/models';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 
 export interface WelcomeScreenProps {
-  onContinue: () => void;
   onGoToSignIn: (mode?: 'signin' | 'signup') => void;
+  /** Public demo: a real lesson without creating an account. */
+  onTryDemo?: () => void;
 }
 
-export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onContinue, onGoToSignIn }) => {
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTryDemo }) => {
   const [name, setName] = useState('');
   const [showGoalSheet, setShowGoalSheet] = useState(false);
 
@@ -84,6 +85,18 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onContinue, onGoTo
             <span className="text-[11px] font-arabic text-text-muted">أو المتابعة السريعة</span>
             <div className="h-[1px] bg-border-subtle flex-1" />
           </div>
+
+          {onTryDemo && (
+            <Button
+              type="button"
+              size="lg"
+              variant="outline"
+              className="w-full min-h-[44px]"
+              onClick={onTryDemo}
+            >
+              جرّب درساً كاملاً بدون حساب
+            </Button>
+          )}
 
           <Button
             type="button"

@@ -1,6 +1,7 @@
 import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { KatzuThinking } from '@/components/effects/KatzuThinking';
 
 export function cn(...inputs: any[]) {
   return twMerge(clsx(inputs));
@@ -39,7 +40,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {isLoading ? (
-          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          // The app's one thinking motion, at control scale. A button that spins
+          // its own bordered circle is a second loading language; this is not.
+          <KatzuThinking size={20} layout="inline" />
         ) : (
           children
         )}

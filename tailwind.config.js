@@ -50,17 +50,71 @@ export default {
         border: {
           subtle: '#2E2640',
           active: 'rgba(139, 111, 232, 0.4)',
-        }
+        },
+        /**
+         * Katzu V2 tokens. Separate names on purpose: the legacy palette above
+         * still drives the screens that have not migrated yet, and a V2 screen
+         * must never accidentally inherit a legacy hex.
+         *
+         * `lavender` / `magenta` are Katzu's own eye colours — lavender is the
+         * normal primary accent, magenta is reserved for earned progress.
+         */
+        kz: {
+          black: '#000000',
+          near: '#050508',
+          soft: '#0A0A0D',
+          lavender: '#B4A0FF',
+          lavenderDeep: '#7C5CF0',
+          magenta: '#FF6FD8',
+          magentaDeep: '#E23FAE',
+          ink: '#F6F2EE',
+          inkDim: '#A79FC4',
+          inkFaint: '#7E7796',
+          warm: '#FFC98A',
+          amber: '#FF9E4A',
+          cool: '#8FB8FF',
+          neon: '#6FF0D0',
+        },
       },
       fontFamily: {
         arabic: ['Cairo', 'sans-serif'],
         german: ['Satoshi', 'Source Serif 4', 'sans-serif'],
       },
+      borderRadius: {
+        squircle: '28px',
+        'squircle-lg': '34px',
+      },
       boxShadow: {
         'glow-purple': '0 0 25px rgba(139, 111, 232, 0.25)',
         'glow-purple-lg': '0 0 40px rgba(139, 111, 232, 0.4)',
         'glow-green': '0 0 25px rgba(127, 217, 168, 0.25)',
-      }
+        'kz-lavender': '0 0 0 1px rgba(180, 160, 255, 0.28), 0 10px 34px rgba(124, 92, 240, 0.28)',
+        'kz-magenta': '0 0 0 1px rgba(255, 111, 216, 0.30), 0 10px 40px rgba(226, 63, 174, 0.30)',
+      },
+      keyframes: {
+        'kz-sheen': {
+          '0%, 100%': { transform: 'translate3d(-6%, -4%, 0) scale(1)' },
+          '50%': { transform: 'translate3d(8%, 6%, 0) scale(1.06)' },
+        },
+        'kz-rise': {
+          '0%': { opacity: '0', transform: 'translateY(14px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'kz-scene-drift': {
+          '0%': { transform: 'scale(1.06) translate3d(0, 0, 0)' },
+          '100%': { transform: 'scale(1.12) translate3d(-1.4%, -1.6%, 0)' },
+        },
+        'kz-glow-pulse': {
+          '0%, 100%': { opacity: '0.55' },
+          '50%': { opacity: '1' },
+        },
+      },
+      animation: {
+        'kz-sheen': 'kz-sheen 14s ease-in-out infinite',
+        'kz-rise': 'kz-rise 460ms cubic-bezier(0.22, 1.12, 0.36, 1) both',
+        'kz-scene-drift': 'kz-scene-drift 26s ease-in-out alternate infinite',
+        'kz-glow-pulse': 'kz-glow-pulse 3.6s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

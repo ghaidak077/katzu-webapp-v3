@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { track } from '@/lib/analytics/client';
 import { Volume2, ArrowLeft, Headphones, Sparkles, SlidersHorizontal } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
 
@@ -123,6 +124,12 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
     setState(nextState);
   };
 
+  // Funnel event: the placement is the first thing a new learner measures, and
+  // whether they finish it (vs. skip it) is the clearest onboarding signal.
+  useEffect(() => {
+    track('placement_started');
+  }, []);
+
   const advance = () => {
     if (isPlacementFinished(state)) {
       setPhase('result');
@@ -148,6 +155,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
           ? { placementCompletedAt: Date.now(), placementEstimatedLevel: level }
           : { placementSkippedAt: Date.now() }),
       });
+      track('placement_completed', { source: how, state: level });
 
       if (how === 'measured' && completedState) {
         const missed = missedPlacementSourceIds(completedState);

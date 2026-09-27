@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PROVIDER_POOL,
   callAiRouter,
@@ -464,19 +464,30 @@ describe('interactive latency preference', () => {
   });
 
   it('carries the measurements to the next isolate through the shared ledger', async () => {
-    const kv = new MemoryKv();
-    const envWithKv = { ...env, USER_PROGRESS: kv } as any;
-    record(slow, 5000);
-    record(fast, 500);
+    // The served call folds its own observed round trip into this same EWMA, so
+    // an unfrozen clock makes the seeded 500 race: a stub that resolves across a
+    // millisecond boundary records 1ms and the average lands on 300 (see
+    // recordLatency's ms<=0 guard, which is what saves the same-millisecond
+    // case). Freezing time pins the observed sample at 0, so only the seeded
+    // measurements are under assertion.
+    vi.useFakeTimers();
+    try {
+      const kv = new MemoryKv();
+      const envWithKv = { ...env, USER_PROGRESS: kv } as any;
+      record(slow, 5000);
+      record(fast, 500);
 
-    const first = okStub();
-    await callAiRouter(geminiPayload, envWithKv, deps({ fetchImpl: first.impl, pool: [slow, fast], preferFast: true }));
-    expect(JSON.parse(kv.values.get('ai-pool-ledger')!).latency['groq:fast-model'].ms).toBe(500);
+      const first = okStub();
+      await callAiRouter(geminiPayload, envWithKv, deps({ fetchImpl: first.impl, pool: [slow, fast], preferFast: true }));
+      expect(JSON.parse(kv.values.get('ai-pool-ledger')!).latency['groq:fast-model'].ms).toBe(500);
 
-    resetRouterState(); // the isolate that measured them is gone
-    const second = okStub();
-    await callAiRouter(geminiPayload, envWithKv, deps({ fetchImpl: second.impl, pool: [slow, fast], preferFast: true }));
-    expect(second.calls[0]).toContain('fast.test');
+      resetRouterState(); // the isolate that measured them is gone
+      const second = okStub();
+      await callAiRouter(geminiPayload, envWithKv, deps({ fetchImpl: second.impl, pool: [slow, fast], preferFast: true }));
+      expect(second.calls[0]).toContain('fast.test');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('records a failure as no measurement at all', async () => {
