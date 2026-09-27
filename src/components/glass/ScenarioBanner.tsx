@@ -1,0 +1,112 @@
+import React from 'react';
+import { cn } from '@/components/ui/Button';
+import { KatzuMascot } from '@/components/common/KatzuMascot';
+import { useReducedMotion } from '@/components/glass/GlassSurface';
+import { sceneBackdropLayers, type SceneLighting } from '@/lib/design/scenes';
+
+/**
+ * A scenario's 16:9 banner — its thumbnail everywhere the scenario is listed.
+ *
+ * WHY ONE COMPONENT
+ * The scenario thumbnail appeared in three different shapes on three screens (a
+ * plain text card on the trail, a 210px scene on the mission card, no artwork at
+ * all on the scenario's own screen). A learner learning "which situation is this?"
+ * from German text is doing work the app should do for them, and it meant the same
+ * scenario looked like a different product on each screen.
+ *
+ * HOW A BANNER IS CHOSEN, IN ORDER
+ *  1. `scenarios.banner_url` — the column the content editor writes, so the owner
+ *     can give a scenario real artwork from the admin panel with no deploy. This is
+ *     the one that matters; everything below is a floor, not a design.
+ *  2. The built-in per-scenario / per-category placeholder in `scenes.ts`.
+ *  3. The scenario's own procedural lighting, with an honest label saying the
+ *     artwork is still to come. Never a broken image, never a grey box.
+ *
+ * The image is a real `<img>` rather than a CSS background so the browser can do
+ * what it is good at: `loading="lazy"` and `decoding="async"` mean a trail of
+ * eight scenarios fetches what is on screen, not what might be.
+ */
+
+export interface ScenarioBannerProps {
+  scene: SceneLighting;
+  /** Describes the scene for a screen reader; empty for purely decorative use. */
+  alt?: string;
+  /** `eager` for the one banner above the fold, `lazy` for a list. */
+  loading?: 'lazy' | 'eager';
+  /** Slow parallax drift. Reserved for the one hero banner on a screen. */
+  drift?: boolean;
+  className?: string;
+  /** Overlay content, laid out inside the banner (labels, badges, Katzu). */
+  children?: React.ReactNode;
+}
+
+export const ScenarioBanner: React.FC<ScenarioBannerProps> = ({
+  scene,
+  alt = '',
+  loading = 'lazy',
+  drift = false,
+  className,
+  children,
+}) => {
+  const layers = sceneBackdropLayers(scene).image;
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <div
+      // A hook for measurement, not for styling: the banner is decorative art
+      // (`alt=""`), so no accessibility role exposes it and a layout test needs
+      // something to hold on to.
+      data-testid="scenario-banner"
+      className={cn('relative isolate aspect-[16/9] w-full overflow-hidden bg-black', className)}
+      style={{ '--kz-scene-rgb': scene.keyRgb, '--kz-scene-warmth': String(scene.warmth) } as React.CSSProperties}
+    >
+      {/* Procedural light first: it is what the artwork, when there is any, sits on. */}
+      <div aria-hidden className="absolute inset-0" style={{ backgroundImage: layers }} />
+
+      {scene.artUrl ? (
+        <img
+          src={scene.artUrl}
+          alt={alt}
+          loading={loading}
+          decoding="async"
+          className={cn(
+            'absolute inset-0 h-full w-full scale-105 object-cover',
+            drift && !reduceMotion && 'kz-animated animate-kz-scene-drift',
+          )}
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center gap-3 px-4">
+          <KatzuMascot name="scenario_host" className="h-12 w-12 object-contain opacity-80" />
+          <p className="kz-ar-micro max-w-[16rem] leading-relaxed text-kz-inkDim">
+            صورة هذا الموقف (16:9) ستُضاف هنا — الشكل واللون من مكان الموقف نفسه.
+          </p>
+        </div>
+      )}
+
+      {/* Film grain: keeps a large dark gradient from banding on an AMOLED panel. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.12] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.6'/%3E%3C/svg%3E\")",
+        }}
+      />
+
+      {/* Readability wash: Arabic text at the bottom stays legible over any photo,
+          and the top of the frame keeps the subject the photographer chose. */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'linear-gradient(180deg, rgb(0 0 0 / 0.22) 0%, rgb(0 0 0 / 0) 38%, rgb(0 0 0 / 0.55) 100%)',
+        }}
+      />
+
+      {children && <div className="relative z-10 h-full">{children}</div>}
+    </div>
+  );
+};
+
+export default ScenarioBanner;

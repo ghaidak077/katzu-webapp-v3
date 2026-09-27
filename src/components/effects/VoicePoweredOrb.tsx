@@ -11,7 +11,7 @@ import type { OrbState } from '@/components/voice/KatzuOrb';
  * A forked `VoicePoweredOrb`: the shader is unchanged in substance, the data
  * source is entirely different. This component **never touches the microphone** —
  * no `getUserMedia`, no `AudioContext`, no analyser. The app already owns one real
- * mic stream (`useMicLevel`) and one recognition pipeline (`useSpeechInput`); a
+ * mic stream (`useMicLevel`) and one recognition pipeline (`useVoiceCapture`); a
  * second stream here would mean a second permission prompt and two live audio
  * graphs for one conversation. Amplitude and band energy therefore arrive as
  * props, read from the same rAF loop that already feeds the 2D body.

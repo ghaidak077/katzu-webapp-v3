@@ -135,7 +135,7 @@ Return:
 - reply_de: your natural German reply, in character, at CEFR level ${level}. Plain sentence only — never prefix it with field labels.
 - reply_ar: its accurate, idiomatic Modern Standard Arabic translation. Never translate secular German greetings as السلام عليكم.
 - next_hint: ONE short German sentence (with its Arabic translation_ar) that the LEARNER could realistically say next in this conversation at their level — a suggestion, not your own line.
-- followup_question_ar: ONE short, inviting Arabic question that encourages the learner to keep chatting (about the scenario, e.g. about rent, appointment, order).
+- followup_question_ar: ONE short Arabic question the person you are playing would naturally ask the learner next, using only the words this situation has already introduced. Empty string when nothing natural fits — a filler question is worse than none. Never introduce a legal or technical term the situation has not used: a rent conversation that suddenly asks about الشفعة reads as a different conversation.
 Respond strictly as JSON with keys: reply_de, reply_ar, next_hint { german, translation_ar }, followup_question_ar`;
   const evaluationInstruction = `You are Katzu, a witty, warm Arabic-speaking German grammar coach who roasts German grammar (not the learner).
 Evaluate ONLY the learner's latest German sentence against CEFR level ${level}. Do not use conversation history, scenario context, or the roleplay persona.

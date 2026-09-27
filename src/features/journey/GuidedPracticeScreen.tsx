@@ -6,9 +6,8 @@ import { enrolStudiedPhrases, enrolStudiedVocabulary } from '@/lib/srs/store';
 import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
 import { sceneFor } from '@/lib/design/scenes';
 import { buildGuidedPractice, gradeRepeat, gradeTypedProduction, type PracticeCard } from '@/lib/journey/practice';
-import { useSpeechInput } from '@/lib/speech/useSpeechInput';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
-import { classifySpeechError } from '@/lib/conversation/stateMachine';
+import { useVoiceCapture, voiceStartFailureMessageAr } from '@/lib/audio/useVoiceCapture';
 import { track } from '@/lib/analytics/client';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { isProEffective } from '@/lib/utils/subscription';
@@ -84,20 +83,18 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
 
   const { speak, isPlaying, activeCharIndex } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
 
-  const onSpeechResult = useCallback(
-    (transcript: string, isFinal: boolean) => {
+  // Same pipeline as the live conversation: record, then recognise on the worker.
+  // The browser's own speech API is gone from the app — it recorded nothing on
+  // Android and it plays a system chime no page can mute.
+  const voice = useVoiceCapture({
+    onTranscript: (transcript) => {
       setHeardText(transcript);
-      if (!isFinal || !practice.listening) return;
+      if (!practice.listening) return;
       const result = gradeRepeat(practice.listening.de, transcript);
       setRepeatTone(result.verdict === 'correct' ? 'earned' : 'neutral');
       setRepeatMessage(result.messageAr);
     },
-    [practice.listening],
-  );
-
-  const speechInput = useSpeechInput({
-    onResult: onSpeechResult,
-    onError: (error) => setMicError(classifySpeechError(error).messageAr),
+    onFailure: (_failure, messageAr) => setMicError(messageAr),
   });
 
   /** Deep practice and the conversation both work from what was shown here. */
@@ -307,19 +304,28 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                     <Volume2 className="h-4 w-4" />
                     استمع
                   </GlassButton>
-                  {speechInput.isSupported ? (
+                  {voice.isSupported ? (
                     <GlassButton
-                      variant={speechInput.isListening ? 'earned' : 'secondary'}
+                      variant={voice.isRecording ? 'earned' : 'secondary'}
                       onClick={() => {
                         setMicError(null);
                         setRepeatMessage(null);
                         setHeardText('');
-                        if (speechInput.isListening) speechInput.stopListening();
-                        else speechInput.startListening();
+                        if (voice.isRecording) {
+                          voice.stop();
+                          return;
+                        }
+                        // A microphone that never opens has to say so here as well.
+                        // `start()` returns the reason (`onFailure` only covers what
+                        // happens once recording is under way), so discarding the
+                        // return value made a denied tap look like a dead button.
+                        void voice.start().then((failure) => {
+                          if (failure) setMicError(voiceStartFailureMessageAr(failure));
+                        });
                       }}
                     >
-                      {speechInput.isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                      {speechInput.isListening ? 'أوقف التسجيل' : 'كرّر بصوتك'}
+                      {voice.isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                      {voice.isRecording ? 'أوقف التسجيل' : 'كرّر بصوتك'}
                     </GlassButton>
                   ) : (
                     <span className="kz-ar-micro text-kz-inkFaint">

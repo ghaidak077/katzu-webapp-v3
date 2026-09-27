@@ -12,9 +12,19 @@ import { expect, type Page, type Route } from '@playwright/test';
  *  2. **Sign-in.** Google Identity Services cannot be driven headlessly, so a
  *     signed-in `users` row is written straight into the Dexie database the app
  *     itself created. The app then boots through its real authenticated route.
- *  3. **Speech.** Chromium has no Web Speech API. A scripted `SpeechRecognition`
- *     is installed before boot so the voice path is driven by the same events a
- *     real browser would emit — including an interim result before the final one.
+ *  3. **Speech.** The app records with `MediaRecorder` and recognises on the
+ *     worker, so the suite stubs two things and no more: a `getUserMedia` stream
+ *     whose tone the test can switch on and off (that is what moves the orb's
+ *     analyser, and therefore what the app's own endpointing reads), and a
+ *     `MediaRecorder` that emits chunks on a timer. Everything the app decides
+ *     with them — when to stop, whether a recording is too short, whether a
+ *     transcript is usable, when to send the turn — runs for real.
+ *
+ *     Why the recorder is stubbed rather than real: the audio bytes never leave
+ *     this process (the worker is mocked), so a real encoder would add a codec to
+ *     the suite without adding a fact. The real container meeting the real model
+ *     is verified against the deployed worker by `scripts/verify-stt-live.mjs`,
+ *     which is the only place that check can honestly live.
  */
 
 export interface ScriptedTurn {
@@ -25,6 +35,8 @@ export interface ScriptedTurn {
   corrected_german?: string;
   grammar_rule?: string;
   explanation_ar?: string;
+  /** The on-demand suggestion the turn carries (the dock's 💡 pill). */
+  hints?: Array<{ german: string; translation_ar: string }>;
 }
 
 /** A well-formed `/ai/turn` payload: the client rejects a reply it cannot parse. */
@@ -41,6 +53,8 @@ export interface MockOptions {
   turns?: ScriptedTurn[];
   /** Keeps a turn in flight long enough for the orb's in-progress states to be observed. */
   turnDelayMs?: number;
+  /** What `/ai/transcribe` answers when the test queued nothing via `say()`. */
+  defaultUtterance?: string;
   /**
    * Whether the canned account carries an active subscription.
    *
@@ -63,6 +77,12 @@ function refusesLevel(route: Route, isPro: boolean | undefined): boolean {
   const body = JSON.parse(route.request().postData() || '{}') as { cefr_level?: string };
   return !isPro && String(body.cefr_level || 'A1').toUpperCase() !== 'A1';
 }
+
+/** Transcripts the mocked recogniser returns, oldest first (`say()` queues them). */
+const transcribeQueue: string[] = [];
+
+/** The sentence a test gets when it records without queueing one. */
+const DEFAULT_UTTERANCE = 'Ich möchte einen Kaffee, bitte.';
 
 const LEVEL_WALL_MESSAGE_AR =
   'المستويات المتقدمة (A2, B1, B2) تتطلب اشتراك Katzu Pro نشط أو كود تفعيل.';
@@ -92,6 +112,7 @@ const WRITING_FEEDBACK = {
  */
 export async function mockBackend(page: Page, options: MockOptions = {}): Promise<void> {
   let turnIndex = 0;
+  transcribeQueue.length = 0;
 
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url());
@@ -116,7 +137,7 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
         return json({
           reply_de: scripted.reply_de,
           reply_ar: scripted.reply_ar,
-          hints: [],
+          hints: scripted.hints ?? [],
           followup_ar: '',
           evaluation: {
             is_correct: scripted.is_correct,
@@ -132,6 +153,10 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
       case url.pathname === '/ai/check-writing': {
         if (refusesLevel(route, options.isPro)) return wall(route);
         return json({ task_type: 'short_message', feedback: WRITING_FEEDBACK });
+      }
+      case url.pathname === '/ai/transcribe': {
+        const text = transcribeQueue.shift() ?? options.defaultUtterance ?? DEFAULT_UTTERANCE;
+        return json({ text, word_count: text.split(/\s+/).length, empty: false });
       }
       case url.pathname === '/ai/translate':
         return json({ translation_ar: 'ترجمة الاختبار' });
@@ -315,54 +340,104 @@ export async function seedSignedInUser(page: Page, overrides: Record<string, unk
 }
 
 /**
- * A scripted Web Speech API.
+ * The microphone and the recorder, scripted.
  *
- * Emits exactly what the real recogniser emits — `onstart`, an interim result,
- * then a final one — so the screen's own guards (`isUsableTranscript`, turn
- * submission, mic release) run for real. Utterances are queued from the test via
- * `say()`; with an empty queue the default sentence is used.
+ * The returned stream really carries audio (an oscillator into a
+ * `MediaStreamAudioDestinationNode`), so the app's `AnalyserNode` reads genuine
+ * samples and its own voice-activity endpointing runs on real amplitude. The test
+ * drives that voice with `say()` (tone on, transcript queued) and `silence()`
+ * (tone off, which is what makes the app end the recording by itself).
  */
-export async function installSpeechStub(
-  page: Page,
-  { defaultUtterance = 'Ich möchte einen Kaffee, bitte.' }: { defaultUtterance?: string } = {},
-): Promise<void> {
-  await page.addInitScript((fallback) => {
-    const scope = window as unknown as Record<string, unknown>;
-    const queue: string[] = [];
-    scope.__katzuE2E = {
-      queue,
-      say: (text: string) => queue.push(text),
+export async function installVoiceStub(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    type Scope = Record<string, unknown>;
+    const scope = window as unknown as Scope;
+    const bridge = (scope.__katzuE2E as Record<string, unknown>) || {};
+    scope.__katzuE2E = bridge;
+
+    let gain: GainNode | null = null;
+    let stream: MediaStream | null = null;
+
+    /** Built on first use: an AudioContext needs the learner's tap behind it. */
+    const ensureVoice = () => {
+      if (gain && stream) return;
+      const Ctor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      const context = new Ctor();
+      const destination = context.createMediaStreamDestination();
+      const node = context.createGain();
+      node.gain.value = 0;
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = 220;
+      oscillator.connect(node);
+      node.connect(destination);
+      oscillator.start();
+      gain = node;
+      stream = destination.stream;
     };
 
-    class ScriptedRecognition {
-      lang = 'de-DE';
-      continuous = false;
-      interimResults = true;
-      maxAlternatives = 1;
-      onstart: ((event: unknown) => void) | null = null;
-      onresult: ((event: unknown) => void) | null = null;
-      onerror: ((event: unknown) => void) | null = null;
-      onend: ((event: unknown) => void) | null = null;
-      private timers: Array<ReturnType<typeof setTimeout>> = [];
+    const mediaDevices = navigator.mediaDevices as MediaDevices;
+    mediaDevices.getUserMedia = async () => {
+      ensureVoice();
+      return stream as MediaStream;
+    };
 
-      start(): void {
-        this.timers.push(setTimeout(() => this.onstart?.({}), 20));
-        const utterance = queue.shift() || fallback;
-        const half = Math.max(1, Math.ceil(utterance.length / 2));
-        this.timers.push(setTimeout(() => this.emit(utterance.slice(0, half), false), 140));
-        this.timers.push(setTimeout(() => this.emit(utterance, true), 340));
+    bridge.speak = () => {
+      ensureVoice();
+      if (gain) gain.gain.value = 0.6;
+      // Held open for a few frames before `say()` returns. A learner who speaks a
+      // sentence does so over hundreds of milliseconds, and the app samples the
+      // microphone on `requestAnimationFrame` (the orb's amplitude and the
+      // endpointing are the same analyser). A stub that raised the level and
+      // dropped it again inside one frame could hand the app *zero* frames of
+      // speech, which is not a learner talking and must not be asserted as one:
+      // measured on this sandbox, that produced the app's honest "we heard no
+      // clear sentence" state on the practice screen while the identical
+      // sequence passed in the conversation (the difference was the extra waits
+      // before `say()`, not the app).
+      return new Promise<void>((resolve) => {
+        let frames = 0;
+        const tick = () => {
+          frames += 1;
+          if (frames >= 6) resolve();
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+    };
+    bridge.silence = () => {
+      if (gain) gain.gain.value = 0;
+    };
+
+    class ScriptedRecorder extends EventTarget {
+      static isTypeSupported = (type: string) =>
+        type.startsWith('audio/webm') || type.startsWith('audio/mp4') || type.startsWith('audio/ogg');
+
+      state: 'inactive' | 'recording' = 'inactive';
+      mimeType: string;
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: ((event: unknown) => void) | null = null;
+      onerror: ((event: unknown) => void) | null = null;
+      private timer: ReturnType<typeof setInterval> | null = null;
+
+      constructor(_stream: MediaStream, options: { mimeType?: string } = {}) {
+        super();
+        this.mimeType = options.mimeType || 'audio/webm';
       }
 
-      private emit(transcript: string, isFinal: boolean): void {
-        const alternative = Object.assign([{ transcript, confidence: 1 }], { isFinal, length: 1 });
-        const results = Object.assign([alternative], { length: 1 });
-        this.onresult?.({ resultIndex: 0, results });
+      start(): void {
+        this.state = 'recording';
+        this.timer = setInterval(() => {
+          this.ondataavailable?.({ data: new Blob([new Uint8Array(2048)], { type: this.mimeType }) });
+        }, 100);
       }
 
       stop(): void {
-        this.timers.forEach(clearTimeout);
-        this.timers = [];
-        setTimeout(() => this.onend?.({}), 20);
+        if (this.timer) clearInterval(this.timer);
+        this.timer = null;
+        this.state = 'inactive';
+        setTimeout(() => this.onstop?.({}), 10);
       }
 
       abort(): void {
@@ -370,9 +445,8 @@ export async function installSpeechStub(
       }
     }
 
-    scope.SpeechRecognition = ScriptedRecognition;
-    scope.webkitSpeechRecognition = ScriptedRecognition;
-  }, defaultUtterance);
+    (window as unknown as { MediaRecorder: unknown }).MediaRecorder = ScriptedRecorder;
+  });
 }
 
 /** Rejects the microphone the way a denied permission does. */
@@ -385,16 +459,29 @@ export async function installDeniedMicrophone(page: Page): Promise<void> {
   });
 }
 
-/** Queues the next utterance for the scripted recogniser. */
+/**
+ * The learner speaks: the scripted microphone goes live and the recogniser is
+ * queued to return `text`. Pair it with `silence()` so the app ends the recording
+ * on its own — the same way a real learner stops talking.
+ */
 export async function say(page: Page, text: string): Promise<void> {
-  await page.evaluate((utterance) => {
-    (window as unknown as { __katzuE2E?: { say: (value: string) => void } }).__katzuE2E?.say(utterance);
-  }, text);
+  transcribeQueue.push(text);
+  await page.evaluate(async () => {
+    await (window as unknown as { __katzuE2E?: { speak?: () => Promise<void> | void } }).__katzuE2E?.speak?.();
+  });
+}
+
+/** The learner stops talking; the app's own endpointing ends the recording. */
+export async function silence(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    (window as unknown as { __katzuE2E?: { silence?: () => void } }).__katzuE2E?.silence?.();
+  });
 }
 
 export interface BootOptions extends MockOptions {
   user?: Record<string, unknown>;
-  installSpeech?: boolean;
+  /** `false` measures the platform's real (silent) capture device instead. */
+  installVoice?: boolean;
   denyMicrophone?: boolean;
 }
 
@@ -460,7 +547,7 @@ export async function bootSignedIn(page: Page, options: BootOptions = {}): Promi
   collectPageErrors(page);
   await mockBackend(page, options);
   if (options.denyMicrophone) await installDeniedMicrophone(page);
-  else if (options.installSpeech !== false) await installSpeechStub(page);
+  else if (options.installVoice !== false) await installVoiceStub(page);
 
   await page.goto('/');
   await expect(page.locator('#root')).not.toBeEmpty({ timeout: 30_000 });
@@ -475,5 +562,5 @@ export async function bootSignedIn(page: Page, options: BootOptions = {}): Promi
 
 /** The orb, addressed by the accessible name that carries its live state. */
 export function orb(page: Page) {
-  return page.getByRole('button', { name: /ابدأ التحدث|إيقاف الاستماع|جارٍ التعرف|كَاتْزُو يعمل|لا يوجد اتصال|انتهت الجلسات/ });
+  return page.getByRole('button', { name: /ابدأ التحدث|إيقاف التسجيل|جارٍ التعرف|كَاتْزُو يعمل|لا يوجد اتصال|انتهت الجلسات/ });
 }

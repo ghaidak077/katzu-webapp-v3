@@ -18,6 +18,11 @@ import type {
 const AI_REQUEST_TIMEOUT_MS = 30000;
 /** A translation is one short sentence; nobody is waiting three minutes for it. */
 const TRANSLATE_TIMEOUT_MS = 12000;
+/**
+ * Recognition is a round trip with audio attached: a 20-second recording is a
+ * couple of seconds of work, so this is a ceiling rather than an expectation.
+ */
+const TRANSCRIBE_TIMEOUT_MS = 25000;
 
 /**
  * Normalizes raw browser network failures (TypeError: Failed to fetch, CORS
@@ -253,6 +258,9 @@ export class WorkerClient {
             initial_message_a2: data.initial_message_a2 || '',
             initial_message_b1: data.initial_message_b1 || '',
             initial_message_b2: data.initial_message_b2 || '',
+            // Optional by design: an older row (or a deployment before the banner
+            // migration) simply has no artwork and keeps the placeholder.
+            banner_url: typeof data.banner_url === 'string' && data.banner_url.trim() ? data.banner_url : undefined,
           };
 
           await db.scenarios.put(scenarioObj);
@@ -1124,6 +1132,61 @@ export class WorkerClient {
     if (status === 503) return 'خدمة التصحيح غير متاحة مؤقتاً. جرّب بعد قليل — نصّك محفوظ.';
     if (status === 401) return 'انتهت جلسة الدخول. سجّل الدخول من جديد — نصّك محفوظ هنا.';
     return 'تعذر تصحيح النص الآن. نصّك محفوظ هنا — أعد المحاولة.';
+  }
+
+  // --- Speech recognition (/ai/transcribe) ---
+
+  /**
+   * One recording in, one German sentence out.
+   *
+   * Throws a coded error rather than returning an empty string: the caller has to
+   * be able to tell "I could not reach the recogniser" from "the learner said
+   * nothing", because the first is a retry and the second is a re-record. Every
+   * failure carries the worker's Arabic message, which says which one it is.
+   */
+  async transcribeAudio(
+    audio: { base64: string; mime: string },
+    idToken?: string,
+  ): Promise<{ text: string }> {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) {
+      const error: any = new Error('انتهت جلسة الدخول. سجّل الدخول من جديد ثم أعد التحدث — لن يُفقد شيء.');
+      error.code = 'UNAUTHENTICATED';
+      throw error;
+    }
+    const res = await fetchWithTimeout(
+      `${this.baseUrl}/ai/transcribe`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ audio: audio.base64, mime: audio.mime }),
+      },
+      TRANSCRIBE_TIMEOUT_MS,
+    );
+
+    logNetwork('ai/transcribe', `HTTP ${res.status} (${Math.round(audio.base64.length / 1024)} KB audio)`);
+
+    if (res.ok) {
+      const data = await res.json().catch(() => ({} as any));
+      return { text: typeof data?.text === 'string' ? data.text : '' };
+    }
+
+    const data = await res.json().catch(() => ({} as any));
+    const codes: Record<number, string> = {
+      401: 'UNAUTHENTICATED',
+      402: 'PAYWALL_REQUIRED',
+      403: 'PAYWALL_REQUIRED',
+      413: 'AUDIO_TOO_LARGE',
+      429: 'RATE_LIMIT_EXCEEDED',
+      503: 'STT_UNAVAILABLE',
+    };
+    const error: any = new Error(
+      data?.message || `تعذر التعرف على الصوت (رمز ${res.status}). اكتب جملتك أو أعد المحاولة.`,
+    );
+    error.code = data?.code || codes[res.status] || 'STT_FAILED';
+    error.status = res.status;
+    logError('ai/transcribe', `Transcription failed HTTP ${res.status} code=${error.code}`);
+    throw error;
   }
 
   // --- Review Queue Sync (/review/sync) ---

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  classifySpeechError,
   classifyTurnError,
   conversationReducer,
   initialConversationState,
@@ -146,8 +145,6 @@ describe('conversation state machine', () => {
     expect(classifyTurnError({ code: 'NETWORK_ERROR' }).retryable).toBe(true);
     expect(classifyTurnError({ code: 'AI_EMPTY_REPLY' }).kind).toBe('ai_service');
     expect(classifyTurnError(new Error('boom')).retryable).toBe(true);
-    expect(classifySpeechError('not-allowed').kind).toBe('mic_permission');
-    expect(classifySpeechError('no-speech').kind).toBe('speech_recognition');
   });
 });
 

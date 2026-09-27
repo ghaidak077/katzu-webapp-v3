@@ -51,6 +51,12 @@ export interface ScenarioEntity {
   initial_message_a2: string;
   initial_message_b1: string;
   initial_message_b2: string;
+  /**
+   * The scenario's own 16:9 artwork, set per scenario in the content editor.
+   * Absent means "use the built-in placeholder for this scenario or category" —
+   * never "no banner", because a card with no image is a card nobody taps.
+   */
+  banner_url?: string;
 }
 
 export interface StarterPhraseEntity {

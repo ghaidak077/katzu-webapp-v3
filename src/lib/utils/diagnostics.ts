@@ -121,8 +121,90 @@ function pushEntry(level: DiagnosticLevel, scope: string, message: string, detai
     detail: detail ? truncate(detail) : undefined,
   };
   entries = [...entries.slice(-(MAX_LOG_ENTRIES - 1)), entry];
-  if (level === 'ERROR') forwardCrash(entry);
+  if (level === 'ERROR') {
+    forwardCrash(entry);
+    persistCrashes();
+  }
   listeners.forEach((l) => l());
+}
+
+/**
+ * Crash evidence that survives the reload.
+ *
+ * The ring buffer above lives in memory, which made it useless for the one case
+ * that matters most: a page that crashed hard enough that the learner reloaded it.
+ * Before this, the export after a reload was empty — the report a learner could
+ * actually send carried none of the evidence they were sending it for.
+ *
+ * Only entries that are already safe to leave the device are kept: uncaught errors
+ * (scope `window` / `promise`) and the app's own `logError` calls. The `console`
+ * proxy is excluded here for exactly the reason it is excluded from crash
+ * forwarding — its arguments can carry a learner's own German sentence, and a
+ * stored sentence is a stored sentence even on their own device.
+ *
+ * Writes are best effort and bounded: private mode, a full quota, or a corrupted
+ * payload all leave the in-memory buffer working, which is what the app reads.
+ */
+const PERSIST_KEY = 'kz-diagnostics-crashes';
+const PERSIST_LIMIT = 40;
+
+function isPersistable(entry: DiagnosticEntry): boolean {
+  return entry.level === 'ERROR' && entry.scope !== 'console';
+}
+
+function crashStorage(): Storage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Writes the current error tail, so a reload cannot lose it. Idempotent. */
+function persistCrashes(): void {
+  const storage = crashStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(PERSIST_KEY, JSON.stringify(entries.filter(isPersistable).slice(-PERSIST_LIMIT)));
+  } catch {
+    /* storage refused the write; the in-memory buffer still has everything */
+  }
+}
+
+/**
+ * Restores the previous session's errors into the buffer.
+ *
+ * Called once at install. The stored list is the same tail this function rebuilds,
+ * so calling it twice — or reloading five times — cannot duplicate an entry, and
+ * nothing needs clearing.
+ */
+export function rehydrateDiagnostics(): number {
+  const storage = crashStorage();
+  if (!storage) return 0;
+  let parsed: unknown;
+  try {
+    const raw = storage.getItem(PERSIST_KEY);
+    if (!raw) return 0;
+    parsed = JSON.parse(raw);
+  } catch {
+    return 0;
+  }
+  if (!Array.isArray(parsed)) return 0;
+  const restored = parsed
+    .filter(
+      (row): row is DiagnosticEntry =>
+        !!row &&
+        typeof row === 'object' &&
+        typeof (row as DiagnosticEntry).timestamp === 'number' &&
+        typeof (row as DiagnosticEntry).message === 'string' &&
+        typeof (row as DiagnosticEntry).scope === 'string' &&
+        (row as DiagnosticEntry).level === 'ERROR',
+    )
+    .slice(-PERSIST_LIMIT);
+  if (restored.length === 0) return 0;
+  entries = [...restored, ...entries].slice(-MAX_LOG_ENTRIES);
+  listeners.forEach((l) => l());
+  return restored.length;
 }
 
 /** Manual app-level event (AI HTTP status, STT failure, etc.). */
@@ -189,12 +271,24 @@ export function downloadDiagnostics(): boolean {
 
 export function clearDiagnostics(): void {
   entries = [];
+  const storage = crashStorage();
+  try {
+    storage?.removeItem(PERSIST_KEY);
+  } catch {
+    /* nothing persisted is the state this function is already in */
+  }
   listeners.forEach((l) => l());
 }
 
 /** Install global capture; call once from main.tsx. */
 export function installDiagnosticsCapture(): void {
   if (typeof window === 'undefined') return;
+  // Before anything else logs: a session that opened after a crash starts with
+  // the previous session's errors already in the buffer.
+  const restored = rehydrateDiagnostics();
+  if (restored > 0) {
+    logEvent('session', `Diagnostics restored after a reload (${restored})`);
+  }
   const w = window as any;
 
   if (!w.__katzuDiagnosticsInstalled) {

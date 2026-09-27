@@ -8,8 +8,10 @@ import { bootSignedIn, orb } from './harness';
  * analyser is wired to a real `MediaStream` rather than to a fake amplitude. This
  * test measures the one thing a machine can settle — that `getUserMedia` resolves,
  * a real `AudioContext` runs over the result, and the analyser reports live
- * samples instead of silence — and prints the peak it saw, so the numbers in
- * `KATZU_V2_IMPLEMENTATION_LOG.md` are falsifiable rather than remembered.
+ * samples rather than throwing — and prints the peak it saw, so the numbers in
+ * `KATZU_V2_IMPLEMENTATION_LOG.md` are falsifiable rather than remembered. It runs
+ * with the scripted microphone switched OFF, so this is the platform's own capture
+ * device, not the test's oscillator.
  *
  * What it deliberately does not claim: that the orb's deformation looks right for
  * a human voice. Measured here, Chromium's fake capture device delivers **silence**
@@ -62,13 +64,13 @@ test('the orb renders its WebGL body rather than silently taking the fallback', 
   await expect(orb(page).locator('canvas')).toHaveCount(1);
   expect(messages.filter((text) => text.includes('WebGL unavailable'))).toHaveLength(0);
 
-  // And the GL body still drives the control: tapping the sphere listens.
+  // And the GL body still drives the control: tapping the sphere records.
   await orb(page).click();
-  await expect(orb(page)).toHaveAttribute('aria-label', 'إيقاف الاستماع');
+  await expect(orb(page)).toHaveAttribute('aria-label', 'إيقاف التسجيل');
 });
 
 test('the orb is driven by a real microphone stream, not a fake amplitude', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { installVoice: false });
 
   // The permissions and the fake capture device are both real, so a denied or
   // absent device would fail here rather than silently yielding zeros.
@@ -84,5 +86,5 @@ test('the orb is driven by a real microphone stream, not a fake amplitude', asyn
   await page.getByRole('button', { name: 'تمرين سريع' }).click();
   await expect(orb(page)).toHaveAttribute('aria-label', 'ابدأ التحدث');
   await orb(page).click();
-  await expect(orb(page)).toHaveAttribute('aria-label', 'إيقاف الاستماع');
+  await expect(orb(page)).toHaveAttribute('aria-label', 'إيقاف التسجيل');
 });

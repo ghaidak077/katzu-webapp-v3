@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { bootSignedIn, orb, say, turn } from './harness';
+import { bootSignedIn, orb, say, silence, turn } from './harness';
 
 /**
  * The daily episode, end to end, in a real browser.
@@ -119,8 +119,14 @@ test('Guided Practice rehearses real lines and grades honestly', async ({ page }
 
   // Listening: a repeat is reported as word coverage, never as a pronunciation
   // score the app cannot measure.
-  await say(page, 'Guten Tag, ich möchte einen Kaffee bitte');
   await page.getByRole('button', { name: 'كرّر بصوتك' }).click();
+  // Wait for the microphone to be open before speaking — the same gate the live
+  // conversation's test uses. Without it the tone could be raised and dropped
+  // while `getUserMedia` was still resolving, and the app's honest "we heard no
+  // clear sentence" state would be the test's fault, not the app's.
+  await expect(page.getByRole('button', { name: 'أوقف التسجيل' })).toBeVisible();
+  await say(page, 'Guten Tag, ich möchte einen Kaffee bitte');
+  await silence(page);
   await expect(page.getByText(/سمعنا /)).toBeVisible();
 
   await page.getByRole('button', { name: 'أنا جاهز' }).click();
@@ -139,13 +145,15 @@ test('Live Interaction runs a turn with the orb and keeps the typed path open', 
 
   // The orb is the microphone control, and says which state it is in.
   await expect(orb(page)).toHaveAttribute('aria-label', 'ابدأ التحدث');
-  await say(page, 'Guten Tag, ich möchte einen Kaffee bitte');
   await orb(page).click();
-  await expect(orb(page)).toHaveAttribute('aria-label', 'إيقاف الاستماع');
+  await expect(orb(page)).toHaveAttribute('aria-label', 'إيقاف التسجيل');
   await expect(page.getByText('أنا أستمع إليك… تحدث الآن')).toBeVisible();
 
-  // The transcript lands in the LTR input, and the learner sends it.
-  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية هنا|أنا أستمع إليك/);
+  // The learner speaks and stops; the app's own endpointing ends the recording,
+  // the worker recognises it, and the sentence lands in the LTR input.
+  await say(page, 'Guten Tag, ich möchte einen Kaffee bitte');
+  await silence(page);
+  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
   await expect(input).toHaveValue('Guten Tag, ich möchte einen Kaffee bitte');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
 
@@ -155,7 +163,7 @@ test('Live Interaction runs a turn with the orb and keeps the typed path open', 
   await expect(page.getByText(/الجولة 2 من 3/)).toBeVisible();
 
   // The typed path is always one tap away, never behind a failure.
-  await page.getByRole('button', { name: /اكتب بدلاً من ذلك|تفضّل الكتابة/ }).click();
+  await page.getByRole('button', { name: 'اكتب بدلاً من التحدث' }).click();
   await expect(input).toBeFocused();
 });
 
@@ -185,7 +193,7 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
   ];
 
   for (const reply of replies) {
-    const input = page.getByPlaceholder(/اكتب جملتك بالألمانية هنا|أنا أستمع إليك/);
+    const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
     await input.fill('Ich möchte einen Kaffee bitte');
     await page.getByRole('button', { name: 'أرسل جملتك' }).click();
     // Each turn's own reply is the completion signal; the state machine refuses a
@@ -216,7 +224,7 @@ test('a denied microphone is stated in Arabic and never closes the typed path', 
   await expect(page.getByText(/لم يُسمح بالوصول للمايك/)).toBeVisible();
 
   // The escape hatch still works: the learner types and the turn goes through.
-  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية هنا|أنا أستمع إليك/);
+  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
   await input.fill('Guten Tag');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();

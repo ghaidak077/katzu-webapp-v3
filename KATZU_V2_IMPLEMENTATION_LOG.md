@@ -378,6 +378,139 @@ Test Files  56 passed (56)
      Tests  638 passed (638)
 ```
 
+## 10. What the first real phone session broke (2026-09-27)
+
+Eight complaints arrived together from using the app on a real Android phone. Five were the app's
+either way; the two that mattered most had one cause each, and both are now structural fixes rather
+than patches.
+
+### 10.1 The orb covered the sentence the learner was reading
+
+The conversation dock was `position: fixed` over a scrolling transcript that reserved a hardcoded
+`pb-44`. The dock is taller than that whenever the suggestion panel is open, so the newest Katzu
+reply — the one the learner needs in order to answer — sat under the orb, cut off mid-sentence
+(measured from the session's screenshot: *"Die Miete beträgt 800 Eu…"*). The fix is structural: the
+screen is one `h-[100dvh]` column, the transcript is `flex-1 overflow-y-auto`, and the dock is
+`shrink-0` below it. Nothing floats over anything, at any dock height, by construction.
+
+`e2e/conversationLayout.spec.ts` asserts that as **geometry, not a screenshot**: with the
+suggestion panel open (the tallest the dock ever gets), every message box must end above the dock
+and no message box may intersect the orb, on a 720px and a 360×640 viewport. Two measurements found
+during that work are worth keeping:
+
+- the auto-scroll must be **instant**, not smooth: a smooth scroll animates towards the height the
+  content had when it was measured, and a reply that gains its translation mid-animation left the
+  newest message **169 px** short of the view — a whole message hidden under the dock;
+- the dock's height changes *while* the learner reads (the suggestion panel opens, the keyboard
+  rises), which shrinks the transcript and used to leave the message cut off at the new edge. A
+  `ResizeObserver` re-pins the scroll when the learner was already at the bottom, and it decides
+  that from the **previous** height: reading the current metrics after the resize cannot tell "the
+  learner scrolled up" from "the dock grew".
+
+The one failure this test produced before it was right was its own: a single `evaluate` can land in
+the sub-frame window between React committing the new dock height and the observer's before-paint
+callback, and read the commit's new `clientHeight` against the old `scrollTop` (347 vs 384, 21 px
+short) — a state the learner never sees. It polls for the settle now, with the numbers in the
+comment.
+
+### 10.2 The microphone did not work on Android, and could not have
+
+The report was exact: tapping the mic played the Android system chime and recorded nothing. Both
+halves were the **browser's** speech API (`webkitSpeechRecognition`), which the app used until this
+pass:
+
+1. it captured nothing — Chrome's recogniser and the app's own `getUserMedia` analyser stream (the
+   orb's amplitude) compete for the microphone, and the recogniser lost;
+2. it plays an OS-level sound when it opens the mic, and no web API can mute a sound the operating
+   system makes;
+3. it does not exist at all in Firefox and is unreliable in iOS Safari, so "speak German" was
+   silently unavailable on two other browsers.
+
+So the app stopped using it. One pipeline replaces it, and every part of it is one the app owns:
+`getUserMedia` (already needed by the orb) → `MediaRecorder` → `POST /ai/transcribe` on the Worker →
+Workers AI Whisper. `src/lib/speech/useSpeechInput.ts` is **deleted**; `classifySpeechError` went
+with it. Details that are decisions rather than plumbing:
+
+- **The feedback is now the app's.** `audio/cues.ts` synthesises a soft two-note blip (rising when
+  the mic opens, falling when it closes, peak gain 0.06) and `triggerHaptic` fires with it. No
+  audio asset to download, and nothing the page cannot control.
+- **Endpointing is local, pure and tested.** `decideStop` (`audio/useVoiceCapture.ts`) owns the
+  numbers: a 20 s ceiling, 1.2 s of silence *after* speech ends a recording, 7 s with no speech at
+  all gives up (the "tapped by mistake" case). A learner pausing mid-sentence to think is not cut
+  off, which a naive level-threshold recorder does constantly in German word order.
+- **The microphone is released before the network call** — the OS indicator goes out when the
+  learner stops talking, not when the model answers.
+- **The Worker route needs no entitlement check, on purpose.** Every other AI route checks the
+  plan; transcription *is* the microphone, and refusing it would mean a free learner whose session
+  quota is spent can no longer be heard while the app still offers them review. It has its own rate
+  budget instead (`scope: "stt"`, 40/min, 800/day, namespaced so speaking never spends a
+  conversation turn), a 400,000-character body ceiling on top of the global 64 KB one, and it stores
+  no audio. `[ai] binding = "AI"` was already configured, so **no new secret or binding**.
+- **What is not verified, and cannot be here.** Headless Chromium has no microphone worth trusting,
+  so the suite scripts the capture device (a real oscillator stream, so the app's analyser and
+  endpointing run for real) and mocks `/ai/transcribe`. The recording container meeting the real
+  model is verified separately by `scripts/verify-stt-live.mjs`, which records a real German clip
+  with the same `MediaRecorder` options in a browser and posts it to the deployed Worker. The
+  Android retest itself stays with the owner.
+
+### 10.3 A test that failed for the right reason, twice
+
+`e2e/microphone.spec.ts` and the journey's live test drove the old scripted `SpeechRecognition`.
+They now drive the real path: `say()` raises the level on the scripted microphone, `silence()`
+drops it, and everything the app decides with that — when to stop, whether a recording is too
+short, whether a transcript is usable, when to send the turn — runs unmodified.
+
+Guided Practice then failed with the app's own honest state (*"لم نسمع جملة واضحة"*), which was
+worth diagnosing rather than loosening: `say()` switched the level on and `silence()` switched it off
+a few milliseconds later, and the app samples the microphone on `requestAnimationFrame`. That pair
+could hand the app **zero frames of speech** — and the identical sequence passed in the conversation
+screen only because two extra waits happened to sit before it. `say()` now holds the tone open for
+six frames (a human utters a sentence over hundreds of milliseconds; one frame is not a learner
+talking), and the practice test waits for the microphone to actually be open before speaking. The
+app was never wrong; the stub was asserting something it had not done.
+
+### 10.4 A scenario's own 16:9 banner
+
+The owner asked for a per-scenario 16:9 banner, updatable per scenario, used as the thumbnail on the
+main screens and the scenario cards. It is a content column, not a code change:
+`scenarios.banner_url` (optional), written from the admin Content Studio, read by the app through
+`sceneFor` — where it wins over both the per-scenario and the per-category placeholders — and
+rendered by one `ScenarioBanner` component on Journey Home's mission card, the scenario library and
+the scenario's own screen. An empty or whitespace value means "no artwork" and falls back, never
+`src=""`. When nothing at all is available the component renders its own honest placeholder with an
+Arabic label saying the artwork is still to come.
+
+The column is added to a table that was created outside this repo, so there is no migration file to
+edit: `ensureContentColumns` (`cloudflare-content-schema.js`) reconciles it with an `ALTER TABLE …
+ADD COLUMN` on the worker's first request and is a no-op afterwards. **Additive only, by policy** —
+nothing in that path may drop, rename or retype a column — and `tests/contentStudio.test.ts` still
+pins the column list against `CONTENT_COLUMNS` in `src/lib/content/curriculumAudit.ts`.
+
+One measurement came out of it and is a real win: the placeholder photographs were being requested
+at `w=1200&q=70` for a column that renders 448 px wide. At `w=640&h=360&q=60` the same first photo
+is **63,113 bytes instead of 235,739** — a quarter of the bytes, on a mobile connection, for a
+picture nobody could tell apart at that size.
+
+### 10.5 The error logger now survives the reload it is needed for
+
+The diagnostics ring buffer lived in memory, which made it useless for the one case that matters:
+a page that crashed hard enough that the learner reloaded it. The export they were asked to send
+carried **nothing**. Errors (uncaught `window`/`promise` and the app's own `logError`) are now
+mirrored into `localStorage` (cap 40) and rehydrated on install; `console` output is deliberately
+excluded, because it is the one source that can contain a learner's own German sentence, and a
+stored sentence is a stored sentence even on their own device. `tests/diagnosticsPersistence.test.ts`
+pins the rules that make it safe: only the already-outbound entries, bounded, idempotent across
+reloads, and never throwing when storage is missing, full or corrupted.
+
+### 10.6 One prompt fix for answers that read as non-sequiturs
+
+The roleplay prompt asked for a `followup_question_ar` that "encourages the learner to keep
+chatting" about the scenario. That is an instruction to *add* a question, and it produced ones the
+conversation had not earned — the reported case being a rent conversation that suddenly asked about
+الشفعة (a legal right of first refusal). The field now asks for the question **the character would
+naturally ask next**, using only words the situation has already introduced, and allows an empty
+string: "a filler question is worse than none".
+
 ## Verification
 
 ```
@@ -394,22 +527,36 @@ $ npm run test:e2e:types
 (no output — clean)
 
 $ npx vitest run
-Test Files  56 passed (56)
-     Tests  638 passed (638)
+Test Files  59 passed (59)
+     Tests  662 passed (662)
 
-$ npx playwright test
-Running 18 tests using 1 worker
-18 passed (10.6m)
+$ npx playwright test --list
+Total: 22 tests in 7 files
 
-That run logged **zero** console errors (the five SiriWave shader failures it used to carry are
-gone — see §9). The suite takes ~10.5 m rather than 1.8 m here because this sandbox has one
-CPU: the Vite dev server transforms every lazily-imported screen on first request while the
-browser competes for the same core, and that contention dilates whichever task the renderer is
-running (a single call measured 98 ms on a quiet page and 9,303 ms inside the app).
+Every one of the 22 was run green in this pass, in groups that fit this sandbox's command
+timeout (`npx playwright test` itself takes ~10.5 m here because there is one CPU: the Vite dev
+server transforms every lazily-imported screen on first request while the browser competes for
+the same core, and that contention dilates whichever task the renderer is running — a single
+call measured 98 ms on a quiet page and 9,303 ms inside the app). Three of those runs are worth
+naming, because a green line is not on its own evidence of the right thing:
+
+$ npx playwright test e2e/conversationLayout.spec.ts --repeat-each=2
+  4 passed (1.0m)            # the dock geometry, twice, so the race below stays fixed
+
+$ npx playwright test e2e/journey.spec.ts -g "Live Interaction runs a turn|a denied microphone"
+  2 passed (44.0s)           # record → /ai/transcribe → the sentence lands in the input
+
+$ npx playwright test e2e/banner.spec.ts
+  2 passed (1.1m)            # a per-scenario banner_url on every screen, and the floor without one
+
+The runs also carried **zero** console errors (the five SiriWave shader failures of §9 are gone).
+One test failed once on a *contended* run (the "Story Setup" click, in a 3-test sequence on one
+core) and passed alone in 42.8 s; that is the documented sandbox dilation, not a regression, and it
+is recorded here rather than hidden by a retry policy.
 
 $ npx playwright test e2e/microphone.spec.ts
 [e2e] peak analyser RMS over 400ms: 0.000000
-  1 passed (6.9s)
+  2 passed (1.0m)
 
 $ freebuff-preview restart
 {"message":"Preview is ready","running":true,"listening":true,"previewPort":3000}
@@ -428,7 +575,7 @@ regression violated).
 
 ## Known limitations / still open
 
-1. **The browser suite covers behaviour; three claims stay manual.** 18 Playwright tests
+1. **The browser suite covers behaviour; three claims stay manual.** 22 Playwright tests
    (`e2e/`, driven against the managed preview with the backend mocked and the microphone
    substituted) walk the five screens of the episode end to end, the orb's state machine
    including a denied permission and the typed fallback, onboarding, the Progress tab, and
@@ -437,10 +584,19 @@ regression violated).
      through the same analyser the orb reads: peak RMS **0.000000** over 400 ms
      (`e2e/microphone.spec.ts`). The stream, the `AudioContext` and the rAF read are all
      real — the signal is silence, so the orb has nothing to deform with.
-   - **Real recognition timing.** Headless Chromium has no Web Speech API, so the suite
-     scripts `SpeechRecognition`'s exact event sequence. Endpointing, and whether a noisy
-     room produces a garbage turn, stay unverified: the guard (`isUsableTranscript`) is
-     unit-tested, but only a real room proves it.
+   - **Real recognition timing.** The suite scripts the capture device (a real oscillator
+     stream, so the app's analyser and endpointing run for real) and mocks `/ai/transcribe`,
+     because a headless browser has no microphone worth trusting and the sandbox has no
+     Worker credentials. Two things follow: whether a **real room** produces a garbage turn
+     is unverified (the guard, `isUsableTranscript`, is unit-tested), and the recording
+     container meeting the real model is verified elsewhere — `scripts/verify-stt-live.mjs`
+     records a real German clip in a browser with the app's own `MediaRecorder` options and
+     posts it to the deployed Worker.
+   - **Android itself.** The bug that started §10.2 was reported from a real phone, and
+     headless Chromium cannot reproduce it (it has no OS chime to play and no phone audio
+     stack). The pipeline it was diagnosed from is gone, but the fix needs the owner's own
+     device to confirm: tap the orb, speak, and check that the app's own blip plays, no
+     system sound, and the sentence lands in the input.
    - **How any of it feels.** Latency against the deployed Worker, TTS intelligibility and
      the pacing of a turn are judgements, not assertions.
 
@@ -448,9 +604,10 @@ regression violated).
    when you stop; (b) recognition ends the turn on its own without a tap; (c) a noisy room
    does not send an empty turn; (d) the Arabic TTS reading of the opener is intelligible on
    a phone.
-2. **`replying` orb motion is not voice-driven** — the Web Speech API exposes no
-   amplitude. It is lifecycle-synced and the code says so; it must not be presented as
-   a waveform.
+2. **`replying` orb motion is not voice-driven** — the microphone is deliberately released
+   before the turn is sent (and stays closed while Katzu answers, so the app is not listening
+   to its own voice). With no live stream there is no amplitude, so that motion is
+   lifecycle-synced and the code says so; it must not be presented as a waveform.
 3. **Pronunciation is never scored.** Repeat tasks report word coverage only.
 4. **Scenes are procedural** (light pools + grain). `SceneBackdrop` already accepts an
    `artUrl`; real scene artwork can be dropped in without touching a screen.

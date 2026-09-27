@@ -30,6 +30,7 @@ export const CONTENT_COLUMNS = {
     'initial_message_a2',
     'initial_message_b1',
     'initial_message_b2',
+    'banner_url',
   ],
   vocabulary: [
     'german',
@@ -47,6 +48,17 @@ export const CONTENT_COLUMNS = {
   starter_phrases: ['scenario_id', 'level', 'german', 'translation_en', 'translation_ar', 'sort_order'],
   grammar: ['id', 'title_ar', 'rule_de', 'rule_ar', 'level', 'explanation_ar', 'example_de', 'example_ar'],
 } as const;
+
+/**
+ * Columns a draft may leave out.
+ *
+ * `banner_url` is the scenario's own 16:9 artwork, filled in later from the
+ * content editor; a curriculum draft with no artwork must still be loadable, and
+ * every scenario keeps a placeholder banner until the real one exists.
+ */
+export const OPTIONAL_COLUMNS: Partial<Record<keyof typeof CONTENT_COLUMNS, readonly string[]>> = {
+  scenarios: ['banner_url'],
+};
 
 /** Tables the loader may write. Anything else in the draft is not loadable. */
 export const LOADABLE_TYPES = ['scenarios', 'vocabulary', 'starter_phrases', 'grammar'] as const;
@@ -175,8 +187,13 @@ export function auditCurriculum(
     draft.scenarios.forEach((raw, i) => {
       const path = `$.scenarios[${i}]`;
       if (!isPlainObject(raw)) return void error(path, 'must be an object');
+      const optional = OPTIONAL_COLUMNS.scenarios ?? [];
       for (const column of CONTENT_COLUMNS.scenarios) {
+        if (optional.includes(column)) continue;
         if (!isNonEmptyString(raw[column])) error(`${path}.${column}`, 'required non-empty string');
+      }
+      if (isNonEmptyString(raw.banner_url) && !/^https?:\/\//.test(String(raw.banner_url))) {
+        warn(`${path}.banner_url`, 'expected an https URL — the app renders it in an <img>');
       }
       const id = String(raw.id ?? '');
       if (id && !SLUG.test(id)) error(`${path}.id`, 'must match ^[a-z0-9_]+$');

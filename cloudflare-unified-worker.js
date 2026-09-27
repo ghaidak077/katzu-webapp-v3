@@ -44,6 +44,7 @@
 import { handleHintsRoute } from "./cloudflare-hints.js";
 import { handleWritingRoute } from "./cloudflare-writing.js";
 import { handleChatTurnRoute, handleTranslateRoute } from "./cloudflare-ai-chat.js";
+import { handleTranscribeRoute } from "./cloudflare-stt.js";
 import {
   PROVIDER_POOL,
   callAiRouter,
@@ -72,6 +73,7 @@ import {
 // their code in-app through /verify, which is what keeps one payment path (and one
 // secret) out of the PWA entirely.
 import { handleCryptoRoutes } from "./cloudflare-crypto.js";
+import { ensureContentColumns } from "./cloudflare-content-schema.js";
 
 // ============================================================================
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
@@ -476,10 +478,15 @@ async function ensureLedgerTables(env) {
 
 /** Per-user/per-window global rate limiting. Returns { allowed, retryAfter }.
  * Best-effort: if D1 is unavailable, falls back to the in-isolate limiter. */
-async function checkGlobalRateLimit(accountId, env) {
+async function checkGlobalRateLimit(accountId, env, scope = {}) {
+  // A route may own its own budget (see /ai/transcribe: speaking is not a turn,
+  // and a learner who repeats a sentence three times must not lose three turns
+  // of their daily allowance to the microphone). The counter id is namespaced so
+  // scoped budgets can never be spent by — or counted against — the AI routes.
   if (!env.DB) return checkRateLimit(accountId, env); // fallback: in-isolate
-  const limitPerMinute = parseInt(env?.AI_RATE_LIMIT_PER_MINUTE || "20", 10);
-  const limitPerDay = parseInt(env?.AI_RATE_LIMIT_PER_DAY || "150", 10);
+  const prefix = scope.scope ? String(scope.scope) + ":" : "";
+  const limitPerMinute = scope.perMinute ?? parseInt(env?.AI_RATE_LIMIT_PER_MINUTE || "20", 10);
+  const limitPerDay = scope.perDay ?? parseInt(env?.AI_RATE_LIMIT_PER_DAY || "150", 10);
   const now = Date.now();
   const minuteWindow = Math.floor(now / 60000);
   const dayWindow = Math.floor(now / 86400000);
@@ -510,9 +517,9 @@ async function checkGlobalRateLimit(accountId, env) {
         return { allowed: next <= limit, count: next };
       }
     };
-    const minute = await inc(`m:${accountId}`, minuteWindow, limitPerMinute);
+    const minute = await inc(`${prefix}m:${accountId}`, minuteWindow, limitPerMinute);
     if (!minute.allowed) return { allowed: false, retryAfter: 60 - Math.floor((now % 60000) / 1000), reason: "minute_limit" };
-    const day = await inc(`d:${accountId}`, dayWindow, limitPerDay);
+    const day = await inc(`${prefix}d:${accountId}`, dayWindow, limitPerDay);
     if (!day.allowed) return { allowed: false, retryAfter: 86400 - Math.floor((now % 86400000) / 1000), reason: "day_limit" };
     return { allowed: true };
   } catch {
@@ -1217,13 +1224,33 @@ export default {
       return new Response(null, { headers });
     }
 
-    // Enforce request size limit (64 KB)
+    // Enforce request size limit. 64 KB is the ceiling for every JSON route, and
+    // it stays that way; the one exception is a speech recording, which is audio
+    // rather than a payload and is bounded by its own (still finite) limit. A
+    // truncated recording is a learner who cannot be heard at all.
+    const isAudioUpload = url.pathname === "/ai/transcribe";
+    const maxBodyBytes = isAudioUpload ? 400000 : 65536;
     const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
-    if (contentLength > 65536) {
-      return json({ error: "payload_too_large", message: "Request payload exceeds 64KB limit." }, 413, cors);
+    if (contentLength > maxBodyBytes) {
+      return json(
+        {
+          error: "payload_too_large",
+          code: isAudioUpload ? "AUDIO_TOO_LARGE" : undefined,
+          message: isAudioUpload
+            ? "التسجيل أطول من المسموح. سجّل جملة واحدة قصيرة."
+            : "Request payload exceeds 64KB limit.",
+        },
+        413,
+        cors
+      );
     }
 
     try {
+      // Additive content columns (a scenario's 16:9 banner is the first) are
+      // reconciled once per isolate before any content route reads or writes a
+      // table. Additive only — see the policy in ./cloudflare-content-schema.js.
+      await ensureContentColumns(env);
+
       // --- AI Engine Endpoints (6+ Keys, Cooldown Tracking & Failover) ---
       if (url.pathname === "/auth/session" && request.method === "POST") {
         return await handleAuthSession(request, env, cors);
@@ -1251,6 +1278,17 @@ export default {
           request,
           env,
           "ai_hints"
+        );
+      }
+      if (url.pathname === "/ai/transcribe" && request.method === "POST") {
+        // Speech-to-text lives in ./cloudflare-stt.js: Workers AI Whisper replaces
+        // the browser's Web Speech API, which recorded nothing on Android, played
+        // an OS beep this app can never mute, and does not exist in Firefox.
+        return await withAiTelemetry(
+          () => handleTranscribeRoute(request, env, cors, aiRouteDeps()),
+          request,
+          env,
+          "ai_transcribe"
         );
       }
       if (url.pathname === "/ai/check-writing" && request.method === "POST") {

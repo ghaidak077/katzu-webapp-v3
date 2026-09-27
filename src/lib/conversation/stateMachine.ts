@@ -299,15 +299,3 @@ export function isUsableTranscript(text: string | undefined): boolean {
   const letters = String(text || '').match(/[A-Za-zÄÖÜäöüß\u0600-\u06FF]/g);
   return (letters?.length || 0) >= 2;
 }
-
-/** Classifies a speech-recognition failure code into the same vocabulary. */
-export function classifySpeechError(error: string | undefined): ConversationError {
-  const value = String(error || '');
-  if (value === 'not-allowed' || value === 'service-not-allowed') {
-    return { kind: 'mic_permission', messageAr: MIC_PERMISSION_MESSAGE_AR, retryable: true };
-  }
-  if (value === 'network') {
-    return { kind: 'network', messageAr: 'التعرف على الصوت يحتاج اتصالاً بالإنترنت. اكتب جملتك أو أعد المحاولة لاحقاً.', retryable: true };
-  }
-  return { kind: 'speech_recognition', messageAr: SPEECH_FAILURE_MESSAGE_AR, retryable: true };
-}

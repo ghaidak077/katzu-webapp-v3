@@ -15,7 +15,7 @@ import { GermanText } from '@/components/common/GermanText';
 import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { GlassWell, useSpecularHighlight } from '@/components/glass/GlassSurface';
-import { SceneBackdrop } from '@/components/glass/SceneBackdrop';
+import { ScenarioBanner } from '@/components/glass/ScenarioBanner';
 import { ProgressStrip } from '@/components/v2/ProgressStrip';
 import { StatusIndicator } from '@/components/v2/StatusIndicator';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
@@ -139,7 +139,16 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   );
 
   const scene = useMemo(
-    () => sceneFor(missionScenario ? { id: missionScenario.id, category: missionScenario.category } : undefined),
+    () =>
+      sceneFor(
+        missionScenario
+          ? {
+              id: missionScenario.id,
+              category: missionScenario.category,
+              bannerUrl: missionScenario.banner_url,
+            }
+          : undefined,
+      ),
     [missionScenario],
   );
 
@@ -267,14 +276,16 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           padded={false}
           className="animate-kz-rise overflow-hidden"
         >
-          <SceneBackdrop scene={scene} className="h-[210px] w-full" drift>
+          {/* The scenario's own 16:9 banner: what today's mission looks like, not
+              only what it is called. */}
+          <ScenarioBanner scene={scene} drift loading="eager">
             <div className="flex h-full flex-col justify-between p-4">
               <span className="kz-ar-micro self-start rounded-full bg-black/45 px-2.5 py-1 text-kz-inkDim backdrop-blur-sm">
                 {scene.locationAr}
               </span>
               <KatzuPresence state="journey" size="md" className="self-end" />
             </div>
-          </SceneBackdrop>
+          </ScenarioBanner>
 
           <div className="p-4">
             <p className="kz-ar-micro mb-1 text-kz-inkFaint">{missionTitleBadgeAr(mission.kind, dueCount)}</p>

@@ -6,9 +6,10 @@ import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { useSpeechInput } from '@/lib/speech/useSpeechInput';
+import { useVoiceCapture, voiceStartFailureMessageAr } from '@/lib/audio/useVoiceCapture';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { logError } from '@/lib/utils/diagnostics';
 import {
   buildDemoLesson,
   buildDemoQuiz,
@@ -80,11 +81,19 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
   const [state, dispatch] = useReducer(demoReducer, initialState);
   const [input, setInput] = useState('');
   const [contentUnavailable, setContentUnavailable] = useState(false);
+  // A visitor who taps the microphone and gets nothing has no way to tell a
+  // permission refusal from a broken app. The typed path already works without
+  // saying anything; this is the one line that keeps the button honest.
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
-  const { isListening, isSupported, startListening, stopListening } = useSpeechInput({
-    onResult: (text, isFinal) => {
-      setInput(text);
-      if (isFinal) stopListening();
+  // The demo speaks through the same pipeline as the app: record with
+  // MediaRecorder, recognise on the worker. A failed microphone leaves the typed
+  // path untouched and is recorded for diagnostics rather than swallowed.
+  const voice = useVoiceCapture({
+    onTranscript: (text) => setInput(text),
+    onFailure: (failure, messageAr) => {
+      logError('demo/stt', `${failure}: ${messageAr}`);
+      setVoiceError(messageAr);
     },
   });
 
@@ -299,28 +308,43 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
                 dir="ltr"
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder={isListening ? 'أنا أستمع إليك…' : 'اكتب بالألمانية...'}
+                placeholder={voice.isRecording ? 'أنا أستمع إليك…' : 'اكتب بالألمانية...'}
                 className="flex-1 h-12 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl px-4 text-sm font-german outline-none transition-all"
                 aria-label="جملتك بالألمانية"
               />
-              {isSupported && (
+              {voice.isSupported && (
                 <button
                   type="button"
                   onClick={() => {
-                    if (isListening) stopListening();
-                    else startListening();
+                    if (voice.isRecording) {
+                      voice.stop();
+                      return;
+                    }
+                    setVoiceError(null);
+                    // See `voiceStartFailureMessageAr`: the reason a recording could
+                    // not *start* comes back as a return value, not through
+                    // `onFailure`, so a visitor's denied tap is answered here.
+                    void voice.start().then((failure) => {
+                      if (failure) setVoiceError(voiceStartFailureMessageAr(failure));
+                    });
                   }}
-                  aria-label={isListening ? 'إيقاف الإدخال الصوتي' : 'ابدأ الإدخال الصوتي'}
+                  aria-label={voice.isRecording ? 'إيقاف الإدخال الصوتي' : 'ابدأ الإدخال الصوتي'}
                   className={`p-3.5 rounded-2xl border transition-all min-h-[44px] min-w-[44px] ${
-                    isListening
+                    voice.isRecording
                       ? 'bg-status-error border-status-error text-white animate-pulse'
                       : 'bg-surface-card border-border-subtle text-primary'
                   }`}
                 >
-                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                  {voice.isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
               )}
             </div>
+
+            {voiceError && (
+              <p role="alert" className="mb-3 text-xs font-arabic leading-relaxed text-kz-amber">
+                {voiceError}
+              </p>
+            )}
 
             <Button
               size="lg"

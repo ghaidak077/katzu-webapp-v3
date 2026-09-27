@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback, useReducer } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useReducer } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { db } from '@/lib/db/katzuDb';
 import { enrolMistake } from '@/lib/srs/store';
 import { buildLearnerMemory } from '@/lib/coach/profile';
 import { workerClient } from '@/lib/api/workerClient';
-import { useSpeechInput } from '@/lib/speech/useSpeechInput';
-import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
+import { useVoiceCapture, voiceStartFailureMessageAr } from '@/lib/audio/useVoiceCapture';
 import { triggerHaptic } from '@/lib/utils/haptics';
-import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { HintOption } from '@/components/common/HintOption';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
@@ -16,17 +15,13 @@ import { isProEffective } from '@/lib/utils/subscription';
 import { servedLevel } from '@/lib/entitlement/trial';
 import { KatzuThinking } from '@/components/effects/KatzuThinking';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { KatzuOrb, type OrbState } from '@/components/voice/KatzuOrb';
-import { GlassButton } from '@/components/glass/GlassButton';
-import { useMicLevel } from '@/lib/audio/useMicLevel';
 import { planTurns } from '@/lib/conversation/turnPlan';
+import { ConversationMessage } from './ConversationMessage';
 import {
   ArrowRight,
-  Mic,
   MicOff,
   Send,
-  Volume2,
   RefreshCw,
   Lightbulb,
   AlertTriangle,
@@ -49,14 +44,10 @@ import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 import { logError, logEvent } from '@/lib/utils/diagnostics';
 import { track } from '@/lib/analytics/client';
 import {
-  classifySpeechError,
   classifyTurnError,
   conversationReducer,
   initialConversationState,
   isTurnInFlight,
-  isUsableTranscript,
-  MIC_PERMISSION_MESSAGE_AR,
-  UNUSABLE_TRANSCRIPT_MESSAGE_AR,
 } from '@/lib/conversation/stateMachine';
 
 export interface LiveConversationScreenProps {
@@ -74,6 +65,16 @@ export interface LiveConversationScreenProps {
     assistedSentences: number;
     mistakes: Array<{ original: string; corrected: string; grammarRule: string }>;
   }) => void;
+}
+
+/** The learner reads the transcript; keep it clear of the dock at every height. */
+function orbSizeForViewport(): number {
+  if (typeof window === 'undefined') return 148;
+  const height = window.innerHeight || 800;
+  const width = window.innerWidth || 400;
+  // Big enough to be the app's signature object, never big enough to leave the
+  // transcript a slot instead of a screen.
+  return Math.round(Math.min(168, Math.max(116, Math.min(height * 0.19, width * 0.44))));
 }
 
 export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
@@ -95,7 +96,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const [showAllTranslations, setShowAllTranslations] = useState(false);
   const [currentHints, setCurrentHints] = useState<ContextualHint[]>([]);
   const [isHintRevealed, setIsHintRevealed] = useState(false);
-  // The sheet shows one suggestion by default; the other conversational moves
+  // The dock shows one suggestion by default; the other conversational moves
   // are one tap away rather than competing with the chat.
   const [isHintExpanded, setIsHintExpanded] = useState(false);
   // Cached starter phrases are the always-available hint floor — shown when AI
@@ -126,6 +127,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const [startTime] = useState<number>(Date.now());
   const [sessionMode, setSessionMode] = useState<SessionMode | null>(null);
   const [sessionId] = useState<string>(() => `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
+  const [orbSize] = useState<number>(orbSizeForViewport);
 
   const scenario = useLiveQuery(() => db.scenarios.get(scenarioId));
   const user = useLiveQuery(() => db.users.get('current_user'));
@@ -133,7 +135,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const vocabulary = useLiveQuery(() => db.vocabulary.toArray()) || [];
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  // Only follow the conversation when the learner is already at its end: yanking
+  // someone who scrolled back to re-read a correction is the rudest thing a chat
+  // can do.
+  const stickToBottomRef = useRef(true);
+  /** Until this timestamp, scroll events are the app's own, not the learner's. */
+  const programmaticScrollUntilRef = useRef(0);
   const [currentLevel, setCurrentLevel] = useState<CEFRLevel>(servedLevel(user?.cefrLevel, isProUser));
   const isSessionCompleted = conversation.status === 'completed';
   const firstIndependentTrackedRef = useRef(false);
@@ -154,79 +163,44 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const targetTurns = planTurns(sessionMode ?? 'quick', effectiveLevel);
   const userTurnsCount = messages.filter((m) => m.sender === 'USER').length;
 
-  // The أسهل/أصعب nudge is Pro-only. A free conversation runs at the level the
-  // trial serves, and stepping away from it is the one thing the server would
-  // refuse — so the control that could do that is the control that asks for Pro.
-  const handleNudgeDifficulty = (direction: 'easier' | 'harder') => {
-    if (!isProUser) {
-      setPaywall({
-        isOpen: true,
-        title: 'تغيير المستوى أثناء المحادثة ميزة Pro',
-        description:
-          'في الخطة المجانية تتدرب على مستواك الحالي فقط. رَقِّ حسابك لفتح التعديل الفوري للصعوبة (أسهل / أصعب) وكل المستويات من A1 حتى B2.',
-      });
-      return;
-    }
-    const levelOrder: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
-    const currentIndex = levelOrder.indexOf(effectiveLevel);
-    if (direction === 'easier' && currentIndex > 0) {
-      const newLvl = levelOrder[currentIndex - 1];
-      setCurrentLevel(newLvl);
-      triggerHaptic('light');
-    } else if (direction === 'harder' && currentIndex < levelOrder.length - 1) {
-      const newLvl = levelOrder[currentIndex + 1];
-      setCurrentLevel(newLvl);
-      triggerHaptic('light');
-    }
-  };
-
   const { speak } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
 
-  // Recognition and the analyser are two APIs over the same microphone, so both
-  // are released from the one place the learner stops speaking. The ref lets the
-  // speech hook close the audio graph without depending on its declaration order.
-  const micStopRef = useRef<() => void>(() => {});
-  const {
-    isListening,
-    isSupported,
-    startListening,
-    stopListening: stopRecognition,
-  } = useSpeechInput({
-    onResult: (text, isFinal) => {
-      if (isFinal && !isUsableTranscript(text)) {
-        // Recognition fired on noise: report a failed listening attempt rather
-        // than sending a turn the learner never said. Whatever is already in the
-        // box is left untouched — it may be a sentence they typed.
-        stopRecognition();
-        micStopRef.current();
-        dispatch({ type: 'speech_failed', messageAr: UNUSABLE_TRANSCRIPT_MESSAGE_AR });
-        return;
-      }
+  /**
+   * Speaking. `useVoiceCapture` owns the microphone (one acquisition for both the
+   * orb's amplitude and the recording) and the worker transcribes the result —
+   * see the hook for why the browser's own speech recogniser is gone.
+   */
+  const voice = useVoiceCapture({
+    onTranscript: (text) => {
+      // A turn in flight already carries the learner's sentence; a late
+      // transcription must not overwrite the box they are watching.
+      if (inFlightRef.current) return;
       setInputText(text);
-      if (isFinal) {
-        stopRecognition();
-        micStopRef.current();
-      }
+      dispatch({ type: 'transcribe_ok' });
+      // The recognised sentence is deliberately NOT auto-sent. The learner sees
+      // what was heard before it becomes their turn: a mis-heard sentence that
+      // auto-submits would be graded as their mistake, saved as their mistake and
+      // scheduled for review — the app would be measuring something they never
+      // said. One tap on أرسل is the price of honest memory.
+      inputRef.current?.focus();
     },
-    onError: (error) => {
-      // Every STT failure becomes a machine state, so the mic can never appear
-      // silently broken and the typed fallback stays available.
-      const classified = classifySpeechError(error);
+    onFailure: (failure, messageAr) => {
       dispatch({
-        type: classified.kind === 'mic_permission' ? 'mic_denied' : 'speech_failed',
-        messageAr: classified.messageAr,
+        type: failure === 'denied' ? 'mic_denied' : 'speech_failed',
+        messageAr,
       });
-      logError('stt', `Speech recognition error: ${error}`);
     },
   });
 
-  // The orb is the microphone control, so it owns the real audio stream. Speech
-  // recognition and the analyser are separate APIs over the same permission:
-  // recognition gives words, the analyser gives the amplitude the orb moves to.
-  const mic = useMicLevel();
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
   const characterNameAr = scenario?.title_ar || 'المحادثة';
+
+  // The words the app can actually explain. Everything else is plain text: a
+  // transcript where every word looks tappable but most taps do nothing teaches
+  // the learner to stop tapping.
+  const knownWords = useMemo(
+    () => new Set(vocabulary.map((entry) => entry.german.replace(/[^a-zA-ZäöüÄÖÜß]/g, '').toLowerCase())),
+    [vocabulary],
+  );
 
   /**
    * The orb's state is derived from the conversation machine — never from a
@@ -246,43 +220,45 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
               ? 'evaluating'
               : conversation.status === 'transcribing'
                 ? 'transcribing'
-                : isListening
+                : conversation.status === 'recording'
                   ? 'listening'
                   : 'idle';
 
+  // The recorder is the truth about the microphone, including the stops the app
+  // decides on its own (silence, no speech, the twenty-second ceiling).
+  useEffect(() => {
+    if (conversation.status === 'recording' && !voice.isRecording) {
+      dispatch({ type: 'stop_recording' });
+    }
+  }, [voice.isRecording, conversation.status]);
+
   // Magenta is reserved for a turn the learner actually got right — the last
   // evaluation produced no correction. It is never the resting colour.
-  const lastEvaluation = [...messages].reverse().find((message) => message.sender === 'KATZU' && message.id !== 'msg_initial');
+  const lastEvaluation = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.sender === 'KATZU' && message.id !== 'msg_initial') return message;
+    }
+    return undefined;
+  }, [messages]);
   const orbTone: 'lavender' | 'earned' =
     conversation.status === 'showing_feedback' && lastEvaluation && !lastEvaluation.hasCorrection
       ? 'earned'
       : 'lavender';
 
-  const orbLabelAr = !isSupported
+  const orbLabelAr = !voice.isSupported
     ? 'الإدخال الصوتي غير متاح — اكتب بالألمانية'
-    : isListening
-      ? 'إيقاف الاستماع'
-      : orbState === 'transcribing'
+    : voice.isRecording
+      ? 'إيقاف التسجيل'
+      : conversation.status === 'transcribing'
         ? 'جارٍ التعرف على كلامك'
-        : orbState === 'evaluating' || orbState === 'replying'
+        : conversation.status === 'evaluating' || conversation.status === 'generating_reply'
           ? 'كَاتْزُو يعمل على ردّك'
-          : orbState === 'quota'
+          : conversation.status === 'quota_exhausted'
             ? 'انتهت الجلسات المجانية'
-            : orbState === 'offline'
+            : conversation.status === 'offline'
               ? 'لا يوجد اتصال'
               : 'ابدأ التحدث';
-
-  // Releasing the microphone is one action for the whole screen: speech
-  // recognition and the audio analyser both stop, so the orb can never keep
-  // reacting to a live microphone after the learner finished speaking.
-  const stopListening = useCallback(() => {
-    stopRecognition();
-    micStopRef.current();
-  }, [stopRecognition]);
-
-  useEffect(() => {
-    micStopRef.current = mic.stop;
-  }, [mic.stop]);
 
   /**
    * Tap the orb to speak. The typed path is never closed by a failure: a denied
@@ -291,30 +267,33 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
    */
   const handleOrbPress = useCallback(async () => {
     dispatch({ type: 'dismiss_error' });
-    if (isListening) {
-      stopListening();
+    if (voice.isRecording) {
+      voice.stop();
       return;
     }
-    const failure = await mic.start();
+    const failure = await voice.start();
     if (failure) {
+      // One wording for every screen (see `voiceStartFailureMessageAr`): the same
+      // denied tap must not read differently in the conversation and in practice.
       dispatch({
         type: failure === 'denied' ? 'mic_denied' : 'speech_failed',
-        messageAr:
-          failure === 'denied'
-            ? MIC_PERMISSION_MESSAGE_AR
-            : 'تعذّر تشغيل المايك في هذا المتصفح. يمكنك الكتابة — النتيجة نفسها.',
+        messageAr: voiceStartFailureMessageAr(failure),
       });
       return;
     }
-    startListening();
-  }, [isListening, stopListening, startListening, mic]);
+    dispatch({ type: 'start_recording' });
+  }, [voice]);
 
-  /** The always-present escape hatch: stop listening and type instead. */
+  /** The always-present escape hatch: stop the microphone and type instead. */
   const handleTypeInstead = useCallback(() => {
-    if (isListening) stopListening();
+    if (voice.isRecording) voice.stop();
     dispatch({ type: 'dismiss_error' });
     inputRef.current?.focus();
-  }, [isListening, stopListening]);
+  }, [voice]);
+
+  const handleToggleTranslation = useCallback((messageId: string) => {
+    setShowArabicTranslation((prev) => ({ ...prev, [messageId]: !prev[messageId] }));
+  }, []);
 
   // Connectivity is part of the conversation state, not a separate banner: a
   // turn that cannot be sent must say so where the learner sent it from.
@@ -338,10 +317,74 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
 
-  // Auto scroll to bottom
+  /**
+   * Scrolls the transcript to its newest message, and marks the scroll as ours.
+   *
+   * A programmatic scroll fires the same `scroll` events a finger does, and the
+   * handler below reads those events to decide whether the learner still wants to
+   * follow the conversation — so without this window the app's own scroll to the
+   * bottom was read as the learner scrolling away, and the transcript stopped
+   * following after the first reply. Measured in `e2e/conversationLayout.spec.ts`:
+   * message boxes ended up under the dock, which is the bug the layout pass fixed.
+   */
+  const scrollTranscriptToBottom = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    programmaticScrollUntilRef.current = Date.now() + 400;
+    stickToBottomRef.current = true;
+    // Instant on purpose. A smooth scroll animates towards the height the content
+    // had when it was measured, and a reply that reflows or gains its translation
+    // mid-animation leaves the newest message short of the view — measured 169 px
+    // short in `e2e/conversationLayout.spec.ts`, which is a whole message hidden
+    // under the dock. Following the conversation is worth more than the glide.
+    element.scrollTop = element.scrollHeight;
+  }, []);
+
+  // The transcript scrolls inside its own region, so a new message can never push
+  // the dock off-screen and the dock can never cover a message. Every source of
+  // new height is a dependency: a reply, its translation arriving a moment later,
+  // and the two translation toggles.
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isGenerating]);
+    if (!stickToBottomRef.current) return;
+    scrollTranscriptToBottom();
+  }, [messages, isGenerating, showAllTranslations, showArabicTranslation, scrollTranscriptToBottom]);
+
+  const handleTranscriptScroll = useCallback(() => {
+    // Inside the window, this event is the app's own scroll, not the learner's.
+    if (Date.now() < programmaticScrollUntilRef.current) return;
+    const element = scrollRef.current;
+    if (!element) return;
+    stickToBottomRef.current =
+      element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+  }, []);
+
+  /**
+   * When the transcript region resizes, keep the learner on the newest message.
+   *
+   * The dock changes height while a conversation is running: the suggestion panel
+   * opens, a microphone warning appears, and on a phone the keyboard takes half the
+   * screen. Each of those makes the transcript shorter, which used to leave the
+   * message the learner was reading cut off at the new edge until they scrolled.
+   *
+   * "Was the bottom visible" is answered from the *previous* height, because the
+   * resize itself is what makes the current metrics say no: reading them after the
+   * fact cannot tell "the learner scrolled up" from "the dock grew".
+   */
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    let previousHeight = element.clientHeight;
+    const observer = new ResizeObserver(() => {
+      const wasAtBottom = element.scrollTop + previousHeight >= element.scrollHeight - 80;
+      previousHeight = element.clientHeight;
+      if (wasAtBottom) scrollTranscriptToBottom();
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+    // `sessionMode` is the dependency that matters: before a mode is chosen the
+    // screen renders the chooser, the transcript does not exist yet, and an effect
+    // that only watched a stable callback would never attach the observer at all.
+  }, [scrollTranscriptToBottom, sessionMode]);
 
   // Initial message and starter hints (Rule 5: No call needed for turn 0)
   // Cached D1 starter phrases are the always-available hint floor: if the AI
@@ -432,15 +475,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   }, [scenario, scenarioId, effectiveLevel, sessionMode, loadStarterHints, requestOpenerTranslation]);
 
   // Handle German word click for insight
-  const handleWordClick = (wordRaw: string) => {
-    const cleaned = wordRaw.replace(/[^a-zA-ZäöüÄÖÜß]/g, '');
-    const found = vocabulary.find(
-      (v) => v.german.toLowerCase() === cleaned.toLowerCase()
-    );
-    if (found) {
-      setSelectedWordForInsight(found);
-    }
-  };
+  const handleWordClick = useCallback(
+    (wordRaw: string) => {
+      const cleaned = wordRaw.replace(/[^a-zA-ZäöüÄÖÜß]/g, '');
+      const found = vocabulary.find((v) => v.german.toLowerCase() === cleaned.toLowerCase());
+      if (found) setSelectedWordForInsight(found);
+    },
+    [vocabulary],
+  );
 
   // Toggle saving word in insight sheet
   const handleToggleSaveWord = async (wordId: number) => {
@@ -451,6 +493,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       await db.saved_words.put({ wordId, savedAt: Date.now() });
     }
   };
+
+  const handleSpeak = useCallback((germanText: string) => speak(germanText), [speak]);
 
   // Rule 5: Exactly ONE /ai/turn call per user turn. The state machine refuses
   // a submit while a turn is in flight and the ref closes the window before the
@@ -466,7 +510,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
   const sendTurn = async (text: string) => {
     setInputText('');
-    stopListening();
+    if (voice.isRecording) voice.stop();
 
     const wasHintUsed = isHintUsedForCurrentTurn;
     setIsHintUsedForCurrentTurn(false);
@@ -637,6 +681,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     setIsHintUsedForCurrentTurn(true);
     dispatch({ type: 'dismiss_error' });
     triggerHaptic('light');
+    inputRef.current?.focus();
   };
 
   // AI hints when loaded; otherwise the D1 starter-phrase floor. The user must
@@ -767,20 +812,41 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     });
   };
 
+  const handleNudgeDifficulty = (direction: 'easier' | 'harder') => {
+    if (!isProUser) {
+      setPaywall({
+        isOpen: true,
+        title: 'تغيير المستوى أثناء المحادثة ميزة Pro',
+        description:
+          'في الخطة المجانية تتدرب على مستواك الحالي فقط. رَقِّ حسابك لفتح التعديل الفوري للصعوبة (أسهل / أصعب) وكل المستويات من A1 حتى B2.',
+      });
+      return;
+    }
+    const levelOrder: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
+    const currentIndex = levelOrder.indexOf(effectiveLevel);
+    if (direction === 'easier' && currentIndex > 0) {
+      setCurrentLevel(levelOrder[currentIndex - 1]);
+      triggerHaptic('light');
+    } else if (direction === 'harder' && currentIndex < levelOrder.length - 1) {
+      setCurrentLevel(levelOrder[currentIndex + 1]);
+      triggerHaptic('light');
+    }
+  };
+
   if (!sessionMode) {
     return (
-      <main className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col justify-center">
+      <main className="flex min-h-screen max-w-md mx-auto flex-col justify-center bg-black p-6 text-kz-ink">
         <button
           type="button"
           onClick={onBack}
-          className="self-start p-2 rounded-2xl bg-surface-card border border-border-subtle mb-8"
+          className="mb-8 self-start rounded-2xl border border-white/10 bg-white/5 p-2"
           aria-label="العودة"
         >
-          <ArrowRight className="w-5 h-5 text-text-secondary" />
+          <ArrowRight className="h-5 w-5 text-kz-inkDim" />
         </button>
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold font-arabic mb-2">اختر طريقة التدريب</h1>
-          <p className="text-sm text-text-secondary font-arabic">
+        <div className="mb-6 text-center">
+          <h1 className="kz-ar-title mb-2 font-bold">اختر طريقة التدريب</h1>
+          <p className="kz-ar-caption text-kz-inkDim">
             اختر الوقت المناسب لك، وسنحافظ على تقدمك بصراحة.
           </p>
         </div>
@@ -788,21 +854,21 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <button
             type="button"
             onClick={() => setSessionMode('quick')}
-            className="w-full text-start rounded-3xl bg-surface-card border border-primary/40 p-5 hover:bg-surface-subtle"
+            className="w-full rounded-3xl border border-primary/40 bg-white/5 p-5 text-start transition-colors hover:bg-white/10"
           >
-            <strong className="block font-arabic text-primary mb-1">تمرين سريع</strong>
-            <span className="text-xs text-text-secondary font-arabic">
-              {effectiveLevel === 'A1' ? 3 : effectiveLevel === 'A2' ? 4 : effectiveLevel === 'B1' ? 5 : 6} جولات مركزة
+            <strong className="kz-ar-caption mb-1 block text-primary">تمرين سريع</strong>
+            <span className="kz-ar-micro text-kz-inkDim">
+              {planTurns('quick', effectiveLevel)} جولات مركزة
             </span>
           </button>
           <button
             type="button"
             onClick={() => setSessionMode('immersion')}
-            className="w-full text-start rounded-3xl bg-surface-card border border-border-subtle p-5 hover:bg-surface-subtle"
+            className="w-full rounded-3xl border border-white/10 bg-white/5 p-5 text-start transition-colors hover:bg-white/10"
           >
-            <strong className="block font-arabic text-primary mb-1">تحدي واقعي مكثف</strong>
-            <span className="text-xs text-text-secondary font-arabic">
-              {effectiveLevel === 'A1' || effectiveLevel === 'A2' ? 8 : 10} جولات مع سياق أطول
+            <strong className="kz-ar-caption mb-1 block text-primary">تحدي واقعي مكثف</strong>
+            <span className="kz-ar-micro text-kz-inkDim">
+              {planTurns('immersion', effectiveLevel)} جولات مع سياق أطول
             </span>
           </button>
         </div>
@@ -810,30 +876,33 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     );
   }
 
+  const turnProgress = Math.min(1, userTurnsCount / Math.max(1, targetTurns));
+
   return (
-    <div className="min-h-screen bg-black text-text-primary flex flex-col justify-between max-w-md mx-auto relative">
-      {/* Sticky Header with Turn Pill */}
-      <div className="p-4 border-b border-border-subtle bg-black/90 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between">
-        <button
-          onClick={onBack}
-          className="p-2 rounded-2xl bg-surface-card border border-border-subtle hover:bg-surface-subtle transition-colors"
-        >
-          <ArrowRight className="w-5 h-5 text-text-secondary" />
-        </button>
+    // The whole screen is one column that fits the visible viewport. The transcript
+    // scrolls inside its own region and the dock is a sibling below it, so no
+    // message can ever end up underneath the orb — the overlap reported from a
+    // real session was a `fixed` dock over a list that could not know its height.
+    <div className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-black text-kz-ink">
+      {/* Header: who the learner is talking to, which round, and the two controls
+          that belong to the conversation as a whole. */}
+      <header className="relative z-20 shrink-0 border-b border-white/[0.06] bg-black/80 px-3 pt-2.5 backdrop-blur-xl">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onBack}
+            aria-label="العودة"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
+          >
+            <ArrowRight className="h-5 w-5 text-kz-inkDim" />
+          </button>
 
-        {/* Who the learner is speaking to, and which round this is. Navigation and
-            translation keep the corners; difficulty moves to its own quiet row so
-            the header holds one idea instead of three competing pills. */}
-        <div className="flex min-w-0 flex-col items-center px-2">
-          <span className="kz-ar-caption max-w-[44vw] truncate text-kz-ink">{characterNameAr}</span>
-          <span className="kz-ar-micro text-kz-inkFaint">
-            الجولة {Math.min(userTurnsCount + 1, targetTurns)} من {targetTurns} · {effectiveLevel}
-          </span>
-        </div>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="kz-ar-caption truncate text-kz-ink">{characterNameAr}</p>
+            <p className="kz-ar-micro text-kz-inkFaint">
+              الجولة {Math.min(userTurnsCount + 1, targetTurns)} من {targetTurns} · {effectiveLevel}
+            </p>
+          </div>
 
-        {/* Turn Counter Pill (Auto-completes dynamically based on CEFR level) */}
-        <div className="flex items-center gap-1.5">
-          {/* Global translation toggle: show/hide Arabic for all messages */}
           <button
             onClick={() => {
               setShowAllTranslations((v) => !v);
@@ -841,42 +910,48 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
               triggerHaptic('light');
             }}
             aria-label={showAllTranslations ? 'إخفاء كل الترجمات' : 'إظهار كل الترجمات'}
-            title={showAllTranslations ? 'إخفاء كل الترجمات' : 'إظهار كل الترجمات'}
-            className={`p-2 rounded-2xl border transition-colors ${
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-colors ${
               showAllTranslations
-                ? 'bg-primary/20 border-primary/50 text-primary'
-                : 'bg-surface-card border-border-subtle text-text-secondary hover:bg-surface-subtle'
+                ? 'border-primary/50 bg-primary/20 text-primary'
+                : 'border-white/10 bg-white/5 text-kz-inkDim hover:bg-white/10'
             }`}
           >
-            <Languages className="w-4 h-4" />
+            <Languages className="h-4 w-4" />
           </button>
         </div>
-      </div>
 
-      {/* Difficulty nudge: real functionality, deliberately secondary — a learner
-          who never touches it still finishes the episode. */}
-      <div className="flex items-center justify-center gap-2 px-4 pb-1.5 pt-0.5">
-        <button
-          onClick={() => handleNudgeDifficulty('easier')}
-          disabled={effectiveLevel === 'A1'}
-          className="kz-ar-micro flex min-h-[32px] items-center rounded-full border border-white/10 px-2.5 text-kz-inkFaint transition-colors hover:text-kz-inkDim disabled:opacity-30 disabled:hover:text-kz-inkFaint"
-        >
-          أسهل
-        </button>
-        <span className="kz-ar-micro text-kz-inkFaint">صعوبة المحادثة</span>
-        <button
-          onClick={() => handleNudgeDifficulty('harder')}
-          disabled={effectiveLevel === 'B2'}
-          className="kz-ar-micro flex min-h-[32px] items-center rounded-full border border-white/10 px-2.5 text-kz-inkFaint transition-colors hover:text-kz-inkDim disabled:opacity-30 disabled:hover:text-kz-inkFaint"
-        >
-          أصعب
-        </button>
-      </div>
+        {/* Difficulty: real functionality, deliberately secondary — a learner who
+            never touches it still finishes the episode. */}
+        <div className="mt-1 flex items-center justify-center gap-1">
+          <button
+            onClick={() => handleNudgeDifficulty('easier')}
+            disabled={effectiveLevel === 'A1'}
+            className="kz-ar-micro flex min-h-[28px] items-center rounded-full px-2.5 text-kz-inkFaint transition-colors hover:text-kz-inkDim disabled:opacity-25"
+          >
+            أسهل
+          </button>
+          <span className="kz-de-caption px-1 font-german font-bold text-kz-lavender">{effectiveLevel}</span>
+          <button
+            onClick={() => handleNudgeDifficulty('harder')}
+            disabled={effectiveLevel === 'B2'}
+            className="kz-ar-micro flex min-h-[28px] items-center rounded-full px-2.5 text-kz-inkFaint transition-colors hover:text-kz-inkDim disabled:opacity-25"
+          >
+            أصعب
+          </button>
+        </div>
 
-      {/* Messages Scroll Area */}
-      <div className="flex-1 p-4 space-y-4 overflow-y-auto pb-44">
+        {/* The round progress, as the header's own bottom edge. */}
+        <div className="absolute bottom-0 start-0 h-[2px] rounded-full bg-primary transition-all duration-500" style={{ width: `${turnProgress * 100}%` }} />
+      </header>
+
+      {/* Transcript */}
+      <div
+        ref={scrollRef}
+        onScroll={handleTranscriptScroll}
+        data-testid="conversation-transcript"
+        className="min-h-0 flex-1 space-y-3.5 overflow-y-auto px-4 py-4"
+      >
         {messages.map((msg) => {
-          const isKatzu = msg.sender === 'KATZU';
           // Explicit per-message choice overrides the global toggle. The
           // scenario opener is the exception: it is the only message a learner
           // has no way to guess at (no earlier turn to decode it against), so
@@ -889,182 +964,41 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                 : showAllTranslations;
 
           return (
-            <div
+            <ConversationMessage
               key={msg.id}
-              className={`flex flex-col ${isKatzu ? 'items-start' : 'items-end'}`}
-            >
-              <div
-                className={`max-w-[88%] rounded-3xl p-4 border transition-all ${
-                  isKatzu
-                    ? 'bg-surface-card border-border-subtle text-text-primary rounded-tl-sm'
-                    : 'bg-primary text-white border-primary/40 rounded-tr-sm shadow-glow-purple'
-                }`}
-              >
-                {/* German text with clickable words — whole sentence lives in one
-                    LTR-isolated block so RTL layout can never reorder the words
-                    (Rule 8). Words stay clickable for the word-insight sheet. */}
-                <div
-                  dir="ltr"
-                  style={{ unicodeBidi: 'isolate' }}
-                  className={`text-sm font-semibold leading-relaxed mb-1 font-german ${isKatzu ? 'text-left' : 'text-right'}`}
-                >
-                  {msg.germanText.split(' ').map((word, wIdx) => (
-                    <span
-                      key={wIdx}
-                      onClick={() => handleWordClick(word)}
-                      className="cursor-pointer hover:underline"
-                    >
-                      {word}
-                      {wIdx < msg.germanText.split(' ').length - 1 ? ' ' : ''}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Translation toggle & Audio */}
-                {isKatzu && (
-                  <div className="flex items-center justify-between pt-2 mt-2 border-t border-border-subtle/50 text-xs">
-                    <button
-                      onClick={() => speak(msg.germanText)}
-                      className="text-primary hover:text-primary-container p-1 rounded-lg transition-colors flex items-center gap-1"
-                    >
-                      <Volume2 className="w-4 h-4" />
-                    </button>
-                    {msg.arabicTranslation ? (
-                      <button
-                        onClick={() =>
-                          setShowArabicTranslation((prev) => ({
-                            ...prev,
-                            [msg.id]: !prev[msg.id],
-                          }))
-                        }
-                        className="text-text-secondary hover:text-text-primary font-arabic flex items-center gap-1 text-[11px]"
-                      >
-                        <Languages className="w-3.5 h-3.5" />
-                        {isTransVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}
-                      </button>
-                    ) : msg.translationState === 'pending' ? (
-                      <span className="flex items-center gap-1 text-[11px] font-arabic text-text-muted animate-pulse">
-                        <Languages className="w-3.5 h-3.5" />
-                        جارٍ الترجمة…
-                      </span>
-                    ) : msg.translationState === 'unavailable' ? (
-                      <button
-                        onClick={() => requestOpenerTranslation(msg.id, msg.germanText)}
-                        className="flex items-center gap-1 text-[11px] font-arabic text-status-learning hover:text-status-learning/80"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        تعذرت الترجمة — إعادة المحاولة
-                      </button>
-                    ) : null}
-                  </div>
-                )}
-
-                {/* Visible Arabic translation */}
-                {isTransVisible && msg.arabicTranslation && (
-                  <div className="mt-2 pt-2 border-t border-border-subtle/50 text-xs font-arabic text-text-secondary">
-                    {msg.arabicTranslation}
-                  </div>
-                )}
-
-                {/* Katzu's inviting follow-up question (keeps the conversation moving) */}
-                {msg.sender === 'KATZU' && msg.followupAr && (
-                  <div className="mt-2 flex items-start gap-1.5 text-[11px] font-arabic text-status-learning">
-                    <span aria-hidden>💬</span>
-                    <span>{msg.followupAr}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Pedagogical Evaluation Card for User Mistake.
-                  Two things matter here: the learner must be able to tell the
-                  wrong line from the right one at a glance, and German text has
-                  to stay direction-isolated — an English or German rule inside
-                  this RTL card reorders its own punctuation ("…position .in
-                  statements") unless it is wrapped in <bdi dir="auto">. */}
-              {msg.hasCorrection && (
-                <div className="max-w-[88%] mt-2 rounded-2xl bg-surface-subtle border border-status-error/40 text-xs overflow-hidden animate-fade-in text-start">
-                  <div className="flex items-center gap-2 px-3.5 py-2 bg-status-error/10 border-b border-status-error/20">
-                    <KatzuMascot name="avatar" className="w-5 h-5" />
-                    <span className="font-arabic font-bold text-status-error">تصحيح كَاتْزُو</span>
-                  </div>
-
-                  <div className="p-3.5 space-y-3">
-                    {(msg.originalMistake || msg.correctedGerman) && (
-                      <div className="space-y-2">
-                        {msg.originalMistake && (
-                          <div className="flex items-baseline gap-2">
-                            <span className="shrink-0 font-arabic text-[10px] text-text-muted">قلت</span>
-                            <GermanText className="text-status-error/80 line-through decoration-status-error/60">
-                              {msg.originalMistake}
-                            </GermanText>
-                          </div>
-                        )}
-                        {msg.correctedGerman && (
-                          <div className="flex items-baseline gap-2">
-                            <span className="shrink-0 font-arabic text-[10px] text-text-muted">الصحيح</span>
-                            <GermanText className="font-bold text-status-success">
-                              {msg.correctedGerman}
-                            </GermanText>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {msg.grammarRule && (
-                      <bdi
-                        dir="auto"
-                        className="inline-flex items-center gap-1.5 rounded-full bg-status-learning/10 border border-status-learning/25 px-2.5 py-1 font-arabic text-[11px] text-status-learning"
-                      >
-                        <span aria-hidden>📌</span>
-                        {msg.grammarRule}
-                      </bdi>
-                    )}
-
-                    {msg.explanationAr && (
-                      <p className="font-arabic text-[11px] leading-relaxed text-text-secondary">
-                        {msg.explanationAr}
-                      </p>
-                    )}
-
-                    {msg.positiveNoteAr && (
-                      <p className="font-arabic text-[11px] font-semibold text-status-success">
-                        ✦ {msg.positiveNoteAr}
-                      </p>
-                    )}
-
-                    {msg.roastComment && (
-                      <p className="font-arabic text-[11px] italic text-status-learning/90 border-s-2 border-status-learning/40 ps-2.5">
-                        «{msg.roastComment}»
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+              message={msg}
+              isTranslationVisible={isTransVisible}
+              knownWords={knownWords}
+              onToggleTranslation={handleToggleTranslation}
+              onRetryTranslation={requestOpenerTranslation}
+              onSpeak={handleSpeak}
+              onWordClick={handleWordClick}
+            />
           );
         })}
 
         {isGenerating && (
-          <div className="flex items-center gap-2 text-xs text-text-secondary p-3 bg-surface-card rounded-2xl w-fit border border-border-subtle animate-pulse">
-            <KatzuMascot name="avatar" className="w-5 h-5" />
-            <span>كَاتْزُو يفكر في الرد...</span>
+          <div className="flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+            <KatzuThinking size={20} layout="inline" labelAr="كَاتْزُو يفكر في الرد…" className="gap-2" />
           </div>
         )}
 
         {/* Failed-turn error card with retry — never a silent hang */}
         {turnError && !isGenerating && (
-          <div className="p-3.5 rounded-2xl bg-surface-subtle border border-status-error/50 space-y-2 animate-fade-in">
+          <div className="animate-fade-in space-y-2 rounded-2xl border border-status-error/40 bg-surface-subtle p-3.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-status-error">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>تعذر إرسال جملتك:</span>
             </div>
-            <div dir="ltr" className="font-german text-xs text-text-secondary">{turnError.failedText}</div>
-            <p className="text-[11px] font-arabic text-text-secondary">{turnError.message}</p>
+            <div dir="ltr" className="font-german text-xs text-kz-inkDim">
+              {turnError.failedText}
+            </div>
+            <p className="kz-ar-micro text-kz-inkDim">{turnError.message}</p>
             <button
               onClick={retryFailedTurn}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/20 border border-primary/50 text-primary text-xs font-bold font-arabic hover:bg-primary/30 transition-colors"
+              className="kz-ar-micro flex items-center gap-1.5 rounded-xl border border-primary/50 bg-primary/20 px-3 py-1.5 font-bold text-primary transition-colors hover:bg-primary/30"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className="h-3.5 w-3.5" />
               إعادة المحاولة
             </button>
           </div>
@@ -1072,15 +1006,12 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
         {/* Rule 7: Celebration Card on Exchange Completion */}
         {isSessionCompleted && (
-          <div className="p-4 rounded-3xl bg-surface-card border border-primary/40 shadow-glow-purple flex items-center gap-3 animate-fade-in my-2">
-            <KatzuMascot name="celebrating" className="w-12 h-12 flex-shrink-0 object-contain" />
+          <div className="animate-fade-in my-2 flex items-center gap-3 rounded-3xl border border-primary/40 bg-white/5 p-4 shadow-glow-purple">
             <div className="flex-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-status-success mb-0.5">
-                <CheckCircle2 className="w-4 h-4" />
+              <div className="kz-ar-micro flex items-center gap-1.5 font-bold text-status-success">
+                <CheckCircle2 className="h-4 w-4" />
                 اكتملت محادثة السيناريو بنجاح!
               </div>
-              {/* The Debrief is compiling: the same processing motion the rest of
-                  the app uses, so "thinking" looks like one thing everywhere. */}
               <div className="mt-1">
                 <KatzuThinking
                   size={22}
@@ -1092,140 +1023,148 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             </div>
           </div>
         )}
-
-        <div ref={chatEndRef} />
       </div>
 
-      {/* Floating Bottom Input Bar & Pre-fetched Hints */}
-      <div className="fixed bottom-0 start-0 end-0 bg-gradient-to-t from-black via-black/95 to-transparent p-4 max-w-md mx-auto z-20 space-y-2.5">
-        {/* Hints as an on-demand button: a single 💡 pill that reveals the
-            one context-aware suggestion when tapped — no always-visible strip
+      {/* The dock: hints, the orb, the typed sentence. Always below the transcript,
+          never over it. */}
+      <div
+        data-testid="conversation-dock"
+        className="shrink-0 border-t border-white/[0.06] bg-black/85 px-4 pt-2.5 backdrop-blur-xl"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
+        {/* Hints as an on-demand button: a single 💡 pill that reveals the one
+            context-aware suggestion when tapped — no always-visible strip
             competing with the chat. */}
-        {visibleHints.length > 0 && (
-          <div className="flex flex-col gap-2">
-            {!isHintRevealed && (
-              <button
-                onClick={() => { setIsHintRevealed(true); triggerHaptic('light'); }}
-                className="self-start flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-surface-card border border-primary/30 text-xs font-arabic font-semibold text-primary hover:border-primary/60 transition-all"
-              >
-                <Lightbulb className="w-3.5 h-3.5" />
-                اقتراح لردّك
-              </button>
-            )}
-            {isHintRevealed && (
-              <div className="flex items-start gap-2">
-                <div className="flex-1 min-w-0 space-y-2">
-                  {/* Primary suggestion stays the only thing visible by
-                      default; the expander reveals the other moves. */}
-                  <HintOption hint={visibleHints[0]} onUse={() => handleUseHint(visibleHints[0])} primary />
-                  {visibleHints.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => {
-                          setIsHintExpanded((v) => !v);
-                          triggerHaptic('light');
-                        }}
-                        className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-surface-subtle border border-border-subtle text-[11px] font-arabic font-semibold text-text-secondary hover:text-primary transition-colors"
-                      >
-                        <span>
-                          {isHintExpanded ? 'إخفاء الخيارات الأخرى' : `خيارات أخرى في هذا الموقف (${visibleHints.length - 1})`}
-                        </span>
-                        {isHintExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                      </button>
-                      {isHintExpanded &&
-                        visibleHints.slice(1, 4).map((hint, hIdx) => (
-                          <HintOption key={hIdx} hint={hint} onUse={() => handleUseHint(hint)} />
-                        ))}
-                    </>
-                  )}
-                </div>
-                <button
-                  onClick={refreshHints}
-                  aria-label="تحديث الاقتراحات"
-                  title="تحديث الاقتراحات"
-                  className="flex-shrink-0 p-2 rounded-xl bg-surface-card border border-border-subtle text-text-secondary hover:text-primary transition-colors"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingHints ? 'animate-spin' : ''}`} />
-                </button>
-                <button
-                  onClick={() => setIsHintRevealed(false)}
-                  aria-label="إخفاء الاقتراح"
-                  className="flex-shrink-0 p-2 rounded-xl text-text-secondary hover:text-text-primary transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-          </div>
+        {visibleHints.length > 0 && !isHintRevealed && (
+          <button
+            onClick={() => {
+              setIsHintRevealed(true);
+              triggerHaptic('light');
+            }}
+            className="kz-ar-micro mb-2 flex items-center gap-1.5 rounded-full border border-primary/30 bg-white/5 px-3 py-1.5 font-semibold text-primary transition-colors hover:border-primary/60"
+          >
+            <Lightbulb className="h-3.5 w-3.5" />
+            اقتراح لردّك
+          </button>
         )}
 
-        {/* Mic / STT error banner */}
-        {micError && (
-          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-surface-subtle border border-status-learning/40 text-[11px] font-arabic text-status-learning">
-            <MicOff className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span className="flex-1">{micError}</span>
+        {visibleHints.length > 0 && isHintRevealed && (
+          <div className="mb-2 flex items-start gap-1.5">
+            <div className="max-h-[26vh] min-w-0 flex-1 space-y-1.5 overflow-y-auto">
+              <HintOption hint={visibleHints[0]} onUse={() => handleUseHint(visibleHints[0])} primary />
+              {visibleHints.length > 1 && (
+                <>
+                  <button
+                    onClick={() => {
+                      setIsHintExpanded((v) => !v);
+                      triggerHaptic('light');
+                    }}
+                    className="kz-ar-micro flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-kz-inkDim transition-colors hover:text-primary"
+                  >
+                    <span>
+                      {isHintExpanded
+                        ? 'إخفاء الخيارات الأخرى'
+                        : `خيارات أخرى في هذا الموقف (${visibleHints.length - 1})`}
+                    </span>
+                    {isHintExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </button>
+                  {isHintExpanded &&
+                    visibleHints.slice(1, 4).map((hint, hIdx) => (
+                      <HintOption key={hIdx} hint={hint} onUse={() => handleUseHint(hint)} />
+                    ))}
+                </>
+              )}
+            </div>
             <button
-              onClick={() => dispatch({ type: 'dismiss_error' })}
-              aria-label="إخفاء"
-              className="text-text-muted hover:text-text-primary min-h-[44px] min-w-[44px]"
+              onClick={refreshHints}
+              aria-label="تحديث الاقتراحات"
+              className="shrink-0 rounded-xl border border-white/10 bg-white/5 p-2 text-kz-inkDim transition-colors hover:text-primary"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingHints ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={() => setIsHintRevealed(false)}
+              aria-label="إخفاء الاقتراح"
+              className="shrink-0 rounded-xl p-2 text-kz-inkDim transition-colors hover:text-kz-ink"
             >
               ✕
             </button>
           </div>
         )}
 
-        {/* Input Bar */}
-        {!isSupported && (
-          <p className="text-[11px] text-text-muted font-arabic mb-2">
-            الإدخال الصوتي غير متاح في هذا المتصفح؛ يمكنك الكتابة بالألمانية هنا.
-          </p>
+        {/* Mic / STT error banner */}
+        {micError && (
+          <div className="kz-ar-micro mb-2 flex items-start gap-2 rounded-xl border border-status-learning/40 bg-white/5 p-2.5 text-status-learning">
+            <MicOff className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="flex-1">{micError}</span>
+            <button
+              onClick={() => dispatch({ type: 'dismiss_error' })}
+              aria-label="إخفاء"
+              className="min-h-[32px] min-w-[32px] text-kz-inkFaint hover:text-kz-ink"
+            >
+              ✕
+            </button>
+          </div>
         )}
-        {/* The orb, one continuous object across every turn state, above the
-            typing row. It owns the microphone; the input rows below are the
-            always-available typed alternative. */}
-        <div className="flex flex-col items-center gap-1">
+
+        {/* The orb owns the microphone, and the label under it is the only place
+            the app says what the microphone is doing. */}
+        <div className="flex flex-col items-center">
           <KatzuOrb
             state={orbState}
-            readLevel={mic.read}
+            readLevel={voice.read}
             tone={orbTone}
+            size={orbSize}
             onPress={() => void handleOrbPress()}
-            disabled={!isSupported || orbState === 'quota'}
+            disabled={!voice.isSupported || conversation.status === 'quota_exhausted'}
             labelAr={orbLabelAr}
           />
-          {orbState === 'listening' && (
-            <span className="kz-ar-micro text-kz-lavender">أنا أستمع إليك… تحدث الآن</span>
-          )}
+          <span
+            className={`kz-ar-micro h-4 transition-opacity ${
+              voice.isRecording ? 'text-kz-lavender opacity-100' : 'text-kz-inkFaint opacity-70'
+            }`}
+          >
+            {voice.isRecording
+              ? 'أنا أستمع إليك… تحدث الآن'
+              : conversation.status === 'transcribing'
+                ? 'جارٍ التعرف على كلامك…'
+                : !voice.isSupported
+                  ? 'الإدخال الصوتي غير متاح — اكتب بالألمانية'
+                  : 'اضغط على الدائرة وتحدث'}
+          </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2">
           <input
             ref={inputRef}
             type="text"
             dir="ltr"
-            placeholder={isListening ? 'أنا أستمع إليك... تحدث الآن' : 'اكتب جملتك بالألمانية هنا…'}
+            placeholder={voice.isRecording ? 'أنا أستمع إليك…' : 'اكتب جملتك بالألمانية…'}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            className="flex-1 h-12 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl px-4 text-sm font-german outline-none transition-all placeholder:font-arabic placeholder:text-xs placeholder:text-text-muted"
+            className="h-11 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 font-german text-sm outline-none transition-colors placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-primary/60"
           />
+
+          {/* Typing is always one tap away — and it is a control inside the row,
+              not a third line of copy under it. */}
+          <button
+            onClick={handleTypeInstead}
+            aria-label="اكتب بدلاً من التحدث"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-kz-inkDim transition-colors hover:text-kz-ink"
+          >
+            <Keyboard className="h-4 w-4" />
+          </button>
 
           <Button
             size="md"
-            className="h-12 w-12 rounded-2xl p-0 flex items-center justify-center flex-shrink-0"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl p-0"
             disabled={!inputText.trim() || isGenerating}
             onClick={() => handleSendMessage()}
             aria-label="أرسل جملتك"
           >
-            <Send className="w-5 h-5 rotate-180" aria-hidden />
+            <Send className="h-5 w-5 rotate-180" aria-hidden />
           </Button>
-        </div>
-
-        {/* Always present, never behind a failure state. */}
-        <div className="flex items-center justify-center">
-          <GlassButton variant="quiet" onClick={handleTypeInstead} className="gap-1.5">
-            <Keyboard className="h-3.5 w-3.5" />
-            {isListening ? 'اكتب بدلاً من ذلك' : 'تفضّل الكتابة؟ اكتب هنا'}
-          </GlassButton>
         </div>
       </div>
 
@@ -1252,3 +1191,5 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     </div>
   );
 };
+
+export default LiveConversationScreen;

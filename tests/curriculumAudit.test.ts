@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   CONTENT_COLUMNS,
+  OPTIONAL_COLUMNS,
   LOADABLE_TYPES,
   auditCurriculum,
   type AuditReport,
@@ -250,9 +251,15 @@ describe('shipped curriculum draft', () => {
 
   it('keeps every loadable row inside the D1 column contract', () => {
     for (const type of LOADABLE_TYPES) {
-      const expected = [...CONTENT_COLUMNS[type]].sort();
+      // Columns the contract marks optional may be absent — `banner_url` is filled
+      // in later from the content editor. Every other column is required, and no
+      // row may carry a key the contract does not know.
+      const optional = OPTIONAL_COLUMNS[type] ?? [];
+      const required = CONTENT_COLUMNS[type].filter((column) => !optional.includes(column));
       for (const row of draft[type]) {
-        expect(Object.keys(row).sort(), `${type} row`).toEqual(expected);
+        const keys = Object.keys(row);
+        for (const column of required) expect(keys, `${type} row lacks ${column}`).toContain(column);
+        for (const key of keys) expect(CONTENT_COLUMNS[type], `${type} row has unknown ${key}`).toContain(key);
       }
     }
   });

@@ -52,6 +52,10 @@ export const DB_SCHEMA = {
       text("initial_message_a2", "Katzu's opening line at A2.", "textarea"),
       text("initial_message_b1", "Katzu's opening line at B1.", "textarea"),
       text("initial_message_b2", "Katzu's opening line at B2.", "textarea"),
+      optionalText(
+        "banner_url",
+        "16:9 artwork for this scenario — the thumbnail on the trail, on the mission card and on this scenario's own screen. Empty keeps the app's built-in placeholder art.",
+      ),
     ],
   },
   vocabulary: {
@@ -119,6 +123,55 @@ export const DB_SCHEMA = {
 
 export const CONTENT_TYPES = Object.keys(DB_SCHEMA);
 
+/**
+ * Columns added to a table *after* it was first created.
+ *
+ * The content tables were created outside this repo (dashboard / wrangler), so
+ * there is no migration file to add a line to. Adding a column is the one schema
+ * change that is safe to apply from a running worker — SQLite stores it as
+ * metadata, existing rows get NULL, and nothing is rewritten — so the worker
+ * reconciles these on its first request and every later one is a no-op. This is
+ * additive only, by policy: nothing here may drop, rename or retype a column.
+ */
+const ADDITIVE_COLUMNS = {
+  scenarios: [{ name: "banner_url", type: "TEXT" }],
+};
+
+let columnsEnsured = null;
+
+/**
+ * Brings every existing content table up to the schema above.
+ *
+ * Memoised per isolate: the first request pays for the statements, the rest await
+ * an already-settled promise. A statement that reports the column already exists is
+ * the expected steady state and is not an error; anything else is logged, because
+ * a schema this worker cannot write to would silently break the banner editor.
+ */
+export function ensureContentColumns(env) {
+  if (columnsEnsured) return columnsEnsured;
+  if (!env?.DB || typeof env.DB.prepare !== "function") return Promise.resolve(false);
+
+  columnsEnsured = (async () => {
+    let ok = true;
+    for (const [table, columns] of Object.entries(ADDITIVE_COLUMNS)) {
+      for (const column of columns) {
+        try {
+          await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${column.name} ${column.type}`).run();
+        } catch (error) {
+          const message = String(error?.message || error);
+          if (!/duplicate column name/i.test(message)) {
+            ok = false;
+            console.error(`[schema] ${table}.${column.name} could not be ensured:`, message.slice(0, 160));
+          }
+        }
+      }
+    }
+    return ok;
+  })();
+
+  return columnsEnsured;
+}
+
 /** The value a row must carry to address an existing row: `rowid` or the text `id`. */
 export function isRowIdTable(type) {
   const meta = DB_SCHEMA[type];
@@ -183,7 +236,12 @@ export function validateContentRow(type, raw, context = {}) {
   for (const column of meta.columns) {
     if (column.name === keyColumn) continue; // handled as the row's identity above
     if (!(column.name in raw)) {
-      errors.push(`${where}missing column "${column.name}"`);
+      // A column the descriptor marks optional may simply be absent — an existing
+      // spreadsheet predates it, and a scenario's banner artwork is exactly the
+      // column authors fill in later. It normalises to empty, never to undefined,
+      // so the bound value is the NULL D1 stores anyway.
+      if (column.required) errors.push(`${where}missing column "${column.name}"`);
+      else row[column.name] = "";
       continue;
     }
     const value = raw[column.name];

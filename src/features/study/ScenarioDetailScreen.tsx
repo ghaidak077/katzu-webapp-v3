@@ -8,6 +8,8 @@ import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { ScenarioBanner } from '@/components/glass/ScenarioBanner';
+import { sceneFor } from '@/lib/design/scenes';
 import { ArrowRight, BookOpen, CheckCircle, Lock, MessagesSquare, Sparkles } from 'lucide-react';
 
 export interface ScenarioDetailScreenProps {
@@ -111,6 +113,15 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         </Badge>
         <div className="w-10" />
       </div>
+
+      {/* The scenario's 16:9 banner, exactly as the trail and the mission card show
+          it: the learner recognises the situation before reading a word. */}
+      <ScenarioBanner
+        scene={sceneFor({ id: scenario.id, category: scenario.category, bannerUrl: scenario.banner_url })}
+        className="mb-4 rounded-[28px]"
+        drift
+        loading="eager"
+      />
 
       {/* Host Card */}
       <Card variant="hero" className="p-5 mb-6 relative overflow-hidden border border-primary/30 flex items-center justify-between">

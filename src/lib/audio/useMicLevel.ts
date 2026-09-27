@@ -48,6 +48,14 @@ export interface UseMicLevelResult {
   stop: () => void;
   /** Current sample; call from a rAF loop. */
   read: () => MicSample;
+  /**
+   * The live `MediaStream`, or null when there is none.
+   *
+   * A reader rather than a value: the caller that needs the raw stream (the
+   * recorder) asks for it right after `start()` resolves, in the same tick, and
+   * never wants a re-render because a stream object changed identity.
+   */
+  getStream: () => MediaStream | null;
 }
 
 export function useMicLevel(): UseMicLevelResult {
@@ -154,6 +162,8 @@ export function useMicLevel(): UseMicLevelResult {
     }
   }, []);
 
+  const getStream = useCallback((): MediaStream | null => graphRef.current?.stream || null, []);
+
   const read = useCallback((): MicSample => {
     const graph = graphRef.current;
     const timeBuffer = timeBufferRef.current;
@@ -195,5 +205,5 @@ export function useMicLevel(): UseMicLevelResult {
 
   useEffect(() => stop, [stop]);
 
-  return { isActive, error, start, stop, read };
+  return { isActive, error, start, stop, read, getStream };
 }

@@ -5,6 +5,8 @@ import { isProEffective } from '@/lib/utils/subscription';
 import { FREE_LEVEL, isLevelFree, servedLevel } from '@/lib/entitlement/trial';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
+import { ScenarioBanner } from '@/components/glass/ScenarioBanner';
+import { sceneFor } from '@/lib/design/scenes';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
@@ -356,37 +358,50 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             >
               <div
                 onClick={() => handleScenarioClick(scenario.id)}
-                className={`relative w-[82%] p-4 rounded-3xl cursor-pointer border transition-all transform active:scale-95 ${
+                className={`relative w-[82%] overflow-hidden rounded-3xl border cursor-pointer transition-all transform active:scale-95 ${
                   isMastered
                     ? 'bg-surface-card border-status-success/40 shadow-glow-green'
                     : 'bg-surface-card border-border-subtle hover:border-primary/50'
                 }`}
               >
-                {/* Status Indicator Icon */}
-                <div className="flex items-center justify-between mb-2">
-                  <Badge variant={isMastered ? 'success' : 'subtle'} size="sm">
-                    {CAPABILITY_LABEL_AR[state]}
-                  </Badge>
+                {/* The scenario's 16:9 thumbnail — the same banner the mission card
+                    and the scenario's own screen use, so one scenario looks like one
+                    situation everywhere. */}
+                <ScenarioBanner
+                  scene={sceneFor({
+                    id: scenario.id,
+                    category: scenario.category,
+                    bannerUrl: scenario.banner_url,
+                  })}
+                >
+                  <div className="flex items-start justify-end p-2.5">
+                    <Badge variant={isMastered ? 'success' : 'subtle'} size="sm">
+                      {CAPABILITY_LABEL_AR[state]}
+                    </Badge>
+                  </div>
+                </ScenarioBanner>
+
+                <div className="p-3.5">
                   {isMastered ? (
-                    <CheckCircle2 className="w-5 h-5 text-status-success" />
+                    <CheckCircle2 className="mb-1 h-5 w-5 text-status-success" />
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                      <Play className="w-3.5 h-3.5 fill-primary text-primary" />
+                    <div className="mb-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-primary">
+                      <Play className="h-3.5 w-3.5 fill-primary text-primary" />
                     </div>
                   )}
-                </div>
 
-                <GermanText className="text-base font-bold text-text-primary block mb-0.5">
-                  {scenario.title_de}
-                </GermanText>
-                <div className="text-xs text-text-secondary font-arabic line-clamp-1">
-                  {scenario.title_ar}
+                  <GermanText className="text-base font-bold text-text-primary block mb-0.5">
+                    {scenario.title_de}
+                  </GermanText>
+                  <div className="text-xs text-text-secondary font-arabic line-clamp-1">
+                    {scenario.title_ar}
+                  </div>
+                  {capabilityFor(scenario.id) === 'PRACTISING' && (
+                    <p className="mt-1.5 text-[10px] font-arabic text-status-learning">
+                      تدرّبت عليه — لم تصبح مستقلاً فيه بعد
+                    </p>
+                  )}
                 </div>
-                {capabilityFor(scenario.id) === 'PRACTISING' && (
-                  <p className="mt-1.5 text-[10px] font-arabic text-status-learning">
-                    تدرّبت عليه — لم تصبح مستقلاً فيه بعد
-                  </p>
-                )}
               </div>
             </div>
           );

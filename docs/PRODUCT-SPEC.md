@@ -299,8 +299,14 @@ katzu-webapp-v3/
 │   ├── lib/
 │   │   ├── api/workerClient.ts       # the single HTTP client to the Worker (auth, AI, verify, progress…)
 │   │   ├── db/katzuDb.ts             # Dexie schema v1–v3, seeds, wipeUserScopedData
-│   │   ├── speech/useSpeechInput.ts  # Web Speech STT (de-DE) with zombie-recognizer watchdog
+│   │   ├── audio/useVoiceCapture.ts  # record (MediaRecorder) → recognise on the Worker, with local endpointing
+│   │   ├── audio/useMicLevel.ts      # one real mic stream + AnalyserNode (the orb and the endpointing share it)
+│   │   ├── audio/cues.ts             # the app's own two blips (no OS chime, no audio asset)
 │   │   ├── speech/useSpeechOutput.ts # Web Speech TTS (de-DE) with voice discovery + gesture priming
+│   │   │                             # NOTE: §13's STT bullet below describes the deleted Web Speech
+│   │   │                             # input pipeline. Speech *input* is `audio/useVoiceCapture.ts`
+│   │   │                             # → `POST /ai/transcribe` (see §13's heading for TTS, which is
+│   │   │                             # unchanged, and `docs/current-state.md` for the live detail).
 │   │   └── utils/
 │   │       ├── checkIn.ts            # welcome-back greeting logic (tones)
 │   │       ├── dailyMission.ts       # deterministic daily-mission rotation
