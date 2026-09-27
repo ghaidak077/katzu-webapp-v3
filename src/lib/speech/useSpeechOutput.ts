@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { chooseGermanVoice } from './voiceChoice';
 
 interface UseSpeechOutputOptions {
   speed?: number; // 0.8 or 1.0
@@ -13,19 +14,27 @@ interface UseSpeechOutputOptions {
 let ttsPrimedByGesture = false;
 let voicesDiscovered = false;
 
+/**
+ * The device's own German voice when it has one, otherwise the best available.
+ *
+ * The ranking lives in `voiceChoice.ts` so the decision is testable; this is only
+ * the adapter from the platform's `SpeechSynthesisVoice` objects to it.
+ */
 function selectGermanVoice(synth: SpeechSynthesis | null): SpeechSynthesisVoice | null {
   if (!synth) return null;
   const voices = synth.getVoices();
   if (voices.length === 0) return null;
-  const german = voices.filter((v) => v.lang?.toLowerCase().startsWith('de'));
-  if (german.length === 0) return null;
-  // Prefer a natural female German voice, then any non-Google-engine voice,
-  // then any German voice at all — never stay silent if one exists.
-  return (
-    german.find((v) => !v.name.includes('Google') && (v.name.includes('Helena') || v.name.includes('Anna') || v.name.includes('Petra'))) ||
-    german.find((v) => !v.name.includes('Google')) ||
-    german[0]
+  const ranked = chooseGermanVoice(
+    voices.map((voice) => ({
+      name: voice.name,
+      lang: voice.lang,
+      // `localService` is true for a voice rendered on the device. It is the flag
+      // that distinguishes Android's own engine from Chrome's network voices.
+      local: Boolean(voice.localService),
+    })),
   );
+  if (!ranked) return null;
+  return voices.find((voice) => voice.name === ranked.name && voice.lang === ranked.lang) || null;
 }
 
 export function useSpeechOutput({

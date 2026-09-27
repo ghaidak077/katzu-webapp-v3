@@ -511,6 +511,96 @@ conversation had not earned — the reported case being a rent conversation that
 naturally ask next**, using only words the situation has already introduced, and allows an empty
 string: "a filler question is worse than none".
 
+## 11. The microphone conflict, solved from the other end (2026-09-27, same day as §10)
+
+§10.2 deleted the platform's own speech recogniser after a real Android session, on three grounds.
+Two of them were about the recogniser; one was about us, and it was the one that mattered most:
+
+1. **It recorded nothing.** Chrome's recogniser and the app's own `getUserMedia` analyser stream (the
+   orb's amplitude) compete for one microphone, and the recogniser lost. That is *our* stream in the
+   way — not a defect of the engine. A native session that never opens a stream has the microphone to
+   itself, which is what the app now guarantees.
+2. **It plays an OS chime.** True, and unfixable from a page: that sound belongs to the operating
+   system's own recogniser and no web API can mute it. It is the price of the native engine, so it is
+   now documented as an accepted cost instead of used as the reason to delete the pipeline. The app's
+   own blip and haptic still mark start and stop, so the learner is not relying on the system sound.
+3. **Firefox has no recogniser.** Still true — and it is the entire reason the fallback exists.
+
+So speech input is **native-first with the recording path behind it**, chosen automatically. A learner
+never picks an engine, and never sees which one served them.
+
+**`src/lib/audio/nativeSpeech.ts`** owns the wrapper and every rule that can be tested without a phone.
+`startNativeRecognition(handlers, 'de-DE')` runs `continuous = false` with `interimResults = true`, and
+accepts both `SpeechRecognition` and `webkitSpeechRecognition`. Beside it, the decisions:
+
+| Engine failure (`error`) | What it means | What the app does |
+| --- | --- | --- |
+| `not-allowed`, `service-not-allowed` | The learner or the site refused the microphone | Arabic "لم يُسمح بالوصول للمايك", **no** fallback |
+| `audio-capture` | No microphone device is reachable | Honest failure, **no** fallback |
+| `no-speech`, `network`, `language-not-supported`, unknown | The engine could not do its job | Fall back to recording |
+| `aborted` after the app's own stop | The normal end of a session we ended | Empty result, **no** fallback |
+
+That table is `classifyRecognitionError(code, { requestedStop })` plus `mayFallBack`, pinned by
+`tests/nativeSpeech.test.ts` (12 tests). A refusal is not an engine failure: retrying a denial through
+the recorder would ask for the microphone again seconds after the learner said no. The fallback is
+capped at `MAX_NATIVE_FALLBACKS = 2` per session, so an engine that is broken in a way its own error
+codes do not name cannot turn every mic tap into a network round trip.
+
+**Two details in the wrapper that would each have silently lost the learner's words:**
+
+- The `results` list is **cumulative** — every event carries the whole list so far, not the newest
+  fragment. Reading only the newest entry drops the beginning of every sentence, and real engines
+  re-send the whole utterance on the final event, so the naive `finalText += …` also duplicates it.
+  The handler reads the whole list on every event instead.
+- `onend` can arrive with nothing finalised (a learner who stops mid-sentence, or an engine that just
+  goes quiet). The interim text already on screen is the honest answer, so `lastHeard` is delivered
+  rather than an empty string — otherwise the caption the learner watched and the transcript in the
+  composer would disagree about the same utterance.
+
+**A hung "listening" state is not reachable.** `nativeWatchdogVerdict` (pure, tested) covers the three
+ways a session can stall: never started (3 s), started and silent (7 s), started and talking (15 s
+ceiling). On abandon the app delivers `lastHeard` or empty and spends one fallback.
+
+**The orb in native mode is decorative, and the code says so.** The one thing native mode must never do
+is open a `getUserMedia` stream — that *is* the §10.2 conflict — so while a native session runs the orb
+is driven by `syntheticListeningSample(elapsedMs)`: two incommensurate sines, amplitude 0.06–0.42, with
+the bands falling low → high, which reads as a voice without pretending to be a measurement. Nothing in
+native mode measures the learner and no score is derived from it. The recorder path still reads the real
+analyser, because it needs the stream for endpointing anyway.
+
+Everything §10.2 got right survives unchanged on the recording path: local endpointing (`decideStop`),
+the app's own two-note cue, the microphone released **before** the network call, and `/ai/transcribe`
+with its own rate budget and no entitlement gate.
+
+### 11.1 The learner sees their own German while they are still speaking
+
+The recogniser returns words while the learner is talking, so the conversation shows them in three
+places through one mapping:
+
+- `src/lib/speech/wordHighlight.ts` — `speechSegments` splits German into word segments while keeping
+  spaces and punctuation as their own, and the segments' concatenation is **character-exact** the input
+  string. That identity is the point: the engine reports `charIndex` into the *original* string, so any
+  splitter that trims, normalises or re-joins differently would highlight the wrong word.
+  `tests/wordHighlight.test.ts` (8 tests) pins the identity and `activeWordIndex`'s honest answers for
+  `null`, `undefined`, `NaN` and out-of-range indices.
+- The live caption band on the conversation screen (`data-testid="live-caption"`) shows the interim
+  sentence LTR-isolated under an Arabic "أسمع" label, and disappears with the session that produced it.
+  Guided Practice and the public demo carry the same band (`src/features/journey/GuidedPracticeScreen.tsx`,
+  `src/features/demo/DemoScreen.tsx`); `e2e/journey.spec.ts` asserts it appearing, containing the
+  learner's words, and being gone once the turn is submitted.
+- Katzu's own speech was already reported word by word by `speechSynthesis` (`onboundary`);
+  `activeWordIndex` now maps those boundaries onto the bubble, so the reply is highlighted as it is
+  read, with `aria-current` for assistive technology. Only the message being spoken is highlighted at
+  all — every other bubble passes `null`, so two messages can never both look like they are speaking.
+
+### 11.2 The voice the learner hears is chosen, not whichever one came first
+
+`src/lib/speech/voiceChoice.ts` (`chooseGermanVoice`, 6 tests) ranks the device's voices: a **device**
+voice first (`localService` — it works offline and is the one the phone's own settings tuned), then a
+known natural or neural German name, then any German voice at all. Ties break on a code-unit name
+comparison rather than `localeCompare`: the same device must give the same answer every time, and a
+locale-dependent collator does not promise that.
+
 ## Verification
 
 ```
@@ -527,13 +617,13 @@ $ npm run test:e2e:types
 (no output — clean)
 
 $ npx vitest run
-Test Files  59 passed (59)
-     Tests  662 passed (662)
+Test Files  62 passed (62)
+     Tests  690 passed (690)
 
 $ npx playwright test --list
-Total: 22 tests in 7 files
+Total: 24 tests in 7 files
 
-Every one of the 22 was run green in this pass, in groups that fit this sandbox's command
+Every one of the 24 was run green across the two passes (22 from §10, 2 from §11), in groups that fit this sandbox's command
 timeout (`npx playwright test` itself takes ~10.5 m here because there is one CPU: the Vite dev
 server transforms every lazily-imported screen on first request while the browser competes for
 the same core, and that contention dilates whichever task the renderer is running — a single
@@ -548,6 +638,10 @@ $ npx playwright test e2e/journey.spec.ts -g "Live Interaction runs a turn|a den
 
 $ npx playwright test e2e/banner.spec.ts
   2 passed (1.1m)            # a per-scenario banner_url on every screen, and the floor without one
+
+$ npx playwright test e2e/journey.spec.ts -g "still speaking|without a platform recogniser"
+  2 passed (33.2s)           # the live caption while the learner is still talking, and the same
+                             # turn served by the recording fallback with no caption claimed
 
 The runs also carried **zero** console errors (the five SiriWave shader failures of §9 are gone).
 One test failed once on a *contended* run (the "Story Setup" click, in a 3-test sequence on one
@@ -575,7 +669,7 @@ regression violated).
 
 ## Known limitations / still open
 
-1. **The browser suite covers behaviour; three claims stay manual.** 22 Playwright tests
+1. **The browser suite covers behaviour; three claims stay manual.** 24 Playwright tests
    (`e2e/`, driven against the managed preview with the backend mocked and the microphone
    substituted) walk the five screens of the episode end to end, the orb's state machine
    including a denied permission and the typed fallback, onboarding, the Progress tab, and
@@ -583,7 +677,10 @@ regression violated).
    - **The orb's audio-reactive deformation.** Chromium's fake capture device was measured
      through the same analyser the orb reads: peak RMS **0.000000** over 400 ms
      (`e2e/microphone.spec.ts`). The stream, the `AudioContext` and the rAF read are all
-     real — the signal is silence, so the orb has nothing to deform with.
+     real — the signal is silence, so the orb has nothing to deform with. With native
+     recognition as the default the claim narrows further: the orb is generated rather than
+     measured whenever the platform recogniser is the engine (§11), so the deformation can only
+     be judged on the recording path — Firefox, or an engine that has failed twice.
    - **Real recognition timing.** The suite scripts the capture device (a real oscillator
      stream, so the app's analyser and endpointing run for real) and mocks `/ai/transcribe`,
      because a headless browser has no microphone worth trusting and the sandbox has no
@@ -593,10 +690,13 @@ regression violated).
      records a real German clip in a browser with the app's own `MediaRecorder` options and
      posts it to the deployed Worker.
    - **Android itself.** The bug that started §10.2 was reported from a real phone, and
-     headless Chromium cannot reproduce it (it has no OS chime to play and no phone audio
-     stack). The pipeline it was diagnosed from is gone, but the fix needs the owner's own
-     device to confirm: tap the orb, speak, and check that the app's own blip plays, no
-     system sound, and the sentence lands in the input.
+     headless Chromium cannot reproduce it (it has no phone audio stack, and a scripted
+     recogniser proves nothing about the real one). The native path is now the default and
+     the fix needs the owner's own device to confirm: tap the orb, speak, and check that the
+     words appear in the caption as they talk, that the sentence lands in the input without a
+     second permission prompt, and that the app's own blip plays. The system chime comes back
+     with the platform recogniser and is the accepted cost of §11 — it is deliberately not a
+     failure condition.
    - **How any of it feels.** Latency against the deployed Worker, TTS intelligibility and
      the pacing of a turn are judgements, not assertions.
 
@@ -607,7 +707,11 @@ regression violated).
 2. **`replying` orb motion is not voice-driven** — the microphone is deliberately released
    before the turn is sent (and stays closed while Katzu answers, so the app is not listening
    to its own voice). With no live stream there is no amplitude, so that motion is
-   lifecycle-synced and the code says so; it must not be presented as a waveform.
+   lifecycle-synced and the code says so; it must not be presented as a waveform. **In native
+   recognition the orb does not measure the learner either, for the same class of reason:**
+   opening a stream would take the microphone from the recogniser (the §10.2 conflict), so its
+   motion is generated (`syntheticListeningSample`) and documented as decorative. Only the
+   recording path reads the real analyser.
 3. **Pronunciation is never scored.** Repeat tasks report word coverage only.
 4. **Scenes are procedural** (light pools + grain). `SceneBackdrop` already accepts an
    `artUrl`; real scene artwork can be dropped in without touching a screen.
@@ -626,3 +730,8 @@ regression violated).
    lost context on the next mount (`getShaderParameter` returns `null`, not `false`). The
    indicator no longer compiles a shader on a software rasteriser at all, and the suite now
    runs with **zero** console errors (was 5).
+7. **This log has reached its editor's reach limit.** It is now ≈48 KB, and this repository's file
+   editor could not match a one-line string anywhere in the ≈51 KB-past-the-start region of
+   `docs/PRODUCT-SPEC.md` — which records the same constraint at its own top. The entry above was
+   the last one writeable in place, so the next implementation entry belongs in a new file
+   continuing from §12.

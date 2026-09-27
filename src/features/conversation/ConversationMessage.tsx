@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { Languages, RefreshCw, Volume2 } from 'lucide-react';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
+import { useReducedMotion } from '@/components/glass/GlassSurface';
+import { activeWordIndex, speechSegments } from '@/lib/speech/wordHighlight';
 import type { ChatMessage } from '@/types/models';
 
 /**
@@ -35,8 +37,16 @@ export interface ConversationMessageProps {
   knownWords: Set<string>;
   onToggleTranslation: (messageId: string) => void;
   onRetryTranslation: (messageId: string, germanText: string) => void;
-  onSpeak: (germanText: string) => void;
+  onSpeak: (message: ChatMessage) => void;
   onWordClick: (word: string) => void;
+  /**
+   * The character position the speech engine last reported, for **this** bubble,
+   * or null. Null for every bubble that is not the one being spoken, so a
+   * transcript with one speaker highlights in exactly one place.
+   */
+  spokenCharIndex?: number | null;
+  /** True for the newest bubble, which arrives rather than appearing. */
+  isNewest?: boolean;
 }
 
 const normalize = (value: string) => value.replace(/[^a-zA-ZäöüÄÖÜß]/g, '').toLowerCase();
@@ -49,18 +59,26 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   onRetryTranslation,
   onSpeak,
   onWordClick,
+  spokenCharIndex = null,
+  isNewest = false,
 }) => {
   const isKatzu = message.sender === 'KATZU';
+  // One 460 ms rise on the newest bubble is what makes an answer arrive rather
+  // than appear; a learner who has asked for less motion does not get it.
+  const reduceMotion = useReducedMotion();
 
-  // Splitting and normalising the sentence once per message instead of once per
-  // render is what keeps a long transcript cheap to keep on screen.
-  const words = useMemo(
-    () => message.germanText.split(' ').map((word) => ({ word, key: normalize(word) })),
-    [message.germanText],
-  );
+  // Split once per message, not once per render: the segments are the sentence
+  // character for character (see `wordHighlight`), which is what lets the speech
+  // engine's own character index find the right word.
+  const segments = useMemo(() => speechSegments(message.germanText), [message.germanText]);
+  const spokenWord = activeWordIndex(segments, spokenCharIndex);
 
   return (
-    <article className={`flex ${isKatzu ? 'justify-start' : 'justify-end'}`}>
+    <article
+      className={`flex ${isKatzu ? 'justify-start' : 'justify-end'} ${
+        isNewest && !reduceMotion ? 'animate-kz-rise' : ''
+      }`}
+    >
       <div className="max-w-[88%] min-w-0">
         <div
           className={
@@ -79,21 +97,31 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
               isKatzu ? 'text-kz-ink' : 'text-white'
             }`}
           >
-            {words.map(({ word, key }, index) => {
+            {segments.map((segment, index) => {
+              if (segment.wordIndex === null) return <React.Fragment key={`gap-${index}`}>{segment.text}</React.Fragment>;
+              const key = normalize(segment.text);
               const isKnown = key.length > 1 && knownWords.has(key);
+              const isSpoken = segment.wordIndex === spokenWord;
               return (
                 <React.Fragment key={`${key}-${index}`}>
                   <span
-                    onClick={isKnown ? () => onWordClick(word) : undefined}
-                    className={
-                      isKnown
-                        ? 'cursor-pointer rounded-[6px] underline decoration-dotted decoration-1 underline-offset-[3px] hover:bg-white/10'
-                        : undefined
-                    }
+                    onClick={isKnown ? () => onWordClick(segment.text) : undefined}
+                    aria-current={isSpoken ? 'true' : undefined}
+                    className={[
+                      'rounded-[7px] transition-colors duration-150',
+                      // The word Katzu is saying right now. It is a reading aid, so
+                      // it is a background, not a colour change: German stays
+                      // legible whether or not the highlight is on.
+                      isSpoken ? 'bg-kz-lavender/25 text-kz-ink shadow-[0_0_0_3px_rgba(180,160,255,0.12)]' : '',
+                      !isSpoken && isKnown
+                        ? 'cursor-pointer underline decoration-dotted decoration-1 underline-offset-[3px] hover:bg-white/10'
+                        : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                   >
-                    {word}
+                    {segment.text}
                   </span>
-                  {index < words.length - 1 ? ' ' : ''}
                 </React.Fragment>
               );
             })}
@@ -103,7 +131,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
             <div className="mt-2 flex items-center justify-between gap-2 border-t border-white/8 pt-1.5">
               <button
                 type="button"
-                onClick={() => onSpeak(message.germanText)}
+                onClick={() => onSpeak(message)}
                 aria-label="اسمع الجملة بالألمانية"
                 className="flex h-8 w-8 items-center justify-center rounded-full text-kz-lavender transition-colors hover:bg-white/10"
               >

@@ -163,7 +163,18 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const targetTurns = planTurns(sessionMode ?? 'quick', effectiveLevel);
   const userTurnsCount = messages.filter((m) => m.sender === 'USER').length;
 
-  const { speak } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
+  /**
+   * The bubble being spoken, and the word of it that is being said.
+   *
+   * Katzu's reply is spoken automatically (below), so this is what turns the voice
+   * into something the learner can follow with their eyes: the engine reports a
+   * character position per word, and the transcript marks the word it is on.
+   */
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const { speak, stop: stopSpeaking, activeCharIndex } = useSpeechOutput({
+    speed: user?.speechSpeed || 1.0,
+    onEnd: () => setSpeakingId(null),
+  });
 
   /**
    * Speaking. `useVoiceCapture` owns the microphone (one acquisition for both the
@@ -267,6 +278,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
    */
   const handleOrbPress = useCallback(async () => {
     dispatch({ type: 'dismiss_error' });
+    // Never talk over the learner: the moment they take the microphone, Katzu
+    // stops speaking (and the highlight goes with it).
+    stopSpeaking();
     if (voice.isRecording) {
       voice.stop();
       return;
@@ -494,7 +508,13 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     }
   };
 
-  const handleSpeak = useCallback((germanText: string) => speak(germanText), [speak]);
+  const handleSpeak = useCallback(
+    (message: ChatMessage) => {
+      setSpeakingId(message.id);
+      speak(message.germanText);
+    },
+    [speak],
+  );
 
   // Rule 5: Exactly ONE /ai/turn call per user turn. The state machine refuses
   // a submit while a turn is in flight and the ref closes the window before the
@@ -589,7 +609,10 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         track('first_independent_turn', { scenarioId, count: 1 });
       }
 
-      // Speak Katzu's reply automatically
+      // Speak Katzu's reply automatically, and highlight it word by word while it
+      // is being said — a voice-only conversation leaves the learner guessing
+      // which parts they missed.
+      setSpeakingId(katzuReply.id);
       speak(res.germanReply);
 
       // Save mistake to database if an error occurred
@@ -951,7 +974,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         data-testid="conversation-transcript"
         className="min-h-0 flex-1 space-y-3.5 overflow-y-auto px-4 py-4"
       >
-        {messages.map((msg) => {
+        {messages.map((msg, index) => {
           // Explicit per-message choice overrides the global toggle. The
           // scenario opener is the exception: it is the only message a learner
           // has no way to guess at (no earlier turn to decode it against), so
@@ -973,6 +996,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
               onRetryTranslation={requestOpenerTranslation}
               onSpeak={handleSpeak}
               onWordClick={handleWordClick}
+              spokenCharIndex={speakingId === msg.id ? activeCharIndex : null}
+              isNewest={index === messages.length - 1}
             />
           );
         })}
@@ -1133,6 +1158,24 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                   : 'اضغط على الدائرة وتحدث'}
           </span>
         </div>
+
+        {/* Live captions while the learner speaks. The platform recogniser returns
+            words as they are said, so the learner can see their own German land —
+            which is the difference between dictating and being transcribed after
+            the fact. It renders only when there is something to show (the recorder
+            fallback cannot know the words until the recording ends), so nothing
+            here can announce a caption that is not coming. */}
+        {voice.isRecording && voice.interimText && (
+          <div
+            data-testid="live-caption"
+            className="mt-2 flex items-center gap-2 rounded-xl border border-kz-lavender/25 bg-kz-lavender/10 px-3 py-2"
+          >
+            <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">أسمع</span>
+            <span dir="ltr" className="min-w-0 flex-1 truncate font-german text-sm text-kz-ink">
+              {voice.interimText}
+            </span>
+          </div>
+        )}
 
         <div className="mt-2 flex items-center gap-2">
           <input

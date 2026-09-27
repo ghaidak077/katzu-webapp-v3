@@ -351,6 +351,18 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink outline-none transition-colors placeholder:font-arabic placeholder:text-[0.72rem] placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                 />
 
+                {/* The learner's own words while they speak: the platform recogniser
+                    returns them as they are said, so a repeat is not a leap of faith
+                    until the recording ends. */}
+                {voice.isRecording && voice.interimText && (
+                  <p data-testid="live-caption" className="mt-2 flex items-baseline gap-2">
+                    <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">أسمع</span>
+                    <span dir="ltr" className="min-w-0 flex-1 truncate font-german text-sm text-kz-ink">
+                      {voice.interimText}
+                    </span>
+                  </p>
+                )}
+
                 {micError && (
                   <p className="kz-ar-micro mt-2 leading-relaxed text-kz-amber">{micError}</p>
                 )}

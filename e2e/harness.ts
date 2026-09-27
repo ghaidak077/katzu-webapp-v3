@@ -56,6 +56,12 @@ export interface MockOptions {
   /** What `/ai/transcribe` answers when the test queued nothing via `say()`. */
   defaultUtterance?: string;
   /**
+   * How long the platform recogniser holds an interim result before finalising it.
+   * Long enough to assert the live caption on a loaded sandbox, short enough that
+   * an ordinary test does not wait on it.
+   */
+  interimHoldMs?: number;
+  /**
    * Whether the canned account carries an active subscription.
    *
    * The backend mock enforces the Worker's level rule, so this has to agree with
@@ -348,12 +354,137 @@ export async function seedSignedInUser(page: Page, overrides: Record<string, unk
  * drives that voice with `say()` (tone on, transcript queued) and `silence()`
  * (tone off, which is what makes the app end the recording by itself).
  */
-export async function installVoiceStub(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+/**
+ * The microphone, the recorder and the platform recogniser, scripted.
+ *
+ * The stub is authoritative for all three, in both directions: it can *provide* a
+ * platform recogniser (which is the app's default path now) or remove the one
+ * Chromium ships, so a test that means "this browser has no native recognition"
+ * actually tests that. `deny` is the permission refusal, in the shape each engine
+ * reports it — a rejected `getUserMedia` for the recorder, an `not-allowed` error
+ * event for the recogniser.
+ */
+export async function installVoiceStub(
+  page: Page,
+  { native = true, interimHoldMs = 250, deny = false }: { native?: boolean; interimHoldMs?: number; deny?: boolean } = {},
+): Promise<void> {
+  await page.addInitScript(
+    ({ installNative, holdMs, denyPermission }) => {
     type Scope = Record<string, unknown>;
     const scope = window as unknown as Scope;
     const bridge = (scope.__katzuE2E as Record<string, unknown>) || {};
     scope.__katzuE2E = bridge;
+
+    /**
+     * The platform's own recogniser, scripted.
+     *
+     * The app uses this first now (`nativeSpeech.ts`), so the suite has to drive it
+     * the way a phone does: `start()` opens a session, the learner speaks *after*
+     * that, words arrive as interim results, then the engine finalises and closes.
+     * Two details are deliberately realistic because the app depends on them — the
+     * result list is cumulative (each event re-sends everything heard so far), and
+     * the session ends on its own rather than after a tap.
+     *
+     * `say()` is what makes the learner speak, in either engine: it queues the
+     * sentence here and raises the scripted microphone level for the recorder path.
+     */
+    let listening: ScriptedRecognition | null = null;
+    const queued: string[] = [];
+
+    class ScriptedRecognition {
+      lang = '';
+      continuous = false;
+      interimResults = false;
+      maxAlternatives = 1;
+      onstart: (() => void) | null = null;
+      onresult: ((event: unknown) => void) | null = null;
+      onerror: ((event: { error: string }) => void) | null = null;
+      onend: (() => void) | null = null;
+      private closed = false;
+
+      /** The shape the real API sends: cumulative results, `resultIndex` at the change. */
+      private static event(items: Array<{ transcript: string; isFinal: boolean }>, resultIndex: number) {
+        return { resultIndex, results: Object.assign(items.map((item) => Object.assign([item], { isFinal: item.isFinal })), { length: items.length }) };
+      }
+
+      start() {
+        listening = this;
+        this.closed = false;
+        if (denyPermission) {
+          // A refused microphone, as the platform recogniser reports it.
+          setTimeout(() => {
+            this.closed = true;
+            this.onerror?.({ error: 'not-allowed' });
+            this.onend?.();
+            if (listening === this) listening = null;
+          }, 0);
+          return;
+        }
+        setTimeout(() => !this.closed && this.onstart?.(), 0);
+        const alreadyQueued = queued.shift();
+        if (alreadyQueued) this.deliver(alreadyQueued);
+      }
+
+      deliver(text: string) {
+        const split = Math.max(1, Math.floor(text.length / 2));
+        // Partial words first: the app renders them as a live caption. A real
+        // engine re-sends the *whole* utterance when it finalises, which is why the
+        // final event below carries the complete sentence rather than the tail —
+        // the app must never have to stitch two events together to hear one
+        // sentence.
+        setTimeout(() => {
+          if (this.closed) return;
+          this.onresult?.(ScriptedRecognition.event([{ transcript: text.slice(0, split), isFinal: false }], 0));
+        }, 40);
+        // Then the finalised sentence, and the engine closes on its own.
+        setTimeout(() => {
+          if (this.closed) return;
+          this.onresult?.(ScriptedRecognition.event([{ transcript: text, isFinal: true }], 0));
+          this.closed = true;
+          this.onend?.();
+          if (listening === this) listening = null;
+        }, 40 + holdMs);
+      }
+
+      stop() {
+        // A learner tapping stop: whatever was said is finalised, nothing is invented.
+        const text = queued.shift();
+        this.closed = true;
+        if (text) this.onresult?.(ScriptedRecognition.event([{ transcript: text, isFinal: true }], 0));
+        this.onend?.();
+        if (listening === this) listening = null;
+      }
+
+      abort() {
+        this.closed = true;
+        this.onend?.();
+        if (listening === this) listening = null;
+      }
+    }
+
+    bridge.queueSpeech = (text: string) => {
+      if (listening) listening.deliver(text);
+      else queued.push(text);
+    };
+
+    // The stub is authoritative in both directions. Chromium exposes a real
+    // `SpeechRecognition` of its own, so a test that means "this browser has no
+    // platform recogniser" (Firefox) has to remove it as well — otherwise that
+    // test would drive Google's engine in a sandbox with no route to it and
+    // prove nothing.
+    const scopeWithRecognition = window as unknown as {
+      SpeechRecognition?: unknown;
+      webkitSpeechRecognition?: unknown;
+    };
+    if (installNative) {
+      scopeWithRecognition.SpeechRecognition = ScriptedRecognition;
+      delete scopeWithRecognition.webkitSpeechRecognition;
+    } else {
+      delete scopeWithRecognition.SpeechRecognition;
+      delete scopeWithRecognition.webkitSpeechRecognition;
+      Object.defineProperty(window, 'SpeechRecognition', { value: undefined, configurable: true });
+      Object.defineProperty(window, 'webkitSpeechRecognition', { value: undefined, configurable: true });
+    }
 
     let gain: GainNode | null = null;
     let stream: MediaStream | null = null;
@@ -379,11 +510,15 @@ export async function installVoiceStub(page: Page): Promise<void> {
 
     const mediaDevices = navigator.mediaDevices as MediaDevices;
     mediaDevices.getUserMedia = async () => {
+      if (denyPermission) {
+        throw Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' });
+      }
       ensureVoice();
       return stream as MediaStream;
     };
 
     bridge.speak = () => {
+      if (denyPermission) return Promise.resolve();
       ensureVoice();
       if (gain) gain.gain.value = 0.6;
       // Held open for a few frames before `say()` returns. A learner who speaks a
@@ -446,17 +581,9 @@ export async function installVoiceStub(page: Page): Promise<void> {
     }
 
     (window as unknown as { MediaRecorder: unknown }).MediaRecorder = ScriptedRecorder;
-  });
-}
-
-/** Rejects the microphone the way a denied permission does. */
-export async function installDeniedMicrophone(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const mediaDevices = navigator.mediaDevices as MediaDevices | undefined;
-    if (!mediaDevices) return;
-    mediaDevices.getUserMedia = () =>
-      Promise.reject(Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' }));
-  });
+    },
+    { installNative: native, holdMs: interimHoldMs, denyPermission: deny },
+  );
 }
 
 /**
@@ -465,10 +592,18 @@ export async function installDeniedMicrophone(page: Page): Promise<void> {
  * on its own — the same way a real learner stops talking.
  */
 export async function say(page: Page, text: string): Promise<void> {
+  // One queue for both engines: the platform recogniser answers from the page-side
+  // queue, and `/ai/transcribe` answers from this one when the app is on the
+  // recorder fallback.
   transcribeQueue.push(text);
-  await page.evaluate(async () => {
-    await (window as unknown as { __katzuE2E?: { speak?: () => Promise<void> | void } }).__katzuE2E?.speak?.();
-  });
+  await page.evaluate(
+    async ({ utterance }) => {
+      const bridge = (window as unknown as { __katzuE2E?: Record<string, unknown> }).__katzuE2E;
+      (bridge?.queueSpeech as ((value: string) => void) | undefined)?.(utterance);
+      await (bridge?.speak as (() => Promise<void> | void) | undefined)?.();
+    },
+    { utterance: text },
+  );
 }
 
 /** The learner stops talking; the app's own endpointing ends the recording. */
@@ -483,6 +618,11 @@ export interface BootOptions extends MockOptions {
   /** `false` measures the platform's real (silent) capture device instead. */
   installVoice?: boolean;
   denyMicrophone?: boolean;
+  /**
+   * `false` omits the platform recogniser, which is how a Firefox learner's device
+   * looks: the app must then record and recognise on the worker instead.
+   */
+  nativeSpeech?: boolean;
 }
 
 /**
@@ -546,8 +686,13 @@ export function collectPageErrors(page: Page): string[] {
 export async function bootSignedIn(page: Page, options: BootOptions = {}): Promise<void> {
   collectPageErrors(page);
   await mockBackend(page, options);
-  if (options.denyMicrophone) await installDeniedMicrophone(page);
-  else if (options.installVoice !== false) await installVoiceStub(page);
+  if (options.installVoice !== false) {
+    await installVoiceStub(page, {
+      native: options.nativeSpeech !== false,
+      interimHoldMs: options.interimHoldMs,
+      deny: options.denyMicrophone === true,
+    });
+  }
 
   await page.goto('/');
   await expect(page.locator('#root')).not.toBeEmpty({ timeout: 30_000 });

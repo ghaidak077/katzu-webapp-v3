@@ -7,10 +7,25 @@
 > decision needed to change it later. It summarizes the whole app without omitting a surface.
 > Where a fact lives in the code, the owning file is named so it can be verified.
 >
-> **Corrections — verified against the code 2026-09-27.** Three statements below went stale and
-> could not be fixed where they stand (the §6 file tree, §25.2 and §31.2 all sit past the offset
-> this file's editor can reach). This block supersedes them.
+> **Corrections — verified against the code 2026-09-27.** Statements below went stale and could not
+> be fixed where they stand: they sit past the offset this file's editor can reach. This block
+> supersedes them.
 >
+> - **§13 ("Voice") and §25.17 describe a voice pipeline that was deleted on 2026-09-27** — and the
+>   deletion was itself revised the same day. `useSpeechInput.ts` (the Web Speech API wrapper) and
+>   its "zombie recognizer" watchdog no longer exist. Speech input today is the **platform
+>   recogniser by default**: `src/lib/audio/nativeSpeech.ts` — `de-DE`, non-continuous with interim
+>   results, a pure 3 s-never-started / 7 s-started-silent / 15 s-ceiling watchdog, and Arabic
+>   errors for a refused or absent microphone — behind one facade,
+>   `src/lib/audio/useVoiceCapture.ts`. That path **never opens a `getUserMedia` stream**, because
+>   the app's own analyser taking the microphone from the recogniser is what broke the mic on
+>   Android. When no engine exists (every Firefox learner) or one fails in a way that is not a
+>   refusal, the same tap falls back automatically to `MediaRecorder` → `POST /ai/transcribe`
+>   (Whisper), at most twice per session. Interim words reach the learner as the `live-caption` band
+>   (`src/lib/speech/wordHighlight.ts`), TTS picks its German voice by rule
+>   (`src/lib/speech/voiceChoice.ts`: a device voice first, then a natural/neural name, then any
+>   German), and the words being read are highlighted from `speechSynthesis`'s `onboundary` events.
+>   Live detail: `docs/current-state.md` (third pass) and `KATZU_V2_IMPLEMENTATION_LOG.md` §11.
 > - **§25.2 "a structured placement test is not built" and §31.2 "no placement test / structured
 >   onboarding personalization" are both false.** An adaptive CEFR placement test is built and
 >   enforced: `src/features/placement/PlacementScreen.tsx` at `/placement`, running the pure
@@ -299,14 +314,13 @@ katzu-webapp-v3/
 │   ├── lib/
 │   │   ├── api/workerClient.ts       # the single HTTP client to the Worker (auth, AI, verify, progress…)
 │   │   ├── db/katzuDb.ts             # Dexie schema v1–v3, seeds, wipeUserScopedData
-│   │   ├── audio/useVoiceCapture.ts  # record (MediaRecorder) → recognise on the Worker, with local endpointing
-│   │   ├── audio/useMicLevel.ts      # one real mic stream + AnalyserNode (the orb and the endpointing share it)
-│   │   ├── audio/cues.ts             # the app's own two blips (no OS chime, no audio asset)
+│   │   ├── audio/useVoiceCapture.ts  # the one speech-input facade: native recogniser first, recording fallback
+│   │   ├── audio/nativeSpeech.ts     # platform recogniser wrapper + the pure rules (errors, watchdog, orb sample)
+│   │   ├── audio/useMicLevel.ts      # one real mic stream + AnalyserNode (recorder path: orb + endpointing)
+│   │   ├── audio/cues.ts             # the app's own two blips (start/stop feedback, no audio asset)
 │   │   ├── speech/useSpeechOutput.ts # Web Speech TTS (de-DE) with voice discovery + gesture priming
-│   │   │                             # NOTE: §13's STT bullet below describes the deleted Web Speech
-│   │   │                             # input pipeline. Speech *input* is `audio/useVoiceCapture.ts`
-│   │   │                             # → `POST /ai/transcribe` (see §13's heading for TTS, which is
-│   │   │                             # unchanged, and `docs/current-state.md` for the live detail).
+│   │   ├── speech/voiceChoice.ts     # which German voice: device first, then natural, then any German
+│   │   ├── speech/wordHighlight.ts   # charIndex → word (the live caption and the spoken-word highlight)
 │   │   └── utils/
 │   │       ├── checkIn.ts            # welcome-back greeting logic (tones)
 │   │       ├── dailyMission.ts       # deterministic daily-mission rotation
@@ -548,8 +562,11 @@ Each screen is Arabic-first, `max-w-md`, dark ("AMOLED black") and lives in `src
 - **Error handling:** failed turns show an in-chat error card with "إعادة المحاولة"; network errors
   are normalized to Arabic; a 401 invalidates the stale session and asks for re-sign-in; a
   402/403 (level/quota) opens the paywall.
-- **Mic:** STT with Arabic error banners for `not-allowed`, `service-not-allowed`, `network`,
-  `no-speech`, `audio-capture`, `language-not-supported`; typing always works.
+- **Mic:** the platform recogniser by default (`audio/nativeSpeech.ts`), with the learner's own words
+  shown as a live caption while they speak and each Katzu reply highlighted word by word as it is
+  read. A refusal (`not-allowed`, `service-not-allowed`) or an absent device (`audio-capture`) is an
+  Arabic banner with **no** retry; `no-speech` / `network` / `language-not-supported` fall back
+  automatically to recording → `/ai/transcribe` (at most twice per session). Typing always works.
 - **Completion:** at the final turn a celebration card shows, then `finishSession` writes the session,
   XP, streak, and syncs progress, and hands a summary to `/session-report`.
 

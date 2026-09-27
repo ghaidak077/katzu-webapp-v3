@@ -7,36 +7,55 @@ import {
   isUsableTranscript,
   UNUSABLE_TRANSCRIPT_MESSAGE_AR,
 } from '@/lib/conversation/stateMachine';
+import {
+  classifyRecognitionError,
+  isNativeRecognitionAvailable,
+  mayFallBack,
+  nativeWatchdogVerdict,
+  startNativeRecognition,
+  syntheticListeningSample,
+  type NativeRecognitionSession,
+  type VoiceCaptureFailure,
+  type VoiceMode,
+} from './nativeSpeech';
 import { workerClient } from '@/lib/api/workerClient';
 
 /**
- * Speaking, for the real device a learner actually holds.
+ * Speaking, for the device the learner actually holds.
  *
- * This replaces the browser's Web Speech API (`webkitSpeechRecognition`), which
- * failed three ways at once on Android — the platform most of this app's learners
- * use (reported from a live session: the mic made the Android system chime and
- * recorded nothing):
+ * TWO ENGINES, AND WHY BOTH
+ * The platform's own recogniser is used first (`nativeSpeech.ts`): it is the
+ * phone's own engine, it returns words *while* the learner speaks — which is what
+ * makes the conversation feel live — and it needs no round trip, no provider key
+ * and no per-minute cost. The app already shipped a second pipeline for the
+ * browsers that have no native recognition at all (Firefox): record with
+ * `MediaRecorder` and recognise on the worker (`POST /ai/transcribe`). That one is
+ * no longer the default, and it is not deleted, because a platform recogniser that
+ * cannot do the job on a given device must cost the learner nothing:
  *
- *  1. it captured nothing. Chrome's recognizer and the app's own `getUserMedia`
- *     analyser (the orb's amplitude source) compete for the microphone, and the
- *     recognizer lost;
- *  2. it plays an Android system sound when it opens the mic, and a web page
- *     cannot mute a sound the operating system makes;
- *  3. it does not exist in Firefox at all, and is unreliable in iOS Safari, so
- *     "speak German" was silently unavailable on those browsers.
+ *  - when the engine reports something it cannot work with (`no-speech`,
+ *    `aborted`, `network`, `language-not-supported`), the hook switches this
+ *    session's remaining attempts to the recorder pipeline — bounded by
+ *    `MAX_NATIVE_FALLBACKS` so a broken engine cannot make every tap try, fail and
+ *    retry;
+ *  - when it reports a refusal (`not-allowed`, `audio-capture`) nothing is gained
+ *    by trying the other engine, so the learner is told.
  *
- * One pipeline replaces it: `getUserMedia` for the stream (already needed by the
- * orb), `MediaRecorder` for the words, the worker's `/ai/transcribe` for the
- * recognition. That works on every target platform, keeps ONE microphone
- * acquisition, and gives the learner their own feedback — a haptic tap and a soft
- * synthesised blip — instead of the OS chime.
+ * THE ONE BUG THIS SHAPE EXISTS TO AVOID
+ * Native recognition previously "recorded nothing" on Android. The cause was this
+ * hook's own gratitude for the orb: it opened a `getUserMedia` stream for the
+ * analyser, and on that platform the two compete for one microphone, with the
+ * recogniser losing. Native mode therefore **never opens a stream** — the orb is
+ * driven by `syntheticListeningSample`, which says the microphone is open without
+ * pretending to measure it — and the recorder path is the only place a stream is
+ * acquired. That is also why the two paths never run at once.
  *
- * Endpointing is local and explicit: the analyser that moves the orb also ends
- * the recording, so the learner stops speaking and the turn begins. The numbers
- * live in `decideStop` (pure, unit-tested) rather than inside the frame loop.
+ * The platform's microphone chime is the one thing this design accepts: it is the
+ * operating system's sound, no page can mute it, and it is the price of using the
+ * device engine. The app's own blip and haptic still mark the start and the end.
  */
 
-export type VoiceCaptureFailure = 'unsupported' | 'denied' | 'failed' | 'empty';
+export type { VoiceCaptureFailure, VoiceMode } from './nativeSpeech';
 
 export interface VoiceCaptureOptions {
   /** One finished, recognised German sentence. */
@@ -155,7 +174,15 @@ export interface UseVoiceCaptureResult {
   isRecording: boolean;
   isTranscribing: boolean;
   isSupported: boolean;
-  /** Starts recording. Resolves the reason it could not, or null on success. */
+  /** Which engine is serving this attempt, or null when nothing is running. */
+  mode: VoiceMode | null;
+  /**
+   * The words so far, while the learner is speaking — the live caption. Native
+   * recognition only; empty on the recorder path, which cannot know them until the
+   * recording ends.
+   */
+  interimText: string;
+  /** Starts listening. Resolves the reason it could not, or null on success. */
   start: () => Promise<VoiceCaptureFailure | null>;
   /** Ends the recording and transcribes what was said. */
   stop: () => void;
@@ -163,14 +190,25 @@ export interface UseVoiceCaptureResult {
   read: () => MicSample;
 }
 
+/** Whether this browser can record and send audio to the worker. */
+function canRecord(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    typeof window.MediaRecorder !== 'undefined' &&
+    Boolean(typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia)
+  );
+}
+
 export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureResult {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
+  const [mode, setMode] = useState<VoiceMode | null>(null);
+  const [interimText, setInterimText] = useState('');
 
   const mic = useMicLevel();
   // Stable members only: `mic` is a fresh object every render, and an effect
-  // keyed on it would tear down a live recording on any unrelated re-render.
+  // keyed on it would tear down a live session on any unrelated re-render.
   const { start: startMic, stop: stopMic, read: readMic, getStream } = mic;
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -180,14 +218,27 @@ export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureRe
   const frameRef = useRef(0);
   const maxDurationRef = useRef(options.maxDurationMs ?? MAX_RECORDING_MS);
 
+  // Native sessions: the engine's session, whether the learner asked to stop, and
+  // how many times this session has handed over to the recorder.
+  const nativeRef = useRef<NativeRecognitionSession | null>(null);
+  const nativeAskedStopRef = useRef(false);
+  const nativeStartedAtRef = useRef(0);
+  const nativeFallbacksRef = useRef(0);
+  const nativeRetiredRef = useRef(false);
+  // Watchdog state: did the engine announce itself, and what has it heard?
+  const nativeStartSeenRef = useRef(false);
+  const nativeHeardRef = useRef<string | null>(null);
+  const nativeWatchRef = useRef(0);
+
   // Options through a ref: a re-render must never restart a recording.
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
   useEffect(() => {
-    const hasRecorder = typeof window !== 'undefined' && typeof window.MediaRecorder !== 'undefined';
-    const canCapture = Boolean(typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia);
-    setIsSupported(hasRecorder && canCapture);
+    // A platform recogniser that exists is enough on its own: the recorder path is
+    // the fallback, not a requirement, and a device that ships the first without
+    // `MediaRecorder` can still speak to the app.
+    setIsSupported(isNativeRecognitionAvailable() || canRecord());
   }, []);
 
   const releaseMic = useCallback(() => {
@@ -197,6 +248,7 @@ export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureRe
     chunksRef.current = [];
     stopMic();
     setIsRecording(false);
+    setMode(null);
   }, [stopMic]);
 
   const transcribe = useCallback(async (base64: string, mime: string) => {
@@ -256,13 +308,27 @@ export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureRe
     [releaseMic],
   );
 
-  const start = useCallback(async (): Promise<VoiceCaptureFailure | null> => {
-    if (recorderRef.current) {
-      finish('manual');
-      return null;
-    }
-    if (!isSupported) return 'unsupported';
+  /** Closes the native session's own state. The engine may still deliver a final. */
+  const closeNative = useCallback(() => {
+    window.clearInterval(nativeWatchRef.current);
+    nativeWatchRef.current = 0;
+    nativeRef.current = null;
+    nativeAskedStopRef.current = false;
+    nativeStartSeenRef.current = false;
+    nativeHeardRef.current = null;
+    setMode(null);
+    setInterimText('');
+    setIsRecording(false);
+  }, []);
 
+  /** Spends one fallback, and retires the native engine when the budget is gone. */
+  const spendFallback = useCallback(() => {
+    nativeFallbacksRef.current += 1;
+    if (!mayFallBack(nativeFallbacksRef.current)) nativeRetiredRef.current = true;
+  }, []);
+
+  const startRecorder = useCallback(async (): Promise<VoiceCaptureFailure | null> => {
+    if (!canRecord()) return 'unsupported';
     const micFailure = await startMic();
     if (micFailure) return micFailure;
 
@@ -310,7 +376,9 @@ export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureRe
       // Timeslice: a recorder that only emits on `stop` can emit nothing at all
       // when the recording is very short, which looks exactly like a dead mic.
       recorder.start(250);
+      setMode('recorder');
       setIsRecording(true);
+      setInterimText('');
       triggerHaptic('medium');
       playCue('start');
 
@@ -352,22 +420,151 @@ export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureRe
       releaseMic();
       return 'failed';
     }
-  }, [finish, getStream, isSupported, readMic, releaseMic, startMic, transcribe]);
+  }, [finish, getStream, readMic, releaseMic, startMic, transcribe]);
+
+  const startNative = useCallback((): VoiceCaptureFailure | null => {
+    const session = startNativeRecognition({
+      onStart: () => {
+        nativeStartSeenRef.current = true;
+        setIsRecording(true);
+        playCue('start');
+      },
+      onInterim: (text) => {
+        nativeHeardRef.current = text;
+        setInterimText(text);
+      },
+      onFinal: (text) => {
+        const requestedStop = nativeAskedStopRef.current;
+        closeNative();
+        const cleaned = String(text || '').trim();
+        // Nothing usable is a failed attempt, not a turn — the same rule the
+        // worker path applies to a transcript it could not use.
+        if (!isUsableTranscript(cleaned)) {
+          optionsRef.current.onFailure('empty', UNUSABLE_TRANSCRIPT_MESSAGE_AR);
+          return;
+        }
+        if (requestedStop) {
+          triggerHaptic('light');
+          playCue('stop');
+        }
+        optionsRef.current.onTranscript(cleaned);
+      },
+      onEnd: () => {
+        closeNative();
+        // The engine closed without a final result. That is the case the phone
+        // reported, and it is the reason the recorder pipeline is still here: the
+        // next attempt uses it.
+        spendFallback();
+        optionsRef.current.onFailure('empty', UNUSABLE_TRANSCRIPT_MESSAGE_AR);
+      },
+      onError: (code) => {
+        const verdict = classifyRecognitionError(code, {
+          requestedStop: nativeAskedStopRef.current,
+        });
+        closeNative();
+        if (verdict.fallback) spendFallback();
+        if (verdict.failure) {
+          optionsRef.current.onFailure(verdict.failure, voiceStartFailureMessageAr(verdict.failure));
+        }
+      },
+    });
+
+    // The constructor exists (the caller checked) and still no session came back:
+    // `start()` threw, which means the engine is not usable right now. That is a
+    // recording failure, not a browser without support.
+    if (!session) return 'failed';
+
+    nativeRef.current = session;
+    nativeAskedStopRef.current = false;
+    nativeStartedAtRef.current = Date.now();
+    nativeStartSeenRef.current = false;
+    nativeHeardRef.current = null;
+    setMode('native');
+    setInterimText('');
+    setIsRecording(true);
+    triggerHaptic('medium');
+
+    // The zombie guard. An engine that never reports anything cannot be allowed to
+    // hold the microphone: the learner would watch "listening" while nothing is
+    // ever recognised. When the watchdog gives up, the words on screen (if any) are
+    // the learner's sentence — the caption and the transcript can never disagree
+    // about what was said — and the next attempt records instead.
+    nativeWatchRef.current = window.setInterval(() => {
+      const open = nativeRef.current;
+      if (!open) return;
+      const verdict = nativeWatchdogVerdict({
+        started: nativeStartSeenRef.current,
+        heardAnything: Boolean(nativeHeardRef.current),
+        elapsedMs: Date.now() - nativeStartedAtRef.current,
+      });
+      if (verdict !== 'abandon') return;
+      const heard = nativeHeardRef.current;
+      closeNative();
+      open.abort();
+      spendFallback();
+      if (heard) optionsRef.current.onTranscript(heard);
+      else optionsRef.current.onFailure('empty', UNUSABLE_TRANSCRIPT_MESSAGE_AR);
+    }, 500);
+    return null;
+  }, [closeNative, spendFallback]);
+
+  const start = useCallback(async (): Promise<VoiceCaptureFailure | null> => {
+    if (recorderRef.current || nativeRef.current) {
+      // A second tap is a stop, never a second engine.
+      if (nativeRef.current) {
+        nativeAskedStopRef.current = true;
+        nativeRef.current.stop();
+      } else {
+        finish('manual');
+      }
+      return null;
+    }
+    if (isNativeRecognitionAvailable() && !nativeRetiredRef.current) {
+      const failure = startNative();
+      if (!failure) return null;
+      // The engine exists but refused to open; the recorder is the answer.
+      spendFallback();
+    }
+    if (!isSupported) return 'unsupported';
+    return startRecorder();
+  }, [finish, isSupported, spendFallback, startNative, startRecorder]);
 
   /**
    * Stopping is also feedback: the learner gets the same cue and haptic whether
-   * the app ended the recording or they did.
+   * the app ended it or they did.
    */
   const stop = useCallback(() => {
+    if (nativeRef.current) {
+      nativeAskedStopRef.current = true;
+      playCue('stop');
+      nativeRef.current.stop();
+      // The engine finalises asynchronously; the screen must stop saying
+      // "listening" the moment the learner stops, not when the text arrives.
+      setIsRecording(false);
+      return;
+    }
     if (!recorderRef.current) return;
     triggerHaptic('light');
     playCue('stop');
     finish('manual');
   }, [finish]);
 
+  /**
+   * The orb's level. Real analyser samples on the recorder path; on the native path
+   * there is deliberately no stream of ours to read (see the header), so the orb
+   * breathes from the recogniser's own open/closed state.
+   */
+  const read = useCallback((): MicSample => {
+    if (nativeRef.current) return syntheticListeningSample(Date.now() - nativeStartedAtRef.current);
+    return readMic();
+  }, [readMic]);
+
   useEffect(
     () => () => {
       window.cancelAnimationFrame(frameRef.current);
+      window.clearInterval(nativeWatchRef.current);
+      nativeRef.current?.abort();
+      nativeRef.current = null;
       try {
         if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
       } catch {
@@ -378,7 +575,7 @@ export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureRe
     [stopMic],
   );
 
-  return { isRecording, isTranscribing, isSupported, start, stop, read: readMic };
+  return { isRecording, isTranscribing, isSupported, mode, interimText, start, stop, read };
 }
 
 export default useVoiceCapture;

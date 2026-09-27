@@ -215,6 +215,63 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
   await expect(page.getByText('إنجاز رائع يا بطل')).toHaveCount(0);
 });
 
+/**
+ * The live caption, and the engine that produces it.
+ *
+ * The platform recogniser returns words while the learner is still speaking, which
+ * is what makes the conversation feel live instead of transcribed-after-the-fact.
+ * `interimHoldMs` holds the interim open long enough to assert it on a sandbox that
+ * dilates timers; the app itself never waits for anything here.
+ */
+test('the learner sees their own German while they are still speaking', async ({ page }) => {
+  await bootSignedIn(page, { interimHoldMs: 1500 });
+  await page.goto('/scenario/cafe_order/live');
+  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+
+  await expect(orb(page)).toHaveAttribute('aria-label', 'ابدأ التحدث');
+  await orb(page).click();
+  await expect(orb(page)).toHaveAttribute('aria-label', 'إيقاف التسجيل');
+
+  await say(page, 'Guten Tag, ich möchte einen Kaffee bitte');
+  const caption = page.getByTestId('live-caption');
+  await expect(caption).toBeVisible();
+  await expect(caption).toContainText('Guten Tag');
+
+  // The final result still lands in the composer, and the caption goes away with
+  // the session that produced it.
+  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+  await expect(input).toHaveValue('Guten Tag, ich möchte einen Kaffee bitte');
+  await expect(caption).toHaveCount(0);
+});
+
+/**
+ * The browser with no platform recogniser at all — every Firefox learner, and any
+ * device whose engine refuses the job.
+ *
+ * Same test body as the conversation above, one flag different: the app must fall
+ * back to recording and recognising on the worker, and the learner must not be able
+ * to tell which engine served them (other than the caption, which only the platform
+ * recogniser can produce).
+ */
+test('a browser without a platform recogniser still speaks through the worker', async ({ page }) => {
+  await bootSignedIn(page, { nativeSpeech: false });
+  await page.goto('/scenario/cafe_order/live');
+  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+
+  await orb(page).click();
+  await expect(page.getByText('أنا أستمع إليك… تحدث الآن')).toBeVisible();
+  await say(page, 'Guten Tag, ich möchte einen Kaffee bitte');
+  await silence(page);
+
+  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+  await expect(input).toHaveValue('Guten Tag, ich möchte einen Kaffee bitte');
+  // No native engine, so no live caption is possible — and none is claimed.
+  await expect(page.getByTestId('live-caption')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'أرسل جملتك' }).click();
+  await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
+});
+
 test('a denied microphone is stated in Arabic and never closes the typed path', async ({ page }) => {
   await bootSignedIn(page, { denyMicrophone: true });
   await page.goto('/scenario/cafe_order/live');

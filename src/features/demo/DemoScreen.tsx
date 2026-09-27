@@ -340,6 +340,17 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
               )}
             </div>
 
+            {/* A visitor's own words, as they are said — the first voice interaction
+                in the product should not feel like sending a message into a void. */}
+            {voice.isRecording && voice.interimText && (
+              <p data-testid="live-caption" className="mb-3 flex items-baseline gap-2">
+                <span className="shrink-0 text-xs font-arabic font-semibold text-kz-lavender">أسمع</span>
+                <span dir="ltr" className="min-w-0 flex-1 truncate font-german text-sm text-kz-ink">
+                  {voice.interimText}
+                </span>
+              </p>
+            )}
+
             {voiceError && (
               <p role="alert" className="mb-3 text-xs font-arabic leading-relaxed text-kz-amber">
                 {voiceError}
