@@ -299,6 +299,24 @@
     }
   }
 
+  /* Renderer tier `reduced` (B4c): the GPU-expensive parts of the material —
+     backdrop blur, saturation and the turbulence grain — are dropped. Colours,
+     opacities and elevation stay, so the design language and every contrast
+     ratio are unchanged; only the compositing cost disappears. Applied via a
+     root class set once by src/lib/design/rendererTier.ts. */
+  .kz-lite .kz-surface {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    /* Without blur the panel must still separate from the scene: a little more
+       body, the same ratio the @supports fallback above uses for exactly this
+       reason. */
+    --kz-glass-opacity: 0.72;
+  }
+
+  .kz-lite .kz-surface::after {
+    content: none; /* the grain layer */
+  }
+
   /* Liquid Glass `.interactive()`: a live highlight under the finger, not a static
      `:active` colour swap. `useGlassInteractive` publishes where the learner is
      touching (--kz-press-x/y) and whether the control is held (data-pressed); the

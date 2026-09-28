@@ -1,77 +1,94 @@
-import { describe, it, expect } from 'vitest';
-import { isSoftwareRenderer, type RendererProbe } from '../src/lib/utils/rendererTier';
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { applyRendererTier, detectTier } from '@/lib/design/rendererTier';
 
 /**
- * The detector decides whether a decorative shader is compiled at all, so both
- * directions matter: a miss costs the learner seconds of frozen screen (measured at
- * 6,993 ms for one `compileShader` on SwiftShader), and a false positive takes the
- * effect away from hardware that renders it in milliseconds.
+ * B4c renderer tier — deterministic selection and root-class application.
+ *
+ * detectTier must stay a pure function of the environment signals so the
+ * decision is testable and never flaps mid-session (see rendererTier.ts).
  */
-function probe({
-  unmasked,
-  masked = 'WebKit WebGL',
-  debugAvailable = true,
-}: {
-  unmasked?: string;
-  masked?: string;
-  debugAvailable?: boolean;
-}): RendererProbe {
-  return {
-    RENDERER: 0x1f01,
-    getExtension: (name) =>
-      debugAvailable && name === 'WEBGL_debug_renderer_info' ? { UNMASKED_RENDERER_WEBGL: 0x9246 } : null,
-    getParameter: (parameter) => (parameter === 0x9246 ? unmasked : masked),
-  };
+
+type NavigatorOverrides = {
+  hardwareConcurrency?: number;
+  deviceMemory?: number;
+  connection?: { saveData?: boolean } | undefined;
+};
+
+const originalNavigator = globalThis.navigator;
+const originalMatchMedia = window.matchMedia;
+/** jsdom does not implement matchMedia; a never-matching stub is the neutral default. */
+const neutralMatchMedia = ((query: string) => ({
+  matches: false,
+  media: query,
+})) as unknown as typeof window.matchMedia;
+
+function setNavigator(overrides: NavigatorOverrides): void {
+  // Only install the neutral matchMedia when the test has not already set one
+  // (the prefers-reduced-motion test installs its own first).
+  if (!window.matchMedia || window.matchMedia === neutralMatchMedia) {
+    window.matchMedia = neutralMatchMedia;
+  }
+  vi.stubGlobal('navigator', {
+    ...(typeof originalNavigator !== 'undefined' ? originalNavigator : {}),
+    ...overrides,
+  });
 }
 
-describe('WebGL renderer tier', () => {
-  it('recognises the software rasteriser that was measured in this project', () => {
-    expect(
-      isSoftwareRenderer(
-        probe({
-          unmasked:
-            'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)',
-        }),
-      ),
-    ).toBe(true);
+beforeEach(() => {
+  window.matchMedia = originalMatchMedia ?? neutralMatchMedia;
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  if (originalMatchMedia) window.matchMedia = originalMatchMedia;
+  document.documentElement.classList.remove('kz-lite');
+});
+
+describe('detectTier', () => {
+  it('returns full when nothing constrains the device', () => {
+    setNavigator({ hardwareConcurrency: 8, deviceMemory: 8 });
+    expect(detectTier()).toBe('full');
   });
 
-  it('recognises other software rasterisers by name', () => {
-    for (const name of [
-      'Mesa/X.org, llvmpipe (LLVM 15.0.6, 256 bits)',
-      'Mesa OffScreen',
-      'Microsoft Basic Render Driver',
-      'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device), SwiftShader driver)',
-      'virgl',
-    ]) {
-      expect(isSoftwareRenderer(probe({ unmasked: name })), name).toBe(true);
-    }
+  it('returns reduced when Save-Data is on', () => {
+    setNavigator({ hardwareConcurrency: 8, deviceMemory: 8, connection: { saveData: true } });
+    expect(detectTier()).toBe('reduced');
   });
 
-  it('leaves real hardware on the fast path', () => {
-    for (const name of [
-      'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)',
-      'ANGLE (Apple, Apple M2 Pro, OpenGL 4.1)',
-      'Mali-G57 MC2',
-      'Adreno (TM) 618',
-      'PowerVR Rogue GE8320',
-    ]) {
-      expect(isSoftwareRenderer(probe({ unmasked: name })), name).toBe(false);
-    }
+  it('returns reduced when prefers-reduced-motion is set', () => {
+    // Set BEFORE setNavigator, whose neutral default would otherwise overwrite it.
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+    })) as unknown as typeof window.matchMedia;
+    setNavigator({ hardwareConcurrency: 8, deviceMemory: 8 });
+    expect(detectTier()).toBe('reduced');
   });
 
-  it('uses the masked renderer when the debug extension is unavailable', () => {
-    expect(isSoftwareRenderer(probe({ masked: 'llvmpipe', debugAvailable: false }))).toBe(true);
-    expect(isSoftwareRenderer(probe({ masked: 'WebKit WebGL', debugAvailable: false }))).toBe(false);
+  it('returns reduced for a low-core device', () => {
+    setNavigator({ hardwareConcurrency: 4, deviceMemory: 8 });
+    expect(detectTier()).toBe('reduced');
   });
 
-  it('answers "not software" when it cannot tell, rather than taking the effect away', () => {
-    // A driver that reports nothing useful: the browser default, Safari's masked
-    // renderer, and a context whose parameters are not strings.
-    expect(isSoftwareRenderer(probe({ unmasked: undefined }))).toBe(false);
-    expect(isSoftwareRenderer(probe({ unmasked: 'WebKit WebGL' }))).toBe(false);
-    const odd = probe({});
-    odd.getParameter = () => null;
-    expect(isSoftwareRenderer(odd)).toBe(false);
+  it('returns reduced for a low-memory device', () => {
+    setNavigator({ hardwareConcurrency: 8, deviceMemory: 2 });
+    expect(detectTier()).toBe('reduced');
+  });
+
+  it('defaults to full when the device reports no signals at all', () => {
+    setNavigator({ hardwareConcurrency: undefined, deviceMemory: undefined });
+    window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+    expect(detectTier()).toBe('full');
+  });
+});
+
+describe('applyRendererTier', () => {
+  it('adds kz-lite only for the reduced tier', () => {
+    applyRendererTier('reduced');
+    expect(document.documentElement.classList.contains('kz-lite')).toBe(true);
+
+    applyRendererTier('full');
+    expect(document.documentElement.classList.contains('kz-lite')).toBe(false);
   });
 });

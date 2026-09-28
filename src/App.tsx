@@ -10,6 +10,7 @@ import {
   useParams,
 } from 'react-router-dom';
 import { db, initializeDatabaseSeed, seedArrivalTopUps, wipeUserScopedData } from '@/lib/db/katzuDb';
+import { applyRendererTier, useRendererTier } from '@/lib/design/rendererTier';
 import { workerClient } from '@/lib/api/workerClient';
 import { needsOnboarding } from '@/lib/onboarding/preferences';
 import { isDevBuild } from '@/lib/utils/env';
@@ -126,6 +127,13 @@ function AppRoutes() {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   const user = useLiveQuery(() => db.users.get('current_user'));
+
+  // B4c: resolve the renderer tier once and publish it as a root class, so the
+  // glass material can drop blur/saturation/grain on constrained devices.
+  const rendererTier = useRendererTier();
+  useEffect(() => {
+    applyRendererTier(rendererTier);
+  }, [rendererTier]);
 
   // Initialize database seed on first load and fetch latest scenarios from Cloudflare
   useEffect(() => {
