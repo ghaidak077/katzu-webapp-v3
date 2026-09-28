@@ -226,6 +226,15 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 </bdi>
               )}
 
+              {message.grammarReference && message.grammarReference.id === message.grammarId && (
+                <div className="rounded-xl border border-kz-lavender/20 bg-kz-lavender/5 p-2.5">
+                  <span className="kz-ar-micro block text-kz-inkFaint">من قاعدة التدريب الموجّه</span>
+                  <p className="mt-1 kz-ar-micro font-semibold text-kz-lavender">{message.grammarReference.titleAr}</p>
+                  <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{message.grammarReference.ruleAr}</p>
+                  <GermanText className="mt-1 font-german text-xs text-kz-inkDim">{message.grammarReference.exampleDe}</GermanText>
+                </div>
+              )}
+
               {message.explanationAr && (
                 <p className="kz-ar-micro leading-relaxed text-kz-inkDim">{message.explanationAr}</p>
               )}

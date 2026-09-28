@@ -27,6 +27,8 @@ export interface PracticeCard {
 
 export interface GuidedPractice {
   cards: PracticeCard[];
+  /** Bounded scenario topic pool available to the immediately following conversation. */
+  vocabularyContext: string[];
   /** Say this in German, from the Arabic meaning. */
   retrieval: { promptAr: string; answerDe: string; level: CEFRLevel } | null;
   /** Listen and repeat: the longest phrase the learner just saw. */
@@ -57,6 +59,8 @@ export interface PracticeGrammar {
 }
 
 const MAX_CARDS = 3;
+const MAX_VOCABULARY_CONTEXT = 12;
+const MAX_VOCABULARY_CONTEXT_TEXT = 80;
 const LEVEL_ORDER: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
 
 function levelRank(level: CEFRLevel): number {
@@ -161,6 +165,9 @@ export function buildGuidedPractice(input: {
   const usableVocabulary = [...vocabulary]
     .filter((word) => word?.german?.trim() && (word.translation_ar?.trim() || word.example_ar?.trim()))
     .sort((a, b) => levelRank(a.level) - levelRank(b.level));
+  const vocabularyContext = [...new Set(usableVocabulary
+    .map((word) => word.german.trim().slice(0, MAX_VOCABULARY_CONTEXT_TEXT)))]
+    .slice(0, MAX_VOCABULARY_CONTEXT);
 
   const pool: PracticeCard[] = [
     ...usablePhrases.map(cardFromPhrase),
@@ -187,7 +194,7 @@ export function buildGuidedPractice(input: {
   // is still worth a screen, so it keeps the practice alive on a device whose
   // cached vocabulary is missing.
   if (cards.length === 0) {
-    return { cards: [], retrieval: null, listening: null, grammar, empty: grammar === null };
+    return { cards: [], vocabularyContext, retrieval: null, listening: null, grammar, empty: grammar === null };
   }
 
   // Retrieval tests the first card: it is the one the learner just heard and
@@ -198,6 +205,7 @@ export function buildGuidedPractice(input: {
 
   return {
     cards,
+    vocabularyContext,
     retrieval: { promptAr: retrievalCard.ar, answerDe: retrievalCard.de, level: retrievalCard.level },
     listening: { de: listeningCard.de, ar: listeningCard.ar, level: listeningCard.level },
     grammar,

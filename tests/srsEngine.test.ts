@@ -213,6 +213,14 @@ describe('enrolment builders', () => {
       original: 'Ich habe gegangen',
       corrected: 'Ich bin gegangen',
       grammarRule: 'الفعل sein مع gegangen',
+      grammarId: 'g_perfekt_sein',
+      grammarReference: {
+        id: 'g_perfekt_sein',
+        titleAr: 'الفعل المساعد sein',
+        ruleAr: 'يُستخدم sein مع أفعال الحركة.',
+        ruleDe: 'Sein bei Bewegungsverben.',
+        exampleDe: 'Ich bin gegangen.',
+      },
       timestamp: NOW,
       wasHintUsed: false,
       syncId: 'sub:job_interview:123:Ich habe gegangen',
@@ -226,6 +234,8 @@ describe('enrolment builders', () => {
     expect(review.contextDe).toBe('Ich habe gegangen');
     expect(review.sourceId).toBe(9);
     expect(review.scenarioId).toBe('job_interview');
+    expect(review.grammarId).toBe('g_perfekt_sein');
+    expect(review.grammarReference?.exampleDe).toBe('Ich bin gegangen.');
   });
 
   it('gives the same mistake a stable refId, so re-enrolment cannot duplicate it', () => {

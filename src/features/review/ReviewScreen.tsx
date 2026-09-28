@@ -250,6 +250,17 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
             </p>
             <p className="mt-1 kz-ar-title leading-relaxed text-kz-ink">{current.promptAr}</p>
 
+            {current.kind === 'mistake' && current.grammarId && current.grammarReference?.id === current.grammarId && (
+              <GlassWell className="mt-3 p-3">
+                <span className="kz-ar-micro block text-kz-inkFaint">قاعدة من التدريب الموجّه</span>
+                <p className="mt-1 kz-ar-caption font-semibold text-kz-lavender">{current.grammarReference.titleAr}</p>
+                <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{current.grammarReference.ruleAr}</p>
+                <GermanText className="mt-1 block font-german text-xs text-kz-inkDim">
+                  {current.grammarReference.exampleDe}
+                </GermanText>
+              </GlassWell>
+            )}
+
             {current.kind === 'mistake' && current.contextDe && (
               <GlassWell className="mt-3 p-3">
                 <span className="kz-ar-micro block text-kz-inkFaint">ما كتبته سابقاً</span>

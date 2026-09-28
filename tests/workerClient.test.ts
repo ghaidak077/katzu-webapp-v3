@@ -33,8 +33,16 @@ describe('WorkerClient API Contract Integration', () => {
               original_mistake: 'Ich will ein Kaffee',
               corrected_german: 'Ich möchte einen Kaffee, bitte.',
               grammar_rule: 'Akkusativ mit möchten',
+              grammar_id: 'g_articles_a1',
               explanation_ar: 'القهوة اسم مذكر (der Kaffee) ويأتي مفعولاً به منصباً في حالة الأكوزاتيف (einen Kaffee).',
               positive_note_ar: 'محاولة ممتازة! طلب القهوة من أهم المهارات اليومية.',
+            },
+            grammar_reference: {
+              id: 'g_articles_a1',
+              title_ar: 'أدوات التعريف',
+              rule_ar: 'يتغير شكل أداة الاسم المذكر في المفعول به.',
+              rule_de: 'Der maskuline Artikel verändert sich im Akkusativ.',
+              example_de: 'Ich möchte einen Kaffee.',
             },
           }),
         };
@@ -48,6 +56,8 @@ describe('WorkerClient API Contract Integration', () => {
       persona: 'Barista katze',
       cefrLevel: 'A1',
       userMessage: 'Ich will ein Kaffee',
+      vocabularyContext: [...Array.from({ length: 14 }, (_, index) => `Wort ${index}`), 'x'.repeat(100)],
+      grammarId: 'g_articles_a1',
       history: [
         { sender: 'KATZU', text: 'Hallo!' },
         { sender: 'USER', text: 'Hallo Barista' },
@@ -61,6 +71,9 @@ describe('WorkerClient API Contract Integration', () => {
     expect(capturedBody.cefr_level).toBe('A1');
     expect(capturedBody.user_message).toBe('Ich will ein Kaffee');
     expect(capturedBody.mode).toBe('roleplay');
+    expect(capturedBody.vocabulary_context).toHaveLength(12);
+    expect(capturedBody.vocabulary_context.every((term: string) => term.length <= 80)).toBe(true);
+    expect(capturedBody.grammar_id).toBe('g_articles_a1');
     expect(capturedBody.history).toEqual([
       { role: 'model', text: 'Hallo!' },
       { role: 'user', text: 'Hallo Barista' },
@@ -73,6 +86,8 @@ describe('WorkerClient API Contract Integration', () => {
     expect(response.mistakeSegment).toBe('Ich will ein Kaffee');
     expect(response.correctedSegment).toBe('Ich möchte einen Kaffee, bitte.');
     expect(response.grammarRule).toBe('Akkusativ mit möchten');
+    expect(response.grammarId).toBe('g_articles_a1');
+    expect(response.grammarReference?.titleAr).toBe('أدوات التعريف');
     expect(response.explanationAr).toContain('الأكوزاتيف');
     expect(response.positiveNoteAr).toContain('محاولة ممتازة');
   });
@@ -349,6 +364,29 @@ describe('WorkerClient API Contract Integration', () => {
       session_token: 'mock_jwt_session_token_xyz',
       expires_in: 2592000,
     });
+  });
+
+  it('ignores an unlinked or malformed grammar reference in a turn response', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply_de: 'Guten Tag!',
+        reply_ar: 'نهارك سعيد!',
+        evaluation: { is_correct: false, grammar_id: 'invalid/id' },
+        grammar_reference: { id: 'different', title_ar: 'بيانات غير مرتبطة' },
+      }),
+    });
+
+    const response = await client.sendTurn({
+      scenarioId: 'cafe_order',
+      scenarioTitle: 'Im Café',
+      userMessage: 'Ich möchte ein Kaffee',
+      history: [],
+      cefrLevel: 'A1',
+    });
+
+    expect(response.grammarId).toBeUndefined();
+    expect(response.grammarReference).toBeUndefined();
   });
 
   it('attaches Authorization Bearer header and session_id on /ai/turn', async () => {

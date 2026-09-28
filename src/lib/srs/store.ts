@@ -160,6 +160,9 @@ export async function adoptRemoteReviewItems(remote: ReviewItemEntity[]): Promis
   let adopted = 0;
   for (const item of remote) {
     if (!item?.kind || !item?.refId || !item?.promptAr || !item?.answerDe) continue;
+    const validGrammarId = typeof item.grammarId === 'string' && /^[a-z0-9_]{1,80}$/i.test(item.grammarId)
+      ? item.grammarId
+      : undefined;
     const row: ReviewItemEntity = {
       userId: USER_ID,
       kind: item.kind,
@@ -169,6 +172,8 @@ export async function adoptRemoteReviewItems(remote: ReviewItemEntity[]): Promis
       answerDe: item.answerDe,
       contextDe: item.contextDe,
       explanationAr: item.explanationAr,
+      grammarId: validGrammarId,
+      grammarReference: item.grammarReference?.id === validGrammarId ? item.grammarReference : undefined,
       scenarioId: item.scenarioId,
       level: item.level,
       dueAt: item.dueAt,

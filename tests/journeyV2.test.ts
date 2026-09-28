@@ -325,7 +325,7 @@ describe('buildGuidedPractice', () => {
 
   it('is empty, not fabricated, when the device has no usable content at all', () => {
     const practice = buildGuidedPractice({ phrases: [], vocabulary: [], level: 'A1' });
-    expect(practice).toEqual({ cards: [], retrieval: null, listening: null, grammar: null, empty: true });
+    expect(practice).toEqual({ cards: [], vocabularyContext: [], retrieval: null, listening: null, grammar: null, empty: true });
   });
 
   it('keeps a grammar rule useful on a device whose vocabulary is missing', () => {
@@ -384,6 +384,19 @@ describe('buildGuidedPractice', () => {
     });
     expect(practice.cards[0].level).toBe('A1');
     expect(practice.cards).toHaveLength(2);
+  });
+
+  it('passes a bounded, deduplicated vocabulary pool from real scenario content', () => {
+    const vocabulary = Array.from({ length: 15 }, (_, index) => word({ id: index + 1, german: `Wort ${index}` }));
+    vocabulary.push(word({ id: 16, german: 'Wort 0' }));
+    vocabulary.push(word({ id: 17, german: 'x'.repeat(100) }));
+
+    const practice = buildGuidedPractice({ phrases: [], vocabulary, level: 'A1' });
+
+    expect(practice.vocabularyContext).toHaveLength(12);
+    expect(practice.vocabularyContext[0]).toBe('Wort 0');
+    expect(new Set(practice.vocabularyContext).size).toBe(12);
+    expect(practice.vocabularyContext.every((term) => term.length <= 80)).toBe(true);
   });
 
   it('teaches a word as a usable sentence when the content carries an example', () => {

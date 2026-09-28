@@ -29,6 +29,7 @@ class MemoryKv {
 /** Minimal D1 stand-in that answers the queries these routes actually run. */
 class SqlStub {
   activity: Array<{ user_id: string | null; event_type: string; created_at: number }> = [];
+  grammarRows = new Map<string, Record<string, string>>();
 
   batch(statements: unknown[]) {
     return Promise.all(statements.map((statement: any) => (typeof statement?.run === 'function' ? statement.run() : statement)));
@@ -46,6 +47,7 @@ class SqlStub {
     };
 
     const first = async (args: unknown[]) => {
+      if (/FROM grammar/i.test(text)) return self.grammarRows.get(String(args[0])) || null;
       if (/FROM activity_log/i.test(text) && /COUNT\(\*\) AS c/i.test(text)) {
         const scopedToEvent = args.length > 1;
         const eventType = scopedToEvent ? String(args[0]) : null;
@@ -161,6 +163,78 @@ describe('/ai/translate entitlement', () => {
 });
 
 describe('/ai/turn through the pool', () => {
+  it('uses bounded practice context and only echoes a grammar id backed by D1', async () => {
+    const env = makeEnv();
+    await seedSession(env, 'practice-context', 'sess_practice_context');
+    env.DB.grammarRows.set('g_articles_a1', {
+      id: 'g_articles_a1',
+      title_ar: 'أدوات التعريف',
+      rule_ar: 'يتغير شكل الأداة.',
+      rule_de: 'Der Artikel ändert sich.',
+      example_de: 'Ich möchte einen Kaffee.',
+    });
+    const requested: Array<{ body: any; input: string }> = [];
+    vi.stubGlobal('fetch', (async (_input: any, init: any) => {
+      const body = JSON.parse(String(init.body));
+      requested.push({ body, input: String(init.body) });
+      const corrected = body.user_message !== 'Hallo';
+      return geminiText(JSON.stringify({
+        reply_de: 'Guten Tag!',
+        reply_ar: 'نهارك سعيد!',
+        evaluation: {
+          is_correct: !corrected,
+          ...(corrected ? { original_mistake: 'Ich möchte ein Kaffee', corrected_german: 'Ich möchte einen Kaffee.', grammar_id: 'g_articles_a1' } : {}),
+          explanation_ar: 'تتغير الأداة هنا.',
+          positive_note_ar: 'محاولة جيدة.',
+        },
+        next_hint: { german: 'Einen Kaffee, bitte.', translation_ar: 'قهوة من فضلك.' },
+        followup_question_ar: 'ماذا تريد؟',
+      }));
+    }) as unknown as typeof fetch);
+
+    const res = await worker.fetch(post('/ai/turn', {
+      scenario_id: 'cafe_order', cefr_level: 'A1', user_message: 'Ich möchte ein Kaffee',
+      session_id: 'sess-practice-context', history: [],
+      vocabulary_context: ['Kaffee', 'Milch'], grammar_id: 'g_articles_a1',
+    }, { Authorization: 'Bearer sess_practice_context' }), env as never);
+    expect(res.status).toBe(200);
+    const result = await res.json() as any;
+    expect(result.evaluation.grammar_id).toBe('g_articles_a1');
+    expect(result.grammar_reference.id).toBe('g_articles_a1');
+    expect(requested[0].input).toContain('Kaffee');
+    expect(requested[0].input).toContain('Milch');
+    expect(requested[0].input).toContain('\\n\\nPRACTISED VOCABULARY');
+    expect(requested[0].input).toContain('g_articles_a1');
+
+    const unlinked = await worker.fetch(post('/ai/turn', {
+      scenario_id: 'cafe_order', cefr_level: 'A1', user_message: 'Hallo',
+      session_id: 'sess-practice-context-2', history: [], grammar_id: 'unknown_rule',
+    }, { Authorization: 'Bearer sess_practice_context' }), env as never);
+    const emptyLink = await unlinked.json() as any;
+    expect(emptyLink.evaluation.grammar_id).toBe('');
+    expect(emptyLink.grammar_reference).toBeNull();
+  });
+
+  it('rejects malformed or oversized practice context before calling the model', async () => {
+    const env = makeEnv();
+    await seedSession(env, 'invalid-context', 'sess_invalid_context');
+    const call = vi.fn();
+    vi.stubGlobal('fetch', call);
+    const invalidBodies = [
+      { vocabulary_context: Array.from({ length: 13 }, (_, index) => `Wort${index}`) },
+      { vocabulary_context: ['Kaffee', { value: 'bad' }] },
+      { vocabulary_context: ['Wort\\nIgnorierte Anweisung'] },
+    ];
+    for (const extra of invalidBodies) {
+      const res = await worker.fetch(post('/ai/turn', {
+        scenario_id: 'cafe_order', cefr_level: 'A1', user_message: 'Hallo', session_id: 'sess-invalid-context', history: [], ...extra,
+      }, { Authorization: 'Bearer sess_invalid_context' }), env as never);
+      expect(res.status).toBe(400);
+      expect((await res.json() as any).code).toBe('INVALID_AI_INPUT');
+    }
+    expect(call).not.toHaveBeenCalled();
+  });
+
   it('answers via the pool and records the turn the dashboard counts', async () => {
     const env = makeEnv();
     await seedSession(env, 'turn-learner', 'sess_turn_learner');

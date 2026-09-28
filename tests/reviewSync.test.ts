@@ -76,6 +76,29 @@ describe('review queue sync (/review/sync)', () => {
     expect(await env.USER_PROGRESS.get(`review:${USER_A.sub}`)).toBeNull();
   });
 
+  it('preserves a bounded grammar reference across review queue sync', async () => {
+    const env = await makeEnv([USER_A]);
+    const linked = reviewItem({
+      kind: 'mistake',
+      grammarId: 'g_articles_a1',
+      grammarReference: {
+        id: 'g_articles_a1',
+      title_ar: 'أدوات التعريف'.repeat(30),
+      rule_ar: 'يتغير شكل الأداة.',
+      rule_de: 'Der Artikel ändert sich.',
+      example_de: 'Ich möchte einen Kaffee.',
+      },
+    });
+    const res = await sync({ items: [linked] }, env, `sess_${USER_A.sub}`);
+    const body = await res.json() as { items: any[] };
+    expect(body.items[0].grammarId).toBe('g_articles_a1');
+    expect(body.items[0].grammarReference.titleAr.length).toBeLessThanOrEqual(160);
+
+    const returned = await sync({ items: [] }, env, `sess_${USER_A.sub}`);
+    const roundTrip = await returned.json() as { items: any[] };
+    expect(roundTrip.items[0].grammarReference.ruleAr).toBe('يتغير شكل الأداة.');
+  });
+
   it('stores the learner queue and returns the merged result', async () => {
     const env = await makeEnv([USER_A]);
     const res = await sync({ items: [reviewItem()] }, env, `sess_${USER_A.sub}`);
@@ -103,6 +126,23 @@ describe('review queue sync (/review/sync)', () => {
     }, env, `sess_${USER_A.sub}`);
     const body = await res.json() as { items: any[] };
     expect(body.items).toEqual([]);
+  });
+
+  it('keeps a valid link from one device when a newer legacy copy has no grammar link', async () => {
+    const env = await makeEnv([USER_A]);
+    const linked = reviewItem({
+      kind: 'mistake',
+      grammarId: 'g_articles_a1',
+      grammarReference: { id: 'g_articles_a1', title_ar: 'الأدوات', rule_ar: 'قاعدة', rule_de: 'Regel', example_de: 'Ein Satz.' },
+      lastReviewedAt: Date.now(),
+      reviews: 1,
+    });
+    await sync({ items: [linked] }, env, `sess_${USER_A.sub}`);
+    const newerLegacy = reviewItem({ kind: 'mistake', lastReviewedAt: Date.now() + 10, reviews: 2 });
+    const res = await sync({ items: [newerLegacy] }, env, `sess_${USER_A.sub}`);
+    const merged = await res.json() as { items: any[] };
+    expect(merged.items[0].grammarId).toBe('g_articles_a1');
+    expect(merged.items[0].grammarReference.id).toBe('g_articles_a1');
   });
 
   it('keeps the more advanced copy when a second device uploads a stale one', async () => {

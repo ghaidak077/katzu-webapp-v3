@@ -544,7 +544,7 @@ function GuidedPracticeRoute() {
     <GuidedPracticeScreen
       scenarioId={scenarioId}
       onBack={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}/story`)}
-      onReady={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}/live`)}
+      onReady={(context) => navigate(`/scenario/${encodeURIComponent(scenarioId)}/live`, { state: { practiceContext: context } })}
       onDeepPractice={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}/study`)}
     />
   );
@@ -591,8 +591,20 @@ function QuizRoute() {
 
 function LiveRoute({ onComplete }: { onComplete: (summary: any) => void }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { scenarioId = 'cafe_order' } = useParams();
-  return <LiveConversationScreen scenarioId={scenarioId} onBack={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}`)} onOpenSubscription={() => navigate('/subscription')} onCompleteSession={onComplete} />;
+  const state = location.state as { practiceContext?: { vocabulary?: unknown; grammarId?: unknown } } | null;
+  const practiceContext = state?.practiceContext;
+  const vocabularyContext = Array.isArray(practiceContext?.vocabulary)
+    ? practiceContext.vocabulary
+        .filter((word): word is string => typeof word === 'string')
+        .slice(0, 12)
+        .map((word) => word.slice(0, 80))
+    : [];
+  const grammarId = typeof practiceContext?.grammarId === 'string' && /^[a-z0-9_]{1,80}$/i.test(practiceContext.grammarId)
+    ? practiceContext.grammarId
+    : undefined;
+  return <LiveConversationScreen scenarioId={scenarioId} vocabularyContext={vocabularyContext} grammarId={grammarId} onBack={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}`)} onOpenSubscription={() => navigate('/subscription')} onCompleteSession={onComplete} />;
 }
 
 function ReportRoute({ summary, onLoadSummary }: { summary: any; onLoadSummary: (summary: any) => void }) {

@@ -908,6 +908,19 @@ const MAX_REVIEW_ITEMS = 500;
 /** Scheduling further out than this is not a schedule; it is a bad client. */
 const MAX_REVIEW_HORIZON_MS = 400 * 86400 * 1000;
 const MAX_REVIEW_TEXT = 300;
+const REVIEW_GRAMMAR_ID = /^[a-z0-9_]{1,80}$/i;
+
+function normalizeGrammarReference(raw, grammarId) {
+  if (!raw || typeof raw !== "object" || typeof grammarId !== "string" || !REVIEW_GRAMMAR_ID.test(grammarId) || raw.id !== grammarId) return undefined;
+  const bounded = (value, max) => typeof value === "string" ? value.trim().slice(0, max) : "";
+  return {
+    id: grammarId,
+    titleAr: bounded(raw.title_ar ?? raw.titleAr, 160),
+    ruleAr: bounded(raw.rule_ar ?? raw.ruleAr, 320),
+    ruleDe: bounded(raw.rule_de ?? raw.ruleDe, 320),
+    exampleDe: bounded(raw.example_de ?? raw.exampleDe, 240),
+  };
+}
 
 function clampReviewNumber(value, fallback, min, max) {
   const n = typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -931,6 +944,9 @@ function normalizeReviewItem(raw) {
   const text = (value) => (typeof value === "string" && value.trim() ? value.trim().slice(0, MAX_REVIEW_TEXT) : undefined);
   const now = Date.now();
   const lastReviewedAt = clampReviewNumber(raw.lastReviewedAt, 0, 0, now + MAX_REVIEW_HORIZON_MS);
+  const grammarId = typeof (raw.grammarId || raw.grammar_id) === "string" && REVIEW_GRAMMAR_ID.test(raw.grammarId || raw.grammar_id)
+    ? (raw.grammarId || raw.grammar_id)
+    : undefined;
 
   const item = {
     kind,
@@ -939,6 +955,8 @@ function normalizeReviewItem(raw) {
     answerDe,
     contextDe: text(raw.contextDe),
     explanationAr: text(raw.explanationAr),
+    grammarId,
+    grammarReference: normalizeGrammarReference(raw.grammarReference || raw.grammar_reference, grammarId),
     scenarioId: typeof raw.scenarioId === "string" ? raw.scenarioId.trim().slice(0, 64) || undefined : undefined,
     level: VALID_LEVELS.has(String(raw.level || "").trim()) ? String(raw.level).trim() : undefined,
     sourceId: Number.isFinite(raw.sourceId) ? Math.floor(raw.sourceId) : undefined,
@@ -980,7 +998,13 @@ async function mergeReviewQueue(sub, incoming, env) {
   for (const item of incoming) {
     const id = `${item.kind}:${item.refId}`;
     const current = byRef.get(id);
-    if (!current || reviewItemIsNewer(item, current)) byRef.set(id, item);
+    const selected = !current || reviewItemIsNewer(item, current) ? { ...(current || {}), ...item } : { ...item, ...current };
+    selected.grammarId = selected.grammarId || item.grammarId || current?.grammarId;
+    selected.grammarReference = normalizeGrammarReference(
+      selected.grammarReference || item.grammarReference || current?.grammarReference,
+      selected.grammarId,
+    );
+    byRef.set(id, selected);
   }
 
   // Keep the most recently touched items when trimming: the oldest untouched
@@ -1130,6 +1154,18 @@ function aiRouterDeps() {
   };
 }
 
+async function resolvePracticeGrammar(env, grammarId) {
+  if (!grammarId || !env?.DB?.prepare) return null;
+  try {
+    const row = await env.DB.prepare(
+      "SELECT id, title_ar, rule_de, rule_ar, explanation_ar, example_de, example_ar, level FROM grammar WHERE id = ?",
+    ).bind(grammarId).first();
+    return row?.id === grammarId ? row : null;
+  } catch {
+    return null;
+  }
+}
+
 function aiRouteDeps() {
   return {
     json,
@@ -1140,6 +1176,7 @@ function aiRouteDeps() {
     checkGlobalRateLimit,
     validateAiTurnBody,
     resolveScenarioIdentity,
+    resolvePracticeGrammar,
     checkUserEntitlement,
     isTrialSessionConsumed,
     consumeTrialQuota,
@@ -2806,6 +2843,11 @@ function mergeMistakes(existingMistakes, incomingMistakes) {
       ? { ...(previous || {}), ...mistake }
       : { ...mistake, ...previous };
     latest.is_mastered = Boolean(previous?.is_mastered || previous?.isMastered || mistake.is_mastered || mistake.isMastered);
+    latest.grammar_id = latest.grammar_id || latest.grammarId || mistake.grammar_id || mistake.grammarId || previous?.grammar_id || previous?.grammarId || "";
+    latest.grammar_reference = normalizeGrammarReference(
+      latest.grammar_reference || latest.grammarReference || mistake.grammar_reference || mistake.grammarReference || previous?.grammar_reference || previous?.grammarReference,
+      latest.grammar_id,
+    );
     map.set(id, latest);
   }
   return [...map.values()];

@@ -211,7 +211,7 @@ export function buildReviewQueue<T extends Pick<ReviewItemEntity, 'dueAt' | 'kin
 /** A brand-new item is due immediately: the first retrieval should be soon. */
 function newReviewItem(
   base: Pick<ReviewItemEntity, 'kind' | 'refId' | 'promptAr' | 'answerDe'> &
-    Partial<Pick<ReviewItemEntity, 'sourceId' | 'contextDe' | 'explanationAr' | 'scenarioId' | 'level'>>,
+    Partial<Pick<ReviewItemEntity, 'sourceId' | 'contextDe' | 'explanationAr' | 'grammarId' | 'grammarReference' | 'scenarioId' | 'level'>>,
   now: number,
   userId: string,
 ): ReviewItemEntity {
@@ -224,6 +224,8 @@ function newReviewItem(
     answerDe: base.answerDe,
     contextDe: base.contextDe,
     explanationAr: base.explanationAr,
+    grammarId: base.grammarId,
+    grammarReference: base.grammarReference,
     scenarioId: base.scenarioId,
     level: base.level,
     dueAt: now,
@@ -302,6 +304,8 @@ export function newReviewItemFromMistake(
       answerDe: mistake.corrected,
       contextDe: mistake.original,
       explanationAr: mistake.roastComment,
+      grammarId: mistake.grammarId,
+      grammarReference: mistake.grammarReference,
       scenarioId: mistake.scenarioId,
     },
     now,

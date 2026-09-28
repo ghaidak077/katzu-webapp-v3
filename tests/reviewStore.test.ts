@@ -244,6 +244,28 @@ describe('worker queue adoption', () => {
     ...overrides,
   });
 
+  it('restores the optional Guided Practice reference and leaves legacy items unlinked', async () => {
+    const linked = remoteItem({
+      kind: 'mistake',
+      grammarId: 'g_articles_a1',
+      grammarReference: {
+        id: 'g_articles_a1',
+        titleAr: 'أدوات التعريف',
+        ruleAr: 'يتغير شكل الأداة.',
+        ruleDe: 'Der Artikel ändert sich.',
+        exampleDe: 'Ich möchte einen Kaffee.',
+      },
+    });
+    expect(await adoptRemoteReviewItems([linked, remoteItem({ refId: 'phrase:old' })])).toBe(2);
+    const stored = await db.review_items.orderBy('refId').toArray();
+    const linkedStored = stored.find((item) => item.refId === 'vocab:1');
+    const legacyStored = stored.find((item) => item.refId === 'phrase:old');
+    expect(linkedStored?.grammarId).toBe('g_articles_a1');
+    expect(linkedStored?.grammarReference?.titleAr).toBe('أدوات التعريف');
+    expect(legacyStored?.grammarId).toBeUndefined();
+    expect(legacyStored?.grammarReference).toBeUndefined();
+  });
+
   it('gives a device that has never seen the queue its schedule back', async () => {
     expect(await adoptRemoteReviewItems([remoteItem()])).toBe(1);
 

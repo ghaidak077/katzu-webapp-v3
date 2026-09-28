@@ -25,8 +25,8 @@ import { ArrowRight, Volume2, Mic, MicOff, Check, Sparkles, ChevronLeft } from '
 export interface GuidedPracticeScreenProps {
   scenarioId: string;
   onBack: () => void;
-  /** `أنا جاهز` — straight into the live conversation. */
-  onReady: (mode: 'quick' | 'immersion') => void;
+  /** `أنا جاهز` — straight into the live conversation with what this practice showed. */
+  onReady: (context: { vocabulary: string[]; grammarId?: string }) => void;
   /** Optional deep practice (the full study screen) for learners who want more. */
   onDeepPractice?: () => void;
 }
@@ -140,7 +140,10 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
       // own mistakes independently.
     }
     setIsSaving(false);
-    onReady('quick');
+    onReady({
+      vocabulary: practice.vocabularyContext,
+      grammarId: practice.grammar?.id,
+    });
   };
 
   const handleCheckRetrieval = () => {

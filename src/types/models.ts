@@ -200,6 +200,15 @@ export interface MistakeEntity {
   original: string;
   corrected: string;
   grammarRule: string;
+  /** Optional link to the exact Guided Practice grammar row for this correction. */
+  grammarId?: string;
+  grammarReference?: {
+    id: string;
+    titleAr: string;
+    ruleAr: string;
+    ruleDe: string;
+    exampleDe: string;
+  };
   roastComment?: string;
   timestamp: number;
   wasHintUsed: boolean;
@@ -243,6 +252,15 @@ export interface ReviewItemEntity {
   contextDe?: string;
   /** Arabic explanation revealed with the answer. */
   explanationAr?: string;
+  /** Optional identity of the Guided Practice grammar row behind a correction. */
+  grammarId?: string;
+  grammarReference?: {
+    id: string;
+    titleAr: string;
+    ruleAr: string;
+    ruleDe: string;
+    exampleDe: string;
+  };
   scenarioId?: string;
   level?: CEFRLevel;
   /** Epoch ms when this item becomes due again. */
@@ -292,6 +310,16 @@ export interface ChatMessage {
   correctedGerman?: string;
   roastComment?: string;
   grammarRule?: string;
+  /** Exact grammar row Guided Practice selected, when it was part of this episode. */
+  grammarId?: string;
+  /** Bounded, server-resolved details for the linked row; absent outside that episode. */
+  grammarReference?: {
+    id: string;
+    titleAr: string;
+    ruleAr: string;
+    ruleDe: string;
+    exampleDe: string;
+  };
   explanationAr?: string;
   positiveNoteAr?: string;
   wasHintUsed?: boolean;
@@ -364,6 +392,16 @@ export interface TurnAiResponse {
   mistakeSegment?: string;
   correctedSegment?: string;
   grammarRule?: string;
+  /** Exact grammar row Guided Practice selected, when it was part of this episode. */
+  grammarId?: string;
+  /** Bounded, server-resolved details for the linked row; absent outside that episode. */
+  grammarReference?: {
+    id: string;
+    titleAr: string;
+    ruleAr: string;
+    ruleDe: string;
+    exampleDe: string;
+  };
   explanationAr?: string;
   roastComment?: string;
   positiveNoteAr?: string;

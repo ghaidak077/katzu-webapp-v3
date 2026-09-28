@@ -52,6 +52,8 @@ import {
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
+  vocabularyContext?: string[];
+  grammarId?: string;
   onBack: () => void;
   onOpenSubscription?: () => void;
   onCompleteSession: (sessionSummary: {
@@ -79,6 +81,8 @@ function orbSizeForViewport(): number {
 
 export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   scenarioId,
+  vocabularyContext = [],
+  grammarId,
   onBack,
   onOpenSubscription,
   onCompleteSession,
@@ -570,6 +574,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
       const res = await workerClient.sendTurn({
         scenarioId,
+        vocabularyContext,
+        grammarId,
         userMessage: text,
         history: historyPayload,
         cefrLevel: effectiveLevel,
@@ -592,6 +598,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         originalMistake: res.mistakeSegment,
         correctedGerman: res.correctedSegment,
         grammarRule: res.grammarRule,
+        grammarId: res.grammarId,
+        grammarReference: res.grammarReference,
         explanationAr: res.explanationAr,
         roastComment: res.roastComment,
         positiveNoteAr: res.positiveNoteAr,
@@ -623,6 +631,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           original: res.mistakeSegment,
           corrected: res.correctedSegment,
           grammarRule: res.grammarRule || 'قواعد نحوية',
+          grammarId: res.grammarId,
+          grammarReference: res.grammarReference,
           roastComment: res.roastComment,
           timestamp: Date.now(),
           wasHintUsed,

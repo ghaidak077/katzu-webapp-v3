@@ -351,6 +351,8 @@ export class WorkerClient {
     idToken?: string;
     sessionId?: string;
     learnerMemory?: Array<{ rule: string; example?: string }>;
+    vocabularyContext?: string[];
+    grammarId?: string;
   }): Promise<TurnAiResponse> {
     try {
       return await this.sendTurnOnce(params);
@@ -383,6 +385,8 @@ export class WorkerClient {
     idToken?: string;
     sessionId?: string;
     learnerMemory?: Array<{ rule: string; example?: string }>;
+    vocabularyContext?: string[];
+    grammarId?: string;
   }): Promise<TurnAiResponse> {
     // Resolve credential early so a signed-out user fails fast (header-only transport;
     // the body never carries tokens).
@@ -413,6 +417,15 @@ export class WorkerClient {
     };
     if (params.learnerMemory && params.learnerMemory.length > 0) {
       payload.learner_memory = params.learnerMemory;
+    }
+    if (params.vocabularyContext && params.vocabularyContext.length > 0) {
+      payload.vocabulary_context = params.vocabularyContext
+        .slice(0, 12)
+        .filter((word) => typeof word === 'string')
+        .map((word) => word.slice(0, 80));
+    }
+    if (params.grammarId && /^[a-z0-9_]{1,80}$/i.test(params.grammarId)) {
+      payload.grammar_id = params.grammarId;
     }
 
     const headers: Record<string, string> = {
@@ -519,6 +532,16 @@ export class WorkerClient {
               .map((h: any) => ({ german: h.german, arabic: h.translation_ar || '' }))
           : [],
         followupAr: typeof data.followup_ar === 'string' ? data.followup_ar : '',
+        grammarId: typeof evalData.grammar_id === 'string' && /^[a-z0-9_]{1,80}$/i.test(evalData.grammar_id) ? evalData.grammar_id : undefined,
+        grammarReference: data.grammar_reference && typeof data.grammar_reference.id === 'string' && data.grammar_reference.id === evalData.grammar_id && /^[a-z0-9_]{1,80}$/i.test(data.grammar_reference.id)
+          ? {
+              id: data.grammar_reference.id,
+              titleAr: typeof data.grammar_reference.title_ar === 'string' ? data.grammar_reference.title_ar.slice(0, 160) : '',
+              ruleAr: typeof data.grammar_reference.rule_ar === 'string' ? data.grammar_reference.rule_ar.slice(0, 320) : '',
+              ruleDe: typeof data.grammar_reference.rule_de === 'string' ? data.grammar_reference.rule_de.slice(0, 320) : '',
+              exampleDe: typeof data.grammar_reference.example_de === 'string' ? data.grammar_reference.example_de.slice(0, 240) : '',
+          }
+          : undefined,
       };
     }
 
@@ -870,6 +893,14 @@ export class WorkerClient {
           original: m.original,
           corrected: m.corrected,
           grammar_rule: m.grammarRule,
+          grammar_id: m.grammarId,
+          grammar_reference: m.grammarReference ? {
+            id: m.grammarReference.id,
+            title_ar: m.grammarReference.titleAr,
+            rule_ar: m.grammarReference.ruleAr,
+            rule_de: m.grammarReference.ruleDe,
+            example_de: m.grammarReference.exampleDe,
+          } : undefined,
           roast_comment: m.roastComment,
           timestamp: m.timestamp,
           was_hint_used: m.wasHintUsed,
@@ -1036,6 +1067,16 @@ export class WorkerClient {
               original: m.original || '',
               corrected: m.corrected || '',
               grammarRule: m.grammar_rule || m.grammarRule || '',
+              grammarId: typeof (m.grammar_id || m.grammarId) === 'string' && /^[a-z0-9_]{1,80}$/i.test(m.grammar_id || m.grammarId) ? m.grammar_id || m.grammarId : undefined,
+              grammarReference: m.grammar_reference && typeof m.grammar_reference.id === 'string' && m.grammar_reference.id === (m.grammar_id || m.grammarId) && /^[a-z0-9_]{1,80}$/i.test(m.grammar_reference.id)
+                ? {
+                    id: m.grammar_reference.id,
+                    titleAr: typeof m.grammar_reference.title_ar === 'string' ? m.grammar_reference.title_ar.slice(0, 160) : '',
+                    ruleAr: typeof m.grammar_reference.rule_ar === 'string' ? m.grammar_reference.rule_ar.slice(0, 320) : '',
+                    ruleDe: typeof m.grammar_reference.rule_de === 'string' ? m.grammar_reference.rule_de.slice(0, 320) : '',
+                    exampleDe: typeof m.grammar_reference.example_de === 'string' ? m.grammar_reference.example_de.slice(0, 240) : '',
+                  }
+                : undefined,
               roastComment: m.roast_comment || m.roastComment,
               timestamp: m.timestamp || Date.now(),
               wasHintUsed: !!(m.was_hint_used ?? m.wasHintUsed),
@@ -1218,7 +1259,22 @@ export class WorkerClient {
       if (!res.ok) return false;
       const data = await res.json();
       if (!Array.isArray(data?.items)) return false;
-      await adoptRemoteReviewItems(data.items as ReviewItemEntity[]);
+      const normalizedItems = data.items.map((item: any) => ({
+        ...item,
+        grammarId: typeof (item?.grammarId || item?.grammar_id) === 'string' && /^[a-z0-9_]{1,80}$/i.test(item.grammarId || item.grammar_id)
+          ? item.grammarId || item.grammar_id
+          : undefined,
+        grammarReference: (item?.grammar_reference || item?.grammarReference)?.id === (item?.grammarId || item?.grammar_id) && /^[a-z0-9_]{1,80}$/i.test(item?.grammarId || item?.grammar_id || '')
+          ? {
+              id: item.grammar_reference?.id || item.grammarReference?.id,
+              titleAr: item.grammar_reference?.title_ar || item.grammarReference?.titleAr || '',
+              ruleAr: item.grammar_reference?.rule_ar || item.grammarReference?.ruleAr || '',
+              ruleDe: item.grammar_reference?.rule_de || item.grammarReference?.ruleDe || '',
+              exampleDe: item.grammar_reference?.example_de || item.grammarReference?.exampleDe || '',
+            }
+          : undefined,
+      }));
+      await adoptRemoteReviewItems(normalizedItems as ReviewItemEntity[]);
       return true;
     } catch (e) {
       logNetwork('review/sync', `Review sync failed: ${e instanceof Error ? e.message : String(e)}`);
