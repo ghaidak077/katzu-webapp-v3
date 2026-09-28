@@ -5,7 +5,8 @@ import { countDue } from '@/lib/srs/engine';
 import { isProEffective } from '@/lib/utils/subscription';
 import { servedLevel } from '@/lib/entitlement/trial';
 import { BorderBeam } from '@/components/effects/BorderBeam';
-import { selectDailyMission, INTRO_SCENARIO_ID, type ScenarioLevelIndex } from '@/lib/mission/selectMission';
+import { selectDailyMission, INTRO_SCENARIO_ID } from '@/lib/mission/selectMission';
+import { readJourneyHomeData } from '@/features/journey/journeyHomeData';
 import { buildCapabilityModel, CAPABILITY_LABEL_AR, weakestMeasuredSkill } from '@/lib/capability/model';
 import { buildJourneyContext, katzuJourneyLineAr, missionReasonAr } from '@/lib/journey/context';
 import { sceneFor } from '@/lib/design/scenes';
@@ -53,14 +54,26 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   const isOnline = useOnlineStatus();
 
   const user = useLiveQuery(() => db.users.get('current_user'));
-  const scenarios = useLiveQuery(() => db.scenarios.toArray()) || [];
-  const training = useLiveQuery(() => db.scenario_training.toArray()) || [];
-  const reviewItems = useLiveQuery(() => db.review_items.toArray()) || [];
-  const mistakes = useLiveQuery(() => db.mistakes.toArray()) || [];
-  const sessions = useLiveQuery(() => db.sessions.toArray()) || [];
-  const skillPractice = useLiveQuery(() => db.skill_practice.toArray()) || [];
-  const starterPhrases = useLiveQuery(() => db.starter_phrases.toArray()) || [];
-  const vocabulary = useLiveQuery(() => db.vocabulary.toArray()) || [];
+  // One bounded read for the whole screen (B4a): eight full-table toArray()s
+  // became one transactional live query whose result is projected to exactly the
+  // fields the derivations read. Identity-preserving — see journeyHomeData.ts.
+  const data = useLiveQuery(readJourneyHomeData);
+  const scenarios = data?.scenarios ?? [];
+  const training = data?.training ?? [];
+  const reviewItems = data?.reviewItems ?? [];
+  const skillPractice = data?.skillPractice ?? [];
+  const scenarioLevels = data?.scenarioLevels ?? {};
+  const capability = useMemo(
+    () =>
+      buildCapabilityModel({
+        scenarios,
+        training,
+        sessions: data ? Object.values(data.sessionsByScenario).flat() : [],
+        mistakes: data ? Object.values(data.mistakesByScenario).flat() : [],
+        reviewItems,
+      }),
+    [data, scenarios, training, reviewItems],
+  );
 
   const learnerLevel: CEFRLevel = user?.cefrLevel || 'A1';
   const isPro = isProEffective(user);
@@ -76,28 +89,6 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
    */
   const level = servedLevel(learnerLevel, isPro);
   const dueCount = useMemo(() => countDue(reviewItems, Date.now()), [reviewItems]);
-
-  const scenarioLevels = useMemo<ScenarioLevelIndex>(() => {
-    const index: ScenarioLevelIndex = {};
-    for (const phrase of starterPhrases) {
-      if (!phrase?.scenario_id) continue;
-      const levels = index[phrase.scenario_id] || [];
-      if (!levels.includes(phrase.level)) levels.push(phrase.level);
-      index[phrase.scenario_id] = levels;
-    }
-    for (const word of vocabulary) {
-      if (!word?.topic) continue;
-      const levels = index[word.topic] || [];
-      if (!levels.includes(word.level)) levels.push(word.level);
-      index[word.topic] = levels;
-    }
-    return index;
-  }, [starterPhrases, vocabulary]);
-
-  const capability = useMemo(
-    () => buildCapabilityModel({ scenarios, training, sessions, mistakes, reviewItems }),
-    [scenarios, training, sessions, mistakes, reviewItems],
-  );
 
   const independentScenarioIds = useMemo(
     () =>
@@ -127,10 +118,13 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         })),
         reviewItems: reviewItems.map((item) => ({ dueAt: item.dueAt, kind: item.kind, scenarioId: item.scenarioId })),
         scenarioLevels,
-        weakestSkill: weakestMeasuredSkill({ sessions, practice: skillPractice }),
+        weakestSkill: weakestMeasuredSkill({
+          sessions: data ? Object.values(data.sessionsByScenario).flat() : [],
+          practice: skillPractice,
+        }),
         dailyMinutes: user?.dailyGoalMinutes,
       }),
-    [level, user?.primaryGoal, user?.dailyGoalMinutes, scenarios, training, reviewItems, scenarioLevels, sessions, skillPractice],
+    [level, user?.primaryGoal, user?.dailyGoalMinutes, data, scenarios, training, reviewItems, scenarioLevels, skillPractice],
   );
 
   const missionScenario = useMemo(
@@ -168,14 +162,14 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           lastScore: record.lastScore,
           updatedAt: record.updatedAt,
         })),
-        sessions: sessions.map((session) => ({ timestamp: session.timestamp })),
+        sessions: data ? data.allSessions : [],
         reviewDueCount: dueCount,
         independentScenarioIds,
         goal: user?.primaryGoal,
         arrivalStatus: user?.arrivalStatus,
         level,
       }),
-    [scenarios, training, sessions, dueCount, independentScenarioIds, user?.primaryGoal, user?.arrivalStatus, level],
+    [scenarios, training, data, dueCount, independentScenarioIds, user?.primaryGoal, user?.arrivalStatus, level],
   );
 
   const reasonAr = missionReasonAr(mission, { goal: user?.primaryGoal, arrivalStatus: user?.arrivalStatus }, missionScenario);
