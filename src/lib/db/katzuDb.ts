@@ -636,3 +636,129 @@ async function seedStoryOpening(): Promise<void> {
   }
   if (missingWords.length > 0) await db.vocabulary.bulkAdd(missingWords);
 }
+
+/**
+ * Additive content top-ups for existing installs (B3 decisions, final):
+ *
+ * The empty-table guards above only fire on a fresh database, so a device that
+ * already has content never receives later improvements to those fixtures. This
+ * layer complements them without ever overwriting anything:
+ *
+ *   - it uses ids >= 2000, above every other fixture range and far above the
+ *     range D1 assigns, so a collision would be extremely unlikely — and the
+ *     per-id existence check below makes one harmless anyway;
+ *   - every write is `add`, never `put`: an id that already exists is skipped,
+ *     so no existing row — local or D1-authoritative — is ever replaced;
+ *   - it is idempotent: on the second run every lookup finds its row and nothing
+ *     is written;
+ *   - it only touches the `travel` and `food` pools, which the arrival story
+ *     reads (see SCENARIO_GRAMMAR_IDS and scenarioVocab.ts).
+ *
+ * New installs get these rows through this same path (their tables are not
+ * empty but these specific ids are missing), so there is exactly one seeding
+ * behaviour for everyone.
+ */
+const ADDITIVE_SEED_ID = 2000;
+
+/**
+ * The arrival story's two new scenarios, as additive rows only.
+ *
+ * `landlord_followup` reuses the exact `Vermieter katze` persona string from the
+ * apartment_viewing fixture (story continuity, no schema field needed).
+ * `friend_catchup` is the module's du-register scene. These two ids do not exist
+ * anywhere in the old fixtures, so `add` can never clobber a live row that a
+ * learner already trains with — and if D1 later ships its own rows with these
+ * ids, the same per-id guard keeps the local copy out.
+ */
+const ARRIVAL_TOPUP_SCENARIOS: ScenarioEntity[] = [
+  {
+    id: 'landlord_followup',
+    title_de: 'Anruf beim Vermieter',
+    title_ar: 'اتصال بالمؤجّر',
+    ai_persona: 'Vermieter katze',
+    category: 'housing',
+    icon: 'home',
+    initial_message_a1: 'Guten Tag. Was kann ich für Sie tun?',
+    initial_message_a2: 'Guten Tag. Haben Sie einen Termin, oder geht es um etwas Dringendes?',
+    initial_message_b1:
+      'Guten Tag. Sie haben gesagt, die Heizung ist kaputt? Dann schauen wir, wann ich vorbeikommen kann.',
+    initial_message_b2:
+      'Guten Tag. Zu Ihrer Frage zum Mietvertrag und zur Kaution: Am besten lesen wir die Stelle gemeinsam durch. Wann passt es Ihnen?',
+  },
+  {
+    id: 'friend_catchup',
+    title_de: 'Mit einer Freundin plaudern',
+    title_ar: 'دردشة مع صديقة',
+    ai_persona: 'Freundin katze',
+    category: 'daily_life',
+    icon: 'users',
+    initial_message_a1: 'Hallo! Schön, dich zu sehen!',
+    initial_message_a2: 'Na, wie geht es dir? Erzähl mal!',
+    initial_message_b1: 'Was machst du am Wochenende? Hast du Zeit für einen Kaffee?',
+    initial_message_b2: 'Lass uns zusammen essen gehen. Wie wäre es, wenn wir uns morgen treffen?',
+  },
+];
+
+/** Starter phrases for the two new scenarios only — ids from the >= 2000 range. */
+const ARRIVAL_TOPUP_PHRASES: StarterPhraseEntity[] = [
+  // landlord_followup: 6 phrases, contiguous from 1
+  { id: ADDITIVE_SEED_ID + 1, scenario_id: 'landlord_followup', level: 'A1', german: 'Bei mir ist die Heizung kaputt.', translation_en: 'My heating is broken.', translation_ar: 'التدفئة عندي معطّلة.', sort_order: 1 },
+  { id: ADDITIVE_SEED_ID + 2, scenario_id: 'landlord_followup', level: 'A1', german: 'In der Küche tropft der Wasserhahn.', translation_en: 'The tap in the kitchen is dripping.', translation_ar: 'في المطبخ تسيل الحنفية.', sort_order: 2 },
+  { id: ADDITIVE_SEED_ID + 3, scenario_id: 'landlord_followup', level: 'A1', german: 'Könnten Sie das bitte reparieren?', translation_en: 'Could you please repair this?', translation_ar: 'هل يمكنك إصلاح هذا من فضلك؟', sort_order: 3 },
+  { id: ADDITIVE_SEED_ID + 4, scenario_id: 'landlord_followup', level: 'A1', german: 'Wann könnten Sie vorbeikommen?', translation_en: 'When could you come by?', translation_ar: 'متى يمكنك المرور بالزيارة؟', sort_order: 4 },
+  { id: ADDITIVE_SEED_ID + 5, scenario_id: 'landlord_followup', level: 'A2', german: 'Ich habe eine Frage zur Miete und zur Kaution.', translation_en: 'I have a question about the rent and the deposit.', translation_ar: 'لدي سؤال عن الإيجار ومبلغ الضمان.', sort_order: 5 },
+  { id: ADDITIVE_SEED_ID + 6, scenario_id: 'landlord_followup', level: 'A1', german: 'Vielen Dank für Ihre Hilfe.', translation_en: 'Thank you very much for your help.', translation_ar: 'شكراً جزيلاً على مساعدتك.', sort_order: 6 },
+  // friend_catchup: 6 phrases, contiguous from 1
+  { id: ADDITIVE_SEED_ID + 7, scenario_id: 'friend_catchup', level: 'A1', german: 'Wie geht es dir?', translation_en: 'How are you?', translation_ar: 'كيف حالك؟', sort_order: 1 },
+  { id: ADDITIVE_SEED_ID + 8, scenario_id: 'friend_catchup', level: 'A1', german: 'Was machst du am Wochenende?', translation_en: 'What are you doing at the weekend?', translation_ar: 'ماذا ستفعل في عطلة نهاية الأسبوع؟', sort_order: 2 },
+  { id: ADDITIVE_SEED_ID + 9, scenario_id: 'friend_catchup', level: 'A1', german: 'Hast du am Samstag Zeit?', translation_en: 'Do you have time on Saturday?', translation_ar: 'هل عندك وقت يوم السبت؟', sort_order: 3 },
+  { id: ADDITIVE_SEED_ID + 10, scenario_id: 'friend_catchup', level: 'A1', german: 'Lass uns einen Kaffee trinken.', translation_en: "Let's have a coffee.", translation_ar: 'لنشرب قهوة معاً.', sort_order: 4 },
+  { id: ADDITIVE_SEED_ID + 11, scenario_id: 'friend_catchup', level: 'A1', german: 'Das passt mir gut.', translation_en: 'That works for me.', translation_ar: 'هذا يناسبني.', sort_order: 5 },
+  { id: ADDITIVE_SEED_ID + 12, scenario_id: 'friend_catchup', level: 'A1', german: 'Schreib mir, wenn du Zeit hast.', translation_en: 'Message me when you have time.', translation_ar: 'راسلني عندما يكون عندك وقت.', sort_order: 6 },
+];
+
+/** Vocabulary for the two new scenarios' topics, ids from the >= 2000 range. */
+const ARRIVAL_TOPUP_VOCAB: VocabularyEntity[] = [
+  { id: ADDITIVE_SEED_ID + 1, german: 'Heizung', article: 'die', plural: 'Heizungen', part_of_speech: 'Noun', translation_ar: 'التدفئة', translation_en: 'heating', example_de: 'Die Heizung ist kaputt.', example_ar: 'التدفئة معطّلة.', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 2, german: 'kaputt', article: '', plural: null, part_of_speech: 'Adjective', translation_ar: 'معطّل', translation_en: 'broken', example_de: 'Bei mir ist die Heizung kaputt.', example_ar: 'التدفئة عندي معطّلة.', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 3, german: 'Wasserhahn', article: 'der', plural: 'Wasserhähne', part_of_speech: 'Noun', translation_ar: 'حنفية الماء', translation_en: 'tap', example_de: 'Der Wasserhahn tropft.', example_ar: 'الحنفية تسيل.', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 4, german: 'Küche', article: 'die', plural: 'Küchen', part_of_speech: 'Noun', translation_ar: 'المطبخ', translation_en: 'kitchen', example_de: 'Der Wasserhahn in der Küche tropft.', example_ar: 'حنفية المطبخ تسيل.', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 5, german: 'tropfen', article: '', plural: null, part_of_speech: 'Verb', translation_ar: 'يقطر / تسيل', translation_en: 'to drip', example_de: 'Der Wasserhahn tropft.', example_ar: 'الحنفية تسيل.', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 6, german: 'reparieren', article: '', plural: null, part_of_speech: 'Verb', translation_ar: 'يُصلّح', translation_en: 'to repair', example_de: 'Könnten Sie das bitte reparieren?', example_ar: 'هل يمكنك إصلاح هذا من فضلك؟', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 7, german: 'vorbeikommen', article: '', plural: null, part_of_speech: 'Verb', translation_ar: 'يمرّ بالزيارة', translation_en: 'to come by', example_de: 'Wann könnten Sie vorbeikommen?', example_ar: 'متى يمكنك المرور بالزيارة؟', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 8, german: 'Termin', article: 'der', plural: 'Termine', part_of_speech: 'Noun', translation_ar: 'موعد', translation_en: 'appointment', example_de: 'Haben Sie einen Termin?', example_ar: 'هل لديك موعد؟', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 9, german: 'Dienstag', article: 'der', plural: 'Dienstage', part_of_speech: 'Noun', translation_ar: 'يوم الثلاثاء', translation_en: 'Tuesday', example_de: 'Der Dienstag passt mir gut.', example_ar: 'يوم الثلاثاء يناسبني.', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 10, german: 'schicken', article: '', plural: null, part_of_speech: 'Verb', translation_ar: 'يرسل', translation_en: 'to send', example_de: 'Können Sie mir das bitte schicken?', example_ar: 'هل يمكنك إرسال ذلك لي من فضلك؟', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 11, german: 'Hilfe', article: 'die', plural: 'Hilfen', part_of_speech: 'Noun', translation_ar: 'مساعدة', translation_en: 'help', example_de: 'Vielen Dank für Ihre Hilfe.', example_ar: 'شكراً جزيلاً على مساعدتك.', topic: 'housing', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 12, german: 'Wochenende', article: 'das', plural: 'Wochenenden', part_of_speech: 'Noun', translation_ar: 'عطلة نهاية الأسبوع', translation_en: 'weekend', example_de: 'Was machst du am Wochenende?', example_ar: 'ماذا ستفعل في عطلة نهاية الأسبوع؟', topic: 'food', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 13, german: 'Samstag', article: 'der', plural: 'Samstage', part_of_speech: 'Noun', translation_ar: 'يوم السبت', translation_en: 'Saturday', example_de: 'Hast du am Samstag Zeit?', example_ar: 'هل عندك وقت يوم السبت؟', topic: 'food', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 14, german: 'Zeit', article: 'die', plural: 'Zeiten', part_of_speech: 'Noun', translation_ar: 'وقت', translation_en: 'time', example_de: 'Hast du Zeit?', example_ar: 'هل عندك وقت؟', topic: 'food', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 15, german: 'morgen', article: '', plural: null, part_of_speech: 'Adverb', translation_ar: 'غداً', translation_en: 'tomorrow', example_de: 'Wie wäre es morgen?', example_ar: 'ما رأيك بالغد؟', topic: 'food', level: 'A1' },
+  { id: ADDITIVE_SEED_ID + 16, german: 'passen', article: '', plural: null, part_of_speech: 'Verb', translation_ar: 'يناسب', translation_en: 'to suit', example_de: 'Das passt mir gut.', example_ar: 'هذا يناسبني.', topic: 'food', level: 'A1' },
+];
+
+/**
+ * Runs the additive top-ups on every launch. Safe to call repeatedly: the
+ * per-id existence checks make the second run write nothing.
+ */
+export async function seedArrivalTopUps(): Promise<void> {
+  if (!(await ensureDatabaseOpen())) return;
+
+  // Per-id guarded adds: an existing row — fixture, previously seeded, or
+  // D1-authoritative — is always left exactly as it is.
+  for (const scenario of ARRIVAL_TOPUP_SCENARIOS) {
+    if (!(await db.scenarios.get(scenario.id))) await db.scenarios.add(scenario);
+  }
+
+  const missingPhrases: StarterPhraseEntity[] = [];
+  for (const phrase of ARRIVAL_TOPUP_PHRASES) {
+    if (!(await db.starter_phrases.get(phrase.id))) missingPhrases.push(phrase);
+  }
+  if (missingPhrases.length > 0) await db.starter_phrases.bulkAdd(missingPhrases);
+
+  const missingWords: VocabularyEntity[] = [];
+  for (const word of ARRIVAL_TOPUP_VOCAB) {
+    if (!(await db.vocabulary.get(word.id))) missingWords.push(word);
+  }
+  if (missingWords.length > 0) await db.vocabulary.bulkAdd(missingWords);
+}

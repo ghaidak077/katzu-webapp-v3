@@ -9,7 +9,7 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom';
-import { db, initializeDatabaseSeed, wipeUserScopedData } from '@/lib/db/katzuDb';
+import { db, initializeDatabaseSeed, seedArrivalTopUps, wipeUserScopedData } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { needsOnboarding } from '@/lib/onboarding/preferences';
 import { isDevBuild } from '@/lib/utils/env';
@@ -132,6 +132,7 @@ function AppRoutes() {
     let isMounted = true;
 
     initializeDatabaseSeed()
+      .then(() => seedArrivalTopUps())
       .then(() => {
         if (!isMounted) return;
         workerClient.fetchScenarios();
