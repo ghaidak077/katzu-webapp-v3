@@ -90,7 +90,7 @@
 
   --kz-spec-x: 28%;
   --kz-spec-y: -18%;
-  --kz-spec-strength: 0.07;
+  --kz-spec-strength: 0.09;
 
   /* Glow — lavender by default, magenta only on earned surfaces. */
   --kz-glow-rgb: var(--kz-lavender);
@@ -220,9 +220,11 @@
     -webkit-backdrop-filter: blur(var(--kz-glass-blur)) saturate(var(--kz-glass-saturate));
     backdrop-filter: blur(var(--kz-glass-blur)) saturate(var(--kz-glass-saturate));
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / var(--kz-glass-edge)),
+      inset 0 1px 0 rgb(255 255 255 / calc(var(--kz-glass-edge) * 1.2)),
       inset 0 -1px 0 rgb(0 0 0 / 0.55),
       inset 0 0 0 1px rgb(255 255 255 / calc(var(--kz-glass-edge) * 0.4)),
+      inset 1px 0 0 rgb(255 255 255 / calc(var(--kz-glass-edge) * 0.35)),
+      inset -1px 0 0 rgb(255 255 255 / calc(var(--kz-glass-edge) * 0.2)),
       0 calc(16px * var(--kz-glass-elev)) calc(40px * var(--kz-glass-elev)) rgb(0 0 0 / 0.5);
     transition:
       box-shadow var(--kz-dur) var(--kz-ease-out),
@@ -246,42 +248,43 @@
   /* Depth tiers. Each changes opacity, blur, tint, edge light and elevation —
      a floating control must never look like a well that happens to be darker. */
   .kz-surface[data-tier='canvas'] {
-    --kz-glass-opacity: 0.3;
-    --kz-glass-blur: 12px;
+    --kz-glass-opacity: 0.26;
+    --kz-glass-blur: 14px;
+    --kz-glass-saturate: 150%;
     --kz-glass-tint-alpha: 0.025;
-    --kz-glass-edge: 0.08;
+    --kz-glass-edge: 0.09;
     --kz-glass-elev: 1;
   }
 
   .kz-surface[data-tier='well'] {
     --kz-glass-base: 4 4 6;
-    --kz-glass-opacity: 0.62;
-    --kz-glass-blur: 8px;
-    --kz-glass-saturate: 115%;
+    --kz-glass-opacity: 0.55;
+    --kz-glass-blur: 10px;
+    --kz-glass-saturate: 130%;
     --kz-glass-tint-alpha: 0.015;
-    --kz-glass-edge: 0.05;
+    --kz-glass-edge: 0.06;
     --kz-glass-elev: 0.25;
     box-shadow:
       inset 0 1px 2px rgb(0 0 0 / 0.85),
-      inset 0 -1px 0 rgb(255 255 255 / 0.05),
+      inset 0 -1px 0 rgb(255 255 255 / 0.06),
       inset 0 0 0 1px rgb(0 0 0 / 0.6);
   }
 
   .kz-surface[data-tier='glass'] {
-    --kz-glass-opacity: 0.46;
-    --kz-glass-blur: 22px;
-    --kz-glass-saturate: 150%;
+    --kz-glass-opacity: 0.4;
+    --kz-glass-blur: 26px;
+    --kz-glass-saturate: 170%;
     --kz-glass-tint-alpha: 0.045;
-    --kz-glass-edge: 0.13;
+    --kz-glass-edge: 0.15;
     --kz-glass-elev: 2.1;
   }
 
   .kz-surface[data-tier='floating'] {
-    --kz-glass-opacity: 0.58;
-    --kz-glass-blur: 30px;
-    --kz-glass-saturate: 168%;
+    --kz-glass-opacity: 0.52;
+    --kz-glass-blur: 34px;
+    --kz-glass-saturate: 185%;
     --kz-glass-tint-alpha: 0.06;
-    --kz-glass-edge: 0.19;
+    --kz-glass-edge: 0.22;
     --kz-glass-elev: 3.4;
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / var(--kz-glass-edge)),
@@ -323,6 +326,18 @@
      surface only decides how it lights up. Replaces the old static neon stroke. */
   .kz-interactive {
     position: relative;
+  }
+
+  /* Glass chip: the small translucent control on top of a glass panel (composer
+     buttons, hint pills, mode cards). A flat `bg-white/5` reads as paint; the
+     chip treatment adds the two things that make Apple's small controls read as
+     glass — a top edge light and a faint bottom shade — while keeping the same
+     geometry and hit area. Cheap: no backdrop-filter of its own (the panel
+     behind it already blurs the scene). */
+  .kz-chip {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.07),
+      inset 0 -1px 0 rgb(0 0 0 / 0.3);
   }
 
   .kz-interactive::after {

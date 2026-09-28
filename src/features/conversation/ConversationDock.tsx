@@ -109,7 +109,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
               <>
                 <button
                   onClick={onToggleHintExpanded}
-                  className="kz-ar-micro flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-kz-inkDim transition-colors hover:text-primary"
+                  className="kz-ar-micro flex w-full items-center justify-between rounded-xl kz-chip border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-kz-inkDim transition-colors hover:text-primary"
                 >
                   <span>
                     {isHintExpanded
@@ -128,7 +128,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           <button
             onClick={onRefreshHints}
             aria-label="تحديث الاقتراحات"
-            className="shrink-0 rounded-xl border border-white/10 bg-white/5 p-2 text-kz-inkDim transition-colors hover:text-primary"
+            className="shrink-0 rounded-xl kz-chip border border-white/10 bg-white/5 p-2 text-kz-inkDim transition-colors hover:text-primary"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingHints ? 'animate-spin' : ''}`} />
           </button>
@@ -205,7 +205,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           value={inputText}
           onChange={(e) => onInputTextChange(e.target.value)}
           onKeyDown={(e) => onInputKeyDown(e.key)}
-          className="h-11 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 font-german text-sm outline-none transition-colors placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-primary/60"
+          className="h-11 min-w-0 flex-1 rounded-2xl kz-chip border border-white/10 bg-white/5 px-4 font-german text-sm outline-none transition-colors placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-primary/60"
         />
 
         {/* Typing is always one tap away — and it is a control inside the row,
@@ -213,7 +213,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
         <button
           onClick={onTypeInstead}
           aria-label="اكتب بدلاً من التحدث"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-kz-inkDim transition-colors hover:text-kz-ink"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 text-kz-inkDim transition-colors hover:text-kz-ink"
         >
           <Keyboard className="h-4 w-4" />
         </button>

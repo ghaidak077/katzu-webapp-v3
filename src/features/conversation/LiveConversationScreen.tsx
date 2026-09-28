@@ -118,7 +118,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="mb-8 self-start rounded-2xl border border-white/10 bg-white/5 p-2"
+          className="mb-8 self-start rounded-2xl kz-chip border border-white/10 bg-white/5 p-2"
           aria-label="العودة"
         >
           <ArrowRight className="h-5 w-5 text-kz-inkDim" />
@@ -143,7 +143,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <button
             type="button"
             onClick={() => setSessionMode('immersion')}
-            className="w-full rounded-3xl border border-white/10 bg-white/5 p-5 text-start transition-colors hover:bg-white/10"
+            className="w-full rounded-3xl kz-chip border border-white/10 bg-white/5 p-5 text-start transition-colors hover:bg-white/10"
           >
             <strong className="kz-ar-caption mb-1 block text-primary">تحدي واقعي مكثف</strong>
             <span className="kz-ar-micro text-kz-inkDim">
@@ -170,7 +170,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <button
             onClick={onBack}
             aria-label="العودة"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
           >
             <ArrowRight className="h-5 w-5 text-kz-inkDim" />
           </button>

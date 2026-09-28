@@ -90,7 +90,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
       })}
 
       {isGenerating && (
-        <div className="flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+        <div className="flex w-fit items-center gap-2 rounded-2xl kz-chip border border-white/10 bg-white/5 px-3 py-2">
           <KatzuThinking size={20} layout="inline" labelAr="كَاتْزُو يفكر في الرد…" className="gap-2" />
         </div>
       )}

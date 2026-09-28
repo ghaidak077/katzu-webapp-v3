@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { cn } from './Button';
+import { GlassSurface } from '@/components/glass/GlassSurface';
 
 export interface BottomSheetProps {
   isOpen: boolean;
@@ -33,9 +34,10 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm transition-opacity">
       <div className="fixed inset-0" onClick={onClose} />
-      <div
+      <GlassSurface
+        tier="floating"
         className={cn(
-          'relative w-full max-w-xl bg-surface-raised border-t border-border-subtle rounded-t-3xl p-6 shadow-2xl z-10 max-h-[85vh] overflow-y-auto transform transition-transform animate-slide-up text-text-primary',
+          'relative w-full max-w-xl rounded-t-3xl p-6 z-10 max-h-[85vh] overflow-y-auto animate-slide-up text-text-primary',
           className
         )}
       >
@@ -50,7 +52,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           </button>
         </div>
         {children}
-      </div>
+      </GlassSurface>
     </div>
   );
 };

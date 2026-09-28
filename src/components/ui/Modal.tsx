@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { cn } from './Button';
+import { GlassSurface } from '@/components/glass/GlassSurface';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -37,9 +38,10 @@ export const Modal: React.FC<ModalProps> = ({
         onClick={onClose}
         aria-hidden="true"
       />
-      <div
+      <GlassSurface
+        tier="floating"
         className={cn(
-          'relative w-full max-w-lg bg-surface-card border border-border-subtle rounded-3xl p-6 shadow-2xl z-10 max-h-[90vh] overflow-y-auto text-text-primary',
+          'relative w-full max-w-lg rounded-3xl p-6 z-10 max-h-[90vh] overflow-y-auto text-text-primary',
           className
         )}
       >
@@ -55,7 +57,7 @@ export const Modal: React.FC<ModalProps> = ({
           </button>
         </div>
         {children}
-      </div>
+      </GlassSurface>
     </div>
   );
 };
