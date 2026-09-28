@@ -100,8 +100,7 @@ const DesignSystemScreen = isDevBuild
 
 // Navigation & Icons
 import { Map, Dumbbell, BarChart3, User } from 'lucide-react';
-import { BorderBeam } from '@/components/effects/BorderBeam';
-import { GlassEffectContainer, useGlassInteractive } from '@/components/glass/GlassEffectContainer';
+import { GlassEffectContainer } from '@/components/glass/GlassEffectContainer';
 
 type NavigationTab = 'Trail' | 'Practice' | 'Progress' | 'Profile';
 
@@ -485,7 +484,7 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
       <nav className="fixed bottom-0 start-0 end-0 z-40 mx-auto max-w-md px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         <GlassEffectContainer
           spacing={10}
-          activeKey={activeTab}
+          activeKey={null}
           className="kz-surface flex items-center justify-around"
         >
           <TabButton glassKey="Trail" active={activeTab === 'Trail'} onClick={() => setTab('Trail')} icon={<Map />} label="الرحلة" />
@@ -499,30 +498,27 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
 }
 
 function TabButton({ glassKey, active, onClick, icon, label }: { glassKey: string; active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
-  const press = useGlassInteractive<HTMLButtonElement>();
   return (
-    // The active tab wears the travelling comet; the `glassKey` is the identity the
-    // shared container shape morphs between.
-    <BorderBeam role="active" glassKey={glassKey} enabled={active} borderRadius={16} className="flex-1">
+    // The active tab wears a STATIC highlight (no travelling comet, no morph):
+    // the `glassKey` still identifies the tab for the container, but the active
+    // state is a fixed tinted pill — iOS-17-style glass, calm by default.
+    <div data-glass-key={glassKey} className="flex-1">
       <button
-        ref={press.ref}
         onClick={onClick}
-        onPointerDown={press.onPointerDown}
-        onPointerMove={press.onPointerMove}
-        onPointerUp={press.onPointerUp}
-        onPointerCancel={press.onPointerCancel}
-        onPointerLeave={press.onPointerLeave}
         aria-current={active ? 'page' : undefined}
-        className={`kz-interactive flex min-h-[48px] w-full flex-col items-center justify-center gap-1 rounded-2xl px-2 transition-colors ${
-          active ? 'text-kz-lavender' : 'text-kz-inkFaint hover:text-kz-inkDim'
+        className={`flex min-h-[48px] w-full flex-col items-center justify-center gap-1 rounded-2xl px-2 ${
+          active
+            ? 'bg-kz-lavender/10 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] text-kz-lavender'
+            : 'text-kz-inkFaint hover:text-kz-inkDim'
         }`}
       >
         {React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
           className: `w-5 h-5 ${active ? 'stroke-[2.5]' : ''}`,
-        })}
+        })
+        }
         <span className="font-arabic text-[10px]">{label}</span>
       </button>
-    </BorderBeam>
+    </div>
   );
 }
 
