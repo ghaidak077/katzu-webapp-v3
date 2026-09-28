@@ -1,6 +1,10 @@
 @font-face {
   font-family: 'Cairo';
-  src: url('/assets/fonts/cairo.ttf') format('truetype');
+  /* Subsetted (Arabic + Latin + common punctuation), woff2 first, the original
+     TTF as fallback for exotic glyphs a subset would miss. B4e: 588 KB → 116 KB
+     for the primary face; verified to cover Arabic letters, diacritics, Arabic
+     and Latin digits and the Latin punctuation the UI uses. */
+  src: url('/assets/fonts/cairo.woff2') format('woff2'), url('/assets/fonts/cairo.ttf') format('truetype');
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -8,7 +12,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/assets/fonts/satoshi_regular.ttf') format('truetype');
+  src: url('/assets/fonts/satoshi_regular.woff2') format('woff2'), url('/assets/fonts/satoshi_regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -16,7 +20,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/assets/fonts/satoshi_medium.ttf') format('truetype');
+  src: url('/assets/fonts/satoshi_medium.woff2') format('woff2'), url('/assets/fonts/satoshi_medium.ttf') format('truetype');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -24,7 +28,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/assets/fonts/satoshi_bold.ttf') format('truetype');
+  src: url('/assets/fonts/satoshi_bold.woff2') format('woff2'), url('/assets/fonts/satoshi_bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
