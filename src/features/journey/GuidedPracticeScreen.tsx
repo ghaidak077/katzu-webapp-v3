@@ -59,9 +59,14 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
     () => (vocabTopic ? db.vocabulary.where('topic').equals(vocabTopic).toArray() : Promise.resolve<VocabularyEntity[]>([])),
     [vocabTopic],
   );
+  // `grammar` rows are global (the D1 table has no scenario link), so the rule
+  // for today is chosen from the whole table in `selectGrammarRule`.
+  const grammarQ = useLiveQuery(() => db.grammar.toArray());
 
   const [retrievalAnswer, setRetrievalAnswer] = useState('');
   const [retrievalOutcome, setRetrievalOutcome] = useState<RetrievalOutcome | null>(null);
+  const [grammarAnswer, setGrammarAnswer] = useState('');
+  const [grammarOutcome, setGrammarOutcome] = useState<RetrievalOutcome | null>(null);
   const [heardText, setHeardText] = useState('');
   const [repeatMessage, setRepeatMessage] = useState<string | null>(null);
   const [repeatTone, setRepeatTone] = useState<'earned' | 'neutral'>('neutral');
@@ -77,8 +82,8 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
   );
 
   const practice = useMemo(
-    () => buildGuidedPractice({ phrases: phrasesQ || [], vocabulary: vocabQ || [], level }),
-    [phrasesQ, vocabQ, level],
+    () => buildGuidedPractice({ phrases: phrasesQ || [], vocabulary: vocabQ || [], grammar: grammarQ || [], level }),
+    [phrasesQ, vocabQ, grammarQ, level],
   );
 
   const { speak, isPlaying, activeCharIndex } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
@@ -145,6 +150,20 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
     triggerHaptic(outcome.verdict === 'correct' ? 'success' : 'light');
   };
 
+  /**
+   * The rule's own example, produced from its Arabic meaning.
+   *
+   * Deliberately a production and not a recognition tap: the grammar beat has to
+   * cost the learner the same thing every other step does — recalling German —
+   * otherwise it is a reading card wearing a drill's clothes.
+   */
+  const handleCheckGrammar = () => {
+    if (!practice.grammar) return;
+    const outcome = gradeTypedProduction(practice.grammar.exampleDe, grammarAnswer);
+    setGrammarOutcome(outcome);
+    triggerHaptic(outcome.verdict === 'correct' ? 'success' : 'light');
+  };
+
   const handleOpenDeepPractice = async () => {
     try {
       await persistPractice();
@@ -159,12 +178,16 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
     speak(card.de);
   };
 
-  const handled = [retrievalOutcome !== null, repeatMessage !== null].filter(Boolean).length;
+  const handled = [retrievalOutcome !== null, grammarOutcome !== null, repeatMessage !== null].filter(Boolean).length;
+  // Two steps without a rule on this device, three with one — the rail must
+  // never promise a step the learner has no way to finish.
+  const totalSteps = practice.grammar ? 3 : 2;
+  const totalStepsAr = totalSteps === 3 ? '٣' : '٢';
 
   // The deck comes from local content, so this is usually a single frame on a warm
   // cache — but it is still a load, and it is announced in the app's one processing
   // language rather than flashed as a blank screen.
-  if (phrasesQ === undefined || vocabQ === undefined) {
+  if (phrasesQ === undefined || vocabQ === undefined || grammarQ === undefined) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black px-4">
         <KatzuThinking size={64} labelAr="نُجهّز تدريب اليوم…" />
@@ -209,7 +232,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
         ) : (
           <>
             {/* 1. The phrases. Playable, LTR-isolated, with the Arabic gloss. */}
-            <ul className="space-y-2.5">
+            <ul className={practice.cards.length === 0 ? 'hidden' : 'space-y-2.5'}>
               {practice.cards.map((card) => (
                 <li key={card.id}>
                   <GlassCard tier="glass" className="animate-kz-rise">
@@ -238,9 +261,86 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
               ))}
             </ul>
 
-            {/* 2. One retrieval: produce the German from the Arabic meaning. */}
+            {/* 2. Today's rule, then its example produced from the Arabic meaning.
+                   This is the "explain" beat between the story and the conversation,
+                   and it comes from a real grammar row — never generated text. */}
+            {practice.grammar && (
+              <GlassCard tier="glass" data-testid="grammar-card" className="mt-4 animate-kz-rise">
+                <p className="kz-ar-micro mb-2 text-kz-inkFaint">
+                  قاعدة اليوم · {practice.grammar.level}
+                </p>
+                <h3 className="kz-ar-body text-kz-ink">{practice.grammar.titleAr}</h3>
+                <p className="kz-ar-caption mt-1.5 leading-relaxed text-kz-inkDim">{practice.grammar.ruleAr}</p>
+                {practice.grammar.ruleDe && (
+                  <GermanText className="kz-de-caption mt-1.5 block text-kz-inkFaint">
+                    {practice.grammar.ruleDe}
+                  </GermanText>
+                )}
+
+                <p className="kz-ar-caption mt-3 text-kz-ink">
+                  اكتب بالألمانية ما تعنيه:{' '}
+                  <span className="font-bold">{practice.grammar.exampleAr}</span>
+                </p>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={grammarAnswer}
+                  onChange={(event) => setGrammarAnswer(event.target.value)}
+                  onKeyDown={(event) => event.key === 'Enter' && handleCheckGrammar()}
+                  placeholder="Schreibe hier auf Deutsch…"
+                  aria-label="اكتب جملة القاعدة بالألمانية"
+                  className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink outline-none transition-colors placeholder:font-arabic placeholder:text-[0.72rem] placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                />
+                <div className="mt-3 flex items-center gap-2">
+                  <GlassButton
+                    variant={grammarOutcome?.tone === 'earned' ? 'earned' : 'secondary'}
+                    onClick={handleCheckGrammar}
+                    disabled={!grammarAnswer.trim()}
+                    className="flex-1"
+                  >
+                    <Check className="h-4 w-4" />
+                    تحقق
+                  </GlassButton>
+                  {grammarOutcome?.verdict !== 'correct' && (
+                    <GlassButton
+                      variant="quiet"
+                      onClick={() =>
+                        setGrammarOutcome({
+                          verdict: 'wrong',
+                          tone: 'neutral',
+                          messageAr: `الجملة الصحيحة: ${practice.grammar!.exampleDe}`,
+                        })
+                      }
+                    >
+                      أرني الصحيحة
+                    </GlassButton>
+                  )}
+                </div>
+                {grammarOutcome && (
+                  <>
+                    <p
+                      className={`kz-ar-caption mt-3 ${
+                        grammarOutcome.tone === 'earned' ? 'kz-earned-text' : 'text-kz-inkDim'
+                      }`}
+                    >
+                      {grammarOutcome.messageAr}
+                    </p>
+                    <GermanText className="kz-de-body mt-1 block text-kz-ink">
+                      {practice.grammar.exampleDe}
+                    </GermanText>
+                    {practice.grammar.explanationAr && (
+                      <p className="kz-ar-micro mt-2 leading-relaxed text-kz-inkFaint">
+                        {practice.grammar.explanationAr}
+                      </p>
+                    )}
+                  </>
+                )}
+              </GlassCard>
+            )}
+
+            {/* 3. One retrieval: produce the German from the Arabic meaning. */}
             {practice.retrieval && (
-              <GlassCard tier="glass" className="mt-4">
+              <GlassCard tier="glass" data-testid="retrieval-card" className="mt-4">
                 <p className="kz-ar-micro mb-2 text-kz-inkFaint">استرجاع سريع</p>
                 <p className="kz-ar-body text-kz-ink">
                   قل أو اكتب بالألمانية: <span className="font-bold">{practice.retrieval.promptAr}</span>
@@ -292,7 +392,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
               </GlassCard>
             )}
 
-            {/* 3. One listening moment: hear it, repeat it, and see what was heard. */}
+            {/* 4. One listening moment: hear it, repeat it, and see what was heard. */}
             {practice.listening && (
               <GlassCard tier="glass" className="mt-4">
                 <p className="kz-ar-micro mb-2 text-kz-inkFaint">استمع وكرّر</p>
@@ -392,9 +492,11 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
         <GlassWell className="mt-5 p-3.5">
           <div className="mb-2 flex items-center justify-between">
             <span className="kz-ar-micro text-kz-inkDim">جاهزيتك لهذا الموقف</span>
-            <span className="kz-ar-micro text-kz-inkFaint">{handled} من ٢ خطوات</span>
+            <span className="kz-ar-micro text-kz-inkFaint">
+              {handled} من {totalStepsAr} خطوات
+            </span>
           </div>
-          <ProgressRail value={handled} max={2} />
+          <ProgressRail value={handled} max={totalSteps} />
           <p className="kz-ar-micro mt-2 text-kz-inkFaint">
             هذا ليس تقييماً — إنه تمرين. المحادثة هي المكان الذي نقيس فيه فعلاً.
           </p>

@@ -23,8 +23,12 @@ test('an A2 learner is not gated before their first episode', async ({ page }) =
   await expect(page.getByText('عضوية Katzu Pro')).toHaveCount(0);
   await expect(page.getByText(/يُفتح مع Pro|ميزة Pro/)).toHaveCount(0);
 
-  // And today's mission opens the episode instead of a wall.
-  const primary = page.getByRole('button', { name: 'ابدأ مهمة اليوم' });
+  // And today's mission opens the episode instead of a wall. The label is the
+  // plan's own, so it differs by mission — what matters here is that it opens the
+  // episode rather than a paywall.
+  // `ابدأ تدريب` rather than `تدريب`, so the bottom navigation's "التدريب" tab is
+  // not matched as well as the mission's own action.
+  const primary = page.getByRole('button', { name: /ابدأ مهمة اليوم|ابدأ من لحظة الوصول|أكمل من حيث توقفت|ابدأ مشهداً جديداً|ابدأ تدريب/ });
   await expect(primary).toBeEnabled();
   await primary.click();
   await expect(page).toHaveURL(/\/scenario\/(.+)\/story$/);

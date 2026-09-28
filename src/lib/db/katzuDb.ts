@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import { INTRO_SCENARIO_ID } from '@/lib/mission/selectMission';
 import type {
   ScenarioEntity,
   StarterPhraseEntity,
@@ -364,4 +365,203 @@ export async function initializeDatabaseSeed(): Promise<void> {
       }
     ]);
   }
+
+  // Additive and independent of the empty-table guards above — see the function.
+  await seedStoryOpening();
+}
+
+/**
+ * The story's opening scene: arriving in Germany.
+ *
+ * Why this is not part of the fixtures above: those are inserted only while a
+ * content table is *empty*, so a device that already holds the six teaching
+ * scenarios would never be given a seventh — and the arrival scene is the episode
+ * the whole story starts from, so a learner updating from a previous build has to
+ * receive it too. `selectDailyMission` and `buildJourneyContext` read
+ * `INTRO_SCENARIO_ID`, which is the same id this row carries.
+ *
+ * Three rules keep it safe to run on every launch:
+ *   - `add`, never `put`: an id that already exists is skipped, so a real D1 row
+ *     is never overwritten by a fixture;
+ *   - ids start at `OPENING_FIXTURE_ID`, far above the range D1 assigns to
+ *     curriculum rows, so an accidental collision would require a thousand rows
+ *     of that type — and even then the existence check skips rather than clobbers;
+ *   - it is idempotent: on the second run every lookup finds its row and nothing
+ *     is written.
+ *
+ * The German and Arabic below are authored seed text for the offline/first-run
+ * fallback, exactly like the six fixtures above it. Production curriculum is owned
+ * by D1: once the same `id` exists there, `fetchScenarios` replaces this copy on
+ * the next content fetch. It has **not** been through the content team's review,
+ * so it is a starting scene to review, not an approved lesson.
+ */
+const OPENING_FIXTURE_ID = 1000;
+
+async function seedStoryOpening(): Promise<void> {
+  const scenario: ScenarioEntity = {
+    id: INTRO_SCENARIO_ID,
+    title_de: 'Am Flughafen ankommen',
+    title_ar: 'الوصول إلى المطار',
+    ai_persona: 'Grenzbeamte katze',
+    category: 'travel',
+    icon: 'plane',
+    initial_message_a1: 'Guten Tag. Ihren Pass, bitte.',
+    initial_message_a2:
+      'Guten Tag und willkommen in Deutschland. Darf ich bitte Ihren Pass und Ihre Bordkarte sehen?',
+    initial_message_b1:
+      'Guten Tag. Sie kommen von weit her, richtig? Wie lange möchten Sie in Deutschland bleiben?',
+    initial_message_b2:
+      'Guten Tag und willkommen in Berlin. Sie reisen zum Studium ein — haben Sie Zulassungsbescheid und Finanzierungsnachweis dabei?',
+  };
+  if (!(await db.scenarios.get(scenario.id))) await db.scenarios.add(scenario);
+
+  const phrases: StarterPhraseEntity[] = [
+    {
+      id: OPENING_FIXTURE_ID + 1,
+      scenario_id: INTRO_SCENARIO_ID,
+      level: 'A1',
+      german: 'Guten Tag. Hier ist mein Pass.',
+      translation_en: 'Good day. Here is my passport.',
+      translation_ar: 'نهارك سعيد. هذا جواز سفري.',
+      sort_order: 1,
+    },
+    {
+      id: OPENING_FIXTURE_ID + 2,
+      scenario_id: INTRO_SCENARIO_ID,
+      level: 'A1',
+      german: 'Ich bin zum ersten Mal in Deutschland.',
+      translation_en: 'This is my first time in Germany.',
+      translation_ar: 'هذه أول مرة لي في ألمانيا.',
+      sort_order: 2,
+    },
+    {
+      id: OPENING_FIXTURE_ID + 3,
+      scenario_id: INTRO_SCENARIO_ID,
+      level: 'A1',
+      german: 'Ich bleibe zwei Wochen.',
+      translation_en: 'I am staying for two weeks.',
+      translation_ar: 'سأبقى أسبوعين.',
+      sort_order: 3,
+    },
+    {
+      id: OPENING_FIXTURE_ID + 4,
+      scenario_id: INTRO_SCENARIO_ID,
+      level: 'A1',
+      german: 'Ich habe eine Adresse in Berlin.',
+      translation_en: 'I have an address in Berlin.',
+      translation_ar: 'لدي عنوان في برلين.',
+      sort_order: 4,
+    },
+    {
+      id: OPENING_FIXTURE_ID + 5,
+      scenario_id: INTRO_SCENARIO_ID,
+      level: 'A1',
+      german: 'Wo ist mein Koffer, bitte?',
+      translation_en: 'Where is my suitcase, please?',
+      translation_ar: 'أين حقيبتي، من فضلك؟',
+      sort_order: 5,
+    },
+    {
+      id: OPENING_FIXTURE_ID + 6,
+      scenario_id: INTRO_SCENARIO_ID,
+      level: 'A1',
+      german: 'Können Sie das bitte wiederholen?',
+      translation_en: 'Could you please repeat that?',
+      translation_ar: 'هل يمكنك إعادة ذلك من فضلك؟',
+      sort_order: 6,
+    },
+  ];
+  const missingPhrases: StarterPhraseEntity[] = [];
+  for (const phrase of phrases) {
+    if (!(await db.starter_phrases.get(phrase.id))) missingPhrases.push(phrase);
+  }
+  if (missingPhrases.length > 0) await db.starter_phrases.bulkAdd(missingPhrases);
+
+  // `topic: 'travel'` is the join Study, Quiz and Guided Practice read; without
+  // it these words load into a pool no screen ever queries.
+  const words: VocabularyEntity[] = [
+    {
+      id: OPENING_FIXTURE_ID + 1,
+      german: 'Pass',
+      article: 'der',
+      plural: 'Pässe',
+      part_of_speech: 'Noun',
+      translation_ar: 'جواز سفر',
+      translation_en: 'passport',
+      example_de: 'Hier ist mein Pass.',
+      example_ar: 'هذا جواز سفري.',
+      topic: 'travel',
+      level: 'A1',
+    },
+    {
+      id: OPENING_FIXTURE_ID + 2,
+      german: 'Koffer',
+      article: 'der',
+      plural: 'Koffer',
+      part_of_speech: 'Noun',
+      translation_ar: 'حقيبة سفر',
+      translation_en: 'suitcase',
+      example_de: 'Wo ist mein Koffer?',
+      example_ar: 'أين حقيبتي؟',
+      topic: 'travel',
+      level: 'A1',
+    },
+    {
+      id: OPENING_FIXTURE_ID + 3,
+      german: 'Flughafen',
+      article: 'der',
+      plural: 'Flughäfen',
+      part_of_speech: 'Noun',
+      translation_ar: 'مطار',
+      translation_en: 'airport',
+      example_de: 'Wir landen am Flughafen Berlin.',
+      example_ar: 'نهبط في مطار برلين.',
+      topic: 'travel',
+      level: 'A1',
+    },
+    {
+      id: OPENING_FIXTURE_ID + 4,
+      german: 'Bordkarte',
+      article: 'die',
+      plural: 'Bordkarten',
+      part_of_speech: 'Noun',
+      translation_ar: 'بطاقة الصعود',
+      translation_en: 'boarding pass',
+      example_de: 'Hier ist meine Bordkarte.',
+      example_ar: 'هذه بطاقة صعودي.',
+      topic: 'travel',
+      level: 'A1',
+    },
+    {
+      id: OPENING_FIXTURE_ID + 5,
+      german: 'Ankunft',
+      article: 'die',
+      plural: 'Ankünfte',
+      part_of_speech: 'Noun',
+      translation_ar: 'الوصول',
+      translation_en: 'arrival',
+      example_de: 'Die Ankunft ist um neun Uhr.',
+      example_ar: 'الوصول في الساعة التاسعة.',
+      topic: 'travel',
+      level: 'A1',
+    },
+    {
+      id: OPENING_FIXTURE_ID + 6,
+      german: 'Gepäck',
+      article: 'das',
+      plural: 'Gepäck',
+      part_of_speech: 'Noun',
+      translation_ar: 'الأمتعة',
+      translation_en: 'luggage',
+      example_de: 'Mein Gepäck ist noch im Flugzeug.',
+      example_ar: 'أمتعتي ما زالت في الطائرة.',
+      topic: 'travel',
+      level: 'A1',
+    },
+  ];
+  const missingWords: VocabularyEntity[] = [];
+  for (const word of words) {
+    if (!(await db.vocabulary.get(word.id))) missingWords.push(word);
+  }
+  if (missingWords.length > 0) await db.vocabulary.bulkAdd(missingWords);
 }

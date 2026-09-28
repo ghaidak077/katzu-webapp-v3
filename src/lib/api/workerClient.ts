@@ -433,7 +433,7 @@ export class WorkerClient {
 
     if (res.status === 401) {
       const data = await res.json().catch(() => ({}));
-      const error: any = new Error(data.message || 'يرجى تسجيل الدخول أولاً للمتابعة.');
+      const error: any = new Error('انتهت جلسة الدخول. يرجى تسجيل الدخول مرة أخرى للمتابعة.');
       error.code = 'UNAUTHENTICATED';
       error.status = 401;
       throw error;
@@ -441,7 +441,7 @@ export class WorkerClient {
 
     if (res.status === 402 || res.status === 403) {
       const data = await res.json().catch(() => ({}));
-      const error: any = new Error(data.message || 'هذه الميزة تتطلب اشتراك Katzu Pro نشط.');
+      const error: any = new Error('هذه الميزة تتطلب اشتراك Katzu Pro نشط.');
       error.code = data.code || 'PAYWALL_REQUIRED';
       error.status = res.status;
       throw error;
@@ -449,7 +449,7 @@ export class WorkerClient {
 
     if (res.status === 429) {
       const data = await res.json().catch(() => ({}));
-      const error: any = new Error(data.message || 'تم تجاوز الحد الأقصى للطلبات مؤقتاً.');
+      const error: any = new Error('تم تجاوز الحد الأقصى للطلبات مؤقتاً. جرّب بعد دقيقة — نصّك محفوظ.');
       error.code = 'RATE_LIMIT_EXCEEDED';
       error.status = 429;
       throw error;
@@ -457,7 +457,7 @@ export class WorkerClient {
 
     if (res.status === 503) {
       const data = await res.json().catch(() => ({}));
-      const error: any = new Error(data.message || 'خدمة المحادثة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً.');
+      const error: any = new Error('خدمة المحادثة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً — نصّك محفوظ.');
       error.code = data.code || 'SERVICE_UNAVAILABLE';
       error.status = 503;
       throw error;
@@ -469,12 +469,14 @@ export class WorkerClient {
       // the error card shows the real cause, never a raw English status line.
       const data = await res.json().catch(() => ({} as any));
       const friendlyByStatus: Record<number, string> = {
-        500: 'حدث خطأ غير متوقع في الخادم. حاول مرة أخرى.',
-        502: 'تعذر توليد رد الذكاء الاصطناعي حالياً. حاول إعادة الإرسال بعد لحظات.',
-        504: 'استغرق توليد الرد وقتاً طويلاً جداً. حاول إعادة الإرسال.',
+        400: 'تعذر فهم بيانات المحادثة. راجع جملتك وحاول مرة أخرى.',
+        408: 'انتهت مهلة الاتصال بالخادم. جملتك محفوظة — أعد الإرسال عندما يعود الاتصال.',
+        500: 'حدث خطأ غير متوقع في الخادم. جملتك محفوظة — حاول مرة أخرى.',
+        502: 'تعذر توليد رد الذكاء الاصطناعي حالياً. جملتك محفوظة — حاول إعادة الإرسال بعد لحظات.',
+        504: 'استغرق توليد الرد وقتاً طويلاً جداً. جملتك محفوظة — حاول إعادة الإرسال.',
       };
       const error: any = new Error(
-        data?.message || friendlyByStatus[res.status] || `تعذر إكمال المحادثة (رمز ${res.status}). حاول مرة أخرى.`,
+        friendlyByStatus[res.status] || 'تعذر إكمال المحادثة الآن. جملتك محفوظة — حاول مرة أخرى لاحقاً.',
       );
       error.status = res.status;
       error.code = data?.code || 'AI_TURN_HTTP_ERROR';

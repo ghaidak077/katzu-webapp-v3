@@ -1,4 +1,4 @@
-import type { CEFRLevel, ScenarioEntity } from '@/types/models';
+import type { ArrivalStatus, CEFRLevel, ScenarioEntity } from '@/types/models';
 
 /**
  * The episode opening.
@@ -27,6 +27,37 @@ export interface StorySetup {
   openingLevel: CEFRLevel;
   /** One line Katzu says before the learner starts. */
   katzuAr: string;
+  /**
+   * The learner's own name, when the profile holds a real one. `null` means
+   * "no name to use" — never an empty string the UI has to guard against, and
+   * never the seeded placeholder, which would address everyone as "explorer".
+   */
+  learnerName: string | null;
+}
+
+/**
+ * The seeded/none names that must never be spoken back to the learner.
+ *
+ * `كجد` is the row `initializeDatabaseSeed` writes before sign-in; greeting a
+ * signed-in learner with it would be the app mistaking a placeholder for a name.
+ */
+const PLACEHOLDER_NAMES = new Set(['مستكشف كَاتْزُو', 'طالب كَاتْزُو', 'متعلّم كاتزو', 'Katzu']);
+
+/**
+ * The learner's name, ready to be addressed by — or `null`.
+ *
+ * First whitespace-separated token only: a Google display name is often a full
+ * legal name, and a language app that greets you by your full name reads like a
+ * form, not a friend. Anything email-shaped is refused outright, for the same
+ * reason `sanitizeDisplayName` refuses it on the share card.
+ */
+export function learnerName(displayName: string | null | undefined): string | null {
+  const raw = String(displayName || '').trim();
+  if (!raw || raw.includes('@')) return null;
+  if (PLACEHOLDER_NAMES.has(raw)) return null;
+  const first = raw.split(/\s+/)[0] || '';
+  if (!first || PLACEHOLDER_NAMES.has(first)) return null;
+  return first;
 }
 
 const LEVEL_ORDER: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
@@ -34,6 +65,9 @@ const LEVEL_ORDER: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
 /** Persona strings come from the CMS ("Barista katze"); map them to real roles. */
 /** Exported for the test that asserts every known persona maps to a real role. */
 export const PERSONA_ROLES: Array<{ keywords: string[]; roleAr: string }> = [
+  // Airport first: it is the story's opening scene, and a border officer is not
+  // the generic "موظف في الدائرة الرسمية" the `beamte` entry below would give.
+  { keywords: ['grenz', 'zoll', 'passkontrolle', 'flughafen'], roleAr: 'موظف جوازات المطار' },
   { keywords: ['barista', 'café', 'cafe'], roleAr: 'عامل المقهى' },
   { keywords: ['bäcker', 'baecker', 'baker'], roleAr: 'الخبّاز' },
   { keywords: ['doktor', 'arzt', 'doctor'], roleAr: 'الطبيب' },
@@ -82,16 +116,26 @@ export interface BuildStoryInput {
   taskAr?: string;
   /** True when the learner resumed an episode they already started. */
   returning?: boolean;
+  /** The learner's display name, straight from the profile row. */
+  displayName?: string | null;
+  /** Where they are in the move; it decides what Katzu says first. */
+  arrivalStatus?: ArrivalStatus | null;
 }
 
 export function buildStorySetup(input: BuildStoryInput): StorySetup {
   const { scenario, level, locationAr, whyAr, returning = false } = input;
   const opening = openingFor(scenario, level);
   const who = roleFor(scenario.ai_persona);
+  const name = learnerName(input.displayName);
+  // "ياسمين، " when the profile holds a real name; nothing at all otherwise, so
+  // the sentence never opens on a stray comma.
+  const vocative = name ? `${name}، ` : '';
 
   const situationAr = returning
     ? `عاد المشهد إلى صندوق مهمتك: أنت الآن في ${locationAr}، والمحادثة تنتظرك من حيث توقفت تقريباً.`
-    : `أنت الآن في ${locationAr}. ${who} يقترب منك ويبدأ الحديث بالألمانية.`;
+    : name
+      ? `${vocative}أنت الآن في ${locationAr}. ${who} يقترب منك ويبدأ الحديث بالألمانية.`
+      : `أنت الآن في ${locationAr}. ${who} يقترب منك ويبدأ الحديث بالألمانية.`;
 
   return {
     locationAr,
@@ -101,8 +145,35 @@ export function buildStorySetup(input: BuildStoryInput): StorySetup {
     taskAr: input.taskAr || `ستتحدث مع ${who} وتُخرج جُملَك بنفسك — بالألمانية، بصوتك أو بكتابتك.`,
     openingDe: opening.text,
     openingLevel: opening.level,
-    katzuAr: returning
-      ? 'لا نحتاج أن نتذكر كل شيء — سنستمع أولاً، ثم تتحدث أنت.'
-      : 'استمع للجملة الأولى مرة أو مرتين. لا تحفظها — فقط تعرّف على الموقف.',
+    katzuAr: katzuOpeningLineAr({ name, arrivalStatus: input.arrivalStatus, returning }),
+    learnerName: name,
   };
+}
+
+/**
+ * Katzu's first words — the friend at the learner's side, not a system notice.
+ *
+ * Three things are allowed to change this line, and nothing else: whether the
+ * learner has a real name, where they are in the move, and whether this is a
+ * new episode or a return to one. A learner still packing gets a promise, one who
+ * just landed gets the arrival, and one already living here gets the practical
+ * framing — which is the difference between a companion and a slogan.
+ */
+function katzuOpeningLineAr(input: {
+  name: string | null;
+  arrivalStatus?: ArrivalStatus | null;
+  returning: boolean;
+}): string {
+  if (input.returning) return 'لا نحتاج أن نتذكر كل شيء — سنستمع أولاً، ثم تتحدث أنت.';
+
+  const vocative = input.name ? `${input.name}، ` : '';
+  const role = vocative ? `أنا كَاتْزُو، رفيقك هنا. ` : 'أنا كَاتْزُو، رفيقك في هذه الرحلة. ';
+
+  if (input.arrivalStatus === 'preparing') {
+    return `${vocative}${role}سنتدرّب على هذا الموقف قبل أن تقف فيه فعلاً — بلا ضغط وبلا حكم.`;
+  }
+  if (input.arrivalStatus === 'recently_arrived') {
+    return `${vocative}${role}وصلت حديثاً، فلنبدأ بأول موقف ستقابله هنا.`;
+  }
+  return `${vocative}${role}استمع للجملة الأولى مرة أو مرتين، ثم تحدّث أنت — سأصحّح لك بالعربية بعدها.`;
 }

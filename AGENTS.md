@@ -114,36 +114,44 @@ Do not introduce:
 
 Use the existing patterns first.
 
+Dev-only tooling (axe-core, font subsetting) may be added as devDependencies for verification; nothing new ships in the runtime bundle.
+
 ==================================================
-4. CONTENT BOUNDARY
+4. CONTENT BOUNDARY (updated: gated AI authoring is permitted)
 ==================================================
 
-The content team owns curriculum authoring.
+The owner has authorised the agent to author curriculum content under the Content Gate below.
+The old rule "the content team owns all authoring" no longer blocks this work.
 
-Do not invent, rewrite, or silently change:
-- German scenarios.
-- German vocabulary.
-- Grammar explanations.
-- Arabic translations.
-- Starter phrases.
-- CEFR classifications.
-- Exam tasks.
-- Content IDs.
-- D1 content rows.
-- Curriculum JSON.
+The agent MAY:
+- Author new scenarios, starter phrases, vocabulary and grammar rows as reviewable JSON modules
+  in docs/content/, following docs/CONTENT-AUTHORING-PROMPT.md (schema) and
+  docs/CONTENT-STRATEGY-ROADMAP.md (story, personas, order).
+- Add optional, additive schema fields when a feature needs them (backward compatible, with an
+  empty state, documented).
 
-Do not create fake curriculum content to make a feature appear complete.
+The Content Gate (mandatory for every module):
+1. Run node scripts/audit-curriculum.mjs --file=<module>.json and fix every reported error.
+2. Adversarial self-review: reload the module with fresh context and grade every row, item by
+   item, against the CONTENT-AUTHORING-PROMPT.md quality bar. Hunt like a native reviewer: wrong
+   article/gender, wrong du/Sie register, calques, unnatural Arabic, and any claim about German
+   bureaucracy stated with more certainty than you actually have. Fix, then re-review. Max 3 rounds.
+3. Only when a round finds zero issues: review.status = "approved",
+   reviewedBy = "AI self-review — <model name>, no human review", reviewedAt = real timestamp.
+   NEVER write a human name. If issues remain after 3 rounds, leave status "pending" and list
+   exactly what is wrong.
+4. Each module gets a short per-scenario confidence note in the report naming what a human
+   spot-check should look at first.
 
-The application must work dynamically with existing content and handle missing content gracefully.
+The agent must NOT:
+- Change or redefine existing content IDs, or rewrite existing approved rows in place.
+- Write to production D1. The agent stops at a passing audit plus a dry run of
+  scripts/load-curriculum.mjs; the owner runs --commit (it needs the D1:Edit token).
+- Invent filler content to make a screen look full, duplicate ids to hit a count, or present
+  uncertain bureaucratic facts as certain (flag them instead).
 
-If a feature requires additional content fields:
-- Add optional schema support.
-- Preserve backward compatibility.
-- Add an empty state.
-- Document the exact content contract needed.
-- Do not fill the fields with invented content.
-
-UI labels, error messages, navigation labels, and product copy may be improved when necessary, but do not alter learning content without explicit approval.
+The app must still work with missing content and show honest empty states.
+UI labels, error messages and product copy may be improved freely.
 
 ==================================================
 5. OPERATING MODE: INSPECT, PLAN, BUILD, VERIFY
@@ -506,6 +514,7 @@ Never share private mistakes, full conversations, email addresses, or sensitive 
 12. CURRENT HIGH-PRIORITY PRODUCT BACKLOG
 ==================================================
 
+When asked to "finish everything", execute §25 in order.
 When asked to “improve the app,” work in this order unless the owner explicitly changes priorities.
 
 Priority 1:
@@ -851,9 +860,11 @@ At minimum, test:
 Run the appropriate checks:
 
 npm run lint
+npx tsc -p e2e --noEmit
 npm test -- --run
 npm run build
 node --check cloudflare-unified-worker.js
+npx playwright test (run per §24 rules)
 
 For user-visible changes, verify in a running preview or live environment when available.
 
@@ -972,3 +983,112 @@ Build the smallest complete answer to those questions.
 Make Katzu feel patient, honest, practical, Arabic-native, and relentlessly useful.
 
 Ship finished learning outcomes, not feature collections.
+
+==================================================
+24. AUTONOMOUS RUN PROTOCOL
+==================================================
+
+Goal: finish the whole master backlog (§25) in one continuous run, resumable if interrupted.
+
+State ledger
+- Keep docs/AGENT-STATE.md: one line per backlog item with status todo / doing / done / blocked,
+  the evidence (command + result) for done items, and the reason for blocked items.
+- At the start of every session read AGENTS.md, docs/AGENT-STATE.md, git status and git log -10.
+  Resume at the first item that is not done. Do not redo done items unless a test proves a
+  regression. Never claim progress that is not in the ledger.
+- Update the ledger and commit it after every item, before starting the next.
+
+Continuity
+- Do not stop to ask between items. Continue until every item is done or blocked.
+- Blocked means: needs a secret, a payment/legal/business decision, or an owner-only action (§26).
+  Record it, move to the next independent item, and list it in the final report.
+- If context is nearly full, write the ledger first, then continue.
+
+Checkpoints and git
+- Work on branch launch-hardening (create if absent). Commit after each item that passes its gate.
+- Separate commits per concern: content, schema, code, tests, docs.
+- The tree may already be dirty. Do not reset, clean or discard. Commit pre-existing changes
+  first as their own commit ("pre-existing work, checkpointed") so nothing is lost.
+- Git credentials are managed by the platform. Never ask the owner for a token.
+
+Long commands (the sandbox kills blocking commands after a deadline)
+- Run playwright, builds and long suites in the background with output to a log
+  (nohup <cmd> > logs/<name>.log 2>&1 &) and poll the log with tail.
+- Run playwright one spec file at a time, one worker.
+- A timeout is neither a pass nor a fail: rerun it. Never count an unfinished run as green.
+
+Tests and flakiness
+- A flaky test is a bug. Reproduce up to 3 times and fix the root cause (wait on real
+  conditions, not fixed delays). Never skip, delete or loosen a test just to go green. If an
+  assertion must change, say why in the commit message.
+
+Evidence
+- An item is "done" only with its gate command and result recorded in the ledger.
+
+==================================================
+25. MASTER BACKLOG (ordered; each item has a gate)
+==================================================
+
+0. Baseline. Checkpoint the tree (§24). Record lint / e2e-typecheck / vitest / build numbers.
+1. Green E2E. Move the failing chat-bubble assertion into the live-conversation test (where the
+   bubbles are mounted). Stabilise e2e/banner.spec.ts. Gate: every spec passes, one by one, twice.
+2. Content contract. Change "exactly 8 scenarios per module" to "5–8" in
+   CONTENT-AUTHORING-PROMPT.md and in the audit script and its tests; make the roadmap doc
+   consistent. Gate: audit passes on the existing module; tests pass.
+3. Learning-loop wiring (smallest change only):
+   a. Pass the scenario's vocabulary pool (bounded) into the live conversation turn context.
+   b. Add an optional additive grammar_id link so a conversation correction can reference the
+      grammar row Guided Practice shows; empty state when absent; backward compatible.
+   Gate: unit tests for both, plus a written end-to-end trace of one episode.
+4. Content. Author modules per §4 and the roadmap: airport_arrival first (full authored
+   replacement of the fixture), then chapter by chapter. bakery_shopping and train_station are
+   rewritten to full quality under their existing ids. Every module through the Content Gate.
+   Gate: each module audits clean with a review outcome; an all-roster test asserts every
+   scenario has 4 opener levels, phrases, a vocab pool in range, and a grammar row.
+5. Performance.
+   a. Bound the JourneyHome Dexie queries (indexed, limited); prove identical output on fixtures.
+   b. Replace external Unsplash art with local optimised images in public/scenes/. If final art
+      does not exist, generate simple placeholders and label them as placeholders.
+   c. Wire a React-level renderer tier so glass blur/saturation/grain drop on low tier.
+   d. Split LiveConversationScreen mechanically (hook + dock + transcript), zero behaviour
+      change; conversation specs identical before and after.
+   e. Subset Cairo (and Satoshi if worthwhile) to woff2, verifying Arabic and Latin glyphs on
+      real screens.
+   f. Remove worker code proven unreachable by repo-wide search, in small edits.
+   Gate: before/after build numbers in the ledger; all tests green.
+6. Accessibility. Add axe-core as a devDependency; run it on Trail, Story Setup, Guided
+   Practice, Live Conversation, Review and Debrief. Fix all critical/serious findings. Check text
+   contrast on glass at both tiers and 44px targets at 360px. Gate: zero critical/serious.
+7. Reliability. Screen-by-screen offline audit of every /app/* route; add the missing
+   network-drop-mid-recording test; confirm every AI/voice failure has an Arabic message and a
+   way forward. Gate: a test exists for each failure mode.
+8. Docs. Update LAUNCH-CHECKLIST.md (fix stale claims such as "no client crash capture";
+   distinguish fixture / draft / live counts; leave §2 owner items untouched), current-state.md
+   and the implementation log.
+9. Final regression. Run the full §20 list, rebuild twice for determinism, then merge per §26.
+
+==================================================
+26. MERGE, DEPLOY AND OWNER-ONLY BOUNDARY
+==================================================
+
+Merge: when every backlog gate is green (or an item is honestly blocked), merge launch-hardening
+into main. CI only verifies; it does not deploy. Never force-push or rewrite published history.
+
+Never, under any circumstance:
+- Run a deploy command (npm run deploy:worker, wrangler deploy, Pages deploy).
+- Write to production D1, or change, rotate or print any secret.
+- Touch payments/crypto, ADMIN_SECRET, the Google OAuth audience, admin hosting, legal or store
+  paperwork, or domain attachment. These are owner-only (docs/LAUNCH-CHECKLIST.md §2).
+- Run live-verification scripts that need real secrets.
+
+==================================================
+27. FINAL REPORT RULES
+==================================================
+
+Use the §22 format. Additionally:
+- List each backlog item as done or blocked, with evidence.
+- List every module's review outcome and confidence note.
+- End with exactly one of:
+  A) "Code merged to main. All gates green. Code-ready, not launched: <open owner items>."
+  B) "Work incomplete: <items not done and why>. Nothing was marked done without evidence."
+- Never end with A unless every gate really passed.

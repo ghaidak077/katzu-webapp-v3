@@ -11,19 +11,52 @@ import { bootSignedIn, orb, say, silence, turn } from './harness';
  * hand-off between the five screens actually happens.
  */
 
+/**
+ * The one primary action, whatever today's mission is.
+ *
+ * The label is the plan's own (`DailyMissionPlan.ctaAr`), so it changes with the
+ * mission — the arrival episode says "ابدأ من لحظة الوصول" while a scheduled day
+ * says "ابدأ مهمة اليوم (10 د)". These tests are about the *shape* of the screen
+ * (one action, no competitor), not about one day's wording.
+ */
+// `ابدأ تدريب` and not `تدريب`: the bottom navigation tab is labelled "التدريب",
+// and a looser pattern matched the tab as well as the mission's action.
+const PRIMARY_ACTION = /ابدأ مهمة اليوم|ابدأ من لحظة الوصول|أكمل من حيث توقفت|ابدأ مشهداً جديداً|ابدأ تدريب|راجع \d+ الآن/;
+
 test('Journey Home shows one mission, one action, and a real day count', async ({ page }) => {
   await bootSignedIn(page);
 
   await expect(page.getByText(/اليوم 1 · الفصل 1 من/)).toBeVisible();
 
-  const primary = page.getByRole('button', { name: 'ابدأ مهمة اليوم' });
+  const primary = page.getByRole('button', { name: PRIMARY_ACTION });
   await expect(primary).toBeVisible();
   await expect(primary).toBeEnabled();
   // Exactly one primary action: no competing hero card next to it.
-  await expect(page.getByRole('button', { name: /ابدأ مهمة اليوم|راجع .* الآن/ })).toHaveCount(1);
+  await expect(primary).toHaveCount(1);
 
   await primary.click();
   await expect(page).toHaveURL(/\/scenario\/.+\/story$/);
+});
+
+/**
+ * The story begins at the airport.
+ *
+ * The first episode is the arrival: a learner who has never started the opening
+ * scene is sent to it before the rotating daily pool, so the very first German
+ * they produce is spoken in the place their life in Germany begins. Asserted here
+ * rather than in a unit test because it is the whole arc, and the arc is a
+ * routing decision.
+ */
+test('the first episode is the arrival, not a random day', async ({ page }) => {
+  await bootSignedIn(page);
+
+  // The mission card names the opening, and the button is the plan's own wording
+  // for it — not the generic "start today's mission" every other day uses.
+  await expect(page.getByText('الوصول إلى المطار')).toBeVisible();
+  await expect(page.getByText('لحظة الوصول · أول موقف في القصة')).toBeVisible();
+  await page.getByRole('button', { name: 'ابدأ من لحظة الوصول' }).click();
+
+  await expect(page).toHaveURL(/\/scenario\/airport_arrival\/story$/);
 });
 
 /**
@@ -38,7 +71,7 @@ const EPISODE_READY_MS = 45_000;
 test('Story Setup introduces a situation, not a settings screen', async ({ page }) => {
   await bootSignedIn(page);
 
-  await page.getByRole('button', { name: 'ابدأ مهمة اليوم' }).click();
+  await page.getByRole('button', { name: PRIMARY_ACTION }).click();
   await expect(page).toHaveURL(/\/scenario\/.+\/story$/);
 
   // Two ways out of the opening, and only one of them is the primary action.
@@ -80,7 +113,7 @@ test('the thinking indicator survives the episode opening', async ({ page }) => 
   });
 
   await bootSignedIn(page);
-  await page.getByRole('button', { name: 'ابدأ مهمة اليوم' }).click();
+  await page.getByRole('button', { name: PRIMARY_ACTION }).click();
 
   // The indicator is on screen while the opener's translation is in flight, and the
   // gloss arriving is what unmounts it — the transition the regression lived in.
@@ -89,6 +122,17 @@ test('the thinking indicator survives the episode opening', async ({ page }) => 
   await page.waitForTimeout(500);
 
   expect(failedSetups).toHaveLength(0);
+});
+
+test('the scenario library exposes named, keyboard-reachable cards', async ({ page }) => {
+  await bootSignedIn(page);
+  await page.goto('/app/library');
+
+  const card = page.getByRole('button', { name: /الطلب في المقهى \(Im Café bestellen\)/ });
+  await expect(card).toBeVisible();
+  await card.focus();
+  await expect(card).toBeFocused();
+  await expect(card).toHaveAttribute('aria-label', 'الطلب في المقهى (Im Café bestellen)');
 });
 
 test('a scenario that is not on the device says so and keeps a way back', async ({ page }) => {
@@ -113,9 +157,21 @@ test('Guided Practice rehearses real lines and grades honestly', async ({ page }
   expect(await cards.count()).toBeLessThanOrEqual(3);
 
   // Retrieval: the honest path states the correct sentence instead of implying
-  // the learner produced it.
-  await page.getByRole('button', { name: 'أرني الصحيحة' }).click();
-  await expect(page.getByText(/الجملة الصحيحة:/)).toBeVisible();
+  // the learner produced it. Scoped to its own card, because today's grammar rule
+  // carries a second "أرني الصحيحة" further up the screen.
+  const retrieval = page.getByTestId('retrieval-card');
+  await retrieval.getByRole('button', { name: 'أرني الصحيحة' }).click();
+  await expect(retrieval.getByText(/الجملة الصحيحة:/)).toBeVisible();
+
+  // The grammar beat: a real rule, produced from its Arabic meaning, with the
+  // sentence revealed only after the attempt. Which rule a day selects rotates by
+  // calendar date, so this asserts the reveal rather than one rule's text.
+  const grammar = page.getByTestId('grammar-card');
+  await expect(grammar).toBeVisible();
+  await grammar.getByLabel('اكتب جملة القاعدة بالألمانية').fill('Falscher Satz');
+  await grammar.getByRole('button', { name: 'تحقق' }).click();
+  await grammar.getByRole('button', { name: 'أرني الصحيحة' }).click();
+  await expect(grammar.getByText(/الجملة الصحيحة:/)).toBeVisible();
 
   // Listening: a repeat is reported as word coverage, never as a pronunciation
   // score the app cannot measure.
@@ -161,6 +217,13 @@ test('Live Interaction runs a turn with the orb and keeps the typed path open', 
   await expect(page.getByRole('button', { name: 'كَاتْزُو يعمل على ردّك' })).toBeVisible();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
   await expect(page.getByText(/الجولة 2 من 3/)).toBeVisible();
+
+  // The opening plus the first learner turn and reply stay mounted on the live screen.
+  const messages = page.locator('article[aria-label="رسالة من كَاتْزُو"], article[aria-label="رسالتك"]');
+  await expect(messages).toHaveCount(3);
+  for (const message of await messages.all()) {
+    await expect(message).toHaveAttribute('aria-label', /رسالة من كَاتْزُو|رسالتك/);
+  }
 
   // The typed path is always one tap away, never behind a failure.
   await page.getByRole('button', { name: 'اكتب بدلاً من التحدث' }).click();

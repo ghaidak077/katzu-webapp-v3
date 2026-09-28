@@ -75,6 +75,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
 
   return (
     <article
+      aria-label={isKatzu ? 'رسالة من كَاتْزُو' : 'رسالتك'}
       className={`flex ${isKatzu ? 'justify-start' : 'justify-end'} ${
         isNewest && !reduceMotion ? 'animate-kz-rise' : ''
       }`}
@@ -133,7 +134,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 type="button"
                 onClick={() => onSpeak(message)}
                 aria-label="اسمع الجملة بالألمانية"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-kz-lavender transition-colors hover:bg-white/10"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-kz-lavender transition-colors hover:bg-white/10"
               >
                 <Volume2 className="h-4 w-4" />
               </button>
@@ -142,7 +143,8 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 <button
                   type="button"
                   onClick={() => onToggleTranslation(message.id)}
-                  className="kz-ar-micro flex items-center gap-1 rounded-full px-2 py-1 text-kz-inkFaint transition-colors hover:text-kz-ink"
+                  aria-label={isTranslationVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}
+                  className="kz-ar-micro flex min-h-[44px] items-center gap-1 rounded-full px-2 py-1 text-kz-inkFaint transition-colors hover:text-kz-ink"
                 >
                   <Languages className="h-3.5 w-3.5" />
                   {isTranslationVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}

@@ -31,8 +31,15 @@ describe('scenarioToVocabTopic', () => {
     expect(scenarioToVocabTopic(undefined)).toBe('');
   });
 
+  it('maps travel content to its own topic instead of no topic at all', () => {
+    // Before this, a `travel` scenario resolved to '' — its vocabulary was
+    // unreachable from Study, Quiz and Guided Practice.
+    expect(scenarioToVocabTopic({ id: 'airport_arrival', category: 'travel' })).toBe('travel');
+    expect(scenarioToVocabTopic({ id: 'train_station', category: 'travel' })).toBe('travel');
+  });
+
   it('keeps every mapping value a real live topic', () => {
-    const liveTopics = ['food', 'documents', 'health', 'housing', 'work'];
+    const liveTopics = ['food', 'documents', 'health', 'housing', 'work', 'travel'];
     for (const topic of Object.values(SCENARIO_CATEGORY_TO_TOPIC)) {
       expect(liveTopics).toContain(topic);
     }

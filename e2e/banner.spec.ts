@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { bootSignedIn } from './harness';
+import { bootSignedIn, seedRows } from './harness';
 
 /**
  * A scenario's 16:9 banner, from the content column to the card.
@@ -68,8 +68,17 @@ test('a scenario’s own banner reaches every screen that lists it', async ({ pa
   await setBanner(page, 'cafe_order', PATCHED_ART);
 
   // The mission card on Journey Home.
+  //
+  // The arrival episode is what a first-run learner is sent to, and this test is
+  // about artwork reaching the screens that list a scenario — so the day is pinned
+  // to `cafe_order` by leaving it unfinished, which is the mission the patched
+  // banner belongs to. Without the pin the assertion would also depend on which
+  // scenario the calendar happened to rotate to.
+  await seedRows(page, 'scenario_training', [
+    { scenarioId: 'cafe_order', userId: 'current_user', studiedAt: 1, quizAttempted: false, lastScore: 0, effectiveLevel: 'A1', updatedAt: 1 },
+  ]);
   await page.goto('/app');
-  await expect(page.getByRole('button', { name: 'ابدأ مهمة اليوم' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /أكمل من حيث توقفت|ابدأ مهمة اليوم/ })).toBeVisible();
   const home = await bannerGeometry(page);
   // At least the mission card's — and every laid-out banner on this screen is the
   // day's scenario, so every one of them carries the patched artwork.

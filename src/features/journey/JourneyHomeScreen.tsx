@@ -5,7 +5,7 @@ import { countDue } from '@/lib/srs/engine';
 import { isProEffective } from '@/lib/utils/subscription';
 import { servedLevel } from '@/lib/entitlement/trial';
 import { BorderBeam } from '@/components/effects/BorderBeam';
-import { selectDailyMission, type ScenarioLevelIndex } from '@/lib/mission/selectMission';
+import { selectDailyMission, INTRO_SCENARIO_ID, type ScenarioLevelIndex } from '@/lib/mission/selectMission';
 import { buildCapabilityModel, CAPABILITY_LABEL_AR, weakestMeasuredSkill } from '@/lib/capability/model';
 import { buildJourneyContext, katzuJourneyLineAr, missionReasonAr } from '@/lib/journey/context';
 import { sceneFor } from '@/lib/design/scenes';
@@ -288,7 +288,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           </ScenarioBanner>
 
           <div className="p-4">
-            <p className="kz-ar-micro mb-1 text-kz-inkFaint">{missionTitleBadgeAr(mission.kind, dueCount)}</p>
+            <p className="kz-ar-micro mb-1 text-kz-inkFaint">{missionTitleBadgeAr(mission.kind, dueCount, mission.scenarioId)}</p>
             {missionScenario ? (
               <>
                 <GermanText className="kz-de-title block text-kz-ink">{missionScenario.title_de}</GermanText>
@@ -316,9 +316,13 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             )}
 
             <div className="mt-4">
+              {/* The plan owns the button's wording, so today's action is named once.
+                  That is what lets the opening episode say "ابدأ من لحظة الوصول"
+                  while a scheduled day says "ابدأ مهمة اليوم (10 د)" — one label,
+                  chosen where the mission was chosen. */}
               {mission.kind === 'review' ? (
                 <PrimaryAction hintAr="المراجعة محفوظة على جهازك وتعمل بدون اتصال." onClick={onOpenReview}>
-                  راجع {dueCount} الآن
+                  {mission.ctaAr}
                 </PrimaryAction>
               ) : mission.kind === 'no_content' ? (
                 // An honest empty state: one useful action, and a real explanation.
@@ -327,14 +331,14 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
                   onClick={() => window.location.reload()}
                   icon={<RefreshCw className="h-4 w-4" />}
                 >
-                  تحديث عندما يعود الاتصال
+                  {mission.ctaAr}
                 </PrimaryAction>
               ) : (
                 <PrimaryAction
                   hintAr="خطوات قصيرة: قصة، تدريب، ثم محادثة."
                   onClick={handlePrimary}
                 >
-                  ابدأ مهمة اليوم
+                  {mission.ctaAr}
                 </PrimaryAction>
               )}
             </div>
@@ -407,7 +411,9 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   );
 };
 
-function missionTitleBadgeAr(kind: string, dueCount: number): string {
+function missionTitleBadgeAr(kind: string, dueCount: number, scenarioId?: string): string {
+  // The one episode that is not "today's situation": the story's first scene.
+  if (scenarioId === INTRO_SCENARIO_ID) return 'لحظة الوصول · أول موقف في القصة';
   switch (kind) {
     case 'review':
       return `مراجعة اليوم · ${dueCount}`;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  INTRO_SCENARIO_ID,
   selectDailyMission,
   type MissionInput,
   type ScenarioLevelIndex,
@@ -33,6 +34,13 @@ function base(overrides: Partial<MissionInput>): MissionInput {
     ...overrides,
   };
 }
+
+/** The same catalogue plus the story's opening scene. */
+const withOpening = [
+  { id: INTRO_SCENARIO_ID, title_de: 'Am Flughafen ankommen', title_ar: 'الوصول إلى المطار', category: 'travel' },
+  ...scenarios,
+];
+const levelsWithOpening: ScenarioLevelIndex = { ...a1Only, [INTRO_SCENARIO_ID]: ['A1'] };
 
 describe('daily mission selection', () => {
   it('review-due items take priority over any new mission', () => {
@@ -126,6 +134,40 @@ describe('daily mission selection', () => {
     );
     expect(plan.kind).toBe('weak_skill');
     expect(plan.ctaAr).toBe('ابدأ تدريب الاستماع');
+  });
+
+  it('opens the story at the arrival scene, before any rotation', () => {
+    // A work goal is the harder case: the goal weighting would prefer the
+    // interview, and the first episode must still be the arrival.
+    const plan = selectDailyMission(
+      base({ scenarios: withOpening, scenarioLevels: levelsWithOpening, goal: 'work' }),
+    );
+    expect(plan.kind).toBe('daily');
+    expect(plan.scenarioId).toBe(INTRO_SCENARIO_ID);
+    expect(plan.ctaAr).toContain('الوصول');
+    expect(plan.titleAr).toBe('الوصول إلى المطار');
+  });
+
+  it('offers the opening only until it has been started', () => {
+    const plan = selectDailyMission(
+      base({
+        scenarios: withOpening,
+        scenarioLevels: levelsWithOpening,
+        goal: 'work',
+        training: [
+          { scenarioId: INTRO_SCENARIO_ID, studiedAt: 1_700_000_000_000, quizAttempted: true, lastScore: 90 },
+        ],
+      }),
+    );
+    expect(plan.kind).toBe('daily');
+    expect(plan.scenarioId).not.toBe(INTRO_SCENARIO_ID);
+  });
+
+  it('falls through to the normal rotation when the opening is not in the content', () => {
+    // Offline, or a deployment whose D1 does not carry the scene yet.
+    const plan = selectDailyMission(base({}));
+    expect(plan.kind).toBe('daily');
+    expect(scenarios.some((scenario) => scenario.id === plan.scenarioId)).toBe(true);
   });
 
   it('returns an honest empty state instead of crashing on empty content', () => {

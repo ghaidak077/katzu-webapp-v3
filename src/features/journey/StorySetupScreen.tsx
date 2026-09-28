@@ -68,8 +68,13 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
       whyAr: brief?.reasonAr || 'هذا الموقف من المواقف التي ستخوضها فعلاً في ألمانيا.',
       taskAr: brief?.taskAr,
       returning: !!training?.studiedAt,
+      // The learner is the main character, so the opening addresses them by name
+      // when the profile holds a real one, and Katzu's greeting follows where they
+      // are in the move. Both are read from the profile row, never generated.
+      displayName: user?.displayName,
+      arrivalStatus: user?.arrivalStatus,
     });
-  }, [scenario, level, scene.locationAr, brief, training?.studiedAt]);
+  }, [scenario, level, scene.locationAr, brief, training?.studiedAt, user?.displayName, user?.arrivalStatus]);
 
   const { speak, isPlaying } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
 
@@ -164,6 +169,14 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
               <span className="kz-ar-micro rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-kz-inkDim backdrop-blur-md">
                 {story?.whoAr}
               </span>
+              {/* You are the main character: the learner's own name sits beside the
+                  character they are about to meet, and only appears when the
+                  profile actually holds a name. */}
+              {story?.learnerName && (
+                <span className="kz-ar-micro rounded-full border border-kz-lavender/30 bg-kz-lavender/10 px-3 py-1.5 text-kz-lavender backdrop-blur-md">
+                  أنت: {story.learnerName}
+                </span>
+              )}
               {training?.studiedAt && (
                 <span className="kz-ar-micro rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-kz-inkFaint backdrop-blur-md">
                   عدت إلى هذا المشهد

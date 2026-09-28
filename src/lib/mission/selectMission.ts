@@ -14,8 +14,9 @@ import { goalMatchScore } from '@/lib/onboarding/preferences';
  *   1. review due today
  *   2. continue an unfinished scenario
  *   3. practise the learner's weakest measured skill
- *   4. today's scheduled scenario mission
- *   5. start a new scenario
+ *   4. the story opening (the arrival scene), once, before any rotation
+ *   5. today's scheduled scenario mission
+ *   6. start a new scenario
  *
  * Everything is pure: same learner state + same date = same plan, on every
  * device and in every test. The screen only renders what this decides.
@@ -69,6 +70,19 @@ export interface MissionInput {
 }
 
 export type MissionKind = 'review' | 'continue' | 'weak_skill' | 'daily' | 'new' | 'no_content';
+
+/**
+ * The scenario the story opens with.
+ *
+ * The product's first episode is the arrival itself — the learner lands, and the
+ * first German they ever produce is spoken at the airport. This constant is the
+ * single place that decision lives: mission selection, chapter ordering and the
+ * "why today" line all read it, so the opening can be re-pointed at a different
+ * scenario by a content decision rather than a code hunt. When the id is absent
+ * from the content (it is not in D1 yet, or the cache is empty), every branch
+ * that uses it simply falls through to the normal behaviour.
+ */
+export const INTRO_SCENARIO_ID = 'airport_arrival';
 
 export interface DailyMissionPlan {
   kind: MissionKind;
@@ -224,7 +238,29 @@ export function selectDailyMission(input: MissionInput): DailyMissionPlan {
     };
   }
 
-  // 4. Today's scenario mission, from the learner's level and goal.
+  // 4. The story opening. A learner who has never started the arrival scene is
+  //    given it before the rotating daily pool, so the first thing they ever
+  //    practise is walking into Germany rather than a random day's café. It is
+  //    offered once: as soon as the scene has a training record, this branch
+  //    stops matching and the normal rotation takes over.
+  if (!trainingByScenario.has(INTRO_SCENARIO_ID)) {
+    const opening = safeScenarios.find(
+      (scenario) => scenario.id === INTRO_SCENARIO_ID && hasContent(scenario.id, scenarioLevels),
+    );
+    if (opening) {
+      return {
+        kind: 'daily',
+        scenarioId: opening.id,
+        titleDe: opening.title_de,
+        titleAr: opening.title_ar,
+        subtitleAr: 'هذه بداية القصة — أول موقف تخوضه بعد وصولك.',
+        ctaAr: 'ابدأ من لحظة الوصول',
+        estimatedMinutes: minutesForPlan(dailyMinutes, 0),
+      };
+    }
+  }
+
+  // 5. Today's scenario mission, from the learner's level and goal.
   const { exact, lower, any } = levelCandidates(safeScenarios, scenarioLevels, level);
   const missionPool = preferGoal(exact.length > 0 ? exact : lower.length > 0 ? lower : any, goal);
   if (missionPool.length > 0) {
@@ -244,7 +280,7 @@ export function selectDailyMission(input: MissionInput): DailyMissionPlan {
     };
   }
 
-  // 5. A scenario with no content at the learner's level but content elsewhere.
+  // 6. A scenario with no content at the learner's level but content elsewhere.
   const notStarted = safeScenarios
     .filter((scenario) => !trainingByScenario.has(scenario.id))
     .sort((a, b) => goalMatchScore(b.category, goal) - goalMatchScore(a.category, goal) || a.id.localeCompare(b.id))[0];

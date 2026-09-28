@@ -77,6 +77,50 @@ describe('WorkerClient API Contract Integration', () => {
     expect(response.positiveNoteAr).toContain('محاولة ممتازة');
   });
 
+  it.each([
+    [401, 'انتهت جلسة الدخول', 'UNAUTHENTICATED'],
+    [429, 'تم تجاوز الحد الأقصى', 'RATE_LIMIT_EXCEEDED'],
+    [503, 'خدمة المحادثة غير متاحة', 'SERVICE_UNAVAILABLE'],
+    [502, 'تعذر توليد رد الذكاء الاصطناعي', 'AI_TURN_HTTP_ERROR'],
+    [504, 'استغرق توليد الرد وقتاً طويلاً', 'AI_TURN_HTTP_ERROR'],
+  ])('localizes /ai/turn HTTP %i failures without exposing upstream text', async (status, expectedMessage, expectedCode) => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status,
+      json: async () => ({ error: 'provider_failure', message: 'raw upstream provider exception' }),
+    });
+
+    await expect(client.sendTurn({
+      scenarioId: 'cafe_order',
+      scenarioTitle: 'Im Café bestellen',
+      userMessage: 'Ich möchte einen Kaffee.',
+      history: [],
+      cefrLevel: 'A1',
+    })).rejects.toMatchObject({
+      message: expect.stringContaining(expectedMessage),
+      code: expectedCode,
+    });
+  });
+
+  it('rejects a malformed successful /ai/turn response with an actionable Arabic error', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ reply_de: '', reply_ar: '', evaluation: { is_correct: 'yes' } }),
+    });
+
+    await expect(client.sendTurn({
+      scenarioId: 'cafe_order',
+      scenarioTitle: 'Im Café bestellen',
+      userMessage: 'Ich möchte einen Kaffee.',
+      history: [],
+      cefrLevel: 'A1',
+    })).rejects.toMatchObject({
+      message: expect.stringContaining('تعذر التحقق من رد المحادثة'),
+      code: 'INVALID_AI_RESPONSE',
+      status: 502,
+    });
+  });
+
   it('formats /ai/hints payload and returns mapped hints', async () => {
     let capturedBody: any = null;
 

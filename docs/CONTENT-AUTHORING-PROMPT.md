@@ -59,8 +59,11 @@ Arabic gloss teaches a learner something false. Treat both as defects.
 
 Write **exactly 8 scenarios** — the situations where not speaking German has a real cost
 (a missed appointment, a rejected application, a bill you cannot dispute). Use this spine.
-Only 5 categories exist and each carries **at most 2 scenarios**, because the vocabulary
-pool is shared per category (§4), so the 8 rows below are already the full budget:
+The production taxonomy currently has **six** category/topic pairs (the original five below
+plus `travel` → `travel`, documented in §4). Each category carries **at most 2 scenarios**
+within a module because the vocabulary pool is shared per category (§4). The eight rows below
+are the canonical module spine; `travel` is available when a reviewed module substitutes an
+arrival or transport scenario:
 
 | # | Situation | German setting | category | topic |
 |---|---|---|---|---|
@@ -75,13 +78,19 @@ pool is shared per category (§4), so the 8 rows below are already the full budg
 
 You may swap a row for a situation of the same category and level of urgency (e.g. Kita
 enrolment instead of one of the Bürgeramt scenes), but keep the count per category at 2, 2,
-2, 1, 1 for `official`, `health`, `work`, `housing`, `daily_life`.
+2, 1, 1 for `official`, `health`, `work`, `housing`, `daily_life` in the canonical
+spine. The optional `travel` category is an additional existing taxonomy pair, not an extra
+ninth scenario: if a reviewed module uses it, replace one of the eight scenario slots and keep
+the per-category maximum of two. Do not exceed the eight-scenario module limit.
 
 Two traps in those categories:
 
 - `daily_life` maps to the **food** pool. Do not file banking, contracts or phone plans
   there — their words would appear in a learner's café study list. Paperwork and contracts
-  belong under `official` / `documents`; a second module can extend it.
+  belong under `official` / `documents`; a later module can extend the curriculum.
+- `travel` maps to the **travel** pool. It is used by the offline arrival/station scenarios;
+  use it only when the reviewed scenario is genuinely about travel, and meet the same 15–40
+  vocabulary-row budget as every other topic in that module.
 
 ## 3. The JSON document — exact shape
 
@@ -201,9 +210,10 @@ category -> topic (SCENARIO_CATEGORY_TO_TOPIC, src/lib/utils/scenarioVocab.ts)
   work       -> work
   health     -> health
   housing    -> housing
+  travel     -> travel
 ```
 
-Every `scenarios[].category` must be one of those five keys, and every `vocabulary[].topic`
+Every `scenarios[].category` must be one of those six keys, and every `vocabulary[].topic`
 must be the value it maps to. Study and Quiz screens find a scenario's words by `topic`, so:
 
 - a scenario whose `category` resolves to nothing renders an **empty study screen**;
@@ -217,10 +227,25 @@ minimum 15 vocabulary rows per topic used      maximum 40
 6-10 starter phrases per scenario              at least 2 grammar rules per level used
 ```
 
-With the spine above that means: **20 rows each for `documents`, `health` and `work`, 16 for
-`housing` and 16 for `food` — about 92 vocabulary rows in total**, plus ~52 starter phrases,
-≥8 grammar rules (12 is better), spread honestly across A1, A2, B1 and B2. Roughly 40% of
-the vocabulary at A1, 30% A2, 20% B1, 10% B2 — a newcomer can read A1 rows on day one.
+With the canonical spine above that means: **20 rows each for `documents`, `health` and
+`work`, 16 for `housing` and 16 for `food` — about 92 vocabulary rows in total**. If a module
+uses `travel`, it needs a separate 15–40 row `travel` pool; do not count another topic's rows
+for it. The complete module also needs ~52 starter phrases, ≥8 grammar rules (12 is better),
+spread honestly across A1, A2, B1 and B2. Roughly 40% of the vocabulary at A1, 30% A2, 20%
+B1, 10% B2 — a newcomer can read A1 rows on day one.
+
+### Module size and the 15-scenario story roadmap
+
+The module contract remains **exactly 8 scenarios**; do not reduce it to “up to 8” or silently
+change the validator. The 15-slot narrative roadmap is a sequence of story beats, not a
+single uploadable module. It must be authored as multiple modules, each with exactly 8
+scenario rows and with the topic, phrase and grammar budgets above met independently. A
+module may cross chapter boundaries; chapter boundaries do not alter the D1 schema. Because
+15 slots do not divide evenly into groups of 8, the content owner must decide how the remaining
+roadmap slots are paired with already-authorized curriculum or whether the roadmap is expanded
+before the module files are assembled. Do not duplicate or redefine an existing live scenario
+just to fill a module. Until that packaging decision is made, authoring individual chapter
+JSON files is not authorized by this prompt or loader contract.
 
 ## 5. Quality bar — you are writing teaching material, not a word list
 

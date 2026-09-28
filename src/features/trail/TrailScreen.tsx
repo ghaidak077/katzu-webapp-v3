@@ -294,7 +294,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           {mission.kind === 'review' && (
             <button
               onClick={onOpenReview}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-status-learning px-3.5 py-1.5 text-xs font-bold text-black shadow-glow-purple active:scale-95 transition-all min-h-[36px]"
+              className="mt-2 inline-flex items-center gap-1 rounded-full bg-status-learning px-3.5 py-1.5 text-xs font-bold text-black shadow-glow-purple active:scale-95 transition-all min-h-[44px]"
             >
               <Brain className="w-3.5 h-3.5" />
               <span>{mission.ctaAr}</span>
@@ -303,7 +303,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           {missionScenarioId && mission.kind !== 'review' && (
             <button
               onClick={() => handleScenarioClick(missionScenarioId)}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-glow-purple active:scale-95 transition-all min-h-[36px]"
+              className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-glow-purple active:scale-95 transition-all min-h-[44px]"
             >
               <span>{mission.ctaAr}</span>
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -356,9 +356,11 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 isOffsetLeft ? 'justify-start pe-8' : 'justify-end ps-8'
               }`}
             >
-              <div
+              <button
+                type="button"
                 onClick={() => handleScenarioClick(scenario.id)}
-                className={`relative w-[82%] overflow-hidden rounded-3xl border cursor-pointer transition-all transform active:scale-95 ${
+                aria-label={`${scenario.title_ar} (${scenario.title_de})`}
+                className={`relative w-[82%] overflow-hidden rounded-3xl border text-start cursor-pointer transition-all transform active:scale-95 ${
                   isMastered
                     ? 'bg-surface-card border-status-success/40 shadow-glow-green'
                     : 'bg-surface-card border-border-subtle hover:border-primary/50'
@@ -402,7 +404,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                     </p>
                   )}
                 </div>
-              </div>
+              </button>
             </div>
           );
         })}

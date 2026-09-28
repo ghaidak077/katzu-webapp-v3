@@ -71,6 +71,10 @@ const CATEGORY_MOODS: Array<{ keywords: string[]; mood: SceneMood }> = [
 
 /** Known locations get a real label; unknown content falls back to its category. */
 const LOCATIONS: Record<string, { mood: SceneMood; locationAr: string }> = {
+  // The story opening. It deliberately has no entry in `SCENARIO_ART` below, so
+  // it borrows the category photograph instead of adding another remote image to
+  // the cold-start path; only its light and its label are its own.
+  airport_arrival: { mood: 'cool', locationAr: 'مطار برلين — قاعة القدوم' },
   cafe_order: { mood: 'warm', locationAr: 'مقهى في برلين — العصر' },
   bakery_shopping: { mood: 'warm', locationAr: 'مخبز في الحيّ — صباحاً' },
   doctor_visit: { mood: 'clinical', locationAr: 'عيادة طبيب عام — غرفة الانتظار' },

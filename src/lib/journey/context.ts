@@ -1,5 +1,5 @@
 import type { ArrivalStatus, CEFRLevel, LearnerGoal } from '@/types/models';
-import type { DailyMissionPlan, MissionScenario } from '@/lib/mission/selectMission';
+import { INTRO_SCENARIO_ID, type DailyMissionPlan, type MissionScenario } from '@/lib/mission/selectMission';
 import { goalMatchScore } from '@/lib/onboarding/preferences';
 
 /**
@@ -70,13 +70,28 @@ function startOfDay(timestamp: number): number {
   return date.getTime();
 }
 
-/** Scenarios ordered the way they are taught: goal match first, then stable id. */
+/**
+ * Scenarios ordered the way they are taught: the arrival scene opens the story,
+ * then goal match, then a stable id.
+ *
+ * Pinning the opening is what makes chapter 1 *the arrival* for a learner
+ * preparing for a job as well as one going to university. Without it the goal
+ * weighting would put the interview or the university office in segment 1, and
+ * the story would no longer start where the learner's life in Germany starts.
+ * The pin is a no-op when the content does not carry that scenario.
+ */
 function orderedScenarios(input: JourneyInput): MissionScenario[] {
-  return [...(input.scenarios || [])].sort(
+  const sorted = [...(input.scenarios || [])].sort(
     (a, b) =>
       goalMatchScore(b.category, input.goal) - goalMatchScore(a.category, input.goal) ||
       a.id.localeCompare(b.id),
   );
+  const openingIndex = sorted.findIndex((scenario) => scenario.id === INTRO_SCENARIO_ID);
+  if (openingIndex > 0) {
+    const [opening] = sorted.splice(openingIndex, 1);
+    sorted.unshift(opening);
+  }
+  return sorted;
 }
 
 /** The learner's situation, used to explain why a scene matters to *them*. */
@@ -161,8 +176,13 @@ function categoryRealityAr(category: string | null | undefined, goal: LearnerGoa
 export function missionReasonAr(
   plan: DailyMissionPlan,
   context: Pick<JourneyInput, 'goal' | 'arrivalStatus'>,
-  scenario?: { category?: string | null } | null,
+  scenario?: { id?: string; category?: string | null } | null,
 ): string {
+  // The opening scene gets its own reason: it is not "a daily situation", it is
+  // the first thing the learner's story asks of them.
+  if (plan.kind !== 'review' && plan.kind !== 'continue' && scenario?.id === INTRO_SCENARIO_ID) {
+    return 'أول موقف في القصة — قاعة القدوم في المطار، حيث تبدأ رحلة كل متعلّم.';
+  }
   switch (plan.kind) {
     case 'review': {
       const count = plan.dueCount || 0;

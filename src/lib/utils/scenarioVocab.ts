@@ -15,6 +15,10 @@ export const SCENARIO_CATEGORY_TO_TOPIC: Record<string, string> = {
   work: 'work',
   health: 'health',
   housing: 'housing',
+  // Travel/arrival content (the airport, the station). Added additively: before
+  // this, a `travel`-category scenario resolved to no topic at all, so its
+  // vocabulary was unreachable from Study and Guided Practice.
+  travel: 'travel',
 };
 
 export function scenarioToVocabTopic(scenario: Pick<ScenarioEntity, 'id' | 'category'> | null | undefined): string {

@@ -7,14 +7,16 @@ import {
   situationAr,
   type JourneyInput,
 } from '../src/lib/journey/context';
-import { PERSONA_ROLES, buildStorySetup, openingFor } from '../src/lib/journey/story';
-import { buildGuidedPractice, gradeRepeat, gradeTypedProduction } from '../src/lib/journey/practice';
+import { PERSONA_ROLES, buildStorySetup, learnerName, openingFor } from '../src/lib/journey/story';
+import { buildGuidedPractice, gradeRepeat, gradeTypedProduction, selectGrammarRule } from '../src/lib/journey/practice';
 import { TURNS_BY_MODE, planTurns, turnPlanForLevel } from '../src/lib/conversation/turnPlan';
-import type { DailyMissionPlan } from '../src/lib/mission/selectMission';
-import type { ScenarioEntity, StarterPhraseEntity, VocabularyEntity } from '../src/types/models';
+import { INTRO_SCENARIO_ID, type DailyMissionPlan } from '../src/lib/mission/selectMission';
+import type { GrammarEntity, ScenarioEntity, StarterPhraseEntity, VocabularyEntity } from '../src/types/models';
 
 const now = new Date('2026-09-27T10:00:00').getTime();
 const DAY = 86_400_000;
+/** Day 0 of the mission epoch — an even rotation index, so pool order is observable. */
+const dayZero = new Date(2026, 0, 1).getTime();
 
 function scenario(overrides: Partial<ScenarioEntity> = {}): ScenarioEntity {
   return {
@@ -60,6 +62,20 @@ function word(overrides: Partial<VocabularyEntity> = {}): VocabularyEntity {
     topic: 'food',
     ...overrides,
   } as VocabularyEntity;
+}
+
+function rule(overrides: Partial<GrammarEntity> = {}): GrammarEntity {
+  return {
+    id: 'g_articles_a1',
+    title_ar: 'أدوات التعريف (der, die, das)',
+    rule_de: 'Bestimmte Artikel: der (maskulin), die (feminin), das (neutral).',
+    rule_ar: 'لكل اسم جنس يجب حفظه مع الكلمة.',
+    level: 'A1',
+    explanation_ar: 'الأداة جزء من الكلمة، ليست تفصيلاً.',
+    example_de: 'Der Kaffee ist lecker.',
+    example_ar: 'القهوة لذيذة.',
+    ...overrides,
+  } as GrammarEntity;
 }
 
 function plan(overrides: Partial<DailyMissionPlan> = {}): DailyMissionPlan {
@@ -136,6 +152,27 @@ describe('buildJourneyContext', () => {
     );
     expect(context.isAllCaughtUp).toBe(false);
   });
+
+  it('opens chapter 1 with the arrival scene even when the goal points elsewhere', () => {
+    // Four scenarios, three of them work-related. Without the opening pinned to
+    // the front, the goal weighting fills all of chapter 1 with work scenes and
+    // pushes the arrival into chapter 2 — the story would no longer begin where
+    // the learner's life in Germany begins.
+    const scenarios = [
+      scenario({ id: 'job_interview', category: 'work' }),
+      scenario({ id: 'job_second', category: 'work' }),
+      scenario({ id: 'job_third', category: 'work' }),
+      scenario({ id: INTRO_SCENARIO_ID, category: 'travel' }),
+    ];
+    const context = buildJourneyContext(
+      journeyInput({ scenarios, goal: 'work', independentScenarioIds: [INTRO_SCENARIO_ID] }),
+    );
+    expect(context.chapterIndex).toBe(1);
+    expect(context.chapterSegments).toBe(3);
+    // The arrival is segment 1, so it is already finished inside chapter 1.
+    expect(context.chapterSegmentsDone).toBe(1);
+    expect(context.activeSegment).toBe(1);
+  });
 });
 
 describe('missionReasonAr', () => {
@@ -154,6 +191,16 @@ describe('missionReasonAr', () => {
 
   it('tells the learner to go online when no content is cached', () => {
     expect(missionReasonAr(plan({ kind: 'no_content' }), {})).toContain('اتصال');
+  });
+
+  it('names the arrival scene as the start of the story, not a daily situation', () => {
+    const reason = missionReasonAr(
+      plan({ scenarioId: INTRO_SCENARIO_ID }),
+      { arrivalStatus: 'recently_arrived' },
+      { id: INTRO_SCENARIO_ID, category: 'travel' },
+    );
+    expect(reason).toContain('المطار');
+    expect(reason).not.toContain('ستستخدمها في المحطة');
   });
 });
 
@@ -276,9 +323,36 @@ describe('buildGuidedPractice', () => {
     expect(practice.cards).toHaveLength(1);
   });
 
-  it('is empty, not fabricated, when the device has no usable content', () => {
+  it('is empty, not fabricated, when the device has no usable content at all', () => {
     const practice = buildGuidedPractice({ phrases: [], vocabulary: [], level: 'A1' });
-    expect(practice).toEqual({ cards: [], retrieval: null, listening: null, empty: true });
+    expect(practice).toEqual({ cards: [], retrieval: null, listening: null, grammar: null, empty: true });
+  });
+
+  it('keeps a grammar rule useful on a device whose vocabulary is missing', () => {
+    // No cards, but a real rule: a screen with nothing to drill would be a dead
+    // end, and the rule is content the app actually holds.
+    const practice = buildGuidedPractice({
+      phrases: [],
+      vocabulary: [],
+      grammar: [rule()],
+      level: 'A1',
+      now: dayZero,
+    });
+    expect(practice.empty).toBe(false);
+    expect(practice.cards).toHaveLength(0);
+    expect(practice.grammar?.id).toBe('g_articles_a1');
+  });
+
+  it('carries today\'s rule on the deck it builds from real content', () => {
+    const practice = buildGuidedPractice({
+      phrases: [phrase()],
+      vocabulary: [],
+      grammar: [rule({ example_de: 'Ein anderer Satz.' })],
+      level: 'A1',
+      now: dayZero,
+    });
+    expect(practice.empty).toBe(false);
+    expect(practice.grammar?.exampleDe).toBe('Ein anderer Satz.');
   });
 
   it('tests retrieval on the card the learner just read, and listens to the longest line', () => {
@@ -316,6 +390,93 @@ describe('buildGuidedPractice', () => {
     const practice = buildGuidedPractice({ phrases: [], vocabulary: [word()], level: 'A1' });
     expect(practice.cards[0].de).toBe('Ich habe morgen einen Termin.');
     expect(practice.cards[0].noteAr).toContain('der Termin');
+  });
+});
+
+describe('selectGrammarRule', () => {
+  it('picks the rule nearest the learner\'s own level', () => {
+    const rows = [rule({ id: 'g_a1', level: 'A1' }), rule({ id: 'g_b1', level: 'B1' })];
+    expect(selectGrammarRule(rows, 'A1', { now: dayZero })?.id).toBe('g_a1');
+    expect(selectGrammarRule(rows, 'B1', { now: dayZero })?.id).toBe('g_b1');
+  });
+
+  it('skips a rule whose example is already on the deck', () => {
+    // Teaching the same sentence twice is padding, not reinforcement.
+    const rows = [
+      rule({ id: 'g_a1', level: 'A1', example_de: 'Ich möchte einen Kaffee.' }),
+      rule({ id: 'g_a2', level: 'A2' }),
+    ];
+    const picked = selectGrammarRule(rows, 'A1', {
+      now: dayZero,
+      excludeGerman: ['ich moechte einen Kaffee'],
+    });
+    expect(picked?.id).toBe('g_a2');
+  });
+
+  it('returns null rather than inventing a rule the device does not have', () => {
+    expect(selectGrammarRule([], 'A1', { now: dayZero })).toBeNull();
+    expect(selectGrammarRule([rule({ title_ar: '   ' })], 'A1', { now: dayZero })).toBeNull();
+    expect(selectGrammarRule([rule({ example_de: '' })], 'A1', { now: dayZero })).toBeNull();
+  });
+
+  it('rotates by calendar day, and is stable within one day', () => {
+    const rows = [
+      rule({ id: 'g_a1', level: 'A1' }),
+      rule({ id: 'g_a2', level: 'A1' }),
+      rule({ id: 'g_a3', level: 'A1' }),
+    ];
+    const today = selectGrammarRule(rows, 'A1', { now: dayZero });
+    expect(selectGrammarRule(rows, 'A1', { now: dayZero })?.id).toBe(today?.id);
+    expect(selectGrammarRule(rows, 'A1', { now: dayZero + DAY })?.id).not.toBe(today?.id);
+  });
+});
+
+describe('learnerName', () => {
+  it('keeps only the first name, so the app never reads like a form', () => {
+    expect(learnerName('Yasmin Al-Sayed')).toBe('Yasmin');
+    expect(learnerName('  سارة  ')).toBe('سارة');
+  });
+
+  it('refuses the seeded placeholder and anything email-shaped', () => {
+    expect(learnerName('مستكشف كَاتْزُو')).toBeNull();
+    expect(learnerName('someone@example.com')).toBeNull();
+    expect(learnerName('')).toBeNull();
+    expect(learnerName(undefined)).toBeNull();
+    expect(learnerName(null)).toBeNull();
+  });
+});
+
+describe('buildStorySetup — the learner is the main character', () => {
+  const base = { scenario: scenario(), level: 'A1' as const, locationAr: 'مطار برلين', whyAr: 'سبب' };
+
+  it('addresses the learner by name and hands the name to the screen', () => {
+    const setup = buildStorySetup({ ...base, displayName: 'Yasmin Al-Sayed' });
+    expect(setup.learnerName).toBe('Yasmin');
+    expect(setup.situationAr).toContain('Yasmin');
+    // Katzu is the friend at their side, and says so by name.
+    expect(setup.katzuAr).toContain('Yasmin');
+    expect(setup.katzuAr).toContain('كَاتْزُو');
+  });
+
+  it('never greets the seeded placeholder, and leaves no stray comma behind', () => {
+    const setup = buildStorySetup({ ...base, displayName: 'مستكشف كَاتْزُو' });
+    expect(setup.learnerName).toBeNull();
+    expect(setup.katzuAr).not.toContain('مستكشف');
+    expect(setup.situationAr.startsWith('،')).toBe(false);
+  });
+
+  it('says something different depending on where the learner is in the move', () => {
+    const preparing = buildStorySetup({ ...base, arrivalStatus: 'preparing' }).katzuAr;
+    const arrived = buildStorySetup({ ...base, arrivalStatus: 'recently_arrived' }).katzuAr;
+    expect(preparing).not.toBe(arrived);
+    expect(preparing).toContain('قبل أن تقف فيه');
+    expect(arrived).toContain('وصلت حديثاً');
+  });
+
+  it('keeps the return line unchanged — a known episode needs no introduction', () => {
+    const setup = buildStorySetup({ ...base, displayName: 'Yasmin', returning: true });
+    expect(setup.katzuAr).toBe('لا نحتاج أن نتذكر كل شيء — سنستمع أولاً، ثم تتحدث أنت.');
+    expect(setup.situationAr).toContain('من حيث توقفت');
   });
 });
 
