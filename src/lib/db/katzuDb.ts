@@ -392,7 +392,7 @@ export async function initializeDatabaseSeed(): Promise<void> {
  * The German and Arabic below are authored seed text for the offline/first-run
  * fallback, exactly like the six fixtures above it. Production curriculum is owned
  * by D1: once the same `id` exists there, `fetchScenarios` replaces this copy on
- * the next content fetch. It has **not** been through the content team's review,
+ * the next content fetch. It has **not** passed the curriculum gate in AGENTS.md §4,
  * so it is a starting scene to review, not an approved lesson.
  */
 const OPENING_FIXTURE_ID = 1000;

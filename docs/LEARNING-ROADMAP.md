@@ -50,7 +50,7 @@ line "later" are the ones that change outcomes; the rest is craft.
 
 | # | Item | Effort | Why this rank |
 | --- | --- | --- | --- |
-| 1 | **Content depth: 5 → ~13 scenarios** using the studio + `CONTENT-AUTHORING-PROMPT.md`, one module per work block (registration, work, housing, health, money/contracts) | L, mostly authoring + human review | The engine is built and now authorable; content is the only thing standing between the current demo and weeks of study. Nothing else multiplies without it. |
+| 1 | **Content depth: 5 → ~13 scenarios** using the studio + `CONTENT-AUTHORING-PROMPT.md`, modules of 5–8 scenarios per `AGENTS.md` §4 | L, mostly gated authoring and self-review | The engine is built and now authorable; content is the only thing standing between the current demo and weeks of study. Nothing else multiplies without it. |
 | 2 | **Reading — the fourth skill.** Additive `reading_texts` table (via the worker's admin schema path — the workspace token still cannot run DDL), the 5 texts already authored in the module-1 `deferred` block, a reader screen with tap-to-gloss (reuse `WordInsightBottomSheet`) and MCQ comprehension | M–L | Finishes "four skills or it is not a course" and is the last exam-credible claim we cannot make today. |
 | 3 | **Grammar drills, deterministic.** Fill-in-the-blank and sentence-transformation generated from `grammar` rows (4 today → ~10 per module after #1). No AI call per question | M | Converts a read-only table into production practice for free, and gives the correction card somewhere to send the learner. |
 | 4 | **Intent capture + a trail that reflects it.** Goal (work / study / family / daily), time to arrival, target certificate; the trail reorders and weights the same library | M | Placement already sets the level; intent is what turns "a level" into "a plan I believe in" — the conversion lever. |
@@ -423,8 +423,9 @@ the review gate is a process guarantee rather than a database constraint.
   schema, level plausibility, Arabic sanity (no empty/non-Arabic glosses), and the
   per-scenario standard above. A content regression should fail the build like a code one.
 - **Authoring shortcut that respects the rule "content never lives in app code":** generate a
-  first draft per scenario (AI-assisted), then require human/owner approval before it becomes
-  `approved`. AI drafts are unlimited; **unreviewed AI content never ships.**
+  draft per scenario (AI-assisted), then apply the audit and adversarial AI self-review gate in
+  `AGENTS.md` §4 before it becomes `approved`. Unreviewed content never ships; a human spot-check
+  remains useful but must never be claimed as completed unless it actually happened.
 
 **Done when:** 30+ approved scenarios exist with full four-skill coverage, and the audit
 script gates them all.
@@ -518,7 +519,7 @@ Complexity is a permanent cost, and every item here is a distraction from the lo
 4. **No pronunciation-scoring ML.** Scores for Arabic-L1 German would be unreliable and
    dishonest; instead let learners re-record and compare against TTS.
 5. **No C1/C2.** A1–B2 is the whole market that matters now. Depth beats range.
-6. **No free-form AI content without human approval.** Unlimited generation, gated delivery.
+6. **No free-form AI content without the gate in `AGENTS.md` §4.** Unlimited generation, gated delivery.
 7. **No second content system.** D1 + the admin dashboard + the audit script stay the one
    pipeline.
 

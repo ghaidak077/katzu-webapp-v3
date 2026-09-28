@@ -1,10 +1,11 @@
 # Curriculum draft — «أول 30 يوم في ألمانيا» · Module 1: الوصول والتسجيل
 
-**Status: unreviewed draft. Not shipped, not loaded, not visible to any learner.**
+**Status: pending draft. Not shipped, not loaded, not visible to any learner.**
 
-This document is the human review surface for
-`docs/content/curriculum-30day-module1.json`. Read it before the JSON — the JSON
-is the machine-loadable half, this is the half a person decides on.
+This document summarizes
+`docs/content/curriculum-30day-module1.json`. Apply the audit and adversarial AI self-review
+process in `AGENTS.md` §4 before approval. Use the checklist below to identify useful human
+spot-checks; do not claim a human review unless one actually occurred.
 
 ---
 
@@ -88,18 +89,10 @@ cheap to check on real sentences and expensive to fix after 30 scenarios exist.
       officials.
 - [ ] No scenario teaches a word the learner cannot use at that level.
 
-Then, and only then, edit the JSON:
-
-```json
-"review": {
-  "status": "approved",
-  "reviewedBy": "<your name>",
-  "reviewedAt": "2026-10-01"
-}
-```
-
-The loader refuses to write anything while `status` is `pending`, and the audit
-refuses an `approved` block that names no reviewer.
+The module remains `pending` until it passes the gate in `AGENTS.md` §4. A zero-issue AI
+self-review may be attributed only as `AI self-review — <model>, no human review`, with the real
+review timestamp; never enter a human name on the AI's behalf. The loader refuses to write while
+`status` is `pending`, and the audit requires attributable approval metadata.
 
 ## 5. Loading it into D1
 

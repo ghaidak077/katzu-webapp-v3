@@ -1,5 +1,5 @@
 {
-  "_note": "REVIEW-REQUIRED DRAFT. This file is authored content, not shipped curriculum. Nothing here may be loaded into D1 until a human has reviewed it and set review.status to \"approved\". See docs/CURRICULUM-DRAFT.md for the review checklist and scripts/load-curriculum.mjs for the only sanctioned load path.",
+  "_note": "PENDING DRAFT. This file is authored content, not shipped curriculum. Nothing here may be loaded into D1 until it passes the audit and adversarial AI self-review gate in AGENTS.md §4 and review.status is set to approved with the required AI attribution. See docs/CURRICULUM-DRAFT.md for spot-check guidance; only the owner may use the loader --commit path.",
   "meta": {
     "track": "أول 30 يوم في ألمانيا",
     "trackDe": "Die ersten 30 Tage in Deutschland",

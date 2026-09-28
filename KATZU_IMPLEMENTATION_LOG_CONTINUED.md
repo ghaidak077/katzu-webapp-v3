@@ -6,7 +6,7 @@ there). Section numbers continue from §11.
 
 ---
 
-## 15. The content roadmap now matches the shipped category map (2026-09-27)
+## 15. (Historical, 2026-09-27) Content roadmap and the then-current category map
 
 The requested full-build prompt's Phase 1 asked whether the airport fixture really uses a
 `travel` category before reconciling the roadmap. It does: `seedStoryOpening()` in
@@ -16,18 +16,9 @@ additive `travel: 'travel'` mapping. No category code or schema change was neede
 
 `docs/CONTENT-AUTHORING-PROMPT.md` now lists the existing sixth category/topic pair and says a
 module using it must meet the same 15–40 word pool; `docs/CONTENT-STRATEGY-ROADMAP.md` now
-assigns both the airport and train station to `travel` → `travel`. The contract still requires
-**exactly eight scenarios per module**. The fifteen roadmap slots are five narrative chapters,
-not five loadable JSON modules. Multiple modules can cross chapter boundaries, but 15 cannot be
-grouped into exact-eight modules without an additional distinct slot or a changed roadmap
-count. That remains a content-owner decision; no validator/loader rule was relaxed and no
-existing live scenario ID is duplicated to fill the gap.
+assigns both the airport and train station to `travel` → `travel`. At the time of this entry, the old contract described eight scenarios per module. That statement is historical only; the current 5–8 contract and its audit are defined by `AGENTS.md` §4 and the current authoring prompt. The fifteen roadmap slots can be grouped across chapters into 5–8 scenario modules. No existing live scenario ID was duplicated to fill the roadmap.
 
-The local fixtures were rechecked: `bakery_shopping` has two phrases and one vocabulary row;
-`train_station` has no phrase and one vocabulary row. As directed, both stay held for full
-content-team rewrite under their current IDs. The canonical draft remains `pending`; no German
-or Arabic curriculum was authored or approved, no content was written to D1, and no worker was
-deployed.
+The local fixtures were rechecked: `bakery_shopping` had two phrases and one vocabulary row; `train_station` had no phrase and one vocabulary row. Those were incomplete fixtures, not finished curriculum. The canonical draft was pending at that historical point. No production D1 or Worker write occurred.
 
 **Phase 1 gate:**
 
@@ -39,10 +30,7 @@ deployed.
 | `npx vitest run` | run at full verification gate (below) |
 | UI e2e | no UI files changed in Phase 1 |
 
-The remaining phases in the supplied prompt were evaluated conservatively. Lesson authoring and
-AI self-approval conflict with Katzu's content-team ownership rule; no lesson content or approval
-will be fabricated. Runtime tracing and code stability work are documented in the final report
-with only verified changes claimed.
+This historical note preceded the current authorization for gated AI authoring. It is not current policy; follow `AGENTS.md` §4. Runtime tracing and verification evidence below remain historical measurements, not current gate status.
 
 ## 12. The offline shell that shipped dead (2026-09-27)
 
@@ -281,9 +269,8 @@ code was changed during this continuation.
 - **Phase 3 conclusion:** there is no correction→queue dead end for a correction carrying a
   corrected sentence. The requested episode-wide grammar identity is not present in existing
   data, and Live Conversation has no shared vocabulary pool in its prompt. Phase 2 was not
-  authored: Katzu's content ownership rule and the 15-slot/exact-eight packaging conflict
-  remain gates. Therefore this is a partial code trace, not the requested newly authored
-  episode acceptance.
+  authored in that earlier pass. The current policy and module size are in `AGENTS.md` §4 and
+  §6; this is a partial code trace, not a newly authored episode acceptance.
 
 ### Phase 4 investigation and verification evidence
 
@@ -310,9 +297,7 @@ code was changed during this continuation.
 
 ### Gates still open
 
-- Phase 2 content creation, audit of newly authored modules, adversarial review, and honest
-  approval: not performed; content-team ownership prohibits authoring/approval here. Existing
-  module remains pending; no D1 or Worker write occurred.
+- Phase 2 content creation, audit of newly authored modules, adversarial review, and review outcome were not performed in that historical pass. Current authoring is governed by `AGENTS.md` §4; no production D1 or Worker write occurred.
 - Phase 3: complete trace of a newly authored episode, grammar-row identity continuity, and
   shared vocabulary available to live prompt: not established.
 - Phase 4: all five requested engineering items remain unimplemented; the full baseline for
@@ -349,8 +334,7 @@ full code gates were not completed.
 - No visually interactive browser inspection tool was available in this environment; managed
   preview readiness was previously verified at HTTP 200, but this continuation did not make a
   screenshot/manual visual claim.
-- The exact-eight packaging decision and grammar-to-scenario identity contract need an explicit
-  content/product-owner resolution before the corresponding requirements can be completed.
+- Grammar-to-scenario identity remains a code/content association question to verify against the current B2 implementation; the old exact-eight packaging concern was superseded by `AGENTS.md` §4.
 - `public/scenes/` remains absent; the placeholder art request requires real supplied or approved
   image assets.
 
