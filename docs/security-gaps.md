@@ -1,5 +1,7 @@
 # Katzu — Security Gaps (Phase 0)
 Every item verified in source on 2026-09-24. Ordered by severity. "Launch gate" column maps to docs/launch-gate.md.
+> **2026-09-28 note:** this is a dated 2026-09-24 audit record. The `handleAiConversationTurn` references below describe code since deleted (commit `20f7a4f` line numbers no longer apply); the bounded-input / server-authoritative-identity fix they called for shipped as the Phase 1 gate (`tests/workerSecurity.test.ts`). Read as history, not current state.
+
 
 ## S1. Raw Google ID token persisted + dual credential transport + raw-token fallback
 - **Evidence:** Dexie `users` row keeps `idToken` (`workerClient.ts` L142); several calls send `id_token` in the body *and* `Authorization: Bearer` (L385/395, L520/534, L588, L633-637); `getEffectiveAuthToken` falls back to the raw ID token when no session token exists (L187-195).

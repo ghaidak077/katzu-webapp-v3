@@ -224,10 +224,19 @@ Every sign-in from now on registers itself automatically.
 ### 3.2 Curriculum depth
 Launch gate 3 is still open: the "أول 30 يوم في ألمانيا" track is not complete in
 D1. This is content authoring + approval, not code — and it's the single biggest
-lever on retention. I can add scenarios via the admin Content tab or the API as
-soon as you approve the outline.
+lever on retention. Authoring now runs through the `AGENTS.md` §4 content gate
+(audit script → adversarial self-review → review file → secretless loader
+`--dry-run`; the owner runs `--commit`).
 
-Measured live on 2026-09-24, so you can judge it against the outline:
+**Draft modules waiting for the owner's `--commit` (2026-09-28)**, in
+`docs/content/` — these are NOT yet live in D1:
+
+| Module | Status | Rows (draft) |
+| --- | --- | --- |
+| `curriculum-30day-module1.json` | review **pending** | 5 scenarios / 74 vocab / 30 phrases / 10 grammar |
+| `curriculum-arrival-module2.json` | review **approved** (AI self-review only) | 5 scenarios / 49 vocab / 42 phrases / 4 grammar |
+
+Measured **live in D1** on 2026-09-24 (unchanged since — no `--commit` has run):
 
 | Content | Live count |
 | --- | --- |
@@ -236,18 +245,21 @@ Measured live on 2026-09-24, so you can judge it against the outline:
 | Starter phrases (hint fallback) | **20** — only 1 per scenario per level |
 | Vocabulary | **114** words — A1 31 / A2 30 / B1 27 / B2 26 |
 | Grammar rules | **4** — one per level |
-
 The mechanics are finished; the library is a thin vertical slice. A 30-day track
 realistically needs ~30 scenarios and several hundred words before retention
 figures mean anything, so treat this as the main pre-marketing work item.
-
 ### 3.3 Beta cohort
 Launch gate 7: 30–50 Arabic-speaking learners, plus a plan for the feedback loop.
 The dashboard (users / activity / errors) is ready to support this.
 
 ### 3.4 Optional integration
-Error reporting: set `VITE_SENTRY_DSN` (there is a worker `error_reports` table for
-server-side errors, but nothing captures client-side crashes yet).
+Error reporting: set `VITE_SENTRY_DSN` if you want a third-party dashboard. **Update
+2026-09-28:** client-side crash capture already exists — `installDiagnosticsCapture()`
+(`src/lib/utils/diagnostics.ts`, installed at boot in `main.tsx`) hooks
+`window.onerror` / `unhandledrejection` / console errors, keeps them in a local
+ring buffer, and forwards capped, PII-free crash reports to the worker's
+`/client-error` route, which stores them in the `error_reports` table the admin
+dashboard already shows. A third-party provider is optional, not a gap.
 
 ---
 
@@ -265,8 +277,8 @@ server-side errors, but nothing captures client-side crashes yet).
 ## 5. How to re-verify anything
 
 ```bash
-npm run lint && npm test -- --run && npm run build     # 638 tests / 56 files must pass
-npx playwright test                                 # 18 browser tests (needs the preview up on :3000)
+npm run lint && npm test -- --run && npm run build     # 747 tests / 65 files must pass (2026-09-28)
+npx playwright test                                 # 27 browser tests in 8 files (needs the preview up)
 curl -sI https://katzu-sales.pages.dev/                     # live sales site must be 200
 curl -s  https://katzu-test.ghaidakalosh008.workers.dev/crypto/health   # ok:true; ready:true once the keys are set
 node scripts/verify-admin-live.mjs --secret=<ADMIN_SECRET>   # live admin + free-user lookup

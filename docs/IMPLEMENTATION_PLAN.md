@@ -1,5 +1,7 @@
 # Katzu — Technical & Product Implementation Plan
 **Basis:** full codebase audit (2026-09-24). Every finding below was verified in source, not assumed.
+> **2026-09-28 note:** this is a dated 2026-09-24 audit record. The `handleAiConversationTurn` references below describe code since deleted (commit `20f7a4f` line numbers no longer apply); the bounded-input / server-authoritative-identity fix they called for shipped as the Phase 1 gate (`tests/workerSecurity.test.ts`). Read as history, not current state.
+
 Stack preserved: React 18 + Vite PWA, Dexie/IndexedDB, Cloudflare Worker, D1, KV, Gemini (+ Workers AI fallback).
 
 ---

@@ -1,6 +1,8 @@
 # Katzu — Full Verification Report
 **Date:** 2026-09-24 · commit `ff7b857` (main) · deployed targets: Pages `katzu-webapp-v3.pages.dev`, Worker `katzu-test` (live version deployed from this commit).
-**Method:** every claim carries real evidence. Nothing was deployed or fixed during this audit (read-only against production; browser checks touched only their own throwaway browser profile). No secret values are printed.
+**Method:** every claim carries real evidence.
+> **2026-09-28 note:** this is a dated 2026-09-24 audit record. The `handleAiConversationTurn` references below describe code since deleted (commit `20f7a4f` line numbers no longer apply); the bounded-input / server-authoritative-identity fix they called for shipped as the Phase 1 gate (`tests/workerSecurity.test.ts`). Read as history, not current state.
+ Nothing was deployed or fixed during this audit (read-only against production; browser checks touched only their own throwaway browser profile). No secret values are printed.
 
 ---
 

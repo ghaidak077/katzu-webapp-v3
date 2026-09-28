@@ -735,3 +735,27 @@ regression violated).
    `docs/PRODUCT-SPEC.md` — which records the same constraint at its own top. The entry above was
    the last one writeable in place, so the next implementation entry belongs in a new file
    continuing from §12.
+
+## 12. Launch-hardening pass (2026-09-28)
+
+Performance and structure work from `AGENTS.md` §6 item B4, on branch `launch-hardening`:
+
+- **JourneyHome bounded projection** (`168655c`): 8 full-table live queries → one
+  identity-preserving projection, proven equal by `tests/journeyHomeData.test.ts`.
+- **Local scene art** (`37d1f74`): 14 Unsplash hotlinks → local 640×360 JPEGs
+  (29 KB total); remote `banner_url` still wins.
+- **woff2 fonts** (`44a2ffb`): Cairo 588K→116K, Satoshi ~72K→~15K each.
+- **Renderer tier** (`860b503`): `detectTier()` (saveData → reduced-motion →
+  cores/memory) resolves once per load; `kz-lite` drops blur/saturation/grain,
+  never contrast.
+- **LiveConversationScreen split** (`f5ad979`): 1248 lines → hook (922) +
+  transcript (140) + dock (233) + 311-line layout; zero behaviour change;
+  conversation e2e groups green before and after.
+- **Unreachable worker code deleted** (`20f47a4`): the legacy
+  `handleAiConversationTurn` / `handleAiTranslation` / `handleAiHints` bodies,
+  `callGeminiWithFailover`, `summarizeFailoverState` and `LEDGER_SCOPES`
+  (478 lines) — all routes already serve from the extracted modules.
+
+Verification at commit time: tsc clean, 65 files / 747 vitest tests, `node --check`
+clean on both workers, live-conversation e2e group 3/3.
+
