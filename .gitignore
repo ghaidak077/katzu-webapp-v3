@@ -1,42 +1,38 @@
+
+!.vscode/extensions.json
 # Dependencies
-node_modules
+# Editor & OS files
+# Environment variables
+# Local tooling / caches (never shipped)
+# Logs
+# Playwright artifacts
+# Production build outputs
+*.local
+*.tsbuildinfo
+.DS_Store
+.claude/
+.env
+.env.development.local
+.env.local
+.env.production.local
+.env.test.local
+.idea
 .pnp
 .pnp.js
-
-# Production build outputs
+.vitest/
+.vscode/*
+.wrangler/
+/blob-report/
+/playwright-report/
+/test-results/
+Thumbs.db
+bun.lock
 dist
 dist-ssr
-*.local
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Editor & OS files
-.DS_Store
-Thumbs.db
-.vscode/*
-!.vscode/extensions.json
-.idea
-*.tsbuildinfo
-
-# Logs
+isolate/
+lerna-debug.log*
+node_modules
 npm-debug.log*
+pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-.wrangler/
-
-# Local tooling / caches (never shipped)
-.vitest/
-.claude/
-
-# Playwright artifacts
-/test-results/
-/playwright-report/
-/blob-report/
-
