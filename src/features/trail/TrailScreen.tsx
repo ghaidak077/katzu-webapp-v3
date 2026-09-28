@@ -206,7 +206,8 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         {!isPro ? (
           <button
             onClick={onOpenSubscription}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary text-xs font-bold shadow-glow-purple active:scale-95 transition-all"
+            aria-label="اكتشف مزايا Pro"
+            className="flex min-h-[44px] items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary text-xs font-bold shadow-glow-purple active:scale-95 transition-all"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>اكتشف مزايا Pro</span>
