@@ -220,7 +220,7 @@ const WORKER_ORIGIN = 'https://worker.test';
 const IPN_SECRET = 'katzu-nowpayments-ipn-test-secret';
 const API_KEY = 'nowpayments_test_api_key_do_not_leak';
 const HMAC_SECRET = 'katzu-hmac-secret';
-const ADMIN_SECRET = 'katzu-admin-secret';
+const ADMIN_SECRET = 'katzu-admin-secret-0123456789';
 const PRICE_USD = 5;
 
 function makeEnv(extra: Record<string, unknown> = {}) {

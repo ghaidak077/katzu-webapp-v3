@@ -14,7 +14,8 @@ import { FakeD1 } from './helpers/fakeD1';
  * bulk upload and sync mode; this file pins the single-row edit.
  */
 
-const SECRET = 'test-admin-secret';
+// ≥24 chars: the admin gate now fails closed on too-short secrets (S9 hardening).
+const SECRET = 'test-admin-secret-0123456789';
 
 function adminRequest(path: string, init: RequestInit = {}) {
   return new Request(`https://katzu.test${path}`, {

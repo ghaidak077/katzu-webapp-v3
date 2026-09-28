@@ -3,8 +3,9 @@
  * Captures screenshots of the LIVE Katzu admin dashboard and prints the values
  * it rendered, so the output is verifiable text as well as images.
  *
- * The admin dashboard keeps its bearer token in sessionStorage, so the script
- * seeds that before load and then drives the real deployed UI.
+ * The admin dashboard keeps its bearer token in JS memory only (never
+ * sessionStorage), so the script types it into the key field and clicks
+ * Connect, then drives the real deployed UI.
  *
  * Requires a Chromium binary. Playwright's Chromium may already be cached:
  *   node scripts/capture-admin-screenshots.mjs --secret=<ADMIN_SECRET>
@@ -44,13 +45,6 @@ const browser = await chromium.launch({
 });
 const context = await browser.newContext({ viewport: { width: 1500, height: 1150 } });
 
-// Seed the bearer token before any page script runs.
-await context.addInitScript((s) => {
-  try {
-    sessionStorage.setItem('katzu_admin_key', s);
-  } catch {}
-}, SECRET);
-
 const page = await context.newPage();
 const shot = async (name) => {
   const path = `${OUT}/${name}.png`;
@@ -60,7 +54,11 @@ const shot = async (name) => {
 const settle = (ms = 1800) => page.waitForTimeout(ms);
 
 await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-await settle(2500);
+
+// Connect with the admin secret through the real UI (memory-only key storage).
+await page.fill('#admin-key', SECRET);
+await page.click('#save-key-btn');
+await settle(1500);
 
 console.log(`\npage title        : ${await page.title()}`);
 console.log(`connection state  : ${(await page.textContent('#key-state'))?.trim()}`);

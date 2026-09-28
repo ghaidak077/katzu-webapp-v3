@@ -253,7 +253,7 @@ function makeEnv(overrides: Row = {}) {
     TEST_MODE: true,
     GOOGLE_CLIENT_ID: 'client-id',
     HMAC_SECRET: 'test-hmac-secret',
-    ADMIN_SECRET: 'admin-secret',
+    ADMIN_SECRET: 'admin-secret-0123456789abcdef',
     REDEEMED_CODES: new MemoryKv(),
     USER_PROGRESS: new MemoryKv(),
     DB: new RegistryD1(),
@@ -274,10 +274,10 @@ const request = (path: string, opts: { method?: string; body?: unknown; auth?: s
   });
 
 const adminGet = (path: string, env: Env) =>
-  worker.fetch(request(path, { method: 'GET', auth: 'admin-secret' }), env as never);
+  worker.fetch(request(path, { method: 'GET', auth: 'admin-secret-0123456789abcdef' }), env as never);
 
 const adminPost = (path: string, body: unknown, env: Env) =>
-  worker.fetch(request(path, { auth: 'admin-secret', body }), env as never);
+  worker.fetch(request(path, { auth: 'admin-secret-0123456789abcdef', body }), env as never);
 
 /** Sign in via Google JWT and return the opaque session token. */
 async function signIn(env: Env, sub: string, email: string): Promise<string> {

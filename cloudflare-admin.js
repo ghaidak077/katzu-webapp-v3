@@ -765,10 +765,31 @@ function json(obj, status, cors) {
   });
 }
 
-/** Same gate as the main worker's checkAdminAuth — do not weaken. */
-function checkAdminAuth(request, env) {
-  const auth = request.headers.get("Authorization");
-  return Boolean(env?.ADMIN_SECRET) && auth === `Bearer ${env.ADMIN_SECRET}`;
+/**
+ * Same gate as the main worker's isAdminAuthorized — do not weaken.
+ * Shared semantics, duplicated body: cloudflare-admin.js cannot import from the
+ * unified worker (the worker imports FROM this module; a back-import would be a
+ * cycle). Keep the two in sync — the adminRegistry tests pin both.
+ */
+const ADMIN_SECRET_MIN_LENGTH = 24;
+const ADMIN_FAIL_LIMIT = 5;
+const ADMIN_FAIL_WINDOW_MS = 15 * 60 * 1000;
+
+function timingSafeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  if (a.length !== b.length || a.length === 0) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function isAdminAuthorized(request, env) {
+  const secret = typeof env?.ADMIN_SECRET === "string" ? env.ADMIN_SECRET : "";
+  // Fail closed: unset, non-string or too-short-to-be-real secrets authorize nothing.
+  if (secret.length < ADMIN_SECRET_MIN_LENGTH) return false;
+  const auth = request.headers.get("Authorization") || "";
+  // Constant-time compare against the expected header value.
+  return timingSafeEqual(auth, `Bearer ${secret}`);
 }
 
 const ADMIN_API_PREFIX = "/admin/api/";
@@ -819,17 +840,17 @@ export async function handleAdminRoutes(url, request, env, cors) {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store, no-cache, must-revalidate",
-        // This page holds a live admin bearer token in sessionStorage, but it was
-        // served with no security headers at all — so it could be framed by any
-        // site, and an injected payload could ship the token anywhere. The page
-        // is fully self-contained (one inline <script>, one inline <style>, no
-        // external asset, and every fetch is same-origin), so the policy below
-        // can be strict without breaking it: `default-src 'none'` blocks any
-        // external script/style/font/image, and `connect-src 'self'` means a
-        // token read from sessionStorage has nowhere to be exfiltrated to.
-        // `'unsafe-inline'` is still required because the shell uses inline
-        // handlers and an inline <style>; removing those is the follow-up that
-        // would let script-src drop to a hash/nonce.
+        // This page holds a live admin bearer token in JS memory only (never
+        // written to session or local storage), and every static handler is
+        // attached via addEventListener — no inline handler attributes. The
+        // shell was once served with no security headers at all; the policy
+        // below lets it be framed by no one and gives an injected payload
+        // nowhere to phone home: `default-src 'none'` blocks any external
+        // script/style/font/image, and `connect-src 'self'` means a stolen
+        // token cannot be exfiltrated from this origin. 'unsafe-inline' remains
+        // for the two inline <script>/<style> blocks (the Content Studio
+        // scripts still use inline handlers); dropping it needs those on
+        // hash/nonce — tracked follow-up, not a regression.
         "Content-Security-Policy":
           "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
         "X-Frame-Options": "DENY",
@@ -847,7 +868,7 @@ export async function handleAdminRoutes(url, request, env, cors) {
     if (!isApi) return null;
   }
 
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return json({ error: "unauthorized" }, 401, cors);
 
   // Same guarantee for direct API/legacy calls that skip the dashboard shell.
   await ensureRegistryTables(env);
@@ -1218,13 +1239,13 @@ ${CONTENT_STUDIO_CSS}
 <div class="shell">
   <nav class="nav">
     <div class="brand">Katzu <span>Control Plane</span></div>
-    <button id="nav-overview" onclick="showTab('overview')">Overview</button>
-    <button id="nav-users" onclick="showTab('users')">Users</button>
-    <button id="nav-activity" onclick="showTab('activity')">Activity</button>
-    <button id="nav-errors" onclick="showTab('errors')">Errors</button>
-    <button id="nav-licenses" onclick="showTab('licenses')">Licenses &amp; Plans</button>
-    <button id="nav-content" onclick="showTab('content')">Content Studio</button>
-    <button id="nav-schema" onclick="showTab('schema')">Database Schema</button>
+    <button id="nav-overview" data-action="showTab" data-tab="overview">Overview</button>
+    <button id="nav-users" data-action="showTab" data-tab="users">Users</button>
+    <button id="nav-activity" data-action="showTab" data-tab="activity">Activity</button>
+    <button id="nav-errors" data-action="showTab" data-tab="errors">Errors</button>
+    <button id="nav-licenses" data-action="showTab" data-tab="licenses">Licenses &amp; Plans</button>
+    <button id="nav-content" data-action="showTab" data-tab="content">Content Studio</button>
+    <button id="nav-schema" data-action="showTab" data-tab="schema">Database Schema</button>
     <div class="muted mono" style="padding:14px 12px;font-size:11px">worker: ${escapeHtml(workerName)}</div>
   </nav>
 
@@ -1235,7 +1256,7 @@ ${CONTENT_STUDIO_CSS}
     <div class="card" style="margin-bottom:18px">
       <div class="kbar">
         <input id="admin-key" type="password" placeholder="ADMIN_SECRET (Bearer token)" autocomplete="off">
-        <button class="btn primary" onclick="saveKey()">Connect</button>
+        <button class="btn primary" id="save-key-btn" type="button">Connect</button>
         <span id="key-state" class="muted" style="font-size:12px"></span>
       </div>
     </div>
@@ -1267,7 +1288,7 @@ ${CONTENT_STUDIO_CSS}
         </div>
       </div>
       <div style="margin-top:18px">
-        <button class="btn" onclick="loadBackfillPreview()">Preview legacy KV backfill (read-only)</button>
+        <button class="btn" id="backfill-preview-btn" type="button">Preview legacy KV backfill (read-only)</button>
         <div id="backfill-out" class="mono muted" style="margin-top:10px;white-space:pre-wrap"></div>
       </div>
     </section>
@@ -1283,7 +1304,7 @@ ${CONTENT_STUDIO_CSS}
             <option value="pro">Pro (active)</option>
             <option value="expired">Pro (expired)</option>
           </select>
-          <button class="btn primary" onclick="loadUsers(0)">Search</button>
+          <button class="btn primary" id="users-search-btn" type="button">Search</button>
           <div class="spacer"></div>
           <span class="muted" id="users-count"></span>
         </div>
@@ -1296,8 +1317,8 @@ ${CONTENT_STUDIO_CSS}
           <tbody id="users-body"></tbody>
         </table>
         <div class="row" style="margin-top:12px">
-          <button class="btn" onclick="pageUsers(-1)">Prev</button>
-          <button class="btn" onclick="pageUsers(1)">Next</button>
+          <button class="btn" id="users-prev-btn" type="button">Prev</button>
+          <button class="btn" id="users-next-btn" type="button">Next</button>
           <span class="muted" id="users-page"></span>
         </div>
       </div>
@@ -1319,7 +1340,7 @@ ${CONTENT_STUDIO_CSS}
             <option value="plan_edited">plan_edited</option>
             <option value="plan_revoked">plan_revoked</option>
           </select>
-          <button class="btn primary" onclick="loadActivity()">Load</button>
+          <button class="btn primary" id="activity-load-btn" type="button">Load</button>
         </div>
       </div>
       <div class="card"><div class="feed" id="activity-feed"></div></div>
@@ -1337,7 +1358,7 @@ ${CONTENT_STUDIO_CSS}
             <option value="delete_incomplete">delete_incomplete</option>
             <option value="export_failed">export_failed</option>
           </select>
-          <button class="btn primary" onclick="loadErrors()">Load</button>
+          <button class="btn primary" id="errors-load-btn" type="button">Load</button>
         </div>
       </div>
       <div class="card"><div class="feed" id="errors-feed"></div></div>
@@ -1350,7 +1371,7 @@ ${CONTENT_STUDIO_CSS}
           <h2 style="margin-top:0">Look up a user</h2>
           <div class="row">
             <input id="lic-email" placeholder="learner email" style="min-width:240px">
-            <button class="btn primary" onclick="licLookup()">Look up</button>
+            <button class="btn primary" id="lic-lookup-btn" type="button">Look up</button>
           </div>
           <div id="lic-result" style="margin-top:12px"></div>
         </div>
@@ -1359,7 +1380,7 @@ ${CONTENT_STUDIO_CSS}
           <div class="row">
             <input id="gen-months" type="number" value="1" min="1" max="24" style="width:90px">
             <input id="gen-count" type="number" value="1" min="1" max="50" style="width:90px">
-            <button class="btn primary" onclick="genCodes()">Generate</button>
+            <button class="btn primary" id="gen-codes-btn" type="button">Generate</button>
           </div>
           <div class="muted" style="font-size:12px;margin-top:8px">Codes are signed HMAC licenses. Treat generated output as sensitive.</div>
           <div id="gen-result" class="mono" style="margin-top:12px;white-space:pre-wrap"></div>
@@ -1421,9 +1442,12 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
   function saveKey() {
     var v = document.getElementById("admin-key").value.trim();
     if (!v) { toast("Enter the admin secret first", true); return; }
+    // SECURITY: memory only. The key is deliberately NOT written to any
+    // storage (session/local) — a stored bearer token outlives the tab and
+    // survives XSS; a variable dies with the page.
     state.adminKey = v;
-    try { sessionStorage.setItem("katzu_admin_key", v); } catch (e) {}
-    document.getElementById("key-state").textContent = "key loaded for this session";
+    document.getElementById("admin-key").value = "";
+    document.getElementById("key-state").textContent = "key loaded (memory only, clears on reload)";
     toast("Connected");
     refreshTab();
   }
@@ -1822,27 +1846,36 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     }).catch(function () { out.textContent = "Preview unavailable."; });
   }
 
-  try {
-    var saved = sessionStorage.getItem("katzu_admin_key");
-    if (saved) {
-      state.adminKey = saved;
-      document.getElementById("admin-key").value = saved;
-      document.getElementById("key-state").textContent = "key loaded for this session";
-    }
-  } catch (e) {}
+  // ------------------------------------------------------------------
+  // Event wiring. Every static handler is attached here — the markup
+  // carries data-action/data-tab attributes, never inline handler
+  // attributes, so the page's script-src can drop 'unsafe-inline' once
+  // the Content Studio scripts do the same. Rows rendered dynamically
+  // keep their own addEventListener bindings (see loadUsers/openUser).
+  // ------------------------------------------------------------------
+  function on(id, fn) {
+    var node = document.getElementById(id);
+    if (node) node.addEventListener("click", fn);
+  }
 
-  window.showTab = showTab;
-  window.saveKey = saveKey;
-  window.loadUsers = loadUsers;
-  window.pageUsers = pageUsers;
-  window.loadActivity = loadActivity;
-  window.loadErrors = loadErrors;
-  window.licLookup = licLookup;
-  window.genCodes = genCodes;
-  window.loadContent = loadContent;
-  window.loadBackfillPreview = loadBackfillPreview;
-  window.closeDrawer = closeDrawer;
-  window.openUser = openUser;
+  document.querySelectorAll("[data-action='showTab']").forEach(function (btn) {
+    btn.addEventListener("click", function () { showTab(btn.getAttribute("data-tab")); });
+  });
+  on("save-key-btn", saveKey);
+  on("backfill-preview-btn", loadBackfillPreview);
+  on("users-search-btn", function () { loadUsers(0); });
+  on("users-prev-btn", function () { pageUsers(-1); });
+  on("users-next-btn", function () { pageUsers(1); });
+  on("activity-load-btn", loadActivity);
+  on("errors-load-btn", loadErrors);
+  on("lic-lookup-btn", licLookup);
+  on("gen-codes-btn", genCodes);
+
+  // Enter in the key field connects without a click.
+  var keyInput = document.getElementById("admin-key");
+  if (keyInput) keyInput.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); saveKey(); }
+  });
 
   showTab("overview");
 </script>

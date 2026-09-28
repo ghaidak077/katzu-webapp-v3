@@ -412,4 +412,151 @@ describe('Worker security controls', () => {
       expect(getCorsHeaders(req('https://app.example'), { ...env, ENVIRONMENT: 'production' })._corsAllowed).toBe(false);
     });
   });
+
+  describe('admin gate hardening (Phase 1 / S9)', () => {
+    class RegistryD1 {
+      counters = new Map<string, number>();
+      prepare(sql: string) {
+        const norm = sql.replace(/\s+/g, ' ').trim();
+        const self = this;
+        const exec = (args: unknown[]) => {
+          const ins = norm.match(/^INSERT INTO rate_limit_counters \(counter_id, window_start, count\) VALUES \(\?, \?, 1\)$/);
+          if (ins) {
+            const id = args[0] as string;
+            if (self.counters.has(id)) throw new Error('UNIQUE constraint failed');
+            self.counters.set(id, 1);
+            return { success: true };
+          }
+          const upd = norm.match(/^UPDATE rate_limit_counters SET count = \? WHERE counter_id = \?$/);
+          if (upd) {
+            const [count, id] = args as [number, string];
+            if (self.counters.has(id)) self.counters.set(id, Number(count));
+            return { success: true };
+          }
+          return { success: true };
+        };
+        return {
+          _batch: () => exec([]),
+          run: () => exec([]),
+          bind: (...args: unknown[]) => ({
+            run: () => exec(args),
+            first: async () => {
+              const read = norm.match(/^SELECT count FROM rate_limit_counters WHERE counter_id = \?$/);
+              if (read) {
+                const count = self.counters.get(args[0] as string);
+                return count === undefined ? null : { count };
+              }
+              return null;
+            },
+            all: async () => ({ results: [], success: true }),
+          }),
+        };
+      }
+      batch(stmts: Array<{ _batch?: () => unknown }>) {
+        return Promise.all(stmts.map((s) => (s && s._batch ? s._batch() : s)));
+      }
+    }
+
+    const SECRET = 'unit-test-admin-secret-0123456789abcdef';
+    const baseEnv = () => ({
+      ENVIRONMENT: 'development',
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      ADMIN_SECRET: SECRET,
+      HMAC_SECRET: 'unit-test-hmac-secret',
+      USER_PROGRESS: new MemoryKv(),
+      REDEEMED_CODES: new MemoryKv(),
+      DB: new RegistryD1(),
+    });
+
+    const adminReq = (path: string, auth: string | null, ip = '203.0.113.10') =>
+      new Request(`https://worker.test${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(auth === null ? {} : { Authorization: auth }),
+          'CF-Connecting-IP': ip,
+        },
+        body: JSON.stringify({ months: 1 }),
+      });
+
+    it('fails closed when ADMIN_SECRET is missing, empty or too short ("Bearer undefined" never works)', async () => {
+      for (const secret of [undefined, '', 'short', 'twelve-characters']) {
+        const res = await worker.fetch(adminReq('/admin/generate', 'Bearer undefined'), {
+          ...baseEnv(),
+          ADMIN_SECRET: secret,
+        } as never);
+        expect(res.status, `secret=${JSON.stringify(secret)}`).toBe(401);
+      }
+      // Even the exact "Bearer undefined" string against an unset secret must 401.
+      const res = await worker.fetch(adminReq('/admin/generate', 'Bearer undefined'), {
+        ...baseEnv(),
+        ADMIN_SECRET: undefined,
+      } as never);
+      expect(res.status).toBe(401);
+    });
+
+    it('rejects a wrong secret with 401 and accepts the correct one', async () => {
+      const env = baseEnv();
+      const wrong = await worker.fetch(adminReq('/admin/generate', `Bearer ${SECRET}x`), env as never);
+      expect(wrong.status).toBe(401);
+
+      const right = await worker.fetch(adminReq('/admin/generate', `Bearer ${SECRET}`), env as never);
+      expect(right.status).toBe(200);
+      const body = (await right.json()) as { code?: string };
+      expect(body.code).toMatch(/^DE-1M-/);
+    });
+
+    it('locks an IP out with 429 + Retry-After after 5 failed attempts', async () => {
+      const env = baseEnv();
+      const ip = '198.51.100.77';
+      for (let i = 0; i < 5; i++) {
+        const res = await worker.fetch(adminReq('/admin/generate', 'Bearer wrong-guess', ip), env as never);
+        expect(res.status).toBe(401);
+      }
+      // The 6th failure — and even the CORRECT secret — is throttled.
+      const sixth = await worker.fetch(adminReq('/admin/generate', 'Bearer wrong-guess', ip), env as never);
+      expect(sixth.status).toBe(429);
+      expect(Number(sixth.headers.get('Retry-After'))).toBeGreaterThan(0);
+      const withRightSecret = await worker.fetch(adminReq('/admin/generate', `Bearer ${SECRET}`, ip), env as never);
+      expect(withRightSecret.status).toBe(429);
+
+      // A different IP is unaffected: successful auth never touches the counter.
+      const otherIp = await worker.fetch(adminReq('/admin/generate', `Bearer ${SECRET}`, '198.51.100.78'), env as never);
+      expect(otherIp.status).toBe(200);
+    });
+
+    it('admin responses are never cacheable (no-store) and CORS still rejects foreign origins', async () => {
+      const env = baseEnv();
+      const ok = await worker.fetch(adminReq('/admin/generate', `Bearer ${SECRET}`), env as never);
+      expect(ok.headers.get('Cache-Control')).toContain('no-store');
+      const denied = await worker.fetch(adminReq('/admin/generate', `Bearer ${SECRET}`), env as never);
+      expect(denied.headers.get('Cache-Control')).toContain('no-store');
+
+      // Non-allowlisted origin → hard 403 at the entry, before any admin handler.
+      const foreign = await worker.fetch(
+        new Request('https://worker.test/admin/generate', {
+          method: 'POST',
+          headers: {
+            Origin: 'https://evil.example',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${SECRET}`,
+          },
+          body: JSON.stringify({ months: 1 }),
+        }),
+        { ...baseEnv(), ALLOWED_ORIGINS: 'https://app.example', ENVIRONMENT: 'production' } as never,
+      );
+      expect(foreign.status).toBe(403);
+    });
+
+    it('the live dashboard shell carries no inline onclick and never persists the secret', async () => {
+      const { renderAdminDashboardHtml } = await import('../cloudflare-admin');
+      const html = renderAdminDashboardHtml({ WORKER_NAME: 'test' });
+      expect(html).not.toMatch(/\sonclick=/);
+      expect(html).not.toContain('sessionStorage');
+      expect(html).not.toContain('localStorage');
+      expect(html).toContain('data-action="showTab"');
+      expect(html).toContain('addEventListener');
+    });
+  });
 });

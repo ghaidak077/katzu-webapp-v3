@@ -15,7 +15,8 @@ import { FakeD1, type Row } from './helpers/fakeD1';
  * them", which is the bug this whole change was written to remove.
  */
 
-const SECRET = 'test-admin-secret';
+// ≥24 chars: the admin gate now fails closed on too-short secrets (S9 hardening).
+const SECRET = 'test-admin-secret-0123456789';
 
 function scenario(overrides: Row = {}): Row {
   return {

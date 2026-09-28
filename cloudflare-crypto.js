@@ -190,7 +190,7 @@ function bytesToHex(buffer) {
 }
 
 /** Constant-time comparison for equal-length hex digests. */
-function timingSafeEqualHex(a, b) {
+export function timingSafeEqualHex(a, b) {
   if (typeof a !== "string" || typeof b !== "string") return false;
   if (a.length !== b.length || a.length === 0) return false;
   let diff = 0;

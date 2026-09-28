@@ -72,7 +72,7 @@ import {
 // signature-verified IPN. Nothing here is called by the app — a buyer redeems
 // their code in-app through /verify, which is what keeps one payment path (and one
 // secret) out of the PWA entirely.
-import { handleCryptoRoutes } from "./cloudflare-crypto.js";
+import { handleCryptoRoutes, timingSafeEqualHex } from "./cloudflare-crypto.js";
 import { ensureContentColumns } from "./cloudflare-content-schema.js";
 
 // ============================================================================
@@ -1365,6 +1365,20 @@ export default {
       // Delegates /admin, /admin/api/* and the admin lookup/edit/revoke/progress
       // actions. Returns null for routes it does not own (content CRUD, upload,
       // generate) so those continue through the legacy handlers below.
+      // Every /admin* request passes the durable per-IP failure throttle before
+      // any handler (or the shell) runs — brute-forcing the bearer secret cannot
+      // get past 5 failures per 15 minutes per IP (see isAdminAuthorized).
+      if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) {
+        const throttle = await isAdminThrottled(request, env);
+        if (throttle.throttled) {
+          return adminJson(
+            { error: "too_many_attempts" },
+            429,
+            cors,
+            { "Retry-After": String(throttle.retryAfter) },
+          );
+        }
+      }
       const adminResponse = await handleAdminRoutes(url, request, env, cors);
       if (adminResponse) return adminResponse;
 
@@ -1405,6 +1419,15 @@ export default {
         return await handleCheckStatus(request, env, cors);
       }
       if (url.pathname === "/admin/generate" && request.method === "POST") {
+        const throttle = await isAdminThrottled(request, env);
+        if (throttle.throttled) {
+          return adminJson(
+            { error: "too_many_attempts" },
+            429,
+            cors,
+            { "Retry-After": String(throttle.retryAfter) },
+          );
+        }
         return await handleAdminGenerate(request, env, cors);
       }
       if (url.pathname === "/progress/sync" && request.method === "POST") {
@@ -2191,9 +2214,8 @@ function maskEmail(email) {
 }
 
 async function handleAdminGenerate(request, env, cors) {
-  const auth = request.headers.get("Authorization");
-  if (auth !== `Bearer ${env.ADMIN_SECRET}`) {
-    return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) {
+    return adminJson({ error: "unauthorized" }, 401, cors);
   }
 
   const body = await request.json().catch(() => null);
@@ -2494,6 +2516,16 @@ function json(obj, status, cors) {
   return new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json", ...cors } });
 }
 
+// Admin JSON with a guaranteed no-store: a cached admin response carrying user
+// rows or a freshly minted activation code is a data leak. cors already carries
+// no-store for the normal paths; this makes the guarantee local and explicit.
+function adminJson(obj, status, cors, extraHeaders = {}) {
+  const response = json(obj, status, cors);
+  response.headers.set("Cache-Control", "no-store");
+  for (const [name, value] of Object.entries(extraHeaders)) response.headers.set(name, value);
+  return response;
+}
+
 export {
   checkRateLimit,
   checkUserEntitlement,
@@ -2518,9 +2550,87 @@ export {
 
 const VALID_LEVELS = new Set(["A1", "A2", "B1", "B2"]);
 
-function checkAdminAuth(request, env) {
-  const auth = request.headers.get("Authorization");
-  return auth === `Bearer ${env.ADMIN_SECRET}`;
+// ----------------------------------------------------------------------------
+// Admin auth gate (security-gaps S9/S10 follow-up).
+//
+// Three properties the old direct string comparison lacked:
+// 1. Fail-closed on a missing/short secret — with no ADMIN_SECRET set the old
+//    template string became "Bearer undefined", so that exact string was a
+//    valid admin credential.
+// 2. Constant-time comparison (timingSafeEqualHex, reused from
+//    cloudflare-crypto.js — not duplicated) so response timing cannot leak the
+//    secret byte by byte.
+// 3. A durable per-IP failure throttle (rate_limit_counters, the same D1
+//    mechanism the AI routes use) so an attacker can grind the comparison
+//    forever: after 5 failures in 15 minutes the IP is locked out with 429.
+//    Successful auths do not touch the counter — they neither reset other
+//    IPs' counts nor leak a timing signal on the success path.
+// ----------------------------------------------------------------------------
+const ADMIN_SECRET_MIN_LENGTH = 24;
+const ADMIN_FAIL_LIMIT = 5;
+const ADMIN_FAIL_WINDOW_MS = 15 * 60 * 1000;
+
+async function isAdminAuthorized(request, env) {
+  const secret = typeof env?.ADMIN_SECRET === "string" ? env.ADMIN_SECRET : "";
+  // Fail closed: unset, non-string or too-short-to-be-real secrets authorize nothing.
+  if (secret.length < ADMIN_SECRET_MIN_LENGTH) return false;
+  const auth = request.headers.get("Authorization") || "";
+  const expected = `Bearer ${secret}`;
+  // Normalize lengths to the constant-time comparison: an early return on
+  // length mismatch would leak the secret length, so compare against a fixed
+  // dummy of the expected length instead.
+  const candidate = auth.length === expected.length ? auth : expected.replace(/./g, (c, i) => (i === 6 ? "x" : " "));
+  const match = timingSafeEqualHex(
+    Array.from(expected).map((c) => c.charCodeAt(0).toString(16).padStart(2, "0")).join(""),
+    Array.from(candidate).map((c) => c.charCodeAt(0).toString(16).padStart(2, "0")).join(""),
+  );
+  if (!match) {
+    await recordAdminAuthFailure(request, env);
+    return false;
+  }
+  return true;
+}
+
+async function recordAdminAuthFailure(request, env) {
+  if (!env?.DB) return;
+  const ip = (request.headers.get("CF-Connecting-IP") || "unknown").replace(/[^a-fA-F0-9:.]/g, "").slice(0, 45);
+  const windowStart = Math.floor(Date.now() / ADMIN_FAIL_WINDOW_MS);
+  const counterId = `admin-auth-fail:${ip}:${windowStart}`;
+  try {
+    await env.DB.prepare(
+      "INSERT INTO rate_limit_counters (counter_id, window_start, count) VALUES (?, ?, 1)"
+    ).bind(counterId, windowStart).run();
+    return;
+  } catch {}
+  try {
+    // Row already exists (or raced the INSERT): increment within this window.
+    const row = await env.DB.prepare(
+      "SELECT count FROM rate_limit_counters WHERE counter_id = ?"
+    ).bind(counterId).first();
+    const next = (Number(row?.count) || 0) + 1;
+    if (row) {
+      await env.DB.prepare(
+        "UPDATE rate_limit_counters SET count = ? WHERE counter_id = ?"
+      ).bind(next, counterId).run();
+    }
+  } catch {}
+}
+
+async function isAdminThrottled(request, env) {
+  if (!env?.DB) return { throttled: false };
+  const ip = (request.headers.get("CF-Connecting-IP") || "unknown").replace(/[^a-fA-F0-9:.]/g, "").slice(0, 45);
+  const windowStart = Math.floor(Date.now() / ADMIN_FAIL_WINDOW_MS);
+  try {
+    const row = await env.DB.prepare(
+      "SELECT count FROM rate_limit_counters WHERE counter_id = ?"
+    ).bind(`admin-auth-fail:${ip}:${windowStart}`).first();
+    const count = Number(row?.count) || 0;
+    if (count >= ADMIN_FAIL_LIMIT) {
+      const secondsIntoWindow = (Date.now() % ADMIN_FAIL_WINDOW_MS) / 1000;
+      return { throttled: true, retryAfter: Math.ceil(ADMIN_FAIL_WINDOW_MS / 1000 - secondsIntoWindow) };
+    }
+  } catch {}
+  return { throttled: false };
 }
 
 async function handleGetScenarios(request, env, cors) {
@@ -2580,8 +2690,8 @@ async function handleGetGrammar(url, request, env, cors) {
 }
 
 async function handleAdminUpload(request, env, cors) {
-  if (!checkAdminAuth(request, env)) {
-    return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) {
+    return adminJson({ error: "unauthorized" }, 401, cors);
   }
   if (!env.DB) return json({ error: "db_unbound" }, 500, cors);
 
@@ -2651,7 +2761,7 @@ async function handleAdminUpload(request, env, cors) {
 // ============================================================================
 
 async function handleAdminLookup(request, env, cors) {
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return adminJson({ error: "unauthorized" }, 401, cors);
   const body = await request.json().catch(() => null);
   const email = body?.email ? String(body.email).toLowerCase().trim() : null;
   if (!email) return json({ error: "missing_email" }, 400, cors);
@@ -2681,7 +2791,7 @@ async function handleAdminLookup(request, env, cors) {
 }
 
 async function handleAdminEdit(request, env, cors) {
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return adminJson({ error: "unauthorized" }, 401, cors);
   const body = await request.json().catch(() => null);
   const email = body?.email ? String(body.email).toLowerCase().trim() : null;
   if (!email) return json({ error: "missing_email" }, 400, cors);
@@ -2721,7 +2831,7 @@ async function handleAdminEdit(request, env, cors) {
 }
 
 async function handleAdminRevoke(request, env, cors) {
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return adminJson({ error: "unauthorized" }, 401, cors);
   const body = await request.json().catch(() => null);
   const email = body?.email ? String(body.email).toLowerCase().trim() : null;
   if (!email) return json({ error: "missing_email" }, 400, cors);
@@ -2741,7 +2851,7 @@ async function handleAdminRevoke(request, env, cors) {
 }
 
 async function handleAdminProgressLookup(request, env, cors) {
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return adminJson({ error: "unauthorized" }, 401, cors);
   const body = await request.json().catch(() => null);
   const email = body?.email ? String(body.email).toLowerCase().trim() : null;
   if (!email) return json({ error: "missing_email" }, 400, cors);
@@ -2763,7 +2873,7 @@ async function handleAdminProgressLookup(request, env, cors) {
 }
 
 async function handleAdminProgressEdit(request, env, cors) {
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return adminJson({ error: "unauthorized" }, 401, cors);
   const body = await request.json().catch(() => null);
   const email = body?.email ? String(body.email).toLowerCase().trim() : null;
   const progress = body?.progress;
@@ -2794,7 +2904,7 @@ function isRowIdTable(type) {
 }
 
 async function handleAdminListContent(type, request, env, cors) {
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return adminJson({ error: "unauthorized" }, 401, cors);
   if (!env.DB) return json({ error: "db_unbound" }, 500, cors);
 
   const sql = isRowIdTable(type)
@@ -2806,7 +2916,7 @@ async function handleAdminListContent(type, request, env, cors) {
 }
 
 async function handleAdminGetSingleContent(type, id, request, env, cors) {
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return adminJson({ error: "unauthorized" }, 401, cors);
   if (!env.DB) return json({ error: "db_unbound" }, 500, cors);
 
   const sql = isRowIdTable(type)
@@ -2820,7 +2930,7 @@ async function handleAdminGetSingleContent(type, id, request, env, cors) {
 }
 
 async function handleAdminCreateContent(type, request, env, cors) {
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return adminJson({ error: "unauthorized" }, 401, cors);
   if (!env.DB) return json({ error: "db_unbound" }, 500, cors);
 
   const body = await request.json().catch(() => null);
@@ -2853,7 +2963,7 @@ async function handleAdminCreateContent(type, request, env, cors) {
 }
 
 async function handleAdminUpdateContent(type, id, request, env, cors) {
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return adminJson({ error: "unauthorized" }, 401, cors);
   if (!env.DB) return json({ error: "db_unbound" }, 500, cors);
 
   const body = await request.json().catch(() => null);
@@ -2884,7 +2994,7 @@ async function handleAdminUpdateContent(type, id, request, env, cors) {
 }
 
 async function handleAdminDeleteContent(type, id, request, env, cors) {
-  if (!checkAdminAuth(request, env)) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env))) return adminJson({ error: "unauthorized" }, 401, cors);
   if (!env.DB) return json({ error: "db_unbound" }, 500, cors);
 
   const whereClause = isRowIdTable(type) ? "WHERE rowid = ?" : "WHERE id = ?";
@@ -2898,1118 +3008,3 @@ async function handleAdminDeleteContent(type, id, request, env, cors) {
   return json({ success: true, deleted_id: id }, 200, cors);
 }
 
-// ============================================================================
-// AESTHETIC DARK GLASSMORPHIC DASHBOARD (GET /admin) + AI STATUS CARD
-// ============================================================================
-
-function renderAdminDashboardHtml(env) {
-  const apiKeys = getGeminiApiKeys(env);
-  const keysCount = apiKeys.length;
-  const coolingCount = apiKeys.filter(k => isKeyCoolingDown(k)).length;
-
-  return `<!DOCTYPE html>
-<html lang="en" class="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Katzu Admin Suite • Edge Control Plane</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'monospace'],
-          },
-          colors: {
-            surface: '#090d18',
-            panel: 'rgba(16, 24, 43, 0.72)',
-            card: 'rgba(19, 30, 56, 0.58)',
-            accent: '#38bdf8',
-            brand: '#2563eb',
-            warning: '#f59e0b',
-            success: '#10b981',
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body {
-      background-color: #060912;
-      background-image: 
-        radial-gradient(circle at 85% 35%, rgba(249, 115, 22, 0.12) 0%, transparent 42%),
-        radial-gradient(circle at 25% 15%, rgba(56, 189, 248, 0.14) 0%, transparent 40%),
-        radial-gradient(circle at 60% 85%, rgba(99, 102, 241, 0.10) 0%, transparent 45%),
-        linear-gradient(180deg, #060913 0%, #090e1c 100%);
-      background-attachment: fixed;
-      color: #e2e8f0;
-      min-height: 100vh;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-    }
-
-    .glass-card {
-      background: rgba(15, 23, 42, 0.68);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      border-radius: 26px;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .glass-card:hover {
-      border-color: rgba(56, 189, 248, 0.22);
-    }
-
-    .glass-nav-pill {
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 28px;
-    }
-
-    .glow-cyan {
-      box-shadow: 0 0 24px rgba(56, 189, 248, 0.35);
-    }
-    .glow-blue {
-      box-shadow: 0 0 24px rgba(37, 99, 235, 0.45);
-    }
-
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: rgba(10, 15, 28, 0.5); }
-    ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.25); border-radius: 9999px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.45); }
-  </style>
-</head>
-<body class="p-3 sm:p-6 lg:p-8 flex flex-col items-center">
-
-  <!-- Toast Container -->
-  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
-
-  <!-- Outer Max-Width Container -->
-  <div class="w-full max-w-[1400px] flex flex-col md:flex-row gap-6">
-
-    <!-- LEFT FLOATING PILL SIDEBAR -->
-    <aside class="w-full md:w-20 flex md:flex-col items-center justify-between p-3.5 glass-nav-pill self-start md:sticky md:top-6 z-40 shrink-0">
-      <div class="flex md:flex-col items-center gap-4 w-full">
-        <button id="nav-home-btn" onclick="switchTab('subscriptions')" title="Dashboard Overview" class="w-12 h-12 rounded-2xl flex items-center justify-center text-white bg-blue-600 glow-blue transition-all">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-          </svg>
-        </button>
-
-        <button id="nav-subscriptions-btn" onclick="switchTab('subscriptions')" title="Subscriptions & License Codes" class="w-12 h-12 rounded-2xl flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-all">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-          </svg>
-        </button>
-
-        <button id="nav-content-btn" onclick="switchTab('content')" title="Content Studio (D1 CMS)" class="w-12 h-12 rounded-2xl flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-all">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-          </svg>
-        </button>
-
-        <button id="nav-progress-btn" onclick="switchTab('progress')" title="User Progress & Stats" class="w-12 h-12 rounded-2xl flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-all">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-          </svg>
-        </button>
-      </div>
-
-      <div class="flex md:flex-col items-center gap-3">
-        <div class="w-10 h-10 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-amber-400 text-sm">
-          ✦
-        </div>
-        <div class="text-[10px] font-semibold tracking-wider text-slate-400 uppercase hidden md:block">
-          Admin ›
-        </div>
-      </div>
-    </aside>
-
-    <!-- MAIN WORKSPACE -->
-    <main class="flex-1 flex flex-col gap-6">
-
-      <!-- TOP BAR: Authentication & Live Session -->
-      <header class="glass-card p-4 sm:p-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        <div class="flex items-center gap-3.5">
-          <div class="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-            </svg>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h1 class="text-lg font-bold text-white tracking-tight">Katzu Unified Control Plane</h1>
-              <span id="session-badge" class="px-2 py-0.5 text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full">Secret Required</span>
-            </div>
-            <p class="text-xs text-slate-400">KV Auth • D1 Content DB • Progress Telemetry • 14+ Gemini Multi-Key Engine</p>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <div class="relative flex-1 sm:w-72">
-            <input id="admin-secret-input" type="password" placeholder="Enter ADMIN_SECRET..." autocomplete="off" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs font-mono text-cyan-300 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors">
-            <button onclick="toggleSecretVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-white" title="Toggle Secret Visibility">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            </button>
-          </div>
-          <button onclick="applyAdminSecret()" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white rounded-xl text-xs font-semibold tracking-wide transition-all shadow-lg shadow-blue-500/20 active:scale-95">
-            Authorize
-          </button>
-        </div>
-      </header>
-
-      <!-- HERO WIDGETS ROW -->
-      <section class="grid grid-cols-1 md:grid-cols-12 gap-5">
-        <div class="md:col-span-8 glass-card p-6 flex flex-col justify-between relative overflow-hidden group">
-          <div class="flex items-start justify-between">
-            <div>
-              <span class="text-xs font-medium text-slate-400 tracking-wide uppercase">Unified Edge & AI Engine</span>
-              <h2 class="text-2xl sm:text-3xl font-bold text-white mt-0.5 tracking-tight">Welcome, Administrator</h2>
-              <p class="text-xs text-slate-400 mt-1">KV, D1 database, and 14+ Gemini AI round-robin router are live.</p>
-            </div>
-            <div class="px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 text-xs font-mono text-cyan-300 flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span id="live-clock">--:--:-- UTC</span>
-            </div>
-          </div>
-
-          <div class="mt-8 pt-4 border-t border-slate-800/80 flex items-center justify-between relative">
-            <svg class="w-full h-16 text-cyan-400" viewBox="0 0 500 80" fill="none" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="waveGlow" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="#2563eb" stop-opacity="0.3"/>
-                  <stop offset="50%" stop-color="#38bdf8" stop-opacity="1"/>
-                  <stop offset="100%" stop-color="#818cf8" stop-opacity="0.8"/>
-                </linearGradient>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="4" result="blur"/>
-                  <feMerge>
-                    <feMergeNode in="blur"/>
-                    <feMergeNode in="SourceGraphic"/>
-                  </feMerge>
-                </filter>
-              </defs>
-              <path d="M 0 55 C 80 55, 120 20, 180 35 C 240 50, 300 10, 360 30 C 420 50, 460 25, 500 40" stroke="url(#waveGlow)" stroke-width="3.5" filter="url(#glow)"/>
-              <circle cx="180" cy="35" r="4" fill="#38bdf8" class="animate-ping" style="animation-duration: 3s;"/>
-              <circle cx="180" cy="35" r="3" fill="#ffffff"/>
-              <circle cx="360" cy="30" r="4" fill="#60a5fa"/>
-            </svg>
-          </div>
-        </div>
-
-        <div class="md:col-span-4 glass-card p-6 flex flex-col justify-between">
-          <div class="flex items-start justify-between">
-            <div>
-              <div id="calendar-date" class="text-sm font-semibold text-white">Gemini Router Status</div>
-              <div class="text-xs text-slate-400">Multi-Key Load Balancer</div>
-            </div>
-            <div class="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
-              🤖
-            </div>
-          </div>
-
-          <div class="my-4">
-            <div class="flex items-center gap-3">
-              <div class="text-3xl font-extrabold text-white tracking-tight">${keysCount} Keys</div>
-              <div class="text-xs ${keysCount > 0 ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'} border px-2 py-0.5 rounded-lg">
-                ${keysCount > 0 ? 'Active' : 'No Keys Set'}
-              </div>
-            </div>
-            <div class="text-[11px] text-slate-400 mt-1">
-              Cooling Down: <span class="text-amber-300 font-mono">${coolingCount}</span> keys
-            </div>
-          </div>
-
-          <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-            <span>Route: <strong class="text-cyan-300">/ai/turn</strong></span>
-            <span>Timeout: <strong class="text-slate-200">8s Fallback</strong></span>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB NAVIGATION BAR -->
-      <nav class="flex items-center gap-2 p-1.5 glass-card self-start max-w-full overflow-x-auto">
-        <button id="tab-btn-subscriptions" onclick="switchTab('subscriptions')" class="px-5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 bg-blue-600 text-white shadow-lg shadow-blue-600/30">
-          <span>Subscriptions & Codes</span>
-        </button>
-        <button id="tab-btn-content" onclick="switchTab('content')" class="px-5 py-2.5 rounded-2xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all flex items-center gap-2">
-          <span>Content Studio (D1 CMS)</span>
-        </button>
-        <button id="tab-btn-progress" onclick="switchTab('progress')" class="px-5 py-2.5 rounded-2xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all flex items-center gap-2">
-          <span>User Progress Telemetry</span>
-        </button>
-      </nav>
-
-      <!-- TAB 1: SUBSCRIPTIONS & LICENSE GENERATION -->
-      <section id="tab-view-subscriptions" class="space-y-6">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div class="lg:col-span-7 glass-card p-6 flex flex-col gap-5">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-base font-bold text-white">Subscription Directory</h3>
-                <p class="text-xs text-slate-400">Search by user email to inspect expiration or modify status.</p>
-              </div>
-              <span class="text-xs font-mono px-2.5 py-1 rounded-lg bg-slate-800 text-cyan-300">KV: email_index</span>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <input id="sub-lookup-email" type="email" placeholder="student@example.com" class="flex-1 bg-slate-900/90 border border-slate-700/80 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400">
-              <button onclick="lookupSubscription()" class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-semibold transition-all">
-                Lookup User
-              </button>
-            </div>
-
-            <div id="sub-result-card" class="hidden p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <span id="sub-display-email" class="text-sm font-bold text-white"></span>
-                  <div id="sub-display-sub" class="text-[11px] font-mono text-slate-400 mt-0.5"></div>
-                </div>
-                <span id="sub-display-status-pill" class="px-3 py-1 rounded-full text-xs font-bold"></span>
-              </div>
-
-              <div class="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800/80 text-xs">
-                <div>
-                  <span class="text-slate-400">Expires At:</span>
-                  <div id="sub-display-expires" class="font-mono text-slate-200 mt-0.5">-</div>
-                </div>
-                <div>
-                  <span class="text-slate-400">Active Access:</span>
-                  <div id="sub-display-active" class="font-semibold text-slate-200 mt-0.5">-</div>
-                </div>
-              </div>
-
-              <div class="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                <button onclick="revokeSubscription()" class="px-3.5 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 rounded-xl text-xs font-semibold transition-all">
-                  Revoke Immediately
-                </button>
-
-                <div class="flex items-center gap-2">
-                  <button onclick="quickAddMonths(1)" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded-lg text-slate-200">+1 Mo</button>
-                  <button onclick="quickAddMonths(3)" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded-lg text-slate-200">+3 Mo</button>
-                  <button onclick="quickAddMonths(12)" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded-lg text-slate-200">+1 Yr</button>
-                </div>
-              </div>
-
-              <div class="pt-3 border-t border-slate-800/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-[11px] text-slate-400 mb-1">Set Exact ISO Expiration</label>
-                  <div class="flex gap-1.5">
-                    <input id="sub-edit-exact-date" type="datetime-local" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200">
-                    <button onclick="saveExactExpiry()" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-semibold text-white">Set</button>
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-[11px] text-slate-400 mb-1">Add / Subtract Months</label>
-                  <div class="flex gap-1.5">
-                    <input id="sub-edit-delta-months" type="number" placeholder="e.g. 6 or -2" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200">
-                    <button onclick="saveDeltaMonths()" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-semibold text-white">Apply</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div id="sub-empty-state" class="py-12 text-center text-xs text-slate-500">
-              Search a user email above to review active subscription terms.
-            </div>
-          </div>
-
-          <div class="lg:col-span-5 glass-card p-6 flex flex-col justify-between">
-            <div>
-              <div class="flex items-center justify-between">
-                <div>
-                  <h3 class="text-base font-bold text-white">License Key Forge</h3>
-                  <p class="text-xs text-slate-400">Generates HMAC-signed <code class="text-cyan-300">DE-[X]M-NONCE-SIG</code></p>
-                </div>
-                <div class="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-300 text-xs">
-                  HMAC
-                </div>
-              </div>
-
-              <div class="my-6 flex flex-col items-center justify-center">
-                <div class="relative w-44 h-44 flex items-center justify-center">
-                  <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.06)" stroke-width="6" fill="transparent"/>
-                    <circle id="generator-ring" cx="50" cy="50" r="42" stroke="url(#timerGrad)" stroke-width="6" stroke-dasharray="264" stroke-dashoffset="66" stroke-linecap="round" fill="transparent"/>
-                    <defs>
-                      <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#f59e0b"/>
-                        <stop offset="50%" stop-color="#ef4444"/>
-                        <stop offset="100%" stop-color="#8b5cf6"/>
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div class="absolute flex flex-col items-center">
-                    <span id="generator-months-display" class="text-3xl font-extrabold text-white">6</span>
-                    <span class="text-[11px] uppercase tracking-wider text-slate-400">Months</span>
-                  </div>
-                </div>
-
-                <div class="w-full mt-4 px-4">
-                  <input id="generator-months-slider" type="range" min="1" max="12" value="6" oninput="updateGeneratorSlider(this.value)" class="w-full accent-cyan-400 cursor-pointer">
-                  <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
-                    <span>1M</span>
-                    <span>3M</span>
-                    <span>6M</span>
-                    <span>12M</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="space-y-3">
-              <button onclick="generateAdminCode()" class="w-full py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:opacity-95 text-white rounded-xl text-xs font-bold tracking-wide transition-all shadow-lg shadow-indigo-500/25 active:scale-98 flex items-center justify-center gap-2">
-                <span>⚡ Generate Signed Code</span>
-              </button>
-
-              <div id="generated-code-box" class="hidden p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
-                <span id="generated-code-text" class="text-xs font-mono text-cyan-300 select-all font-semibold"></span>
-                <button onclick="copyGeneratedCode()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded text-slate-300 transition-colors">
-                  Copy
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 2: CONTENT STUDIO (D1 CMS) -->
-      <section id="tab-view-content" class="hidden space-y-6">
-        <div class="glass-card p-6 space-y-6">
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-              <div class="flex p-1 rounded-xl bg-slate-900 border border-slate-800">
-                <button onclick="selectContentType('scenarios')" id="type-btn-scenarios" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white transition-all">Scenarios</button>
-                <button onclick="selectContentType('vocabulary')" id="type-btn-vocabulary" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all">Vocabulary</button>
-                <button onclick="selectContentType('grammar')" id="type-btn-grammar" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all">Grammar</button>
-                <button onclick="selectContentType('starter_phrases')" id="type-btn-starter_phrases" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all">Phrases</button>
-              </div>
-              <span id="content-row-count" class="text-xs font-mono text-slate-400">0 rows</span>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <button onclick="openContentCreateModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition-all">
-                <span>+ Add Row</span>
-              </button>
-              <button onclick="openBulkUploadModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-all">
-                Bulk Upload JSON
-              </button>
-            </div>
-          </div>
-
-          <div class="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-950/60">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] font-mono border-b border-slate-800">
-                <tr id="content-table-head">
-                  <th class="py-3 px-4">ID</th>
-                  <th class="py-3 px-4">Details</th>
-                  <th class="py-3 px-4">Level</th>
-                  <th class="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="content-table-body" class="divide-y divide-slate-900/80 text-slate-300">
-                <tr>
-                  <td colspan="4" class="py-12 text-center text-slate-500">Loading catalog from D1 database...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 3: USER PROGRESS TELEMETRY -->
-      <section id="tab-view-progress" class="hidden space-y-6">
-        <div class="glass-card p-6 space-y-6">
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <div>
-              <h3 class="text-base font-bold text-white">Learner Progress Dashboard</h3>
-              <p class="text-xs text-slate-400">Inspect and update points, streaks, level status, and training records.</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <input id="progress-lookup-email" type="email" placeholder="student@example.com" class="w-64 bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400">
-              <button onclick="lookupUserProgress()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition-all">
-                Inspect
-              </button>
-            </div>
-          </div>
-
-          <div id="progress-display-container" class="hidden space-y-6">
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
-                <span class="text-[11px] text-slate-400 uppercase tracking-wider">CEFR Level</span>
-                <div id="prog-stat-level" class="text-2xl font-bold text-cyan-400 mt-1">A1</div>
-              </div>
-              <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
-                <span class="text-[11px] text-slate-400 uppercase tracking-wider">Streak</span>
-                <div id="prog-stat-streak" class="text-2xl font-bold text-amber-400 mt-1">0 Days</div>
-              </div>
-              <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
-                <span class="text-[11px] text-slate-400 uppercase tracking-wider">Total Points</span>
-                <div id="prog-stat-points" class="text-2xl font-bold text-indigo-400 mt-1">0</div>
-              </div>
-              <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
-                <span class="text-[11px] text-slate-400 uppercase tracking-wider">Last Active</span>
-                <div id="prog-stat-last-active" class="text-sm font-semibold text-slate-300 mt-2 truncate">-</div>
-              </div>
-            </div>
-
-            <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-300">Raw Progress Object (Editable)</span>
-                <button onclick="saveEditedProgress()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition-all">
-                  Save Progress Changes
-                </button>
-              </div>
-              <textarea id="progress-json-editor" rows="9" class="w-full bg-slate-950 font-mono text-xs text-cyan-300 p-3.5 rounded-xl border border-slate-800 focus:outline-none focus:border-cyan-400"></textarea>
-            </div>
-          </div>
-
-          <div id="progress-empty-state" class="py-12 text-center text-xs text-slate-500">
-            Enter learner email above to view and adjust their synced progress telemetry.
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <!-- MODAL: CREATE / EDIT CONTENT ROW -->
-  <div id="content-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="w-full max-w-lg glass-card p-6 space-y-4 border border-slate-700">
-      <div class="flex items-center justify-between">
-        <h4 id="content-modal-title" class="text-base font-bold text-white">Edit Record</h4>
-        <button onclick="closeContentModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
-      </div>
-      <div class="space-y-3">
-        <label class="block text-xs text-slate-400">JSON Fields</label>
-        <textarea id="content-modal-json" rows="10" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-200 focus:outline-none focus:border-cyan-400"></textarea>
-      </div>
-      <div class="flex items-center justify-end gap-2 pt-2">
-        <button onclick="closeContentModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs">Cancel</button>
-        <button onclick="submitContentModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold">Save Record</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: BULK UPLOAD JSON -->
-  <div id="bulk-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="w-full max-w-xl glass-card p-6 space-y-4 border border-slate-700">
-      <div class="flex items-center justify-between">
-        <h4 class="text-base font-bold text-white">Bulk Upload Content (/admin/upload)</h4>
-        <button onclick="closeBulkModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
-      </div>
-      <p class="text-xs text-slate-400">Paste an array of row objects. Scenarios and grammar upsert by ID; vocabulary and starter_phrases perform plain insert.</p>
-      <textarea id="bulk-json-input" rows="10" placeholder='[{"id":"scenario_1","title_de":"Im Cafe","title_ar":"في المقهى"}]' class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-200 focus:outline-none focus:border-cyan-400"></textarea>
-      <div class="flex items-center justify-end gap-2 pt-2">
-        <button onclick="closeBulkModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs">Cancel</button>
-        <button onclick="submitBulkUpload()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-semibold">Upload Batch</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- CLIENT INTERACTION SCRIPT -->
-  <script>
-    var inMemoryAdminSecret = "";
-    var currentActiveTab = "subscriptions";
-    var currentContentType = "scenarios";
-    var editingRowId = null;
-    var currentLoadedSubData = null;
-    var currentLoadedProgressEmail = null;
-
-    function showToast(message, type) {
-      var container = document.getElementById("toast-container");
-      if (!container) return;
-      var toast = document.createElement("div");
-      var isError = type === "error";
-      var isSuccess = type === "success";
-      var bgClass = isError ? "bg-red-500/90 border-red-400" : (isSuccess ? "bg-emerald-500/90 border-emerald-400" : "bg-slate-900/95 border-cyan-500/50");
-      toast.className = "px-4 py-3 rounded-2xl text-xs font-medium text-white shadow-2xl border backdrop-blur-md pointer-events-auto transition-all duration-300 transform translate-y-2 opacity-0 " + bgClass;
-      toast.textContent = message;
-      container.appendChild(toast);
-      setTimeout(function() {
-        toast.classList.remove("translate-y-2", "opacity-0");
-      }, 10);
-      setTimeout(function() {
-        toast.classList.add("opacity-0", "-translate-y-2");
-        setTimeout(function() {
-          if (toast.parentNode) toast.parentNode.removeChild(toast);
-        }, 300);
-      }, 3500);
-    }
-
-    function updateClock() {
-      var d = new Date();
-      var el = document.getElementById("live-clock");
-      if (el) el.textContent = d.toUTCString().slice(17, 25) + " UTC";
-      var cal = document.getElementById("calendar-date");
-      if (cal) cal.textContent = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-
-    function toggleSecretVisibility() {
-      var inp = document.getElementById("admin-secret-input");
-      inp.type = inp.type === "password" ? "text" : "password";
-    }
-
-    function applyAdminSecret() {
-      var val = document.getElementById("admin-secret-input").value.trim();
-      if (!val) {
-        showToast("Please enter the ADMIN_SECRET", "error");
-        return;
-      }
-      inMemoryAdminSecret = val;
-      var b = document.getElementById("session-badge");
-      b.textContent = "Authorized Session";
-      b.className = "px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full";
-      showToast("Session authorized successfully", "success");
-      if (currentActiveTab === "content") {
-        loadContentCatalog();
-      }
-    }
-
-    function getAuthHeaders() {
-      var h = { "Content-Type": "application/json" };
-      if (inMemoryAdminSecret) {
-        h["Authorization"] = "Bearer " + inMemoryAdminSecret;
-      }
-      return h;
-    }
-
-    function switchTab(tabId) {
-      currentActiveTab = tabId;
-      var tabs = ["subscriptions", "content", "progress"];
-      for (var i = 0; i < tabs.length; i++) {
-        var t = tabs[i];
-        var view = document.getElementById("tab-view-" + t);
-        var btn = document.getElementById("tab-btn-" + t);
-        var navBtn = document.getElementById("nav-" + t + "-btn");
-
-        if (t === tabId) {
-          if (view) view.classList.remove("hidden");
-          if (btn) {
-            btn.className = "px-5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 bg-blue-600 text-white shadow-lg shadow-blue-600/30";
-          }
-          if (navBtn) {
-            navBtn.className = "w-12 h-12 rounded-2xl flex items-center justify-center text-cyan-400 bg-slate-800/80 border border-cyan-500/30 glow-cyan transition-all";
-          }
-        } else {
-          if (view) view.classList.add("hidden");
-          if (btn) {
-            btn.className = "px-5 py-2.5 rounded-2xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all flex items-center gap-2";
-          }
-          if (navBtn) {
-            navBtn.className = "w-12 h-12 rounded-2xl flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-all";
-          }
-        }
-      }
-      if (tabId === "content") {
-        loadContentCatalog();
-      }
-    }
-
-    async function lookupSubscription() {
-      var email = document.getElementById("sub-lookup-email").value.trim();
-      if (!email) {
-        showToast("Enter email to search", "error");
-        return;
-      }
-      try {
-        var res = await fetch("/admin/lookup", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ email: email })
-        });
-        var data = await res.json();
-        if (res.status === 401) {
-          showToast("Unauthorized: check ADMIN_SECRET", "error");
-          return;
-        }
-        if (!data.found) {
-          showToast("User not found or has not redeemed a license yet.", "error");
-          document.getElementById("sub-result-card").classList.add("hidden");
-          document.getElementById("sub-empty-state").classList.remove("hidden");
-          return;
-        }
-        currentLoadedSubData = data;
-        document.getElementById("sub-empty-state").classList.add("hidden");
-        var c = document.getElementById("sub-result-card");
-        c.classList.remove("hidden");
-
-        document.getElementById("sub-display-email").textContent = data.email;
-        document.getElementById("sub-display-sub").textContent = "Account Sub: " + data.sub;
-        document.getElementById("sub-display-expires").textContent = data.expiresAt || "Never";
-        document.getElementById("sub-display-active").textContent = data.active ? "True (Active)" : "False (Expired)";
-
-        var pill = document.getElementById("sub-display-status-pill");
-        if (data.active) {
-          pill.textContent = "ACTIVE";
-          pill.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
-        } else {
-          pill.textContent = "EXPIRED";
-          pill.className = "px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-300 border border-red-500/30";
-        }
-        showToast("Found user record", "success");
-      } catch (e) {
-        showToast("Lookup failed: " + e, "error");
-      }
-    }
-
-    async function revokeSubscription() {
-      if (!currentLoadedSubData) return;
-      try {
-        var res = await fetch("/admin/revoke", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ email: currentLoadedSubData.email })
-        });
-        var data = await res.json();
-        if (data.success) {
-          showToast("Access revoked immediately", "success");
-          lookupSubscription();
-        } else {
-          showToast("Revocation failed: " + JSON.stringify(data), "error");
-        }
-      } catch (e) {
-        showToast("Error: " + e, "error");
-      }
-    }
-
-    async function quickAddMonths(m) {
-      if (!currentLoadedSubData) return;
-      try {
-        var res = await fetch("/admin/edit", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ email: currentLoadedSubData.email, add_months: m })
-        });
-        var data = await res.json();
-        if (data.success) {
-          showToast("Extended by " + m + " months", "success");
-          lookupSubscription();
-        } else {
-          showToast("Extension failed", "error");
-        }
-      } catch (e) {
-        showToast("Error: " + e, "error");
-      }
-    }
-
-    async function saveExactExpiry() {
-      if (!currentLoadedSubData) return;
-      var val = document.getElementById("sub-edit-exact-date").value;
-      if (!val) {
-        showToast("Select date/time", "error");
-        return;
-      }
-      var iso = new Date(val).toISOString();
-      try {
-        var res = await fetch("/admin/edit", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ email: currentLoadedSubData.email, set_expiresAt: iso })
-        });
-        var data = await res.json();
-        if (data.success) {
-          showToast("Expiration updated", "success");
-          lookupSubscription();
-        } else {
-          showToast("Update failed", "error");
-        }
-      } catch (e) {
-        showToast("Error: " + e, "error");
-      }
-    }
-
-    async function saveDeltaMonths() {
-      if (!currentLoadedSubData) return;
-      var val = parseInt(document.getElementById("sub-edit-delta-months").value, 10);
-      if (isNaN(val)) {
-        showToast("Enter valid integer", "error");
-        return;
-      }
-      quickAddMonths(val);
-    }
-
-    function updateGeneratorSlider(val) {
-      document.getElementById("generator-months-display").textContent = val;
-      var ring = document.getElementById("generator-ring");
-      var pct = (parseInt(val, 10) / 12);
-      var offset = 264 - (264 * pct);
-      ring.style.strokeDashoffset = offset;
-    }
-
-    async function generateAdminCode() {
-      var months = parseInt(document.getElementById("generator-months-slider").value, 10);
-      try {
-        var res = await fetch("/admin/generate", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ months: months })
-        });
-        var data = await res.json();
-        if (res.status === 401) {
-          showToast("Unauthorized: check ADMIN_SECRET", "error");
-          return;
-        }
-        if (data.code) {
-          document.getElementById("generated-code-box").classList.remove("hidden");
-          document.getElementById("generated-code-text").textContent = data.code;
-          showToast("Generated code: " + data.code, "success");
-        } else {
-          showToast("Generation failed", "error");
-        }
-      } catch (e) {
-        showToast("Error: " + e, "error");
-      }
-    }
-
-    function copyGeneratedCode() {
-      var code = document.getElementById("generated-code-text").textContent;
-      if (!code) return;
-      var t = document.createElement("textarea");
-      t.value = code;
-      document.body.appendChild(t);
-      t.select();
-      document.execCommand("copy");
-      document.body.removeChild(t);
-      showToast("Copied: " + code, "success");
-    }
-
-    function selectContentType(type) {
-      currentContentType = type;
-      var types = ["scenarios", "vocabulary", "grammar", "starter_phrases"];
-      for (var i = 0; i < types.length; i++) {
-        var b = document.getElementById("type-btn-" + types[i]);
-        if (types[i] === type) {
-          b.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white transition-all";
-        } else {
-          b.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all";
-        }
-      }
-      loadContentCatalog();
-    }
-
-    async function loadContentCatalog() {
-      var tbody = document.getElementById("content-table-body");
-      tbody.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-slate-500">Querying D1 ' + currentContentType + '...</td></tr>';
-      try {
-        var res = await fetch("/admin/" + currentContentType, {
-          method: "GET",
-          headers: getAuthHeaders()
-        });
-        if (res.status === 401) {
-          tbody.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-amber-400">Please enter and authorize ADMIN_SECRET above</td></tr>';
-          return;
-        }
-        var rows = await res.json();
-        document.getElementById("content-row-count").textContent = rows.length + " rows";
-        if (!Array.isArray(rows) || rows.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-slate-500">No records found in table ' + currentContentType + '</td></tr>';
-          return;
-        }
-
-        var quote = String.fromCharCode(39);
-        var html = "";
-        for (var i = 0; i < rows.length; i++) {
-          var r = rows[i];
-          var idVal = r.id;
-
-          var details = "";
-          if (currentContentType === "scenarios") {
-            details = r.title_de;
-          } else if (currentContentType === "vocabulary") {
-            details = r.german;
-          } else if (currentContentType === "grammar") {
-            details = r.title_en || r.title_ar;
-          } else if (currentContentType === "starter_phrases") {
-            details = r.german;
-          }
-          if (!details) {
-            details = JSON.stringify(r).slice(0, 45);
-          }
-
-          var levelVal = r.level || "-";
-          var badgeColor = "bg-slate-800 text-slate-300";
-          if (levelVal === "A1") badgeColor = "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30";
-          if (levelVal === "A2") badgeColor = "bg-blue-500/20 text-blue-300 border border-blue-500/30";
-          if (levelVal === "B1") badgeColor = "bg-amber-500/20 text-amber-300 border border-amber-500/30";
-          if (levelVal === "B2") badgeColor = "bg-purple-500/20 text-purple-300 border border-purple-500/30";
-
-          html += '<tr class="hover:bg-slate-900/60 transition-colors">';
-          html += '<td class="py-3 px-4 font-mono text-cyan-400">' + idVal + '</td>';
-          html += '<td class="py-3 px-4 text-slate-200 font-medium">' + details + '</td>';
-          html += '<td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold ' + badgeColor + '">' + levelVal + '</span></td>';
-          html += '<td class="py-3 px-4 text-right space-x-2">';
-          html += '<button onclick="openContentEditModal(' + quote + idVal + quote + ')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs">Edit</button>';
-          html += '<button onclick="deleteContentRow(' + quote + idVal + quote + ')" class="px-2.5 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-xs">Delete</button>';
-          html += '</td>';
-          html += '</tr>';
-        }
-        tbody.innerHTML = html;
-      } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-red-400">Failed to load: ' + e + '</td></tr>';
-      }
-    }
-
-    async function openContentEditModal(id) {
-      editingRowId = id;
-      document.getElementById("content-modal-title").textContent = "Edit " + currentContentType + " #" + id;
-      try {
-        var res = await fetch("/admin/" + currentContentType + "/" + id, {
-          method: "GET",
-          headers: getAuthHeaders()
-        });
-        var row = await res.json();
-        document.getElementById("content-modal-json").value = JSON.stringify(row, null, 2);
-        document.getElementById("content-modal").classList.remove("hidden");
-      } catch (e) {
-        showToast("Error fetching row: " + e, "error");
-      }
-    }
-
-    function openContentCreateModal() {
-      editingRowId = null;
-      document.getElementById("content-modal-title").textContent = "Add New " + currentContentType;
-      var template;
-      if (currentContentType === "scenarios") {
-        template = {
-          id: "scenario_" + Date.now(),
-          title_de: "",
-          title_ar: "",
-          ai_persona: "",
-          category: "",
-          icon: "",
-          initial_message_a1: "",
-          initial_message_a2: "",
-          initial_message_b1: "",
-          initial_message_b2: ""
-        };
-      } else if (currentContentType === "vocabulary") {
-        template = {
-          german: "",
-          article: "",
-          plural: "",
-          part_of_speech: "",
-          translation_ar: "",
-          translation_en: "",
-          example_de: "",
-          example_ar: "",
-          example_en: "",
-          level: "A1",
-          topic: ""
-        };
-      } else if (currentContentType === "grammar") {
-        template = {
-          id: "rule_" + Date.now(),
-          level: "A1",
-          title_ar: "",
-          title_en: "",
-          explanation_ar: "",
-          explanation_en: "",
-          example_de: ""
-        };
-      } else {
-        template = {
-          scenario_id: "",
-          level: "A1",
-          german: "",
-          translation_en: "",
-          translation_ar: "",
-          sort_order: 1
-        };
-      }
-
-      document.getElementById("content-modal-json").value = JSON.stringify(template, null, 2);
-      document.getElementById("content-modal").classList.remove("hidden");
-    }
-
-    function closeContentModal() {
-      document.getElementById("content-modal").classList.add("hidden");
-    }
-
-    async function submitContentModal() {
-      var raw = document.getElementById("content-modal-json").value;
-      var parsed;
-      try {
-        parsed = JSON.parse(raw);
-      } catch (e) {
-        showToast("Invalid JSON format", "error");
-        return;
-      }
-
-      try {
-        var url = editingRowId 
-          ? "/admin/" + currentContentType + "/" + editingRowId
-          : "/admin/" + currentContentType;
-        var method = editingRowId ? "PUT" : "POST";
-
-        var res = await fetch(url, {
-          method: method,
-          headers: getAuthHeaders(),
-          body: JSON.stringify(parsed)
-        });
-        var data = await res.json();
-        if (res.ok) {
-          closeContentModal();
-          showToast("Record saved successfully", "success");
-          loadContentCatalog();
-        } else {
-          showToast("Error: " + JSON.stringify(data), "error");
-        }
-      } catch (e) {
-        showToast("Save failed: " + e, "error");
-      }
-    }
-
-    async function deleteContentRow(id) {
-      try {
-        var res = await fetch("/admin/" + currentContentType + "/" + id, {
-          method: "DELETE",
-          headers: getAuthHeaders()
-        });
-        if (res.ok) {
-          showToast("Record deleted", "success");
-          loadContentCatalog();
-        } else {
-          showToast("Delete failed", "error");
-        }
-      } catch (e) {
-        showToast("Error: " + e, "error");
-      }
-    }
-
-    function openBulkModal() {
-      document.getElementById("bulk-modal").classList.remove("hidden");
-    }
-    function closeBulkModal() {
-      document.getElementById("bulk-modal").classList.add("hidden");
-    }
-    async function submitBulkUpload() {
-      var raw = document.getElementById("bulk-json-input").value;
-      var rows;
-      try {
-        rows = JSON.parse(raw);
-      } catch (e) {
-        showToast("Invalid JSON. Must be an array of objects.", "error");
-        return;
-      }
-      try {
-        var res = await fetch("/admin/upload", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ contentType: currentContentType, rows: rows })
-        });
-        var data = await res.json();
-        if (data.success) {
-          showToast("Uploaded " + data.count + " rows", "success");
-          closeBulkModal();
-          loadContentCatalog();
-        } else {
-          showToast("Upload error: " + JSON.stringify(data), "error");
-        }
-      } catch (e) {
-        showToast("Upload error: " + e, "error");
-      }
-    }
-
-    async function lookupUserProgress() {
-      var email = document.getElementById("progress-lookup-email").value.trim();
-      if (!email) {
-        showToast("Enter learner email", "error");
-        return;
-      }
-      try {
-        var res = await fetch("/admin/progress-lookup", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ email: email })
-        });
-        var data = await res.json();
-        if (res.status === 401) {
-          showToast("Unauthorized: check ADMIN_SECRET", "error");
-          return;
-        }
-        if (data.error) {
-          showToast("User error: " + data.error, "error");
-          return;
-        }
-
-        currentLoadedProgressEmail = email;
-        document.getElementById("progress-empty-state").classList.add("hidden");
-        document.getElementById("progress-display-container").classList.remove("hidden");
-
-        var stats = data.stats || {};
-        document.getElementById("prog-stat-level").textContent = stats.level || "A1";
-        document.getElementById("prog-stat-streak").textContent = (stats.streak_days || 0) + " Days";
-        document.getElementById("prog-stat-points").textContent = stats.total_points || 0;
-        document.getElementById("prog-stat-last-active").textContent = stats.last_active_date || "Never";
-
-        document.getElementById("progress-json-editor").value = JSON.stringify(data, null, 2);
-        showToast("Loaded learner progress", "success");
-      } catch (e) {
-        showToast("Lookup failed: " + e, "error");
-      }
-    }
-
-    async function saveEditedProgress() {
-      if (!currentLoadedProgressEmail) return;
-      var raw = document.getElementById("progress-json-editor").value;
-      var obj;
-      try {
-        obj = JSON.parse(raw);
-      } catch (e) {
-        showToast("Invalid JSON in editor", "error");
-        return;
-      }
-      try {
-        var res = await fetch("/admin/progress-edit", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ email: currentLoadedProgressEmail, progress: obj })
-        });
-        var data = await res.json();
-        if (data.success) {
-          showToast("Progress saved successfully", "success");
-          lookupUserProgress();
-        } else {
-          showToast("Save error: " + JSON.stringify(data), "error");
-        }
-      } catch (e) {
-        showToast("Error saving progress: " + e, "error");
-      }
-    }
-
-    window.switchTab = switchTab;
-    window.toggleSecretVisibility = toggleSecretVisibility;
-    window.applyAdminSecret = applyAdminSecret;
-    window.lookupSubscription = lookupSubscription;
-    window.revokeSubscription = revokeSubscription;
-    window.quickAddMonths = quickAddMonths;
-    window.saveExactExpiry = saveExactExpiry;
-    window.saveDeltaMonths = saveDeltaMonths;
-    window.updateGeneratorSlider = updateGeneratorSlider;
-    window.generateAdminCode = generateAdminCode;
-    window.copyGeneratedCode = copyGeneratedCode;
-    window.selectContentType = selectContentType;
-    window.loadContentCatalog = loadContentCatalog;
-    window.openContentEditModal = openContentEditModal;
-    window.openContentCreateModal = openContentCreateModal;
-    window.closeContentModal = closeContentModal;
-    window.submitContentModal = submitContentModal;
-    window.deleteContentRow = deleteContentRow;
-    window.openBulkModal = openBulkModal;
-    window.closeBulkModal = closeBulkModal;
-    window.submitBulkUpload = submitBulkUpload;
-    window.lookupUserProgress = lookupUserProgress;
-    window.saveEditedProgress = saveEditedProgress;
-    window.showToast = showToast;
-  </script>
-</body>
-</html>`;
-}
