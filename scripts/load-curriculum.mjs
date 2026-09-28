@@ -19,9 +19,11 @@
  *      so the report is the result, not a claim about it.
  *
  * Usage:
- *   node scripts/load-curriculum.mjs [--file=...] [--url=https://...] [--commit]
+ *   node scripts/load-curriculum.mjs [--file=...] [--url=https://...] [--dry-run] [--commit]
  *
- * ADMIN_SECRET must be set in the environment. It is never printed.
+ * `--dry-run` validates locally and prints row counts; it needs no secret and
+ * writes nothing. A real (or remote dry-run) load requires ADMIN_SECRET. It is
+ * never printed.
  */
 
 import { readFileSync } from 'node:fs';
@@ -35,6 +37,11 @@ const args = process.argv.slice(2);
 const fileArg = args.find((a) => a.startsWith('--file='));
 const urlArg = args.find((a) => a.startsWith('--url='));
 const commit = args.includes('--commit');
+// `--dry-run`: validate the draft and print row counts without touching the
+// network or the secret. Exists so CI and reviewers can check a draft without
+// ADMIN_SECRET being present at all — the secret check below is skipped in this
+// mode because nothing that requires auth ever runs.
+const dryRun = args.includes('--dry-run');
 const BATCH_SIZE = 100;
 
 const FILE = resolve(fileArg ? fileArg.slice('--file='.length) : `${repoRoot}/docs/content/curriculum-30day-module1.json`);
@@ -48,7 +55,7 @@ const { auditCurriculum } = await import('../src/lib/content/curriculumAudit.ts'
 const { scenarioToVocabTopic } = await import('../src/lib/utils/scenarioVocab.ts');
 
 const secret = process.env.ADMIN_SECRET;
-if (!secret) {
+if (!secret && !dryRun) {
   console.error('ADMIN_SECRET is not set. Add it to the environment (Settings -> Environment) and retry.');
   process.exit(2);
 }
@@ -95,6 +102,20 @@ const reviewedBy = draft.review?.reviewedBy ?? null;
 console.log(`  review: ${reviewStatus}${reviewedBy ? ` by ${reviewedBy}` : ''}`);
 
 const loadable = ['scenarios', 'vocabulary', 'starter_phrases', 'grammar'].filter((type) => Array.isArray(draft[type]));
+
+if (dryRun) {
+  // Secretless mode: audit + counts only. No fetch, no write, exit 0 on a
+  // passing audit so it can gate in CI.
+  console.log('\nDRY RUN (local, no network, no secret needed) — nothing was read or written.');
+  for (const type of loadable) {
+    console.log(`  ${type}: ${draft[type].length} row(s)`);
+  }
+  console.log(`  topics: ${Object.entries(report.stats.topics).map(([t, n]) => `${t} (${n})`).join(', ')}`);
+  if (reviewStatus !== 'approved') {
+    console.log(`  note: review.status is "${reviewStatus}" — a real load would be refused until it is approved.`);
+  }
+  process.exit(0);
+}
 
 if (!commit) {
   console.log('\nDRY RUN — nothing was written.');
