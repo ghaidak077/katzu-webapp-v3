@@ -24,12 +24,11 @@ describe('sceneFor artwork', () => {
 
   it('falls back to the built-in art when the column is empty or whitespace', () => {
     // An empty string is what a form submits when the field is cleared, and it must
-    // mean "no artwork", never `src=""`.
+    // mean "no artwork", never `src=""`. Since B4b the floor is a local file from
+    // public/scenes/ — precached, no remote origin.
     for (const bannerUrl of ['', '   ', null, undefined]) {
       const scene = sceneFor({ id: 'bakery_shopping', category: 'food', bannerUrl });
-      expect(scene.artUrl, `banner_url: ${JSON.stringify(bannerUrl)}`).toBe(
-        'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=640&h=360&q=60',
-      );
+      expect(scene.artUrl, `banner_url: ${JSON.stringify(bannerUrl)}`).toBe('/scenes/bakery_shopping.jpg');
     }
   });
 
@@ -43,22 +42,16 @@ describe('sceneFor artwork', () => {
 
   it('gives an unknown scenario its category art', () => {
     const scene = sceneFor({ id: 'not_in_the_catalogue', category: 'official' });
-    expect(scene.artUrl).toBe(
-      'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=640&h=360&q=60',
-    );
+    expect(scene.artUrl).toBe('/scenes/official.jpg');
   });
 
-  it('asks for the size the column renders, not a retina poster', () => {
-    // Measured before this: 235,739 bytes for a 1200px placeholder; 63,113 bytes at
-    // 640×360 for the same picture. These thumbnails render at 448px wide.
-    const everyArt = [
-      sceneFor({ id: 'cafe_order' }).artUrl,
-      sceneFor({ id: 'train_station' }).artUrl,
-      sceneFor({ id: 'x', category: 'work' }).artUrl,
-    ];
-    for (const url of everyArt) {
-      expect(url).toMatch(/[?&]w=640&h=360/);
-    }
+  it('every art source is a local file from public/scenes/', () => {
+    // B4b contract: no remote placeholder origins. banner_url may be any URL the
+    // owner sets, but the built-in floor must always be local.
+    const ids = ['cafe_order', 'bakery_shopping', 'doctor_visit', 'apartment_viewing', 'job_interview', 'train_station'];
+    const categories = ['travel', 'housing', 'work', 'official', 'health', 'food', 'daily_life'];
+    for (const id of ids) expect(sceneFor({ id }).artUrl).toMatch(/^\/scenes\//);
+    for (const category of categories) expect(sceneFor({ id: 'x', category }).artUrl).toMatch(/^\/scenes\//);
   });
 
   it('returns no artwork at all rather than a broken source', () => {

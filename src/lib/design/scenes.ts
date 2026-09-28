@@ -7,19 +7,13 @@
  * (`--kz-scene-rgb`), which is what stops the mission card from looking identical
  * over a warm scene and a cool one.
  *
- * Artwork: the placeholder photographs below are **temporary**. The repo ships
- * Katzu's sticker poses but no commissioned location art, and a procedural
- * gradient cannot carry a scene on its own, so each scenario borrows a real
- * Unsplash photograph (verified to resolve, loaded with `fit=crop` and covered by
- * the readability wash so Arabic text stays legible). A licensed-stock or
- * commissioned-art pass is still an open item — see
- * `KATZU_V2_IMPLEMENTATION_LOG.md` §8.
- *
- * Since the banner pass, the owner no longer needs a deploy to replace one: a
- * scenario's `banner_url` (editable in the content studio) is read first, and
- * everything below it in `sceneFor` is the fallback that keeps every scenario
- * with a 16:9 visual before that artwork exists. Nothing here pretends the
- * fallback is a commissioned painting.
+ * Artwork: every scene ships a **local** image from `public/scenes/` — soft
+ * two-tone gradients keyed to the same palette this module uses for lighting.
+ * B4b replaced the previous remote Unsplash hotlinks (network dependency,
+ * offlined badly, and a third-party origin on every scenario card) with these;
+ * they are honest placeholders in the strongest sense: real files, present
+ * before first paint, and replaced per-scenario the moment the owner sets a
+ * `banner_url` in the content studio, which always wins.
  */
 
 export type SceneMood = 'warm' | 'cool' | 'amber' | 'neon' | 'clinical';
@@ -84,37 +78,31 @@ const LOCATIONS: Record<string, { mood: SceneMood; locationAr: string }> = {
 };
 
 /**
- * Temporary scene photography, keyed by scenario id.
+ * Local scene art, keyed by scenario id (`public/scenes/<id>.jpg`, 640×360).
  *
- * Every URL was checked to resolve (`images.unsplash.com/photo-…` → 200) before
- * being added: a broken backdrop is worse than an honest gradient. The
- * scenario → photograph *mapping* has not been eyeballed against the content, so
- * it is a placeholder in the strongest sense.
- *
- * SIZED FOR WHERE THEY LAND, NOT FOR A RETINA POSTER: these are 16:9 thumbnails
- * on a 448px-wide column, so each one is requested at 640×360 and quality 60.
- * Measured on the first photo: 235,739 bytes at the old `w=1200&q=70`, 63,113
- * bytes here — the same picture, a quarter of the bytes, on a mobile connection.
+ * Owner-supplied `banner_url` still wins over these; this map is the offline
+ * fallback that costs nothing on the network and ships in the service-worker
+ * precache.
  */
 const SCENARIO_ART: Record<string, string> = {
-  cafe_order: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=640&h=360&q=60',
-  bakery_shopping: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=640&h=360&q=60',
-  doctor_visit: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=640&h=360&q=60',
-  apartment_viewing: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=640&h=360&q=60',
-  job_interview: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=640&h=360&q=60',
-  train_station: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=640&h=360&q=60',
+  cafe_order: '/scenes/cafe_order.jpg',
+  bakery_shopping: '/scenes/bakery_shopping.jpg',
+  doctor_visit: '/scenes/doctor_visit.jpg',
+  apartment_viewing: '/scenes/apartment_viewing.jpg',
+  job_interview: '/scenes/job_interview.jpg',
+  train_station: '/scenes/train_station.jpg',
 };
 
-/** The same photographs, by category, for scenarios with no entry of their own. */
+/** The same images, by category, for scenarios with no entry of their own. */
 const CATEGORY_ART: Record<string, string> = {
-  travel: 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=640&h=360&q=60',
-  housing: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=640&h=360&q=60',
-  work: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=640&h=360&q=60',
-  career: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=640&h=360&q=60',
-  official: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=640&h=360&q=60',
-  health: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=640&h=360&q=60',
-  food: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=640&h=360&q=60',
-  daily_life: 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=640&h=360&q=60',
+  travel: '/scenes/travel.jpg',
+  housing: '/scenes/housing.jpg',
+  work: '/scenes/work.jpg',
+  career: '/scenes/work.jpg',
+  official: '/scenes/official.jpg',
+  health: '/scenes/health.jpg',
+  food: '/scenes/food.jpg',
+  daily_life: '/scenes/daily_life.jpg',
 };
 
 const CATEGORY_LABELS_AR: Record<string, string> = {

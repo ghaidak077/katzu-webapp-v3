@@ -117,12 +117,9 @@ test('a scenario with no banner keeps a real 16:9 visual', async ({ page }) => {
   await page.goto('/scenario/bakery_shopping');
   await expect(page.getByText('Beim Bäcker einkaufen')).toBeVisible();
 
-  // The built-in floor, requested at the size this column renders (the placeholder
-  // photographs were 1200px wide and 235 KB each; this is the same picture at
-  // 63 KB, measured).
+  // The built-in floor: since B4b it is a local image from public/scenes/,
+  // shipped in the precache — no remote origin, no network wait.
   const banners = await bannerGeometry(page);
-  expect(banners[0].src).toBe(
-    'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=640&h=360&q=60',
-  );
+  expect(banners[0].src).toBe('/scenes/bakery_shopping.jpg');
   expectSixteenByNine(banners[0]);
 });
