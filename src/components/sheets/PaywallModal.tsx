@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Sparkles, Check, KeyRound, ExternalLink } from 'lucide-react';
-import { PRO_PRICE_LABEL, buildSalesUrl } from '@/lib/utils/links';
+import { getProPriceLabel, FALLBACK_PRICE_LABEL, buildSalesUrl } from '@/lib/utils/links';
 import { track } from '@/lib/analytics/client';
 
 export interface PaywallModalProps {
@@ -44,6 +44,17 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   description = 'محادثات صوتية بلا حد، وكل المستويات من A1 إلى B2. ويبقى كل ما تعلّمته — المراجعة والمهمة اليومية وبنك أخطائك — مجانياً دائماً.',
 }) => {
   const salesUrl = useMemo(() => buildSalesUrl(referralFromUrl()), []);
+  const [priceLabel, setPriceLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getProPriceLabel().then((label) => {
+      if (alive) setPriceLabel(label);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) track('paywall_viewed', { source: title.slice(0, 64) });
@@ -56,7 +67,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
 
         <Badge variant="primary" size="sm" className="mb-2">
           <Sparkles className="w-3 h-3" aria-hidden />
-          {PRO_PRICE_LABEL}
+          {priceLabel ?? FALLBACK_PRICE_LABEL}
         </Badge>
 
         <h3 className="text-xl font-bold font-arabic text-text-primary mb-2">{title}</h3>

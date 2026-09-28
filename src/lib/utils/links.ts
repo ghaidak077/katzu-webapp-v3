@@ -11,7 +11,50 @@ const env = (import.meta as any).env || {};
 
 export const SALES_URL: string = String(env.VITE_SALES_URL || 'https://katzu-sales.pages.dev').replace(/\/+$/, '');
 
-export const PRO_PRICE_LABEL = '5 دولار / شهر';
+export const FALLBACK_PRICE_LABEL = '5 دولار / شهر';
+
+/**
+ * Live price label, mirrored from the worker's `/crypto/health` (which exposes
+ * only `priceUsd` and `months`). The worker owns the price — this keeps the
+ * paywall, landing page and redemption screen from drifting from what checkout
+ * actually charges. Session-cached, one in-flight request, and the constant
+ * fallback on any failure so a broken fetch can never blank the paywall.
+ */
+let cachedPriceLabel: string | null = null;
+let priceInflight: Promise<string> | null = null;
+
+async function fetchPriceLabel(): Promise<string> {
+  const workerUrl = String((import.meta as any).env?.VITE_WORKER_URL || '').replace(/\/+$/, '');
+  if (!workerUrl) return FALLBACK_PRICE_LABEL;
+  const res = await fetch(`${workerUrl}/crypto/health`, { headers: { Accept: 'application/json' } });
+  if (!res.ok) return FALLBACK_PRICE_LABEL;
+  const data = (await res.json()) as { priceUsd?: unknown; months?: unknown };
+  const price = Number(data.priceUsd);
+  const months = Number(data.months);
+  // Only a sane, positive price the worker actually vouched for changes the label.
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(months) || months < 1) {
+    return FALLBACK_PRICE_LABEL;
+  }
+  const monthsPart = months === 1 ? 'شهر' : `${months} أشهر`;
+  return `${price} دولار / ${monthsPart}`;
+}
+
+/** Resolves the live price label; never throws. */
+export async function getProPriceLabel(): Promise<string> {
+  if (cachedPriceLabel) return cachedPriceLabel;
+  if (!priceInflight) {
+    priceInflight = fetchPriceLabel()
+      .then((label) => {
+        cachedPriceLabel = label;
+        return label;
+      })
+      .catch(() => FALLBACK_PRICE_LABEL)
+      .finally(() => {
+        priceInflight = null;
+      });
+  }
+  return priceInflight;
+}
 
 /**
  * The app's own public origin. `katzu.app` does not resolve yet, so nothing may

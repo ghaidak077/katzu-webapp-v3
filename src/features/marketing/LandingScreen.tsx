@@ -1,11 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { PRO_PRICE_LABEL, publicAppUrl } from '@/lib/utils/links';
+import { getProPriceLabel, FALLBACK_PRICE_LABEL, publicAppUrl } from '@/lib/utils/links';
 import { track } from '@/lib/analytics/client';
 import {
   ArrowLeft,
@@ -286,6 +286,18 @@ function TryDemoSection({ onTryDemo }: Pick<LandingScreenProps, 'onTryDemo'>) {
  * learned content is behind Pro.
  */
 function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSignedIn: boolean }) {
+  const [priceLabel, setPriceLabel] = useState(FALLBACK_PRICE_LABEL);
+
+  useEffect(() => {
+    let alive = true;
+    getProPriceLabel().then((label) => {
+      if (alive) setPriceLabel(label);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   return (
     <section className="py-14 sm:py-20 border-t border-border-subtle/60">
       <SectionHeading
@@ -315,7 +327,7 @@ function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSign
         <div className="rounded-3xl p-6 bg-gradient-to-br from-surface-hero to-surface-card border border-primary/30">
           <Badge variant="primary" size="md">
             <Sparkles className="w-3.5 h-3.5" aria-hidden />
-            Katzu Pro — {PRO_PRICE_LABEL}
+            Katzu Pro — {priceLabel}
           </Badge>
           <ul className="mt-5 space-y-3 text-[13px] text-text-secondary">
             {[

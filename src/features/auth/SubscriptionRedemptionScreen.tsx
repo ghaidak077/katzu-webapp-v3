@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import confetti from 'canvas-confetti';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { ArrowRight, Check, KeyRound, UserCheck, AlertCircle, Gift, ExternalLink, ShoppingCart, ShieldCheck } from 'lucide-react';
-import { PRO_PRICE_LABEL, SALES_URL, buildSalesUrl } from '@/lib/utils/links';
+import { getProPriceLabel, FALLBACK_PRICE_LABEL, SALES_URL, buildSalesUrl } from '@/lib/utils/links';
 import { track } from '@/lib/analytics/client';
 
 export interface SubscriptionRedemptionScreenProps {
@@ -35,6 +35,17 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
   const [referralMessage, setReferralMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
   const user = useLiveQuery(() => db.users.get('current_user'));
+  const [priceLabel, setPriceLabel] = useState(FALLBACK_PRICE_LABEL);
+
+  useEffect(() => {
+    let alive = true;
+    getProPriceLabel().then((label) => {
+      if (alive) setPriceLabel(label);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handleRedeem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,7 +262,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
             لا تملك كود تفعيل بعد؟
           </label>
           <p className="text-[11px] text-text-secondary font-arabic leading-relaxed mb-3">
-            اشترِ كوداً من صفحة الشراء الرسمية بـ {PRO_PRICE_LABEL} — الدفع بالبطاقة أو العملات الرقمية،
+            اشترِ كوداً من صفحة الشراء الرسمية بـ {priceLabel} — الدفع بالبطاقة أو العملات الرقمية،
             وللمقيمين في سوريا خيارات الدفع المحلي (سيرياتيل كاش، MTN كاش، حوالة بنكية). يصل الكود
             إليك مباشرة ثم تفعّله هنا.
           </p>
