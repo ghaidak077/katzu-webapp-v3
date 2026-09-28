@@ -91,11 +91,16 @@ test('a scenario’s own banner reaches every screen that lists it', async ({ pa
   // The scenario library, where every scenario is browsable.
   await page.getByRole('button', { name: 'كل المشاهد والمستويات' }).click();
   await expect(page).toHaveURL(/\/app\/library$/);
+  // The route changes before React's lazy-loaded Trail screen is mounted. Wait
+  // on the exact card and its banner, not the URL, so a cold chunk cannot make
+  // the geometry read race the render.
+  const cafeCard = page.getByRole('button', { name: /الطلب في المقهى \(Im Café bestellen\)/ });
+  await expect(cafeCard).toBeVisible();
+  const libraryBanner = cafeCard.locator(BANNER);
+  await expect(libraryBanner).toBeVisible();
+  await expect(libraryBanner.locator('img')).toHaveAttribute('src', PATCHED_ART);
   const library = await bannerGeometry(page);
-  // A snap carousel lays out one card at a time and opens on the day's own
-  // scenario, so the patched artwork is what the learner sees first here.
   expect(library.length).toBeGreaterThanOrEqual(1);
-  expect(library[0].src).toBe(PATCHED_ART);
   for (const box of library) expectSixteenByNine(box);
 
   // The scenario's own screen. It reads the scenario before it draws, so the wait
