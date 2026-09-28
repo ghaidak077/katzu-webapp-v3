@@ -10,7 +10,7 @@
     "version": "0.1.0",
     "status": "draft",
     "authoredAt": "2026-09-25",
-    "designedFor": "A learner who has just landed in Germany and must complete the five registration acts that block everything else: address registration, an appointment, health insurance, the rental handover, and the first day at work.",
+    "designedFor": "A learner who has recently arrived or is preparing for everyday life in Germany. The scenes offer language for asking about address registration and appointments, clarifying insurance and housing details, and getting oriented at work; local requirements and individual circumstances vary.",
     "topicContract": "Each scenario's `category` must resolve through SCENARIO_CATEGORY_TO_TOPIC (src/lib/utils/scenarioVocab.ts) to a non-empty topic, and every vocabulary row's `topic` must equal that resolved value. This is the join that StudyScreen and QuizScreen use to find a scenario's words — content that ignores it renders as an empty study screen.",
     "knownLimitations": [
       "Vocabulary is pooled per (topic), not per scenario. Two scenarios sharing a category (`official` -> `documents`) therefore share one word pool. Per-scenario scoping needs a `topic` column on the scenarios table, which does not exist yet.",
@@ -64,9 +64,9 @@
       "category": "health",
       "icon": "heart-pulse",
       "initial_message_a1": "Guten Tag. Möchten Sie sich bei uns anmelden?",
-      "initial_message_a2": "Guten Tag! Für die Anmeldung brauche ich Ihre Versichertennummer oder den Anmeldeschein von Ihrem Arbeitgeber.",
-      "initial_message_b1": "Guten Tag! Willkommen. Wenn Sie in Deutschland angestellt sind, sind Sie automatisch versicherungspflichtig. Haben Sie den Anmeldeschein von Ihrem Arbeitgeber dabei?",
-      "initial_message_b2": "Guten Tag! Bei einer Anstellung meldet Ihr Arbeitgeber Sie elektronisch an — ich prüfe das gleich im System. Eine Frage vorab: waren Sie in Ihrem Heimatland gesetzlich oder privat versichert?"
+      "initial_message_a2": "Guten Tag! Möchten Sie sich bei uns anmelden? Haben Sie schon eine Versichertennummer?",
+      "initial_message_b1": "Guten Tag! Ich helfe Ihnen gern beim nächsten Schritt. Welche Unterlagen oder Informationen liegen Ihnen bereits vor?",
+      "initial_message_b2": "Guten Tag! Ich kann mit Ihnen prüfen, welche Angaben noch fehlen. Haben Sie Fragen dazu, wie Ihre Anmeldung weitergeht?"
     },
     {
       "id": "mietvertrag_uebergabe",
@@ -77,8 +77,8 @@
       "icon": "home",
       "initial_message_a1": "Hallo! Sie möchten die Wohnung mieten?",
       "initial_message_a2": "Guten Tag! Wir treffen uns heute zur Übergabe. Möchten Sie das Protokoll zuerst lesen?",
-      "initial_message_b1": "Guten Tag! Bevor wir das Protokoll unterschreiben: Sie haben das Recht, den Zählerstand selbst zu notieren, und ich notiere alle Mängel, die schon vorhanden sind.",
-      "initial_message_b2": "Guten Tag! Der Mietvertrag läuft auf unbestimmte Zeit mit einer Kündigungsfrist von drei Monaten. Die Kaution beträgt drei Nettokaltmieten, zahlbar in drei Raten — soll ich Ihnen das im Vertrag genauer zeigen?"
+      "initial_message_b1": "Guten Tag. Bevor wir das Übergabeprotokoll abschließen, können wir gemeinsam die Zählerstände und sichtbaren Mängel notieren. Haben Sie noch etwas entdeckt?",
+      "initial_message_b2": "Guten Tag. Sehen wir uns die Angaben zu Mietdauer, Kündigungsfrist und Kaution in Ihrem Vertrag gemeinsam an. Welche Punkte möchten Sie zuerst klären?"
     },
     {
       "id": "erster_arbeitstag",
@@ -94,7 +94,7 @@
     }
   ],
   "vocabulary": [
-    { "german": "Anmeldung", "article": "die", "plural": "die Anmeldungen", "part_of_speech": "Noun", "translation_ar": "التسجيل (إبلاغ البلدية بعنوان سكنك)", "translation_en": "registration", "example_de": "Die Anmeldung ist in Deutschland Pflicht.", "example_ar": "التسجيل إلزامي في ألمانيا.", "example_en": "Registration is mandatory in Germany.", "level": "A1", "topic": "documents" },
+    { "german": "Anmeldung", "article": "die", "plural": "die Anmeldungen", "part_of_speech": "Noun", "translation_ar": "التسجيل (إبلاغ البلدية بعنوان سكنك)", "translation_en": "registration", "example_de": "Ich möchte mich nach der Anmeldung erkundigen.", "example_ar": "أود الاستفسار عن تسجيل عنواني.", "example_en": "I would like to ask about registering my address.", "level": "A1", "topic": "documents" },
     { "german": "Amt", "article": "das", "plural": "die Ämter", "part_of_speech": "Noun", "translation_ar": "الدائرة الحكومية", "translation_en": "public office", "example_de": "Das Amt öffnet um acht Uhr.", "example_ar": "الدائرة تفتح الساعة الثامنة.", "example_en": "The office opens at eight.", "level": "A1", "topic": "documents" },
     { "german": "Ausweis", "article": "der", "plural": "die Ausweise", "part_of_speech": "Noun", "translation_ar": "بطاقة الهوية", "translation_en": "identity card", "example_de": "Bitte zeigen Sie mir Ihren Ausweis.", "example_ar": "من فضلك أرني بطاقتك الشخصية.", "example_en": "Please show me your ID card.", "level": "A1", "topic": "documents" },
     { "german": "Pass", "article": "der", "plural": "die Pässe", "part_of_speech": "Noun", "translation_ar": "جواز السفر", "translation_en": "passport", "example_de": "Mein Pass ist noch drei Jahre gültig.", "example_ar": "جواز سفري صالح لثلاث سنوات أخرى.", "example_en": "My passport is valid for three more years.", "level": "A1", "topic": "documents" },
@@ -111,7 +111,7 @@
     { "german": "gültig", "article": "", "plural": null, "part_of_speech": "Adjective", "translation_ar": "ساري المفعول", "translation_en": "valid", "example_de": "Ist Ihr Pass noch gültig?", "example_ar": "هل جواز سفرك ما زال سارياً؟", "example_en": "Is your passport still valid?", "level": "A1", "topic": "documents" },
     { "german": "vollständig", "article": "", "plural": null, "part_of_speech": "Adjective", "translation_ar": "كامل / مكتمل", "translation_en": "complete", "example_de": "Sind die Unterlagen vollständig?", "example_ar": "هل المستندات كاملة؟", "example_en": "Are the documents complete?", "level": "A1", "topic": "documents" },
 
-    { "german": "Bürgeramt", "article": "das", "plural": "die Bürgerämter", "part_of_speech": "Noun", "translation_ar": "مكتب شؤون السكان في البلدية", "translation_en": "citizens' office", "example_de": "Das Bürgeramt ist oft nur mit Termin geöffnet.", "example_ar": "مكتب البلدية غالباً مفتوح بالموعد فقط.", "example_en": "The citizens' office is often open by appointment only.", "level": "A2", "topic": "documents" },
+    { "german": "Bürgeramt", "article": "das", "plural": "die Bürgerämter", "part_of_speech": "Noun", "translation_ar": "مكتب شؤون السكان في البلدية", "translation_en": "citizens' office", "example_de": "Für die Anmeldung brauche ich einen Termin.", "example_ar": "أحتاج إلى موعد لتسجيل عنواني.", "example_en": "I need an appointment to register my address.", "level": "A2", "topic": "documents" },
     { "german": "Online", "article": "", "plural": null, "part_of_speech": "Adverb", "translation_ar": "عبر الإنترنت", "translation_en": "online", "example_de": "Sie können den Termin online buchen.", "example_ar": "يمكنك حجز الموعد عبر الإنترنت.", "example_en": "You can book the appointment online.", "level": "A2", "topic": "documents" },
     { "german": "frei", "article": "", "plural": null, "part_of_speech": "Adjective", "translation_ar": "متاح / شاغر", "translation_en": "available", "example_de": "Der nächste freie Termin ist in zwei Wochen.", "example_ar": "أقرب موعد متاح بعد أسبوعين.", "example_en": "The next available appointment is in two weeks.", "level": "A2", "topic": "documents" },
     { "german": "verschieben", "article": "", "plural": null, "part_of_speech": "Verb", "translation_ar": "يؤجّل", "translation_en": "to postpone", "example_de": "Können wir den Termin verschieben?", "example_ar": "هل يمكننا تأجيل الموعد؟", "example_en": "Can we postpone the appointment?", "level": "A2", "topic": "documents" },
@@ -143,7 +143,7 @@
     { "german": "Miete", "article": "die", "plural": "die Mieten", "part_of_speech": "Noun", "translation_ar": "الإيجار", "translation_en": "rent", "example_de": "Die Miete beträgt 900 Euro warm.", "example_ar": "الإيجار ٩٠٠ يورو شامل التكاليف.", "example_en": "The rent is 900 euros including utilities.", "level": "A2", "topic": "housing" },
     { "german": "Mietvertrag", "article": "der", "plural": "die Mietverträge", "part_of_speech": "Noun", "translation_ar": "عقد الإيجار", "translation_en": "tenancy agreement", "example_de": "Lesen Sie den Mietvertrag genau durch.", "example_ar": "اقرأ عقد الإيجار بدقة.", "example_en": "Read the tenancy agreement carefully.", "level": "A2", "topic": "housing" },
     { "german": "Schlüssel", "article": "der", "plural": "die Schlüssel", "part_of_speech": "Noun", "translation_ar": "المفتاح", "translation_en": "key", "example_de": "Hier sind zwei Schlüssel für Sie.", "example_ar": "تفضّل مفتاحين لك.", "example_en": "Here are two keys for you.", "level": "A2", "topic": "housing" },
-    { "german": "Kaution", "article": "die", "plural": "die Kautionen", "part_of_speech": "Noun", "translation_ar": "مبلغ الضمان", "translation_en": "deposit", "example_de": "Die Kaution beträgt drei Monatsmieten.", "example_ar": "مبلغ الضمان ثلاثة إيجارات شهرية.", "example_en": "The deposit is three months' rent.", "level": "A2", "topic": "housing" },
+    { "german": "Kaution", "article": "die", "plural": "die Kautionen", "part_of_speech": "Noun", "translation_ar": "مبلغ الضمان", "translation_en": "deposit", "example_de": "Wie hoch ist die Kaution in diesem Mietvertrag?", "example_ar": "كم تبلغ قيمة مبلغ الضمان في عقد الإيجار هذا؟", "example_en": "How much is the deposit in this tenancy agreement?", "level": "A2", "topic": "housing" },
     { "german": "übernehmen", "article": "", "plural": null, "part_of_speech": "Verb", "translation_ar": "يتسلّم", "translation_en": "to take over", "example_de": "Sie übernehmen die Wohnung am Freitag.", "example_ar": "ستتسلّم الشقة يوم الجمعة.", "example_en": "You will take over the flat on Friday.", "level": "A2", "topic": "housing" },
 
     { "german": "Übergabeprotokoll", "article": "das", "plural": "die Übergabeprotokolle", "part_of_speech": "Noun", "translation_ar": "محضر التسليم", "translation_en": "handover report", "example_de": "Im Protokoll stehen alle Mängel.", "example_ar": "في المحضر كل العيوب.", "example_en": "The report lists all defects.", "level": "B1", "topic": "housing" },
@@ -168,7 +168,7 @@
     { "german": "Sozialversicherungsnummer", "article": "die", "plural": "die Sozialversicherungsnummern", "part_of_speech": "Noun", "translation_ar": "رقم التأمين الاجتماعي", "translation_en": "social security number", "example_de": "Diese Nummer brauchen wir für die Anmeldung.", "example_ar": "نحتاج هذا الرقم للتسجيل.", "example_en": "We need this number for the registration.", "level": "B1", "topic": "work" },
     { "german": "Bankverbindung", "article": "die", "plural": "die Bankverbindungen", "part_of_speech": "Noun", "translation_ar": "بيانات الحساب البنكي", "translation_en": "bank details", "example_de": "Bitte tragen Sie hier Ihre Bankverbindung ein.", "example_ar": "من فضلك أدخل بيانات حسابك البنكي هنا.", "example_en": "Please enter your bank details here.", "level": "B1", "topic": "work" },
     { "german": "Gehaltsabrechnung", "article": "die", "plural": "die Gehaltsabrechnungen", "part_of_speech": "Noun", "translation_ar": "كشف الراتب", "translation_en": "payslip", "example_de": "Die Gehaltsabrechnung erhalten Sie monatlich.", "example_ar": "ستحصل على كشف الراتب شهرياً.", "example_en": "You will receive your payslip monthly.", "level": "B1", "topic": "work" },
-    { "german": "Probezeit", "article": "die", "plural": "die Probezeiten", "part_of_speech": "Noun", "translation_ar": "فترة التجربة", "translation_en": "probation period", "example_de": "Die Probezeit dauert sechs Monate.", "example_ar": "فترة التجربة ستة أشهر.", "example_en": "The probation period lasts six months.", "level": "B1", "topic": "work" },
+    { "german": "Probezeit", "article": "die", "plural": "die Probezeiten", "part_of_speech": "Noun", "translation_ar": "فترة التجربة", "translation_en": "probation period", "example_de": "Wie lange dauert meine Probezeit?", "example_ar": "كم تستمر فترة تجربتي؟", "example_en": "How long does my probation period last?", "level": "B1", "topic": "work" },
     { "german": "Lohn", "article": "der", "plural": "die Löhne", "part_of_speech": "Noun", "translation_ar": "الأجر", "translation_en": "wage", "example_de": "Der Lohn wird am Monatsende überwiesen.", "example_ar": "يُحوَّل الأجر في نهاية الشهر.", "example_en": "The wage is transferred at the end of the month.", "level": "B1", "topic": "work" },
     { "german": "Vorgesetzte", "article": "der", "plural": "die Vorgesetzten", "part_of_speech": "Noun", "translation_ar": "الرئيس المباشر", "translation_en": "supervisor", "example_de": "Bei Fragen wenden Sie sich an Ihren Vorgesetzten.", "example_ar": "عند وجود أسئلة راجع رئيسك المباشر.", "example_en": "If you have questions, contact your supervisor.", "level": "B1", "topic": "work" },
     { "german": "anerkennen", "article": "", "plural": null, "part_of_speech": "Verb", "translation_ar": "يعترف بـ / يعتمد", "translation_en": "to recognise", "example_de": "Der Abschluss muss anerkannt werden.", "example_ar": "يجب اعتماد الشهادة.", "example_en": "The qualification has to be recognised.", "level": "B1", "topic": "work" },
