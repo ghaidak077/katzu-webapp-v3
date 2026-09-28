@@ -18,7 +18,7 @@ Status for `AGENTS.md` §6. Rules live in `AGENTS.md`; this file records status 
 | B5. Reliability | todo | Not started. No complete `/app/*` offline audit or network-drop-mid-recording regression evidence. |
 | B6. Accessibility | todo | Not started. No axe scan evidence. |
 | B7. Docs and contradiction sweep | done | Re-run 2026-09-28 (`1f43a8a`): LAUNCH-CHECKLIST crash-capture claim fixed (capture exists: `installDiagnosticsCapture` → `/client-error` → `error_reports`); §5 counts updated to 747/65 + 27 Playwright; §3.2 separates draft modules (module1 pending, module2 approved) from live D1 counts (5/20/114/4, no --commit run); §2 untouched. current-state.md 2026-09-28 entry; implementation log §12; dated audit docs annotated for deleted `handleAiConversationTurn` references. §0 sweep by `rg`: no unresolved contradictions. |
-| B8. Final gate and merge | doing | NEXT: run all Playwright specs in ≤3-test groups (banner twice), build ×2 hash compare, node --check workers, e2e tsc, then merge to main. |
+| B8. Final gate and merge | done | T2 2026-09-28, all green: Playwright 27/27 in ≤3-test groups (banner 2/2 twice; journey 9 tests in 6 groups; layout+demo 3/3; microphone 2/2; onboarding 2/2; paywall 4/4; progress 2/2); `npm run build` ×2 exit 0 with byte-identical dist (sha256 diff clean; entry 513.47 kB / 162.29 kB gzip; 87 precache entries, 4164.64 KiB); `node --check` clean on all 13 worker files; `npx tsc -p e2e --noEmit` clean; vitest 65 files / 747 tests; lint clean. Merged launch-hardening → main fast-forward (7c7a594 → 6cbd065), no force-push, not deployed. |
 
 ## DECISIONS
 
