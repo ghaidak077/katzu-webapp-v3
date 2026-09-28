@@ -216,9 +216,6 @@ export function keyFingerprint(key) {
   return "k" + hash.toString(16).padStart(8, "0");
 }
 
-/** `key` = one key's window, `model` = the model is unavailable to everyone, `account` = shared cap. */
-export const LEDGER_SCOPES = ["key", "model", "account"];
-
 export function ledgerScopeFor(entry, reason) {
   if (reason === "model_unavailable") return "model";
   return entry?.sharedAccountCap ? "account" : "key";
