@@ -466,6 +466,17 @@ async function ensureLedgerTables(env) {
         window_start INTEGER NOT NULL,
         count INTEGER NOT NULL
       )`),
+      // Progress-sync concurrency guard (launch-gate 1.5): one monotonic
+      // revision AND the authoritative merged payload per user. KV has no
+      // compare-and-swap, so a KV-only read-merge-write lets racing devices
+      // drop each other's writes. Here the merged payload is committed in the
+      // same D1 statement that advances the revision — D1's conditional update
+      // is the atomic commit gate, and KV is only a read cache.
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS sync_revisions (
+        user_id TEXT PRIMARY KEY,
+        rev INTEGER NOT NULL,
+        payload TEXT
+      )`),
     ]);
     // Additive user registry + activity/error telemetry tables (SaaS admin).
     await ensureRegistryTables(env);
@@ -2251,35 +2262,155 @@ async function handleProgressSync(request, env, cors) {
   }
 
   const key = `progress:${account.sub}`;
-  const existingRaw = await env.USER_PROGRESS.get(key);
-  const existing = existingRaw ? JSON.parse(existingRaw) : null;
 
-  const now = Date.now();
-  let merged;
-
-  if (!existing) {
-    merged = {
-      stats: incomingStats || {},
-      trainings: incomingTrainings || [],
-      saved_word_ids: incomingSavedWordIds || [],
-      mistakes: incomingMistakes || [],
-      session_summaries: incomingSessionSummaries || [],
-      updated_at: now,
-    };
-  } else {
-    merged = {
-      stats: mergeStats(existing.stats, incomingStats),
-      trainings: mergeTrainings(existing.trainings, incomingTrainings),
-      saved_word_ids: mergeSavedWordIds(existing.saved_word_ids, incomingSavedWordIds),
-      mistakes: mergeMistakes(existing.mistakes, incomingMistakes),
-      session_summaries: mergeSessionSummaries(existing.session_summaries, incomingSessionSummaries),
-      updated_at: now,
-    };
+  // ------------------------------------------------------------------------
+  // Revision-guarded merge-and-commit (launch-gate 1.5).
+  //
+  // KV has no compare-and-swap, so the old get → merge → put here let two
+  // devices race: both read the same server state, both merged, and whichever
+  // wrote last silently dropped the other's sessions/XP.
+  //
+  // The authoritative state therefore lives in D1 next to the revision: one
+  // conditional UPDATE both advances the rev AND stores the merged payload, so
+  // "state changed" and "rev advanced" are the same atomic event. Each pass:
+  // read (rev, payload), merge with the incoming payload (commutative +
+  // idempotent, see the merge* functions), then commit only if the rev is
+  // still the value we read. On conflict, re-read and re-merge — up to 3
+  // attempts — then answer 409 sync_conflict; the client refetches, re-merges
+  // and retries once rather than losing data. The merged result is mirrored to
+  // KV after a successful commit so the existing /progress/get cache path and
+  // exports keep working.
+  //
+  // base_rev compatibility: old clients send no rev and are treated as an
+  // UNCONDITIONAL merge — the server state is always merged with theirs before
+  // every write, so no incoming field can be lost; they simply never get the
+  // conflict path. A matching baseRev makes the merge idempotent for retries.
+  // ------------------------------------------------------------------------
+  if (!env.DB || !env.USER_PROGRESS) {
+    // No D1 → no commit gate possible; degrade to the merged best-effort write
+    // (still strictly better than overwriting: merge never decreases counters).
+    const existingRaw = await env.USER_PROGRESS?.get?.(key);
+    const existing = existingRaw ? JSON.parse(existingRaw) : null;
+    const now = Date.now();
+    const merged = existing
+      ? mergeProgress(existing, {
+          stats: incomingStats, trainings: incomingTrainings, saved_word_ids: incomingSavedWordIds,
+          mistakes: incomingMistakes, session_summaries: incomingSessionSummaries,
+        }, now)
+      : freshProgress(incomingStats, incomingTrainings, incomingSavedWordIds, incomingMistakes, incomingSessionSummaries, now);
+    await env.USER_PROGRESS.put(key, JSON.stringify(merged));
+    return json({ success: true, updated_at: now }, 200, cors);
   }
 
-  await env.USER_PROGRESS.put(key, JSON.stringify(merged));
+  const MAX_MERGE_ATTEMPTS = 3;
+  let lastRev = 0;
 
-  return json({ success: true, updated_at: now }, 200, cors);
+  for (let attempt = 0; attempt < MAX_MERGE_ATTEMPTS; attempt++) {
+    // Authoritative state read: rev + payload from the same D1 row.
+    let currentRev = 0;
+    let existing = null;
+    try {
+      const row = await env.DB.prepare(
+        "SELECT rev, payload FROM sync_revisions WHERE user_id = ?"
+      ).bind(account.sub).first();
+      if (row) {
+        currentRev = Number(row.rev) || 0;
+        existing = row.payload ? JSON.parse(row.payload) : null;
+      }
+    } catch {
+      // D1 hiccup mid-sync: fall through with rev 0 / no state; the unconditional
+      // legacy path below still merges over whatever KV holds.
+    }
+    lastRev = currentRev;
+
+    // Old clients (no rev field) merge unconditionally but still merge — the
+    // merge with current server state happens either way, so nothing is lost.
+    const baseRev = Number.isFinite(Number(body?.base_rev)) && body?.base_rev != null
+      ? Number(body.base_rev)
+      : null;
+    if (baseRev !== null && baseRev !== currentRev) {
+      // Stale view: hand the client the current state + rev so it can re-merge.
+      return json({ error: "sync_conflict", code: "SYNC_CONFLICT", rev: currentRev }, 409, cors);
+    }
+
+    const now = Date.now();
+    const incoming = {
+      stats: incomingStats, trainings: incomingTrainings, saved_word_ids: incomingSavedWordIds,
+      mistakes: incomingMistakes, session_summaries: incomingSessionSummaries,
+    };
+    const merged = existing
+      ? mergeProgress(existing, incoming, now)
+      : freshProgress(incomingStats, incomingTrainings, incomingSavedWordIds, incomingMistakes, incomingSessionSummaries, now);
+
+    // Atomic commit: the conditional UPDATE both verifies the rev and stores
+    // the merged payload. meta.changes === 0 means another device committed
+    // first — re-read, re-merge, retry.
+    if (baseRev !== null) {
+      const result = await env.DB.prepare(
+        "UPDATE sync_revisions SET rev = rev + 1, payload = ? WHERE user_id = ? AND rev = ?"
+      ).bind(JSON.stringify(merged), account.sub, currentRev).run();
+      if (Number(result?.meta?.changes) === 0) continue; // lost the race → retry
+    } else {
+      // Legacy client (no base_rev): no conflict signalling possible, but the
+      // commit is still guarded by the rev we merged against — an INSERT that
+      // loses to a concurrent first commit, or an UPDATE that loses to any
+      // newer rev, returns changes:0 and forces a re-merge instead of a blind
+      // last-write-wins overwrite.
+      if (currentRev === 0) {
+        const result = await env.DB.prepare(
+          "INSERT INTO sync_revisions (user_id, rev, payload) VALUES (?, 1, ?) ON CONFLICT(user_id) DO NOTHING"
+        ).bind(account.sub, JSON.stringify(merged)).run();
+        if (Number(result?.meta?.changes) === 0) continue;
+      } else {
+        const result = await env.DB.prepare(
+          "UPDATE sync_revisions SET rev = rev + 1, payload = ? WHERE user_id = ? AND rev = ?"
+        ).bind(JSON.stringify(merged), account.sub, currentRev).run();
+        if (Number(result?.meta?.changes) === 0) continue;
+      }
+    }
+
+    // Mirror to KV after the commit: /progress/get and exports read this cache;
+    // a torn cache write is repaired by the next successful sync.
+    await env.USER_PROGRESS.put(key, JSON.stringify(merged));
+    return json({ success: true, updated_at: now, rev: currentRev + 1 }, 200, cors);
+  }
+
+  return json({ error: "sync_conflict", code: "SYNC_CONFLICT", rev: lastRev }, 409, cors);
+}
+
+function freshProgress(stats, trainings, savedWordIds, mistakes, sessionSummaries, now) {
+  return {      stats: stats || {},
+      trainings: trainings || [],
+      saved_word_ids: savedWordIds || [],
+      mistakes: mistakes || [],
+      session_summaries: sessionSummaries || [],
+      updated_at: now,
+  };
+}
+
+function mergeProgress(existing, incoming, now) {
+  return {
+    stats: mergeStats(existing.stats, incoming.stats),
+    trainings: mergeTrainings(existing.trainings, incoming.trainings),
+    saved_word_ids: mergeSavedWordIds(existing.saved_word_ids, incoming.saved_word_ids),
+    mistakes: mergeMistakes(existing.mistakes, incoming.mistakes),
+    session_summaries: boundSessionSummaries(mergeSessionSummaries(existing.session_summaries, incoming.session_summaries)),
+    updated_at: now,
+  };
+}
+
+// The stored session history is bounded: the summary list exists so the Trail,
+// Progress and Coach screens can show recent activity, not as an archive. The
+// newest records are always kept (the habit/activity views read recent days),
+// and the merge still unions first, so two devices each carrying 200 older
+// records still surface all of their union — the cap only bounds growth.
+const MAX_SESSION_SUMMARIES = 200;
+
+function boundSessionSummaries(sessions) {
+  if (!Array.isArray(sessions) || sessions.length <= MAX_SESSION_SUMMARIES) return sessions;
+  return sessions
+    .sort((a, b) => (b.updated_at || b.updatedAt || b.timestamp || 0) - (a.updated_at || a.updatedAt || a.timestamp || 0))
+    .slice(0, MAX_SESSION_SUMMARIES);
 }
 
 async function handleProgressGet(request, env, cors) {
@@ -2296,11 +2427,34 @@ async function handleProgressGet(request, env, cors) {
   }
 
   const key = `progress:${account.sub}`;
-  const raw = await env.USER_PROGRESS.get(key);
 
-  if (!raw) {
+  // The authoritative progress state lives in the sync_revisions D1 row (see
+  // handleProgressSync); KV is a cache. The revision rides along on every read
+  // so sync-aware clients can send it back as base_rev and get real conflict
+  // signalling. A missing row means rev 0 — nothing has synced yet.
+  let rev = 0;
+  let payload = null;
+  if (env.DB) {
+    try {
+      const row = await env.DB.prepare(
+        "SELECT rev, payload FROM sync_revisions WHERE user_id = ?"
+      ).bind(account.sub).first();
+      if (row) {
+        rev = Number(row.rev) || 0;
+        payload = row.payload ? JSON.parse(row.payload) : null;
+      }
+    } catch { /* D1 hiccup: fall back to the KV cache below */ }
+  }
+
+  if (!payload) {
+    const raw = await env.USER_PROGRESS.get(key);
+    payload = raw ? JSON.parse(raw) : null;
+  }
+
+  if (!payload) {
     return json({
       updated_at: null,
+      rev,
       stats: { level: "A1", streak_days: 0, total_points: 0, last_active_date: null },
       trainings: [],
       saved_word_ids: [],
@@ -2309,7 +2463,7 @@ async function handleProgressGet(request, env, cors) {
     }, 200, cors);
   }
 
-  return json(JSON.parse(raw), 200, cors);
+  return json({ ...payload, rev }, 200, cors);
 }
 
 function mergeStats(existingStats, incomingStats) {

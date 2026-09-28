@@ -940,20 +940,50 @@ export class WorkerClient {
       if (token) {
         headers['Authorization'] = 'Bearer ' + token;
       }
+      // Attach the revision this device last saw, so the server can signal a
+      // lost race (409) instead of silently applying a merge against stale
+      // state. Old servers ignore the extra field; first sync sends none.
+      const user = await db.users.get('current_user');
+      const bodyPayload = user?.syncRev != null ? { ...payload, base_rev: user.syncRev } : payload;
       const res = await fetch(`${this.baseUrl}/progress/sync`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(payload),
+        body: JSON.stringify(bodyPayload),
       });
+      if (res.status === 409) {
+        // Conflict: another device committed since our last read. Refetch the
+        // server state (which re-merges into local data via restoreProgress —
+        // never wiping local rows), then retry ONCE with the fresh revision.
+        await this.restoreProgress(token);
+        const fresh = await db.users.get('current_user');
+        const retry = await fetch(`${this.baseUrl}/progress/sync`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(fresh?.syncRev != null ? { ...payload, base_rev: fresh.syncRev } : payload),
+        });
+        if (!retry.ok) return false;
+        const retryBody = await retry.json().catch(() => ({}));
+        if (retryBody?.rev != null) await this.storeSyncRev(Number(retryBody.rev));
+        return !retryBody?.error;
+      }
       if (!res.ok) return false;
       // A 200 carrying an error body is NOT a stored payload. The legacy worker
       // answered an expired session exactly that way, and trusting `res.ok` alone
       // made flushPendingSync delete progress it had just failed to save.
       const body = await res.json().catch(() => ({}));
+      if (body?.rev != null) await this.storeSyncRev(Number(body.rev));
       return !body?.error;
     } catch (e) {
       return false;
     }
+  }
+
+  /** Persists the server's monotonic sync revision (memory-safe: advisory). */
+  private async storeSyncRev(rev: number): Promise<void> {
+    if (!Number.isFinite(rev) || rev < 0) return;
+    try {
+      await db.users.update('current_user', { syncRev: rev });
+    } catch { /* non-fatal: worst case the next sync is treated as legacy */ }
   }
 
   private async queueSyncPayload(payload: ProgressPayload): Promise<void> {
@@ -1004,6 +1034,8 @@ export class WorkerClient {
       if (res.ok) {
         const data = await res.json();
         if (data && data.stats) {
+          // Track the server revision so the next sync can send base_rev.
+          if (data.rev != null) await this.storeSyncRev(Number(data.rev));
           const localTrainings = await db.scenario_training.toArray();
           const localMistakes = await db.mistakes.toArray();
           const localSessions = await db.sessions.toArray();

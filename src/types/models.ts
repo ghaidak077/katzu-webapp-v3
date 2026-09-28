@@ -149,6 +149,10 @@ export interface UserEntity {
   locale?: string;
   /** IANA timezone the learner's device reported (e.g. 'Europe/Berlin'). */
   timezone?: string;
+  /** Server-side progress-sync revision this device last saw (base_rev for the
+   * next sync; enables real conflict signalling instead of last-write-wins).
+   * Optional + non-indexed: old rows simply lack it, no migration needed. */
+  syncRev?: number;
 }
 
 export interface RedeemedCodeEntity {

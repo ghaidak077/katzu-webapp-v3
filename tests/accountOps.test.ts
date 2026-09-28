@@ -27,7 +27,31 @@ class FakeD1 {
     const selectCount = norm.match(/^SELECT COUNT\(\*\) AS n FROM (\w+) WHERE (\w+) = \?$/i);
     const del = norm.match(/^DELETE FROM (\w+)/i);
     const update = norm.match(/^UPDATE (\w+)/i);
+    // Progress-sync revision gate: SELECT rev, conditional rev+1, upsert.
+    const selectRev = norm.match(/^SELECT rev(, payload)? FROM sync_revisions WHERE user_id = \?$/i);
+    const bumpRev = norm.match(/^UPDATE sync_revisions SET rev = rev \+ 1(, payload = \?)? WHERE user_id = \? AND rev = \?$/i);
+    const insertRev = norm.match(/^INSERT INTO sync_revisions \(user_id, rev, payload\) VALUES \(\?, 1, \?\) ON CONFLICT\(user_id\) DO NOTHING$/i);
     const run = async (...args: unknown[]) => {
+      if (bumpRev) {
+        // Worker binds: (payload, user_id, base_rev) — see handleProgressSync.
+        const [payload, userId, baseRev] = args as [string, string, number];
+        const t = this.table('sync_revisions');
+        const row = t.get(String(userId));
+        // Conditional commit: only when the stored rev still matches base.
+        if (!row || Number(row.rev) !== Number(baseRev)) return { success: true, meta: { changes: 0 } };
+        row.rev = Number(row.rev) + 1;
+        row.payload = payload; // merged payload rides with the rev bump
+        return { success: true, meta: { changes: 1 } };
+      }
+      if (insertRev) {
+        // Worker binds: (user_id, payload) — see handleProgressSync.
+        const [userId, payload] = args as [string, string];
+        const t = this.table('sync_revisions');
+        // INSERT ... DO NOTHING: a concurrent first commit wins, we retry.
+        if (t.has(String(userId))) return { success: true, meta: { changes: 0 } };
+        t.set(String(userId), { rev: 1, payload });
+        return { success: true, meta: { changes: 1 } };
+      }
       if (insertInto) {
         const t = this.table(insertInto[1]);
         // Emulate SQLite PRIMARY KEY uniqueness across concurrent inserts.
@@ -51,7 +75,10 @@ class FakeD1 {
         void before;
         return { success: true };
       }
-      if (update) {
+      if (update && !bumpRev) {
+        // The sync-revision bump is handled above; this generic UPDATE path is
+        // the account-deletion ledger rewrite (matches any row containing the
+        // bound account id).
         const t = this.table(update[1]);
         for (const [k, row] of [...t.entries()]) {
           const a = row._args as unknown[];
@@ -66,6 +93,10 @@ class FakeD1 {
       bind: (...args: unknown[]) => ({
         run: () => run(...args),
         first: async () => {
+          if (selectRev) {
+            const row = this.table('sync_revisions').get(String(args[0]));
+            return row ? { rev: Number(row.rev), payload: row.payload ?? null } : null;
+          }
           if (selectCount) {
             const t = this.table(selectCount[1]);
             let n = 0;
@@ -372,5 +403,175 @@ describe('Phase 4: data export', () => {
     const authed = await post('/user/export', {}, env, 'user-export3', 'e3@test.dev');
     expect(authed.headers.get('Content-Disposition')).toContain('attachment');
     expect(authed.headers.get('Content-Disposition')).toContain('katzu-data-export.json');
+  });
+});
+
+// ============================================================================
+// Phase 2 (launch-gate 1.5): revision-guarded progress sync.
+//
+// The old get → merge → put on KV let two devices race and silently drop each
+// other's sessions/XP. The commit gate is a D1 conditional UPDATE on a
+// monotonic per-user rev: a device may only commit while the rev it merged
+// against is still current; otherwise it re-merges (server side) or gets a
+// 409 to refetch + retry (client side).
+// ============================================================================
+
+describe('Phase 2: revision-guarded progress sync', () => {
+  const syncPayload = (stats: Record<string, unknown>) =>
+    JSON.stringify({ stats: { level: 'A1', streak_days: 0, total_points: 0, updated_at: Date.now(), ...stats } });
+
+  const sync = (env: unknown, stats: Record<string, unknown>, sub = 'sync-user') =>
+    worker.fetch(new Request('https://worker.test/progress/sync', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload(sub))}`, 'Content-Type': 'application/json' },
+      body: syncPayload(stats),
+    }), env as never);
+
+  it('two sequential device syncs both survive — XP and streak never decrease', async () => {
+    const env = makeEnv();
+    const r1 = await sync(env, { total_points: 10, streak_days: 1 });
+    expect(r1.status).toBe(200);
+    const b1 = await r1.json() as { success: boolean; rev: number };
+    expect(b1.success).toBe(true);
+    expect(b1.rev).toBeGreaterThanOrEqual(1);
+
+    const r2 = await sync(env, { total_points: 25, streak_days: 3 });
+    expect(r2.status).toBe(200);
+
+    const get = await worker.fetch(new Request('https://worker.test/progress/get', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload('sync-user'))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }), env as never);
+    const data = await get.json() as { stats: { total_points: number; streak_days: number }; rev: number };
+    expect(data.stats.total_points).toBe(25);
+    expect(data.stats.streak_days).toBe(3);
+    expect(data.rev).toBeGreaterThanOrEqual(2);
+  });
+
+  it('an old client without base_rev still syncs (unconditional merge, never overwrites)', async () => {
+    const env = makeEnv();
+    // Server already has progress from another device…
+    await sync(env, { total_points: 40, streak_days: 5 });
+    // …legacy payload sends only a partial stats object, no rev/base_rev at all.
+    const legacy = await worker.fetch(new Request('https://worker.test/progress/sync', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload('sync-user'))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stats: { level: 'A2', total_points: 2, updated_at: 1 } }),
+    }), env as never);
+    expect(legacy.status).toBe(200);
+
+    const get = await worker.fetch(new Request('https://worker.test/progress/get', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload('sync-user'))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }), env as never);
+    const data = await get.json() as { stats: { total_points: number; level: string } };
+    // The merge is commutative: XP stays at the max (40), level at the highest rank (A2).
+    expect(data.stats.total_points).toBe(40);
+    expect(data.stats.level).toBe('A2');
+  });
+
+  it('a stale base_rev gets 409 sync_conflict with the current rev, and a matching retry succeeds', async () => {
+    const env = makeEnv();
+    const first = await sync(env, { total_points: 5 });
+    const firstRev = ((await first.json()) as { rev: number }).rev;
+
+    // Device B commits behind device A's back → A's base_rev is now stale.
+    await sync(env, { total_points: 15 });
+
+    const stale = await worker.fetch(new Request('https://worker.test/progress/sync', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload('sync-user'))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        base_rev: firstRev,
+        stats: { level: 'A1', streak_days: 0, total_points: 30, updated_at: Date.now() },
+      }),
+    }), env as never);
+    expect(stale.status).toBe(409);
+    const conflict = await stale.json() as { error: string; code: string; rev: number };
+    expect(conflict.error).toBe('sync_conflict');
+    expect(conflict.code).toBe('SYNC_CONFLICT');
+    expect(conflict.rev).toBeGreaterThan(firstRev);
+
+    // Refetch (client stores the new rev), re-merge locally, retry once.
+    const get = await worker.fetch(new Request('https://worker.test/progress/get', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload('sync-user'))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }), env as never);
+    const current = await get.json() as { rev: number; stats: { total_points: number } };
+    expect(current.stats.total_points).toBe(15);
+
+    const retry = await worker.fetch(new Request('https://worker.test/progress/sync', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload('sync-user'))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        base_rev: current.rev,
+        stats: { level: 'A1', streak_days: 0, total_points: 30, updated_at: Date.now() },
+      }),
+    }), env as never);
+    expect(retry.status).toBe(200);
+    const done = await retry.json() as { success: boolean; rev: number };
+    expect(done.success).toBe(true);
+    expect(done.rev).toBe(current.rev + 1);
+  });
+
+  it('repeated identical syncs are idempotent — no double XP, no unbounded rev growth', async () => {
+    const env = makeEnv();
+    const payload = { total_points: 12, streak_days: 2 };
+    await sync(env, payload);
+    await sync(env, payload);
+    const third = await sync(env, payload);
+
+    const get = await worker.fetch(new Request('https://worker.test/progress/get', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload('sync-user'))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }), env as never);
+    const data = await get.json() as { stats: { total_points: number } };
+    expect(data.stats.total_points).toBe(12);
+    expect(third.status).toBe(200);
+  });
+
+  it('session summaries and mistakes merge as unions — no lost writes between devices', async () => {
+    const env = makeEnv();
+    const deviceA = worker.fetch(new Request('https://worker.test/progress/sync', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload('sync-user'))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_summaries: [{ id: 'sA', independent_sentences: 3, updated_at: 10 }],
+        mistakes: [{ sync_id: 'mA', original: 'Ich bin', is_mastered: false, updated_at: 10 }],
+        saved_word_ids: [1, 2],
+      }),
+    }), env as never);
+    const deviceB = worker.fetch(new Request('https://worker.test/progress/sync', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload('sync-user'))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_summaries: [{ id: 'sB', independent_sentences: 5, updated_at: 12 }],
+        mistakes: [{ sync_id: 'mB', original: 'Ich habe', is_mastered: true, updated_at: 12 }],
+        saved_word_ids: [2, 3],
+      }),
+    }), env as never);
+    const [ra, rb] = await Promise.all([deviceA, deviceB]);
+    expect(ra.status).toBe(200);
+    expect(rb.status).toBe(200);
+
+    const get = await worker.fetch(new Request('https://worker.test/progress/get', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token(validPayload('sync-user'))}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }), env as never);
+    const data = await get.json() as {
+      session_summaries: Array<{ id: string }>;
+      mistakes: Array<{ sync_id: string }>;
+      saved_word_ids: number[];
+    };
+    const summaryIds = data.session_summaries.map((s) => s.id).sort();
+    expect(summaryIds).toEqual(['sA', 'sB']);
+    const mistakeIds = data.mistakes.map((m) => m.sync_id).sort();
+    expect(mistakeIds).toEqual(['mA', 'mB']);
+    expect([...data.saved_word_ids].sort()).toEqual([1, 2, 3]);
   });
 });
