@@ -3,4 +3,10 @@
   X-Frame-Options: SAMEORIGIN
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: microphone=(self), camera=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://*.workers.dev; frame-src https://accounts.google.com;
+  # script-src: the built entry and the PWA registerSW are both external files,
+  # and the Google Identity script is injected via a src= script element
+  # (allowed by script-src's host source), so only real code sources can
+  # execute. style-src keeps inline styles because the glass design system
+  # renders ~30 dynamic CSS-custom-property style attributes (React style={{}})
+  # — removing those is a tracked follow-up, not a loss of script protection.
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://*.workers.dev; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self';

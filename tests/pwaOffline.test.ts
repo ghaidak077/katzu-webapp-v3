@@ -62,3 +62,39 @@ describe('offline app shell', () => {
     expect(immutable.test('registerSW.js')).toBe(false);
   });
 });
+
+describe('Pages _headers security policy (P3)', () => {
+  const readHeaders = async (file: string) =>
+    (await import('node:fs/promises')).readFile(new URL(`../public/${file}`, import.meta.url), 'utf8');
+
+  it('app _headers pins the hardening directives (object-src, base-uri, frame-ancestors, form-action)', async () => {
+    const csp = await readHeaders('_headers');
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain("base-uri 'self'");
+    expect(csp).toContain("frame-ancestors 'self'");
+    expect(csp).toContain("form-action 'self'");
+    // img-src must not carry the blanket https: wildcard — every remote image
+    // host must be named, so a hijacked content row cannot load from anywhere.
+    expect(csp).not.toMatch(/img-src[^;]*https:\s*(;|$)/);
+    expect(csp).toMatch(/img-src 'self' data:/);
+  });
+
+
+  it('app _headers drops unsafe-inline from script-src (built entry is a file, not inline)', async () => {
+    const csp = await readHeaders('_headers');
+    const scriptSrc = csp.match(/script-src ([^;]+);/)?.[1] ?? '';
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
+    // The Google Identity script stays loadable, by host — not by scheme-relaxed wildcard.
+    expect(scriptSrc).toContain('https://accounts.google.com/gsi/client');
+  });
+
+  it('sales site _headers carries the equivalent strict CSP', async () => {
+    // The sales _headers lives in ../sales/, outside public/.
+    const sales = await (await import('node:fs/promises')).readFile(new URL('../sales/_headers', import.meta.url), 'utf8');
+    expect(sales).toContain("object-src 'none'");
+    expect(sales).toContain("base-uri 'self'");
+    expect(sales).toContain("frame-ancestors 'none'");
+    expect(sales).toContain("form-action 'self'");
+    expect(sales).not.toMatch(/img-src[^;]*https:\s*(;|$)/);
+  });
+});
