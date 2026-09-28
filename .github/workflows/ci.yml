@@ -32,3 +32,71 @@ jobs:
 
       - name: Production build (tsc + vite build)
         run: npm run build
+
+      - name: Content audits (curriculum + quiz)
+        run: |
+          node scripts/audit-curriculum.mjs
+          node scripts/audit-quiz-content.mjs
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: E2E typecheck
+        run: npx tsc -p e2e --noEmit
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Production build
+        run: npm run build
+
+      - name: E2E tests (vite preview, chromium)
+        run: npx playwright test --project=chromium
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan tracked source for secret-shaped strings
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Candidate files: tracked source, tests excluded. The patterns are
+          # deliberately shaped like real keys (long machine randomness after a
+          # vendor prefix) so test fixtures with short dummy values do not fire.
+          files=$(git ls-files | grep -Ev '^tests/|^e2e/|\.md$|\.json$|lock')
+          leaked=0
+          for pattern in \
+            'AIza[0-9A-Za-z_-]{30,}' \
+            'gsk_[0-9A-Za-z]{20,}' \
+            'nvapi-[0-9A-Za-z_-]{20,}' \
+            'sk-[0-9A-Za-z]{20,}' \
+            '-----BEGIN [A-Z ]*PRIVATE KEY-----'; do
+            if grep -rEn "$pattern" $files; then
+              echo "::error::Secret-shaped string matched pattern: $pattern"
+              leaked=1
+            fi
+          done
+          if [ "$leaked" -ne 0 ]; then
+            exit 1
+          fi
+          echo "No secret-shaped strings found in tracked source files."
