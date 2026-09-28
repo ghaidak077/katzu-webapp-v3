@@ -39,9 +39,10 @@ work there, study there, or who have just arrived. The app trains a spoken conve
 writing. Learners finish a session by actually speaking German out loud.
 
 Your job: produce **one complete content module** as a single JSON document, in the exact
-format below. A machine validates every field you write and a human reviewer reads it before
-it reaches learners. A single misspelled key makes your whole upload fail; a single wrong
-Arabic gloss teaches a learner something false. Treat both as defects.
+format below. A machine validates every field you write, then the mandatory Content Gate in
+`AGENTS.md` requires an adversarial AI self-review before the module can be approved for loading.
+A single misspelled key makes your whole upload fail; a single wrong Arabic gloss teaches a
+learner something false. Treat both as defects.
 
 ## 1. Who the learner is
 
@@ -57,13 +58,13 @@ Arabic gloss teaches a learner something false. Treat both as defects.
 
 ## 2. The scenarios you must write
 
-Write **exactly 8 scenarios** — the situations where not speaking German has a real cost
-(a missed appointment, a rejected application, a bill you cannot dispute). Use this spine.
-The production taxonomy currently has **six** category/topic pairs (the original five below
-plus `travel` → `travel`, documented in §4). Each category carries **at most 2 scenarios**
-within a module because the vocabulary pool is shared per category (§4). The eight rows below
-are the canonical module spine; `travel` is available when a reviewed module substitutes an
-arrival or transport scenario:
+Write **5–8 scenarios** — situations where not speaking German has a real cost (a missed
+appointment, a rejected application, a bill you cannot dispute). Use the situations below as the
+canonical spine and choose a coherent subset that fits the module. The production taxonomy
+currently has **six** category/topic pairs (the original five below plus `travel` → `travel`,
+documented in §4). Each category carries **at most 2 scenarios** within a module because the
+vocabulary pool is shared per category (§4). The eight rows below are the reference spine; `travel`
+may replace a row when the module genuinely covers arrival or transport:
 
 | # | Situation | German setting | category | topic |
 |---|---|---|---|---|
@@ -77,11 +78,10 @@ arrival or transport scenario:
 | 8 | Café or bakery, ordering | Café / Bäckerei | `daily_life` | `food` |
 
 You may swap a row for a situation of the same category and level of urgency (e.g. Kita
-enrolment instead of one of the Bürgeramt scenes), but keep the count per category at 2, 2,
-2, 1, 1 for `official`, `health`, `work`, `housing`, `daily_life` in the canonical
-spine. The optional `travel` category is an additional existing taxonomy pair, not an extra
-ninth scenario: if a reviewed module uses it, replace one of the eight scenario slots and keep
-the per-category maximum of two. Do not exceed the eight-scenario module limit.
+enrolment instead of one of the Bürgeramt scenes). Keep no more than two scenarios per category.
+The `travel` category is an existing taxonomy pair, not an extra scenario beyond the 5–8 module
+limit: when a module uses it, select a travel situation in place of another row and keep the
+per-category maximum of two.
 
 Two traps in those categories:
 
@@ -97,8 +97,7 @@ Two traps in those categories:
 Top level: `_note`, `meta`, `review`, `scenarios`, `vocabulary`, `starter_phrases`, `grammar`,
 and optionally `deferred`. **No other top-level key is allowed** — a stray or misspelled key
 is a validation error, not a warning (a `vocabularies` typo would otherwise look like a
-successful upload that stored nothing). `_note` and `deferred` carry prose only: notes for the
-human reviewer, and anything the app has no table for yet (reading texts, writing tasks,
+successful upload that stored nothing). `_note` and `deferred` carry prose only: notes about confidence/spot-checks, and anything the app has no table for yet (reading texts, writing tasks,
 exam-format tasks) so it is written down instead of invented as a column.
 
 ### 3.1 `meta`
@@ -129,14 +128,15 @@ enforced. The rest are required by this prompt for a reviewable document.
 ```json
 "review": {
   "status": "pending",         // pending | approved | rejected
-  "reviewedBy": null,          // must be a name, with reviewedAt, only when approved
+  "reviewedBy": null,          // AI self-review attribution required when approved per AGENTS.md §4
   "reviewedAt": null,
-  "checklist": []              // non-empty array of the checks a human must perform
+  "checklist": []              // non-empty list of quality checks; see AGENTS.md §4
 }
 ```
 
-Leave `status` at `pending` — a human approves, never you. Approval without an attributable
-`reviewedBy` and a `reviewedAt` is rejected by the loader.
+Keep `status` at `pending` until the module passes the Content Gate in `AGENTS.md` §4. After a
+zero-issue adversarial self-review, use the required AI self-review attribution and real review
+timestamp; never claim a human review. The loader rejects approved records without both fields.
 
 ### 3.3 `scenarios[]` — columns, exactly these, in this order
 
@@ -236,16 +236,11 @@ B1, 10% B2 — a newcomer can read A1 rows on day one.
 
 ### Module size and the 15-scenario story roadmap
 
-The module contract remains **exactly 8 scenarios**; do not reduce it to “up to 8” or silently
-change the validator. The 15-slot narrative roadmap is a sequence of story beats, not a
-single uploadable module. It must be authored as multiple modules, each with exactly 8
-scenario rows and with the topic, phrase and grammar budgets above met independently. A
-module may cross chapter boundaries; chapter boundaries do not alter the D1 schema. Because
-15 slots do not divide evenly into groups of 8, the content owner must decide how the remaining
-roadmap slots are paired with already-authorized curriculum or whether the roadmap is expanded
-before the module files are assembled. Do not duplicate or redefine an existing live scenario
-just to fill a module. Until that packaging decision is made, authoring individual chapter
-JSON files is not authorized by this prompt or loader contract.
+Each module contains **5–8 scenarios**, with the topic, phrase and grammar budgets above met
+for its actual rows. The 15-slot narrative roadmap may be assembled into modules of 5–8 rows;
+a module may cross chapter boundaries because chapter titles are not D1 schema fields. Do not
+duplicate or redefine an existing live scenario to fill a module. The audit and loader, when
+present, remain the executable contract; this prompt describes the intended module size.
 
 ## 5. Quality bar — you are writing teaching material, not a word list
 
@@ -301,13 +296,14 @@ JSON files is not authorized by this prompt or loader contract.
 
 Before you answer, verify your own output against this list:
 
-- [ ] every `category` is one of the five keys, and every `topic` matches its mapped value
+- [ ] every `category` is one of the six keys, and every `topic` matches its mapped value
 - [ ] every `id` matches `^[a-z0-9_]+$` and is unique
 - [ ] every scenario has all four `initial_message_*` levels and they are genuinely graded
 - [ ] every noun has `der`/`die`/`das`; non-nouns have `""`
 - [ ] every Arabic field contains Arabic script and no transliteration
 - [ ] every `sort_order` run starts at 1 and has no gaps
 - [ ] 15-40 vocabulary rows per topic, 6-10 phrases per scenario, ≥2 grammar rules per level
+- [ ] 5–8 scenarios total; see the module-size rule above
 - [ ] no `id`/`rowid` key on any new vocabulary or starter-phrase row
 - [ ] no key outside the exact column lists, and no top-level key outside the seven allowed
 
@@ -326,6 +322,8 @@ Before you answer, verify your own output against this list:
    and reports the result.
 3. Or paste the four arrays into the dashboard's Bulk Upload modal, one content type at a
    time, leaving Sync mode off.
-4. A human still has to review the German and Arabic. The checklist in the `review` block is
-   that review; approving it (`status: "approved"` + `reviewedBy` + `reviewedAt`) is a
-   deliberate act, not a formality — the loader refuses unreviewed content.
+4. Run the mandatory Content Gate in `AGENTS.md` §4, including adversarial AI self-review.
+   Keep the module pending if any issues remain after three rounds. Only a zero-issue round may
+   be marked approved, using the required AI self-review attribution and real timestamp; never
+   imply human/native review. Include a per-scenario confidence note identifying what a human
+   spot-check should examine first.

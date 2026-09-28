@@ -67,6 +67,9 @@ export type LoadableType = (typeof LOADABLE_TYPES)[number];
 /** Keys a draft may carry without being loadable content. */
 export const NON_LOADABLE_KEYS = ['_note', 'meta', 'review', 'deferred'] as const;
 
+/** Module size required by AGENTS.md §4 and docs/CONTENT-AUTHORING-PROMPT.md. */
+export const MODULE_SCENARIO_LIMITS = { min: 5, max: 8 } as const;
+
 /** Per-scenario content standard (docs/LEARNING-ROADMAP.md, Phase 5). */
 export const STANDARD = {
   minVocabPerTopic: 15,
@@ -166,7 +169,8 @@ export function auditCurriculum(
       error('$.review.status', 'must be pending, approved or rejected');
     } else {
       stats.reviewStatus = String(status);
-      // Approving is a human act: it must be attributable and dated.
+      // Approval metadata must be attributable and dated; the policy defines
+      // the permitted AI self-review attribution format.
       if (status === 'approved') {
         if (!isNonEmptyString(draft.review.reviewedBy)) error('$.review.reviewedBy', 'required once review.status is approved');
         if (!isNonEmptyString(draft.review.reviewedAt)) error('$.review.reviewedAt', 'required once review.status is approved');
@@ -179,10 +183,14 @@ export function auditCurriculum(
 
   // --- scenarios -------------------------------------------------------------
   const scenarioTopics = new Map<string, string>();
-  if (!Array.isArray(draft.scenarios) || draft.scenarios.length === 0) {
-    error('$.scenarios', 'at least one scenario is required');
+  if (!Array.isArray(draft.scenarios)) {
+    error('$.scenarios', 'must be an array containing 5–8 scenarios');
   } else {
     stats.scenarios = draft.scenarios.length;
+    if (draft.scenarios.length < MODULE_SCENARIO_LIMITS.min || draft.scenarios.length > MODULE_SCENARIO_LIMITS.max) {
+      error('$.scenarios', `module must contain ${MODULE_SCENARIO_LIMITS.min}–${MODULE_SCENARIO_LIMITS.max} scenarios; got ${draft.scenarios.length}`);
+    }
+    if (draft.scenarios.length === 0) error('$.scenarios', 'at least one scenario is required');
     const seenIds = new Set<string>();
     draft.scenarios.forEach((raw, i) => {
       const path = `$.scenarios[${i}]`;

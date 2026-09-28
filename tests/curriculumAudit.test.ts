@@ -6,6 +6,7 @@ import {
   OPTIONAL_COLUMNS,
   LOADABLE_TYPES,
   auditCurriculum,
+  MODULE_SCENARIO_LIMITS,
   type AuditReport,
 } from '@/lib/content/curriculumAudit';
 import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
@@ -29,6 +30,18 @@ function errorPaths(report: AuditReport): string[] {
  * change to the standard updates the fixture with it.
  */
 function baseDraft(): any {
+  const scenarios = Array.from({ length: MODULE_SCENARIO_LIMITS.min }, (_, scenarioIndex) => ({
+    id: `test_scenario_${scenarioIndex + 1}`,
+    title_de: `Test ${scenarioIndex + 1}`,
+    title_ar: `اختبار ${scenarioIndex + 1}`,
+    ai_persona: 'Test katze',
+    category: 'official',
+    icon: 'stamp',
+    initial_message_a1: 'Hallo!',
+    initial_message_a2: 'Guten Tag!',
+    initial_message_b1: 'Guten Tag, wie geht es Ihnen?',
+    initial_message_b2: 'Guten Tag, darf ich Ihnen behilflich sein?',
+  }));
   const vocabulary = Array.from({ length: 15 }, (_, index) => {
     const n = index + 1;
     return {
@@ -56,29 +69,18 @@ function baseDraft(): any {
       designedFor: 'test fixture',
     },
     review: { status: 'pending', reviewedBy: null, reviewedAt: null, checklist: ['reviewed by a human'] },
-    scenarios: [
-      {
-        id: 'test_scenario',
-        title_de: 'Test',
-        title_ar: 'اختبار',
-        ai_persona: 'Test katze',
-        category: 'official',
-        icon: 'stamp',
-        initial_message_a1: 'Hallo!',
-        initial_message_a2: 'Guten Tag!',
-        initial_message_b1: 'Guten Tag, wie geht es Ihnen?',
-        initial_message_b2: 'Guten Tag, darf ich Ihnen behilflich sein?',
-      },
-    ],
+    scenarios,
     vocabulary,
-    starter_phrases: Array.from({ length: 6 }, (_, index) => ({
-      scenario_id: 'test_scenario',
-      level: 'A1',
-      german: `Satz ${index + 1}`,
-      translation_en: `sentence ${index + 1}`,
-      translation_ar: `جملة رقم ${index + 1}`,
-      sort_order: index + 1,
-    })),
+    starter_phrases: scenarios.flatMap((scenario) =>
+      Array.from({ length: 6 }, (_, index) => ({
+        scenario_id: scenario.id,
+        level: 'A1',
+        german: `${scenario.id} Satz ${index + 1}`,
+        translation_en: `sentence ${index + 1}`,
+        translation_ar: `جملة رقم ${index + 1}`,
+        sort_order: index + 1,
+      })),
+    ),
     grammar: [
       {
         id: 'g_test_one',
@@ -105,10 +107,41 @@ function baseDraft(): any {
 }
 
 describe('audit fixture', () => {
-  it('accepts a draft that meets every rule', () => {
+  it('accepts a draft at the minimum 5-scenario module size', () => {
     const report = audit(baseDraft());
     expect(report.errors).toEqual([]);
     expect(report.ok).toBe(true);
+  });
+
+  it('accepts the maximum 8-scenario module size', () => {
+    const draft = baseDraft();
+    draft.scenarios = Array.from({ length: MODULE_SCENARIO_LIMITS.max }, (_, index) => ({
+      ...draft.scenarios[0],
+      id: `test_scenario_${index + 1}`,
+    }));
+    draft.starter_phrases = draft.scenarios.flatMap((scenario: { id: string }) =>
+      Array.from({ length: 6 }, (_, index) => ({
+        scenario_id: scenario.id,
+        level: 'A1',
+        german: `${scenario.id} Satz ${index + 1}`,
+        translation_en: `sentence ${index + 1}`,
+        translation_ar: `جملة رقم ${index + 1}`,
+        sort_order: index + 1,
+      })),
+    );
+    const report = audit(draft);
+    expect(report.errors).toEqual([]);
+    expect(report.stats.scenarios).toBe(8);
+  });
+
+  it.each([4, 9])('rejects a module with %i scenarios', (count) => {
+    const draft = baseDraft();
+    draft.scenarios = Array.from({ length: count }, (_, index) => ({
+      ...draft.scenarios[0],
+      id: `test_scenario_${index + 1}`,
+    }));
+    const report = audit(draft);
+    expect(report.errors.some((issue) => issue.path === '$.scenarios' && issue.message.includes('5–8'))).toBe(true);
   });
 
   it('rejects a scenario whose category resolves to no vocabulary topic', () => {

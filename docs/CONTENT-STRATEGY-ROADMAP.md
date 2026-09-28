@@ -1,10 +1,8 @@
 # Katzu — Content Strategy & Scenario Roadmap
 
-**Status: strategy proposal only. No curriculum rows, IDs, authoring schema, audit rules, loader behavior, or app code are changed by this document.**
+**Status: strategy and sequencing reference. Authoring policy and module review status are governed by `AGENTS.md` §4; the authoring prompt remains the field-level schema reference.**
 
-This is the narrative and sequencing layer above [`CONTENT-AUTHORING-PROMPT.md`](./CONTENT-AUTHORING-PROMPT.md). The authoring prompt remains the canonical field-by-field contract; this roadmap describes what the future curriculum should tell and in what order. When the strategy and the current contract disagree, **do not silently bend either one**: use the contract for any content currently being authored, and resolve the conflict as a separately reviewed contract/pipeline change before creating the proposed 15-scenario series.
-
-The curriculum review gate remains mandatory: `scripts/audit-curriculum.mjs` → `scripts/load-curriculum.mjs` dry run → human review/approval → explicit `--commit`. `review.status` must remain `pending` until an accountable human approves the content. This document does not approve content.
+This is the narrative and sequencing layer above [`CONTENT-AUTHORING-PROMPT.md`](./CONTENT-AUTHORING-PROMPT.md). The authoring prompt describes the field-level schema; this roadmap describes what the curriculum should tell and in what order. Follow `AGENTS.md` §4 for the 5–8 scenario module size and the mandatory audit, adversarial AI self-review, review attribution and dry-run gates. Do not write to production D1; only the owner runs the loader's explicit `--commit` path.
 
 ---
 
@@ -42,7 +40,7 @@ The learner is a person who has just moved—or is preparing to move—to German
 
 The story begins at a German airport. A small problem at passport control or baggage is enough to give the learner a reason to speak German in their first few minutes: the stakes should be understandable and modest, not frightening or catastrophic. The planned opening ID is `airport_arrival`.
 
-This incident is a **content direction**, not approved wording. The content team must review the factual situation, German, Arabic and level progression before any lesson text is loaded.
+This incident is a **content direction**, not approved wording. Every authored row must pass the Content Gate in `AGENTS.md` §4 before it is eligible for loading; the report must identify what a human should spot-check first.
 
 ### Recurring cast without a schema extension
 
@@ -73,7 +71,7 @@ Chapter position is narrative ordering only. It does not change a scenario’s c
 
 The roadmap below is a planning list, **not content ready for upload**. Existing live D1 rows must be fetched and treated as authoritative; do not redefine an existing ID merely to make a chapter file self-contained.
 
-The five IDs `embassy_appointment`, `cafe_order`, `job_interview`, `doctor_visit` and `apartment_viewing` are identified in the existing authoring materials as already present in D1 and must not be redefined. Confirm that against the live Content Studio/D1 before any module is prepared. `bakery_shopping` and `train_station` currently exist only as incomplete local Dexie fallback fixtures. Per the owner’s decision, **hold both for a content-team rewrite**; do not promote their current fixture rows to D1 or claim that they satisfy this roadmap.
+The five IDs `embassy_appointment`, `cafe_order`, `job_interview`, `doctor_visit` and `apartment_viewing` are identified in the existing authoring materials as already present in D1 and must not be redefined. Confirm that against an authorized content export before preparing a module. `bakery_shopping` and `train_station` currently exist only as incomplete local Dexie fallback fixtures; any replacement must preserve those IDs and pass the Content Gate in `AGENTS.md` §4 before it is eligible for loading.
 
 | Ch. | Slot | ID | Situation | Category → topic | Status | Persona continuity |
 |---|---:|---|---|---|---|---|
@@ -81,7 +79,7 @@ The five IDs `embassy_appointment`, `cafe_order`, `job_interview`, `doctor_visit
 | 1 | 2 | `embassy_appointment` | Anmeldung / residence registration | `official` → `documents` | Existing; reuse, do not redefine | Sachbearbeiter |
 | 1 | 3 | `apartment_viewing` | Viewing a flat and asking the landlord practical questions | `housing` → `housing` | Existing; reuse, do not redefine | Vermieterin/Vermieter; recurring thread with Ch. 2 slot 6 |
 | 2 | 4 | `cafe_order` | Ordering at a café | `daily_life` → `food` | Existing; reuse, do not redefine | Barista |
-| 2 | 5 | `bakery_shopping` | Buying bread and asking whether it is fresh | `daily_life` → `food` | Local fallback only; hold for content-team rewrite | Bäcker(in) |
+| 2 | 5 | `bakery_shopping` | Buying bread and asking whether it is fresh | `daily_life` → `food` | Local fallback only; incomplete — replace via AGENTS.md §4 content gate | Bäcker(in) |
 | 2 | 6 | `landlord_followup` | Calling the landlord about a deposit or repair | `housing` → `housing` | New | Same exact landlord persona string as Ch. 1 slot 3 |
 | 3 | 7 | `job_interview` | Bewerbungsgespräch | `work` → `work` | Existing; reuse, do not redefine | HR / Personalchef(in) |
 | 3 | 8 | `erster_arbeitstag` | First day: meeting the team and finding one’s place | `work` → `work` | New | Colleague; recurring thread with Ch. 3 slot 9 |
@@ -89,7 +87,7 @@ The five IDs `embassy_appointment`, `cafe_order`, `job_interview`, `doctor_visit
 | 4 | 10 | `residence_permit` | Ausländerbehörde: residence-title appointment | `official` → `documents` | New | Beamter/Beamtin |
 | 4 | 11 | `doctor_visit` | Arztpraxis and asking for a sick note | `health` → `health` | Existing; reuse, do not redefine | Arzt/Ärztin |
 | 4 | 12 | `pharmacy_visit` | Apotheke: buying medicine and describing symptoms | `health` → `health` | New | Apotheker(in) |
-| 5 | 13 | `train_station` | Buying a ticket and asking about a delay or platform | `travel` → `travel` | Local fallback only; hold for content-team rewrite | Bahn employee |
+| 5 | 13 | `train_station` | Buying a ticket and asking about a delay or platform | `travel` → `travel` | Local fallback only; incomplete — replace via AGENTS.md §4 content gate | Bahn employee |
 | 5 | 14 | `neighbor_dispute` | A polite noise/conflict conversation with a neighbor | `housing` → `housing` | New | Nachbar(in) |
 | 5 | 15 | `friend_catchup` | Informal `du` conversation about plans, the weekend and opinions | `daily_life` → `food` | New | Freund(in) |
 
@@ -117,7 +115,7 @@ University enrollment, Kita/childcare and banking are not part of these fifteen 
 
 ## 4. Additional authoring rules for this story
 
-These rules supplement—but do not override—the canonical authoring prompt once the module-size/ID conflicts below have been resolved.
+These story rules supplement the canonical authoring prompt and do not override the Content Gate in `AGENTS.md` §4.
 
 1. **Story-aware openings:** for a new scenario, each `initial_message_a1..b2` should connect to the inciting incident or prior episode when appropriate. `airport_arrival` is the one opening allowed to introduce the premise cold; later openers may assume the learner knows Katzu.
 2. **Grammar in context:** each new scenario needs at least one grammar point tied to structures learners actually need to say in that scene. Reuse an existing grammar ID when revisiting the same rule; do not create near-duplicate rules. The canonical prompt currently asks for at least two grammar rules per level used in a module, so a “one per scenario” rule does not replace that module-level minimum.
@@ -126,37 +124,35 @@ These rules supplement—but do not override—the canonical authoring prompt on
 5. **Register continuity:** use `Sie` with landlords and officials throughout their story threads. Do not switch a returning character to `du` without a clear in-story reason. Use `du` in the friend scenario where appropriate and keep that register consistent.
 6. **B1/B2 nuance:** Chapter 5 should include opinions, softened disagreement, reasons and natural adult phrasing—not merely longer sentences or a more difficult grammar label. This applies especially to `neighbor_dispute` and `friend_catchup`.
 7. **Keep spoken production:** every episode must include the existing production/live-speaking path. No scenario ships as a comprehension-only lesson.
-8. **Human review remains substantive:** check German idiom and level, Arabic naturalness, bureaucratic factual claims, persona/register continuity, and the vocabulary-to-phrase/conversation link. Do not set a draft to approved on behalf of the content reviewer.
+8. **Human spot-checks remain useful:** the module report must name, per scenario, the first German idiom/level, Arabic naturalness, bureaucratic factual claim, persona/register or vocabulary-link issue a human should verify. Approval status follows the AI self-review gate in `AGENTS.md` §4; never claim human review.
 
 ---
 
 ## 5. Module contract and packaging decision
 
-The canonical `CONTENT-AUTHORING-PROMPT.md` remains the field-level authority and still requires **exactly eight scenarios per module**, plus its topic, vocabulary, phrase and grammar budgets. The fifteen rows here are five narrative chapters, not five automatically loadable JSON files. A module may span chapter boundaries; chapter titles are not schema fields.
-
-The 15-slot count does not divide into exact-eight modules. Do not silently weaken the eight-scenario rule, generate a seven-scenario module, duplicate/redefine an existing D1 scenario, or add unrelated curriculum merely to fill the count. Before assembling uploadable modules, the content owner must decide which additional approved scenario(s) belong in the roadmap sequence or authorize a different roadmap count. Until then, this document defines the story order only; it does not claim that five chapter JSON files pass the existing audit/loader.
+The canonical authoring prompt describes the field-level schema. Under `AGENTS.md` §4, each module contains **5–8 scenarios** and meets the topic, vocabulary, phrase and grammar budgets for its selected rows. The fifteen rows here are five narrative chapters, not necessarily five loadable JSON files. Group them into modules of 5–8, crossing chapter boundaries when appropriate; chapter titles are not schema fields. Do not duplicate or redefine an existing live D1 scenario, or invent filler to reach a count. The audit and loader determine executable validity where those scripts are available.
 
 Existing live D1 scenarios must be referenced/reused without being redefined. The current loader operates on complete module JSON and upserts scenario/grammar rows by ID, while vocabulary and starter phrases have their own deduplication behavior. Do not copy existing IDs into an uploadable module in a way that could overwrite live content or duplicate rows. Confirm D1 rows/persona strings from the Content Studio before authoring integrations.
 
 **Current guardrails:**
 
-- The eight-scenario authoring contract, audit and loader remain unchanged and authoritative.
+- The 5–8 scenario module size and review process are governed by `AGENTS.md` §4.
 - The fifteen story slots are not yet packaged into uploadable modules.
 - Do not duplicate/redefine the five identified live D1 IDs.
-- `bakery_shopping` and `train_station` remain held for content-team rewrite; never promote their incomplete fallback rows as-is.
+- `bakery_shopping` and `train_station` have incomplete local fallback rows; any replacement must preserve their IDs and pass the content gate.
 - Use the existing six-category topic map; schema/category changes are not part of this strategy document.
 
 ---
 
 ## 6. Future authoring and release sequence
 
-Once the module-packaging decision is made and the content team has rewritten the two fallback-only situations:
+When assembling reviewable modules from this roadmap:
 
-1. Confirm the five claimed live D1 IDs and exact persona strings in the Content Studio/D1 export. Resolve whether each existing scenario fits the intended narrative beat without changing its ID or content.
-2. Agree the module/chapter file boundary and reference behavior before authoring. Do not infer that five chapter files are loadable just because the folder supports JSON files.
-3. Author and review one chapter-sized unit at a time if the approved contract supports it. Supply this strategy together with the canonical prompt; the prompt remains the schema authority.
-4. Keep `review.status: "pending"` during authoring. Run `node scripts/audit-curriculum.mjs --file=docs/content/<file>.json`, correct every error, and run `node scripts/load-curriculum.mjs --file=docs/content/<file>.json` as a dry run.
-5. Only a named human reviewer may add `reviewedBy`, `reviewedAt` and set `review.status: "approved"`. Only then may an authorized owner choose the loader’s explicit `--commit` path.
-6. After a reviewed Chapter 1 row is available to the app, run the existing hero check: a new learner completes sign-in/onboarding and sees `airport_arrival` as Day 1, with the real D1 row supplying the content. Verify the scene offers speaking, not only study.
+1. Treat the five claimed live D1 IDs as protected; confirm any needed details from an authorized content export. Never redefine those IDs.
+2. Package the fifteen roadmap slots into modules of 5–8 scenarios, crossing chapter boundaries as useful. Do not infer that chapter files are loadable just because the folder supports JSON files.
+3. Author and gate one reviewable module at a time. Supply this strategy together with the canonical prompt; the prompt remains the schema reference.
+4. Apply `AGENTS.md` §4: run `node scripts/audit-curriculum.mjs --file=docs/content/<file>.json`, correct every error, complete up to three adversarial self-review rounds, then run `node scripts/load-curriculum.mjs --file=docs/content/<file>.json` as a dry run.
+5. Set `review.status: "approved"` only after a zero-issue self-review round, with the required AI self-review attribution and real timestamp. Otherwise keep it `pending` and list the remaining issues. Only the owner may choose the loader’s explicit `--commit` path.
+6. After a gated Chapter 1 row is available to the app, run the existing hero check: a new learner completes sign-in/onboarding and sees `airport_arrival` as Day 1, with the local or authorized content row supplying it. Verify the scene offers speaking, not only study.
 
-No content has been authored, approved, loaded, or deployed by this strategy document.
+This strategy document does not itself author, approve, load, or deploy curriculum.
