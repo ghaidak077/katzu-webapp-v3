@@ -1811,16 +1811,20 @@ function validateAiTurnBody(body) {
  * Returns null for unknown scenario ids — the client is never trusted. */
 async function resolveScenarioIdentity(env, scenarioId) {
   const FALLBACK_SCENARIOS = {
-    cafe_order: { title_de: "Im Café", persona: "friendly café server in Germany" },
-    apartment_viewing: { title_de: "Wohnungsbesichtigung", persona: "German landlord during a viewing" },
-    doctor_visit: { title_de: "Beim Arzt", persona: "receptionist at a German medical practice" },
-    job_interview: { title_de: "Vorstellungsgespräch", persona: "German hiring manager in an interview" },
-    embassy_appointment: { title_de: "Botschaftstermin", persona: "embassy appointment clerk" },
+    cafe_order: { title_de: "Im Café", persona: "friendly café server in Germany", category: "daily_life" },
+    apartment_viewing: { title_de: "Wohnungsbesichtigung", persona: "German landlord during a viewing", category: "housing" },
+    doctor_visit: { title_de: "Beim Arzt", persona: "receptionist at a German medical practice", category: "health" },
+    job_interview: { title_de: "Vorstellungsgespräch", persona: "German hiring manager in an interview", category: "work" },
+    embassy_appointment: { title_de: "Botschaftstermin", persona: "embassy appointment clerk", category: "official" },
   };
   try {
-    const row = await env.DB.prepare("SELECT title_de, ai_persona FROM scenarios WHERE id = ?").bind(scenarioId).first();
+    const row = await env.DB.prepare("SELECT title_de, ai_persona, category FROM scenarios WHERE id = ?").bind(scenarioId).first();
     if (row && row.title_de) {
-      return { title_de: String(row.title_de).slice(0, AI_LIMITS.SCENARIO_TITLE), persona: String(row.ai_persona || "").slice(0, AI_LIMITS.PERSONA) || "friendly conversational partner" };
+      return {
+        title_de: String(row.title_de).slice(0, AI_LIMITS.SCENARIO_TITLE),
+        persona: String(row.ai_persona || "").slice(0, AI_LIMITS.PERSONA) || "friendly conversational partner",
+        category: typeof row.category === "string" ? row.category.slice(0, 40) : "",
+      };
     }
   } catch {}
   if (FALLBACK_SCENARIOS[scenarioId]) return FALLBACK_SCENARIOS[scenarioId];

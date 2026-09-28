@@ -89,6 +89,7 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   const scenario_id = v.scenario_id;
   const scenario_title = scenarioIdentity.title_de;   // server-authoritative (client value ignored)
   const persona = scenarioIdentity.persona;           // server-authoritative (client value ignored)
+  const scenario_category = typeof scenarioIdentity.category === "string" ? scenarioIdentity.category : "";
   const cefr_level = v.cefr_level;
   const user_message = v.user_message;
   const history = v.history;
@@ -134,6 +135,14 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   const wrapUpInstruction = is_final_turn
     ? "This is the final exchange. Give a warm realistic farewell and do not ask a new question."
     : `Continue naturally at CEFR level ${level}.`;
+  // Gate 6: a roleplay in a medical, legal/official or housing-contract setting
+  // must never drift into acting as a real professional. The persona practises
+  // the conversation; it does not diagnose, does not file, and does not interpret
+  // law. One line, always present for those categories, in every mode.
+  const SAFETY_DISCLAIMER_CATEGORIES = new Set(["health", "official", "housing"]);
+  const safetyInstruction = SAFETY_DISCLAIMER_CATEGORIES.has(scenario_category)
+    ? `SAFETY LIMIT — this roleplay touches a professional domain. You stay in character as a conversation PRACTICE partner only: never give real medical, legal or immigration advice, never diagnose, never state fees, deadlines or entitlements as fact, and never claim to be a real doctor, lawyer or authority. If the learner asks for such advice, answer briefly in character that you cannot help with that and they should consult a real professional or official source — then continue the practice conversation.`
+    : "";
   // The learner is staring at a typing indicator for the whole of this response,
   // and the response is not streamed — so its length IS its latency. Every field
   // below asks for the shortest thing that still does its job; the old prompt
@@ -213,7 +222,7 @@ How to use it:
     // Keep the base prompt first for provider prefix caching; per-episode context
     // and learner memory are separate, bounded additions.
     systemInstruction: {
-      parts: [fusionInstruction, practiceInstruction, memoryInstruction]
+      parts: [fusionInstruction, safetyInstruction, practiceInstruction, memoryInstruction]
         .filter(Boolean)
         .map((text, index) => ({ text: index === 0 ? text : `\n\n${text}` })),
     },

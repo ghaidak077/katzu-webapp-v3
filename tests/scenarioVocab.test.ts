@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scenarioToVocabTopic, SCENARIO_CATEGORY_TO_TOPIC } from '@/lib/utils/scenarioVocab';
+import { scenarioToVocabTopic, safetyDisclaimerFor, SCENARIO_CATEGORY_TO_TOPIC } from '@/lib/utils/scenarioVocab';
 
 describe('scenarioToVocabTopic', () => {
   it('maps each live D1 category to its vocabulary topic', () => {
@@ -43,5 +43,25 @@ describe('scenarioToVocabTopic', () => {
     for (const topic of Object.values(SCENARIO_CATEGORY_TO_TOPIC)) {
       expect(liveTopics).toContain(topic);
     }
+  });
+});
+
+describe('safetyDisclaimerFor (Gate 6)', () => {
+  it('gives medical, legal/official and housing scenarios a disclaimer', () => {
+    expect(safetyDisclaimerFor({ id: 'doctor_visit', category: 'health' })).toContain('ليس استشارة طبية');
+    expect(safetyDisclaimerFor({ id: 'embassy_appointment', category: 'official' })).toContain('استشارة قانونية أو هجرة');
+    expect(safetyDisclaimerFor({ id: 'apartment_viewing', category: 'housing' })).toContain('ليس استشارة قانونية');
+  });
+
+  it('gives no disclaimer to everyday scenarios (café, travel, work)', () => {
+    expect(safetyDisclaimerFor({ id: 'cafe_order', category: 'daily_life' })).toBe('');
+    expect(safetyDisclaimerFor({ id: 'airport_arrival', category: 'travel' })).toBe('');
+    expect(safetyDisclaimerFor({ id: 'job_interview', category: 'work' })).toBe('');
+  });
+
+  it('falls back to the scenario id when the CMS category is missing', () => {
+    expect(safetyDisclaimerFor({ id: 'doctor_visit', category: '' })).toContain('ليس استشارة طبية');
+    expect(safetyDisclaimerFor({ id: 'burgeramt_appointment', category: '' })).toContain('الجهات المختصة');
+    expect(safetyDisclaimerFor(null)).toBe('');
   });
 });

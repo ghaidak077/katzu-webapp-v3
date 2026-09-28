@@ -543,3 +543,55 @@ describe('/ai/turn refuses unusable model output', () => {
     expect(body.evaluation.corrected_german).toBe('Guten Tag, ich möchte einen Kaffee.');
   });
 });
+
+describe('safety instruction injection (P4)', () => {
+  const runScenarioTurn = async (scenarioId: string, sub: string) => {
+    const env = makeEnv();
+    await seedSession(env, sub, `sess_${sub}`);
+    const requested: Array<{ input: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      (async (_input: any, init: any) => {
+        requested.push({ input: String(init.body) });
+        return geminiText(FUSED_REPLY);
+      }) as unknown as typeof fetch,
+    );
+    const res = await worker.fetch(
+      post(
+        '/ai/turn',
+        {
+          scenario_id: scenarioId,
+          cefr_level: 'A1',
+          user_message: 'Guten Tag, ich habe einen Termin.',
+          session_id: `sess-turn-${sub}`,
+          history: [],
+        },
+        { Authorization: `Bearer sess_${sub}` },
+      ),
+      env as never,
+    );
+    expect(res.status).toBe(200);
+    return requested[0].input;
+  };
+
+  it('adds the SAFETY LIMIT to the system prompt for health, official and housing scenarios', async () => {
+    for (const scenarioId of ['doctor_visit', 'embassy_appointment', 'apartment_viewing']) {
+      const prompt = await runScenarioTurn(scenarioId, `safety_${scenarioId.replace(/_/g, '')}`);
+      expect(prompt).toContain('SAFETY LIMIT');
+      expect(prompt).toContain('never give real medical, legal or immigration advice');
+    }
+  });
+
+  it('does not add the SAFETY LIMIT to everyday scenarios', async () => {
+    for (const scenarioId of ['cafe_order', 'job_interview']) {
+      const prompt = await runScenarioTurn(scenarioId, `plain_${scenarioId.replace(/_/g, '')}`);
+      expect(prompt).not.toContain('SAFETY LIMIT');
+    }
+  });
+
+  it('tells the model never to claim to be a real professional or human authority', async () => {
+    const prompt = await runScenarioTurn('doctor_visit', 'safety_persona');
+    expect(prompt).toContain('never claim to be a real doctor, lawyer or authority');
+    expect(prompt).toContain('they should consult a real professional');
+  });
+});

@@ -34,3 +34,26 @@ export function scenarioToVocabTopic(scenario: Pick<ScenarioEntity, 'id' | 'cate
   if (/apartment|wohnung|housing|flat/i.test(scenario.id)) return 'housing';
   return '';
 }
+
+/**
+ * Gate 6 (legal & trust): scenarios that roleplay a professional domain carry a
+ * short Arabic disclaimer on the scenario screen — practice only, not real
+ * advice. Keyed by the CMS category, so new content inherits the rule without a
+ * code change; the worker's AI prompt applies the same set (see
+ * cloudflare-ai-chat.js SAFETY_DISCLAIMER_CATEGORIES) so the persona and the
+ * UI can never disagree about which scenarios are sensitive.
+ */
+export function safetyDisclaimerFor(scenario: Pick<ScenarioEntity, 'id' | 'category'> | null | undefined): string {
+  if (!scenario) return '';
+  const category = scenario.category || scenarioToVocabTopic(scenario);
+  if (category === 'health' || /doctor|arzt|apotheke|pharmacy/i.test(scenario.id)) {
+    return 'هذا تدريب للمحادثة فقط، وليس استشارة طبية. لأي قرار صحيّ راجع طبيباً أو مختصاً حقيقياً.';
+  }
+  if (category === 'official' || category === 'documents' || /embassy|amt|visa|aufenthalt/i.test(scenario.id)) {
+    return 'هذا تدريب للمحادثة فقط، وليس استشارة قانونية أو هجرة. تحقق دائماً من المعلومات الرسمية لدى الجهات المختصة.';
+  }
+  if (category === 'housing' || /apartment|wohnung|contract|miet/i.test(scenario.id)) {
+    return 'هذا تدريب للمحادثة فقط، وليس استشارة قانونية. راجع العقد ومختصاً قبل أي التزام.';
+  }
+  return '';
+}

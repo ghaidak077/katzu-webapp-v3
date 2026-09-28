@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { ScenarioBanner } from '@/components/glass/ScenarioBanner';
 import { sceneFor } from '@/lib/design/scenes';
+import { safetyDisclaimerFor } from '@/lib/utils/scenarioVocab';
 import { ArrowRight, BookOpen, CheckCircle, Lock, MessagesSquare, Sparkles } from 'lucide-react';
 
 export interface ScenarioDetailScreenProps {
@@ -122,6 +123,20 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         drift
         loading="eager"
       />
+
+      {/* Gate 6: a roleplay touching medicine, law/immigration or housing says so
+          up front — practice only, real decisions belong to real professionals. */}
+      {(() => {
+        const disclaimer = safetyDisclaimerFor(scenario);
+        return disclaimer ? (
+          <div
+            role="note"
+            className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-arabic leading-relaxed text-amber-200"
+          >
+            ⚖️ {disclaimer}
+          </div>
+        ) : null;
+      })()}
 
       {/* Host Card */}
       <Card variant="hero" className="p-5 mb-6 relative overflow-hidden border border-primary/30 flex items-center justify-between">
