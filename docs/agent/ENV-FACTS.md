@@ -1,0 +1,213 @@
+# ENV-FACTS — measured environment for the Katzu workspace
+
+One-time recon, read-only. Every `FACT` line carries the command and its result.
+`UNKNOWN` means the probe could not prove the claim — never a guess.
+Recon date: 2026-09-29. Host: the owner's Windows desktop (Freebuff desktop app).
+
+Repo root on disk: `C:/Users/Lenovo/Desktop/k1/katzu`.
+Workspace root (where shell commands start): `/c/Users/Lenovo/Desktop/k1` (not a git repo).
+
+---
+
+## A. Identity & tools
+
+| | |
+|---|---|
+| Agent identity | FACT: `Buffy`, the coding agent behind Codebuff, running in the Freebuff desktop client — proof: harness/system prompt states it. |
+| Model name | UNKNOWN — the harness does not state a model name anywhere in this session. (`GLM 5.3 Flash` appears in `docs/AGENT-STATE.md` only as a content-review attribution, not the runtime model.) |
+| Context window | UNKNOWN — not stated by the harness. |
+| Token/usage counter | UNKNOWN — no counter is visible in tool results; the app UI may show one the agent cannot read. |
+
+**Tools callable** (name → purpose):
+
+- `read_files` — read files / line ranges; batch several in one call.
+- `str_replace` — exact-string replacement inside a file (supports `allowMultiple`).
+- `write_file` — create or fully overwrite a file.
+- `run_terminal_command` — run a shell command (SYNC or BACKGROUND).
+- `code_search` — content search via a bundled ripgrep (works even though `rg` is absent from PATH).
+- `glob` / `list_directory` — find files by pattern / list a directory.
+- `write_todos` — maintain a step-by-step plan.
+- `web_search` / `read_url` — search the web / extract readable text from a URL.
+- `preview_*` — browser tab control (open, snapshot, click, type, screenshot, evaluate, logs) and `register_preview`.
+- `ask_questions` / `suggest_prompts` / `end_turn` — user interaction.
+- `search_mcp_tools` / `call_mcp_tool` — reach connected MCP servers (cloudflare, github).
+- `request_elevation` — request OS administrator rights for one exact command.
+- `run_file_change_hooks` — trigger client-configured post-edit hooks.
+
+Parallelism: FACT: **batched tool calls run sequentially, not concurrently** — two independent 8 s sleeps issued in one block took 16.4 s wall (`A-start=…606.678`, `B-start=…614.974`). Batching saves round-trips, not wall time.
+
+---
+
+## B. Machine (measured)
+
+| Fact | Proof |
+|---|---|
+| OS: Windows, MSYS/MinGW (`MINGW64_NT-10.0-26200`, MSYS 3.4.10 x86_64) | `uname -a` |
+| Shells present: `sh`, `bash` (`/usr/bin`), `powershell` (Windows PowerShell 5.1), `cmd`. **No `pwsh`.** | `command -v` loop |
+| The command tool runs **bash (MSYS)**: `SHELL=/usr/bin/bash` | `echo $SHELL` |
+| CPU: 12 logical, 6 physical cores | `nproc` → 12; `Win32_Processor.NumberOfCores` → 6 |
+| RAM: 15.9 GB | `Win32_ComputerSystem.TotalPhysicalMemory/1GB` |
+| Disk: `C:` 475 GB, **101 GB free** (79 % used) | `df -h .` |
+| Repo path length: `C:/Users/Lenovo/Desktop/k1/katzu` (31 chars) | `git -C katzu rev-parse --show-toplevel` |
+| Branch: `launch-hardening`, **working tree clean** | `git status -sb` → only `## launch-hardening` |
+| Divergence: 18 ahead of `main`, **1 commit ahead of `origin/launch-hardening`** | `git rev-list --left-right --count main...launch-hardening` → `0 18`; `git push --dry-run` → would push `a74014a` |
+| Last 3 commits | `git log -3 --oneline`: `a74014a RC-6…`, `9539923 RC-5…`, `2254dc3 RC-4…` |
+| `.gitattributes` pins LF (`* text=auto eol=lf`); `core.autocrlf=true` | `cat .gitattributes`, `git config core.autocrlf` |
+| **Working tree files ARE CRLF** — the `eol=lf` attribute is not taking effect on this checkout | `head -c 200 <f> \| tr -cd '\r' \| wc -c`: `index.html=4`, `tailwind.config.js=9`, `vite.config.ts=6`, `AGENTS.md=3`, `src/main.tsx=4`, `cloudflare-unified-worker.js=4`; `file index.html` → "CRLF line terminators" |
+| Tracked files: 321 | `git ls-files \| wc -l` |
+
+---
+
+## C. Toolchain (measured)
+
+| Tool | Version | Proof |
+|---|---|---|
+| node | **v24.14.0** | `node -v` |
+| npm | 11.9.0 | `npm -v` |
+| npx | 11.9.0 | `npx --version` |
+| git | 2.44.0.windows.1 | `git --version` |
+| TypeScript (tsc) | 5.9.3 | `npx tsc --version` |
+| vitest | 5.0.1 (win32-x64, node v24.14.0) | `npx vitest --version` |
+| @playwright/test | 1.63.0 | `npx playwright --version` |
+| wrangler | 4.136.3 (4.143.0 available) | `npx wrangler --version` |
+| **ripgrep (`rg`)** | **NOT INSTALLED** | `rg --version` → `command not found` → use `grep` / `git grep -n` |
+| `node_modules` | present | `test -d node_modules` |
+| `npm ci --dry-run` | "up to date in 1s" (with an `EBADENGINE` warning) | `npm ci --dry-run` |
+
+Playwright browsers installed in `%LOCALAPPDATA%/ms-playwright`: `chromium-1243`, `chromium_headless_shell-1243`, `ffmpeg-1011`, `winldd-1007`. **Chromium only** — no firefox, no webkit, and the Playwright config declares a single `chromium` project.
+
+---
+
+## D. Capabilities (probed in the OS temp dir, probes deleted)
+
+| Capability | Result |
+|---|---|
+| Heredoc write | FACT works — `cat > f <<'EOF' …` produced the file. |
+| `sed -i` multi/substitution | FACT works. |
+| `awk` | FACT works. |
+| `timeout <n>` | FACT works — `timeout 2 sh -c 'sleep 5'` → exit **124**. |
+| `nohup … &` | FACT works — backgrounded write produced its file. |
+| `curl` | FACT works — `registry.npmjs.org` → 200. |
+| Editor tool, unique 3-line match | FACT works — replaced `alpha/beta/gamma` block in one call. |
+| Editor tool, duplicate match | FACT **fails cleanly**: "Found 2 occurrences … No change to the file". No partial write. |
+| UTF-8 (Arabic + umlauts + ß) | FACT intact — `od -c` shows correct `d9 85 d8 b1 … c3 b6 … c3 9f`; **no BOM** (`head -c 3 \| od` → `d9 85 d8`). |
+| Line endings of tool-written files | FACT **LF** (tool output is LF even though the repo working tree is CRLF). |
+| Output: 500 lines | FACT not truncated — full `seq 1 500` returned. |
+| Output: 20 000 lines | FACT truncated **in the middle** with `[...TRUNCATED DUE TO LENGTH...]`, keeping ~head 5.2 k lines + ~tail 4.2 k lines (≈20 KB each end). Safe habit: ≤500 lines per call. |
+| Command time limit | FACT **no per-command kill observed** — `sleep 120` ran the full 120 s and exited 0. |
+| Background server | FACT works: see "Copy-paste commands" below (start → 200 → kill by PID). |
+
+**Plan mode / permission prompts:** UNKNOWN — no plan-mode state was present this session and no action was refused. All probes above (read-only plus writes to the OS temp dir and local `dist`) ran without an approval prompt. Which action classes trigger approval, and which are hard-blocked, is UNKNOWN (not exercised; deliberately nothing destructive was attempted).
+
+---
+
+## E. Network & credentials (read-only)
+
+| Check | Result |
+|---|---|
+| `https://registry.npmjs.org/` | FACT 200 |
+| `https://github.com/` | FACT 200 |
+| `https://api.cloudflare.com/` | FACT 301 |
+| `https://katzu-test.ghaidakalosh008.workers.dev/` | FACT **404** (no route at `/`) |
+| `https://katzu-test.ghaidakalosh008.workers.dev/health` | FACT **200** |
+| `https://katzu-webapp-v3.pages.dev/` | FACT 200 |
+| `https://katzu-sales.pages.dev/` | FACT 200 |
+| Env var NAMES matching `CLOUDFLARE\|VITE_\|WRANGLER\|ADMIN\|NOWPAY\|GOOGLE\|CF_` | FACT **none in the shell environment** (`env \| cut -d= -f1`) |
+| `.env` / `.dev.vars` files | FACT neither exists; only `.env.example` (template, no values) |
+| `wrangler whoami` | FACT logged in via **OAuth Token**, email `ghaidakalosh008@gmail.com`, account `00df3d915626e0a681f4fef98c1c587c`; token scopes include `workers (write)`, `workers_kv (write)`, `workers_scripts (write)` → **this machine can deploy**. Credentials stored at `%APPDATA%/xdg.config/.wrangler/config/default.toml`. |
+| Git remote | FACT `origin` = `https://github.com/ghaidak077/katzu-webapp-v3.git`; `git ls-remote --heads origin` exit 0 |
+| Push permitted? | FACT yes: `git push --dry-run origin launch-hardening` → `22fe6aa..a74014a launch-hardening -> launch-hardening`, exit 0. (Nothing was pushed.) |
+| Live `/health` body | FACT still returns the pre-hardening disclosure (`aiPool.entries:9`, `tiers`, `active` provider/model names, `strategy`, `cachedTranslationsCount`) → **production runs old code (commit `22fe6aa`)**, matching the RC-6 ledger entry. |
+| `wrangler d1 execute … --remote` (read-only SELECT) | FACT works; used for the counts in §F/content state. |
+
+---
+
+## F. Project baseline (all run this session)
+
+| Gate | Result | Duration |
+|---|---|---|
+| `npx tsc --noEmit` | FACT exit 0 | 6 s |
+| `npm run lint` | FACT identical to the above — the script is literally `tsc --noEmit` (no separate linter) | — |
+| `npm test` (= `vitest run`) | FACT exit 0 — **67 files / 799 tests passed** | 9 s (7.2 s reported) |
+| `npm run build` (`tsc && vite build`) | FACT exit 0; `dist` = 4.4 M; entry `index-C0HtKS_k.js` **492 K**; `sw.js` precache **86 entries / 4171.99 KiB**; Vite warns one chunk > 500 kB | 17 s |
+| `node --check cloudflare-unified-worker.js` | FACT OK | <1 s |
+| `npx tsc -p e2e --noEmit` | FACT OK | ~5 s |
+| `npm audit --omit=dev --audit-level=high` | FACT **0 vulnerabilities** | ~4 s |
+| Playwright inventory | FACT **10 spec files / 37 tests**, chromium only (`npx playwright test --list`) | — |
+| `npx playwright test e2e/demo.spec.ts` vs **dev** (`npm run dev`, port 3000) | FACT **1 passed** | **8 s** wall (5.0 s test) |
+| same spec vs **`vite preview`** (port 3000, production build) | FACT **1 passed** | **7 s** wall (4.6 s test) |
+
+Top 5 chunks by size: `index` 492 K · `LiveConversationScreen` 96 K · `JourneyHomeScreen` 32 K · `ProfileSettingsScreen` 24 K · `SubscriptionRedemptionScreen` 24 K; CSS `index-*.css` 52 K.
+
+**Gate trap (costs a wasted run):** FACT `npx vitest run --reporter=line` **fails** — `Startup Error: Failed to load custom Reporter from line` (exit 1, 2 s). `line` is a **Playwright** reporter, not a Vitest reporter. Valid Vitest names: `default | basic | verbose | dot | json | junit | tap | tap-flat`. Use **`npm test`** as-is, or `--reporter=dot`.
+
+`npm run lint` and `npx tsc --noEmit` are the same command — do not run both for "two gates".
+
+---
+
+## G. Repo map (≤25 lines)
+
+- **Entry points** — `index.html` → `src/main.tsx` → `src/App.tsx` (all routes).
+- **Routes** — public `/`, `/welcome`, `/signin`, `/demo`, `/onboarding`, `/subscription`, `/placement`, `/trust/:page`; learner `/app/*` (`/app/trail`, `/app/library`, `/app/review`, `/app/listen`, `/app/write`, `/app/coach`, `/app/:tab`) plus `/scenario/:id/{story,practice,study,quiz,live}` and `/session-report`.
+- **Key dirs** — `src/features/*` (auth, coach, conversation, demo, dev, journey, listening, marketing, onboarding, placement, practice, progress, quiz, report, review, settings, study, trail, writing); `src/components`; `src/lib`; `src/types`.
+- **Worker** — `cloudflare-unified-worker.js` (main), plus 15 sibling `cloudflare-*.js` modules (ai-router, ai-chat, admin, analytics, content-studio*, crypto, hints, stt, writing, content-schema).
+- **DB layer** — `src/lib/db/katzuDb.ts` (Dexie/IndexedDB offline fixtures + seeding); server side is D1 (`DB`) + KV (`USER_PROGRESS`, `REDEEMED_CODES`) per `wrangler.toml`.
+- **Tests** — `tests/` (67 Vitest files), `e2e/` (10 Playwright specs + `harness.ts`).
+- **Scripts** — `scripts/`: `audit-curriculum.mjs`, `audit-quiz-content.mjs`, `load-curriculum.mjs`, `backfill-user-registry.mjs`, `smoke-token-hygiene.cjs`, `verification-battery.cjs`, `verify-{admin,crypto,stt}-live.mjs`, `capture-admin-screenshots.mjs`, `fix-quiz-content.mjs`, `fixtures/`.
+- **`package.json` scripts** — `dev` (vite :3000) · `build` (tsc + vite) · `preview` (vite preview) · `test` (vitest run) · `test:e2e` (playwright) · `test:e2e:types` (tsc -p e2e) · `lint` (tsc --noEmit) · `deploy:worker` (wrangler deploy — **never run**) · `tail:worker` · `test:smoke:token-hygiene`.
+- **CI** — `.github/workflows/ci.yml` only.
+- **Docs present** — `docs/AGENT-STATE.md` (ledger), `LAUNCH-CHECKLIST.md`, `CONTENT-AUTHORING-PROMPT.md`, `CONTENT-STRATEGY-ROADMAP.md`, `CURRICULUM-DRAFT.md`, `IMPLEMENTATION_PLAN.md`, `LEARNING-ROADMAP.md`, `PRODUCT-SPEC.md`, `current-state.md`, `launch-gate.md`, `pass-quiz-training-hints.md`, `product-gaps.md`, `security-gaps.md`, `verification-report.md`, `docs/content/`, `docs/screenshots/`.
+- **Docs missing?** FACT none — every file AGENTS.md §4/§5 names exists (`docs/AGENT-STATE.md`, `LAUNCH-CHECKLIST.md`, `CONTENT-AUTHORING-PROMPT.md`, `CONTENT-STRATEGY-ROADMAP.md`, `src/lib/utils/scenarioVocab.ts`, `src/lib/content/scenarioGrammar.ts`, `src/lib/db/katzuDb.ts`). `docs/agent/` did not exist before this recon; it is created by this commit.
+
+---
+
+## Copy-paste commands that work here
+
+```bash
+# Everything below is run from the workspace root; the repo is in ./katzu
+cd katzu
+
+# --- start the dev server (port 3000) -------------------------------------------------
+nohup npm run dev > /tmp/katzu-dev.log 2>&1 &
+sleep 6
+curl -s -m 5 -o /dev/null -w "%{http_code}\n" http://localhost:3000/     # expect 200
+
+# --- verify it is the right server ----------------------------------------------------
+tail -5 /tmp/katzu-dev.log
+
+# --- stop it (MSYS: double the leading slash on taskkill flags) -----------------------
+PID=$(netstat -ano | grep LISTENING | grep ":3000" | awk '{print $NF}' | sort -u | head -1)
+taskkill //F //PID "$PID"
+
+# --- one spec against the dev server --------------------------------------------------
+npx playwright test e2e/demo.spec.ts --reporter=line      # 8 s, 1 test
+
+# --- one spec against the PRODUCTION build (same port; stop dev first) ---------------
+npm run build
+nohup npx vite preview --port 3000 --strictPort > /tmp/katzu-preview.log 2>&1 &
+sleep 5
+curl -s -m 5 -o /dev/null -w "%{http_code}\n" http://localhost:3000/     # expect 200
+npx playwright test e2e/demo.spec.ts --reporter=line      # 7 s, 1 test
+
+# --- the full unit gate (fast: ~10 s) --------------------------------------------------
+npm test                       # 67 files / 799 tests
+npx tsc --noEmit               # same as `npm run lint` — run once
+npx tsc -p e2e --noEmit
+
+# --- the full T2 release gate ---------------------------------------------------------
+npm run lint && npm test && npm run build && node --check cloudflare-unified-worker.js
+npm audit --omit=dev --audit-level=high
+npx playwright test            # 37 tests, chromium only
+
+# --- search (rg is NOT installed) -----------------------------------------------------
+git grep -n "pattern"
+grep -rn "pattern" src/
+
+# --- read-only live checks ------------------------------------------------------------
+curl -s -m 10 https://katzu-test.ghaidakalosh008.workers.dev/health
+npx wrangler d1 execute katzu-content --remote --command "SELECT COUNT(*) FROM scenarios"
+```
+
+Do **not** run `npm run deploy:worker`, `wrangler deploy`, or any `wrangler … --commit` load:
+`wrangler` on this machine is authenticated with `workers (write)` scope, so a stray deploy
+would reach production. §3 forbids it.
