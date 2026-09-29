@@ -783,13 +783,38 @@ function timingSafeEqual(a, b) {
   return diff === 0;
 }
 
-async function isAdminAuthorized(request, env) {
+async function isAdminAuthorized(request, env, onFailure) {
   const secret = typeof env?.ADMIN_SECRET === "string" ? env.ADMIN_SECRET : "";
   // Fail closed: unset, non-string or too-short-to-be-real secrets authorize nothing.
   if (secret.length < ADMIN_SECRET_MIN_LENGTH) return false;
   const auth = request.headers.get("Authorization") || "";
-  // Constant-time compare against the expected header value.
-  return timingSafeEqual(auth, `Bearer ${secret}`);
+  const expected = `Bearer ${secret}`;
+  // Normalize the lengths before the constant-time compare. `timingSafeEqual`
+  // bails early on a length mismatch, so testing the raw header would leak the
+  // secret's length; substituting a same-length dummy keeps the loop's work
+  // independent of how much of the secret an attacker guessed. Mirrors the main
+  // worker's gate byte-for-byte (cloudflare-unified-worker.js ->
+  // isAdminAuthorized) — the two copies must stay behaviourally identical.
+  const candidate =
+    auth.length === expected.length
+      ? auth
+      : expected.replace(/./g, (_, i) => (i === 6 ? "x" : " "));
+  const match = timingSafeEqual(candidate, expected);
+  if (!match) {
+    // The per-IP failure counter is the ONLY thing bounding a brute force of the
+    // bearer secret, and it lives in a lazily-created table that the main worker
+    // owns (it injects `recordAdminAuthFailure`, which also ensures that table).
+    // These endpoints used to answer 401 without ever writing the counter, so
+    // `/admin/api/*` could be ground with unlimited attempts while every other
+    // /admin* entry point was throttled after five.
+    if (typeof onFailure === "function") {
+      try {
+        await onFailure(request, env);
+      } catch {}
+    }
+    return false;
+  }
+  return true;
 }
 
 const ADMIN_API_PREFIX = "/admin/api/";
@@ -800,9 +825,24 @@ const ADMIN_API_PREFIX = "/admin/api/";
 // against `CONTENT_COLUMNS` in src/lib/content/curriculumAudit.ts — so a column
 // added in one place cannot silently go missing in the other.
 
-export async function handleAdminRoutes(url, request, env, cors) {
+export async function handleAdminRoutes(url, request, env, cors, deps = {}) {
   const path = url.pathname;
   const method = request.method;
+
+  // The main worker owns the durable per-IP admin-failure counter — and the
+  // lazily-created `rate_limit_counters` table it lives in — so it injects the
+  // recorder rather than this module writing a second counter of its own. The
+  // recorder also ensures the ledger tables, so the first failed attempt against
+  // an empty database creates the table instead of throwing.
+  const recordAdminAuthFailure =
+    typeof deps.recordAdminAuthFailure === "function" ? deps.recordAdminAuthFailure : null;
+
+  // The admin surface reads the whole ledger — `redeemed_codes_ledger` feeds the
+  // redemption counters, `users`/`activity_log`/`error_reports` feed the rest — so
+  // it needs the full lazy batch, not just the three registry tables. The worker
+  // injects its memoized `ensureLedgerTablesOnce` (a superset that also calls
+  // `ensureRegistryTables`); the default keeps this module runnable on its own.
+  const ensureTables = typeof deps.ensureTables === "function" ? deps.ensureTables : ensureRegistryTables;
 
   // Product analytics ingest (`POST /analytics/events`) is not an admin route.
   // It is delegated from here because this call site is the only dispatch point
@@ -835,7 +875,7 @@ export async function handleAdminRoutes(url, request, env, cors) {
     // worker that only serves dashboard traffic would have no `users` table, and
     // a free user's lookup would then fall back to KV and wrongly report
     // "not found". Ensure the schema at the dashboard entry point (idempotent).
-    await ensureRegistryTables(env);
+    await ensureTables(env);
     return new Response(renderAdminDashboardHtml(env), {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
@@ -868,10 +908,12 @@ export async function handleAdminRoutes(url, request, env, cors) {
     if (!isApi) return null;
   }
 
-  if (!(await isAdminAuthorized(request, env))) return json({ error: "unauthorized" }, 401, cors);
+  if (!(await isAdminAuthorized(request, env, recordAdminAuthFailure))) {
+    return json({ error: "unauthorized" }, 401, cors);
+  }
 
   // Same guarantee for direct API/legacy calls that skip the dashboard shell.
-  await ensureRegistryTables(env);
+  await ensureTables(env);
 
   const body = method === "POST" ? await request.json().catch(() => null) : null;
   // Content mutations are logged so an edit shows up in the Activity tab.

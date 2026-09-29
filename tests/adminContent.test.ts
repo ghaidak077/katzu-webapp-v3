@@ -135,3 +135,67 @@ describe('admin content edit route', () => {
     expect(wrong.status).toBe(400);
   });
 });
+
+/**
+ * V9-2 — the admin gate must record its failures.
+ *
+ * `cloudflare-admin.js` keeps its own copy of the bearer-secret gate because a
+ * back-import of the worker's would be a module cycle (it imports from
+ * cloudflare-crypto.js, which imports back from here). That copy never called the
+ * worker's `recordAdminAuthFailure`, so `/admin/api/*` answered 401 forever with
+ * no counter written and the per-IP lockout (5 failures / 15 min) could never
+ * engage — the dashboard's data endpoints were the one unthrottled /admin*
+ * surface. The worker now injects the recorder; these tests pin the contract.
+ */
+describe('admin gate records failures through the injected recorder', () => {
+  let env: { DB: FakeD1; ADMIN_SECRET: string };
+
+  beforeEach(() => {
+    env = { DB: new FakeD1(), ADMIN_SECRET: SECRET };
+  });
+
+  it('records a failure on a wrong secret and still answers 401', async () => {
+    const url = new URL('https://katzu.test/admin/api/content-list?type=vocabulary');
+    const calls: unknown[] = [];
+    const res = await handleAdminRoutes(
+      url,
+      // A length-mismatched header as well: the gate normalizes lengths before
+      // comparing, so this must take the same "wrong secret" path, not bail early.
+      new Request(url, { headers: { Authorization: 'Bearer short' } }),
+      env as never,
+      {},
+      {
+        recordAdminAuthFailure: async (...args: unknown[]) => {
+          calls.push(args);
+        },
+      },
+    );
+    expect(res?.status).toBe(401);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('does not record anything on a successful auth', async () => {
+    const url = new URL('https://katzu.test/admin/api/content-list?type=vocabulary');
+    const calls: unknown[] = [];
+    const res = await handleAdminRoutes(url, adminRequest('/admin/api/content-list?type=vocabulary'), env as never, {}, {
+      recordAdminAuthFailure: async () => {
+        calls.push(1);
+      },
+    });
+    expect(res?.status).toBe(200);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('uses the injected full-ledger ensure instead of the registry-only default', async () => {
+    const url = new URL('https://katzu.test/admin/api/content-list?type=vocabulary');
+    const ensured: string[] = [];
+    const res = await handleAdminRoutes(url, adminRequest('/admin/api/content-list?type=vocabulary'), env as never, {}, {
+      ensureTables: async () => {
+        ensured.push('ledger');
+        return true;
+      },
+    });
+    expect(res?.status).toBe(200);
+    expect(ensured).toEqual(['ledger']);
+  });
+});

@@ -336,6 +336,11 @@ async function handleAuthSession(request, env, cors) {
 
   // Registry write-through: every sign-in registers or refreshes the canonical
   // user row, so a free user who never redeems a code is still known to admins.
+  // `users` and `activity_log` are part of the same lazily-created batch, and both
+  // writers below swallow their own failures on purpose (telemetry must never
+  // break a sign-in) — so without this a brand-new account's registry row was
+  // lost silently on a fresh database.
+  await ensureLedgerTablesOnce(env);
   await upsertUserFromAccount(account, request, env);
   await recordActivity(env, account.sub, "session_created", { via: "auth_session" });
 
@@ -487,6 +492,44 @@ async function ensureLedgerTables(env) {
   }
 }
 
+/**
+ * `ensureLedgerTables` once per isolate, for routes that must be able to create
+ * their own tables before their first statement (V8-F0 / V9-1).
+ *
+ * WHY IT EXISTS
+ * The lazy tables (`sync_revisions`, `rate_limit_counters`, `users`,
+ * `activity_log`, `error_reports`, …) used to be created only as a side effect of
+ * redeeming an activation code, so any other route against a fresh database hit a
+ * table that did not exist. The sync path was the visible one: its conditional
+ * UPDATE threw `no such table: sync_revisions`, which the Worker reported as a
+ * bare 500 — and the failure could not even be recorded, because `error_reports`
+ * did not exist either.
+ *
+ * Creating them is idempotent but not free (five CREATE TABLE IF NOT EXISTS
+ * statements plus the registry batch) and some callers are hot (every AI turn runs
+ * a rate-limit check), so the SUCCESS is memoized. A failed attempt is deliberately
+ * not memoized: the next request retries instead of spending the isolate's whole
+ * life with no tables.
+ *
+ * The memo is keyed on the D1 binding itself rather than a module-level boolean,
+ * so "the tables exist" can never be carried across two different databases — the
+ * boolean version made a second, still-empty database look ready simply because an
+ * earlier request had used a different one.
+ */
+const ledgerTablesReady = new WeakMap();
+function ensureLedgerTablesOnce(env) {
+  const db = env?.DB;
+  if (!db) return Promise.resolve(false);
+  const memo = ledgerTablesReady.get(db);
+  if (memo) return memo;
+  const attempt = ensureLedgerTables(env).catch(() => false);
+  ledgerTablesReady.set(db, attempt);
+  attempt.then((ready) => {
+    if (!ready && ledgerTablesReady.get(db) === attempt) ledgerTablesReady.delete(db);
+  });
+  return attempt;
+}
+
 /** Per-user/per-window global rate limiting. Returns { allowed, retryAfter }.
  * Best-effort: if D1 is unavailable, falls back to the in-isolate limiter. */
 async function checkGlobalRateLimit(accountId, env, scope = {}) {
@@ -495,6 +538,11 @@ async function checkGlobalRateLimit(accountId, env, scope = {}) {
   // of their daily allowance to the microphone). The counter id is namespaced so
   // scoped budgets can never be spent by — or counted against — the AI routes.
   if (!env.DB) return checkRateLimit(accountId, env); // fallback: in-isolate
+  // The counters live in a lazily-created table. Without this the INSERT, the
+  // SELECT and the UPDATE all fail on a fresh database and the outer catch
+  // silently degrades abuse control to the per-isolate limiter — a durable limit
+  // that never engages looks identical to one that is working.
+  if (!(await ensureLedgerTablesOnce(env))) return checkRateLimit(accountId, env);
   const prefix = scope.scope ? String(scope.scope) + ":" : "";
   const limitPerMinute = scope.perMinute ?? parseInt(env?.AI_RATE_LIMIT_PER_MINUTE || "20", 10);
   const limitPerDay = scope.perDay ?? parseInt(env?.AI_RATE_LIMIT_PER_DAY || "150", 10);
@@ -757,13 +805,21 @@ async function handleDeleteUser(request, env, cors) {
         "DELETE FROM referral_payouts WHERE invited_account_id = ? OR inviter_account_id = ?"
       ).bind(account.sub, account.sub).run());
     }
+    // The authoritative D1 copy of a learner's progress is the `sync_revisions`
+    // row (P2 made it the commit gate; KV is only a mirror) — and it was never
+    // deleted here, so a deleted learner could sign in again and have the whole
+    // merged payload restored from D1. `user_progress` is a legacy table that no
+    // code creates any more (`CREATE TABLE user_progress` exists nowhere), and its
+    // DELETE was the route's only unguarded statement: it always threw "no such
+    // table", which pushed `d1_progress` into `failed`, so EVERY deletion answered
+    // 500 DELETE_INCOMPLETE and the registry purge after this block never ran.
+    // Deleting the real row is required; the legacy cleanup is best-effort.
+    await tryStep("d1_progress", () => env.DB.prepare(
+      "DELETE FROM sync_revisions WHERE user_id = ?"
+    ).bind(account.sub).run());
     try {
       await env.DB.prepare("DELETE FROM user_progress WHERE user_id = ?").bind(account.sub).run();
-      deleted.d1_progress = true;
-    } catch (e) {
-      console.error("[DeleteAccount] d1_progress failed:", String(e?.message || e).slice(0, 120));
-      failed.push("d1_progress");
-    }
+    } catch { /* legacy table: absent on any database created after P2 */ }
   }
 
   if (failed.length > 0) {
@@ -1081,6 +1137,10 @@ async function handleClientError(request, env, cors) {
 
   const scope = typeof body?.scope === "string" ? body.scope.replace(/[^a-z0-9_]/gi, "").slice(0, 40) || "client" : "client";
   const page = typeof body?.page === "string" ? body.page.slice(0, 120) : "unknown";
+  // `error_reports` is lazily created and `recordError` swallows its own failures,
+  // so a crash report would be dropped without notice on a fresh database —
+  // exactly when a crash report is worth the most.
+  await ensureLedgerTablesOnce(env);
   const recorded = await recordError(env, null, `client_${scope}`, page, message);
   return json({ success: recorded }, 200, cors);
 }
@@ -1454,7 +1514,18 @@ export default {
         return adminJson({ swept: await sweepExpiredRows(env) }, 200, cors);
       }
 
-      const adminResponse = await handleAdminRoutes(url, request, env, cors);
+      // Hand the admin module the durable per-IP failure recorder. Its gate is a
+      // deliberate copy (a back-import would be a cycle through
+      // cloudflare-crypto.js), and without this the /admin/api/* endpoints
+      // answered 401 without ever writing the counter the throttle above reads —
+      // so they were the one /admin* surface with no lockout.
+      const adminResponse = await handleAdminRoutes(url, request, env, cors, {
+        recordAdminAuthFailure,
+        // The admin module cannot import the ledger bootstrap (that would be a
+        // cycle), and it reads `redeemed_codes_ledger` for its counters — so hand
+        // it the same memoized full-batch ensure the worker's own routes use.
+        ensureTables: ensureLedgerTablesOnce,
+      });
       if (adminResponse) return adminResponse;
 
       // --- Crypto sales (NOWPayments): /crypto/checkout, /crypto/webhook,
@@ -2363,7 +2434,12 @@ async function handleProgressSync(request, env, cors) {
   // every write, so no incoming field can be lost; they simply never get the
   // conflict path. A matching baseRev makes the merge idempotent for retries.
   // ------------------------------------------------------------------------
-  if (!env.DB || !env.USER_PROGRESS) {
+  // Create the ledger tables before the first statement touches them (V8-F0). If
+  // they cannot be created there is no commit gate to use, so the route degrades
+  // to the KV merge below instead of 500ing on a conditional UPDATE against a
+  // table that does not exist.
+  const syncTablesReady = env.DB ? await ensureLedgerTablesOnce(env) : false;
+  if (!env.DB || !env.USER_PROGRESS || !syncTablesReady) {
     // No D1 → no commit gate possible; degrade to the merged best-effort write
     // (still strictly better than overwriting: merge never decreases counters).
     const existingRaw = await env.USER_PROGRESS?.get?.(key);
@@ -2824,6 +2900,11 @@ async function isAdminAuthorized(request, env) {
 
 async function recordAdminAuthFailure(request, env) {
   if (!env?.DB) return;
+  // The per-IP failure counter is the only thing standing between an exposed
+  // `/admin` and an unlimited brute force, and it lives in the same lazily-created
+  // table as the rest of the ledger: without this the counter row is never written
+  // on a fresh database and the lockout can never trigger.
+  if (!(await ensureLedgerTablesOnce(env))) return;
   const ip = (request.headers.get("CF-Connecting-IP") || "unknown").replace(/[^a-fA-F0-9:.]/g, "").slice(0, 45);
   const windowStart = Math.floor(Date.now() / ADMIN_FAIL_WINDOW_MS);
   const counterId = `admin-auth-fail:${ip}:${windowStart}`;
