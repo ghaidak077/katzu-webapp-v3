@@ -1,0 +1,16 @@
+# The repository's blobs are LF. Without this, a Windows checkout (core.autocrlf=true)
+# rewrites text files to CRLF, which silently breaks any tool that parses raw source
+# text rather than a normalized stream: Vite/vitest strip a `#!` hashbang only up to a
+# bare "\n", so a CRLF shebang script (e.g. scripts/backfill-user-registry.mjs, imported
+# by tests/backfill.test.ts) fails to load with a bare "Invalid or unexpected token".
+# Pin LF on checkout everywhere so the working tree matches the blobs on every machine.
+* text=auto eol=lf
+
+# Binary assets: never touch their bytes.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.woff2 binary
+*.ttf binary
+*.ico binary
