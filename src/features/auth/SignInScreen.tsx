@@ -424,7 +424,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           <Button
             size="lg"
             variant="secondary"
-            className="w-full flex items-center justify-center gap-3 bg-white text-black hover:bg-neutral-200 border-none font-bold shadow-md active:scale-[0.98] transition-transform"
+            className="w-full flex items-center justify-center gap-3 bg-white text-black hover:bg-neutral-200 border-none font-bold shadow-md transition-transform"
             onClick={handleTriggerGooglePrompt}
             isLoading={isLoading}
           >

@@ -195,7 +195,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         {/* Step 1: Study */}
         <div
           onClick={onStartStudy}
-          className="p-4 rounded-3xl bg-surface-card border border-border-subtle hover:border-primary/50 cursor-pointer flex items-center justify-between transition-all active:scale-98"
+          className="p-4 rounded-3xl bg-surface-card border border-border-subtle hover:border-primary/50 cursor-pointer flex items-center justify-between transition-all"
         >
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isStudied ? 'bg-status-success/20 text-status-success' : 'bg-primary/20 text-primary'}`}>
@@ -212,7 +212,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         {/* Step 2: Quiz */}
         <div
           onClick={onStartQuiz}
-          className="p-4 rounded-3xl bg-surface-card border border-border-subtle hover:border-primary/50 cursor-pointer flex items-center justify-between transition-all active:scale-98"
+          className="p-4 rounded-3xl bg-surface-card border border-border-subtle hover:border-primary/50 cursor-pointer flex items-center justify-between transition-all"
         >
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isQuizPassed ? 'bg-status-success/20 text-status-success' : 'bg-primary/20 text-primary'}`}>
@@ -229,7 +229,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         {/* Step 3: Live Conversation (unlocks after the quiz, or after an explicit skip) */}
         <div
           onClick={handleConversationClick}
-          className={`p-4 rounded-3xl bg-surface-card border cursor-pointer flex items-center justify-between transition-all active:scale-98 ${
+          className={`p-4 rounded-3xl bg-surface-card border cursor-pointer flex items-center justify-between transition-all ${
             isConversationUnlocked ? 'border-primary/40 hover:border-primary shadow-glow-purple' : 'border-border-subtle opacity-80'
           }`}
         >

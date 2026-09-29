@@ -102,7 +102,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
             type="button"
             size="lg"
             variant="secondary"
-            className="w-full flex items-center justify-center gap-2.5 bg-white text-black hover:bg-neutral-200 border-none font-bold shadow-md active:scale-[0.98] transition-transform"
+            className="w-full flex items-center justify-center gap-2.5 bg-white text-black hover:bg-neutral-200 border-none font-bold shadow-md transition-transform"
             onClick={() => onGoToSignIn('signin')}
           >
             <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">

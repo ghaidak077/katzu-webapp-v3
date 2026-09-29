@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronDown, ChevronUp, Keyboard, Lightbulb, MicOff, RefreshCw, Send } from 'lucide-react';
 import { HintOption } from '@/components/common/HintOption';
 import { Button } from '@/components/ui/Button';
+import { FloatingControl } from '@/components/glass/GlassCard';
 import { KatzuOrb, type OrbState } from '@/components/voice/KatzuOrb';
 import type { MicSample } from '@/lib/audio/useMicLevel';
 import type { ContextualHint } from '@/types/models';
@@ -83,9 +84,9 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
   onDismissError,
 }) => {
   return (
-    <div
+    <FloatingControl
       data-testid="conversation-dock"
-      className="shrink-0 border-t border-white/[0.06] bg-black/85 px-4 pt-2.5 backdrop-blur-xl"
+      className="shrink-0 rounded-b-none rounded-t-[26px] border-t border-white/[0.08] px-4 pt-2.5"
       style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
     >
       {/* Hints as an on-demand button: a single 💡 pill that reveals the one
@@ -228,6 +229,6 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           <Send className="h-5 w-5 rotate-180" aria-hidden />
         </Button>
       </div>
-    </div>
+    </FloatingControl>
   );
 };

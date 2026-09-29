@@ -75,7 +75,10 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
       onPointerLeave={press.onPointerLeave}
       className={cn(
         'kz-surface kz-interactive inline-flex items-center justify-center gap-2 font-arabic',
-        'transition-all active:scale-[0.98] disabled:opacity-45 disabled:pointer-events-none',
+        // V20: transition-colors only (colour feedback is the press response; the
+        // kz-interactive radial highlight is opacity-driven). No active:scale —
+        // the V19 motion budget keeps scale animation out of controls.
+        'transition-colors disabled:opacity-45 disabled:pointer-events-none',
         VARIANTS[variant],
         SIZES[size],
         fullWidth && 'w-full',

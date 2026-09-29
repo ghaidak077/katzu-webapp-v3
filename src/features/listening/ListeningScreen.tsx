@@ -217,7 +217,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                 <button
                   type="button"
                   onClick={() => speak(current.german)}
-                  className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mx-auto transition-all active:scale-95"
+                  className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mx-auto transition-all"
                   aria-label="تشغيل الجملة"
                 >
                   <Volume2 className="w-8 h-8" />

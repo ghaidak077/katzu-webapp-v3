@@ -15,7 +15,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-arabic font-semibold rounded-2xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none select-none';
+    // V20: `transition-colors`, not `transition-all` — colour feedback is what a
+    // button needs, and `all` also tracks layout properties on a throttled phone.
+    // The old active:scale is gone with the V19 motion budget (press feedback is
+    // the surface's own brightness, which these variants already carry).
+    const baseStyles = 'inline-flex items-center justify-center font-arabic font-semibold rounded-2xl transition-colors disabled:opacity-50 disabled:pointer-events-none select-none';
 
     const variants = {
       primary: 'bg-primary text-white hover:bg-primary-pressed shadow-glow-purple border border-primary/30',

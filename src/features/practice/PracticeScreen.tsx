@@ -128,7 +128,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           triggerHaptic('light');
           onOpenCoach?.();
         }}
-        className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex items-center gap-3 text-start transition-all active:scale-[0.98]"
+        className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex items-center gap-3 text-start transition-all"
       >
         <div className="w-10 h-10 shrink-0 rounded-full bg-status-error/20 text-status-error flex items-center justify-center">
           <Target className="w-5 h-5" />
@@ -152,7 +152,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             setIsFlipped(false);
             setShowFlashcards(true);
           }}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all active:scale-95"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all"
         >
           <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
             <Sparkles className="w-4 h-4" />
@@ -162,7 +162,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
         <button
           onClick={() => setShowGrammarModal(true)}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all active:scale-95"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all"
         >
           <div className="w-8 h-8 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
             <BookOpen className="w-4 h-4" />
@@ -172,7 +172,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
         <button
           onClick={() => setShowMistakesModal(true)}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all active:scale-95"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all"
         >
           <div className="w-8 h-8 rounded-full bg-status-error/20 text-status-error flex items-center justify-center">
             <AlertCircle className="w-4 h-4" />
@@ -182,7 +182,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
         <button
           onClick={onOpenListening}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all active:scale-95"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all"
         >
           <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
             <Headphones className="w-4 h-4" />
@@ -193,7 +193,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         {onOpenWriting && (
           <button
             onClick={onOpenWriting}
-            className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all active:scale-95"
+            className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all"
           >
             <div className="w-8 h-8 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
               <PenLine className="w-4 h-4" />

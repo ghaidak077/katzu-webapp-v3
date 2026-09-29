@@ -207,7 +207,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           <button
             onClick={onOpenSubscription}
             aria-label="اكتشف مزايا Pro"
-            className="flex min-h-[44px] items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary text-xs font-bold shadow-glow-purple active:scale-95 transition-all"
+            className="flex min-h-[44px] items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary text-xs font-bold shadow-glow-purple transition-all"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>اكتشف مزايا Pro</span>
@@ -246,7 +246,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
       {user?.isLoggedIn && !user.onboardingCompletedAt && onOpenOnboarding && (
         <button
           onClick={onOpenOnboarding}
-          className="w-full mb-3 flex items-center justify-between gap-3 rounded-3xl border border-primary/30 bg-primary/10 p-4 text-start transition-all active:scale-[0.98] min-h-[44px]"
+          className="w-full mb-3 flex items-center justify-between gap-3 rounded-3xl border border-primary/30 bg-primary/10 p-4 text-start transition-all min-h-[44px]"
         >
           <span>
             <span className="block font-arabic text-sm font-bold text-text-primary">أكمل تفضيلاتك (٣٠ ثانية)</span>
@@ -295,7 +295,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           {mission.kind === 'review' && (
             <button
               onClick={onOpenReview}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-status-learning px-3.5 py-1.5 text-xs font-bold text-black shadow-glow-purple active:scale-95 transition-all min-h-[44px]"
+              className="mt-2 inline-flex items-center gap-1 rounded-full bg-status-learning px-3.5 py-1.5 text-xs font-bold text-black shadow-glow-purple transition-all min-h-[44px]"
             >
               <Brain className="w-3.5 h-3.5" />
               <span>{mission.ctaAr}</span>
@@ -304,7 +304,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           {missionScenarioId && mission.kind !== 'review' && (
             <button
               onClick={() => handleScenarioClick(missionScenarioId)}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-glow-purple active:scale-95 transition-all min-h-[44px]"
+              className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-glow-purple transition-all min-h-[44px]"
             >
               <span>{mission.ctaAr}</span>
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -361,7 +361,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 type="button"
                 onClick={() => handleScenarioClick(scenario.id)}
                 aria-label={`${scenario.title_ar} (${scenario.title_de})`}
-                className={`relative w-[82%] overflow-hidden rounded-3xl border text-start cursor-pointer transition-all transform active:scale-95 ${
+                className={`relative w-[82%] overflow-hidden rounded-3xl border text-start cursor-pointer transition-all transform ${
                   isMastered
                     ? 'bg-surface-card border-status-success/40 shadow-glow-green'
                     : 'bg-surface-card border-border-subtle hover:border-primary/50'

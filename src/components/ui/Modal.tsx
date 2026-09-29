@@ -31,8 +31,12 @@ export const Modal: React.FC<ModalProps> = ({
 
   if (!isOpen) return null;
 
+  // V20: the scrim's blur honours the renderer tier — on a reduced device the
+  // dim alone separates the dialog (a full-screen blur is the single most
+  // expensive backdrop on the screen, and it sits BEHIND content the learner
+  // is reading). `.kz-scrim` drops its blur under .kz-lite.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+    <div className="kz-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
       <div
         className="fixed inset-0"
         onClick={onClose}

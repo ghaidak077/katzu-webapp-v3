@@ -350,7 +350,10 @@ export const KatzuOrb: React.FC<KatzuOrbProps> = ({
       disabled={disabled}
       aria-label={labelAr}
       className={cn(
-        'relative flex items-center justify-center rounded-full transition-transform active:scale-[0.96] disabled:opacity-60',
+        // V20: no active:scale — the orb's press feedback is its own light (the
+        // WebGL body and the press ring), which is meaning-bearing; a transform
+        // squish on top is decoration the low tier pays for.
+        'relative flex items-center justify-center rounded-full disabled:opacity-60',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kz-lavender/60',
         className,
       )}

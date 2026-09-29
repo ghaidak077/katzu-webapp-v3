@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, Languages } from 'lucide-react';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
+import { GlassSurface } from '@/components/glass/GlassSurface';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { planTurns } from '@/lib/conversation/turnPlan';
 import type { CEFRLevel } from '@/types/models';
@@ -165,7 +166,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     <div className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-black text-kz-ink">
       {/* Header: who the learner is talking to, which round, and the two controls
           that belong to the conversation as a whole. */}
-      <header className="relative z-20 shrink-0 border-b border-white/[0.06] bg-black/80 px-3 pt-2.5 backdrop-blur-xl">
+      {/* V20: the header is a glass surface like the dock below it — one
+          material for the conversation's floating chrome. Rounded-bottom pill
+          look is wrong for a top bar, so it is a flush glass slab with the
+          same edge light; blur is tier-aware via kz-surface/kz-lite. */}
+      <GlassSurface
+        tier="floating"
+        className="relative z-20 shrink-0 rounded-none border-b border-white/[0.08] px-3 pt-2.5"
+      >
         <div className="flex items-center gap-2">
           <button
             onClick={onBack}
@@ -215,9 +223,10 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           </button>
         </div>
 
-        {/* The round progress, as the header's own bottom edge. */}
-        <div className="absolute bottom-0 start-0 h-[2px] rounded-full bg-primary transition-all duration-500" style={{ width: `${turnProgress * 100}%` }} />
-      </header>
+        {/* The round progress, as the header's own bottom edge. Instant width
+            change (V19 motion rule): a transition here is decoration. */}
+        <div className="absolute bottom-0 start-0 h-[2px] rounded-full bg-primary" style={{ width: `${turnProgress * 100}%` }} />
+      </GlassSurface>
 
       <ConversationTranscript
         scrollRef={scrollRef}

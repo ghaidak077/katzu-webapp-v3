@@ -113,7 +113,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
               track('purchase_clicked', { source: 'paywall' });
               onClose();
             }}
-            className="w-full h-14 rounded-2xl bg-primary text-white font-bold font-arabic flex items-center justify-center gap-2 shadow-glow-purple active:scale-[0.98] transition-all"
+            className="w-full h-14 rounded-2xl bg-primary text-white font-bold font-arabic flex items-center justify-center gap-2 shadow-glow-purple transition-all"
           >
             <ExternalLink className="w-4 h-4" aria-hidden />
             اشترِ كود تفعيل Pro

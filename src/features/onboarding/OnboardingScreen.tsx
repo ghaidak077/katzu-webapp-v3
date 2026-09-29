@@ -155,7 +155,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                     setAnswers((prev) => ({ ...prev, primaryGoal: goal }));
                     advance('arrival');
                   }}
-                  className={`w-full rounded-2xl border p-4 text-start transition-all active:scale-[0.98] ${
+                  className={`w-full rounded-2xl border p-4 text-start transition-all ${
                     answers.primaryGoal === goal
                       ? 'border-kz-lavender/50 bg-kz-lavender/10'
                       : 'border-white/[0.07] bg-white/[0.02]'
@@ -190,7 +190,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                     setAnswers((prev) => ({ ...prev, arrivalStatus: status }));
                     advance('previous');
                   }}
-                  className={`min-h-[48px] w-full rounded-2xl border p-4 text-start kz-ar-body transition-all active:scale-[0.98] ${
+                  className={`min-h-[48px] w-full rounded-2xl border p-4 text-start kz-ar-body transition-all ${
                     answers.arrivalStatus === status
                       ? 'border-kz-lavender/50 bg-kz-lavender/10'
                       : 'border-white/[0.07] bg-white/[0.02]'
@@ -221,7 +221,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                     setAnswers((prev) => ({ ...prev, previousGerman: previous }));
                     advance('time');
                   }}
-                  className={`min-h-[48px] w-full rounded-2xl border p-4 text-start transition-all active:scale-[0.98] ${
+                  className={`min-h-[48px] w-full rounded-2xl border p-4 text-start transition-all ${
                     answers.previousGerman === previous
                       ? 'border-kz-lavender/50 bg-kz-lavender/10'
                       : 'border-white/[0.07] bg-white/[0.02]'
@@ -255,7 +255,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                     setAnswers((prev) => ({ ...prev, dailyMinutes: minutes }));
                     advance('target');
                   }}
-                  className={`min-h-[88px] rounded-2xl border p-4 transition-all active:scale-[0.98] ${
+                  className={`min-h-[88px] rounded-2xl border p-4 transition-all ${
                     answers.dailyMinutes === minutes
                       ? 'border-kz-lavender/50 bg-kz-lavender/10'
                       : 'border-white/[0.07] bg-white/[0.02]'

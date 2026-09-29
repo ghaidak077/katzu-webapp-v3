@@ -422,6 +422,16 @@
   .kz-specular {
     display: none;
   }
+
+  /* V20: dialog scrims. The dim (bg-black/80) does the contrast work everywhere;
+     the blur is the tier-optional part — under .kz-lite (save-data, few cores,
+     reduced motion) the scrim stops blurring the whole viewport behind the
+     dialog, which is the single largest backdrop-filter surface an app can
+     paint. Visibility of the dialog is unchanged. */
+  .kz-lite .kz-scrim {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /* Scrollbar styles */
