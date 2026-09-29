@@ -242,6 +242,31 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
       {/* Vocabulary List */}
       <div className="space-y-2.5">
+        {/* An empty result is the commonest dead end on this screen: a search
+            that matches nothing, or a saved list on a learner who has not saved
+            anything yet. Name the state and offer the way out of it. */}
+        {filteredVocab.length === 0 && (
+          <div className="rounded-2xl border border-border-subtle bg-surface-card p-6 text-center">
+            <p className="text-sm font-arabic text-text-secondary">
+              {searchQuery
+                ? `لا توجد كلمة تطابق «${searchQuery}». جرّب كلمة ألمانية أخرى أو امسح البحث.`
+                : selectedCategory === 'SAVED'
+                  ? 'لم تحفظ أي كلمة بعد. اضغط أيقونة الحفظ في أي كلمة وستبقى هنا لوحدك.'
+                  : 'لم يصل بعد أي محتوى إلى هذا الجهاز. افتح مشهداً أو تحقق من اتصالك، ثم ستظهر مفرداته هنا.'}
+            </p>
+            <Button
+              variant="secondary"
+              size="md"
+              className="mt-3"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('ALL');
+              }}
+            >
+              {searchQuery || selectedCategory === 'SAVED' ? 'اعرض كل الكلمات' : 'أعد المحاولة'}
+            </Button>
+          </div>
+        )}
         {filteredVocab.map((v) => {
           const isSaved = savedWords.some((sw) => sw.wordId === v.id);
           return (
@@ -366,7 +391,15 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             </div>
           </div>
         ) : (
-          <div className="text-center py-6 text-text-secondary">لا توجد بطاقات حالياً</div>
+          <div className="space-y-3 py-6 text-center">
+            <p className="text-sm font-arabic text-text-secondary">
+              لا توجد بطاقات بعد. بطاقاتك تُبنى تلقائياً من الكلمات التي تحفظها أثناء المشاهد،
+              فاحفظ ما تريد تثبيته وستجده هنا.
+            </p>
+            <Button variant="secondary" size="md" onClick={() => setShowFlashcards(false)}>
+              تصفّح المفردات
+            </Button>
+          </div>
         )}
       </Modal>
 
@@ -398,8 +431,14 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
       >
         <div className="space-y-3 py-2">
           {mistakes.length === 0 ? (
-            <div className="text-center py-8 text-text-muted">
-              رائع! بنك أخطائك فارغ حالياً، لم ترتكب أخطاء مسجلة بعد.
+            <div className="space-y-3 py-8 text-center">
+              <p className="text-sm font-arabic text-text-muted">
+                بنك أخطائك فارغ الآن. كل خطأ يرصده كاتزو خلال مشهد يُسجَّل هنا، لتعيد كتابته
+                حتى يصبح صحيحاً من أول محاولة.
+              </p>
+              <Button variant="secondary" size="md" onClick={() => setShowMistakesModal(false)}>
+                العودة إلى التدريب
+              </Button>
             </div>
           ) : (
             mistakes.map((m: MistakeEntity) => {

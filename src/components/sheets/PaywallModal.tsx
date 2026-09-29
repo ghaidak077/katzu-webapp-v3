@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Sparkles, Check, KeyRound, ExternalLink } from 'lucide-react';
-import { getProPriceLabel, FALLBACK_PRICE_LABEL, buildSalesUrl } from '@/lib/utils/links';
+import { getProPriceLabel, FALLBACK_PRICE_LABEL, buildSalesUrl, legalPageUrl } from '@/lib/utils/links';
 import { track } from '@/lib/analytics/client';
 
 export interface PaywallModalProps {
@@ -139,6 +139,31 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
           >
             ليس الآن — تابع بالمجاني
           </button>
+
+          {/* Who is selling to you, and on what terms. These are public routes,
+              so a new tab keeps the offer on screen while the learner reads. */}
+          <nav
+            aria-label="الصفحات القانونية"
+            className="flex items-center justify-center gap-1 pt-1 text-[11px] font-arabic text-text-muted"
+          >
+            <a
+              href={legalPageUrl('privacy')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center min-h-[44px] px-2 underline underline-offset-2 hover:text-text-secondary"
+            >
+              سياسة الخصوصية
+            </a>
+            <span aria-hidden>·</span>
+            <a
+              href={legalPageUrl('terms')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center min-h-[44px] px-2 underline underline-offset-2 hover:text-text-secondary"
+            >
+              شروط الاستخدام
+            </a>
+          </nav>
         </div>
       </div>
     </Modal>

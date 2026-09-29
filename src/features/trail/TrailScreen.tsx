@@ -327,7 +327,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             <button
               key={lvl}
               onClick={() => handleLevelSelect(lvl)}
-              className={`flex-1 py-2 rounded-xl text-xs font-german font-bold transition-all flex items-center justify-center gap-1 ${
+              className={`flex-1 min-h-[44px] py-2 rounded-xl text-xs font-german font-bold transition-all flex items-center justify-center gap-1 ${
                 selectedLevel === lvl
                   ? 'bg-primary text-white shadow-glow-purple'
                   : 'text-text-secondary hover:text-text-primary'
