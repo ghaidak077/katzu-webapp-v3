@@ -147,6 +147,8 @@ Playwright browsers installed in `%LOCALAPPDATA%/ms-playwright`: `chromium-1243`
 | Playwright inventory | FACT **10 spec files / 37 tests**, chromium only (`npx playwright test --list`) | — |
 | `npx playwright test e2e/demo.spec.ts` vs **dev** (`npm run dev`, port 3000) | FACT **1 passed** | **8 s** wall (5.0 s test) |
 | same spec vs **`vite preview`** (port 3000, production build) | FACT **1 passed** | **7 s** wall (4.6 s test) |
+| **Whole suite vs `vite preview`** via `E2E_TARGET=preview npx playwright test` | FACT **37/37 passed** (2026-09-29), with service workers blocked | **4.3 min** (build 14 s + tests) |
+| Same suite, same command, an earlier run | FACT **36/37** — one intermittent failure in `e2e/journey.spec.ts:320` (silent-fake-device recorder fallback); passed 3/3 on dev when Playwright owned the server | 3.1 min |
 
 Top 5 chunks by size: `index` 492 K · `LiveConversationScreen` 96 K · `JourneyHomeScreen` 32 K · `ProfileSettingsScreen` 24 K · `SubscriptionRedemptionScreen` 24 K; CSS `index-*.css` 52 K.
 
@@ -193,12 +195,23 @@ taskkill //F //PID "$PID"
 # --- one spec against the dev server --------------------------------------------------
 npx playwright test e2e/demo.spec.ts --reporter=line      # 8 s, 1 test
 
-# --- one spec against the PRODUCTION build (same port; stop dev first) ---------------
-npm run build
+# --- the WHOLE suite against the PRODUCTION bundle (the artifact that ships) ---------
+# `E2E_TARGET=preview` makes playwright.config.ts build with the e2e placeholder worker
+# origin, serve `dist/` on port 3000 and refuse to reuse an existing server. Use this,
+# not a hand-started `vite preview`: a manually started server gets no `webServer.env`,
+# so the bundle carries an empty VITE_WORKER_URL, every turn calls the preview server
+# itself and 404s, and the suite scores 26-27/37 for reasons that are not the product.
+E2E_TARGET=preview npx playwright test --reporter=line    # 37/37, ~4.3 min
+
+# --- one spec against the dev server --------------------------------------------------
+# Also let Playwright start the server (it injects VITE_WORKER_URL for the dev server too).
+npx playwright test e2e/demo.spec.ts --reporter=line      # 8 s, 1 test
+
+# --- manual preview (only if you must); the build MUST carry the origin ---------------
+VITE_WORKER_URL=https://e2e-worker.test npm run build
 nohup npx vite preview --port 3000 --strictPort > /tmp/katzu-preview.log 2>&1 &
-sleep 5
+sleep 6
 curl -s -m 5 -o /dev/null -w "%{http_code}\n" http://localhost:3000/     # expect 200
-npx playwright test e2e/demo.spec.ts --reporter=line      # 7 s, 1 test
 
 # --- the full unit gate (fast: ~10 s) --------------------------------------------------
 npm test                       # 67 files / 799 tests
