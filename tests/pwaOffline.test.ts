@@ -47,6 +47,16 @@ describe('offline app shell', () => {
     expect(pwaOptions.includeManifestIcons).toBe(false);
   });
 
+  it('precaches the hero in every format the app actually paints (V16)', () => {
+    // The hero was switched to WebP for weight; a `globPatterns` list that grew
+    // the painted format but not the glob would leave the image online-only, and
+    // a cold offline open would render the shell with a broken hero.
+    const globs = pwaOptions.workbox.globPatterns as unknown as string[];
+    const extensions = globs.join(' ');
+    expect(extensions).toContain('webp');
+    expect(extensions).toContain('png');
+  });
+
   it('lets workbox content-hash the public files copied under assets/', () => {
     // Without an override the plugin treats everything under `assets/` as
     // content-addressed and precaches it with `revision: null` (immutable).
@@ -58,6 +68,8 @@ describe('offline app shell', () => {
     expect(immutable.test('assets/LiveConversationScreen-CG8R_xgG.css')).toBe(true);
     expect(immutable.test('assets/fonts/cairo.ttf')).toBe(false);
     expect(immutable.test('assets/mascot/katzu_avatar.png')).toBe(false);
+    // The hero ships as WebP (V16) and must be content-hashed like the other art.
+    expect(immutable.test('assets/mascot/katzu_welcome.webp')).toBe(false);
     expect(immutable.test('index.html')).toBe(false);
     expect(immutable.test('registerSW.js')).toBe(false);
   });

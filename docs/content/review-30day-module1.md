@@ -118,6 +118,53 @@ Because round 2 found zero issues, the review block is set to
 `review.status="approved"` with the AI self-review attribution below (no human
 has reviewed this content).
 
+## Round 3 (V16, 2026-09-29) — one cross-file defect, fixed
+
+### 6. Three vocabulary keys were declared by both module drafts
+
+Round 1 and 2 could not have seen this one: `auditCurriculum` validates **one
+file at a time**, and the defect is between files. `Miete`, `Mietvertrag` and
+`Kaution` (A2, `housing`) were declared here *and* in
+`curriculum-arrival-module2.json`, with the same key
+(`level|german|topic`) and **different example sentences**. The loader writes
+the first file it is given and skips every later row whose key already exists,
+so the second declaration could never land — silently, and with no message. It
+was found by the V15 drift check against production
+(`scripts/check-content-drift.mjs`, which exits non-zero on this class), not by
+the gate.
+
+**Fix, per the owner's decision (keep module2's wording):** the three rows are
+removed from this draft. That changes no learner-visible string: production
+holds a *third*, older wording for `Miete` (id 130) and `Kaution` (id 126) from
+the pre-module catalogue, and `Mietvertrag` is module2's row (id 214). What is
+removed here are declarations that could only ever be skipped.
+
+**The replacement, and why it was needed:** the Content Gate and the roster gate
+both require a topic pool of **at least 15** words, so removing three rows alone
+would drop `housing` from 16 to 13 and fail the audit — an agent must not loosen
+a gate to make an edit fit. The pool is refilled with three words this draft's
+own phrases and openers already use, so the round-1 coverage rule still holds
+exactly:
+
+| new row | covered by |
+| --- | --- |
+| `die Wohnung` (A2) | a1 opener `Sie möchten die Wohnung mieten?`; b1 phrase `… wer die Wohnung am Ende räumt?` |
+| `der Vertrag` (A2) | b2 opener `… in Ihrem Vertrag gemeinsam an.` |
+| `die Besichtigung` (B1) | b1 phrase `Dieser Mangel war schon bei der Besichtigung vorhanden.` |
+
+Their rows, for a reviewer who does not want to open the draft:
+
+- `Wohnung` / die / die Wohnungen / Noun / **الشقة** / flat — `Die Wohnung ist ab dem ersten Oktober frei.` — `الشقة متاحة من أول أكتوبر.` — "The flat is available from the first of October."
+- `Vertrag` / der / die Verträge / Noun / **العقد** / contract — `Im Vertrag steht, wann die Wohnung geräumt sein muss.` — `العقد يحدد موعد تسليم الشقة فارغة.` — "The contract states when the flat has to be cleared."
+- `Besichtigung` / die / die Besichtigungen / Noun / **المعاينة** / viewing — `Bei der Besichtigung war der Mangel noch nicht sichtbar.` — `لم يكن العيب ظاهراً وقت المعاينة.` — "The defect was not visible at the viewing."
+
+After the edit: **74 vocabulary** (documents 26, health 16, housing 16, work 16),
+49 phrases, 10 grammar — the module's shape is unchanged, no key is declared
+twice, and `node scripts/audit-curriculum.mjs` reports no errors. `reviewedAt`
+moved to `2026-09-29T11:20:00Z`; the review is still AI self-review by the same
+model that authored the rows, so add these three rows and the keep-module2
+decision to the human spot-check list below.
+
 ## What a human should spot-check first
 
 1. **The 19 new phrases in German** (the only newly authored text in this
@@ -134,3 +181,8 @@ has reviewed this content).
 5. **The approval itself** — this is AI self-review by the same system that
    authored the rows; a native-speaker pass is still the only real check on
    idiomaticity.
+6. **The round-3 replacement rows (V16)** — check the German and Arabic of
+   `Wohnung`, `Vertrag` and `Besichtigung` above, and confirm that keeping
+   module2's wording for `Miete`, `Mietvertrag` and `Kaution` is the choice you
+   want (production keeps its own older wording for two of the three regardless,
+   because the pre-module catalogue already had those keys).

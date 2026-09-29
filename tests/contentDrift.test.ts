@@ -161,11 +161,12 @@ describe('drift check — the shipped drafts', () => {
     ]);
   });
 
-  it('reports only the three known duplicate keys against itself, so a clean run is believable', () => {
+  it('reports nothing at all against itself, so a clean production run is believable', () => {
     // Feeding the drafts back as their own production is the only offline way to
-    // show the comparator is not simply always red. What remains is real and
-    // known: both modules declare these three keys, so production can only hold
-    // one draft's wording and the other's never landed (V14-2).
+    // show the comparator is not simply always red. Until V16 this was 6: the two
+    // modules both declared Miete, Mietvertrag and Kaution with different example
+    // sentences, so one draft's copy had to diverge (and production held a third,
+    // older wording). module1 no longer declares them.
     const drafts = loadDrafts();
     const live = { scenarios: [], vocabulary: [], starter_phrases: [], grammar: [] as Record<string, unknown>[] };
     for (const { draft } of drafts) {
@@ -175,16 +176,26 @@ describe('drift check — the shipped drafts', () => {
       live.grammar.push(...(draft.grammar ?? []));
     }
     const comparison = compareDrafts(drafts, live);
-    const flagged = [...new Set(comparison.tables.flatMap((table) => table.detail.map((entry: any) => entry.key)))].sort();
-    expect(flagged).toEqual(['A2|Kaution|housing', 'A2|Miete|housing', 'A2|Mietvertrag|housing']);
-    expect(comparison.tables.every((table) => table.absent === 0 && table.pending === 0)).toBe(true);
-    expect(summarise(comparison).totals.duplicates).toBe(3);
+    const { differences, totals } = summarise(comparison);
+    expect(comparison.tables.flatMap((table) => table.detail.map((entry: any) => `${entry.kind} ${entry.key}`))).toEqual([]);
+    expect(differences).toBe(0);
+    expect(totals.duplicates).toBe(0);
   });
 
-  it('finds the three keys both modules declare', () => {
-    const drafts = loadDrafts();
-    const { duplicates } = compareDrafts(drafts, liveOf({}));
-    expect(duplicates.map((entry: any) => entry.key).sort()).toEqual(['A2|Kaution|housing', 'A2|Miete|housing', 'A2|Mietvertrag|housing']);
+  it('finds no natural key declared twice across the shipped drafts (the V16 invariant)', () => {
+    // The cross-file rule no per-file validator can express: one `level|german|topic`
+    // may be declared once, by one draft. The loader writes the first file it is
+    // given and skips the rest, so a second declaration is content that can never
+    // land — silently.
+    const { duplicates } = compareDrafts(loadDrafts(), liveOf({}));
+    expect(duplicates).toEqual([]);
+  });
+
+  it('still fails when two drafts do declare one key — the invariant is not vacuous', () => {
+    const one = moduleDraft([vocabularyRow()]);
+    const two = { ...moduleDraft([vocabularyRow({ example_de: 'Ich möchte etwas Brot.' })]), file: 'docs/content/curriculum-other.json' };
+    const { duplicates } = compareDrafts([one, two], liveOf({}));
+    expect(duplicates.map((entry: any) => entry.key)).toEqual(['A1|Brot|food']);
   });
 });
 

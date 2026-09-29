@@ -47,7 +47,11 @@ export const pwaOptions = {
     ]
   },
   workbox: {
-    globPatterns: ['**/*.{js,css,html,ico,png,ttf,woff2}'],
+    // `webp` is here for the hero (`assets/mascot/katzu_welcome.webp`, the one
+    // painted sticker the app renders at full width): without it the precache
+    // would ship a hero that only exists online, and a cold offline open would
+    // show the app shell with a broken image (V16).
+    globPatterns: ['**/*.{js,css,html,ico,png,webp,ttf,woff2}'],
     // The plugin treats everything under Vite's `assets/` directory as
     // content-addressed and precaches it with `revision: null` (immutable).
     // That is true for bundled chunks (`index-iXSWghpY.js`) but false for the

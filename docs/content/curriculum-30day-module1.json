@@ -21,7 +21,7 @@
   "review": {
     "status": "approved",
     "reviewedBy": "AI self-review — Freebuff coding agent, no human review",
-    "reviewedAt": "2026-09-29T09:07:08Z",
+    "reviewedAt": "2026-09-29T11:20:00Z",
     "checklist": [
       "German is correct and idiomatic for the stated level (articles, plurals, word order, register).",
       "Arabic reads naturally and is not a literal translation of the German.",
@@ -140,10 +140,10 @@
     { "german": "zahlen", "article": "", "plural": null, "part_of_speech": "Verb", "translation_ar": "يدفع", "translation_en": "to pay", "example_de": "Die Kasse zahlt die Arztrechnung.", "example_ar": "الصندوق يدفع فاتورة الطبيب.", "example_en": "The fund pays the doctor's bill.", "level": "A2", "topic": "health" },
     { "german": "zuständig", "article": "", "plural": null, "part_of_speech": "Adjective", "translation_ar": "مسؤول / مختص", "translation_en": "responsible", "example_de": "Welche Stelle ist dafür zuständig?", "example_ar": "أي جهة مسؤولة عن ذلك؟", "example_en": "Which office is responsible for that?", "level": "A2", "topic": "health" },
 
-    { "german": "Miete", "article": "die", "plural": "die Mieten", "part_of_speech": "Noun", "translation_ar": "الإيجار", "translation_en": "rent", "example_de": "Die Miete beträgt 900 Euro warm.", "example_ar": "الإيجار ٩٠٠ يورو شامل التكاليف.", "example_en": "The rent is 900 euros including utilities.", "level": "A2", "topic": "housing" },
-    { "german": "Mietvertrag", "article": "der", "plural": "die Mietverträge", "part_of_speech": "Noun", "translation_ar": "عقد الإيجار", "translation_en": "tenancy agreement", "example_de": "Lesen Sie den Mietvertrag genau durch.", "example_ar": "اقرأ عقد الإيجار بدقة.", "example_en": "Read the tenancy agreement carefully.", "level": "A2", "topic": "housing" },
+    { "german": "Wohnung", "article": "die", "plural": "die Wohnungen", "part_of_speech": "Noun", "translation_ar": "الشقة", "translation_en": "flat", "example_de": "Die Wohnung ist ab dem ersten Oktober frei.", "example_ar": "الشقة متاحة من أول أكتوبر.", "example_en": "The flat is available from the first of October.", "level": "A2", "topic": "housing" },
+    { "german": "Vertrag", "article": "der", "plural": "die Verträge", "part_of_speech": "Noun", "translation_ar": "العقد", "translation_en": "contract", "example_de": "Im Vertrag steht, wann die Wohnung geräumt sein muss.", "example_ar": "العقد يحدد موعد تسليم الشقة فارغة.", "example_en": "The contract states when the flat has to be cleared.", "level": "A2", "topic": "housing" },
     { "german": "Schlüssel", "article": "der", "plural": "die Schlüssel", "part_of_speech": "Noun", "translation_ar": "المفتاح", "translation_en": "key", "example_de": "Hier sind zwei Schlüssel für Sie.", "example_ar": "تفضّل مفتاحين لك.", "example_en": "Here are two keys for you.", "level": "A2", "topic": "housing" },
-    { "german": "Kaution", "article": "die", "plural": "die Kautionen", "part_of_speech": "Noun", "translation_ar": "مبلغ الضمان", "translation_en": "deposit", "example_de": "Wie hoch ist die Kaution in diesem Mietvertrag?", "example_ar": "كم تبلغ قيمة مبلغ الضمان في عقد الإيجار هذا؟", "example_en": "How much is the deposit in this tenancy agreement?", "level": "A2", "topic": "housing" },
+    { "german": "Besichtigung", "article": "die", "plural": "die Besichtigungen", "part_of_speech": "Noun", "translation_ar": "المعاينة", "translation_en": "viewing", "example_de": "Bei der Besichtigung war der Mangel noch nicht sichtbar.", "example_ar": "لم يكن العيب ظاهراً وقت المعاينة.", "example_en": "The defect was not visible at the viewing.", "level": "B1", "topic": "housing" },
     { "german": "übernehmen", "article": "", "plural": null, "part_of_speech": "Verb", "translation_ar": "يتسلّم", "translation_en": "to take over", "example_de": "Sie übernehmen die Wohnung am Freitag.", "example_ar": "ستتسلّم الشقة يوم الجمعة.", "example_en": "You will take over the flat on Friday.", "level": "A2", "topic": "housing" },
 
     { "german": "Übergabeprotokoll", "article": "das", "plural": "die Übergabeprotokolle", "part_of_speech": "Noun", "translation_ar": "محضر التسليم", "translation_en": "handover report", "example_de": "Im Protokoll stehen alle Mängel.", "example_ar": "في المحضر كل العيوب.", "example_en": "The report lists all defects.", "level": "B1", "topic": "housing" },

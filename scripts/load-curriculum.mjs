@@ -7,8 +7,19 @@
  * Worker already owns a D1 binding and exposes an admin-authenticated bulk
  * upsert at POST /admin/upload. This script writes through that binding.
  *
+ * Two shapes, one write path (V16): a **module** (`docs/content/curriculum-*.json`:
+ * 5-8 scenarios plus vocabulary, phrases and grammar) and a **supplement**
+ * (`docs/content/supplements/*.json`: grammar only — content that belongs in D1
+ * but is not a module, e.g. the rows `SCENARIO_GRAMMAR_IDS` points at for
+ * scenarios that shipped before the drafted modules). The shape decides which
+ * validator runs; nothing else about the load changes.
+ *
  * Safety rules, in order:
  *   1. The draft must pass scripts/audit-curriculum.mjs. No audit, no load.
+ *      A module is validated by `auditCurriculum`, a supplement by
+ *      `auditGrammarSupplement` — the same column contract and the same
+ *      Arabic/German checks the CLI reports, so the loader cannot accept
+ *      something the gate would reject.
  *   2. `review.status` must be `approved` with a `reviewedBy` — a human decides,
  *      because D1 has no `status` column that could hold a draft back.
  *   3. Dry run by default. Writing requires an explicit `--commit`.
@@ -33,6 +44,10 @@
  *
  * Usage:
  *   node scripts/load-curriculum.mjs [--file=...] [--url=https://...] [--dry-run] [--commit]
+ *
+ * A module: `--file=docs/content/curriculum-30day-module1.json` (the default).
+ * A supplement: `--file=docs/content/supplements/grammar-basics.json` — same flags,
+ * same preflight, same exit contract; only `grammar` is written.
  *
  * `--dry-run` validates locally and prints row counts; it needs no secret and
  * writes nothing. A real (or remote dry-run) load requires ADMIN_SECRET. It is
@@ -100,6 +115,27 @@ export function exitCode({ verified, results }) {
   return failedBatches(results).length > 0 ? 1 : 0;
 }
 
+/**
+ * Which validator a draft needs, decided by shape rather than by filename so a
+ * `--file=` path pointing anywhere still validates the way the audit would.
+ *
+ * `scenarios` is the module marker (`auditCurriculum` requires 5-8 of them), and
+ * a supplement may not declare module tables at all, so `grammar` alone means
+ * supplement. Anything else has no shape here and must be refused rather than
+ * guessed at.
+ */
+export function draftKind(draft) {
+  if (!draft || typeof draft !== 'object' || Array.isArray(draft)) return 'unknown';
+  if (Array.isArray(draft.scenarios)) return 'module';
+  if (Array.isArray(draft.grammar)) return 'supplement';
+  return 'unknown';
+}
+
+/** The types a draft will write — what the audit calls loadable content. */
+export function loadableTypes(draft) {
+  return ['scenarios', 'vocabulary', 'starter_phrases', 'grammar'].filter((type) => Array.isArray(draft?.[type]));
+}
+
 // ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
@@ -128,7 +164,7 @@ async function main() {
       : process.env.KATZU_WORKER_URL || 'https://katzu-test.ghaidakalosh008.workers.dev'
   ).replace(/\/+$/, '');
 
-  const { auditCurriculum } = await import('../src/lib/content/curriculumAudit.ts');
+  const { auditCurriculum, auditGrammarSupplement } = await import('../src/lib/content/curriculumAudit.ts');
   const { scenarioToVocabTopic } = await import('../src/lib/utils/scenarioVocab.ts');
 
   const secret = process.env.ADMIN_SECRET;
@@ -158,11 +194,22 @@ async function main() {
     fail(`cannot read ${FILE}: ${err}`);
   }
 
-  const report = auditCurriculum(draft, scenarioToVocabTopic);
+  const kind = draftKind(draft);
+  if (kind === 'unknown') {
+    fail(
+      `${FILE.replace(`${repoRoot}/`, '')} is neither a module (a \`scenarios\` array) nor a supplement ` +
+        '(a `grammar` array) — nothing was read or written',
+    );
+  }
+  const report = kind === 'supplement' ? auditGrammarSupplement(draft) : auditCurriculum(draft, scenarioToVocabTopic);
   console.log(`Draft: ${FILE.replace(`${repoRoot}/`, '')}`);
-  console.log(
-    `  ${report.stats.scenarios} scenarios · ${report.stats.vocabulary} vocabulary · ${report.stats.phrases} phrases · ${report.stats.grammar} grammar`,
-  );
+  if (kind === 'supplement') {
+    console.log(`  kind: supplement · grammar ${report.stats.grammar} (grammar-only; no scenarios or vocabulary)`);
+  } else {
+    console.log(
+      `  ${report.stats.scenarios} scenarios · ${report.stats.vocabulary} vocabulary · ${report.stats.phrases} phrases · ${report.stats.grammar} grammar`,
+    );
+  }
   if (report.warnings.length > 0) console.log(`  ${report.warnings.length} warning(s) — run scripts/audit-curriculum.mjs for detail`);
   if (!report.ok) {
     for (const issue of report.errors) console.error(`  ${issue.path}: ${issue.message}`);
@@ -173,7 +220,8 @@ async function main() {
   const reviewedBy = draft.review?.reviewedBy ?? null;
   console.log(`  review: ${reviewStatus}${reviewedBy ? ` by ${reviewedBy}` : ''}`);
 
-  const loadable = ['scenarios', 'vocabulary', 'starter_phrases', 'grammar'].filter((type) => Array.isArray(draft[type]));
+  const loadable = loadableTypes(draft);
+  if (loadable.length === 0) fail(`nothing loadable in ${FILE.replace(`${repoRoot}/`, '')} — nothing was written`);
 
   if (dryRun) {
     // Secretless mode: audit + counts only. No fetch, no write, exit 0 on a
@@ -182,7 +230,8 @@ async function main() {
     for (const type of loadable) {
       console.log(`  ${type}: ${draft[type].length} row(s)`);
     }
-    console.log(`  topics: ${Object.entries(report.stats.topics).map(([t, n]) => `${t} (${n})`).join(', ')}`);
+    const topics = Object.entries(report.stats.topics);
+    if (topics.length > 0) console.log(`  topics: ${topics.map(([t, n]) => `${t} (${n})`).join(', ')}`);
     if (reviewStatus !== 'approved') {
       console.log(`  note: review.status is "${reviewStatus}" — a real load would be refused until it is approved.`);
     }
@@ -211,12 +260,16 @@ async function main() {
 
   // --- 2. Read what is already there (idempotency) --------------------------
   console.log(`\nReading existing content from ${BASE} ...`);
-  const existingVocab = await adminGet('/admin/api/content-list?type=vocabulary&limit=500');
-  if (existingVocab.status !== 200) fail(`could not list vocabulary (HTTP ${existingVocab.status}): ${JSON.stringify(existingVocab.body)}`);
-  const vocabKeys = new Set(
-    (existingVocab.body?.rows ?? []).map((row) => `${row.level}|${row.german}|${row.topic}`.toLowerCase()),
-  );
-  console.log(`  live vocabulary rows seen: ${existingVocab.body?.rows?.length ?? 0}`);
+  // Only the tables this draft can collide with. A grammar-only supplement has no
+  // reason to read vocabulary, and a read that cannot affect the write must not be
+  // able to stop it.
+  const vocabKeys = new Set();
+  if (loadable.includes('vocabulary')) {
+    const existingVocab = await adminGet('/admin/api/content-list?type=vocabulary&limit=500');
+    if (existingVocab.status !== 200) fail(`could not list vocabulary (HTTP ${existingVocab.status}): ${JSON.stringify(existingVocab.body)}`);
+    for (const row of existingVocab.body?.rows ?? []) vocabKeys.add(`${row.level}|${row.german}|${row.topic}`.toLowerCase());
+    console.log(`  live vocabulary rows seen: ${vocabKeys.size}`);
+  }
 
   const phraseKeys = new Set();
   for (const scenario of draft.scenarios ?? []) {
@@ -224,7 +277,8 @@ async function main() {
     if (res.status !== 200) fail(`could not list phrases for ${scenario.id} (HTTP ${res.status})`);
     for (const row of res.body?.rows ?? []) phraseKeys.add(`${row.scenario_id}|${row.german}`.toLowerCase());
   }
-  console.log(`  live starter phrases seen: ${phraseKeys.size}`);
+  if (loadable.includes('starter_phrases')) console.log(`  live starter phrases seen: ${phraseKeys.size}`);
+  if (loadable.includes('grammar')) console.log('  grammar rows are upserted by id — the live ones are not read here');
 
   // --- 3. Decide what to write ----------------------------------------------
   const plan = [];
@@ -301,25 +355,55 @@ async function main() {
 
   // --- 6. Verify against the public endpoints the app itself reads -----------
   console.log('\nVerifying against the public content endpoints ...');
-  const publicScenarios = await fetch(`${BASE}/scenarios`).then((r) => r.json()).catch(() => null);
-  const publicVocab = await fetch(`${BASE}/vocabulary`).then((r) => r.json()).catch(() => null);
+  const declaredScenarios = draft.scenarios ?? [];
+  const declaredGrammar = draft.grammar ?? [];
+  const topics = Object.keys(report.stats.topics);
+  const getPublic = (path) => fetch(`${BASE}${path}`).then((r) => r.json()).catch(() => null);
+
+  // Only the endpoints this draft can affect: a grammar-only supplement has no
+  // scenarios to check, and asking it about them would be noise in its report.
+  const publicScenarios = declaredScenarios.length > 0 ? await getPublic('/scenarios') : [];
+  const publicVocab = topics.length > 0 ? await getPublic('/vocabulary') : [];
+  const publicGrammar = declaredGrammar.length > 0 ? await getPublic('/grammar') : [];
 
   let verified = true;
-  if (!Array.isArray(publicScenarios) || !Array.isArray(publicVocab)) {
-    console.log('  ✘ could not read the public content endpoints — verify manually');
+  if (declaredScenarios.length > 0 && !Array.isArray(publicScenarios)) {
+    console.log('  ✘ could not read /scenarios — verify manually');
     verified = false;
-  } else {
-    for (const scenario of draft.scenarios ?? []) {
+  }
+  if (topics.length > 0 && !Array.isArray(publicVocab)) {
+    console.log('  ✘ could not read /vocabulary — verify manually');
+    verified = false;
+  }
+  if (Array.isArray(publicScenarios)) {
+    for (const scenario of declaredScenarios) {
       const found = publicScenarios.some((row) => row.id === scenario.id);
       console.log(`  ${found ? '✔' : '✘'} scenario ${scenario.id} ${found ? 'is live' : 'is MISSING'}`);
       if (!found) verified = false;
     }
-    for (const topic of Object.keys(report.stats.topics)) {
+  }
+  if (Array.isArray(publicVocab)) {
+    for (const topic of topics) {
       const count = publicVocab.filter((row) => row.topic === topic).length;
       const target = report.stats.topics[topic];
       const ok = count >= target;
       console.log(`  ${ok ? '✔' : '✘'} topic ${topic}: ${count} live rows (draft contributes ${target})`);
       if (!ok) verified = false;
+    }
+  }
+  // Grammar is upserted by id, so every declared row must be readable by the app
+  // afterwards — the check V12's version of this script never made, which is how a
+  // failed grammar batch could still print `DONE`.
+  if (declaredGrammar.length > 0) {
+    if (!Array.isArray(publicGrammar)) {
+      console.log('  ✘ could not read /grammar — verify manually');
+      verified = false;
+    } else {
+      for (const row of declaredGrammar) {
+        const found = publicGrammar.some((live) => live.id === row.id);
+        console.log(`  ${found ? '✔' : '✘'} grammar ${row.id} ${found ? 'is live' : 'is MISSING'}`);
+        if (!found) verified = false;
+      }
     }
   }
 
