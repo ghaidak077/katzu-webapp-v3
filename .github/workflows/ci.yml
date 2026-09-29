@@ -1,3 +1,22 @@
+# The Node version here is not a preference — it is the repository's declared
+# floor (package.json `engines.node`), and CI ran on 20 until V17, which made
+# every run red from 2026-09-28 while every local run was green:
+#
+#   * jsdom 30.1.1 (devDependency) declares ^22.22.2 || ^24.15.0 || >=26.0.0.
+#     On Node 20 it cannot even load —
+#     `TypeError: webidl.util.markAsUncloneable is not a function` — so vitest
+#     reported "Failed to start forks worker" as an unhandled error and the job
+#     exited 1 with all 66 files "passed".
+#   * scripts/*.mjs import the TypeScript modules directly
+#     (`from '../src/lib/content/curriculumAudit.ts'`), which needs Node's
+#     default type stripping: 22.18+ / 23+. On Node 20 that is
+#     `ERR_UNKNOWN_FILE_EXTENSION` and the four supplement/loader tests fail.
+#
+# Pin the full version so the guard in tests/ciWorkflow.test.ts can compare it
+# against `engines.node` exactly; a bare major (`24`) would resolve to the
+# latest 24.x and the comparison could not be trusted. 24.15.0 is the lowest
+# version that satisfies every declared dependency floor, so CI proves the
+# minimum supported environment, not just the maintainer's laptop.
 name: CI
 
 on:
@@ -15,7 +34,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "24.15.0"
           cache: npm
 
       - name: Install dependencies
@@ -53,7 +72,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "24.15.0"
           cache: npm
 
       - name: Install dependencies
