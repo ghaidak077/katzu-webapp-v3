@@ -6,7 +6,7 @@ Environment facts: `docs/agent/ENV-FACTS.md`. Status: `docs/AGENT-STATE.md`.
 
 ## 1. Product state (what a learner can do today)
 
-Arabic-first German-learning PWA. Public demo needs no account and makes no AI call (AGENTS.md §8).
+Arabic-first German-learning PWA. Public demo needs no account and makes no AI call (`docs/agent/QUALITY.md`, "Product").
 
 | Route | State | Proof |
 |---|---|---|
@@ -34,7 +34,7 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 3. Remote: one Cloudflare Worker `cloudflare-unified-worker.js` (+15 `cloudflare-*.js` modules) behind `src/lib/api/workerClient.ts`.
 4. Data: D1 `katzu-content` (scenarios, vocabulary, grammar, starter_phrases — remote wins) · KV `USER_PROGRESS` (progress + authoritative AI quota) · KV `REDEEMED_CODES`.
 5. AI path: `/ai/*` → `cloudflare-ai-router.js` multi-provider pool (Gemini active; Groq/OpenRouter/NVIDIA lists empty) → Workers AI `[ai]` fallback (`AI_FALLBACK_ENABLED=1`).
-6. Every AI response is validated and bounded server-side; AI is never authoritative for billing or account state (§8).
+6. Every AI response is validated and bounded server-side; AI is never authoritative for billing or account state (`docs/agent/QUALITY.md`).
 7. Auth: Google ID token → Worker verifies `aud` against `GOOGLE_CLIENT_ID`; `TEST_MODE` is ignored in production.
 8. Entitlements: server-side subscription/activation state in D1 + KV; client is never authoritative.
 9. Sync: rev-guarded merge in D1 `sync_revisions` (P2), client queues offline and retries.
@@ -66,7 +66,7 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 | 3 | The **shipping artifact** (built bundle) fails e2e: 26/37 vs `vite preview` | ledger UNPROVEN: `serviceWorkers:'block'` missing, Workbox serves the requests Playwright mocks | S | agent |
 | 4 | No Lighthouse numbers at all | ledger RC-1 `blocked`; Lighthouse not installed | M | agent |
 | 5 | Two approved/pending modules are not live; module1 is `pending` so a load would be refused | §2 counts; `OWNER-OPEN` loader commands | S | owner |
-| 6 | Real-D1 behaviour unproven — sync compare-and-swap and crypto idempotency only tested on fakes | ledger UNPROVEN; AGENTS.md §2.4 | M | agent |
+| 6 | Real-D1 behaviour unproven — sync compare-and-swap and crypto idempotency only tested on fakes | ledger UNPROVEN; AGENTS.md §5 | M | agent |
 | 7 | This machine can `wrangler deploy` (OAuth token, `workers (write)`) | `npx wrangler whoami` (this session) | S | owner/agent discipline |
 | 8 | Payments are sandbox-only, legally unreviewed | `NOWPAYMENTS_ENVIRONMENT="test_mode"`; `OWNER-OPEN` counsel item | L | owner |
 | 9 | `MAINTENANCE_MODE` + cron trigger not configured → no automatic retention | `wrangler.toml` has neither; ledger RC-4 | S | owner |

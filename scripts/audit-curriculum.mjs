@@ -4,7 +4,7 @@
  *
  * Validates authored drafts against the D1 content contract and per-scenario
  * learning standard. This is read-only: it never touches D1, the Worker, or a secret.
- * The policy for module size and approval attribution lives in AGENTS.md §4.
+ * The policy for module size and approval attribution lives in docs/agent/CONTENT-GATE.md.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';

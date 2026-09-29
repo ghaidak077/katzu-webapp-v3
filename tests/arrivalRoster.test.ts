@@ -1,5 +1,5 @@
 /**
- * B3 roster gate (AGENTS.md §4 + the final B3 decisions).
+ * B3 roster gate (docs/agent/CONTENT-GATE.md + the final B3 decisions).
  *
  * Asserts, over the whole scenario roster (module drafts + offline fixtures):
  *   - every scenario has 4 opener levels (a1..b2);

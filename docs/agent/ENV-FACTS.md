@@ -4,6 +4,17 @@ One-time recon, read-only. Every `FACT` line carries the command and its result.
 `UNKNOWN` means the probe could not prove the claim — never a guess.
 Recon date: 2026-09-29. Host: the owner's Windows desktop (Freebuff desktop app).
 
+## Corrections folded into AGENTS.md v7 (2026-09-29)
+These four probe results were promoted from this file into the manual, so they are rules now, not
+just facts. Each one already has its proof above; nothing was re-measured.
+- **Reporters:** Vitest accepts `default | basic | verbose | dot | json | junit | tap` — `line` is
+  Playwright-only. v7 §5. (`npx vitest run --reporter=line` → Startup Error, exit 1, 2 s.)
+- **CRLF:** the working tree is CRLF although `.gitattributes` pins `eol=lf`; re-read the exact lines
+  before an exact-match edit. v7 §6. (`index.html` CR=4, `tailwind.config.js` CR=9.)
+- **Sequential batching:** tool calls issued in one block run one after another, not concurrently.
+  v7 §4. (Two 8 s sleeps → 16.4 s wall.)
+- **`npm run lint` == `npx tsc --noEmit`:** one gate, not two. v7 §5.
+
 Repo root on disk: `C:/Users/Lenovo/Desktop/k1/katzu`.
 Workspace root (where shell commands start): `/c/Users/Lenovo/Desktop/k1` (not a git repo).
 
@@ -157,7 +168,7 @@ Top 5 chunks by size: `index` 492 K · `LiveConversationScreen` 96 K · `Journey
 - **`package.json` scripts** — `dev` (vite :3000) · `build` (tsc + vite) · `preview` (vite preview) · `test` (vitest run) · `test:e2e` (playwright) · `test:e2e:types` (tsc -p e2e) · `lint` (tsc --noEmit) · `deploy:worker` (wrangler deploy — **never run**) · `tail:worker` · `test:smoke:token-hygiene`.
 - **CI** — `.github/workflows/ci.yml` only.
 - **Docs present** — `docs/AGENT-STATE.md` (ledger), `LAUNCH-CHECKLIST.md`, `CONTENT-AUTHORING-PROMPT.md`, `CONTENT-STRATEGY-ROADMAP.md`, `CURRICULUM-DRAFT.md`, `IMPLEMENTATION_PLAN.md`, `LEARNING-ROADMAP.md`, `PRODUCT-SPEC.md`, `current-state.md`, `launch-gate.md`, `pass-quiz-training-hints.md`, `product-gaps.md`, `security-gaps.md`, `verification-report.md`, `docs/content/`, `docs/screenshots/`.
-- **Docs missing?** FACT none — every file AGENTS.md §4/§5 names exists (`docs/AGENT-STATE.md`, `LAUNCH-CHECKLIST.md`, `CONTENT-AUTHORING-PROMPT.md`, `CONTENT-STRATEGY-ROADMAP.md`, `src/lib/utils/scenarioVocab.ts`, `src/lib/content/scenarioGrammar.ts`, `src/lib/db/katzuDb.ts`). `docs/agent/` did not exist before this recon; it is created by this commit.
+- **Docs missing?** FACT none — every file the manual names (v6 §4 → now `docs/agent/CONTENT-GATE.md`; v6 §5 → now v7 §1/§8) exists (`docs/AGENT-STATE.md`, `LAUNCH-CHECKLIST.md`, `CONTENT-AUTHORING-PROMPT.md`, `CONTENT-STRATEGY-ROADMAP.md`, `src/lib/utils/scenarioVocab.ts`, `src/lib/content/scenarioGrammar.ts`, `src/lib/db/katzuDb.ts`). `docs/agent/` did not exist before this recon; it is created by this commit.
 
 ---
 

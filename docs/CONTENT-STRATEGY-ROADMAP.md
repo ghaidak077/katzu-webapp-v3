@@ -79,7 +79,7 @@ The five IDs `embassy_appointment`, `cafe_order`, `job_interview`, `doctor_visit
 | 1 | 2 | `embassy_appointment` | Anmeldung / residence registration | `official` → `documents` | Existing; reuse, do not redefine | Sachbearbeiter |
 | 1 | 3 | `apartment_viewing` | Viewing a flat and asking the landlord practical questions | `housing` → `housing` | Existing; reuse, do not redefine | Vermieterin/Vermieter; recurring thread with Ch. 2 slot 6 |
 | 2 | 4 | `cafe_order` | Ordering at a café | `daily_life` → `food` | Existing; reuse, do not redefine | Barista |
-| 2 | 5 | `bakery_shopping` | Buying bread and asking whether it is fresh | `daily_life` → `food` | Local fallback only; incomplete — replace via AGENTS.md §4 content gate | Bäcker(in) |
+| 2 | 5 | `bakery_shopping` | Buying bread and asking whether it is fresh | `daily_life` → `food` | Local fallback only; incomplete — replace via the Content Gate (`docs/agent/CONTENT-GATE.md`) | Bäcker(in) |
 | 2 | 6 | `landlord_followup` | Calling the landlord about a deposit or repair | `housing` → `housing` | New | Same exact landlord persona string as Ch. 1 slot 3 |
 | 3 | 7 | `job_interview` | Bewerbungsgespräch | `work` → `work` | Existing; reuse, do not redefine | HR / Personalchef(in) |
 | 3 | 8 | `erster_arbeitstag` | First day: meeting the team and finding one’s place | `work` → `work` | New | Colleague; recurring thread with Ch. 3 slot 9 |
@@ -87,7 +87,7 @@ The five IDs `embassy_appointment`, `cafe_order`, `job_interview`, `doctor_visit
 | 4 | 10 | `residence_permit` | Ausländerbehörde: residence-title appointment | `official` → `documents` | New | Beamter/Beamtin |
 | 4 | 11 | `doctor_visit` | Arztpraxis and asking for a sick note | `health` → `health` | Existing; reuse, do not redefine | Arzt/Ärztin |
 | 4 | 12 | `pharmacy_visit` | Apotheke: buying medicine and describing symptoms | `health` → `health` | New | Apotheker(in) |
-| 5 | 13 | `train_station` | Buying a ticket and asking about a delay or platform | `travel` → `travel` | Local fallback only; incomplete — replace via AGENTS.md §4 content gate | Bahn employee |
+| 5 | 13 | `train_station` | Buying a ticket and asking about a delay or platform | `travel` → `travel` | Local fallback only; incomplete — replace via the Content Gate (`docs/agent/CONTENT-GATE.md`) | Bahn employee |
 | 5 | 14 | `neighbor_dispute` | A polite noise/conflict conversation with a neighbor | `housing` → `housing` | New | Nachbar(in) |
 | 5 | 15 | `friend_catchup` | Informal `du` conversation about plans, the weekend and opinions | `daily_life` → `food` | New | Freund(in) |
 

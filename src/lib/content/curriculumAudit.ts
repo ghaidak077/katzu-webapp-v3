@@ -67,7 +67,7 @@ export type LoadableType = (typeof LOADABLE_TYPES)[number];
 /** Keys a draft may carry without being loadable content. */
 export const NON_LOADABLE_KEYS = ['_note', 'meta', 'review', 'deferred'] as const;
 
-/** Module size required by AGENTS.md §4 and docs/CONTENT-AUTHORING-PROMPT.md. */
+/** Module size required by docs/agent/CONTENT-GATE.md and docs/CONTENT-AUTHORING-PROMPT.md. */
 export const MODULE_SCENARIO_LIMITS = { min: 5, max: 8 } as const;
 
 /** Per-scenario content standard (docs/LEARNING-ROADMAP.md, Phase 5). */

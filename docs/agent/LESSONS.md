@@ -3,7 +3,7 @@
 Purpose: every time a run stalls, repeats a command, acts on an unverified assumption, or
 wastes a run, append **one line** here. The file is read at session start. A lesson that
 repeats **twice** is proposed as an `AGENTS.md` change in the report (the owner approves;
-`§3`/`§4` are never edited by an agent). Lines already encoded in `AGENTS.md` are pruned.
+`§3` and the Content Gate are never edited by an agent). Lines already encoded in `AGENTS.md` are pruned.
 
 Format:
 
@@ -17,9 +17,9 @@ Keep it to facts from a tool result. No speculation, no "probably".
 
 ## Entries
 
-2026-09-29 | `npx vitest run --reporter=line` exited 1 in 2 s with `Startup Error: Failed to load custom Reporter from line` | `line` is a **Playwright** reporter name; Vitest has no such reporter (`default,basic,verbose,dot,json,junit,tap,tap-flat`). §2.2/§2.3 of AGENTS.md say "Tests: `--reporter=line`" without scoping it to Playwright, so the flag was copied onto the unit runner | Use `npm test` unchanged, or `--reporter=dot` for Vitest and `--reporter=line` **only** for Playwright. Prefer correcting §2.2 to name the runner.
+2026-09-29 | `npx vitest run --reporter=line` exited 1 in 2 s with `Startup Error: Failed to load custom Reporter from line` | `line` is a **Playwright** reporter name; Vitest has no such reporter (`default,basic,verbose,dot,json,junit,tap,tap-flat`). v6 §2.2/§2.3 said "Tests: `--reporter=line`" without scoping it to Playwright, so the flag was copied onto the unit runner | Use `npm test` unchanged, or `--reporter=dot` for Vitest and `--reporter=line` **only** for Playwright. Encoded in v7 §5; prune when v7 §5 is stable.
 
-2026-09-29 | `rg --version` → `command not found` on this machine | AGENTS.md §2.0 already documents this, but only in the ledger's `ENV:` line — a fresh session reads `AGENTS.md`, not the ledger's DECISIONS history | If the session-start probe prints `rg: command not found`, use `git grep -n` / `grep -rn` and say so once; do not retry `rg`.
+2026-09-29 | `rg --version` → `command not found` on this machine | v6 §2.0 documented this only through the ledger's `ENV:` line — a fresh session reads `AGENTS.md`, not DECISIONS history | v7 §1 and `docs/agent/ENV-FACTS.md` state that `rg` is missing before any command; use `git grep -n` / `grep -rn`, never retry `rg`.
 
 2026-09-29 | Working tree files are **CRLF** even though `.gitattributes` pins `* text=auto eol=lf` | The `eol=lf` attribute is not being applied to this checkout (`core.autocrlf=true`, files already on disk as CRLF). A first probe that used `head -c 4000 \| grep -q $'\r'` wrongly reported "0 CRLF files"; the reliable probe is `head -c 200 <f> \| tr -cd '\r' \| wc -c` | Before concluding "no CRLF", verify with `tr -cd '\r' \| wc -c`. Exact-string edits must match the CRLF text as it is on disk; re-read the target lines rather than pasting LF text from memory.
 

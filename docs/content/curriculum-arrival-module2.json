@@ -1,5 +1,5 @@
 {
-  "_note": "Gated draft (module 2 of the arrival story). Authored content, not shipped curriculum: nothing here may be loaded into D1 until it passes the audit and the adversarial self-review gate in AGENTS.md §4, and only the owner may run the loader --commit path. Scenario ids are chosen to complete the existing roster; the existing local fixture rows and any live D1 rows keep their ids and always win over local fixtures.",
+  "_note": "Gated draft (module 2 of the arrival story). Authored content, not shipped curriculum: nothing here may be loaded into D1 until it passes the audit and the adversarial self-review gate in the Content Gate (docs/agent/CONTENT-GATE.md), and only the owner may run the loader --commit path. Scenario ids are chosen to complete the existing roster; the existing local fixture rows and any live D1 rows keep their ids and always win over local fixtures.",
   "meta": {
     "track": "الوصول والحياة اليومية",
     "trackDe": "Ankommen und Alltag",

@@ -128,9 +128,9 @@ enforced. The rest are required by this prompt for a reviewable document.
 ```json
 "review": {
   "status": "pending",         // pending | approved | rejected
-  "reviewedBy": null,          // AI self-review attribution required when approved per AGENTS.md §4
+  "reviewedBy": null,          // AI self-review attribution required when approved per the Content Gate (docs/agent/CONTENT-GATE.md)
   "reviewedAt": null,
-  "checklist": []              // non-empty list of quality checks; see AGENTS.md §4
+  "checklist": []              // non-empty list of quality checks; see docs/agent/CONTENT-GATE.md
 }
 ```
 
