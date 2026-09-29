@@ -1,6 +1,6 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
-Recon date 2026-09-29; **deployed the same day** (owner-authorized): the deploy is at `6bfe4fd` (worker `07d7d341-…`, Pages production `cbfb29f5-…`), and `main` is now `48582ea` — the V7-4 docs commit on top of it. `main` carries the V9 commits and **the worker was deployed twice this run**: `6aedfd50-…` (from `ed038f4`) and then **`255dbeef-faae-476a-b3f5-6d4666099b70`** (from `b11e66e`, which added `MAINTENANCE_MODE="off"` and the retention cron); Pages was not deployed either time because `src/` did not change. **No content was loaded** — Phase 4 stopped at `ADMIN_SECRET`, which is owner-only. Sections marked *(live)* reflect the `255dbeef` deploy.
+Recon date 2026-09-29; **deployed twice the same day** (owner-authorized). V7–V9 shipped the hardened worker (**`255dbeef-faae-476a-b3f5-6d4666099b70`**, from `b11e66e`) and left Pages at `cbfb29f5-…`; **V10 deployed Pages**: `main` is now **`e487654`**, the production Pages deployment is **`2c245106-c916-4ad1-8c8f-25d52e09f208`** serving **`assets/index-CWWIxWb7.js`**, and the worker was **deliberately not deployed** because no `cloudflare-*.js` or `wrangler.toml` file changed. **No content was loaded** — the load stopped at `ADMIN_SECRET`, which is owner-only (V10-6), and that secret must now be **rotated** because it was pasted into a chat prompt. Also true as of V10: **module1 passed the Content Gate** (31 isolated words and ten unreachable grammar rows fixed, then approved) and a performance pass measured three LCP variants, kept one and reverted two. Sections marked *(live)* reflect the V10 deploy.
 Every claim cites a path, a command result, or a ledger line. Unverified claims sit under **UNKNOWN**.
 Environment facts: `docs/agent/ENV-FACTS.md`. Status: `docs/AGENT-STATE.md`.
 
@@ -10,22 +10,22 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 
 | Route | State | Proof |
 |---|---|---|
-| `/demo` public demo | **works** | `npx playwright test e2e/demo.spec.ts` → 1 passed, 8 s vs dev, 7 s vs `vite preview` (this session) |
+| `/demo` public demo | **works** | `npx playwright test e2e/demo.spec.ts` → 1 passed, 8 s vs dev, 7 s vs `vite preview`; **re-proved on production in V10** in this thread's own logged-out browser — all four steps completed, **zero console messages**, **no `/ai/turn`** |
 | `/app/trail` (Journey Home) | **works** | `e2e/journey.spec.ts` 12/12 + `e2e/firstRun.spec.ts` 3/3, ledger RC-5 (not rerun this session) |
 | Story Setup → Guided Practice → Live Conversation → Debrief | **works** | `e2e/journey.spec.ts`, `e2e/conversationLayout.spec.ts`, `e2e/microphone.spec.ts`; ledger RC-0 rerun |
 | `/app/review`, `/app/listen`, `/app/write`, `/app/coach` | **partial** | offline behaviour audited in `tests/offlineRouteAudit.test.ts`; no dedicated e2e spec |
 | `/onboarding`, `/placement`, `/app/library`, `/scenario/:id/*` | **partial** | `e2e/onboarding.spec.ts` 2/2; library/placement/quiz have unit coverage only |
-| `/subscription`, `/trust/:page` | **partial** | `e2e/paywall.spec.ts` 4/4; legal links wired in RC-2; real payments are owner-only |
+| `/subscription`, `/trust/:page` | **partial** | `e2e/paywall.spec.ts` 4/4; legal links wired in RC-2; real payments are owner-only; V10 moved `/trust/:page` into its own lazy chunk and verified it 200 on production |
 | `/app/progress` | **works** | `e2e/progress.spec.ts` (ROUTES covered), ledger RC-0 |
 | iOS/Android real-device voice | **unverified** | owner-open item; tested only with Chromium's fake capture device |
 
 ## 2. Content state (measured)
 
 - **Live D1** (`wrangler d1 execute katzu-content --remote`, read-only, this session): **5 scenarios, 114 vocabulary, 20 starter_phrases, 4 grammar**.
-- **Drafts** (`docs/content/`): `curriculum-30day-module1.json` = 5 scen / 74 vocab / 30 phrases / 10 grammar, `review.status="pending"`; `curriculum-arrival-module2.json` = 5 / 49 / 42 / 4, `review.status="approved"` (both counted this session with `node -e`).
-- **Review files**: only `docs/content/review-arrival-module2.md` exists. Module1 has **no** review file, consistent with `pending`.
+- **Drafts** (`docs/content/`): `curriculum-30day-module1.json` = 5 scen / 74 vocab / **49** phrases / 10 grammar, `review.status="approved"` (**changed in V10-3**: it was 30 phrases and `pending`); `curriculum-arrival-module2.json` = 5 / 49 / 42 / 4, `approved`. Both re-counted with `node scripts/load-curriculum.mjs --file=… --dry-run`.
+- **Review files**: both exist — `docs/content/review-arrival-module2.md` (2026-09-28) and `docs/content/review-30day-module1.md` (2026-09-29: three defect classes per round, plus what a human should spot-check first). Both approvals are AI self-review with **no human review**, which is the gate's own permitted attribution — a native-speaker pass is still the only real check on idiomaticity.
 - **Fixture** (`src/lib/db/katzuDb.ts`) is the offline fallback only; it seeds `cafe_order` + `apartment_viewing` (`seedStoryOpening`) and two arrivals via `seedArrivalTopUps` (ids ≥ 2000, insert-if-missing).
-- Neither draft is loaded: the loader requires the owner's `ADMIN_SECRET` (`OWNER-OPEN`). So drafts ≠ live.
+- Neither draft is loaded: the loader requires the owner's `ADMIN_SECRET`, which is **not set** in the agent's environment, so V10-6 stopped at that precondition and took no backup and wrote nothing (`OWNER-OPEN`). So drafts ≠ live.
 
 ## 3. Architecture in 15 lines
 
@@ -42,21 +42,22 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 11. Crypto sales live on a **separate** Pages site (`sales/` → `katzu-sales.pages.dev`) using NOWPayments sandbox; the app only redeems codes.
 12. Ops: `MAINTENANCE_MODE` kill switch (shipped as `"off"`) and the `scheduled` retention handler, now activated by a deployed cron (`17 4 * * *`); `POST /admin/sweep` does the same job on demand.
 13. Static: Cloudflare Pages `katzu-webapp-v3.pages.dev`.
-14. Tests: Vitest (node/jsdom, 68 files / 809 tests) + Playwright (chromium, 10 files / 37 tests).
+14. Tests: Vitest (node/jsdom, 68 files / **815** tests) + Playwright (chromium, 10 files / 37 tests). Screens are code-split; V10 moved the last eagerly-imported non-first-paint route (`/trust/:page`) into its own chunk.
 15. CI: `.github/workflows/ci.yml` (content audits, prod audit, Playwright job, secret scan).
 
 ## 4. Quality metrics (measured this session unless noted)
 
-- Unit: `npm test` → **68 files / 809 tests, all pass** (6.1 s).
+- Unit: `npm test` → **68 files / 815 tests, all pass** (6.2 s). The +6 are the module1 roster cases V10-3 made executable.
 - E2E inventory: **10 spec files / 37 tests**, chromium only. **The whole suite now runs against the production bundle**: `E2E_TARGET=preview npx playwright test` → **37/37 passed**, 2.5 min on the V9 run (4.3 min on the V7-2 run; build ~7 s + tests), with service workers blocked. (One earlier run scored 36/37 on the flake below.)
 - Types: `npx tsc --noEmit` exit 0 · `npx tsc -p e2e --noEmit` OK.
 - Worker syntax: `node --check cloudflare-unified-worker.js` OK.
-- Build: exit 0, 6.8 s, entry `index-*.js` 500.93 K / 158.53 K gzip, `sw.js` precache 86 entries / 4171.99 KiB, Vite warns one chunk > 500 kB.
+- Build: exit 0, 5.8–6.5 s, entry `index-*.js` **497.28 K / 157.50 K gzip**, `sw.js` precache **88 entries / 4172.71 KiB**, Vite still warns about one chunk > 500 kB.
 - Bundle top 5: `index` 501 K · `LiveConversationScreen` 96 K · `JourneyHomeScreen` 32 K · `ProfileSettingsScreen` 24 K · `SubscriptionRedemptionScreen` 24 K (+ `index-*.css` 52 K).
 - Audit: `npm audit --omit=dev --audit-level=high` → **0 vulnerabilities** (the Lighthouse devDependency adds 3 moderate advisories in the *dev* tree only; the production tree is unchanged — re-verified after the install).
 - A11y: `e2e/accessibility.spec.ts` axe WCAG 2.0/2.1 A+AA, zero critical/serious (ledger B6).
 - Real-D1 (V8-2, extended in V9-3): server-side sync compare-and-swap and crypto exactly-once pass on local `wrangler dev --local` D1, now **33/33 assertions** — the same two genuine races (one commit / one 409 with the union preserved, one delivery / one duplicate) plus the V9 additions: the first request on an empty database is a sync returning `200 rev:1` that creates all eight lazy tables, and the admin failure throttle gives `[401×5, 429]` with one persistent `count: 5` row. Raw rows read back out of the SQLite file.
 - Lighthouse (V9-10, the first baseline; mobile, production, Lighthouse 13.5.0): `/` **73 / 84 / 100 / 100** (perf/a11y/best-practices/seo), `/demo` **72 / 93 / 100 / 100**, `/app/trail` **72 / 83 / 100 / 100** — but `/app/trail` redirected to `/welcome` without an account, so the Trail itself is still unmeasured. LCP 5.5–5.6 s dominates; the causes and two caveats are in the ledger (V9-10), including a 172 KB script this machine's anti-virus injects into every page.
+- **Performance experiments (V10-4, local `vite preview`, 3 runs per route):** baseline `/` perf 73 / LCP 5430 ms / TBT 49 ms, `/demo` 72 / 5730 ms. Preload + `eager` + `fetchpriority=high` on the 175 KB hero PNG cut resource load delay 2303 → 455 ms but made the **median worse** (LCP 5879 ms, TBT 100 ms, perf 70); the same hints without the preload were still worse (perf 71, LCP 5611 ms) even though the in-trace LCP improved 958 → 707 ms. **Both reverted**, proved by an empty `git diff` and the reproduced baseline build hash. Kept: the trust pages became a lazy chunk → entry −3.65 kB, median LCP 5425 ms, TBT 31 ms, observed LCP 763 ms, score tied at 73. **Production after the V10 deploy:** `/` 72 / LCP 5115 ms, `/demo` 73 / LCP 5355 ms — unchanged-to-marginally-better, not a win.
 - Flaky tests: **none known.** The `e2e/journey.spec.ts:320` flake is fixed at its cause (V8-1, `8313808`: the fake device held the audio level for only 6 animation frames); `E2E_TARGET=preview npx playwright test` is **37/37 twice**, and the spec is 8/8 under six CPU-saturating loops. The earlier banner-geometry flake was fixed in `8a65edf`.
 
 ## 5. Risk register (ranked by learner/trust impact)
@@ -68,8 +69,9 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 | 3 | ~~The shipping artifact fails e2e (26/37)~~ **FIXED**: 37/37 vs `vite preview` via `E2E_TARGET=preview` | ledger V7-2 | — | closed |
 | 3b | **NEW:** `/admin` serves the control-plane HTML shell unauthenticated (200) | `curl -o /dev/null -w %{http_code} .../admin` → 200; the API behind it is gated (`/admin/api/users` → 401). Already an OWNER-OPEN item (Cloudflare Access) | S | owner |
 | 3c | ~~one flaky e2e test (`e2e/journey.spec.ts:320`)~~ **FIXED**: the fake capture device now holds the audio until the harness measures real RMS (V8-1) | ledger V8-1; 37/37 twice vs `vite preview`, 8/8 under CPU load | — | closed |
-| 4 | ~~No Lighthouse numbers at all~~ **MEASURED (V9-10), and it is not good:** performance **72–73** on all three pages, LCP 5.5–5.6 s (2.2× the "good" threshold), a11y 83–93, best-practices and SEO 100. Nothing was fixed (the prompt forbids fixing this run) | ledger V9-10; `lcp-discovery-insight` and the app-side `unused-javascript` item both score 0 | M | agent |
-| 5 | Two approved/pending modules are not live; module1 is `pending` so a load would be refused | §2 counts; `OWNER-OPEN` loader commands | S | owner |
+| 4 | **The LCP is still the top score gap, and the cheap fixes are now proven not to work:** performance 72–73, LCP 5.1–5.4 s in production (5.4–5.8 s locally). V10-4 measured preload/eager/`fetchpriority` three ways and every variant made the median worse, so the remaining lever is the image's **weight** (175 KB PNG shown at 160 px; Lighthouse prices ~171 KB of waste, ~131 KB recoverable by format) plus the ∼65 KB (42 %) of the entry chunk unused on first paint | ledger V9-10 + V10-4 + V10-7; `lcp-discovery-insight`, `image-delivery-insight` and `unused-javascript` all score 0 | M | agent |
+| 5 | ~~module1 unapproved~~ **module1 is `approved` since V10-3** (three defect classes fixed: 31 isolated words, ten unreachable grammar rows, six Arabic register/idiom slips). Still not live: the loader needs the owner's `ADMIN_SECRET`, which is unset for agents | §2 counts; ledger V10-3/V10-6; `docs/agent/CONTENT-LOAD.md` | S | owner |
+| 5b | **NEW (V10): the `ADMIN_SECRET` was pasted into a chat prompt in this session, so it must be treated as compromised** — anyone who can read the transcript can call `/admin/*` | ledger V10-6; the value exists in the session history, not in any repo file | S | **owner — rotate before the content load** |
 | 6 | ~~Real-D1 behaviour unproven~~ **FIXED for local D1**: 23/23 assertions on `wrangler dev --local` incl. two real races | ledger V8-2; probe deleted, local only, production untouched | — | closed |
 | 6b | ~~`POST /progress/sync` on a D1 with no ledger tables answers **500**~~ **FIXED (V9-1)**: the sync path now creates its tables first and degrades to the KV mirror instead of 500ing; the first request on an empty D1 returns `200 rev:1` in the probe | ledger V9-1/V9-3; `4d4e40e` | — | closed |
 | 6c | **NEW, FIXED (V9-2):** `/admin/api/*` answered 401 for ever with no failure counter written, so the per-IP lockout could never engage on the dashboard's own data endpoints (the admin module's duplicate gate dropped the recording) | ledger V9-2; probe N3 `[401×5, 429]`, N3b one `count: 5` row; `4d4e40e` | — | closed |
@@ -83,10 +85,11 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 - **done**: Baseline · B1–B8 (content gate, learning loop, authoring, performance, reliability, a11y, docs, final gate) · RC-0 · RC-2 · RC-3 · RC-4 · RC-5 · V7-1 … V7-4.
 - **done, new in V8**: `V8-1` `journey.spec.ts:320` flake fixed at its cause (37/37 twice) · `V8-2` real-local-D1 proof, 23/23 (sync CAS + crypto exactly-once) · `V8-3` ledger `main` hash reconciled to `48582ea`.
 - **done, new in V9**: `V9-1` the sync path creates its own tables (V8-F0 fixed, with a strict fresh-DB double) · `V9-2` the ledger-writer audit plus the admin failure throttle, which never actually fired · `V9-3` real-D1 re-proof 33/33 and the full T2 gate · `V9-4` merge + worker deploy · `V9-6` the owner-authorized §3 content-load paragraph + `docs/agent/CONTENT-LOAD.md` (**both removed in V10-1 as unworkable**) · `V9-7` kill-switch config + retention cron · `V9-8` second T2 + merge + deploy (`255dbeef-…`) · `V9-10` the Lighthouse baseline · `V9-11` `docs/agent/OWNER-STEPS.md`.
-- **blocked**: `V9-9` the content load — it needs the owner's `ADMIN_SECRET`, and module1 would additionally be refused (review still `pending`). `RC-1` is now **done** (the baseline exists, V9-10). `RC-6` is **superseded**: its targets were authorized and executed in V7-3.
+- **done, new in V10**: `V10-1` the unworkable content-load paragraph removed · `V10-2` the env-secret amendment + runbook in its place · `V10-3` module1 through the Content Gate (31 isolated words, ten unreachable grammar rows, six Arabic slips; approved with AI self-review) · `V10-4` the performance pass (three variants, two reverted on the numbers, one kept) · `V10-5` T2 + merge + **Pages deploy** + production verification (worker deliberately not redeployed) · `V10-7` production Lighthouse re-measured. `V10-6` is the content load, `blocked` on `ADMIN_SECRET`.
+- **blocked**: `V10-6` (and the earlier `V9-9`) the content load — it needs the owner's `ADMIN_SECRET`, and module1 would additionally be refused (review still `pending`). `RC-1` is now **done** (the baseline exists, V9-10). `RC-6` is **superseded**: its targets were authorized and executed in V7-3.
 - **todo**: the two things the prompt asked for that an agent could still have done are both done, and the rest is owner-only. Nearest agent work: the LCP and first-load-JS causes from V9-10, a PK-aware D1 double for the counter's increment branch, and the two-device sync integration.
 - **`OWNER-OPEN`**: two loader `--commit` runs (module2 is approved and its collision check is clean; module1 needs approval first) · Cloudflare Access on `/admin/*` · NOWPayments live mode after a sandbox pass · counsel review of legal pages · custom domain + OAuth origins + `VITE_PUBLIC_APP_URL` · real-device iOS/Android voice · beta cohort of 30–50 · a draft/live title difference on `airport_arrival`. **`MAINTENANCE_MODE` + the cron are done** (V9-7/V9-8); runbooks for the Access, voice, cohort and loader items are in `docs/agent/OWNER-STEPS.md`.
-- **`UNPROVEN`**: the real content load · human content review (AI self-review only) · sync/crypto atomicity on the *deployed* database · the counter's insert-then-increment branch at unit level · the Trail's own Lighthouse numbers (it redirects to `/welcome` without an account) · a clean-machine Lighthouse run (this one shared the page with an anti-virus script) · visual 360/390 px and offline-recording checks · real-device voice. Now **covered** and so removed from this list: built-bundle e2e, local-D1 sync/crypto atomicity, and the Lighthouse baseline itself.
+- **`UNPROVEN`** (V10 additions marked): the real content load · human content review (AI self-review only) · sync/crypto atomicity on the *deployed* database · the counter's insert-then-increment branch at unit level · the Trail's own Lighthouse numbers (it redirects to `/welcome` without an account) · a clean-machine Lighthouse run (this one shared the page with an anti-virus script) · visual 360/390 px and offline-recording checks · real-device voice. Now **covered** and so removed from this list: built-bundle e2e, local-D1 sync/crypto atomicity, and the Lighthouse baseline itself.
 
 ## 7. Recent changes
 
@@ -105,11 +108,11 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 
 ## 8. Live vs local drift (read-only only)
 
-**Worker drift closed as of 2026-09-29 (V9, second deploy):** production runs worker `255dbeef-…` built from `b11e66e`; the working tree is that commit plus the later V9 docs (the Lighthouse ledger and `OWNER-STEPS.md`), which are not part of the worker. V9 changed `cloudflare-unified-worker.js`, `cloudflare-admin.js` and `wrangler.toml` only; no `src/` file changed in V8 or V9, so Pages still serves the same `assets/index-B3aF3j7l.js` the V7 deploy shipped.
+**Drift closed as of 2026-09-29 (V10):** production runs worker `255dbeef-…` built from `b11e66e` (V9's deploy — V10 changed no worker file) and Pages built from `e487654` (V10's push), so the only distance between the tree and production is this ledger/brief commit. V10 changed `src/App.tsx`, `src/lib/content/scenarioGrammar.ts`, `index.html` briefly (reverted in-phase), tests and content/docs — `src/` changed, which is exactly why Pages needed deploying this time and the worker did not.
 
-| | Production (live, after V7-3) | Working tree |
+| | Production (live, after V10-5) | Working tree |
 |---|---|---|
-| Commit | `b11e66e` — worker `255dbeef-…`, cron `17 4 * * *`; Pages unchanged at `cbfb29f5-…` | `b11e66e` + the later V9 docs commits |
+| Commit | `e487654` — Pages deployment `2c245106-…` serving `index-CWWIxWb7.js`; worker unchanged at `255dbeef-…` with cron `17 4 * * *` | `e487654` + this ledger/brief commit |
 | `/health` | `{status, service, ready, maintenance}` — no pool/models/strategy | same |
 | D1 content | 5 scenarios / 114 vocab / 20 phrases / 4 grammar | same; both drafts still not loaded |
 | Kill switch / retention | `MAINTENANCE_MODE="off"` **live** and the cron `17 4 * * *` **deployed** | same (V9-7/V9-8) |
@@ -120,7 +123,7 @@ The V9 worker was deployed twice; no D1 migration, no manual D1 write and no con
 ## 9. Recommended next 5 (highest value first)
 
 1. ~~Make the sync path create its own tables (risk 6b / V8-F0)~~ **DONE in V9-1/V9-3**: the first `POST /progress/sync` on a wiped local D1 returns `200 rev:1` and creates all eight lazy tables. Its place: **teach `FreshD1` PRIMARY KEY semantics** so the failure counter's insert-then-increment branch is unit-tested, not only probe-tested.
-2. **Fix the LCP path** (V9-10 cause 1). Reason: LCP 5.5–5.6 s on every page is the largest single score contributor, and the cause is concrete — the hero image is discovered by JS and carries no `fetchpriority=high`. Gate: re-run Lighthouse, LCP under 2.5 s.
+2. **Fix the LCP path by weight, not by hints** (V10-4 outcome). Reason: LCP 5.1–5.4 s in production is still the largest single score contributor, and V10-4 proved the hint route is a dead end — every variant that prioritised the 175 KB PNG made the median worse. The next lever is converting `katzu_welcome.png` to WebP/AVIF at 160–256 px (Lighthouse: ~171 KB wasted, ~131 KB recoverable by format) and re-measuring the same way. Gate: same 3-run median method, LCP down, no metric worse.
 3. **Cut first-load JavaScript** (V9-10 cause 2). Reason: 42 % of the app's own entry bundle (65 KB of 155 KB) is unused on first paint, and FCP 3.2 s with TBT only 40 ms says the cost is fetch+parse. Gate: smaller initial chunk, FCP and SI down, e2e still 37/37.
 4. **Cloudflare Access in front of `/admin/*`** (owner). Reason: the control-plane shell still answers 200 unauthenticated. Runbook + curl gate are in `docs/agent/OWNER-STEPS.md`. Gate: anonymous `/admin` is challenged, `/admin/api/*` still 401.
-5. **Load module2** (owner, needs `ADMIN_SECRET`). Reason: 5 scenarios / 49 vocabulary / 42 phrases / 4 grammar are authored, approved and collision-checked against live D1 — nothing blocks them but the secret. Gate: loader `--commit` + counts in the ledger. module1 needs approval first (`review.status="pending"`, no review file).
+5. **Rotate the pasted `ADMIN_SECRET`, then load module2 and module1** (owner). Reason: both drafts are now approved, audited, dry-run and collision-checked against live D1 (module1 gained 19 phrases and is `approved`), so nothing blocks them but the secret — which must be rotated first because it was exposed in a chat prompt. Gate: loader `--commit` per `docs/agent/CONTENT-LOAD.md` + counts in the ledger. Expected ceilings (live + both drafts; the loader skips rows whose `level\|german\|topic` or `scenario_id\|german` already exists, so the real result may be lower): **15 scenarios** (5 + 5 + 5, all ids collision-checked as absent), **237 vocabulary** (114 + 74 + 49), **111 phrases** (20 + 49 + 42), **18 grammar** (4 + 10 + 4).
