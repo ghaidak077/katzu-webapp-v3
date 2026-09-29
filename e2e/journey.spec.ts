@@ -50,9 +50,10 @@ test('Journey Home shows one mission, one action, and a real day count', async (
 test('the first episode is the arrival, not a random day', async ({ page }) => {
   await bootSignedIn(page);
 
-  // The mission card names the opening, and the button is the plan's own wording
-  // for it — not the generic "start today's mission" every other day uses.
-  await expect(page.getByText('الوصول إلى المطار')).toBeVisible();
+  // The mission card names the opening (the seeded arrival scenario's Arabic
+  // title) and the button is the plan's own wording for it — not the generic
+  // "start today's mission" every other day uses.
+  await expect(page.getByText('في المطار: الأمتعة المفقودة')).toBeVisible();
   await expect(page.getByText('لحظة الوصول · أول موقف في القصة')).toBeVisible();
   await page.getByRole('button', { name: 'ابدأ من لحظة الوصول' }).click();
 

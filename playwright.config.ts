@@ -56,5 +56,11 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: true,
     timeout: 120_000,
+    // The harness mocks every off-origin request, but the app refuses to send
+    // one at all when no worker origin is configured (WORKER_URL_MISSING fails
+    // the turn before any fetch). A VITE_ var must exist at build/dev-server
+    // start, so the suite carries its own placeholder instead of depending on
+    // an untracked .env that only some checkouts have.
+    env: { VITE_WORKER_URL: 'https://e2e-worker.test' },
   },
 });
