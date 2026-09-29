@@ -27,6 +27,25 @@ import { expect, type Page, type Route } from '@playwright/test';
  *     which is the only place that check can honestly live.
  */
 
+/**
+ * What "the learner is audible" means to this harness.
+ *
+ * The app decides "the learner spoke" when its smoothed RMS crosses
+ * `VOICE_ACTIVITY_THRESHOLD` (0.11, `src/lib/audio/useMicLevel.ts`). `AUDIBLE_RMS`
+ * is the same signal measured one node earlier in the same graph, so it is
+ * deliberately in the same order of magnitude rather than an exact copy.
+ * `SPEECH_HOLD_MS` mirrors the app's own `MIN_RECORDING_MS` (400 ms) — the floor
+ * below which the app refuses to send a recording at all — and
+ * `SPEECH_CEILING_MS` bounds the wait so a stream that never becomes audible
+ * cannot hang a test.
+ */
+const AUDIBLE_RMS = 0.05;
+const SPEECH_HOLD_MS = 400;
+const SPEECH_CEILING_MS = 1500;
+
+/** The orb's accessible name while the app is recording. */
+const RECORDING_ACTION = /إيقاف التسجيل/;
+
 export interface ScriptedTurn {
   reply_de: string;
   reply_ar: string;
@@ -369,7 +388,10 @@ export async function installVoiceStub(
   { native = true, interimHoldMs = 250, deny = false }: { native?: boolean; interimHoldMs?: number; deny?: boolean } = {},
 ): Promise<void> {
   await page.addInitScript(
-    ({ installNative, holdMs, denyPermission }) => {
+    // Constants that `speak()` needs are passed in, not read from this module:
+    // `page.evaluate` serialises the function and runs it in the page, where
+    // module scope does not exist.
+    ({ installNative, holdMs, denyPermission, audibleRms, speechHoldMs, speechCeilingMs }) => {
     type Scope = Record<string, unknown>;
     const scope = window as unknown as Scope;
     const bridge = (scope.__katzuE2E as Record<string, unknown>) || {};
@@ -488,14 +510,22 @@ export async function installVoiceStub(
 
     let gain: GainNode | null = null;
     let stream: MediaStream | null = null;
+    let probe: AnalyserNode | null = null;
 
     /** Built on first use: an AudioContext needs the learner's tap behind it. */
     const ensureVoice = () => {
-      if (gain && stream) return;
+      if (gain && stream && probe) return;
       const Ctor =
         window.AudioContext ||
         (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       const context = new Ctor();
+      // This suite launches with `--autoplay-policy=no-user-gesture-required`, so the
+      // context is normally already running; resuming is still correct and harmless.
+      try {
+        void context.resume();
+      } catch {
+        /* an engine without `resume` is still usable */
+      }
       const destination = context.createMediaStreamDestination();
       const node = context.createGain();
       node.gain.value = 0;
@@ -503,9 +533,15 @@ export async function installVoiceStub(
       oscillator.frequency.value = 220;
       oscillator.connect(node);
       node.connect(destination);
+      // Tapped after the gain node, so `speak()` below measures exactly what leaves
+      // for the app's own analyser on the same stream.
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      node.connect(analyser);
       oscillator.start();
       gain = node;
       stream = destination.stream;
+      probe = analyser;
     };
 
     const mediaDevices = navigator.mediaDevices as MediaDevices;
@@ -521,22 +557,38 @@ export async function installVoiceStub(
       if (denyPermission) return Promise.resolve();
       ensureVoice();
       if (gain) gain.gain.value = 0.6;
-      // Held open for a few frames before `say()` returns. A learner who speaks a
-      // sentence does so over hundreds of milliseconds, and the app samples the
-      // microphone on `requestAnimationFrame` (the orb's amplitude and the
-      // endpointing are the same analyser). A stub that raised the level and
-      // dropped it again inside one frame could hand the app *zero* frames of
-      // speech, which is not a learner talking and must not be asserted as one:
-      // measured on this sandbox, that produced the app's honest "we heard no
-      // clear sentence" state on the practice screen while the identical
-      // sequence passed in the conversation (the difference was the extra waits
-      // before `say()`, not the app).
+      // Hold the level until the speech is *measurably* audible, never for a fixed
+      // number of frames. Six frames was a race: on a loaded runner the app's rAF
+      // loop can miss the window, the app then takes its honest `no_speech` path
+      // (`NO_SPEECH_MS`, 7 s), never asks the worker to transcribe, and the turn
+      // never lands — measured on 2026-09-29 as roughly one preview run in three,
+      // presenting as a stalled composer rather than as a missing transcript. The
+      // app samples the same scripted stream, so this analyser reads the signal the
+      // app's endpointing reads; the condition is energy above `AUDIBLE_RMS`
+      // sustained for `SPEECH_HOLD_MS`, which mirrors the app's own
+      // `MIN_RECORDING_MS` floor below which it refuses to send a recording at all.
+      const analyser = probe;
+      if (!analyser) return Promise.resolve();
       return new Promise<void>((resolve) => {
-        let frames = 0;
+        const buffer = new Float32Array(analyser.fftSize);
+        const startedAt = performance.now();
+        let audibleSince = 0;
         const tick = () => {
-          frames += 1;
-          if (frames >= 6) resolve();
-          else requestAnimationFrame(tick);
+          analyser.getFloatTimeDomainData(buffer);
+          let sum = 0;
+          for (let index = 0; index < buffer.length; index += 1) sum += buffer[index] * buffer[index];
+          const rms = Math.sqrt(sum / buffer.length);
+          const now = performance.now();
+          audibleSince = rms > audibleRms ? audibleSince || now : 0;
+          const heldLongEnough = audibleSince !== 0 && now - audibleSince >= speechHoldMs;
+          // Bounded both ways: the ceiling keeps a stream that never becomes
+          // audible from hanging a test, and it still holds the level an order of
+          // magnitude longer than the frame count it replaces.
+          if (heldLongEnough || now - startedAt >= speechCeilingMs) {
+            resolve();
+            return;
+          }
+          requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
       });
@@ -582,7 +634,14 @@ export async function installVoiceStub(
 
     (window as unknown as { MediaRecorder: unknown }).MediaRecorder = ScriptedRecorder;
     },
-    { installNative: native, holdMs: interimHoldMs, denyPermission: deny },
+    {
+      installNative: native,
+      holdMs: interimHoldMs,
+      denyPermission: deny,
+      audibleRms: AUDIBLE_RMS,
+      speechHoldMs: SPEECH_HOLD_MS,
+      speechCeilingMs: SPEECH_CEILING_MS,
+    },
   );
 }
 
@@ -606,10 +665,21 @@ export async function say(page: Page, text: string): Promise<void> {
   );
 }
 
-/** The learner stops talking; the app's own endpointing ends the recording. */
+/**
+ * The learner stops talking. The app's own endpointing ends the recording about
+ * `SILENCE_END_MS` (1.2 s) later and then transcribes.
+ *
+ * This waits for the screen to leave the recording state before returning, so a
+ * caller asserts on a settled screen instead of racing that gap. It also turns the
+ * failure into something legible: before, a turn that never landed surfaced as a
+ * 15 s timeout on the composer with no clue which stage stalled.
+ */
 export async function silence(page: Page): Promise<void> {
   await page.evaluate(() => {
     (window as unknown as { __katzuE2E?: { silence?: () => void } }).__katzuE2E?.silence?.();
+  });
+  await expect(page.getByRole('button', { name: RECORDING_ACTION })).toHaveCount(0, {
+    timeout: 10_000,
   });
 }
 
