@@ -88,6 +88,8 @@ elsewhere, four new V10 entries.
 
 2026-09-29 | The V19 hint-floor matcher's first cut ranked "Guten Tag. Hier ist mein Pass." first for the question "Wo ist mein Koffer?" — it shared two tokens with the question | Both tokens were junk: the greeting "Guten Tag" and the possessive "mein". Lexical overlap without a stopword class for greetings/politeness and pronoun/possessive forms ranks the *register* of a sentence, not its subject | When ranking by shared words, exclude register words (greetings, politeness) and pronouns/possessives from the content-word set — otherwise the most formulaic phrase in the pool wins every rank. The unit suite caught this before commit because the mismatch case was pinned verbatim.
 
+2026-09-29 | The "~65 kB (42 %) of the entry chunk unused on first paint" backlog item — carried since V9-10 and re-ranked in every NEXT since — measured at **0 % unused** when finally probed (CDP precise coverage, landing route, 3 s settle) | Route-level code splitting was added incrementally (V10's `/trust/:page` move onward), and each addition shrank the gap without anyone re-running the original measurement; the number fossilised in the ledger's NEXT block and kept directing work | Re-measure a performance claim before acting on it: stale metrics outrank fresh guesses precisely because they look authoritative. Cost: one probe. Also: prefer recording a metric with its measurement date, so the next run can see it is old enough to doubt.
+
 ## Pruned (encoded elsewhere — kept here only as a pointer)
 
 - `npx vitest run --reporter=line` fails: `line` is a Playwright reporter. Now stated in `AGENTS.md` §5 (`--reporter=line` is Playwright-only; use `dot` or the default for Vitest).
