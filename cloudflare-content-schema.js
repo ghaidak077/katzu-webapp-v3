@@ -127,7 +127,8 @@ export const CONTENT_TYPES = Object.keys(DB_SCHEMA);
  * Columns added to a table *after* it was first created.
  *
  * The content tables were created outside this repo (dashboard / wrangler), so
- * there is no migration file to add a line to. Adding a column is the one schema
+ * so `migrations/0001_content_tables.sql` documents them for the owner and this
+ * list is the executable copy. Adding a column is the one schema
  * change that is safe to apply from a running worker — SQLite stores it as
  * metadata, existing rows get NULL, and nothing is rewritten — so the worker
  * reconciles these on its first request and every later one is a no-op. This is
@@ -135,6 +136,21 @@ export const CONTENT_TYPES = Object.keys(DB_SCHEMA);
  */
 const ADDITIVE_COLUMNS = {
   scenarios: [{ name: "banner_url", type: "TEXT" }],
+  // Added after the V12 content load failed with `D1_ERROR: table grammar has no
+  // column named rule_de` (docs/AGENT-STATE.md V12-2). The deployed `grammar`
+  // table still carried the pre-`rule_de` shape, so every grammar write was
+  // rejected — the loader's batch first, but the content studio's create and edit
+  // forms just as well. These three entries are what makes a deployment heal
+  // itself: the next request after a deploy adds them, and a database where the
+  // owner has already run the `ALTER TABLE`s answers "duplicate column name",
+  // which the loop below treats as the steady state. The invariant that would
+  // have caught this — every `DB_SCHEMA` column is in the deployed DDL or in this
+  // list — is asserted in tests/contentSchema.test.ts.
+  grammar: [
+    { name: "rule_de", type: "TEXT" },
+    { name: "rule_ar", type: "TEXT" },
+    { name: "example_ar", type: "TEXT" },
+  ],
 };
 
 let columnsEnsured = null;

@@ -20,6 +20,8 @@ node scripts/load-curriculum.mjs --file=docs/content/curriculum-30day-module1.js
 
 Redirect each run's output to a temp log, check that log for `Bearer`/`Authorization` before showing anything, and print only the count lines. Never show output containing the secret.
 
+The loader now reads one real row of each table first and **refuses to write anything** when the draft needs a column the deployment does not have (V12's `grammar.rule_de`, see `docs/AGENT-STATE.md` V13-1). A refusal exits non-zero and writes nothing, so it is not a mismatch to roll back — it is a schema to fix (owner action; `migrations/0001_content_tables.sql`). Its closing summary lists every batch, and any batch that did not answer 200 makes the whole run exit non-zero.
+
 ## Verify
 Row counts equal the dry-run expectation. Old rows unchanged (counts + 3 sampled rows compared against the backup). Production `/scenarios`, `/vocabulary` and `/grammar` return the new rows. The demo e2e spec passes against production.
 

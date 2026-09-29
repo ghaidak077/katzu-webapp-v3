@@ -311,11 +311,20 @@ talk to a Worker that does not yet have the routes it expects.
    fixture (see `docs/AGENT-STATE.md` OWNER-OPEN).
 
 ### 6.2 Database
-There is **no migrations directory and no migrate script**. The Worker creates and
+There is **no migration runner and no migrate script**. The Worker creates and
 extends its own tables idempotently on the first request (`ensureLedgerTables`,
 `sync_revisions`, `rate_limit_counters`, the admin registry's `error_reports`, and
 the additive content columns through `ensureContentColumns`). Nothing is applied to
 D1 by hand, and a deploy that adds a table creates it on the next request.
+
+`migrations/` exists as **documentation only** — nothing executes it. Its
+`0001_content_tables.sql` records the *content* tables (which the Worker does not
+manage): the DDL the deployed database has, the three `grammar` columns it was
+missing, and the `ALTER TABLE` statements for a deployment that lags the code
+(`tests/contentSchema.test.ts` asserts every column the content studio advertises is
+either in the recorded DDL or in `ADDITIVE_COLUMNS`). Anyone editing content should
+still read `docs/agent/CONTENT-LOAD.md` first; since V13-1 the loader refuses to
+write anything at all while the deployment's columns and the draft's disagree.
 
 Retention is enforced by `sweepExpiredRows` — `POST /admin/sweep` with the admin
 secret runs it on demand, and the Worker also exposes a `scheduled` handler that
