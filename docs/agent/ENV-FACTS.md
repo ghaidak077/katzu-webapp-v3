@@ -84,6 +84,10 @@ Parallelism: FACT: **batched tool calls run sequentially, not concurrently** —
 | **ripgrep (`rg`)** | **NOT INSTALLED** | `rg --version` → `command not found` → use `grep` / `git grep -n` |
 | `node_modules` | present | `test -d node_modules` |
 | `npm ci --dry-run` | "up to date in 1s" (with an `EBADENGINE` warning) | `npm ci --dry-run` |
+| `engines.node` (declared in V17) | **`^22.22.2 \|\| ^24.15.0 \|\| >=26.0.0`** — the intersection of the dependency floors | `node -p "require('./package.json').engines"`; jsdom 30.1.1 declares exactly this, vitest 5.0.1 `^22.12.0 \|\| ^24.0.0 \|\| >=26.0.0`, lighthouse 13.5.0 `>=22.19`, wrangler 4.136.3 `>=22` |
+| **CI Node pin** | **`24.15.0`** in both jobs — the lowest version satisfying `engines.node`, i.e. CI proves the minimum supported environment | `.github/workflows/ci.yml`; checked by `tests/ciWorkflow.test.ts` |
+| **This machine is one patch below that floor** — Node 24.14.0, so `npm ci` reports `EBADENGINE Unsupported engine { package: 'katzu-web@1.1.0', required: { node: '^22.22.2 \|\| ^24.15.0 \|\| >=26.0.0' }, current: { node: 'v24.14.0' } }` | the suite is green on 24.14.0 anyway (74 files / 891 tests, V17), so this is a declaration-vs-machine gap, not a failure | `npm ci` in a fresh clone; fix is an owner action — install Node 24.15.0+ (or 22.22.2+) |
+| **TypeScript imports need default type stripping** | `scripts/audit-curriculum.mjs:13` and `scripts/load-curriculum.mjs` do `from '../src/lib/content/curriculumAudit.ts'` — Node **22.18+ / 23+**, or `ERR_UNKNOWN_FILE_EXTENSION` | `node --version`; enforced by `tests/ciWorkflow.test.ts` (`TYPE_STRIPPING_FLOOR`) |
 
 Playwright browsers installed in `%LOCALAPPDATA%/ms-playwright`: `chromium-1243`, `chromium_headless_shell-1243`, `ffmpeg-1011`, `winldd-1007`. **Chromium only** — no firefox, no webkit, and the Playwright config declares a single `chromium` project.
 
@@ -165,12 +169,57 @@ Top 5 chunks by size: `index` 492 K · `LiveConversationScreen` 96 K · `Journey
 - **Key dirs** — `src/features/*` (auth, coach, conversation, demo, dev, journey, listening, marketing, onboarding, placement, practice, progress, quiz, report, review, settings, study, trail, writing); `src/components`; `src/lib`; `src/types`.
 - **Worker** — `cloudflare-unified-worker.js` (main), plus 15 sibling `cloudflare-*.js` modules (ai-router, ai-chat, admin, analytics, content-studio*, crypto, hints, stt, writing, content-schema).
 - **DB layer** — `src/lib/db/katzuDb.ts` (Dexie/IndexedDB offline fixtures + seeding); server side is D1 (`DB`) + KV (`USER_PROGRESS`, `REDEEMED_CODES`) per `wrangler.toml`.
-- **Tests** — `tests/` (67 Vitest files), `e2e/` (10 Playwright specs + `harness.ts`).
+- **Tests** — `tests/` (**74** Vitest files, 891 tests as of V17), `e2e/` (10 Playwright specs + `harness.ts`; 37 tests).
 - **Scripts** — `scripts/`: `audit-curriculum.mjs`, `audit-quiz-content.mjs`, `load-curriculum.mjs`, `backfill-user-registry.mjs`, `smoke-token-hygiene.cjs`, `verification-battery.cjs`, `verify-{admin,crypto,stt}-live.mjs`, `capture-admin-screenshots.mjs`, `fix-quiz-content.mjs`, `fixtures/`.
 - **`package.json` scripts** — `dev` (vite :3000) · `build` (tsc + vite) · `preview` (vite preview) · `test` (vitest run) · `test:e2e` (playwright) · `test:e2e:types` (tsc -p e2e) · `lint` (tsc --noEmit) · `deploy:worker` (wrangler deploy — **never run**) · `tail:worker` · `test:smoke:token-hygiene`.
-- **CI** — `.github/workflows/ci.yml` only.
+- **CI** — `.github/workflows/ci.yml` only: jobs `verify` (Node **24.15.0**), `e2e` (`needs: verify`, same Node) and `secret-scan`. The Node pin is not cosmetic: it ran on 20 from the project's start, which made every run red from 2026-09-28 to V17 while every local run was green (see §H).
 - **Docs present** — `docs/AGENT-STATE.md` (ledger), `LAUNCH-CHECKLIST.md`, `CONTENT-AUTHORING-PROMPT.md`, `CONTENT-STRATEGY-ROADMAP.md`, `CURRICULUM-DRAFT.md`, `IMPLEMENTATION_PLAN.md`, `LEARNING-ROADMAP.md`, `PRODUCT-SPEC.md`, `current-state.md`, `launch-gate.md`, `pass-quiz-training-hints.md`, `product-gaps.md`, `security-gaps.md`, `verification-report.md`, `docs/content/`, `docs/screenshots/`.
 - **Docs missing?** FACT none — every file the manual names (v6 §4 → now `docs/agent/CONTENT-GATE.md`; v6 §5 → now v7 §1/§8) exists (`docs/AGENT-STATE.md`, `LAUNCH-CHECKLIST.md`, `CONTENT-AUTHORING-PROMPT.md`, `CONTENT-STRATEGY-ROADMAP.md`, `src/lib/utils/scenarioVocab.ts`, `src/lib/content/scenarioGrammar.ts`, `src/lib/db/katzuDb.ts`). `docs/agent/` did not exist before this recon; it is created by this commit.
+
+---
+
+## H. Reproducing CI in a fresh LF clone (optional T2 step, added in V17)
+
+The verifier or agent who has only ever seen a green local run has not seen CI. This checkout is CRLF (`core.autocrlf=true`, §B) and carries `node_modules`, so it hides two whole classes of failure: line endings, and a Node version that only *this* machine has. The commands below were run in V17 and produce the workflow's `verify` result on a clean tree, in the OS temp dir, without touching the repository.
+
+```bash
+# Everything below is run from the workspace root; the repo is in ./katzu
+cd katzu
+
+# --- fresh Linux-like clone: LF checkout, clean install, into the OS temp dir ---------
+# `core.autocrlf=input` is what makes the clone LF like the runner's checkout;
+# --depth 1 is enough for the checks (add --branch main to test what main serves).
+CLONE=/tmp/katzu-fresh-lf
+rm -rf "$CLONE"
+git clone --quiet --depth 1 --branch main --config core.autocrlf=input \
+  https://github.com/ghaidak077/katzu-webapp-v3.git "$CLONE"
+cd "$CLONE"
+
+# Proof the clone really is LF and really is the commit you think it is.
+git rev-parse --short HEAD
+printf 'CR bytes: %s\n' "$(tr -cd '\r' < scripts/load-curriculum.mjs | wc -c)"   # → 0
+
+# Is this machine even allowed to run the repo? (engines.node, measured in V17)
+node -p "require('./package.json').engines"
+node -v                    # 24.14.0 here → an EBADENGINE warning, but green
+
+# The workflow's install + verify steps, verbatim.
+npm ci --no-audit --no-fund
+npm run lint               # == npx tsc --noEmit
+node --check cloudflare-unified-worker.js
+npm test                   # → Test Files 74 passed (74) / Tests 891 passed (891)
+node scripts/audit-curriculum.mjs   # → PASSED — 3 file(s) checked
+node scripts/audit-quiz-content.mjs
+
+# The e2e job only if you need it (builds, then 37 chromium tests):
+npx playwright install --with-deps chromium   # first time on this machine only
+npm run build && npx playwright test --project=chromium
+
+# Cleanup (the clone is ~600 MB with node_modules):
+rm -rf "$CLONE"
+```
+
+Measured in V17 on `616e273`, Node 24.14.0, npm 11.9.0: clone 0 CR bytes in `scripts/load-curriculum.mjs` and in `.github/workflows/ci.yml`; `npm ci` → **620 packages in 33 s**, one `EBADENGINE` warning about this repo's own `engines.node`; `npm run lint` OK; `node --check` OK; **74 files / 891 tests passed**; both audits pass. The same steps are what run in CI — with Node **24.15.0** there, so an `EBADENGINE` warning here is the *only* expected difference.
 
 ---
 
