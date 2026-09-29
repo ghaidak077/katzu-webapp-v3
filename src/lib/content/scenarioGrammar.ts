@@ -27,9 +27,15 @@ export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
   bakery_shopping: ['g_moechte_haette_gern_a1'],
   landlord_followup: ['g_koennten_hoefflich_a2', 'g_weil_nebensatz_a2'],
   friend_catchup: ['g_moechte_haette_gern_a1', 'g_weil_nebensatz_a2'],
-  // Offline fixtures (src/lib/db/katzuDb.ts)
+  // Offline fixtures (src/lib/db/katzuDb.ts). The four rows they point at live in
+  // docs/content/supplements/grammar-basics.json so production D1 has them too;
+  // tests/grammarReachability.test.ts asserts the two copies are identical and
+  // that no grammar row ships without a scenario pointing at it.
   cafe_order: ['g_polite_requests_a1', 'g_modal_moechte'],
   doctor_visit: ['g_polite_requests_a1'],
   apartment_viewing: ['g_articles_a1'],
   job_interview: ['g_verb_position_a1'],
+  // Live in D1 but not in the offline fixture, so Guided Practice had no rule to
+  // teach for it. Added in V14 against the same supplement row it can share.
+  embassy_appointment: ['g_polite_requests_a1'],
 };

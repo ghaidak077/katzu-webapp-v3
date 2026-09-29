@@ -379,7 +379,7 @@ export async function initializeDatabaseSeed(): Promise<void> {
       {
         id: 'g_polite_requests_a1',
         title_ar: 'الطلب والاستفسار بأدب (können)',
-        rule_de: 'Können Sie ...? is a polite question; the infinitive stands at the end.',
+        rule_de: 'Können Sie ...? ist eine höfliche Frage; der Infinitiv steht am Ende.',
         rule_ar: 'للسؤال أو الطلب بأدب استخدم Können Sie ...? ويأتي الفعل في المصدر في نهاية الجملة.',
         level: 'A1',
         explanation_ar: 'تساعد هذه الصيغة على طلب المساعدة أو الاستفسار من موظف أو بائع. مثال: Können Sie mir helfen?',

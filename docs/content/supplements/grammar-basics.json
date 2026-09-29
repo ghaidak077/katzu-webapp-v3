@@ -1,0 +1,64 @@
+{
+  "_note": "Grammar supplement, not a module. It carries the four g_* rows that SCENARIO_GRAMMAR_IDS already points at for the five scenarios that shipped before the drafted modules (apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview): g_polite_requests_a1, g_articles_a1, g_verb_position_a1, g_modal_moechte. Those rows exist in the offline fixture (src/lib/db/katzuDb.ts) and, since V14, the AI grammar reference in production resolves them from D1 (resolvePracticeGrammar) — but until this file is put into D1, production has no row for them, so Guided Practice has no rule to teach for the original five. The rows are byte-identical to the fixture (see tests/grammarReachability.test.ts), so there is no second copy to drift. IT SITS IN A SUBDIRECTORY ON PURPOSE: scripts/audit-curriculum.mjs scans docs/content/*.json and the Content Gate (docs/agent/CONTENT-GATE.md) requires every draft it sees to be a 5–8 scenario module with 15+ vocabulary per topic pool and 6–10 phrases per scenario. A four-row grammar supplement cannot satisfy that shape and the gate is owner-owned, so this file is deliberately outside the audited glob and is gated instead by tests/grammarReachability.test.ts, which enforces the same column contract (CONTENT_COLUMNS.grammar) plus reachability. Loading it needs an owner decision: either a supplement shape in the gate, or the content studio's single-row grammar form.",
+  "meta": {
+    "track": "grammar",
+    "moduleTitleAr": "قواعد المشاهد الأساسية",
+    "primaryLevel": "A1",
+    "version": "1.0",
+    "designedFor": "The five original scenarios (apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview) and the four grammar rows their SCENARIO_GRAMMAR_IDS entries name."
+  },
+  "review": {
+    "status": "approved",
+    "reviewedBy": "AI self-review — Freebuff coding agent, no human review",
+    "reviewedAt": "2026-09-29T10:40:00Z",
+    "checklist": [
+      "Every row carries all eight D1 grammar columns (CONTENT_COLUMNS.grammar)",
+      "Every row's id is referenced by SCENARIO_GRAMMAR_IDS, so loading it teaches something",
+      "Every row is identical to its offline fixture row, so D1 and the app cannot drift",
+      "rule_de is German, rule_ar/explanation_ar/example_ar are Arabic, example_de is German",
+      "Levels match the fixture and the scenarios that read them"
+    ]
+  },
+  "grammar": [
+    {
+      "id": "g_polite_requests_a1",
+      "title_ar": "الطلب والاستفسار بأدب (können)",
+      "rule_de": "Können Sie ...? ist eine höfliche Frage; der Infinitiv steht am Ende.",
+      "rule_ar": "للسؤال أو الطلب بأدب استخدم Können Sie ...? ويأتي الفعل في المصدر في نهاية الجملة.",
+      "level": "A1",
+      "explanation_ar": "تساعد هذه الصيغة على طلب المساعدة أو الاستفسار من موظف أو بائع. مثال: Können Sie mir helfen?",
+      "example_de": "Können Sie mir bitte helfen?",
+      "example_ar": "هل يمكنك مساعدتي من فضلك؟"
+    },
+    {
+      "id": "g_articles_a1",
+      "title_ar": "أدوات التعريف والتنكير (der, die, das)",
+      "rule_de": "Bestimmte Artikel: der (maskulin), die (feminin), das (neutral).",
+      "rule_ar": "في الألمانية لكل اسم جنس محدد يجب حفظه مع الكلمة: der للمذكر، die للمؤنث، das للمحايد.",
+      "level": "A1",
+      "explanation_ar": "الألوان في كَاتْزُو تميز الجنس دائماً: الأزرق للمذكر، الوردي للمؤنث، والأخضر للمحايد.",
+      "example_de": "Der Kaffee ist lecker. Die Milch ist frisch. Das Wasser ist kalt.",
+      "example_ar": "القهوة لذيذة. الحليب طازج. الماء بارد."
+    },
+    {
+      "id": "g_verb_position_a1",
+      "title_ar": "موقع الفعل في الجملة الرئيسية (Verbposition 2)",
+      "rule_de": "Das finite Verb steht im Aussagesatz immer an Position 2.",
+      "rule_ar": "الفعل المصرف يأتي دائماً في المركز الثاني في الجملة الخبرية العادية.",
+      "level": "A1",
+      "explanation_ar": "مهما كان العنصر الأول (فاعل أو زمان أو مكان)، الفعل دائماً في المركز الثاني.",
+      "example_de": "Heute trinke ich einen Tee. / Ich trinke heute einen Tee.",
+      "example_ar": "اليوم أشرب شاياً. / أنا أشرب اليوم شاياً."
+    },
+    {
+      "id": "g_modal_moechte",
+      "title_ar": "صيغة الطلب المؤدب (möchte)",
+      "rule_de": "Ich möchte + Akkusativ-Objekt / Infinitiv am Ende.",
+      "rule_ar": "استخدم möchte للطلب بأدب بدلاً من will غير اللبقة في المطاعم والمقاهي.",
+      "level": "A1",
+      "explanation_ar": "تتبع باسم منصوب (Ich möchte einen Kaffee) أو بفعل في المصدر في نهاية الجملة.",
+      "example_de": "Ich möchte bitte bezahlen.",
+      "example_ar": "أود أن أدفع من فضلك."
+    }
+  ]
+}
