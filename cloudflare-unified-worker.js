@@ -1095,47 +1095,26 @@ async function handlePublicHealth(env, cors) {
     internal = {};
   }
 
-  const fallback = internal?.aiFallback || {};
   const poolHealth = getPoolHealth({ env });
 
-  return json({
-    status: internal?.status || "healthy",
-    service: internal?.service || "Katzu Unified Worker + Multi-Provider AI Pool",
-    // A boolean only: never how many keys exist, only whether the AI engine can
-    // serve at all (a usable pool entry, or the Workers AI binding attached).
-    ready: internal?.ready === true || poolHealth.active.length > 0,
-    primaryWorkingModel: internal?.primaryWorkingModel || "auto-pinning on first call",
-    // Cache counts come from the shared KV-backed cache; the internal report
-    // still describes the legacy per-isolate Maps, which are always cold.
-    cachedTranslationsCount: poolHealth.cache.translations,
-    cachedHintsCount: poolHealth.cache.hints,
-    strategy: "multi-provider pool + measured-latency ordering + terminal day-quota ledger + KV cache + Workers AI fallback",
-    // Which entries can serve right now, which are idle, and which are parked
-    // for their window. Never a key, a key count, or a key fragment: ledger
-    // entries are non-reversible fingerprints and are not projected here.
-    aiPool: {
-      entries: poolHealth.entries,
-      tiers: poolHealth.tiers,
-      active: poolHealth.active,
-      idle: poolHealth.idle,
-      exhausted: poolHealth.exhausted,
-      attempts: poolHealth.attempts,
-      // What the interactive routes order their walk by. Public-safe: a model
-      // name and an average millisecond figure, never a key or a prompt.
-      latency: latencySnapshot(),
+  // Public projection: status only. Which providers exist, how many pool entries
+  // there are, which model is pinned, cache counts and latency figures are
+  // operator information — they stay in the internal report behind the admin
+  // routes. An unauthenticated endpoint answers "is it up", and describes the
+  // private key pool in no way at all, not even its size.
+  return json(
+    {
+      status: internal?.status || "healthy",
+      service: "Katzu Unified Worker",
+      // A boolean only: never how many keys exist, only whether the AI engine can
+      // serve at all (a usable pool entry, or the Workers AI binding attached).
+      ready: internal?.ready === true || poolHealth.active.length > 0,
+      // Operational state a monitoring check should be able to see.
+      maintenance: isMaintenanceMode(env),
     },
-    aiFallback: {
-      enabled: fallback.enabled === true,
-      bindingPresent: fallback.bindingPresent === true,
-      model: fallback.model || null,
-      requests: fallback.requests ?? 0,
-      served: fallback.served ?? 0,
-      failures: fallback.failures ?? 0,
-      lastUsedAt: fallback.lastUsedAt ?? null,
-      lastProvider: fallback.lastProvider ?? null,
-      countersSource: fallback.countersSource || "in-memory",
-    },
-  }, 200, cors);
+    200,
+    cors,
+  );
 }
 
 // ----------------------------------------------------------------------------
@@ -1247,6 +1226,52 @@ async function withHonestSessionStatus(pending, cors) {
   );
 }
 
+/**
+ * Operator kill switch. `MAINTENANCE_MODE` freezes every learner write at the
+ * edge while reads (health, content, a learner's own library) keep working, so
+ * the app degrades to read-only instead of failing at random. It is a Worker
+ * variable on purpose: stopping writes must never depend on shipping a new
+ * client build, and no request has to reach a handler to be refused.
+ */
+const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function isMaintenanceMode(env) {
+  const flag = String(env?.MAINTENANCE_MODE ?? "").trim().toLowerCase();
+  return flag === "1" || flag === "true" || flag === "on" || flag === "yes";
+}
+
+/** Retention windows for the tables D1 cannot expire by itself. */
+export const RATE_LIMIT_RETENTION_MS = 24 * 3600 * 1000;
+export const ERROR_REPORT_RETENTION_MS = 30 * 24 * 3600 * 1000;
+
+/**
+ * D1 has no TTL, so two append-only tables grow forever: rate-limit windows that
+ * can never matter again, and error reports nobody will read after a month.
+ * Rows go in bounded statements, and a failing table is reported as a failure
+ * instead of thrown — a cleanup that can 500 the Worker is worse than a table
+ * that is a little too big. The window starts at the age of the row, not at the
+ * size of the table, so a quiet deploy never deletes anything young.
+ */
+export async function sweepExpiredRows(env, now = Date.now()) {
+  if (!env?.DB) return { skipped: "db_unbound" };
+  const jobs = [
+    ["rate_limit_counters", "DELETE FROM rate_limit_counters WHERE window_start < ?", now - RATE_LIMIT_RETENTION_MS],
+    ["error_reports", "DELETE FROM error_reports WHERE created_at < ?", now - ERROR_REPORT_RETENTION_MS],
+  ];
+  const removed = {};
+  for (const [table, sql, cutoff] of jobs) {
+    try {
+      const result = await env.DB.prepare(sql).bind(cutoff).run();
+      removed[table] = Number(result?.meta?.changes ?? 0);
+    } catch {
+      // Deliberately no message: a D1 error can name tables and columns, and
+      // this value is returned over the admin API.
+      removed[table] = -1;
+    }
+  }
+  return removed;
+}
+
 export default {
   async fetch(request, env) {
     // Security: TEST_MODE short-circuits Google JWT verification in
@@ -1290,6 +1315,27 @@ export default {
         },
         413,
         cors
+      );
+    }
+
+    // Kill switch before any handler: while MAINTENANCE_MODE is on, no learner
+    // write runs — no AI spend, no sync commit, no code redemption. Reads still
+    // work, so the app stays readable rather than appearing broken. /admin/* is
+    // exempt so an operator can still sweep, revoke or export during an incident.
+    if (
+      isMaintenanceMode(env) &&
+      WRITE_METHODS.has(request.method) &&
+      !url.pathname.startsWith("/admin")
+    ) {
+      return json(
+        {
+          error: "maintenance",
+          code: "MAINTENANCE_MODE",
+          message:
+            "Katzu في وضع الصيانة الآن. ما تعلّمته محفوظ على جهازك، ويمكنك القراءة والمراجعة، أما الحفظ والمحادثة فمعطّلان مؤقتاً. جرّب بعد قليل.",
+        },
+        503,
+        { ...cors, "Retry-After": "300" },
       );
     }
 
@@ -1390,6 +1436,24 @@ export default {
           );
         }
       }
+      // Operator sweep: D1 has no TTL, so the retention windows are enforced on
+      // demand here, and from the scheduled handler once a cron trigger exists.
+      if (url.pathname === "/admin/sweep" && request.method === "POST") {
+        const throttle = await isAdminThrottled(request, env);
+        if (throttle.throttled) {
+          return adminJson(
+            { error: "too_many_attempts" },
+            429,
+            cors,
+            { "Retry-After": String(throttle.retryAfter) },
+          );
+        }
+        if (!(await isAdminAuthorized(request, env))) {
+          return adminJson({ error: "unauthorized" }, 401, cors);
+        }
+        return adminJson({ swept: await sweepExpiredRows(env) }, 200, cors);
+      }
+
       const adminResponse = await handleAdminRoutes(url, request, env, cors);
       if (adminResponse) return adminResponse;
 
@@ -1518,6 +1582,15 @@ export default {
       await recordError(env, null, "server_error", url.pathname, err);
       return json({ error: "server_error" }, 500, cors);
     }
+  },
+
+  /**
+   * Retention sweep. Inert until a cron trigger is configured for this Worker;
+   * until then POST /admin/sweep does the same job on demand.
+   */
+  async scheduled(_event, env) {
+    const swept = await sweepExpiredRows(env);
+    console.log("[sweep]", JSON.stringify(swept));
   },
 };
 

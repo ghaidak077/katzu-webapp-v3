@@ -109,3 +109,54 @@ describe('GET /health privacy', () => {
     expect(body).not.toHaveProperty('keysConfigured');
   });
 });
+
+/**
+ * RC-4: /health answers "is it up" and nothing else. The pool report it used to
+ * carry described the private key pool to anyone who asked — how many entries it
+ * has, which providers and models are configured, cache counts and latency
+ * figures. That is operator information and it now lives behind the admin routes.
+ */
+describe('GET /health is status only (RC-4)', () => {
+  const DETAIL_FIELDS = [
+    'aiPool',
+    'aiFallback',
+    'cachedTranslationsCount',
+    'cachedHintsCount',
+    'primaryWorkingModel',
+    'strategy',
+    'latency',
+    'entries',
+    'tiers',
+  ];
+
+  it('carries no pool, provider, model, cache or latency detail', async () => {
+    const { body, text } = await getHealth('/health', {
+      GEMINI_API_KEYS: 'AIzaKeyOne0000000000000000000000000,AIzaKeyTwo0000000000000000000000000',
+      AI: {},
+      GROQ_API_KEYS: 'gsk_first_key_000000000000000000000000',
+    });
+
+    for (const field of DETAIL_FIELDS) {
+      expect(body).not.toHaveProperty(field);
+    }
+    // Nothing about the pool's shape, not even its size.
+    expect(text).not.toMatch(/groq|gemini|qwen|whisper|workers ai/i);
+    // A status document stays small; a report does not.
+    expect(text.length).toBeLessThan(400);
+  });
+
+  it('reports the kill switch as a status flag', async () => {
+    const on = await getHealth('/health', { MAINTENANCE_MODE: 'on' });
+    expect(on.body?.maintenance).toBe(true);
+
+    const off = await getHealth('/health', {});
+    expect(off.body?.maintenance).toBe(false);
+  });
+
+  it('trims the /ai/health alias to the same projection', async () => {
+    const { body } = await getHealth('/ai/health', { AI: {} });
+    for (const field of DETAIL_FIELDS) {
+      expect(body).not.toHaveProperty(field);
+    }
+  });
+});

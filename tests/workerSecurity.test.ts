@@ -1,10 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import worker, {
+  ERROR_REPORT_RETENTION_MS,
+  RATE_LIMIT_RETENTION_MS,
   checkRateLimit,
   checkUserEntitlement,
   consumeTrialQuota,
   getCorsHeaders,
+  sweepExpiredRows,
   verifyGoogleIdToken,
 } from '../cloudflare-unified-worker';
 
@@ -558,5 +561,140 @@ describe('Worker security controls', () => {
       expect(html).toContain('data-action="showTab"');
       expect(html).toContain('addEventListener');
     });
+  });
+});
+
+/**
+ * RC-4: the two operational controls. The kill switch has to stop learner writes
+ * without stopping reads (an app that answers nothing looks broken, and a learner
+ * cannot even read the Arabic message that explains why), it has to be off unless
+ * an operator turned it on, and the sweep has to be reachable only through the
+ * admin secret while never turning a storage error into a 500.
+ */
+describe('maintenance kill switch and retention sweep (RC-4)', () => {
+  const openEnv = (extra: Record<string, unknown> = {}) => ({
+    ENVIRONMENT: 'test',
+    ALLOW_OPEN_CORS: '1',
+    ...extra,
+  });
+
+  const postSession = () =>
+    new Request('https://worker.test/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_token: 'x' }),
+    });
+
+  it('refuses a learner write while maintenance is on, in Arabic, with a retry hint', async () => {
+    const response = await worker.fetch(postSession(), openEnv({ MAINTENANCE_MODE: 'on' }) as never);
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.code).toBe('MAINTENANCE_MODE');
+    expect(body.message).toMatch(/[\u0600-\u06FF]/);
+    expect(response.headers.get('Retry-After')).toBe('300');
+    expect(response.headers.get('Cache-Control')).toContain('no-store');
+  });
+
+  it('leaves reads working while writes are frozen', async () => {
+    const read = await worker.fetch(
+      new Request('https://worker.test/scenarios'),
+      openEnv({ MAINTENANCE_MODE: 'true' }) as never,
+    );
+    expect(read.status).not.toBe(503);
+  });
+
+  it('is off unless an operator turned it on', async () => {
+    const write = await worker.fetch(postSession(), openEnv() as never);
+    expect(write.status).not.toBe(503);
+  });
+
+  it('keeps the sweep route behind the admin secret', async () => {
+    const response = await worker.fetch(
+      new Request('https://worker.test/admin/sweep', { method: 'POST' }),
+      openEnv({ ADMIN_SECRET: 'a'.repeat(32) }) as never,
+    );
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: 'unauthorized' });
+  });
+
+  it('deletes rows older than each table retention window', async () => {
+    const calls: Array<{ sql: string; cutoff: number }> = [];
+    const db = {
+      prepare: (sql: string) => ({
+        bind: (cutoff: number) => ({
+          run: async () => {
+            calls.push({ sql, cutoff });
+            return { meta: { changes: 3 } };
+          },
+        }),
+      }),
+    };
+    const now = Date.now();
+    const removed = await sweepExpiredRows({ DB: db } as never, now);
+
+    expect(removed).toEqual({ rate_limit_counters: 3, error_reports: 3 });
+    expect(calls[0].sql).toContain('DELETE FROM rate_limit_counters');
+    expect(calls[1].sql).toContain('DELETE FROM error_reports');
+    expect(calls[0].cutoff).toBe(now - RATE_LIMIT_RETENTION_MS);
+    expect(calls[1].cutoff).toBe(now - ERROR_REPORT_RETENTION_MS);
+  });
+
+  it('reports a failing table instead of throwing, and leaks no driver text', async () => {
+    const env = {
+      DB: {
+        prepare: () => ({
+          bind: () => ({
+            run: async () => {
+              throw new Error('D1_ERROR: no such table: rate_limit_counters');
+            },
+          }),
+        }),
+      },
+    };
+    const removed = await sweepExpiredRows(env as never);
+    expect(removed).toEqual({ rate_limit_counters: -1, error_reports: -1 });
+    expect(JSON.stringify(removed)).not.toContain('D1_ERROR');
+  });
+
+  it('skips cleanly when no database is bound', async () => {
+    await expect(sweepExpiredRows({} as never)).resolves.toEqual({ skipped: 'db_unbound' });
+  });
+});
+
+describe('client error reports are stored bounded and redacted (RC-4)', () => {
+  it('caps the stored message and redacts a credential-shaped string before it', async () => {
+    const binds: unknown[][] = [];
+    const env = {
+      ENVIRONMENT: 'test',
+      ALLOW_OPEN_CORS: '1',
+      DB: {
+        prepare: (sql: string) => ({
+          bind: (...args: unknown[]) => ({
+            run: async () => {
+              binds.push([sql, ...args]);
+              return { meta: { changes: 1 } };
+            },
+          }),
+        }),
+      },
+    };
+
+    // The credential comes FIRST so truncation cannot hide it: only redaction can.
+    const message = `Authorization: Bearer sk-abcdefghijklmnopqrstuvwxyz012345 ${'x'.repeat(5000)}`;
+    const response = await worker.fetch(
+      new Request('https://worker.test/client-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: 'window', message, page: '/app/trail' }),
+      }),
+      env as never,
+    );
+
+    expect(response.status).toBe(200);
+    expect(binds.length).toBe(1);
+    const stored = String(binds[0][4]);
+    expect(stored.length).toBeLessThanOrEqual(400);
+    expect(stored).not.toContain('sk-abcdefghijklmnopqrstuvwxyz012345');
+    expect(stored).not.toContain('Bearer sk-');
   });
 });
