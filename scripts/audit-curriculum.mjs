@@ -10,7 +10,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { auditCurriculum } from '../src/lib/content/curriculumAudit.ts';
+import { auditCurriculum, auditGrammarSupplement } from '../src/lib/content/curriculumAudit.ts';
 import { scenarioToVocabTopic } from '../src/lib/utils/scenarioVocab.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -19,12 +19,37 @@ const args = process.argv.slice(2);
 const fileArg = args.find((arg) => arg.startsWith('--file='));
 const asJson = args.includes('--json');
 const contentDir = join(repoRoot, 'docs', 'content');
-const files = fileArg
-  ? [resolve(fileArg.slice('--file='.length))]
-  : readdirSync(contentDir)
+const supplementDir = join(contentDir, 'supplements');
+
+/**
+ * Two shapes, two validators.
+ *
+ * `docs/content/*.json` are modules (5–8 scenarios, vocabulary, phrases, grammar)
+ * and are validated by `auditCurriculum`. `docs/content/supplements/*.json` are
+ * grammar-only files — content that belongs in D1 but is not a module, e.g. the
+ * rows `SCENARIO_GRAMMAR_IDS` points at for scenarios that shipped before the
+ * drafted modules — and are validated by `auditGrammarSupplement`, which applies
+ * the same column contract and the Arabic/German language checks in both
+ * directions. The module rules are untouched: the 5–8 scenario rule stays for
+ * modules, and a supplement may not declare module tables (V15).
+ */
+const kindOf = (file) => (file.replace(/\\/g, '/').includes('/supplements/') ? 'supplement' : 'module');
+
+function listDir(dir) {
+  try {
+    return readdirSync(dir)
       .filter((name) => name.endsWith('.json'))
       .sort()
-      .map((name) => join(contentDir, name));
+      .map((name) => join(dir, name));
+  } catch {
+    // No supplements directory yet is not a failure: it is an empty set.
+    return [];
+  }
+}
+
+const files = fileArg
+  ? [resolve(fileArg.slice('--file='.length))]
+  : [...listDir(contentDir), ...listDir(supplementDir)];
 
 if (files.length === 0) {
   console.error(`No curriculum drafts found in ${contentDir}`);
@@ -42,8 +67,9 @@ for (const file of files) {
     failed = true;
     continue;
   }
-  const report = auditCurriculum(draft, scenarioToVocabTopic);
-  reports.push({ file, ...report });
+  const kind = kindOf(file);
+  const report = kind === 'supplement' ? auditGrammarSupplement(draft) : auditCurriculum(draft, scenarioToVocabTopic);
+  reports.push({ file, kind, ...report });
   if (!report.ok) failed = true;
 }
 
@@ -60,9 +86,13 @@ for (const report of reports) {
     continue;
   }
   const { stats } = report;
-  console.log(`  scenarios ${stats.scenarios} · vocabulary ${stats.vocabulary} · phrases ${stats.phrases} · grammar ${stats.grammar} · review "${stats.reviewStatus}"`);
-  const topics = Object.entries(stats.topics);
-  if (topics.length > 0) console.log(`  topics: ${topics.map(([topic, count]) => `${topic} (${count})`).join(', ')}`);
+  if (report.kind === 'supplement') {
+    console.log(`  kind: supplement · grammar ${stats.grammar} · review "${stats.reviewStatus}"`);
+  } else {
+    console.log(`  scenarios ${stats.scenarios} · vocabulary ${stats.vocabulary} · phrases ${stats.phrases} · grammar ${stats.grammar} · review "${stats.reviewStatus}"`);
+    const topics = Object.entries(stats.topics);
+    if (topics.length > 0) console.log(`  topics: ${topics.map(([topic, count]) => `${topic} (${count})`).join(', ')}`);
+  }
   if (report.errors.length === 0) {
     console.log('  ✔ no errors');
   } else {
@@ -74,5 +104,9 @@ for (const report of reports) {
     for (const issue of report.warnings) console.log(`      ${issue.path}: ${issue.message}`);
   }
 }
-console.log(`\n${failed ? 'FAILED' : 'PASSED'} — ${reports.length} draft(s) checked`);
+const moduleCount = reports.filter((report) => report.kind !== 'supplement').length;
+const supplementCount = reports.length - moduleCount;
+console.log(
+  `\n${failed ? 'FAILED' : 'PASSED'} — ${reports.length} file(s) checked (${moduleCount} module(s), ${supplementCount} supplement(s))`,
+);
 process.exit(failed ? 1 : 0);

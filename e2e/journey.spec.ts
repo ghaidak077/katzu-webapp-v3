@@ -52,8 +52,9 @@ test('the first episode is the arrival, not a random day', async ({ page }) => {
 
   // The mission card names the opening (the seeded arrival scenario's Arabic
   // title) and the button is the plan's own wording for it — not the generic
-  // "start today's mission" every other day uses.
-  await expect(page.getByText('في المطار: الأمتعة المفقودة')).toBeVisible();
+  // "start today's mission" every other day uses. The title is the one the live
+  // catalogue serves: "في المطار: الأمتعة" (V15 aligned the fixture to D1).
+  await expect(page.getByText('في المطار: الأمتعة', { exact: true })).toBeVisible();
   await expect(page.getByText('لحظة الوصول · أول موقف في القصة')).toBeVisible();
   await page.getByRole('button', { name: 'ابدأ من لحظة الوصول' }).click();
 

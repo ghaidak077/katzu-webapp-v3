@@ -453,8 +453,12 @@ const OPENING_FIXTURE_ID = 1000;
 async function seedStoryOpening(): Promise<void> {
   const scenario: ScenarioEntity = {
     id: INTRO_SCENARIO_ID,
-    title_de: 'Am Flughafen: fehlendes Gepäck',
-    title_ar: 'في المطار: الأمتعة المفقودة',
+    // D1 is authoritative for content and the approved module2 draft titles this
+    // scenario "Am Flughafen: das Gepäck" / "في المطار: الأمتعة". The fixture used
+    // to say "fehlendes Gepäck" / "الأمتعة المفقودة", so the offline first run and
+    // the live catalogue disagreed (V14-1); aligned in V15.
+    title_de: 'Am Flughafen: das Gepäck',
+    title_ar: 'في المطار: الأمتعة',
     ai_persona: 'Mitarbeiterin am Gepäckschalter katze',
     category: 'travel',
     icon: 'plane',

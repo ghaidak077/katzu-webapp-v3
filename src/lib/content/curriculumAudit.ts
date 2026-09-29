@@ -105,6 +105,31 @@ export interface AuditReport {
 const ARABIC = /[\u0600-\u06FF]/;
 const SLUG = /^[a-z0-9_]+$/;
 
+/**
+ * Mojibake and ASCII-umlaut spellings, using the same definitions the content
+ * hygiene test asserts over every draft and the offline fixture (RC-3).
+ */
+const MOJIBAKE = /[\uFFFD\u00C3\u00C2]/;
+const UMLAUT_AS_ASCII =
+  /\b(fuer|ueber|koennen|koennte|moechte|moechten|haette|waere|gruen|gruesse|strasse|gross|heisst|weiss|moeglich|zurueck|spaeter|hoeren|fuehren)\b/i;
+
+/**
+ * Unmistakably English function words — none of them is a German word, so a
+ * German sentence cannot trip the check by accident. Two distinct hits in one
+ * field is an error (one can be a coincidence, e.g. a quoted form).
+ *
+ * Deliberately excludes `was`, which is German ("Was ist das?").
+ */
+const ENGLISH_ONLY_WORDS = [
+  'is', 'are', 'were', 'the', 'and', 'of', 'question', 'answer', 'sentence',
+  'means', 'translates', 'polite', 'infinitive', 'stands', 'always', 'never',
+];
+
+function englishTells(value: string): string[] {
+  const lower = value.toLowerCase();
+  return ENGLISH_ONLY_WORDS.filter((word) => new RegExp(`\\b${word}\\b`).test(lower));
+}
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -115,6 +140,162 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function hasArabic(value: unknown): boolean {
   return typeof value === 'string' && ARABIC.test(value);
+}
+
+/**
+ * Validates a grammar supplement against the same D1 column contract the modules
+ * use, plus the Arabic/German language checks in both directions.
+ *
+ * Why this exists (V14-2 → V15): the four `g_*` rows the five original scenarios
+ * point at had no home that the gate could accept. `auditCurriculum` requires
+ * 5–8 scenarios, 15+ vocabulary per topic pool and 6–10 phrases per scenario, so
+ * a grammar-only file could not pass it — and the loader refuses any draft the
+ * audit rejects. Rather than loosen the module rules (they are the module size
+ * policy), supplements get their own shape, validated by this function and run by
+ * `scripts/audit-curriculum.mjs` over `docs/content/supplements/*.json`.
+ *
+ * The module rules are untouched by this function, and a supplement may not
+ * declare module tables: a grammar row is global content, and letting a
+ * "supplement" carry scenarios or vocabulary would create a second, unvalidated
+ * path for the module standard.
+ *
+ * @param draft A parsed `docs/content/supplements/*.json` file.
+ */
+export function auditGrammarSupplement(draft: unknown): AuditReport {
+  const errors: AuditIssue[] = [];
+  const warnings: AuditIssue[] = [];
+  const stats: AuditStats = { scenarios: 0, vocabulary: 0, phrases: 0, grammar: 0, topics: {}, reviewStatus: 'missing' };
+
+  const error = (path: string, message: string) => errors.push({ severity: 'error', path, message });
+  const warn = (path: string, message: string) => warnings.push({ severity: 'warning', path, message });
+
+  if (!isPlainObject(draft)) {
+    error('$', 'supplement must be a JSON object');
+    return { ok: false, errors, warnings, stats };
+  }
+
+  // --- file shape ------------------------------------------------------------
+  const allowed = new Set<string>(['_note', 'meta', 'review', 'grammar']);
+  for (const key of Object.keys(draft)) {
+    if (allowed.has(key)) continue;
+    if ((LOADABLE_TYPES as readonly string[]).includes(key)) {
+      error(`$.${key}`, `a supplement carries grammar only — "${key}" belongs in a module draft (docs/content/curriculum-*.json)`);
+    } else {
+      error(`$.${key}`, `unknown top-level key (allowed: ${[...allowed].join(', ')})`);
+    }
+  }
+
+  // --- meta / review --------------------------------------------------------
+  if (!isPlainObject(draft.meta)) {
+    error('$.meta', 'meta block is required');
+  } else {
+    for (const field of ['track', 'moduleTitleAr', 'primaryLevel', 'version', 'designedFor']) {
+      if (!isNonEmptyString(draft.meta[field])) error(`$.meta.${field}`, 'required non-empty string');
+    }
+    if (isNonEmptyString(draft.meta.primaryLevel) && !CONTENT_LEVELS.includes(draft.meta.primaryLevel as ContentLevel)) {
+      error('$.meta.primaryLevel', `must be one of ${CONTENT_LEVELS.join(', ')}`);
+    }
+  }
+
+  if (!isPlainObject(draft.review)) {
+    error('$.review', 'review block is required — unreviewed content must declare itself as such');
+  } else {
+    const status = draft.review.status;
+    if (!['pending', 'approved', 'rejected'].includes(String(status))) {
+      error('$.review.status', 'must be pending, approved or rejected');
+    } else {
+      stats.reviewStatus = String(status);
+      if (status === 'approved') {
+        if (!isNonEmptyString(draft.review.reviewedBy)) error('$.review.reviewedBy', 'required once review.status is approved');
+        if (!isNonEmptyString(draft.review.reviewedAt)) error('$.review.reviewedAt', 'required once review.status is approved');
+      }
+    }
+    if (!Array.isArray(draft.review.checklist) || draft.review.checklist.length === 0) {
+      error('$.review.checklist', 'a review checklist is required');
+    }
+  }
+
+  // --- grammar --------------------------------------------------------------
+  if (!Array.isArray(draft.grammar) || draft.grammar.length === 0) {
+    error('$.grammar', 'at least one grammar row is required');
+    return { ok: errors.length === 0, errors, warnings, stats };
+  }
+
+  stats.grammar = draft.grammar.length;
+  const seenIds = new Set<string>();
+  draft.grammar.forEach((raw, i) => {
+    const path = `$.grammar[${i}]`;
+    if (!isPlainObject(raw)) return void error(path, 'must be an object');
+
+    // Column contract — the same one the loader writes through, so a typo here
+    // cannot become a 500 in the middle of a load (V12's failure mode).
+    for (const column of CONTENT_COLUMNS.grammar) {
+      if (!(column in raw)) {
+        error(`${path}.${column}`, 'column missing from the D1 grammar contract');
+        continue;
+      }
+      if (!isNonEmptyString(raw[column])) error(`${path}.${column}`, 'required non-empty string');
+    }
+    for (const column of Object.keys(raw)) {
+      if (!(CONTENT_COLUMNS.grammar as readonly string[]).includes(column)) {
+        error(`${path}.${column}`, 'not a column of the D1 grammar table');
+      }
+    }
+
+    const id = String(raw.id ?? '');
+    if (id && !SLUG.test(id)) error(`${path}.id`, 'must match ^[a-z0-9_]+$');
+    if (seenIds.has(id)) error(`${path}.id`, `duplicate grammar id "${id}"`);
+    seenIds.add(id);
+    // An error here, unlike the module rule's warning: a supplement exists to
+    // satisfy SCENARIO_GRAMMAR_IDS, and every id in that map is `g_`-prefixed.
+    if (id && !id.startsWith('g_')) {
+      error(`${path}.id`, 'supplement grammar ids must use the g_ prefix — SCENARIO_GRAMMAR_IDS points at g_* rows');
+    }
+
+    const level = String(raw.level ?? '');
+    if (!CONTENT_LEVELS.includes(level as ContentLevel)) {
+      error(`${path}.level`, `must be one of ${CONTENT_LEVELS.join(', ')}`);
+    }
+
+    // --- Arabic checks (one per Arabic-scoped field) -------------------------
+    for (const field of ['title_ar', 'rule_ar', 'explanation_ar', 'example_ar']) {
+      const value = raw[field];
+      if (isNonEmptyString(value) && !hasArabic(value)) {
+        error(`${path}.${field}`, 'must contain Arabic script');
+      }
+    }
+    // Latin letters in `example_ar` mean the wrong text landed in the wrong
+    // column: `example_de` holds its German. This mirrors the content-hygiene
+    // test's `ARABIC_ONLY` set, which deliberately **excludes** `title_ar`,
+    // `rule_ar` and `explanation_ar` — those name the German form they teach
+    // (12 of the 14 approved module rows quote German inline in
+    // `explanation_ar`, and 0 of their `example_ar` fields do).
+    const exampleAr = raw.example_ar;
+    if (isNonEmptyString(exampleAr) && /[A-Za-z]/.test(exampleAr)) {
+      error(`${path}.example_ar`, 'must be Arabic only — its German belongs in example_de');
+    }
+
+    // --- German checks (the direction V14 found unchecked) -------------------
+    for (const field of ['rule_de', 'example_de']) {
+      const value = raw[field];
+      if (!isNonEmptyString(value)) continue;
+      if (hasArabic(value)) error(`${path}.${field}`, 'must be German, not Arabic');
+      if (MOJIBAKE.test(value)) error(`${path}.${field}`, 'contains mojibake (mis-decoded bytes)');
+      const umlaut = value.match(UMLAUT_AS_ASCII);
+      if (umlaut) error(`${path}.${field}`, `umlaut written as ASCII letters ("${umlaut[0]}") — use ä/ö/ü/ß`);
+      const tells = englishTells(value);
+      if (tells.length >= 2) {
+        error(`${path}.${field}`, `looks like English, not German (${tells.join(', ')}) — the learner reads this column as German`);
+      }
+    }
+
+    // A German example with no verb is usually a fragment; a warning, not a rule.
+    if (isNonEmptyString(raw.example_de) && !/[a-zA-ZäöüÄÖÜß]/.test(String(raw.example_de))) {
+      warn(`${path}.example_de`, 'no German letters — check the example');
+    }
+  });
+
+  return { ok: errors.length === 0, errors, warnings, stats };
 }
 
 /**
