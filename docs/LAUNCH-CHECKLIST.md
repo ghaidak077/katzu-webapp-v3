@@ -306,9 +306,19 @@ talk to a Worker that does not yet have the routes it expects.
 4. **Sales site (only if it changed):**
    `npx wrangler pages deploy sales --project-name=katzu-sales --branch=main --commit-dirty=true`.
 5. **Content (optional, owner-only):** `node scripts/load-curriculum.mjs --file=<module>.json --commit`
-   — only after confirming the ids it defines are absent from production D1, and
-   noting that module2's draft titles `airport_arrival` more softly than the live
-   fixture (see `docs/AGENT-STATE.md` OWNER-OPEN).
+   — only after confirming the ids it defines are absent from production D1 (the
+   runbook is `docs/agent/CONTENT-LOAD.md`; since V13-1 the loader also refuses to
+   write while the deployment's columns and the draft's disagree).
+6. **Compare production against the drafts:** `node scripts/check-content-drift.mjs`
+   — read-only (`GET`s on `/scenarios`, `/vocabulary`, `/grammar`, and
+   `/scenarios/:id` for phrases; never an admin route, never a write). Run it after
+   any content change and after any deploy that touches content. It matches rows by
+   natural key and classifies every difference: `diverged` (the key is live with
+   other values — in practice a row the loader skipped because production already
+   had it), `absent` (a module row production lacks), `pending` (the same for a
+   supplement, which is unloaded by decision) and `duplicate` (two drafts declare
+   one key, so only one wording can ever land). Exit 0 = agreement, 1 = a
+   difference (add `--strict` to fail on the by-design classes too), 2 = transport.
 
 ### 6.2 Database
 There is **no migration runner and no migrate script**. The Worker creates and
@@ -321,6 +331,8 @@ D1 by hand, and a deploy that adds a table creates it on the next request.
 `0001_content_tables.sql` records the *content* tables (which the Worker does not
 manage): the DDL the deployed database has, the three `grammar` columns it was
 missing, and the `ALTER TABLE` statements for a deployment that lags the code
+(those three columns were added by the owner on 2026-09-29 and the Worker now also
+carries them in `ADDITIVE_COLUMNS`, so a fresh database heals itself)
 (`tests/contentSchema.test.ts` asserts every column the content studio advertises is
 either in the recorded DDL or in `ADDITIVE_COLUMNS`). Anyone editing content should
 still read `docs/agent/CONTENT-LOAD.md` first; since V13-1 the loader refuses to
