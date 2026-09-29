@@ -90,6 +90,6 @@ Content authoring: follow `docs/agent/CONTENT-GATE.md` before writing any curric
 Outcome → user-visible changes → files → data/backend changes → verification (exact commands, counts) → limitations → backlog evidence → one closing line:
 A) "Code merged to main. All gates green. Code-ready, not launched: <owner items>." or
 B) "Work incomplete: <items and why>. Nothing was marked done without evidence."
-Never end with A unless every gate passed.
-Then ALWAYS append `ADVISOR SYNC` (≤25 lines): STATE · CHANGED · DECISIONS NEEDING OWNER · RISKS NEW/CHANGED · NUMBERS · NEXT 3.
+Never end with A unless every gate passed **and the CI run for the pushed commit is green** — local green is not CI green. Quote that run's id and conclusion with the `CI:` line below; if a run is red or still in flight, either fix it or end with B and name the run.
+Then ALWAYS append `ADVISOR SYNC` (≤25 lines): STATE · CHANGED · DECISIONS NEEDING OWNER · RISKS NEW/CHANGED · NUMBERS · NEXT 3 · `CI:` <run id> — verify | e2e | secret-scan: <conclusion> (for the pushed sha).
 Refresh `docs/agent/PROJECT-BRIEF.md` (update only what changed) at the end of every run.
