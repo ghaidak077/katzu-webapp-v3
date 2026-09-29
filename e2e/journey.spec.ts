@@ -114,13 +114,25 @@ test('the thinking indicator survives the episode opening', async ({ page }) => 
     if (message.text().includes('[SiriWave] shader setup failed')) failedSetups.push(message.text());
   });
 
-  await bootSignedIn(page);
+  // The indicator exists only while the opener's translation is in flight, so the
+  // mock has to hold it there. Without this the window can open and close between
+  // Playwright's polls (far more likely on CI's faster machine than on a loaded
+  // sandbox), and the test waits its full budget for an element that already
+  // unmounted — a red gate that says nothing about the app. Observed on CI at
+  // run 36574132405 (`element(s) not found` after 45 s) with every other spec green.
+  // The *assertions* below are unchanged: this only makes the trigger deterministic.
+  await bootSignedIn(page, { translateDelayMs: 1_200 });
   await page.getByRole('button', { name: PRIMARY_ACTION }).click();
 
   // The indicator is on screen while the opener's translation is in flight, and the
   // gloss arriving is what unmounts it — the transition the regression lived in.
   await expect(page.locator('canvas.kz-animated').first()).toBeVisible({ timeout: EPISODE_READY_MS });
   await expect(page.getByText('ترجمة الاختبار')).toBeVisible();
+
+  // And the other half of that transition: the indicator is *replaced* by the gloss,
+  // never left behind it. Without the delay above this half was untestable too — an
+  // indicator that lingered forever looked identical to one that was never painted.
+  await expect(page.locator('canvas.kz-animated')).toHaveCount(0, { timeout: EPISODE_READY_MS });
   await page.waitForTimeout(500);
 
   expect(failedSetups).toHaveLength(0);

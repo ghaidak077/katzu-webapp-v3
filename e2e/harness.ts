@@ -72,6 +72,18 @@ export interface MockOptions {
   turns?: ScriptedTurn[];
   /** Keeps a turn in flight long enough for the orb's in-progress states to be observed. */
   turnDelayMs?: number;
+  /**
+   * Keeps a translation in flight long enough for the in-progress UI to be observed.
+   *
+   * Added in V18 after a CI-only failure of `journey.spec.ts` "the thinking
+   * indicator survives the episode opening": that test has to see the indicator
+   * *while* the opener's translation is in flight, and an instant mock can close
+   * that window before Playwright's first poll looks — so the assertion waited its
+   * full 45 s for an element that had legitimately already unmounted. The fix is
+   * to make the trigger deterministic instead of hoping the machine is slow, which
+   * is the same discipline as the `turnDelayMs` option above.
+   */
+  translateDelayMs?: number;
   /** What `/ai/transcribe` answers when the test queued nothing via `say()`. */
   defaultUtterance?: string;
   /**
@@ -183,8 +195,12 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
         const text = transcribeQueue.shift() ?? options.defaultUtterance ?? DEFAULT_UTTERANCE;
         return json({ text, word_count: text.split(/\s+/).length, empty: false });
       }
-      case url.pathname === '/ai/translate':
+      case url.pathname === '/ai/translate': {
+        if (options.translateDelayMs) {
+          await new Promise((resolve) => setTimeout(resolve, options.translateDelayMs));
+        }
         return json({ translation_ar: 'ترجمة الاختبار' });
+      }
       case url.pathname === '/ai/hints':
         return json({ hints: [] });
       case url.pathname === '/check-status':
