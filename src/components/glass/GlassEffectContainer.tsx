@@ -131,11 +131,28 @@ export const GlassEffectContainer: React.FC<GlassEffectContainerProps> = ({
       if (!child.hasAttribute('data-glass-ignore')) observer.observe(child);
     });
     window.addEventListener('resize', measure);
+    // A direction flip mirrors the children's positions without resizing
+    // anything, and ResizeObserver only fires on size — measured on CI (run
+    // 36604573087): after `dir` changed, the pill kept the old boxes and sat
+    // over the wrong tab. Re-measure when the document direction changes.
+    let dirObserver: MutationObserver | null = null;
+    if (typeof MutationObserver !== 'undefined') {
+      dirObserver = new MutationObserver(measure);
+      dirObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['dir'] });
+    }
     return () => {
       observer.disconnect();
+      dirObserver?.disconnect();
       window.removeEventListener('resize', measure);
     };
   }, [measure, children]);
+
+  // The pill moves when the active child changes; measuring at that moment
+  // keeps the pill honest even if a box changed size for a reason the
+  // observers above could not see (a late font, a scrollbar appearing).
+  useLayoutEffect(() => {
+    measure();
+  }, [measure, activeKey]);
 
   const activeIndex = activeKey == null ? -1 : boxes.findIndex((box) => box.key === activeKey);
   const activeBox = activeIndex >= 0 ? boxes[activeIndex] : null;
