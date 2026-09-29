@@ -42,6 +42,8 @@ tooling (axe-core, font subsetting) may be added as devDependencies.
 
 > **Deploy: allowed only when the owner prompt contains the exact line `DEPLOY-AUTHORIZED: <targets>`** (targets: `merge`, `worker`, `pages`). Without that line, §3 forbids all deploys and merges to main. Authorization covers only the listed targets, only for that run, and only via `docs/agent/DEPLOY.md`. Still forbidden even when authorized: writing production D1 data (`load-curriculum --commit`), any secret or `ADMIN_SECRET` change, payments/crypto/OAuth/domain/legal items, force-push, and any `wrangler` command not listed in DEPLOY.md.
 
+> **Content load: allowed only when the owner prompt contains the exact line `CONTENT-LOAD-AUTHORIZED: <file names>`**, and only via `docs/agent/CONTENT-LOAD.md`. It covers inserting new rows from those approved files into production D1 with `load-curriculum.mjs --commit`. Never allowed: updating or deleting existing rows (except the rollback in that runbook), other tables, secrets, or files not listed.
+
 The server stays authoritative for entitlements, quotas, identity, payments, sync merges and
 security. Git credentials are platform-managed; never ask for a token.
 
