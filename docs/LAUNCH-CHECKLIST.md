@@ -289,3 +289,63 @@ node scripts/capture-admin-screenshots.mjs --secret=<ADMIN_SECRET>  # refresh da
 After any Redis-free sign-in to the app, the lookup check should report
 `source=users` for a free account — that proves the registry path (not the legacy
 KV fallback) answered.
+
+## 6. Launch runbook (2026-09-29 — release candidate 1.1.0)
+
+Order matters. The Worker first, then the app, then the sales site: the app is
+cached on the device by its service worker, so a client that ships first would
+talk to a Worker that does not yet have the routes it expects.
+
+### 6.1 Deploy order
+1. **Worker:** `npm run deploy:worker` (= `npx wrangler deploy`, entry
+   `cloudflare-unified-worker.js`).
+2. **Smoke the Worker before touching the app** (§6.3).
+3. **App (Pages):** `npm run build`, then the Pages deploy — either push to `main`
+   (the Pages project builds with `npm run build`) or
+   `npx wrangler pages deploy dist --project-name=<your-pages-project> --branch=main`.
+4. **Sales site (only if it changed):**
+   `npx wrangler pages deploy sales --project-name=katzu-sales --branch=main --commit-dirty=true`.
+5. **Content (optional, owner-only):** `node scripts/load-curriculum.mjs --file=<module>.json --commit`
+   — only after confirming the ids it defines are absent from production D1, and
+   noting that module2's draft titles `airport_arrival` more softly than the live
+   fixture (see `docs/AGENT-STATE.md` OWNER-OPEN).
+
+### 6.2 Database
+There is **no migrations directory and no migrate script**. The Worker creates and
+extends its own tables idempotently on the first request (`ensureLedgerTables`,
+`sync_revisions`, `rate_limit_counters`, the admin registry's `error_reports`, and
+the additive content columns through `ensureContentColumns`). Nothing is applied to
+D1 by hand, and a deploy that adds a table creates it on the next request.
+
+Retention is enforced by `sweepExpiredRows` — `POST /admin/sweep` with the admin
+secret runs it on demand, and the Worker also exposes a `scheduled` handler that
+stays inert until a cron trigger exists. Adding the trigger is the owner's change
+to `wrangler.toml` (a `[triggers]` block, e.g. `crons = ["17 4 * * *"]`).
+
+### 6.3 Smoke test after the Worker deploy (in this order)
+- `curl -s https://<worker-host>/health` → `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false}` **and nothing else**. A longer body means an older Worker is still serving.
+- `curl -s https://<worker-host>/crypto/health` → booleans plus `priceUsd`/`months` only, never a key.
+- One real AI turn from a signed-in test account (app → Live Interaction) → 200 with a graded reply.
+- One progress sync from two browsers on the same account → both keep their writes (rev-guarded; the second device retries once on conflict).
+- `/admin` with the secret → dashboard renders; a wrong secret → 401, and 6 failures in 15 minutes from one IP → 429.
+- `POST /admin/sweep` with the secret → `{"swept":{"rate_limit_counters":N,"error_reports":M}}`.
+- Sign out, then confirm `/ai/turn` from the old session answers 401 rather than serving content.
+
+### 6.4 Rollback
+- **Worker:** `npx wrangler rollback` (or `npx wrangler deployments list` then `wrangler rollback <id>`). Every schema change this pass is additive, so the previous Worker keeps working against the same D1.
+- **App:** in the Pages project, roll back to the previous deployment. Existing clients keep the older service worker until their next visit; nothing needs purging.
+- **Sales site:** same Pages rollback against `katzu-sales`.
+- **Content:** loads are per-id and never overwrite existing rows, so a bad load is corrected by loading a corrected file — never by deleting rows.
+
+### 6.5 Emergency stop (no client release needed)
+Set `MAINTENANCE_MODE = "on"` in the Worker's `[vars]` and redeploy the Worker.
+Every learner write then answers 503 with an Arabic explanation and a `Retry-After`
+while reads and `/admin/*` keep working. Remove it (or set `"off"`) to resume.
+
+### 6.6 First 24 hours — what to watch
+- **Error feed** (`error_reports`, admin dashboard): expect near-zero. `client_*` rows are client crashes; `server_error` rows are 5xx.
+- **`/health`**: `ready:false` means the whole AI pool is unusable — keys missing or exhausted.
+- **AI quota burn**: watch the pool's day-quota ledger in the admin health view. A looping account shows up as 429s, not as spend.
+- **Webhook failures**: `crypto_*` rows on `/crypto/webhook` in the error feed (a `crypto_price_mismatch` row means a payment that did not match the order).
+- **Signup → first session**: compare new `users` rows against session-completed events in `activity_log` for the same day.
+- **Contact:** the repository owner. There is no on-call roster in this repo.

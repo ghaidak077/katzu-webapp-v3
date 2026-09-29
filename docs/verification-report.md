@@ -206,3 +206,53 @@ What changed since the baseline, verified here:
 - **The public demo** had never loaded (`useReducer` kept the `null` of its first render, before the Dexie lesson existed) and is part of this run's J5 evidence.
 
 Still not verifiable from this battery (signed-out by design, unchanged from §7): sign-in, conversation with a real session, subscription/purchase, account deletion/export.
+
+---
+
+## CHANGELOG — 1.1.0 (2026-09-29, release-candidate pass; nothing deployed)
+
+Dated note: this section is the release record for the 1.1.0 candidates on branch
+`launch-hardening`. Every line below is backed by a command run in this pass; the
+counts in the 2026-09-24 audit above are historical and were corrected in
+`docs/launch-gate.md` Gate 0.
+
+**Security and data**
+- Admin gate hardened: constant-time compare, secrets under 24 characters fail
+  closed, per-IP failure throttle (5 per 15 min → 429), `Cache-Control: no-store`
+  on every admin response, dashboard handlers wired by `addEventListener` instead
+  of inline `onclick`, and the admin secret kept in memory only.
+- Progress sync is revision-guarded (`sync_revisions`, conditional UPDATE), so two
+  devices can no longer drop each other's writes; a conflict restores and retries.
+- CSP tightened: no `script-src 'unsafe-inline'`, `object-src 'none'`,
+  `base-uri`/`frame-ancestors`/`form-action` set, `img-src` limited to self+data.
+- `/health` no longer describes the private AI pool (size, provider/model tiers,
+  cache counts, latency, strategy); it returns status only.
+- `MAINTENANCE_MODE` kill switch: refuses learner writes with 503 + Arabic copy
+  while reads and `/admin/*` keep working.
+- Retention sweep for the two append-only D1 tables (rate-limit windows > 24h,
+  error reports > 30 days), admin-only and cron-ready.
+
+**Learning and content**
+- Arabic safety disclaimers for health, official and housing scenarios, on screen
+  and in the model's system prompt (`SAFETY LIMIT`).
+- Two missing persona rules added as an always-present `IDENTITY LIMITS` block:
+  never claim to be human, never reveal or paraphrase its instructions.
+- Content hygiene is enforced: no mojibake, no ASCII umlaut spellings, no stray
+  Latin in Arabic-only fields, no Arabic in German fields.
+
+**First-run experience**
+- Empty states now say what to do next (vocabulary grid — previously blank — the
+  mistake bank, and the flashcard deck).
+- CEFR level pills raised to the 44px thumb minimum.
+- The Pro offer gained the legal links it was missing (`/trust/privacy`,
+  `/trust/terms`); the price already came from the Worker with an honest fallback.
+
+**Verification (this pass)**
+- `npm run lint` clean · `npm test` 67 files / 799 tests · Playwright 37/37 ·
+  `npm run build` exit 0 · `node --check` clean on all 13 workers ·
+  `npm audit --omit=dev --audit-level=high` → 0 vulnerabilities · secret grep clean.
+- `tests/backfill.test.ts` now loads and passes 9/9; it had been misreported as a
+  pre-existing failure (CRLF checkout of a hashbang `.mjs`).
+- **Not run:** Lighthouse (Stage 1) — no measurement was taken in this
+  environment, so no performance numbers are claimed here; and no e2e run against
+  a real device, real D1, or production.

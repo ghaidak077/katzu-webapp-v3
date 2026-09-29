@@ -2,7 +2,7 @@
 Definition: conditions that must be TRUE before **paid public beta**. Each item lists its fixing phase and current status. This file is updated as gates close.
 
 ## Gate 0 — Engineering baseline ✅ (closed 2026-09-24)
-- [x] `npm run lint` clean · 87/87 tests · build OK · CI on main green
+- [x] `npm run lint` clean · 87/87 tests at closure · build OK · CI on main green — **re-verified 2026-09-29 (RC pass):** lint clean · 67 files / 799 unit tests · 37 Playwright tests · build exit 0 · `node --check` clean on all 13 workers. The "87/87" above was the suite size on 2026-09-24 and had gone stale.
 - [x] Worker deployed & healthy (`/health` ready, keys configured, fallback armed)
 
 ## Gate 1 — Security & data safety (Phase 1) — status: OPEN (residual items only, updated 2026-09-24)
