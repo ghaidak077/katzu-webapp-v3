@@ -608,6 +608,35 @@ describe('maintenance kill switch and retention sweep (RC-4)', () => {
     expect(write.status).not.toBe(503);
   });
 
+  it('treats the shipped configuration as off and every on-spelling as on (V9-2)', async () => {
+    // The value this repo actually deploys must not freeze writes: a deploy is
+    // not an operator decision. Read the config, then prove the same string
+    // behaves as off on a real route.
+    const toml = await readFile(new URL('../wrangler.toml', import.meta.url), 'utf8');
+    expect(toml).toMatch(/^\s*MAINTENANCE_MODE\s*=\s*"off"\s*$/m);
+    expect(toml).not.toMatch(/^\s*MAINTENANCE_MODE\s*=\s*"(1|true|on|yes)"\s*$/m);
+
+    const shipped = await worker.fetch(postSession(), openEnv({ MAINTENANCE_MODE: 'off' }) as never);
+    expect(shipped.status).not.toBe(503);
+
+    // And the spellings an operator might actually type all freeze writes.
+    for (const value of ['1', 'true', 'on', 'yes', 'ON', ' True ']) {
+      const frozen = await worker.fetch(postSession(), openEnv({ MAINTENANCE_MODE: value }) as never);
+      expect(frozen.status, `MAINTENANCE_MODE=${JSON.stringify(value)}`).toBe(503);
+    }
+  });
+
+  it('ships a cron trigger, so the retention sweep is not inert (V9-2)', async () => {
+    const toml = await readFile(new URL('../wrangler.toml', import.meta.url), 'utf8');
+    expect(toml).toMatch(/^\s*\[triggers\]\s*$/m);
+    // Exactly one cron entry, and it must be a five-field cron expression.
+    const crons = toml.match(/^\s*crons\s*=\s*\[([^\]]*)\]\s*$/m);
+    expect(crons, 'no crons = [...] line in wrangler.toml').not.toBeNull();
+    const entries = (crons?.[1] ?? '').match(/"[^"]+"/g) ?? [];
+    expect(entries).toHaveLength(1);
+    expect(entries[0].slice(1, -1).trim().split(/\s+/)).toHaveLength(5);
+  });
+
   it('keeps the sweep route behind the admin secret', async () => {
     const response = await worker.fetch(
       new Request('https://worker.test/admin/sweep', { method: 'POST' }),

@@ -84,6 +84,11 @@ AI_RATE_LIMIT_PER_MINUTE = "10"
 AI_RATE_LIMIT_PER_DAY = "200"
 # Set to "0" to disable the Workers AI fallback (Gemini-only mode).
 AI_FALLBACK_ENABLED = "1"
+# Operator kill switch (RC-4). Off unless deliberately turned on, so a normal
+# deploy never freezes learner writes: "off", "0" and an absent value all read as
+# off, while "1"/"true"/"on"/"yes" freeze every POST/PUT/PATCH/DELETE and leave
+# reads working. Emergency stop: docs/LAUNCH-CHECKLIST.md §6.5.
+MAINTENANCE_MODE = "off"
 
 # ---------------------------------------------------------------------------
 # Crypto sales — NOWPayments (one-off purchase of an N-month activation code)
@@ -111,3 +116,13 @@ SALES_ORIGIN = "https://katzu-sales.pages.dev"
 # Price of one activation code and how many months of Pro it grants.
 CRYPTO_PRICE_USD = "5"
 CRYPTO_MONTHS = "1"
+
+# ---------------------------------------------------------------------------
+# Scheduled retention (RC-4)
+# D1 has no TTL, so two append-only tables grow forever. This trigger activates
+# the worker's `scheduled` handler, which deletes rate_limit_counters rows older
+# than 24h and error_reports older than 30 days. Without it the handler is inert
+# and POST /admin/sweep has to be run by hand.
+# ---------------------------------------------------------------------------
+[triggers]
+crons = ["17 4 * * *"]
