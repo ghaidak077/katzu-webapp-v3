@@ -37,7 +37,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
       <GlassSurface
         tier="floating"
         className={cn(
-          'relative w-full max-w-xl rounded-t-3xl p-6 z-10 max-h-[85vh] overflow-y-auto animate-slide-up text-text-primary',
+          'relative w-full max-w-xl rounded-t-3xl p-6 z-10 max-h-[85vh] overflow-y-auto text-text-primary',
           className
         )}
       >

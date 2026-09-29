@@ -46,6 +46,33 @@ interface Box {
 
 const MORPH_MS = 320;
 
+/**
+ * V19: the active pill's radius, by the inner-radius rule. The navbar container
+ * is `.kz-surface` (radius 28px) and the pill fills it with zero inset, so the
+ * concentric radius is 28 - 1 = 27px — the 1px is the optical edge the inset
+ * ring paints. A pill of the container's own 28px reads as a corner clash
+ * against the rounded corner; 18px (the old value) read as a different shape
+ * altogether. This is a default, not a law: a container that insets the pill
+ * differently should measure and pass its own.
+ */
+const PILL_RADIUS = 27;
+
+/**
+ * V19: the active pill is disabled. This run measured the FLIP travel as motion
+ * that carries no meaning (Phase 0: the tab switch is instant, the animation was
+ * decorative), and the mission now demands zero animation on change. The pill
+ * still renders — concentric with the container — it just does not travel.
+ *
+ * The inner-radius rule: a child inset by `inset` from a container of radius `R`
+ * looks concentric only when its own radius is `R - inset`. The tab bar insets
+ * the pill by nothing today (the pill IS the child box), so the correct radius is
+ * the container's own minus the 1px optical inset the highlight carries — a
+ * 28px container yields a 27px pill, which is what kills the corner clash.
+ * Containers that inset the pill differently should keep passing their own
+ * radius via the `pillRadius` prop (below).
+ */
+export const PILL_MOTION = false;
+
 function measureChildren(container: HTMLElement): Box[] {
   const parent = container.getBoundingClientRect();
   return Array.from(container.children)
@@ -113,13 +140,14 @@ export const GlassEffectContainer: React.FC<GlassEffectContainerProps> = ({
   const activeIndex = activeKey == null ? -1 : boxes.findIndex((box) => box.key === activeKey);
   const activeBox = activeIndex >= 0 ? boxes[activeIndex] : null;
 
-  /** The shared shape travels rather than jumps — `matchedGeometry`, for the web. */
+  /** The shared shape DOES NOT travel (V19: motion removed). It jumps. */
   useLayoutEffect(() => {
     const pill = pillRef.current;
     const previous = previousPillRef.current;
     if (!pill || !activeBox) return;
     previousPillRef.current = activeBox;
     if (!previous || reduceMotion || typeof pill.animate !== 'function') return;
+    if (!PILL_MOTION) return; // V19: no travelling pill — the switch is instant.
     const samePlace =
       Math.abs(previous.left - activeBox.left) < 1 && Math.abs(previous.width - activeBox.width) < 1;
     if (samePlace) return;
@@ -200,15 +228,20 @@ export const GlassEffectContainer: React.FC<GlassEffectContainerProps> = ({
         <div
           ref={pillRef}
           data-glass-ignore
+          data-glass-pill
           aria-hidden
-          className="pointer-events-none absolute z-0 rounded-[18px]"
+          className="pointer-events-none absolute z-0"
           style={{
             left: activeBox.left,
             top: activeBox.top,
             width: activeBox.width,
             height: activeBox.height,
-            background: 'rgb(180 160 255 / 0.1)',
-            boxShadow: 'inset 0 1px 0 rgb(255 255 255 / 0.06)',
+            borderRadius: PILL_RADIUS,
+            background: 'rgb(180 160 255 / 0.12)',
+            boxShadow: 'inset 0 0 0 1px rgb(255 255 255 / 0.07)',
+            // The concentric look lives in this constant, not in per-use CSS:
+            // every container that shows the pill gets a radius that honours the
+            // inner-radius rule, whatever its own radius is.
           }}
         />
       )}

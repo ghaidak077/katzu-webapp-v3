@@ -1,7 +1,6 @@
 import React from 'react';
 import { cn } from '@/components/ui/Button';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
-import { useReducedMotion } from '@/components/glass/GlassSurface';
 import { sceneBackdropLayers, type SceneLighting } from '@/lib/design/scenes';
 
 /**
@@ -33,7 +32,7 @@ export interface ScenarioBannerProps {
   alt?: string;
   /** `eager` for the one banner above the fold, `lazy` for a list. */
   loading?: 'lazy' | 'eager';
-  /** Slow parallax drift. Reserved for the one hero banner on a screen. */
+  /** Slow parallax drift. Deprecated in V19 (motion removed); accepted for API compat. */
   drift?: boolean;
   className?: string;
   /** Overlay content, laid out inside the banner (labels, badges, Katzu). */
@@ -44,12 +43,11 @@ export const ScenarioBanner: React.FC<ScenarioBannerProps> = ({
   scene,
   alt = '',
   loading = 'lazy',
-  drift = false,
+  drift: _drift = false,
   className,
   children,
 }) => {
   const layers = sceneBackdropLayers(scene).image;
-  const reduceMotion = useReducedMotion();
 
   return (
     <div
@@ -69,10 +67,12 @@ export const ScenarioBanner: React.FC<ScenarioBannerProps> = ({
           alt={alt}
           loading={loading}
           decoding="async"
-          className={cn(
-            'absolute inset-0 h-full w-full scale-105 object-cover',
-            drift && !reduceMotion && 'kz-animated animate-kz-scene-drift',
-          )}
+          // V19: the 26s drift loop is gone. Phase 0 measured it as the one
+          // infinite animation on the busiest screen (Journey Home runs it on a
+          // full-width img — a continuous compositor job that carries no
+          // information). The image keeps its static 105% scale for the
+          // soft-edge look the drift was buying.
+          className="absolute inset-0 h-full w-full scale-105 object-cover"
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center gap-3 px-4">

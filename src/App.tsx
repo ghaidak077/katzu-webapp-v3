@@ -489,8 +489,8 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
       <nav className="fixed bottom-0 start-0 end-0 z-40 mx-auto max-w-md px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         <GlassEffectContainer
           spacing={10}
-          activeKey={null}
-          className="kz-surface flex items-center justify-around"
+          activeKey={activeTab}
+          className="kz-surface overflow-hidden flex items-center justify-around"
         >
           <TabButton glassKey="Trail" active={activeTab === 'Trail'} onClick={() => setTab('Trail')} icon={<Map />} label="الرحلة" />
           <TabButton glassKey="Practice" active={activeTab === 'Practice'} onClick={() => setTab('Practice')} icon={<Dumbbell />} label="التدريب" />
@@ -502,19 +502,19 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
   );
 }
 
-function TabButton({ glassKey, active, onClick, icon, label }: { glassKey: string; active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+function TabButton({ glassKey, active, onClick, icon, label }: { glassKey?: string; active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
-    // The active tab wears a STATIC highlight (no travelling comet, no morph):
-    // the `glassKey` still identifies the tab for the container, but the active
-    // state is a fixed tinted pill — iOS-17-style glass, calm by default.
+    // V19: the active-tab highlight is the container's own concentric pill
+    // (rendered by GlassEffectContainer from the activeBox); the button itself
+    // paints nothing. One shape, not two — the pre-V19 double highlight was a
+    // rounded-2xl tint over a 28px-radius container with no inset or clip, which
+    // is exactly the corner/edge clash this run measured.
     <div data-glass-key={glassKey} className="flex-1">
       <button
         onClick={onClick}
         aria-current={active ? 'page' : undefined}
         className={`flex min-h-[48px] w-full flex-col items-center justify-center gap-1 rounded-2xl px-2 ${
-          active
-            ? 'bg-kz-lavender/10 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] text-kz-lavender'
-            : 'text-kz-inkFaint hover:text-kz-inkDim'
+          active ? 'text-kz-lavender' : 'text-kz-inkFaint'
         }`}
       >
         {React.cloneElement(icon as React.ReactElement<{ className?: string }>, {

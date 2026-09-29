@@ -221,7 +221,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
 
           {/* Explanation Banner */}
           {isAnswerSubmitted && (
-            <div className="p-4 rounded-2xl bg-surface-subtle border border-border-subtle text-xs animate-fade-in">
+            <div className="p-4 rounded-2xl bg-surface-subtle border border-border-subtle text-xs">
               <span className="font-bold text-primary block mb-1">ملاحظة كَاتْزُو:</span>
               <p className="text-text-secondary">{currentQ.explanation}</p>
             </div>

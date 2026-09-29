@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Languages, RefreshCw, Volume2 } from 'lucide-react';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
-import { useReducedMotion } from '@/components/glass/GlassSurface';
 import { activeWordIndex, speechSegments } from '@/lib/speech/wordHighlight';
 import type { ChatMessage } from '@/types/models';
 
@@ -45,8 +44,6 @@ export interface ConversationMessageProps {
    * transcript with one speaker highlights in exactly one place.
    */
   spokenCharIndex?: number | null;
-  /** True for the newest bubble, which arrives rather than appearing. */
-  isNewest?: boolean;
 }
 
 const normalize = (value: string) => value.replace(/[^a-zA-ZäöüÄÖÜß]/g, '').toLowerCase();
@@ -60,12 +57,8 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   onSpeak,
   onWordClick,
   spokenCharIndex = null,
-  isNewest = false,
 }) => {
   const isKatzu = message.sender === 'KATZU';
-  // One 460 ms rise on the newest bubble is what makes an answer arrive rather
-  // than appear; a learner who has asked for less motion does not get it.
-  const reduceMotion = useReducedMotion();
 
   // Split once per message, not once per render: the segments are the sentence
   // character for character (see `wordHighlight`), which is what lets the speech
@@ -76,9 +69,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   return (
     <article
       aria-label={isKatzu ? 'رسالة من كَاتْزُو' : 'رسالتك'}
-      className={`flex ${isKatzu ? 'justify-start' : 'justify-end'} ${
-        isNewest && !reduceMotion ? 'animate-kz-rise' : ''
-      }`}
+      className={`flex ${isKatzu ? 'justify-start' : 'justify-end'}`}
     >
       <div className="max-w-[88%] min-w-0">
         <div

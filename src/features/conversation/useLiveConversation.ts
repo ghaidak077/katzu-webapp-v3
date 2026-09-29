@@ -14,6 +14,7 @@ import { servedLevel } from '@/lib/entitlement/trial';
 import { calculateIndependentAccuracy } from '@/features/report/metrics';
 import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
+import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
 import { planTurns } from '@/lib/conversation/turnPlan';
 import type { OrbState } from '@/components/voice/KatzuOrb';
 import type {
@@ -421,7 +422,26 @@ export function useLiveConversation({
    * mount, hence one retry; after that the failure is shown honestly with a way
    * back, instead of a bubble that silently cannot be translated.
    */
+  /**
+   * V19 Phase 2: the opener's Arabic is stored data first, AI refinement second.
+   *
+   * The measured Phase-0 behaviour — an automatic `/ai/translate` on every open,
+   * before the learner says anything — is gone. `storedOpenerArabic` answers
+   * from content the app already ships; when it has no gloss (and only then) the
+   * translate route is asked once, as a *refinement*, and its failure is shown
+   * honestly with a retry. An opener with a stored gloss never spends quota.
+   */
   const requestOpenerTranslation = useCallback(async (messageId: string, germanText: string) => {
+    const stored = storedOpenerArabic(germanText);
+    if (stored) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, arabicTranslation: stored, translationState: undefined } : m,
+        ),
+      );
+      return;
+    }
+    // No stored gloss: try the refinement once, then say so with a way back.
     setMessages((prev) =>
       prev.map((m) => (m.id === messageId ? { ...m, translationState: 'pending' as const } : m)),
     );
@@ -443,14 +463,9 @@ export function useLiveConversation({
   useEffect(() => {
     if (!scenario || !sessionMode) return;
 
-    const initialMsgText =
-      effectiveLevel === 'A1'
-        ? scenario.initial_message_a1
-        : effectiveLevel === 'A2'
-        ? scenario.initial_message_a2
-        : effectiveLevel === 'B1'
-        ? scenario.initial_message_b1
-        : scenario.initial_message_b2;
+    // One level→opener rule, shared with the story screen's logic (tested in
+    // openerForLevel): the same sentence the learner saw when the episode opened.
+    const initialMsgText = openerForLevel(scenario, effectiveLevel);
 
     const welcomeMsg: ChatMessage = {
       id: 'msg_initial',
@@ -470,10 +485,9 @@ export function useLiveConversation({
     // Load cached starter phrases as initial hints
     void loadStarterHints();
 
-    // The opener's Arabic comes from the edge-cached /ai/translate route, which
-    // needs a session token — at mount it may not be exchanged yet, so a single
-    // silent failure would leave the whole first bubble untranslated. Retry once
-    // and, if it still fails, say so with a retry the learner can tap.
+    // V19: stored gloss first (zero AI calls before the first message), AI
+    // refinement only when no gloss ships for this opener, with an honest
+    // retry affordance on failure — see requestOpenerTranslation.
     requestOpenerTranslation(welcomeMsg.id, welcomeMsg.germanText);
   }, [scenario, scenarioId, effectiveLevel, sessionMode, loadStarterHints, requestOpenerTranslation]);
 
@@ -703,9 +717,23 @@ export function useLiveConversation({
     inputRef.current?.focus();
   };
 
-  // AI hints when loaded; otherwise the D1 starter-phrase floor. The user must
-  // never face an empty suggestions bar mid-conversation.
-  const visibleHints = currentHints.length > 0 ? currentHints : starterHints;
+  // AI hints when loaded; otherwise the D1 starter-phrase floor, ranked against
+  // what the other side just said (V19 Phase 2): the first suggestion must be a
+  // plausible ANSWER to the last AI message, not the scenario's sort_order[0].
+  // The measured mismatch this fixes: the opener asked "Fehlt Ihr Koffer?" and
+  // the floor offered "Hier ist mein Pass." — a passport answer to a luggage
+  // question. The user must never face an empty suggestions bar either.
+  const lastAssistantGerman = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.sender === 'KATZU') return message.germanText;
+    }
+    return null;
+  }, [messages]);
+  const visibleHints = useMemo(
+    () => rankHintFloor(currentHints.length > 0 ? currentHints : starterHints, lastAssistantGerman),
+    [currentHints, starterHints, lastAssistantGerman],
+  );
 
   const [isRefreshingHints, setIsRefreshingHints] = useState(false);
   const refreshHints = async () => {

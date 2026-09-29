@@ -61,7 +61,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
       data-testid="conversation-transcript"
       className="min-h-0 flex-1 space-y-3.5 overflow-y-auto px-4 py-4"
     >
-      {messages.map((msg, index) => {
+      {messages.map((msg) => {
         // Explicit per-message choice overrides the global toggle. The
         // scenario opener is the exception: it is the only message a learner
         // has no way to guess at (no earlier turn to decode it against), so
@@ -84,7 +84,6 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
             onSpeak={onSpeak}
             onWordClick={onWordClick}
             spokenCharIndex={speakingId === msg.id ? activeCharIndex : null}
-            isNewest={index === messages.length - 1}
           />
         );
       })}
@@ -97,7 +96,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
 
       {/* Failed-turn error card with retry — never a silent hang */}
       {turnError && !isGenerating && (
-        <div className="animate-fade-in space-y-2 rounded-2xl border border-status-error/40 bg-surface-subtle p-3.5">
+        <div className="space-y-2 rounded-2xl border border-status-error/40 bg-surface-subtle p-3.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-status-error">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>تعذر إرسال جملتك:</span>
@@ -118,7 +117,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
 
       {/* Rule 7: Celebration Card on Exchange Completion */}
       {isSessionCompleted && (
-        <div className="animate-fade-in my-2 flex items-center gap-3 rounded-3xl border border-primary/40 bg-white/5 p-4 shadow-glow-purple">
+        <div className="my-2 flex items-center gap-3 rounded-3xl border border-primary/40 bg-white/5 p-4 shadow-glow-purple">
           <div className="flex-1">
             <div className="kz-ar-micro flex items-center gap-1.5 font-bold text-status-success">
               <CheckCircle2 className="h-4 w-4" />

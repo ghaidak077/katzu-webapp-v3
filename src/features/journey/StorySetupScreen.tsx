@@ -143,7 +143,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
       <SceneBackdrop
         scene={scene}
         drift
-        className="absolute inset-0 h-full w-full animate-kz-rise"
+        className="absolute inset-0 h-full w-full"
         aria-hidden
       />
 
@@ -184,7 +184,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
               )}
             </div>
 
-            <GlassCard tier="glass" className="animate-kz-rise">
+            <GlassCard tier="glass">
               <h1 className="kz-ar-title text-kz-ink">{scenario.title_ar}</h1>
               <GermanText className="mt-1 block text-[0.8rem] text-kz-inkDim">{scenario.title_de}</GermanText>
 
@@ -204,7 +204,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
 
             {/* The character's first line, hearable before the conversation. */}
             {story?.openingDe && (
-              <GlassCard tier="canvas" className="animate-kz-rise">
+              <GlassCard tier="canvas">
                 <div className="flex items-start gap-3">
                   <button
                     type="button"

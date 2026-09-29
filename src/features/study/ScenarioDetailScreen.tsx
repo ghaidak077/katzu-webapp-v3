@@ -253,7 +253,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
 
         {/* Explicit, clearly secondary override — never a hidden workaround. */}
         {showSkipPrompt && !isConversationUnlocked && (
-          <Card className="p-4 border border-border-subtle animate-fade-in">
+          <Card className="p-4 border border-border-subtle">
             <p className="text-xs font-arabic text-text-secondary mb-3">
               التدريب يجعلك تتحدث بثقة أكبر — لكن القرار قرارك. المحادثة متاحة الآن على أي حال،
               ومستوى الكلمات والعبارات يبقى كما هو تماماً.

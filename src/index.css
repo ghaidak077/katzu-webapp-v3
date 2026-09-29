@@ -200,6 +200,10 @@
     position: relative;
     isolation: isolate;
     border-radius: var(--kz-glass-radius);
+    /* V19: glass children (the navbar's active pill) are clipped to this
+       container's radius. The measured Phase-0 bug was the pill overhanging the
+       container's corners because nothing clipped it. */
+    overflow: hidden;
     background-color: rgb(var(--kz-glass-base) / var(--kz-glass-opacity));
     background-image:
       radial-gradient(
@@ -226,10 +230,6 @@
       inset 1px 0 0 rgb(255 255 255 / calc(var(--kz-glass-edge) * 0.35)),
       inset -1px 0 0 rgb(255 255 255 / calc(var(--kz-glass-edge) * 0.2)),
       0 calc(16px * var(--kz-glass-elev)) calc(40px * var(--kz-glass-elev)) rgb(0 0 0 / 0.5);
-    transition:
-      box-shadow var(--kz-dur) var(--kz-ease-out),
-      background-color var(--kz-dur) var(--kz-ease-out),
-      transform var(--kz-dur) var(--kz-ease-spring);
   }
 
   /* Grain: a fixed 2% turbulence layer keeps large translucent panels from
@@ -400,11 +400,6 @@
       0 14px 38px rgb(var(--kz-lavender-deep) / 0.3);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
     backdrop-filter: blur(18px) saturate(160%);
-    transition: transform var(--kz-dur) var(--kz-ease-spring), box-shadow var(--kz-dur) var(--kz-ease-out);
-  }
-
-  .kz-primary:active {
-    transform: scale(0.975);
   }
 
   /* Earned state: magenta, but as light on the edges — reserved for progress
@@ -420,25 +415,12 @@
     color: rgb(var(--kz-magenta));
   }
 
-  /* Specular highlight driven by a pointer/scroll variable. Sits above the
-     surface, below content, and never intercepts input. */
+  /* V19: the specular highlight is gone. Phase 0 measured it as continuous
+     pointer-following motion on every surface hover, and the mission keeps only
+     motion that carries meaning (the orb, a new message). The surface keeps its
+     static top edge light — that is the glass look, and it costs nothing. */
   .kz-specular {
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    background: radial-gradient(
-      60% 45% at var(--kz-spec-x) var(--kz-spec-y),
-      rgb(255 255 255 / calc(var(--kz-spec-strength) * 1.5)) 0%,
-      rgb(255 255 255 / 0) 70%
-    );
-    opacity: 0;
-    transition: opacity var(--kz-dur-slow) var(--kz-ease-out);
-  }
-
-  .kz-surface:hover .kz-specular,
-  .kz-surface:focus-within .kz-specular {
-    opacity: 1;
+    display: none;
   }
 }
 
@@ -472,19 +454,17 @@
   unicode-bidi: isolate;
   text-align: start;
   font-family: 'Satoshi', sans-serif;
-}
+}  /* Reduced motion: continuous/animated decoration stops, state changes stay
+     instant-but-visible, and nothing loses its function. */
+  @media (prefers-reduced-motion: reduce) {
+    .kz-animated {
+      animation: none !important;
+    }
 
-/* Reduced motion: continuous/animated decoration stops, state changes stay
-   instant-but-visible, and nothing loses its function. */
-@media (prefers-reduced-motion: reduce) {
-  .kz-animated {
-    animation: none !important;
+    .kz-surface,
+    .kz-surface::after,
+    .kz-primary,
+    .kz-specular {
+      transition-duration: 1ms !important;
+    }
   }
-
-  .kz-surface,
-  .kz-surface::after,
-  .kz-primary,
-  .kz-specular {
-    transition-duration: 1ms !important;
-  }
-}

@@ -268,7 +268,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           tier="glass"
           emphasis="primary"
           padded={false}
-          className="animate-kz-rise overflow-hidden"
+          className="overflow-hidden"
         >
           {/* The scenario's own 16:9 banner: what today's mission looks like, not
               only what it is called. */}

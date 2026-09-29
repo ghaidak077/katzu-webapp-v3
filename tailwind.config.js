@@ -92,27 +92,16 @@ export default {
         'kz-magenta': '0 0 0 1px rgba(255, 111, 216, 0.30), 0 10px 40px rgba(226, 63, 174, 0.30)',
       },
       keyframes: {
-        'kz-sheen': {
-          '0%, 100%': { transform: 'translate3d(-6%, -4%, 0) scale(1)' },
-          '50%': { transform: 'translate3d(8%, 6%, 0) scale(1.06)' },
-        },
-        'kz-rise': {
-          '0%': { opacity: '0', transform: 'translateY(14px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        'kz-scene-drift': {
-          '0%': { transform: 'scale(1.06) translate3d(0, 0, 0)' },
-          '100%': { transform: 'scale(1.12) translate3d(-1.4%, -1.6%, 0)' },
-        },
+        // V19: kz-sheen (never referenced anywhere), kz-rise (decorative entry
+        // motion removed) and kz-scene-drift (26s infinite loop removed) are
+        // gone with their call sites. kz-glow-pulse stays: it is the syncing
+        // dot's state signal and the SiriWave fallback's working indicator.
         'kz-glow-pulse': {
           '0%, 100%': { opacity: '0.55' },
           '50%': { opacity: '1' },
         },
       },
       animation: {
-        'kz-sheen': 'kz-sheen 14s ease-in-out infinite',
-        'kz-rise': 'kz-rise 460ms cubic-bezier(0.22, 1.12, 0.36, 1) both',
-        'kz-scene-drift': 'kz-scene-drift 26s ease-in-out alternate infinite',
         'kz-glow-pulse': 'kz-glow-pulse 3.6s ease-in-out infinite',
       },
     },

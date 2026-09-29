@@ -238,7 +238,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
             <ul className={practice.cards.length === 0 ? 'hidden' : 'space-y-2.5'}>
               {practice.cards.map((card) => (
                 <li key={card.id}>
-                  <GlassCard tier="glass" className="animate-kz-rise">
+                  <GlassCard tier="glass">
                     <div className="flex items-start gap-3">
                       <button
                         type="button"
@@ -268,7 +268,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                    This is the "explain" beat between the story and the conversation,
                    and it comes from a real grammar row — never generated text. */}
             {practice.grammar && (
-              <GlassCard tier="glass" data-testid="grammar-card" className="mt-4 animate-kz-rise">
+              <GlassCard tier="glass" data-testid="grammar-card" className="mt-4">
                 <p className="kz-ar-micro mb-2 text-kz-inkFaint">
                   قاعدة اليوم · {practice.grammar.level}
                 </p>

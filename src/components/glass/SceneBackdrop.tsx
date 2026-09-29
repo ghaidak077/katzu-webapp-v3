@@ -1,7 +1,6 @@
 import React from 'react';
 import { cn } from '@/components/ui/Button';
 import { sceneBackdropLayers, type SceneLighting } from '@/lib/design/scenes';
-import { useReducedMotion } from './GlassSurface';
 
 export interface SceneBackdropProps extends React.HTMLAttributes<HTMLDivElement> {
   scene: SceneLighting;
@@ -28,14 +27,13 @@ export interface SceneBackdropProps extends React.HTMLAttributes<HTMLDivElement>
 export const SceneBackdrop: React.FC<SceneBackdropProps> = ({
   scene,
   artUrl,
-  drift = false,
+  drift: _drift = false,
   readability = true,
   className,
   style,
   children,
   ...props
 }) => {
-  const reduceMotion = useReducedMotion();
   // The scene's own placeholder artwork is used unless a screen overrides it, so
   // every surface that renders a scene gets its photograph without threading the
   // URL through each call site.
@@ -56,7 +54,10 @@ export const SceneBackdrop: React.FC<SceneBackdropProps> = ({
     >
       <div
         aria-hidden
-        className={cn('absolute inset-0', drift && !reduceMotion && 'kz-animated animate-kz-scene-drift')}
+        // V19: no drift loop. Same measured reason as the banner: a 26s infinite
+        // transform on a full-screen layer is continuous compositing work that
+        // carries no information.
+        className="absolute inset-0"
         style={{
           backgroundImage: layers.image,
           backgroundSize: resolvedArt ? 'cover, auto, auto, auto' : 'auto',

@@ -375,14 +375,14 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
         </p>
 
         {errorMessage && (
-          <div className="w-full mb-4 p-3 rounded-2xl bg-status-error/15 border border-status-error/30 text-status-error text-xs font-semibold flex items-center gap-2 text-start animate-fade-in">
+          <div className="w-full mb-4 p-3 rounded-2xl bg-status-error/15 border border-status-error/30 text-status-error text-xs font-semibold flex items-center gap-2 text-start">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {successMessage && (
-          <div className="w-full mb-4 p-3 rounded-2xl bg-status-success/15 border border-status-success/30 text-status-success text-xs font-semibold flex items-center gap-2 text-start animate-fade-in">
+          <div className="w-full mb-4 p-3 rounded-2xl bg-status-success/15 border border-status-success/30 text-status-success text-xs font-semibold flex items-center gap-2 text-start">
             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
             <span>{successMessage}</span>
           </div>
