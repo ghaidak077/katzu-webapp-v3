@@ -324,3 +324,84 @@ describe('shipped curriculum draft', () => {
     }
   });
 });
+
+/**
+ * Content hygiene — the defects a translator or a bad copy-paste leaves behind:
+ * mojibake in Arabic, Latin letters where only Arabic belongs, Arabic leaking
+ * into a German field, and German umlauts or ß written as ASCII digraphs
+ * ("fuer", "strasse"). The structural audits cannot see any of it.
+ *
+ * Checks the two shipped drafts and the offline fixture catalogue, because the
+ * fixture is what a learner with no network actually reads.
+ */
+describe('content hygiene (RC-3)', () => {
+  /**
+   * Fields whose whole content must be learner-facing Arabic. Deliberately
+   * excludes `title_ar` and `rule_ar` on grammar rows: those name the German
+   * form they teach ("الأفعال المنفصلة (anmelden, ausfüllen)"), which is the
+   * point of the row. Every field here has its German in a sibling field, so
+   * Latin letters in one mean the wrong text landed in the wrong column.
+   */
+  const ARABIC_ONLY = /^(example_ar|task_ar|prompt_ar|q_ar|translation_ar|headword_ar|options_ar)$/;
+  /** Fields whose whole content is German. */
+  const GERMAN_TEXT = /^(title_de|rule_de|prompt_de|body_de|example_de|german|headword|initial_message_a1|initial_message_a2)$/;
+  const MOJIBAKE = /[\uFFFD\u00C3\u00C2]/;
+  const UMLAUT_AS_ASCII =
+    /\b(fuer|ueber|koennen|koennte|moechte|moechten|haette|waere|gruen|gruesse|tschues|strasse|gross|heisst|weiss|muesste|waehrend|moeglich|zurueck|spaeter|hoeren|fuehren|naturlich)\b/i;
+
+  const entries: Array<{ key: string; value: string; where: string }> = [];
+
+  const collect = (key: string, value: unknown, where: string) => {
+    if (typeof value === 'string') {
+      entries.push({ key, value, where });
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item) => collect(key, item, where));
+      return;
+    }
+    if (value && typeof value === 'object') {
+      for (const [childKey, child] of Object.entries(value)) collect(childKey, child, where);
+    }
+  };
+
+  for (const draft of ['curriculum-30day-module1.json', 'curriculum-arrival-module2.json']) {
+    const path = fileURLToPath(new URL(`../docs/content/${draft}`, import.meta.url));
+    collect('', JSON.parse(readFileSync(path, 'utf8')), draft);
+  }
+
+  const fixtureSource = readFileSync(fileURLToPath(new URL('../src/lib/db/katzuDb.ts', import.meta.url)), 'utf8');
+  for (const match of fixtureSource.matchAll(/\b([A-Za-z_][A-Za-z0-9_]*):\s*'([^'\n]*)'/g)) {
+    entries.push({ key: match[1], value: match[2], where: 'katzuDb.ts' });
+  }
+
+  const report = (rows: Array<{ key: string; value: string; where: string }>) =>
+    rows.map((row) => `${row.where} → ${row.key}: ${row.value}`);
+
+  it('reads enough content for a clean result to mean something', () => {
+    expect(entries.length).toBeGreaterThan(100);
+    expect(entries.some((entry) => ARABIC_ONLY.test(entry.key))).toBe(true);
+    expect(entries.some((entry) => GERMAN_TEXT.test(entry.key))).toBe(true);
+  });
+
+  it('carries no mojibake anywhere', () => {
+    expect(report(entries.filter((entry) => MOJIBAKE.test(entry.value)))).toEqual([]);
+  });
+
+  it('keeps learner-facing Arabic free of stray Latin letters', () => {
+    const offenders = entries.filter((entry) => ARABIC_ONLY.test(entry.key) && /[A-Za-z]/.test(entry.value));
+    expect(report(offenders)).toEqual([]);
+  });
+
+  it('keeps Arabic out of German fields', () => {
+    const offenders = entries.filter((entry) => GERMAN_TEXT.test(entry.key) && /[\u0600-\u06FF]/.test(entry.value));
+    expect(report(offenders)).toEqual([]);
+  });
+
+  it('writes ä ö ü ß as ä ö ü ß, never as ae/oe/ue/ss', () => {
+    const offenders = entries.filter(
+      (entry) => GERMAN_TEXT.test(entry.key) && UMLAUT_AS_ASCII.test(entry.value),
+    );
+    expect(report(offenders)).toEqual([]);
+  });
+});
