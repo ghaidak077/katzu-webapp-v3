@@ -1,6 +1,6 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
-Recon date 2026-09-29; **deployed the same day** (owner-authorized): the deploy is at `6bfe4fd` (worker `07d7d341-…`, Pages production `cbfb29f5-…`), and `main` is now `48582ea` — the V7-4 docs commit on top of it. `main` now carries the V9 commits through this ledger update and **the V9 worker is deployed** (`6aedfd50-05d7-449a-832c-73c575098224`, built from `ed038f4`, owner-authorized `merge, worker`); Pages was not deployed because `src/` did not change. Sections marked *(live)* reflect the V9 deploy.
+Recon date 2026-09-29; **deployed the same day** (owner-authorized): the deploy is at `6bfe4fd` (worker `07d7d341-…`, Pages production `cbfb29f5-…`), and `main` is now `48582ea` — the V7-4 docs commit on top of it. `main` carries the V9 commits and **the worker was deployed twice this run**: `6aedfd50-…` (from `ed038f4`) and then **`255dbeef-faae-476a-b3f5-6d4666099b70`** (from `b11e66e`, which added `MAINTENANCE_MODE="off"` and the retention cron); Pages was not deployed either time because `src/` did not change. **No content was loaded** — Phase 4 stopped at `ADMIN_SECRET`, which is owner-only. Sections marked *(live)* reflect the `255dbeef` deploy.
 Every claim cites a path, a command result, or a ledger line. Unverified claims sit under **UNKNOWN**.
 Environment facts: `docs/agent/ENV-FACTS.md`. Status: `docs/AGENT-STATE.md`.
 
@@ -40,22 +40,23 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 9. Sync: rev-guarded merge in D1 `sync_revisions` (P2), client queues offline and retries.
 10. Quota: per-account AI limits `AI_RATE_LIMIT_PER_MINUTE=10`, `AI_RATE_LIMIT_PER_DAY=200` + trial ledger.
 11. Crypto sales live on a **separate** Pages site (`sales/` → `katzu-sales.pages.dev`) using NOWPayments sandbox; the app only redeems codes.
-12. Ops: `MAINTENANCE_MODE` kill switch, `POST /admin/sweep` retention, `scheduled` handler (inert — no cron trigger).
+12. Ops: `MAINTENANCE_MODE` kill switch (shipped as `"off"`) and the `scheduled` retention handler, now activated by a deployed cron (`17 4 * * *`); `POST /admin/sweep` does the same job on demand.
 13. Static: Cloudflare Pages `katzu-webapp-v3.pages.dev`.
-14. Tests: Vitest (node/jsdom, 67 files) + Playwright (chromium, 10 files / 37 tests).
+14. Tests: Vitest (node/jsdom, 68 files / 809 tests) + Playwright (chromium, 10 files / 37 tests).
 15. CI: `.github/workflows/ci.yml` (content audits, prod audit, Playwright job, secret scan).
 
 ## 4. Quality metrics (measured this session unless noted)
 
-- Unit: `npm test` → **68 files / 807 tests, all pass** (6.6 s).
+- Unit: `npm test` → **68 files / 809 tests, all pass** (6.1 s).
 - E2E inventory: **10 spec files / 37 tests**, chromium only. **The whole suite now runs against the production bundle**: `E2E_TARGET=preview npx playwright test` → **37/37 passed**, 2.5 min on the V9 run (4.3 min on the V7-2 run; build ~7 s + tests), with service workers blocked. (One earlier run scored 36/37 on the flake below.)
 - Types: `npx tsc --noEmit` exit 0 · `npx tsc -p e2e --noEmit` OK.
 - Worker syntax: `node --check cloudflare-unified-worker.js` OK.
 - Build: exit 0, 6.8 s, entry `index-*.js` 500.93 K / 158.53 K gzip, `sw.js` precache 86 entries / 4171.99 KiB, Vite warns one chunk > 500 kB.
-- Bundle top 5: `index` 492 K · `LiveConversationScreen` 96 K · `JourneyHomeScreen` 32 K · `ProfileSettingsScreen` 24 K · `SubscriptionRedemptionScreen` 24 K (+ `index-*.css` 52 K).
-- Audit: `npm audit --omit=dev --audit-level=high` → **0 vulnerabilities**.
+- Bundle top 5: `index` 501 K · `LiveConversationScreen` 96 K · `JourneyHomeScreen` 32 K · `ProfileSettingsScreen` 24 K · `SubscriptionRedemptionScreen` 24 K (+ `index-*.css` 52 K).
+- Audit: `npm audit --omit=dev --audit-level=high` → **0 vulnerabilities** (the Lighthouse devDependency adds 3 moderate advisories in the *dev* tree only; the production tree is unchanged — re-verified after the install).
 - A11y: `e2e/accessibility.spec.ts` axe WCAG 2.0/2.1 A+AA, zero critical/serious (ledger B6).
 - Real-D1 (V8-2, extended in V9-3): server-side sync compare-and-swap and crypto exactly-once pass on local `wrangler dev --local` D1, now **33/33 assertions** — the same two genuine races (one commit / one 409 with the union preserved, one delivery / one duplicate) plus the V9 additions: the first request on an empty database is a sync returning `200 rev:1` that creates all eight lazy tables, and the admin failure throttle gives `[401×5, 429]` with one persistent `count: 5` row. Raw rows read back out of the SQLite file.
+- Lighthouse (V9-10, the first baseline; mobile, production, Lighthouse 13.5.0): `/` **73 / 84 / 100 / 100** (perf/a11y/best-practices/seo), `/demo` **72 / 93 / 100 / 100**, `/app/trail` **72 / 83 / 100 / 100** — but `/app/trail` redirected to `/welcome` without an account, so the Trail itself is still unmeasured. LCP 5.5–5.6 s dominates; the causes and two caveats are in the ledger (V9-10), including a 172 KB script this machine's anti-virus injects into every page.
 - Flaky tests: **none known.** The `e2e/journey.spec.ts:320` flake is fixed at its cause (V8-1, `8313808`: the fake device held the audio level for only 6 animation frames); `E2E_TARGET=preview npx playwright test` is **37/37 twice**, and the spec is 8/8 under six CPU-saturating loops. The earlier banner-geometry flake was fixed in `8a65edf`.
 
 ## 5. Risk register (ranked by learner/trust impact)
@@ -67,25 +68,25 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 | 3 | ~~The shipping artifact fails e2e (26/37)~~ **FIXED**: 37/37 vs `vite preview` via `E2E_TARGET=preview` | ledger V7-2 | — | closed |
 | 3b | **NEW:** `/admin` serves the control-plane HTML shell unauthenticated (200) | `curl -o /dev/null -w %{http_code} .../admin` → 200; the API behind it is gated (`/admin/api/users` → 401). Already an OWNER-OPEN item (Cloudflare Access) | S | owner |
 | 3c | ~~one flaky e2e test (`e2e/journey.spec.ts:320`)~~ **FIXED**: the fake capture device now holds the audio until the harness measures real RMS (V8-1) | ledger V8-1; 37/37 twice vs `vite preview`, 8/8 under CPU load | — | closed |
-| 4 | No Lighthouse numbers at all | ledger RC-1 `blocked`; Lighthouse not installed | M | agent |
+| 4 | ~~No Lighthouse numbers at all~~ **MEASURED (V9-10), and it is not good:** performance **72–73** on all three pages, LCP 5.5–5.6 s (2.2× the "good" threshold), a11y 83–93, best-practices and SEO 100. Nothing was fixed (the prompt forbids fixing this run) | ledger V9-10; `lcp-discovery-insight` and the app-side `unused-javascript` item both score 0 | M | agent |
 | 5 | Two approved/pending modules are not live; module1 is `pending` so a load would be refused | §2 counts; `OWNER-OPEN` loader commands | S | owner |
 | 6 | ~~Real-D1 behaviour unproven~~ **FIXED for local D1**: 23/23 assertions on `wrangler dev --local` incl. two real races | ledger V8-2; probe deleted, local only, production untouched | — | closed |
 | 6b | ~~`POST /progress/sync` on a D1 with no ledger tables answers **500**~~ **FIXED (V9-1)**: the sync path now creates its tables first and degrades to the KV mirror instead of 500ing; the first request on an empty D1 returns `200 rev:1` in the probe | ledger V9-1/V9-3; `4d4e40e` | — | closed |
 | 6c | **NEW, FIXED (V9-2):** `/admin/api/*` answered 401 for ever with no failure counter written, so the per-IP lockout could never engage on the dashboard's own data endpoints (the admin module's duplicate gate dropped the recording) | ledger V9-2; probe N3 `[401×5, 429]`, N3b one `count: 5` row; `4d4e40e` | — | closed |
 | 7 | This machine can `wrangler deploy` (OAuth token, `workers (write)`) | `npx wrangler whoami` (this session) | S | owner/agent discipline |
 | 8 | Payments are sandbox-only, legally unreviewed | `NOWPAYMENTS_ENVIRONMENT="test_mode"`; `OWNER-OPEN` counsel item | L | owner |
-| 9 | `MAINTENANCE_MODE` + cron trigger not configured → no automatic retention | `wrangler.toml` has neither; ledger RC-4 | S | owner |
+| 9 | ~~`MAINTENANCE_MODE` + cron trigger not configured → no automatic retention~~ **FIXED (V9-7, deployed V9-8)**: `MAINTENANCE_MODE="off"` is in `[vars]` and `[triggers] crons = ["17 4 * * *"]` is live, so retention runs at 04:17 UTC | ledger V9-7/V9-8; deploy printed `schedule: 17 4 * * *` | — | closed |
 | 10 | Local dev has no `.env` → voice/AI paths degrade locally | only `.env.example` exists, no shell VITE_ vars (this session) | S | agent |
 
 ## 6. Ledger digest (`docs/AGENT-STATE.md`)
 
 - **done**: Baseline · B1–B8 (content gate, learning loop, authoring, performance, reliability, a11y, docs, final gate) · RC-0 · RC-2 · RC-3 · RC-4 · RC-5 · V7-1 … V7-4.
 - **done, new in V8**: `V8-1` `journey.spec.ts:320` flake fixed at its cause (37/37 twice) · `V8-2` real-local-D1 proof, 23/23 (sync CAS + crypto exactly-once) · `V8-3` ledger `main` hash reconciled to `48582ea`.
-- **done, new in V9**: `V9-1` the sync path creates its own tables (V8-F0 fixed, with a strict fresh-DB double) · `V9-2` the ledger-writer audit plus the admin failure throttle, which never actually fired · `V9-3` real-D1 re-proof 33/33 and the full T2 gate.
-- **blocked**: `RC-1` (Lighthouse not installed — the only item with no evidence at all). `RC-6` is now **superseded**: its targets were authorized and executed in V7-3.
-- **todo**: nothing agent-runnable in this thread is open (risks 6b/6c are closed). Nearest follow-ups: RC-1 Lighthouse · a PK-aware D1 double for the counter's increment branch · the two-device sync integration.
-- **`OWNER-OPEN`**: two loader `--commit` runs (module2, module1) · `MAINTENANCE_MODE` + cron trigger · Cloudflare Access on `/admin/*` · NOWPayments live mode after a sandbox pass · counsel review of legal pages · custom domain + OAuth origins + `VITE_PUBLIC_APP_URL` · worker/Pages deploys · real-device iOS/Android voice · beta cohort of 30–50 · a draft/live title difference on `airport_arrival`.
-- **`UNPROVEN`**: loader remote dry-run/real load · human content review (AI self-review only) · built-bundle e2e · anything against production D1 · real-D1 sync/crypto atomicity · Lighthouse · visual 360/390 px and offline-recording checks.
+- **done, new in V9**: `V9-1` the sync path creates its own tables (V8-F0 fixed, with a strict fresh-DB double) · `V9-2` the ledger-writer audit plus the admin failure throttle, which never actually fired · `V9-3` real-D1 re-proof 33/33 and the full T2 gate · `V9-4` merge + worker deploy · `V9-6` the owner-authorized §3 content-load paragraph + `docs/agent/CONTENT-LOAD.md` · `V9-7` kill-switch config + retention cron · `V9-8` second T2 + merge + deploy (`255dbeef-…`) · `V9-10` the Lighthouse baseline · `V9-11` `docs/agent/OWNER-STEPS.md`.
+- **blocked**: `V9-9` the content load — it needs the owner's `ADMIN_SECRET`, and module1 would additionally be refused (review still `pending`). `RC-1` is now **done** (the baseline exists, V9-10). `RC-6` is **superseded**: its targets were authorized and executed in V7-3.
+- **todo**: the two things the prompt asked for that an agent could still have done are both done, and the rest is owner-only. Nearest agent work: the LCP and first-load-JS causes from V9-10, a PK-aware D1 double for the counter's increment branch, and the two-device sync integration.
+- **`OWNER-OPEN`**: two loader `--commit` runs (module2 is approved and its collision check is clean; module1 needs approval first) · Cloudflare Access on `/admin/*` · NOWPayments live mode after a sandbox pass · counsel review of legal pages · custom domain + OAuth origins + `VITE_PUBLIC_APP_URL` · real-device iOS/Android voice · beta cohort of 30–50 · a draft/live title difference on `airport_arrival`. **`MAINTENANCE_MODE` + the cron are done** (V9-7/V9-8); runbooks for the Access, voice, cohort and loader items are in `docs/agent/OWNER-STEPS.md`.
+- **`UNPROVEN`**: the real content load · human content review (AI self-review only) · sync/crypto atomicity on the *deployed* database · the counter's insert-then-increment branch at unit level · the Trail's own Lighthouse numbers (it redirects to `/welcome` without an account) · a clean-machine Lighthouse run (this one shared the page with an anti-virus script) · visual 360/390 px and offline-recording checks · real-device voice. Now **covered** and so removed from this list: built-bundle e2e, local-D1 sync/crypto atomicity, and the Lighthouse baseline itself.
 
 ## 7. Recent changes
 
@@ -97,28 +98,29 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 
 - **V7 stage**: `1b07f82` manual v7 + deploy runbook · `e82221f` block SW in e2e; built bundle 37/37 · `6bfe4fd` deploy snapshot + the merge that carried all 22 hardening/V7 commits to `main` · `48582ea` ledger + brief after the deploy.
 - **V8 stage**: `8313808` fix the `journey.spec.ts:320` flake at its cause · `36802ae` the V8 ledger (real-D1 results and the `main` hash correction).
-- **V9 stage (this run)**: `4d4e40e` every ledger route creates the tables it touches (V8-F0 fixed; the admin failure throttle fixed) · plus the docs commit carrying the 33/33 probe and the T2 gate.
+- **V9 stage**: `4d4e40e` every ledger route creates the tables it touches (V8-F0 + the admin throttle) · `ed038f4`/`6e7d7c0` ledger + the round-1 merge and worker deploy (`6aedfd50-…`) · `5f51093` §3 content-load amendment + runbook · `b11e66e` kill-switch config + retention cron · `eff72ae` content-load block + Lighthouse baseline · `09fb166` owner-steps runbook.
+- **V9 round-2 deploy**: `main` fast-forwarded `6e7d7c0 → b11e66e` (no force); the live worker is now `255dbeef-…` and prints `schedule: 17 4 * * *`.
 
-`main` = `ed038f4` plus the post-deploy ledger commit (the V8 + V9 commits fast-forwarded from `48582ea`; no force) and the V9 worker `6aedfd50-…` is live. The V7 deploy was also a fast-forward: `22fe6aa → 6bfe4fd`.
+`main` reached `b11e66e` at the round-2 merge with `git rev-list --left-right --count main...launch-hardening` → `0 0`, and the branch was pushed both times. The live worker is `255dbeef-faae-476a-b3f5-6d4666099b70`. The V7 deploy was also a fast-forward: `22fe6aa → 6bfe4fd`.
 
 ## 8. Live vs local drift (read-only only)
 
-**Worker drift closed as of 2026-09-29 (V9):** production runs the V9 worker `6aedfd50-…` built from `ed038f4`; the working tree is that commit plus this post-deploy ledger update. V9 changed `cloudflare-unified-worker.js` and `cloudflare-admin.js` only; no `src/` file changed in V8 or V9, so Pages still serves the same `assets/index-B3aF3j7l.js` the V7 deploy shipped.
+**Worker drift closed as of 2026-09-29 (V9, second deploy):** production runs worker `255dbeef-…` built from `b11e66e`; the working tree is that commit plus the later V9 docs (the Lighthouse ledger and `OWNER-STEPS.md`), which are not part of the worker. V9 changed `cloudflare-unified-worker.js`, `cloudflare-admin.js` and `wrangler.toml` only; no `src/` file changed in V8 or V9, so Pages still serves the same `assets/index-B3aF3j7l.js` the V7 deploy shipped.
 
 | | Production (live, after V7-3) | Working tree |
 |---|---|---|
-| Commit | `ed038f4` — worker `6aedfd50-…`; Pages unchanged at `cbfb29f5-…` | `ed038f4` + the post-deploy ledger commit |
+| Commit | `b11e66e` — worker `255dbeef-…`, cron `17 4 * * *`; Pages unchanged at `cbfb29f5-…` | `b11e66e` + the later V9 docs commits |
 | `/health` | `{status, service, ready, maintenance}` — no pool/models/strategy | same |
 | D1 content | 5 scenarios / 114 vocab / 20 phrases / 4 grammar | same; both drafts still not loaded |
-| Kill switch / retention | `MAINTENANCE_MODE` present but off; still no cron trigger | same |
+| Kill switch / retention | `MAINTENANCE_MODE="off"` **live** and the cron `17 4 * * *` **deployed** | same (V9-7/V9-8) |
 | Sales site | `katzu-sales.pages.dev` 200, NOWPayments sandbox `ready:false` | unchanged |
 
-The V9 worker was deployed; no D1 migration and no manual D1 write was made, and no secret was read.
+The V9 worker was deployed twice; no D1 migration, no manual D1 write and no content load was made, and no secret was read.
 
 ## 9. Recommended next 5 (highest value first)
 
 1. ~~Make the sync path create its own tables (risk 6b / V8-F0)~~ **DONE in V9-1/V9-3**: the first `POST /progress/sync` on a wiped local D1 returns `200 rev:1` and creates all eight lazy tables. Its place: **teach `FreshD1` PRIMARY KEY semantics** so the failure counter's insert-then-increment branch is unit-tested, not only probe-tested.
-2. **Lighthouse baseline** on `/`, `/demo`, Trail. Reason: the only backlog item with no evidence at all. Gate: numbers recorded in the ledger.
-3. **Drive the client's 409→refetch→retry loop from two real browsers** against one local D1. Reason: V8-2 proved the server contract; the client half is still only unit-tested. Gate: two contexts, one database, union preserved.
-4. **Cloudflare Access in front of `/admin/*`** (owner). Reason: the control-plane shell answers 200 unauthenticated today. Gate: anonymous `/admin` is challenged.
-5. **Load the two approved/pending modules** (owner, needs `ADMIN_SECRET`). Reason: 10 authored scenarios and 123 vocabulary rows are sitting unused while live D1 holds 5. Gate: loader `--commit` + row counts in the ledger.
+2. **Fix the LCP path** (V9-10 cause 1). Reason: LCP 5.5–5.6 s on every page is the largest single score contributor, and the cause is concrete — the hero image is discovered by JS and carries no `fetchpriority=high`. Gate: re-run Lighthouse, LCP under 2.5 s.
+3. **Cut first-load JavaScript** (V9-10 cause 2). Reason: 42 % of the app's own entry bundle (65 KB of 155 KB) is unused on first paint, and FCP 3.2 s with TBT only 40 ms says the cost is fetch+parse. Gate: smaller initial chunk, FCP and SI down, e2e still 37/37.
+4. **Cloudflare Access in front of `/admin/*`** (owner). Reason: the control-plane shell still answers 200 unauthenticated. Runbook + curl gate are in `docs/agent/OWNER-STEPS.md`. Gate: anonymous `/admin` is challenged, `/admin/api/*` still 401.
+5. **Load module2** (owner, needs `ADMIN_SECRET`). Reason: 5 scenarios / 49 vocabulary / 42 phrases / 4 grammar are authored, approved and collision-checked against live D1 — nothing blocks them but the secret. Gate: loader `--commit` + counts in the ledger. module1 needs approval first (`review.status="pending"`, no review file).
