@@ -11,6 +11,16 @@
  * authoritative.
  */
 export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
+  // German 30-day module 1 (docs/content/curriculum-30day-module1.json).
+  // These five scenarios shipped ten grammar rows that no scenario pointed at:
+  // with no `scenario_id` column in D1 and no entry here, Guided Practice had
+  // nothing to teach for them — the same unreachable-content class as a
+  // vocabulary topic no scenario resolves to.
+  anmeldung_buergeramt: ['g_anmeldung_trennbar_a1', 'g_anmeldung_akkusativ_a1', 'g_anmeldung_verbposition_a1'],
+  termin_online_buchen: ['g_termin_zeitangaben_a1', 'g_anmeldung_modal_a2'],
+  krankenkasse_anmelden: ['g_kasse_zu_dativ_a2', 'g_kasse_perfekt_a2'],
+  mietvertrag_uebergabe: ['g_miete_nebensatz_weil_a2', 'g_miete_wechselpraeposition_b1'],
+  erster_arbeitstag: ['g_arbeit_hoeflich_b1'],
   // Arrival module 2 (docs/content/curriculum-arrival-module2.json)
   airport_arrival: ['g_koennen_sie_bitte_a1'],
   train_station: ['g_koennen_sie_bitte_a1', 'g_moechte_haette_gern_a1'],

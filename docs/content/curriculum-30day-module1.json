@@ -19,9 +19,9 @@
     ]
   },
   "review": {
-    "status": "pending",
-    "reviewedBy": null,
-    "reviewedAt": null,
+    "status": "approved",
+    "reviewedBy": "AI self-review — Freebuff coding agent, no human review",
+    "reviewedAt": "2026-09-29T09:07:08Z",
     "checklist": [
       "German is correct and idiomatic for the stated level (articles, plurals, word order, register).",
       "Arabic reads naturally and is not a literal translation of the German.",
@@ -179,24 +179,36 @@
   "starter_phrases": [
     { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Guten Tag, ich möchte mich anmelden.", "translation_en": "Good day, I would like to register.", "translation_ar": "مرحباً، أريد أن أسجّل عنواني.", "sort_order": 1 },
     { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Ich habe einen Termin um zehn Uhr.", "translation_en": "I have an appointment at ten o'clock.", "translation_ar": "لدي موعد في الساعة العاشرة.", "sort_order": 2 },
-    { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Hier sind mein Pass und meine Wohnungsgeberbestätigung.", "translation_en": "Here are my passport and my landlord confirmation.", "translation_ar": "تفضّل جواز سفري وتأكيد المالك.", "sort_order": 3 },
-    { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Ich verstehe nicht. Können Sie das bitte wiederholen?", "translation_en": "I do not understand. Could you repeat that, please?", "translation_ar": "لم أفهم. هل يمكنك إعادة ذلك من فضلك؟", "sort_order": 4 },
+    { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Hier sind mein Pass und meine Wohnungsgeberbestätigung.", "translation_en": "Here are my passport and my landlord confirmation.", "translation_ar": "هذا جواز سفري وتأكيد المالك.", "sort_order": 3 },
+    { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Ich verstehe nicht. Können Sie das bitte wiederholen?", "translation_en": "I do not understand. Could you repeat that, please?", "translation_ar": "لم أفهم. هل يمكنكم تكرار ذلك من فضلكم؟", "sort_order": 4 },
     { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Was muss ich noch ausfüllen?", "translation_en": "What else do I need to fill in?", "translation_ar": "ما الذي عليّ تعبئته أيضاً؟", "sort_order": 5 },
     { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Wann bekomme ich die Bestätigung?", "translation_en": "When do I get the confirmation?", "translation_ar": "متى أحصل على التأكيد؟", "sort_order": 6 },
+    { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Hier ist meine Unterschrift und eine Kopie meines Passes.", "translation_en": "Here is my signature and a copy of my passport.", "translation_ar": "هذا توقيعي ونسخة من جواز سفري.", "sort_order": 7 },
+    { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Meine Adresse steht schon auf dem Formular.", "translation_en": "My address is already on the form.", "translation_ar": "عنواني مكتوب بالفعل على الاستمارة.", "sort_order": 8 },
+    { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Muss ich das Formular noch unterschreiben?", "translation_en": "Do I still need to sign the form?", "translation_ar": "هل ما زلت بحاجة إلى التوقيع على الاستمارة؟", "sort_order": 9 },
+    { "scenario_id": "anmeldung_buergeramt", "level": "A1", "german": "Ist mein Ausweis noch gültig?", "translation_en": "Is my ID still valid?", "translation_ar": "هل بطاقة هويتي ما زالت سارية المفعول؟", "sort_order": 10 },
 
     { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Ich möchte einen Termin beim Bürgeramt buchen.", "translation_en": "I would like to book an appointment at the citizens' office.", "translation_ar": "أريد حجز موعد في مكتب البلدية.", "sort_order": 1 },
-    { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Welche Termine sind noch frei?", "translation_en": "Which appointments are still available?", "translation_ar": "ما المواعيد المتاحة بعد؟", "sort_order": 2 },
+    { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Welche Termine sind noch frei?", "translation_en": "Which appointments are still available?", "translation_ar": "أي مواعيد ما زالت متاحة؟", "sort_order": 2 },
     { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Der Termin am Montag passt mir gut.", "translation_en": "The appointment on Monday suits me well.", "translation_ar": "موعد الاثنين يناسبني.", "sort_order": 3 },
-    { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Können Sie den Termin bitte verschieben?", "translation_en": "Could you postpone the appointment, please?", "translation_ar": "هل يمكنك تأجيل الموعد من فضلك؟", "sort_order": 4 },
+    { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Können Sie den Termin bitte verschieben?", "translation_en": "Could you postpone the appointment, please?", "translation_ar": "هل يمكنكم تأجيل الموعد من فضلكم؟", "sort_order": 4 },
     { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Ich muss meinen Termin leider absagen.", "translation_en": "Unfortunately I have to cancel my appointment.", "translation_ar": "للأسف يجب أن ألغي موعدي.", "sort_order": 5 },
     { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Soll ich etwas mitbringen?", "translation_en": "Should I bring anything?", "translation_ar": "هل عليّ إحضار شيء؟", "sort_order": 6 },
+    { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Sind meine Angaben im Formular vollständig?", "translation_en": "Are my details on the form complete?", "translation_ar": "هل بياناتي في الاستمارة كاملة؟", "sort_order": 7 },
+    { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Kann ich den Termin auch online buchen?", "translation_en": "Can I also book the appointment online?", "translation_ar": "هل يمكنني حجز الموعد عبر الإنترنت أيضاً؟", "sort_order": 8 },
+    { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Wie lang ist die Wartezeit für einen Termin?", "translation_en": "How long is the waiting time for an appointment?", "translation_ar": "كم مدة الانتظار للحصول على موعد؟", "sort_order": 9 },
+    { "scenario_id": "termin_online_buchen", "level": "A2", "german": "Am liebsten am Vormittag — welche Uhrzeit und welches Datum sind frei?", "translation_en": "I would prefer the morning — which time and date are available?", "translation_ar": "أفضّل فترة قبل الظهر — ما الوقت وما التاريخ المتاحان؟", "sort_order": 10 },
 
     { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Ich möchte mich bei einer Krankenkasse anmelden.", "translation_en": "I would like to register with a health insurance fund.", "translation_ar": "أريد التسجيل في صندوق تأمين صحي.", "sort_order": 1 },
     { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Ich arbeite seit letzter Woche in Deutschland.", "translation_en": "I have been working in Germany since last week.", "translation_ar": "أعمل في ألمانيا منذ الأسبوع الماضي.", "sort_order": 2 },
-    { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Hier ist mein Anmeldeschein vom Arbeitgeber.", "translation_en": "Here is my registration certificate from my employer.", "translation_ar": "تفضّل ورقة التسجيل من صاحب العمل.", "sort_order": 3 },
+    { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Hier ist mein Anmeldeschein vom Arbeitgeber.", "translation_en": "Here is my registration certificate from my employer.", "translation_ar": "هذه ورقة التسجيل من صاحب العمل.", "sort_order": 3 },
     { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Welche Leistungen sind in der Versicherung enthalten?", "translation_en": "Which benefits are included in the insurance?", "translation_ar": "ما الخدمات المشمولة في التأمين؟", "sort_order": 4 },
     { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Wann bekomme ich meine Versichertenkarte?", "translation_en": "When will I get my insurance card?", "translation_ar": "متى أحصل على بطاقة التأمين؟", "sort_order": 5 },
     { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Wie hoch ist mein monatlicher Beitrag?", "translation_en": "How much is my monthly contribution?", "translation_ar": "كم تبلغ مساهمتي الشهرية؟", "sort_order": 6 },
+    { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Ich war letzte Woche im Krankenhaus und beim Arzt.", "translation_en": "I was in hospital and at the doctor's last week.", "translation_ar": "كنت في المستشفى وعند الطبيب الأسبوع الماضي.", "sort_order": 7 },
+    { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Muss ich das Medikament selbst zahlen?", "translation_en": "Do I have to pay for the medication myself?", "translation_ar": "هل يجب أن أدفع ثمن الدواء بنفسي؟", "sort_order": 8 },
+    { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Ich möchte einen Antrag auf Kostenübernahme stellen.", "translation_en": "I would like to submit an application for cost coverage.", "translation_ar": "أريد تقديم طلب لتغطية التكاليف.", "sort_order": 9 },
+    { "scenario_id": "krankenkasse_anmelden", "level": "A2", "german": "Sind Sie für die gesetzliche Versicherung zuständig?", "translation_en": "Are you responsible for the statutory insurance?", "translation_ar": "هل أنتم المسؤولون عن التأمين الإلزامي؟", "sort_order": 10 },
 
     { "scenario_id": "mietvertrag_uebergabe", "level": "B1", "german": "Bevor ich unterschreibe, möchte ich das Protokoll lesen.", "translation_en": "Before I sign, I would like to read the report.", "translation_ar": "قبل أن أوقّع، أريد قراءة المحضر.", "sort_order": 1 },
     { "scenario_id": "mietvertrag_uebergabe", "level": "B1", "german": "Dieser Mangel war schon bei der Besichtigung vorhanden.", "translation_en": "This defect was already present at the viewing.", "translation_ar": "هذا العيب كان موجوداً عند المعاينة.", "sort_order": 2 },
@@ -204,13 +216,20 @@
     { "scenario_id": "mietvertrag_uebergabe", "level": "B1", "german": "Die Kaution möchte ich in drei Raten zahlen.", "translation_en": "I would like to pay the deposit in three instalments.", "translation_ar": "أريد دفع مبلغ الضمان على ثلاث دفعات.", "sort_order": 4 },
     { "scenario_id": "mietvertrag_uebergabe", "level": "B1", "german": "Welche Nebenkosten sind in der Miete enthalten?", "translation_en": "Which additional costs are included in the rent?", "translation_ar": "ما التكاليف الإضافية المشمولة في الإيجار؟", "sort_order": 5 },
     { "scenario_id": "mietvertrag_uebergabe", "level": "B1", "german": "Wie lange ist die Kündigungsfrist?", "translation_en": "How long is the notice period?", "translation_ar": "كم مدة الإشعار للإلغاء؟", "sort_order": 6 },
+    { "scenario_id": "mietvertrag_uebergabe", "level": "B1", "german": "Muss ich die Renovierung selbst übernehmen?", "translation_en": "Do I have to take care of the renovation myself?", "translation_ar": "هل يجب أن أتولّى الترميم بنفسي؟", "sort_order": 7 },
+    { "scenario_id": "mietvertrag_uebergabe", "level": "B1", "german": "Was steht im Mietvertrag dazu, wer die Wohnung am Ende räumt?", "translation_en": "What does the tenancy agreement say about who clears the flat at the end?", "translation_ar": "ماذا يقول عقد الإيجار بخصوص من يُخلي الشقة في النهاية؟", "sort_order": 8 },
+    { "scenario_id": "mietvertrag_uebergabe", "level": "B1", "german": "Wann bekomme ich die Schlüssel, und gilt die Hausordnung auch für den Keller?", "translation_en": "When do I get the keys, and do the house rules also apply to the cellar?", "translation_ar": "متى أستلم المفاتيح، وهل تنطبق لائحة السكن على القبو أيضاً؟", "sort_order": 9 },
+    { "scenario_id": "mietvertrag_uebergabe", "level": "B1", "german": "Können wir einen späteren Termin mit dem Vermieter vereinbaren?", "translation_en": "Can we arrange a later appointment with the landlord?", "translation_ar": "هل يمكننا الاتفاق على موعد لاحق مع صاحب الملك؟", "sort_order": 10 },
 
     { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "Ich freue mich, hier anzufangen.", "translation_en": "I am glad to be starting here.", "translation_ar": "يسعدني أن أبدأ العمل هنا.", "sort_order": 1 },
     { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "An wen kann ich mich bei Fragen wenden?", "translation_en": "Who can I turn to if I have questions?", "translation_ar": "بمن يمكنني الاستفسار عند وجود أسئلة؟", "sort_order": 2 },
-    { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "Hier sind meine Steuer-ID und meine Bankverbindung.", "translation_en": "Here are my tax ID and my bank details.", "translation_ar": "تفضّل رقمي الضريبي وبيانات حسابي البنكي.", "sort_order": 3 },
+    { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "Hier sind meine Steuer-ID und meine Bankverbindung.", "translation_en": "Here are my tax ID and my bank details.", "translation_ar": "هذا رقمي الضريبي وبيانات حسابي البنكي.", "sort_order": 3 },
     { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "Wie ist die Probezeit geregelt?", "translation_en": "How is the probation period arranged?", "translation_ar": "كيف تُنظَّم فترة التجربة؟", "sort_order": 4 },
     { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "Wann findet das wöchentliche Team-Meeting statt?", "translation_en": "When does the weekly team meeting take place?", "translation_ar": "متى يُعقد الاجتماع الأسبوعي للفريق؟", "sort_order": 5 },
-    { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "Ich muss mich heute leider krankmelden.", "translation_en": "Unfortunately I have to report sick today.", "translation_ar": "للأسف يجب أن أبلّغ أنني مريض اليوم.", "sort_order": 6 }
+    { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "Ich muss mich heute leider krankmelden.", "translation_en": "Unfortunately I have to report sick today.", "translation_ar": "للأسف يجب أن أبلّغ أنني مريض اليوم.", "sort_order": 6 },
+    { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "Wer ist mein direkter Vorgesetzter, und wann ist die Pause?", "translation_en": "Who is my direct supervisor, and when is the break?", "translation_ar": "من هو رئيسي المباشر، ومتى وقت الاستراحة؟", "sort_order": 7 },
+    { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "Kann mich ein Kollege in die Aufgaben einweisen?", "translation_en": "Can a colleague show me how to do the tasks?", "translation_ar": "هل يمكن أن يشرح لي أحد الزملاء المهام ويدرّبني عليها؟", "sort_order": 8 },
+    { "scenario_id": "erster_arbeitstag", "level": "B1", "german": "Wann bekomme ich meinen Arbeitsvertrag?", "translation_en": "When will I get my employment contract?", "translation_ar": "متى أحصل على عقد العمل؟", "sort_order": 9 }
   ],
   "grammar": [
     {

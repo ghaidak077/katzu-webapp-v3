@@ -253,9 +253,14 @@ describe('shipped curriculum draft', () => {
     expect(report.errors).toEqual([]);
   });
 
-  it('declares itself unreviewed so it cannot be loaded by accident', () => {
-    expect(report.stats.reviewStatus).toBe('pending');
-    expect(draft.review.reviewedBy).toBeNull();
+  it('carries an honest AI self-review attribution, never a human name', () => {
+    // This draft used to declare itself unreviewed so it could not be loaded by
+    // accident. It is approved now (docs/content/review-30day-module1.md), so the
+    // guard moves from "pending" to "the attribution is honest and dated": the
+    // gate's own format, which a human name must never be able to satisfy.
+    expect(report.stats.reviewStatus).toBe('approved');
+    expect(String(draft.review.reviewedBy)).toMatch(/^AI self-review — .+, no human review$/);
+    expect(Number.isNaN(Date.parse(String(draft.review.reviewedAt)))).toBe(false);
     expect(draft.review.checklist.length).toBeGreaterThan(0);
   });
 

@@ -24,8 +24,9 @@ import { SCENARIO_CATEGORY_TO_TOPIC } from '@/lib/utils/scenarioVocab';
 
 type Row = Record<string, unknown>;
 
-const moduleFiles = [
-  'docs/content/curriculum-arrival-module2.json',
+const moduleFiles: { file: string; label: string }[] = [
+  { file: 'docs/content/curriculum-30day-module1.json', label: 'module1' },
+  { file: 'docs/content/curriculum-arrival-module2.json', label: 'module2' },
 ];
 
 interface Scenario {
@@ -51,9 +52,9 @@ function loadDraft(file: string): Draft {
   return JSON.parse(readFileSync(path.resolve(file), 'utf8')) as Draft;
 }
 
-const drafts = moduleFiles.map(loadDraft);
-const allScenarios: { scenario: Scenario; source: string }[] = drafts.flatMap((d) =>
-  d.scenarios.map((s) => ({ scenario: s, source: 'module2' })),
+const drafts = moduleFiles.map((entry) => ({ ...entry, draft: loadDraft(entry.file) }));
+const allScenarios: { scenario: Scenario; source: string }[] = drafts.flatMap((entry) =>
+  entry.draft.scenarios.map((s) => ({ scenario: s, source: entry.label })),
 );
 
 // The offline fixture openers (src/lib/db/katzuDb.ts), asserted for register and
@@ -103,10 +104,12 @@ describe('arrival roster gate (module drafts)', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it.each(allScenarios.map((e) => [e.scenario.id, e.scenario] as const))(
+  it.each(allScenarios.map((e) => [e.scenario.id, e.scenario, e.source] as const))(
     '%s: 4 openers, 6–10 phrases, pool in range, grammar link',
-    (id, scenario) => {
-      const draft = loadDraft('docs/content/curriculum-arrival-module2.json');
+    (id, scenario, source) => {
+      // The draft that owns this scenario: both module drafts are gated, so the
+      // assertions can never be satisfied by the other module's rows.
+      const draft = drafts.find((entry) => entry.label === source)!.draft;
 
       // 4 opener levels
       for (const key of ['initial_message_a1', 'initial_message_a2', 'initial_message_b1', 'initial_message_b2'] as const) {
@@ -156,12 +159,13 @@ describe('arrival roster gate (module drafts)', () => {
     },
   );
 
-  it('no isolated vocabulary: every pool word appears in some phrase or opener of its topic', () => {
+  it.each(drafts.map((d) => [d.label, d.draft] as const))(
+    '%s: no isolated vocabulary — every pool word appears in some phrase or opener of its topic',
+    (_label, draft) => {
     // The pool is shared per topic (airport+station share travel, bakery+friend
     // share food), so the roadmap rule is topic-level: each word must have a
     // natural home in at least one phrase or opener of any scenario reading
     // that pool — never only inside a quiz.
-    const draft = loadDraft('docs/content/curriculum-arrival-module2.json');
     const scenariosByTopic = new Map<string, Scenario[]>();
     for (const scenario of draft.scenarios) {
       const topic = SCENARIO_CATEGORY_TO_TOPIC[scenario.category];
