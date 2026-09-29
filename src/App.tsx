@@ -20,7 +20,6 @@ import { DAILY_MINUTE_CHOICES, type DailyMinuteChoice } from '@/types/models';
 // (and then sign-in) without waiting on anything else.
 import { WelcomeScreen } from '@/features/auth/WelcomeScreen';
 import { SignInScreen } from '@/features/auth/SignInScreen';
-import { TrustInfoScreen } from '@/features/settings/TrustInfoScreen';
 import { LandingScreen } from '@/features/marketing/LandingScreen';
 
 /**
@@ -92,6 +91,12 @@ const StorySetupScreen = React.lazy(() =>
 );
 const GuidedPracticeScreen = React.lazy(() =>
   import('@/features/journey/GuidedPracticeScreen').then((m) => ({ default: m.GuidedPracticeScreen })),
+);
+// Development-only design-system page; never registered in a production build.
+// The privacy policy / terms pages are public but are not part of any first
+// paint: a visitor reads them from the footer, not from the landing hero.
+const TrustInfoScreen = React.lazy(() =>
+  import('@/features/settings/TrustInfoScreen').then((m) => ({ default: m.TrustInfoScreen })),
 );
 // Development-only design-system page; never registered in a production build.
 const DesignSystemScreen = isDevBuild
