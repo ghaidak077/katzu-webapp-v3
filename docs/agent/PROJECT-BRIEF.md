@@ -1,6 +1,6 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
-Recon date 2026-09-29; **deployed the same day** (owner-authorized): `main` = `launch-hardening` = `6bfe4fd`, worker `07d7d341-…`, Pages production `cbfb29f5-…`. Sections marked *(live)* reflect the deploy.
+Recon date 2026-09-29; **deployed the same day** (owner-authorized): the deploy is at `6bfe4fd` (worker `07d7d341-…`, Pages production `cbfb29f5-…`), and `main` is now `48582ea` — the V7-4 docs commit on top of it. `launch-hardening` is `main` plus the V8 commits (`8313808` + this docs commit); **nothing was deployed in V8**, so production is still the V7 code. Sections marked *(live)* reflect the deploy.
 Every claim cites a path, a command result, or a ledger line. Unverified claims sit under **UNKNOWN**.
 Environment facts: `docs/agent/ENV-FACTS.md`. Status: `docs/AGENT-STATE.md`.
 
@@ -55,7 +55,8 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 - Bundle top 5: `index` 492 K · `LiveConversationScreen` 96 K · `JourneyHomeScreen` 32 K · `ProfileSettingsScreen` 24 K · `SubscriptionRedemptionScreen` 24 K (+ `index-*.css` 52 K).
 - Audit: `npm audit --omit=dev --audit-level=high` → **0 vulnerabilities**.
 - A11y: `e2e/accessibility.spec.ts` axe WCAG 2.0/2.1 A+AA, zero critical/serious (ledger B6).
-- Flaky tests: **UNKNOWN** — no reruns this session; the only known earlier flake (banner geometry) was fixed in `8a65edf`.
+- Real-D1 (V8-2): server-side sync compare-and-swap and crypto exactly-once now pass on local `wrangler dev --local` D1, **23/23 assertions**, including two genuine races — one commit / one 409 with the union preserved, and one delivery / one duplicate. Raw rows read back out of the SQLite file.
+- Flaky tests: **none known.** The `e2e/journey.spec.ts:320` flake is fixed at its cause (V8-1, `8313808`: the fake device held the audio level for only 6 animation frames); `E2E_TARGET=preview npx playwright test` is **37/37 twice**, and the spec is 8/8 under six CPU-saturating loops. The earlier banner-geometry flake was fixed in `8a65edf`.
 
 ## 5. Risk register (ranked by learner/trust impact)
 
@@ -65,10 +66,11 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 | 2 | ~~18 commits unmerged to `main`~~ **FIXED (live)**: `main` fast-forwarded to `6bfe4fd`, `git rev-list --left-right --count main...launch-hardening` → `0 0` | ledger V7-3 | — | closed |
 | 3 | ~~The shipping artifact fails e2e (26/37)~~ **FIXED**: 37/37 vs `vite preview` via `E2E_TARGET=preview` | ledger V7-2 | — | closed |
 | 3b | **NEW:** `/admin` serves the control-plane HTML shell unauthenticated (200) | `curl -o /dev/null -w %{http_code} .../admin` → 200; the API behind it is gated (`/admin/api/users` → 401). Already an OWNER-OPEN item (Cloudflare Access) | S | owner |
-| 3c | **NEW:** one flaky e2e test (`e2e/journey.spec.ts:320`) — 1 failure in 3 preview runs | ledger UNPROVEN + LESSONS; passes 3/3 standalone and in two other full runs | S | agent |
+| 3c | ~~one flaky e2e test (`e2e/journey.spec.ts:320`)~~ **FIXED**: the fake capture device now holds the audio until the harness measures real RMS (V8-1) | ledger V8-1; 37/37 twice vs `vite preview`, 8/8 under CPU load | — | closed |
 | 4 | No Lighthouse numbers at all | ledger RC-1 `blocked`; Lighthouse not installed | M | agent |
 | 5 | Two approved/pending modules are not live; module1 is `pending` so a load would be refused | §2 counts; `OWNER-OPEN` loader commands | S | owner |
-| 6 | Real-D1 behaviour unproven — sync compare-and-swap and crypto idempotency only tested on fakes | ledger UNPROVEN; AGENTS.md §5 | M | agent |
+| 6 | ~~Real-D1 behaviour unproven~~ **FIXED for local D1**: 23/23 assertions on `wrangler dev --local` incl. two real races | ledger V8-2; probe deleted, local only, production untouched | — | closed |
+| 6b | **NEW:** `POST /progress/sync` on a D1 with no ledger tables answers **500** (`handleProgressSync` never calls `ensureLedgerTables`; the `error_reports` record fails too, so the 5xx is silent). Only bites a fresh deploy whose first learner syncs before any code is redeemed | ledger UNPROVEN V8-F0; reproduced on a wiped local D1, worker log `no such table: sync_revisions` at `cloudflare-unified-worker.js:2437` | S | agent |
 | 7 | This machine can `wrangler deploy` (OAuth token, `workers (write)`) | `npx wrangler whoami` (this session) | S | owner/agent discipline |
 | 8 | Payments are sandbox-only, legally unreviewed | `NOWPAYMENTS_ENVIRONMENT="test_mode"`; `OWNER-OPEN` counsel item | L | owner |
 | 9 | `MAINTENANCE_MODE` + cron trigger not configured → no automatic retention | `wrangler.toml` has neither; ledger RC-4 | S | owner |
@@ -76,10 +78,10 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 
 ## 6. Ledger digest (`docs/AGENT-STATE.md`)
 
-- **done**: Baseline · B1–B8 (content gate, learning loop, authoring, performance, reliability, a11y, docs, final gate) · RC-0 · RC-2 · RC-3 · RC-4 · RC-5.
-- **done, new this run**: `V7-1` manual v7 + deploy runbook · `V7-2` built bundle 37/37 · `V7-3` merge + worker + Pages deploy, verified · `V7-4` report + brief.
+- **done**: Baseline · B1–B8 (content gate, learning loop, authoring, performance, reliability, a11y, docs, final gate) · RC-0 · RC-2 · RC-3 · RC-4 · RC-5 · V7-1 … V7-4.
+- **done, new in V8**: `V8-1` `journey.spec.ts:320` flake fixed at its cause (37/37 twice) · `V8-2` real-local-D1 proof, 23/23 (sync CAS + crypto exactly-once) · `V8-3` ledger `main` hash reconciled to `48582ea`.
 - **blocked**: `RC-1` (Lighthouse not installed — the only item with no evidence at all). `RC-6` is now **superseded**: its targets were authorized and executed in V7-3.
-- **todo**: nothing agent-run is open except the flaky test (3c); everything else is owner-only.
+- **todo**: `V8-F0` — the sync path must create its own ledger tables (risk 6b). Everything else agent-runnable is closed.
 - **`OWNER-OPEN`**: two loader `--commit` runs (module2, module1) · `MAINTENANCE_MODE` + cron trigger · Cloudflare Access on `/admin/*` · NOWPayments live mode after a sandbox pass · counsel review of legal pages · custom domain + OAuth origins + `VITE_PUBLIC_APP_URL` · worker/Pages deploys · real-device iOS/Android voice · beta cohort of 30–50 · a draft/live title difference on `airport_arrival`.
 - **`UNPROVEN`**: loader remote dry-run/real load · human content review (AI self-review only) · built-bundle e2e · anything against production D1 · real-D1 sync/crypto atomicity · Lighthouse · visual 360/390 px and offline-recording checks.
 
@@ -91,17 +93,18 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 - **Environment/docs**: `570f08a` pin LF on checkout · `5153157` e2e suite self-contained.
 - **Product**: `c208f01` paywall price from the worker · `74bbddd` CI gates · `ea90517` Arabic safety disclaimers.
 
-- **V7 stage (this run)**: `1b07f82` manual v7 + deploy runbook · `e82221f` block SW in e2e; built bundle 37/37 · `6bfe4fd` deploy snapshot + the merge that carried all 22 hardening/V7 commits to `main`.
+- **V7 stage**: `1b07f82` manual v7 + deploy runbook · `e82221f` block SW in e2e; built bundle 37/37 · `6bfe4fd` deploy snapshot + the merge that carried all 22 hardening/V7 commits to `main` · `48582ea` ledger + brief after the deploy.
+- **V8 stage (this run)**: `8313808` fix the `journey.spec.ts:320` flake at its cause · plus the docs commit carrying the real-D1 results and the `main` hash correction.
 
-`main` and `launch-hardening` are now identical (`git rev-list --left-right --count main...launch-hardening` → `0 0`), so the old `main...launch-hardening` diff no longer exists. The deploy was a fast-forward: `22fe6aa → 6bfe4fd`.
+`main` = `48582ea`; `launch-hardening` is ahead of it by the V8 commits only. The V7 deploy was a fast-forward: `22fe6aa → 6bfe4fd`, and production still runs that commit (V8 deployed nothing).
 
 ## 8. Live vs local drift (read-only only)
 
-**No drift as of 2026-09-29:** production and the working tree are the same commit (`6bfe4fd`).
+**No product drift as of 2026-09-29:** production runs `6bfe4fd`, and the working tree differs only by V8 work — the e2e harness fix (`e2e/harness.ts` only, `8313808`) and documentation. No shipped app or worker code differs, because V8 changed none.
 
 | | Production (live, after V7-3) | Working tree |
 |---|---|---|
-| Commit | `6bfe4fd` — Pages production `cbfb29f5-…`, worker `07d7d341-…` | `6bfe4fd` (`launch-hardening`) |
+| Commit | `6bfe4fd` — Pages production `cbfb29f5-…`, worker `07d7d341-…` | `main` `48582ea`, `launch-hardening` = `48582ea` + the V8 commits |
 | `/health` | `{status, service, ready, maintenance}` — no pool/models/strategy | same |
 | D1 content | 5 scenarios / 114 vocab / 20 phrases / 4 grammar | same; both drafts still not loaded |
 | Kill switch / retention | `MAINTENANCE_MODE` present but off; still no cron trigger | same |
@@ -111,8 +114,8 @@ Nothing was deployed, no D1 write was made, no secret was read.
 
 ## 9. Recommended next 5 (highest value first)
 
-1. **Fix the flaky test** `e2e/journey.spec.ts:320` (close risk 3c). Reason: a flaky test is a bug (v7 §5) and it is the only thing standing between the suite and a clean 37/37 twice in a row. Gate: 5 consecutive passes of that spec.
+1. **Make the sync path create its own tables** (close risk 6b / V8-F0). Reason: one missing `ensureLedgerTables` call plus an unguarded 5xx on the first sync of a fresh deploy; the V8-2 probe reproduces it in one request. Gate: on a wiped local D1, the first `POST /progress/sync` returns 200 `rev:1`.
 2. **Lighthouse baseline** on `/`, `/demo`, Trail. Reason: the only backlog item with no evidence at all. Gate: numbers recorded in the ledger.
-3. **Real-D1 local run** (`wrangler dev --local`) for sync compare-and-swap and crypto idempotency. Reason: both are proven only against fakes. Gate: one passing integration test per path.
+3. **Drive the client's 409→refetch→retry loop from two real browsers** against one local D1. Reason: V8-2 proved the server contract; the client half is still only unit-tested. Gate: two contexts, one database, union preserved.
 4. **Cloudflare Access in front of `/admin/*`** (owner). Reason: the control-plane shell answers 200 unauthenticated today. Gate: anonymous `/admin` is challenged.
 5. **Load the two approved/pending modules** (owner, needs `ADMIN_SECRET`). Reason: 10 authored scenarios and 123 vocabulary rows are sitting unused while live D1 holds 5. Gate: loader `--commit` + row counts in the ledger.
