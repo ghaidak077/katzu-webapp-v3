@@ -1,6 +1,6 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
-Recon date 2026-09-29; **deployed the same day** (owner-authorized): the deploy is at `6bfe4fd` (worker `07d7d341-…`, Pages production `cbfb29f5-…`), and `main` is now `48582ea` — the V7-4 docs commit on top of it. `launch-hardening` is `main` plus the V8 commits (`8313808`, the V8 ledger) and the V9 commit (`4d4e40e`); the V9 merge + worker deploy run under the owner's `DEPLOY-AUTHORIZED: merge, worker` line. Sections marked *(live)* reflect the V7 deploy until that V9 deploy lands.
+Recon date 2026-09-29; **deployed the same day** (owner-authorized): the deploy is at `6bfe4fd` (worker `07d7d341-…`, Pages production `cbfb29f5-…`), and `main` is now `48582ea` — the V7-4 docs commit on top of it. `main` now carries the V9 commits through this ledger update and **the V9 worker is deployed** (`6aedfd50-05d7-449a-832c-73c575098224`, built from `ed038f4`, owner-authorized `merge, worker`); Pages was not deployed because `src/` did not change. Sections marked *(live)* reflect the V9 deploy.
 Every claim cites a path, a command result, or a ledger line. Unverified claims sit under **UNKNOWN**.
 Environment facts: `docs/agent/ENV-FACTS.md`. Status: `docs/AGENT-STATE.md`.
 
@@ -99,21 +99,21 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 - **V8 stage**: `8313808` fix the `journey.spec.ts:320` flake at its cause · `36802ae` the V8 ledger (real-D1 results and the `main` hash correction).
 - **V9 stage (this run)**: `4d4e40e` every ledger route creates the tables it touches (V8-F0 fixed; the admin failure throttle fixed) · plus the docs commit carrying the 33/33 probe and the T2 gate.
 
-`main` = `48582ea`; `launch-hardening` was ahead of it by the V8 commits and is now ahead by V9 as well. The V7 deploy was a fast-forward: `22fe6aa → 6bfe4fd`, and production still runs that commit until the V9 worker deploy lands.
+`main` = `ed038f4` plus the post-deploy ledger commit (the V8 + V9 commits fast-forwarded from `48582ea`; no force) and the V9 worker `6aedfd50-…` is live. The V7 deploy was also a fast-forward: `22fe6aa → 6bfe4fd`.
 
 ## 8. Live vs local drift (read-only only)
 
-**Worker drift as of 2026-09-29 (V9):** production runs `6bfe4fd` (V7 worker `07d7d341-…`). The working tree adds V8 (test-harness only) and **V9, which does change worker code** — `cloudflare-unified-worker.js` and `cloudflare-admin.js` — so the live worker is the pre-V9 code until the authorized V9 merge + deploy lands. No `src/` file changed in V8 or V9, so the Pages bundle is unaffected.
+**Worker drift closed as of 2026-09-29 (V9):** production runs the V9 worker `6aedfd50-…` built from `ed038f4`; the working tree is that commit plus this post-deploy ledger update. V9 changed `cloudflare-unified-worker.js` and `cloudflare-admin.js` only; no `src/` file changed in V8 or V9, so Pages still serves the same `assets/index-B3aF3j7l.js` the V7 deploy shipped.
 
 | | Production (live, after V7-3) | Working tree |
 |---|---|---|
-| Commit | `6bfe4fd` — Pages production `cbfb29f5-…`, worker `07d7d341-…` | `main` `48582ea`, `launch-hardening` = `48582ea` + V8 + V9 (`4d4e40e`) |
+| Commit | `ed038f4` — worker `6aedfd50-…`; Pages unchanged at `cbfb29f5-…` | `ed038f4` + the post-deploy ledger commit |
 | `/health` | `{status, service, ready, maintenance}` — no pool/models/strategy | same |
 | D1 content | 5 scenarios / 114 vocab / 20 phrases / 4 grammar | same; both drafts still not loaded |
 | Kill switch / retention | `MAINTENANCE_MODE` present but off; still no cron trigger | same |
 | Sales site | `katzu-sales.pages.dev` 200, NOWPayments sandbox `ready:false` | unchanged |
 
-Nothing was deployed, no D1 write was made, no secret was read.
+The V9 worker was deployed; no D1 migration and no manual D1 write was made, and no secret was read.
 
 ## 9. Recommended next 5 (highest value first)
 
