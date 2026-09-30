@@ -11,6 +11,13 @@
  * authoritative.
  */
 export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
+  // A0 foundations module (docs/content/curriculum-a0-foundations.json, V21 Phase 5).
+  first_greetings: ['g_a0_hallo_ich_heisse', 'g_a0_ich_bin_aus'],
+  supermarket_checkout: ['g_a0_ich_moechte', 'g_a1_der_die_das_uebersicht'],
+  banking_first_visit: ['g_a0_hilfe_nicht_verstanden', 'g_a1_frage_wo_woher'],
+  letters_and_forms: ['g_a1_buchstabieren_alphabet', 'g_a0_hilfe_nicht_verstanden'],
+  train_first_ride: ['g_a1_frage_wo_woher', 'g_a1_zahlen_bis_zehn'],
+  numbers_and_prices: ['g_a1_zahlen_bis_zehn', 'g_a1_der_die_das_uebersicht'],
   // German 30-day module 1 (docs/content/curriculum-30day-module1.json).
   // These five scenarios shipped ten grammar rows that no scenario pointed at:
   // with no `scenario_id` column in D1 and no entry here, Guided Practice had

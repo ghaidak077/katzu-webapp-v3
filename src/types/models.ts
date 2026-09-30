@@ -52,6 +52,8 @@ export interface ScenarioEntity {
   ai_persona: string;
   category: string;
   icon: string;
+  /** From-zero opener (V21): optional — only the foundations module carries one. */
+  initial_message_a0?: string;
   initial_message_a1: string;
   initial_message_a2: string;
   initial_message_b1: string;

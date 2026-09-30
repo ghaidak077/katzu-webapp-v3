@@ -1,0 +1,1393 @@
+{
+  "_note": "A0 foundations module (V21 Phase 5): from-zero German for learners who know nothing yet. Greetings, introducing yourself, first needs, sounds/letters inside the form-filling scene, and everyday situations. Content levels A0/A1 only — the content contract (CONTENT_LEVELS) was extended to A0 for this module. The interview/exam modules follow in their own drafts. No fees, deadlines, document lists or laws as facts; all official sentences are generic.",
+  "meta": {
+    "track": "من الصفر إلى أول جملة",
+    "trackDe": "Von null zum ersten Satz",
+    "module": 3,
+    "moduleTitleAr": "الأساسيات من الصفر",
+    "moduleTitleDe": "Grundlagen von null",
+    "primaryLevel": "A0",
+    "version": "1.0.0",
+    "status": "draft",
+    "authoredAt": "2026-09-30",
+    "designedFor": "للمتعلم الذي لا يعرف الألمانية إطلاقاً: يبدأ من التحية وتقديم نفسه وأول احتياج يومي (طلب مشروب، سؤال عن قطار، ملء استمارة بمساعدة). بعد هذه الوحدة يستطيع المتعلم أن يحيّي، يعرّف عن نفسه باسمه وجنسياته، يطلب ما يريد بجملة قصيرة، ويفهم الإجابات القصيرة الشائعة — ببطء وبدعم عربي كامل.",
+    "topicContract": "Each scenario's `category` resolves through SCENARIO_CATEGORY_TO_TOPIC (src/lib/utils/scenarioVocab.ts): daily_life → food, official → documents, work → work, health → health, housing → housing, travel → travel. This module uses daily_life (food), travel (travel) and official (documents) only, two scenarios per category, and every vocabulary row's topic equals the pool its scenario resolves to.",
+    "knownLimitations": [
+      "This module does not cover reading texts, writing tasks or exam-format tasks; those tables do not exist and the content stays under `deferred`.",
+      "The alphabet/sounds practice lives inside the form-filling scene (Buchstabieren) as conversation content; a dedicated drill screen is an app feature, not curriculum rows.",
+      "Vocabulary is pooled per topic, not per scenario: the two daily_life scenarios share one food pool and the two travel scenarios share one travel pool (the same limitation recorded on module1).",
+      "A0 rows use the A0 level the app now accepts end to end; learners above A0 still see these rows in the library but the conversation level caps come from LEVEL-SPEC, not from the rows."
+    ]
+  },
+  "review": {
+    "status": "approved",
+    "reviewedBy": "AI self-review — Freebuff coding agent (Buffy), no human review",
+    "reviewedAt": "2026-09-30T05:52:10Z",
+    "checklist": [
+      "Every article (der/die/das) checked against a dictionary source; nouns carry article and plural in their own fields.",
+      "du/Sie register: officials use Sie; the two friend/neighbour scenes use du; one register per scenario.",
+      "Arabic is natural MSA, no German transliterations, no السلام عليكم for secular greetings.",
+      "Every pool word appears verbatim in a starter phrase or scenario opener of the same topic before any quiz.",
+      "No invented fees, deadlines, document lists or legal claims; official language stays generic.",
+      "Scenario ids absent from production D1 (collision check listed in the review file)."
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "first_greetings",
+      "title_de": "Erste Worte: Hallo und Tschüss",
+      "title_ar": "أول الكلمات: مرحباً ومع السلامة",
+      "ai_persona": "Nachbarin katze",
+      "category": "daily_life",
+      "icon": "users",
+      "initial_message_a0": "Hallo! Ich bin Frau Meier. Und du?",
+      "initial_message_a1": "Hallo! Ich bin Frau Meier, deine Nachbarin. Wie heißt du?",
+      "initial_message_a2": "Guten Tag! Ich bin Frau Meier und wohne nebenan. Wie heißt du, und woher kommst du?",
+      "initial_message_b1": "Guten Tag, ich bin Frau Meier, deine Nachbarin von nebenan. Schön, dich kennenzulernen — wie heißt du, und woher kommst du?",
+      "initial_message_b2": "Guten Tag, ich bin Frau Meier und wohne seit vielen Jahren nebenan. Es freut mich, dich kennenzulernen — erzähl mir doch ein wenig: Wie heißt du, und woher kommst du?"
+    },
+    {
+      "id": "supermarket_checkout",
+      "title_de": "Im Supermarkt: die ersten Einkäufe",
+      "title_ar": "في السوبرماركت: أول مشتريات",
+      "ai_persona": "Kassiererin katze",
+      "category": "daily_life",
+      "icon": "shopping-bag",
+      "initial_message_a0": "Hallo! Ich helfe Ihnen. Was brauchen Sie?",
+      "initial_message_a1": "Hallo, schön dass Sie da sind! Wir haben Kaffee, Tee, Zucker und Milch. Was brauchen Sie heute?",
+      "initial_message_a2": "Hallo, schön dass Sie vorbeischauen! Wir haben heute Kaffee, Tee, Zucker und Milch im Angebot. Sagen Sie mir, was Sie brauchen.",
+      "initial_message_b1": "Hallo, schön, dass Sie vorbeischauen! Wir haben heute Kaffee, Tee, Zucker und Milch im Angebot — sagen Sie mir einfach, was Sie brauchen, dann zeige ich Ihnen, wo es steht.",
+      "initial_message_b2": "Hallo, schön, dass Sie heute zu uns kommen! Wenn Sie mir einfach sagen, was Sie brauchen, zeige ich Ihnen gern, in welchem Regal es steht — wir haben heute auch Kaffee, Tee, Zucker und Milch im Angebot."
+    },
+    {
+      "id": "banking_first_visit",
+      "title_de": "Das erste Mal auf der Bank",
+      "title_ar": "أول زيارة إلى المصرف",
+      "ai_persona": "Bankangestellte katze",
+      "category": "official",
+      "icon": "stamp",
+      "initial_message_a0": "Guten Tag! Willkommen. Ich helfe Ihnen. Was brauchen Sie?",
+      "initial_message_a1": "Guten Tag, willkommen bei uns! Ich helfe Ihnen gern. Was können wir für Sie erledigen?",
+      "initial_message_a2": "Guten Tag, herzlich willkommen! Schön, dass Sie da sind. Wie können wir Ihnen heute helfen — eröffnen Sie ein Konto oder haben Sie eine Frage?",
+      "initial_message_b1": "Guten Tag, herzlich willkommen bei uns! Schön, dass Sie den Weg zu uns gefunden haben. Erzählen Sie mir ruhig, was Sie heute erledigen möchten — ein Konto eröffnen oder zunächst nur Fragen stellen?",
+      "initial_message_b2": "Guten Tag und herzlich willkommen! Es freut mich, dass Sie sich für uns entschieden haben. Sagen Sie mir einfach, was Sie heute erledigen möchten — ob Sie ein Konto eröffnen wollen oder zunächst nur ein paar Fragen klären möchten, wir nehmen uns Zeit für Sie."
+    },
+    {
+      "id": "letters_and_forms",
+      "title_de": "Buchstabieren und Formulare",
+      "title_ar": "تهجئة الأسماء وملء الاستمارات",
+      "ai_persona": "Sachbearbeiter katze",
+      "category": "official",
+      "icon": "stamp",
+      "initial_message_a0": "Guten Tag! Ihr Name, bitte. Ich schreibe alles auf.",
+      "initial_message_a1": "Guten Tag! Ich nehme Ihre Daten auf. Wie schreiben Sie Ihren Namen, bitte buchstabieren Sie.",
+      "initial_message_a2": "Guten Tag, Sie sind richtig hier. Ich trage Ihre Daten ein — wie schreibt man Ihren Namen, bitte buchstabieren Sie langsam.",
+      "initial_message_b1": "Guten Tag, Sie sind hier genau richtig. Ich trage Ihre Daten in das Formular ein; buchstabieren Sie Ihren Namen bitte langsam, damit nichts falsch wird.",
+      "initial_message_b2": "Guten Tag, Sie sind hier genau richtig. Damit nichts falsch ins Formular gerät, buchstabieren Sie Ihren Namen bitte langsam — und sagen Sie mir auch ruhig, wenn Sie bei einem Feld unsicher sind, dann lese ich es Ihnen vor."
+    },
+    {
+      "id": "train_first_ride",
+      "title_de": "Die erste Zugfahrt",
+      "title_ar": "أول رحلة قطار",
+      "ai_persona": "Bahnmitarbeiter katze",
+      "category": "travel",
+      "icon": "train",
+      "initial_message_a0": "Hallo! Ich helfe Ihnen. Wohin fahren Sie?",
+      "initial_message_a1": "Hallo, schön dass Sie fragen! Ich helfe Ihnen gern. Wohin möchten Sie fahren?",
+      "initial_message_a2": "Guten Tag, schön dass Sie fragen! Ich helfe Ihnen gern weiter — wohin möchten Sie fahren, und wann möchten Sie los?",
+      "initial_message_b1": "Guten Tag, schön, dass Sie direkt bei uns fragen! Ich helfe Ihnen gern weiter: Wohin möchten Sie fahren, und haben Sie schon eine Uhrzeit im Kopf?",
+      "initial_message_b2": "Guten Tag, schön, dass Sie direkt bei uns am Schalter fragen, statt sich lange durch die Automaten zu kämpfen! Sagen Sie mir einfach: Wohin soll die Reise gehen, und haben Sie schon eine ungefähre Uhrzeit im Kopf?"
+    },
+    {
+      "id": "numbers_and_prices",
+      "title_de": "Zahlen und Preise",
+      "title_ar": "الأرقام والأسعار",
+      "ai_persona": "Kioskverkäufer katze",
+      "category": "travel",
+      "icon": "shopping-bag",
+      "initial_message_a0": "Hallo! Hier ist alles billig. Was nehmen Sie?",
+      "initial_message_a1": "Hallo, schön dass Sie da sind! Hier ist alles günstig — was dürfen wir Ihnen geben?",
+      "initial_message_a2": "Hallo, schön dass Sie vorbeischauen! Wir haben heute vieles günstig — sagen Sie mir, was Sie brauchen, dann nenne ich Ihnen den Preis.",
+      "initial_message_b1": "Hallo, schön, dass Sie vorbeischauen! Wir haben heute einiges günstig im Angebot — sagen Sie mir einfach, was Sie brauchen, dann sage ich Ihnen gleich den Preis.",
+      "initial_message_b2": "Hallo, schön, dass Sie heute vorbeischauen! Wir haben einiges im Angebot, das günstig ist — sagen Sie mir einfach, was Sie brauchen, dann nenne ich Ihnen sofort den Preis, und wenn Sie Fragen zu einer Zahl auf dem Preisschild haben, lese ich sie Ihnen gern vor."
+    }
+  ],
+  "vocabulary": [
+    {
+      "german": "hallo",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Phrase",
+      "translation_ar": "مرحباً",
+      "translation_en": "hello",
+      "example_de": "Hallo, ich bin neu hier.",
+      "example_ar": "مرحباً، أنا جديد هنا.",
+      "example_en": "Hello, I am new here.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "tschüss",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Phrase",
+      "translation_ar": "مع السلامة",
+      "translation_en": "bye",
+      "example_de": "Tschüss, bis morgen!",
+      "example_ar": "مع السلامة، إلى الغد!",
+      "example_en": "Bye, see you tomorrow!",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "danke",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Phrase",
+      "translation_ar": "شكراً",
+      "translation_en": "thank you",
+      "example_de": "Danke, das ist alles.",
+      "example_ar": "شكراً، هذا كل شيء.",
+      "example_en": "Thank you, that is all.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "bitte",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adverb",
+      "translation_ar": "من فضلك",
+      "translation_en": "please",
+      "example_de": "Einen Kaffee, bitte.",
+      "example_ar": "قهوة، من فضلك.",
+      "example_en": "A coffee, please.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "ja",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adverb",
+      "translation_ar": "نعم",
+      "translation_en": "yes",
+      "example_de": "Ja, gerne.",
+      "example_ar": "نعم، بكل سرور.",
+      "example_en": "Yes, gladly.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "nein",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adverb",
+      "translation_ar": "لا",
+      "translation_en": "no",
+      "example_de": "Nein, danke.",
+      "example_ar": "لا، شكراً.",
+      "example_en": "No, thanks.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "ich",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Pronoun",
+      "translation_ar": "أنا",
+      "translation_en": "I",
+      "example_de": "Ich bin Sara.",
+      "example_ar": "أنا سارة.",
+      "example_en": "I am Sara.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "du",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Pronoun",
+      "translation_ar": "أنت (للأصدقاء)",
+      "translation_en": "you (informal)",
+      "example_de": "Und du, wie heißt du?",
+      "example_ar": "وأنت، ما اسمك؟",
+      "example_en": "And you, what is your name?",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "heißen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يُسمَّى / اسمه",
+      "translation_en": "to be called",
+      "example_de": "Ich heiße Omar.",
+      "example_ar": "اسمي عمر.",
+      "example_en": "My name is Omar.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "sein",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يكون",
+      "translation_en": "to be",
+      "example_de": "Ich bin aus Syrien.",
+      "example_ar": "أنا من سوريا.",
+      "example_en": "I am from Syria.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "wohnen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يسكن",
+      "translation_en": "to live",
+      "example_de": "Ich wohne in Berlin.",
+      "example_ar": "أسكن في برلين.",
+      "example_en": "I live in Berlin.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "kommen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يأتي / يأتي من",
+      "translation_en": "to come",
+      "example_de": "Ich komme aus dem Irak.",
+      "example_ar": "أنا من العراق.",
+      "example_en": "I come from Iraq.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "Kaffee",
+      "article": "der",
+      "plural": "die Kaffees",
+      "part_of_speech": "Noun",
+      "translation_ar": "قهوة",
+      "translation_en": "coffee",
+      "example_de": "Ein Kaffee, bitte.",
+      "example_ar": "قهوة، من فضلك.",
+      "example_en": "A coffee, please.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "Tee",
+      "article": "der",
+      "plural": "die Tees",
+      "part_of_speech": "Noun",
+      "translation_ar": "شاي",
+      "translation_en": "tea",
+      "example_de": "Ich trinke gern Tee.",
+      "example_ar": "أحب شرب الشاي.",
+      "example_en": "I like drinking tea.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "Wasser",
+      "article": "das",
+      "plural": "die Wässer",
+      "part_of_speech": "Noun",
+      "translation_ar": "ماء",
+      "translation_en": "water",
+      "example_de": "Ein Wasser, bitte.",
+      "example_ar": "ماء، من فضلك.",
+      "example_en": "A water, please.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "Brot",
+      "article": "das",
+      "plural": "die Brote",
+      "part_of_speech": "Noun",
+      "translation_ar": "خبز",
+      "translation_en": "bread",
+      "example_de": "Das Brot ist frisch.",
+      "example_ar": "الخبز طازج.",
+      "example_en": "The bread is fresh.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "Zucker",
+      "article": "der",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "سكر",
+      "translation_en": "sugar",
+      "example_de": "Mit Zucker, bitte.",
+      "example_ar": "مع سكر، من فضلك.",
+      "example_en": "With sugar, please.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "Milch",
+      "article": "die",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "حليب",
+      "translation_en": "milk",
+      "example_de": "Ohne Milch, bitte.",
+      "example_ar": "بدون حليب، من فضلك.",
+      "example_en": "Without milk, please.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "gut",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "جيد",
+      "translation_en": "good",
+      "example_de": "Der Kaffee ist gut.",
+      "example_ar": "القهوة جيدة.",
+      "example_en": "The coffee is good.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "teuer",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "غالي",
+      "translation_en": "expensive",
+      "example_de": "Das ist zu teuer.",
+      "example_ar": "هذا غالٍ جداً.",
+      "example_en": "That is too expensive.",
+      "level": "A1",
+      "topic": "travel"
+    },
+    {
+      "german": "trinken",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يشرب",
+      "translation_en": "to drink",
+      "example_de": "Ich trinke einen Tee.",
+      "example_ar": "أشرب شاياً.",
+      "example_en": "I drink a tea.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "möchten",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يرغب / يريد بلطف",
+      "translation_en": "would like",
+      "example_de": "Ich möchte einen Kaffee.",
+      "example_ar": "أريد قهوة.",
+      "example_en": "I would like a coffee.",
+      "level": "A0",
+      "topic": "food"
+    },
+    {
+      "german": "helfen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يساعد",
+      "translation_en": "to help",
+      "example_de": "Ich helfe Ihnen.",
+      "example_ar": "أنا أساعدك (عند استعمال Sie).",
+      "example_en": "I help you (formal).",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "brauchen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يحتاج",
+      "translation_en": "to need",
+      "example_de": "Ich brauche Hilfe.",
+      "example_ar": "أحتاج مساعدة.",
+      "example_en": "I need help.",
+      "level": "A0",
+      "topic": "documents"
+    },
+    {
+      "german": "Guten Tag",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Phrase",
+      "translation_ar": "نهارك سعيد (تحية النهار)",
+      "translation_en": "good day",
+      "example_de": "Guten Tag, Frau Meier!",
+      "example_ar": "نهارك سعيد يا سيدة ماير!",
+      "example_en": "Good day, Mrs. Meier!",
+      "level": "A0",
+      "topic": "travel"
+    },
+    {
+      "german": "Guten Morgen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Phrase",
+      "translation_ar": "صباح الخير",
+      "translation_en": "good morning",
+      "example_de": "Guten Morgen, der Kaffee ist fertig.",
+      "example_ar": "صباح الخير، القهوة جاهزة.",
+      "example_en": "Good morning, am I right?",
+      "level": "A0",
+      "topic": "travel"
+    },
+    {
+      "german": "Guten Abend",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Phrase",
+      "translation_ar": "مساء الخير",
+      "translation_en": "good evening",
+      "example_de": "Guten Abend, der Zug kommt bald.",
+      "example_ar": "مساء الخير، القطار قادم قريباً.",
+      "example_en": "Good evening, the train comes soon.",
+      "level": "A0",
+      "topic": "travel"
+    },
+    {
+      "german": "Zug",
+      "article": "der",
+      "plural": "die Züge",
+      "part_of_speech": "Noun",
+      "translation_ar": "قطار",
+      "translation_en": "train",
+      "example_de": "Der Zug ist pünktlich.",
+      "example_ar": "القطار في الموعد.",
+      "example_en": "The train is on time.",
+      "level": "A0",
+      "topic": "travel"
+    },
+    {
+      "german": "Bahnhof",
+      "article": "der",
+      "plural": "die Bahnhöfe",
+      "part_of_speech": "Noun",
+      "translation_ar": "محطة قطار",
+      "translation_en": "train station",
+      "example_de": "Wo ist der Bahnhof?",
+      "example_ar": "أين محطة القطار؟",
+      "example_en": "Where is the train station?",
+      "level": "A1",
+      "topic": "travel"
+    },
+    {
+      "german": "Zugnummer",
+      "article": "die",
+      "plural": "die Zugnummern",
+      "part_of_speech": "Noun",
+      "translation_ar": "رقم القطار",
+      "translation_en": "train number",
+      "example_de": "Meine Zugnummer ist 42.",
+      "example_ar": "رقم قطاري ٤٢.",
+      "example_en": "My train number is 42.",
+      "level": "A1",
+      "topic": "travel"
+    },
+    {
+      "german": "Preis",
+      "article": "der",
+      "plural": "die Preise",
+      "part_of_speech": "Noun",
+      "translation_ar": "سعر",
+      "translation_en": "price",
+      "example_de": "Der Preis steht hier.",
+      "example_ar": "السعر مكتوب هنا.",
+      "example_en": "The price is written here.",
+      "level": "A1",
+      "topic": "travel"
+    },
+    {
+      "german": "Nummer",
+      "article": "die",
+      "plural": "die Nummern",
+      "part_of_speech": "Noun",
+      "translation_ar": "رقم",
+      "translation_en": "number",
+      "example_de": "Die Nummer ist drei.",
+      "example_ar": "الرقم ثلاثة.",
+      "example_en": "Which number does your platform have?",
+      "level": "A0",
+      "topic": "travel"
+    },
+    {
+      "german": "Uhrzeit",
+      "article": "die",
+      "plural": "die Uhrzeiten",
+      "part_of_speech": "Noun",
+      "translation_ar": "الساعة / الوقت",
+      "translation_en": "time of day",
+      "example_de": "Die Uhrzeit steht auf dem Schild.",
+      "example_ar": "الوقت مكتوب على اللوحة.",
+      "example_en": "The time is written on the sign.",
+      "level": "A1",
+      "topic": "travel"
+    },
+    {
+      "german": "Euro",
+      "article": "der",
+      "plural": "die Euros",
+      "part_of_speech": "Noun",
+      "translation_ar": "يورو",
+      "translation_en": "euro",
+      "example_de": "Das kostet drei Euro.",
+      "example_ar": "هذا بثلاثة يوروات.",
+      "example_en": "That costs three euros.",
+      "level": "A0",
+      "topic": "travel"
+    },
+    {
+      "german": "fahren",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يسافر بوسيلة / يقود",
+      "translation_en": "to travel, to go (by vehicle)",
+      "example_de": "Ich fahre nach Hamburg.",
+      "example_ar": "أسافر إلى هامبورغ.",
+      "example_en": "I am travelling to Hamburg.",
+      "level": "A0",
+      "topic": "travel"
+    },
+    {
+      "german": "kosten",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يكلّف",
+      "translation_en": "to cost",
+      "example_de": "Wie viel kostet das?",
+      "example_ar": "بكم هذا؟",
+      "example_en": "How much does that cost?",
+      "level": "A0",
+      "topic": "travel"
+    },
+    {
+      "german": "kaufen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يشتري",
+      "translation_en": "to buy",
+      "example_de": "Ich kaufe eine Fahrkarte.",
+      "example_ar": "أشتري تذكرة سفر.",
+      "example_en": "I buy a ticket.",
+      "level": "A1",
+      "topic": "travel"
+    },
+    {
+      "german": "billig",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "رخيص",
+      "translation_en": "cheap",
+      "example_de": "Das Wasser ist billig.",
+      "example_ar": "الماء رخيص.",
+      "example_en": "The water is cheap.",
+      "level": "A1",
+      "topic": "travel"
+    },
+    {
+      "german": "wie viel",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adverb",
+      "translation_ar": "كم",
+      "translation_en": "how much",
+      "example_de": "Wie viel Uhr ist es?",
+      "example_ar": "كم الساعة؟",
+      "example_en": "What time is it?",
+      "level": "A0",
+      "topic": "travel"
+    },
+    {
+      "german": "wo",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adverb",
+      "translation_ar": "أين",
+      "translation_en": "where",
+      "example_de": "Wo ist der Bahnhof?",
+      "example_ar": "أين المحطة؟",
+      "example_en": "Where is the station?",
+      "level": "A0",
+      "topic": "travel"
+    },
+    {
+      "german": "Name",
+      "article": "der",
+      "plural": "die Namen",
+      "part_of_speech": "Noun",
+      "translation_ar": "اسم",
+      "translation_en": "name",
+      "example_de": "Ihr Name, bitte.",
+      "example_ar": "اسمك، من فضلك (بحضرتك).",
+      "example_en": "Your name, please (formal).",
+      "level": "A0",
+      "topic": "documents"
+    },
+    {
+      "german": "Buchstabe",
+      "article": "der",
+      "plural": "die Buchstaben",
+      "part_of_speech": "Noun",
+      "translation_ar": "حرف",
+      "translation_en": "letter (of the alphabet)",
+      "example_de": "Wie schreibt man diesen Buchstaben?",
+      "example_ar": "كيف يُكتب هذا الحرف؟",
+      "example_en": "How do you write this letter?",
+      "level": "A0",
+      "topic": "documents"
+    },
+    {
+      "german": "Konto",
+      "article": "das",
+      "plural": "die Konten",
+      "part_of_speech": "Noun",
+      "translation_ar": "حساب (مصرفي)",
+      "translation_en": "account (bank)",
+      "example_de": "Ich möchte ein Konto.",
+      "example_ar": "أريد حساباً.",
+      "example_en": "I would like an account.",
+      "level": "A1",
+      "topic": "documents"
+    },
+    {
+      "german": "Hilfe",
+      "article": "die",
+      "plural": "die Hilfen",
+      "part_of_speech": "Noun",
+      "translation_ar": "مساعدة",
+      "translation_en": "help",
+      "example_de": "Ich brauche Hilfe.",
+      "example_ar": "أحتاج مساعدة.",
+      "example_en": "I need help.",
+      "level": "A0",
+      "topic": "documents"
+    },
+    {
+      "german": "langsam",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adverb",
+      "translation_ar": "ببطء",
+      "translation_en": "slowly",
+      "example_de": "Bitte langsam sprechen.",
+      "example_ar": "تكلّم ببطء من فضلك.",
+      "example_en": "Please speak slowly.",
+      "level": "A0",
+      "topic": "documents"
+    },
+    {
+      "german": "buchstabieren",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يهجّي",
+      "translation_en": "to spell",
+      "example_de": "Ich buchstabiere meinen Namen.",
+      "example_ar": "أهجّي اسمي.",
+      "example_en": "I spell my name.",
+      "level": "A0",
+      "topic": "documents"
+    },
+    {
+      "german": "brauchen (Formular)",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Phrase",
+      "translation_ar": "أحتاج هذا للاستمارة",
+      "translation_en": "I need this for the form",
+      "example_de": "Ich brauche das für das Formular.",
+      "example_ar": "أحتاج هذا للاستمارة.",
+      "example_en": "I need this for the form.",
+      "level": "A1",
+      "topic": "documents"
+    },
+    {
+      "german": "schreiben",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يكتب",
+      "translation_en": "to write",
+      "example_de": "Schreiben Sie hier, bitte.",
+      "example_ar": "اكتب هنا، من فضلك (بحضرتك).",
+      "example_en": "Write here, please (formal).",
+      "level": "A0",
+      "topic": "documents"
+    },
+    {
+      "german": "verstehen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يفهم",
+      "translation_en": "to understand",
+      "example_de": "Ich verstehe nicht.",
+      "example_ar": "لا أفهم.",
+      "example_en": "I do not understand.",
+      "level": "A0",
+      "topic": "documents"
+    },
+    {
+      "german": "wiederholen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يعيد / يعيد القول",
+      "translation_en": "to repeat",
+      "example_de": "Können Sie das wiederholen?",
+      "example_ar": "هل يمكنك (بحضرتك) تكرار هذا؟",
+      "example_en": "Can you (formal) repeat that?",
+      "level": "A0",
+      "topic": "documents"
+    },
+    {
+      "german": "nötig",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "ضروري",
+      "translation_en": "necessary",
+      "example_de": "Das ist nicht nötig.",
+      "example_ar": "هذا ليس ضرورياً.",
+      "example_en": "That is not necessary.",
+      "level": "A1",
+      "topic": "documents"
+    },
+    {
+      "german": "Bank",
+      "article": "die",
+      "plural": "die Banken",
+      "part_of_speech": "Noun",
+      "translation_ar": "مصرف",
+      "translation_en": "bank",
+      "example_de": "Die Bank ist hier in der Nähe.",
+      "example_ar": "المصرف قريب من هنا.",
+      "example_en": "The bank is near here.",
+      "level": "A1",
+      "topic": "documents"
+    },
+    {
+      "german": "Feld",
+      "article": "das",
+      "plural": "die Felder",
+      "part_of_speech": "Noun",
+      "translation_ar": "حقل (في الاستمارة)",
+      "translation_en": "field (on a form)",
+      "example_de": "Schreiben Sie in dieses Feld.",
+      "example_ar": "اكتب في هذا الحقل.",
+      "example_en": "Write into this field.",
+      "level": "A1",
+      "topic": "documents"
+    },
+    {
+      "german": "Stift",
+      "article": "der",
+      "plural": "die Stifte",
+      "part_of_speech": "Noun",
+      "translation_ar": "قلم",
+      "translation_en": "pen",
+      "example_de": "Haben Sie einen Stift?",
+      "example_ar": "هل معك قلم؟",
+      "example_en": "Do you have a pen?",
+      "level": "A1",
+      "topic": "documents"
+    },
+    {
+      "german": "Datum",
+      "article": "das",
+      "plural": "die Daten",
+      "part_of_speech": "Noun",
+      "translation_ar": "تاريخ",
+      "translation_en": "date",
+      "example_de": "Das Datum steht oben links.",
+      "example_ar": "التاريخ مكتوب أعلى اليسار.",
+      "example_en": "The date is written top left.",
+      "level": "A1",
+      "topic": "documents"
+    }
+  ],
+  "starter_phrases": [
+    {
+      "scenario_id": "first_greetings",
+      "level": "A0",
+      "german": "Hallo!",
+      "translation_en": "Hello!",
+      "translation_ar": "مرحباً!",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "first_greetings",
+      "level": "A0",
+      "german": "Ich heiße Sara.",
+      "translation_en": "My name is Sara.",
+      "translation_ar": "اسمي سارة.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "first_greetings",
+      "level": "A0",
+      "german": "Ich komme aus Syrien.",
+      "translation_en": "I come from Syria.",
+      "translation_ar": "أنا من سوريا.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "first_greetings",
+      "level": "A0",
+      "german": "Und du?",
+      "translation_en": "And you?",
+      "translation_ar": "وأنت؟",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "first_greetings",
+      "level": "A0",
+      "german": "Ich wohne hier.",
+      "translation_en": "I live here.",
+      "translation_ar": "أسكن هنا.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "first_greetings",
+      "level": "A0",
+      "german": "Freut mich!",
+      "translation_en": "Nice to meet you!",
+      "translation_ar": "تشرفت بك!",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "first_greetings",
+      "level": "A0",
+      "german": "Tschüss!",
+      "translation_en": "Bye!",
+      "translation_ar": "مع السلامة!",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "first_greetings",
+      "level": "A1",
+      "german": "Wie heißt du nochmal, bitte?",
+      "translation_en": "What is your name again, please?",
+      "translation_ar": "ما اسمك مرة أخرى، من فضلك؟",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "banking_first_visit",
+      "level": "A0",
+      "german": "Guten Tag! Ich brauche Hilfe.",
+      "translation_en": "Good day! I need help.",
+      "translation_ar": "نهارك سعيد! أحتاج مساعدة.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "banking_first_visit",
+      "level": "A0",
+      "german": "Ich möchte ein Konto.",
+      "translation_en": "I would like an account.",
+      "translation_ar": "أريد حساباً.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "banking_first_visit",
+      "level": "A0",
+      "german": "Ich verstehe nicht.",
+      "translation_en": "I do not understand.",
+      "translation_ar": "لا أفهم.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "banking_first_visit",
+      "level": "A0",
+      "german": "Können Sie das wiederholen?",
+      "translation_en": "Can you repeat that?",
+      "translation_ar": "هل يمكنك تكرار هذا؟",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "banking_first_visit",
+      "level": "A0",
+      "german": "Sprechen Sie langsam, bitte.",
+      "translation_en": "Speak slowly, please.",
+      "translation_ar": "تكلّم ببطء، من فضلك.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "banking_first_visit",
+      "level": "A1",
+      "german": "Ich brauche ein Konto für mein Geld.",
+      "translation_en": "I need an account for my money.",
+      "translation_ar": "أحتاج حساباً لأموالي.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "banking_first_visit",
+      "level": "A1",
+      "german": "Was brauche ich für ein Konto?",
+      "translation_en": "What do I need for an account?",
+      "translation_ar": "ماذا أحتاج لفتح حساب؟",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "banking_first_visit",
+      "level": "A1",
+      "german": "Vielen Dank für Ihre Hilfe.",
+      "translation_en": "Many thanks for your help.",
+      "translation_ar": "شكراً جزيلاً على مساعدتك.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "letters_and_forms",
+      "level": "A0",
+      "german": "Ich buchstabiere: S-A-R-A.",
+      "translation_en": "I spell: S-A-R-A.",
+      "translation_ar": "أهجّي: س-ا-ر-ا.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "letters_and_forms",
+      "level": "A0",
+      "german": "Langsam, bitte.",
+      "translation_en": "Slowly, please.",
+      "translation_ar": "ببطء، من فضلك.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "letters_and_forms",
+      "level": "A0",
+      "german": "Wie schreibt man das?",
+      "translation_en": "How do you write that?",
+      "translation_ar": "كيف تُكتب هذه؟",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "letters_and_forms",
+      "level": "A0",
+      "german": "Mein Name ist Omar.",
+      "translation_en": "My name is Omar.",
+      "translation_ar": "اسمي عمر.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "letters_and_forms",
+      "level": "A0",
+      "german": "Noch einmal, bitte.",
+      "translation_en": "Once more, please.",
+      "translation_ar": "مرة أخرى، من فضلك.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "letters_and_forms",
+      "level": "A1",
+      "german": "Was bedeutet dieses Feld?",
+      "translation_en": "What does this field mean?",
+      "translation_ar": "ماذا يعني هذا الحقل؟",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "letters_and_forms",
+      "level": "A1",
+      "german": "Ist ein Ausweis nötig?",
+      "translation_en": "Is an ID card necessary?",
+      "translation_ar": "هل الهوية ضرورية؟",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "letters_and_forms",
+      "level": "A1",
+      "german": "Meine Adresse ist neu.",
+      "translation_en": "My address is new.",
+      "translation_ar": "عنواني جديد.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "train_first_ride",
+      "level": "A0",
+      "german": "Ich fahre nach Köln.",
+      "translation_en": "I am travelling to Cologne.",
+      "translation_ar": "أسافر إلى كولونيا.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "train_first_ride",
+      "level": "A0",
+      "german": "Wo ist der Bahnhof?",
+      "translation_en": "Where is the train station?",
+      "translation_ar": "أين محطة القطار؟",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "train_first_ride",
+      "level": "A0",
+      "german": "Wo ist der Zug?",
+      "translation_en": "Where is the train?",
+      "translation_ar": "أين القطار؟",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "train_first_ride",
+      "level": "A0",
+      "german": "Wie viel kostet das?",
+      "translation_en": "How much does it cost?",
+      "translation_ar": "بكم هذا؟",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "train_first_ride",
+      "level": "A0",
+      "german": "Ich verstehe nicht, bitte langsam.",
+      "translation_en": "I do not understand, slowly please.",
+      "translation_ar": "لا أفهم، ببطء من فضلك.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "train_first_ride",
+      "level": "A1",
+      "german": "Wann fährt der Zug ab?",
+      "translation_en": "When does the train leave?",
+      "translation_ar": "متى يقلع القطار؟",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "train_first_ride",
+      "level": "A1",
+      "german": "Ist das der richtige Bahnsteig?",
+      "translation_en": "Is this the right platform?",
+      "translation_ar": "هل هذا الرصيف الصحيح؟",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "train_first_ride",
+      "level": "A1",
+      "german": "Können Sie mir helfen?",
+      "translation_en": "Can you help me?",
+      "translation_ar": "هل يمكنك مساعدتي؟",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "numbers_and_prices",
+      "level": "A0",
+      "german": "Wie viel kostet das?",
+      "translation_en": "How much does that cost?",
+      "translation_ar": "بكم هذا؟",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "numbers_and_prices",
+      "level": "A0",
+      "german": "Drei Euro, bitte.",
+      "translation_en": "Three euros, please.",
+      "translation_ar": "ثلاثة يوروات، من فضلك.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "numbers_and_prices",
+      "level": "A0",
+      "german": "Ich nehme das.",
+      "translation_en": "I will take that.",
+      "translation_ar": "سآخذ هذا.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "numbers_and_prices",
+      "level": "A0",
+      "german": "Zu teuer!",
+      "translation_en": "Too expensive!",
+      "translation_ar": "غالٍ جداً!",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "numbers_and_prices",
+      "level": "A0",
+      "german": "Eine Fahrkarte, bitte.",
+      "translation_en": "A ticket, please.",
+      "translation_ar": "تذكرة، من فضلك.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "numbers_and_prices",
+      "level": "A0",
+      "german": "Welche Nummer?",
+      "translation_en": "Which number?",
+      "translation_ar": "أي رقم؟",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "numbers_and_prices",
+      "level": "A1",
+      "german": "Das Wasser ist billig.",
+      "translation_en": "The water is cheap.",
+      "translation_ar": "الماء رخيص.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "numbers_and_prices",
+      "level": "A1",
+      "german": "Wie viel Uhr ist es?",
+      "translation_en": "What time is it?",
+      "translation_ar": "كم الساعة؟",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "train_first_ride",
+      "level": "A1",
+      "german": "Meine Zugnummer ist vier.",
+      "translation_en": "My train number is four.",
+      "translation_ar": "رقم قطاري أربعة.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "numbers_and_prices",
+      "level": "A1",
+      "german": "Ich kaufe eine Fahrkarte.",
+      "translation_en": "I buy a ticket.",
+      "translation_ar": "أشتري تذكرة.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "banking_first_visit",
+      "level": "A1",
+      "german": "Ist das die Bank?",
+      "translation_en": "Is this the bank?",
+      "translation_ar": "هل هذا المصرف؟",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "first_greetings",
+      "level": "A1",
+      "german": "Das kann sein.",
+      "translation_en": "That may be.",
+      "translation_ar": "هذا ممكن.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "first_greetings",
+      "level": "A1",
+      "german": "Kannst du mir helfen?",
+      "translation_en": "Can you help me?",
+      "translation_ar": "هل تستطيع مساعدتي؟",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "banking_first_visit",
+      "level": "A1",
+      "german": "Heute ist der dritte Mai.",
+      "translation_en": "Today is the third of May.",
+      "translation_ar": "اليوم هو الثالث من مايو.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "letters_and_forms",
+      "level": "A1",
+      "german": "Haben Sie einen Stift?",
+      "translation_en": "Do you have a pen?",
+      "translation_ar": "هل معك قلم؟",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "supermarket_checkout",
+      "level": "A0",
+      "german": "Hallo!",
+      "translation_en": "Hello!",
+      "translation_ar": "مرحباً!",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "supermarket_checkout",
+      "level": "A0",
+      "german": "Ich möchte Kaffee, bitte.",
+      "translation_en": "I would like coffee, please.",
+      "translation_ar": "أريد قهوة، من فضلك.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "supermarket_checkout",
+      "level": "A0",
+      "german": "Ich trinke gern Tee.",
+      "translation_en": "I like drinking tea.",
+      "translation_ar": "أحب شرب الشاي.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "supermarket_checkout",
+      "level": "A0",
+      "german": "Ich nehme das Wasser.",
+      "translation_en": "I will take the water.",
+      "translation_ar": "سآخذ الماء.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "supermarket_checkout",
+      "level": "A0",
+      "german": "Ich nehme das Brot.",
+      "translation_en": "I will take the bread.",
+      "translation_ar": "سآخذ الخبز.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "supermarket_checkout",
+      "level": "A0",
+      "german": "Ich brauche Zucker und Milch.",
+      "translation_en": "I need sugar and milk.",
+      "translation_ar": "أحتاج السكر والحليب.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "supermarket_checkout",
+      "level": "A0",
+      "german": "Das ist alles, danke.",
+      "translation_en": "That is all, thanks.",
+      "translation_ar": "هذا كل شيء، شكراً.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "supermarket_checkout",
+      "level": "A1",
+      "german": "Ist das billig?",
+      "translation_en": "Is that cheap?",
+      "translation_ar": "هل هذا رخيص؟",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "supermarket_checkout",
+      "level": "A1",
+      "german": "Ist der Kaffee gut?",
+      "translation_en": "Is the coffee good?",
+      "translation_ar": "هل القهوة جيدة؟",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "supermarket_checkout",
+      "level": "A1",
+      "german": "Ich kaufe hier jeden Tag.",
+      "translation_en": "I buy here every day.",
+      "translation_ar": "أشتري من هنا كل يوم.",
+      "sort_order": 10
+    }
+  ],
+  "grammar": [
+    {
+      "id": "g_a0_hallo_ich_heisse",
+      "title_ar": "التعريف بالنفس: Ich heiße …",
+      "rule_de": "Ich heiße + Name. Frage: Wie heißt du? (du) / Wie heißen Sie? (Sie).",
+      "rule_ar": "لتقديم نفسك قل: Ich heiße واسمك. وللسؤال عن الاسم: Wie heißt du؟ مع الأصدقاء، و Wie heißen Sie؟ بحضرتك.",
+      "level": "A0",
+      "explanation_ar": "الفعل heißen يتغير مع الضمير: ich heiße، du heißt. هذا أول تغيير فعل تتعهده في الألمانية.",
+      "example_de": "Ich heiße Sara. Und du?",
+      "example_ar": "اسمي سارة. وأنت؟"
+    },
+    {
+      "id": "g_a0_ich_bin_aus",
+      "title_ar": "الأصل والسكن: Ich bin aus … / Ich wohne in …",
+      "rule_de": "Ich bin aus + Land. Ich wohne in + Stadt. Frage: Woher kommst du? / Wo wohnst du?",
+      "rule_ar": "للنسب: Ich bin aus واسم البلد. وللسكن: Ich wohne in واسم المدينة. السؤال: من أين أنت؟ وأين تسكن؟",
+      "level": "A0",
+      "explanation_ar": "لا تُترجم الجملة حرفياً من العربية: الألمانية تستخدم الفعلين sein و wohnen ولا تحتاج حرف الجر مع aus.",
+      "example_de": "Ich bin aus Syrien und wohne jetzt in Berlin.",
+      "example_ar": "أنا من سوريا وأسكن الآن في برلين."
+    },
+    {
+      "id": "g_a0_ich_moechte",
+      "title_ar": "الطلب المهذب: Ich möchte …",
+      "rule_de": "Ich möchte + Nomen (mit Artikel im Akkusativ): einen Kaffee, einen Tee.",
+      "rule_ar": "للطلب بأدب استخدم Ich möchte ثم الاسم مع أداته في حالة النصب: einen Kaffee، einen Tee.",
+      "level": "A0",
+      "explanation_ar": "möchte فعل مشتق من mögen: يقف وحده مع الاسم (Ich möchte einen Kaffee) ويأتي أيضاً مع مصدر (Ich möchte trinken). المذكر يصبح einen في النصب: der Kaffee → einen Kaffee.",
+      "example_de": "Ich möchte einen Kaffee, bitte.",
+      "example_ar": "أريد قهوة، من فضلك."
+    },
+    {
+      "id": "g_a0_hilfe_nicht_verstanden",
+      "title_ar": "عبارات النجاة: Hilfe, ich verstehe nicht",
+      "rule_de": "Ich verstehe nicht. Ich brauche Hilfe. Können Sie das wiederholen? Sprechen Sie langsam, bitte.",
+      "rule_ar": "عبارات تنقذك في كل محادثة: لا أفهم، أحتاج مساعدة، هل تكرر هذا؟ وتكلّم ببطء من فضلك.",
+      "level": "A0",
+      "explanation_ar": "استخدم هذه الجمل الأربع كفريق نجدة: أي محادثة تصعب، قل واحدة منها بلا خجل. الألمانيون يعيدون بكل سرور.",
+      "example_de": "Entschuldigung, ich verstehe nicht. Sprechen Sie langsam, bitte.",
+      "example_ar": "عفواً، لا أفهم. تكلّم ببطء من فضلك."
+    },
+    {
+      "id": "g_a1_frage_wo_woher",
+      "title_ar": "أسئلة المكان: wo و woher",
+      "rule_de": "Wo ist …? fragt nach dem Ort. Woher kommst du? fragt nach der Herkunft. Verb an Position 2.",
+      "rule_ar": "wo تسأل عن المكان (أين)، و woher تسأل عن الأصل (من أين). وبعد أداة الاستفسار يأتي الفعل في الموضع الثاني.",
+      "level": "A1",
+      "explanation_ar": "الفرق بين wo و woher شرّد متعلمين كثيرين: wo = أين أنت الآن، woher = من أين أتيت. والفعل بعدهما مباشرة.",
+      "example_de": "Wo ist der Bahnhof? — Woher kommst du?",
+      "example_ar": "أين محطة القطار؟ — من أين أنت؟"
+    },
+    {
+      "id": "g_a1_der_die_das_uebersicht",
+      "title_ar": "الأدوات الثلاثة: der, die, das",
+      "rule_de": "Jedes Nomen hat ein Genus: der (maskulin), die (feminin), das (neutral). Lerne den Artikel immer mit!",
+      "rule_ar": "لكل اسم ألماني جنس: der للمذكر، die للمؤنث، das للمحايد. احفظ الأداة مع الكلمة من أول مرة.",
+      "level": "A1",
+      "explanation_ar": "الجنس في الألمانية ليس منطقياً بالضرورة: das Mädchen مؤنث المعنى لكنه محايد لغوياً. الحل: احفظ الكلمة مع ألوان كَاتْزُو.",
+      "example_de": "Der Kaffee, die Milch, das Wasser.",
+      "example_ar": "القهوة (مذكر)، الحليب (مؤنث)، الماء (محايد)."
+    },
+    {
+      "id": "g_a1_zahlen_bis_zehn",
+      "title_ar": "الأرقام من 1 إلى 10 والسعر",
+      "rule_de": "eins, zwei, drei, vier, fünf, sechs, sieben, acht, neun, zehn. Preis: Das kostet … Euro.",
+      "rule_ar": "الأرقام: واحد، اثنان، ثلاثة … عشرة. وللسؤال عن السعر: Wie viel kostet das؟ والجواب: Das kostet … Euro.",
+      "level": "A1",
+      "explanation_ar": "الأرقام الصغيرة تفتح لك الأسعار والأوقات وأرقام القطارات — احفظها صوتياً وقلها بصوت عالٍ أثناء التدريب.",
+      "example_de": "Das kostet drei Euro fünfzig.",
+      "example_ar": "هذا بثلاثة يوروات وخمسين سنتاً."
+    },
+    {
+      "id": "g_a1_buchstabieren_alphabet",
+      "title_ar": "تهجئة الاسم: das Alphabet",
+      "rule_de": "Buchstabieren: A wie Anton, B wie Berta … Namen werden buchstabiert, nicht gelesen.",
+      "rule_ar": "التهجئة: يُقال كل حرف مع كلمة دليل (A مثل Anton). الأسماء تُهجّى ولا تُقرأ.",
+      "level": "A1",
+      "explanation_ar": "الأصوات التي يخطئ فيها العرب: W تُنطق «ف»، V تُنطق «فاو»، و ä و ö و ü أصوات جديدة — استمع وكرر في سيناريو الاستمارة.",
+      "example_de": "Mein Name: Sara — S wie Samuel, A wie Anton, R wie Richard, A wie Anton.",
+      "example_ar": "اسمي: سارة — أهجّيها حرفاً حرفاً."
+    }
+  ],
+  "deferred": {
+    "requiresSchema": [
+      "reading_texts",
+      "writing_tasks"
+    ],
+    "note": "A0 reading/writing tasks (letter-tracing practice, first short messages) are designed but wait for tables; they must not be invented as scenario rows.",
+    "items": [
+      {
+        "kind": "reading",
+        "title_ar": "اقرأ أول بطاقة ترحيب",
+        "description_ar": "بطاقة قصيرة من الكاتزو بخمسة أسطر A0 يقرأها المتعلم بصوت عالٍ.",
+        "status": "designed_only"
+      },
+      {
+        "kind": "writing",
+        "title_ar": "اكتب أول رسالة ترحيب",
+        "description_ar": "المتعلم ينسخ جملة تعريف ويعيد كتابتها باسمه — تمرين كتابة أول.",
+        "status": "designed_only"
+      }
+    ]
+  }
+}

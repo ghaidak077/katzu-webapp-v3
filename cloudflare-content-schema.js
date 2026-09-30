@@ -17,7 +17,7 @@
 // the audit's rule, not the SQL schema: D1 columns are mostly nullable text, so
 // only this contract stops a half-filled row from reaching learners.
 
-export const CONTENT_LEVELS = ["A1", "A2", "B1", "B2"];
+export const CONTENT_LEVELS = ["A0", "A1", "A2", "B1", "B2"];
 
 const LEVEL_SET = new Set(CONTENT_LEVELS);
 
@@ -27,7 +27,7 @@ const LEVEL_SET = new Set(CONTENT_LEVELS);
  */
 const text = (name, note, ui = "text") => ({ name, type: "text", required: true, ui, note });
 const optionalText = (name, note, ui = "text") => ({ name, type: "text", required: false, ui, note });
-const level = () => ({ name: "level", type: "level", required: true, ui: "select", note: "CEFR level: A1, A2, B1 or B2." });
+const level = () => ({ name: "level", type: "level", required: true, ui: "select", note: "CEFR level: A0, A1, A2, B1 or B2." });
 const integer = (name, note) => ({ name, type: "integer", required: true, ui: "number", note });
 
 export const DB_SCHEMA = {
@@ -48,6 +48,11 @@ export const DB_SCHEMA = {
       text("ai_persona", "Who Katzu plays, e.g. `Beamter katze`. Existing personas follow `<Rolle> katze`."),
       text("category", "Must map to a vocabulary topic (see `scenarioVocab.ts`), e.g. `official`, `work`, `housing`."),
       text("icon", "Icon key the app renders in the scenario list."),
+      optionalText(
+        "initial_message_a0",
+        "Katzu's opening line at A0 (from zero). Only the foundations module carries one; the app falls back to the A1 line when it is empty.",
+        "textarea",
+      ),
       text("initial_message_a1", "Katzu's opening line at A1.", "textarea"),
       text("initial_message_a2", "Katzu's opening line at A2.", "textarea"),
       text("initial_message_b1", "Katzu's opening line at B1.", "textarea"),
@@ -135,7 +140,13 @@ export const CONTENT_TYPES = Object.keys(DB_SCHEMA);
  * additive only, by policy: nothing here may drop, rename or retype a column.
  */
 const ADDITIVE_COLUMNS = {
-  scenarios: [{ name: "banner_url", type: "TEXT" }],
+  scenarios: [
+    { name: "banner_url", type: "TEXT" },
+    // V21 Phase 5: the A0 foundations module carries a from-zero opener. Additive
+    // TEXT only — existing rows read NULL, and the app falls back to the A1 line
+    // when it is absent (openerForLevel).
+    { name: "initial_message_a0", type: "TEXT" },
+  ],
   // Added after the V12 content load failed with `D1_ERROR: table grammar has no
   // column named rule_de` (docs/AGENT-STATE.md V12-2). The deployed `grammar`
   // table still carried the pre-`rule_de` shape, so every grammar write was

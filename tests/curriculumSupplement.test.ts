@@ -49,7 +49,7 @@ describe('grammar supplement — the shipped file', () => {
     const output = execFileSync(process.execPath, [script], { encoding: 'utf8', cwd: process.cwd() }).replace(/\\/g, '/');
     expect(output).toContain('supplements/grammar-basics.json');
     expect(output).toContain('kind: supplement');
-    expect(output).toContain('3 file(s) checked (2 module(s), 1 supplement(s))');
+    expect(output).toContain('4 file(s) checked (3 module(s), 1 supplement(s))');
     expect(output).toContain('PASSED');
   });
 
