@@ -36,6 +36,19 @@ export function scenarioToVocabTopic(scenario: Pick<ScenarioEntity, 'id' | 'cate
 }
 
 /**
+ * V21: `part_of_speech` casing is inconsistent in live data (measured:
+ * `noun` 75 / `Noun` 183, `verb` 23 / `Verb` 51, `adjective` 16 / `Adjective`
+ * 29), so any grouping or filter on the raw string splits. Every reader goes
+ * through this normalizer; the content fix (Title case in D1) is a separate,
+ * owner-approved data patch (master plan D4).
+ */
+export function normalizedPartOfSpeech(raw: string | null | undefined): string {
+  const value = String(raw || '').trim().toLowerCase();
+  if (!value) return '';
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
  * Gate 6 (legal & trust): scenarios that roleplay a professional domain carry a
  * short Arabic disclaimer on the scenario screen — practice only, not real
  * advice. Keyed by the CMS category, so new content inherits the rule without a

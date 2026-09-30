@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scenarioToVocabTopic, safetyDisclaimerFor, SCENARIO_CATEGORY_TO_TOPIC } from '@/lib/utils/scenarioVocab';
+import { normalizedPartOfSpeech, scenarioToVocabTopic, safetyDisclaimerFor, SCENARIO_CATEGORY_TO_TOPIC } from '@/lib/utils/scenarioVocab';
 
 describe('scenarioToVocabTopic', () => {
   it('maps each live D1 category to its vocabulary topic', () => {
@@ -63,5 +63,22 @@ describe('safetyDisclaimerFor (Gate 6)', () => {
     expect(safetyDisclaimerFor({ id: 'doctor_visit', category: '' })).toContain('ليس استشارة طبية');
     expect(safetyDisclaimerFor({ id: 'burgeramt_appointment', category: '' })).toContain('الجهات المختصة');
     expect(safetyDisclaimerFor(null)).toBe('');
+  });
+});
+
+describe('normalizedPartOfSpeech (master plan §3.3)', () => {
+  it('merges the casing split measured in live D1 into one canonical form', () => {
+    expect(normalizedPartOfSpeech('noun')).toBe('Noun');
+    expect(normalizedPartOfSpeech('Noun')).toBe('Noun');
+    expect(normalizedPartOfSpeech('NOUN')).toBe('Noun');
+    expect(normalizedPartOfSpeech('verb')).toBe('Verb');
+    expect(normalizedPartOfSpeech('adjective')).toBe('Adjective');
+    expect(normalizedPartOfSpeech('Adverb')).toBe('Adverb');
+  });
+
+  it('treats absent or junk values as empty (the sheet then shows the generic label)', () => {
+    expect(normalizedPartOfSpeech(null)).toBe('');
+    expect(normalizedPartOfSpeech(undefined)).toBe('');
+    expect(normalizedPartOfSpeech('   ')).toBe('');
   });
 });

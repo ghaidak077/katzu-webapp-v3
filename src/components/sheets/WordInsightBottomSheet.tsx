@@ -5,6 +5,7 @@ import { Badge } from '../ui/Badge';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { Volume2, Bookmark, Check } from 'lucide-react';
 import type { VocabularyEntity } from '@/types/models';
+import { normalizedPartOfSpeech } from '@/lib/utils/scenarioVocab';
 
 export interface WordInsightBottomSheetProps {
   word: VocabularyEntity | null;
@@ -92,7 +93,7 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="p-3 rounded-2xl bg-surface-card border border-border-subtle">
             <span className="text-text-muted block mb-0.5">نوع الكلمة</span>
-            <span className="font-semibold text-text-primary">{word.part_of_speech || 'اسم'}</span>
+            <span className="font-semibold text-text-primary">{normalizedPartOfSpeech(word.part_of_speech) || 'اسم'}</span>
           </div>
           <div className="p-3 rounded-2xl bg-surface-card border border-border-subtle">
             <span className="text-text-muted block mb-0.5">المستوى</span>
