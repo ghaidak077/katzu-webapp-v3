@@ -24,6 +24,7 @@ const DRAFT_FILES = [
   'docs/content/curriculum-arrival-module2.json',
   'docs/content/curriculum-interview-medical.json',
   'docs/content/curriculum-interview-tech.json',
+  'docs/content/curriculum-ausbildung-exams.json',
 ];
 const SUPPLEMENT_FILES = [
   'docs/content/supplements/grammar-basics.json',

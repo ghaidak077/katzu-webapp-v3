@@ -158,6 +158,7 @@ describe('drift check — the shipped drafts', () => {
       'module docs/content/curriculum-30day-module1.json',
       'module docs/content/curriculum-a0-foundations.json',
       'module docs/content/curriculum-arrival-module2.json',
+      'module docs/content/curriculum-ausbildung-exams.json',
       'module docs/content/curriculum-interview-medical.json',
       'module docs/content/curriculum-interview-tech.json',
       'supplement docs/content/supplements/grammar-basics.json',

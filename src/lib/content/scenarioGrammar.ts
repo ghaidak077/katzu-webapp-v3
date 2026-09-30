@@ -48,6 +48,13 @@ export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
   support_ticket: ['g_tech_wfragen_support', 'g_tech_hoeflich_kunde', 'g_tech_passiv_tech', 'g_tech_fuer_zweck'],
   tech_kuechenpause: ['g_tech_du_im_team', 'g_tech_trennbare_verben', 'g_tech_fuer_zweck'],
   anerkennung_it_zertifikate: ['g_tech_passiv_tech', 'g_tech_hoeflich_kunde'],
+  // Ausbildung & exams module (docs/content/curriculum-ausbildung-exams.json, V21 Phase 5).
+  bewerbung_ausbildung: ['g_ausb_moechte_werden', 'g_ausb_perfekt_bestanden', 'g_ausb_freu_mich_auf'],
+  ausbildung_alltag: ['g_ausb_ich_muss_noch', 'g_ausb_wann_beginnt', 'g_ausb_nach_im'],
+  berufsschule_tag: ['g_ausb_wenn_dann', 'g_ausb_perfekt_bestanden', 'g_ausb_nach_im'],
+  pruefungstag: ['g_ausb_perfekt_bestanden', 'g_ausb_passiv_pruefung', 'g_ausb_falls_vorsichtig'],
+  betriebs_kantine: ['g_ausb_wann_beginnt', 'g_ausb_wenn_dann'],
+  pruefung_anmeldung: ['g_ausb_haette_frei', 'g_ausb_passiv_pruefung', 'g_ausb_falls_vorsichtig'],
   // Offline fixtures (src/lib/db/katzuDb.ts). The four rows they point at live in
   // docs/content/supplements/grammar-basics.json so production D1 has them too;
   // tests/grammarReachability.test.ts asserts the two copies are identical and
