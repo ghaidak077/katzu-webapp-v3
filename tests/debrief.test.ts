@@ -42,12 +42,17 @@ describe('buildSessionDebrief', () => {
     expect(debrief.topMistakesAr[0].noteAr.length).toBeGreaterThan(0);
   });
 
-  it('keeps at most three phrases, each one a real correction from this episode', () => {
+  it('partitions the corrections: top mistakes first, the capsule takes the rest, at most three kept', () => {
     const debrief = buildSessionDebrief(base);
-    expect(debrief.keepPhrases).toHaveLength(DEBRIEF_PHRASE_LIMIT);
+    expect(debrief.keepPhrases).toHaveLength(1); // 3 corrections − 2 named as top mistakes
     for (const phrase of debrief.keepPhrases) {
       expect(base.mistakes.some((mistake) => mistake.corrected === phrase.german)).toBe(true);
       expect(phrase.arabic.length).toBeGreaterThan(0);
+    }
+    // No overlap: every kept phrase is one the top-mistakes list did NOT name.
+    const topSet = new Set(debrief.topMistakesAr.map((mistake) => mistake.corrected));
+    for (const phrase of debrief.keepPhrases) {
+      expect(topSet.has(phrase.german)).toBe(false);
     }
   });
 
@@ -97,5 +102,26 @@ describe('buildSessionDebrief', () => {
     const debrief = buildSessionDebrief({ ...base, mode: 'immersion' });
     expect(debrief.canNowAr).toContain('كاملاً');
     expect(debrief.headlineAr).toContain('من البداية إلى نهايته');
+  });
+
+  // V21 regression (Phase 11): the same correction must never appear twice in
+  // the debrief — once as a keep-phrase and again as a top-mistake entry. The
+  // top-mistakes list (with its coaching note) has priority; the capsule only
+  // takes corrections the mistake list did not already name.
+  it('never shows the same correction twice (top-mistake wins over keep-phrase)', () => {
+    const debrief = buildSessionDebrief(base);
+    const topSet = new Set(debrief.topMistakesAr.map((mistake) => mistake.corrected));
+    for (const phrase of debrief.keepPhrases) {
+      expect(topSet.has(phrase.german)).toBe(false);
+    }
+
+    // With exactly one mistake it is consumed entirely by the top-mistakes
+    // list (which carries the actionable note): the capsule stays empty.
+    const single = buildSessionDebrief({
+      ...base,
+      mistakes: [base.mistakes[0]],
+    });
+    expect(single.topMistakesAr.map((mistake) => mistake.corrected)).toContain('Ich gehe zur Kasse');
+    expect(single.keepPhrases).toEqual([]);
   });
 });

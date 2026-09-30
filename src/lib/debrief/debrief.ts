@@ -47,11 +47,14 @@ export function buildSessionDebrief(input: SessionDebriefInput): SessionDebrief 
     mistakes,
   } = input;
 
+  const topMistakes = topMistakesAr(mistakes, level);
   return {
     headlineAr: headlineAr(scenarioTitle, mode, sentencesSpoken),
     didWellAr: didWellAr({ sentencesSpoken, independentSentences, assistedSentences, accuracyPercent, mistakes }),
-    topMistakesAr: topMistakesAr(mistakes, level),
-    keepPhrases: keepPhrases(mistakes),
+    topMistakesAr: topMistakes,
+    // The capsule takes what the top-mistakes list did NOT name: one
+    // correction is shown at most once across the whole debrief.
+    keepPhrases: keepPhrases(mistakes, topMistakes.length),
     canNowAr: canNowAr(scenarioTitle, mode),
   };
 }
@@ -116,12 +119,16 @@ function mistakeNoteAr(level: CEFRLevel): string {
   return 'استخدم الصيغة الصحيحة في جملتين من عندك قبل أن تنساها — التثبيت بالاستعمال.';
 }
 
-function keepPhrases(mistakes: SessionDebriefInput['mistakes']): SessionDebrief['keepPhrases'] {
+function keepPhrases(
+  mistakes: SessionDebriefInput['mistakes'],
+  skipCount: number,
+): SessionDebrief['keepPhrases'] {
   // The corrected German IS the phrase worth keeping — no second source, no
   // invented content, and every phrase already appeared in a real correction
-  // the learner saw.
+  // the learner saw. Corrections already named in the top-mistakes list are
+  // skipped so the same sentence never renders twice on one report.
   return mistakes
-    .slice(0, DEBRIEF_PHRASE_LIMIT)
+    .slice(skipCount, skipCount + DEBRIEF_PHRASE_LIMIT)
     .map((mistake) => ({ german: mistake.corrected, arabic: mistake.grammarRule }));
 }
 
