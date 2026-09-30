@@ -412,7 +412,34 @@ export function useLiveConversation({
   // Initial message and starter hints (Rule 5: No call needed for turn 0)
   // Cached D1 starter phrases are the always-available hint floor: if the AI
   // hints call fails or is paywalled, the user still gets real suggestions.
+  //
+  // Level floor (V21): phrases are filtered to the learner's effective level
+  // first, falling back outward (level → neighbours → all) so a learner never
+  // sees hints pitched at the wrong level when rows for theirs exist — the
+  // B2 learner must not train on A1 scaffolding while real B2 lines sit unused.
   const loadStarterHints = useCallback(async () => {
+    const levelOrder = (level: string): number => {
+      const rungs = ['A1', 'A2', 'B1', 'B2'];
+      const index = rungs.indexOf(level.toUpperCase());
+      return index === -1 ? 1 : index;
+    };
+    type PhraseRow = { level?: string | null; german: string; translation_ar?: string | null };
+    const phrasesByLevel = (rows: PhraseRow[]): Array<PhraseRow[]> => {
+      const target = levelOrder(effectiveLevel);
+      const sorted = [...rows].sort(
+        (a, b) => Math.abs(levelOrder(String(a.level)) - target) - Math.abs(levelOrder(String(b.level)) - target),
+      );
+      const buckets = new Map<string, PhraseRow[]>();
+      for (const row of sorted) {
+        const key = String(row.level || '').toUpperCase();
+        const bucket = buckets.get(key) || [];
+        bucket.push(row);
+        buckets.set(key, bucket);
+      }
+      return [...buckets.values()].sort(
+        (a, b) => Math.abs(levelOrder(String(a[0].level)) - target) - Math.abs(levelOrder(String(b[0].level)) - target),
+      );
+    };
     try {
       let phrases = await db.starter_phrases
         .where('scenario_id')
@@ -428,12 +455,20 @@ export function useLiveConversation({
         }
       }
       if (phrases.length > 0) {
-        setStarterHints(phrases.map((p) => ({ german: p.german, arabic: p.translation_ar })));
+        // Nearest-level bucket first; a bucket with too few phrases is topped
+        // up from the next-nearest so the floor never thins out below three.
+        const [best, ...rest] = phrasesByLevel(phrases);
+        let picked = [...best];
+        for (const bucket of rest) {
+          if (picked.length >= 3) break;
+          picked = picked.concat(bucket);
+        }
+        setStarterHints(picked.map((p) => ({ german: p.german, arabic: p.translation_ar || '' })));
       }
     } catch {
       /* offline with empty cache — hints bar simply stays hidden */
     }
-  }, [scenarioId]);
+  }, [scenarioId, effectiveLevel]);
 
   /**
    * The opener is the one Katzu message no AI call produces, so its Arabic is
