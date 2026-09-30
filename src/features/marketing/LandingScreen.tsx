@@ -110,12 +110,14 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
           onTryDemo={onTryDemo}
         />
         <WhySection />
+        <WhoItIsForSection />
         <TryDemoSection onTryDemo={onTryDemo} />
         <SkillsSection />
         <StepsSection />
         <ExampleSection />
         <FreeVsProSection onStart={onStart} isSignedIn={isSignedIn} />
         <ComingSection />
+        <FaqSection />
         <FinalCta isSignedIn={isSignedIn} onStart={onStart} onContinue={onContinue} onTryDemo={onTryDemo} />
       </main>
 
@@ -180,6 +182,12 @@ function Hero({
           <KatzuMascot name="welcome" glow className="w-40 h-40 sm:w-56 sm:h-56" />
         </div>
 
+        {/* V21 Phase 8: the owner's video slot. The video is NOT shipped yet —
+            the placeholder states that honestly and the slot activates with no
+            code change once katzu_hero_video.mp4 lands in /public/videos (the
+            component checks the file's HTTP status, not a build-time flag). */}
+        <VideoSlot />
+
         <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-text-secondary">
           {['يتحدّث بصوت عالٍ', 'يستمع ويملي', 'يتذكّر أخطاءك', 'يعرف مستواك من البداية'].map((item) => (
             <li key={item} className="flex items-center gap-1.5">
@@ -210,6 +218,141 @@ const REASONS = [
     body: 'لا أرقام مزيّفة. نُفرّق بين الجملة التي كتبتها بنفسك والجملة التي ساعدتك فيها التلميحات، ونقول لك أيهما تتقنه فعلاً.',
   },
 ] as const;
+
+/**
+ * V21 Phase 8: the video slot. Renders nothing until /videos/katzu_hero_video.mp4
+ * actually exists — the check is a HEAD request at mount, so dropping the file
+ * into /public/videos activates the slot with no code change, and an absent or
+ * failing video leaves the page exactly as it was (no broken player, no layout
+ * shift). Controls on, no autoplay: a visitor chooses to watch.
+ */
+function VideoSlot() {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/videos/katzu_hero_video.mp4', { method: 'HEAD' })
+      .then((res) => {
+        if (alive && res.ok) setSrc('/videos/katzu_hero_video.mp4');
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!src) return null;
+  return (
+    <div className="mt-10 w-full max-w-2xl mx-auto rounded-3xl overflow-hidden border border-border-subtle bg-surface-card">
+      <video src={src} controls preload="none" playsInline className="w-full aspect-video" aria-label="فيديو تعريفي عن تطبيق كاتزو">
+        <track kind="captions" />
+      </video>
+    </div>
+  );
+}
+
+/** V21 Phase 8: who this is for — four honest portraits, no aspirational fluff. */
+const WHO_IT_IS_FOR = [
+  {
+    icon: MapIcon,
+    title: 'المتقدّم إلى ألمانيا',
+    body: 'التسجيل، البلدية، التأمين، أول شقة — مواقف ستمر بها فعلاً، تتدرّب عليها قبل أن تقف فيها.',
+  },
+  {
+    icon: MessagesSquare,
+    title: 'طالب Berufsschule أو الجامعة',
+    body: 'تفهّم المدرّب وزملاءك، وتتكلّم في المجموعة دون أن تتجمّد عندما يسألك أحد مباشرة.',
+  },
+  {
+    icon: Target,
+    title: 'الباحث عن تدريب مهني أو عمل',
+    body: 'مقابلات قصيرة بجمل واضحة: خبرتك، نقاط قوّتك، ولماذا هذا المؤسّس بالذات — بمستويين لكل سؤال.',
+  },
+  {
+    icon: Clock,
+    title: 'من جرّب تطبيقات كثيرة وملّ',
+    body: 'لا نقاط ولا إشعارات مُلحّة. مهمة واحدة قصيرة يومياً، وتقدّم تقوله لك الحقيقة.',
+  },
+] as const;
+
+function WhoItIsForSection() {
+  return (
+    <section className="py-14 sm:py-20 border-t border-border-subtle/60">
+      <SectionHeading
+        eyebrow="لمن هذا التطبيق"
+        title="صُمّم لأربع حالات، بصراحة"
+        subtitle="إن لم تجد حالتك هنا فربما لم نبنِ ما تحتاج بعد — ونُفضّل أن نقول ذلك بدل أن نعدك بكل شيء."
+      />
+      <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        {WHO_IT_IS_FOR.map(({ icon: Icon, title, body }) => (
+          <div key={title} className="rounded-3xl p-5 bg-surface-subtle border border-border-subtle">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
+                <Icon className="w-5 h-5 text-primary" aria-hidden />
+              </div>
+              <h3 className="font-bold">{title}</h3>
+            </div>
+            <p className="mt-3 text-[13px] leading-relaxed text-text-secondary">{body}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** V21 Phase 8: the FAQ — objections answered plainly, collapse-free (details
+    elements are native, keyboard-accessible, and print-friendly). */
+const FAQ_ITEMS = [
+  {
+    q: 'هل أحتاج حساباً لأجرّب؟',
+    a: 'لا. الدرس التجريبي يعمل بلا حساب وبلا بطاقة، وبعدها فقط يُطلب منك حساب مجاني يحفظ تقدّمك.',
+  },
+  {
+    q: 'هل صوتي يُرسل إلى أي جهة؟',
+    a: 'الصوت يُعالج لتحويل الكلام إلى نص فقط، ولا يُخزَّن بعد ذلك. محادثاتك وأخطاؤك تبقى على جهازك وتُزامَن مع حسابك، ويمكنك حذف كل شيء من داخل التطبيق.',
+  },
+  {
+    q: 'ما الفرق بين المجاني و Pro؟',
+    a: 'المجاني دائم: المهمة اليومية، والمراجعة، والاختبار التحديدي، وبنك أخطائك، وجلسات محادثة تجريبية. Pro يفتح المحادثات بلا حدّ وكل المستويات. لن نُغلق أمامك ما تعلّمته بالفعل أبداً.',
+  },
+  {
+    q: 'هل يصل بي إلى مستوى الامتحان؟',
+    a: 'التطبيق يبني الأساس من A0 إلى B2 بالمحادثة والاستماع والمراجعة. تدريب صيغ الامتحانات الكاملة (Goethe · telc · DTZ) قيد العمل ويُطلق فقط عندما يكون قابلاً للقياس.',
+  },
+  {
+    q: 'أنا مبتدئ تماماً — من أين أبدأ؟',
+    a: 'يوجد مسار كامل من الصفر (A0): التحيات، السوبرماركت، البنك، أول قطار. الاختبار التحديدي سيعرف مستواك في دقائق، ويمكنك دائماً اختيار «ابدأ من الصفر» بنفسك.',
+  },
+  {
+    q: 'كيف أدفع؟ وهل هناك اشتراك تلقائي؟',
+    a: 'تُشترى كود تفعيل من صفحة الشراء الرسمية بالعملة الرقمية أو بالدفع المحلي في سوريا، ثم تُفعّله داخل التطبيق. لا تجديد تلقائي ولا بطاقة محفوظة.',
+  },
+] as const;
+
+function FaqSection() {
+  return (
+    <section className="py-14 sm:py-20 border-t border-border-subtle/60">
+      <SectionHeading
+        eyebrow="أسئلة صريحة"
+        title="أسئلة يسألها الجميع"
+        subtitle="إن بقي سؤال، راسلنا — نُجيب بأنفسنا لا بروبوت."
+      />
+      <div className="mt-10 max-w-3xl mx-auto space-y-3">
+        {FAQ_ITEMS.map(({ q, a }) => (
+          <details key={q} className="group rounded-2xl bg-surface-card border border-border-subtle open:border-primary/30">
+            <summary className="flex items-center justify-between gap-3 p-4 cursor-pointer text-sm font-bold font-arabic select-none [&::-webkit-details-marker]:hidden">
+              {q}
+              <span className="text-primary text-lg leading-none group-open:rotate-45 transition-transform" aria-hidden>
+                +
+              </span>
+            </summary>
+            <p className="px-4 pb-4 text-[13px] leading-relaxed text-text-secondary font-arabic">{a}</p>
+          </details>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function WhySection() {
   return (
