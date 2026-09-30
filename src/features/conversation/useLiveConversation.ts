@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { db } from '@/lib/db/katzuDb';
 import { enrolMistake } from '@/lib/srs/store';
-import { buildLearnerMemory } from '@/lib/coach/profile';
+import { buildMemorySummary } from '@/lib/memory/summary';
+import { listMemoryPatterns, rebuildMemoryPatterns } from '@/lib/memory/patterns';
 import { workerClient } from '@/lib/api/workerClient';
 import { useVoiceCapture, voiceStartFailureMessageAr } from '@/lib/audio/useVoiceCapture';
 import { triggerHaptic } from '@/lib/utils/haptics';
@@ -581,13 +582,18 @@ export function useLiveConversation({
         text: m.germanText,
       }));
 
-      // What this learner keeps getting wrong, so the tutor can steer the
-      // conversation into re-using it instead of meeting them as a stranger.
-      // Read per turn on purpose: the correction from THIS turn is part of it
-      // next turn, and the table is small.
-      const learnerMemory = buildLearnerMemory(
-        await db.mistakes.where('userId').equals('current_user').toArray(),
-      );
+      // Long memory (V21 Phase 3): rebuild the derived pattern view from the
+      // source tables (mistakes + review items), then pack the ≤150-token
+      // summary for the tutor. Rebuilt per turn on purpose: the correction from
+      // THIS turn is part of it next turn, and the rebuild is two local scans.
+      // The items ride the existing allow-listed `learner_memory` wire field.
+      await rebuildMemoryPatterns();
+      const learnerMemory = buildMemorySummary({
+        patterns: await listMemoryPatterns(),
+        level: effectiveLevel,
+        goal: user?.primaryGoal ?? null,
+        profession: user?.profession ?? null,
+      }).items;
 
       const res = await workerClient.sendTurn({
         scenarioId,
