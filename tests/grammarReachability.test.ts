@@ -23,7 +23,11 @@ const DRAFT_FILES = [
   'docs/content/curriculum-a0-foundations.json',
   'docs/content/curriculum-arrival-module2.json',
 ];
-const SUPPLEMENT_FILE = 'docs/content/supplements/grammar-basics.json';
+const SUPPLEMENT_FILES = [
+  'docs/content/supplements/grammar-basics.json',
+  'docs/content/supplements/grammar-essentials-v21.json',
+];
+const SUPPLEMENT_FILE = SUPPLEMENT_FILES[0];
 
 const GRAMMAR_COLUMNS = CONTENT_COLUMNS.grammar;
 
@@ -66,7 +70,9 @@ function deadLinks(referenced: Set<string>, sources: Record<string, GrammarRow[]
   return [...referenced].filter((id) => !known.has(id)).sort();
 }
 
-const supplement = loadJson(SUPPLEMENT_FILE);
+const supplements = SUPPLEMENT_FILES.map((file) => loadJson(file));
+const supplementGrammar = supplements.flatMap((parsed) => grammarOf(parsed));
+const supplement = supplements[0];
 const drafts: Record<string, GrammarRow[]> = Object.fromEntries(
   DRAFT_FILES.map((file) => [file.replace('docs/content/', ''), grammarOf(loadJson(file))]),
 );
@@ -82,8 +88,8 @@ beforeAll(async () => {
 });
 
 describe('grammar reachability — shipped rows', () => {
-  it('every grammar row in the drafts and the supplement is pointed at by a scenario', () => {
-    const orphans = orphanRows({ ...drafts, supplement: grammarOf(supplement) }, referencedIds);
+  it('every grammar row in the drafts and the supplements is pointed at by a scenario', () => {
+    const orphans = orphanRows({ ...drafts, supplements: supplementGrammar }, referencedIds);
     expect(orphans).toEqual([]);
   });
 
@@ -92,7 +98,7 @@ describe('grammar reachability — shipped rows', () => {
   });
 
   it('every grammar id the map names exists in at least one shipped source', () => {
-    const links = deadLinks(referencedIds, { ...drafts, supplement: grammarOf(supplement), fixture });
+    const links = deadLinks(referencedIds, { ...drafts, supplements: supplementGrammar, fixture });
     expect(links).toEqual([]);
   });
 

@@ -12,8 +12,8 @@
  */
 export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
   // A0 foundations module (docs/content/curriculum-a0-foundations.json, V21 Phase 5).
-  first_greetings: ['g_a0_hallo_ich_heisse', 'g_a0_ich_bin_aus'],
-  supermarket_checkout: ['g_a0_ich_moechte', 'g_a1_der_die_das_uebersicht'],
+  first_greetings: ['g_a0_hallo_ich_heisse', 'g_a0_ich_bin_aus', 'g_a0_praesens_konjugation'],
+  supermarket_checkout: ['g_a0_ich_moechte', 'g_a1_der_die_das_uebersicht', 'g_a1_negation_nicht_kein'],
   banking_first_visit: ['g_a0_hilfe_nicht_verstanden', 'g_a1_frage_wo_woher'],
   letters_and_forms: ['g_a1_buchstabieren_alphabet', 'g_a0_hilfe_nicht_verstanden'],
   train_first_ride: ['g_a1_frage_wo_woher', 'g_a1_zahlen_bis_zehn'],
@@ -40,7 +40,7 @@ export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
   // that no grammar row ships without a scenario pointing at it.
   cafe_order: ['g_polite_requests_a1', 'g_modal_moechte'],
   doctor_visit: ['g_polite_requests_a1'],
-  apartment_viewing: ['g_articles_a1'],
+  apartment_viewing: ['g_articles_a1', 'g_a1_adjektivendung_bestimmt'],
   job_interview: ['g_verb_position_a1'],
   // Live in D1 but not in the offline fixture, so Guided Practice had no rule to
   // teach for it. Added in V14 against the same supplement row it can share.

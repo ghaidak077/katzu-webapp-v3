@@ -1,0 +1,63 @@
+{
+  "_note": "Grammar supplement, not a module (V21 Phase 4 tail): the three essential rules the live 22 rows did not cover — present-tense conjugation basics, negation with nicht/kein, and adjective endings after definite articles. Each row is pointed at by SCENARIO_GRAMMAR_IDS (first_greetings, supermarket_checkout, apartment_viewing), so the grammar section, Guided Practice and the reachability tests all see them. Authored and reviewed under the same gate as the modules.",
+  "meta": {
+    "track": "قواعد الأساسيات",
+    "trackDe": "Grundlagen der Grammatik",
+    "moduleTitleAr": "القواعد الأساسية الناقصة",
+    "moduleTitleDe": "Die fehlenden Grundregeln",
+    "primaryLevel": "A1",
+    "version": "1.0.0",
+    "status": "draft",
+    "authoredAt": "2026-09-30",
+    "designedFor": "لكل متعلم: القواعد الثلاث التي يخطئ فيها العرب أكثر من غيرها ولم تكن موجودة في صفوف القواعد الحية — تصريف الفعل في المضارع، النفي بـ nicht و kein، ونهايات الصفة بعد أداة التعريف.",
+    "topicContract": "Supplement: grammar only, no scenarios or vocabulary. Every row is referenced from SCENARIO_GRAMMAR_IDS (src/lib/content/scenarioGrammar.ts) so it is reachable by Guided Practice and the القواعد section.",
+    "knownLimitations": [
+      "Adjective endings here cover only the definite-article pattern (der Wein ist alt → der alte Wein); the indefinite-article and no-article patterns are later material.",
+      "Conjugation is limited to the present tense of regular verbs plus sein/haben; stem-changing verbs (ich fahre, du fährst) are later material."
+    ]
+  },
+  "review": {
+    "status": "approved",
+    "reviewedBy": "AI self-review — Freebuff coding agent (Buffy), no human review",
+    "reviewedAt": "2026-09-30T06:40:00Z",
+    "checklist": [
+      "German rule text checked for case/gender accuracy; examples are full usable sentences.",
+      "Arabic natural MSA, no transliterations, German terms quoted where needed.",
+      "example_ar fields Arabic-only (German belongs in example_de).",
+      "Every row id g_-prefixed and referenced from SCENARIO_GRAMMAR_IDS; no id exists in D1 or any draft.",
+      "No fees, deadlines or bureaucracy claims — pure grammar rows."
+    ]
+  },
+  "grammar": [
+    {
+      "id": "g_a0_praesens_konjugation",
+      "title_ar": "تصريف الفعل في المضارع: ich gehe, du gehst",
+      "rule_de": "Regelmäßige Verben: ich gehe, du gehst, er/sie/es geht, wir gehen, ihr geht, sie gehen. Stamm + Endung.",
+      "rule_ar": "الأفعال المنتظمة تأخذ نهايات حسب الفاعل: ich gehe، du gehst، er geht، wir gehen، ihr geht، sie gehen. الجذر يبقى والنهاية تتغير.",
+      "level": "A0",
+      "explanation_ar": "القاعدة الأم في الألمانية: خذ مصدر الفعل (gehen)، اطرح -en فيبقى الجذر (geh)، ثم أضف النهاية. وحدتان مهمتان مع du و er/sie/es: gehst و geht. الفعلان الشاذان الأساسيان: ich bin / ich habe.",
+      "example_de": "Ich komme aus Syrien und du kommst aus Ägypten.",
+      "example_ar": "أنا من سوريا وأنت من مصر."
+    },
+    {
+      "id": "g_a1_negation_nicht_kein",
+      "title_ar": "النفي: nicht أو kein؟",
+      "rule_de": "kein + Nomen verneint Namen (kein Auto). nicht verneint Verben, Adjektive und Namen. nicht steht spät im Satz, kein an der Stelle des Artikels.",
+      "rule_ar": "kein تنفي الاسم (بدل أداة التعريف): Ich habe kein Auto. أما nicht فتنفي الفعل أو الصفة أو اسماً وتأتي متأخرة في الجملة: Ich schlafe nicht. Das ist nicht teuer.",
+      "level": "A1",
+      "explanation_ar": "الفرق الذي يخطئ فيه العرب دائماً: إذا كان بعد النفي اسم مرفوق بأداة فاستخدم kein (بالتصريف: kein/keine)، وإلا استخدم nicht. لا تضع nicht قبل الاسم مباشرة.",
+      "example_de": "Ich trinke keinen Kaffee, aber ich trinke Tee.",
+      "example_ar": "لا أشرب قهوة، لكني أشرب شاياً."
+    },
+    {
+      "id": "g_a1_adjektivendung_bestimmt",
+      "title_ar": "نهاية الصفة بعد أداة التعريف",
+      "rule_de": "Nach dem bestimmten Artikel: der alte Wein, die alte Suppe, das alte Brot; Plural: die alten Sachen.",
+      "rule_ar": "بعد أداة التعريف تأخذ الصفة نهاية -e في المفرد: der alte Wein، die alte Suppe، das alte Brot — ونهاية -en في الجمع: die alten Sachen.",
+      "level": "A1",
+      "explanation_ar": "القاعدة العملية للمبتدئ: أداة التعريف تُظهر الجنس فتكتفي الصفة بنهاية -e في المفرد. الخلط يبدأ لاحقاً مع الأدوات النكرة — لا تتعجل.",
+      "example_de": "Der neue Kollege ist nett und die neue Chefin auch.",
+      "example_ar": "الزميل الجديد لطيف والمديرة الجديدة كذلك."
+    }
+  ]
+}
