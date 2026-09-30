@@ -1,0 +1,1023 @@
+{
+  "_note": "EXAM-SPEAKING MODULE (master plan §5.2, V23; owner decision: author and gate, do NOT load — no CONTENT-LOAD-AUTHORIZED exists this run). Format practice in the STYLE of DTZ and Goethe/ÖSD B1 speaking — NOT the official exam and NOT affiliated with any exam provider. Every topic is original to Katzu: none of the situations, prompts or wording is copied from any released model test (verifiable by diff), and no provider name appears in learner-facing content. DTZ shape: Teil 1 sich vorstellen, Teil 2 über ein Thema sprechen (Erfahrungen/Meinungen), Teil 3 gemeinsam planen. Goethe/ÖSD B1 shape: 1) gemeinsam etwas planen, 2) ein Thema präsentieren (anhand einer 5-Punkt-Gliederung), 3) auf den Partner reagieren. The personae are Prüfungspartner/Prüfer katze (Sie register). The scenario-level and meta-level notices say practice in the style of, not the official exam. Category is the NEW 'exam' category (V23 enablers map it to the 'exam' topic); grammar rows g_exam_* are wired into SCENARIO_GRAMMAR_IDS by the same commit.",
+  "meta": {
+    "track": "تدريب الامتحان: المحادثة",
+    "trackDe": "Prüfungstraining: Sprechen",
+    "module": 7,
+    "moduleTitleAr": "محادثة الامتحان بأسلوب DTZ وGoethe/ÖSD B1",
+    "moduleTitleDe": "Sprechtraining im Stil von DTZ und Goethe/ÖSD B1",
+    "primaryLevel": "B1",
+    "version": "1.0.0",
+    "status": "draft",
+    "authoredAt": "2026-10-01",
+    "designedFor": "تدريب بأسلوب امتحانات DTZ وGoethe/ÖSD B1 في المحادثة وبمواضيع خاصة بمنهجنا — هذا ليس الامتحان الرسمي نفسه ولا جهة معتمدة. كل موقف أصلي من إعداد كَاتْزُو لتتدرب على الشكل: التعريف بالنفس، الحديث عن موضوع، والتخطيط مع شريك.",
+    "topicContract": "Module shape: 5 scenarios, all category 'exam' (new V23 category mapping to the 'exam' topic), 15+ vocabulary in the shared exam pool, 6–10 phrases per (scenario, level) with levels A1/A2/B1, 2+ grammar rows per taught level (A2 and B1).",
+    "knownLimitations": [
+      "No exam provider is named in any learner-facing row; the style names (DTZ, Goethe/ÖSD B1) appear only in meta and _note, which the app does not render on scenario screens.",
+      "Scoring, timing and exam regulations are deliberately absent — Katzu measures conversation, not exam conformity.",
+      "A1 rows are included only where the exam-pool vocabulary is A1-usable (greetings, wants, questions); the exam formats themselves are A2/B1 material."
+    ]
+  },
+  "review": {
+    "status": "approved",
+    "reviewedBy": "AI self-review — Freebuff coding agent (Buffy), no human review",
+    "reviewedAt": "2026-10-01T00:00:00Z",
+    "checklist": [
+      "كل موضوع أصلي من إعداد كَاتْزُو: لا موقف ولا صياغة منسوخة من أي امتحان رسمي أو نموذج تجريبي منشور.",
+      "لا اسم مزوّد امتحانات في أي حقل يقرأه المتعلّم، وإشعار «ليس الامتحان الرسمي» ظاهر في designedFor وفي افتتاحيات السيناريوهات.",
+      "الشخصية Prüfungspartner/Prüfer katze بالسجل Sie في كل الحقول الألمانية.",
+      "كل كلمة من بنك exam تظهر حرفياً في عبارة أو افتتاحية من نفس السيناريو.",
+      "أدوات التعريف والجمع مكتملة، والألمانية في حقولها فقط، والعربية فصحى ميسّرة.",
+      "لا أرقام ولا رسوم ولا قواعد امتحان كحقائق؛ التركيز على لغة الشكل لا على تنظيمه.",
+      "Sort_order متصل من 1 لكل سيناريو عبر المستويات، و6–10 عبارات لكل (سيناريو، مستوى)."
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "exam_sich_vorstellen",
+      "category": "exam",
+      "icon": "graduation-cap",
+      "title_de": "Prüfung: Sich vorstellen",
+      "title_ar": "تدريب: التعريف بالنفس (أسلوب الامتحان)",
+      "ai_persona": "Prüfungspartner katze",
+      "initial_message_a0": "Hallo! Ich bin Ihr Prüfungspartner. Wie heißen Sie?",
+      "initial_message_a1": "Guten Tag! Ich bin Ihr Prüfungspartner. Bitte stellen Sie sich kurz vor: Wie heißen Sie und woher kommen Sie?",
+      "initial_message_a2": "Guten Tag, schön, dass Sie da sind. Bitte stellen Sie sich vor: Name, Herkunft, Familie und was Sie in Deutschland machen.",
+      "initial_message_b1": "Guten Tag. Ich bin Ihr Prüfungspartner für diese Übung. Erzählen Sie mir etwas über sich: Ihren Werdegang, Ihre Pläne und warum Sie Deutsch lernen.",
+      "initial_message_b2": "Guten Tag. Bitte stellen Sie sich vor und gehen Sie dabei auf Ihren Werdegang, Ihre aktuellen Ziele und Ihre Erwartungen an diese Prüfungsvorbereitung ein."
+    },
+    {
+      "id": "exam_erfahrungen_sprechen",
+      "category": "exam",
+      "icon": "message-circle",
+      "title_de": "Prüfung: Über Erfahrungen sprechen",
+      "title_ar": "تدريب: الحديث عن الخبرات (أسلوب الامتحان)",
+      "ai_persona": "Prüfungspartner katze",
+      "initial_message_a0": "Hallo! Was ist für Sie leicht beim Deutschlernen?",
+      "initial_message_a1": "Guten Tag! Erzählen Sie: Was ist für Sie leicht, was ist schwer beim Deutschlernen?",
+      "initial_message_a2": "Guten Tag. Heute sprechen wir über Erfahrungen. Beschreiben Sie mir eine Situation, in der Sie zum ersten Mal allein auf Deutsch sprechen mussten.",
+      "initial_message_b1": "Guten Tag. Erzählen Sie mir von einer Erfahrung, die Ihr Deutsch verändert hat: Was war die Situation, was haben Sie gesagt und was haben Sie daraus gelernt?",
+      "initial_message_b2": "Guten Tag. Ich interessiere mich für Ihre Erfahrungen mit der Sprache: Beschreiben Sie eine prägende Situation und reflektieren Sie, wie sie Ihr Lernen verändert hat."
+    },
+    {
+      "id": "exam_gemeinsam_planen",
+      "category": "exam",
+      "icon": "calendar-check",
+      "title_de": "Prüfung: Gemeinsam planen",
+      "title_ar": "تدريب: التخطيط مع شريك (أسلوب الامتحان)",
+      "ai_persona": "Prüfer katze",
+      "initial_message_a0": "Hallo! Wir planen zusammen etwas. Was möchten Sie machen?",
+      "initial_message_a1": "Guten Tag! Wir planen zusammen einen Ausflug. Was möchten Sie machen, und wann haben Sie Zeit?",
+      "initial_message_a2": "Guten Tag. Stellen Sie sich vor, wir planen gemeinsam ein Fest für unsere Deutschkurs-Gruppe. Machen Sie Vorschläge und fragen Sie mich nach meiner Meinung.",
+      "initial_message_b1": "Guten Tag. Unsere Aufgabe: Wir planen gemeinsam ein Abschiedsfest für eine Kollegin. Schlagen Sie Termin, Ort, Essen und ein Geschenk vor, und wir entscheiden zusammen.",
+      "initial_message_b2": "Guten Tag. Wir planen gemeinsam ein Abschiedsfest für eine Kollegin. Gehen Sie strukturiert vor: Terminvorschläge, Ort, Verpflegung, Geschenk und Aufgabenverteilung — und reagieren Sie auf meine Einwände."
+    },
+    {
+      "id": "exam_thema_praesentieren",
+      "category": "exam",
+      "icon": "presentation",
+      "title_de": "Prüfung: Ein Thema präsentieren",
+      "title_ar": "تدريب: عرض موضوع (أسلوب الامتحان)",
+      "ai_persona": "Prüfer katze",
+      "initial_message_a0": "Hallo! Erzählen Sie mir von einem Thema. Ich höre zu.",
+      "initial_message_a1": "Guten Tag! Erzählen Sie mir von Ihrem Lieblingsort in Ihrer Stadt. Wo ist das, und was macht man dort?",
+      "initial_message_a2": "Guten Tag. Heute präsentieren Sie ein Thema: Ihr Lieblingsort in Ihrer Stadt. Nutzen Sie die Punkte Ort, Anfahrt, Angebot, Grund und Tipp.",
+      "initial_message_b1": "Guten Tag. Ihre Präsentation: Ihr Lieblingsort in Ihrer Stadt. Strukturieren Sie frei: Ort, Anfahrt, Angebot, persönlicher Grund und ein Tipp für Besucher. Ich stelle danach Fragen.",
+      "initial_message_b2": "Guten Tag. Bitte präsentieren Sie Ihr Thema „Ein Lieblingsort in meiner Stadt“ mit einer klaren Gliederung und begründeten Empfehlungen. Anschließend diskutieren wir Ihre Argumente."
+    },
+    {
+      "id": "exam_auf_partner_reagieren",
+      "category": "exam",
+      "icon": "users",
+      "title_de": "Prüfung: Auf den Partner reagieren",
+      "title_ar": "تدريب: التفاعل مع الشريك (أسلوب الامتحان)",
+      "ai_persona": "Prüfungspartner katze",
+      "initial_message_a0": "Hallo! Ich sage etwas, und Sie antworten. Einverstanden?",
+      "initial_message_a1": "Guten Tag! Ich sage etwas über den Alltag in Deutschland, und Sie antworten mir: Einverstanden?",
+      "initial_message_a2": "Guten Tag. Übung: Ich sage eine Meinung, Sie reagieren — einverstanden, überrascht oder anderer Meinung? Begründen Sie kurz.",
+      "initial_message_b1": "Guten Tag. Ich nenne eine Meinung zum Leben in Deutschland, und Sie reagieren: Sie sind einverstanden oder nicht, und Sie begründen Ihre Sicht mit Beispielen.",
+      "initial_message_b2": "Guten Tag. Wir diskutieren: Ich vertrete eine These über das Leben in Deutschland, und Sie reagieren argumentativ — mit Zustimmung, Kritik und eigenen Beispielen."
+    }
+  ],
+  "vocabulary": [
+    {
+      "german": "die Prüfung",
+      "article": "die",
+      "plural": "die Prüfungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "الامتحان",
+      "translation_en": "exam",
+      "example_de": "Die Prüfung beginnt mit einer kurzen Vorstellung.",
+      "example_ar": "يبدأ الامتحان بتعريف قصير.",
+      "example_en": "The exam starts with a short introduction.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "der Prüfungsteil",
+      "article": "der",
+      "plural": "die Prüfungsteile",
+      "part_of_speech": "Noun",
+      "translation_ar": "جزء الامتحان",
+      "translation_en": "exam part",
+      "example_de": "Der erste Prüfungsteil ist die Vorstellung.",
+      "example_ar": "جزء الامتحان الأول هو التعريف.",
+      "example_en": "The first exam part is the introduction.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "die Vorbereitung",
+      "article": "die",
+      "plural": "die Vorbereitungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "التحضير والاستعداد",
+      "translation_en": "preparation",
+      "example_de": "Gute Vorbereitung hilft beim Sprechen.",
+      "example_ar": "التحضير الجيد يساعد على الكلام.",
+      "example_en": "Good preparation helps with speaking.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "sich vorstellen",
+      "article": "",
+      "plural": null,
+      "part_of_speech": "Verb",
+      "translation_ar": "يقدّم نفسه",
+      "translation_en": "to introduce oneself",
+      "example_de": "Ich möchte mich kurz vorstellen.",
+      "example_ar": "أريد أن أقدّم نفسي بإيجاز.",
+      "example_en": "I would like to introduce myself briefly.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "die Herkunft",
+      "article": "die",
+      "plural": "die Herkünfte",
+      "part_of_speech": "Noun",
+      "translation_ar": "الأصل والمنشأ",
+      "translation_en": "origin/background",
+      "example_de": "Meine Herkunft ist Teil meiner Vorstellung.",
+      "example_ar": "أصلي جزء من تعريفي بنفسي.",
+      "example_en": "My background is part of my introduction.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "der Werdegang",
+      "article": "der",
+      "plural": "die Werdegänge",
+      "part_of_speech": "Noun",
+      "translation_ar": "المسار الدراسي والمهني",
+      "translation_en": "career path",
+      "example_de": "Ich erzähle kurz meinen Werdegang.",
+      "example_ar": "أحكي مساري بإيجاز.",
+      "example_en": "I briefly talk about my career path.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "die Erfahrung",
+      "article": "die",
+      "plural": "die Erfahrungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "الخبرة",
+      "translation_en": "experience",
+      "example_de": "Diese Erfahrung war neu für mich.",
+      "example_ar": "كانت هذه الخبرة جديدة عليّ.",
+      "example_en": "This experience was new to me.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "beschreiben",
+      "article": "",
+      "plural": null,
+      "part_of_speech": "Verb",
+      "translation_ar": "يصف",
+      "translation_en": "to describe",
+      "example_de": "Bitte beschreiben Sie die Situation genauer.",
+      "example_ar": "من فضلك صف الموقف بدقة أكبر.",
+      "example_en": "Please describe the situation in more detail.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "erzählen",
+      "article": "",
+      "plural": null,
+      "part_of_speech": "Verb",
+      "translation_ar": "يحكي",
+      "translation_en": "to tell/narrate",
+      "example_de": "Erzählen Sie, was passiert ist.",
+      "example_ar": "احكي ما الذي حدث.",
+      "example_en": "Tell me what happened.",
+      "level": "A1",
+      "topic": "exam"
+    },
+    {
+      "german": "die Meinung",
+      "article": "die",
+      "plural": "die Meinungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "الرأي",
+      "translation_en": "opinion",
+      "example_de": "Meine Meinung dazu ist klar.",
+      "example_ar": "رأيي في ذلك واضح.",
+      "example_en": "My opinion on that is clear.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "die Gliederung",
+      "article": "die",
+      "plural": "die Gliederungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "هيكل العرض وتقسيمه",
+      "translation_en": "structure/outline",
+      "example_de": "Meine Gliederung hat fünf Punkte.",
+      "example_ar": "هيكل عرضي فيه خمس نقاط.",
+      "example_en": "My outline has five points.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "der Vorschlag",
+      "article": "der",
+      "plural": "die Vorschläge",
+      "part_of_speech": "Noun",
+      "translation_ar": "الاقتراح",
+      "translation_en": "suggestion/proposal",
+      "example_de": "Ich habe einen Vorschlag für den Termin.",
+      "example_ar": "لدي اقتراح للموعد.",
+      "example_en": "I have a suggestion for the date.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "vorschlagen",
+      "article": "",
+      "plural": null,
+      "part_of_speech": "Verb",
+      "translation_ar": "يقترح",
+      "translation_en": "to propose",
+      "example_de": "Ich schlage Samstag vor.",
+      "example_ar": "أقترح يوم السبت.",
+      "example_en": "I propose Saturday.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "einverstanden",
+      "article": "",
+      "plural": null,
+      "part_of_speech": "Adjective",
+      "translation_ar": "متفق وموافق",
+      "translation_en": "in agreement",
+      "example_de": "Ich bin mit dem Plan einverstanden.",
+      "example_ar": "أوافق على الخطة.",
+      "example_en": "I agree with the plan.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "reagieren",
+      "article": "",
+      "plural": null,
+      "part_of_speech": "Verb",
+      "translation_ar": "يتفاعل ويردّ",
+      "translation_en": "to react",
+      "example_de": "Bitte reagieren Sie auf meine Meinung.",
+      "example_ar": "من فضلك تفاعل مع رأيي.",
+      "example_en": "Please react to my opinion.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "begründen",
+      "article": "",
+      "plural": null,
+      "part_of_speech": "Verb",
+      "translation_ar": "يبرّر ويقدّم السبب",
+      "translation_en": "to justify/give reasons",
+      "example_de": "Begründen Sie Ihre Antwort kurz.",
+      "example_ar": "برّر إجابتك بإيجاز.",
+      "example_en": "Justify your answer briefly.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "das Beispiel",
+      "article": "das",
+      "plural": "die Beispiele",
+      "part_of_speech": "Noun",
+      "translation_ar": "المثال",
+      "translation_en": "example",
+      "example_de": "Ich erkläre das mit einem Beispiel.",
+      "example_ar": "أشرح ذلك بمثال.",
+      "example_en": "I explain that with an example.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "der Grund",
+      "article": "der",
+      "plural": "die Gründe",
+      "part_of_speech": "Noun",
+      "translation_ar": "السبب",
+      "translation_en": "reason",
+      "example_de": "Mein Grund dafür ist einfach.",
+      "example_ar": "سببي لذلك بسيط.",
+      "example_en": "My reason for that is simple.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "der Termin",
+      "article": "der",
+      "plural": "die Termine",
+      "part_of_speech": "Noun",
+      "translation_ar": "الموعد",
+      "translation_en": "appointment/date",
+      "example_de": "Wir suchen einen Termin für das Fest.",
+      "example_ar": "نبحث عن موعد للحفل.",
+      "example_en": "We are looking for a date for the party.",
+      "level": "A1",
+      "topic": "exam"
+    },
+    {
+      "german": "der Ort",
+      "article": "der",
+      "plural": "die Orte",
+      "part_of_speech": "Noun",
+      "translation_ar": "المكان",
+      "translation_en": "place",
+      "example_de": "Der Ort ist noch offen.",
+      "example_ar": "المكان ما زال مفتوحاً.",
+      "example_en": "The place is still open.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "das Geschenk",
+      "article": "das",
+      "plural": "die Geschenke",
+      "part_of_speech": "Noun",
+      "translation_ar": "الهدية",
+      "translation_en": "gift",
+      "example_de": "Was schlagen Sie als Geschenk vor?",
+      "example_ar": "بماذا تقترح أن تكون الهدية؟",
+      "example_en": "What do you suggest as a gift?",
+      "level": "A1",
+      "topic": "exam"
+    },
+    {
+      "german": "das Fest",
+      "article": "das",
+      "plural": "die Feste",
+      "part_of_speech": "Noun",
+      "translation_ar": "الحفل والاحتفال",
+      "translation_en": "party/celebration",
+      "example_de": "Das Fest findet am Samstag statt.",
+      "example_ar": "يُقام الحفل يوم السبت.",
+      "example_en": "The party takes place on Saturday.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "die Aufgabe",
+      "article": "die",
+      "plural": "die Aufgaben",
+      "part_of_speech": "Noun",
+      "translation_ar": "المهمة والواجب",
+      "translation_en": "task",
+      "example_de": "Unsere Aufgabe ist es, zusammen zu planen.",
+      "example_ar": "مهمتنا أن نخطط معاً.",
+      "example_en": "Our task is to plan together.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "präsentieren",
+      "article": "",
+      "plural": null,
+      "part_of_speech": "Verb",
+      "translation_ar": "يعرض ويقدّم موضوعاً",
+      "translation_en": "to present",
+      "example_de": "Präsentieren Sie Ihr Thema in fünf Minuten.",
+      "example_ar": "اعرض موضوعك في خمس دقائق.",
+      "example_en": "Present your topic in five minutes.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "der Tipp",
+      "article": "der",
+      "plural": "die Tipps",
+      "part_of_speech": "Noun",
+      "translation_ar": "النصيحة السريعة",
+      "translation_en": "tip",
+      "example_de": "Mein Tipp: früh zum Markt kommen.",
+      "example_ar": "نصيحتي: تعال إلى السوق باكراً.",
+      "example_en": "My tip: come to the market early.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "die Anfahrt",
+      "article": "die",
+      "plural": "die Anfahrten",
+      "part_of_speech": "Noun",
+      "translation_ar": "الطريق إلى المكان",
+      "translation_en": "way there/journey",
+      "example_de": "Die Anfahrt ist mit der Bahn leicht.",
+      "example_ar": "الوصول إلى هناك سهل بالقطار.",
+      "example_en": "Getting there is easy by train.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "das Angebot",
+      "article": "das",
+      "plural": "die Angebote",
+      "part_of_speech": "Noun",
+      "translation_ar": "ما يُقدَّم من خيارات",
+      "translation_en": "offer/what's on offer",
+      "example_de": "Das Angebot dort ist groß.",
+      "example_ar": "الخيارات المعروضة هناك كبيرة.",
+      "example_en": "The offer there is wide.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "die Verabredung",
+      "article": "die",
+      "plural": "die Verabredungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "الاتفاق على موعد",
+      "translation_en": "arranged meeting",
+      "example_de": "Die Verabredung steht: Samstag, drei Uhr.",
+      "example_ar": "الاتفاق تم: السبت الثالثة.",
+      "example_en": "The arrangement is set: Saturday, three o'clock.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "die Situation",
+      "article": "die",
+      "plural": "die Situationen",
+      "part_of_speech": "Noun",
+      "translation_ar": "الموقف",
+      "translation_en": "situation",
+      "example_de": "Die Situation war etwas schwierig.",
+      "example_ar": "كان الموقف صعباً بعض الشيء.",
+      "example_en": "The situation was a bit difficult.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "das Ziel",
+      "article": "das",
+      "plural": "die Ziele",
+      "part_of_speech": "Noun",
+      "translation_ar": "الهدف",
+      "translation_en": "goal",
+      "example_de": "Mein Ziel ist B1 in diesem Jahr.",
+      "example_ar": "هدفي بلوغ B1 هذا العام.",
+      "example_en": "My goal is B1 this year.",
+      "level": "A2",
+      "topic": "exam"
+    },
+    {
+      "german": "das Essen",
+      "article": "das",
+      "plural": null,
+      "part_of_speech": "Noun",
+      "translation_ar": "الطعام",
+      "translation_en": "food",
+      "example_de": "Für das Essen bringe ich Salat mit.",
+      "example_ar": "سأحضر سلطة للطعام.",
+      "example_en": "I'll bring salad for the food.",
+      "level": "A1",
+      "topic": "exam"
+    },
+    {
+      "german": "planen",
+      "article": "",
+      "plural": null,
+      "part_of_speech": "Verb",
+      "translation_ar": "يخطط",
+      "translation_en": "to plan",
+      "example_de": "Wir planen das Fest zusammen.",
+      "example_ar": "نخطط الحفل معاً.",
+      "example_en": "We are planning the party together.",
+      "level": "A1",
+      "topic": "exam"
+    },
+    {
+      "german": "entscheiden",
+      "article": "",
+      "plural": null,
+      "part_of_speech": "Verb",
+      "translation_ar": "يقرّر",
+      "translation_en": "to decide",
+      "example_de": "Wir entscheiden das gemeinsam.",
+      "example_ar": "نقرّر ذلك معاً.",
+      "example_en": "We decide that together.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "die Zustimmung",
+      "article": "die",
+      "plural": "die Zustimmungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "الموافقة",
+      "translation_en": "approval/agreement",
+      "example_de": "Ich stimme zu — volle Zustimmung.",
+      "example_ar": "أوافق — موافقة كاملة.",
+      "example_en": "I agree — full approval.",
+      "level": "B1",
+      "topic": "exam"
+    },
+    {
+      "german": "der Kritikpunkt",
+      "article": "der",
+      "plural": "die Kritikpunkte",
+      "part_of_speech": "Noun",
+      "translation_ar": "نقطة النقد",
+      "translation_en": "point of criticism",
+      "example_de": "Mein Kritikpunkt ist der Zeitplan.",
+      "example_ar": "نقدتي هي الجدول الزمني.",
+      "example_en": "My point of criticism is the schedule.",
+      "level": "B1",
+      "topic": "exam"
+    }
+  ],
+  "starter_phrases": [
+    {
+      "scenario_id": "exam_sich_vorstellen",
+      "level": "A2",
+      "german": "Ich heiße Omar und ich komme aus Syrien.",
+      "translation_en": "My name is Omar and I come from Syria.",
+      "translation_ar": "اسمي عمر وأنا من سوريا.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "exam_sich_vorstellen",
+      "level": "A2",
+      "german": "Ich bin verheiratet und habe zwei Kinder.",
+      "translation_en": "I am married and have two children.",
+      "translation_ar": "أنا متزوج ولديّ طفلان.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "exam_sich_vorstellen",
+      "level": "A2",
+      "german": "Ich lerne Deutsch seit einem Jahr.",
+      "translation_en": "I have been learning German for a year.",
+      "translation_ar": "أتعلم الألمانية منذ سنة.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "exam_sich_vorstellen",
+      "level": "A2",
+      "german": "Ich wohne jetzt in Leipzig.",
+      "translation_en": "I live in Leipzig now.",
+      "translation_ar": "أسكن الآن في لايبزيغ.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "exam_sich_vorstellen",
+      "level": "A2",
+      "german": "Ich möchte mich kurz vorstellen.",
+      "translation_en": "I would like to introduce myself briefly.",
+      "translation_ar": "أريد أن أقدّم نفسي بإيجاز.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "exam_sich_vorstellen",
+      "level": "A2",
+      "german": "Mein Beruf ist Elektrotechniker.",
+      "translation_en": "My profession is electrician.",
+      "translation_ar": "مهنتي فني كهرباء.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "exam_sich_vorstellen",
+      "level": "B1",
+      "german": "Zu meinem Werdegang: Ich habe in Damaskus studiert und hier eine Ausbildung begonnen.",
+      "translation_en": "About my path: I studied in Damascus and started vocational training here.",
+      "translation_ar": "عن مساري: درست في دمشق وبدأت هنا تدريباً مهنياً.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "exam_sich_vorstellen",
+      "level": "B1",
+      "german": "Ich lerne Deutsch, weil ich hier arbeiten und studieren möchte.",
+      "translation_en": "I am learning German because I want to work and study here.",
+      "translation_ar": "أتعلم الألمانية لأنني أريد العمل والدراسة هنا.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "exam_sich_vorstellen",
+      "level": "B1",
+      "german": "Mein Ziel für dieses Jahr ist das Niveau B1.",
+      "translation_en": "My goal for this year is level B1.",
+      "translation_ar": "هدفي هذا العام هو مستوى B1.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "exam_sich_vorstellen",
+      "level": "B1",
+      "german": "In meiner Freizeit lese ich und treibe Sport.",
+      "translation_en": "In my free time I read and do sports.",
+      "translation_ar": "في وقت فراغي أقرأ وأمارس الرياضة.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "exam_erfahrungen_sprechen",
+      "level": "A1",
+      "german": "Deutsch ist manchmal schwer, aber interessant.",
+      "translation_en": "German is sometimes difficult, but interesting.",
+      "translation_ar": "الألمانية صعبة أحياناً لكنها ممتعة.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "exam_erfahrungen_sprechen",
+      "level": "A1",
+      "german": "Ich habe ein Wort nicht verstanden.",
+      "translation_en": "I did not understand one word.",
+      "translation_ar": "لم أفهم كلمة واحدة.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "exam_erfahrungen_sprechen",
+      "level": "A2",
+      "german": "Beim ersten Telefonat war ich sehr nervös.",
+      "translation_en": "During my first phone call I was very nervous.",
+      "translation_ar": "في أول مكالمة هاتفية كنت متوتراً جداً.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "exam_erfahrungen_sprechen",
+      "level": "A2",
+      "german": "Ich habe langsam gesprochen, aber der Arzt hat mich verstanden.",
+      "translation_en": "I spoke slowly, but the doctor understood me.",
+      "translation_ar": "تحدثت ببطء لكن الطبيب فهمني.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "exam_erfahrungen_sprechen",
+      "level": "A2",
+      "german": "Am Anfang habe ich viele Fehler gemacht.",
+      "translation_en": "At the beginning I made many mistakes.",
+      "translation_ar": "في البداية أخطأت كثيراً.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "exam_erfahrungen_sprechen",
+      "level": "A2",
+      "german": "Mit der Zeit wurde es besser.",
+      "translation_en": "With time it got better.",
+      "translation_ar": "مع الوقت تحسّن الأمر.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "exam_erfahrungen_sprechen",
+      "level": "A2",
+      "german": "Diese Erfahrung hat mir Mut gegeben.",
+      "translation_en": "This experience gave me courage.",
+      "translation_ar": "منحتني هذه الخبرة شجاعة.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "exam_erfahrungen_sprechen",
+      "level": "B1",
+      "german": "Eine Situation, die ich nicht vergessen kann, war mein erstes Vorstellungsgespräch.",
+      "translation_en": "One situation I cannot forget was my first job interview.",
+      "translation_ar": "موقف لا أستطيع نسيانه كان أول مقابلة عمل لي.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "exam_erfahrungen_sprechen",
+      "level": "B1",
+      "german": "Ich habe gemerkt, dass Übung mehr bringt als Perfektion.",
+      "translation_en": "I noticed that practice helps more than perfection.",
+      "translation_ar": "لاحظت أن التمرين أنفع من الكمال.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "exam_erfahrungen_sprechen",
+      "level": "B1",
+      "german": "Daraus habe ich gelernt, dass man Angst durch Sprechen überwindet.",
+      "translation_en": "From that I learned that fear is overcome by speaking.",
+      "translation_ar": "تعلمت من ذلك أن الخوف يُتغلب عليه بالكلام.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "exam_gemeinsam_planen",
+      "level": "A1",
+      "german": "Ich möchte gerne mitplanen.",
+      "translation_en": "I would like to help plan.",
+      "translation_ar": "أرغب في المشاركة بالتخطيط.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "exam_gemeinsam_planen",
+      "level": "A1",
+      "german": "Haben Sie am Samstag Zeit?",
+      "translation_en": "Do you have time on Saturday?",
+      "translation_ar": "هل لديك وقت يوم السبت؟",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "exam_gemeinsam_planen",
+      "level": "A2",
+      "german": "Ich schlage vor, wir treffen uns am Freitagabend.",
+      "translation_en": "I suggest we meet on Friday evening.",
+      "translation_ar": "أقترح أن نلتقي مساء الجمعة.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "exam_gemeinsam_planen",
+      "level": "A2",
+      "german": "Was halten Sie von einem Fest im Park?",
+      "translation_en": "What do you think of a party in the park?",
+      "translation_ar": "ما رأيك بحفل في الحديقة؟",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "exam_gemeinsam_planen",
+      "level": "A2",
+      "german": "Wir könnten jeder etwas zu essen mitbringen.",
+      "translation_en": "We could each bring something to eat.",
+      "translation_ar": "يمكن أن يحضر كل منا شيئاً للأكل.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "exam_gemeinsam_planen",
+      "level": "A2",
+      "german": "Für das Geschenk haben wir viele Ideen.",
+      "translation_en": "For the gift we have many ideas.",
+      "translation_ar": "لدينا أفكار كثيرة للهدية.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "exam_gemeinsam_planen",
+      "level": "A2",
+      "german": "Sollen wir das zusammen entscheiden?",
+      "translation_en": "Shall we decide that together?",
+      "translation_ar": "أ نقرر ذلك معاً؟",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "exam_gemeinsam_planen",
+      "level": "B1",
+      "german": "Mein Vorschlag für den Termin ist der letzte Freitag im Monat.",
+      "translation_en": "My suggestion for the date is the last Friday of the month.",
+      "translation_ar": "اقتراحي للموعد هو آخر جمعة في الشهر.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "exam_gemeinsam_planen",
+      "level": "B1",
+      "german": "Einverstanden, aber wir sollten auch das Wetter berücksichtigen.",
+      "translation_en": "Agreed, but we should also consider the weather.",
+      "translation_ar": "موافق، لكن ينبغي أن نأخذ الطقس بالحساب.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "exam_gemeinsam_planen",
+      "level": "B1",
+      "german": "Dann teilen wir die Aufgaben: ich kümmere mich um das Essen.",
+      "translation_en": "Then we split the tasks: I take care of the food.",
+      "translation_ar": "إذن نقسم المهام: أنا أتولى الطعام.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "exam_thema_praesentieren",
+      "level": "A1",
+      "german": "Mein Lieblingsort ist der Markt in meiner Straße.",
+      "translation_en": "My favourite place is the market on my street.",
+      "translation_ar": "مكاني المفضل هو السوق في شارعي.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "exam_thema_praesentieren",
+      "level": "A1",
+      "german": "Dort kaufe ich Obst und Gemüse.",
+      "translation_en": "There I buy fruit and vegetables.",
+      "translation_ar": "أشتري هناك فاكهة وخضاراً.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "exam_thema_praesentieren",
+      "level": "A2",
+      "german": "Zuerst beschreibe ich den Ort, dann die Anfahrt.",
+      "translation_en": "First I describe the place, then the way there.",
+      "translation_ar": "أصف المكان أولاً ثم الطريق إليه.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "exam_thema_praesentieren",
+      "level": "A2",
+      "german": "Der Ort liegt im Zentrum, fünf Minuten vom Bahnhof.",
+      "translation_en": "The place is in the centre, five minutes from the station.",
+      "translation_ar": "المكان في الوسط، خمس دقائق من المحطة.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "exam_thema_praesentieren",
+      "level": "A2",
+      "german": "Das Angebot dort ist groß und günstig.",
+      "translation_en": "The offer there is wide and affordable.",
+      "translation_ar": "المعروض هناك واسع ورخيص.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "exam_thema_praesentieren",
+      "level": "A2",
+      "german": "Mein persönlicher Grund ist die freundliche Atmosphäre.",
+      "translation_en": "My personal reason is the friendly atmosphere.",
+      "translation_ar": "سببي الشخصي هو الأجواء الودية.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "exam_thema_praesentieren",
+      "level": "A2",
+      "german": "Mein Tipp für Besucher: früh am Vormittag kommen.",
+      "translation_en": "My tip for visitors: come early in the morning.",
+      "translation_ar": "نصيحتي للزوار: التعال باكراً صباحاً.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "exam_thema_praesentieren",
+      "level": "B1",
+      "german": "Meine Gliederung besteht aus fünf Punkten: Ort, Anfahrt, Angebot, Grund und Tipp.",
+      "translation_en": "My outline has five points: place, journey, offer, reason and tip.",
+      "translation_ar": "هيكلي يضم خمس نقاط: المكان والطريق والمعروض والسبب والنصيحة.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "exam_thema_praesentieren",
+      "level": "B1",
+      "german": "Zusammenfassend kann ich sagen: Dieser Ort verbindet Preis und Qualität.",
+      "translation_en": "In summary I can say: this place combines price and quality.",
+      "translation_ar": "خلاصة القول: هذا المكان يجمع بين السعر والجودة.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "exam_thema_praesentieren",
+      "level": "B1",
+      "german": "Gerne beantworte ich Ihre Fragen zu meinem Thema.",
+      "translation_en": "I am happy to answer your questions about my topic.",
+      "translation_ar": "يسعدني الإجابة عن أسئلتكم حول موضوعي.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "exam_auf_partner_reagieren",
+      "level": "A1",
+      "german": "Das finde ich auch.",
+      "translation_en": "I think so too.",
+      "translation_ar": "أرى ذلك أيضاً.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "exam_auf_partner_reagieren",
+      "level": "A1",
+      "german": "Ich bin anderer Meinung.",
+      "translation_en": "I disagree.",
+      "translation_ar": "رأيي مختلف.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "exam_auf_partner_reagieren",
+      "level": "A2",
+      "german": "Da bin ich einverstanden, weil ich es selbst erlebt habe.",
+      "translation_en": "I agree with that, because I experienced it myself.",
+      "translation_ar": "أوافق على ذلك لأنني عشته بنفسي.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "exam_auf_partner_reagieren",
+      "level": "A2",
+      "german": "Das überrascht mich — haben Sie ein Beispiel?",
+      "translation_en": "That surprises me — do you have an example?",
+      "translation_ar": "هذا يفاجئني — هل لديك مثال؟",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "exam_auf_partner_reagieren",
+      "level": "A2",
+      "german": "Ich sehe das anders, und ich begründe kurz warum.",
+      "translation_en": "I see it differently, and I briefly explain why.",
+      "translation_ar": "أرى الأمر بشكل مختلف، وأشرح السبب بإيجاز.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "exam_auf_partner_reagieren",
+      "level": "A2",
+      "german": "In meinem Kurs gibt es ein gutes Beispiel dafür.",
+      "translation_en": "In my course there is a good example of that.",
+      "translation_ar": "في دورتي مثال جيد على ذلك.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "exam_auf_partner_reagieren",
+      "level": "B1",
+      "german": "Ihre Zustimmung verstehe ich, aber es gibt einen Kritikpunkt.",
+      "translation_en": "I understand your agreement, but there is one point of criticism.",
+      "translation_ar": "أتفهم موافقتك، لكن هناك نقطة نقد.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "exam_auf_partner_reagieren",
+      "level": "B1",
+      "german": "Ein Beispiel aus meinem Alltag zeigt das Gegenteil.",
+      "translation_en": "An example from my daily life shows the opposite.",
+      "translation_ar": "مثال من حياتي اليومية يبين العكس.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "exam_auf_partner_reagieren",
+      "level": "B1",
+      "german": "Zusammengefasst: Einverstanden im Prinzip, kritisch im Detail.",
+      "translation_en": "In summary: agreed in principle, critical in detail.",
+      "translation_ar": "خلاصة: موافق بالمبدأ، نقدي بالتفصيل.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "exam_auf_partner_reagieren",
+      "level": "B1",
+      "german": "Welche Erfahrung stützt Ihre Meinung?",
+      "translation_en": "Which experience supports your opinion?",
+      "translation_ar": "أي خبرة تدعم رأيك؟",
+      "sort_order": 10
+    }
+  ],
+  "grammar": [
+    {
+      "id": "g_exam_seit_dativ_a2",
+      "title_ar": "seit + حالة الجر للزمن",
+      "rule_de": "Bei 'seit' steht der Dativ: seit einem Jahr, seit einer Woche.",
+      "rule_ar": "حرف الجر seit يطلب حالة الجر: منذ سنة، منذ أسبوع.",
+      "level": "A2",
+      "explanation_ar": "عند الحديث عن مدة بدأت في الماضي وتستمر، استخدم seit مع أداة الجر: Ich lerne Deutsch seit einem Jahr.",
+      "example_de": "Ich lerne Deutsch seit einem Jahr.",
+      "example_ar": "أتعلم الألمانية منذ سنة."
+    },
+    {
+      "id": "g_exam_ich_habe_gemerkt_a2",
+      "title_ar": "الجملة بعد أفعال الرأي",
+      "rule_de": "Nach Verben wie 'merken', 'finden', 'sagen' kommt 'dass' und das Verb ans Ende: Ich habe gemerkt, dass Übung hilft.",
+      "rule_ar": "بعد أفعال مثل لاحظت وأرى ويقال تأتي dass ويذهب الفعل إلى نهاية الجملة.",
+      "level": "A2",
+      "explanation_ar": "هذه البنية أساس الحديث عن الخبرات: قول الملاحظة ثم الجملة الكاملة بعد dass.",
+      "example_de": "Ich habe gemerkt, dass Sprechen Angst nimmt.",
+      "example_ar": "لاحظت أن الكلام يزيل الخوف."
+    },
+    {
+      "id": "g_exam_vorschlaege_machen_b1",
+      "title_ar": "صياغة الاقتراحات",
+      "rule_de": "Vorschläge: 'Ich schlage vor, dass …' / 'Wir könnten …' — nach 'können' steht der Infinitiv am Ende.",
+      "rule_ar": "للاقتراح: أقترح أن… أو يمكننا…، ويبقى المصدر في نهاية الجملة بعد können.",
+      "level": "B1",
+      "explanation_ar": "في جزء التخطيط المشترك تُقدَّم الاقتراحات بهذه الصيغ ثم يُطلب الرأي: Was halten Sie davon?",
+      "example_de": "Ich schlage vor, dass wir uns am Freitag treffen.",
+      "example_ar": "أقترح أن نلتقي يوم الجمعة."
+    },
+    {
+      "id": "g_exam_meinung_begruenden_b1",
+      "title_ar": "الرأي والتبرير",
+      "rule_de": "Meinung mit Begründung: 'Ich bin einverstanden, weil …' — nach 'weil' steht das Verb am Ende.",
+      "rule_ar": "الرأي مع السبب: أوافق لأن…، ويأتي الفعل في نهاية الجملة بعد weil.",
+      "level": "B1",
+      "explanation_ar": "لربط الرأي بالتبرير في جزء التفاعل: استخدم weil أو مع سبب واضح.",
+      "example_de": "Ich bin einverstanden, weil ich es selbst erlebt habe.",
+      "example_ar": "أوافق لأنني عشت ذلك بنفسي."
+    },
+    {
+      "id": "g_exam_wfragen_a1",
+      "title_ar": "أسئلة الاستفسار W-Fragen",
+      "rule_de": "W-Fragen: W-Wort + Verb + Subjekt — Wo ist der Markt? Was macht man dort?",
+      "rule_ar": "أسئلة الاستفسار تبدأ بكلمة سؤال ثم الفعل ثم الفاعل.",
+      "level": "A1",
+      "explanation_ar": "أساس طرح الأسئلة في الامتحان: من أين تأتي؟ ماذا تحب؟ متى لديك وقت؟",
+      "example_de": "Wo ist der Markt? Wann haben Sie Zeit?",
+      "example_ar": "أين السوق؟ متى لديك وقت؟"
+    },
+    {
+      "id": "g_exam_moechten_a1",
+      "title_ar": "التعبير عن الرغبة mit möchte",
+      "rule_de": "'möchte' + Infinitiv am Satzende: Ich möchte mitplanen. Möchten Sie mitkommen?",
+      "rule_ar": "للرغبة المهذبة نستخدم möchte مع المصدر في نهاية الجملة.",
+      "level": "A1",
+      "explanation_ar": "أول صيغة للتعبير عما تريده بلغة مهذبة: أرغب في المشاركة، هل تود أن تأتي؟",
+      "example_de": "Ich möchte gerne mitplanen.",
+      "example_ar": "أرغب في المشاركة بالتخطيط."
+    }
+  ]
+}

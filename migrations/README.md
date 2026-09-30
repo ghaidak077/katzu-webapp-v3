@@ -97,3 +97,27 @@ DROP TABLE vocabulary; ALTER TABLE vocabulary_new RENAME TO vocabulary;
 try. After the rebuild, re-run:
 `node scripts/load-curriculum.mjs --file=docs/content/curriculum-a0-foundations.json --commit`
 and the supplement's `--commit` (fresh backups first).
+
+## V23 (2026-10-01): the exact A0 rebuild SQL — verified end-to-end on a local D1 copy
+
+`0002_a0_level_check_rebuild.sql` turns the sketch above into the exact,
+live-DDL-derived statements (the `grammar` DDL in 0001's section 1 predates the
+V13 `rule_de/rule_ar/example_ar` ALTERs; 0002 uses the live shape read from
+`sqlite_master` on 2026-10-01) plus pre/post-flight checks.
+
+**Verified 2026-10-01 on a scratch LOCAL D1** (`katzu-content-scratch`, created
+by exporting production with `wrangler d1 export katzu-content --remote`,
+importing the dump into the scratch binding, and running the file):
+
+- pre: counts 38 / 441 / 319 / 56 matched production; `INSERT ... level='A0'`
+  failed with `CHECK constraint failed: level IN ('A1','A2','B1','B2')` (live
+  copy reproduces the production constraint).
+- the file ran as one `--file` batch: 13 statements, all success.
+- post: counts unchanged 38 / 441 / 319 / 56; A0 inserts accepted in all three
+  tables (probe rows inserted, selected, deleted); junk level `'Z9'` still
+  rejected (`CHECK constraint failed: level IN ('A0','A1','A2','B1','B2')`);
+  `sqlite_sequence` preserved (vocabulary seq 505, starter_phrases 361);
+  both indexes recreated with identical definitions.
+
+Still owner-only, and still **not run against production**. The checklist is at
+the bottom of 0002.

@@ -61,6 +61,12 @@ const CATEGORY_MOODS: Array<{ keywords: string[]; mood: SceneMood }> = [
   { keywords: ['work', 'career', 'job', 'office', 'interview'], mood: 'cool' },
   { keywords: ['official', 'document', 'behoerde', 'authority'], mood: 'clinical' },
   { keywords: ['food', 'cafe', 'daily', 'shop', 'bakery'], mood: 'warm' },
+  // V23: the new module categories. Exam/visa keep the office's clinical light,
+  // study/trades/services read as everyday rooms.
+  { keywords: ['exam', 'visa'], mood: 'clinical' },
+  { keywords: ['study'], mood: 'cool' },
+  { keywords: ['services', 'basics'], mood: 'warm' },
+  { keywords: ['trades'], mood: 'amber' },
 ];
 
 /** Known locations get a real label; unknown content falls back to its category. */
@@ -114,6 +120,13 @@ const CATEGORY_LABELS_AR: Record<string, string> = {
   travel: 'المواصلات',
   official: 'الجهات الرسمية',
   food: 'الطعام والمقهى',
+  // V23: the new module categories.
+  basics: 'الأساسيات',
+  exam: 'تدريب الامتحان',
+  study: 'الدرس والجامعة',
+  visa: 'التأشيرة والإقامة',
+  services: 'موفّري الخدمات',
+  trades: 'الورشة والصيانة',
 };
 
 function moodFor(source: SceneSource | undefined): SceneMood {

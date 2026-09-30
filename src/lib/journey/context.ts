@@ -165,6 +165,13 @@ function categoryRealityAr(category: string | null | undefined, goal: LearnerGoa
   if (value.includes('official') || value.includes('document')) return 'هذه هي اللغة التي تسمعها في الدوائر الرسمية';
   if (value.includes('food') || value.includes('cafe') || value.includes('daily'))
     return 'موقف يومي تتكرر فيه هذه الجُمل';
+  // V23: the new module categories get their own honest "why" lines.
+  if (value.includes('exam')) return 'تدريب بأسلوب الامتحان — ليس الامتحان الرسمي، لكنه يقيس الشيء نفسه';
+  if (value.includes('study')) return 'لغة الدرس والجامعة التي ستحتاجها في أول أسبوع';
+  if (value.includes('visa')) return 'أسئلة التأشيرة والإقامة بالجمل التي تسمعها فعلاً في السفارة';
+  if (value.includes('services')) return 'مكالمة موفّر خدمة — بالضبط ما ستحتاجه لتصفير موعد';
+  if (value.includes('trades')) return 'لغة الورشة والصيانة التي تصلح كل موقف فني في بيتك';
+  if (value.includes('basics')) return 'الأساسيات التي يتكرر عليها كل يوم';
   return 'موقف حقيقي ستخوضه بالألمانية';
 }
 

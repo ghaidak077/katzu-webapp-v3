@@ -115,12 +115,14 @@ export const DEFAULT_WEEKLY_GOAL_DAYS = 5;
  * generic order — personalisation that fails invisibly.
  */
 const GOAL_CATEGORY_KEYWORDS: Record<LearnerGoal, string[]> = {
-  daily_life: ['daily', 'life', 'food', 'health', 'housing', 'travel', 'cafe'],
-  work: ['work', 'career', 'job', 'ausbildung', 'office', 'interview', 'official', 'document'],
-  university: ['study', 'university', 'student', 'campus', 'official', 'document'],
+  daily_life: ['daily', 'life', 'food', 'health', 'housing', 'travel', 'cafe', 'basics', 'services'],
+  work: ['work', 'career', 'job', 'ausbildung', 'office', 'interview', 'official', 'document', 'trades', 'visa'],
+  university: ['study', 'university', 'student', 'campus', 'official', 'document', 'exam', 'visa'],
   // Exam preparation is format practice, not a topic: every real-life scenario
-  // is legitimate material, so the order stays broad and stable.
-  exam: ['official', 'document', 'health', 'housing', 'work', 'daily', 'travel', 'cafe'],
+  // is legitimate material, so the order stays broad and stable. V23: the new
+  // `exam` and `study` categories lead it, so dedicated exam-format content
+  // beats generic content once it exists.
+  exam: ['exam', 'official', 'document', 'study', 'health', 'housing', 'work', 'daily', 'travel', 'cafe'],
 };
 
 export function goalCategoryKeywords(goal: LearnerGoal | null | undefined): string[] {

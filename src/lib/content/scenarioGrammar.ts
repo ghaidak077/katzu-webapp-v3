@@ -74,4 +74,11 @@ export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
   gesundheit_alltag: ['g_fix_seit_dativ_b1', 'g_fix_sich_erholen_b1'],
   wohnung_besichtigen_tiefer: ['g_fix_bestimmte_artikel_a1', 'g_fix_akkusativ_objekt_a2'],
   buero_gespraech_tiefer: ['g_fix_weil_nachdem_b2', 'g_fix_passiv_prasens_b2'],
+  // Exam-speaking module (docs/content/curriculum-exam-speaking.json, V23 §5.2).
+  // Format practice in the style of DTZ / Goethe-ÖSD B1, original topics only.
+  exam_sich_vorstellen: ['g_exam_wfragen_a1', 'g_exam_moechten_a1', 'g_exam_meinung_begruenden_b1'],
+  exam_erfahrungen_sprechen: ['g_exam_seit_dativ_a2', 'g_exam_ich_habe_gemerkt_a2'],
+  exam_gemeinsam_planen: ['g_exam_vorschlaege_machen_b1', 'g_exam_moechten_a1'],
+  exam_thema_praesentieren: ['g_exam_wfragen_a1', 'g_exam_vorschlaege_machen_b1'],
+  exam_auf_partner_reagieren: ['g_exam_meinung_begruenden_b1', 'g_exam_ich_habe_gemerkt_a2'],
 };

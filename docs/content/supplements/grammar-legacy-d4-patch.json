@@ -1,0 +1,73 @@
+{
+  "_note": "D4 legacy-grammar patch (V23, owner decision: 'D4 yes — only the 4 incomplete legacy grammar rows, by id; no POS data rewrite'). The four pre-V13 grammar rows akkusativ_articles, perfekt_tense, dativ_prepositions and konjunktiv_ii were created before the rule_de/rule_ar/example_ar columns existed, so those three columns are NULL in live D1 (verified 2026-10-01: 52 of 56 rows have rule_de; exactly these 4 are NULL). Guided Practice's selectGrammarRule filters on rule_ar and example_de and renders rule_de/example_ar, so a row selected from these four teaches an empty rule. The ids are pre-g_-namespace legacy, deliberately NOT renamed (owner decision: do not rename); SCENARIO_GRAMMAR_IDS still does not point at them, so this patch changes no reachability graph. Grammar rows are UPSERTED BY ID by /admin/upload (INSERT ... ON CONFLICT(id) DO UPDATE SET col = excluded.col for each DECLARED column only), so loading this file completes exactly the columns declared here on the four rows in place — the rows' legacy title_en/explanation_en values are untouched, no other row is touched, and no POS data is rewritten.",
+  "meta": {
+    "track": "إصلاح القواعد القديمة",
+    "trackDe": "Reparatur der Legacy-Grammatik",
+    "moduleTitleAr": "استكمال صفوف القواعد القديمة الناقصة",
+    "moduleTitleDe": "Vervollständigung der unvollständigen Legacy-Grammatikzeilen",
+    "primaryLevel": "A1",
+    "version": "1.0.0",
+    "status": "draft",
+    "authoredAt": "2026-10-01",
+    "designedFor": "إصلاح بنيوي وليس درساً جديداً: أربعة صفوف قواعد قديمة كانت أعمدتها الثلاثة (rule_de وrule_ar وexample_ar) فارغة في قاعدة البيانات لأنها أُنشئت قبل إضافة الأعمدة. هذا الملف يكملها بالمعرّفات نفسها دون تغيير أي صف آخر.",
+    "topicContract": "Supplement: grammar only, no scenarios or vocabulary. The four ids already exist in D1 and are upserted by id; nothing is renamed (owner decision: never change/redefine existing content ids) and nothing else is touched.",
+    "knownLimitations": [
+      "The four ids keep their legacy non-g_ namespace; the supplement validator's g_ prefix rule is waived for exactly these four pre-existing D1 ids (they cannot be renamed without breaking the owner's no-rename rule).",
+      "rule_de/rule_ar/example_ar are authored to match the existing title_ar/explanation_ar/example_de of each row. The D1 rows also carry legacy title_en/explanation_en values; /admin/upload upserts only the columns a row declares, so leaving them out leaves those two legacy values untouched — no rewrite of anything beyond the three completed columns and the identity/level fields."
+    ]
+  },
+  "review": {
+    "status": "approved",
+    "reviewedBy": "AI self-review — Freebuff coding agent (Buffy), no human review",
+    "reviewedAt": "2026-10-01T00:00:00Z",
+    "checklist": [
+      "كل صف من الأربعة يحمل المعرّف نفسه الموجود في الإنتاج، والأعمدة الثلاثة الناقصة فقط هي الجديدة.",
+      "القاعدة الألمانية rule_de تعيد صياغة explanation_ar الحالي بدقة، وexample_de كما هو في الإنتاج حرفياً.",
+      "الألمانية في حقولها فقط، والعربية فصحى ميسّرة، وبلا أرقام أو رسوم أو ادعاءات بيروقراطية.",
+      "لا معرّف جديد ولا معرّف محذوف: الأربعة نفسها الموجودة في الإنتاج (تحقق 2026-10-01).",
+      "لا تغيير على بيانات POS إطلاقاً (قرار المالك D4 محصور بهذه الصفوف الأربعة)."
+    ]
+  },
+  "grammar": [
+    {
+      "id": "akkusativ_articles",
+      "level": "A1",
+      "title_ar": "أداة النصب (Akkusativ)",
+      "explanation_ar": "عندما تكون الكلمة مفعولاً به، يتحول der إلى einen، وتبقى die وdas كما هما.",
+      "rule_de": "Nur der (maskulin) wird im Akkusativ zu einen; die und das bleiben gleich.",
+      "rule_ar": "فقط أداة der للمذكّر تتحول إلى einen في حالة النصب، أما die وdas فتبقيان كما هما.",
+      "example_de": "Ich möchte einen Kaffee, bitte.",
+      "example_ar": "أريد قهوةً، من فضلك."
+    },
+    {
+      "id": "perfekt_tense",
+      "level": "A2",
+      "title_ar": "زمن الماضي (Perfekt)",
+      "explanation_ar": "يُستخدم لوصف أحداث حدثت في الماضي، ويُبنى غالباً من haben أو sein + الفعل الماضي.",
+      "rule_de": "Perfekt = haben/sein auf Position 2 + Partizip II am Ende: Ich habe gehabt, ich bin gegangen.",
+      "rule_ar": "الماضي المركّب يُبنى من haben أو sein في الموقع الثاني والتصريف الثالث للفعل في نهاية الجملة.",
+      "example_de": "Ich habe gestern einen Termin gehabt.",
+      "example_ar": "كان لديّ موعدٌ أمس."
+    },
+    {
+      "id": "dativ_prepositions",
+      "level": "B1",
+      "title_ar": "حروف الجر مع حالة الجر (Dativ)",
+      "explanation_ar": "بعض حروف الجر مثل mit وbei وnach تتطلب دائماً حالة الجر (Dativ).",
+      "rule_de": "mit, bei, nach, aus, seit, von und zu verlangen immer den Dativ: mit dem Arzt, bei der Firma.",
+      "rule_ar": "حروف الجر mit وbei وnach وaus وseit وvon وzu تطلب دائماً حالة الجر، فيأتي الاسم بعدها بأداته الأصلية.",
+      "example_de": "Ich spreche mit dem Arzt über meine Beschwerden.",
+      "example_ar": "أتحدث مع الطبيب عن شكاوايّ."
+    },
+    {
+      "id": "konjunktiv_ii",
+      "level": "B2",
+      "title_ar": "صيغة الشرط (Konjunktiv II)",
+      "explanation_ar": "تُستخدم للتعبير عن الافتراضات والأمنيات والطلبات المهذبة.",
+      "rule_de": "Höflich und hypothetisch: würde + Infinitiv am Satzende — ich würde gern einen Termin vereinbaren.",
+      "rule_ar": "للطلبات المهذبة والافتراضات: نستخدم würde مع مصدر الفعل في نهاية الجملة.",
+      "example_de": "Ich würde gerne einen Termin vereinbaren.",
+      "example_ar": "أودّ أن أُحدّد موعداً."
+    }
+  ]
+}

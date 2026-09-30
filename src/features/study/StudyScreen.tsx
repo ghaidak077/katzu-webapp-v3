@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { enrolStudiedVocabulary } from '@/lib/srs/store';
-import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
+import { scenarioToVocabTopic, vocabularyWithinLevelRadius } from '@/lib/utils/scenarioVocab';
 import { track } from '@/lib/analytics/client';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
@@ -38,7 +38,10 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
     () => (vocabTopic ? db.vocabulary.where('topic').equals(vocabTopic).toArray() : Promise.resolve<VocabularyEntity[]>([])),
     [vocabTopic]
   );
-  const vocabulary = vocabQ || [];
+  // D5: the study deck shows the learner's own level ±1 (never-empty fallback):
+  // an A1 learner studies A0–A2 words, not B2 ones, and a topic with no rows in
+  // the window still shows its full pool rather than an empty tab.
+  const vocabulary = vocabularyWithinLevelRadius(vocabQ || [], user?.cefrLevel);
   const grammar = useLiveQuery(() => db.grammar.toArray()) || [];
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
 

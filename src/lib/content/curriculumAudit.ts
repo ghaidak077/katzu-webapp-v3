@@ -73,6 +73,19 @@ export const OPTIONAL_COLUMNS: Partial<Record<keyof typeof CONTENT_COLUMNS, read
 export const LOADABLE_TYPES = ['scenarios', 'vocabulary', 'starter_phrases', 'grammar'] as const;
 export type LoadableType = (typeof LOADABLE_TYPES)[number];
 
+/**
+ * Pre-`g_`-namespace grammar ids that already exist in production D1 (the four
+ * rows created before the V13 `rule_de` ALTERs). A D4-style patch may name
+ * exactly these ids in a supplement — upsert-by-id completes them in place —
+ * and nothing else may skip the `g_` prefix.
+ */
+export const LEGACY_GRAMMAR_IDS = [
+  'akkusativ_articles',
+  'perfekt_tense',
+  'dativ_prepositions',
+  'konjunktiv_ii',
+] as const;
+
 /** Keys a draft may carry without being loadable content. */
 export const NON_LOADABLE_KEYS = ['_note', 'meta', 'review', 'deferred'] as const;
 
@@ -83,6 +96,15 @@ export const MODULE_SCENARIO_LIMITS = { min: 5, max: 8 } as const;
 export const STANDARD = {
   minVocabPerTopic: 15,
   maxVocabPerTopic: 40,
+  // D3 (V23): the phrase standard is per (scenario, level) — the slice a
+  // learner at that level actually reads. The old per-scenario TOTAL max of 10
+  // misjudged a module that teaches one scenario across several levels: 8
+  // phrases at A1 plus 8 at A2 is not "20 over standard", it is a full deck at
+  // each level. The cap is therefore enforced per (scenario, level) slice.
+  // The floor is enforced per slice too, but a thin slice is excused when the
+  // scenario's cross-level total already meets the minimum: legacy approved
+  // modules spread 6–10 phrases across levels (a slice of 2 inside a total of
+  // 9), and rejecting them would revoke approval they already hold.
   minPhrasesPerScenario: 6,
   maxPhrasesPerScenario: 10,
   minGrammarPerLevel: 2,
@@ -257,7 +279,11 @@ export function auditGrammarSupplement(draft: unknown): AuditReport {
     seenIds.add(id);
     // An error here, unlike the module rule's warning: a supplement exists to
     // satisfy SCENARIO_GRAMMAR_IDS, and every id in that map is `g_`-prefixed.
-    if (id && !id.startsWith('g_')) {
+    // D4 (V23) exception: a patch for rows that ALREADY exist in D1 must name
+    // those exact legacy ids (upsert-by-id is the whole mechanism, and the
+    // owner's no-rename rule forbids re-keying them). Such rows are listed in
+    // LEGACY_GRAMMAR_IDS; the waiver covers those ids and nothing else.
+    if (id && !id.startsWith('g_') && !(LEGACY_GRAMMAR_IDS as readonly string[]).includes(id)) {
       error(`${path}.id`, 'supplement grammar ids must use the g_ prefix — SCENARIO_GRAMMAR_IDS points at g_* rows');
     }
 
@@ -494,7 +520,11 @@ export function auditCurriculum(
     error('$.starter_phrases', 'at least one starter phrase is required');
   } else {
     stats.phrases = draft.starter_phrases.length;
+    // sort_order is a scenario-level D1 contract (levels interleave within a
+    // scenario), so contiguity is checked per scenario; the D3 phrase bounds
+    // are checked per (scenario, level) slice below.
     const byScenario = new Map<string, number[]>();
+    const byScenarioLevel = new Map<string, number>();
     draft.starter_phrases.forEach((raw, i) => {
       const path = `$.starter_phrases[${i}]`;
       if (!isPlainObject(raw)) return void error(path, 'must be an object');
@@ -521,21 +551,40 @@ export function auditCurriculum(
         error(`${path}.sort_order`, 'must be an integer');
       } else {
         byScenario.set(scenarioId, [...(byScenario.get(scenarioId) ?? []), raw.sort_order as number]);
+        const groupKey = `${scenarioId}|${level}`;
+        byScenarioLevel.set(groupKey, (byScenarioLevel.get(groupKey) ?? 0) + 1);
       }
     });
     for (const [scenarioId, orders] of byScenario) {
       const sorted = [...orders].sort((a, b) => a - b);
       const contiguous = sorted.every((value, index) => value === index + 1);
       if (!contiguous) error(`$.starter_phrases[${scenarioId}]`, `sort_order must be contiguous from 1, got ${sorted.join(', ')}`);
-      if (orders.length < STANDARD.minPhrasesPerScenario || orders.length > STANDARD.maxPhrasesPerScenario) {
+    }
+    // D3: per-(scenario, level) bounds. Total per scenario first, so a thin
+    // slice of a well-stocked scenario is excused rather than rejected.
+    const scenarioTotals = new Map<string, number>();
+    for (const [groupKey, count] of byScenarioLevel) {
+      const scenarioId = groupKey.split('|')[0];
+      scenarioTotals.set(scenarioId, (scenarioTotals.get(scenarioId) ?? 0) + count);
+    }
+    for (const [groupKey, count] of byScenarioLevel) {
+      const [scenarioId, level] = groupKey.split('|');
+      const total = scenarioTotals.get(scenarioId) ?? 0;
+      if (count > STANDARD.maxPhrasesPerScenario) {
         error(
-          `$.starter_phrases[${scenarioId}]`,
-          `scenario has ${orders.length} phrases; the standard is ${STANDARD.minPhrasesPerScenario}–${STANDARD.maxPhrasesPerScenario}`,
+          `$.starter_phrases[${scenarioId}|${level}]`,
+          `scenario "${scenarioId}" has ${count} phrases at ${level}; the standard is ${STANDARD.minPhrasesPerScenario}–${STANDARD.maxPhrasesPerScenario} per (scenario, level)`,
+        );
+      } else if (count < STANDARD.minPhrasesPerScenario && total < STANDARD.minPhrasesPerScenario) {
+        error(
+          `$.starter_phrases[${scenarioId}|${level}]`,
+          `scenario "${scenarioId}" has ${count} phrases at ${level} (total ${total}); the standard is ${STANDARD.minPhrasesPerScenario}–${STANDARD.maxPhrasesPerScenario} per (scenario, level)`,
         );
       }
     }
     for (const scenarioId of scenarioTopics.keys()) {
-      if (!byScenario.has(scenarioId)) error(`$.starter_phrases`, `scenario "${scenarioId}" has no starter phrases`);
+      const hasAnyLevel = [...byScenarioLevel.keys()].some((key) => key.split('|')[0] === scenarioId);
+      if (!hasAnyLevel) error(`$.starter_phrases`, `scenario "${scenarioId}" has no starter phrases`);
     }
   }
 
