@@ -149,4 +149,74 @@ describe('Verified referral system', () => {
     const postState = JSON.parse(await env.REDEEMED_CODES.get('referred-by:invitee-p')!);
     expect(postState.status).toBe('verified');
   });
+
+  // V21 Phase 6: the first-lesson reward — both sides get access-days when the
+  // referred account completes its first lesson (first progress sync carrying a
+  // session summary), purchase or not. In the test env there is no D1 binding,
+  // so the payout runs its documented degraded path (claim record = the gate).
+  describe('first-lesson reward (V21 Phase 6)', () => {
+    const lessonEnv = () => ({
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      REDEEMED_CODES: new MemoryKv(),
+      USER_PROGRESS: new MemoryKv(),
+    });
+
+    const sessionBody = (idToken: string) => ({
+      id_token: idToken,
+      session_summaries: [{ id: 1, scenario_id: 'cafe_order', updated_at: Date.now() }],
+    });
+
+    it('pays BOTH sides 3 access-days when the invitee completes their first lesson', async () => {
+      const env = lessonEnv();
+      await env.REDEEMED_CODES.put('refcode:REF-LESSON01', JSON.stringify({ sub: 'referrer-l' }));
+      const claim = await post('/referral/claim', { id_token: token(accountPayload('invitee-l')), referral_code: 'REF-LESSON01' }, env);
+      expect(await claim.json()).toMatchObject({ success: true, status: 'pending' });
+
+      // First progress sync carrying a completed session = the first lesson.
+      const sync = await post('/progress/sync', sessionBody(token(accountPayload('invitee-l'))), env);
+      expect(await sync.json()).toMatchObject({ success: true });
+
+      // The invitee had no account record; the reward CREATES one with an expiry.
+      const inviteeAccount = JSON.parse(await env.REDEEMED_CODES.get('account:invitee-l')!);
+      expect(new Date(inviteeAccount.expiresAt).getTime()).toBeGreaterThan(Date.now());
+
+      const referrerAccount = JSON.parse(await env.REDEEMED_CODES.get('account:referrer-l')!);
+      expect(new Date(referrerAccount.expiresAt).getTime()).toBeGreaterThan(Date.now());
+
+      // The claim records the lesson reward; /referral/info exposes the new terms.
+      const claimState = JSON.parse(await env.REDEEMED_CODES.get('referred-by:invitee-l')!);
+      expect(claimState.lesson_reward_days).toBe(3);
+      const info = await (await post('/referral/info', { id_token: token(accountPayload('referrer-l')) }, env)).json();
+      expect(info.lesson_reward_days).toBe(3);
+    });
+
+    it('does not pay before the first lesson and pays only once across syncs', async () => {
+      const env = lessonEnv();
+      await env.REDEEMED_CODES.put('refcode:REF-LESSON02', JSON.stringify({ sub: 'referrer-m' }));
+      await post('/referral/claim', { id_token: token(accountPayload('invitee-m')), referral_code: 'REF-LESSON02' }, env);
+
+      // A sync WITHOUT sessions (e.g. saved words only) is not a lesson.
+      await post('/progress/sync', { id_token: token(accountPayload('invitee-m')), saved_word_ids: [1, 2] }, env);
+      expect(await env.REDEEMED_CODES.get('account:invitee-m')).toBeNull();
+      expect(await env.REDEEMED_CODES.get('account:referrer-m')).toBeNull();
+
+      // First real lesson pays…
+      await post('/progress/sync', { ...sessionBody(token(accountPayload('invitee-m'))), session_summaries: [{ id: 7, scenario_id: 'cafe_order', updated_at: Date.now() }] }, env);
+      const referrerAfterFirst = JSON.parse(await env.REDEEMED_CODES.get('account:referrer-m')!).expiresAt;
+
+      // …and a later sync with more sessions must not pay again.
+      await post('/progress/sync', { id_token: token(accountPayload('invitee-m')), session_summaries: [{ id: 8, scenario_id: 'cafe_order', updated_at: Date.now() + 1 }] }, env);
+      const referrerAfterSecond = JSON.parse(await env.REDEEMED_CODES.get('account:referrer-m')!).expiresAt;
+      expect(referrerAfterSecond).toBe(referrerAfterFirst);
+    });
+
+    it('never pays without a referral claim, even after many lessons', async () => {
+      const env = lessonEnv();
+      for (let i = 0; i < 3; i++) {
+        await post('/progress/sync', { id_token: token(accountPayload('solo-learner')), session_summaries: [{ id: i + 1, scenario_id: 'cafe_order', updated_at: Date.now() + i }] }, env);
+      }
+      expect(await env.REDEEMED_CODES.get('account:solo-learner')).toBeNull();
+    });
+  });
 });

@@ -469,6 +469,11 @@ async function ensureLedgerTables(env) {
         inviter_account_id TEXT NOT NULL,
         awarded_at TEXT NOT NULL
       )`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS referral_lesson_payouts (
+        invited_account_id TEXT PRIMARY KEY,
+        inviter_account_id TEXT NOT NULL,
+        awarded_at TEXT NOT NULL
+      )`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS rate_limit_counters (
         counter_id TEXT PRIMARY KEY,
         window_start INTEGER NOT NULL,
@@ -806,6 +811,9 @@ async function handleDeleteUser(request, env, cors) {
       ).bind(account.sub).run());
       await tryStep("referral_payouts", () => env.DB.prepare(
         "DELETE FROM referral_payouts WHERE invited_account_id = ? OR inviter_account_id = ?"
+      ).bind(account.sub, account.sub).run());
+      await tryStep("referral_lesson_payouts", () => env.DB.prepare(
+        "DELETE FROM referral_lesson_payouts WHERE invited_account_id = ? OR inviter_account_id = ?"
       ).bind(account.sub, account.sub).run());
     }
     // The authoritative D1 copy of a learner's progress is the `sync_revisions`
@@ -2179,6 +2187,13 @@ async function handleCheckStatus(request, env, cors) {
 
 const REFERRAL_REWARD_MONTHS = 1;
 const REFERRAL_CODE_PREFIX = "REF-";
+// V21 Phase 6: the FIRST-LESSON reward. When a referred account completes its
+// first lesson (first progress sync carrying at least one session summary),
+// BOTH sides get access-days — the invitee needs no purchase, so the reward
+// is days, not months: small, honest, and costless for never-activating
+// accounts. The verified-purchase reward below is unchanged and stacks on top.
+const REFERRAL_LESSON_REWARD_DAYS = 3;
+const REFERRAL_LESSON_PAYOUT_TABLE = "referral_lesson_payouts";
 
 function generateReferralCode(accountId) {
   // Stable, collision-checked code derived from the account id.
@@ -2242,6 +2257,8 @@ async function handleReferralInfo(request, env, cors) {
   return json({
     referral_code: referralCode,
     reward_months: REFERRAL_REWARD_MONTHS,
+    // V21 Phase 6: the first-lesson rule, so the client renders the real terms.
+    lesson_reward_days: REFERRAL_LESSON_REWARD_DAYS,
     verified_referrals: envRecords.filter(r => r?.status === "verified").length,
     pending_referrals: envRecords.filter(r => r?.status === "pending").length,
     total_reward_months: envRecords.filter(r => r?.status === "verified").length * REFERRAL_REWARD_MONTHS,
@@ -2376,6 +2393,72 @@ async function awardVerifiedReferral(inviteeAccount, env) {
   }
 }
 
+// V21 Phase 6: first-lesson reward — both sides get access-days when the
+// referred account completes its first lesson. Called from the progress-sync
+// commit path. The D1 ledger's PRIMARY KEY is claimed FIRST (INSERT before any
+// KV write): a concurrent first-lesson sync loses the INSERT and exits, so the
+// additive expiry extension can only ever run once. With no D1, the claim
+// record itself is the (best-effort, last-writer-wins) gate — the same posture
+// the verified-purchase award has always had in its degraded path.
+async function awardReferralLessonPayout(inviteeAccount, env) {
+  try {
+    const claimKey = `referred-by:${inviteeAccount.sub}`;
+    const claimRaw = await env.REDEEMED_CODES?.get(claimKey);
+    if (!claimRaw) return; // never claimed a referral code — nothing to pay
+    let claim = null;
+    try { claim = JSON.parse(claimRaw); } catch { return; }
+    if (!claim?.referrer_sub || claim.referrer_sub === inviteeAccount.sub) return;
+    if (claim.lesson_rewarded_at) return; // already paid once
+
+    let ledgerWon = false;
+    if (env.DB && await ensureLedgerTables(env)) {
+      try {
+        await env.DB.prepare(
+          `INSERT INTO ${REFERRAL_LESSON_PAYOUT_TABLE} (invited_account_id, inviter_account_id, awarded_at) VALUES (?, ?, ?)`
+        ).bind(inviteeAccount.sub, claim.referrer_sub, new Date().toISOString()).run();
+        ledgerWon = true;
+      } catch {
+        return; // row exists → another sync already paid; never double-pay
+      }
+    }
+    if (!env.DB && !claim.lesson_rewarded_at) {
+      // Degraded no-D1 gate: mark best-effort before writing expiries. Two
+      // racing syncs could both pass here; accepted in the degraded path only.
+      ledgerWon = true;
+    }
+    if (!ledgerWon) return;
+
+    const referrerKey = `account:${claim.referrer_sub}`;
+    const referrerRaw = await env.REDEEMED_CODES.get(referrerKey);
+    const referrerRecord = referrerRaw ? JSON.parse(referrerRaw) : null;
+
+    // The invitee earns days on their own account record (which may not exist
+    // yet — a free learner with no purchase still gets a record with an expiry).
+    const inviteeKey = `account:${inviteeAccount.sub}`;
+    const inviteeRaw = await env.REDEEMED_CODES.get(inviteeKey);
+    const inviteeRecord = inviteeRaw ? JSON.parse(inviteeRaw) : null;
+    const newInviteeExpiry = addDaysIso(inviteeRecord?.expiresAt || null, REFERRAL_LESSON_REWARD_DAYS);
+    await env.REDEEMED_CODES.put(inviteeKey, JSON.stringify({
+      email: inviteeAccount.email || inviteeRecord?.email || "",
+      expiresAt: newInviteeExpiry,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    const newReferrerExpiry = addDaysIso(referrerRecord?.expiresAt || null, REFERRAL_LESSON_REWARD_DAYS);
+    await env.REDEEMED_CODES.put(referrerKey, JSON.stringify({
+      email: referrerRecord?.email || "",
+      expiresAt: newReferrerExpiry,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    claim.lesson_reward_days = REFERRAL_LESSON_REWARD_DAYS;
+    claim.lesson_rewarded_at = new Date().toISOString();
+    await env.REDEEMED_CODES.put(claimKey, JSON.stringify(claim));
+  } catch (e) {
+    console.error("[Referral] Lesson-payout failed:", e);
+  }
+}
+
 function maskEmail(email) {
   if (!email || typeof email !== "string" || !email.includes("@")) return "****";
   const [local, domain] = email.split("@");
@@ -2465,6 +2548,10 @@ async function handleProgressSync(request, env, cors) {
         }, now)
       : freshProgress(incomingStats, incomingTrainings, incomingSavedWordIds, incomingMistakes, incomingSessionSummaries, now);
     await env.USER_PROGRESS.put(key, JSON.stringify(merged));
+    // V21 Phase 6: first lesson just landed (see the D1 path below).
+    if (firstLessonLanded(existing, merged)) {
+      await awardReferralLessonPayout(account, env);
+    }
     return json({ success: true, updated_at: now }, 200, cors);
   }
 
@@ -2538,6 +2625,13 @@ async function handleProgressSync(request, env, cors) {
     // Mirror to KV after the commit: /progress/get and exports read this cache;
     // a torn cache write is repaired by the next successful sync.
     await env.USER_PROGRESS.put(key, JSON.stringify(merged));
+    // V21 Phase 6: the referral first-lesson reward fires when this account's
+    // progress first carries a completed lesson. firstLessonLanded compares the
+    // pre-merge state with the merged one, so it is once-per-account by
+    // construction — later syncs see a lesson already on both sides and no-op.
+    if (firstLessonLanded(existing, merged)) {
+      await awardReferralLessonPayout(account, env);
+    }
     return json({ success: true, updated_at: now, rev: currentRev + 1 }, 200, cors);
   }
 
@@ -2552,6 +2646,17 @@ function freshProgress(stats, trainings, savedWordIds, mistakes, sessionSummarie
       session_summaries: sessionSummaries || [],
       updated_at: now,
   };
+}
+
+// V21 Phase 6: true exactly when the merged state carries at least one
+// completed lesson (a session summary) and the pre-merge state carried none.
+// A completed lesson = a session summary row — finishSession only ever writes
+// one after a real session completed, and every surface that records lessons
+// funnels into session_summaries on sync.
+function firstLessonLanded(existing, merged) {
+  const had = Array.isArray(existing?.session_summaries) && existing.session_summaries.length > 0;
+  const has = Array.isArray(merged?.session_summaries) && merged.session_summaries.length > 0;
+  return !had && has;
 }
 
 function mergeProgress(existing, incoming, now) {
@@ -2829,6 +2934,18 @@ function addMonthsIso(existingIso, months) {
   }
   const result = new Date(base);
   result.setUTCMonth(result.getUTCMonth() + months);
+  return result.toISOString();
+}
+
+function addDaysIso(existingIso, days) {
+  const now = new Date();
+  let base = now;
+  if (existingIso) {
+    const existing = new Date(existingIso);
+    if (!isNaN(existing.getTime()) && existing.getTime() > now.getTime()) base = existing;
+  }
+  const result = new Date(base);
+  result.setUTCDate(result.getUTCDate() + days);
   return result.toISOString();
 }
 
