@@ -152,12 +152,17 @@ describe('drift check — every class fires', () => {
 });
 
 describe('drift check — the shipped drafts', () => {
-  it('reads both modules and the supplement, and tags each shape', () => {
+  it('reads every shipped draft — modules and supplement — and tags each shape', () => {
     const drafts = loadDrafts();
     expect(drafts.map(({ file, kind }) => `${kind} ${file}`)).toEqual([
       'module docs/content/curriculum-30day-module1.json',
+      'module docs/content/curriculum-a0-foundations.json',
       'module docs/content/curriculum-arrival-module2.json',
+      'module docs/content/curriculum-ausbildung-exams.json',
+      'module docs/content/curriculum-interview-medical.json',
+      'module docs/content/curriculum-interview-tech.json',
       'supplement docs/content/supplements/grammar-basics.json',
+      'supplement docs/content/supplements/grammar-essentials-v21.json',
     ]);
   });
 

@@ -178,6 +178,7 @@ describe('content schema — ensureContentColumns behaviour', () => {
     expect(ok).toBe(true);
     expect(statements).toEqual([
       'ALTER TABLE scenarios ADD COLUMN banner_url TEXT',
+      'ALTER TABLE scenarios ADD COLUMN initial_message_a0 TEXT',
       'ALTER TABLE grammar ADD COLUMN rule_de TEXT',
       'ALTER TABLE grammar ADD COLUMN rule_ar TEXT',
       'ALTER TABLE grammar ADD COLUMN example_ar TEXT',
@@ -195,7 +196,7 @@ describe('content schema — ensureContentColumns behaviour', () => {
       sql.includes('grammar') ? new Error('D1_ERROR: database is locked') : null,
     );
     expect(ok).toBe(false);
-    expect(statements).toHaveLength(4);
+    expect(statements).toHaveLength(5);
     expect(error).toHaveBeenCalled();
     error.mockRestore();
   });

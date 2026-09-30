@@ -11,6 +11,13 @@
  * authoritative.
  */
 export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
+  // A0 foundations module (docs/content/curriculum-a0-foundations.json, V21 Phase 5).
+  first_greetings: ['g_a0_hallo_ich_heisse', 'g_a0_ich_bin_aus', 'g_a0_praesens_konjugation'],
+  supermarket_checkout: ['g_a0_ich_moechte', 'g_a1_der_die_das_uebersicht', 'g_a1_negation_nicht_kein'],
+  banking_first_visit: ['g_a0_hilfe_nicht_verstanden', 'g_a1_frage_wo_woher'],
+  letters_and_forms: ['g_a1_buchstabieren_alphabet', 'g_a0_hilfe_nicht_verstanden'],
+  train_first_ride: ['g_a1_frage_wo_woher', 'g_a1_zahlen_bis_zehn'],
+  numbers_and_prices: ['g_a1_zahlen_bis_zehn', 'g_a1_der_die_das_uebersicht'],
   // German 30-day module 1 (docs/content/curriculum-30day-module1.json).
   // These five scenarios shipped ten grammar rows that no scenario pointed at:
   // with no `scenario_id` column in D1 and no entry here, Guided Practice had
@@ -27,13 +34,34 @@ export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
   bakery_shopping: ['g_moechte_haette_gern_a1'],
   landlord_followup: ['g_koennten_hoefflich_a2', 'g_weil_nebensatz_a2'],
   friend_catchup: ['g_moechte_haette_gern_a1', 'g_weil_nebensatz_a2'],
+  // Medical careers module (docs/content/curriculum-interview-medical.json, V21 Phase 5).
+  interview_pflegefachkraft: ['g_med_perfekt_erfahrungen', 'g_med_sich_bewerben', 'g_med_relativsaetze_erfahrung'],
+  interview_arzt: ['g_med_perfekt_erfahrungen', 'g_med_sich_bewerben', 'g_med_modal_vermutung'],
+  patient_conversation_basics: ['g_med_wfragen_sprechstunde', 'g_med_ich_kann_helfen', 'g_med_patientenfragen', 'g_med_relativsaetze_erfahrung'],
+  station_uebergabe: ['g_med_nachdem_vorzeitigkeit', 'g_med_passiv_verfahren', 'g_med_konjunktiv_hoeflich', 'g_med_modal_vermutung'],
+  kollegen_smalltalk: ['g_med_wfragen_sprechstunde', 'g_med_konjunktiv_hoeflich'],
+  anerkennung_gespraech: ['g_med_passiv_verfahren', 'g_med_konjunktiv_hoeflich'],
+  // Tech careers module (docs/content/curriculum-interview-tech.json, V21 Phase 5).
+  interview_it_fachkraft: ['g_tech_perfekt_arbeit', 'g_tech_seit_zeit', 'g_tech_modal_vermutung_tech'],
+  interview_entwickler: ['g_tech_perfekt_arbeit', 'g_tech_seit_zeit', 'g_tech_relativsaetze_technik'],
+  daily_standup: ['g_tech_du_im_team', 'g_tech_perfekt_arbeit', 'g_tech_trennbare_verben'],
+  support_ticket: ['g_tech_wfragen_support', 'g_tech_hoeflich_kunde', 'g_tech_passiv_tech', 'g_tech_fuer_zweck'],
+  tech_kuechenpause: ['g_tech_du_im_team', 'g_tech_trennbare_verben', 'g_tech_fuer_zweck'],
+  anerkennung_it_zertifikate: ['g_tech_passiv_tech', 'g_tech_hoeflich_kunde'],
+  // Ausbildung & exams module (docs/content/curriculum-ausbildung-exams.json, V21 Phase 5).
+  bewerbung_ausbildung: ['g_ausb_moechte_werden', 'g_ausb_perfekt_bestanden', 'g_ausb_freu_mich_auf'],
+  ausbildung_alltag: ['g_ausb_ich_muss_noch', 'g_ausb_wann_beginnt', 'g_ausb_nach_im'],
+  berufsschule_tag: ['g_ausb_wenn_dann', 'g_ausb_perfekt_bestanden', 'g_ausb_nach_im'],
+  pruefungstag: ['g_ausb_perfekt_bestanden', 'g_ausb_passiv_pruefung', 'g_ausb_falls_vorsichtig'],
+  betriebs_kantine: ['g_ausb_wann_beginnt', 'g_ausb_wenn_dann'],
+  pruefung_anmeldung: ['g_ausb_haette_frei', 'g_ausb_passiv_pruefung', 'g_ausb_falls_vorsichtig'],
   // Offline fixtures (src/lib/db/katzuDb.ts). The four rows they point at live in
   // docs/content/supplements/grammar-basics.json so production D1 has them too;
   // tests/grammarReachability.test.ts asserts the two copies are identical and
   // that no grammar row ships without a scenario pointing at it.
   cafe_order: ['g_polite_requests_a1', 'g_modal_moechte'],
   doctor_visit: ['g_polite_requests_a1'],
-  apartment_viewing: ['g_articles_a1'],
+  apartment_viewing: ['g_articles_a1', 'g_a1_adjektivendung_bestimmt'],
   job_interview: ['g_verb_position_a1'],
   // Live in D1 but not in the offline fixture, so Guided Practice had no rule to
   // teach for it. Added in V14 against the same supplement row it can share.

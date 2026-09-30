@@ -45,4 +45,16 @@ describe('honest conversation metrics', () => {
     expect(getNextPromotionLevel('B2')).toBeNull();
     expect(isEligibleForPromotion('B2', sessions)).toBe(false);
   });
+
+  // V21 Phase 1/2: A0 is a first-class level, so a from-zero learner who earns
+  // three strong independent sessions walks the same ladder — A0 → A1 — instead
+  // of being silently capped at the floor.
+  it('walks the A0 learner up to A1 by the same rule, and B2 stays the ceiling', () => {
+    expect(getNextPromotionLevel('A0')).toBe('A1');
+    expect(isEligibleForPromotion('A0', [
+      { cefrLevel: 'A0', independentSentences: 4, accuracyPercent: 80, timestamp: 1 },
+      { cefrLevel: 'A0', independentSentences: 4, accuracyPercent: 75, timestamp: 2 },
+      { cefrLevel: 'A0', independentSentences: 4, accuracyPercent: 78, timestamp: 3 },
+    ])).toBe(true);
+  });
 });

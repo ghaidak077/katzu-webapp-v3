@@ -64,7 +64,7 @@ export const TABLE_SPECS = {
     keyParts: ['id'],
     columns: [
       'id', 'title_de', 'title_ar', 'ai_persona', 'category', 'icon',
-      'initial_message_a1', 'initial_message_a2', 'initial_message_b1', 'initial_message_b2', 'banner_url',
+      'initial_message_a0', 'initial_message_a1', 'initial_message_a2', 'initial_message_b1', 'initial_message_b2', 'banner_url',
     ],
   },
   vocabulary: {

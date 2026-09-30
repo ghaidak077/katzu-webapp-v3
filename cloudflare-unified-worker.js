@@ -44,6 +44,7 @@
 import { handleHintsRoute } from "./cloudflare-hints.js";
 import { handleWritingRoute } from "./cloudflare-writing.js";
 import { handleChatTurnRoute, handleTranslateRoute } from "./cloudflare-ai-chat.js";
+import { validateGermanAgainstLevel, levelFallbackLine, levelConstraintLine, correctionBudgetFor } from "./cloudflare-level-spec.js";
 import { handleTranscribeRoute } from "./cloudflare-stt.js";
 import {
   PROVIDER_POOL,
@@ -398,9 +399,11 @@ async function checkUserEntitlement(account, cefrLevel, env = {}, options = {}) 
     }
   }
 
-  // 2. Trial access: restricted to A1 level with a server-side quota.
+  // 2. Trial access: restricted to the beginner floor (A0/A1) with a server-side quota.
+  // A0 is free by V21 Phase 1: a learner the placement measured at A0 gets A0
+  // conversations — serving them A1 they were measured below would defeat the check.
   const level = (cefrLevel || "A1").toUpperCase();
-  if (level !== "A1") {
+  if (level !== "A1" && level !== "A0") {
     return {
       allowed: false,
       code: "PAYWALL_REQUIRED",
@@ -462,6 +465,11 @@ async function ensureLedgerTables(env) {
         PRIMARY KEY (account_id, session_id)
       )`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS referral_payouts (
+        invited_account_id TEXT PRIMARY KEY,
+        inviter_account_id TEXT NOT NULL,
+        awarded_at TEXT NOT NULL
+      )`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS referral_lesson_payouts (
         invited_account_id TEXT PRIMARY KEY,
         inviter_account_id TEXT NOT NULL,
         awarded_at TEXT NOT NULL
@@ -803,6 +811,9 @@ async function handleDeleteUser(request, env, cors) {
       ).bind(account.sub).run());
       await tryStep("referral_payouts", () => env.DB.prepare(
         "DELETE FROM referral_payouts WHERE invited_account_id = ? OR inviter_account_id = ?"
+      ).bind(account.sub, account.sub).run());
+      await tryStep("referral_lesson_payouts", () => env.DB.prepare(
+        "DELETE FROM referral_lesson_payouts WHERE invited_account_id = ? OR inviter_account_id = ?"
       ).bind(account.sub, account.sub).run());
     }
     // The authoritative D1 copy of a learner's progress is the `sync_revisions`
@@ -1237,6 +1248,10 @@ function aiRouteDeps() {
     readAiCache,
     writeAiCache,
     validLevels: VALID_LEVELS,
+    validateGermanAgainstLevel,
+    levelFallbackLine,
+    levelConstraintLine,
+    correctionBudgetFor,
     // `opts` lets a handler ask for router behaviour it can justify for its own
     // route (the turn and translate routes set `preferFast`), without a second
     // router or a per-route copy of the deps object.
@@ -1576,6 +1591,19 @@ export default {
         }
         return await handleAdminGenerate(request, env, cors);
       }
+      // V21 Phase 7: mint signed student-discount codes (same admin gate + throttle).
+      if (url.pathname === "/admin/discount-code" && request.method === "POST") {
+        const throttle = await isAdminThrottled(request, env);
+        if (throttle.throttled) {
+          return adminJson(
+            { error: "too_many_attempts" },
+            429,
+            cors,
+            { "Retry-After": String(throttle.retryAfter) },
+          );
+        }
+        return await handleAdminDiscountCode(request, env, cors);
+      }
       if (url.pathname === "/progress/sync" && request.method === "POST") {
         return await withHonestSessionStatus(handleProgressSync(request, env, cors), cors);
       }
@@ -1880,7 +1908,7 @@ const AI_LIMITS = {
   LEARNER_MEMORY_EXAMPLE: 200,
 };
 
-const CEFR_LEVELS = new Set(["A1", "A2", "B1", "B2"]);
+const CEFR_LEVELS = new Set(["A0", "A1", "A2", "B1", "B2"]);
 
 /** Returns { ok, value } or { ok: false, reason } for a bounded string field. */
 function boundString(value, maxLen, { required = false, fallback = "" } = {}) {
@@ -1912,6 +1940,12 @@ function validateAiTurnBody(body) {
 
   const sarc = Number(body.sarcasm_level);
   clean.sarcasm_level = Number.isFinite(sarc) ? Math.min(5, Math.max(1, Math.round(sarc))) : 2;
+
+  // Which turn of the episode this is (0-based). The roleplay prompt uses it to
+  // rotate one live-conversation behaviour per turn, so a bounded integer is
+  // enough; anything missing or malformed is simply the first turn.
+  const turnIdx = Number(body.turn_index);
+  clean.turn_index = Number.isFinite(turnIdx) ? Math.max(0, Math.min(500, Math.floor(turnIdx))) : 0;
 
   if (body.mode !== undefined && !["roleplay", "extended", "hints"].includes(body.mode)) errors.push("mode:invalid");
   clean.mode = ["roleplay", "extended", "hints"].includes(body.mode) ? body.mode : "roleplay";
@@ -2166,6 +2200,13 @@ async function handleCheckStatus(request, env, cors) {
 
 const REFERRAL_REWARD_MONTHS = 1;
 const REFERRAL_CODE_PREFIX = "REF-";
+// V21 Phase 6: the FIRST-LESSON reward. When a referred account completes its
+// first lesson (first progress sync carrying at least one session summary),
+// BOTH sides get access-days — the invitee needs no purchase, so the reward
+// is days, not months: small, honest, and costless for never-activating
+// accounts. The verified-purchase reward below is unchanged and stacks on top.
+const REFERRAL_LESSON_REWARD_DAYS = 3;
+const REFERRAL_LESSON_PAYOUT_TABLE = "referral_lesson_payouts";
 
 function generateReferralCode(accountId) {
   // Stable, collision-checked code derived from the account id.
@@ -2229,6 +2270,8 @@ async function handleReferralInfo(request, env, cors) {
   return json({
     referral_code: referralCode,
     reward_months: REFERRAL_REWARD_MONTHS,
+    // V21 Phase 6: the first-lesson rule, so the client renders the real terms.
+    lesson_reward_days: REFERRAL_LESSON_REWARD_DAYS,
     verified_referrals: envRecords.filter(r => r?.status === "verified").length,
     pending_referrals: envRecords.filter(r => r?.status === "pending").length,
     total_reward_months: envRecords.filter(r => r?.status === "verified").length * REFERRAL_REWARD_MONTHS,
@@ -2363,6 +2406,72 @@ async function awardVerifiedReferral(inviteeAccount, env) {
   }
 }
 
+// V21 Phase 6: first-lesson reward — both sides get access-days when the
+// referred account completes its first lesson. Called from the progress-sync
+// commit path. The D1 ledger's PRIMARY KEY is claimed FIRST (INSERT before any
+// KV write): a concurrent first-lesson sync loses the INSERT and exits, so the
+// additive expiry extension can only ever run once. With no D1, the claim
+// record itself is the (best-effort, last-writer-wins) gate — the same posture
+// the verified-purchase award has always had in its degraded path.
+async function awardReferralLessonPayout(inviteeAccount, env) {
+  try {
+    const claimKey = `referred-by:${inviteeAccount.sub}`;
+    const claimRaw = await env.REDEEMED_CODES?.get(claimKey);
+    if (!claimRaw) return; // never claimed a referral code — nothing to pay
+    let claim = null;
+    try { claim = JSON.parse(claimRaw); } catch { return; }
+    if (!claim?.referrer_sub || claim.referrer_sub === inviteeAccount.sub) return;
+    if (claim.lesson_rewarded_at) return; // already paid once
+
+    let ledgerWon = false;
+    if (env.DB && await ensureLedgerTables(env)) {
+      try {
+        await env.DB.prepare(
+          `INSERT INTO ${REFERRAL_LESSON_PAYOUT_TABLE} (invited_account_id, inviter_account_id, awarded_at) VALUES (?, ?, ?)`
+        ).bind(inviteeAccount.sub, claim.referrer_sub, new Date().toISOString()).run();
+        ledgerWon = true;
+      } catch {
+        return; // row exists → another sync already paid; never double-pay
+      }
+    }
+    if (!env.DB && !claim.lesson_rewarded_at) {
+      // Degraded no-D1 gate: mark best-effort before writing expiries. Two
+      // racing syncs could both pass here; accepted in the degraded path only.
+      ledgerWon = true;
+    }
+    if (!ledgerWon) return;
+
+    const referrerKey = `account:${claim.referrer_sub}`;
+    const referrerRaw = await env.REDEEMED_CODES.get(referrerKey);
+    const referrerRecord = referrerRaw ? JSON.parse(referrerRaw) : null;
+
+    // The invitee earns days on their own account record (which may not exist
+    // yet — a free learner with no purchase still gets a record with an expiry).
+    const inviteeKey = `account:${inviteeAccount.sub}`;
+    const inviteeRaw = await env.REDEEMED_CODES.get(inviteeKey);
+    const inviteeRecord = inviteeRaw ? JSON.parse(inviteeRaw) : null;
+    const newInviteeExpiry = addDaysIso(inviteeRecord?.expiresAt || null, REFERRAL_LESSON_REWARD_DAYS);
+    await env.REDEEMED_CODES.put(inviteeKey, JSON.stringify({
+      email: inviteeAccount.email || inviteeRecord?.email || "",
+      expiresAt: newInviteeExpiry,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    const newReferrerExpiry = addDaysIso(referrerRecord?.expiresAt || null, REFERRAL_LESSON_REWARD_DAYS);
+    await env.REDEEMED_CODES.put(referrerKey, JSON.stringify({
+      email: referrerRecord?.email || "",
+      expiresAt: newReferrerExpiry,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    claim.lesson_reward_days = REFERRAL_LESSON_REWARD_DAYS;
+    claim.lesson_rewarded_at = new Date().toISOString();
+    await env.REDEEMED_CODES.put(claimKey, JSON.stringify(claim));
+  } catch (e) {
+    console.error("[Referral] Lesson-payout failed:", e);
+  }
+}
+
 function maskEmail(email) {
   if (!email || typeof email !== "string" || !email.includes("@")) return "****";
   const [local, domain] = email.split("@");
@@ -2389,6 +2498,29 @@ async function handleAdminGenerate(request, env, cors) {
   const code = `${unsigned}-${signature}`;
 
   return json({ code }, 200, cors);
+}
+
+// V21 Phase 7: mint a signed student-discount code (STD-{pct}-{nonce}-{sig}).
+// Same HMAC trust as the activation codes; the checkout validates the signature
+// and re-prices server-side, so only the owner can create real discounts.
+async function handleAdminDiscountCode(request, env, cors) {
+  if (!(await isAdminAuthorized(request, env))) {
+    return adminJson({ error: "unauthorized" }, 401, cors);
+  }
+
+  const body = await request.json().catch(() => null);
+  const percent = Number(body?.percent ?? 50);
+  if (!Number.isFinite(percent) || percent < 10 || percent > 90) {
+    return json({ error: "percent must be 10-90" }, 400, cors);
+  }
+
+  const nonce = crypto.randomUUID().split("-")[0].toUpperCase();
+  const pct = String(Math.trunc(percent)).padStart(2, "0");
+  const unsigned = `STD-${pct}-${nonce}`;
+  const signature = await sign(unsigned, env.HMAC_SECRET);
+  const code = `${unsigned}-${signature}`;
+
+  return json({ code, percent: Math.trunc(percent) }, 200, cors);
 }
 
 async function handleProgressSync(request, env, cors) {
@@ -2452,6 +2584,10 @@ async function handleProgressSync(request, env, cors) {
         }, now)
       : freshProgress(incomingStats, incomingTrainings, incomingSavedWordIds, incomingMistakes, incomingSessionSummaries, now);
     await env.USER_PROGRESS.put(key, JSON.stringify(merged));
+    // V21 Phase 6: first lesson just landed (see the D1 path below).
+    if (firstLessonLanded(existing, merged)) {
+      await awardReferralLessonPayout(account, env);
+    }
     return json({ success: true, updated_at: now }, 200, cors);
   }
 
@@ -2525,6 +2661,13 @@ async function handleProgressSync(request, env, cors) {
     // Mirror to KV after the commit: /progress/get and exports read this cache;
     // a torn cache write is repaired by the next successful sync.
     await env.USER_PROGRESS.put(key, JSON.stringify(merged));
+    // V21 Phase 6: the referral first-lesson reward fires when this account's
+    // progress first carries a completed lesson. firstLessonLanded compares the
+    // pre-merge state with the merged one, so it is once-per-account by
+    // construction — later syncs see a lesson already on both sides and no-op.
+    if (firstLessonLanded(existing, merged)) {
+      await awardReferralLessonPayout(account, env);
+    }
     return json({ success: true, updated_at: now, rev: currentRev + 1 }, 200, cors);
   }
 
@@ -2539,6 +2682,17 @@ function freshProgress(stats, trainings, savedWordIds, mistakes, sessionSummarie
       session_summaries: sessionSummaries || [],
       updated_at: now,
   };
+}
+
+// V21 Phase 6: true exactly when the merged state carries at least one
+// completed lesson (a session summary) and the pre-merge state carried none.
+// A completed lesson = a session summary row — finishSession only ever writes
+// one after a real session completed, and every surface that records lessons
+// funnels into session_summaries on sync.
+function firstLessonLanded(existing, merged) {
+  const had = Array.isArray(existing?.session_summaries) && existing.session_summaries.length > 0;
+  const has = Array.isArray(merged?.session_summaries) && merged.session_summaries.length > 0;
+  return !had && has;
 }
 
 function mergeProgress(existing, incoming, now) {
@@ -2819,6 +2973,18 @@ function addMonthsIso(existingIso, months) {
   return result.toISOString();
 }
 
+function addDaysIso(existingIso, days) {
+  const now = new Date();
+  let base = now;
+  if (existingIso) {
+    const existing = new Date(existingIso);
+    if (!isNaN(existing.getTime()) && existing.getTime() > now.getTime()) base = existing;
+  }
+  const result = new Date(base);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result.toISOString();
+}
+
 function json(obj, status, cors) {
   return new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json", ...cors } });
 }
@@ -2855,7 +3021,7 @@ export {
 // WORKER 2 IMPLEMENTATION (D1 CONTENT DATABASE CMS)
 // ============================================================================
 
-const VALID_LEVELS = new Set(["A1", "A2", "B1", "B2"]);
+const VALID_LEVELS = new Set(["A0", "A1", "A2", "B1", "B2"]);
 
 // ----------------------------------------------------------------------------
 // Admin auth gate (security-gaps S9/S10 follow-up).
@@ -3025,7 +3191,7 @@ async function handleAdminUpload(request, env, cors) {
     if (row.level && !VALID_LEVELS.has(String(row.level).trim())) {
       return json({
         error: "invalid_level",
-        detail: `Row index ${i} has invalid level '${row.level}'. Must be one of A1, A2, B1, B2.`,
+        detail: `Row index ${i} has invalid level '${row.level}'. Must be one of A0, A1, A2, B1, B2.`,
       }, 400, cors);
     }
   }
@@ -3251,7 +3417,7 @@ async function handleAdminCreateContent(type, request, env, cors) {
   }
 
   if (body.level && !VALID_LEVELS.has(String(body.level).trim())) {
-    return json({ error: "invalid_level", detail: "Level must be A1, A2, B1, or B2" }, 400, cors);
+    return json({ error: "invalid_level", detail: "Level must be A0, A1, A2, B1, or B2" }, 400, cors);
   }
 
   const keys = Object.keys(body).filter((k) => k !== "rowid" && (isRowIdTable(type) ? k !== "id" : true));
@@ -3284,7 +3450,7 @@ async function handleAdminUpdateContent(type, id, request, env, cors) {
   }
 
   if (body.level && !VALID_LEVELS.has(String(body.level).trim())) {
-    return json({ error: "invalid_level", detail: "Level must be A1, A2, B1, or B2" }, 400, cors);
+    return json({ error: "invalid_level", detail: "Level must be A0, A1, A2, B1, or B2" }, 400, cors);
   }
 
   const keys = Object.keys(body).filter((k) => k !== "id" && k !== "rowid");

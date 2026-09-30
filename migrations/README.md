@@ -39,3 +39,26 @@ Rules for this directory:
    content-studio's *declared* schema and would have said `rule_de` existed). If
    this directory and the deployment disagree, the loader is the enforcement point
    and the runbook is the procedure.
+
+## V21 Phase 5 (2026-09-30): `scenarios.initial_message_a0` — NOT YET APPLIED
+
+The A0 foundations module (`docs/content/curriculum-a0-foundations.json`, gate-approved this
+phase) carries from-zero openers, so the `scenarios` table needs one additive TEXT column.
+The loader's preflight correctly refused the load with "live schema mismatch — nothing was
+written" (the V12 enforcement working as designed). Two ways to close the gap, either is fine:
+
+1. **Automatic (the V13 mechanism):** the next worker deploy carries
+   `initial_message_a0` in `ADDITIVE_COLUMNS`
+   (`cloudflare-content-schema.js`), so the worker's first request after the
+   deploy runs the `ALTER TABLE` itself.
+2. **Manual (owner, one statement):**
+
+   ```sql
+   ALTER TABLE scenarios ADD COLUMN initial_message_a0 TEXT;
+   ```
+
+Existing rows read NULL; the app falls back to the A1 opener when the column is
+empty (`openerForLevel`), so nothing existing changes behaviour. After either
+path, re-run:
+`node scripts/load-curriculum.mjs --file=docs/content/curriculum-a0-foundations.json --commit`
+(the approved draft and the fresh backup `/tmp/pre-load-katzu-v21-a0.sql`, 166,006 B, are ready).

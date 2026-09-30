@@ -345,3 +345,45 @@ a:hover { color: #a48ef5; }
   .spinner { animation: none; }
   .btn { transition: none; }
 }
+
+/* V21 Phase 7: plan tiers + student discount code input */
+.plan-tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.plan-tier {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s ease;
+}
+.plan-tier[aria-checked="true"] {
+  border-color: var(--accent, #8b6fe8);
+  box-shadow: 0 0 0 1px var(--accent, #8b6fe8);
+}
+.plan-tier .tier-label { font-size: 0.8rem; font-weight: 700; }
+.plan-tier .tier-price { font-size: 1.15rem; font-weight: 800; color: var(--accent, #8b6fe8); }
+.plan-tier .tier-months { font-size: 0.7rem; opacity: 0.7; }
+.discount-row { margin: 10px 0; }
+.discount-row input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}

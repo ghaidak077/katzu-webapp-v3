@@ -1,6 +1,11 @@
 // TypeScript models mapping Android Kotlin Models.kt & ContentEntities.kt
 
-export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2';
+/**
+ * The five teaching levels (docs/agent/LEVEL-SPEC.md). A0 ("from zero") sits
+ * below A1; stored content keeps using A1–B2 — A0 pools arrive with the
+ * a0-foundations module (V21 Phase 5).
+ */
+export type CEFRLevel = 'A0' | 'A1' | 'A2' | 'B1' | 'B2';
 export type SessionMode = 'quick' | 'immersion';
 
 /**
@@ -47,6 +52,8 @@ export interface ScenarioEntity {
   ai_persona: string;
   category: string;
   icon: string;
+  /** From-zero opener (V21): optional — only the foundations module carries one. */
+  initial_message_a0?: string;
   initial_message_a1: string;
   initial_message_a2: string;
   initial_message_b1: string;
@@ -153,12 +160,39 @@ export interface UserEntity {
    * next sync; enables real conflict signalling instead of last-write-wins).
    * Optional + non-indexed: old rows simply lack it, no migration needed. */
   syncRev?: number;
+  // --- Long memory (V21 Phase 3) — allow-listed facts only, never transcripts
+  // or audio; the learner can view and delete every line of it in Settings. ---
+  /** Where the learner needs German to actually work: a profession focus inside
+   * the goal (medical / tech / other). Optional + non-indexed. */
+  profession?: 'medical' | 'tech' | 'other';
 }
 
 export interface RedeemedCodeEntity {
   code: string;
   redeemedAt: number;
   monthsGranted: number;
+}
+
+/**
+ * One derived line of the learner's long memory (V21 Phase 3): a recurring
+ * mistake pattern or a weak vocabulary item. A VIEW, not a source of truth —
+ * every row is rebuildable from `mistakes` and `review_items`, carries no
+ * transcript or audio, and the learner can delete any line from Settings.
+ */
+export interface MemoryPatternEntity {
+  /** Stable identity, e.g. `mistake:die Koffer` or `vocab:1042`. */
+  patternId: string;
+  kind: 'mistake' | 'vocab';
+  /** What the learner keeps getting wrong (mistakes) or keeps forgetting (vocab). */
+  labelAr: string;
+  /** The German surface form, when one exists. */
+  german?: string;
+  /** How many times the pattern has been observed. */
+  count: number;
+  /** Epoch ms of the most recent observation. */
+  lastSeenAt: number;
+  /** Epoch ms of the row's own last rebuild — display/debug only. */
+  updatedAt: number;
 }
 
 export interface SessionEntity {

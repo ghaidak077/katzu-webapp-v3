@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { db } from '@/lib/db/katzuDb';
 import { enrolMistake } from '@/lib/srs/store';
-import { buildLearnerMemory } from '@/lib/coach/profile';
+import { buildMemorySummary } from '@/lib/memory/summary';
+import { listMemoryPatterns, rebuildMemoryPatterns } from '@/lib/memory/patterns';
 import { workerClient } from '@/lib/api/workerClient';
 import { useVoiceCapture, voiceStartFailureMessageAr } from '@/lib/audio/useVoiceCapture';
 import { triggerHaptic } from '@/lib/utils/haptics';
@@ -11,7 +12,9 @@ import { logError, logEvent } from '@/lib/utils/diagnostics';
 import { track } from '@/lib/analytics/client';
 import { isProEffective } from '@/lib/utils/subscription';
 import { servedLevel } from '@/lib/entitlement/trial';
+import { levelSpecFor } from '@/lib/levels/levelSpec';
 import { calculateIndependentAccuracy } from '@/features/report/metrics';
+import { buildSessionDebrief, type SessionDebrief } from '@/lib/debrief/debrief';
 import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
@@ -54,6 +57,7 @@ export interface UseLiveConversationOptions {
     independentSentences: number;
     assistedSentences: number;
     mistakes: Array<{ original: string; corrected: string; grammarRule: string }>;
+    debrief: SessionDebrief;
   }) => void;
 }
 
@@ -134,6 +138,18 @@ export function useLiveConversation({
   /** Until this timestamp, scroll events are the app's own, not the learner's. */
   const programmaticScrollUntilRef = useRef(0);
   const [currentLevel, setCurrentLevel] = useState<CEFRLevel>(servedLevel(user?.cefrLevel, isProUser));
+  // LEVEL-SPEC.md Arabic support: the spec sets the INITIAL visibility per level
+  // (A0 always, A1 default-on, A2 on tap, B1+ hidden). It runs when the episode's
+  // level is set and re-runs if the level changes (e.g. a mid-session upgrade);
+  // the learner's manual toggle always wins afterwards — "hidden by default"
+  // never means "removed".
+  const arabicDefaultForLevel = levelSpecFor(currentLevel).arabicSupport;
+  const appliedLevelRef = useRef<CEFRLevel | null>(null);
+  useEffect(() => {
+    if (appliedLevelRef.current === currentLevel) return;
+    appliedLevelRef.current = currentLevel;
+    setShowAllTranslations(arabicDefaultForLevel === 'always' || arabicDefaultForLevel === 'default');
+  }, [arabicDefaultForLevel, currentLevel]);
   const isSessionCompleted = conversation.status === 'completed';
   const firstIndependentTrackedRef = useRef(false);
   const inFlightRef = useRef(false);
@@ -161,8 +177,11 @@ export function useLiveConversation({
    * character position per word, and the transcript marks the word it is on.
    */
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  // The level sets the base speaking speed (LEVEL-SPEC.md); a learner's own
+  // speed preference still wins — the spec default is a starting point, not a
+  // cage, and it must never make speech *faster* than their own setting.
   const { speak, stop: stopSpeaking, activeCharIndex } = useSpeechOutput({
-    speed: user?.speechSpeed || 1.0,
+    speed: Math.min(user?.speechSpeed || 1.0, levelSpecFor(currentLevel).speakingSpeed),
     onEnd: () => setSpeakingId(null),
   });
 
@@ -563,13 +582,18 @@ export function useLiveConversation({
         text: m.germanText,
       }));
 
-      // What this learner keeps getting wrong, so the tutor can steer the
-      // conversation into re-using it instead of meeting them as a stranger.
-      // Read per turn on purpose: the correction from THIS turn is part of it
-      // next turn, and the table is small.
-      const learnerMemory = buildLearnerMemory(
-        await db.mistakes.where('userId').equals('current_user').toArray(),
-      );
+      // Long memory (V21 Phase 3): rebuild the derived pattern view from the
+      // source tables (mistakes + review items), then pack the ≤150-token
+      // summary for the tutor. Rebuilt per turn on purpose: the correction from
+      // THIS turn is part of it next turn, and the rebuild is two local scans.
+      // The items ride the existing allow-listed `learner_memory` wire field.
+      await rebuildMemoryPatterns();
+      const learnerMemory = buildMemorySummary({
+        patterns: await listMemoryPatterns(),
+        level: effectiveLevel,
+        goal: user?.primaryGoal ?? null,
+        profession: user?.profession ?? null,
+      }).items;
 
       const res = await workerClient.sendTurn({
         scenarioId,
@@ -584,6 +608,10 @@ export function useLiveConversation({
         mode: sessionMode === 'immersion' ? 'extended' : 'roleplay',
         sessionId,
         learnerMemory,
+        // Which turn of the episode this is — rotates the persona's
+        // live-conversation behaviour (ask, repeat-check, react, advance) on the
+        // worker side without changing the wire format's other fields.
+        turnIndex: userTurnsCount,
       });
 
       // 3. Form Katzu reply with pedagogical evaluation embedded
@@ -856,6 +884,18 @@ export function useLiveConversation({
       independentSentences: independentMsgs.length,
       assistedSentences: assistedMsgs.length,
       mistakes: mistakesList,
+      // Deterministic Phase-2 debrief, built from the same numbers this
+      // function just computed — no extra AI call anywhere.
+      debrief: buildSessionDebrief({
+        scenarioTitle: scenario?.title_ar || '',
+        level: effectiveLevel,
+        mode: sessionMode || 'quick',
+        sentencesSpoken: userMsgs.length,
+        independentSentences: independentMsgs.length,
+        assistedSentences: assistedMsgs.length,
+        accuracyPercent: accuracy,
+        mistakes: mistakesList,
+      }),
     });
   };
 

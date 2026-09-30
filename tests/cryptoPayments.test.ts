@@ -4,10 +4,13 @@ import worker from '../cloudflare-unified-worker';
 import {
   canonicalIpnPayload,
   classifyNowPaymentsStatus,
+  getCryptoPlans,
   handleCryptoWebhook,
   getCryptoBaseUrl,
   getCryptoPlan,
+  parseDiscountCode,
   resolveSalesOrigin,
+  validateDiscountCode,
   verifyNowPaymentsSignature,
 } from '../cloudflare-crypto';
 
@@ -294,23 +297,107 @@ function paymentNotification(overrides: Row = {}) {
 }
 
 /** Runs a real checkout against a stubbed provider and returns the buyer's order. */
-async function startOrder(env: ReturnType<typeof makeEnv>) {
+async function startOrder(env: ReturnType<typeof makeEnv>, body: Record<string, unknown> = {}) {
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
     new Response(JSON.stringify({ id: 'inv_1', invoice_url: 'https://sandbox.nowpayments.io/invoice/inv_1' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
   );
-  const res = await worker.fetch(json('/crypto/checkout', {}), env as never);
+  const res = await worker.fetch(json('/crypto/checkout', body), env as never);
   // Snapshot before restoring: mockRestore() clears the recorded calls.
   const calls = fetchSpy.mock.calls.map((call) => [String(call[0]), call[1] as RequestInit] as const);
   fetchSpy.mockRestore();
-  const body = await res.json();
-  return { res, body, calls };
+  const responseBody = await res.json();
+  return { res, body: responseBody, calls };
 }
 
 // ---------------------------------------------------------------------------
+// V21 Phase 7: plan tiers + signed student-discount codes.
 
+/** The worker's sign(): HMAC-SHA256 hex, uppercased, first 16 chars. */
+function signDiscount(unsigned: string, secret = HMAC_SECRET): string {
+  return createHmac('sha256', secret).update(unsigned).digest('hex').toUpperCase().slice(0, 16);
+}
+
+describe('Plan tiers and student discount codes (V21 Phase 7)', () => {
+  it('derives tiers from per-tier env vars, with the base var as fallback', () => {
+    // Explicit per-tier configuration (the owner's real shape):
+    // monthly 20, student 6.
+    const explicit = getCryptoPlans({ CRYPTO_PRICE_USD: '20', CRYPTO_PRICE_STUDENT_USD: '6' });
+    expect(explicit.map((p) => p.id)).toEqual(['monthly', 'quarterly', 'yearly', 'student']);
+    expect(explicit[0].priceUsd).toBe(20);
+    expect(explicit[3].priceUsd).toBe(6);
+    expect(explicit[3].requires_discount_code).toBe(true);
+    expect(explicit[0].requires_discount_code).toBeUndefined();
+
+    // A tier var left unset falls back to the base derivation.
+    const fallback = getCryptoPlans({ CRYPTO_PRICE_USD: '10' });
+    expect(fallback[1].priceUsd).toBe(26.1); // 10 × 3 × 0.87
+    expect(fallback[2].priceUsd).toBe(84); // 10 × 12 × 0.70
+    expect(fallback[3].priceUsd).toBe(3.5); // 10 × 0.35
+  });
+
+  it('validates a signed discount code and rejects tampering', async () => {
+    const unsigned = 'STD-50-AB12CD34';
+    const code = `${unsigned}-${signDiscount(unsigned)}`;
+    const parsed = await validateDiscountCode(code, { HMAC_SECRET });
+    expect(parsed).toMatchObject({ percent: 50, nonce: 'AB12CD34' });
+
+    // Tampered percent: the signature no longer matches.
+    expect(await validateDiscountCode('STD-90-AB12CD34-' + signDiscount(unsigned), { HMAC_SECRET })).toBeNull();
+    // Tampered signature.
+    expect(await validateDiscountCode(`${unsigned}-${'0'.repeat(16)}`, { HMAC_SECRET })).toBeNull();
+    // Wrong secret.
+    expect(await validateDiscountCode(code, { HMAC_SECRET: 'other' })).toBeNull();
+    // Malformed shapes.
+    expect(parseDiscountCode('DE-6M-ABC123-DEADBEEFDEADBEEF')).toBeNull();
+    expect(parseDiscountCode('STD-99-AB12CD34-DEADBEEFDEADBEEF')).toBeNull(); // percent out of range
+  });
+
+  it('checkout honors a plan and re-prices server-side with the discount', async () => {
+    const env = makeEnv();
+
+    // Yearly plan: 5.00 × 12 × 0.70 = 42.00, 12 months.
+    const yearly = await startOrder(env, { plan: 'yearly' });
+    expect(yearly.res.status).toBe(200);
+    expect(yearly.body.price_usd).toBe(42);
+    expect(yearly.body.months).toBe(12);
+    expect(yearly.body.plan).toBe('yearly');
+
+    // Student tier WITH a valid 50% code: the code must not double-discount
+    // the tier's own price — the cheaper of (tier price, base × (1−pct)) wins.
+    // Base 5.00, student tier 1.75 (5 × 0.35): 50% code → min(1.75, 2.50) = 1.75.
+    const unsigned = 'STD-50-STUDENT';
+    const discount = `${unsigned}-${signDiscount(unsigned)}`;
+    const student = await startOrder(env, { plan: 'student', discount_code: discount });
+    expect(student.res.status).toBe(200);
+    expect(student.body.price_usd).toBe(1.75);
+    expect(student.body.months).toBe(1);
+    expect(student.body.discount_percent).toBe(50);
+  });
+
+  it('rejects a tampered or invalid discount code without creating an order', async () => {
+    const env = makeEnv();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const res = await worker.fetch(
+      json('/crypto/checkout', { plan: 'student', discount_code: 'STD-50-HACKED-0000000000000000' }),
+      env as never
+    );
+    fetchSpy.mockRestore();
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe('invalid_discount_code');
+  });
+
+  it('falls back to the base plan when no plan is named', async () => {
+    const env = makeEnv();
+    const fallback = await startOrder(env);
+    expect(fallback.body.plan).toBe('default');
+    expect(fallback.body.price_usd).toBe(5);
+    expect(fallback.body.months).toBe(1);
+  });
+});
 describe('NOWPayments IPN signature verification', () => {
   const payload = { payment_id: 1, payment_status: 'finished', order_id: 'kz_1', price_amount: 5, price_currency: 'usd' };
   const body = JSON.stringify(payload);

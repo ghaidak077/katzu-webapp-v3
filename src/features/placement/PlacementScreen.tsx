@@ -35,10 +35,11 @@ export interface PlacementScreenProps {
 
 type Phase = 'intro' | 'question' | 'result' | 'manual';
 
-const LEVELS: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
+const LEVELS: CEFRLevel[] = ['A0', 'A1', 'A2', 'B1', 'B2'];
 
 const LEVEL_LABELS: Record<CEFRLevel, string> = {
-  A1: 'مبتدئ تماماً — أبدأ من الصفر',
+  A0: 'من الصفر تماماً — لا أعرف شيئاً بعد',
+  A1: 'مبتدئ تماماً — أعرف كلمات قليلة',
   A2: 'أعرف أساسيات يومية',
   B1: 'أستطيع التعامل مع مواقف الحياة اليومية',
   B2: 'أفهم النصوص والمحادثات المعقدة',
@@ -182,7 +183,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
           <KatzuMascot name="welcome" glow className="w-36 h-36 object-contain mx-auto mb-3" />
           <h1 className="text-2xl font-bold font-arabic mb-2">أين نقف الآن؟</h1>
           <p className="text-sm font-arabic text-text-secondary leading-relaxed">
-            بضعة أسئلة قصيرة (8–14) لأعرف من أين نبدأ. لا نجاح ولا فشل هنا — المستوى الخطأ يعني
+            بضعة أسئلة قصيرة (5–10) لأعرف من أين نبدأ. لا نجاح ولا فشل هنا — المستوى الخطأ يعني
             وقتاً ضائعاً في ما تعرفه أصلاً.
           </p>
         </div>
@@ -198,7 +199,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
           </div>
           <div className="flex items-center gap-2 text-xs font-arabic text-text-secondary">
             <SlidersHorizontal className="w-4 h-4 text-primary shrink-0" />
-            الأسئلة تتغير حسب إجاباتك، ولن تزيد على 14.
+            الأسئلة تتغير حسب إجاباتك، ولن تزيد على 10.
           </div>
         </Card>
 
@@ -206,6 +207,13 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
           ابدأ الاختبار
           <ArrowLeft className="w-5 h-5" />
         </Button>
+        <button
+          disabled={saving}
+          onClick={() => finishWith('A0', 'chosen')}
+          className="mt-3 w-full text-center text-xs font-arabic text-text-muted hover:text-text-primary transition-colors py-2"
+        >
+          لا أعرف الألمانية بعد — ابدأ من الصفر
+        </button>
         <button
           onClick={() => setPhase('manual')}
           className="mt-3 w-full text-center text-xs font-arabic text-text-muted hover:text-text-primary transition-colors py-2"

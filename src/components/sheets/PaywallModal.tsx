@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Sparkles, Check, KeyRound, ExternalLink } from 'lucide-react';
-import { getProPriceLabel, FALLBACK_PRICE_LABEL, buildSalesUrl, legalPageUrl } from '@/lib/utils/links';
+import { getProPriceLabel, getProPlanTiers, FALLBACK_PRICE_LABEL, buildSalesUrl, legalPageUrl, type PlanTier } from '@/lib/utils/links';
 import { track } from '@/lib/analytics/client';
 
 export interface PaywallModalProps {
@@ -45,11 +45,15 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
 }) => {
   const salesUrl = useMemo(() => buildSalesUrl(referralFromUrl()), []);
   const [priceLabel, setPriceLabel] = useState<string | null>(null);
+  const [plans, setPlans] = useState<PlanTier[]>([]);
 
   useEffect(() => {
     let alive = true;
     getProPriceLabel().then((label) => {
       if (alive) setPriceLabel(label);
+    });
+    getProPlanTiers().then((tiers) => {
+      if (alive) setPlans(tiers.filter((p) => !p.requires_discount_code));
     });
     return () => {
       alive = false;
@@ -69,6 +73,30 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
           <Sparkles className="w-3 h-3" aria-hidden />
           {priceLabel ?? FALLBACK_PRICE_LABEL}
         </Badge>
+
+        {/* Plan tiers from the worker (V21 Phase 7). Hidden entirely when the
+            worker pre-dates tiers — one honest price instead of invented cards.
+            The student tier is not listed here: it needs a code the owner hands
+            out, and advertising it without one would promise what the learner
+            cannot buy. */}
+        {plans.length > 0 && (
+          <div className="w-full grid grid-cols-3 gap-2 mb-4" dir="ltr">
+            {plans.map((p) => (
+              <a
+                key={p.id}
+                href={salesUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => track('purchase_clicked', { source: `paywall_plan_${p.id}` })}
+                className="flex flex-col items-center gap-0.5 p-2 rounded-xl bg-surface-subtle border border-border-subtle hover:border-primary/50 transition-colors"
+              >
+                <span className="text-[11px] font-bold font-arabic" dir="rtl">{p.label_ar}</span>
+                <span className="text-sm font-bold text-primary">${p.priceUsd}</span>
+                <span className="text-[9px] text-text-muted font-arabic" dir="rtl">{p.months === 1 ? 'شهر' : `${p.months} أشهر`}</span>
+              </a>
+            ))}
+          </div>
+        )}
 
         <h3 className="text-xl font-bold font-arabic text-text-primary mb-2">{title}</h3>
         <p className="text-xs text-text-secondary font-arabic mb-5 leading-relaxed max-w-xs">{description}</p>

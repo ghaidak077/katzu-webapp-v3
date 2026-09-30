@@ -113,7 +113,7 @@ describe('content studio — the schema is the single contract', () => {
     const res = await call(env, '/admin/schema');
     expect(res.status).toBe(200);
     expect(res.body.valid_content_types).toEqual(['scenarios', 'vocabulary', 'grammar', 'starter_phrases']);
-    expect(res.body.valid_levels).toEqual(['A1', 'A2', 'B1', 'B2']);
+    expect(res.body.valid_levels).toEqual(['A0', 'A1', 'A2', 'B1', 'B2']);
     expect(res.body.current_row_counts).toEqual({ scenarios: 2, vocabulary: 3, grammar: 1, starter_phrases: 2 });
     expect(Object.keys(res.body.schema)).toEqual(['scenarios', 'vocabulary', 'grammar', 'starter_phrases']);
     expect(res.body.upload_endpoint).toBe('/admin/upload');
@@ -130,7 +130,7 @@ describe('content studio — the schema is the single contract', () => {
       expect(contentColumns(type as keyof typeof DB_SCHEMA)).toEqual([...CONTENT_COLUMNS[type as keyof typeof CONTENT_COLUMNS]]);
     }
     expect(DB_SCHEMA.scenarios.columns.length).toBeGreaterThan(0);
-    expect(CONTENT_LEVELS).toEqual(['A1', 'A2', 'B1', 'B2']);
+    expect(CONTENT_LEVELS).toEqual(['A0', 'A1', 'A2', 'B1', 'B2']); // A0 joined with the foundations module (V21)
   });
 
   it('treats a NULL article the same as an empty one', () => {

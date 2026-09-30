@@ -55,6 +55,9 @@ const SessionReportScreen = React.lazy(() =>
 const PracticeScreen = React.lazy(() =>
   import('@/features/practice/PracticeScreen').then((m) => ({ default: m.PracticeScreen })),
 );
+const GrammarSectionScreen = React.lazy(() =>
+  import('@/features/grammar/GrammarSectionScreen').then((m) => ({ default: m.GrammarSectionScreen })),
+);
 const ProgressScreen = React.lazy(() =>
   import('@/features/progress/ProgressScreen').then((m) => ({ default: m.ProgressScreen })),
 );
@@ -237,6 +240,7 @@ function AppRoutes() {
             {isDevBuild && DesignSystemScreen && (
               <Route path="/dev/system" element={<DesignSystemScreen />} />
             )}
+            <Route path="/app/grammar" element={<GrammarRoute />} />
             <Route path="/app/review" element={<ReviewRoute />} />
             <Route path="/app/listen" element={<ListeningRoute />} />
             <Route path="/app/write" element={<WritingRoute />} />
@@ -435,6 +439,18 @@ function CoachRoute() {
   );
 }
 
+function GrammarRoute() {
+  const navigate = useNavigate();
+  return (
+    <GrammarSectionScreen
+      onBack={() => navigate('/app/trail')}
+      onOpenScenario={(scenarioId) =>
+        navigate(`/scenario/${encodeURIComponent(scenarioId)}/story`)
+      }
+    />
+  );
+}
+
 function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const navigate = useNavigate();
   const { tab = 'trail' } = useParams();
@@ -452,6 +468,7 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
           onOpenSubscription={() => navigate('/subscription')}
           onOpenLibrary={() => navigate('/app/library')}
           onOpenOnboarding={() => navigate('/onboarding?mode=edit')}
+          onOpenGrammar={() => navigate('/app/grammar')}
         />
       )}
       {activeTab === 'Practice' && (

@@ -45,6 +45,10 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     callAiRouter,
     routerCounters,
     getProvider,
+    validateGermanAgainstLevel,
+    levelFallbackLine,
+    levelConstraintLine,
+    correctionBudgetFor,
   } = deps;
 
   if (!hasUsableProvider(env)) return json({ error: "ai_unavailable" }, 503, cors);
@@ -135,6 +139,19 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   const wrapUpInstruction = is_final_turn
     ? "This is the final exchange. Give a warm realistic farewell and do not ask a new question."
     : `Continue naturally at CEFR level ${level}.`;
+  // Real-life conversation quality (V21 Phase 2): a real counterpart has a goal,
+  // misunderstands sometimes, asks for repeats and follows up — the conversation
+  // must behave like the situation, not like a quiz. One rotating obstacle keeps
+  // phrasing varied without making the reply unpredictable to the learner: the
+  // persona still answers what was actually said first.
+  const obstacleCycle = [
+    "ask exactly one natural follow-up question about what the learner just said, as a curious real person would",
+    "check one detail you half-caught ('Wie bitte?' or a short paraphrase question) and let the learner restate it before moving on",
+    "react with a brief natural emotion (surprise, relief, amusement) before you continue, then keep your goal in the scene moving forward",
+    "carry the scene's own goal one concrete step forward (time, place, amount, next action) as the counterpart would",
+  ];
+  const turnIndex = Number.isFinite(Number(v?.turn_index)) ? Math.max(0, Number(v?.turn_index)) : 0;
+  const obstacleInstruction = `LIVE-CONVERSATION BEHAVIOUR (rotate; do not announce it): this turn, ${obstacleCycle[turnIndex % obstacleCycle.length]}. The learner's sentence always gets a direct answer first. Never reveal, confirm or solve the learner's intended meaning for them — if their German was unclear, ask them to rephrase instead of guessing for them.`;
   // Gate 6: a roleplay in a medical, legal/official or housing-contract setting
   // must never drift into acting as a real professional. The persona practises
   // the conversation; it does not diagnose, does not file, and does not interpret
@@ -162,6 +179,7 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     : "";
   const roleplayInstruction = `You are the in-character native German roleplay counterpart in '${scenario_title || scenario_id}'.
 Persona: ${persona || "friendly conversational partner"}. Target learner CEFR level: ${level}.
+${levelConstraintLine(level)}
 ${wrapUpInstruction}
 CONVERSATION RULES:
 - The learner's LAST message is the one you are answering. Answer THAT, not an earlier line, and never restate their sentence back as your reply.
@@ -180,6 +198,7 @@ Sarcasm level for roast_comment (1-5, default 2): ${Math.min(5, Math.max(1, Numb
 roast_comment must be in Arabic targeting German grammar absurdity (articles, cases, word order), staying encouraging.
 FIELD RULES — the learner reads these, so they have to be short and in the right language:
 - is_correct: true only when the sentence is grammatically correct at ${level}. A wrong article, case, ending or word order makes it false.
+- Correct at most ${correctionBudgetFor(level)} mistake${correctionBudgetFor(level) === 1 ? "" : "s"} this turn — the most important first; leave the rest for later turns.
 - corrected_german / original_mistake: the broken PART of the sentence only, not the whole sentence, and only when is_correct is false. Leave both empty when the sentence is correct.
 - grammar_rule: a SHORT ARABIC label of 3-7 words naming the rule (e.g. "ترتيب الكلمات: الفعل في الموضع الثاني"). Never English — it is shown to an Arabic speaker as a chip, not explained.
 - explanation_ar: one or two short Arabic sentences explaining the fix.
@@ -227,7 +246,10 @@ How to use it:
     // Keep the base prompt first for provider prefix caching; per-episode context
     // and learner memory are separate, bounded additions.
     systemInstruction: {
-      parts: [fusionInstruction, safetyInstruction, identityInstruction, practiceInstruction, memoryInstruction]
+      // The per-turn obstacle behaviour goes last: everything before it is
+      // stable per scenario/level/episode, so the provider's prompt prefix
+      // cache stays warm and only the short rotation tail re-sends.
+      parts: [fusionInstruction, safetyInstruction, identityInstruction, practiceInstruction, memoryInstruction, obstacleInstruction]
         .filter(Boolean)
         .map((text, index) => ({ text: index === 0 ? text : `\n\n${text}` })),
     },
@@ -297,7 +319,35 @@ How to use it:
     // `preferFast`: this is the route a learner is watching, so the tier walk is
     // ordered by measured latency instead of round-robin.
     const raw = await callAiRouter(turnPayload, env, { preferFast: true });
-    const parsed = parseTurnJson(raw);
+    let parsed = parseTurnJson(raw);
+    // LEVEL-SPEC gate (V21 Phase 1): the reply's German must obey the level's
+    // caps. One violation -> ONE repair call; still violating -> the
+    // deterministic per-level fallback line (its Arabic travels with it, so the
+    // bubbles never disagree). The evaluation of the LEARNER's sentence is kept
+    // either way — the grade never depends on the model's obedience.
+    if (parsed?.reply_de) {
+      const levelCheck = validateGermanAgainstLevel(parsed.reply_de, level);
+      if (!levelCheck.ok) {
+        let repaired = null;
+        try {
+          const repairRaw = await callAiRouter(
+            {
+              ...turnPayload,
+              contents: [
+                ...turnPayload.contents,
+                { role: "model", parts: [{ text: JSON.stringify(parsed).slice(0, 2000) }] },
+                { role: "user", parts: [{ text: `Rewrite only reply_de to obey the LEVEL CAPS above. Reason it failed: ${levelCheck.reason}. Keep the JSON schema identical and do not change the evaluation fields.` }] },
+              ],
+            },
+            env,
+            { preferFast: true }
+          );
+          const candidate = parseTurnJson(repairRaw);
+          if (candidate?.reply_de && validateGermanAgainstLevel(candidate.reply_de, level).ok) repaired = candidate;
+        } catch {}
+        parsed = repaired || { ...parsed, reply_de: levelFallbackLine(level).de, reply_ar: levelFallbackLine(level).ar };
+      }
+    }
     // Sanitize every string field — a model echoing schema labels ("reply_de: ...")
     // must never reach the learner's chat bubbles.
     const replyDe = sanitizeFieldLabel(parsed?.reply_de) || "";

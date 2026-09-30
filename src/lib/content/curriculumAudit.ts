@@ -14,7 +14,13 @@
  * `scenarioToVocabTopic` stays the single source of truth.
  */
 
-export const CONTENT_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const;
+/**
+ * Content levels (V21 Phase 5): A0 joins the ladder so the foundations module
+ * can carry from-zero rows. Stored content keeps A1–B2 except where a module
+ * deliberately authors A0; every consumer (placement generator, level specs,
+ * the level filter UI) already treats A0 as the floor.
+ */
+export const CONTENT_LEVELS = ['A0', 'A1', 'A2', 'B1', 'B2'] as const;
 export type ContentLevel = (typeof CONTENT_LEVELS)[number];
 
 /** Column contract per D1 table. Extra or missing keys are errors, by design. */
@@ -26,6 +32,7 @@ export const CONTENT_COLUMNS = {
     'ai_persona',
     'category',
     'icon',
+    'initial_message_a0',
     'initial_message_a1',
     'initial_message_a2',
     'initial_message_b1',
@@ -57,7 +64,9 @@ export const CONTENT_COLUMNS = {
  * every scenario keeps a placeholder banner until the real one exists.
  */
 export const OPTIONAL_COLUMNS: Partial<Record<keyof typeof CONTENT_COLUMNS, readonly string[]>> = {
-  scenarios: ['banner_url'],
+  // `initial_message_a0` joins `banner_url` as optional: only the foundations
+  // module carries from-zero openers, and older rows/modules legitimately lack them.
+  scenarios: ['banner_url', 'initial_message_a0'],
 };
 
 /** Tables the loader may write. Anything else in the draft is not loadable. */

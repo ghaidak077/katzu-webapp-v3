@@ -20,6 +20,7 @@ import type { CEFRLevel } from '@/types/models';
 
 /** The opener message a scenario serves at each level. */
 export type ScenarioOpener = {
+  initial_message_a0?: string | null;
   initial_message_a1?: string | null;
   initial_message_a2?: string | null;
   initial_message_b1?: string | null;
@@ -30,7 +31,10 @@ export type ScenarioOpener = {
 export function openerForLevel(scenario: ScenarioOpener | null | undefined, level: CEFRLevel): string {
   if (!scenario) return '';
   switch (level) {
-    case 'A1': return scenario.initial_message_a1 || scenario.initial_message_a2 || scenario.initial_message_b1 || scenario.initial_message_b2 || '';
+    // A0 falls back through the A1 line: only the foundations module carries a
+    // real a0 opener, so an older scenario stays playable at the floor.
+    case 'A0': return scenario.initial_message_a0 || scenario.initial_message_a1 || scenario.initial_message_a2 || scenario.initial_message_b1 || scenario.initial_message_b2 || '';
+    case 'A1': return scenario.initial_message_a1 || scenario.initial_message_a0 || scenario.initial_message_a2 || scenario.initial_message_b1 || scenario.initial_message_b2 || '';
     case 'A2': return scenario.initial_message_a2 || scenario.initial_message_a1 || scenario.initial_message_b1 || scenario.initial_message_b2 || '';
     case 'B1': return scenario.initial_message_b1 || scenario.initial_message_a2 || scenario.initial_message_b2 || scenario.initial_message_a1 || '';
     case 'B2': return scenario.initial_message_b2 || scenario.initial_message_b1 || scenario.initial_message_a2 || scenario.initial_message_a1 || '';

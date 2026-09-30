@@ -23,8 +23,9 @@ import {
   Download,
   Trash2,
 } from 'lucide-react';
-import type { CEFRLevel, SarcasmLevel } from '@/types/models';
+import type { CEFRLevel, MemoryPatternEntity, SarcasmLevel } from '@/types/models';
 import { workerClient } from '@/lib/api/workerClient';
+import { clearMemoryPatterns, deleteMemoryPattern, listMemoryPatterns, rebuildMemoryPatterns } from '@/lib/memory/patterns';
 import { ARRIVAL_COPY, GOAL_COPY, TARGET_DATE_COPY, describeLearnerLevel } from '@/lib/onboarding/preferences';
 import { isAnalyticsOptedOut, setAnalyticsOptOut } from '@/lib/analytics/client';
 import {
@@ -60,6 +61,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   const [referralLoading, setReferralLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [memoryRows, setMemoryRows] = useState<MemoryPatternEntity[] | null>(null);
   const [diagnosticsText, setDiagnosticsText] = useState('');
   const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
   const [logCount, setLogCount] = useState(0);
@@ -110,7 +112,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
 
   const handleCopyReferral = async () => {
     if (!referralInfo?.referral_code) return;
-    const shareText = `تعلّم الألمانية مع كَاتْزُو 🐱\nاستخدم كود الإحالة ${referralInfo.referral_code} عند الاشتراك، وستدعم رحلتنا معاً!`;
+    const shareText = `تعلّم الألمانية مع كَاتْزُو 🐱\nاستخدم كود الإحالة ${referralInfo.referral_code}، وأكمل أول درس: تحصل أنت وصديقك معاً على ٣ أيام وصول مجاناً!`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Katzu — تعلّم الألمانية', text: shareText });
@@ -146,6 +148,29 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   /** The placement result is an estimate, not a verdict — the learner always overrides it. */
   const handleUpdateLevel = async (level: CEFRLevel) => {
     await db.users.update('current_user', { cefrLevel: level, updatedAt: Date.now() });
+  };
+
+  // --- Long memory (V21 Phase 3): the learner can SEE and DELETE everything
+  // the app remembers about them. Patterns are derived views, so deleting one
+  // hides it until the next rebuild only if its source is gone — an honest
+  // caveat printed on the card. ---
+  const handleOpenMemory = async () => {
+    await rebuildMemoryPatterns();
+    setMemoryRows(await listMemoryPatterns());
+  };
+
+  const handleDeleteMemoryPattern = async (patternId: string) => {
+    await deleteMemoryPattern(patternId);
+    setMemoryRows(await listMemoryPatterns());
+  };
+
+  const handleClearMemory = async () => {
+    await clearMemoryPatterns();
+    setMemoryRows([]);
+  };
+
+  const handleUpdateProfession = async (profession: 'medical' | 'tech' | 'other') => {
+    await db.users.update('current_user', { profession, updatedAt: Date.now() });
   };
 
   const handleSaveName = async (e: React.FormEvent) => {
@@ -275,12 +300,12 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Gift className="w-5 h-5 text-status-learning" />
-            <div className="text-sm font-bold font-arabic">ادعُ صديقاً، اربح شهر Pro</div>
+            <div className="text-sm font-bold font-arabic">ادعُ صديقاً، اربحا معاً</div>
           </div>
-          <Badge variant="learning" size="sm">+1 شهر لكل اشتراك موثّق</Badge>
+          <Badge variant="learning" size="sm">٣ أيام لأول درس · شهر لكل اشتراك</Badge>
         </div>
         <p className="text-[11px] text-text-muted leading-relaxed">
-          شارك كودك مع الأصدقاء. عندما يشترك صديق لأول مرة في Katzu Pro، تحصل أنت على شهر Pro مجاني يُضاف تلقائياً إلى حسابك.
+          شارك كودك مع الأصدقاء: عندما يُكمل صديقك أول درس، تحصلان معاً على ٣ أيام وصول — ودون أي شراء. وإذا اشترك صديقك لاحقاً في Katzu Pro، تحصل أنت على شهر Pro إضافي يُضاف تلقائياً إلى حسابك.
         </p>
 
         {referralLoading ? (
@@ -450,8 +475,8 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             ? `قدّر اختبار تحديد المستوى مستواك ${user.placementEstimatedLevel}. يمكنك تغييره في أي وقت.`
             : 'المستوى يحدد السيناريوهات التي تظهر لك وصعوبة المحادثات.'}
         </p>
-        <div className="grid grid-cols-4 gap-2">
-          {(['A1', 'A2', 'B1', 'B2'] as CEFRLevel[]).map((level) => (
+        <div className="grid grid-cols-5 gap-2">
+          {(['A0', 'A1', 'A2', 'B1', 'B2'] as CEFRLevel[]).map((level) => (
             <button
               key={level}
               onClick={() => handleUpdateLevel(level)}
@@ -473,6 +498,83 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             أعد اختبار تحديد المستوى
           </button>
         )}
+      </Card>
+
+      {/* Long memory (V21 Phase 3): transparent by design — view and delete. */}
+      <Card className="p-4 mb-6 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-xs font-bold text-text-secondary flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            ذاكرتي التعليمية
+          </label>
+          <button
+            onClick={handleOpenMemory}
+            className="text-[11px] font-arabic text-primary hover:underline transition-colors"
+          >
+            {memoryRows === null ? 'عرض ما نذكره عنك' : 'تحديث'}
+          </button>
+        </div>
+        <p className="text-[11px] font-arabic text-text-muted leading-relaxed">
+          نتذكر الأخطاء المتكررة والكلمات التي تعود للنسيان وهدفك من التعلم — نصوص محادثاتك لا تُخزَّن ولا تُرسل.
+          يمكنك حذف أي سطر أو كل الذاكرة.
+        </p>
+        {memoryRows !== null && (
+          memoryRows.length === 0 ? (
+            <p className="text-[11px] font-arabic text-text-muted py-2">لا شيء محفوظ بعد.</p>
+          ) : (
+            <div className="space-y-2">
+              {memoryRows.map((row) => (
+                <div key={row.patternId} className="flex items-center justify-between gap-2 rounded-xl bg-surface-subtle border border-border-subtle px-3 py-2">
+                  <span className="min-w-0">
+                    <span className="block text-[11px] font-arabic text-text-primary truncate">{row.labelAr}</span>
+                    <span className="block text-[10px] font-arabic text-text-muted">
+                      {row.kind === 'mistake' ? 'خطأ متكرر' : 'كلمة ضعيفة'} · {row.count} مرة
+                    </span>
+                  </span>
+                  <button
+                    onClick={() => handleDeleteMemoryPattern(row.patternId)}
+                    className="shrink-0 rounded-full p-1.5 text-text-muted hover:text-status-error transition-colors"
+                    aria-label="حذف هذا السطر"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={handleClearMemory}
+                className="w-full text-center text-[11px] font-arabic text-status-error hover:underline transition-colors py-1"
+              >
+                حذف كل الذاكرة التعليمية
+              </button>
+            </div>
+          )
+        )}
+      </Card>
+
+      {/* Profession focus (V21 Phase 3): steers scenario choice and the tutor's memory line. */}
+      <Card className="p-4 mb-6 space-y-3">
+        <label className="text-xs font-bold text-text-secondary flex items-center gap-2">
+          <Users className="w-4 h-4 text-primary" />
+          مجالك المهني
+        </label>
+        <p className="text-[11px] font-arabic text-text-muted leading-relaxed">
+          يوجّه المواقف التي ندرّبك عليها نحو ما تحتاجه فعلاً.
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {(['medical', 'tech', 'other'] as const).map((option) => (
+            <button
+              key={option}
+              onClick={() => handleUpdateProfession(option)}
+              className={`py-2.5 rounded-xl text-xs font-arabic font-bold border transition-all ${
+                user?.profession === option
+                  ? 'bg-primary/20 border-primary text-primary'
+                  : 'bg-surface-subtle border-border-subtle text-text-secondary'
+              }`}
+            >
+              {option === 'medical' ? 'طبي' : option === 'tech' ? 'تقني' : 'غير محدد'}
+            </button>
+          ))}
+        </div>
       </Card>
 
       {/* App Info & Sign Out */}

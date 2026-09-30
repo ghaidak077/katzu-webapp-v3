@@ -115,6 +115,12 @@
               تُنشئ الصفحة فاتورة لدى مزوّد الدفع، تختار العملة، تدفع، ثم يظهر كود التفعيل
               هنا مباشرة على الشاشة — عادة خلال دقائق بعد تأكيد الشبكة.
             </p>
+            <!-- Plan tiers (V21 Phase 7): rendered by sales.js from /crypto/health.
+                 Falls back to a single line when the worker has no tiers yet. -->
+            <div id="plan-tiers" class="plan-tiers" role="radiogroup" aria-label="اختر الباقة"></div>
+            <div class="discount-row" id="discount-row" hidden>
+              <input id="discount-code" type="text" placeholder="STD-50-XXXXXX-… (كود الطالب)" autocomplete="off" dir="ltr" />
+            </div>
             <button class="btn btn-primary" id="crypto-buy" type="button" disabled>ادفع بالعملة الرقمية</button>
             <p class="hint" id="crypto-hint">جارٍ التحقق من بوابة الدفع…</p>
             <p class="error" id="crypto-error" hidden></p>

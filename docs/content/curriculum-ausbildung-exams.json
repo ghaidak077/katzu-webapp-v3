@@ -1,0 +1,1363 @@
+{
+  "_note": "V21 Phase 5 draft — authored by the coding agent (Buffy), reviewed through the Content Gate in docs/content/review-curriculum-ausbildung-exams.md.",
+  "meta": {
+    "track": "المسار المهني: التدريب المهني والامتحانات",
+    "trackDe": "Berufspfad: Ausbildung und Prüfungen",
+    "module": 6,
+    "moduleTitleAr": "التدريب المهني في ألمانيا وامتحاناته",
+    "moduleTitleDe": "Ausbildung in Deutschland und die Prüfungen",
+    "primaryLevel": "B1",
+    "version": "1.0.0",
+    "status": "draft",
+    "authoredAt": "2026-09-30",
+    "designedFor": "للمتقدمين إلى تدريب مهني Ausbildung في ألمانيا أو المستعدين لامتحان لغة: يتقدمون على مقعد تدريب بمقابلة قصيرة مع مسؤول التدريب، يصفون يومهم في المصنع والمدرسة المهنية، يتحدثون مع زملائهم في الفسحة، يروون يوم الامتحان العملي والشفوي، ويسجلون أنفسهم لامتحان اللغة في مدرسة اللغة.",
+    "topicContract": "Each scenario's `category` resolves through SCENARIO_CATEGORY_TO_TOPIC: work → work (the application talk, the training day, the vocational-school morning and the exam day), daily_life → food (the canteen break with the other apprentices), official → documents (registering for the language exam). Four scenarios share the work pool like the interview modules; every vocabulary row's topic equals the pool its scenario resolves to.",
+    "knownLimitations": [
+      "Exam formats differ between IHK, Handwerkskammer and schools; the module teaches conversation shapes for exam day, never a specific body's rules, dates or fees.",
+      "Wages during Ausbildung (Ausbildungsvergütung) stay out of scope by design; money talk belongs to a real contract conversation.",
+      "The exam-day scene is a simplified oral/practical situation; real exams include written parts and devices the app does not model.",
+      "Berufsschule subjects vary by trade; rows name generic subjects so nothing ages into a wrong curriculum claim."
+    ]
+  },
+  "review": {
+    "status": "approved",
+    "reviewedBy": "AI self-review — Freebuff coding agent (Buffy), no human review",
+    "reviewedAt": "2026-09-30T09:23:39Z",
+    "checklist": [
+      "Every article (der/die/das) checked; nouns carry article and plural in their own fields.",
+      "du/Sie register: Sie with the Ausbilder, the examiner and the office; du among the apprentices in the canteen and at Berufsschule.",
+      "No exam-body rules, dates, fees or wages as facts; scenes stay conversational.",
+      "Arabic natural MSA; no German transliterations; no السلام عليكم for secular greetings.",
+      "Every pool word appears verbatim in a starter phrase or opener of its own topic; no (topic, german, level) key taken by another draft."
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "bewerbung_ausbildung",
+      "title_de": "Bewerbungsgespräch: Ausbildungsplatz",
+      "title_ar": "مقابلة التقدم على مقعد تدريب مهني",
+      "ai_persona": "Ausbilder Brenner katze",
+      "category": "work",
+      "icon": "briefcase",
+      "initial_message_a0": "Guten Tag! Ich bin Herr Brenner. Bitte nehmen Sie Platz.",
+      "initial_message_a1": "Guten Tag, ich bin Herr Brenner, der Ausbilder. Schön, dass Sie da sind. Erzählen Sie zuerst: Wie heißen Sie, und warum möchten Sie hier lernen?",
+      "initial_message_a2": "Guten Tag, Herr Brenner hier, Ihr Ausbilder im Bewerbungsgespräch. Nehmen Sie bitte Platz. Erzählen Sie mir zuerst: Woher kommen Sie, und was interessiert Sie an diesem Beruf?",
+      "initial_message_b1": "Guten Tag, ich bin Herr Brenner, der Ausbilder, und führe heute das Gespräch um den Ausbildungsplatz. Erzählen Sie mir zuerst etwas über Ihren Weg — und vorweg schon einmal: Warum gerade dieses Betrieb?",
+      "initial_message_b2": "Guten Tag, schön, dass Sie sich beworben haben — Ihre Mappe war vollständig. Ich bin Herr Brenner, der Ausbilder. Erzählen Sie zuerst, wie Sie auf uns gekommen sind. Eine Frage vorweg: Viele Bewerber sagen, sie lernen gern — wie zeigen Sie das in Ihrem Alltag?"
+    },
+    {
+      "id": "ausbildung_alltag",
+      "title_de": "Ausbildungsalltag: der Tag im Betrieb",
+      "title_ar": "يوم في التدريب المهني داخل المصنع",
+      "ai_persona": "Ausbilder Brenner katze",
+      "category": "work",
+      "icon": "clipboard",
+      "initial_message_a0": "Guten Morgen! Heute lernen wir die Werkstatt.",
+      "initial_message_a1": "Guten Morgen! Ich bin Herr Brenner. Heute zeige ich Ihnen die Werkstatt. Was möchten Sie wissen?",
+      "initial_message_a2": "Guten Morgen, Herr Brenner hier. Heute beginnen wir mit den ersten Aufgaben in der Werkstatt. Haben Sie alles verstanden, was wir gestern besprochen haben?",
+      "initial_message_b1": "Guten Morgen — dritter Woche, dritter Tag. Ihr Ausbilder hier: Zeigen Sie mir bitte Ihren Berichtsheft-Eintrag, und sagen Sie mir gleich, wo Sie noch unsicher sind.",
+      "initial_message_b2": "Guten Morgen. Ich erwarte heute Ihren ersten selbstständigen Arbeitsschritt — mit Unterstützung, aber ohne dass ich die Hand führe. Erzählen Sie mir zuerst: Wie wollen Sie vorgehen, und wo brauchen Sie mich?"
+    },
+    {
+      "id": "berufsschule_tag",
+      "title_de": "Berufsschule: ein Vormittag im Unterricht",
+      "title_ar": "المدرسة المهنية: صباح في الحصة",
+      "ai_persona": "Mitschüler Denis katze",
+      "category": "work",
+      "icon": "users",
+      "initial_message_a0": "Hallo! Neu hier? Ich bin Denis.",
+      "initial_message_a1": "Hallo, ich bin Denis, ich mache die gleiche Ausbildung. Wie findest du die Schule bis jetzt?",
+      "initial_message_a2": "Hi, Denis hier. Hast du den Stundenplan gesehen? Montag und Mittwoch sind unsere langen Tage — hast du schon einen Plan für die Hausaufgaben?",
+      "initial_message_b1": "Hi, Denis hier — wir sitzen seit September im gleichen Raum, aber wir haben noch nicht viel geredet. Sag mal: Welches Fach fällt dir leicht, und wo brauchst du Hilfe? Vielleicht können wir uns zusammensetzen.",
+      "initial_message_b2": "Hi, Denis hier. Die Zwischenprüfung rückt näher, und ich merke, dass ich im Theorieteil nachlässig geworden bin. Wie bereitest du dich vor — und hättest du Lust, uns gegenseitig abzufragen?"
+    },
+    {
+      "id": "pruefungstag",
+      "title_de": "Prüfungstag: praktisch und mündlich",
+      "title_ar": "يوم الامتحان: العملي والشفوي",
+      "ai_persona": "Prüfer Kaiwicz katze",
+      "category": "work",
+      "icon": "stamp",
+      "initial_message_a0": "Guten Tag! Heute ist Ihre Prüfung. Viel Erfolg!",
+      "initial_message_a1": "Guten Tag, ich bin Herr Kaiwicz, Ihr Prüfer. Keine Angst — zeigen Sie einfach, was Sie können. Bereit?",
+      "initial_message_a2": "Guten Tag, Herr Kaiwicz hier, Vorsitzender des Prüfungsausschusses. Zuerst die Practical: Erzählen Sie, welchen Arbeitsschritt Sie heute zeigen, und welche Werkzeuge Sie brauchen.",
+      "initial_message_b1": "Guten Tag, Herr Kaiwicz, ich leite heute die Prüfung. Wir beginnen mit einer kurzen Vorstellung Ihres Projekts: Beschreiben Sie bitte Ihren Weg von der Aufgabe bis zum Ergebnis — und wo es schwierig wurde.",
+      "initial_message_b2": "Guten Tag, Herr Kaiwicz hier. Sie haben die schriftlichen Teile hinter sich — jetzt das Fachgespräch. Erzählen Sie mir zuerst frei: Was war die schwierigste Entscheidung in Ihrem Prüfungsauftrag, und was würden Sie beim nächsten Mal anders machen?"
+    },
+    {
+      "id": "betriebs_kantine",
+      "title_de": "Mittagspause in der Betriebskantine",
+      "title_ar": "استراحة الغداء في مطعم المصنع",
+      "ai_persona": "Azubi Meltem katze",
+      "category": "daily_life",
+      "icon": "coffee",
+      "initial_message_a0": "Hi! Essen? Komm mit!",
+      "initial_message_a1": "Hi, ich bin Meltem. Kommst du mit in die Kantine? Ich habe heute schon Hunger.",
+      "initial_message_a2": "Hi, Meltem hier. In zehn Minuten ist Mittagspause — kommst du mit? Heute gibt es angeblich Schnitzel, aber ich bringe mir lieber mein Pausenbrot mit.",
+      "initial_message_b1": "Hi, Meltem hier — setzen wir uns ans Fenster? Sag mal, wie war dein Vormittag im Betrieb? Meine Brotdose ist diesmal richtig gut gefüllt: Brötchen mit Käse, Gemüse und ein Apfelsaft dazu.",
+      "initial_message_b2": "Hi, Meltem hier — dann erzähl mal. Du wirkst ein bisschen müde. Zu wenig geschlafen, oder hängt die Prüfungsvorbereitung dir an? Meine Mutter packt mir jeden Tag zwei Brötchen ein, sonst würde ich nur von Kaffee und Schokolade leben."
+    },
+    {
+      "id": "pruefung_anmeldung",
+      "title_de": "Anmeldung zur Sprachprüfung",
+      "title_ar": "التسجيل في امتحان اللغة",
+      "ai_persona": "Sachbearbeiterin Roth katze",
+      "category": "official",
+      "icon": "stamp",
+      "initial_message_a0": "Guten Tag. Wie kann ich helfen?",
+      "initial_message_a1": "Guten Tag, ich bin Frau Roth. Sie möchten sich für eine Prüfung anmelden? Erzählen Sie kurz.",
+      "initial_message_a2": "Guten Tag, Frau Roth hier, ich bearbeite die Prüfungsanmeldungen. Erzählen Sie mir: Welches Niveau möchten Sie prüfen, und wann passt es Ihnen?",
+      "initial_message_b1": "Guten Tag, Frau Roth, ich bin für die Anmeldungen zur Sprachprüfung zuständig. Nehmen Sie Platz. Sagen Sie mir bitte zuerst: Welches Niveau, mündlich und schriftlich komplett — und haben Sie einen Kurs bei uns gemacht?",
+      "initial_message_b2": "Guten Tag, Frau Roth hier — schön, dass Sie den Schritt machen. Damit wir nichts doppelt besprechen: Erzählen Sie mir bitte kurz, wie weit Sie mit der Vorbereitung sind, welche Unterlagen Sie mitgebracht haben und welche Frage Sie sich zum Ablauf gestellt haben."
+    }
+  ],
+  "vocabulary": [
+    {
+      "german": "Ausbildung",
+      "article": "die",
+      "plural": "die Ausbildungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "تدريب مهني",
+      "translation_en": "vocational training",
+      "example_de": "Die Ausbildung dauert drei Jahre.",
+      "example_ar": "التدريب المهني يستغرق ثلاث سنوات.",
+      "example_en": "The training lasts three years.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "Ausbilder",
+      "article": "der",
+      "plural": "die Ausbilder",
+      "part_of_speech": "Noun",
+      "translation_ar": "مسؤول التدريب",
+      "translation_en": "training supervisor",
+      "example_de": "Mein Ausbilder erklärt alles ruhig.",
+      "example_ar": "مسؤول تدريبي يشرح كل شيء بهدوء.",
+      "example_en": "My training supervisor explains everything calmly.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Ausbildungsplatz",
+      "article": "der",
+      "plural": "die Ausbildungsplätze",
+      "part_of_speech": "Noun",
+      "translation_ar": "مقعد تدريب مهني",
+      "translation_en": "apprenticeship position",
+      "example_de": "Ich suche einen Ausbildungsplatz.",
+      "example_ar": "أبحث عن مقعد تدريب مهني.",
+      "example_en": "I am looking for an apprenticeship position.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "Berufsschule",
+      "article": "die",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "المدرسة المهنية",
+      "translation_en": "vocational school",
+      "example_de": "Montag und Mittwoch habe ich Berufsschule.",
+      "example_ar": "الاثنين والأربعاء عندي مدرسة مهنية.",
+      "example_en": "Monday and Wednesday I have vocational school.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Betrieb",
+      "article": "der",
+      "plural": "die Betriebe",
+      "part_of_speech": "Noun",
+      "translation_ar": "مصنع / منشأة",
+      "translation_en": "company, plant",
+      "example_de": "Der Betrieb stellt zehn Azubis ein.",
+      "example_ar": "المصنع يوظف عشرة متدربين.",
+      "example_en": "The company hires ten apprentices.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "Werkstatt",
+      "article": "die",
+      "plural": "die Werkstätten",
+      "part_of_speech": "Noun",
+      "translation_ar": "ورشة",
+      "translation_en": "workshop",
+      "example_de": "Die Werkstatt öffnet um sieben.",
+      "example_ar": "الورشة تفتح في السابعة.",
+      "example_en": "The workshop opens at seven.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Aufgabe",
+      "article": "die",
+      "plural": "die Aufgaben",
+      "part_of_speech": "Noun",
+      "translation_ar": "مهمة",
+      "translation_en": "task",
+      "example_de": "Heute habe ich eine neue Aufgabe.",
+      "example_ar": "اليوم عندي مهمة جديدة.",
+      "example_en": "Today I have a new task.",
+      "level": "A1",
+      "topic": "work"
+    },
+    {
+      "german": "Berichtsheft",
+      "article": "das",
+      "plural": "die Berichtshefte",
+      "part_of_speech": "Noun",
+      "translation_ar": "دفتر التقارير التدريبي",
+      "translation_en": "training report book",
+      "example_de": "Ich schreibe jeden Tag ins Berichtsheft.",
+      "example_ar": "أكتب كل يوم في دفتر التقارير.",
+      "example_en": "I write in the training report book every day.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "Prüfung",
+      "article": "die",
+      "plural": "die Prüfungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "امتحان",
+      "translation_en": "exam",
+      "example_de": "Die Prüfung hat einen schriftlichen Teil.",
+      "example_ar": "الامتحان فيه جزء كتابي.",
+      "example_en": "The exam has a written part.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Prüfungsausschuss",
+      "article": "der",
+      "plural": "die Prüfungsausschüsse",
+      "part_of_speech": "Noun",
+      "translation_ar": "لجنة الامتحان",
+      "translation_en": "examination board",
+      "example_de": "Der Prüfungsausschuss bewertet die Arbeit.",
+      "example_ar": "لجنة الامتحان تقيّم العمل.",
+      "example_en": "The examination board grades the work.",
+      "level": "B2",
+      "topic": "work"
+    },
+    {
+      "german": "Prüfungsauftrag",
+      "article": "der",
+      "plural": "die Prüfungsaufträge",
+      "part_of_speech": "Noun",
+      "translation_ar": "مهمة الامتحان العملية",
+      "translation_en": "practical exam assignment",
+      "example_de": "Mein Prüfungsauftrag war eine kleine Schaltung.",
+      "example_ar": "كانت مهمة امتحاني العملي دائرة صغيرة.",
+      "example_en": "My practical exam assignment was a small circuit.",
+      "level": "B2",
+      "topic": "work"
+    },
+    {
+      "german": "Zwischenprüfung",
+      "article": "die",
+      "plural": "die Zwischenprüfungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "الامتحان النصفي",
+      "translation_en": "intermediate exam",
+      "example_de": "Die Zwischenprüfung kommt im zweiten Jahr.",
+      "example_ar": "الامتحان النصفي يأتي في السنة الثانية.",
+      "example_en": "The intermediate exam comes in the second year.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "Erfolg",
+      "article": "der",
+      "plural": "die Erfolge",
+      "part_of_speech": "Noun",
+      "translation_ar": "نجاح",
+      "translation_en": "success",
+      "example_de": "Viel Erfolg bei der Prüfung!",
+      "example_ar": "بالنجاح في الامتحان!",
+      "example_en": "Much success in the exam!",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "fleißig",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "مجتهد",
+      "translation_en": "hard-working",
+      "example_de": "Sie ist fleißig und pünktlich.",
+      "example_ar": "هي مجتهدة ومنضبطة بالوقت.",
+      "example_en": "She is hard-working and punctual.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "pünktlich",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "منضبط بالوقت",
+      "translation_en": "punctual",
+      "example_de": "Sei bitte pünktlich.",
+      "example_ar": "كن منضبطًا بالوقت من فضلك.",
+      "example_en": "Please be punctual.",
+      "level": "A1",
+      "topic": "work"
+    },
+    {
+      "german": "üben",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يتدرب / يمارس",
+      "translation_en": "to practise",
+      "example_de": "Ich übe jeden Abend den Prüfungsteil.",
+      "example_ar": "أتدرب كل مساء على جزء الامتحان.",
+      "example_en": "I practise the exam part every evening.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "bestehen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "ينجح في",
+      "translation_en": "to pass",
+      "example_de": "Ich will die Prüfung beim ersten Mal bestehen.",
+      "example_ar": "أريد أن أنجح في الامتحان من أول مرة.",
+      "example_en": "I want to pass the exam on the first attempt.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "wiederholen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يعيد / يراجع",
+      "translation_en": "to repeat, revise",
+      "example_de": "Ich wiederhole die Schritte laut.",
+      "example_ar": "أعيد الخطوات بصوت عالٍ.",
+      "example_en": "I repeat the steps out loud.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "vorbereiten",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يستعد / يجهّز",
+      "translation_en": "to prepare",
+      "example_de": "Ich bereite mich auf die Prüfung vor.",
+      "example_ar": "أستعد للامتحان.",
+      "example_en": "I am preparing for the exam.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "selbstständig",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "باستقلالية",
+      "translation_en": "independent",
+      "example_de": "Ich arbeite jetzt selbstständig.",
+      "example_ar": "أعمل الآن باستقلالية.",
+      "example_en": "I work independently now.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "Brotdose",
+      "article": "die",
+      "plural": "die Brotdosen",
+      "part_of_speech": "Noun",
+      "translation_ar": "علبة الطعام",
+      "translation_en": "lunch box",
+      "example_de": "Meine Brotdose ist im Rucksack.",
+      "example_ar": "علبة طعامي في الحقيبة.",
+      "example_en": "My lunch box is in my backpack.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Pausenbrot",
+      "article": "das",
+      "plural": "die Pausenbrote",
+      "part_of_speech": "Noun",
+      "translation_ar": "ساندويتش الفسحة",
+      "translation_en": "break-time sandwich",
+      "example_de": "Das Pausenbrot schmeckt nach dem Betrieb am besten.",
+      "example_ar": "ساندويتش الفسحة هو الأطيب بعد العمل.",
+      "example_en": "The break-time sandwich tastes best after work.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Brötchen",
+      "article": "das",
+      "plural": "die Brötchen",
+      "part_of_speech": "Noun",
+      "translation_ar": "خبزة صغيرة",
+      "translation_en": "bread roll",
+      "example_de": "Ich esse zwei Brötchen mit Käse.",
+      "example_ar": "آكل خبزتين صغيرتين مع الجبن.",
+      "example_en": "I eat two bread rolls with cheese.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Butter",
+      "article": "die",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "زبدة",
+      "translation_en": "butter",
+      "example_de": "Ohne Butter schmeckt das trocken.",
+      "example_ar": "بدون زبدة يبدو جافًا.",
+      "example_en": "Without butter it tastes dry.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "Schokolade",
+      "article": "die",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "شوكولاتة",
+      "translation_en": "chocolate",
+      "example_de": "In der Pause esse ich Schokolade.",
+      "example_ar": "في الفسحة آكل شوكولاتة.",
+      "example_en": "In the break I eat chocolate.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Kuchen",
+      "article": "der",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "كيك",
+      "translation_en": "cake",
+      "example_de": "Freitags gibt es Kuchen.",
+      "example_ar": "الجمعة هناك كيك.",
+      "example_en": "On Fridays there is cake.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Apfelsaft",
+      "article": "der",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "عصير تفاح",
+      "translation_en": "apple juice",
+      "example_de": "Ein Apfelsaft dazu, bitte.",
+      "example_ar": "عصير تفاح معه، من فضلك.",
+      "example_en": "An apple juice with it, please.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Gemüse",
+      "article": "das",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "خضار",
+      "translation_en": "vegetables",
+      "example_de": "Im Pausenbrot ist Gemüse.",
+      "example_ar": "في ساندويتش الفسحة خضار.",
+      "example_en": "There are vegetables in the sandwich.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Wurst",
+      "article": "die",
+      "plural": "die Würste",
+      "part_of_speech": "Noun",
+      "translation_ar": "نقانق / لحم بارد",
+      "translation_en": "sausage, cold meat",
+      "example_de": "Mit Wurst ist es zu salzig für mich.",
+      "example_ar": "مع اللحم البارد يصبح مالحًا بالنسبة لي.",
+      "example_en": "With cold meat it is too salty for me.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Mittagspause",
+      "article": "die",
+      "plural": "die Mittagspausen",
+      "part_of_speech": "Noun",
+      "translation_ar": "استراحة الغداء",
+      "translation_en": "lunch break",
+      "example_de": "Die Mittagspause beginnt um zwölf.",
+      "example_ar": "استراحة الغداء تبدأ في الثانية عشرة.",
+      "example_en": "The lunch break starts at twelve.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "teilen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يقسم / يشارك",
+      "translation_en": "to share",
+      "example_de": "Wir teilen uns den Tisch.",
+      "example_ar": "نتقاسم الطاولة.",
+      "example_en": "We share the table.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "einpaken",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يضع في الحقيبة",
+      "translation_en": "to pack (into)",
+      "example_de": "Meine Mutter packt mir zwei Brötchen ein.",
+      "example_ar": "أمي تضع لي خبزتين في الحقيبة.",
+      "example_en": "My mother packs me two bread rolls.",
+      "level": "B1",
+      "topic": "food"
+    },
+    {
+      "german": "Prüfungsanmeldung",
+      "article": "die",
+      "plural": "die Prüfungsanmeldungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "التسجيل في الامتحان",
+      "translation_en": "exam registration",
+      "example_de": "Die Prüfungsanmeldung ist diese Woche möglich.",
+      "example_ar": "التسجيل في الامتحان ممكن هذا الأسبوع.",
+      "example_en": "Exam registration is possible this week.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Anmeldeformular",
+      "article": "das",
+      "plural": "die Anmeldeformulare",
+      "part_of_speech": "Noun",
+      "translation_ar": "استمارة التسجيل",
+      "translation_en": "registration form",
+      "example_de": "Ich fülle das Anmeldeformular aus.",
+      "example_ar": "أملأ استمارة التسجيل.",
+      "example_en": "I fill in the registration form.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Prüfungstermin",
+      "article": "der",
+      "plural": "die Prüfungstermine",
+      "part_of_speech": "Noun",
+      "translation_ar": "موعد الامتحان",
+      "translation_en": "exam date",
+      "example_de": "Welcher Prüfungstermin passt Ihnen?",
+      "example_ar": "أي موعد امتحان يناسبك؟",
+      "example_en": "Which exam date suits you?",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Gebühr",
+      "article": "die",
+      "plural": "die Gebühren",
+      "part_of_speech": "Noun",
+      "translation_ar": "رسم",
+      "translation_en": "fee",
+      "example_de": "Die Gebühr steht im Anmeldeformular.",
+      "example_ar": "الرسم مذكور في استمارة التسجيل.",
+      "example_en": "The fee is stated in the registration form.",
+      "level": "B2",
+      "topic": "documents"
+    },
+    {
+      "german": "Personalausweis",
+      "article": "der",
+      "plural": "die Personalausweise",
+      "part_of_speech": "Noun",
+      "translation_ar": "بطاقة الهوية",
+      "translation_en": "identity card",
+      "example_de": "Bringen Sie Ihren Personalausweis mit.",
+      "example_ar": "أحضر معك بطاقة هويتك.",
+      "example_en": "Bring your identity card with you.",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "Bestätigung",
+      "article": "die",
+      "plural": "die Bestätigungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "إشعار تأكيد",
+      "translation_en": "confirmation",
+      "example_de": "Die Bestätigung kommt per Post.",
+      "example_ar": "إشعار التأكيد يصل بالبريد.",
+      "example_en": "The confirmation arrives by post.",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "mündlich",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "شفوي",
+      "translation_en": "oral",
+      "example_de": "Der mündliche Teil dauert fünfzehn Minuten.",
+      "example_ar": "الجزء الشفوي يستغرق خمس عشرة دقيقة.",
+      "example_en": "The oral part lasts fifteen minutes.",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "schriftlich",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "كتابي",
+      "translation_en": "written",
+      "example_de": "Der schriftliche Teil ist am Vormittag.",
+      "example_ar": "الجزء الكتابي في الصباح.",
+      "example_en": "The written part is in the morning.",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "Wiederholung",
+      "article": "die",
+      "plural": "die Wiederholungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "إعادة / دورة مراجعة",
+      "translation_en": "repeat, revision",
+      "example_de": "Eine Wiederholung ist möglich, wenn es knapp wird.",
+      "example_ar": "إمكانية الإعادة موجودة إن كان النتيجة ضيقة.",
+      "example_en": "A repeat is possible if it is close.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Sprachschule",
+      "article": "die",
+      "plural": "die Sprachschulen",
+      "part_of_speech": "Noun",
+      "translation_ar": "مدرسة لغة",
+      "translation_en": "language school",
+      "example_de": "Die Sprachschule liegt am Bahnhof.",
+      "example_ar": "مدرسة اللغة قرب المحطة.",
+      "example_en": "The language school is near the station.",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "Niveau",
+      "article": "das",
+      "plural": "die Niveaus",
+      "part_of_speech": "Noun",
+      "translation_ar": "مستوى",
+      "translation_en": "level",
+      "example_de": "Welches Niveau möchten Sie prüfen?",
+      "example_ar": "أي مستوى تريد أن تختبر؟",
+      "example_en": "Which level do you want to test?",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Teilnahme",
+      "article": "die",
+      "plural": "die Teilnahmen",
+      "part_of_speech": "Noun",
+      "translation_ar": "مشاركة",
+      "translation_en": "participation",
+      "example_de": "Die Teilnahme am Kurs war regelmäßig.",
+      "example_ar": "كانت المشاركة في الدورة منتظمة.",
+      "example_en": "Participation in the course was regular.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Original",
+      "article": "das",
+      "plural": "die Originale",
+      "part_of_speech": "Noun",
+      "translation_ar": "الأصل (وثيقة)",
+      "translation_en": "original (document)",
+      "example_de": "Bringen Sie das Original mit, nicht nur die Kopie.",
+      "example_ar": "أحضر الأصل، لا النسخة فقط.",
+      "example_en": "Bring the original, not just the copy.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "benötigen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يحتاج (رسميًا)",
+      "translation_en": "to require, need",
+      "example_de": "Wir benötigen eine Kopie und das Original.",
+      "example_ar": "نحتاج نسخة وأصلًا.",
+      "example_en": "We require a copy and the original.",
+      "level": "B2",
+      "topic": "documents"
+    },
+    {
+      "german": "ablegen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يؤدي (امتحانًا)",
+      "translation_en": "to take (an exam)",
+      "example_de": "Ich lege die Prüfung im Juni ab.",
+      "example_ar": "أؤدي الامتحان في يونيو.",
+      "example_en": "I am taking the exam in June.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "sich anmelden",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يسجّل نفسه",
+      "translation_en": "to register",
+      "example_de": "Ich melde mich diese Woche an.",
+      "example_ar": "أسجل نفسي هذا الأسبوع.",
+      "example_en": "I am registering this week.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Schnitzel",
+      "article": "das",
+      "plural": "die Schnitzel",
+      "part_of_speech": "Noun",
+      "translation_ar": "شنتسل: شريحة لحم مقلية مع الفتحة",
+      "translation_en": "schnitzel, breaded cutlet",
+      "example_de": "Heute gibt es angeblich Schnitzel.",
+      "example_ar": "يُقال إن في القائمة اليوم شنتسل: شريحة لحم مقلية.",
+      "example_en": "Apparently there is schnitzel today.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Tisch",
+      "article": "der",
+      "plural": "die Tische",
+      "part_of_speech": "Noun",
+      "translation_ar": "طاولة",
+      "translation_en": "table",
+      "example_de": "Wir teilen uns den Tisch am Fenster.",
+      "example_ar": "نتقاسم الطاولة قرب النافذة.",
+      "example_en": "We share the table by the window.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "Fenster",
+      "article": "das",
+      "plural": "die Fenster",
+      "part_of_speech": "Noun",
+      "translation_ar": "نافذة",
+      "translation_en": "window",
+      "example_de": "Am Fenster ist es ruhig.",
+      "example_ar": "قرب النافذة الجو هادئ.",
+      "example_en": "By the window it is quiet.",
+      "level": "A1",
+      "topic": "food"
+    }
+  ],
+  "starter_phrases": [
+    {
+      "scenario_id": "bewerbung_ausbildung",
+      "level": "A1",
+      "german": "Guten Tag, ich bin Aylin Kaya.",
+      "translation_en": "Good day, I am Aylin Kaya.",
+      "translation_ar": "نهارك سعيد، أنا آيلين قايا.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "bewerbung_ausbildung",
+      "level": "A2",
+      "german": "Ich möchte bei Ihnen die Ausbildung machen.",
+      "translation_en": "I would like to do the training with you.",
+      "translation_ar": "أريد أن أؤدي التدريب المهني لديكم.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "bewerbung_ausbildung",
+      "level": "A2",
+      "german": "Ich bin pünktlich und fleißig.",
+      "translation_en": "I am punctual and hard-working.",
+      "translation_ar": "أنا منضبطة بالوقت ومجتهدة.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "bewerbung_ausbildung",
+      "level": "A2",
+      "german": "Ich übe zu Hause jeden Tag.",
+      "translation_en": "I practise at home every day.",
+      "translation_ar": "أتدرب في البيت كل يوم.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "bewerbung_ausbildung",
+      "level": "A2",
+      "german": "In der Schule habe ich Technik gern gehabt.",
+      "translation_en": "At school I liked technical subjects.",
+      "translation_ar": "في المدرسة كنت أحب مواد التقنية.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "bewerbung_ausbildung",
+      "level": "B1",
+      "german": "Ich habe mich bei drei Betrieben beworben, Ihr Betrieb ist mein Favorit.",
+      "translation_en": "I applied to three companies; your company is my favourite.",
+      "translation_ar": "تقدمت إلى ثلاث منشآت، ومنشأتكم هي المفضلة عندي.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "bewerbung_ausbildung",
+      "level": "B1",
+      "german": "Für den Ausbildungsplatz bereite ich mich seit Monaten vor.",
+      "translation_en": "I have been preparing for the apprenticeship position for months.",
+      "translation_ar": "أستعد لمقعد التدريب منذ أشهر.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "bewerbung_ausbildung",
+      "level": "B1",
+      "german": "Ich lerne gern, und ich schreibe jeden Tag ins Berichtsheft.",
+      "translation_en": "I like learning, and I write in the training report book every day.",
+      "translation_ar": "أحب التعلم، وأكتب كل يوم في دفتر التقارير.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "bewerbung_ausbildung",
+      "level": "B1",
+      "german": "Ich will die Prüfung am Ende bestehen und dann im Betrieb bleiben.",
+      "translation_en": "I want to pass the exam at the end and then stay with the company.",
+      "translation_ar": "أريد أن أنجح في الامتحان في النهاية وأبقى في المصنع.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "bewerbung_ausbildung",
+      "level": "B2",
+      "german": "Lernen zeigt sich bei mir im Alltag: Ich wiederhole jeden Schritt, bis er sitzt.",
+      "translation_en": "In my case, learning shows in daily life: I repeat every step until it sticks.",
+      "translation_ar": "التعلم عندي يظهر في الحياة اليومية: أعيد كل خطوة حتى يتقن.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "ausbildung_alltag",
+      "level": "A1",
+      "german": "Guten Morgen, Herr Brenner. Ich bin bereit.",
+      "translation_en": "Good morning, Mr. Brenner. I am ready.",
+      "translation_ar": "صباح الخير سيد برينر. أنا مستعدة.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "ausbildung_alltag",
+      "level": "A2",
+      "german": "Heute übe ich den ersten Arbeitsschritt in der Werkstatt.",
+      "translation_en": "Today I am practising the first work step in the workshop.",
+      "translation_ar": "اليوم أتدرب على خطوة العمل الأولى في الورشة.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "ausbildung_alltag",
+      "level": "A2",
+      "german": "Können Sie mir die Aufgabe noch einmal zeigen?",
+      "translation_en": "Could you show me the task once more?",
+      "translation_ar": "هل يمكنك أن تُريني المهمة مرة أخرى؟",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "ausbildung_alltag",
+      "level": "A2",
+      "german": "Ich wiederhole den Schritt, bis ich ihn alleine kann.",
+      "translation_en": "I repeat the step until I can do it alone.",
+      "translation_ar": "أعيد الخطوة حتى أستطيع فعلها بمفردي.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "ausbildung_alltag",
+      "level": "A2",
+      "german": "Meine Frage: Welches Werkzeug nehme ich zuerst?",
+      "translation_en": "My question: which tool do I take first?",
+      "translation_ar": "سؤالي: أي أداة آخذ أولًا؟",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "ausbildung_alltag",
+      "level": "B1",
+      "german": "Ich habe den Berichtsheft-Eintrag für gestern fertig geschrieben.",
+      "translation_en": "I have finished writing yesterday's training report entry.",
+      "translation_ar": "أنهيت كتابة قيد دفتر التقارير لأمس.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "ausbildung_alltag",
+      "level": "B1",
+      "german": "Unsicher bin ich noch beim zweiten Schritt — da brauche ich Unterstützung.",
+      "translation_en": "I am still unsure about the second step — there I need support.",
+      "translation_ar": "ما زلت غير متأكدة في الخطوة الثانية — هناك أحتاج مساندة.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "ausbildung_alltag",
+      "level": "B2",
+      "german": "Ich möchte den Schritt heute selbstständig versuchen und Sie nur bei Fragen fragen.",
+      "translation_en": "I would like to try the step independently today and only ask you when questions come up.",
+      "translation_ar": "أريد أن أجرب الخطوة اليوم باستقلالية وأسألك عند الأسئلة فقط.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "ausbildung_alltag",
+      "level": "B2",
+      "german": "Mein Plan: erst üben, dann die Aufgabe ohne Hilfe, dann Ihr Feedback.",
+      "translation_en": "My plan: first practise, then the task without help, then your feedback.",
+      "translation_ar": "خطتي: أولًا التدريب، ثم المهمة دون مساعدة، ثم ملاحظاتك.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "ausbildung_alltag",
+      "level": "B1",
+      "german": "Wenn ich fertig bin, zeige ich Ihnen das Ergebnis.",
+      "translation_en": "When I am finished, I will show you the result.",
+      "translation_ar": "عندما أنتهي سأريك النتيجة.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "berufsschule_tag",
+      "level": "A1",
+      "german": "Hallo Denis, ich bin die Neue.",
+      "translation_en": "Hello Denis, I am the new one.",
+      "translation_ar": "مرحبًا دينيس، أنا الجديدة هنا.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "berufsschule_tag",
+      "level": "A2",
+      "german": "Heute habe ich Berufsschule: Mathematik und Technik.",
+      "translation_en": "Today I have vocational school: mathematics and technical subjects.",
+      "translation_ar": "اليوم عندي مدرسة مهنية: رياضيات وتقنية.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "berufsschule_tag",
+      "level": "A2",
+      "german": "Die Hausaufgaben sind schwer, oder?",
+      "translation_en": "The homework is hard, isn't it?",
+      "translation_ar": "الواجبات صعبة، أليس كذلك؟",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "berufsschule_tag",
+      "level": "A2",
+      "german": "Ich wiederhole zu Hause die Theorie.",
+      "translation_en": "I revise the theory at home.",
+      "translation_ar": "أراجع النظري في البيت.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "berufsschule_tag",
+      "level": "A2",
+      "german": "Wann ist die Zwischenprüfung?",
+      "translation_en": "When is the intermediate exam?",
+      "translation_ar": "متى الامتحان النصفي؟",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "berufsschule_tag",
+      "level": "B1",
+      "german": "Vorbereiten kann ich mich gut, aber Abfragen macht mehr Spaß.",
+      "translation_en": "I can prepare well, but quizzing each other is more fun.",
+      "translation_ar": "أستطيع الاستعداد جيدًا، لكن الاختبار المتبادل أمتع.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "berufsschule_tag",
+      "level": "B1",
+      "german": "Wir können uns in der Mittagspause zusammensetzen und üben.",
+      "translation_en": "We can sit together in the lunch break and practise.",
+      "translation_ar": "يمكننا الجلوس معًا في استراحة الغداء والتدرب.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "berufsschule_tag",
+      "level": "B2",
+      "german": "Falls du Lust hast, fragen wir uns gegenseitig ab — du Theorie, ich Praxis.",
+      "translation_en": "If you like, we quiz each other — you theory, me practice.",
+      "translation_ar": "إن أردت، نختبر بعضنا تبادليًا — أنت النظري وأنا العملي.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "berufsschule_tag",
+      "level": "B2",
+      "german": "Nachlässig war ich vor allem im Theorieteil — das ändere ich ab heute.",
+      "translation_en": "I was careless above all in the theory part — that changes as of today.",
+      "translation_ar": "كنت مهملًا خصوصًا في الجزء النظري — هذا يتغير من اليوم.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "berufsschule_tag",
+      "level": "B1",
+      "german": "Teilen wir uns die Aufgaben? Dann lernen beide etwas.",
+      "translation_en": "Shall we share the tasks? Then both of us learn something.",
+      "translation_ar": "نقسم المهمات بيننا؟ حينها يتعلم الاثنان شيئًا.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "pruefungstag",
+      "level": "A1",
+      "german": "Guten Tag. Ich bin etwas nervös, aber bereit.",
+      "translation_en": "Good day. I am a little nervous, but ready.",
+      "translation_ar": "نهارك سعيد. أنا متوترة قليلًا لكن مستعدة.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "pruefungstag",
+      "level": "A2",
+      "german": "Heute zeige ich den Arbeitsschritt mit dem Schleifer.",
+      "translation_en": "Today I am showing the work step with the grinder.",
+      "translation_ar": "اليوم أعرض خطوة العمل بالمِبرد الدوّار.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "pruefungstag",
+      "level": "A2",
+      "german": "Ich brauche dafür Werkzeug, Schutzbrille und den Plan.",
+      "translation_en": "For that I need tools, safety glasses and the plan.",
+      "translation_ar": "أحتاج لذلك أدوات ونظارة حماية والمخطط.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "pruefungstag",
+      "level": "A2",
+      "german": "Ich habe die Prüfung vorbereitet, jeden Schritt geübt.",
+      "translation_en": "I have prepared for the exam and practised every step.",
+      "translation_ar": "استعددت للامتحان وتدربت على كل خطوة.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "pruefungstag",
+      "level": "B1",
+      "german": "Meine Aufgabe war es, das Teil passgenau zu fertigen.",
+      "translation_en": "My assignment was to produce the part with an exact fit.",
+      "translation_ar": "كانت مهمتي تصنيع القطعة بدقة مقاسات تامة.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "pruefungstag",
+      "level": "B1",
+      "german": "Schwierig war die Messung — ich habe sie zweimal wiederholt.",
+      "translation_en": "The measurement was difficult — I repeated it twice.",
+      "translation_ar": "القياس كان صعبًا — أعدته مرتين.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "pruefungstag",
+      "level": "B1",
+      "german": "Am Ende habe ich die Prüfung bestanden.",
+      "translation_en": "In the end, I passed the exam.",
+      "translation_ar": "في النهاية نجحت في الامتحان.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "pruefungstag",
+      "level": "B2",
+      "german": "Die schwierigste Entscheidung war die Reihenfolge der Arbeitsschritte.",
+      "translation_en": "The most difficult decision was the order of the work steps.",
+      "translation_ar": "أصعب قرار كان ترتيب خطوات العمل.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "pruefungstag",
+      "level": "B2",
+      "german": "Beim nächsten Mal würde ich zuerst den Prüfungsauftrag ganz lesen.",
+      "translation_en": "Next time I would first read the whole exam assignment.",
+      "translation_ar": "في المرة القادمة سأقرأ مهمة الامتحان كاملة أولًا.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "pruefungstag",
+      "level": "B2",
+      "german": "Vielen Dank — der Prüfungsausschuss war fair und ruhig.",
+      "translation_en": "Many thanks — the examination board was fair and calm.",
+      "translation_ar": "شكرًا جزيلًا — كانت لجنة الامتحان عادلة وهادئة.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "betriebs_kantine",
+      "level": "A1",
+      "german": "Hi Meltem, ich komme mit.",
+      "translation_en": "Hi Meltem, I am coming with you.",
+      "translation_ar": "مرحبًا مُلتم، آتي معك.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "betriebs_kantine",
+      "level": "A1",
+      "german": "Ich habe Hunger — gibt es heute Kuchen?",
+      "translation_en": "I am hungry — is there cake today?",
+      "translation_ar": "أنا جائعة — هل هناك كعك اليوم؟",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "betriebs_kantine",
+      "level": "A2",
+      "german": "Ich bringe mir mein Pausenbrot mit.",
+      "translation_en": "I am bringing my own break-time sandwich.",
+      "translation_ar": "أحضر معي ساندويتش الفسحة خاصتي.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "betriebs_kantine",
+      "level": "A2",
+      "german": "Meine Brotdose ist heute voll: Brötchen, Gemüse, Butter.",
+      "translation_en": "My lunch box is full today: bread roll, vegetables, butter.",
+      "translation_ar": "علبة طعامي ممتلئة اليوم: خبز صغير وخضار وزبدة.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "betriebs_kantine",
+      "level": "A2",
+      "german": "Ich nehme einen Apfelsaft dazu.",
+      "translation_en": "I am taking an apple juice with it.",
+      "translation_ar": "آخذ عصير تفاح معها.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "betriebs_kantine",
+      "level": "A2",
+      "german": "Schokolade esse ich nur nach der Arbeit.",
+      "translation_en": "I only eat chocolate after work.",
+      "translation_ar": "آكل الشوكولاتة بعد العمل فقط.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "betriebs_kantine",
+      "level": "B1",
+      "german": "Wir teilen uns den Tisch am Fenster — da ist es ruhig.",
+      "translation_en": "Let's share the table by the window — it is quiet there.",
+      "translation_ar": "نتقاسم الطاولة قرب النافذة — هناك هدوء.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "betriebs_kantine",
+      "level": "B1",
+      "german": "Meine Mutter will mir jeden Tag Brötchen mit Wurst einpaken.",
+      "translation_en": "My mother wants to pack me bread rolls with cold meat every day.",
+      "translation_ar": "أمي تريد أن تضع لي كل يوم خبزًا مع اللحم البارد.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "betriebs_kantine",
+      "level": "B1",
+      "german": "Die Prüfungsvorbereitung macht mich müde, aber die Mittagspause hilft.",
+      "translation_en": "The exam preparation makes me tired, but the lunch break helps.",
+      "translation_ar": "الاستعداد للامتحان يُرهقني، لكن استراحة الغداء تساعد.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "betriebs_kantine",
+      "level": "B2",
+      "german": "Nach dem Essen tauschen wir uns kurz über den Betrieb aus.",
+      "translation_en": "After eating we briefly chat about the company.",
+      "translation_ar": "بعد الأكل نتبادل الحديث قليلًا عن المصنع.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "pruefung_anmeldung",
+      "level": "B1",
+      "german": "Guten Tag, kann man sich hier anmelden?",
+      "translation_en": "Good day, can one register here?",
+      "translation_ar": "نهارك سعيد، هل يمكن التسجيل هنا؟",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "pruefung_anmeldung",
+      "level": "A2",
+      "german": "Wann kann ich die Prüfung ablegen?",
+      "translation_en": "When can I take the exam?",
+      "translation_ar": "متى يمكنني أن أؤدي الامتحان؟",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "pruefung_anmeldung",
+      "level": "A2",
+      "german": "Meine Teilnahme an dem Kurs bei Ihrer Sprachschule war regelmäßig.",
+      "translation_en": "My participation in the course at your language school was regular.",
+      "translation_ar": "كانت مشاركتي في الدورة في مدرسة اللغة لديكم منتظمة.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "pruefung_anmeldung",
+      "level": "A2",
+      "german": "Falls es knapp wird: Ist eine Wiederholung möglich?",
+      "translation_en": "If it is close: is a repeat possible?",
+      "translation_ar": "إن كانت النتيجة ضيقة: هل الإعادة ممكنة؟",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "pruefung_anmeldung",
+      "level": "A2",
+      "german": "Hier sind mein Personalausweis und das Anmeldeformular.",
+      "translation_en": "Here are my identity card and the registration form.",
+      "translation_ar": "هذه بطاقة هويتي واستمارة التسجيل.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "pruefung_anmeldung",
+      "level": "B1",
+      "german": "Mündlich und schriftlich möchte ich beide Teile machen.",
+      "translation_en": "Orally and in writing, I want to do both parts.",
+      "translation_ar": "شفويًا وكتابيًا أريد أداء الجزئين معًا.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "pruefung_anmeldung",
+      "level": "B1",
+      "german": "Bekomme ich eine Bestätigung für die Prüfungsanmeldung?",
+      "translation_en": "Will I get a confirmation for the exam registration?",
+      "translation_ar": "هل أحصل على إشعار تأكيد لتسجيل الامتحان؟",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "pruefung_anmeldung",
+      "level": "B1",
+      "german": "Benötigen Sie das Original, oder reicht die Kopie?",
+      "translation_en": "Do you require the original, or is a copy enough?",
+      "translation_ar": "هل تحتاجون الأصل، أم تكفي النسخة؟",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "pruefung_anmeldung",
+      "level": "B1",
+      "german": "Welcher Prüfungstermin ist noch frei?",
+      "translation_en": "Which exam date is still available?",
+      "translation_ar": "أي موعد امتحان لا يزال متاحًا؟",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "pruefung_anmeldung",
+      "level": "B2",
+      "german": "Wo genau steht die Gebühr?",
+      "translation_en": "Where exactly is the fee stated?",
+      "translation_ar": "أين يُذكر الرسم بالضبط؟",
+      "sort_order": 10
+    }
+  ],
+  "grammar": [
+    {
+      "id": "g_ausb_moechte_werden",
+      "title_ar": "الهدف المهني: Ich möchte … werden",
+      "rule_de": "Berufsziel: Ich möchte Fachfrau werden. Ich will Mechatroniker werden. werden steht am Ende.",
+      "rule_ar": "الهدف المهني: Ich möchte Fachfrau werden (أريد أن أصبح متخصصة)، Ich will Mechatroniker werden. فعل werden يذهب إلى آخر الجملة.",
+      "level": "A1",
+      "explanation_ar": "في مقابلة التدريب تصف هدفك بجملة واحدة: möchte/will + المهنة + werden في الآخر. قل want في الألمانية بقوة أقل من الإنجليزية: möchte ألبق للمقابلات.",
+      "example_de": "Ich möchte Kfz-Mechatronikerin werden.",
+      "example_ar": "أريد أن أصبح ميكانيكية سيارات."
+    },
+    {
+      "id": "g_ausb_ich_muss_noch",
+      "title_ar": "الالتزام اليومي: muss + مصدر",
+      "rule_de": "Pflichten: Ich muss jeden Tag ins Berichtsheft schreiben. Du musst pünktlich sein. Der Infinitiv steht am Ende.",
+      "rule_ar": "الالتزامات: Ich muss … schreiben (يجب أن أكتب)، Du musst pünktlich sein (يجب أن تكون منضبطًا). المصدر في آخر الجملة بعد الفعل الناقص.",
+      "level": "A1",
+      "explanation_ar": "فعل muss يعبّر عن التزام حقيقي في التدريب: كتابة التقارير، الالتزام بالوقت. الفعل الناقص في الموضع الثاني والمصدر في الآخر — ترتيب ثابت احفظه.",
+      "example_de": "Ich muss vor der Prüfung viel üben.",
+      "example_ar": "يجب أن أتدرب كثيرًا قبل الامتحان."
+    },
+    {
+      "id": "g_ausb_wann_beginnt",
+      "title_ar": "المواعيد: Wann beginnt …?",
+      "rule_de": "Zeitfragen: Wann beginnt die Ausbildung? Wann endet die Berufsschule? Wann ist die Prüfung? Antwort mit Zeitangabe an Position 1 oder nach dem Verb.",
+      "rule_ar": "أسئلة الوقت: Wann beginnt die Ausbildung? (متى يبدأ التدريب؟) Wann ist die Prüfung? (متى الامتحان؟) والجواب يبدأ بظرف الزمن أو يأتي بعده.",
+      "level": "A1",
+      "explanation_ar": "أسئلة Wann هي أكثر ما تحتاجه في أول أسبوع: مواعيد الورشة، المدرسة، الامتحان. ظرف الزمن يمكن أن يبدأ الجملة، وعندئذ يأتي الفعل ثانيًا.",
+      "example_de": "Wann beginnt die Mittagspause?",
+      "example_ar": "متى تبدأ استراحة الغداء؟"
+    },
+    {
+      "id": "g_ausb_perfekt_bestanden",
+      "title_ar": "نجاح بالماضي: habe … bestanden",
+      "rule_de": "Erfolge im Perfekt: Ich habe die Prüfung bestanden. Ich habe die Zwischenprüfung geschafft. haben + Partizip am Ende.",
+      "rule_ar": "النجاحات بزمن الماضي المركب: Ich habe die Prüfung bestanden (نجحت في الامتحان). haben + اسم المفعول في آخر الجملة.",
+      "level": "A2",
+      "explanation_ar": "تحكي نجاحك بالـ Perfekt: haben في الموضع الثاني واسم المفعول بـ ge- في الآخر. لاحظ bestanden شاذّة (bestehen — bestand — bestanden) لكن الموضع نفسه.",
+      "example_de": "Ich habe die Zwischenprüfung im ersten Versuch bestanden.",
+      "example_ar": "نجحت في الامتحان النصفي من المحاولة الأولى."
+    },
+    {
+      "id": "g_ausb_nach_im",
+      "title_ar": "الترتيب الزمني: nach / im",
+      "rule_de": "Vorzeitigkeit und Jahre: Nach der Prüfung feiern wir. Im ersten Jahr lerne ich die Grundlagen. im + Dativ, nach + Dativ.",
+      "rule_ar": "الترتيب الزمني والسنوات: Nach der Prüfung (بعد الامتحان)، Im ersten Jahr (في السنة الأولى). حرفا الجر يطلبان المجرور.",
+      "level": "A2",
+      "explanation_ar": "خطأ شائع: قول nach die Prüfung. احفظ: nach و im يطلبان المجرور — nach der Prüfung، im zweiten Jahr. هكذا تصف خطة التدريب بمراحله.",
+      "example_de": "Nach der Berufsschule fahre ich direkt in den Betrieb.",
+      "example_ar": "بعد المدرسة المهنية أذهب مباشرة إلى المصنع."
+    },
+    {
+      "id": "g_ausb_freu_mich_auf",
+      "title_ar": "التطلع: sich freuen auf + منصوب",
+      "rule_de": "Vorfreude: Ich freue mich auf die Prüfung. Wir freuen uns auf die Ferien. auf + Akkusativ bei Richtung/Zukunft.",
+      "rule_ar": "الشوق لما هو قادم: Ich freue mich auf die Prüfung (أتطلع للامتحان). فعل انعكاسي + auf + المنصوب للأشياء القادمة.",
+      "level": "B1",
+      "explanation_ar": "فرّق بين: sich freuen auf (لتوقع المستقبل) و sich freuen über (لشيء حصل الآن أو حصل). في المقابلة يظهر الحماس بهذا الفعل: Ich freue mich auf die Ausbildung.",
+      "example_de": "Ich freue mich auf den ersten Tag im Betrieb.",
+      "example_ar": "أتطلع لأول يوم في المصنع."
+    },
+    {
+      "id": "g_ausb_wenn_dann",
+      "title_ar": "الشرط: wenn …, dann …",
+      "rule_de": "Bedingung: Wenn ich bestehe, feiern wir. Wenn du Hilfe brauchst, frag mich. Das Verb steht am Ende des wenn-Satzes.",
+      "rule_ar": "الشرط: Wenn ich bestehe, feiern wir (إن نجحت نحتفل). الفعل يذهب إلى آخر جملة الشرط بعد wenn.",
+      "level": "B1",
+      "explanation_ar": "wenn لا تحرك الفعل إلى الثاني بل تدفعه لآخر جملتها، والجملة الرئيسية تبدأ بالفعل. هذا الترتيب يحتاج تدريبًا — وهو جوهر خطط الامتحان.",
+      "example_de": "Wenn ich unsicher bin, frage ich meinen Ausbilder.",
+      "example_ar": "إن لم أكن متأكدة أسأل مسؤول تدريبي."
+    },
+    {
+      "id": "g_ausb_falls_vorsichtig",
+      "title_ar": "الاحتياط: falls + Konjunktiv",
+      "rule_de": "Vorsichtig planen: Falls ich nicht bestehen sollte, wiederhole ich den Teil. Falls es Probleme gibt, rufen Sie mich an.",
+      "rule_ar": "التخطيط بحذر: Falls ich nicht bestehen sollte (إن لم أنجح — احتمالًا)، Falls es Probleme gibt (إن ظهرت مشكلات). falls أتحفظ من wenn.",
+      "level": "B2",
+      "explanation_ar": "falls تعني «في حال حدث احتمال» وتُظهر تفكيرًا ناضجًا في المقابلة. مع sollte تصبح الاحتمالية مؤدبة وراقية — صيغة يحبها المحاورون.",
+      "example_de": "Falls der Prüfungstermin kollidiert, melde ich mich früh.",
+      "example_ar": "إن تعارض موعد الامتحان، سأسجل مبكرًا."
+    },
+    {
+      "id": "g_ausb_passiv_pruefung",
+      "title_ar": "المبني للمجهول في الامتحان",
+      "rule_de": "Passiv: Die Prüfung wird abgenommen. Die Aufgaben werden verteilt. Das Ergebnis wird geschrieben.",
+      "rule_ar": "المبني للمجهول: Die Prüfung wird abgenommen (يُؤدى الامتحان)، Die Aufgaben werden verteilt (تُوزَّع المهمات). werden + اسم المفعول في الآخر.",
+      "level": "B2",
+      "explanation_ar": "في يوم الامتحان يصف المجهول الإجراءات دون ذكر من يفعلها: wird/werden + اسم المفعول ge- في النهاية. هذا أسلوب اللغة الرسمية التي ستسمعها في اللجنة.",
+      "example_de": "Vor der Prüfung werden die Namen aufgerufen.",
+      "example_ar": "قبل الامتحان تُنادى الأسماء."
+    },
+    {
+      "id": "g_ausb_haette_frei",
+      "title_ar": "الطلب المهذب: hätten / könnten",
+      "rule_de": "Höflich im Büro: Hätten Sie einen Termin frei? Könnten Sie das Formular prüfen? Konjunktiv II macht den Ton weich.",
+      "rule_ar": "اللباقة في المكتب: Hätten Sie einen Termin frei? (هل لديكم موعد متاح؟) Könnten Sie das prüfen? (هل يمكنكم التحقق؟) صيغة Konjunktiv II تلطّف النبرة.",
+      "level": "B1",
+      "explanation_ar": "في مكتب التسجيل ابقَ على Sie واستخدم Konjunktiv II: hätten، könnten، dürfte. الطلب المهذب يفتح الأبواب أسرع من الأمر المباشر.",
+      "example_de": "Könnten Sie mir den Prüfungstermin bestätigen?",
+      "example_ar": "هل يمكنكم تأكيد موعد الامتحان لي؟"
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import type {
   ReviewItemEntity,
   SkillPracticeEntity,
   SyncQueueEntity,
+  MemoryPatternEntity,
 } from '@/types/models';
 
 class KatzuDatabase extends Dexie {
@@ -30,6 +31,7 @@ class KatzuDatabase extends Dexie {
   sync_queue!: EntityTable<SyncQueueEntity, 'id'>;
   review_items!: EntityTable<ReviewItemEntity, 'id'>;
   skill_practice!: EntityTable<SkillPracticeEntity, 'id'>;
+  memory_patterns!: EntityTable<MemoryPatternEntity, 'patternId'>;
 
   constructor() {
     super('KatzuWebDB');
@@ -125,6 +127,28 @@ class KatzuDatabase extends Dexie {
       sync_queue: '++id, createdAt, nextRetryAt',
       review_items: '++id, userId, dueAt, kind, refId, [kind+refId]',
       skill_practice: '++id, userId, skill, at',
+    });
+
+    // v6 (V21 Phase 3): the long-memory store. Additive — one new table and one
+    // new index; no existing row is read or rewritten by the upgrade, so a v5
+    // database keeps every mistake, review item and session it ever had. The
+    // pattern rows are DERIVED views (rebuilt from sources, never authoritative),
+    // so even a wipe loses nothing: the next rebuild reconstructs them.
+    this.version(6).stores({
+      scenarios: 'id, category',
+      starter_phrases: 'id, scenario_id, level, sort_order',
+      vocabulary: 'id, level, topic, part_of_speech',
+      grammar: 'id, level',
+      saved_words: 'wordId, savedAt',
+      users: 'id, email',
+      redeemed_codes: 'code, redeemedAt',
+      sessions: 'id, scenarioId, cefrLevel, timestamp, updatedAt',
+      scenario_training: 'scenarioId, userId, updatedAt',
+      mistakes: '++id, userId, scenarioId, syncId, timestamp, wasHintUsed, updatedAt',
+      sync_queue: '++id, createdAt, nextRetryAt',
+      review_items: '++id, userId, dueAt, kind, refId, [kind+refId]',
+      skill_practice: '++id, userId, skill, at',
+      memory_patterns: 'patternId, kind, updatedAt',
     });
   }
 }
