@@ -41,6 +41,13 @@ export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
   station_uebergabe: ['g_med_nachdem_vorzeitigkeit', 'g_med_passiv_verfahren', 'g_med_konjunktiv_hoeflich', 'g_med_modal_vermutung'],
   kollegen_smalltalk: ['g_med_wfragen_sprechstunde', 'g_med_konjunktiv_hoeflich'],
   anerkennung_gespraech: ['g_med_passiv_verfahren', 'g_med_konjunktiv_hoeflich'],
+  // Tech careers module (docs/content/curriculum-interview-tech.json, V21 Phase 5).
+  interview_it_fachkraft: ['g_tech_perfekt_arbeit', 'g_tech_seit_zeit', 'g_tech_modal_vermutung_tech'],
+  interview_entwickler: ['g_tech_perfekt_arbeit', 'g_tech_seit_zeit', 'g_tech_relativsaetze_technik'],
+  daily_standup: ['g_tech_du_im_team', 'g_tech_perfekt_arbeit', 'g_tech_trennbare_verben'],
+  support_ticket: ['g_tech_wfragen_support', 'g_tech_hoeflich_kunde', 'g_tech_passiv_tech', 'g_tech_fuer_zweck'],
+  tech_kuechenpause: ['g_tech_du_im_team', 'g_tech_trennbare_verben', 'g_tech_fuer_zweck'],
+  anerkennung_it_zertifikate: ['g_tech_passiv_tech', 'g_tech_hoeflich_kunde'],
   // Offline fixtures (src/lib/db/katzuDb.ts). The four rows they point at live in
   // docs/content/supplements/grammar-basics.json so production D1 has them too;
   // tests/grammarReachability.test.ts asserts the two copies are identical and

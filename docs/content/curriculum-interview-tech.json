@@ -1,0 +1,1351 @@
+{
+  "_note": "V21 Phase 5 draft — authored by the coding agent (Buffy), reviewed through the Content Gate in docs/content/review-curriculum-interview-tech.md.",
+  "meta": {
+    "track": "المسار المهني: تقنية المعلومات",
+    "trackDe": "Berufspfad: Informationstechnik",
+    "module": 5,
+    "moduleTitleAr": "مقابلات وحياة العمل في التقنية",
+    "moduleTitleDe": "IT-Vorstellungsgespräche und Arbeitsalltag",
+    "primaryLevel": "B1",
+    "version": "1.0.0",
+    "status": "draft",
+    "authoredAt": "2026-09-30",
+    "designedFor": "للمتقدمين إلى وظائف تقنية في ألمانيا: يجيبون عن أسئلة مقابلة عمل تقنية بجمل قصيرة واضحة، يشرحون خبرتهم ولغات البرمجة التي يستخدمونها، يقدمون تقريرًا قصيرًا في اجتماع الفريق اليومي، يتعاملون مع عميل بخطأ تقني بهدوء، يسترخون مع الزملاء في استراحة المطبخ، ويعترفون بشهاداتهم التقنية المكتسبة خارج ألمانيا.",
+    "topicContract": "Each scenario's `category` resolves through SCENARIO_CATEGORY_TO_TOPIC: work → work (both interviews, the daily standup and the support desk), daily_life → food (the tech kitchen pause), official → documents (the certificate recognition office). The four scenarios in `work` share one pool like the medical module's split pools; every vocabulary row's topic equals the pool its scenario resolves to.",
+    "knownLimitations": [
+      "Model answers are two-level examples, not scripts: technical interview loops in Germany include live coding and take-home tasks that a conversation module cannot simulate.",
+      "Salary, visa and contract details stay out of scope; the recognition scene teaches conversation shapes only, no procedural facts.",
+      "The daily standup is simplified to a three-sentence report (yesterday, today, blockers); real ceremonies include estimation and board tools the app does not model.",
+      "Product names, employers and technologies are generic on purpose so rows never age into wrong facts."
+    ]
+  },
+  "review": {
+    "status": "approved",
+    "reviewedBy": "AI self-review — Freebuff coding agent (Buffy), no human review",
+    "reviewedAt": "2026-09-30T09:02:28Z",
+    "checklist": [
+      "Every article (der/die/das) checked; nouns carry article and plural in their own fields.",
+      "du/Sie register: Sie in both interviews, the support desk and the office; du in the kitchen pause AND in the daily standup, because German teams use du there — the rule g_tech_du_im_team teaches exactly this split.",
+      "No technology names as facts; rows describe generic systems so nothing ages into a wrong claim.",
+      "No fees, deadlines, visa or procedural claims as facts; the recognition scene stays conversational.",
+      "Arabic natural MSA; no German transliterations; no السلام عليكم for secular greetings.",
+      "Every pool word appears verbatim in a starter phrase or opener of its own topic; no (topic, german, level) key taken by another draft."
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "interview_it_fachkraft",
+      "title_de": "Vorstellungsgespräch: IT-Fachkraft",
+      "title_ar": "مقابلة عمل: أخصائي تقنية معلومات",
+      "ai_persona": "Teamleiter katze",
+      "category": "work",
+      "icon": "briefcase",
+      "initial_message_a0": "Guten Tag! Ich bin Herr Vogel. Bitte nehmen Sie Platz.",
+      "initial_message_a1": "Guten Tag, ich bin Herr Vogel, der Teamleiter. Schön, dass Sie da sind. Erzählen Sie zuerst: Wie heißen Sie, und was machen Sie gern?",
+      "initial_message_a2": "Guten Tag, Herr Vogel hier, Teamleiter der IT-Abteilung. Nehmen Sie bitte Platz. Erzählen Sie mir zuerst: Woher kommen Sie, und was haben Sie vorher gemacht?",
+      "initial_message_b1": "Guten Tag, ich bin Herr Vogel, der Teamleiter, und führe heute das Gespräch mit Ihnen. Erzählen Sie mir zuerst etwas über Ihren Weg zur IT — und vorweg schon einmal: Warum wollen Sie bei uns arbeiten?",
+      "initial_message_b2": "Guten Tag, schön, dass Sie sich bei uns beworben haben — Ihr Profil war interessant. Ich bin Herr Vogel, der Teamleiter. Erzählen Sie mir zuerst, wie Sie zur IT gekommen sind. Eine Frage vorweg: Viele Bewerber nennen sich lösungsorientiert — was heißt das bei Ihnen ganz konkret?"
+    },
+    {
+      "id": "interview_entwickler",
+      "title_de": "Vorstellungsgespräch: Softwareentwicklerin",
+      "title_ar": "مقابلة عمل: مطوّرة برمجيات",
+      "ai_persona": "Chefentwickler katze",
+      "category": "work",
+      "icon": "briefcase",
+      "initial_message_a0": "Guten Tag! Ich bin Dr. Sander. Bitte nehmen Sie Platz.",
+      "initial_message_a1": "Guten Tag, ich bin Dr. Sander. Erzählen Sie: Was ist Ihr Fachgebiet?",
+      "initial_message_a2": "Guten Tag, Dr. Sander hier, Chefentwickler. Schön, dass Sie da sind. Sagen Sie mir zuerst: Was entwickeln Sie gern, und wie lange machen Sie das schon?",
+      "initial_message_b1": "Guten Tag, Dr. Sander, Chefentwickler — schön, dass Sie da sind. Erzählen Sie von einem technischen Problem, das Sie gelöst haben, und was daraus für Sie gefolgt ist.",
+      "initial_message_b2": "Guten Tag, Dr. Sander hier — ich habe Ihren Lebenslauf mit Interesse gelesen. Erzählen Sie zuerst, warum Sie genau bei uns entwickeln möchten. Und dann würde mich eine Situation interessieren, in der ein Update schiefgelaufen ist — und was sich seitdem für Sie verändert hat."
+    },
+    {
+      "id": "daily_standup",
+      "title_de": "Tägliches Team-Treffen: kurzer Bericht",
+      "title_ar": "اجتماع الفريق اليومي: تقرير قصير",
+      "ai_persona": "Scrum-Master katze",
+      "category": "work",
+      "icon": "users",
+      "initial_message_a0": "Guten Morgen! Kurz berichten, bitte.",
+      "initial_message_a1": "Guten Morgen, alle zusammen! Ich bin Pia, die Scrum-Masterin. Was hast du gestern gemacht, und was machst du heute?",
+      "initial_message_a2": "Guten Morgen! Pia hier, die Scrum-Masterin. Fangen wir an: Was hast du gestern geschafft, was machst du heute, und was blockiert dich?",
+      "initial_message_b1": "Guten Morgen, alle zusammen — kurzer Blick auf das Board vor dem Termin. Berichte bitte in drei Sätzen: Gestern, heute, Blocker. Und wenn etwas den Server betrifft, nenne es gleich.",
+      "initial_message_b2": "Guten Morgen! Ich fasse uns kurz zusammen, damit pünktlich um elf alle rauskommen. Dein Part: drei Sätze — Gestern, Heute, Blocker — und wenn deine Programmierung eine andere Stelle blockiert, sag es direkt, damit wir das Ticket umbauen können."
+    },
+    {
+      "id": "support_ticket",
+      "title_de": "Kundendienst: ein Problem am Telefon",
+      "title_ar": "خدمة العملاء: مشكلة على الهاتف",
+      "ai_persona": "Kundin Berger katze",
+      "category": "work",
+      "icon": "clipboard",
+      "initial_message_a0": "Hallo? Mein Computer geht nicht!",
+      "initial_message_a1": "Hallo, hier ist Frau Berger. Mein Computer startet nicht. Können Sie mir helfen?",
+      "initial_message_a2": "Guten Tag, Frau Berger hier. Seit heute Morgen geht mein Computer nicht mehr — ich sehe nur eine Fehlermeldung. Können Sie mir bitte weiterhelfen?",
+      "initial_message_b1": "Guten Tag, Frau Berger hier — ich arbeite von zu Hause und komme nicht weiter. Der Bildschirm bleibt schwarz, und eine Fehlermeldung kommt immer wieder. Ich habe schon neu gestartet, aber das Problem bleibt.",
+      "initial_message_b2": "Guten Tag, ich störe bestimmt — aber ich muss heute noch eine Sache fertig machen, und genau jetzt lässt mein Computer mich nicht rein. Ich habe alles versucht, was ich kenne: neu gestartet, Kabel geprüft. Die Fehlermeldung kommt trotzdem, und ich weiß nicht, was sie bedeutet."
+    },
+    {
+      "id": "tech_kuechenpause",
+      "title_de": "Pause in der Tech-Küche",
+      "title_ar": "استراحة في مطبخ شركة التقنية",
+      "ai_persona": "Kollege Jonas katze",
+      "category": "daily_life",
+      "icon": "coffee",
+      "initial_message_a0": "Hi! Pause?",
+      "initial_message_a1": "Hi, ich bin Jonas. Machst du auch eine Pause? Ich bin so hungrig.",
+      "initial_message_a2": "Hi, Jonas hier aus dem zweiten Stock. Ich mache eine Pause — willst du mitkommen? Die Kaffeemaschine unten ist übrigens kaputt.",
+      "initial_message_b1": "Hi, ich bin Jonas — wir kennen uns vom Standup, aber noch nicht richtig. Ich hole mir erst einmal Kaffee, wenn die Maschine denn läuft. Hast du eigentlich immer so wenig mit, oder kommt deine Mahlzeit später?",
+      "initial_message_b2": "Hi, Jonas hier — dann setzen wir uns mal. Sag mal, wie findest du eigentlich das Team so bisher? Und wenn du irgendwas brauchst — Besteck liegt oben im Schrank, und im Kühlschrank ist Platz, wenn du etwas mitbringen willst."
+    },
+    {
+      "id": "anerkennung_it_zertifikate",
+      "title_de": "Anerkennung: IT-Zertifikate aus dem Ausland",
+      "title_ar": "الاعتراف: شهادات تقنية من الخارج",
+      "ai_persona": "Sachbearbeiter Weber katze",
+      "category": "official",
+      "icon": "stamp",
+      "initial_message_a0": "Guten Tag. Wie kann ich helfen?",
+      "initial_message_a1": "Guten Tag, ich bin Herr Weber. Sie möchten Ihr Zertifikat anerkennen lassen? Erzählen Sie kurz.",
+      "initial_message_a2": "Guten Tag, Herr Weber hier, ich bearbeite Zeugnisse aus dem Ausland. Erzählen Sie mir: Welche Prüfung haben Sie gemacht, und wo?",
+      "initial_message_b1": "Guten Tag, Herr Weber, ich bin für die Bewertung ausländischer Qualifikationen zuständig. Nehmen Sie Platz. Sagen Sie mir bitte zuerst: Welche Ausbildung steht auf Ihren Unterlagen, und welchen Abschluss haben Sie genau?",
+      "initial_message_b2": "Guten Tag, Herr Weber hier — ich sehe, Sie haben einen Termin zur Zeugnisbewertung. Damit wir uns nicht doppelt unterhalten: Erzählen Sie mir bitte kurz, welche Zertifikate Sie haben, wo Sie sie gemacht haben, und welche Frage Sie sich dazu gestellt haben."
+    }
+  ],
+  "vocabulary": [
+    {
+      "german": "Computer",
+      "article": "der",
+      "plural": "die Computer",
+      "part_of_speech": "Noun",
+      "translation_ar": "حاسوب",
+      "translation_en": "computer",
+      "example_de": "Mein Computer ist langsam.",
+      "example_ar": "حاسوبي بطيء.",
+      "example_en": "My computer is slow.",
+      "level": "A1",
+      "topic": "work"
+    },
+    {
+      "german": "Problem",
+      "article": "das",
+      "plural": "die Probleme",
+      "part_of_speech": "Noun",
+      "translation_ar": "مشكلة",
+      "translation_en": "problem",
+      "example_de": "Das Problem ist klein.",
+      "example_ar": "المشكلة صغيرة.",
+      "example_en": "The problem is small.",
+      "level": "A1",
+      "topic": "work"
+    },
+    {
+      "german": "Termin",
+      "article": "der",
+      "plural": "die Termine",
+      "part_of_speech": "Noun",
+      "translation_ar": "موعد",
+      "translation_en": "appointment",
+      "example_de": "Der Termin ist um elf.",
+      "example_ar": "الموعد في الحادية عشرة.",
+      "example_en": "The appointment is at eleven.",
+      "level": "A1",
+      "topic": "work"
+    },
+    {
+      "german": "Server",
+      "article": "der",
+      "plural": "die Server",
+      "part_of_speech": "Noun",
+      "translation_ar": "خادم",
+      "translation_en": "server",
+      "example_de": "Der Server läuft wieder.",
+      "example_ar": "الخادم يعمل مجددًا.",
+      "example_en": "The server is running again.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Lösung",
+      "article": "die",
+      "plural": "die Lösungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "حل",
+      "translation_en": "solution",
+      "example_de": "Ich habe eine Lösung.",
+      "example_ar": "لديّ حل.",
+      "example_en": "I have a solution.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Ticket",
+      "article": "das",
+      "plural": "die Tickets",
+      "part_of_speech": "Noun",
+      "translation_ar": "تذكرة دعم",
+      "translation_en": "support ticket",
+      "example_de": "Ihr Ticket hat die Nummer acht.",
+      "example_ar": "تذكرتك لها الرقم ثمانية.",
+      "example_en": "Your ticket has number eight.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Fehlermeldung",
+      "article": "die",
+      "plural": "die Fehlermeldungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "رسالة خطأ",
+      "translation_en": "error message",
+      "example_de": "Ich sehe eine Fehlermeldung.",
+      "example_ar": "أرى رسالة خطأ.",
+      "example_en": "I see an error message.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Programmierung",
+      "article": "die",
+      "plural": "die Programmierungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "البرمجة",
+      "translation_en": "programming",
+      "example_de": "Die Programmierung ist mein Teil.",
+      "example_ar": "البرمجة هي جزئي.",
+      "example_en": "The programming is my part.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Entwickler",
+      "article": "der",
+      "plural": "die Entwickler",
+      "part_of_speech": "Noun",
+      "translation_ar": "مطوّر",
+      "translation_en": "developer",
+      "example_de": "Wir suchen einen Entwickler.",
+      "example_ar": "نبحث عن مطوّر.",
+      "example_en": "We are looking for a developer.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Entwicklung",
+      "article": "die",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "التطوير",
+      "translation_en": "development",
+      "example_de": "Die Entwicklung dauert Monate.",
+      "example_ar": "التطوير يستغرق أشهرًا.",
+      "example_en": "Development takes months.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "Kundendienst",
+      "article": "der",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "خدمة العملاء",
+      "translation_en": "customer service",
+      "example_de": "Der Kundendienst hilft schnell.",
+      "example_ar": "خدمة العملاء تساعد بسرعة.",
+      "example_en": "Customer service helps quickly.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "programmieren",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يبرمج",
+      "translation_en": "to program",
+      "example_de": "Ich programmiere jeden Tag.",
+      "example_ar": "أبرمج كل يوم.",
+      "example_en": "I program every day.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "testen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يختبر",
+      "translation_en": "to test",
+      "example_de": "Ich teste jede Änderung.",
+      "example_ar": "أختبر كل تغيير.",
+      "example_en": "I test every change.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "lösen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يحلّ",
+      "translation_en": "to solve",
+      "example_de": "Wir lösen das zusammen.",
+      "example_ar": "نحلّها معًا.",
+      "example_en": "We solve it together.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "einrichten",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يجهّز / ينشئ",
+      "translation_en": "to set up",
+      "example_de": "Ich richte den Zugang neu ein.",
+      "example_ar": "أجهّز حساب الدخول من جديد.",
+      "example_en": "I set up the access again.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "betreuen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يتابع / يخدم",
+      "translation_en": "to look after",
+      "example_de": "Ich betreue drei Server.",
+      "example_ar": "أتابع ثلاثة خوادم.",
+      "example_en": "I look after three servers.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "zuverlässig",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "موثوق",
+      "translation_en": "reliable",
+      "example_de": "Ich bin zuverlässig und pünktlich.",
+      "example_ar": "أنا موثوق ومنضبط بالوقت.",
+      "example_en": "I am reliable and punctual.",
+      "level": "B1",
+      "topic": "work"
+    },
+    {
+      "german": "lösungsorientiert",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "موجّه نحو الحلول",
+      "translation_en": "solution-oriented",
+      "example_de": "Wir arbeiten lösungsorientiert.",
+      "example_ar": "نعمل بتركيز على الحلول.",
+      "example_en": "We work in a solution-oriented way.",
+      "level": "B2",
+      "topic": "work"
+    },
+    {
+      "german": "neugierig",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "فضولي / متشوق للتعلم",
+      "translation_en": "curious",
+      "example_de": "Ich bleibe neugierig.",
+      "example_ar": "أبقى فضوليًا للتعلم.",
+      "example_en": "I stay curious.",
+      "level": "A2",
+      "topic": "work"
+    },
+    {
+      "german": "Pause",
+      "article": "die",
+      "plural": "die Pausen",
+      "part_of_speech": "Noun",
+      "translation_ar": "استراحة",
+      "translation_en": "break",
+      "example_de": "Ich mache eine Pause.",
+      "example_ar": "أأخذ استراحة.",
+      "example_en": "I take a break.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "Kaffee",
+      "article": "der",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "قهوة",
+      "translation_en": "coffee",
+      "example_de": "Ich brauche Kaffee.",
+      "example_ar": "أحتاج قهوة.",
+      "example_en": "I need coffee.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Tee",
+      "article": "der",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "شاي",
+      "translation_en": "tea",
+      "example_de": "Ich nehme lieber Tee.",
+      "example_ar": "أفضّل الشاي.",
+      "example_en": "I prefer tea.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Käse",
+      "article": "der",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "جبن",
+      "translation_en": "cheese",
+      "example_de": "Im Kühlschrank ist Käse.",
+      "example_ar": "في الثلاجة جبن.",
+      "example_en": "There is cheese in the fridge.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "Joghurt",
+      "article": "der",
+      "plural": "die Joghurts",
+      "part_of_speech": "Noun",
+      "translation_ar": "زبادي",
+      "translation_en": "yogurt",
+      "example_de": "Ich esse Joghurt.",
+      "example_ar": "آكل زباديًا.",
+      "example_en": "I eat yogurt.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "Tasse",
+      "article": "die",
+      "plural": "die Tassen",
+      "part_of_speech": "Noun",
+      "translation_ar": "فنجان",
+      "translation_en": "cup",
+      "example_de": "Meine Tasse ist sauber.",
+      "example_ar": "فنجاني نظيف.",
+      "example_en": "My cup is clean.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "Löffel",
+      "article": "der",
+      "plural": "die Löffel",
+      "part_of_speech": "Noun",
+      "translation_ar": "ملعقة",
+      "translation_en": "spoon",
+      "example_de": "Wo ist ein Löffel?",
+      "example_ar": "أين ملعقة؟",
+      "example_en": "Where is a spoon?",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "Gabel",
+      "article": "die",
+      "plural": "die Gabeln",
+      "part_of_speech": "Noun",
+      "translation_ar": "شوكة",
+      "translation_en": "fork",
+      "example_de": "Ich brauche eine Gabel.",
+      "example_ar": "أحتاج شوكة.",
+      "example_en": "I need a fork.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "Kühlschrank",
+      "article": "der",
+      "plural": "die Kühlschränke",
+      "part_of_speech": "Noun",
+      "translation_ar": "ثلاجة",
+      "translation_en": "fridge",
+      "example_de": "Der Kühlschrank ist voll.",
+      "example_ar": "الثلاجة ممتلئة.",
+      "example_en": "The fridge is full.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Kaffeemaschine",
+      "article": "die",
+      "plural": "die Kaffeemaschinen",
+      "part_of_speech": "Noun",
+      "translation_ar": "آلة قهوة",
+      "translation_en": "coffee machine",
+      "example_de": "Die Kaffeemaschine ist kaputt.",
+      "example_ar": "آلة القهوة معطّلة.",
+      "example_en": "The coffee machine is broken.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Mahlzeit",
+      "article": "die",
+      "plural": "die Mahlzeiten",
+      "part_of_speech": "Noun",
+      "translation_ar": "وجبة",
+      "translation_en": "meal",
+      "example_de": "Mittags sagt man: Mahlzeit!",
+      "example_ar": "عند الظّهيرة يُقال بين الزملاء تحية الغداء.",
+      "example_en": "At noon people say: Mahlzeit!",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Tiefkühlpizza",
+      "article": "die",
+      "plural": "die Tiefkühlpizzen",
+      "part_of_speech": "Noun",
+      "translation_ar": "بيتزا مجمدة",
+      "translation_en": "frozen pizza",
+      "example_de": "Meine Tiefkühlpizza ist im Gefrierfach.",
+      "example_ar": "بيتزاي المجمدة في الفريزر.",
+      "example_en": "My frozen pizza is in the freezer.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "hungrig",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "جائع",
+      "translation_en": "hungry",
+      "example_de": "Ich bin so hungrig.",
+      "example_ar": "أنا جائع جدًا.",
+      "example_en": "I am so hungry.",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "durstig",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "عطشان",
+      "translation_en": "thirsty",
+      "example_de": "Bist du durstig?",
+      "example_ar": "هل أنت عطشان؟",
+      "example_en": "Are you thirsty?",
+      "level": "A1",
+      "topic": "food"
+    },
+    {
+      "german": "aufwärmen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يسخّن",
+      "translation_en": "to warm up",
+      "example_de": "Ich wärme die Pizza auf.",
+      "example_ar": "أسخّن البيتزا.",
+      "example_en": "I warm up the pizza.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "spülen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يغسل الأواني",
+      "translation_en": "to wash up",
+      "example_de": "Ich spüle meine Tasse selber.",
+      "example_ar": "أغسل فنجاني بنفسي.",
+      "example_en": "I wash my own cup.",
+      "level": "A2",
+      "topic": "food"
+    },
+    {
+      "german": "Zertifikat",
+      "article": "das",
+      "plural": "die Zertifikate",
+      "part_of_speech": "Noun",
+      "translation_ar": "شهادة",
+      "translation_en": "certificate",
+      "example_de": "Mein Zertifikat ist zwei Jahre alt.",
+      "example_ar": "شهادتي عمرها سنتان.",
+      "example_en": "My certificate is two years old.",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "Prüfung",
+      "article": "die",
+      "plural": "die Prüfungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "امتحان",
+      "translation_en": "exam",
+      "example_de": "Die Prüfung war schwer.",
+      "example_ar": "كان الامتحان صعبًا.",
+      "example_en": "The exam was hard.",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "Ergebnis",
+      "article": "das",
+      "plural": "die Ergebnisse",
+      "part_of_speech": "Noun",
+      "translation_ar": "نتيجة",
+      "translation_en": "result",
+      "example_de": "Das Ergebnis kommt per Post.",
+      "example_ar": "النتيجة تصل بالبريد.",
+      "example_en": "The result arrives by post.",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "Note",
+      "article": "die",
+      "plural": "die Noten",
+      "part_of_speech": "Noun",
+      "translation_ar": "علامة",
+      "translation_en": "grade",
+      "example_de": "Ich habe die Note zwei.",
+      "example_ar": "حصلت على العلامة الثانية.",
+      "example_en": "I got grade two.",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "Kurs",
+      "article": "der",
+      "plural": "die Kurse",
+      "part_of_speech": "Noun",
+      "translation_ar": "دورة",
+      "translation_en": "course",
+      "example_de": "Der Kurs dauert drei Monate.",
+      "example_ar": "الدورة تستغرق ثلاثة أشهر.",
+      "example_en": "The course lasts three months.",
+      "level": "A1",
+      "topic": "documents"
+    },
+    {
+      "german": "Formular",
+      "article": "das",
+      "plural": "die Formulare",
+      "part_of_speech": "Noun",
+      "translation_ar": "استمارة",
+      "translation_en": "form",
+      "example_de": "Welches Formular brauche ich?",
+      "example_ar": "أي استمارة أحتاج؟",
+      "example_en": "Which form do I need?",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "gültig",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Adjective",
+      "translation_ar": "صالح",
+      "translation_en": "valid",
+      "example_de": "Ist mein Zertifikat hier gültig?",
+      "example_ar": "هل شهادتي صالحة هنا؟",
+      "example_en": "Is my certificate valid here?",
+      "level": "A2",
+      "topic": "documents"
+    },
+    {
+      "german": "Nachweis",
+      "article": "der",
+      "plural": "die Nachweise",
+      "part_of_speech": "Noun",
+      "translation_ar": "إثبات / وثيقة إثبات",
+      "translation_en": "proof, evidence document",
+      "example_de": "Jeder Nachweis braucht eine Kopie.",
+      "example_ar": "كل وثيقة إثبات تحتاج نسخة.",
+      "example_en": "Every proof document needs a copy.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Bescheinigung",
+      "article": "die",
+      "plural": "die Bescheinigungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "شهادة رسمية / إفادة",
+      "translation_en": "official confirmation",
+      "example_de": "Die Bescheinigung kommt vom Arbeitgeber.",
+      "example_ar": "الإفادة تأتي من جهة العمل.",
+      "example_en": "The confirmation comes from the employer.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Schulung",
+      "article": "die",
+      "plural": "die Schulungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "تدريب",
+      "translation_en": "training",
+      "example_de": "Die Schulung war bei einem privaten Anbieter.",
+      "example_ar": "كان التدريب لدى جهة خاصة.",
+      "example_en": "The training was with a private provider.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Fortbildung",
+      "article": "die",
+      "plural": "die Fortbildungen",
+      "part_of_speech": "Noun",
+      "translation_ar": "تطوير مهني",
+      "translation_en": "further training",
+      "example_de": "Eine Fortbildung ergänzt mein Diplom.",
+      "example_ar": "التطوير المهني يكمّل دبلومي.",
+      "example_en": "Further training complements my diploma.",
+      "level": "B1",
+      "topic": "documents"
+    },
+    {
+      "german": "Gültigkeit",
+      "article": "die",
+      "plural": "",
+      "part_of_speech": "Noun",
+      "translation_ar": "صلاحية",
+      "translation_en": "validity",
+      "example_de": "Die Gültigkeit steht im Brief.",
+      "example_ar": "الصلاحية مذكورة في الرسالة.",
+      "example_en": "The validity is stated in the letter.",
+      "level": "B2",
+      "topic": "documents"
+    },
+    {
+      "german": "anerkennen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يعترف بـ",
+      "translation_en": "to recognize",
+      "example_de": "Sie erkennen mein Zertifikat an.",
+      "example_ar": "هم يعترفون بشهادتي.",
+      "example_en": "They recognize my certificate.",
+      "level": "B2",
+      "topic": "documents"
+    },
+    {
+      "german": "gleichstellen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يعادل (شهادة)",
+      "translation_en": "to treat as equivalent",
+      "example_de": "Man kann das Diplom gleichstellen.",
+      "example_ar": "يمكن معادلة الدبلوم.",
+      "example_en": "The diploma can be treated as equivalent.",
+      "level": "B2",
+      "topic": "documents"
+    },
+    {
+      "german": "beglaubigen",
+      "article": "",
+      "plural": "",
+      "part_of_speech": "Verb",
+      "translation_ar": "يوثّق رسميًا",
+      "translation_en": "to certify (a copy)",
+      "example_de": "Die Kopie muss beglaubigt sein.",
+      "example_ar": "يجب أن تكون النسخة موثقة رسميًا.",
+      "example_en": "The copy must be certified.",
+      "level": "B2",
+      "topic": "documents"
+    }
+  ],
+  "starter_phrases": [
+    {
+      "scenario_id": "interview_it_fachkraft",
+      "level": "A1",
+      "german": "Guten Tag, ich bin Tariq Haddad.",
+      "translation_en": "Good day, I am Tariq Haddad.",
+      "translation_ar": "نهارك سعيد، أنا طارق حداد.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "interview_it_fachkraft",
+      "level": "A2",
+      "german": "Ich habe fünf Jahre als IT-Fachkraft gearbeitet.",
+      "translation_en": "I worked for five years as an IT specialist.",
+      "translation_ar": "عملت خمس سنوات أخصائي تقنية معلومات.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "interview_it_fachkraft",
+      "level": "A2",
+      "german": "Computer waren immer mein Hobby.",
+      "translation_en": "Computers were always my hobby.",
+      "translation_ar": "كانت الحواسيب هوايتي دائمًا.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "interview_it_fachkraft",
+      "level": "A2",
+      "german": "Ich programmiere seit der Schule.",
+      "translation_en": "I have been programming since school.",
+      "translation_ar": "أبرمج منذ أيام المدرسة.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "interview_it_fachkraft",
+      "level": "A2",
+      "german": "Ich richte neue Geräte für meine Familie ein.",
+      "translation_en": "I set up new devices for my family.",
+      "translation_ar": "أجهّز الأجهزة الجديدة لعائلتي.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "interview_it_fachkraft",
+      "level": "B1",
+      "german": "Ich bin zuverlässig und teste meine Arbeit doppelt.",
+      "translation_en": "I am reliable and test my work twice.",
+      "translation_ar": "أنا موثوق وأختبر عملي مرتين.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "interview_it_fachkraft",
+      "level": "B1",
+      "german": "Ich arbeite gern im Kundendienst, weil ich Probleme lösen will.",
+      "translation_en": "I like working in customer service because I want to solve problems.",
+      "translation_ar": "أحب العمل في خدمة العملاء لأنني أريد حل المشكلات.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "interview_it_fachkraft",
+      "level": "B1",
+      "german": "Ich lerne schnell und bleibe neugierig.",
+      "translation_en": "I learn quickly and stay curious.",
+      "translation_ar": "أتعلم بسرعة وأبقى فضوليًا للتعلم.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "interview_it_fachkraft",
+      "level": "B2",
+      "german": "Ich arbeite lösungsorientiert: erst verstehen, dann handeln.",
+      "translation_en": "I work in a solution-oriented way: first understand, then act.",
+      "translation_ar": "أعمل بتركيز على الحلول: أفهم أولًا، ثم أتصرف.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "interview_it_fachkraft",
+      "level": "B1",
+      "german": "Bei meinem letzten Arbeitgeber habe ich drei Server betreut.",
+      "translation_en": "At my last employer I looked after three servers.",
+      "translation_ar": "في عملي السابق كنت أتابع ثلاثة خوادم.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "interview_entwickler",
+      "level": "A1",
+      "german": "Guten Tag, ich bin Layla Mansour.",
+      "translation_en": "Good day, I am Layla Mansour.",
+      "translation_ar": "نهارك سعيد، أنا ليلى منصور.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "interview_entwickler",
+      "level": "A2",
+      "german": "Mein Fachgebiet ist die Webentwicklung.",
+      "translation_en": "My field is web development.",
+      "translation_ar": "تخصصي هو تطوير الويب.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "interview_entwickler",
+      "level": "A2",
+      "german": "Ich programmiere seit der Uni jeden Tag.",
+      "translation_en": "I have been programming every day since university.",
+      "translation_ar": "أبرمج كل يوم منذ الجامعة.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "interview_entwickler",
+      "level": "B1",
+      "german": "Ich arbeite strukturiert und halte jeden Termin ein.",
+      "translation_en": "I work in a structured way and keep every appointment.",
+      "translation_ar": "أعمل بمنهجية وألتزم بكل موعد.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "interview_entwickler",
+      "level": "B1",
+      "german": "Ich löse Probleme am liebsten im Gespräch mit dem Team.",
+      "translation_en": "I prefer solving problems in a conversation with the team.",
+      "translation_ar": "أفضّل حل المشكلات بالحديث مع الفريق.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "interview_entwickler",
+      "level": "B1",
+      "german": "Vier Jahre lang habe ich Benutzeroberflächen programmiert.",
+      "translation_en": "For four years I programmed user interfaces.",
+      "translation_ar": "برمجت واجهات المستخدم لمدة أربع سنوات.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "interview_entwickler",
+      "level": "B1",
+      "german": "Die Stelle interessiert mich, weil Sie große Projekte entwickeln.",
+      "translation_en": "The position interests me because you develop large projects.",
+      "translation_ar": "تثير هذه الوظيفة اهتمامي لأنكم تطورون مشاريع كبيرة.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "interview_entwickler",
+      "level": "B2",
+      "german": "Einmal habe ich ein Update zu früh veröffentlicht — das war mein Fehler.",
+      "translation_en": "Once I released an update too early — that was my mistake.",
+      "translation_ar": "مرة أطلقت تحديثًا قبل وقت المناسب — كان هذا خطئي.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "interview_entwickler",
+      "level": "B2",
+      "german": "Seitdem teste ich jede Änderung zuerst auf dem Server.",
+      "translation_en": "Since then I test every change on the server first.",
+      "translation_ar": "منذ ذلك الحين أختبر كل تغيير على الخادم أولًا.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "interview_entwickler",
+      "level": "B2",
+      "german": "Programmieren ist für mich Handwerk: Ich lerne jeden Monat etwas Neues.",
+      "translation_en": "Programming is a craft to me: I learn something new every month.",
+      "translation_ar": "البرمجة بالنسبة لي حرفة: أتعلم شيئًا جديدًا كل شهر.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "daily_standup",
+      "level": "A1",
+      "german": "Guten Morgen, alle zusammen! Ich fange an.",
+      "translation_en": "Good morning, everyone! I will start.",
+      "translation_ar": "صباح الخير جميعًا! سأبدأ أنا.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "daily_standup",
+      "level": "A2",
+      "german": "Gestern habe ich am Login-Problem gearbeitet.",
+      "translation_en": "Yesterday I worked on the login problem.",
+      "translation_ar": "أمس عملت على مشكلة تسجيل الدخول.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "daily_standup",
+      "level": "A2",
+      "german": "Heute teste ich die neue Version.",
+      "translation_en": "Today I am testing the new version.",
+      "translation_ar": "اليوم أختبر النسخة الجديدة.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "daily_standup",
+      "level": "A2",
+      "german": "Ich brauche noch einen Tag für die Lösung.",
+      "translation_en": "I still need one more day for the solution.",
+      "translation_ar": "أحتاج يومًا إضافيًا للحل.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "daily_standup",
+      "level": "A2",
+      "german": "Der Server läuft wieder stabil.",
+      "translation_en": "The server is running stably again.",
+      "translation_ar": "الخادم يعمل بثبات من جديد.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "daily_standup",
+      "level": "A2",
+      "german": "Ich mache die Programmierung, Jonas macht das Design.",
+      "translation_en": "I do the programming, Jonas does the design.",
+      "translation_ar": "أنا أتولى البرمجة ويوناس يتولى التصميم.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "daily_standup",
+      "level": "B1",
+      "german": "Zur Fehlermeldung von gestern: Sie kam vom alten Modul.",
+      "translation_en": "About yesterday's error message: it came from the old module.",
+      "translation_ar": "بخصوص رسالة الخطأ أمس: جاءت من الوحدة القديمة.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "daily_standup",
+      "level": "B1",
+      "german": "Danach übernehme ich das Ticket von Frau Berger.",
+      "translation_en": "After that I take over Ms. Berger's ticket.",
+      "translation_ar": "بعد ذلك أتولى تذكرة السيدة برغر.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "daily_standup",
+      "level": "B1",
+      "german": "Ich halte meinen Teil vor dem Termin um elf kurz.",
+      "translation_en": "I will keep my part short before the eleven o'clock appointment.",
+      "translation_ar": "سأُبقي جزئي قصيرًا قبل موعد الحادية عشرة.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "daily_standup",
+      "level": "B2",
+      "german": "Wenn nichts dazwischenkommt, liefere ich die Lösung heute Nachmittag.",
+      "translation_en": "If nothing gets in the way, I will deliver the solution this afternoon.",
+      "translation_ar": "إذا لم يطرأ شيء، سأسلّم الحل بعد الظهر اليوم.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "support_ticket",
+      "level": "A1",
+      "german": "Kundendienst, mein Name ist Omar. Wie kann ich helfen?",
+      "translation_en": "Customer service, my name is Omar. How can I help?",
+      "translation_ar": "خدمة العملاء، اسمي عمر. كيف أستطيع المساعدة؟",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "support_ticket",
+      "level": "A2",
+      "german": "Was funktioniert nicht mehr?",
+      "translation_en": "What is no longer working?",
+      "translation_ar": "ما الذي توقف عن العمل؟",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "support_ticket",
+      "level": "A2",
+      "german": "Sehen Sie eine Fehlermeldung auf dem Bildschirm?",
+      "translation_en": "Do you see an error message on the screen?",
+      "translation_ar": "هل ترى رسالة خطأ على الشاشة؟",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "support_ticket",
+      "level": "A2",
+      "german": "Bitte starten Sie den Computer einmal neu.",
+      "translation_en": "Please restart the computer once.",
+      "translation_ar": "يُرجى إعادة تشغيل الحاسوب مرة واحدة.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "support_ticket",
+      "level": "A2",
+      "german": "Ich helfe Ihnen beim Einrichten des Zugangs.",
+      "translation_en": "I will help you with setting up the access.",
+      "translation_ar": "سأساعدك في تجهيز حساب الدخول.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "support_ticket",
+      "level": "B1",
+      "german": "Das Problem ist bekannt, wir arbeiten an der Lösung.",
+      "translation_en": "The problem is known, we are working on the solution.",
+      "translation_ar": "المشكلة معروفة، ونعمل على الحل.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "support_ticket",
+      "level": "B1",
+      "german": "Ihr Ticket hat die Nummer acht und bleibt offen, bis alles läuft.",
+      "translation_en": "Your ticket has number eight and stays open until everything works.",
+      "translation_ar": "تذكرتك لها الرقم ثمانية وتبقى مفتوحة حتى يعمل كل شيء.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "support_ticket",
+      "level": "B1",
+      "german": "Der Techniker kommt morgen am Vormittag — passt Ihnen der Termin?",
+      "translation_en": "The technician comes tomorrow morning — does the appointment suit you?",
+      "translation_ar": "يأتي الفني غدًا في الصباح — هل يناسبك هذا الموعد؟",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "support_ticket",
+      "level": "B1",
+      "german": "Ich betreue Ihren Fall bis zum Ende.",
+      "translation_en": "I will look after your case until the end.",
+      "translation_ar": "سأتابع قضيتك حتى النهاية.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "support_ticket",
+      "level": "A2",
+      "german": "Hat alles geklappt, oder gibt es noch Fragen?",
+      "translation_en": "Did everything work out, or are there still questions?",
+      "translation_ar": "هل سار كل شيء بنجاح، أم تبقى أسئلة؟",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "tech_kuechenpause",
+      "level": "A1",
+      "german": "Hi, machst du auch eine Pause?",
+      "translation_en": "Hi, are you taking a break too?",
+      "translation_ar": "مرحبًا، هل تأخذ استراحة أيضًا؟",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "tech_kuechenpause",
+      "level": "A1",
+      "german": "Ich bin so hungrig.",
+      "translation_en": "I am so hungry.",
+      "translation_ar": "أنا جائع جدًا.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "tech_kuechenpause",
+      "level": "A1",
+      "german": "Und durstig bin ich auch — erst einmal Kaffee.",
+      "translation_en": "And I am thirsty too — coffee first.",
+      "translation_ar": "وأنا عطشان أيضًا — قهوة أولًا.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "tech_kuechenpause",
+      "level": "A2",
+      "german": "Die Kaffeemaschine ist wieder kaputt.",
+      "translation_en": "The coffee machine is broken again.",
+      "translation_ar": "آلة القهوة معطّلة من جديد.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "tech_kuechenpause",
+      "level": "A2",
+      "german": "Ich nehme lieber Tee.",
+      "translation_en": "I prefer tea.",
+      "translation_ar": "أفضّل الشاي.",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "tech_kuechenpause",
+      "level": "A2",
+      "german": "Ich habe Joghurt mitgebracht, aber keinen Löffel.",
+      "translation_en": "I brought yogurt but no spoon.",
+      "translation_ar": "أحضرت زباديًا لكن دون ملعقة.",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "tech_kuechenpause",
+      "level": "A2",
+      "german": "Ich brauche eine Gabel für meine Tiefkühlpizza.",
+      "translation_en": "I need a fork for my frozen pizza.",
+      "translation_ar": "أحتاج شوكة لبيتزاي المجمدة.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "tech_kuechenpause",
+      "level": "A2",
+      "german": "Ich will die Pizza kurz aufwärmen.",
+      "translation_en": "I want to warm up the pizza briefly.",
+      "translation_ar": "أريد أن أسخّن البيتزا قليلًا.",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "tech_kuechenpause",
+      "level": "B1",
+      "german": "Im Kühlschrank ist noch Käse, wenn du Hunger hast.",
+      "translation_en": "There is still cheese in the fridge if you are hungry.",
+      "translation_ar": "في الثلاجة جبن إن كنت جائعًا.",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "tech_kuechenpause",
+      "level": "B1",
+      "german": "Mahlzeit! Ich spüle meine Tasse selber, sonst stapelt sich hier alles.",
+      "translation_en": "Enjoy your meal! I wash my own cup, otherwise everything piles up here.",
+      "translation_ar": "شهية طيبة! أغسل فنجاني بنفسي، وإلا تراكم كل شيء هنا.",
+      "sort_order": 10
+    },
+    {
+      "scenario_id": "anerkennung_it_zertifikate",
+      "level": "B1",
+      "german": "Guten Tag, ich möchte meine IT-Zertifikate anerkennen lassen.",
+      "translation_en": "Good day, I would like to have my IT certificates recognized.",
+      "translation_ar": "نهارك سعيد، أريد الاعتراف بشهاداتي التقنية.",
+      "sort_order": 1
+    },
+    {
+      "scenario_id": "anerkennung_it_zertifikate",
+      "level": "A2",
+      "german": "Ich habe einen Kurs gemacht und danach eine Fortbildung.",
+      "translation_en": "I completed a course and afterwards further training.",
+      "translation_ar": "أنجزت دورة وبعدها تطويرًا مهنيًا.",
+      "sort_order": 2
+    },
+    {
+      "scenario_id": "anerkennung_it_zertifikate",
+      "level": "A2",
+      "german": "Hier ist das Ergebnis meiner Prüfung.",
+      "translation_en": "Here is the result of my exam.",
+      "translation_ar": "هذه نتيجة امتحاني.",
+      "sort_order": 3
+    },
+    {
+      "scenario_id": "anerkennung_it_zertifikate",
+      "level": "A2",
+      "german": "Ich habe die Prüfung mit der Note zwei bestanden.",
+      "translation_en": "I passed the exam with grade two.",
+      "translation_ar": "نجحت في الامتحان بعلامة الثانية.",
+      "sort_order": 4
+    },
+    {
+      "scenario_id": "anerkennung_it_zertifikate",
+      "level": "A2",
+      "german": "Ist mein Zertifikat in Deutschland gültig?",
+      "translation_en": "Is my certificate valid in Germany?",
+      "translation_ar": "هل شهادتي صالحة في ألمانيا؟",
+      "sort_order": 5
+    },
+    {
+      "scenario_id": "anerkennung_it_zertifikate",
+      "level": "B1",
+      "german": "Welche Formulare und Bescheinigungen brauchen Sie von mir?",
+      "translation_en": "Which forms and confirmations do you need from me?",
+      "translation_ar": "أي استمارات وإفادات رسمية تحتاجون مني؟",
+      "sort_order": 6
+    },
+    {
+      "scenario_id": "anerkennung_it_zertifikate",
+      "level": "B1",
+      "german": "Die Schulung war bei einem privaten Anbieter.",
+      "translation_en": "The training was with a private provider.",
+      "translation_ar": "كان التدريب لدى جهة خاصة.",
+      "sort_order": 7
+    },
+    {
+      "scenario_id": "anerkennung_it_zertifikate",
+      "level": "B2",
+      "german": "Bekommt mein Nachweis eine unbegrenzte Gültigkeit?",
+      "translation_en": "Will my proof document get unlimited validity?",
+      "translation_ar": "هل تحصل وثيقة إثباتي على صلاحية غير محدودة؟",
+      "sort_order": 8
+    },
+    {
+      "scenario_id": "anerkennung_it_zertifikate",
+      "level": "B2",
+      "german": "Kann man mein Diplom aus dem Ausland gleichstellen?",
+      "translation_en": "Can my diploma from abroad be treated as equivalent?",
+      "translation_ar": "هل يمكن معادلة دبلومي من الخارج؟",
+      "sort_order": 9
+    },
+    {
+      "scenario_id": "anerkennung_it_zertifikate",
+      "level": "B2",
+      "german": "Muss ich die Kopie vom Original beglaubigen lassen?",
+      "translation_en": "Do I have to have the copy of the original certified?",
+      "translation_ar": "هل يجب أن أطلب توثيق نسخة الأصل رسميًا؟",
+      "sort_order": 10
+    }
+  ],
+  "grammar": [
+    {
+      "id": "g_tech_perfekt_arbeit",
+      "title_ar": "تقرير العمل بالماضي: Perfekt",
+      "rule_de": "Arbeitsberichte erzählt man im Perfekt: Ich habe das Problem gelöst. Ich habe den Server neu gestartet.",
+      "rule_ar": "تُروى تقارير العمل بزمن الماضي المركب Perfekt: Ich habe das Problem gelöst (حللت المشكلة)، Ich habe neu gestartet (أعدت التشغيل). الفعل المساعد haben في الموضع الثاني واسم المفعول في الآخر.",
+      "level": "A2",
+      "explanation_ar": "في اجتماع الفريق والمقابلة ستحكي ما فعلته بالـ Perfekt: haben + اسم المفعول بـ ge- في نهاية الجملة. الأفعال القابلة للانفصال تأخذ ge- في المنتصف: aufgeräumt، eingerichtet.",
+      "example_de": "Ich habe den Fehler gefunden und die Lösung getestet.",
+      "example_ar": "وجدت الخطأ واختبرت الحل."
+    },
+    {
+      "id": "g_tech_wfragen_support",
+      "title_ar": "أسئلة الدعم: W-Fragen",
+      "rule_de": "W-Frage + Verb an Position 2: Was funktioniert nicht? Seit wann ist das so? Was haben Sie schon versucht?",
+      "rule_ar": "أداة الاستفهام + الفعل في الموضع الثاني: Was funktioniert nicht? (ما الذي لا يعمل؟) Seit wann? (منذ متى؟) Was haben Sie versucht? (ماذا جرّبت؟)",
+      "level": "A1",
+      "explanation_ar": "في الدعم التقني تبدأ بسؤال قصير لتفهم المشكلة: كلمة السؤال أولًا، ثم الفعل، ثم الباقي. السؤال المحدود يوفّر وقتك ووقت العميل.",
+      "example_de": "Was genau funktioniert nicht mehr?",
+      "example_ar": "ما الذي توقف عن العمل بالضبط؟"
+    },
+    {
+      "id": "g_tech_du_im_team",
+      "title_ar": "ضمن الفريق: صيغة du",
+      "rule_de": "Im Team sagt man du: Kommst du mit? Kannst du das übernehmen? Hast du den Termin gesehen?",
+      "rule_ar": "ضمن الفريق يُستخدم du: Kommst du mit? (أتأتي معنا؟) Kannst du das übernehmen? (تستطيع تولّى هذا؟) الفعل ينتهي بـ -st مع du.",
+      "level": "A1",
+      "explanation_ar": "مع الزملاء المقربين يُستخدم du وفعلُه ينتهي بـ -st: du kommst، du kannst. في الاجتماعات الرسمية ومع العملاء تبقى على Sie. المستراحة بين الزملاء مكان du الطبيعي.",
+      "example_de": "Kannst du kurz helfen?",
+      "example_ar": "أتريد مساعدتي قليلًا؟"
+    },
+    {
+      "id": "g_tech_seit_zeit",
+      "title_ar": "المدة الزمنية: seit + Dativ",
+      "rule_de": "seit + Dativ für den Anfang: Seit fünf Jahren programmiere ich. Seit gestern läuft der Server. Ich arbeite seit 2022 in der IT.",
+      "rule_ar": "seit + المجرور للدلالة على بداية المدة: Seit fünf Jahren programmiere ich (أبرمج منذ خمس سنوات). مع seit يبقى الزمن المضارع بالألمانية.",
+      "level": "A2",
+      "explanation_ar": "خطأ المتحدث العربية الشائع: استخدام المضارع التام كما في الإنجليزية. بالألمانية قل: seit + نقطة البداية، والفعل يبقى مضارعًا: Seit der Schule programmiere ich.",
+      "example_de": "Seit drei Jahren teste ich Software.",
+      "example_ar": "منذ ثلاث سنوات أختبر البرمجيات."
+    },
+    {
+      "id": "g_tech_trennbare_verben",
+      "title_ar": "الأفعال القابلة للانفصال",
+      "rule_de": "Bei trennbaren Verben geht die Vorsilbe ans Ende: Ich richte den Zugang ein. Ich wärme die Pizza auf.",
+      "rule_ar": "الأفعال القابلة للانفصال: البادئة تنفصل وتذهب إلى آخر الجملة: Ich richte … ein (أجهّز)، Ich wärme … auf (أسخّن). في الـ Perfekt تأخذ ge- في المنتصف: eingerichtet.",
+      "level": "A2",
+      "explanation_ar": "أفعال مثل einrichten و aufwärmen وmitbringen تنفصل بادئتها في الجملة العادية. احفظ الفعل ببادئته دائمًا، وتذكّر: البادئة آخر كلمة في الجملة الملمومة.",
+      "example_de": "Ich richte das neue Programm für Sie ein.",
+      "example_ar": "أجهّز لك البرنامج الجديد."
+    },
+    {
+      "id": "g_tech_modal_vermutung_tech",
+      "title_ar": "الاستنتاج التقني: muss / dürfte",
+      "rule_de": "Vermutung mit Modalverb: Das muss am Server liegen. Das dürfte das Update sein. Das kann nicht der Drucker sein.",
+      "rule_ar": "الظن والاستنتاج بفعل ناقص: Das muss am Server liegen (لا بد أن السبب الخادم)، Das dürfte das Update sein (غالبًا هو التحديث)، Das kann nicht … sein (لا يمكن أن يكون).",
+      "level": "B1",
+      "explanation_ar": "الألمان يستنتجون تقنيًا بأفعال ناقصة: muss للاستنتاج القوي، dürfte للاستنتاج المرجّح، kann nicht للنفي القوي. الفعل الناقص في الموضع الثاني والمصدر في الآخر.",
+      "example_de": "Das muss an der alten Version liegen.",
+      "example_ar": "لا بد أن السبب هو النسخة القديمة."
+    },
+    {
+      "id": "g_tech_hoeflich_kunde",
+      "title_ar": "اللباقة مع العميل",
+      "rule_de": "Höflich am Telefon: Könnten Sie bitte …? Ich schaue es mir gleich an. Einen Moment, bitte.",
+      "rule_ar": "اللباقة على الهاتف: Könnten Sie bitte …? (هل يمكنك بلطف…)، Ich schaue es mir gleich an (سأتفحص الأمر فورًا)، Einen Moment, bitte (لحظة من فضلك).",
+      "level": "B1",
+      "explanation_ar": "مع العميل يبقى Sie دائمًا. Konjunktiv II (könnten، hätten) يجعل الطلب ألطف. أظهر مبادرة قصيرة: قل ما ستفعله الآن بالضبط.",
+      "example_de": "Könnten Sie mir die Fehlermeldung vorlesen?",
+      "example_ar": "هل يمكنك قراءة رسالة الخطأ عليّ؟"
+    },
+    {
+      "id": "g_tech_passiv_tech",
+      "title_ar": "المبني للمجهول في التقنية",
+      "rule_de": "Passiv: Der Fehler wird analysiert. Das Update wird installiert. Die Tickets werden jeden Morgen geprüft.",
+      "rule_ar": "المبني للمجهول: Der Fehler wird analysiert (يُحلَّل الخطأ)، Das Update wird installiert (يُثبَّت التحديث). werden + اسم المفعول في الآخر، والفاعل يبقى مجهولًا.",
+      "level": "B2",
+      "explanation_ar": "في اللغة التقنية يخفي المجهول من نفّذ العمل ويركّز على العملية: wird/werden + اسم المفعول ge- في نهاية الجملة. مفيد للعمليات المنتظمة: jeden Morgen wird geprüft.",
+      "example_de": "Jedes Update wird zuerst getestet.",
+      "example_ar": "كل تحديث يُختبر أولًا."
+    },
+    {
+      "id": "g_tech_relativsaetze_technik",
+      "title_ar": "الجمل الموصولة في الوصف التقني",
+      "rule_de": "Relativsätze: das Modul, das den Fehler verursacht. Die Lösung, die wir suchen. Der Server, auf dem die Seite läuft.",
+      "rule_ar": "الجمل الموصولة: das Modul, das … (الوحدة التي…)، Die Lösung, die wir suchen (الحل الذي نبحث عنه). الضمير يطابق الجنس والحالة ويأتي مباشرة بعد الاسم.",
+      "level": "B2",
+      "explanation_ar": "لوصف نظام معقد تحتاج جملًا موصولة: الضمير (der/die/das) يطابق الاسم الذي يوصف، والفعل يذهب لآخر الجملة الموصولة. مع حروف الجر: der Server, auf dem …",
+      "example_de": "Das ist das Modul, das jeden Abend abstürzt.",
+      "example_ar": "هذه هي الوحدة التي تتعطل كل مساء."
+    },
+    {
+      "id": "g_tech_fuer_zweck",
+      "title_ar": "الغرض والسبب: für / an",
+      "rule_de": "für + Akkusativ nennt den Zweck: Das Ticket ist für den Drucker. Wir arbeiten an der Lösung (an + Dativ).",
+      "rule_ar": "für + المنصوب يبيّن الغرض: Das Ticket ist für den Drucker (التذكرة خاصة بالطابعة). وan + المجرور يدل على العمل على شيء: Wir arbeiten an der Lösung.",
+      "level": "A2",
+      "explanation_ar": "حرفا الجر الأكثر نفعًا في التقنية: für + المنصوب للغرض (برنامج للمحاسبة)، وan + المجرور مع arbeiten لتبين أنك تعمل على شيء. AUF dem Server يعني: يعمل على الخادم كمنصّة.",
+      "example_de": "Ich arbeite seit Montag an diesem Ticket.",
+      "example_ar": "أعمل على هذه التذكرة منذ الاثنين."
+    }
+  ]
+}
