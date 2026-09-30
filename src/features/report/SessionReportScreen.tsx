@@ -338,7 +338,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
               ))}
             </ul>
           )}
-          {summary.debrief.topMistakesAr.length > 0 && (
+          {summary.mistakes.length === 0 && summary.debrief.topMistakesAr.length > 0 && (
             <div className="mt-3 space-y-2">
               {summary.debrief.topMistakesAr.map((mistake, index) => (
                 <div key={index} className="border-t border-white/[0.06] pt-2">
@@ -444,6 +444,12 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
               {summary.mistakes.map((mistake, index) => {
                 const row = drill[index];
                 const result = row?.result || null;
+                // The debrief's level-aware coaching note rides on the row of
+                // the correction it names — each correction is rendered exactly
+                // once on this screen (V21 Phase-11 deduplication).
+                const debriefNote = summary.debrief.topMistakesAr.find(
+                  (named) => named.corrected === mistake.corrected,
+                )?.noteAr;
                 return (
                   <GlassWell key={index} className="p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -464,6 +470,9 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                       <GermanText>{mistake.corrected}</GermanText>
                     </p>
                     <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">{mistake.grammarRule}</p>
+                    {debriefNote && (
+                      <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{debriefNote}</p>
+                    )}
 
                     {result?.status === 'correct' ? (
                       <p className="mt-3 flex items-start gap-1.5 kz-ar-micro leading-relaxed text-kz-neon">
