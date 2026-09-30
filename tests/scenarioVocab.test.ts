@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { normalizedPartOfSpeech, scenarioToVocabTopic, safetyDisclaimerFor, SCENARIO_CATEGORY_TO_TOPIC } from '@/lib/utils/scenarioVocab';
+import {
+  normalizedPartOfSpeech,
+  scenarioToVocabTopic,
+  safetyDisclaimerFor,
+  SCENARIO_CATEGORY_TO_TOPIC,
+  vocabularyWithinLevelRadius,
+} from '@/lib/utils/scenarioVocab';
 
 describe('scenarioToVocabTopic', () => {
   it('maps each live D1 category to its vocabulary topic', () => {
@@ -39,7 +45,13 @@ describe('scenarioToVocabTopic', () => {
   });
 
   it('keeps every mapping value a real live topic', () => {
-    const liveTopics = ['food', 'documents', 'health', 'housing', 'work', 'travel'];
+    // Live D1 topics at time of writing, plus the six V23 categories that map
+    // 1:1 to topics their modules will ship (basics, exam, study, visa,
+    // services, trades — they are additive, content arrives with the modules).
+    const liveTopics = [
+      'food', 'documents', 'health', 'housing', 'work', 'travel',
+      'basics', 'exam', 'study', 'visa', 'services', 'trades',
+    ];
     for (const topic of Object.values(SCENARIO_CATEGORY_TO_TOPIC)) {
       expect(liveTopics).toContain(topic);
     }
@@ -63,6 +75,42 @@ describe('safetyDisclaimerFor (Gate 6)', () => {
     expect(safetyDisclaimerFor({ id: 'doctor_visit', category: '' })).toContain('ليس استشارة طبية');
     expect(safetyDisclaimerFor({ id: 'burgeramt_appointment', category: '' })).toContain('الجهات المختصة');
     expect(safetyDisclaimerFor(null)).toBe('');
+  });
+});
+
+describe('vocabularyWithinLevelRadius (master plan D5)', () => {
+  const rows = (levels: string[]) => levels.map((level, i) => ({ id: i + 1, level }));
+
+  it('keeps only the learner level ±1 when rows exist inside the window', () => {
+    const pool = rows(['A1', 'A2', 'B1', 'B2']);
+    expect(vocabularyWithinLevelRadius(pool, 'A1').map((r) => r.level)).toEqual(['A1', 'A2']);
+    expect(vocabularyWithinLevelRadius(pool, 'B1').map((r) => r.level)).toEqual(['A2', 'B1', 'B2']);
+    expect(vocabularyWithinLevelRadius(pool, 'A0').map((r) => r.level)).toEqual(['A1']);
+  });
+
+  it('falls back to the FULL pool when no row is inside the window (never-empty)', () => {
+    const farPool = rows(['B1', 'B2']);
+    expect(vocabularyWithinLevelRadius(farPool, 'A0')).toBe(farPool);
+    const a2Only = rows(['A2']);
+    expect(vocabularyWithinLevelRadius(a2Only, 'B2')).toBe(a2Only);
+  });
+
+  it('treats rows with unknown levels as outside the window but keeps them in the fallback', () => {
+    const mixed = [{ id: 1, level: 'A1' }, { id: 2, level: null }, { id: 3, level: 'weird' }];
+    expect(vocabularyWithinLevelRadius(mixed, 'A1').map((r) => r.id)).toEqual([1]);
+    expect(vocabularyWithinLevelRadius(mixed, 'B2')).toBe(mixed);
+  });
+
+  it('handles A0 learners and empty pools without crashing', () => {
+    const pool = rows(['A0', 'A1']);
+    expect(vocabularyWithinLevelRadius(pool, 'A0').map((r) => r.level)).toEqual(['A0', 'A1']);
+    expect(vocabularyWithinLevelRadius([], 'A1')).toEqual([]);
+  });
+
+  it('returns the pool untouched when the learner level is unknown', () => {
+    const pool = rows(['A2', 'B1']);
+    expect(vocabularyWithinLevelRadius(pool, undefined)).toBe(pool);
+    expect(vocabularyWithinLevelRadius(pool, 'Z9')).toBe(pool);
   });
 });
 

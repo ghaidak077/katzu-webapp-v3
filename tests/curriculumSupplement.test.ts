@@ -49,7 +49,8 @@ describe('grammar supplement — the shipped file', () => {
     const output = execFileSync(process.execPath, [script], { encoding: 'utf8', cwd: process.cwd() }).replace(/\\/g, '/');
     expect(output).toContain('supplements/grammar-basics.json');
     expect(output).toContain('kind: supplement');
-    expect(output).toContain('9 file(s) checked (7 module(s), 2 supplement(s))');
+    // V23: the D4 patch supplement and the exam module joined the roster (8 modules, 3 supplements).
+    expect(output).toContain('11 file(s) checked (8 module(s), 3 supplement(s))');
     expect(output).toContain('PASSED');
   });
 

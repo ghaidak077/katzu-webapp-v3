@@ -26,6 +26,7 @@ const DRAFT_FILES = [
   'docs/content/curriculum-interview-tech.json',
   'docs/content/curriculum-ausbildung-exams.json',
   'docs/content/curriculum-coverage-fix.json',
+  'docs/content/curriculum-exam-speaking.json',
 ];
 const SUPPLEMENT_FILES = [
   'docs/content/supplements/grammar-basics.json',

@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { generateQuizQuestions, type QuizQuestion } from '@/lib/utils/quizGenerator';
-import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
+import { scenarioToVocabTopic, vocabularyWithinLevelRadius } from '@/lib/utils/scenarioVocab';
 import type { VocabularyEntity } from '@/types/models';
 import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
@@ -38,6 +38,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
   // starter phrases) — never hardcoded (rule 3). Generated once per mount with
   // a stable seed so the quiz doesn't reshuffle on every re-render.
   const scenarioQ = useLiveQuery(() => db.scenarios.get(scenarioId));
+  const user = useLiveQuery(() => db.users.get('current_user'));
   const phrasesQ = useLiveQuery(
     () => db.starter_phrases.where('scenario_id').equals(scenarioId).toArray(),
     [scenarioId]
@@ -47,12 +48,14 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
     () => (vocabTopic ? db.vocabulary.where('topic').equals(vocabTopic).toArray() : Promise.resolve<VocabularyEntity[]>([])),
     [vocabTopic]
   );
+  // D5: quiz questions draw from the learner's level ±1 only (never-empty
+  // fallback) — an A1 learner is not quizzed on B2 rows while A1 rows exist.
 
   // Regenerates only when the underlying D1 content loads/changes — questions
   // stay stable across unrelated re-renders (answer states, score, etc.).
   const questions = useMemo<QuizQuestion[]>(
-    () => generateQuizQuestions(vocabQ || [], phrasesQ || []),
-    [vocabQ, phrasesQ]
+    () => generateQuizQuestions(vocabularyWithinLevelRadius(vocabQ || [], user?.cefrLevel), phrasesQ || []),
+    [vocabQ, phrasesQ, user?.cefrLevel]
   );
 
   // Heal stale content on entry: earlier D1 uploads shipped some garbled

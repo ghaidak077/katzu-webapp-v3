@@ -46,7 +46,7 @@ export const DB_SCHEMA = {
       text("title_de", "Scenario title in German."),
       text("title_ar", "Scenario title in Arabic."),
       text("ai_persona", "Who Katzu plays, e.g. `Beamter katze`. Existing personas follow `<Rolle> katze`."),
-      text("category", "Must map to a vocabulary topic (see `scenarioVocab.ts`), e.g. `official`, `work`, `housing`."),
+      text("category", "Must map to a vocabulary topic (see `scenarioVocab.ts`): `daily_life`, `official`, `work`, `health`, `housing`, `travel`, `basics`, `exam`, `study`, `visa`, `services`, `trades`."),
       text("icon", "Icon key the app renders in the scenario list."),
       optionalText(
         "initial_message_a0",

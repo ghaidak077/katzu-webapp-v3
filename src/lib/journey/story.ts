@@ -75,6 +75,12 @@ export const PERSONA_ROLES: Array<{ keywords: string[]; roleAr: string }> = [
   { keywords: ['chef', 'personal', 'hr'], roleAr: 'مسؤول التوظيف' },
   { keywords: ['bahn', 'schaffner', 'train'], roleAr: 'موظف الاستعلامات في المحطة' },
   { keywords: ['beamte', 'amt', 'verwaltung'], roleAr: 'موظف في الدائرة الرسمية' },
+  // V23: roles for the new module categories. An examiner plays by exam rules
+  // (timing, tasks, no advice) — a label that says "موظف" would misread the scene.
+  { keywords: ['prüfer', 'pruefer', 'prüfungspartner', 'pruefungspartner', 'examiner'], roleAr: 'ممتحن في الامتحان التجريبي' },
+  { keywords: ['dozent', 'lektor', 'professor', 'seminar'], roleAr: 'أستاذ في الدورة اللغوية' },
+  { keywords: ['visum', 'botschaft', 'konsulat'], roleAr: 'موظف شؤون التأشيرات' },
+  { keywords: ['handwerker', 'meister', 'werkstatt'], roleAr: 'حرفي أو فني صيانة' },
   { keywords: ['nachbar', 'neighbor'], roleAr: 'جارك' },
   { keywords: ['kollege', 'colleague'], roleAr: 'زميلك في العمل' },
 ];

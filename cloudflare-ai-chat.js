@@ -156,7 +156,10 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   // must never drift into acting as a real professional. The persona practises
   // the conversation; it does not diagnose, does not file, and does not interpret
   // law. One line, always present for those categories, in every mode.
-  const SAFETY_DISCLAIMER_CATEGORIES = new Set(["health", "official", "housing"]);
+  // V23: visa content carries the highest-stakes claim risk (immigration
+  // status) and exam content must never impersonate the official exam — both
+  // joined the set when their categories were added (master plan §3.1).
+  const SAFETY_DISCLAIMER_CATEGORIES = new Set(["health", "official", "housing", "visa", "exam"]);
   const safetyInstruction = SAFETY_DISCLAIMER_CATEGORIES.has(scenario_category)
     ? `SAFETY LIMIT — this roleplay touches a professional domain. You stay in character as a conversation PRACTICE partner only: never give real medical, legal or immigration advice, never diagnose, never state fees, deadlines or entitlements as fact, and never claim to be a real doctor, lawyer or authority. If the learner asks for such advice, answer briefly in character that you cannot help with that and they should consult a real professional or official source — then continue the practice conversation.`
     : "";

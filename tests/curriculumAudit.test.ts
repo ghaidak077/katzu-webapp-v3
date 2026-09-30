@@ -106,6 +106,74 @@ function baseDraft(): any {
   };
 }
 
+describe('audit fixture (D3 per-(scenario, level) phrase bounds)', () => {
+  const phrase = (n: number, scenarioId: string, level: string, sortOrder: number) => ({
+    scenario_id: scenarioId,
+    level,
+    german: `Guten Tag ${n}.`,
+    translation_en: 'Good day.',
+    translation_ar: `تحية نهارية ${n}`,
+    sort_order: sortOrder,
+  });
+
+  it('accepts a scenario stocked 8+8 across two levels (6–10 per slice, total 16) — the D3 case', () => {
+    const draft = baseDraft();
+    const scenario = draft.scenarios[0].id;
+    // Replace scenario 1's phrases; the other fixture scenarios keep theirs.
+    draft.starter_phrases = [
+      ...draft.starter_phrases.filter((p: { scenario_id: string }) => p.scenario_id !== scenario),
+      ...Array.from({ length: 8 }, (_, i) => phrase(i + 1, scenario, 'A1', i + 1)),
+      ...Array.from({ length: 8 }, (_, i) => phrase(100 + i + 1, scenario, 'A2', 9 + i)),
+    ];
+    const report = audit(draft);
+    expect(errorPaths(report).filter((path) => path.startsWith('$.starter_phrases'))).toEqual([]);
+  });
+
+  it('still rejects a single level slice above the per-level cap of 10', () => {
+    const draft = baseDraft();
+    const scenario = draft.scenarios[0].id;
+    draft.starter_phrases = Array.from({ length: 11 }, (_, i) => phrase(i + 1, scenario, 'A1', i + 1));
+    const report = audit(draft);
+    expect(report.errors.some((e) => e.path === `$.starter_phrases[${scenario}|A1]` && e.message.includes('11 phrases at A1'))).toBe(true);
+  });
+
+  it('still rejects a genuinely thin slice (2 phrases, scenario total 2)', () => {
+    const draft = baseDraft();
+    const scenario = draft.scenarios[0].id;
+    draft.starter_phrases = Array.from({ length: 2 }, (_, i) => phrase(i + 1, scenario, 'A1', i + 1));
+    const report = audit(draft);
+    expect(report.errors.some((e) => e.path === `$.starter_phrases[${scenario}|A1]` && e.message.includes('total 2'))).toBe(true);
+  });
+
+  it('excuses a thin level slice when the scenario total already meets the minimum (legacy spread)', () => {
+    const draft = baseDraft();
+    const scenario = draft.scenarios[0].id;
+    // 5 at A0 + 5 at A1: each slice below the floor, total 10 — the a0-foundations shape.
+    draft.starter_phrases = [
+      ...draft.starter_phrases.filter((p: { scenario_id: string }) => p.scenario_id !== scenario),
+      ...Array.from({ length: 5 }, (_, i) => phrase(i + 1, scenario, 'A0', i + 1)),
+      ...Array.from({ length: 5 }, (_, i) => phrase(100 + i + 1, scenario, 'A1', 6 + i)),
+    ];
+    const report = audit(draft);
+    expect(errorPaths(report).filter((path) => path.startsWith('$.starter_phrases'))).toEqual([]);
+  });
+
+  it('keeps sort_order contiguity a per-scenario contract (levels interleave)', () => {
+    const draft = baseDraft();
+    const scenario = draft.scenarios[0].id;
+    draft.starter_phrases = [
+      ...draft.starter_phrases.filter((p: { scenario_id: string }) => p.scenario_id !== scenario),
+      ...Array.from({ length: 5 }, (_, i) => phrase(i + 1, scenario, 'A0', i + 1)),
+      ...Array.from({ length: 5 }, (_, i) => phrase(100 + i + 1, scenario, 'A1', 6 + i)),
+    ];
+    // Break contiguity on one row: the per-scenario check must still fire.
+    draft.starter_phrases.find((p: { scenario_id: string; level: string; sort_order: number }) => p.scenario_id === scenario && p.level === 'A1' && p.sort_order === 6).sort_order = 9;
+    const report = audit(draft);
+    const contiguityError = report.errors.find((e) => e.path === `$.starter_phrases[${scenario}]`);
+    expect(contiguityError?.message).toContain('contiguous');
+  });
+});
+
 describe('audit fixture', () => {
   it('accepts a draft at the minimum 5-scenario module size', () => {
     const report = audit(baseDraft());

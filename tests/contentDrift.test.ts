@@ -160,10 +160,12 @@ describe('drift check — the shipped drafts', () => {
       'module docs/content/curriculum-arrival-module2.json',
       'module docs/content/curriculum-ausbildung-exams.json',
       'module docs/content/curriculum-coverage-fix.json',
+      'module docs/content/curriculum-exam-speaking.json',
       'module docs/content/curriculum-interview-medical.json',
       'module docs/content/curriculum-interview-tech.json',
       'supplement docs/content/supplements/grammar-basics.json',
       'supplement docs/content/supplements/grammar-essentials-v21.json',
+      'supplement docs/content/supplements/grammar-legacy-d4-patch.json',
     ]);
   });
 

@@ -2,6 +2,7 @@ import type { CEFRLevel, GrammarEntity, StarterPhraseEntity, VocabularyEntity } 
 import { gradeAnswer, normalizeGermanAnswer, type AnswerVerdict } from '@/lib/srs/engine';
 import { diffDictation, type DictationResult } from '@/lib/listening/drill';
 import { dayIndexFor } from '@/lib/utils/dailyMission';
+import { vocabularyWithinLevelRadius } from '@/lib/utils/scenarioVocab';
 
 /**
  * Guided Practice: the short preparation before the real conversation.
@@ -154,6 +155,11 @@ export function buildGuidedPractice(input: {
   const { phrases = [], vocabulary = [], level } = input;
   const learnerRank = levelRank(level);
 
+  // D5: the rehearsal deck draws vocabulary from the learner's level ±1, with
+  // the same never-empty fallback as Study and Quiz — a topic that only ships
+  // rows far from the learner still shows something rather than nothing.
+  const levelWindowedVocabulary = vocabularyWithinLevelRadius(vocabulary, level);
+
   const usablePhrases = [...phrases]
     .filter((phrase) => phrase?.german?.trim() && phrase?.translation_ar?.trim())
     .sort(
@@ -162,7 +168,7 @@ export function buildGuidedPractice(input: {
         (a.sort_order || 0) - (b.sort_order || 0),
     );
 
-  const usableVocabulary = [...vocabulary]
+  const usableVocabulary = [...levelWindowedVocabulary]
     .filter((word) => word?.german?.trim() && (word.translation_ar?.trim() || word.example_ar?.trim()))
     .sort((a, b) => levelRank(a.level) - levelRank(b.level));
   const vocabularyContext = [...new Set(usableVocabulary
