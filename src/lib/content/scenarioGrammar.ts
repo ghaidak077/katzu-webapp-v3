@@ -66,4 +66,12 @@ export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
   // Live in D1 but not in the offline fixture, so Guided Practice had no rule to
   // teach for it. Added in V14 against the same supplement row it can share.
   embassy_appointment: ['g_polite_requests_a1'],
+  // Coverage-fix module (docs/content/curriculum-coverage-fix.json): the five
+  // thin legacy pools get one dense scenario each; every row it ships is
+  // reachable through these links.
+  pass_und_dokumente: ['g_fix_bestimmte_artikel_a1', 'g_fix_zustaendig_fuer_a2', 'g_fix_weil_nachdem_b2'],
+  restaurant_besonders: ['g_fix_moegen_moechte_a1', 'g_fix_akkusativ_objekt_a2'],
+  gesundheit_alltag: ['g_fix_seit_dativ_b1', 'g_fix_sich_erholen_b1'],
+  wohnung_besichtigen_tiefer: ['g_fix_bestimmte_artikel_a1', 'g_fix_akkusativ_objekt_a2'],
+  buero_gespraech_tiefer: ['g_fix_weil_nachdem_b2', 'g_fix_passiv_prasens_b2'],
 };
