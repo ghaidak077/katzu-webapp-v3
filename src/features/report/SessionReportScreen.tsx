@@ -17,6 +17,7 @@ import { isProEffective } from '@/lib/utils/subscription';
 import { MASTERED_REPS, gradeAnswer, reviewRefId } from '@/lib/srs/engine';
 import { enrolMistake, gradeReviewItem } from '@/lib/srs/store';
 import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
+import type { SessionDebrief } from '@/lib/debrief/debrief';
 import { Volume2, Check, TrendingUp, CalendarClock, Sparkles } from 'lucide-react';
 import type { CapabilityState, CEFRLevel, MistakeEntity } from '@/types/models';
 import {
@@ -36,6 +37,7 @@ export interface SessionReportScreenProps {
     independentSentences: number;
     assistedSentences: number;
     mistakes: Array<{ original: string; corrected: string; grammarRule: string }>;
+    debrief: SessionDebrief;
   };
   onReturnToTrail: () => void;
   /** The review screen — offered when this session produced real corrections. */
@@ -319,6 +321,64 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
               </span>
             </li>
           </ul>
+        </GlassCard>
+
+        {/* The Phase-2 debrief: a deterministic narration of what this episode
+            proved — same numbers as this screen, no extra AI call behind it. */}
+        <GlassCard className="mt-4">
+          <p className="kz-ar-caption text-kz-lavender">خلاصة الجلسة</p>
+          <p className="mt-1.5 kz-ar-body font-bold leading-relaxed text-kz-ink">{summary.debrief.headlineAr}</p>
+          {summary.debrief.didWellAr.length > 0 && (
+            <ul className="mt-3 space-y-1.5">
+              {summary.debrief.didWellAr.map((line, index) => (
+                <li key={index} className="flex items-start gap-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-neon" aria-hidden />
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {summary.debrief.topMistakesAr.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {summary.debrief.topMistakesAr.map((mistake, index) => (
+                <div key={index} className="border-t border-white/[0.06] pt-2">
+                  <p className="font-german text-[0.78rem] leading-relaxed text-kz-inkFaint line-through">
+                    <GermanText>{mistake.original}</GermanText>
+                  </p>
+                  <p className="font-german text-[0.82rem] font-medium leading-relaxed text-kz-ink">
+                    <GermanText>{mistake.corrected}</GermanText>
+                  </p>
+                  <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{mistake.grammarRule} — {mistake.noteAr}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {summary.debrief.keepPhrases.length > 0 && (
+            <div className="mt-3 border-t border-white/[0.06] pt-2">
+              <p className="kz-ar-micro text-kz-inkDim">عبارات تحتفظ بها من هذه الجلسة:</p>
+              <ul className="mt-1.5 space-y-1">
+                {summary.debrief.keepPhrases.map((phrase, index) => (
+                  <li key={index} className="flex items-center justify-between gap-2">
+                    <span className="font-german text-xs text-kz-ink">
+                      <GermanText>{phrase.german}</GermanText>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => speak(phrase.german)}
+                      className="shrink-0 rounded-full p-1 text-kz-lavender transition-colors hover:bg-white/5"
+                      aria-label="استمع إلى العبارة"
+                    >
+                      <Volume2 className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="mt-3 flex items-start gap-1.5 border-t border-white/[0.06] pt-3 kz-ar-micro leading-relaxed text-kz-neon">
+            <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span>{summary.debrief.canNowAr}</span>
+          </p>
         </GlassCard>
 
         {/* Level promotion: an offer backed by the same eligibility rule as

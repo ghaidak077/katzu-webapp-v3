@@ -5,6 +5,7 @@ import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { GlassSurface } from '@/components/glass/GlassSurface';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { planTurns } from '@/lib/conversation/turnPlan';
+import type { SessionDebrief } from '@/lib/debrief/debrief';
 import type { CEFRLevel } from '@/types/models';
 import { ConversationDock } from './ConversationDock';
 import { ConversationTranscript } from './ConversationTranscript';
@@ -26,6 +27,7 @@ export interface LiveConversationScreenProps {
     independentSentences: number;
     assistedSentences: number;
     mistakes: Array<{ original: string; corrected: string; grammarRule: string }>;
+    debrief: SessionDebrief;
   }) => void;
 }
 

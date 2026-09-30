@@ -13,6 +13,7 @@ import { isProEffective } from '@/lib/utils/subscription';
 import { servedLevel } from '@/lib/entitlement/trial';
 import { levelSpecFor } from '@/lib/levels/levelSpec';
 import { calculateIndependentAccuracy } from '@/features/report/metrics';
+import { buildSessionDebrief, type SessionDebrief } from '@/lib/debrief/debrief';
 import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
@@ -55,6 +56,7 @@ export interface UseLiveConversationOptions {
     independentSentences: number;
     assistedSentences: number;
     mistakes: Array<{ original: string; corrected: string; grammarRule: string }>;
+    debrief: SessionDebrief;
   }) => void;
 }
 
@@ -600,6 +602,10 @@ export function useLiveConversation({
         mode: sessionMode === 'immersion' ? 'extended' : 'roleplay',
         sessionId,
         learnerMemory,
+        // Which turn of the episode this is — rotates the persona's
+        // live-conversation behaviour (ask, repeat-check, react, advance) on the
+        // worker side without changing the wire format's other fields.
+        turnIndex: userTurnsCount,
       });
 
       // 3. Form Katzu reply with pedagogical evaluation embedded
@@ -872,6 +878,18 @@ export function useLiveConversation({
       independentSentences: independentMsgs.length,
       assistedSentences: assistedMsgs.length,
       mistakes: mistakesList,
+      // Deterministic Phase-2 debrief, built from the same numbers this
+      // function just computed — no extra AI call anywhere.
+      debrief: buildSessionDebrief({
+        scenarioTitle: scenario?.title_ar || '',
+        level: effectiveLevel,
+        mode: sessionMode || 'quick',
+        sentencesSpoken: userMsgs.length,
+        independentSentences: independentMsgs.length,
+        assistedSentences: assistedMsgs.length,
+        accuracyPercent: accuracy,
+        mistakes: mistakesList,
+      }),
     });
   };
 

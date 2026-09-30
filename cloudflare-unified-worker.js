@@ -1920,6 +1920,12 @@ function validateAiTurnBody(body) {
   const sarc = Number(body.sarcasm_level);
   clean.sarcasm_level = Number.isFinite(sarc) ? Math.min(5, Math.max(1, Math.round(sarc))) : 2;
 
+  // Which turn of the episode this is (0-based). The roleplay prompt uses it to
+  // rotate one live-conversation behaviour per turn, so a bounded integer is
+  // enough; anything missing or malformed is simply the first turn.
+  const turnIdx = Number(body.turn_index);
+  clean.turn_index = Number.isFinite(turnIdx) ? Math.max(0, Math.min(500, Math.floor(turnIdx))) : 0;
+
   if (body.mode !== undefined && !["roleplay", "extended", "hints"].includes(body.mode)) errors.push("mode:invalid");
   clean.mode = ["roleplay", "extended", "hints"].includes(body.mode) ? body.mode : "roleplay";
 

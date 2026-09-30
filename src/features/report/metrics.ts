@@ -19,6 +19,7 @@ export function calculateIndependentAccuracy(turns: IndependentTurn[]): number |
 }
 
 export function getNextPromotionLevel(level: CEFRLevel): CEFRLevel | null {
+  if (level === 'A0') return 'A1';
   if (level === 'A1') return 'A2';
   if (level === 'A2') return 'B1';
   if (level === 'B1') return 'B2';

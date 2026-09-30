@@ -348,6 +348,8 @@ export class WorkerClient {
     sarcasmLevel?: string;
     isFinalTurn?: boolean;
     mode?: 'roleplay' | 'extended';
+    /** 0-based index of this turn within the episode (rotates the persona's live-conversation behaviour). */
+    turnIndex?: number;
     idToken?: string;
     sessionId?: string;
     learnerMemory?: Array<{ rule: string; example?: string }>;
@@ -382,6 +384,8 @@ export class WorkerClient {
     sarcasmLevel?: string;
     isFinalTurn?: boolean;
     mode?: 'roleplay' | 'extended';
+    /** 0-based index of this turn within the episode (rotates the persona's live-conversation behaviour). */
+    turnIndex?: number;
     idToken?: string;
     sessionId?: string;
     learnerMemory?: Array<{ rule: string; example?: string }>;
@@ -414,6 +418,8 @@ export class WorkerClient {
       session_id: sessionId,
       is_final_turn: !!params.isFinalTurn,
       sarcasm_level: params.sarcasmLevel || 'SASSY',
+      // Missing/undefined is simply turn 0 — the worker bounds it, the prompt uses it.
+      turn_index: Math.max(0, Math.floor(Number(params.turnIndex) || 0)),
     };
     if (params.learnerMemory && params.learnerMemory.length > 0) {
       payload.learner_memory = params.learnerMemory;
