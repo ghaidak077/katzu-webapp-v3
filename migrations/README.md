@@ -62,3 +62,38 @@ empty (`openerForLevel`), so nothing existing changes behaviour. After either
 path, re-run:
 `node scripts/load-curriculum.mjs --file=docs/content/curriculum-a0-foundations.json --commit`
 (the approved draft and the fresh backup `/tmp/pre-load-katzu-v21-a0.sql`, 166,006 B, are ready).
+
+## V21 Phase 11 (2026-09-30): A0 rejected by the deployed CHECK constraints — NOT YET APPLICABLE, owner-only
+
+The loads of the three A1–B2 modules (`interview-medical`, `interview-tech`,
+`ausbildung-exams`) succeeded. The A0 foundations module and the
+`grammar-essentials-v21` supplement did not: all three row tables were created
+(2026-09-29) with
+
+```sql
+level TEXT NOT NULL CHECK (level IN ('A1','A2','B1','B2'))
+```
+
+so any row with `level='A0'` fails with `D1_ERROR: CHECK constraint failed:
+level IN ('A1','A2','B1','B2')`. Unlike a missing column this is **not
+additive**: SQLite cannot alter a CHECK, the table must be rebuilt
+(`CREATE new → INSERT SELECT → DROP old → RENAME`), and a rebuild of a
+production table is a schema change — owner-only by rule 3 above. The agent
+rolled its one partial write (the 6 A0 `scenarios` rows, which have no level
+CHECK) back; verified counts returned to the pre-load baseline
+15 / 221 / 111 / 22.
+
+Owner fix sketch (run when A0 launch is wanted):
+
+```sql
+-- For each of vocabulary, starter_phrases, grammar:
+CREATE TABLE vocabulary_new ( ...same DDL with level IN ('A0','A1','A2','B1','B2')... );
+INSERT INTO vocabulary_new SELECT * FROM vocabulary;
+DROP TABLE vocabulary; ALTER TABLE vocabulary_new RENAME TO vocabulary;
+-- then recreate idx_vocabulary_level_topic
+```
+
+`cloudflare-content-schema.js`'s `ADDITIVE_COLUMNS` cannot do this and must not
+try. After the rebuild, re-run:
+`node scripts/load-curriculum.mjs --file=docs/content/curriculum-a0-foundations.json --commit`
+and the supplement's `--commit` (fresh backups first).
