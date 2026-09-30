@@ -34,6 +34,13 @@ export const SCENARIO_GRAMMAR_IDS: Record<string, string[]> = {
   bakery_shopping: ['g_moechte_haette_gern_a1'],
   landlord_followup: ['g_koennten_hoefflich_a2', 'g_weil_nebensatz_a2'],
   friend_catchup: ['g_moechte_haette_gern_a1', 'g_weil_nebensatz_a2'],
+  // Medical careers module (docs/content/curriculum-interview-medical.json, V21 Phase 5).
+  interview_pflegefachkraft: ['g_med_perfekt_erfahrungen', 'g_med_sich_bewerben', 'g_med_relativsaetze_erfahrung'],
+  interview_arzt: ['g_med_perfekt_erfahrungen', 'g_med_sich_bewerben', 'g_med_modal_vermutung'],
+  patient_conversation_basics: ['g_med_wfragen_sprechstunde', 'g_med_ich_kann_helfen', 'g_med_patientenfragen', 'g_med_relativsaetze_erfahrung'],
+  station_uebergabe: ['g_med_nachdem_vorzeitigkeit', 'g_med_passiv_verfahren', 'g_med_konjunktiv_hoeflich', 'g_med_modal_vermutung'],
+  kollegen_smalltalk: ['g_med_wfragen_sprechstunde', 'g_med_konjunktiv_hoeflich'],
+  anerkennung_gespraech: ['g_med_passiv_verfahren', 'g_med_konjunktiv_hoeflich'],
   // Offline fixtures (src/lib/db/katzuDb.ts). The four rows they point at live in
   // docs/content/supplements/grammar-basics.json so production D1 has them too;
   // tests/grammarReachability.test.ts asserts the two copies are identical and
