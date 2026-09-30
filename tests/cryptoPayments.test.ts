@@ -321,15 +321,21 @@ function signDiscount(unsigned: string, secret = HMAC_SECRET): string {
 }
 
 describe('Plan tiers and student discount codes (V21 Phase 7)', () => {
-  it('derives all tiers from the one base price, student marked discount-only', () => {
-    const plans = getCryptoPlans({ CRYPTO_PRICE_USD: '10' });
-    expect(plans.map((p) => p.id)).toEqual(['monthly', 'quarterly', 'yearly', 'student']);
-    expect(plans[0].priceUsd).toBe(10);
-    expect(plans[1].priceUsd).toBe(26.1); // 10 × 3 × 0.87
-    expect(plans[2].priceUsd).toBe(84); // 10 × 12 × 0.70
-    expect(plans[3].priceUsd).toBe(10); // full rate; the discount code re-prices it
-    expect(plans[3].requires_discount_code).toBe(true);
-    expect(plans[0].requires_discount_code).toBeUndefined();
+  it('derives tiers from per-tier env vars, with the base var as fallback', () => {
+    // Explicit per-tier configuration (the owner's real shape):
+    // monthly 20, student 6.
+    const explicit = getCryptoPlans({ CRYPTO_PRICE_USD: '20', CRYPTO_PRICE_STUDENT_USD: '6' });
+    expect(explicit.map((p) => p.id)).toEqual(['monthly', 'quarterly', 'yearly', 'student']);
+    expect(explicit[0].priceUsd).toBe(20);
+    expect(explicit[3].priceUsd).toBe(6);
+    expect(explicit[3].requires_discount_code).toBe(true);
+    expect(explicit[0].requires_discount_code).toBeUndefined();
+
+    // A tier var left unset falls back to the base derivation.
+    const fallback = getCryptoPlans({ CRYPTO_PRICE_USD: '10' });
+    expect(fallback[1].priceUsd).toBe(26.1); // 10 × 3 × 0.87
+    expect(fallback[2].priceUsd).toBe(84); // 10 × 12 × 0.70
+    expect(fallback[3].priceUsd).toBe(3.5); // 10 × 0.35
   });
 
   it('validates a signed discount code and rejects tampering', async () => {
@@ -359,12 +365,14 @@ describe('Plan tiers and student discount codes (V21 Phase 7)', () => {
     expect(yearly.body.months).toBe(12);
     expect(yearly.body.plan).toBe('yearly');
 
-    // Student tier WITH a valid 50% code: 5.00 → 2.50, still 1 month.
+    // Student tier WITH a valid 50% code: the code must not double-discount
+    // the tier's own price — the cheaper of (tier price, base × (1−pct)) wins.
+    // Base 5.00, student tier 1.75 (5 × 0.35): 50% code → min(1.75, 2.50) = 1.75.
     const unsigned = 'STD-50-STUDENT';
     const discount = `${unsigned}-${signDiscount(unsigned)}`;
     const student = await startOrder(env, { plan: 'student', discount_code: discount });
     expect(student.res.status).toBe(200);
-    expect(student.body.price_usd).toBe(2.5);
+    expect(student.body.price_usd).toBe(1.75);
     expect(student.body.months).toBe(1);
     expect(student.body.discount_percent).toBe(50);
   });

@@ -152,6 +152,11 @@ function renderPlanTiers(plans) {
     btn.querySelector('.tier-label').textContent = plan.label_ar || plan.id;
     btn.querySelector('.tier-price').textContent = `${plan.priceUsd} $`;
     btn.querySelector('.tier-months').textContent = plan.months === 1 ? 'شهر واحد' : `${plan.months} أشهر`;
+    // The tier's displayed price is the owner's explicit per-tier price; a
+    // discount code can only lower it server-side, never raise it.
+    if (plan.requires_discount_code) {
+      btn.querySelector('.tier-price').textContent = `${plan.priceUsd} $ — بكود`;
+    }
     btn.addEventListener('click', () => {
       container.querySelectorAll('.plan-tier').forEach((el) => el.setAttribute('aria-checked', 'false'));
       btn.setAttribute('aria-checked', 'true');
@@ -160,7 +165,9 @@ function renderPlanTiers(plans) {
       if (discountRow) discountRow.hidden = !plan.requires_discount_code;
       const hint = $('crypto-hint');
       if (hint && !$('#crypto-buy').disabled) {
-        hint.textContent = `السعر: ${plan.priceUsd} $ مقابل ${plan.months === 1 ? 'شهر' : plan.months + ' أشهر'} من Pro.`;
+        hint.textContent = plan.requires_discount_code
+          ? `السعر مع الكود: ${plan.priceUsd} $ مقابل ${plan.months === 1 ? 'شهر' : plan.months + ' أشهر'} من Pro.`
+          : `السعر: ${plan.priceUsd} $ مقابل ${plan.months === 1 ? 'شهر' : plan.months + ' أشهر'} من Pro.`;
       }
     });
     container.appendChild(btn);
