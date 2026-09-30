@@ -32,6 +32,8 @@ export interface JourneyHomeScreenProps {
   /** The scenario library (the pre-V2 trail), kept reachable as a quiet link. */
   onOpenLibrary: () => void;
   onOpenOnboarding?: () => void;
+  /** The القواعد section (V21 Phase 4) — browse every rule by level and practise it. */
+  onOpenGrammar?: () => void;
 }
 
 /**
@@ -44,6 +46,7 @@ export interface JourneyHomeScreenProps {
  * anything the app has not measured.
  */
 export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
+  onOpenGrammar,
   onStartMission,
   onOpenReview,
   onOpenSubscription,
@@ -391,13 +394,20 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           />
         </GlassWell>
 
-        {/* Library + level: real navigation, kept quiet so the mission stays the
-            only prominent path forward. */}
+        {/* Grammar + library + level: real navigation, kept quiet so the mission
+            stays the only prominent path forward. */}
         <div className="flex items-center justify-between gap-3">
-          <GlassButton variant="quiet" onClick={onOpenLibrary}>
-            كل المشاهد والمستويات
-          </GlassButton>
-          <span className="kz-ar-micro text-kz-inkFaint">مستواك: {learnerLevel}</span>
+          <div className="flex min-w-0 items-center gap-2">
+            {onOpenGrammar && (
+              <GlassButton variant="quiet" onClick={onOpenGrammar}>
+                القواعد
+              </GlassButton>
+            )}
+            <GlassButton variant="quiet" onClick={onOpenLibrary}>
+              كل المشاهد والمستويات
+            </GlassButton>
+          </div>
+          <span className="kz-ar-micro shrink-0 text-kz-inkFaint">مستواك: {learnerLevel}</span>
         </div>
       </div>
 
