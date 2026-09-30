@@ -64,17 +64,22 @@ export const FREE_LEVEL: CEFRLevel = 'A1';
  * wall inside the one experience that is supposed to prove the product works. The
  * level the placement measured is what Pro unlocks, and the Debrief says so, after
  * the win.
+ *
+ * V21 Phase 1: the free floor is A0 **and** A1. A learner the placement measured
+ * at A0 is served A0 — handing them A1 they were measured below would defeat the
+ * check — while A1 stays the default for everyone else. A2+ remains Pro and the
+ * Worker enforces the same boundary, so the two sides cannot drift.
  */
 export function servedLevel(learnerLevel: CEFRLevel | undefined, isPro: boolean): CEFRLevel {
   if (isPro) return learnerLevel || FREE_LEVEL;
-  return FREE_LEVEL;
+  return learnerLevel === 'A0' ? 'A0' : FREE_LEVEL;
 }
 
 /**
  * Whether a library level is open without Pro.
  *
- * Free covers the A1 course — the same boundary the Worker enforces on
- * `/ai/turn`. Study, review, the mistake bank and the vocabulary list are not
+ * Free covers the beginner floor — A0 and A1 — the same boundary the Worker
+ * enforces on `/ai/turn`. Study, review, the mistake bank and the vocabulary list are not
  * level-gated at all, so nothing already learned is ever taken back.
  *
  * The learner's *own* measured level gets no exemption here, and that is the
@@ -85,5 +90,5 @@ export function servedLevel(learnerLevel: CEFRLevel | undefined, isPro: boolean)
  * a free learner is handed an episode at the level the server actually serves.
  */
 export function isLevelFree(level: CEFRLevel, isPro: boolean): boolean {
-  return isPro || level === FREE_LEVEL;
+  return isPro || level === 'A0' || level === FREE_LEVEL;
 }

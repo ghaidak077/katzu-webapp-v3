@@ -450,8 +450,8 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             ? `قدّر اختبار تحديد المستوى مستواك ${user.placementEstimatedLevel}. يمكنك تغييره في أي وقت.`
             : 'المستوى يحدد السيناريوهات التي تظهر لك وصعوبة المحادثات.'}
         </p>
-        <div className="grid grid-cols-4 gap-2">
-          {(['A1', 'A2', 'B1', 'B2'] as CEFRLevel[]).map((level) => (
+        <div className="grid grid-cols-5 gap-2">
+          {(['A0', 'A1', 'A2', 'B1', 'B2'] as CEFRLevel[]).map((level) => (
             <button
               key={level}
               onClick={() => handleUpdateLevel(level)}

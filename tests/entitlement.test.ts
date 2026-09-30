@@ -31,17 +31,20 @@ describe('shouldOfferPro', () => {
 });
 
 describe('isLevelFree', () => {
-  // The boundary belongs to the Worker (`checkUserEntitlement`), which serves A1
-  // and refuses every other level — so anything this answers `true` for is a
-  // promise the server has to keep.
-  it('covers exactly the level the trial serves', () => {
+  // The boundary belongs to the Worker (`checkUserEntitlement`), which serves
+  // the free floor (A0 and A1) and refuses every other level — so anything this
+  // answers `true` for is a promise the server has to keep.
+  it('covers exactly the levels the trial serves', () => {
+    expect(isLevelFree('A0', false)).toBe(true);
     expect(isLevelFree('A1', false)).toBe(true);
     expect(isLevelFree('A2', false)).toBe(false);
     expect(isLevelFree('B1', false)).toBe(false);
+    expect(isLevelFree('B2', false)).toBe(false);
   });
 
   it('opens every level to Pro', () => {
     expect(isLevelFree('B2', true)).toBe(true);
+    expect(isLevelFree('A0', true)).toBe(true);
     expect(isLevelFree('A1', true)).toBe(true);
   });
 });
@@ -50,6 +53,14 @@ describe('servedLevel', () => {
   it('gives a free learner an A1 episode even when the placement measured higher', () => {
     expect(servedLevel('A2', false)).toBe('A1');
     expect(servedLevel('B2', false)).toBe('A1');
+  });
+
+  // V21 Phase 1: the free floor is A0 AND A1. Serving A1 to a learner the
+  // placement measured at A0 would hand them German above their measurement —
+  // exactly the wall this function exists to prevent, just from below.
+  it('serves a measured-A0 learner at A0 instead of pushing them up to A1', () => {
+    expect(servedLevel('A0', false)).toBe('A0');
+    expect(servedLevel('A0', true)).toBe('A0');
   });
 
   it('runs a Pro learner at their own level', () => {
@@ -65,7 +76,7 @@ describe('servedLevel', () => {
    * turn of their first mission — and made writing unusable for them.
    */
   it('never builds a session at a level the entitlement check would refuse', () => {
-    const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
+    const levels: CEFRLevel[] = ['A0', 'A1', 'A2', 'B1', 'B2'];
     for (const level of levels) {
       expect(isLevelFree(servedLevel(level, false), false)).toBe(true);
     }

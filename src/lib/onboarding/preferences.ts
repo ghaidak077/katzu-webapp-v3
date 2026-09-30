@@ -234,7 +234,10 @@ export function describeLearnerLevel(user: Pick<UserEntity, 'cefrLevel' | 'place
     return {
       levelLabel: level,
       measured: false,
-      detailAr: 'لم تقيس مستواك بعد — نعرض A1 كبداية عملية إلى أن تجري الاختبار التحديدي.',
+      detailAr:
+        level === 'A0'
+          ? 'لم تقيس مستواك بعد — اخترت البدء من الصفر، وسنبدأ من الأساسيات تماماً.'
+          : 'لم تقيس مستواك بعد — نعرض A1 كبداية عملية إلى أن تجري الاختبار التحديدي.',
     };
   }
   return {

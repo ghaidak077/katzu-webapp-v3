@@ -44,6 +44,7 @@
 import { handleHintsRoute } from "./cloudflare-hints.js";
 import { handleWritingRoute } from "./cloudflare-writing.js";
 import { handleChatTurnRoute, handleTranslateRoute } from "./cloudflare-ai-chat.js";
+import { validateGermanAgainstLevel, levelFallbackLine, levelConstraintLine, correctionBudgetFor } from "./cloudflare-level-spec.js";
 import { handleTranscribeRoute } from "./cloudflare-stt.js";
 import {
   PROVIDER_POOL,
@@ -398,9 +399,11 @@ async function checkUserEntitlement(account, cefrLevel, env = {}, options = {}) 
     }
   }
 
-  // 2. Trial access: restricted to A1 level with a server-side quota.
+  // 2. Trial access: restricted to the beginner floor (A0/A1) with a server-side quota.
+  // A0 is free by V21 Phase 1: a learner the placement measured at A0 gets A0
+  // conversations — serving them A1 they were measured below would defeat the check.
   const level = (cefrLevel || "A1").toUpperCase();
-  if (level !== "A1") {
+  if (level !== "A1" && level !== "A0") {
     return {
       allowed: false,
       code: "PAYWALL_REQUIRED",
@@ -1237,6 +1240,10 @@ function aiRouteDeps() {
     readAiCache,
     writeAiCache,
     validLevels: VALID_LEVELS,
+    validateGermanAgainstLevel,
+    levelFallbackLine,
+    levelConstraintLine,
+    correctionBudgetFor,
     // `opts` lets a handler ask for router behaviour it can justify for its own
     // route (the turn and translate routes set `preferFast`), without a second
     // router or a per-route copy of the deps object.
@@ -1880,7 +1887,7 @@ const AI_LIMITS = {
   LEARNER_MEMORY_EXAMPLE: 200,
 };
 
-const CEFR_LEVELS = new Set(["A1", "A2", "B1", "B2"]);
+const CEFR_LEVELS = new Set(["A0", "A1", "A2", "B1", "B2"]);
 
 /** Returns { ok, value } or { ok: false, reason } for a bounded string field. */
 function boundString(value, maxLen, { required = false, fallback = "" } = {}) {
@@ -2855,7 +2862,7 @@ export {
 // WORKER 2 IMPLEMENTATION (D1 CONTENT DATABASE CMS)
 // ============================================================================
 
-const VALID_LEVELS = new Set(["A1", "A2", "B1", "B2"]);
+const VALID_LEVELS = new Set(["A0", "A1", "A2", "B1", "B2"]);
 
 // ----------------------------------------------------------------------------
 // Admin auth gate (security-gaps S9/S10 follow-up).
@@ -3025,7 +3032,7 @@ async function handleAdminUpload(request, env, cors) {
     if (row.level && !VALID_LEVELS.has(String(row.level).trim())) {
       return json({
         error: "invalid_level",
-        detail: `Row index ${i} has invalid level '${row.level}'. Must be one of A1, A2, B1, B2.`,
+        detail: `Row index ${i} has invalid level '${row.level}'. Must be one of A0, A1, A2, B1, B2.`,
       }, 400, cors);
     }
   }
@@ -3251,7 +3258,7 @@ async function handleAdminCreateContent(type, request, env, cors) {
   }
 
   if (body.level && !VALID_LEVELS.has(String(body.level).trim())) {
-    return json({ error: "invalid_level", detail: "Level must be A1, A2, B1, or B2" }, 400, cors);
+    return json({ error: "invalid_level", detail: "Level must be A0, A1, A2, B1, or B2" }, 400, cors);
   }
 
   const keys = Object.keys(body).filter((k) => k !== "rowid" && (isRowIdTable(type) ? k !== "id" : true));
@@ -3284,7 +3291,7 @@ async function handleAdminUpdateContent(type, id, request, env, cors) {
   }
 
   if (body.level && !VALID_LEVELS.has(String(body.level).trim())) {
-    return json({ error: "invalid_level", detail: "Level must be A1, A2, B1, or B2" }, 400, cors);
+    return json({ error: "invalid_level", detail: "Level must be A0, A1, A2, B1, or B2" }, 400, cors);
   }
 
   const keys = Object.keys(body).filter((k) => k !== "id" && k !== "rowid");

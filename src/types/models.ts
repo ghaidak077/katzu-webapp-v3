@@ -1,6 +1,11 @@
 // TypeScript models mapping Android Kotlin Models.kt & ContentEntities.kt
 
-export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2';
+/**
+ * The five teaching levels (docs/agent/LEVEL-SPEC.md). A0 ("from zero") sits
+ * below A1; stored content keeps using A1–B2 — A0 pools arrive with the
+ * a0-foundations module (V21 Phase 5).
+ */
+export type CEFRLevel = 'A0' | 'A1' | 'A2' | 'B1' | 'B2';
 export type SessionMode = 'quick' | 'immersion';
 
 /**

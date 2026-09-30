@@ -14,8 +14,10 @@ import type { CEFRLevel, SessionMode } from '@/types/models';
  * should be finishable.
  */
 export const TURNS_BY_MODE: Record<SessionMode, Record<CEFRLevel, number>> = {
-  quick: { A1: 3, A2: 4, B1: 5, B2: 6 },
-  immersion: { A1: 8, A2: 8, B1: 10, B2: 10 },
+  // A0 gets the A1 run: the shortest possible session — a brand-new learner's
+  // first conversation must finish while they are still willing to speak.
+  quick: { A0: 3, A1: 3, A2: 4, B1: 5, B2: 6 },
+  immersion: { A0: 8, A1: 8, A2: 8, B1: 10, B2: 10 },
 };
 
 /** The default mode when a learner enters the conversation from a mission. */

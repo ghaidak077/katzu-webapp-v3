@@ -18,14 +18,14 @@ import type { CEFRLevel } from '@/types/models';
  * and that must be reproducible and testable rather than a screen's side effect.
  */
 
-export const CEFR_LADDER: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
+export const CEFR_LADDER: CEFRLevel[] = ['A0', 'A1', 'A2', 'B1', 'B2'];
 export const PLACEMENT_START_LEVEL: CEFRLevel = 'A2';
 /** Correct answers at one level before moving up. */
 export const PROMOTE_AFTER = 2;
 /** Below this, the estimate is too thin to be worth reporting. */
-export const MIN_ITEMS = 6;
+export const MIN_ITEMS = 5;
 /** The check must always end. */
-export const MAX_ITEMS = 14;
+export const MAX_ITEMS = 10;
 /** Wrong answers in a row at the floor: they are a beginner, stop asking. */
 const FLOOR_WRONG_STREAK = 3;
 /** Responses examined when judging whether the staircase has settled. */

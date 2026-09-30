@@ -105,15 +105,33 @@ describe('placement staircase', () => {
     expect(state.correctAtLevel).toBe(0);
   });
 
-  it('never estimates beyond the A1–B2 range the product teaches', () => {
+  it('never estimates beyond the A0–B2 range the product teaches', () => {
     let high = createPlacementState('B2');
     for (let i = 0; i < 6; i += 1) high = answer(high, true);
     expect(high.level).toBe('B2');
+    expect(CEFR_LADDER.indexOf(high.level)).toBe(CEFR_LADDER.length - 1);
+  });
 
+  it('reaches A0 at the floor: a learner who fails everything is not pushed up', () => {
     let low = createPlacementState('A1');
     for (let i = 0; i < 6; i += 1) low = answer(low, false);
-    expect(low.level).toBe('A1');
+    expect(low.level).toBe('A0');
     expect(CEFR_LADDER.indexOf(low.level)).toBe(0);
+
+    const result = describePlacementResult(low);
+    expect(result.level).toBe('A0');
+    expect(result.headlineAr).toContain('A0');
+  });
+
+  it('stops early at the floor instead of dragging a beginner through the full budget', () => {
+    let state = createPlacementState('A1');
+    for (let i = 0; i < MIN_ITEMS; i += 1) state = answer(state, false);
+    // Five straight misses end at the floor: the minimum is reached, the
+    // three-miss floor rule has fired, and the full budget is never spent.
+    expect(state.responses.length).toBe(MIN_ITEMS);
+    expect(state.wrongStreakAtFloor).toBeGreaterThanOrEqual(3);
+    expect(isPlacementFinished(state)).toBe(true);
+    expect(placementEstimate(state)).toBe('A0');
   });
 
   it('forgives a single slip but needs two answers to climb back', () => {
@@ -156,7 +174,7 @@ describe('placement staircase', () => {
     // The realistic pattern for a real learner: they hold one level and miss the
     // harder neighbour, which oscillates between the two.
     let state = createPlacementState();
-    const pattern = [true, false, true, true, false, true];
+    const pattern = [true, false, true, true, false];
     for (const correct of pattern) state = answer(state, correct);
 
     expect(state.responses.length).toBe(MIN_ITEMS);
@@ -167,12 +185,13 @@ describe('placement staircase', () => {
   it('does not place a complete beginner off three answers', () => {
     let state = createPlacementState('A1');
     for (let i = 0; i < 3; i += 1) state = answer(state, false);
-    // Honest: six questions is the floor for reporting a level at all.
+    // Honest: five questions is the floor for reporting a level at all.
     expect(isPlacementFinished(state)).toBe(false);
 
     for (let i = 0; i < MIN_ITEMS - 3; i += 1) state = answer(state, false);
     expect(isPlacementFinished(state)).toBe(true);
-    expect(placementEstimate(state)).toBe('A1');
+    // Five straight misses are a complete beginner: the floor, not A1.
+    expect(placementEstimate(state)).toBe('A0');
   });
 
   it('is not converged before it has seen enough answers to judge', () => {
@@ -294,6 +313,9 @@ describe('placement item generator', () => {
     expect(nearestLevelWithItems(sparse, 'B1')).toBe('A1');
     expect(nearestLevelWithItems(POOL, 'B2')).toBe('B1');
     expect(nearestLevelWithItems(POOL, 'A2')).toBe('A2');
+    // The A0 floor must step up to the nearest populated level, so a learner
+    // at the floor is never stranded before the foundations module loads.
+    expect(nearestLevelWithItems(POOL, 'A0')).toBe('A1');
   });
 
   it('is reproducible for the same content and seed', () => {
