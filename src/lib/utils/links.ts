@@ -23,29 +23,47 @@ export const FALLBACK_PRICE_LABEL = '5 دولار / شهر';
 let cachedPriceLabel: string | null = null;
 let priceInflight: Promise<string> | null = null;
 
-async function fetchPriceLabel(): Promise<string> {
+/** One plan tier as the worker vouched for it (V21 Phase 7). */
+export interface PlanTier {
+  id: string;
+  months: number;
+  priceUsd: number;
+  label_ar: string;
+  requires_discount_code?: boolean;
+}
+
+let cachedPlans: PlanTier[] | null = null;
+
+async function fetchPriceData(): Promise<{ label: string; plans: PlanTier[] } | null> {
   const workerUrl = String((import.meta as any).env?.VITE_WORKER_URL || '').replace(/\/+$/, '');
-  if (!workerUrl) return FALLBACK_PRICE_LABEL;
+  if (!workerUrl) return null;
   const res = await fetch(`${workerUrl}/crypto/health`, { headers: { Accept: 'application/json' } });
-  if (!res.ok) return FALLBACK_PRICE_LABEL;
-  const data = (await res.json()) as { priceUsd?: unknown; months?: unknown };
+  if (!res.ok) return null;
+  const data = (await res.json()) as { priceUsd?: unknown; months?: unknown; plans?: unknown };
   const price = Number(data.priceUsd);
   const months = Number(data.months);
   // Only a sane, positive price the worker actually vouched for changes the label.
   if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(months) || months < 1) {
-    return FALLBACK_PRICE_LABEL;
+    return null;
   }
   const monthsPart = months === 1 ? 'شهر' : `${months} أشهر`;
-  return `${price} دولار / ${monthsPart}`;
+  const plans = Array.isArray(data.plans)
+    ? (data.plans as PlanTier[]).filter(
+        (p) => p && typeof p.id === 'string' && Number.isFinite(Number(p.priceUsd)) && Number(p.priceUsd) > 0,
+      )
+    : [];
+  return { label: `${price} دولار / ${monthsPart}`, plans };
 }
 
 /** Resolves the live price label; never throws. */
 export async function getProPriceLabel(): Promise<string> {
   if (cachedPriceLabel) return cachedPriceLabel;
   if (!priceInflight) {
-    priceInflight = fetchPriceLabel()
-      .then((label) => {
+    priceInflight = fetchPriceData()
+      .then((data) => {
+        const label = data?.label ?? FALLBACK_PRICE_LABEL;
         cachedPriceLabel = label;
+        cachedPlans = data?.plans?.length ? data.plans : null;
         return label;
       })
       .catch(() => FALLBACK_PRICE_LABEL)
@@ -54,6 +72,16 @@ export async function getProPriceLabel(): Promise<string> {
       });
   }
   return priceInflight;
+}
+
+/**
+ * Resolves the plan tiers the worker currently sells. Empty when the worker is
+ * unreachable or pre-Phase-7 — callers must render an honest single-price view
+ * from getProPriceLabel() in that case, never invent tiers.
+ */
+export async function getProPlanTiers(): Promise<PlanTier[]> {
+  if (!cachedPlans) await getProPriceLabel();
+  return cachedPlans ?? [];
 }
 
 /**

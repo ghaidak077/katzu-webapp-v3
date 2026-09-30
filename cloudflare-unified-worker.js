@@ -1591,6 +1591,19 @@ export default {
         }
         return await handleAdminGenerate(request, env, cors);
       }
+      // V21 Phase 7: mint signed student-discount codes (same admin gate + throttle).
+      if (url.pathname === "/admin/discount-code" && request.method === "POST") {
+        const throttle = await isAdminThrottled(request, env);
+        if (throttle.throttled) {
+          return adminJson(
+            { error: "too_many_attempts" },
+            429,
+            cors,
+            { "Retry-After": String(throttle.retryAfter) },
+          );
+        }
+        return await handleAdminDiscountCode(request, env, cors);
+      }
       if (url.pathname === "/progress/sync" && request.method === "POST") {
         return await withHonestSessionStatus(handleProgressSync(request, env, cors), cors);
       }
@@ -2485,6 +2498,29 @@ async function handleAdminGenerate(request, env, cors) {
   const code = `${unsigned}-${signature}`;
 
   return json({ code }, 200, cors);
+}
+
+// V21 Phase 7: mint a signed student-discount code (STD-{pct}-{nonce}-{sig}).
+// Same HMAC trust as the activation codes; the checkout validates the signature
+// and re-prices server-side, so only the owner can create real discounts.
+async function handleAdminDiscountCode(request, env, cors) {
+  if (!(await isAdminAuthorized(request, env))) {
+    return adminJson({ error: "unauthorized" }, 401, cors);
+  }
+
+  const body = await request.json().catch(() => null);
+  const percent = Number(body?.percent ?? 50);
+  if (!Number.isFinite(percent) || percent < 10 || percent > 90) {
+    return json({ error: "percent must be 10-90" }, 400, cors);
+  }
+
+  const nonce = crypto.randomUUID().split("-")[0].toUpperCase();
+  const pct = String(Math.trunc(percent)).padStart(2, "0");
+  const unsigned = `STD-${pct}-${nonce}`;
+  const signature = await sign(unsigned, env.HMAC_SECRET);
+  const code = `${unsigned}-${signature}`;
+
+  return json({ code, percent: Math.trunc(percent) }, 200, cors);
 }
 
 async function handleProgressSync(request, env, cors) {

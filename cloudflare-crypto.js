@@ -120,6 +120,68 @@ export function getCryptoPlan(env = {}) {
   };
 }
 
+// V21 Phase 7: plan tiers, all derived from the owner's single base price so
+// one var still moves everything. The student tier is half the monthly price
+// but is ONLY purchasable with a valid signed discount code (see
+// validateDiscountCode) — the server checks both, so no client can buy it
+// without the code.
+const round2 = (x) => Math.round(x * 100) / 100;
+
+export function getCryptoPlans(env = {}) {
+  const base = getCryptoPlan(env);
+  const m = base.priceUsd;
+  return [
+    { id: "monthly", months: 1, priceUsd: base.priceUsd, label_ar: "شهري" },
+    { id: "quarterly", months: 3, priceUsd: round2(m * 3 * 0.87), label_ar: "٣ أشهر — وفّر ١٣٪" },
+    { id: "yearly", months: 12, priceUsd: round2(m * 12 * 0.7), label_ar: "سنة — وفّر ٣٠٪" },
+    // The student tier is priced at the FULL monthly rate here; the signed
+    // discount code re-prices it at checkout (a 50% code = half price). This
+    // keeps exactly one re-pricing step and lets the owner choose the percent
+    // per code without a deploy.
+    { id: "student", months: 1, priceUsd: base.priceUsd, label_ar: "طلابي — بكود خصم", requires_discount_code: true, expected_discount_percent: 50 },
+  ];
+}
+
+export function planById(env, planId) {
+  if (typeof planId !== "string") return null;
+  return getCryptoPlans(env).find((p) => p.id === planId) || null;
+}
+
+// The student discount rides the same HMAC trust the activation codes have:
+// `STD-{pct}-{nonce}-{sig}`, sig = HMAC(HMAC_SECRET, "STD-{pct}-{nonce}")
+// uppercased hex, first 16 chars — minted by /admin/discount-code, verified
+// here. A tampered or guessed code fails the signature; a reused code is fine
+// by design (the owner controls who holds it, exactly like a promo flyer).
+export function parseDiscountCode(code) {
+  const match = String(code || "").trim().match(/^STD-(\d{2})-([A-Z0-9]{6,12})-([A-F0-9]{16})$/i);
+  if (!match) return null;
+  const percent = parseInt(match[1], 10);
+  if (percent < 10 || percent > 90) return null;
+  return { percent, nonce: match[2].toUpperCase(), signature: match[3].toUpperCase() };
+}
+
+export async function validateDiscountCode(code, env) {
+  const parsed = parseDiscountCode(code);
+  if (!parsed || !env?.HMAC_SECRET) return null;
+  const unsigned = `STD-${parsed.percent}-${parsed.nonce}`;
+  // Same HMAC as the activation-code generator (SHA-256, hex, uppercased,
+  // first 16 chars) — implemented here with Web Crypto, which exists in both
+  // the Workers runtime and Node 18+, because the generator's helper is not
+  // importable from this module.
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(env.HMAC_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sigBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(unsigned));
+  const expected = [...new Uint8Array(sigBuffer)].map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase().slice(0, 16);
+  // Constant-time compare over two fixed-length hex strings.
+  const provided = parsed.signature;
+  if (provided.length !== expected.length) return null;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) {
+    diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return diff === 0 ? parsed : null;
+}
+
 const stripSlash = (value) => String(value || "").trim().replace(/\/+$/, "");
 
 /**
@@ -393,7 +455,34 @@ export async function handleCryptoCheckout(request, env, cors) {
     return json({ error: "storage_unavailable", message: "تعذر تجهيز الطلب حالياً. حاول لاحقاً." }, 503, cors);
   }
 
-  const { priceUsd, months } = getCryptoPlan(env);
+  // V21 Phase 7: the body may name a plan (monthly | quarterly | yearly | student).
+  // Prices come from getCryptoPlans (server-side derivation from the base var),
+  // never from the client. The student tier additionally requires a valid
+  // HMAC-signed discount code — its percent re-prices the plan here, on the
+  // server, so the signed number is what is charged.
+  const body = await request.json().catch(() => ({}));
+  const plan = planById(env, body?.plan) || getCryptoPlan(env);
+  let priceUsd = plan.priceUsd;
+  let months = plan.months;
+  let discount = null;
+  if (plan.requires_discount_code) {
+    // Discount-only tiers cannot be bought without a valid code.
+    discount = await validateDiscountCode(body?.discount_code, env);
+    if (!discount) {
+      return json({ error: "invalid_discount_code", message: "هذه الباقة تتطلب كود خصم صالح." }, 400, cors);
+    }
+    if (plan.expected_discount_percent && discount.percent !== plan.expected_discount_percent) {
+      return json({ error: "discount_percent_mismatch", message: "نسبة كود الخصم لا تطابق هذه الباقة." }, 400, cors);
+    }
+    priceUsd = round2(priceUsd * (1 - discount.percent / 100));
+  } else if (body?.discount_code) {
+    // A code on a non-discount tier is honored too (owner's choice to allow).
+    discount = await validateDiscountCode(body.discount_code, env);
+    if (!discount) {
+      return json({ error: "invalid_discount_code", message: "كود الخصم غير صالح." }, 400, cors);
+    }
+    priceUsd = round2(priceUsd * (1 - discount.percent / 100));
+  }
   const orderId = `kz_${Date.now().toString(36)}${randomHex(4)}`;
   const claimToken = randomHex(32);
 
@@ -407,7 +496,7 @@ export async function handleCryptoCheckout(request, env, cors) {
   // ASCII-only free text: the IPN signature is computed over JSON.stringify, and
   // NOWPayments' own reference implementation is PHP's json_encode (which escapes
   // non-ASCII). Keeping this string ASCII keeps the signed bytes identical.
-  const orderDescription = `Katzu Pro activation code (${months} month${months > 1 ? "s" : ""})`;
+  const orderDescription = `Katzu Pro activation code (${months} month${months > 1 ? "s" : ""}${plan.id && plan.id !== "monthly" ? ", " + plan.id : ""}${discount ? ", discount " + discount.percent + "%" : ""})`;
 
   const payload = {
     price_amount: priceUsd,
@@ -471,6 +560,8 @@ export async function handleCryptoCheckout(request, env, cors) {
     order_id: orderId,
     price_usd: priceUsd,
     months,
+    plan: plan.id || "default",
+    discount_percent: discount ? discount.percent : 0,
     environment: getCryptoEnvironment(env),
   });
 
@@ -483,6 +574,8 @@ export async function handleCryptoCheckout(request, env, cors) {
       invoice_id: invoice?.id ?? null,
       price_usd: priceUsd,
       months,
+      plan: plan.id || "default",
+      discount_percent: discount ? discount.percent : 0,
       currency: "usd",
       environment: getCryptoEnvironment(env),
     },
@@ -679,6 +772,7 @@ export function handleCryptoHealth(env, cors) {
       salesOrigin: salesOrigin || null,
       priceUsd,
       months,
+      plans: getCryptoPlans(env),
       ready: apiKeyConfigured && ipnSecretConfigured && !!salesOrigin,
     },
     200,

@@ -131,6 +131,46 @@ function applyConfig() {
 // Crypto checkout
 // ---------------------------------------------------------------------------
 
+let selectedPlan = null;
+
+function renderPlanTiers(plans) {
+  const container = $('plan-tiers');
+  if (!container) return;
+  container.textContent = '';
+  if (!Array.isArray(plans) || plans.length === 0) {
+    // Pre-Phase-7 worker: keep the honest single-price line, no invented tiers.
+    selectedPlan = null;
+    return;
+  }
+  plans.forEach((plan, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'plan-tier';
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', i === 0 ? 'true' : 'false');
+    btn.innerHTML = `<span class="tier-label"></span><span class="tier-price"></span><span class="tier-months"></span>`;
+    btn.querySelector('.tier-label').textContent = plan.label_ar || plan.id;
+    btn.querySelector('.tier-price').textContent = `${plan.priceUsd} $`;
+    btn.querySelector('.tier-months').textContent = plan.months === 1 ? 'شهر واحد' : `${plan.months} أشهر`;
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.plan-tier').forEach((el) => el.setAttribute('aria-checked', 'false'));
+      btn.setAttribute('aria-checked', 'true');
+      selectedPlan = plan;
+      const discountRow = $('discount-row');
+      if (discountRow) discountRow.hidden = !plan.requires_discount_code;
+      const hint = $('crypto-hint');
+      if (hint && !$('#crypto-buy').disabled) {
+        hint.textContent = `السعر: ${plan.priceUsd} $ مقابل ${plan.months === 1 ? 'شهر' : plan.months + ' أشهر'} من Pro.`;
+      }
+    });
+    container.appendChild(btn);
+    if (i === 0) selectedPlan = plan;
+  });
+  // A tier that requires a code shows the input; the first one usually does not.
+  const discountRow = $('discount-row');
+  if (discountRow) discountRow.hidden = !(selectedPlan && selectedPlan.requires_discount_code);
+}
+
 async function checkCryptoAvailability() {
   const badge = $('crypto-badge');
   const button = $('crypto-buy');
@@ -144,6 +184,7 @@ async function checkCryptoAvailability() {
       badge.textContent = data.environment === 'live_mode' ? 'متاح' : 'متاح (وضع التجربة)';
       badge.classList.add('badge-ok');
       button.disabled = false;
+      renderPlanTiers(data.plans);
       hint.textContent = `السعر: ${data.price_usd ?? data.priceUsd} $ مقابل ${data.months ?? 1} شهر من Pro.`;
       button.dataset.price = String(data.priceUsd ?? '');
       return;
@@ -171,10 +212,14 @@ async function startCryptoCheckout() {
   button.textContent = 'جارٍ تجهيز الفاتورة…';
 
   try {
+    const discountInput = $('discount-code');
+    const payload = {};
+    if (selectedPlan) payload.plan = selectedPlan.id;
+    if (discountInput && discountInput.value.trim()) payload.discount_code = discountInput.value.trim().toUpperCase();
     const res = await fetch(`${CONFIG.workerUrl}/crypto/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
 
