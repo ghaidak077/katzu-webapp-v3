@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Sparkles, Check, KeyRound, ExternalLink } from 'lucide-react';
-import { getProPriceLabel, getProPlanTiers, FALLBACK_PRICE_LABEL, buildSalesUrl, legalPageUrl, type PlanTier } from '@/lib/utils/links';
+import { getProPriceLabel, getProPlanTiers, orderTiersByRecommendation, FALLBACK_PRICE_LABEL, buildSalesUrl, legalPageUrl, type PlanTier } from '@/lib/utils/links';
 import { track } from '@/lib/analytics/client';
 
 export interface PaywallModalProps {
@@ -53,7 +53,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
       if (alive) setPriceLabel(label);
     });
     getProPlanTiers().then((tiers) => {
-      if (alive) setPlans(tiers.filter((p) => !p.requires_discount_code));
+      if (alive) setPlans(orderTiersByRecommendation(tiers.filter((p) => !p.requires_discount_code)));
     });
     return () => {
       alive = false;
@@ -88,8 +88,13 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => track('purchase_clicked', { source: `paywall_plan_${p.id}` })}
-                className="flex flex-col items-center gap-0.5 p-2 rounded-xl bg-surface-subtle border border-border-subtle hover:border-primary/50 transition-colors"
+                className={`relative flex flex-col items-center gap-0.5 p-2 rounded-xl bg-surface-subtle border transition-colors border-border-subtle hover:border-primary/50 ${p.recommended ? 'border-primary' : ''}`}
               >
+                {p.recommended && (
+                  <span className="absolute -top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary text-white text-[8px] font-bold font-arabic" dir="rtl">
+                    موصى به
+                  </span>
+                )}
                 <span className="text-[11px] font-bold font-arabic" dir="rtl">{p.label_ar}</span>
                 <span className="text-sm font-bold text-primary">${p.priceUsd}</span>
                 <span className="text-[9px] text-text-muted font-arabic" dir="rtl">{p.months === 1 ? 'شهر' : `${p.months} أشهر`}</span>
