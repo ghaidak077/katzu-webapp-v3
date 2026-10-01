@@ -3,7 +3,7 @@ import { ArrowRight, Mail, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
-type TrustPage = 'privacy' | 'terms' | 'contact';
+type TrustPage = 'privacy' | 'terms' | 'contact' | 'imprint' | 'refund';
 
 export interface TrustInfoScreenProps {
   page: TrustPage;
@@ -34,6 +34,21 @@ const content: Record<TrustPage, { title: string; paragraphs: string[] }> = {
       'للدعم: support@ghaidak.com · ghaidak.com',
     ],
   },
+  imprint: {
+    title: 'بيانات الناشر',
+    paragraphs: [
+      'بيانات الناشر: غيدق علوش — ghaidak.com.',
+      'للتواصل بخصوص المسائل القانونية: support@ghaidak.com.',
+      '(ملاحظة: هذه الصفحة قيد الاستكمال — ستُستكمل بيانات الناشر الرسمية قبل الإطلاق العام.)',
+    ],
+  },
+  refund: {
+    title: 'سياسة الاسترداد',
+    paragraphs: [
+      'الشراء داخل كاتزو يتم عبر أكواد تفعيل تُشترى من صفحة الشراء الرسمية، والاسترداد يتبع سياسة صفحة الشراء نفسها.',
+      'لأي طلب استرداد، راسلنا على support@ghaidak.com مع رقم الكود أو البريد الذي اشتريت منه — نجيب بأنفسنا لا بروبوت.',
+    ],
+  },
 };
 
 export const TrustInfoScreen: React.FC<TrustInfoScreenProps> = ({ page, onBack }) => {
@@ -57,7 +72,7 @@ export const TrustInfoScreen: React.FC<TrustInfoScreenProps> = ({ page, onBack }
             {paragraph}
           </p>
         ))}
-        {(page === 'privacy' || page === 'terms') && (
+        {(page === 'privacy' || page === 'terms' || page === 'refund') && (
           <p className="text-xs leading-6 text-text-secondary font-arabic">
             النسخة الكاملة المنشورة:{' '}
             <a
@@ -66,7 +81,7 @@ export const TrustInfoScreen: React.FC<TrustInfoScreenProps> = ({ page, onBack }
               target="_blank"
               rel="noreferrer"
             >
-              {page === 'privacy' ? 'سياسة الخصوصية' : 'شروط الاستخدام'}
+              {page === 'privacy' ? 'سياسة الخصوصية' : page === 'terms' ? 'شروط الاستخدام' : 'سياسة الاسترداد'}
             </a>
           </p>
         )}

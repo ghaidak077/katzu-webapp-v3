@@ -423,7 +423,16 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
                 أنشأنا لعبارة تدرّبت عليها بطاقة مراجعة مبدئية. أنشئ حساباً مجانياً لتُحفظ في ذاكرتك
                 الدائمة وتعود إليك في الوقت المناسب — التقدّم الذي جمعته في التجربة سينتقل معك.
               </p>
+              {state.production && (
+                <div className="mt-3 rounded-xl border border-border-subtle bg-surface-card p-3">
+                  <p className="text-[11px] font-arabic text-text-muted mb-1">البطاقة:</p>
+                  <GermanText className="text-sm font-bold block">{state.production.expected}</GermanText>
+                </div>
+              )}
             </Card>
+            <p className="text-[11px] font-arabic text-text-muted text-center mb-3">
+              غداً: مشهد جديد ينتظرك — دقيقتان تكفيان.
+            </p>
 
             {/* Conversion: the only place the demo asks for an account, and only
                 after the visitor has actually learned something. */}

@@ -74,6 +74,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
             className="w-full h-14 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl px-5 text-center text-base font-arabic font-semibold outline-none transition-all placeholder:text-text-muted"
             required
           />
+          <p className="text-[11px] font-arabic text-text-muted px-2">
+            نستخدم اسمك داخل المحادثة فقط — لا بريد ولا بيانات شخصية.
+          </p>
 
           <Button type="submit" size="lg" className="w-full" disabled={!name.trim()}>
             ابدأ رحلتك الآن

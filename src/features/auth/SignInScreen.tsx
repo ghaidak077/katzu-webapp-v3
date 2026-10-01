@@ -69,6 +69,11 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 
         if (googleBtnContainerRef.current) {
           googleBtnContainerRef.current.innerHTML = '';
+          // Google renders its button inside an iframe titled in Indonesian by
+          // default — label the container in Arabic so a screen-reader user
+          // hears what the button actually does.
+          googleBtnContainerRef.current.setAttribute('role', 'group');
+          googleBtnContainerRef.current.setAttribute('aria-label', mode === 'signup' ? 'التسجيل السريع باستخدام Google' : 'المتابعة باستخدام Google');
           window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
             theme: 'filled_black',
             size: 'large',
@@ -391,10 +396,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
         {/* Level Selection for Profile */}
         <div className="w-full mb-6 text-start">
           <label className="block text-xs font-bold text-text-secondary mb-1.5">
-            مستواك المستهدف في اللغة الألمانية
+            مستواك المستهدف في اللغة الألمانية — تقدير أولي، سنضبطه بالمحادثة
           </label>
-          <div className="grid grid-cols-4 gap-2">
-            {(['A1', 'A2', 'B1', 'B2'] as CEFRLevel[]).map((lvl) => (
+          <div className="grid grid-cols-5 gap-2">
+            {(['A0', 'A1', 'A2', 'B1', 'B2'] as CEFRLevel[]).map((lvl) => (
               <button
                 key={lvl}
                 type="button"

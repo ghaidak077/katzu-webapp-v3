@@ -347,6 +347,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             proved — same numbers as this screen, no extra AI call behind it. */}
         <GlassCard className="mt-4">
           <p className="kz-ar-caption text-kz-lavender">خلاصة الجلسة</p>
+          <p className="kz-ar-micro text-kz-inkDim mt-1">غداً: مشهد جديد ينتظرك — دقيقتان تكفيان.</p>
           <p className="mt-1.5 kz-ar-body font-bold leading-relaxed text-kz-ink">{summary.debrief.headlineAr}</p>
           {summary.debrief.didWellAr.length > 0 && (
             <ul className="mt-3 space-y-1.5">

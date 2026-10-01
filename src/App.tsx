@@ -295,7 +295,10 @@ function TrustRoute() {
   const navigate = useNavigate();
   const { page } = useParams();
   const user = useLiveQuery(() => db.users.get('current_user'));
-  const selected = page === 'terms' || page === 'contact' ? page : 'privacy';
+  const selected =
+    page === 'terms' || page === 'contact' || page === 'imprint' || page === 'refund'
+      ? page
+      : 'privacy';
   // These pages are public, so "back" must not send a signed-out visitor into a
   // protected route — that would bounce them straight to the sign-in screen.
   const backTo = user?.isLoggedIn ? '/app/profile' : '/';
