@@ -884,6 +884,9 @@ export function useLiveConversation({
       count: independentMsgs.length,
       state: accuracy === null ? 'unmeasured' : String(accuracy),
     });
+    // V24 Phase 7: the funnel's scenario-level completion — the session record
+    // was just persisted, so this only fires for sessions that really finished.
+    track('scenario_completed', { scenarioId, count: independentMsgs.length });
 
     // Update local learning stats; trial entitlement is enforced by the Worker.
     const earnedXp = Math.round((accuracy ?? 0) * 1.5) + (assistedMsgs.length === 0 ? 50 : 25);
