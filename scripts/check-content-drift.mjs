@@ -228,7 +228,7 @@ export function loadDrafts() {
   });
 }
 
-/** Read-only: GETs on the four public content endpoints, nothing else. */
+/** Read-only: GETs on the public content endpoints, nothing else. */
 export async function fetchLive(base, drafts) {
   const get = async (path) => {
     const response = await fetch(`${base}${path}`);
@@ -247,9 +247,16 @@ export async function fetchLive(base, drafts) {
 
   // Phrases are only served per scenario, so they are flattened under the table
   // name the comparison uses (`starter_phrases`, not `phrases`).
+  //
+  // A scenario that is approved in the repo but not yet loaded reports 404 here.
+  // That is the "pending load" state, not a tool failure: skip it and let the
+  // comparison classify its declared rows as absent/pending (V24-1). Any other
+  // non-ok answer is still a hard abort — a 500 is a real problem.
+  const liveScenarioIds = new Set(scenarios.map((row) => row.id));
   const starter_phrases = [];
   for (const { draft } of drafts) {
     for (const scenario of draft.scenarios ?? []) {
+      if (!liveScenarioIds.has(scenario.id)) continue;
       const body = await get(`/scenarios/${encodeURIComponent(scenario.id)}`);
       for (const phrase of body?.starter_phrases ?? []) starter_phrases.push({ ...phrase, scenario_id: scenario.id });
     }
