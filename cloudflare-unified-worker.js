@@ -490,6 +490,15 @@ async function ensureLedgerTables(env) {
         rev INTEGER NOT NULL,
         payload TEXT
       )`),
+      // V24 Phase 6: teacher/cohort code tracking. One row per minted code with
+      // its optional label; activation comes from redeemed_codes_ledger, so
+      // "created vs activated per label" is one read-only join.
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS generated_codes (
+        code TEXT PRIMARY KEY,
+        months INTEGER NOT NULL,
+        label TEXT,
+        created_at TEXT NOT NULL
+      )`),
     ]);
     // Additive user registry + activity/error telemetry tables (SaaS admin).
     await ensureRegistryTables(env);
@@ -1591,6 +1600,19 @@ export default {
         }
         return await handleAdminGenerate(request, env, cors);
       }
+      // V24 Phase 6: read-only teacher/cohort code report (same admin gate + throttle).
+      if (url.pathname === "/admin/codes/report" && request.method === "GET") {
+        const throttle = await isAdminThrottled(request, env);
+        if (throttle.throttled) {
+          return adminJson(
+            { error: "too_many_attempts" },
+            429,
+            cors,
+            { "Retry-After": String(throttle.retryAfter) },
+          );
+        }
+        return await handleAdminCodeReport(request, env, cors);
+      }
       // V21 Phase 7: mint signed student-discount codes (same admin gate + throttle).
       if (url.pathname === "/admin/discount-code" && request.method === "POST") {
         const throttle = await isAdminThrottled(request, env);
@@ -2492,12 +2514,91 @@ async function handleAdminGenerate(request, env, cors) {
     return json({ error: "months must be 1-12" }, 400, cors);
   }
 
-  const nonce = crypto.randomUUID().split("-")[0].toUpperCase();
-  const unsigned = `DE-${months}M-${nonce}`;
-  const signature = await sign(unsigned, env.HMAC_SECRET);
-  const code = `${unsigned}-${signature}`;
+  // V24 Phase 6: optional teacher/cohort label and batch count. The label is a
+  // free-text tag (max 64 chars, trimmed — it is metadata, never entitlement);
+  // count mints that many codes in one response. Both are backward-compatible:
+  // an old dashboard sends neither and gets exactly what it got before.
+  const rawLabel = typeof body?.label === "string" ? body.label.trim().slice(0, 64) : "";
+  const label = rawLabel || null;
+  const count = Number.isFinite(Number(body?.count)) ? Math.min(50, Math.max(1, Math.trunc(Number(body.count)))) : 1;
 
-  return json({ code }, 200, cors);
+  const codes = [];
+  for (let i = 0; i < count; i += 1) {
+    const nonce = crypto.randomUUID().split("-")[0].toUpperCase();
+    const unsigned = `DE-${months}M-${nonce}`;
+    const signature = await sign(unsigned, env.HMAC_SECRET);
+    codes.push(`${unsigned}-${signature}`);
+  }
+
+  // Ledger the batch best-effort: the codes are valid whether or not the
+  // tracking table exists (it does once ensureLedgerTables has run), and a
+  // tracking outage must never block the owner from minting.
+  if (env.DB && codes.length > 0) {
+    try {
+      await ensureLedgerTables(env);
+      const now = new Date().toISOString();
+      await env.DB.batch(
+        codes.map((code) =>
+          env.DB.prepare(
+            "INSERT INTO generated_codes (code, months, label, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(code) DO NOTHING"
+          ).bind(code, months, label, now),
+        ),
+      );
+    } catch (e) {
+      console.error("[generate] code ledger failed:", String(e?.message || e).slice(0, 120));
+    }
+  }
+
+  return count === 1 ? json({ code: codes[0] }, 200, cors) : json({ codes }, 200, cors);
+}
+
+// V24 Phase 6: read-only per-label tracking — codes created vs activated.
+// Activation is whatever redeemed_codes_ledger actually holds, so the report
+// reflects real redemptions, not the ledger's own optimism.
+async function handleAdminCodeReport(request, env, cors) {
+  if (!(await isAdminAuthorized(request, env))) {
+    return adminJson({ error: "unauthorized" }, 401, cors);
+  }
+
+  if (!env.DB) {
+    return adminJson({ error: "ledger_unavailable" }, 503, cors);
+  }
+  if (!(await ensureLedgerTables(env))) {
+    return adminJson({ error: "ledger_unavailable" }, 503, cors);
+  }
+
+  const { results } = await env.DB.prepare(
+    `SELECT
+       COALESCE(gc.label, '') AS label,
+       COUNT(DISTINCT gc.code) AS created,
+       COUNT(DISTINCT r.code) AS activated,
+       MIN(gc.created_at) AS first_created_at,
+       MAX(gc.created_at) AS last_created_at
+     FROM generated_codes gc
+     LEFT JOIN redeemed_codes_ledger r ON r.code = gc.code
+     GROUP BY COALESCE(gc.label, '')
+     ORDER BY MAX(gc.created_at) DESC`
+  ).all();
+
+  const labels = (results || []).map((row) => ({
+    label: row.label === "" ? null : row.label,
+    created: row.created,
+    activated: row.activated,
+    firstCreatedAt: row.first_created_at || null,
+    lastCreatedAt: row.last_created_at || null,
+  }));
+
+  return adminJson(
+    {
+      labels,
+      totals: {
+        created: labels.reduce((sum, l) => sum + l.created, 0),
+        activated: labels.reduce((sum, l) => sum + l.activated, 0),
+      },
+    },
+    200,
+    cors,
+  );
 }
 
 // V21 Phase 7: mint a signed student-discount code (STD-{pct}-{nonce}-{sig}).

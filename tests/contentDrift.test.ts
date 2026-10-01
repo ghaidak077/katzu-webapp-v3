@@ -207,6 +207,100 @@ describe('drift check — the shipped drafts', () => {
   });
 });
 
+describe('drift check — approved-but-unloaded scenarios (V24-1)', () => {
+  function jsonFetch(statusByUrl: (url: string) => number) {
+    return vi.spyOn(globalThis, 'fetch').mockImplementation((async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const body = url.endsWith('/scenarios')
+        ? []
+        : url.endsWith('/vocabulary')
+          ? []
+          : url.endsWith('/grammar')
+            ? []
+            : { starter_phrases: [] };
+      return new Response(JSON.stringify(body), { status: statusByUrl(url), headers: { 'content-type': 'application/json' } });
+    }) as unknown as typeof fetch);
+  }
+
+  it('skips a scenario that is not live (404) instead of aborting, so its rows classify as absent/pending', async () => {
+    const drafts = [
+      {
+        ...moduleDraft([], [{ id: 'loaded_scenario' }, { id: 'unloaded_scenario' }]),
+        draft: {
+          scenarios: [{ id: 'loaded_scenario' }, { id: 'unloaded_scenario' }],
+          vocabulary: [],
+          starter_phrases: [
+            { id: 'p1', scenario_id: 'unloaded_scenario', german: 'Guten Tag', level: 'A1', sort_order: 1 },
+          ],
+        },
+      },
+    ];
+    let detailCalls = 0;
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/scenarios')) return new Response(JSON.stringify([{ id: 'loaded_scenario' }]), { status: 200 });
+      if (url.endsWith('/vocabulary')) return new Response('[]', { status: 200 });
+      if (url.endsWith('/grammar')) return new Response('[]', { status: 200 });
+      detailCalls += 1;
+      if (url.endsWith('/scenarios/unloaded_scenario')) {
+        return new Response(JSON.stringify({ error: 'not found' }), { status: 404 });
+      }
+      return new Response(JSON.stringify({ starter_phrases: [] }), { status: 200 });
+    }) as unknown as typeof fetch);
+
+    let live: Awaited<ReturnType<typeof fetchLive>>;
+    try {
+      live = await fetchLive('https://worker.test', drafts);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+
+    expect(detailCalls).toBe(1); // only the loaded scenario's detail GET ran
+    const comparison = compareDrafts(drafts, live);
+    const phrases = comparison.tables.find((t) => t.table === 'starter_phrases');
+    expect(phrases?.absent).toBe(1);
+    expect(summarise(comparison).totals.pending).toBe(0);
+    expect(summarise(comparison).totals.absent).toBeGreaterThanOrEqual(1);
+  });
+
+  it('still aborts on a real server error (500) — the skip rule is 404-only', async () => {
+    const drafts = [moduleDraft([], [{ id: 'loaded_scenario' }])];
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/scenarios')) return new Response(JSON.stringify([{ id: 'loaded_scenario' }]), { status: 200 });
+      if (url.endsWith('/vocabulary')) return new Response('[]', { status: 200 });
+      if (url.endsWith('/grammar')) return new Response('[]', { status: 200 });
+      return new Response(JSON.stringify({ error: 'boom' }), { status: 500 });
+    }) as unknown as typeof fetch);
+
+    try {
+      await expect(fetchLive('https://worker.test', drafts)).rejects.toThrow(/HTTP 500/);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('does not even GET the detail path for an unloaded scenario (the 404 never has to happen)', async () => {
+    const drafts = [moduleDraft([], [{ id: 'ghost_scenario' }])];
+    const urls: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      const body = String(input).endsWith('/scenarios') || String(input).endsWith('/vocabulary') || String(input).endsWith('/grammar')
+        ? '[]'
+        : JSON.stringify({ starter_phrases: [] });
+      return new Response(body, { status: 200 });
+    }) as unknown as typeof fetch);
+
+    try {
+      await fetchLive('https://worker.test', drafts);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+
+    expect(urls.some((u) => u.includes('ghost_scenario'))).toBe(false);
+  });
+});
+
 describe('drift check — it cannot write', () => {
   it('only GETs the four public content paths, with no method and no admin header', async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];

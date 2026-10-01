@@ -18,6 +18,8 @@ import { MASTERED_REPS, gradeAnswer, reviewRefId } from '@/lib/srs/engine';
 import { enrolMistake, gradeReviewItem } from '@/lib/srs/store';
 import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
+import { buildExamCard, firstNameOf, MOCK_NOTICE_AR, type ExamCard } from '@/lib/debrief/examCard';
+import { useExamShareImage } from '@/lib/debrief/examShareImage';
 import { Volume2, Check, TrendingUp, CalendarClock, Sparkles } from 'lucide-react';
 import type { CapabilityState, CEFRLevel, MistakeEntity } from '@/types/models';
 import {
@@ -111,6 +113,24 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   const sessions = useLiveQuery(() => db.sessions.toArray()) || [];
   const [drill, setDrill] = useState<Record<number, { text: string; result: DrillState | null }>>({});
   const [isLevelPromoted, setIsLevelPromoted] = useState(false);
+
+  // V24 Phase 5: the mock-exam result card — exam scenarios only, built from
+  // the same numbers this screen already shows. No AI call behind it.
+  const isExamScenario = scenario?.category === 'exam';
+  const examCard: ExamCard | null = useMemo(
+    () =>
+      isExamScenario
+        ? buildExamCard({
+            scenarioTitle: summary.scenarioTitle,
+            sentencesSpoken: summary.sentencesSpoken,
+            independentSentences: summary.independentSentences,
+            accuracyPercent: summary.accuracyPercent,
+            mistakes: summary.mistakes,
+            debrief: summary.debrief,
+          })
+        : null,
+    [isExamScenario, summary],
+  );
 
   const { speak } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
 
@@ -381,6 +401,19 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           </p>
         </GlassCard>
 
+        {/* The mock-exam card (V24 Phase 5): exam scenarios only. It says
+            محاكاة, never claims a score, and carries the share image built from
+            the first name + the session's own numbers. */}
+        {examCard && (
+          <ExamResultCard
+            card={examCard}
+            firstName={firstNameOf(user?.displayName)}
+            scenarioTitle={summary.scenarioTitle}
+            sentencesSpoken={summary.sentencesSpoken}
+            independentSentences={summary.independentSentences}
+          />
+        )}
+
         {/* Level promotion: an offer backed by the same eligibility rule as
             before. Still the learner's decision, so it sits in a quiet card. */}
         {canPromote && targetPromotionLevel && (
@@ -545,5 +578,94 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         )}
       </FloatingControl>
     </div>
+  );
+};
+
+/**
+ * The mock-exam result card (V24 Phase 5).
+ *
+ * Deterministic (built by buildExamCard from session data), Arabic-first, and
+ * hard-bounded: it says محاكاة, it never renders a score/pass/fail, and the
+ * share image carries only the learner's first name plus numbers the session
+ * computed. The image is optional — a canvas-less browser simply hides it.
+ */
+const ExamResultCard: React.FC<{ card: ExamCard; firstName?: string; scenarioTitle?: string; sentencesSpoken?: number; independentSentences?: number }> = ({
+  card,
+  firstName = '',
+  scenarioTitle = '',
+  sentencesSpoken = 0,
+  independentSentences = 0,
+}) => {
+  const shareUrl = useExamShareImage({ firstName, scenarioTitle, sentencesSpoken, independentSentences });
+
+  const handleShare = useCallback(async () => {
+    if (!shareUrl) return;
+    try {
+      const blob = await fetch(shareUrl).then((r) => r.blob());
+      const file = new File([blob], 'katzu-mock-exam.png', { type: 'image/png' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'محاكاة كَاتْزُو' });
+      } else {
+        const link = document.createElement('a');
+        link.href = shareUrl;
+        link.download = 'katzu-mock-exam.png';
+        link.click();
+      }
+    } catch {
+      // The learner cancelled the share sheet — nothing to recover from.
+    }
+  }, [shareUrl]);
+
+  return (
+    <GlassCard emphasis="primary" className="mt-4">
+      <p className="kz-ar-caption text-kz-lavender">نتيجة المحاكاة</p>
+      <p className="mt-1.5 kz-ar-body font-bold leading-relaxed text-kz-ink">{card.taskDoneAr}</p>
+
+      <ul className="mt-3 space-y-1.5">
+        {card.fluencyAr.map((line, index) => (
+          <li key={index} className="flex items-start gap-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">
+            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-neon" aria-hidden />
+            <span>{line}</span>
+          </li>
+        ))}
+      </ul>
+
+      {card.topCorrections.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {card.topCorrections.map((correction, index) => (
+            <div key={index} className="border-t border-white/[0.06] pt-2">
+              <p className="font-german text-[0.78rem] leading-relaxed text-kz-inkFaint line-through">
+                <GermanText>{correction.original}</GermanText>
+              </p>
+              <p className="font-german text-[0.82rem] font-medium leading-relaxed text-kz-ink">
+                <GermanText>{correction.corrected}</GermanText>
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="mt-3 flex items-start gap-1.5 border-t border-white/[0.06] pt-3 kz-ar-micro leading-relaxed text-kz-neon">
+        <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span>{card.nextStepAr}</span>
+      </p>
+
+      <p className="mt-2 rounded-lg bg-white/[0.04] px-2.5 py-2 text-center kz-ar-micro leading-relaxed text-kz-lavender">
+        {card.noticeAr}
+      </p>
+
+      {shareUrl && (
+        <div className="mt-3 flex flex-col items-center gap-2">
+          <img
+            src={shareUrl}
+            alt="صورة مشاركة نتيجة المحاكاة"
+            className="h-40 w-40 rounded-2xl border border-white/10"
+          />
+          <GlassButton variant="quiet" onClick={handleShare}>
+            شارك نتيجة المحاكاة
+          </GlassButton>
+        </div>
+      )}
+    </GlassCard>
   );
 };

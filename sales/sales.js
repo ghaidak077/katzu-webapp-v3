@@ -142,13 +142,21 @@ function renderPlanTiers(plans) {
     selectedPlan = null;
     return;
   }
-  plans.forEach((plan, i) => {
+  // The server-recommended tier (the 3-month pass) leads the grid and is
+  // preselected; the worker owns both the price and the recommendation.
+  const ordered = [...plans.filter((p) => p.recommended), ...plans.filter((p) => !p.recommended)];
+  ordered.forEach((plan, i) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'plan-tier';
     btn.setAttribute('role', 'radio');
     btn.setAttribute('aria-checked', i === 0 ? 'true' : 'false');
-    btn.innerHTML = `<span class="tier-label"></span><span class="tier-price"></span><span class="tier-months"></span>`;
+    btn.innerHTML = `<span class="tier-flag" hidden></span><span class="tier-label"></span><span class="tier-price"></span><span class="tier-months"></span>`;
+    if (plan.recommended) {
+      const flag = btn.querySelector('.tier-flag');
+      flag.hidden = false;
+      flag.textContent = 'موصى به';
+    }
     btn.querySelector('.tier-label').textContent = plan.label_ar || plan.id;
     btn.querySelector('.tier-price').textContent = `${plan.priceUsd} $`;
     btn.querySelector('.tier-months').textContent = plan.months === 1 ? 'شهر واحد' : `${plan.months} أشهر`;

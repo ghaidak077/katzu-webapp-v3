@@ -338,6 +338,28 @@ describe('Plan tiers and student discount codes (V21 Phase 7)', () => {
     expect(fallback[3].priceUsd).toBe(3.5); // 10 × 0.35
   });
 
+  it('marks exactly the quarterly tier as recommended (V24 Phase 4)', () => {
+    const plans = getCryptoPlans({ CRYPTO_PRICE_USD: '5' });
+    const recommended = plans.filter((p) => p.recommended);
+    expect(recommended.map((p) => p.id)).toEqual(['quarterly']);
+    // Only a boolean the server set — never a client guess.
+    expect(plans.find((p) => p.id === 'monthly')?.recommended).toBeUndefined();
+    expect(plans.find((p) => p.id === 'yearly')?.recommended).toBeUndefined();
+    expect(plans.find((p) => p.id === 'student')?.recommended).toBeUndefined();
+  });
+
+  it('reads all three per-tier price vars the owner sets (V24 Phase 4)', () => {
+    const plans = getCryptoPlans({
+      CRYPTO_PRICE_USD: '5',
+      CRYPTO_PRICE_QUARTERLY_USD: '14',
+      CRYPTO_PRICE_YEARLY_USD: '44',
+    });
+    expect(plans.find((p) => p.id === 'quarterly')?.priceUsd).toBe(14);
+    expect(plans.find((p) => p.id === 'yearly')?.priceUsd).toBe(44);
+    // The 1-month pass is still served from the base var.
+    expect(plans.find((p) => p.id === 'monthly')?.priceUsd).toBe(5);
+  });
+
   it('validates a signed discount code and rejects tampering', async () => {
     const unsigned = 'STD-50-AB12CD34';
     const code = `${unsigned}-${signDiscount(unsigned)}`;

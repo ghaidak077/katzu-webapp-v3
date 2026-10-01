@@ -1,6 +1,8 @@
 # MARKETING-KIT — حزمة أصول كاتزو التسويقية (V21 Phase 10)
 
-**For the owner.** Every string here is copy-paste ready and every claim is limited to what the app does today (checked against the product at commit time). Anything the app does NOT do yet is marked قريباً and must not be promoted as shipped. When a claim here drifts from the product, the product wins — fix this file.
+> **Marketing content moved:** the single source of truth for marketing, pricing, trials and launch is now [`docs/marketing/KATZU-LAUNCH-PLAYBOOK.md`](marketing/KATZU-LAUNCH-PLAYBOOK.md). This file keeps its product facts and honest rules; where its numbers (e.g. «من 5$/شهر», scenario counts) differ from the playbook, the playbook wins.
+
+**For the owner.**** Every string here is copy-paste ready and every claim is limited to what the app does today (checked against the product at commit time). Anything the app does NOT do yet is marked قريباً and must not be promoted as shipped. When a claim here drifts from the product, the product wins — fix this file.
 
 ---
 

@@ -143,6 +143,11 @@ export function getCryptoPlans(env = {}) {
       months: 3,
       priceUsd: priceFromEnv(env.CRYPTO_PRICE_QUARTERLY_USD, round2(m * 3 * 0.87)),
       label_ar: "٣ أشهر — وفّر ١٣٪",
+      // V24 Phase 4: the 3-month pass is the default and recommended tier on
+      // the paywall and the sales page. The server owns the flag — the client
+      // only ever reads it, so the recommendation cannot drift from the price
+      // checkout actually charges.
+      recommended: true,
     },
     {
       id: "yearly",

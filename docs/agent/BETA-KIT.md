@@ -1,5 +1,7 @@
 # BETA-KIT — closed-beta operations kit
 
+> Marketing content (pricing, funnel, launch) lives in [`docs/marketing/KATZU-LAUNCH-PLAYBOOK.md`](../marketing/KATZU-LAUNCH-PLAYBOOK.md); this file governs the closed beta only.
+
 **This is a closed-beta go-live, not a public launch.** The beta is **free and code-only**:
 30–50 invited Arabic-speaking learners, no payments (the provider keys are absent on purpose,
 and the app contains no checkout UI), no store listing, no marketing. What you need to run it is

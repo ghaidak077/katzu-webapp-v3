@@ -371,6 +371,14 @@ a:hover { color: #a48ef5; }
   border-color: var(--accent, #8b6fe8);
   box-shadow: 0 0 0 1px var(--accent, #8b6fe8);
 }
+.plan-tier .tier-flag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #fff;
+  background: var(--accent, #8b6fe8);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
 .plan-tier .tier-label { font-size: 0.8rem; font-weight: 700; }
 .plan-tier .tier-price { font-size: 1.15rem; font-weight: 800; color: var(--accent, #8b6fe8); }
 .plan-tier .tier-months { font-size: 0.7rem; opacity: 0.7; }

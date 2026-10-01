@@ -1,5 +1,7 @@
 # OWNER-STEPS — things only the owner can do
 
+> Marketing content (pricing, funnel, launch) lives in [`docs/marketing/KATZU-LAUNCH-PLAYBOOK.md`](../marketing/KATZU-LAUNCH-PLAYBOOK.md).
+
 Written 2026-09-28, refreshed **2026-09-29 (V18)**. Nothing in this file was attempted by an
 agent; §3 of `AGENTS.md` puts every item here out of an agent's reach. Each section finishes
 with a check that proves it worked.

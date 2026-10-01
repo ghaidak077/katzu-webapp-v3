@@ -30,6 +30,19 @@ export interface PlanTier {
   priceUsd: number;
   label_ar: string;
   requires_discount_code?: boolean;
+  /** The worker marks the tier the paywall and sales page lead with (V24). */
+  recommended?: boolean;
+}
+
+/**
+ * Order tiers for display: the server-recommended tier first (the 3-month
+ * pass), then the rest in the worker's own order. Pure — the worker keeps
+ * owning both the price and the recommendation; the client only re-orders.
+ */
+export function orderTiersByRecommendation(tiers: PlanTier[]): PlanTier[] {
+  const recommended = tiers.filter((p) => p.recommended);
+  const rest = tiers.filter((p) => !p.recommended);
+  return [...recommended, ...rest];
 }
 
 let cachedPlans: PlanTier[] | null = null;

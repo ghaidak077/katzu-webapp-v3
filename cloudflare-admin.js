@@ -1422,10 +1422,16 @@ ${CONTENT_STUDIO_CSS}
           <div class="row">
             <input id="gen-months" type="number" value="1" min="1" max="24" style="width:90px">
             <input id="gen-count" type="number" value="1" min="1" max="50" style="width:90px">
+            <input id="gen-label" placeholder="teacher or cohort label (optional)" style="min-width:220px">
             <button class="btn primary" id="gen-codes-btn" type="button">Generate</button>
           </div>
           <div class="muted" style="font-size:12px;margin-top:8px">Codes are signed HMAC licenses. Treat generated output as sensitive.</div>
           <div id="gen-result" class="mono" style="margin-top:12px;white-space:pre-wrap"></div>
+        </div>
+        <div class="card">
+          <h2 style="margin-top:0">Codes per label (created vs activated)</h2>
+          <button class="btn" id="codes-report-btn" type="button">Refresh report</button>
+          <div id="codes-report" style="margin-top:12px"></div>
         </div>
       </div>
     </section>
@@ -1852,20 +1858,41 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     var months = document.getElementById("gen-months").value;
     var countEl = document.getElementById("gen-count");
     var count = Math.max(1, Math.min(parseInt(countEl.value, 10) || 1, 50));
+    var label = (document.getElementById("gen-label") || {}).value || "";
     var out = document.getElementById("gen-result");
     out.textContent = "Generating…";
-    var done = 0;
-    var codes = [];
-    function one() {
-      api("/admin/generate", { method: "POST", body: JSON.stringify({ months: Number(months) }) })
-        .then(function (data) {
-          codes.push(data.code || JSON.stringify(data));
-          done += 1;
-          if (done < count) { one(); } else { out.textContent = codes.join("\\n"); }
-        })
-        .catch(function () { out.textContent = "Generation failed."; });
-    }
-    one();
+    api("/admin/generate", { method: "POST", body: JSON.stringify({ months: Number(months), count: count, label: label }) })
+      .then(function (data) {
+        var codes = data.codes || (data.code ? [data.code] : [JSON.stringify(data)]);
+        out.textContent = codes.join("\\n");
+      })
+      .catch(function () { out.textContent = "Generation failed."; });
+  }
+
+  function loadCodesReport() {
+    var out = document.getElementById("codes-report");
+    if (!out) return;
+    out.textContent = "Loading…";
+    api("/admin/codes/report")
+      .then(function (data) {
+        var labels = (data && data.labels) || [];
+        if (!labels.length) { out.textContent = "No codes recorded yet."; return; }
+        var html = "<table class=\"mono\" style=\"border-collapse:collapse\"><tr>" +
+          "<th style=\"text-align:left;padding:4px 12px 4px 0\">Label</th>" +
+          "<th style=\"padding:4px 12px\">Created</th>" +
+          "<th style=\"padding:4px 12px\">Activated</th></tr>";
+        for (var i = 0; i < labels.length; i++) {
+          html += "<tr><td style=\"padding:4px 12px 4px 0\">" + escapeHtml(labels[i].label || "(unlabelled)") + "</td>" +
+            "<td style=\"text-align:center;padding:4px 12px\">" + labels[i].created + "</td>" +
+            "<td style=\"text-align:center;padding:4px 12px\">" + labels[i].activated + "</td></tr>";
+        }
+        html += "</table>";
+        if (data.totals) {
+          html += "<div class=\"muted\" style=\"margin-top:8px\">Total: " + data.totals.created + " created · " + data.totals.activated + " activated</div>";
+        }
+        out.innerHTML = html;
+      })
+      .catch(function () { out.textContent = "Report unavailable."; });
   }
 
   function loadContent() {
@@ -1912,6 +1939,8 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
   on("errors-load-btn", loadErrors);
   on("lic-lookup-btn", licLookup);
   on("gen-codes-btn", genCodes);
+  on("codes-report-btn", loadCodesReport);
+  loadCodesReport(); // read-only view refreshes with the dashboard
 
   // Enter in the key field connects without a click.
   var keyInput = document.getElementById("admin-key");
