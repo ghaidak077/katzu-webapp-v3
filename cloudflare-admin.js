@@ -1877,18 +1877,22 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
       .then(function (data) {
         var labels = (data && data.labels) || [];
         if (!labels.length) { out.textContent = "No codes recorded yet."; return; }
-        var html = "<table class=\"mono\" style=\"border-collapse:collapse\"><tr>" +
-          "<th style=\"text-align:left;padding:4px 12px 4px 0\">Label</th>" +
-          "<th style=\"padding:4px 12px\">Created</th>" +
-          "<th style=\"padding:4px 12px\">Activated</th></tr>";
+        // NOTE: this function lives inside the dashboard's template literal —
+        // a literal double quote here must NOT be escaped with backslashes
+        // (the browser would receive the backslash-escaped form and the whole
+        // inline script would fail to parse). Single-quote the attributes.
+        var html = '<table class="mono" style="border-collapse:collapse"><tr>' +
+          '<th style="text-align:left;padding:4px 12px 4px 0">Label</th>' +
+          '<th style="padding:4px 12px">Created</th>' +
+          '<th style="padding:4px 12px">Activated</th></tr>';
         for (var i = 0; i < labels.length; i++) {
-          html += "<tr><td style=\"padding:4px 12px 4px 0\">" + escapeHtml(labels[i].label || "(unlabelled)") + "</td>" +
-            "<td style=\"text-align:center;padding:4px 12px\">" + labels[i].created + "</td>" +
-            "<td style=\"text-align:center;padding:4px 12px\">" + labels[i].activated + "</td></tr>";
+          html += '<tr><td style="padding:4px 12px 4px 0">' + escapeHtml(labels[i].label || "(unlabelled)") + '</td>' +
+            '<td style="text-align:center;padding:4px 12px">' + labels[i].created + '</td>' +
+            '<td style="text-align:center;padding:4px 12px">' + labels[i].activated + '</td></tr>';
         }
-        html += "</table>";
+        html += '</table>';
         if (data.totals) {
-          html += "<div class=\"muted\" style=\"margin-top:8px\">Total: " + data.totals.created + " created · " + data.totals.activated + " activated</div>";
+          html += '<div class="muted" style="margin-top:8px">Total: ' + data.totals.created + ' created &middot; ' + data.totals.activated + ' activated</div>';
         }
         out.innerHTML = html;
       })
