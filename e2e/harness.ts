@@ -191,6 +191,46 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
         if (refusesLevel(route, options.isPro)) return wall(route);
         return json({ task_type: 'short_message', feedback: WRITING_FEEDBACK });
       }
+      case url.pathname === '/ai/ask': {
+        const body = JSON.parse(route.request().postData() || '{}') as { question?: string };
+        const question = String(body.question || '');
+        // The German-only contract is enforced by the real worker; the mock mirrors
+        // it so the refusal path is exercised end to end.
+        // The client consumes the worker's already-normalized camelCase answer.
+        if (/weather|wetter|الطقس|رياضيات|بلوكشين/i.test(question)) {
+          return json({
+            answer: {
+              inScope: false,
+              refusalAr: 'كَاتْزُو هنا لتعليم الألمانية فقط — اسألني عن كلمة أو قاعدة أو جملة بالألمانية.',
+              intent: null,
+              explanationAr: '',
+              examples: [],
+              practice: [],
+              legal: false,
+            },
+            level: 'A1',
+            quota: { daily_limit: 8, is_pro: false },
+          });
+        }
+        const legal = /bescheid|amt|رسمي|قانوني/i.test(question);
+        return json({
+          answer: {
+            inScope: true,
+            refusalAr: '',
+            intent: legal ? 'official' : 'grammar',
+            explanationAr: 'الأكوزاتيف حالة النصب: الاسم المذكر يتغيّر فيه der إلى den.',
+            examples: [{ de: 'Ich kaufe den Kaffee.', ar: 'أشتري القهوة.' }],
+            practice: [
+              { type: 'translate', promptAr: 'أشتري التفاحة.', promptDe: '', answerDe: 'Ich kaufe den Apfel.' },
+              { type: 'fill', promptAr: 'املأ الفراغ بالأداة الصحيحة.', promptDe: 'Ich sehe ___ Mann.', answerDe: 'den' },
+              { type: 'reorder', promptAr: 'رتّب الكلمات لتكوين جملة.', promptDe: 'Kaffee / Ich / den / kaufe', answerDe: 'Ich kaufe den Kaffee' },
+            ],
+            legal,
+          },
+          level: 'A1',
+          quota: { daily_limit: 8, is_pro: false },
+        });
+      }
       case url.pathname === '/ai/transcribe': {
         const text = transcribeQueue.shift() ?? options.defaultUtterance ?? DEFAULT_UTTERANCE;
         return json({ text, word_count: text.split(/\s+/).length, empty: false });

@@ -342,6 +342,11 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
 - **`ADMIN_SECRET` must be rotated** (was exposed in an earlier prompt).
 - **Real-device voice input** never verified on iOS/Android; only Chromium fake capture.
 - **Reading skill** shows «لم يبدأ بعد — قريباً».
+- **Ask Katzu is German-only and quota-capped (V28 Stage 2A).** `/ai/ask` takes one question and
+  returns validated JSON (Arabic explanation, examples, 3 practice items) or a polite Arabic refusal;
+  its own daily cap and rate limit live in worker config (`ASK_FREE_PER_DAY` / `ASK_PRO_PER_DAY` /
+  `ASK_RATE_PER_MINUTE`, defaults 8 / 60 / 4) and official/legal German carries a not-legal-advice
+  notice. See `cloudflare-ask.js` and `src/features/ask/AskKatzuScreen.tsx`.
 - **Chat turns are validated (V28).** `cloudflare-turn-quality.js` drops an embedded hint that does not
   answer the last AI message, refuses a correction that changes nothing or "corrects" an already-correct
   sentence, and gates the persona obstacles (never turn 1, never right after a repeat request). Run
@@ -404,6 +409,7 @@ the same thing. **Update the block in the same commit as any route/screen/endpoi
 *
 /app
 /app/:tab
+/app/ask
 /app/coach
 /app/grammar
 /app/library
@@ -430,6 +436,7 @@ the same thing. **Update the block in the same commit as any route/screen/endpoi
 ```
 
 ```appmap-screens
+src/features/ask/AskKatzuScreen.tsx
 src/features/auth/SignInScreen.tsx
 src/features/auth/SubscriptionRedemptionScreen.tsx
 src/features/auth/WelcomeScreen.tsx
@@ -475,6 +482,7 @@ src/features/writing/WritingScreen.tsx
 /admin/sweep
 /admin/upload
 /admin/vocabulary
+/ai/ask
 /ai/check-writing
 /ai/health
 /ai/hints
@@ -538,3 +546,4 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 | 2026-10-02 | V28 | Chat quality (owner feedback #2): new pure `cloudflare-turn-quality.js` wired into `/ai/turn` — hints must answer the last AI message, corrections must change something, obstacles are gated; `scripts/eval-chat-quality.mjs` + `tests/fixtures/chatTurns.json` run offline in CI (hints 58%→100%, corrections 58%→100%, obstacles 50%→100%). No extra AI call per turn. |
 | 2026-10-02 | V28 | Two modes of the SAME conversation (owner feedback #3): the 3/8 round picker is gone — `practice` (help) or `real` (no hints/translation/live corrections) over one conversation, length a level cap (`levelSpec.maxSessionTurns` via `sessionTurnCap`). REAL keeps the turn call (it returns the evaluation silently) and the report renders every correction, what went well, kept phrases, "what you can now do", and a "versus your previous attempt" line; REAL XP is 1.5× practice (`sessionXp`). Verbs `TURNS_BY_MODE`/`planTurns`/`turnPlanForLevel` deleted. |
 | 2026-10-02 | V28 | Stage 1 deployed: worker version `f3d9bd3f-39ef-4816-a539-8eb1701f5fb8` (previous `9cf79e18…`) and Pages production `2f3bbb1a-46e1-4fd0-9b58-3780e3b55fdc` (source `df08d25`, previous `61aff978…`). CI green on the branch sha (`36984211159`) and on `main` (`36984903494`); smoke battery 12/12; both modes verified live in a signed-in production walkthrough. |
+| 2026-10-02 | V28 | Ask Katzu (owner feedback #4, Stage 2A): new `/app/ask` screen + route (entry from the Practice tab) and new `/ai/ask` endpoint. One question in (Arabic or German) → one validated JSON answer (Arabic explanation, ≤3 examples, exactly 3 practice items) or a polite Arabic refusal for anything off-topic; the learner's text is fenced data, not instructions. Its own server-side daily quota + rate limit (`ASK_FREE_PER_DAY`/`ASK_PRO_PER_DAY`/`ASK_RATE_PER_MINUTE`) never spends the conversation trial quota; official/legal German attaches a not-legal-advice notice reusing the scenario disclaimer wording; wrong practice answers enter the validated review path. |

@@ -32,9 +32,10 @@ export interface PracticeScreenProps {
   onOpenListening?: () => void;
   onOpenWriting?: () => void;
   onOpenCoach?: () => void;
+  onOpenAsk?: () => void;
 }
 
-export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenWriting, onOpenCoach }) => {
+export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenWriting, onOpenCoach, onOpenAsk }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
@@ -171,6 +172,31 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         </div>
         <ArrowLeft className="w-4 h-4 text-text-muted shrink-0" />
       </button>
+
+      {/* Ask Katzu (V28 Stage 2A): a free-text tutor for anything German the learner
+          is stuck on — translation, grammar, a word, a sentence, official German —
+          followed by a short check. It sits beside the mistake bank because both
+          turn "I don't understand" into something the learner owns. */}
+      {onOpenAsk && (
+        <button
+          onClick={() => {
+            triggerHaptic('light');
+            onOpenAsk();
+          }}
+          className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex items-center gap-3 text-start transition-all"
+        >
+          <div className="w-10 h-10 shrink-0 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+            <HelpCircle className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-bold font-arabic block">اسأل كَاتْزُو عن الألمانية</span>
+            <span className="text-[11px] text-text-secondary font-arabic">
+              ترجمة، قاعدة، كلمة، صحّح جملتك، أو نصّ ألماني رسمي — ثم تمرين قصير يتأكد أنك فهمت
+            </span>
+          </div>
+          <ArrowLeft className="w-4 h-4 text-text-muted shrink-0" />
+        </button>
+      )}
 
       {/* Quick Action Hub */}
       <div className="grid grid-cols-4 gap-2 mb-6">

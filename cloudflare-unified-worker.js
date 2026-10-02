@@ -43,6 +43,7 @@
 // Gemini-only walker below is no longer reached by any route.
 import { handleHintsRoute } from "./cloudflare-hints.js";
 import { handleWritingRoute } from "./cloudflare-writing.js";
+import { handleAskRoute } from "./cloudflare-ask.js";
 import { handleChatTurnRoute, handleTranslateRoute } from "./cloudflare-ai-chat.js";
 import { validateGermanAgainstLevel, levelFallbackLine, levelConstraintLine, correctionBudgetFor } from "./cloudflare-level-spec.js";
 import { handleTranscribeRoute } from "./cloudflare-stt.js";
@@ -1476,6 +1477,17 @@ export default {
           request,
           env,
           "ai_writing"
+        );
+      }
+      // Ask Katzu — the German-only learning assistant (V28 Stage 2A). Its own
+      // daily quota and rate limit live in ./cloudflare-ask.js.
+      if (url.pathname === "/ai/ask" && request.method === "POST") {
+        return await withAiTelemetry(
+          () =>
+            handleAskRoute(request, env, cors, aiRouteDeps()),
+          request,
+          env,
+          "ai_ask"
         );
       }
       if ((url.pathname === "/ai/health" || url.pathname === "/health") && request.method === "GET") {

@@ -464,3 +464,39 @@ export interface TurnAiResponse {
   roastComment?: string;
   positiveNoteAr?: string;
 }
+
+/**
+ * Ask Katzu (V28 Stage 2A) — the German-only learning assistant.
+ * One question in, one validated answer out: a short Arabic explanation, up to
+ * three German examples with Arabic, and up to three short practice items the
+ * client grades deterministically. `refusalAr` is set (and everything else empty)
+ * when the question is unrelated to German.
+ */
+export type AskIntent = 'translate' | 'grammar' | 'word' | 'check_sentence' | 'official';
+export type AskPracticeType = 'fill' | 'reorder' | 'translate';
+
+export interface AskExample {
+  de: string;
+  ar: string;
+}
+
+export interface AskPracticeItem {
+  type: AskPracticeType;
+  /** Arabic instruction / prompt. */
+  promptAr: string;
+  /** German prompt: the gapped sentence (fill) or the scrambled words (reorder). */
+  promptDe?: string;
+  /** The one correct German answer the learner must produce. */
+  answerDe: string;
+}
+
+export interface AskAnswer {
+  inScope: boolean;
+  refusalAr: string;
+  intent: AskIntent | null;
+  explanationAr: string;
+  examples: AskExample[];
+  practice: AskPracticeItem[];
+  /** Whether the "not legal advice" notice must be shown. */
+  legal: boolean;
+}

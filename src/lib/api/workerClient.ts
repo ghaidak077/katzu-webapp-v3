@@ -13,6 +13,7 @@ import type {
   ReviewItemEntity,
   WritingFeedback,
   WritingTaskType,
+  AskAnswer,
 } from '@/types/models';
 
 const AI_REQUEST_TIMEOUT_MS = 30000;
@@ -1213,6 +1214,71 @@ export class WorkerClient {
     if (status === 503) return 'خدمة التصحيح غير متاحة مؤقتاً. جرّب بعد قليل — نصّك محفوظ.';
     if (status === 401) return 'انتهت جلسة الدخول. سجّل الدخول من جديد — نصّك محفوظ هنا.';
     return 'تعذر تصحيح النص الآن. نصّك محفوظ هنا — أعد المحاولة.';
+  }
+
+  // --- Ask Katzu (/ai/ask, V28 Stage 2A) ---
+
+  /**
+   * One question about German in, one validated answer out. Never throws: the
+   * screen keeps the learner's question on any failure and shows an Arabic
+   * message, exactly like the writing screen keeps a paragraph.
+   */
+  async askKatzu(params: {
+    question: string;
+    cefrLevel: CEFRLevel;
+    idToken?: string;
+  }): Promise<
+    | { ok: true; answer: AskAnswer; dailyLimit: number; isPro: boolean }
+    | { ok: false; code: string; error: string }
+  > {
+    const token = await this.getEffectiveAuthToken(params.idToken);
+    if (!token) {
+      return {
+        ok: false,
+        code: 'UNAUTHENTICATED',
+        error: 'انتهت جلسة الدخول. سجّل الدخول من جديد ثم أعد المحاولة — سؤالك محفوظ هنا.',
+      };
+    }
+    try {
+      const res = await fetch(`${this.baseUrl}/ai/ask`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify({
+          question: params.question,
+          cefr_level: params.cefrLevel,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.answer) {
+        return {
+          ok: true,
+          answer: data.answer as AskAnswer,
+          dailyLimit: Number(data?.quota?.daily_limit) || 0,
+          isPro: data?.quota?.is_pro === true,
+        };
+      }
+      return { ok: false, code: data?.code || 'ASK_FAILED', error: this.askErrorMessage(res.status, data) };
+    } catch (e) {
+      logNetwork('ai/ask', `Ask failed: ${e instanceof Error ? e.message : String(e)}`);
+      return {
+        ok: false,
+        code: 'NETWORK_ERROR',
+        error: 'تعذر الوصول إلى الخادم. سؤالك محفوظ هنا — أعد المحاولة عند عودة الاتصال.',
+      };
+    }
+  }
+
+  /** Server messages are Arabic and specific; use them when present. */
+  private askErrorMessage(status: number, data: any): string {
+    if (typeof data?.message === 'string' && data.message.trim()) return data.message;
+    if (status === 429) return 'وصلت إلى حدّ أسئلة اليوم. جرّب غداً أو رقِّ حسابك — سؤالك محفوظ.';
+    if (status === 413) return 'سؤالك أطول من المسموح. اختصره قليلاً — سؤالك محفوظ.';
+    if (status === 503) return 'مساعد كَاتْزُو غير متاح مؤقتاً. جرّب بعد قليل — سؤالك محفوظ.';
+    if (status === 401) return 'انتهت جلسة الدخول. سجّل الدخول من جديد — سؤالك محفوظ هنا.';
+    return 'تعذر الحصول على شرح الآن. سؤالك محفوظ هنا — أعد المحاولة.';
   }
 
   // --- Speech recognition (/ai/transcribe) ---

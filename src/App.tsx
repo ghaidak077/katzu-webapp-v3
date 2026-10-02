@@ -80,6 +80,9 @@ const WritingScreen = React.lazy(() =>
 const CoachScreen = React.lazy(() =>
   import('@/features/coach/CoachScreen').then((m) => ({ default: m.CoachScreen })),
 );
+const AskKatzuScreen = React.lazy(() =>
+  import('@/features/ask/AskKatzuScreen').then((m) => ({ default: m.AskKatzuScreen })),
+);
 const DemoScreen = React.lazy(() =>
   import('@/features/demo/DemoScreen').then((m) => ({ default: m.DemoScreen })),
 );
@@ -249,6 +252,7 @@ function AppRoutes() {
             <Route path="/app/listen" element={<ListeningRoute />} />
             <Route path="/app/write" element={<WritingRoute />} />
             <Route path="/app/coach" element={<CoachRoute />} />
+            <Route path="/app/ask" element={<AskRoute />} />
             <Route path="/app" element={<Navigate to="/app/trail" replace />} />
             <Route path="/app/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
             <Route path="/main" element={<Navigate to="/app/trail" replace />} />
@@ -446,6 +450,16 @@ function CoachRoute() {
   );
 }
 
+function AskRoute() {
+  const navigate = useNavigate();
+  return (
+    <AskKatzuScreen
+      onBack={() => navigate('/app/practice')}
+      onOpenSubscription={() => navigate('/subscription')}
+    />
+  );
+}
+
 function GrammarRoute() {
   const navigate = useNavigate();
   return (
@@ -483,6 +497,7 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
           onOpenListening={() => navigate('/app/listen')}
           onOpenWriting={() => navigate('/app/write')}
           onOpenCoach={() => navigate('/app/coach')}
+          onOpenAsk={() => navigate('/app/ask')}
         />
       )}
       {activeTab === 'Progress' && (

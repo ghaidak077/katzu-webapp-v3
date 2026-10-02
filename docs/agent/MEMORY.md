@@ -126,6 +126,14 @@ file is the digest that is short enough to always read.
   (`src/lib/progress/sessionXp.ts`) multiplies practice XP by `REAL_XP_MULTIPLIER` (1.5×) for REAL
   mode; the report's "versus your previous attempt" line appears only when a prior session recorded
   `mistakesCount` (new optional `SessionEntity` field), never a guessed baseline.
+- **Ask Katzu (`/app/ask` → `/ai/ask`, V28 Stage 2A) is German-only and quota-capped.** One question
+  → one validated JSON answer (Arabic explanation + ≤3 examples + exactly 3 practice items) or a
+  polite Arabic refusal for anything off-topic; the learner's text is fenced data, never
+  instructions. Its own daily cap and rate limit live in worker config (`ASK_FREE_PER_DAY` 8 /
+  `ASK_PRO_PER_DAY` 60 / `ASK_RATE_PER_MINUTE` 4) and **never spend the conversation trial quota**.
+  Official/legal German attaches a not-legal-advice notice; practice is graded by the same
+  `gradeAnswer` the review engine uses, and a wrong answer enters the validated review path.
+  `tests/askRoutes.test.ts` pins the contract, `e2e/ask.spec.ts` the happy path.
 
 ---
 
