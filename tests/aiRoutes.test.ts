@@ -715,7 +715,11 @@ describe('live-conversation behaviour + level enforcement on /ai/turn (V21 Phase
     }
 
     const prompts = bodies.map((b) => JSON.stringify(b.systemInstruction));
-    expect(prompts[0]).toContain('ask exactly one natural follow-up question');
+    // V28 Stage 1C: no obstacle on the FIRST turn (the learner has not been heard
+    // yet) — the instruction is the plain direct-answer one instead.
+    expect(prompts[0]).not.toContain('ask exactly one natural follow-up question');
+    expect(prompts[0]).toContain("answer the learner's sentence directly");
+    // …then the cycle rotates from turn 1 onward, unchanged.
     expect(prompts[1]).toContain('check one detail you half-caught');
     expect(prompts[2]).toContain('react with a brief natural emotion');
     expect(prompts[3]).toContain("carry the scene's own goal one concrete step forward");

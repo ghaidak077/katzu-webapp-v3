@@ -20,6 +20,8 @@
  *   (and any PWA bundle still cached on a phone) needed no update.
  */
 
+import { evaluateCorrection, hintMatchesQuestion, latestLearnerText, learnerAskedRepeat, obstacleInstructionForTurn } from "./cloudflare-turn-quality.js";
+
 /**
  * @param {Request} request
  * @param {object} env
@@ -144,14 +146,12 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   // must behave like the situation, not like a quiz. One rotating obstacle keeps
   // phrasing varied without making the reply unpredictable to the learner: the
   // persona still answers what was actually said first.
-  const obstacleCycle = [
-    "ask exactly one natural follow-up question about what the learner just said, as a curious real person would",
-    "check one detail you half-caught ('Wie bitte?' or a short paraphrase question) and let the learner restate it before moving on",
-    "react with a brief natural emotion (surprise, relief, amusement) before you continue, then keep your goal in the scene moving forward",
-    "carry the scene's own goal one concrete step forward (time, place, amount, next action) as the counterpart would",
-  ];
   const turnIndex = Number.isFinite(Number(v?.turn_index)) ? Math.max(0, Number(v?.turn_index)) : 0;
-  const obstacleInstruction = `LIVE-CONVERSATION BEHAVIOUR (rotate; do not announce it): this turn, ${obstacleCycle[turnIndex % obstacleCycle.length]}. The learner's sentence always gets a direct answer first. Never reveal, confirm or solve the learner's intended meaning for them — if their German was unclear, ask them to rephrase instead of guessing for them.`;
+  // V28 Stage 1C: the obstacle is gated, not cycled blindly — never on the first
+  // turn, and never right after the learner asked for a repetition.
+  const obstacleInstruction = obstacleInstructionForTurn(turnIndex, {
+    learnerAskedRepeat: learnerAskedRepeat(v?.history),
+  });
   // Gate 6: a roleplay in a medical, legal/official or housing-contract setting
   // must never drift into acting as a real professional. The persona practises
   // the conversation; it does not diagnose, does not file, and does not interpret
@@ -378,13 +378,35 @@ How to use it:
         message: "لم يصل تقييم هذه الجملة كاملاً. حاول إعادة الإرسال."
       }, 502, cors);
     }
+    // V28 Stage 1C: never ship a correction that changes nothing, or one that
+    // "corrects" a sentence the learner already wrote correctly. A rejected
+    // correction is returned as a clean turn (no correction shown), which is the
+    // honest outcome when the grade and the sentence disagree.
+    const correctionVerdict = evaluateCorrection({
+      isCorrect: evaluation.is_correct,
+      originalMistake: evaluation.original_mistake,
+      correctedGerman: evaluation.corrected_german,
+      learnerSentence: String(v?.user_message || latestLearnerText(v?.history) || ""),
+    });
+    if (!correctionVerdict.ok) {
+      evaluation.is_correct = true;
+      evaluation.original_mistake = "";
+      evaluation.corrected_german = "";
+      evaluation.grammar_rule = "";
+      evaluation.grammar_id = "";
+      evaluation.explanation_ar = "";
+      evaluation.roast_comment = "";
+    }
     const nextHint = parsed.next_hint && typeof parsed.next_hint === "object"
       ? {
           german: sanitizeFieldLabel(parsed.next_hint.german) || "",
           translation_ar: sanitizeFieldLabel(parsed.next_hint.translation_ar) || ""
         }
       : null;
-    const hints = nextHint && nextHint.german ? [nextHint] : [];
+    // V28 Stage 1C: the embedded hint must plausibly answer the reply we are about
+    // to show; otherwise drop it and let the client fall back to the validated
+    // on-demand /ai/hints floor.
+    const hints = nextHint && nextHint.german && hintMatchesQuestion(replyDe, nextHint.german) ? [nextHint] : [];
     const followupAr = sanitizeFieldLabel(parsed.followup_question_ar) || "";
     const linkedGrammarId = grammarReference && !evaluation.is_correct && evaluation.grammar_id === grammarReference.id
       ? grammarReference.id

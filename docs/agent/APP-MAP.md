@@ -126,7 +126,7 @@ katzu/
 ├─ cloudflare-content-schema.js    # additive column reconciliation (DB_SCHEMA)
 ├─ cloudflare-content-studio*.js   # content studio UI/tools
 ├─ cloudflare-crypto.js            # NOWPayments checkout/webhook (test mode)
-├─ cloudflare-{hints,stt,writing,level-spec}.js
+├─ cloudflare-{hints,stt,writing,level-spec,turn-quality}.js
 │
 ├─ tests/                          # 88 Vitest spec files (+ helpers/ for fakes)
 ├─ e2e/                            # 12 Playwright specs + harness.ts
@@ -342,6 +342,10 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
 - **`ADMIN_SECRET` must be rotated** (was exposed in an earlier prompt).
 - **Real-device voice input** never verified on iOS/Android; only Chromium fake capture.
 - **Reading skill** shows «لم يبدأ بعد — قريباً».
+- **Chat turns are validated (V28).** `cloudflare-turn-quality.js` drops an embedded hint that does not
+  answer the last AI message, refuses a correction that changes nothing or "corrects" an already-correct
+  sentence, and gates the persona obstacles (never turn 1, never right after a repeat request). Run
+  `node scripts/eval-chat-quality.mjs` (in CI) for the before/after rates.
 - **Review items are contract-checked (V28).** A card must have a clear Arabic prompt, one German answer,
   and — for a correction — the learner's original and a meaningful change. Items that fail are hidden
   (suppressed, never deleted; Dexie v7 migration); word cards ship both directions and a cloze line.
@@ -526,3 +530,4 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 | 2026-10-02 | V27 | Deployed: merged `launch-hardening` to `main` (fast-forward to `a2f6115`) and let Pages build — production deployment `b87f00b4-4975-43b9-93b7-1483db2e0904`. Worker code unchanged, so no worker deploy. CI green on the branch sha and on the merged `main` sha. |
 | 2026-10-02 | V27 | Production-verified the two retype fixes in a real browser walkthrough (390×844): both the PracticeScreen mistake drill and the session-report debrief accepted the full sentence `Ich habe den Bericht jetzt fertiggestellt` for the fragment `ist jetzt fertiggestellt`; smoke battery 12/12, `/health` healthy/ready, unauthenticated `/admin/api/users` → 401. |
 | 2026-10-02 | V28 | Review rebuilt (owner feedback #1): `src/lib/review/validate.ts` gates every item (`validateReviewItem`, `isMeaningfulCorrection`, `gradeArabicAnswer`, dedupe, direction, cloze); bad items are suppressed not deleted via a Dexie **v7** migration; the mistake prompt is a real Arabic instruction; both directions render in `ReviewScreen`. |
+| 2026-10-02 | V28 | Chat quality (owner feedback #2): new pure `cloudflare-turn-quality.js` wired into `/ai/turn` — hints must answer the last AI message, corrections must change something, obstacles are gated; `scripts/eval-chat-quality.mjs` + `tests/fixtures/chatTurns.json` run offline in CI (hints 58%→100%, corrections 58%→100%, obstacles 50%→100%). No extra AI call per turn. |

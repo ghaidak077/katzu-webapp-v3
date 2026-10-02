@@ -79,6 +79,7 @@ file is the digest that is short enough to always read.
 | 16 | The hint matcher ranked a greeting first | Lexical overlap without a **stopword class** for greetings/pronouns ranks register, not subject | Exclude greetings/politeness and pronoun/possessive forms from content-word ranking. |
 | 17 | A "large unused bundle" item kept directing work for versions | A **stale metric** nobody re-measured (measured 0% unused when finally probed) | Re-measure a performance claim before acting; record metrics with their measurement date. |
 | 18 | Review showed questions with no clear answer | Items were built from a field that is not a question (`grammarRule` as the prompt) and nothing validated them before display | Validate every generated item before it is shown; suppress (never delete) the ones that fail. |
+| 19 | The chat felt illogical (a hint that ignored the question, a no-op correction, an obstacle on turn 1) | Each output shape was checked for presence, never for whether it answered the turn | Validate the AI's own output against the turn (does the hint answer the question, does the correction change anything); gate behaviours, don't cycle them blindly. |
 
 ---
 
@@ -112,6 +113,10 @@ file is the digest that is short enough to always read.
   refuses an item with no clear Arabic prompt, no answer, or a correction that changes nothing
   (`isMeaningfulCorrection` folds case/punctuation/umlaut-transliteration). Bad stored items are
   **suppressed** (Dexie v7 migration), never deleted, and mastery stays `gradeReviewItem`'s.
+- **The AI's own output is validated before the learner sees it.** `cloudflare-turn-quality.js`
+  drops a `next_hint` that does not answer the last AI message, refuses a no-op correction, and
+  gates the persona obstacles (never the first turn, never right after a repeat request).
+  `scripts/eval-chat-quality.mjs` (in CI) is the before/after measure.
 
 ---
 

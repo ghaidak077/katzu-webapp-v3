@@ -1,0 +1,39 @@
+{
+  "_note": "Recorded and representative conversation turns for scripts/eval-chat-quality.mjs. `expected` is what a careful reviewer would call correct; the harness scores the OLD rule and the NEW rule against it, so the numbers are a real before/after, not a claim. Grows with every regression found in real use.",
+  "hints": [
+    { "id": "hint-01", "lastAiReply": "Fehlt Ihr Gepäck?", "hintGerman": "Hier ist mein Pass.", "expected": "fail", "note": "the observed case: a yes/no question answered with an unrelated statement" },
+    { "id": "hint-02", "lastAiReply": "Fehlt Ihr Gepäck?", "hintGerman": "Nein, mein Gepäck ist da.", "expected": "pass" },
+    { "id": "hint-03", "lastAiReply": "Fehlt Ihr Gepäck?", "hintGerman": "Ja, mein Koffer fehlt.", "expected": "pass" },
+    { "id": "hint-04", "lastAiReply": "Wann fährt der Zug?", "hintGerman": "Der Zug fährt um acht.", "expected": "pass" },
+    { "id": "hint-05", "lastAiReply": "Wann fährt der Zug?", "hintGerman": "Ich trinke gern Kaffee.", "expected": "fail" },
+    { "id": "hint-06", "lastAiReply": "Wann fährt der Zug?", "hintGerman": "Wo ist der Bahnhof?", "expected": "fail", "note": "another bare question does not answer a wh-question" },
+    { "id": "hint-07", "lastAiReply": "Möchten Sie einen Kaffee?", "hintGerman": "Ja, gern, eine Tasse Kaffee bitte.", "expected": "pass" },
+    { "id": "hint-08", "lastAiReply": "Möchten Sie einen Kaffee?", "hintGerman": "ich habe einen Termin morgen", "expected": "fail" },
+    { "id": "hint-09", "lastAiReply": "Können Sie das wiederholen?", "hintGerman": "Klar, ich sage es noch einmal.", "expected": "pass" },
+    { "id": "hint-10", "lastAiReply": "Können Sie das wiederholen?", "hintGerman": "Das Wetter ist heute schön.", "expected": "fail" },
+    { "id": "hint-11", "lastAiReply": "Guten Tag, was kann ich für Sie tun?", "hintGerman": "Ich möchte einen Termin vereinbaren.", "expected": "pass", "note": "not a yes/no question — any readable answer passes" },
+    { "id": "hint-12", "lastAiReply": "Wie viele Personen sind Sie?", "hintGerman": "Wir sind zwei Personen.", "expected": "pass" }
+  ],
+  "corrections": [
+    { "id": "corr-01", "isCorrect": false, "originalMistake": "Ich möchte ein Kaffee", "correctedGerman": "Ich möchte einen Kaffee", "learnerSentence": "Ich möchte ein Kaffee", "expected": "pass" },
+    { "id": "corr-02", "isCorrect": false, "originalMistake": "ich möchte einen kaffee", "correctedGerman": "Ich möchte einen Kaffee.", "learnerSentence": "ich möchte einen kaffee", "expected": "fail", "note": "punctuation/case only — not a mistake" },
+    { "id": "corr-03", "isCorrect": false, "originalMistake": "ich moechte einen kaffee", "correctedGerman": "Ich möchte einen Kaffee", "learnerSentence": "ich moechte einen kaffee", "expected": "fail", "note": "umlaut transliteration only — not a mistake" },
+    { "id": "corr-04", "isCorrect": false, "originalMistake": "Ich bin gegangen", "correctedGerman": "Ich bin gegangen", "learnerSentence": "Ich bin gegangen", "expected": "fail", "note": "already correct — the model disagreed with itself" },
+    { "id": "corr-05", "isCorrect": false, "originalMistake": "", "correctedGerman": "", "learnerSentence": "Ich gehe nach Hause", "expected": "fail", "note": "an empty correction is not a correction" },
+    { "id": "corr-06", "isCorrect": false, "originalMistake": "Ich habe gegangen", "correctedGerman": "Ich bin gegangen", "learnerSentence": "Ich habe gegangen", "expected": "pass" },
+    { "id": "corr-07", "isCorrect": false, "originalMistake": "Ich habe den Bericht fertig", "correctedGerman": "Ich habe den Bericht fertiggestellt", "learnerSentence": "Ich habe den Bericht fertig", "expected": "pass" },
+    { "id": "corr-08", "isCorrect": true, "originalMistake": "", "correctedGerman": "", "learnerSentence": "Ich heiße Ahmad", "expected": "pass", "note": "a correct sentence is never corrected" },
+    { "id": "corr-09", "isCorrect": false, "originalMistake": "der Kaffee", "correctedGerman": "die Kaffee", "learnerSentence": "der Kaffee", "expected": "pass", "note": "a wrong article is a real correction even though it is one word" },
+    { "id": "corr-10", "isCorrect": false, "originalMistake": "Ich möchte einen Kaffee", "correctedGerman": "Ich möchte einen Kaffee", "learnerSentence": "Ich möchte einen Kaffee", "expected": "fail" },
+    { "id": "corr-11", "isCorrect": false, "originalMistake": "ich habe einen termin am montag", "correctedGerman": "Ich habe einen Termin am Montag.", "learnerSentence": "ich habe einen termin am montag", "expected": "fail" },
+    { "id": "corr-12", "isCorrect": false, "originalMistake": "Wo du wohnst?", "correctedGerman": "Wo wohnst du?", "learnerSentence": "Wo du wohnst?", "expected": "pass" }
+  ],
+  "obstacles": [
+    { "id": "obs-01", "turnIndex": 0, "learnerAskedRepeat": false, "expected": "no" },
+    { "id": "obs-02", "turnIndex": 1, "learnerAskedRepeat": false, "expected": "yes" },
+    { "id": "obs-03", "turnIndex": 2, "learnerAskedRepeat": true, "expected": "no", "note": "the learner asked for a repeat — that request is the move" },
+    { "id": "obs-04", "turnIndex": 3, "learnerAskedRepeat": false, "expected": "yes" },
+    { "id": "obs-05", "turnIndex": 0, "learnerAskedRepeat": true, "expected": "no" },
+    { "id": "obs-06", "turnIndex": 5, "learnerAskedRepeat": false, "expected": "yes" }
+  ]
+}
