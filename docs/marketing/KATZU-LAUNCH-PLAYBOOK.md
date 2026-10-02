@@ -29,7 +29,7 @@
 
 **How to use.** This is the only marketing file. When a fact conflicts with any other doc, this file wins; when it conflicts with the code, the code wins (AGENTS.md §0). Tags used throughout: `FACT` (verified against code/repo with a path, or externally sourced with URL+date), `TEST TARGET` (a hypothesis to be measured, never stated publicly as final), `UNKNOWN` (we do not know; measure before deciding), `UNVERIFIED` (asserted somewhere but not yet evidenced — see §11), `HYPOTHESIS` (a persona/assumption pending interviews), `INTERNAL` (never appears in public copy), `FOR VERIFICATION` (needs a lawyer/teacher/native before shipping).
 
-**Status line (from the repo, verified 2026-10-01):**
+**Status line (from the repo, verified 2026-10-02):**
 
 | Surface | Status | Evidence |
 |---|---|---|
@@ -39,12 +39,12 @@
 | Paid products | **Activation codes only; checkout is test-mode** | `POST /crypto/checkout` → 503 `crypto_not_configured` (NOWPayments secrets absent; ledger V18 decision); codes redeem via `/verify`, single-use by ledger PK |
 | Prices | **Server-owned, USD, test-mode value 5 USD/1 mo** | `CRYPTO_PRICE_USD` (`cloudflare-crypto.js:115–119`); tiers monthly/quarterly/yearly/student (`:138–165`); 3-month pass flagged `recommended: true` (V24, `:146–150`); client renders only what the worker vouches (`src/lib/utils/links.ts` `getProPlanTiers`) |
 | Regional half-price codes | **Not built** | Discount codes exist (`STD-{pct}-{nonce}-{sig16}`, HMAC-verified, re-prices server-side, `cloudflare-crypto.js:180–202`) — reusable by design. A regional *single-use* variant is §12 P3. |
-| Exam-speaking module (the wedge's product) | **Authored, approved by AI self-review, NOT loaded** | `docs/content/curriculum-exam-speaking.json` `_note` (status draft, "in the style of, NOT official", 5 exam scenarios); blocked on owner load authorization (A0 CHECK rebuild landed in V23; load is owner-only). **Market it as قريباً until live.** |
+| Exam-speaking module (the wedge's product) | **LIVE (loaded V24)** | `docs/content/curriculum-exam-speaking.json` `_note` (status draft, "in the style of, NOT official", 5 exam scenarios); loaded in V24 and verified live 2026-10-02 — `/scenarios` returns `exam_sich_vorstellen, exam_erfahrungen_sprechen, exam_gemeinsam_planen, exam_thema_praesentieren, exam_auf_partner_reagieren`. Market it as live; keep the "in the style of, NOT official" framing everywhere (C4). |
 | Exam result card | **Shipped (V24), honest by construction** | `src/lib/debrief/examCard.ts` — deterministic, never claims official score; mandatory notice «هذه محاكاة بأسلوب الامتحان — ليست الامتحان الرسمي ولا تمنح درجة معتمدة» (`:19`) |
 | Scores vs real exams | **NOT validated** | No teacher-validated calibration exists. Until §12 P8's validation runs, any shared score is labeled «تدريبي تقريبي» and **no score deltas are published**. |
 | Analytics | **Allow-listed, privacy-first, 24 events** | `src/lib/analytics/events.ts` (`ANALYTICS_EVENTS`, 8 prop keys); worker rejects unknown names (`cloudflare-analytics.js`) |
 | Referral | **LIVE: 3 access-days both sides on invitee's first lesson + 1 Pro month on first verified purchase** | `cloudflare-unified-worker.js:2195–2210` (`REFERRAL_LESSON_REWARD_DAYS = 3`, `REFERRAL_REWARD_MONTHS = 1`), codes `REF-XXXXXXXX` |
-| Live content | **38 scenarios / 441 vocabulary / 22+56 grammar rows live** (post-V21/V23 loads; exam module not among them) | ledger V21-13/V23-2 (38 scenarios / 441 vocab / 56 grammar public counts) |
+| Live content | **49 scenarios / 531 vocabulary / 426 starter_phrases / 73 grammar rows live** (includes the exam module) | live probe 2026-10-02: `/scenarios` 49 (5 `exam_*`), `/vocabulary` 531, `/grammar` 73; ledger V24-1 (49/531/426/73) |
 | Exam date capture | **Not built** | No exam-date field exists anywhere in `src/`. §12 P6. |
 | Source-tag capture (`?src=`) | **Not built** | Only `?ref=REF-…` referral forwarding exists (`src/lib/utils/links.ts` `buildSalesUrl`). §12 P2. |
 | Renewal reminder (~day 75) | **Not built** | No lifecycle automation exists. §12 P5. |
@@ -81,7 +81,7 @@ Owner decisions 1–10 are **binding**; they override every archived file.
 | D9 | Buyer geography | **UNKNOWN.** Every link/code/post carries `?src=`; the first 50 sales answer the question. | DECISION |
 | D10 | Capacity | 5–10 h/week for marketing + support. One main channel + one secondary. | DECISION |
 | D11 | Weeks 1–4 channel | Owner's personal contacts ONLY. Teacher → groups → video stage after the first 10 sales. | DECISION |
-| D12 | The one promise | «درّب نفسك على امتحان B1 الشفوي بالعربي» — rehearse the B1 speaking exam in Arabic. The pass unlocks all content (A0–B2, all tracks); marketing sells only the exam rehearsal. Exam claims are always "in the style of", never official. Exam module marketed قريباً until load-verified in production. | DECISION |
+| D12 | The one promise | «درّب نفسك على امتحان B1 الشفوي بالعربي» — rehearse the B1 speaking exam in Arabic. The pass unlocks all content (A0–B2, all tracks); marketing sells only the exam rehearsal. Exam claims are always "in the style of", never official. The exam module is live (loaded V24, verified 2026-10-02). | DECISION |
 | D13 | Goal | $1,000/month. One-off cash math in §2; recurring math shown separately (§2.4). | DECISION |
 | D14 | Score honesty | No public score deltas until teacher validation (§12 P8). Scores labeled «تدريبي تقريبي». | DECISION |
 | D15 | Arabic register | MSA + Levantine warmth. **No Egyptian dialect** (مفيش، إزاي، دلوقتي banned). Native-read flag on every Arabic block; Syrian/Iraqi check where marked. | DECISION |
@@ -191,8 +191,8 @@ All personas are `HYPOTHESIS` until the first 10 interviews (§10.4). Buyer geog
 ### 3.3 Messaging house
 
 - **Promise:** «امتحانك الشفوي قرب؟ اعرف مستواك الحقيقي قبل يوم الامتحان.» ⚠️🇸🇾
-- **Three proofs (all FACT about shipped mechanics, exam content قريباً):**
-  1. Same-shape simulation: plan / present / react, in the style of B1 exams (module authored; قريباً until loaded — D12).
+- **Three proofs (all FACT about shipped mechanics; exam content live since V24):**
+  1. Same-shape simulation: plan / present / react, in the style of B1 exams (exam module loaded V24 — D12).
   2. Honest Arabic debrief computed from your own sentences (`src/lib/debrief/debrief.ts` — deterministic, shipped).
   3. Memory: your mistakes return in spaced review until mastered (SRS shipped).
 - **Reasons to believe:** founder on camera; no affiliation claims anywhere; the account-free demo proves the product before any payment; «أول جلسة ذكاء اصطناعي مجانية بعد التسجيل» (D1).
@@ -678,7 +678,7 @@ Synthesis same day: 3 verbatim quotes, trigger claimed vs actual, trust builders
 | C13 | Pass unlocks A0–B2, all tracks | FACT | entitlement code (levels incl. A0 free floor, V21-1) |
 | C14 | 14-day refund | FOR VERIFICATION | lawyer; launch without the claim (§4.3) |
 | C15 | Referral: 3 days both sides on first lesson + 1 month on verified purchase | FACT | `cloudflare-unified-worker.js:2195–2210` |
-| C16 | 38 scenarios live | FACT | ledger V23-2 public counts (38/441/56); recount before any public number |
+| C16 | 49 scenarios live | FACT | live probe 2026-10-02 (`/scenarios` 49, `/vocabulary` 531, `/grammar` 73); ledger V24-1; recount before any public number |
 | C17 | «٤–٦ أسابيع» typical prep | **UNVERIFIED** | validate in interviews (§10.4); remove if unsupported |
 | C18 | Exam-window seasonality (spring/autumn peaks) | **UNVERIFIED** | per-center dates UNKNOWN; verify with interview + `src` data |
 | C19 | Babbel ≈ $17.95/mo | FACT (sourced) | PCMag, 2026-10-01 — INTERNAL only |
@@ -700,7 +700,7 @@ Synthesis same day: 3 verbatim quotes, trigger claimed vs actual, trust builders
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Exam module never loads → wedge marketed empty | M | Critical | market قريباً (D12); teacher load authorization is OWNER TODO #3 (§13) |
+| Exam module regression (was: never loads) → wedge empty | L | Medium | loaded V24 and live-verified 2026-10-02; residual check is one exam scenario played end-to-end on production (§13) |
 | Content inaccuracy taught to exam candidates (AI-only review) | M | Critical | teacher content-review duty (§7.1); content-flag loop; honesty wording |
 | Voice fails on mid-range real devices | M (untested surface) | High | owner device test (ledger OWNER-OPEN); typed path marketed honestly |
 | Manual payments don't scale / trust fails | M | High | §5 flow discipline; 12h promise measured; hosted checkout later (§12 P9) |
@@ -734,7 +734,7 @@ No code changes were made for this playbook. This section is the spec a future e
 | P7 | **Minimum events (privacy-reviewed)** | Add the 5 missing events of §10.2 through the same closed-allowlist policy (client + worker reject unknowns; unit-test the allowlist delta). |
 | P8 | **Validated exam score before any shareable card** | A teacher scores ~10 recorded mock sessions independently on a shared rubric; compare with the app's session metrics (independent-sentence ratio, accuracy%). Only if correlation is acceptable does the shareable result card (§9.4) unlock; until then every score shows «تدريبي تقريبي» and NO deltas are published. The teacher-review duty (§7.1) supplies the raters. |
 | P9 | **Hosted checkout (deferred)** | Only if/when manual flow fails its ≥70% completion bar or volume exceeds owner capacity (§5.5). Copy is pre-written (§5.2/§8). Deferred by D2/D7. |
-| P10 | **Exam-speaking module load = the wedge dependency** | The exam module (`docs/content/curriculum-exam-speaking.json`, approved, awaiting owner load authorization) must be live in production BEFORE any exam-mock marketing beyond قريباً. Load is owner-only (`docs/agent/CONTENT-LOAD.md`); marketing flips from قريباً to live only after a production verification (a real exam scenario playable end-to-end). |
+| P10 | **Exam-speaking module — DONE (V24)** | Loaded V24 and verified live 2026-10-02 (5 `exam_*` scenarios via `/scenarios`). Residual: play one exam scenario end-to-end on production before heavy exam-mock marketing. |
 | P11 | **Email signup path** | P1's "email or Google" requires an email+verification signup route alongside Google Identity Services (shipped Google-only). Server-issued sessions, same security posture (§3 of AGENTS.md stands: server authoritative). |
 | P12 | **Order-confirmation admin view** | A minimal admin view of the manual order flow: orders list (buyer alias, pass, method, `src`, status), code-minted/redeemed state, delivery-elapsed clock against the 12h promise. Read-only; behind the existing admin gate. (Until built, §5.4's sheet is the system of record.) |
 
@@ -786,7 +786,7 @@ No code changes were made for this playbook. This section is the spec a future e
 
 **Cut:** EUR 19/29/39 price cells; EUR 7 single mock (not owner-approved); annual/lifetime ideas; $-vs-EUR mixing (USD working currency, D4); "free mock without an account" claims (D1); invented statistics ("70% fail", "examiners hear it 20×"); the 20-per-cell price test (replaced by §4.5); Egyptian-dialect copy; public competitor naming (→ §3.3 INTERNAL); fake-urgency mechanics.
 
-**Corrected:** teacher revshare redefined as a share of NET after fees (§2.1); delivery promise 3h → 12h (D8); free AI session 3 → 1 as a spec (C9/§12 P1; current code says 3 — stated honestly); score deltas locked behind teacher validation (D14/§12 P8); lifecycle cadence rebuilt to ≤2/user/week (§9.3); price test redesigned to one launch price + 50–100-visitor data (§4.5); scenario count reconciled to the ledger's live 38 (C16); staged channels re-gated on the first 10 sales (D11, §7).
+**Corrected:** teacher revshare redefined as a share of NET after fees (§2.1); delivery promise 3h → 12h (D8); free AI session 3 → 1 as a spec (C9/§12 P1; current code says 3 — stated honestly); score deltas locked behind teacher validation (D14/§12 P8); lifecycle cadence rebuilt to ≤2/user/week (§9.3); price test redesigned to one launch price + 50–100-visitor data (§4.5); scenario count reconciled to the live 49 (2026-10-02 probe, C16); staged channels re-gated on the first 10 sales (D11, §7).
 
 ### 14.2 Source-to-section mapping
 
