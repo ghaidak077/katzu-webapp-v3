@@ -17,6 +17,8 @@ import { calculateIndependentAccuracy } from '@/features/report/metrics';
 import { buildSessionDebrief, type SessionDebrief } from '@/lib/debrief/debrief';
 import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 import { sessionXp } from '@/lib/progress/sessionXp';
+import { creditXp, xpEarnedToday } from '@/lib/progress/dailyXp';
+import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
 import { sessionTurnCap } from '@/lib/conversation/turnPlan';
@@ -920,6 +922,16 @@ export function useLiveConversation({
       mode: sessionMode || 'practice',
     });
 
+    // V28 Stage 3: XP is credited only through the anti-farming daily cap, so a
+    // day of grinding pays the same as a few good conversations. `priorSessions`
+    // (read above for the report comparison) is exactly today's already-credited
+    // evidence — this session is not saved until below.
+    const xpCredit = creditXp({
+      totalXp: user?.totalXp || 0,
+      earnedToday: xpEarnedToday(priorSessions, Date.now()),
+      amount: earnedXp,
+    });
+
     // Daily habit loop: consecutive day extends the streak, a missed day resets
     // it honestly, same-day repeats never inflate it (all logic unit-tested).
     const streakResult = recalculateStreak({
@@ -928,11 +940,14 @@ export function useLiveConversation({
     });
 
     db.users.update('current_user', {
-      totalXp: (user?.totalXp || 0) + earnedXp,
+      totalXp: xpCredit.totalXp,
       streakDays: streakResult.streakDays,
       lastActiveDate: localDateKey(),
       updatedAt: Date.now(),
     });
+
+    // V28 Stage 3: today's scenario task is done the moment a conversation ends.
+    await markScenarioTaskDone();
 
     // Auto sync progress to cloud if authenticated (session token only)
     if (user?.sessionToken) {

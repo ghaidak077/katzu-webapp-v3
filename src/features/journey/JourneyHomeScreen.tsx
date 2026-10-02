@@ -6,6 +6,9 @@ import { isProEffective } from '@/lib/utils/subscription';
 import { servedLevel } from '@/lib/entitlement/trial';
 import { BorderBeam } from '@/components/effects/BorderBeam';
 import { selectDailyMission, INTRO_SCENARIO_ID } from '@/lib/mission/selectMission';
+import { readDailyTasks } from '@/lib/daily/taskStore';
+import type { DailyTaskKind } from '@/lib/daily/tasks';
+import { DailyTasksPanel } from '@/features/journey/DailyTasksPanel';
 import { readJourneyHomeData } from '@/features/journey/journeyHomeData';
 import { buildCapabilityModel, CAPABILITY_LABEL_AR, weakestMeasuredSkill } from '@/lib/capability/model';
 import { buildJourneyContext, katzuJourneyLineAr, missionReasonAr } from '@/lib/journey/context';
@@ -57,6 +60,10 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   const isOnline = useOnlineStatus();
 
   const user = useLiveQuery(() => db.users.get('current_user'));
+  // The three daily tasks (V28 Stage 3). One read for the card and the streak;
+  // it observes `daily_tasks` and `review_items`, so a completed task or a new
+  // due item refreshes it without a manual re-render.
+  const dailyTasks = useLiveQuery(() => readDailyTasks());
   // One bounded read for the whole screen (B4a): eight full-table toArray()s
   // became one transactional live query whose result is projected to exactly the
   // fields the derivations read. Identity-preserving — see journeyHomeData.ts.
@@ -222,6 +229,31 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
     onStartMission(mission.scenarioId);
   };
 
+  /**
+   * The daily-task actions.
+   *
+   * The scenario task reuses today's mission scenario so tapping it starts one
+   * real conversation rather than a second, different route to nowhere; when
+   * there is no scenario (empty cache) it falls back to the library instead of a
+   * dead button. Grammar and review map to their existing screens.
+   */
+  const handleDailyTaskAction = (kind: DailyTaskKind) => {
+    if (kind === 'scenario') {
+      if (mission.scenarioId) {
+        track('scenario_started', { scenarioId: mission.scenarioId, source: 'daily_task' });
+        onStartMission(mission.scenarioId);
+      } else {
+        onOpenLibrary();
+      }
+      return;
+    }
+    if (kind === 'grammar') {
+      (onOpenGrammar ?? onOpenLibrary)();
+      return;
+    }
+    onOpenReview();
+  };
+
   return (
     <div
       ref={specular.ref}
@@ -342,6 +374,11 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           </div>
         </GlassCard>
         </BorderBeam>
+
+        {/* The three daily tasks: one scenario session, one grammar step, one
+            review batch. Quiet on purpose — the mission above is still the one
+            prominent action; this is the habit underneath it. */}
+        <DailyTasksPanel snapshot={dailyTasks} onAction={handleDailyTaskAction} />
 
         {/* Katzu's one line. Only rendered when a real state produced it. */}
         {katzuLineAr && (

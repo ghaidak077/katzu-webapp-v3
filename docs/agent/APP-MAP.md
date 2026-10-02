@@ -19,7 +19,7 @@ gotcha/limitation ⇒ update the matching row here **in the same commit**. Add a
 - Cross-session memory (mistakes + decisions): `docs/agent/MEMORY.md`.
 - Current status/ledger: `docs/AGENT-STATE.md`. Owner-facing snapshot: `docs/agent/PROJECT-BRIEF.md`.
 
-*Last verified: 2026-10-02 (V26). Verified against `src/App.tsx`, `package.json`, `wrangler.toml`,
+*Last verified: 2026-10-02 (V28 Stage 3). Verified against `src/App.tsx`, `package.json`, `wrangler.toml`,
 `cloudflare-unified-worker.js`, `tests/`, `e2e/`. Re-check the four "volatile" sections — routes,
 endpoints, tables, deploy ids — on first touch of any of them.*
 
@@ -226,7 +226,8 @@ The canonical, machine-checked route list is §14 (`appmap-routes`); this sectio
 
 - **Client (offline, IndexedDB via Dexie)** — `src/lib/db/katzuDb.ts`: schema, seed,
   insert-if-missing top-ups, offline queue, `wipeUserScopedData` on sign-out. `fake-indexeddb`
-  in tests.
+  in tests. The daily-task record is an additive Dexie **v9** table `daily_tasks` (key `dateKey`,
+  local `YYYY-MM-DD`): monotonic per-task flags + `reviewReps`, wiped on sign-out, never D1.
 - **D1 `katzu-content`** (`database_id a80158e6-a5b4-49c0-b78a-67f390acf71d`, binding `DB`):
   content tables `scenarios`, `vocabulary`, `grammar`, `starter_phrases` (remote wins) plus
   worker-created ledger tables: `redeemed_codes_ledger`, `trial_quota_ledger`,
@@ -378,6 +379,18 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
   Arabic explanation, its generated exercises, and a small mixed review of the two lessons before it;
   progress lives in a new additive Dexie **v8** table `grammar_lessons` keyed by lesson id (never D1).
   Covered by `tests/grammarPath.test.ts` (18) and `e2e/grammarPath.spec.ts` (2).
+- **Three daily tasks + an Arabic rank ladder (V28 Stage 3).** Journey Home shows one scenario
+  session, one grammar step, and one review batch per day, reset at LOCAL midnight; the streak
+  tolerates exactly one missed day (`FORGIVEN_DAYS = 1`). The rules are pure
+  (`src/lib/daily/tasks.ts`: `dailyTaskStatuses`, `reviewTaskDone`, `dailyTaskStreak`) and persisted in
+  an additive Dexie **v9** table `daily_tasks` — `markScenarioTaskDone` / `markGrammarTaskDone` /
+  `markReviewGraded` (`src/lib/daily/taskStore.ts`) are the only writers, hooked into the session
+  finish, the grammar attempt, and `gradeReviewItem`. A review batch is `REVIEW_BATCH_SIZE = 5` graded
+  items OR the queue emptied after at least one. Ranks are the existing Arabic ladder made
+  first-class (`src/lib/progress/ranks.ts`, `rankFor`, shown on Trail as "الرتبة N من M"), and XP is
+  credited only through `creditXp` (`src/lib/progress/dailyXp.ts`), which caps a local day at
+  `DAILY_XP_CAP = 600` so a rank can never be farmed. Covered by `tests/dailyTasks.test.ts` (16),
+  `tests/dailyTaskStore.test.ts` (7), `tests/ranks.test.ts` (10), `e2e/dailyTasks.spec.ts` (2).
 - **No dedicated e2e specs** for review/listen/write/coach. The chat→report→review path IS
   covered end-to-end by `e2e/modes.spec.ts` (V28): PRACTICE shows the hint + live correction,
   REAL hides every aid yet the turn still runs and the correction is answerable in the report. The
@@ -573,3 +586,4 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 | 2026-10-02 | V28 | Deterministic conversation beats (Stage 1, the deferred measurement): a new pure `cloudflare-conversation-beats.js` derives 4–8 beats from a scenario's starter phrases and the prompt moves the model through them in order, one per turn, without reciting them. The whole `/ai/turn` system instruction is now the exported `buildTurnSystemInstruction`, so the prompt's exact cost is measurable; `scripts/measure-turn-cost.mjs` (in CI) reports and caps the added tokens. Tests `tests/conversationBeats.test.ts` (8) + two `/ai/turn` route tests (beats present with starter phrases; absent without). |
 | 2026-10-02 | V28 | Stage 1F deployed (2C gate): CI green on the branch sha `dbc2e36` (run `36996847350`) and the `main` push of the same sha (run `36997578251`); merged fast-forward to `main`. **Worker deployed** version `0ab4658d-c34c-4e55-b191-7ee0da341e91` (previous/rollback `ed14beae-524c-4b3f-a5d3-d33270b21776`) — this is the first stage since 2A to change worker code. Pages production `9683e543-caa6-453b-9baf-8c91b8c653d2` (source `dbc2e36`; previous `e864572d…`). Verify: `/health` healthy/ready, `/crypto/health` unchanged (`ready:false`), Pages 200, admin 401, battery 12/12. Live turn-latency BEFORE samples in the owner's signed-in profile: 20229 / 1483 / 1429 ms (n=3, cold-first-call outlier); AFTER samples not taken (the live screen reverted to the mode picker under owner input) — carried UNPROVEN. |
 | 2026-10-02 | V28 | Stage 2B deployed (2C gate): CI green on the branch sha `3963a8b` (run `36992098448`) and on the `main` push of the same sha (run `36992692238`); merged fast-forward to `main`. Worker NOT deployed (2B changed no worker code — live worker stays `ed14beae-524c-4b3f-a5d3-d33270b21776`). Pages production is `cd2f56b0-543a-4b3a-86e2-171eab806f06` (source `3963a8b`; previous `b2674c23…`). Production verify: `/health` healthy/ready, `/crypto/health` unchanged (`ready:false`), Pages 200, unauthenticated admin 401, battery 12/12; a read-only signed-in walkthrough of `/app/grammar` showed 77 lessons with «أكملت 0 من 77», the five A0 lessons tagged «مراجعة اختيارية» (placement start), lesson 6 open and marked «التالي», and every later lesson disabled/locked. |
+| 2026-10-02 | V28 | Stage 3 daily tasks + ranks (owner mission items #6): Journey Home now carries a three-task panel — one scenario session, one grammar step, one review batch — reset at LOCAL midnight with a one-forgiven-day streak. New pure `src/lib/daily/tasks.ts` (`dailyTaskStatuses`, `reviewTaskDone`, `dailyTaskStreak`, `FORGIVEN_DAYS = 1`, `REVIEW_BATCH_SIZE = 5`) + store `src/lib/daily/taskStore.ts` persisting to an additive Dexie **v9** table `daily_tasks`; writers are `markScenarioTaskDone` (session finish), `markGrammarTaskDone` (grammar attempt) and `markReviewGraded` (`gradeReviewItem`, the single review chokepoint). New Arabic rank ladder `src/lib/progress/ranks.ts` (`rankFor`, `RANKS`, shown on Trail as "الرتبة N من M") and anti-farming XP `src/lib/progress/dailyXp.ts` (`creditXp`, `DAILY_XP_CAP = 600`) — the only writer of `totalXp`. UI: `src/features/journey/DailyTasksPanel.tsx`. Tests: `tests/dailyTasks.test.ts` (16), `tests/dailyTaskStore.test.ts` (7), `tests/ranks.test.ts` (10), `e2e/dailyTasks.spec.ts` (2). |

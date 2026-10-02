@@ -132,6 +132,25 @@ export interface GrammarLessonProgressEntity {
   updatedAt: number;
 }
 
+/**
+ * One local day's record of the three daily tasks (V28 Stage 3). Additive local
+ * state, wiped on sign-out: the flags are monotonic (a task completed today never
+ * un-completes), which is what makes the one-forgiven-day streak honest instead
+ * of a re-derivation from fields that lose information. `dateKey` is the local
+ * YYYY-MM-DD the day resets on.
+ */
+export interface DailyTaskEntity {
+  dateKey: string;
+  scenario: boolean;
+  grammar: boolean;
+  review: boolean;
+  /** Graded review items today, for the batch's own progress display. */
+  reviewReps: number;
+  /** Set the moment all three tasks first completed; absent until then. */
+  completedAt?: number;
+  updatedAt: number;
+}
+
 export interface SavedWordEntity {
   wordId: number;
   savedAt: number;

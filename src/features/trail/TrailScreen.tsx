@@ -14,7 +14,7 @@ import { track } from '@/lib/analytics/client';
 import type { CEFRLevel, ScenarioEntity } from '@/types/models';
 import { Sparkles, CheckCircle2, Lock, Play, Flame, ArrowLeft, Brain } from 'lucide-react';
 import { buildCheckInMessage } from '@/lib/utils/checkIn';
-import { getXpRank } from '@/lib/utils/xpMilestones';
+import { rankFor } from '@/lib/progress/ranks';
 import { countDue } from '@/lib/srs/engine';
 import { missionStatusAr, selectDailyMission, type ScenarioLevelIndex } from '@/lib/mission/selectMission';
 import {
@@ -132,7 +132,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
     [user?.lastActiveDate, user?.streakDays],
   );
 
-  const xpRank = useMemo(() => getXpRank(user?.totalXp ?? 0), [user?.totalXp]);
+  const xpRank = useMemo(() => rankFor(user?.totalXp ?? 0), [user?.totalXp]);
 
   /**
    * The scenario card's status now comes from the capability model, so "done"
@@ -198,7 +198,9 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 {user?.streakDays ?? 0} أيام حماس
               </span>
               <span>•</span>
-              <span className="text-primary font-bold">{xpRank.milestone.nameAr}</span>
+              <span className="text-primary font-bold">
+                {xpRank.rank.nameAr} · الرتبة {xpRank.rankNumber} من {xpRank.totalRanks}
+              </span>
             </div>
           </div>
         </div>
@@ -229,7 +231,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             {xpRank.next && (
               <div className="mt-2">
                 <div className="flex items-center justify-between text-[10px] font-arabic text-text-secondary">
-                  <span className="text-primary font-bold">{xpRank.milestone.nameAr}</span>
+                  <span className="text-primary font-bold">{xpRank.rank.nameAr}</span>
                   <span>{xpRank.xpToNext} XP للرتبة التالية</span>
                 </div>
                 <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">

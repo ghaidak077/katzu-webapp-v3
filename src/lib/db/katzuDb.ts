@@ -6,6 +6,7 @@ import type {
   VocabularyEntity,
   GrammarEntity,
   GrammarLessonProgressEntity,
+  DailyTaskEntity,
   SavedWordEntity,
   UserEntity,
   RedeemedCodeEntity,
@@ -35,6 +36,7 @@ class KatzuDatabase extends Dexie {
   skill_practice!: EntityTable<SkillPracticeEntity, 'id'>;
   memory_patterns!: EntityTable<MemoryPatternEntity, 'patternId'>;
   grammar_lessons!: EntityTable<GrammarLessonProgressEntity, 'lessonId'>;
+  daily_tasks!: EntityTable<DailyTaskEntity, 'dateKey'>;
 
   constructor() {
     super('KatzuWebDB');
@@ -205,6 +207,32 @@ class KatzuDatabase extends Dexie {
       memory_patterns: 'patternId, kind, updatedAt',
       grammar_lessons: 'lessonId, updatedAt',
     });
+
+    // v9 (V28 Stage 3): the three daily tasks' own record. Additive like every
+    // migration before it — one new table, no existing row read or rewritten, so
+    // a device keeps every mistake, session and review item it had and simply
+    // starts a fresh daily streak. A day row is monotonic: a completed task is
+    // never un-completed, which is what lets the one-forgiven-day streak read its
+    // history instead of re-deriving it from fields that lose information (a
+    // review item keeps only its LAST review timestamp).
+    this.version(9).stores({
+      scenarios: 'id, category',
+      starter_phrases: 'id, scenario_id, level, sort_order',
+      vocabulary: 'id, level, topic, part_of_speech',
+      grammar: 'id, level',
+      saved_words: 'wordId, savedAt',
+      users: 'id, email',
+      redeemed_codes: 'code, redeemedAt',
+      sessions: 'id, scenarioId, cefrLevel, timestamp, updatedAt',
+      scenario_training: 'scenarioId, userId, updatedAt',
+      mistakes: '++id, userId, scenarioId, syncId, timestamp, wasHintUsed, updatedAt',
+      sync_queue: '++id, createdAt, nextRetryAt',
+      review_items: '++id, userId, dueAt, kind, refId, [kind+refId]',
+      skill_practice: '++id, userId, skill, at',
+      memory_patterns: 'patternId, kind, updatedAt',
+      grammar_lessons: 'lessonId, updatedAt',
+      daily_tasks: 'dateKey, completedAt',
+    });
   }
 }
 
@@ -221,6 +249,7 @@ export async function wipeUserScopedData(): Promise<void> {
     db.review_items.clear(),
     db.skill_practice.clear(),
     db.grammar_lessons.clear(),
+    db.daily_tasks.clear(),
   ]);
 
   await db.users.put({

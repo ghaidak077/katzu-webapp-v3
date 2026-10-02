@@ -1,4 +1,5 @@
 import { db } from '@/lib/db/katzuDb';
+import { markReviewGraded } from '@/lib/daily/taskStore';
 import {
   MASTERED_REPS,
   newReviewItemFromMistake,
@@ -135,6 +136,11 @@ export async function gradeReviewItem(item: ReviewItemEntity, grade: ReviewGrade
   if (item.kind === 'mistake' && item.sourceId != null && next.reps >= MASTERED_REPS) {
     await db.mistakes.update(item.sourceId, { isMastered: true, updatedAt: now });
   }
+
+  // V28 Stage 3: this is the single chokepoint every review passes through, so
+  // counting the daily batch here cannot miss a grading path (review screen,
+  // practice, the report's retype drill) or double-count one.
+  await markReviewGraded(now);
 }
 
 /** Saves a word the learner explicitly bookmarked — an explicit "I want this". */

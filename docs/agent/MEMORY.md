@@ -151,6 +151,20 @@ file is the digest that is short enough to always read.
   learner's level optional review so a placement never walls anyone. Progress (attempts + `testedOutAt`)
   is local in the additive Dexie **v8** table `grammar_lessons`; nothing about the path is content, so
   it never reaches D1. Screens must read `buildGrammarPath`, never re-derive the rule.
+- **Three daily tasks + an Arabic rank ladder (V28 Stage 3), all pure and locally persisted.**
+  `src/lib/daily/tasks.ts` owns the three tasks (one scenario, one grammar, one review), the local-midnight
+  reset (`dailyResetKey`), and a streak with exactly `FORGIVEN_DAYS = 1` (`dailyTaskStreak`: today is not a
+  miss while it is still in progress; a gap is forgiven only when a completed day follows it; duplicates
+  never inflate). A review batch is `REVIEW_BATCH_SIZE = 5` graded items OR the queue emptied after ≥1, so
+  a short queue is never a blocked task. `src/lib/daily/taskStore.ts` is the only writer, over the additive
+  Dexie **v9** table `daily_tasks` (monotonic flags + `reviewReps`), called from the session finish
+  (`markScenarioTaskDone`), the grammar attempt (`markGrammarTaskDone`) and `gradeReviewItem`
+  (`markReviewGraded` — the single review chokepoint).
+- **A rank is earned only from measured XP.** `rankFor` (`src/lib/progress/ranks.ts`) reads the ONE existing
+  `XP_MILESTONES` ladder (the Trail shows `الرتبة N من M`), and `creditXp` (`src/lib/progress/dailyXp.ts`)
+  is the ONLY writer of `totalXp` — its input is always the frozen `sessionXp` (accuracy on the learner's own
+  sentences), capped per local day (`DAILY_XP_CAP = 600`) with the refused amount reported. Time spent, taps
+  and hint-assisted success never move a rank.
 
 ---
 

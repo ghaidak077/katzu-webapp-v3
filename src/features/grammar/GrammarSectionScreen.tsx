@@ -22,6 +22,7 @@ import {
   mixedReviewLessonIds,
 } from '@/lib/grammar/path';
 import { markLessonTestedOut, recordLessonAttempt } from '@/lib/grammar/pathStore';
+import { markGrammarTaskDone } from '@/lib/daily/taskStore';
 import type { GrammarEntity } from '@/types/models';
 import { SCENARIO_GRAMMAR_IDS } from '@/lib/content/scenarioGrammar';
 import { Check, X, RotateCcw, ArrowLeft, Lock, CheckCircle2, FastForward, Trophy } from 'lucide-react';
@@ -254,6 +255,8 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
       total: exercises.length,
       sessionId,
     });
+    // V28 Stage 3: any completed grammar step satisfies today's grammar task.
+    await markGrammarTaskDone();
     setSubmitted('attempt');
   };
 
