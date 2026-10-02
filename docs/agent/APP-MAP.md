@@ -342,6 +342,10 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
 - **`ADMIN_SECRET` must be rotated** (was exposed in an earlier prompt).
 - **Real-device voice input** never verified on iOS/Android; only Chromium fake capture.
 - **Reading skill** shows «لم يبدأ بعد — قريباً».
+- **Review items are contract-checked (V28).** A card must have a clear Arabic prompt, one German answer,
+  and — for a correction — the learner's original and a meaningful change. Items that fail are hidden
+  (suppressed, never deleted; Dexie v7 migration); word cards ship both directions and a cloze line.
+  See `src/lib/review/validate.ts`.
 - **No dedicated e2e specs** for review/listen/write/coach; chat→report→review is not tested
   end-to-end.
 - **Imprint placeholder + refund one-liner** need the owner's real wording before public launch.
@@ -521,3 +525,4 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 | 2026-10-02 | V27 | Session readout gained an OPEN ITEMS section: the ledger's OWNER-OPEN and UNPROVEN entries, split into still-open vs `RESOLVED`/`DONE`/`superseded` history, with counts and capped labels. |
 | 2026-10-02 | V27 | Deployed: merged `launch-hardening` to `main` (fast-forward to `a2f6115`) and let Pages build — production deployment `b87f00b4-4975-43b9-93b7-1483db2e0904`. Worker code unchanged, so no worker deploy. CI green on the branch sha and on the merged `main` sha. |
 | 2026-10-02 | V27 | Production-verified the two retype fixes in a real browser walkthrough (390×844): both the PracticeScreen mistake drill and the session-report debrief accepted the full sentence `Ich habe den Bericht jetzt fertiggestellt` for the fragment `ist jetzt fertiggestellt`; smoke battery 12/12, `/health` healthy/ready, unauthenticated `/admin/api/users` → 401. |
+| 2026-10-02 | V28 | Review rebuilt (owner feedback #1): `src/lib/review/validate.ts` gates every item (`validateReviewItem`, `isMeaningfulCorrection`, `gradeArabicAnswer`, dedupe, direction, cloze); bad items are suppressed not deleted via a Dexie **v7** migration; the mistake prompt is a real Arabic instruction; both directions render in `ReviewScreen`. |

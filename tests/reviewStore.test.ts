@@ -247,6 +247,9 @@ describe('worker queue adoption', () => {
   it('restores the optional Guided Practice reference and leaves legacy items unlinked', async () => {
     const linked = remoteItem({
       kind: 'mistake',
+      // A real correction always carries the learner's original (V28 Stage 1B);
+      // without it the item is not answerable and adoption would skip it.
+      contextDe: 'Ich möchte ein Kaffee',
       grammarId: 'g_articles_a1',
       grammarReference: {
         id: 'g_articles_a1',

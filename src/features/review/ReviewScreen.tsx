@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { gradeReviewItem } from '@/lib/srs/store';
-import { SESSION_LIMIT, buildReviewQueue, countDue, gradeAnswer, type AnswerVerdict } from '@/lib/srs/engine';
+import { SESSION_LIMIT, buildReviewQueue, countDue, gradeAnswer, gradeCorrectionRetype, type AnswerVerdict } from '@/lib/srs/engine';
+import { clozeContext, dedupeReviewItems, gradeArabicAnswer, isServableReviewItem } from '@/lib/review/validate';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
 import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
@@ -71,7 +72,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   useEffect(() => {
     if (startedRef.current || !items) return;
     startedRef.current = true;
-    const due = buildReviewQueue(items, Date.now(), SESSION_LIMIT);
+    // Suppressed and duplicate items never reach the learner (V28 Stage 1B).
+    const due = buildReviewQueue(dedupeReviewItems(items.filter(isServableReviewItem)), Date.now(), SESSION_LIMIT);
     setQueue(due);
     if (due.length > 0) track('review_started', { count: due.length });
   }, [items]);
@@ -98,7 +100,12 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   const handleCheck = (e: React.FormEvent) => {
     e.preventDefault();
     if (!current || !answer.trim()) return;
-    const result = gradeAnswer(current.answerDe, answer);
+    const result =
+      current.direction === 'de_to_ar'
+        ? gradeArabicAnswer(current.promptAr, answer)
+        : current.kind === 'mistake'
+          ? gradeCorrectionRetype(current.answerDe, answer)
+          : gradeAnswer(current.answerDe, answer);
     setVerdict(result);
     triggerHaptic(result === 'correct' ? 'success' : result === 'close' ? 'light' : 'error');
     speak(current.answerDe);
@@ -221,7 +228,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
           <div>
             <h1 className="kz-ar-title text-kz-ink">مراجعة الذاكرة</h1>
             <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
-              اكتب الألمانية من معناها العربي — الاسترجاع هو ما يثبّت.
+              اكتب الألمانية من معناها العربي، أو المعنى من الألمانية — الاسترجاع هو ما يثبّت.
             </p>
           </div>
           <GlassWell className="shrink-0 px-3 py-1.5">
@@ -246,9 +253,19 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
 
             {/* The Arabic side: what it means, or the rule that was broken. */}
             <p className="mt-4 kz-ar-micro text-kz-inkFaint">
-              {current.kind === 'mistake' ? 'القاعدة التي أخطأت فيها' : 'المعنى بالعربية'}
+              {current.direction === 'de_to_ar'
+                ? 'المعنى الألماني — اكتب المعنى بالعربية'
+                : current.kind === 'mistake'
+                  ? 'صحّح الجملة التي كتبتها سابقاً'
+                  : 'المعنى بالعربية'}
             </p>
-            <p className="mt-1 kz-ar-title leading-relaxed text-kz-ink">{current.promptAr}</p>
+            {current.direction === 'de_to_ar' ? (
+              <GermanText className="mt-1 block text-2xl font-bold leading-relaxed text-kz-ink">
+                {current.answerDe}
+              </GermanText>
+            ) : (
+              <p className="mt-1 kz-ar-title leading-relaxed text-kz-ink">{current.promptAr}</p>
+            )}
 
             {current.kind === 'mistake' && current.grammarId && current.grammarReference?.id === current.grammarId && (
               <GlassWell className="mt-3 p-3">
@@ -270,17 +287,29 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
               </GlassWell>
             )}
 
+            {current.direction !== 'de_to_ar' &&
+              current.kind !== 'mistake' &&
+              (() => {
+                const cloze = clozeContext(current.contextDe, current.answerDe);
+                return cloze ? (
+                  <GlassWell className="mt-3 p-3">
+                    <span className="kz-ar-micro block text-kz-inkFaint">في السياق</span>
+                    <GermanText className="mt-1 block font-german text-sm text-kz-inkDim">{cloze}</GermanText>
+                  </GlassWell>
+                ) : null;
+              })()}
+
             {verdict === null ? (
               <form onSubmit={handleCheck} className="mt-4 space-y-3">
                 <input
                   type="text"
-                  dir="ltr"
+                  dir={current.direction === 'de_to_ar' ? 'rtl' : 'ltr'}
                   autoFocus
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="اكتب بالألمانية…"
-                  aria-label="إجابتك بالألمانية"
-                  className="h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-base text-kz-ink outline-none placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                  placeholder={current.direction === 'de_to_ar' ? 'اكتب المعنى بالعربية…' : 'اكتب بالألمانية…'}
+                  aria-label={current.direction === 'de_to_ar' ? 'إجابتك بالعربية' : 'إجابتك بالألمانية'}
+                  className={`h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-base text-kz-ink outline-none placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50 ${current.direction === 'de_to_ar' ? 'font-arabic' : 'font-german'}`}
                 />
                 <GlassButton variant="primary" size="lg" fullWidth type="submit" disabled={!answer.trim()}>
                   تحقّق من إجابتي
@@ -311,7 +340,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
                       </p>
                       <div className="mt-1.5 flex items-center gap-2">
                         <GermanText className="font-german text-sm font-bold text-kz-ink">
-                          {current.answerDe}
+                          {current.direction === 'de_to_ar' ? current.promptAr : current.answerDe}
                         </GermanText>
                         <button
                           type="button"

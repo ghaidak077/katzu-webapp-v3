@@ -14,7 +14,7 @@ file is the digest that is short enough to always read.
 - **Update in the same commit** as the change it describes. If a durable fact changes (URL,
   id, quota, level range), fix the row here immediately.
 
-*Last consolidated: 2026-10-02 (V27).*
+*Last consolidated: 2026-10-02 (V28).*
 
 ---
 
@@ -78,6 +78,7 @@ file is the digest that is short enough to always read.
 | 15 | An integration probe went red while the product was right | The assertion demanded fresh-ledger numbers against **persistent state** | Disposable state dir, wiped first, assert absolute numbers, own your process. |
 | 16 | The hint matcher ranked a greeting first | Lexical overlap without a **stopword class** for greetings/pronouns ranks register, not subject | Exclude greetings/politeness and pronoun/possessive forms from content-word ranking. |
 | 17 | A "large unused bundle" item kept directing work for versions | A **stale metric** nobody re-measured (measured 0% unused when finally probed) | Re-measure a performance claim before acting; record metrics with their measurement date. |
+| 18 | Review showed questions with no clear answer | Items were built from a field that is not a question (`grammarRule` as the prompt) and nothing validated them before display | Validate every generated item before it is shown; suppress (never delete) the ones that fail. |
 
 ---
 
@@ -107,6 +108,10 @@ file is the digest that is short enough to always read.
 - **`tests/appMap.test.ts` enforces APP-MAP against the code** (routes, screens, worker
   endpoints, D1 tables). Add the new item to APP-MAP §14's matching `appmap-*` block when you add
   it to the code, or `npm test` reddens.
+- **A review card is shown only if it is answerable.** `validateReviewItem` (`src/lib/review/validate.ts`)
+  refuses an item with no clear Arabic prompt, no answer, or a correction that changes nothing
+  (`isMeaningfulCorrection` folds case/punctuation/umlaut-transliteration). Bad stored items are
+  **suppressed** (Dexie v7 migration), never deleted, and mastery stays `gradeReviewItem`'s.
 
 ---
 

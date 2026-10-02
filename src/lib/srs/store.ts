@@ -13,6 +13,7 @@ import type {
   StarterPhraseEntity,
   VocabularyEntity,
 } from '@/types/models';
+import { directionFromRefId, isServableReviewItem, validateReviewItem } from '@/lib/review/validate';
 
 /**
  * Database-facing half of the memory engine. The scheduling rules live in
@@ -21,6 +22,35 @@ import type {
  */
 
 const USER_ID = 'current_user';
+
+/**
+ * Stamps the fields every item needs but a builder may not set: the production
+ * direction and the suppression default. Lives here (not in the pure engine)
+ * because direction is a function of the stable refId the builder computed.
+ */
+export function stampReviewItem(item: ReviewItemEntity): ReviewItemEntity {
+  return {
+    ...item,
+    direction: item.direction ?? (item.kind === 'mistake' ? 'ar_to_de' : directionFromRefId(item.refId)),
+    suppressed: item.suppressed ?? false,
+  };
+}
+
+/**
+ * Hides every stored item that fails the contract, without deleting anything
+ * (V28 Stage 1B): learner data is never destroyed, and a suppressed item stays
+ * recoverable. Idempotent, so it is safe to run on each app start.
+ */
+export async function suppressInvalidReviewItems(): Promise<number> {
+  let changed = 0;
+  await db.review_items.toCollection().modify((item) => {
+    if (!item.suppressed && !validateReviewItem(item).ok) {
+      item.suppressed = true;
+      changed += 1;
+    }
+  });
+  return changed;
+}
 
 /**
  * Enrolment is idempotent by design: an item the learner is already partway
@@ -34,7 +64,10 @@ async function enrolIfNew(candidate: ReviewItemEntity): Promise<boolean> {
     .equals([candidate.kind, candidate.refId])
     .first();
   if (existing) return false;
-  await db.review_items.add(candidate);
+  const stamped = stampReviewItem(candidate);
+  // Never enrol an item that cannot be asked or answered (V28 Stage 1B).
+  if (!isServableReviewItem(stamped)) return false;
+  await db.review_items.add(stamped);
   return true;
 }
 
@@ -135,7 +168,9 @@ export async function focusMistakesForReview(
     if (existing?.id != null) {
       await db.review_items.update(existing.id, { dueAt: now });
     } else {
-      await db.review_items.add(candidate);
+      const stamped = stampReviewItem(candidate);
+      if (!isServableReviewItem(stamped)) continue;
+      await db.review_items.add(stamped);
     }
     due += 1;
   }
@@ -160,6 +195,9 @@ export async function adoptRemoteReviewItems(remote: ReviewItemEntity[]): Promis
   let adopted = 0;
   for (const item of remote) {
     if (!item?.kind || !item?.refId || !item?.promptAr || !item?.answerDe) continue;
+    // Adopt only items that pass the contract; a bad remote row is skipped, and
+    // any local copy of it is suppressed separately (V28 Stage 1B).
+    if (!validateReviewItem(item).ok) continue;
     const validGrammarId = typeof item.grammarId === 'string' && /^[a-z0-9_]{1,80}$/i.test(item.grammarId)
       ? item.grammarId
       : undefined;
@@ -188,9 +226,8 @@ export async function adoptRemoteReviewItems(remote: ReviewItemEntity[]): Promis
     const existing = await db.review_items
       .where('[kind+refId]')
       .equals([item.kind, item.refId])
-      .first();
-    if (existing?.id != null) await db.review_items.update(existing.id, row);
-    else await db.review_items.add(row);
+      .first();      if (existing?.id != null) await db.review_items.update(existing.id, stampReviewItem(row));
+      else await db.review_items.add(stampReviewItem(row));
     adopted += 1;
   }
   return adopted;

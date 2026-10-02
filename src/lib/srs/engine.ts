@@ -375,7 +375,12 @@ export function newReviewItemFromMistake(
       kind: 'mistake',
       refId,
       sourceId,
-      promptAr: mistake.grammarRule || 'صيغة صحيحة',
+      // A clear Arabic instruction, never the bare rule label (V28 Stage 1B): a
+      // label is not a question, and the old `صيغة صحيحة` fallback said nothing.
+      // The rule, when it carries Arabic, rides along as the explanation hint.
+      promptAr: /[\u0600-\u06FF]/.test(mistake.grammarRule || '')
+        ? `${mistake.grammarRule} — اكتب الجملة الصحيحة بالألمانية`
+        : 'اكتب الجملة الصحيحة بالألمانية',
       answerDe: mistake.corrected,
       contextDe: mistake.original,
       explanationAr: mistake.roastComment,

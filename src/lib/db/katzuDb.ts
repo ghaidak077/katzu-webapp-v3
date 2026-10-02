@@ -16,6 +16,7 @@ import type {
   SyncQueueEntity,
   MemoryPatternEntity,
 } from '@/types/models';
+import { directionFromRefId, validateReviewItem } from '@/lib/review/validate';
 
 class KatzuDatabase extends Dexie {
   scenarios!: EntityTable<ScenarioEntity, 'id'>;
@@ -150,6 +151,36 @@ class KatzuDatabase extends Dexie {
       skill_practice: '++id, userId, skill, at',
       memory_patterns: 'patternId, kind, updatedAt',
     });
+
+    // v7 (V28 Stage 1B): no new table or index — the review queue gains two plain
+    // fields (`direction`, `suppressed`). The upgrade stamps every existing item:
+    // it gets a direction, and any item that fails the answerability contract is
+    // flagged suppressed. Nothing is deleted; a suppressed item stays recoverable.
+    this.version(7).stores({
+      scenarios: 'id, category',
+      starter_phrases: 'id, scenario_id, level, sort_order',
+      vocabulary: 'id, level, topic, part_of_speech',
+      grammar: 'id, level',
+      saved_words: 'wordId, savedAt',
+      users: 'id, email',
+      redeemed_codes: 'code, redeemedAt',
+      sessions: 'id, scenarioId, cefrLevel, timestamp, updatedAt',
+      scenario_training: 'scenarioId, userId, updatedAt',
+      mistakes: '++id, userId, scenarioId, syncId, timestamp, wasHintUsed, updatedAt',
+      sync_queue: '++id, createdAt, nextRetryAt',
+      review_items: '++id, userId, dueAt, kind, refId, [kind+refId]',
+      skill_practice: '++id, userId, skill, at',
+      memory_patterns: 'patternId, kind, updatedAt',
+    }).upgrade((tx) =>
+      tx
+        .table('review_items')
+        .toCollection()
+        .modify((item: ReviewItemEntity) => {
+          item.direction =
+            item.direction ?? (item.kind === 'mistake' ? 'ar_to_de' : directionFromRefId(item.refId));
+          if (item.suppressed === undefined) item.suppressed = !validateReviewItem(item).ok;
+        }),
+    );
   }
 }
 

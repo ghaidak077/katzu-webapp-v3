@@ -10,6 +10,7 @@ import {
   useParams,
 } from 'react-router-dom';
 import { db, initializeDatabaseSeed, seedArrivalTopUps, wipeUserScopedData } from '@/lib/db/katzuDb';
+import { suppressInvalidReviewItems } from '@/lib/srs/store';
 import { applyRendererTier, useRendererTier } from '@/lib/design/rendererTier';
 import { workerClient } from '@/lib/api/workerClient';
 import { needsOnboarding } from '@/lib/onboarding/preferences';
@@ -148,6 +149,9 @@ function AppRoutes() {
 
     initializeDatabaseSeed()
       .then(() => seedArrivalTopUps())
+      // Hide any stored item that fails the answerability contract (V28 Stage 1B);
+      // idempotent, and it never deletes learner data.
+      .then(() => suppressInvalidReviewItems())
       .then(() => {
         if (!isMounted) return;
         workerClient.fetchScenarios();

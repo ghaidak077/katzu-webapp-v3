@@ -9,6 +9,13 @@ export type CEFRLevel = 'A0' | 'A1' | 'A2' | 'B1' | 'B2';
 export type SessionMode = 'quick' | 'immersion';
 
 /**
+ * Which side of a review card the learner is asked to produce. `ar_to_de` shows
+ * the Arabic and asks for the German; `de_to_ar` shows the German and asks for
+ * the meaning. Both directions are real retrieval and both ship (V28 Stage 1B).
+ */
+export type ReviewDirection = 'ar_to_de' | 'de_to_ar';
+
+/**
  * Why the learner is learning German. This is the one personalisation input the
  * product thesis says matters most: someone preparing for a job needs the
  * Bürgeramt and the interview, while someone already here needs the doctor and
@@ -310,6 +317,13 @@ export interface ReviewItemEntity {
   /** How many times the learner has graded it, for honest progress display. */
   reviews: number;
   lastReviewedAt?: number;
+  /** Which language the learner produces. Assigned deterministically at enrolment. */
+  direction?: ReviewDirection;
+  /**
+   * Set when the item fails `validateReviewItem` — hidden from every queue but
+   * kept in the database, so existing bad items are suppressed, never deleted.
+   */
+  suppressed?: boolean;
   createdAt: number;
 }
 

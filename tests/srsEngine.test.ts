@@ -268,7 +268,10 @@ describe('enrolment builders', () => {
     const review = newReviewItemFromMistake(mistake, 9, NOW);
     expect(review.kind).toBe('mistake');
     expect(review.refId).toBe(reviewRefId('mistake', mistake.syncId));
-    expect(review.promptAr).toBe('الفعل sein مع gegangen');
+    // V28 Stage 1B: the prompt is a clear Arabic instruction (the rule label used
+    // to be the whole prompt, which asked for an answer the learner could not
+    // derive). The rule rides along as the hint.
+    expect(review.promptAr).toBe('الفعل sein مع gegangen — اكتب الجملة الصحيحة بالألمانية');
     expect(review.answerDe).toBe('Ich bin gegangen');
     expect(review.contextDe).toBe('Ich habe gegangen');
     expect(review.sourceId).toBe(9);
