@@ -60,14 +60,52 @@ export function wrap(value, width = WIDTH, indent = '  ') {
   return lines.join('\n');
 }
 
-/** The `## <prefix>…` section of a markdown document (to the next `## `). */
+/** The `## <prefix>…` section of a markdown document (to the next `## ` or `### `). */
 export function section(text, headingPrefix) {
   const lines = String(text).split(/\r?\n/);
   const start = lines.findIndex((line) => line.startsWith('## ') && line.startsWith(headingPrefix));
   if (start === -1) return '';
   const rest = lines.slice(start + 1);
-  const end = rest.findIndex((line) => line.startsWith('## '));
+  const end = rest.findIndex((line) => line.startsWith('## ') || line.startsWith('### '));
   return (end === -1 ? rest : rest.slice(0, end)).join('\n');
+}
+
+/**
+ * A bullet's short label: its bold lead if it has one, else its first line. A
+ * leading ledger key (`B3:`, `RC-6:`, `V12:`) is kept, because without it the
+ * label loses the only handle anyone can look up.
+ */
+export function bulletLabel(line) {
+  const text = String(line).replace(/^-\s*/, '');
+  const bold = text.match(/\*\*(.+?)\*\*/);
+  if (!bold) return clip(text, 58);
+  // A label that starts with the bold lead is the normal case; when words precede
+  // it ("Lighthouse **has now been run**"), they carry the handle, so keep them.
+  const label = bold.index > 0 ? text.slice(0, bold.index + bold[0].length) : bold[1];
+  return clip(label, 58);
+}
+
+/**
+ * The ledger's open-items sections mix live items with entries kept only for
+ * history (`RESOLVED in …`, `superseded`, `kept for history`). The readout should
+ * surface the live ones, so they are split rather than listed raw — a wall of
+ * already-closed notes is the same as no readout.
+ */
+export function summariseBullets(sectionText, limit = 6) {
+  const bullets = String(sectionText)
+    .split(/\r?\n/)
+    .filter((line) => /^- /.test(line));
+  // "DONE" is matched case-sensitively on purpose: the ledger writes "DONE (V14-1)"
+  // for a finished item, and lower-case "done" appears in ordinary prose.
+  const isClosed = (line) => /resolved|superseded|kept for history/i.test(line) || /\bDONE\b/.test(line);
+  const open = bullets.filter((line) => !isClosed(line));
+  return {
+    total: bullets.length,
+    closedCount: bullets.length - open.length,
+    openCount: open.length,
+    shown: open.slice(0, limit).map(bulletLabel),
+    more: Math.max(0, open.length - limit),
+  };
 }
 
 /** Rows of the first markdown table in a section, as trimmed cell arrays (header dropped). */
@@ -196,6 +234,21 @@ export function buildReadout(now = new Date()) {
   out.push('MEMORY §A — CANONICAL FACTS (do not re-derive)');
   for (const cells of tableRows(section(memory, '## A.'))) {
     out.push(`  ${clip(cells[0], 30)}: ${clip(cells[1] ?? '', 64)}`);
+  }
+
+  out.push('');
+  out.push('OPEN ITEMS (docs/AGENT-STATE.md) — owner-only work and unproven claims');
+  for (const [label, heading] of [
+    ['OWNER-OPEN', '## OWNER-OPEN'],
+    ['UNPROVEN', '## UNPROVEN'],
+  ]) {
+    const summary = summariseBullets(section(ledger, heading));
+    out.push(
+      `  ${label}: ${summary.openCount} open of ${summary.total}` +
+        (summary.closedCount ? ` (${summary.closedCount} marked resolved/historical)` : ''),
+    );
+    for (const item of summary.shown) out.push(`    - ${item}`);
+    if (summary.more) out.push(`    … and ${summary.more} more open`);
   }
 
   out.push('');

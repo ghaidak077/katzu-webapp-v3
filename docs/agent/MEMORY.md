@@ -37,7 +37,7 @@ file is the digest that is short enough to always read.
 | Deploy / content gates | `DEPLOY-AUTHORIZED:` / `CONTENT-LOAD-AUTHORIZED:` owner lines only; see `docs/agent/DEPLOY.md`, `CONTENT-LOAD.md` |
 | Working tree | CRLF (despite `.gitattributes` pinning LF) |
 | Ledger of record | `docs/AGENT-STATE.md` |
-| Session start | `npm run session:start` — prints ledger NEXT + APP-MAP §9 + MEMORY §A + git state |
+| Session start | `npm run session:start` — ledger NEXT + APP-MAP §9 + MEMORY §A + git + OPEN ITEMS (owner-only/unproven) |
 
 ---
 

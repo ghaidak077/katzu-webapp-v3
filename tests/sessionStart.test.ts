@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildReadout,
+  bulletLabel,
   clip,
   extractNext,
   lastVerified,
   manifestCounts,
   plainText,
   section,
+  summariseBullets,
   tableRows,
   wrap,
 } from '../scripts/session-start.mjs';
@@ -49,6 +51,35 @@ describe('section / tableRows', () => {
       ['a', '1'],
       ['b', '2'],
     ]);
+  });
+});
+
+describe('bulletLabel / summariseBullets', () => {
+  it('uses the bold lead, or the words before it, as the label', () => {
+    expect(bulletLabel('- **Ranked gaps.** details')).toBe('Ranked gaps.');
+    expect(bulletLabel('- Lighthouse **has now been run** (V9-10)')).toBe('Lighthouse has now been run');
+    expect(bulletLabel('- B3: no human review of module2 content')).toBe('B3: no human review of module2 content');
+  });
+
+  it('splits live items from ones the ledger kept only for history', () => {
+    const ledger = [
+      '- **Open thing one.** live',
+      '- **RESOLVED in V7-2: old thing.** closed',
+      '- B3: open thing two',
+      '- **Content load: DONE (V14-1).** finished',
+      '- *Superseded by V15 (kept for history):* old',
+    ].join('\n');
+    const summary = summariseBullets(ledger, 2);
+    expect(summary.total).toBe(5);
+    expect(summary.openCount).toBe(2);
+    expect(summary.closedCount).toBe(3);
+    expect(summary.shown).toEqual(['Open thing one.', 'B3: open thing two']);
+    expect(summary.more).toBe(0);
+  });
+
+  it('reports how many open items it did not show', () => {
+    const ledger = ['- a', '- b', '- c', '- d'].join('\n');
+    expect(summariseBullets(ledger, 2).more).toBe(2);
   });
 });
 
@@ -103,7 +134,7 @@ describe('buildReadout (against the real repo documents)', () => {
   const readout = buildReadout(new Date('2026-10-02T00:00:00Z'));
 
   it('prints all four sections in the documented order', () => {
-    const order = ['GIT', 'LEDGER NEXT', 'APP-MAP §9', 'MEMORY §A'];
+    const order = ['GIT', 'LEDGER NEXT', 'APP-MAP §9', 'MEMORY §A', 'OPEN ITEMS'];
     const positions = order.map((heading) => readout.indexOf(heading));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
@@ -119,10 +150,15 @@ describe('buildReadout (against the real repo documents)', () => {
     expect(readout).toMatch(/NEXT \(V\d/);
   });
 
+  it('shows the owner-only backlog counts', () => {
+    expect(readout).toMatch(/OWNER-OPEN: \d+ open of \d+/);
+    expect(readout).toMatch(/UNPROVEN: \d+ open of \d+/);
+  });
+
   it('stays a short readout, not a document dump', () => {
     // The whole point is orientation in a glance; if this grows past a screen or
     // two it has become another document nobody reads.
-    expect(readout.split('\n').length).toBeLessThan(70);
-    expect(readout.length).toBeLessThan(9000);
+    expect(readout.split('\n').length).toBeLessThan(95);
+    expect(readout.length).toBeLessThan(11000);
   });
 });

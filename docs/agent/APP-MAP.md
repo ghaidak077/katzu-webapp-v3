@@ -310,7 +310,8 @@ Pro status or AI allowance. AI never governs billing/account state.
 - Tiers (T0 per edit → T1 per item → T2 final) are defined in `AGENTS.md` §5.
 - Every fixed bug gets a regression test; every pure rule gets unit tests.
 - Orientation before work: `npm run session:start` prints the ledger NEXT, §9 targets, MEMORY §A
-  facts and git state in ~60 lines (`scripts/session-start.mjs`, guarded by `tests/sessionStart.test.ts`).
+  facts, git state and the OPEN ITEMS backlog in ~80 lines (`scripts/session-start.mjs`, guarded
+  by `tests/sessionStart.test.ts`).
 
 ---
 
@@ -328,7 +329,7 @@ Pro status or AI allowance. AI never governs billing/account state.
 | Never (even authorized) | write prod D1 outside the content path; touch/secrets/`ADMIN_SECRET`; payments/OAuth/domain/legal; force-push |
 
 Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `test:e2e:types` ·
-`lint` · `session:start` (readout: ledger NEXT + §9 + MEMORY facts + git) · `deploy:worker` (**never run without authorization**) · `tail:worker` ·
+`lint` · `session:start` (readout: ledger NEXT + §9 + MEMORY facts + git + OPEN ITEMS) · `deploy:worker` (**never run without authorization**) · `tail:worker` ·
 `test:smoke:token-hygiene`.
 
 ---
@@ -517,3 +518,4 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 | 2026-10-02 | V26 | Fixed the session-report retype drill rejecting a correct full sentence: new pure `gradeCorrectionRetype` in `src/lib/srs/engine.ts` (content-word run, either direction), used by `SessionReportScreen`; `gradeAnswer` stays exact. |
 | 2026-10-02 | V26 | Added `scripts/session-start.mjs` + `npm run session:start` — one short readout of ledger NEXT, §9 targets + manifest counts, MEMORY §A facts and git state. |
 | 2026-10-02 | V26 | Applied the shared retype grader and store-owned mastery to `PracticeScreen` (was exact-match and wrote `isMastered` after one retype); guard test `tests/practiceRetype.test.ts`. |
+| 2026-10-02 | V27 | Session readout gained an OPEN ITEMS section: the ledger's OWNER-OPEN and UNPROVEN entries, split into still-open vs `RESOLVED`/`DONE`/`superseded` history, with counts and capped labels. |
