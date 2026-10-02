@@ -134,6 +134,15 @@ file is the digest that is short enough to always read.
   Official/legal German attaches a not-legal-advice notice; practice is graded by the same
   `gradeAnswer` the review engine uses, and a wrong answer enters the validated review path.
   `tests/askRoutes.test.ts` pins the contract, `e2e/ask.spec.ts` the happy path.
+- **Grammar is a locked path and its pass rule is PURE (V28 Stage 2B).** `src/lib/grammar/path.ts`
+  orders the live rows into one course (`orderGrammarLessons`: level A0 → B2, then `GRAMMAR_ORDER_HINTS`,
+  then id) and every lesson's prerequisite is the one before it. `lessonState` is the ONLY pass rule: a
+  lesson is `passed` when the ratio clears `LESSON_PASS_RATIO` (2/3) in at least `LESSON_PASS_SESSIONS`
+  (2) DISTINCT `sessionId`s — two qualifying attempts in one sitting are one session. `isTestOutPass`
+  (a full, perfect run) is the one shortcut; `placementStartIndex` makes every lesson below the
+  learner's level optional review so a placement never walls anyone. Progress (attempts + `testedOutAt`)
+  is local in the additive Dexie **v8** table `grammar_lessons`; nothing about the path is content, so
+  it never reaches D1. Screens must read `buildGrammarPath`, never re-derive the rule.
 
 ---
 

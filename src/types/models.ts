@@ -108,6 +108,30 @@ export interface GrammarEntity {
   example_ar: string;
 }
 
+/**
+ * One completed run of a grammar lesson's own exercise set (V28 Stage 2B).
+ * `sessionId` groups attempts made in one sitting, so two qualifying attempts in
+ * the same sitting do not count as the two sessions a pass requires.
+ */
+export interface GrammarLessonAttempt {
+  correct: number;
+  total: number;
+  at: number;
+  sessionId: string;
+}
+
+/**
+ * The learner's progress through one grammar-path lesson. Additive local state:
+ * it records only attempts and a test-out stamp, and nothing here is content, so
+ * it never reaches D1.
+ */
+export interface GrammarLessonProgressEntity {
+  lessonId: string;
+  attempts: GrammarLessonAttempt[];
+  testedOutAt?: number;
+  updatedAt: number;
+}
+
 export interface SavedWordEntity {
   wordId: number;
   savedAt: number;

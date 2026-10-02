@@ -5,6 +5,7 @@ import type {
   StarterPhraseEntity,
   VocabularyEntity,
   GrammarEntity,
+  GrammarLessonProgressEntity,
   SavedWordEntity,
   UserEntity,
   RedeemedCodeEntity,
@@ -33,6 +34,7 @@ class KatzuDatabase extends Dexie {
   review_items!: EntityTable<ReviewItemEntity, 'id'>;
   skill_practice!: EntityTable<SkillPracticeEntity, 'id'>;
   memory_patterns!: EntityTable<MemoryPatternEntity, 'patternId'>;
+  grammar_lessons!: EntityTable<GrammarLessonProgressEntity, 'lessonId'>;
 
   constructor() {
     super('KatzuWebDB');
@@ -181,6 +183,28 @@ class KatzuDatabase extends Dexie {
           if (item.suppressed === undefined) item.suppressed = !validateReviewItem(item).ok;
         }),
     );
+
+    // v8 (V28 Stage 2B): the grammar path's own progress table. Additive like
+    // every migration before it — one new table, no existing row read or
+    // rewritten, so a device keeps every mistake, session and review item it had
+    // and simply starts the path from lesson 1 (or its placement level).
+    this.version(8).stores({
+      scenarios: 'id, category',
+      starter_phrases: 'id, scenario_id, level, sort_order',
+      vocabulary: 'id, level, topic, part_of_speech',
+      grammar: 'id, level',
+      saved_words: 'wordId, savedAt',
+      users: 'id, email',
+      redeemed_codes: 'code, redeemedAt',
+      sessions: 'id, scenarioId, cefrLevel, timestamp, updatedAt',
+      scenario_training: 'scenarioId, userId, updatedAt',
+      mistakes: '++id, userId, scenarioId, syncId, timestamp, wasHintUsed, updatedAt',
+      sync_queue: '++id, createdAt, nextRetryAt',
+      review_items: '++id, userId, dueAt, kind, refId, [kind+refId]',
+      skill_practice: '++id, userId, skill, at',
+      memory_patterns: 'patternId, kind, updatedAt',
+      grammar_lessons: 'lessonId, updatedAt',
+    });
   }
 }
 
@@ -196,6 +220,7 @@ export async function wipeUserScopedData(): Promise<void> {
     db.redeemed_codes.clear(),
     db.review_items.clear(),
     db.skill_practice.clear(),
+    db.grammar_lessons.clear(),
   ]);
 
   await db.users.put({

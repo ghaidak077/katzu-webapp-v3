@@ -175,7 +175,7 @@ The canonical, machine-checked route list is §14 (`appmap-routes`); this sectio
 | `/app/listen` | `listening/ListeningScreen.tsx` | Listening drill |
 | `/app/write` | `writing/WritingScreen.tsx` | Writing task |
 | `/app/coach` | `coach/CoachScreen.tsx` | Coaching/trend |
-| `/app/grammar` | `grammar/GrammarSectionScreen.tsx` | Grammar rules reference |
+| `/app/grammar` | `grammar/GrammarSectionScreen.tsx` | Grammar locked path: lessons unlock one after another |
 | `/app/progress` | `progress/ProgressScreen.tsx` | Honest measured-vs-unmeasured skills, patterns, streak |
 | `/app/practice` | `practice/PracticeScreen.tsx` | Vocabulary hub: search, filters, error bank, flashcards, rules |
 | `/app/profile` | `settings/ProfileSettingsScreen.tsx` | Profile/settings, sign-out |
@@ -359,9 +359,20 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
   `real` (none of those; the same turn call, a report at the end, corrections still recorded and
   enqueued). Session length is a level cap (`levelSpec.maxSessionTurns`, read via `sessionTurnCap`);
   REAL-mode XP is 1.5× practice (`src/lib/progress/sessionXp.ts`).
+- **Grammar is a locked path (V28 Stage 2B).** The live grammar rows are ordered into one course
+  (`orderGrammarLessons`, level A0 → B2 with authored order hints) and lesson N+1 unlocks only after N
+  is passed; a pass needs a threshold (`LESSON_PASS_RATIO = 2/3`) in at least two SEPARATE sessions
+  (`lessonState` in `src/lib/grammar/path.ts`), so one answer never promotes anyone. A deliberate
+  test-out (a full, perfect run of the lesson's own check) is the one shortcut. Placement start makes
+  every lesson below the learner's level optional review, so nobody is walled. Each lesson keeps its
+  Arabic explanation, its generated exercises, and a small mixed review of the two lessons before it;
+  progress lives in a new additive Dexie **v8** table `grammar_lessons` keyed by lesson id (never D1).
+  Covered by `tests/grammarPath.test.ts` (18) and `e2e/grammarPath.spec.ts` (2).
 - **No dedicated e2e specs** for review/listen/write/coach. The chat→report→review path IS
   covered end-to-end by `e2e/modes.spec.ts` (V28): PRACTICE shows the hint + live correction,
-  REAL hides every aid yet the turn still runs and the correction is answerable in the report.
+  REAL hides every aid yet the turn still runs and the correction is answerable in the report. The
+  grammar path IS covered by `e2e/grammarPath.spec.ts` (V28 Stage 2B): lesson 2 is locked until
+  lesson 1 is passed across two separate sessions.
 - **Imprint placeholder + refund one-liner** need the owner's real wording before public launch.
 - **CI is green for the last pushed V28 shas (2026-10-02):** Stage 1 — branch `df08d25` (run `36984211159`) and `main` (`36984903494`); Stage 2A — branch `c07771f` (run `36988453680`). Still quote the run id for the exact sha before claiming it — local green stays not-CI-green.
 - Known live defects observed in a signed-in walkthrough (see `docs/AGENT-STATE.md` backlog):
@@ -548,3 +559,4 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 | 2026-10-02 | V28 | Stage 1 deployed: worker version `f3d9bd3f-39ef-4816-a539-8eb1701f5fb8` (previous `9cf79e18…`) and Pages production `2f3bbb1a-46e1-4fd0-9b58-3780e3b55fdc` (source `df08d25`, previous `61aff978…`). CI green on the branch sha (`36984211159`) and on `main` (`36984903494`); smoke battery 12/12; both modes verified live in a signed-in production walkthrough. |
 | 2026-10-02 | V28 | Ask Katzu (owner feedback #4, Stage 2A): new `/app/ask` screen + route (entry from the Practice tab) and new `/ai/ask` endpoint. One question in (Arabic or German) → one validated JSON answer (Arabic explanation, ≤3 examples, exactly 3 practice items) or a polite Arabic refusal for anything off-topic; the learner's text is fenced data, not instructions. Its own server-side daily quota + rate limit (`ASK_FREE_PER_DAY`/`ASK_PRO_PER_DAY`/`ASK_RATE_PER_MINUTE`) never spends the conversation trial quota; official/legal German attaches a not-legal-advice notice reusing the scenario disclaimer wording; wrong practice answers enter the validated review path. |
 | 2026-10-02 | V28 | Stage 2A deployed (2C gate): worker version `ed14beae-524c-4b3f-a5d3-d33270b21776` (previous `f3d9bd3f…`) has the new `/ai/ask` route live (unauthenticated 401; letterless body 400 `ASK_INVALID_INPUT`); Pages production is `7436c750-8804-4bf5-a604-3d54c9aaf123` (source `c07771f`). CI green on the branch sha `c07771f` (run `36988453680`); smoke battery 12/12; Ask Katzu answered a real grammar question end-to-end in the owner's signed-in production profile (Pro quota 60/day shown). |
+| 2026-10-02 | V28 | Grammar locked path (owner feedback #5, Stage 2B): `/app/grammar` is now one ordered course, not a row list. New pure `src/lib/grammar/path.ts` (`orderGrammarLessons`, `placementStartIndex`, `isQualifyingAttempt`, `isTestOutPass`, `lessonState`, `isLessonCleared`, `buildGrammarPath`, `mixedReviewLessonIds`) holds the single rule — a pass is `LESSON_PASS_RATIO = 2/3` in at least two separate sessions; lesson N+1 unlocks only after N is cleared; a placement makes earlier lessons optional. `pathStore.ts` persists attempts + test-outs in a new additive Dexie **v8** table `grammar_lessons`. The screen shows "lesson N of M" with a progress bar, one next action, a test-out, and a mixed review of earlier lessons; a wrong production still writes a mistake + enrols a review item. Tests: `tests/grammarPath.test.ts` (18), `tests/grammarPathStore.test.ts` (5), `e2e/grammarPath.spec.ts` (2). |
