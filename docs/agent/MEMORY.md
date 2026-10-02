@@ -173,7 +173,7 @@ file is the digest that is short enough to always read.
 - Rotate `ADMIN_SECRET` (was exposed in an earlier prompt).
 - `katzu.app` does not resolve though robots/sitemap advertise it.
 - Imprint placeholder + refund one-liner need real wording before public launch.
-- No dedicated e2e for review/listen/write/coach.
+- ~~No dedicated e2e for review/listen/write/coach.~~ **Closed (V28-4):** `e2e/skillSurfaces.spec.ts` (5) covers review, listening, writing, coach and the Trail rank badge; the suite is 57 e2e. What remains uncovered by e2e is only the *live* behaviour of these screens on a real device, not their rendering.
 - Real-device voice input unverified.
 - Live-walkthrough defects to triage: `/ai/translate` intermittent abort + retry; Trail
   scene-image placeholder line.
