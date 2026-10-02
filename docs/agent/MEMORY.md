@@ -117,6 +117,14 @@ file is the digest that is short enough to always read.
   drops a `next_hint` that does not answer the last AI message, refuses a no-op correction, and
   gates the persona obstacles (never the first turn, never right after a repeat request).
   `scripts/eval-chat-quality.mjs` (in CI) is the before/after measure.
+- **A conversation follows the scenario's own arc (V28 Stage 1).** `cloudflare-conversation-beats.js`
+  derives 4–8 deterministic beats from a scenario's starter phrases (pure; ordered by `sort_order`;
+  evenly sampled above 8) and the prompt moves through them one per turn without reciting them. Beats
+  are server-resolved in `resolveScenarioIdentity` (one extra concurrent D1 read on a scenario's first
+  turn per isolate, isolate-cached after; `resetScenarioBeatsCache` for tests) — never client-supplied.
+  The whole `/ai/turn` system instruction lives in the exported pure `buildTurnSystemInstruction`, and
+  `scripts/measure-turn-cost.mjs` (in CI) fails if the beats add more than `BEATS_PROMPT_TOKEN_CAP`
+  (220) estimated tokens; measured ~103–110/turn.
 - **There are exactly two conversation modes of the SAME conversation (V28): `practice` (hints,
   translation, a live correction) and `real` (none of those; the turn call is unchanged and still
   returns the evaluation, so the report is built from the stored turns; REAL XP is weighted 1.5×).

@@ -1,0 +1,50 @@
+{
+  "_comment": "Representative /ai/turn contexts for scripts/measure-turn-cost.mjs. The German is real seeded starter-phrase content (katzuDb.ts fixtures and the curriculum modules); memory/vocabulary are left empty because the beats addition must be measured on the turn shape most learners actually send.",
+  "scenarios": [
+    {
+      "id": "cafe_order",
+      "title": "Im Café bestellen",
+      "persona": "Barista katze",
+      "category": "daily_life",
+      "level": "A1",
+      "phrases": [
+        "Ich möchte bitte einen Kaffee.",
+        "Haben Sie auch Tee?",
+        "Wie viel kostet das?",
+        "Ich bezahle mit Karte, bitte.",
+        "Ein Glas Wasser, bitte.",
+        "Die Rechnung, bitte."
+      ]
+    },
+    {
+      "id": "doctor_visit",
+      "title": "Beim Arzt",
+      "persona": "Doktor katze",
+      "category": "health",
+      "level": "A2",
+      "phrases": [
+        "Mein Kopf tut weh.",
+        "Ich habe seit gestern Fieber.",
+        "Ich brauche einen Termin.",
+        "Können Sie mir etwas verschreiben?",
+        "Mein Hals ist entzündet.",
+        "Ich fühle mich sehr müde."
+      ]
+    },
+    {
+      "id": "embassy_appointment",
+      "title": "Botschaftstermin",
+      "persona": "Beamter katze",
+      "category": "official",
+      "level": "B1",
+      "phrases": [
+        "Ich habe einen Termin um zehn Uhr.",
+        "Hier sind meine Unterlagen.",
+        "Ich brauche eine Bescheinigung.",
+        "Können Sie mir bitte helfen?",
+        "Wie lange dauert das?",
+        "Vielen Dank für Ihre Hilfe."
+      ]
+    }
+  ]
+}

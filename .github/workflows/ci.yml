@@ -57,6 +57,7 @@ jobs:
           node scripts/audit-curriculum.mjs
           node scripts/audit-quiz-content.mjs
           node scripts/eval-chat-quality.mjs
+          node scripts/measure-turn-cost.mjs
 
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
