@@ -347,11 +347,11 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
 - **CI for the last pushed commits** was not waited out (local green ≠ CI green).
 - Known live defects observed in a signed-in walkthrough (see `docs/AGENT-STATE.md` backlog):
   `/ai/translate` sometimes aborts (`net::ERR_ABORTED`) with a retry; Trail scene-image slot
-  shows a placeholder line; `PracticeScreen`'s mistake-retype matcher is exact-match (same class
-  of false negative the session report had — fixed there, still open here) and marks an item
-  mastered from one retype.
-- Fixed (V26): the session-report fix-exercise rejected a correct full sentence. `gradeCorrectionRetype`
-  in `src/lib/srs/engine.ts` now accepts the corrected fragment embedded in a full sentence.
+  shows a placeholder line.
+- Fixed (V26): the retype drills. `gradeCorrectionRetype` in `src/lib/srs/engine.ts` accepts the
+  corrected fragment embedded in a full sentence; `SessionReportScreen` and `PracticeScreen`
+  both use it, and mastery in both now comes only from the review store's `MASTERED_REPS = 3`
+  (the practice drill no longer writes `isMastered` itself).
 
 ---
 
@@ -516,3 +516,4 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 | 2026-10-02 | V26 | Added §14 machine-checked manifest (`appmap-routes`, `appmap-screens`, `appmap-endpoints`, `appmap-tables`) and `tests/appMap.test.ts`, which fails when code and this file diverge. |
 | 2026-10-02 | V26 | Fixed the session-report retype drill rejecting a correct full sentence: new pure `gradeCorrectionRetype` in `src/lib/srs/engine.ts` (content-word run, either direction), used by `SessionReportScreen`; `gradeAnswer` stays exact. |
 | 2026-10-02 | V26 | Added `scripts/session-start.mjs` + `npm run session:start` — one short readout of ledger NEXT, §9 targets + manifest counts, MEMORY §A facts and git state. |
+| 2026-10-02 | V26 | Applied the shared retype grader and store-owned mastery to `PracticeScreen` (was exact-match and wrote `isMastered` after one retype); guard test `tests/practiceRetype.test.ts`. |

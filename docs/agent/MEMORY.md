@@ -95,6 +95,10 @@ file is the digest that is short enough to always read.
   `17 4 * * *`.
 - Observability is honest: `/health` exposes status only (no pool/provider), `/client-error`
   sanitizes (400-char cap, credential redaction).
+- **Mastery has exactly one definition: `MASTERED_REPS = 3` consecutive good recalls, owned by
+  `gradeReviewItem`** (`src/lib/srs/store.ts`), which writes `mistakes.isMastered` itself and the
+  UI reads it reactively (live query). A screen must never write `isMastered` — both retype drills
+  now grade through the store for this reason.
 - **A grader must match the shape the learner is invited to produce.** The AI returns a
   correction as a *fragment* (`ist jetzt fertiggestellt`); the debrief asks the learner to
   "write the correct sentence", so a full sentence is correct input. `gradeCorrectionRetype`
@@ -114,6 +118,4 @@ file is the digest that is short enough to always read.
 - No dedicated e2e for review/listen/write/coach.
 - Real-device voice input unverified.
 - Live-walkthrough defects to triage: `/ai/translate` intermittent abort + retry; Trail
-  scene-image placeholder line; `PracticeScreen`'s mistake-retype matcher is exact-match (the
-  same false negative the session report had — fixed there) and sets `isMastered` from a single
-  retype, contradicting the engine's `MASTERED_REPS = 3`.
+  scene-image placeholder line.

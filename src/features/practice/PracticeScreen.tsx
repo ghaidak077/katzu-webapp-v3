@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
-import { enrolSavedWord } from '@/lib/srs/store';
+import { enrolMistake, enrolSavedWord, gradeReviewItem } from '@/lib/srs/store';
+import { gradeCorrectionRetype, reviewRefId } from '@/lib/srs/engine';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
@@ -48,7 +49,10 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
   // Mistake practice drill state (Rule 9)
   const [retypedMistakes, setRetypedMistakes] = useState<Record<number, string>>({});
-  const [masteredMistakeIds, setMasteredMistakeIds] = useState<Set<number>>(new Set());
+  // "Answered correctly just now" — not "mastered". Mastery is the review store's
+  // three consecutive good recalls (MASTERED_REPS); keeping one definition of the
+  // word is why this set exists instead of a mastered one.
+  const [correctMistakeIds, setCorrectMistakeIds] = useState<Set<number>>(new Set());
 
   const vocabulary = useLiveQuery(() => db.vocabulary.toArray()) || [];
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
@@ -79,16 +83,40 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
     }
   };
 
-  const handleValidateMistakeRetype = async (mistakeId: number, targetCorrected: string) => {
-    const input = (retypedMistakes[mistakeId] || '').trim().toLowerCase();
-    const target = targetCorrected.trim().toLowerCase();
-
-    if (input.replace(/\.$/, '') === target.replace(/\.$/, '')) {
-      triggerHaptic('success');
-      setMasteredMistakeIds((prev) => new Set(prev).add(mistakeId));
-      await db.mistakes.update(mistakeId, { isMastered: true });
-    } else {
+  /**
+   * The mistake drill: retype the correction. Two defects lived here. The matcher
+   * compared the strings exactly, so a correct full sentence written around the
+   * corrected fragment was rejected (the same false negative the session debrief
+   * had). And a single correct retype wrote `isMastered`, while the review engine
+   * defines mastery as three consecutive good recalls (`MASTERED_REPS`) — two
+   * definitions of one word, and this one was the wrong one.
+   *
+   * The retype now grades through the review store exactly as the debrief does:
+   * `gradeCorrectionRetype` accepts the fragment inside a real sentence, and
+   * `gradeReviewItem` owns `isMastered`, writing it to the mistake row only when
+   * the item reaches `MASTERED_REPS`. The row is a live query, so it flips
+   * reactively once the third good recall lands.
+   */
+  const handleValidateMistakeRetype = async (mistake: MistakeEntity & { id: number }) => {
+    const answer = retypedMistakes[mistake.id] || '';
+    if (gradeCorrectionRetype(mistake.corrected, answer) !== 'correct') {
       triggerHaptic('error');
+      return;
+    }
+
+    triggerHaptic('success');
+    setCorrectMistakeIds((prev) => new Set(prev).add(mistake.id));
+
+    try {
+      const reviewItem = await db.review_items
+        .where('[kind+refId]')
+        .equals(['mistake', reviewRefId('mistake', mistake.id)])
+        .first();
+      if (reviewItem) await gradeReviewItem(reviewItem, 'good');
+      // Older mistakes predate the review queue; enrolling is idempotent.
+      else await enrolMistake(mistake);
+    } catch (err) {
+      console.warn('Could not record the retyped correction:', err);
     }
   };
 
@@ -443,7 +471,8 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           ) : (
             mistakes.map((m: MistakeEntity) => {
               const mId = m.id || 0;
-              const isMastered = m.isMastered || masteredMistakeIds.has(mId);
+              const isMastered = !!m.isMastered;
+              const isCorrect = correctMistakeIds.has(mId);
 
               return (
                 <div
@@ -479,6 +508,11 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       تم إتقان الصواب بنجاح ✓
                     </div>
+                  ) : isCorrect ? (
+                    <div className="flex items-center gap-1.5 text-status-success text-xs font-arabic pt-1 border-t border-border-subtle/40">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      صحيحة. ستعود هذه الجملة في مراجعتك المجدولة حتى تُتقنها.
+                    </div>
                   ) : (
                     <div className="flex gap-2 pt-1">
                       <input
@@ -493,7 +527,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                       />
                       <Button
                         size="sm"
-                        onClick={() => handleValidateMistakeRetype(mId, m.corrected)}
+                        onClick={() => handleValidateMistakeRetype({ ...m, id: mId })}
                         disabled={!(retypedMistakes[mId] || '').trim()}
                       >
                         تثبيت
