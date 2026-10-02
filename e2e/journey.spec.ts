@@ -208,10 +208,10 @@ test('Live Interaction runs a turn with the orb and keeps the typed path open', 
   // state observable at all (an instant reply would skip straight to feedback).
   await bootSignedIn(page, { turnDelayMs: 900 });
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   // Turn one of three at A1 — pacing comes from the tested rule, not the screen.
-  await expect(page.getByText(/الجولة 1 من 3/)).toBeVisible();
+  await expect(page.getByText(/الجولة 1 من 4/)).toBeVisible();
 
   // The orb is the microphone control, and says which state it is in.
   await expect(orb(page)).toHaveAttribute('aria-label', 'ابدأ التحدث');
@@ -230,7 +230,7 @@ test('Live Interaction runs a turn with the orb and keeps the typed path open', 
   // In flight the orb says what it is doing rather than showing a spinner.
   await expect(page.getByRole('button', { name: 'كَاتْزُو يعمل على ردّك' })).toBeVisible();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
-  await expect(page.getByText(/الجولة 2 من 3/)).toBeVisible();
+  await expect(page.getByText(/الجولة 2 من 4/)).toBeVisible();
 
   // The opening plus the first learner turn and reply stay mounted on the live screen.
   const messages = page.locator('article[aria-label="رسالة من كَاتْزُو"], article[aria-label="رسالتك"]');
@@ -257,16 +257,20 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
         explanation_ar: 'بعد möchte يأتي الاسم في حالة النصب.',
       }),
       turn({ reply_de: 'Sehr gern. Möchten Sie noch etwas?' }),
+      turn({ reply_de: 'Perfekt. Auf Wiedersehen!' }),
     ],
   });
 
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
+  // Four turns is the A1 session cap (levelSpec.maxSessionTurns); the last one
+  // ends the episode and hands off to the report.
   const replies = [
     'Guten Tag! Möchten Sie einen Kaffee?',
     'Gerne. Einen Kaffee, bitte schön.',
     'Sehr gern. Möchten Sie noch etwas?',
+    'Perfekt. Auf Wiedersehen!',
   ];
 
   for (const reply of replies) {
@@ -303,7 +307,7 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
 test('the learner sees their own German while they are still speaking', async ({ page }) => {
   await bootSignedIn(page, { interimHoldMs: 1500 });
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   await expect(orb(page)).toHaveAttribute('aria-label', 'ابدأ التحدث');
   await orb(page).click();
@@ -333,7 +337,7 @@ test('the learner sees their own German while they are still speaking', async ({
 test('a browser without a platform recogniser still speaks through the worker', async ({ page }) => {
   await bootSignedIn(page, { nativeSpeech: false });
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   await orb(page).click();
   await expect(page.getByText('أنا أستمع إليك… تحدث الآن')).toBeVisible();
@@ -352,7 +356,7 @@ test('a browser without a platform recogniser still speaks through the worker', 
 test('a denied microphone is stated in Arabic and never closes the typed path', async ({ page }) => {
   await bootSignedIn(page, { denyMicrophone: true });
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   await orb(page).click();
   await expect(page.getByText(/لم يُسمح بالوصول للمايك/)).toBeVisible();

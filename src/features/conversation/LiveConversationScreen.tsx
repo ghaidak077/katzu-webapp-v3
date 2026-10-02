@@ -4,7 +4,7 @@ import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomShe
 import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { GlassSurface } from '@/components/glass/GlassSurface';
 import { triggerHaptic } from '@/lib/utils/haptics';
-import { planTurns } from '@/lib/conversation/turnPlan';
+import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
 import type { CEFRLevel } from '@/types/models';
 import { ConversationDock } from './ConversationDock';
@@ -78,6 +78,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     isSessionCompleted,
     isGenerating,
     sessionMode,
+    realMode,
     setSessionMode,
     effectiveLevel,
     targetTurns,
@@ -127,31 +128,27 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <ArrowRight className="h-5 w-5 text-kz-inkDim" />
         </button>
         <div className="mb-6 text-center">
-          <h1 className="kz-ar-title mb-2 font-bold">اختر طريقة التدريب</h1>
+          <h1 className="kz-ar-title mb-2 font-bold">كيف تريد أن تتحدث؟</h1>
           <p className="kz-ar-caption text-kz-inkDim">
-            اختر الوقت المناسب لك، وسنحافظ على تقدمك بصراحة.
+            المحادثة نفسها في الحالتين — الفرق في المساعدة التي تريدها الآن.
           </p>
         </div>
         <div className="space-y-3">
           <button
             type="button"
-            onClick={() => setSessionMode('quick')}
+            onClick={() => setSessionMode('practice')}
             className="w-full rounded-3xl border border-primary/40 bg-white/5 p-5 text-start transition-colors hover:bg-white/10"
           >
-            <strong className="kz-ar-caption mb-1 block text-primary">تمرين سريع</strong>
-            <span className="kz-ar-micro text-kz-inkDim">
-              {planTurns('quick', effectiveLevel)} جولات مركزة
-            </span>
+            <strong className="kz-ar-caption mb-1 block text-primary">{SESSION_MODE_COPY.practice.labelAr}</strong>
+            <span className="kz-ar-micro text-kz-inkDim">{SESSION_MODE_COPY.practice.descriptionAr}</span>
           </button>
           <button
             type="button"
-            onClick={() => setSessionMode('immersion')}
+            onClick={() => setSessionMode('real')}
             className="w-full rounded-3xl kz-chip border border-white/10 bg-white/5 p-5 text-start transition-colors hover:bg-white/10"
           >
-            <strong className="kz-ar-caption mb-1 block text-primary">تحدي واقعي مكثف</strong>
-            <span className="kz-ar-micro text-kz-inkDim">
-              {planTurns('immersion', effectiveLevel)} جولات مع سياق أطول
-            </span>
+            <strong className="kz-ar-caption mb-1 block text-primary">{SESSION_MODE_COPY.real.labelAr}</strong>
+            <span className="kz-ar-micro text-kz-inkDim">{SESSION_MODE_COPY.real.descriptionAr}</span>
           </button>
         </div>
       </main>
@@ -192,17 +189,19 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             </p>
           </div>
 
-          <button
-            onClick={handleToggleAllTranslations}
-            aria-label={showAllTranslations ? 'إخفاء كل الترجمات' : 'إظهار كل الترجمات'}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-colors ${
-              showAllTranslations
-                ? 'border-primary/50 bg-primary/20 text-primary'
-                : 'border-white/10 bg-white/5 text-kz-inkDim hover:bg-white/10'
-            }`}
-          >
-            <Languages className="h-4 w-4" />
-          </button>
+          {!realMode && (
+            <button
+              onClick={handleToggleAllTranslations}
+              aria-label={showAllTranslations ? 'إخفاء كل الترجمات' : 'إظهار كل الترجمات'}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-colors ${
+                showAllTranslations
+                  ? 'border-primary/50 bg-primary/20 text-primary'
+                  : 'border-white/10 bg-white/5 text-kz-inkDim hover:bg-white/10'
+              }`}
+            >
+              <Languages className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Difficulty: real functionality, deliberately secondary — a learner who
@@ -237,6 +236,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         showArabicTranslation={showArabicTranslation}
         showAllTranslations={showAllTranslations}
         knownWords={knownWords}
+        showHelp={!realMode}
         isGenerating={isGenerating}
         turnError={turnError}
         isSessionCompleted={isSessionCompleted}
@@ -251,6 +251,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
       <ConversationDock
         inputRef={inputRef}
+        showHelp={!realMode}
         visibleHints={visibleHints}
         isHintRevealed={isHintRevealed}
         isHintExpanded={isHintExpanded}

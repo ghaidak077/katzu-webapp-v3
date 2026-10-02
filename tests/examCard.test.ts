@@ -20,6 +20,7 @@ function debriefOf(overrides: Partial<SessionDebrief> = {}): SessionDebrief {
     topMistakesAr: [],
     keepPhrases: [],
     canNowAr: 'الآن تستطيع أن تُدير حديثاً كاملاً بالألمانية.',
+    compareToLastAr: null,
     ...overrides,
   };
 }

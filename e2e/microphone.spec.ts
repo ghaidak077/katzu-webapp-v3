@@ -58,7 +58,7 @@ test('the orb renders its WebGL body rather than silently taking the fallback', 
 
   await bootSignedIn(page);
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   // ogl appends its own canvas into the GL body's container.
   await expect(orb(page).locator('canvas')).toHaveCount(1);
@@ -83,7 +83,7 @@ test('the orb is driven by a real microphone stream, not a fake amplitude', asyn
   // And the screen puts that same microphone behind the orb: pressing it opens
   // the listening state, which is where the analyser is read from.
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(orb(page)).toHaveAttribute('aria-label', 'ابدأ التحدث');
   await orb(page).click();
   await expect(orb(page)).toHaveAttribute('aria-label', 'إيقاف التسجيل');

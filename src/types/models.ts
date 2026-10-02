@@ -6,7 +6,7 @@
  * a0-foundations module (V21 Phase 5).
  */
 export type CEFRLevel = 'A0' | 'A1' | 'A2' | 'B1' | 'B2';
-export type SessionMode = 'quick' | 'immersion';
+export type SessionMode = 'practice' | 'real';
 
 /**
  * Which side of a review card the learner is asked to produce. `ar_to_de` shows
@@ -217,6 +217,12 @@ export interface SessionEntity {
   hintAssistedSentences?: number;
   updatedAt?: number;
   mode?: SessionMode;
+  /**
+   * How many corrections this episode produced (V28 Stage 1D). Additive and
+   * optional: rows written before this field simply lack it, so the report skips
+   * the "versus your previous attempt" line instead of inventing a comparison.
+   */
+  mistakesCount?: number;
 }
 
 export interface ScenarioTrainingEntity {

@@ -22,6 +22,12 @@ import type { ContextualHint } from '@/types/models';
 export interface ConversationDockProps {
   /** Live element for the composer input (owned by the parent). */
   inputRef: React.Ref<HTMLInputElement>;
+  /**
+   * V28 Stage 1D: whether the suggestion pill renders. REAL mode passes false
+   * (the hint floor is already empty there, so this is belt-and-braces); the
+   * microphone and the typed fallback stay in every mode.
+   */
+  showHelp: boolean;
   visibleHints: ContextualHint[];
   isHintRevealed: boolean;
   isHintExpanded: boolean;
@@ -54,6 +60,7 @@ export interface ConversationDockProps {
 
 export const ConversationDock: React.FC<ConversationDockProps> = ({
   inputRef,
+  showHelp,
   visibleHints,
   isHintRevealed,
   isHintExpanded,
@@ -92,7 +99,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
       {/* Hints as an on-demand button: a single 💡 pill that reveals the one
           context-aware suggestion when tapped — no always-visible strip
           competing with the chat. */}
-      {visibleHints.length > 0 && !isHintRevealed && (
+      {showHelp && visibleHints.length > 0 && !isHintRevealed && (
         <button
           onClick={onRevealHint}
           className="kz-ar-micro mb-2 flex items-center gap-1.5 rounded-full border border-primary/30 bg-white/5 px-3 py-1.5 font-semibold text-primary transition-colors hover:border-primary/60"
@@ -102,7 +109,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
         </button>
       )}
 
-      {visibleHints.length > 0 && isHintRevealed && (
+      {showHelp && visibleHints.length > 0 && isHintRevealed && (
         <div className="mb-2 flex items-start gap-1.5">
           <div className="max-h-[26vh] min-w-0 flex-1 space-y-1.5 overflow-y-auto">
             <HintOption hint={visibleHints[0]} onUse={() => onUseHint(visibleHints[0])} primary />

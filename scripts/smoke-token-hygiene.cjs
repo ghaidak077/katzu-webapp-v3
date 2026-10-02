@@ -337,10 +337,11 @@ const report = (name, pass, detail) => {
   await gotoApp('/scenario/cafe_order/live');
   await settle(5000);
 
-  // Training-mode chooser appears first — pick the quick exercise (3 rounds).
+  // Mode chooser appears first — pick PRACTICE (with help), the mode the token
+  // budget is measured on.
   const mode = await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll('button')).find((b) => /تمرين سريع/.test(b.textContent || ''));
-    if (btn) { btn.click(); return 'quick-mode'; }
+    const btn = Array.from(document.querySelectorAll('button')).find((b) => /تدريب \(مع مساعدة\)/.test(b.textContent || ''));
+    if (btn) { btn.click(); return 'practice-mode'; }
     return 'chooser-not-found';
   });
   await settle(4000);

@@ -9,7 +9,7 @@ import { DEBRIEF_PHRASE_LIMIT, buildSessionDebrief, type SessionDebriefInput } f
 const base: SessionDebriefInput = {
   scenarioTitle: 'في المطار',
   level: 'A1',
-  mode: 'quick',
+  mode: 'practice',
   sentencesSpoken: 4,
   independentSentences: 2,
   assistedSentences: 2,
@@ -98,10 +98,26 @@ describe('buildSessionDebrief', () => {
     expect(b1.topMistakesAr[0].noteAr).toContain('من عندك');
   });
 
-  it('uses the immersion wording when the episode was a full immersion run', () => {
-    const debrief = buildSessionDebrief({ ...base, mode: 'immersion' });
-    expect(debrief.canNowAr).toContain('كاملاً');
+  it('uses the unaided wording when the episode was a REAL (no-help) conversation', () => {
+    const debrief = buildSessionDebrief({ ...base, mode: 'real' });
+    expect(debrief.canNowAr).toContain('دون مساعدة');
     expect(debrief.headlineAr).toContain('من البداية إلى نهايته');
+    expect(debrief.headlineAr).toContain('بلا مساعدة');
+  });
+
+  it('compares this attempt with the previous one only when a previous count exists', () => {
+    // No previous attempt recorded -> no invented baseline.
+    expect(buildSessionDebrief({ ...base, mistakes: base.mistakes.slice(0, 1) }).compareToLastAr).toBeNull();
+    expect(buildSessionDebrief({ ...base, previousMistakeCount: null }).compareToLastAr).toBeNull();
+
+    // Fewer corrections than last time is stated as improvement.
+    const improved = buildSessionDebrief({ ...base, mistakes: base.mistakes.slice(0, 1), previousMistakeCount: 3 });
+    expect(improved.compareToLastAr).toContain('تحسّنت');
+    expect(improved.compareToLastAr).toContain('3');
+
+    // More corrections is not framed as failure — the trial produced real items.
+    const harder = buildSessionDebrief({ ...base, previousMistakeCount: 0 });
+    expect(harder.compareToLastAr).toContain('جرّبت أكثر');
   });
 
   // V21 regression (Phase 11): the same correction must never appear twice in

@@ -39,6 +39,14 @@ export interface ConversationMessageProps {
   onSpeak: (message: ChatMessage) => void;
   onWordClick: (word: string) => void;
   /**
+   * V28 Stage 1D: whether the study aids render — the Arabic translation, the
+   * live correction card, and the follow-up nudge. REAL mode turns this off so
+   * the transcript is the German conversation and nothing else; the corrections
+   * are still recorded and shown in the end-of-session report. The German itself
+   * and its pronunciation always stay.
+   */
+  showHelp?: boolean;
+  /**
    * The character position the speech engine last reported, for **this** bubble,
    * or null. Null for every bubble that is not the one being spoken, so a
    * transcript with one speaker highlights in exactly one place.
@@ -56,6 +64,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   onRetryTranslation,
   onSpeak,
   onWordClick,
+  showHelp = true,
   spokenCharIndex = null,
 }) => {
   const isKatzu = message.sender === 'KATZU';
@@ -130,35 +139,37 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 <Volume2 className="h-4 w-4" />
               </button>
 
-              {message.arabicTranslation ? (
-                <button
-                  type="button"
-                  onClick={() => onToggleTranslation(message.id)}
-                  aria-label={isTranslationVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}
-                  className="kz-ar-micro flex min-h-[44px] items-center gap-1 rounded-full px-2 py-1 text-kz-inkFaint transition-colors hover:text-kz-ink"
-                >
-                  <Languages className="h-3.5 w-3.5" />
-                  {isTranslationVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}
-                </button>
-              ) : message.translationState === 'pending' ? (
-                <span className="kz-ar-micro flex items-center gap-1 text-kz-inkFaint">
-                  <Languages className="h-3.5 w-3.5 animate-pulse" />
-                  جارٍ الترجمة…
-                </span>
-              ) : message.translationState === 'unavailable' ? (
-                <button
-                  type="button"
-                  onClick={() => onRetryTranslation(message.id, message.germanText)}
-                  className="kz-ar-micro flex items-center gap-1 text-status-learning transition-colors hover:text-status-learning/80"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  تعذرت الترجمة — أعد المحاولة
-                </button>
+              {showHelp ? (
+                message.arabicTranslation ? (
+                  <button
+                    type="button"
+                    onClick={() => onToggleTranslation(message.id)}
+                    aria-label={isTranslationVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}
+                    className="kz-ar-micro flex min-h-[44px] items-center gap-1 rounded-full px-2 py-1 text-kz-inkFaint transition-colors hover:text-kz-ink"
+                  >
+                    <Languages className="h-3.5 w-3.5" />
+                    {isTranslationVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}
+                  </button>
+                ) : message.translationState === 'pending' ? (
+                  <span className="kz-ar-micro flex items-center gap-1 text-kz-inkFaint">
+                    <Languages className="h-3.5 w-3.5 animate-pulse" />
+                    جارٍ الترجمة…
+                  </span>
+                ) : message.translationState === 'unavailable' ? (
+                  <button
+                    type="button"
+                    onClick={() => onRetryTranslation(message.id, message.germanText)}
+                    className="kz-ar-micro flex items-center gap-1 text-status-learning transition-colors hover:text-status-learning/80"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    تعذرت الترجمة — أعد المحاولة
+                  </button>
+                ) : null
               ) : null}
             </div>
           )}
 
-          {isTranslationVisible && message.arabicTranslation && (
+          {showHelp && isTranslationVisible && message.arabicTranslation && (
             <p className="kz-ar-caption mt-2 border-t border-white/8 pt-2 leading-relaxed text-kz-inkDim">
               {message.arabicTranslation}
             </p>
@@ -166,7 +177,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
 
           {/* Katzu's nudge towards the learner's next move. It is advice, so it
               reads as a caption rather than as a second message. */}
-          {isKatzu && message.followupAr && (
+          {showHelp && isKatzu && message.followupAr && (
             <p className="kz-ar-micro mt-2 flex items-start gap-1.5 text-kz-lavender/85">
               <span aria-hidden>💬</span>
               <span className="min-w-0">{message.followupAr}</span>
@@ -178,7 +189,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
             line from the right one at a glance, and any German or English inside
             this Arabic card has to be direction-isolated or its punctuation
             reorders itself. */}
-        {message.hasCorrection && (
+        {showHelp && message.hasCorrection && (
           <div className="mt-2 overflow-hidden rounded-[20px] border border-status-error/35 bg-surface-subtle text-start">
             <div className="flex items-center gap-2 border-b border-status-error/20 bg-status-error/10 px-3.5 py-2">
               <KatzuMascot name="avatar" className="h-5 w-5" />

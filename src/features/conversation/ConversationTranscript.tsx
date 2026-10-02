@@ -23,6 +23,13 @@ export interface ConversationTranscriptProps {
   showArabicTranslation: Record<string, boolean>;
   showAllTranslations: boolean;
   knownWords: Set<string>;
+  /**
+   * V28 Stage 1D: whether the study aids render (Arabic translation, the
+   * correction card, the follow-up nudge). REAL mode passes false — the German
+   * conversation stays, the help does not, and the corrections still reach the
+   * end-of-session report through the stored message data.
+   */
+  showHelp: boolean;
   isGenerating: boolean;
   /** { failedText, message } while a turn failed and its sentence is retryable. */
   turnError: { failedText: string; message: string } | null;
@@ -43,6 +50,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
   showArabicTranslation,
   showAllTranslations,
   knownWords,
+  showHelp,
   isGenerating,
   turnError,
   isSessionCompleted,
@@ -78,6 +86,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
             key={msg.id}
             message={msg}
             isTranslationVisible={isTransVisible}
+            showHelp={showHelp}
             knownWords={knownWords}
             onToggleTranslation={onToggleTranslation}
             onRetryTranslation={onRetryTranslation}

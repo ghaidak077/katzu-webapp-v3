@@ -26,7 +26,7 @@ test('opening the conversation makes zero AI calls and shows the stored opener g
 
   await bootSignedIn(page);
   await page.goto('/scenario/airport_arrival/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   // The opener bubble is on screen with its Arabic gloss (stored data — the
   // mock's translate answer is 'ترجمة الاختبار', which must NOT be needed).
@@ -50,7 +50,7 @@ test('a typed turn costs exactly one /ai/turn and no other AI call', async ({ pa
 
   await bootSignedIn(page);
   await page.goto('/scenario/airport_arrival/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]').first()).toBeVisible();
 
   await page.getByRole('button', { name: 'اكتب بدلاً من التحدث' }).click();
@@ -64,7 +64,7 @@ test('a typed turn costs exactly one /ai/turn and no other AI call', async ({ pa
 test('the suggestion floor answers the last AI message, not the scenario first phrase', async ({ page }) => {
   await bootSignedIn(page);
   await page.goto('/scenario/airport_arrival/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]').first()).toBeVisible();
 
   // The opener asks about the suitcase; the floor's first suggestion must

@@ -77,7 +77,7 @@ test('Progress has no critical or serious violations', async ({ page }) => {
 test('Live Conversation has no critical or serious violations', async ({ page }) => {
   await bootSignedIn(page);
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.getByRole('button', { name: 'ابدأ التحدث' })).toBeVisible();
   assertClean(await scan(page), 'live conversation');
 });

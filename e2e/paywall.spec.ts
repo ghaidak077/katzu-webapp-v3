@@ -38,8 +38,8 @@ test('an A2 learner is not gated before their first episode', async ({ page }) =
   // A measured A2 cannot buy an A2 conversation, so promising one here would
   // send the learner into a wall on their own first turn.
   await page.goto(`/scenario/${scenarioId}/live`);
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
-  await expect(page.getByText(/الجولة 1 من 3 · A1/)).toBeVisible();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
+  await expect(page.getByText(/الجولة 1 من 4 · A1/)).toBeVisible();
 
   // The whole point of the rule: the first episode *completes*. The mock refuses
   // any level but A1 for this account exactly as the Worker does, so a reply
@@ -73,8 +73,8 @@ test('a Pro learner runs the episode at their own measured level', async ({ page
   });
 
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
-  await expect(page.getByText(/الجولة 1 من 4 · A2/)).toBeVisible();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
+  await expect(page.getByText(/الجولة 1 من 6 · A2/)).toBeVisible();
 
   const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
   await input.fill('Guten Tag');
@@ -88,13 +88,14 @@ test('the Pro offer appears on the Debrief, after the episode is finished', asyn
       turn({ reply_de: 'Guten Tag! Möchten Sie einen Kaffee?' }),
       turn({ reply_de: 'Gerne, einen Kaffee.' }),
       turn({ reply_de: 'Sehr gern. Möchten Sie noch etwas?' }),
+      turn({ reply_de: 'Perfekt, bis bald!' }),
     ],
   });
 
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
-  for (const reply of ['Guten Tag! Möchten Sie einen Kaffee?', 'Gerne, einen Kaffee.', 'Sehr gern. Möchten Sie noch etwas?']) {
+  for (const reply of ['Guten Tag! Möchten Sie einen Kaffee?', 'Gerne, einen Kaffee.', 'Sehr gern. Möchten Sie noch etwas?', 'Perfekt, bis bald!']) {
     const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
     await input.fill('Ich möchte einen Kaffee bitte');
     await page.getByRole('button', { name: 'أرسل جملتك' }).click();

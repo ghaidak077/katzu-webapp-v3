@@ -402,6 +402,12 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>{summary.debrief.canNowAr}</span>
           </p>
+          {summary.debrief.compareToLastAr && (
+            <p className="mt-2 flex items-start gap-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">
+              <TrendingUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-lavender" aria-hidden />
+              <span>{summary.debrief.compareToLastAr}</span>
+            </p>
+          )}
         </GlassCard>
 
         {/* The mock-exam card (V24 Phase 5): exam scenarios only. It says

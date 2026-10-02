@@ -19,6 +19,12 @@ export interface SessionDebriefInput {
   assistedSentences: number;
   accuracyPercent: number | null;
   mistakes: Array<{ original: string; corrected: string; grammarRule: string }>;
+  /**
+   * Corrections from the last time the learner did this same scenario, when one
+   * was recorded with a mistake count (V28 Stage 1D). Absent/null when there is
+   * no honest comparison to make, and the line is then simply not rendered.
+   */
+  previousMistakeCount?: number | null;
 }
 
 export interface SessionDebrief {
@@ -27,6 +33,8 @@ export interface SessionDebrief {
   topMistakesAr: Array<{ original: string; corrected: string; grammarRule: string; noteAr: string }>;
   keepPhrases: Array<{ german: string; arabic: string }>;
   canNowAr: string;
+  /** How this attempt's corrections compare with the previous one, or null. */
+  compareToLastAr: string | null;
 }
 
 /** The two mistakes the debrief names, always the episode's own, most important first. */
@@ -45,6 +53,7 @@ export function buildSessionDebrief(input: SessionDebriefInput): SessionDebrief 
     assistedSentences,
     accuracyPercent,
     mistakes,
+    previousMistakeCount,
   } = input;
 
   const topMistakes = topMistakesAr(mistakes, level);
@@ -56,15 +65,33 @@ export function buildSessionDebrief(input: SessionDebriefInput): SessionDebrief 
     // correction is shown at most once across the whole debrief.
     keepPhrases: keepPhrases(mistakes, topMistakes.length),
     canNowAr: canNowAr(scenarioTitle, mode),
+    compareToLastAr: compareToLastAr(mistakes.length, previousMistakeCount),
   };
+}
+
+/**
+ * The "versus your last attempt" line. Honest by construction: it only exists
+ * when a previous attempt recorded a count, and it never frames an increase as
+ * failure — a harder attempt that surfaces more corrections is progress too.
+ */
+function compareToLastAr(mistakeCount: number, previousMistakeCount: number | null | undefined): string | null {
+  if (typeof previousMistakeCount !== 'number' || !Number.isFinite(previousMistakeCount)) return null;
+  const previous = Math.max(0, Math.floor(previousMistakeCount));
+  if (mistakeCount < previous) {
+    return `أخطاؤك هذه المرة ${mistakeCount} مقابل ${previous} في محاولتك السابقة لهذا الموقف — تحسّنت.`;
+  }
+  if (mistakeCount === previous) {
+    return `عدد أخطائك نفس ما في محاولتك السابقة لهذا الموقف (${previous}) — تثبيت لا تراجع.`;
+  }
+  return `أخطاؤك هذه المرة ${mistakeCount} مقابل ${previous} في محاولتك السابقة — جرّبت أكثر، وهذه التصحيحات في مراجعتك.`;
 }
 
 function headlineAr(scenarioTitle: string, mode: SessionMode, sentencesSpoken: number): string {
   if (sentencesSpoken === 0) {
     return `جلسة «${scenarioTitle}» انتهت دون جُمل منتجة — الجلسة القادمة نصنع الجملة الأولى.`;
   }
-  if (mode === 'immersion') {
-    return `أكملت موقف «${scenarioTitle}» من البداية إلى نهايته بالألمانية.`;
+  if (mode === 'real') {
+    return `أكملت موقف «${scenarioTitle}» من البداية إلى نهايته بالألمانية، بلا مساعدة.`;
   }
   return `أنتجت ${sentencesSpoken} ${sentencesSpoken === 1 ? 'جملة' : 'جُمل'} في موقف «${scenarioTitle}».`;
 }
@@ -134,9 +161,9 @@ function keepPhrases(
 
 function canNowAr(scenarioTitle: string, mode: SessionMode): string {
   // The "what can I now do in real German" line: honest to what the episode
-  // actually was (a guided quick chat vs a full immersion run-through).
-  if (mode === 'immersion') {
-    return `الآن تستطيع أن تُدير حديثاً كاملاً في موقف «${scenarioTitle}» من البداية إلى النهاية بالألمانية.`;
+  // actually was (a guided practice chat vs an unaided real conversation).
+  if (mode === 'real') {
+    return `الآن تستطيع أن تُدير حديثاً كاملاً في موقف «${scenarioTitle}» من البداية إلى النهاية بالألمانية دون مساعدة.`;
   }
   return `الآن تستطيع أن تبدأ حديثاً في موقف «${scenarioTitle}» وتجيب عن سؤال أو سؤالين بالألمانية.`;
 }

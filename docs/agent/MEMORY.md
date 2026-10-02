@@ -117,6 +117,15 @@ file is the digest that is short enough to always read.
   drops a `next_hint` that does not answer the last AI message, refuses a no-op correction, and
   gates the persona obstacles (never the first turn, never right after a repeat request).
   `scripts/eval-chat-quality.mjs` (in CI) is the before/after measure.
+- **There are exactly two conversation modes of the SAME conversation (V28): `practice` (hints,
+  translation, a live correction) and `real` (none of those; the turn call is unchanged and still
+  returns the evaluation, so the report is built from the stored turns; REAL XP is weighted 1.5×).
+  The round-count picker is gone — session length is a level cap (`levelSpec.maxSessionTurns`, read
+  via `sessionTurnCap`: A0 3 / A1 4 / A2 6 / B1 9 / B2 12).**
+- **REAL-mode progress credit is a pure rule, not an inline expression.** `sessionXp`
+  (`src/lib/progress/sessionXp.ts`) multiplies practice XP by `REAL_XP_MULTIPLIER` (1.5×) for REAL
+  mode; the report's "versus your previous attempt" line appears only when a prior session recorded
+  `mistakesCount` (new optional `SessionEntity` field), never a guessed baseline.
 
 ---
 

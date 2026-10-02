@@ -546,8 +546,8 @@ Each screen is Arabic-first, `max-w-md`, dark ("AMOLED black") and lives in `src
 - Completion writes `quizAttempted` + `lastScore` (accuracy %), then CTA to the conversation.
 
 ### 8.8 `LiveConversationScreen` — the core (`features/conversation/LiveConversationScreen.tsx`)
-- **Mode picker** first: "تمرين سريع" (quick) or "تحدي واقعي مكثف" (immersion).
-- Turn target is dynamic (Rule 7): quick = 3/4/5/6 for A1/A2/B1/B2; immersion = 8 (A1–A2) / 10 (B1–B2).
+- **Mode picker** first (V28): «تدريب (مع مساعدة)» (practice) or «محادثة حقيقية (بدون مساعدة)» (real) — the SAME conversation, with or without help. (The old 3/8 round-count picker is gone.)
+- Turn target is a LEVEL cap (V28, `levelSpec.maxSessionTurns`): A0 3 / A1 4 / A2 6 / B1 9 / B2 12 — the same in either mode.
 - Sticky header: back, a **CEFR difficulty nudge** (أسهل / أصعب — Pro-only, opens paywall for free users),
   a global **translation toggle** (show/hide Arabic for all messages), and a turn counter.
 - Message list: Katzu (left) vs learner (right); **every German word is individually clickable** and

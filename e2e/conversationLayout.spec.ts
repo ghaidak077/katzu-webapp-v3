@@ -87,9 +87,10 @@ test('the transcript ends above the dock, with the suggestion panel open', async
   });
 
   await page.goto('/scenario/cafe_order/live');
-  // The long episode: three of its eight turns leave the session running, so the
-  // layout is measured mid-conversation rather than on the debrief hand-off.
-  await page.getByRole('button', { name: 'تحدي واقعي مكثف' }).click();
+  // Three of the A1 session's four turns leave it running, so the layout is
+  // measured mid-conversation rather than on the debrief hand-off. Practice mode
+  // on purpose: the suggestion panel is part of what has to fit.
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   // Three turns overflow the transcript region, which is the state the overlap was
   // reported in: the list is scrolled and the dock is at its full height.
@@ -109,9 +110,9 @@ test('the dock fits a short phone without pushing the transcript off screen', as
   await page.setViewportSize({ width: 360, height: 640 });
   await bootSignedIn(page);
   await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تمرين سريع' }).click();
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
-  await expect(page.getByText('الجولة 1 من 3')).toBeVisible();
+  await expect(page.getByText('الجولة 1 من 4')).toBeVisible();
   await assertNothingIsCovered(page);
 
   const transcript = await page.getByTestId('conversation-transcript').boundingBox();

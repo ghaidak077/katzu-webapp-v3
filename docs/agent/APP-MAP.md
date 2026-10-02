@@ -350,6 +350,10 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
   and — for a correction — the learner's original and a meaningful change. Items that fail are hidden
   (suppressed, never deleted; Dexie v7 migration); word cards ship both directions and a cloze line.
   See `src/lib/review/validate.ts`.
+- **One conversation, two modes (V28).** `practice` (hints + translation + a live correction) and
+  `real` (none of those; the same turn call, a report at the end, corrections still recorded and
+  enqueued). Session length is a level cap (`levelSpec.maxSessionTurns`, read via `sessionTurnCap`);
+  REAL-mode XP is 1.5× practice (`src/lib/progress/sessionXp.ts`).
 - **No dedicated e2e specs** for review/listen/write/coach; chat→report→review is not tested
   end-to-end.
 - **Imprint placeholder + refund one-liner** need the owner's real wording before public launch.
@@ -531,3 +535,4 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 | 2026-10-02 | V27 | Production-verified the two retype fixes in a real browser walkthrough (390×844): both the PracticeScreen mistake drill and the session-report debrief accepted the full sentence `Ich habe den Bericht jetzt fertiggestellt` for the fragment `ist jetzt fertiggestellt`; smoke battery 12/12, `/health` healthy/ready, unauthenticated `/admin/api/users` → 401. |
 | 2026-10-02 | V28 | Review rebuilt (owner feedback #1): `src/lib/review/validate.ts` gates every item (`validateReviewItem`, `isMeaningfulCorrection`, `gradeArabicAnswer`, dedupe, direction, cloze); bad items are suppressed not deleted via a Dexie **v7** migration; the mistake prompt is a real Arabic instruction; both directions render in `ReviewScreen`. |
 | 2026-10-02 | V28 | Chat quality (owner feedback #2): new pure `cloudflare-turn-quality.js` wired into `/ai/turn` — hints must answer the last AI message, corrections must change something, obstacles are gated; `scripts/eval-chat-quality.mjs` + `tests/fixtures/chatTurns.json` run offline in CI (hints 58%→100%, corrections 58%→100%, obstacles 50%→100%). No extra AI call per turn. |
+| 2026-10-02 | V28 | Two modes of the SAME conversation (owner feedback #3): the 3/8 round picker is gone — `practice` (help) or `real` (no hints/translation/live corrections) over one conversation, length a level cap (`levelSpec.maxSessionTurns` via `sessionTurnCap`). REAL keeps the turn call (it returns the evaluation silently) and the report renders every correction, what went well, kept phrases, "what you can now do", and a "versus your previous attempt" line; REAL XP is 1.5× practice (`sessionXp`). Verbs `TURNS_BY_MODE`/`planTurns`/`turnPlanForLevel` deleted. |

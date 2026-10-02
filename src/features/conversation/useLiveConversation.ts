@@ -16,9 +16,10 @@ import { levelSpecFor } from '@/lib/levels/levelSpec';
 import { calculateIndependentAccuracy } from '@/features/report/metrics';
 import { buildSessionDebrief, type SessionDebrief } from '@/lib/debrief/debrief';
 import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
+import { sessionXp } from '@/lib/progress/sessionXp';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
-import { planTurns } from '@/lib/conversation/turnPlan';
+import { sessionTurnCap } from '@/lib/conversation/turnPlan';
 import type { OrbState } from '@/components/voice/KatzuOrb';
 import type {
   ChatMessage,
@@ -166,7 +167,11 @@ export function useLiveConversation({
   // Turn pacing comes from the explicit, tested rule in turnPlan.ts — the screen
   // no longer decides session length, so the documented and implemented numbers
   // cannot drift apart.
-  const targetTurns = planTurns(sessionMode ?? 'quick', effectiveLevel);
+  const targetTurns = sessionTurnCap(effectiveLevel);
+  // REAL mode (V28 Stage 1D): the same conversation with no help — no hints, no
+  // translation, no live correction. The turn call is unchanged and still returns
+  // the evaluation, so the end-of-session report is built from it.
+  const realMode = sessionMode === 'real';
   const userTurnsCount = messages.filter((m) => m.sender === 'USER').length;
 
   /**
@@ -536,8 +541,8 @@ export function useLiveConversation({
     dispatch({ type: 'reset' });
     track('conversation_started', { scenarioId, kind: sessionMode });
 
-    // Load cached starter phrases as initial hints
-    void loadStarterHints();
+    // Load cached starter phrases as initial hints (never in REAL mode).
+    if (sessionMode !== 'real') void loadStarterHints();
 
     // V19: stored gloss first (zero AI calls before the first message), AI
     // refinement only when no gloss ships for this opener, with an honest
@@ -640,7 +645,7 @@ export function useLiveConversation({
         scenarioTitle: scenario?.title_de || '',
         sarcasmLevel: user?.sarcasmLevel || 'SASSY',
         isFinalTurn,
-        mode: sessionMode === 'immersion' ? 'extended' : 'roleplay',
+        mode: sessionMode === 'real' ? 'extended' : 'roleplay',
         sessionId,
         learnerMemory,
         // Which turn of the episode this is — rotates the persona's
@@ -709,7 +714,9 @@ export function useLiveConversation({
       // call as the reply — no extra network round-trip). Fall back to the
       // starter-phrase floor when the model didn't provide one. The pill
       // re-arms so each new turn offers a fresh on-demand suggestion.
-      if (res.hints && res.hints.length > 0) {
+      if (realMode) {
+        setCurrentHints([]);
+      } else if (res.hints && res.hints.length > 0) {
         setCurrentHints(res.hints);
         logEvent('hints', `Embedded hint loaded (${res.hints.length})`);
       } else {
@@ -723,7 +730,7 @@ export function useLiveConversation({
         dispatch({ type: 'complete' });
         triggerHaptic('success');
         setTimeout(() => {
-          finishSession(updatedHistory);
+          void finishSession(updatedHistory);
         }, 3200);
       }
     } catch (e: unknown) {
@@ -794,8 +801,8 @@ export function useLiveConversation({
     return null;
   }, [messages]);
   const visibleHints = useMemo(
-    () => rankHintFloor(currentHints.length > 0 ? currentHints : starterHints, lastAssistantGerman),
-    [currentHints, starterHints, lastAssistantGerman],
+    () => (realMode ? [] : rankHintFloor(currentHints.length > 0 ? currentHints : starterHints, lastAssistantGerman)),
+    [realMode, currentHints, starterHints, lastAssistantGerman],
   );
 
   const [isRefreshingHints, setIsRefreshingHints] = useState(false);
@@ -830,7 +837,7 @@ export function useLiveConversation({
     }
   };
 
-  const finishSession = (finalMessages: ChatMessage[]) => {
+  const finishSession = async (finalMessages: ChatMessage[]) => {
     const userMsgs = finalMessages.filter((m) => m.sender === 'USER');
     const independentMsgs = userMsgs.filter((m) => !m.wasHintUsed);
     const assistedMsgs = userMsgs.filter((m) => m.wasHintUsed);
@@ -862,6 +869,21 @@ export function useLiveConversation({
 
     const duration = Math.round((Date.now() - startTime) / 1000);
 
+    // V28 Stage 1D: the learner's last attempt at THIS scenario, for the report's
+    // "versus your previous attempt" line. Read from the session table the app
+    // already owns; a prior row that recorded no count yields no comparison, so
+    // the report never invents a baseline.
+    const priorSessions = await db.sessions.toArray();
+    const previousAttempt = priorSessions
+      .filter(
+        (s) =>
+          s.scenarioId === scenarioId &&
+          typeof s.mistakesCount === 'number' &&
+          s.timestamp < startTime,
+      )
+      .sort((a, b) => b.timestamp - a.timestamp)[0];
+    const previousMistakeCount = previousAttempt?.mistakesCount ?? null;
+
     // Save session record in Dexie
     const sessionRecord: SessionEntity = {
       id: sessionId,
@@ -876,7 +898,8 @@ export function useLiveConversation({
       wasIndependentOnly: assistedMsgs.length === 0,
       independentSentences: independentMsgs.length,
       hintAssistedSentences: assistedMsgs.length,
-      mode: sessionMode || 'quick',
+      mode: sessionMode || 'practice',
+      mistakesCount: mistakesList.length,
     };
     db.sessions.put(sessionRecord);
     track('conversation_completed', {
@@ -889,7 +912,13 @@ export function useLiveConversation({
     track('scenario_completed', { scenarioId, count: independentMsgs.length });
 
     // Update local learning stats; trial entitlement is enforced by the Worker.
-    const earnedXp = Math.round((accuracy ?? 0) * 1.5) + (assistedMsgs.length === 0 ? 50 : 25);
+    // XP rule is pure + tested (sessionXp): REAL mode carries a higher weight
+    // because an unaided conversation is the performance the product builds.
+    const earnedXp = sessionXp({
+      accuracyPercent: accuracy,
+      assistedSentences: assistedMsgs.length,
+      mode: sessionMode || 'practice',
+    });
 
     // Daily habit loop: consecutive day extends the streak, a missed day resets
     // it honestly, same-day repeats never inflate it (all logic unit-tested).
@@ -927,12 +956,13 @@ export function useLiveConversation({
       debrief: buildSessionDebrief({
         scenarioTitle: scenario?.title_ar || '',
         level: effectiveLevel,
-        mode: sessionMode || 'quick',
+        mode: sessionMode || 'practice',
         sentencesSpoken: userMsgs.length,
         independentSentences: independentMsgs.length,
         assistedSentences: assistedMsgs.length,
         accuracyPercent: accuracy,
         mistakes: mistakesList,
+        previousMistakeCount,
       }),
     });
   };
@@ -989,6 +1019,7 @@ export function useLiveConversation({
     isSessionCompleted,
     isGenerating,
     sessionMode,
+    realMode,
     setSessionMode,
     effectiveLevel,
     targetTurns,

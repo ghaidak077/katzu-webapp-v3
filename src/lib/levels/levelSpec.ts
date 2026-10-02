@@ -26,6 +26,12 @@ export type LevelSpec = {
   arabicSupport: 'always' | 'default' | 'on-tap' | 'hidden';
   /** TTS speaking-speed multiplier the conversation reads when speaking German. */
   speakingSpeed: number;
+  /**
+   * Turn cap for one conversation: the session ends when the last beat is reached
+   * or here, whichever comes first (V28 Stage 1D). Level-based, not mode-based —
+   * the two modes are the same conversation with different help.
+   */
+  maxSessionTurns: number;
 };
 
 /**
@@ -41,6 +47,7 @@ export const LEVEL_SPECS: Record<CEFRLevel, LevelSpec> = {
     maxCorrectionsPerTurn: 1,
     arabicSupport: 'always',
     speakingSpeed: 0.75,
+    maxSessionTurns: 3,
   },
   A1: {
     maxWordsPerSentence: 8,
@@ -49,6 +56,7 @@ export const LEVEL_SPECS: Record<CEFRLevel, LevelSpec> = {
     maxCorrectionsPerTurn: 1,
     arabicSupport: 'default',
     speakingSpeed: 0.85,
+    maxSessionTurns: 4,
   },
   A2: {
     maxWordsPerSentence: 10,
@@ -57,6 +65,7 @@ export const LEVEL_SPECS: Record<CEFRLevel, LevelSpec> = {
     maxCorrectionsPerTurn: 2,
     arabicSupport: 'on-tap',
     speakingSpeed: 0.95,
+    maxSessionTurns: 6,
   },
   B1: {
     maxWordsPerSentence: 12,
@@ -68,6 +77,7 @@ export const LEVEL_SPECS: Record<CEFRLevel, LevelSpec> = {
     maxCorrectionsPerTurn: 3,
     arabicSupport: 'hidden',
     speakingSpeed: 1.0,
+    maxSessionTurns: 9,
   },
   B2: {
     maxWordsPerSentence: 15,
@@ -76,6 +86,7 @@ export const LEVEL_SPECS: Record<CEFRLevel, LevelSpec> = {
     maxCorrectionsPerTurn: 3,
     arabicSupport: 'hidden',
     speakingSpeed: 1.05,
+    maxSessionTurns: 12,
   },
 };
 

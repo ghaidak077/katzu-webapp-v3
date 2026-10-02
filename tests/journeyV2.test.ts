@@ -9,7 +9,7 @@ import {
 } from '../src/lib/journey/context';
 import { PERSONA_ROLES, buildStorySetup, learnerName, openingFor } from '../src/lib/journey/story';
 import { buildGuidedPractice, gradeRepeat, gradeTypedProduction, selectGrammarRule } from '../src/lib/journey/practice';
-import { TURNS_BY_MODE, planTurns, turnPlanForLevel } from '../src/lib/conversation/turnPlan';
+import { SESSION_MODE_COPY, sessionTurnCap } from '../src/lib/conversation/turnPlan';
 import { INTRO_SCENARIO_ID, type DailyMissionPlan } from '../src/lib/mission/selectMission';
 import type { GrammarEntity, ScenarioEntity, StarterPhraseEntity, VocabularyEntity } from '../src/types/models';
 
@@ -508,27 +508,26 @@ describe('graders', () => {
   });
 });
 
-describe('turnPlan', () => {
-  it('gives A1 the shortest conversation and B2 the longest, per mode', () => {
-    expect(planTurns('quick', 'A1')).toBe(3);
-    expect(planTurns('quick', 'B2')).toBe(6);
-    expect(planTurns('immersion', 'A1')).toBe(8);
-    expect(planTurns('immersion', 'B2')).toBe(10);
+describe('session length and the two modes', () => {
+  it('gives from-zero the shortest conversation and B2 the longest', () => {
+    expect(sessionTurnCap('A0')).toBe(3);
+    expect(sessionTurnCap('A1')).toBe(4);
+    expect(sessionTurnCap('B2')).toBe(12);
   });
 
-  it('is monotonic: a harder level never gets fewer turns', () => {
-    for (const mode of ['quick', 'immersion'] as const) {
-      const levels = Object.keys(TURNS_BY_MODE[mode]) as Array<keyof (typeof TURNS_BY_MODE)['quick']>;
-      for (let i = 1; i < levels.length; i += 1) {
-        expect(planTurns(mode, levels[i])).toBeGreaterThanOrEqual(planTurns(mode, levels[i - 1]));
-      }
+  it('is monotonic: a harder level never gets a shorter conversation', () => {
+    const ladder = ['A0', 'A1', 'A2', 'B1', 'B2'] as const;
+    for (let i = 1; i < ladder.length; i += 1) {
+      expect(sessionTurnCap(ladder[i])).toBeGreaterThanOrEqual(sessionTurnCap(ladder[i - 1]));
     }
   });
 
-  it('offers both modes for the chooser, shortest first', () => {
-    const options = turnPlanForLevel('A1');
-    expect(options[0]).toEqual({ mode: 'quick', turns: 3 });
-    expect(options[1]).toEqual({ mode: 'immersion', turns: 8 });
+  it('names the two modes of the same conversation, each with Arabic help text', () => {
+    expect(SESSION_MODE_COPY.practice.labelAr).toContain('تدريب');
+    expect(SESSION_MODE_COPY.real.labelAr).toContain('حقيقية');
+    for (const mode of ['practice', 'real'] as const) {
+      expect(SESSION_MODE_COPY[mode].descriptionAr.length).toBeGreaterThan(0);
+    }
   });
 });
 
