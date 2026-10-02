@@ -2,7 +2,7 @@
 
 ## Preconditions (all must hold, else STOP, report, no partial deploy)
 1. Prompt contains `DEPLOY-AUTHORIZED` covering each target you touch.
-2. Full T2 green on the branch: tsc, `npm test`, `npm run build`, `node --check` worker, audit, and ALL Playwright specs against `vite preview` with service workers blocked (37/37).
+2. Full T2 green on the branch: tsc, `npm test`, `npm run build`, `node --check` worker, audit, and ALL Playwright specs against `vite preview` with service workers blocked (46/46).
 3. Tree clean, branch pushed, `git log main..HEAD` reviewed for stray probe files or secrets (`git grep -nEi "secret|token|api_key"` on the diff).
 4. `npx wrangler whoami` shows the expected account (OAuth login is acceptable; env tokens not required).
 5. Migrations: only additive SQL, listed in the ledger. Anything destructive → STOP (owner-only).

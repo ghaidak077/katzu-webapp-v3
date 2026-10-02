@@ -354,8 +354,9 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
   `real` (none of those; the same turn call, a report at the end, corrections still recorded and
   enqueued). Session length is a level cap (`levelSpec.maxSessionTurns`, read via `sessionTurnCap`);
   REAL-mode XP is 1.5× practice (`src/lib/progress/sessionXp.ts`).
-- **No dedicated e2e specs** for review/listen/write/coach; chat→report→review is not tested
-  end-to-end.
+- **No dedicated e2e specs** for review/listen/write/coach. The chat→report→review path IS
+  covered end-to-end by `e2e/modes.spec.ts` (V28): PRACTICE shows the hint + live correction,
+  REAL hides every aid yet the turn still runs and the correction is answerable in the report.
 - **Imprint placeholder + refund one-liner** need the owner's real wording before public launch.
 - **CI is green for the last two pushed shas** (V27, 2026-10-02): the branch sha `d27c634` (run `36977673255`) and the merged `main` sha `a2f6115` (run `36978294037`). Still quote the run id for the exact sha before claiming it — local green stays not-CI-green.
 - Known live defects observed in a signed-in walkthrough (see `docs/AGENT-STATE.md` backlog):
