@@ -165,6 +165,14 @@ file is the digest that is short enough to always read.
   is the ONLY writer of `totalXp` — its input is always the frozen `sessionXp` (accuracy on the learner's own
   sentences), capped per local day (`DAILY_XP_CAP = 600`) with the refused amount reported. Time spent, taps
   and hint-assisted success never move a rank.
+- **A completed day is a recorded fact, not a live query (V28-5).** The review task is the only one whose rule
+  reads live state (`reviewDue`), so `DailyTaskEvidence.reviewCompleted` (set from the stored `daily_tasks` row)
+  now makes its status monotonic, and `readDailyTasks.completedToday` is derived from the row flags — otherwise a
+  new due item later the same day un-completed the task and dropped today from the streak. **Accepted limit:** the
+  daily cap and the streak key on the *device-local* day, so moving the device clock forward (or crossing a
+  timezone) grants a fresh 600 XP and a new streak day; there is no server authority for XP, so this is documented
+  rather than faked. **Verified not exploitable:** multi-device `totalXp` merges Last-Write-Wins (`mergeLatest`), so
+  device totals never sum, and synced `session_summaries` land in local `db.sessions` so the cap self-corrects.
 
 ---
 

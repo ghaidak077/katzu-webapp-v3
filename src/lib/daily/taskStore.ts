@@ -101,15 +101,23 @@ export async function readDailyTasks(now: number = Date.now()): Promise<DailyTas
     grammarAttemptsToday: todayRow?.grammar ? 1 : 0,
     reviewRepsToday: todayRow?.reviewReps ?? 0,
     reviewDue: dueCount,
+    // The row is authoritative (see `DailyTaskEvidence.reviewCompleted`): a batch
+    // completed earlier today stays complete even if a new item becomes due now.
+    reviewCompleted: todayRow?.review === true,
   });
 
   const completedDateKeys = rows
     .filter((row) => row.scenario && row.grammar && row.review)
     .map((row) => row.dateKey);
+  // Derived from the stored row, not from the live statuses: the day's completion
+  // is a recorded fact, so a later due review item can never erase today from the
+  // streak. This is the same source `completedDateKeys` filters on, keeping the
+  // panel and the streak in agreement by construction.
+  const completedToday = !!(todayRow && todayRow.scenario && todayRow.grammar && todayRow.review);
   const streak = dailyTaskStreak({
     completedDateKeys,
     todayKey,
-    completedToday: allDailyTasksDone(statuses),
+    completedToday,
   });
 
   return {

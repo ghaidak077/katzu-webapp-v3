@@ -65,6 +65,18 @@ export interface DailyTaskEvidence {
   reviewRepsToday: number;
   /** Review items still due right now (used for the "queue emptied" path). */
   reviewDue: number;
+  /**
+   * Whether the day row already recorded the review batch complete.
+   *
+   * This exists because the review rule is the only one that depends on LIVE
+   * state (`reviewDue`): a learner who emptied the queue at 10:00 completed the
+   * batch, but if a new item becomes due at 18:00 the recomputed rule would say
+   * "not done". A completed day is a fact about the learner, not a live query, so
+   * the persisted flag has to win — otherwise more work would visibly *undo* the
+   * task and drop the streak. Scenario and grammar do not need it because their
+   * evidence is already passed as a finished 1/0.
+   */
+  reviewCompleted?: boolean;
 }
 
 export interface DailyTaskStatus extends DailyTaskDefinition {
@@ -93,9 +105,12 @@ function taskStatus(def: DailyTaskDefinition, evidence: DailyTaskEvidence): Dail
     }
     case 'review': {
       const reps = Math.max(0, evidence.reviewRepsToday || 0);
+      // Monotonic: once the day row recorded the batch, a later due item cannot
+      // un-complete it (see `reviewCompleted`).
+      const done = evidence.reviewCompleted === true || reviewTaskDone(reps, evidence.reviewDue);
       return {
         ...def,
-        done: reviewTaskDone(reps, evidence.reviewDue),
+        done,
         progress: Math.min(reps, REVIEW_BATCH_SIZE),
         target: REVIEW_BATCH_SIZE,
       };

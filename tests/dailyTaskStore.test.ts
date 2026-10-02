@@ -91,6 +91,31 @@ describe('daily task store', () => {
     expect((await readDailyTasks(TODAY)).statuses.find((s) => s.kind === 'review')?.done).toBe(true);
   });
 
+  it('keeps a day complete (and the streak intact) when a new item becomes due later', async () => {
+    // Regression: the batch was completed by emptying a short queue, then a later
+    // mistake added a due item. A completed day must not be un-completed by that.
+    await db.review_items.bulkPut([reviewItem(1, TODAY - 1000), reviewItem(2, TODAY - 1000)]);
+    await db.review_items.clear();
+    await markReviewGraded(TODAY);
+    await markScenarioTaskDone(TODAY);
+    await markGrammarTaskDone(TODAY);
+
+    // Two prior completed days so the streak is provable, not just 1.
+    await db.daily_tasks.bulkPut([completeRow(new Date(2026, 9, 9, 12)), completeRow(new Date(2026, 9, 8, 12))]);
+    const complete = await readDailyTasks(TODAY);
+    expect(complete.allDone).toBe(true);
+    expect(complete.streakDays).toBe(3);
+
+    // A new item becomes due after the batch was already recorded.
+    await db.review_items.put(reviewItem(9, TODAY - 500));
+
+    const after = await readDailyTasks(TODAY);
+    expect(after.statuses.find((s) => s.kind === 'review')?.done).toBe(true);
+    expect(after.allDone).toBe(true);
+    expect(after.doneCount).toBe(3);
+    expect(after.streakDays).toBe(3);
+  });
+
   it('does not complete a short review batch while items are still due', async () => {
     await db.review_items.bulkPut([
       reviewItem(1, TODAY - 1000),

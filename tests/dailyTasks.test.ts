@@ -49,6 +49,18 @@ describe('daily tasks', () => {
     expect(statuses[2].target).toBe(REVIEW_BATCH_SIZE);
   });
 
+  it('keeps a recorded review completion after new items become due', () => {
+    // The review rule depends on live due-count, so without the persisted flag a
+    // learner who emptied the queue at 10:00 and made one mistake at 18:00 would
+    // see the task un-complete. The flag is authoritative.
+    const regressed = dailyTaskStatuses({ ...base, reviewRepsToday: 2, reviewDue: 3, reviewCompleted: false });
+    expect(regressed[2].done).toBe(false);
+
+    const recorded = dailyTaskStatuses({ ...base, reviewRepsToday: 2, reviewDue: 3, reviewCompleted: true });
+    expect(recorded[2].done).toBe(true);
+    expect(allDailyTasksDone(recorded)).toBe(false); // scenario + grammar still open
+  });
+
   it('counts done tasks and only reports all-done when all three are', () => {
     const partial = dailyTaskStatuses({ ...base, sessionsToday: 1, grammarAttemptsToday: 1 });
     expect(dailyTasksDoneCount(partial)).toBe(2);
