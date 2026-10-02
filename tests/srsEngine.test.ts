@@ -8,6 +8,7 @@ import {
   buildReviewQueue,
   countDue,
   gradeAnswer,
+  gradeCorrectionRetype,
   isDue,
   newReviewItemFromMistake,
   newReviewItemFromVocabulary,
@@ -63,6 +64,44 @@ describe('gradeAnswer', () => {
   it('reports a different word as wrong, and an empty answer never passes', () => {
     expect(gradeAnswer('der Kaffee', 'der Tee')).toBe('wrong');
     expect(gradeAnswer('der Kaffee', '   ')).toBe('wrong');
+  });
+});
+
+describe('gradeCorrectionRetype (the debrief retype drill)', () => {
+  it('accepts the exact fragment the AI returned', () => {
+    expect(gradeCorrectionRetype('ist jetzt fertiggestellt', 'ist jetzt fertiggestellt')).toBe('correct');
+  });
+
+  it('accepts a correct full sentence that contains the corrected fragment', () => {
+    // The V26 signed-in walkthrough bug: this pair was rejected. The AI returns a
+    // fragment; the learner reasonably writes the whole sentence around it.
+    expect(gradeCorrectionRetype('ist jetzt fertiggestellt', 'Ich habe den Bericht jetzt fertiggestellt')).toBe('correct');
+    expect(gradeCorrectionRetype('den Bericht jetzt fertiggestellt', 'Ich habe den Bericht jetzt fertiggestellt')).toBe('correct');
+  });
+
+  it('accepts the learner typing only the shown fragment', () => {
+    expect(gradeCorrectionRetype('ist jetzt fertiggestellt', 'jetzt fertiggestellt')).toBe('correct');
+    expect(gradeCorrectionRetype('den Bericht jetzt fertiggestellt', 'den Bericht jetzt fertiggestellt')).toBe('correct');
+  });
+
+  it('tolerates case, punctuation and umlaut transliteration', () => {
+    expect(gradeCorrectionRetype('für die Prüfung gelernt', 'fuer die pruefung gelernt!')).toBe('correct');
+  });
+
+  it('still reports a wrong or missing article as close', () => {
+    expect(gradeCorrectionRetype('der Kaffee', 'Kaffee')).toBe('close');
+  });
+
+  it('reports a genuinely different sentence as wrong, and never passes an empty answer', () => {
+    expect(gradeCorrectionRetype('ist jetzt fertiggestellt', 'Ich trinke gern Kaffee')).toBe('wrong');
+    expect(gradeCorrectionRetype('ist jetzt fertiggestellt', '   ')).toBe('wrong');
+  });
+
+  it('is looser than gradeAnswer on purpose — gradeAnswer must stay exact', () => {
+    // Pins why there are two graders: the vocab/review recall path must not start
+    // accepting sentences that merely contain the answer.
+    expect(gradeAnswer('ist jetzt fertiggestellt', 'Ich habe den Bericht jetzt fertiggestellt')).toBe('wrong');
+    expect(gradeCorrectionRetype('ist jetzt fertiggestellt', 'Ich habe den Bericht jetzt fertiggestellt')).toBe('correct');
   });
 });
 

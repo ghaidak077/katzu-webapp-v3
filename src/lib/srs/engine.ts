@@ -43,6 +43,81 @@ const MAX_INTERVAL_DAYS = 180;
 /** Leading article on a German noun phrase (`der Kaffee`). */
 const ARTICLE_PREFIX = /^(der|die|das|den|dem)\s+/;
 
+/**
+ * Words a full sentence supplies on its own: articles, pronouns and the
+ * auxiliaries of `haben` / `sein` / `werden`. `gradeCorrectionRetype` sets these
+ * aside when it asks whether the learner reproduced a correction.
+ */
+const FUNCTION_WORDS = new Set([
+  'der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'einem', 'einer', 'eines',
+  'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'mich', 'dich', 'sich', 'uns', 'euch', 'mir', 'dir', 'ihm', 'ihnen', 'man',
+  'bin', 'bist', 'ist', 'sind', 'seid', 'war', 'waren', 'sein', 'gewesen',
+  'habe', 'hast', 'hat', 'haben', 'hatte', 'hatten',
+  'werde', 'wirst', 'wird', 'werden', 'wurde', 'wurden', 'würde', 'würden', 'worden',
+]);
+
+function answerTokens(value: string): string[] {
+  const normalized = normalizeGermanAnswer(value);
+  return normalized ? normalized.split(' ') : [];
+}
+
+function contentTokens(list: string[]): string[] {
+  return list.filter((token) => !FUNCTION_WORDS.has(token));
+}
+
+function isContiguousRun(haystack: string[], needle: string[]): boolean {
+  if (needle.length === 0 || needle.length > haystack.length) return false;
+  for (let start = 0; start + needle.length <= haystack.length; start += 1) {
+    let matches = true;
+    for (let offset = 0; offset < needle.length; offset += 1) {
+      if (haystack[start + offset] !== needle[offset]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return true;
+  }
+  return false;
+}
+
+/**
+ * The retype-drill grader — deliberately looser than `gradeAnswer`, which stays
+ * exact and is the right tool for vocab recall.
+ *
+ * The debrief shows the learner the AI's corrected form and asks them to write
+ * it out. That form is often only the corrected fragment (`ist jetzt
+ * fertiggestellt`), and a competent learner writes the whole sentence around it
+ * (`Ich habe den Bericht jetzt fertiggestellt`). Comparing those as whole strings
+ * rejected a correct answer — the one thing a reinforcement drill must never do
+ * (found in the V26 signed-in walkthrough).
+ *
+ * So the correction counts as reproduced when the learner's answer contains it as
+ * a run of consecutive words once the words a sentence supplies anyway (see
+ * `FUNCTION_WORDS`) are set aside — in either direction, since a learner may also
+ * type exactly the fragment that was shown. Deterministic: no model, no score,
+ * same input → same verdict. It stays a memorable trade-off: a negated answer
+ * that still contains the fragment (`nicht fertiggestellt`) passes, which for a
+ * low-stakes retype is the safer error than rejecting a correct sentence.
+ */
+export function gradeCorrectionRetype(expected: string, actual: string): AnswerVerdict {
+  const target = answerTokens(expected);
+  const given = answerTokens(actual);
+  if (given.length === 0) return 'wrong';
+  if (target.join(' ') === given.join(' ')) return 'correct';
+  if (
+    normalizeGermanAnswer(expected).replace(ARTICLE_PREFIX, '') ===
+    normalizeGermanAnswer(actual).replace(ARTICLE_PREFIX, '')
+  ) {
+    return 'close';
+  }
+  const targetContent = contentTokens(target);
+  const givenContent = contentTokens(given);
+  if (isContiguousRun(givenContent, targetContent) || isContiguousRun(targetContent, givenContent)) {
+    return 'correct';
+  }
+  return 'wrong';
+}
+
 export type AnswerVerdict = 'correct' | 'close' | 'wrong';
 
 function clamp(value: number, min: number, max: number): number {

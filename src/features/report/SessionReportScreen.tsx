@@ -14,7 +14,7 @@ import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { CAPABILITY_LABEL_AR, capabilityFromSession } from '@/lib/capability/model';
 import { completedEpisodeCount, shouldOfferPro } from '@/lib/entitlement/trial';
 import { isProEffective } from '@/lib/utils/subscription';
-import { MASTERED_REPS, gradeAnswer, reviewRefId } from '@/lib/srs/engine';
+import { MASTERED_REPS, gradeCorrectionRetype, reviewRefId } from '@/lib/srs/engine';
 import { enrolMistake, gradeReviewItem } from '@/lib/srs/store';
 import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
@@ -150,7 +150,9 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   const handleValidateRetype = useCallback(
     async (index: number, mistake: { original: string; corrected: string; grammarRule: string }) => {
       const answer = drill[index]?.text || '';
-      const verdict = gradeAnswer(mistake.corrected, answer);
+      // The learner may retype the correction as a full sentence, not only the
+      // fragment the AI returned; `gradeCorrectionRetype` accepts either.
+      const verdict = gradeCorrectionRetype(mistake.corrected, answer);
 
       if (verdict !== 'correct') {
         triggerHaptic('error');
