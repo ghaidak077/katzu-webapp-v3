@@ -14,7 +14,7 @@ file is the digest that is short enough to always read.
 - **Update in the same commit** as the change it describes. If a durable fact changes (URL,
   id, quota, level range), fix the row here immediately.
 
-*Last consolidated: 2026-10-02 (V26).*
+*Last consolidated: 2026-10-02 (V27).*
 
 ---
 

@@ -345,7 +345,7 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
 - **No dedicated e2e specs** for review/listen/write/coach; chat→report→review is not tested
   end-to-end.
 - **Imprint placeholder + refund one-liner** need the owner's real wording before public launch.
-- **CI for the last pushed commits** was not waited out (local green ≠ CI green).
+- **CI is green for the last two pushed shas** (V27, 2026-10-02): the branch sha `d27c634` (run `36977673255`) and the merged `main` sha `a2f6115` (run `36978294037`). Still quote the run id for the exact sha before claiming it — local green stays not-CI-green.
 - Known live defects observed in a signed-in walkthrough (see `docs/AGENT-STATE.md` backlog):
   `/ai/translate` sometimes aborts (`net::ERR_ABORTED`) with a retry; Trail scene-image slot
   shows a placeholder line.
@@ -519,3 +519,5 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 | 2026-10-02 | V26 | Added `scripts/session-start.mjs` + `npm run session:start` — one short readout of ledger NEXT, §9 targets + manifest counts, MEMORY §A facts and git state. |
 | 2026-10-02 | V26 | Applied the shared retype grader and store-owned mastery to `PracticeScreen` (was exact-match and wrote `isMastered` after one retype); guard test `tests/practiceRetype.test.ts`. |
 | 2026-10-02 | V27 | Session readout gained an OPEN ITEMS section: the ledger's OWNER-OPEN and UNPROVEN entries, split into still-open vs `RESOLVED`/`DONE`/`superseded` history, with counts and capped labels. |
+| 2026-10-02 | V27 | Deployed: merged `launch-hardening` to `main` (fast-forward to `a2f6115`) and let Pages build — production deployment `b87f00b4-4975-43b9-93b7-1483db2e0904`. Worker code unchanged, so no worker deploy. CI green on the branch sha and on the merged `main` sha. |
+| 2026-10-02 | V27 | Production-verified the two retype fixes in a real browser walkthrough (390×844): both the PracticeScreen mistake drill and the session-report debrief accepted the full sentence `Ich habe den Bericht jetzt fertiggestellt` for the fragment `ist jetzt fertiggestellt`; smoke battery 12/12, `/health` healthy/ready, unauthenticated `/admin/api/users` → 401. |
