@@ -77,3 +77,21 @@ test('the suggestion floor answers the last AI message, not the scenario first p
   await expect(first).toBeVisible();
   await expect(page.getByText('Guten Tag. Hier ist mein Pass.')).toHaveCount(0);
 });
+
+test('the suggestion chips offer their words to build the reply', async ({ page }) => {
+  await bootSignedIn(page);
+  await page.goto('/scenario/airport_arrival/live');
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
+  await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]').first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
+
+  // The words of the offered reply are tappable into the composer, so a learner
+  // who is not ready to send the canned sentence can build their own from it.
+  const bank = page.getByTestId('word-bank');
+  await expect(bank).toBeVisible();
+  const chip = bank.getByRole('button').first();
+  const word = (await chip.textContent())?.trim() || '';
+  await chip.click();
+  await expect(page.getByPlaceholder('اكتب جملتك بالألمانية…')).toHaveValue(new RegExp(word));
+});

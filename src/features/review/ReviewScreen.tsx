@@ -114,6 +114,9 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
 
   const handleReveal = () => {
     if (!current) return;
+    // The give-up signal the word bank is meant to reduce: an explicit reveal,
+    // recorded with the card's kind so it can be compared against bank use.
+    track('review_revealed', { skill: 'review', kind: current.kind });
     setRevealed(true);
     // A reveal is a miss. It is tallied through `handleGrade` (`verdict: 'wrong'`
     // is exactly the miss bucket) so the item is counted once, not twice.
@@ -331,14 +334,17 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
                 {/* The words of the sentence, tappable: the learner who knows the
                     meaning but not the vocabulary can still build the answer. */}
                 {wordBank.length > 0 && (
-                  <div>
+                  <div data-testid="word-bank">
                     <span className="kz-ar-micro block text-kz-inkFaint">بنك الكلمات — اضغط لتضيف الكلمة</span>
                     <div className="mt-1.5 flex flex-wrap gap-1.5" dir="ltr">
                       {wordBank.map((word, wordIndex) => (
                         <button
                           type="button"
                           key={`${word}-${wordIndex}`}
-                          onClick={() => setAnswer((prev) => (prev ? `${prev} ${word}` : word))}
+                          onClick={() => {
+                            track('word_bank_tapped', { skill: 'review', kind: current.kind });
+                            setAnswer((prev) => (prev ? `${prev} ${word}` : word));
+                          }}
                           className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors hover:border-kz-lavender/50"
                         >
                           {word}

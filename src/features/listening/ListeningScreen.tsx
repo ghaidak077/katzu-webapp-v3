@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { buildWordBank } from '@/lib/utils/wordBank';
 import { track } from '@/lib/analytics/client';
 import { ArrowLeft, CheckCircle2, Headphones, RotateCcw, Sparkles, Volume2, XCircle } from 'lucide-react';
 
@@ -78,6 +79,12 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
 
   const current = queue && index < queue.length ? queue[index] : null;
   const finished = queue !== null && index >= queue.length;
+
+  // The words of the sentence the ear is trying to catch. The audio is the prompt
+  // and the German is the answer — the same shape as an `ar_to_de` review card —
+  // so the same bank applies; a single-word item has no bank (one chip would be
+  // the whole answer).
+  const wordBank = useMemo(() => buildWordBank(current?.german || ''), [current?.german]);
 
   // The drill's result used to exist only on this screen, so "how is your
   // listening?" had no honest answer anywhere in the app. One row per finished
@@ -265,6 +272,28 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
 
           {result === null ? (
             <form onSubmit={check} className="space-y-3">
+              {wordBank.length > 0 && (
+                <div data-testid="word-bank" dir="ltr">
+                  <span className="mb-1 block text-[10px] font-arabic text-text-muted">
+                    بنك الكلمات — اضغط لتضيف الكلمة
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {wordBank.map((word, wordIndex) => (
+                      <button
+                        type="button"
+                        key={`${word}-${wordIndex}`}
+                        onClick={() => {
+                          track('word_bank_tapped', { skill: 'listening' });
+                          setTyped((prev) => (prev ? `${prev} ${word}` : word));
+                        }}
+                        className="rounded-xl border border-border-subtle bg-surface-subtle px-2.5 py-1 font-german text-sm text-text-primary transition-colors hover:border-primary/50"
+                      >
+                        {word}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <input
                 type="text"
                 dir="ltr"

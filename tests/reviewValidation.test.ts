@@ -12,6 +12,7 @@ import { DEFAULT_EASE, newReviewItemFromMistake, newReviewItemFromPhrase, newRev
 import {
   BANNED_PROMPT_PLACEHOLDERS,
   buildWordBank,
+  buildWordBankFrom,
   clozeContext,
   dedupeReviewItems,
   directionFromRefId,
@@ -249,6 +250,29 @@ describe('buildWordBank', () => {
   it('refuses a wall of chips for an over-long sentence', () => {
     const long = Array.from({ length: 15 }, (_, index) => `Wort${index}`).join(' ');
     expect(buildWordBank(long)).toEqual([]);
+  });
+});
+
+describe('buildWordBankFrom', () => {
+  it('assembles a deduped bank from several sources (Writing has no single answer)', () => {
+    const bank = buildWordBankFrom(['der Termin', 'Ich möchte einen Termin', 'der Termin']);
+    expect(new Set(bank).size).toBe(bank.length);
+    expect(bank).toEqual(expect.arrayContaining(['der', 'Termin', 'Ich', 'möchte', 'einen']));
+    expect(bank.filter((word) => word === 'Termin')).toHaveLength(1);
+  });
+
+  it('is deterministic, so the chips never move under the learner', () => {
+    const parts = ['der Termin', 'Ich möchte einen Termin vereinbaren'];
+    expect(buildWordBankFrom(parts)).toEqual(buildWordBankFrom(parts));
+  });
+
+  it('caps a large pool instead of returning nothing', () => {
+    const many = Array.from({ length: 40 }, (_, index) => `Wort${index}`);
+    expect(buildWordBankFrom(many, 6)).toHaveLength(6);
+  });
+
+  it('has nothing to bank for a single word', () => {
+    expect(buildWordBankFrom(['Termin'])).toEqual([]);
   });
 });
 

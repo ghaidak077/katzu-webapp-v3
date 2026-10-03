@@ -1,9 +1,10 @@
 import type { ReviewDirection, ReviewItemEntity } from '@/types/models';
 import { normalizeGermanAnswer } from '@/lib/srs/engine';
 
-// The production word bank is shared with Guided Practice, so it lives in one
-// place; re-exported here to keep this module's public surface unchanged.
-export { buildWordBank } from '@/lib/utils/wordBank';
+// The production word bank is shared with the other production surfaces, so it
+// lives in one place; re-exported here to keep this module's public surface
+// unchanged.
+export { buildWordBank, buildWordBankFrom } from '@/lib/utils/wordBank';
 
 /**
  * The rules a review card must satisfy to be worth showing.

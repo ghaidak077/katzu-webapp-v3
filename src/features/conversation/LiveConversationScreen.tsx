@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowRight, Languages } from 'lucide-react';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { GlassSurface } from '@/components/glass/GlassSurface';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
+import { buildWordBank } from '@/lib/utils/wordBank';
+import { track } from '@/lib/analytics/client';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
 import type { CEFRLevel } from '@/types/models';
 import { ConversationComposer, ConversationControls } from './ConversationDock';
@@ -115,6 +117,13 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     refreshHints,
     handleNudgeDifficulty,
   } = live;
+
+  // The words behind the currently-offered suggestion, so the learner can build a
+  // reply themselves instead of only sending the canned line.
+  const hintBank = useMemo(
+    () => (visibleHints[0] ? buildWordBank(visibleHints[0].german) : []),
+    [visibleHints],
+  );
 
   if (!sessionMode) {
     return (
@@ -267,6 +276,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         }}
         onRefreshHints={refreshHints}
         onUseHint={handleUseHint}
+        hintBank={hintBank}
+        onPickHintWord={(word) => {
+          track('word_bank_tapped', { skill: 'chat' });
+          setInputText((prev) => (prev ? `${prev} ${word}` : word));
+        }}
         onDismissError={() => dispatch({ type: 'dismiss_error' })}
       />
 

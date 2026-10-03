@@ -42,7 +42,7 @@
 | Exam-speaking module (the wedge's product) | **LIVE (loaded V24)** | `docs/content/curriculum-exam-speaking.json` `_note` (status draft, "in the style of, NOT official", 5 exam scenarios); loaded in V24 and verified live 2026-10-02 — `/scenarios` returns `exam_sich_vorstellen, exam_erfahrungen_sprechen, exam_gemeinsam_planen, exam_thema_praesentieren, exam_auf_partner_reagieren`. Market it as live; keep the "in the style of, NOT official" framing everywhere (C4). |
 | Exam result card | **Shipped (V24), honest by construction** | `src/lib/debrief/examCard.ts` — deterministic, never claims official score; mandatory notice «هذه محاكاة بأسلوب الامتحان — ليست الامتحان الرسمي ولا تمنح درجة معتمدة» (`:19`) |
 | Scores vs real exams | **NOT validated** | No teacher-validated calibration exists. Until §12 P8's validation runs, any shared score is labeled «تدريبي تقريبي» and **no score deltas are published**. |
-| Analytics | **Allow-listed, privacy-first, 24 events** | `src/lib/analytics/events.ts` (`ANALYTICS_EVENTS`, 8 prop keys); worker rejects unknown names (`cloudflare-analytics.js`) |
+| Analytics | **Allow-listed, privacy-first, 29 events** | `src/lib/analytics/events.ts` (`ANALYTICS_EVENTS`, 8 prop keys); worker rejects unknown names (`cloudflare-analytics.js`) |
 | Referral | **LIVE: 3 access-days both sides on invitee's first lesson + 1 Pro month on first verified purchase** | `cloudflare-unified-worker.js:2195–2210` (`REFERRAL_LESSON_REWARD_DAYS = 3`, `REFERRAL_REWARD_MONTHS = 1`), codes `REF-XXXXXXXX` |
 | Live content | **49 scenarios / 531 vocabulary / 426 starter_phrases / 73 grammar rows live** (includes the exam module) | live probe 2026-10-02: `/scenarios` 49 (5 `exam_*`), `/vocabulary` 531, `/grammar` 73; ledger V24-1 (49/531/426/73) |
 | Exam date capture | **Not built** | No exam-date field exists anywhere in `src/`. §12 P6. |
@@ -616,7 +616,7 @@ North star: **orders/month** (cash) and **renewals** (recurring-equivalent, §2.
 
 ### 10.2 Minimum event list vs the shipped allow-list
 
-The shipped allow-list (`src/lib/analytics/events.ts`, 24 events / 8 prop keys) already covers: `landing_viewed, demo_started, demo_completed, signup_started, signup_completed, onboarding_*, placement_*, scenario_*, quiz_completed, conversation_started, first_independent_turn, conversation_completed, review_*, paywall_viewed, purchase_clicked, code_redeemed, app_error` with props `scenarioId, skill, category, source, kind, state, reason, count`.
+The shipped allow-list (`src/lib/analytics/events.ts`, 29 events / 8 prop keys) already covers: `landing_viewed, demo_started, demo_completed, signup_started, signup_completed, onboarding_*, placement_*, scenario_*, quiz_completed, conversation_started, first_independent_turn, conversation_completed, review_started, review_completed, review_revealed, word_bank_tapped, coach_viewed, writing_completed, listening_completed, return_day1, return_day7, paywall_viewed, purchase_clicked, code_redeemed, app_error` with props `scenarioId, skill, category, source, kind, state, reason, count`.
 
 **Missing for this playbook (flagged; add only through the §12 P7 privacy review — same closed-allowlist policy):**
 - `free_session_started` / `free_session_exhausted` (D1 conversion) — *missing*

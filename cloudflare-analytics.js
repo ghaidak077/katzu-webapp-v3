@@ -58,6 +58,8 @@ export const EVENT_NAMES = [
   "return_day7",
   "review_started",
   "review_completed",
+  "word_bank_tapped",
+  "review_revealed",
   "coach_viewed",
   "writing_completed",
   "listening_completed",

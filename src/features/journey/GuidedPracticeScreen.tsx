@@ -313,9 +313,10 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   اكتب بالألمانية ما تعنيه:{' '}
                   <span className="font-bold">{practice.grammar.exampleAr}</span>
                 </p>
-                {renderBank(grammarBank, (word) =>
-                  setGrammarAnswer((prev) => (prev ? `${prev} ${word}` : word)),
-                )}
+                {renderBank(grammarBank, (word) => {
+                  track('word_bank_tapped', { skill: 'practice', kind: 'grammar' });
+                  setGrammarAnswer((prev) => (prev ? `${prev} ${word}` : word));
+                })}
                 <input
                   type="text"
                   dir="ltr"
@@ -380,9 +381,10 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                 <p className="kz-ar-body text-kz-ink">
                   قل أو اكتب بالألمانية: <span className="font-bold">{practice.retrieval.promptAr}</span>
                 </p>
-                {renderBank(retrievalBank, (word) =>
-                  setRetrievalAnswer((prev) => (prev ? `${prev} ${word}` : word)),
-                )}
+                {renderBank(retrievalBank, (word) => {
+                  track('word_bank_tapped', { skill: 'practice', kind: 'retrieval' });
+                  setRetrievalAnswer((prev) => (prev ? `${prev} ${word}` : word));
+                })}
                 <input
                   type="text"
                   dir="ltr"

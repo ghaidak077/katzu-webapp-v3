@@ -53,6 +53,9 @@ export interface ConversationControlsProps {
   onToggleHintExpanded: () => void;
   onRefreshHints: () => void;
   onUseHint: (hint: ContextualHint) => void;
+  /** The words of the offered reply, so the learner can type it themselves. */
+  hintBank: string[];
+  onPickHintWord: (word: string) => void;
   onDismissError: () => void;
 }
 
@@ -78,6 +81,8 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
   onToggleHintExpanded,
   onRefreshHints,
   onUseHint,
+  hintBank,
+  onPickHintWord,
   onDismissError,
 }) => {
   return (
@@ -136,6 +141,28 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
           >
             ✕
           </button>
+        </div>
+      )}
+
+      {/* The words of the offered reply. The suggestion sends a whole sentence;
+          a learner who wants to say it in their own words (or is not ready to
+          send it) can build it from the same chips as every other production
+          surface instead. */}
+      {showHelp && isHintRevealed && hintBank.length > 0 && (
+        <div data-testid="word-bank" dir="ltr" className="mb-2">
+          <span className="kz-ar-micro mb-1 block text-kz-inkFaint">بنك الكلمات — اضغط لتضيف الكلمة</span>
+          <div className="flex flex-wrap gap-1.5">
+            {hintBank.map((word, wordIndex) => (
+              <button
+                key={`${word}-${wordIndex}`}
+                type="button"
+                onClick={() => onPickHintWord(word)}
+                className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors hover:border-primary/50"
+              >
+                {word}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

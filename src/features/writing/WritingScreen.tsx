@@ -11,6 +11,8 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { isProEffective } from '@/lib/utils/subscription';
+import { buildWordBankFrom } from '@/lib/utils/wordBank';
+import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
 import { servedLevel } from '@/lib/entitlement/trial';
 import { track } from '@/lib/analytics/client';
 import { ArrowLeft, CheckCircle2, PenLine, Sparkles, Volume2, XCircle } from 'lucide-react';
@@ -57,6 +59,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
   const trainings = useLiveQuery(() => db.scenario_training.toArray());
   const scenarios = useLiveQuery(() => db.scenarios.toArray());
   const phrases = useLiveQuery(() => db.starter_phrases.toArray());
+  const vocabulary = useLiveQuery(() => db.vocabulary.toArray());
 
   const [text, setText] = useState('');
   const [feedback, setFeedback] = useState<WritingFeedback | null>(null);
@@ -88,6 +91,17 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
     const atLevel = forScenario.filter((phrase) => phrase.level === level);
     return (atLevel.length ? atLevel : forScenario).slice(0, 4).map((phrase) => phrase.german);
   }, [phrases, scenario, level]);
+
+  // Writing has no single correct sentence to take a bank from, so it is built
+  // from the scenario's own vocabulary and phrases — the words the learner would
+  // actually reach for in this situation.
+  const wordBank = useMemo(() => {
+    const topic = scenarioToVocabTopic(scenario);
+    const vocabWords = (vocabulary || [])
+      .filter((word) => word.german && (!topic || word.topic === topic))
+      .map((word) => `${word.article ? `${word.article} ` : ''}${word.german}`);
+    return buildWordBankFrom([...vocabWords, ...targetPhrases]);
+  }, [vocabulary, scenario, targetPhrases]);
 
   const trimmedLength = text.trim().length;
   const canSubmit = trimmedLength >= MIN_CHARS && !isSubmitting;
@@ -316,6 +330,28 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
 
       <form onSubmit={handleSubmit}>
         <Card className="p-4 mb-4">
+          {wordBank.length > 0 && (
+            <div data-testid="word-bank" dir="ltr" className="mb-3">
+              <span className="mb-1 block text-[10px] font-arabic text-text-muted">
+                بنك الكلمات — اضغط لتضيف الكلمة
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {wordBank.map((word, wordIndex) => (
+                  <button
+                    type="button"
+                    key={`${word}-${wordIndex}`}
+                    onClick={() => {
+                      track('word_bank_tapped', { skill: 'writing' });
+                      setText((prev) => (prev ? `${prev} ${word}` : word));
+                    }}
+                    className="rounded-xl border border-border-subtle bg-surface-subtle px-2.5 py-1 font-german text-sm text-text-primary transition-colors hover:border-primary/50"
+                  >
+                    {word}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}

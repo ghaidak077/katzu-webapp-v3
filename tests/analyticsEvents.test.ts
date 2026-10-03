@@ -41,6 +41,15 @@ describe('analytics event validation', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accepts the vocabulary-bridge events and their surface prop', () => {
+    const tapped = validateAnalyticsEvent(event({ name: 'word_bank_tapped', props: { skill: 'review', kind: 'vocab' } }), now);
+    expect(tapped.ok).toBe(true);
+    if (tapped.ok) expect(tapped.event.props).toEqual({ skill: 'review', kind: 'vocab' });
+
+    const revealed = validateAnalyticsEvent(event({ name: 'review_revealed', props: { skill: 'review', kind: 'vocab' } }), now);
+    expect(revealed.ok).toBe(true);
+  });
+
   it('rejects unknown event names', () => {
     expect(validateAnalyticsEvent({ ...event(), name: 'screen_recorded' }, now).ok).toBe(false);
   });

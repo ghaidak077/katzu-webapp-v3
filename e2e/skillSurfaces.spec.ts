@@ -174,8 +174,26 @@ test('Listening dictation grades what was heard and reveals the sentence', async
 
   await expect(page.getByRole('heading', { name: 'تدريب الاستماع' })).toBeVisible();
 
-  // A deliberately wrong transcription: the point is that the dictation grades and
-  // names what was missed instead of silently accepting anything.
+  // The words of the sentence being dictated are tappable into the input. A
+  // single-word item has no bank (one chip would be the whole answer), so walk the
+  // short queue until a sentence item shows one.
+  const bank = page.getByTestId('word-bank');
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    if (await bank.isVisible()) break;
+    await page.getByLabel('ما سمعته بالألمانية').fill('zwischenstand');
+    await page.getByRole('button', { name: 'تحقّق' }).click();
+    await page.getByRole('button', { name: /الجملة التالية|أظهر النتيجة/ }).click();
+  }
+  await expect(bank).toBeVisible();
+
+  // A chip fills the input, so the learner who cannot make out the words can
+  // still reconstruct the sentence they heard.
+  const chip = bank.getByRole('button').first();
+  const firstWord = (await chip.textContent())?.trim() || '';
+  await chip.click();
+  await expect(page.getByLabel('ما سمعته بالألمانية')).toHaveValue(new RegExp(firstWord));
+
+  // Grading is unchanged: a deliberately wrong transcription names what was missed.
   await page.getByLabel('ما سمعته بالألمانية').fill('voellig falsch');
   await page.getByRole('button', { name: 'تحقّق' }).click();
 
@@ -204,6 +222,81 @@ test('Writing grades a paragraph and shows the rubric and corrected copy', async
   await expect(page.getByText('ملاحظة المعلّم')).toBeVisible();
   await expect(page.getByText('النسخة المصححة')).toBeVisible();
   await expect(page.getByRole('button', { name: 'اكتب من جديد' })).toBeVisible();
+});
+
+test('Writing offers the scenario words to build the paragraph', async ({ page }) => {
+  await bootSignedIn(page);
+
+  await page.goto('/app/write');
+  await expect(page.getByRole('heading', { name: 'الكتابة (Schreiben)' })).toBeVisible();
+
+  // Writing has no single answer, so the bank is assembled from the scenario's own
+  // vocabulary and phrases — the seed content gives the first scenario (café) a
+  // food topic with plenty of words.
+  const bank = page.getByTestId('word-bank');
+  await expect(bank).toBeVisible();
+
+  const chip = bank.getByRole('button').first();
+  const word = (await chip.textContent())?.trim() || '';
+  await chip.click();
+  await expect(page.getByPlaceholder('Schreiben Sie hier auf Deutsch...')).toHaveValue(new RegExp(word));
+});
+
+test('the vocabulary bridge reports its bank taps and its reveals', async ({ page }) => {
+  await bootSignedIn(page);
+
+  // Collect every analytics batch the app posts (the client flushes ~2 s after a
+  // tracked event). This proves the two new events actually leave the device, not
+  // just that `track()` was called.
+  const names: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (!url.pathname.endsWith('/analytics/events')) return;
+    try {
+      const body = JSON.parse(request.postData() || '{}');
+      for (const event of body.events || []) names.push(String(event.name));
+    } catch {
+      /* a malformed batch is not this test's concern */
+    }
+  });
+
+  // Two production cards: one to use the bank on, one to give up on.
+  const card = (id: number, promptAr: string, answerDe: string) => ({
+    userId: 'current_user',
+    kind: 'vocab',
+    refId: `vocab:${id}`,
+    sourceId: id,
+    promptAr,
+    answerDe,
+    contextDe: '',
+    direction: 'ar_to_de',
+    dueAt: DUE,
+    intervalDays: 1,
+    ease: 2.5,
+    reps: 0,
+    lapses: 0,
+    reviews: 0,
+    createdAt: 1,
+  });
+  await seedRows(page, 'review_items', [
+    card(901, 'موعد', 'der Termin'),
+    card(902, 'ماء', 'das Wasser'),
+  ]);
+
+  await page.goto('/app/review');
+  await expect(page.getByTestId('word-bank')).toBeVisible();
+
+  // First card: build from the bank, then grade it and move on.
+  await page.getByTestId('word-bank').getByRole('button').first().click();
+  await page.getByRole('button', { name: 'تحقّق من إجابتي' }).click();
+  await page.getByRole('button', { name: 'بسهولة' }).click();
+
+  // Second card: the honest way out.
+  await page.getByRole('button', { name: 'لا أتذكّر — أرني الإجابة' }).click();
+
+  await expect
+    .poll(() => names, { timeout: 15_000 })
+    .toEqual(expect.arrayContaining(['word_bank_tapped', 'review_revealed']));
 });
 
 test('Coach aggregates repeated mistakes and offers a focused drill', async ({ page }) => {

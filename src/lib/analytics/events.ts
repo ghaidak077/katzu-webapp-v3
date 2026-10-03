@@ -37,6 +37,14 @@ export const ANALYTICS_EVENTS = [
   'return_day7',
   'review_started',
   'review_completed',
+  // The vocabulary bridge, measured so we can tell whether the word bank
+  // actually reduces give-ups. `word_bank_tapped` fires when a learner taps a
+  // word chip on any production surface (prop `skill`); `review_revealed` fires
+  // when they take the explicit «لا أتذكّر — أرني الإجابة» way out. Both carry the
+  // install id and day, so a cohort can compare the reveal rate with and without
+  // bank use.
+  'word_bank_tapped',
+  'review_revealed',
   'coach_viewed',
   'writing_completed',
   'listening_completed',
