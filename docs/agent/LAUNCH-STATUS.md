@@ -216,7 +216,11 @@ attach a domain so `robots.txt`/`sitemap.xml` resolve · NowPayments account + t
 a real sandbox pass (`NOWPAYMENTS_ENVIRONMENT` is still `test_mode`) · counsel-reviewed
 privacy/terms + Play Data Safety · real-device voice on two phones · an on-call/incident owner.
 
-**Agent-side blocker (needs `DEPLOY-AUTHORIZED`):** a **worker deploy** — required for V29-3
-analytics and V29-4 daily authority to exist on the live worker at all — then a **Pages
-deploy**, in that order (the app is service-worker cached). No commit has been made either
-(not requested).
+**Agent-side blocker — RESOLVED 2026-10-03 (`DEPLOY-AUTHORIZED: merge, worker, pages`):** the V29
+work is committed (`559aa81`), merged ff to `main`, and deployed — worker
+**`a510e25c-ed78-470e-92a6-810d38794cc1`** (now carrying `cloudflare-daily.js` and the two new
+analytics events) and production bundle **`assets/index-CfZ6VaJV.js`** (was `index-Cm6pUMe1.js`).
+Verified live: `/health` trimmed, `/crypto/health` unchanged (`ready:false`), unauth admin **401**,
+`word_bank_tapped` + `review_revealed` accepted, battery **12/12**, and CI green on the merged
+`main` push (run **`37110867672`**). **No owner-only item was touched.** Rollback targets: worker
+`0ab4658d-c34c-4e55-b191-7ee0da341e91`; Pages deployment serving `index-Cm6pUMe1.js`.
