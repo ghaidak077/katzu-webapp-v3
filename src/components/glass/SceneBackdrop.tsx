@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
 import { sceneBackdropLayers, type SceneLighting } from '@/lib/design/scenes';
 
 export interface SceneBackdropProps extends React.HTMLAttributes<HTMLDivElement> {

@@ -153,7 +153,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
             type="button"
             onClick={onBack}
             aria-label="العودة"
-            className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-white/10 bg-black/35 backdrop-blur-md"
+            className="flex h-11 w-11 items-center justify-center rounded-control border border-white/10 bg-black/35 backdrop-blur-md"
           >
             <ArrowRight className="h-5 w-5 text-kz-inkDim" />
           </button>
@@ -186,7 +186,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
 
             <GlassCard tier="glass">
               <h1 className="kz-ar-title text-kz-ink">{scenario.title_ar}</h1>
-              <GermanText className="mt-1 block text-[0.8rem] text-kz-inkDim">{scenario.title_de}</GermanText>
+              <GermanText className="mt-1 block text-caption text-kz-inkDim">{scenario.title_de}</GermanText>
 
               <p className="kz-ar-body mt-3 text-kz-ink">{story?.situationAr}</p>
 

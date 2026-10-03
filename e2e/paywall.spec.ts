@@ -57,7 +57,7 @@ test('writing is served at the level the trial allows, never the measured one', 
   await bootSignedIn(page, { user: { cefrLevel: 'A2', placementCompletedAt: Date.now() } });
   await page.goto('/app/write');
 
-  await page.getByPlaceholder('Schreiben Sie hier auf Deutsch...').fill('Ich möchte einen Termin am Montag bitte');
+  await page.getByPlaceholder('Schreibe hier auf Deutsch…').fill('Ich möchte einen Termin am Montag bitte');
   await page.getByRole('button', { name: 'صحّح نصّي' }).click();
 
   await expect(page.getByText('85%')).toBeVisible();

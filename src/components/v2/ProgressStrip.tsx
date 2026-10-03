@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
 
 export interface ProgressStripProps {
   /** Total segments in the chapter — one per step the learner can actually finish. */

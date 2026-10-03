@@ -272,7 +272,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <StatusIndicator state={isOnline ? 'online' : 'offline'} compact />
             {!isPro && (
-              <GlassButton variant="quiet" onClick={onOpenSubscription} className="min-h-[44px] px-3 text-[0.7rem]">
+              <GlassButton variant="quiet" onClick={onOpenSubscription} className="min-h-[44px] px-3 text-micro">
                 <Sparkles className="h-3 w-3" />
                 Katzu Pro
               </GlassButton>

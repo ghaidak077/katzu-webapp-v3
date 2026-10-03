@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { cn } from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
 
 /**
  * Katzu V2 material primitives.

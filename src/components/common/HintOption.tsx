@@ -24,12 +24,12 @@ export const HintOption: React.FC<HintOptionProps> = ({ hint, onUse, primary = f
       }`}
     >
       {label && (
-        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-arabic self-start">
+        <span className="text-micro px-2 py-0.5 rounded-full bg-primary/15 text-primary font-arabic self-start">
           {label}
         </span>
       )}
       <GermanText className="text-primary font-bold">{hint.german}</GermanText>
-      <span className="text-[10px] text-text-muted font-arabic">{hint.arabic}</span>
+      <span className="text-micro text-text-muted font-arabic">{hint.arabic}</span>
     </button>
   );
 };

@@ -235,7 +235,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
             type="button"
             onClick={onBack}
             aria-label="العودة إلى القصة"
-            className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.04]"
+            className="flex h-11 w-11 items-center justify-center rounded-control border border-white/10 bg-white/[0.04]"
           >
             <ArrowRight className="h-5 w-5 text-kz-inkDim" />
           </button>
@@ -325,7 +325,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   onKeyDown={(event) => event.key === 'Enter' && handleCheckGrammar()}
                   placeholder="Schreibe hier auf Deutsch…"
                   aria-label="اكتب جملة القاعدة بالألمانية"
-                  className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink outline-none transition-colors placeholder:font-arabic placeholder:text-[0.72rem] placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                  className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink transition-colors placeholder:font-arabic placeholder:text-micro placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                 />
                 <div className="mt-3 flex items-center gap-2">
                   <GlassButton
@@ -393,7 +393,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   onKeyDown={(event) => event.key === 'Enter' && handleCheckRetrieval()}
                   placeholder="Schreibe hier auf Deutsch…"
                   aria-label="اكتب الجملة بالألمانية"
-                  className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink outline-none transition-colors placeholder:font-arabic placeholder:text-[0.72rem] placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                  className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink transition-colors placeholder:font-arabic placeholder:text-micro placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                 />
                 <div className="mt-3 flex items-center gap-2">
                   <GlassButton
@@ -488,7 +488,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   }}
                   placeholder="اكتب ما سمعته…"
                   aria-label="اكتب ما سمعته بالألمانية"
-                  className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink outline-none transition-colors placeholder:font-arabic placeholder:text-[0.72rem] placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                  className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink transition-colors placeholder:font-arabic placeholder:text-micro placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                 />
 
                 {/* The learner's own words while they speak: the platform recogniser

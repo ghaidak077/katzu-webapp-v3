@@ -285,10 +285,10 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
       <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col justify-center">
         <Card variant="hero" glow className="text-center">
           <KatzuMascot name="celebrating" className="w-28 h-28 object-contain mx-auto mb-3" />
-          <p className="text-[11px] font-arabic text-text-muted mb-1">نتيجة الاختبار</p>
+          <p className="text-micro font-arabic text-text-muted mb-1">نتيجة الاختبار</p>
           <h1 className="text-2xl font-bold font-arabic mb-3">{result.headlineAr}</h1>
           <p className="text-sm font-arabic text-text-secondary leading-relaxed mb-4">{result.detailAr}</p>
-          <p className="text-[11px] font-arabic text-text-muted mb-5">
+          <p className="text-micro font-arabic text-text-muted mb-5">
             {askedCount} سؤالاً. ولو شعرت أن المستوى غير مناسب، غيّره من الملف الشخصي في أي وقت.
           </p>
           <Button
@@ -329,7 +329,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="text-lg font-bold font-arabic">اختبار تحديد المستوى</h2>
-          <p className="text-[11px] text-text-secondary font-arabic">
+          <p className="text-micro text-text-secondary font-arabic">
             {item.isListening ? 'استمع ثم اختر المعنى الصحيح' : 'اختر المعنى الصحيح'}
           </p>
         </div>
@@ -367,7 +367,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
             >
               <Volume2 className="w-8 h-8" />
             </button>
-            <p className="mt-3 text-[11px] font-arabic text-text-muted">
+            <p className="mt-3 text-micro font-arabic text-text-muted">
               اضغط للاستماع مرة أخرى (يمكنك تكرارها كما تريد)
             </p>
           </div>

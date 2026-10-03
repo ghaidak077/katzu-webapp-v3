@@ -178,7 +178,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
           <p className="text-xs text-text-secondary font-arabic mb-4">
             سمعت {index} جملة — {tally.correct} بدقة، و{tally.close} قريبة.
           </p>
-          <p className="text-[11px] text-text-muted font-arabic mb-4 leading-relaxed">
+          <p className="text-micro text-text-muted font-arabic mb-4 leading-relaxed">
             {describeDrillResult(tally.correct, index)}
           </p>
           <Button className="w-full" onClick={onBack}>
@@ -196,7 +196,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="text-lg font-bold font-arabic">تدريب الاستماع</h2>
-          <p className="text-[11px] text-text-secondary font-arabic">
+          <p className="text-micro text-text-secondary font-arabic">
             استمع واكتب ما تسمعه بالألمانية
           </p>
         </div>
@@ -211,7 +211,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
       </div>
 
       {!audioAvailable && (
-        <p className="mb-3 rounded-2xl border border-status-learning/40 bg-status-learning/10 p-3 text-[11px] font-arabic text-text-secondary">
+        <p className="mb-3 rounded-2xl border border-status-learning/40 bg-status-learning/10 p-3 text-micro font-arabic text-text-secondary">
           متصفحك لا يدعم النطق، لذلك ستظهر الجملة {PEEK_MS / 1000} ثوانٍ ثم تختفي — اكتبها بعد ذلك.
         </p>
       )}
@@ -233,7 +233,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                   <button
                     type="button"
                     onClick={() => speakSlow(current.german)}
-                    className="text-[11px] font-arabic text-text-secondary hover:text-primary transition-colors"
+                    className="text-micro font-arabic text-text-secondary hover:text-primary transition-colors"
                   >
                     تشغيل بطيء 0.8x
                   </button>
@@ -241,7 +241,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                   <button
                     type="button"
                     onClick={() => speak(current.german)}
-                    className="text-[11px] font-arabic text-text-secondary hover:text-primary transition-colors"
+                    className="text-micro font-arabic text-text-secondary hover:text-primary transition-colors"
                   >
                     إعادة
                   </button>
@@ -260,7 +260,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                         setPeekVisible(true);
                         setTimeout(() => setPeekVisible(false), PEEK_MS);
                       }}
-                      className="text-[11px] font-arabic text-primary hover:underline"
+                      className="text-micro font-arabic text-primary hover:underline"
                     >
                       اعرضها مرة أخرى
                     </button>
@@ -274,7 +274,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
             <form onSubmit={check} className="space-y-3">
               {wordBank.length > 0 && (
                 <div data-testid="word-bank" dir="ltr">
-                  <span className="mb-1 block text-[10px] font-arabic text-text-muted">
+                  <span className="mb-1 block text-micro font-arabic text-text-muted">
                     بنك الكلمات — اضغط لتضيف الكلمة
                   </span>
                   <div className="flex flex-wrap gap-1.5">
@@ -302,7 +302,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                 onChange={(e) => setTyped(e.target.value)}
                 placeholder="اكتب ما سمعته بالألمانية..."
                 aria-label="ما سمعته بالألمانية"
-                className="w-full h-12 bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl px-4 text-base font-german outline-none transition-all"
+                className="w-full h-12 bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl px-4 text-base font-german transition-all"
               />
               <Button type="submit" className="w-full" disabled={!typed.trim()}>
                 تحقّق
@@ -335,7 +335,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                       : `أمسكت ${result.matched} من ${result.total} كلمات`}
                   </p>
                   {result.missedWords.length > 0 && (
-                    <p className="mt-1 text-[11px] font-arabic text-text-secondary">
+                    <p className="mt-1 text-micro font-arabic text-text-secondary">
                       الكلمات التي فاتتك:{' '}
                       <GermanText className="font-bold text-status-error">
                         {result.missedWords.join('، ')}
@@ -346,9 +346,9 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
               </div>
 
               <div className="rounded-2xl bg-surface-subtle p-3">
-                <span className="text-[10px] font-arabic text-text-muted block mb-1">الجملة كاملة</span>
+                <span className="text-micro font-arabic text-text-muted block mb-1">الجملة كاملة</span>
                 <GermanText className="text-sm font-bold text-text-primary">{current.german}</GermanText>
-                <p className="mt-1 text-[11px] font-arabic text-text-secondary">{current.translationAr}</p>
+                <p className="mt-1 text-micro font-arabic text-text-secondary">{current.translationAr}</p>
               </div>
 
               <Button className="w-full" onClick={next}>

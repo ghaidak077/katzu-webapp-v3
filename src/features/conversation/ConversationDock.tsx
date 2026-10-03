@@ -267,7 +267,7 @@ export const ConversationComposer: React.FC<ConversationComposerProps> = ({
           value={inputText}
           onChange={(e) => onInputTextChange(e.target.value)}
           onKeyDown={(e) => onInputKeyDown(e.key)}
-          className="h-10 min-w-0 flex-1 rounded-2xl kz-chip border border-white/10 bg-white/5 px-4 font-german text-sm outline-none transition-colors placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-primary/60"
+          className="h-10 min-w-0 flex-1 rounded-2xl kz-chip border border-white/10 bg-white/5 px-4 font-german text-sm transition-colors placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-primary/60"
         />
 
         {/* Typing is always one tap away — and it is a control inside the row,

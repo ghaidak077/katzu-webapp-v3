@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { sceneBackdropLayers, type SceneLighting } from '@/lib/design/scenes';
 

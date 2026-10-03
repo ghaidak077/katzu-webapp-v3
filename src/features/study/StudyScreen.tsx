@@ -10,6 +10,7 @@ import { AudioWaveform } from '@/components/common/AudioWaveform';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ArrowRight, Volume2, Bookmark } from 'lucide-react';
+import { BackButton } from '@/components/common/BackButton';
 import type { VocabularyEntity, GrammarEntity, StarterPhraseEntity } from '@/types/models';
 
 export interface StudyScreenProps {
@@ -96,12 +97,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
     <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto relative pb-24">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={onBack}
-          className="p-2.5 rounded-2xl bg-surface-card border border-border-subtle hover:bg-surface-subtle transition-colors"
-        >
-          <ArrowRight className="w-5 h-5 text-text-secondary" />
-        </button>
+        <BackButton onBack={onBack} />
 
         {/* Speed Toggle (1.0x / 0.8x) */}
         <button
@@ -122,7 +118,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
         <button
           onClick={() => setActiveTab('phrases')}
           className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-            activeTab === 'phrases' ? 'bg-primary text-white shadow-glow-purple' : 'text-text-secondary'
+            activeTab === 'phrases' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
           }`}
         >
           العبارات ({phrases.length})
@@ -130,7 +126,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
         <button
           onClick={() => setActiveTab('vocab')}
           className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-            activeTab === 'vocab' ? 'bg-primary text-white shadow-glow-purple' : 'text-text-secondary'
+            activeTab === 'vocab' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
           }`}
         >
           المفردات ({vocabulary.length})
@@ -138,7 +134,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
         <button
           onClick={() => setActiveTab('grammar')}
           className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-            activeTab === 'grammar' ? 'bg-primary text-white shadow-glow-purple' : 'text-text-secondary'
+            activeTab === 'grammar' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
           }`}
         >
           القواعد
@@ -168,12 +164,13 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
               </div>
               <button
                 onClick={() => handlePlay(p.german)}
-                className="w-10 h-10 rounded-full bg-primary/20 text-primary hover:bg-primary/30 flex items-center justify-center flex-shrink-0"
+                aria-label="استمع إلى النطق"
+                className="w-11 h-11 min-h-touch min-w-touch rounded-full bg-primary/20 text-primary hover:bg-primary/30 flex items-center justify-center flex-shrink-0"
               >
                 {playingText === p.german && isPlaying ? (
-                  <AudioWaveform isPlaying={true} />
+                  <AudioWaveform isPlaying={true} aria-hidden />
                 ) : (
-                  <Volume2 className="w-5 h-5" />
+                  <Volume2 className="w-5 h-5" aria-hidden="true" />
                 )}
               </button>
             </div>
@@ -217,7 +214,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
                     </GermanText>
                   </div>
                   <div className="text-xs text-text-secondary font-arabic mb-1">{v.translation_ar}</div>
-                  <GermanText className="text-[11px] text-text-muted italic block">
+                  <GermanText className="text-micro text-text-muted italic block">
                     {v.example_de}
                   </GermanText>
                 </div>
@@ -225,19 +222,22 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
                     onClick={() => toggleSaveWord(v.id)}
-                    className={`p-2 rounded-full border transition-colors ${
+                    aria-pressed={isSaved}
+                    aria-label={isSaved ? 'إزالة الكلمة من المحفوظات' : 'حفظ الكلمة'}
+                    className={`p-2 min-h-touch min-w-touch rounded-full border transition-colors ${
                       isSaved
                         ? 'bg-status-learning/20 border-status-learning/40 text-status-learning'
                         : 'bg-surface-subtle border-border-subtle text-text-muted hover:text-text-primary'
                     }`}
                   >
-                    <Bookmark className="w-4 h-4 fill-current" />
+                    <Bookmark className="w-4 h-4 fill-current" aria-hidden="true" />
                   </button>
                   <button
                     onClick={() => handlePlay(`${v.article || ''} ${v.german}`)}
-                    className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center"
+                    aria-label="استمع إلى النطق"
+                    className="w-10 h-10 min-h-touch min-w-touch rounded-full bg-primary/20 text-primary flex items-center justify-center"
                   >
-                    <Volume2 className="w-4 h-4" />
+                    <Volume2 className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>

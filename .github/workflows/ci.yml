@@ -46,6 +46,13 @@ jobs:
       - name: Worker syntax check
         run: node --check cloudflare-unified-worker.js
 
+      - name: Design-system gates (drift + contrast)
+        # `design:audit` fails when a screen hardcodes a colour or bypasses the
+        # type/radius scale; `design:contrast` fails when any token pairing drops
+        # below WCAG. Both read src/index.css directly, so they cannot drift away
+        # from what the app actually paints.
+        run: npm run design
+
       - name: Unit tests (vitest)
         run: npm test
 

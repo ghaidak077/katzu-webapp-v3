@@ -64,7 +64,7 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAc
             {!status.done && (
               <GlassButton
                 variant="quiet"
-                className="min-h-[44px] shrink-0 px-3 text-[0.72rem]"
+                className="min-h-[44px] shrink-0 px-3 text-micro"
                 onClick={() => onAction(status.kind)}
               >
                 {status.actionAr}

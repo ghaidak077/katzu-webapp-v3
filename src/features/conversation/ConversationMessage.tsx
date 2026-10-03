@@ -84,8 +84,8 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
         <div
           className={
             isKatzu
-              ? 'kz-surface rounded-[24px] rounded-ss-[8px] px-3.5 py-3'
-              : 'rounded-[24px] rounded-se-[8px] bg-gradient-to-br from-primary to-primary-pressed px-3.5 py-3 text-white shadow-glow-purple'
+              ? 'kz-surface rounded-panel rounded-ss-tag px-3.5 py-3'
+              : 'rounded-panel rounded-se-tag bg-gradient-to-br from-fill to-fill-pressed px-3.5 py-3 text-on-fill shadow-glow-purple'
           }
           data-tier={isKatzu ? 'canvas' : undefined}
         >
@@ -94,7 +94,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
           <div
             dir="ltr"
             style={{ unicodeBidi: 'isolate' }}
-            className={`font-german text-[15px] font-semibold leading-relaxed ${
+            className={`font-german text-body font-semibold leading-relaxed ${
               isKatzu ? 'text-kz-ink' : 'text-white'
             }`}
           >
@@ -109,7 +109,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                     onClick={isKnown ? () => onWordClick(segment.text) : undefined}
                     aria-current={isSpoken ? 'true' : undefined}
                     className={[
-                      'rounded-[7px] transition-colors duration-150',
+                      'rounded-tag transition-colors duration-150',
                       // The word Katzu is saying right now. It is a reading aid, so
                       // it is a background, not a colour change: German stays
                       // legible whether or not the highlight is on.
@@ -190,7 +190,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
             this Arabic card has to be direction-isolated or its punctuation
             reorders itself. */}
         {showHelp && message.hasCorrection && (
-          <div className="mt-2 overflow-hidden rounded-[20px] border border-status-error/35 bg-surface-subtle text-start">
+          <div className="mt-2 overflow-hidden rounded-control border border-status-error/35 bg-surface-subtle text-start">
             <div className="flex items-center gap-2 border-b border-status-error/20 bg-status-error/10 px-3.5 py-2">
               <KatzuMascot name="avatar" className="h-5 w-5" />
               <span className="kz-ar-micro font-bold text-status-error">تصحيح كَاتْزُو</span>

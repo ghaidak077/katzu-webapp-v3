@@ -183,7 +183,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
               if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void ask();
             }}
             placeholder="مثال: ما الفرق بين «seit» و«vor»؟"
-            className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-3 py-2.5 font-arabic text-sm text-kz-ink outline-none transition-colors placeholder:text-kz-inkFaint focus:border-primary/60"
+            className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-3 py-2.5 font-arabic text-sm text-kz-ink transition-colors placeholder:text-kz-inkFaint focus:border-primary/60"
           />
           <div className="mt-2 flex items-center justify-between gap-2">
             <span className="kz-ar-micro text-kz-inkFaint">
@@ -290,7 +290,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
                           onKeyDown={(event) => {
                             if (event.key === 'Enter') void checkPractice(index, item);
                           }}
-                          className="h-11 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/40 px-3 font-german text-sm text-kz-ink outline-none placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                          className="h-11 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/40 px-3 font-german text-sm text-kz-ink placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                         />
                         <Button
                           size="md"

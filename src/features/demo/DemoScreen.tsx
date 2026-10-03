@@ -6,6 +6,7 @@ import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { BackButton } from '@/components/common/BackButton';
 import { useVoiceCapture, voiceStartFailureMessageAr } from '@/lib/audio/useVoiceCapture';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { triggerHaptic } from '@/lib/utils/haptics';
@@ -23,7 +24,6 @@ import {
 import { loadDemoState, saveDemoState } from '@/lib/demo/migration';
 import { track } from '@/lib/analytics/client';
 import {
-  ArrowRight,
   ArrowLeft,
   CheckCircle2,
   Mic,
@@ -170,7 +170,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
           <Badge variant="subtle" size="sm">
             خطوة {Math.min(progress.step, progress.total)} من {progress.total}
           </Badge>
-          <span className="text-[11px] font-arabic text-text-muted">بدون تسجيل · بدون بيانات شخصية</span>
+          <span className="text-micro font-arabic text-text-muted">بدون تسجيل · بدون بيانات شخصية</span>
         </div>
 
         {state.stage === 'intro' && (
@@ -184,7 +184,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
               <GermanText className="text-base font-bold block mb-1">{state.titleDe}</GermanText>
               <p className="text-xs font-arabic text-text-secondary">{state.titleAr}</p>
             </Card>
-            <ul className="text-[11px] font-arabic text-text-secondary text-start space-y-1.5 mb-5">
+            <ul className="text-micro font-arabic text-text-secondary text-start space-y-1.5 mb-5">
               <li>• تستمع إلى العبارة وتقرأ ترجمتها</li>
               <li>• تجيب على سؤالين قصيرين</li>
               <li>• تكتب جملة أو ترفعها بصوتك وتأخذ تصحيحاً فورياً</li>
@@ -206,7 +206,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
         {state.stage === 'study' && studyItem && (
           <Card>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-arabic text-text-secondary">
+              <span className="text-micro font-arabic text-text-secondary">
                 {state.studyIndex + 1} / {state.items.length}
               </span>
               <Badge variant="primary" size="sm">
@@ -228,7 +228,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
 
             <p className="text-sm font-arabic text-text-secondary mb-3">{studyItem.translationAr}</p>
             {studyItem.exampleDe && (
-              <p className="text-[11px] font-arabic text-text-muted mb-3 border-s-2 border-border-subtle ps-2.5">
+              <p className="text-micro font-arabic text-text-muted mb-3 border-s-2 border-border-subtle ps-2.5">
                 <GermanText>{studyItem.exampleDe}</GermanText>
               </p>
             )}
@@ -285,7 +285,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
             </div>
 
             {answer && (
-              <p className="text-[11px] font-arabic text-text-secondary mb-3">
+              <p className="text-micro font-arabic text-text-secondary mb-3">
                 {answer.correct
                   ? 'إجابة صحيحة — هكذا يبدو الفهم الحقيقي، لا التخمين.'
                   : 'الإجابة الصحيحة مظللة بالأخضر. الخطأ هنا جزء من التعلّم، وسنعيد إليك هذه الكلمة في المراجعة.'}
@@ -318,7 +318,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 placeholder={voice.isRecording ? 'أنا أستمع إليك…' : 'اكتب بالألمانية...'}
-                className="flex-1 h-12 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl px-4 text-sm font-german outline-none transition-all"
+                className="flex-1 h-12 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl px-4 text-sm font-german transition-all"
                 aria-label="جملتك بالألمانية"
               />
               {voice.isSupported && (
@@ -340,7 +340,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
                   aria-label={voice.isRecording ? 'إيقاف الإدخال الصوتي' : 'ابدأ الإدخال الصوتي'}
                   className={`p-3.5 rounded-2xl border transition-all min-h-[44px] min-w-[44px] ${
                     voice.isRecording
-                      ? 'bg-status-error border-status-error text-white animate-pulse'
+                      ? 'bg-status-error border-status-error text-on-danger animate-pulse'
                       : 'bg-surface-card border-border-subtle text-primary'
                   }`}
                 >
@@ -398,15 +398,15 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
 
             {state.production && (
               <Card className="mb-3 text-start">
-                <p className="text-[11px] font-arabic text-text-muted mb-1">قلت:</p>
+                <p className="text-micro font-arabic text-text-muted mb-1">قلت:</p>
                 <GermanText className="text-sm block mb-2 line-through decoration-status-error/50">
                   {state.production.actual}
                 </GermanText>
-                <p className="text-[11px] font-arabic text-text-muted mb-1">الصيغة الصحيحة:</p>
+                <p className="text-micro font-arabic text-text-muted mb-1">الصيغة الصحيحة:</p>
                 <GermanText className="text-sm font-bold text-status-success block mb-3">
                   {state.production.expected}
                 </GermanText>
-                <p className="text-[11px] font-arabic text-text-secondary leading-relaxed">
+                <p className="text-micro font-arabic text-text-secondary leading-relaxed">
                   {state.production.verdict === 'correct'
                     ? 'أحسنت! جملة صحيحة تماماً — هكذا يبدو الدخول في موقف حقيقي بثقة.'
                     : 'كرة التعلّم: سنعيد هذه العبارة إليك في المراجعة حتى تثبت.'}
@@ -419,18 +419,18 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
                 <Sparkles className="w-4 h-4 text-primary" />
                 <span className="text-sm font-bold font-arabic">بطاقة مراجعة واحدة جاهزة</span>
               </div>
-              <p className="text-[11px] font-arabic text-text-secondary leading-relaxed">
+              <p className="text-micro font-arabic text-text-secondary leading-relaxed">
                 أنشأنا لعبارة تدرّبت عليها بطاقة مراجعة مبدئية. أنشئ حساباً مجانياً لتُحفظ في ذاكرتك
                 الدائمة وتعود إليك في الوقت المناسب — التقدّم الذي جمعته في التجربة سينتقل معك.
               </p>
               {state.production && (
                 <div className="mt-3 rounded-xl border border-border-subtle bg-surface-card p-3">
-                  <p className="text-[11px] font-arabic text-text-muted mb-1">البطاقة:</p>
+                  <p className="text-micro font-arabic text-text-muted mb-1">البطاقة:</p>
                   <GermanText className="text-sm font-bold block">{state.production.expected}</GermanText>
                 </div>
               )}
             </Card>
-            <p className="text-[11px] font-arabic text-text-muted text-center mb-3">
+            <p className="text-micro font-arabic text-text-muted text-center mb-3">
               غداً: مشهد جديد ينتظرك — دقيقتان تكفيان.
             </p>
 
@@ -462,14 +462,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
 function TopBar({ onHome }: { onHome: () => void }) {
   return (
     <div className="flex items-center justify-between">
-      <button
-        type="button"
-        onClick={onHome}
-        aria-label="العودة إلى الصفحة الرئيسية"
-        className="p-2.5 rounded-2xl bg-surface-card border border-border-subtle min-h-[44px] min-w-[44px] flex items-center justify-center"
-      >
-        <ArrowRight className="w-5 h-5 text-text-secondary" />
-      </button>
+      <BackButton onBack={onHome} label="العودة إلى الصفحة الرئيسية" />
       <span className="font-arabic text-sm font-bold text-text-secondary">تجربة كَاتْزُو</span>
       <div className="w-10" />
     </div>

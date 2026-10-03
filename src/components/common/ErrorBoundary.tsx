@@ -86,11 +86,11 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               // only re-rendering the same failed tree.
               window.location.assign('/');
             }}
-            className="w-full min-h-[44px] rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-white"
+            className="w-full min-h-[44px] rounded-2xl bg-fill px-5 py-3 text-sm font-bold text-on-fill"
           >
             إعادة تحميل التطبيق
           </button>
-          <p className="text-[11px] text-text-muted font-arabic">
+          <p className="text-micro text-text-muted font-arabic">
             يمكنك أيضاً العودة للصفحة الرئيسية. لن نرسل محتوى محادثاتك أو كلماتك في أي تقرير خطأ.
           </p>
         </section>

@@ -188,7 +188,7 @@ function Hero({
             component checks the file's HTTP status, not a build-time flag). */}
         <VideoSlot />
 
-        <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-text-secondary">
+        <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-caption text-text-secondary">
           {['يتحدّث بصوت عالٍ', 'يستمع ويملي', 'يتذكّر أخطاءك', 'يعرف مستواك من البداية'].map((item) => (
             <li key={item} className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-status-success shrink-0" aria-hidden />
@@ -292,7 +292,7 @@ function WhoItIsForSection() {
               </div>
               <h3 className="font-bold">{title}</h3>
             </div>
-            <p className="mt-3 text-[13px] leading-relaxed text-text-secondary">{body}</p>
+            <p className="mt-3 text-caption leading-relaxed text-text-secondary">{body}</p>
           </div>
         ))}
       </div>
@@ -346,7 +346,7 @@ function FaqSection() {
                 +
               </span>
             </summary>
-            <p className="px-4 pb-4 text-[13px] leading-relaxed text-text-secondary font-arabic">{a}</p>
+            <p className="px-4 pb-4 text-caption leading-relaxed text-text-secondary font-arabic">{a}</p>
           </details>
         ))}
       </div>
@@ -372,7 +372,7 @@ function WhySection() {
               <Icon className="w-5 h-5 text-primary" aria-hidden />
             </div>
             <h3 className="mt-4 font-bold">{title}</h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-text-secondary">{body}</p>
+            <p className="mt-2 text-caption leading-relaxed text-text-secondary">{body}</p>
           </div>
         ))}
       </div>
@@ -404,7 +404,7 @@ function TryDemoSection({ onTryDemo }: Pick<LandingScreenProps, 'onTryDemo'>) {
           ].map(({ icon: Icon, text }) => (
             <li key={text} className="flex items-start gap-3">
               <Icon className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden />
-              <span className="text-[13px] leading-relaxed text-text-secondary">{text}</span>
+              <span className="text-caption leading-relaxed text-text-secondary">{text}</span>
             </li>
           ))}
         </ol>
@@ -413,7 +413,7 @@ function TryDemoSection({ onTryDemo }: Pick<LandingScreenProps, 'onTryDemo'>) {
             ابدأ التجربة المجانية
             <ArrowLeft className="w-5 h-5" aria-hidden />
           </Button>
-          <span className="text-[11px] text-text-muted">تعمل أيضاً بدون اتصال بعد أول زيارة</span>
+          <span className="text-micro text-text-muted">تعمل أيضاً بدون اتصال بعد أول زيارة</span>
         </div>
       </div>
     </section>
@@ -453,7 +453,7 @@ function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSign
           <Badge variant="subtle" size="md">
             مجاناً دائماً
           </Badge>
-          <ul className="mt-5 space-y-3 text-[13px] text-text-secondary">
+          <ul className="mt-5 space-y-3 text-caption text-text-secondary">
             {[
               'الدرس التجريبي بدون حساب، ثم حساب مجاني يحفظ تقدّمك.',
               'المهمة اليومية والمراجعة الذكية لكل ما تعلّمته مجاناً.',
@@ -472,7 +472,7 @@ function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSign
             <Sparkles className="w-3.5 h-3.5" aria-hidden />
             Katzu Pro — {priceLabel}
           </Badge>
-          <ul className="mt-5 space-y-3 text-[13px] text-text-secondary">
+          <ul className="mt-5 space-y-3 text-caption text-text-secondary">
             {[
               'محادثات غير محدودة مع كاتزو بعد انتهاء الجلسات التجريبية.',
               'كل المستويات والمشاهد من A1 إلى B2.',
@@ -485,7 +485,7 @@ function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSign
               </li>
             ))}
           </ul>
-          <p className="mt-5 text-[11px] text-text-muted leading-relaxed">
+          <p className="mt-5 text-micro text-text-muted leading-relaxed">
             يمكنك دائماً إكمال ما بدأته والمراجعة بلا حدود — لن نُغلق أمامك ما تعلّمته بالفعل.
           </p>
           <Button size="md" className="mt-4 w-full" onClick={onStart}>
@@ -549,7 +549,7 @@ function SkillsSection() {
               {label}
             </GermanText>
             <p className="mt-1 text-xs font-arabic text-text-muted">{ar}</p>
-            <p className="mt-2.5 text-[13px] leading-relaxed text-text-secondary">{body}</p>
+            <p className="mt-2.5 text-caption leading-relaxed text-text-secondary">{body}</p>
           </div>
         ))}
       </div>
@@ -589,7 +589,7 @@ function StepsSection() {
               <Icon className="w-5 h-5 text-primary" aria-hidden />
             </div>
             <h3 className="mt-4 font-bold">{title}</h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-text-secondary">{body}</p>
+            <p className="mt-2 text-caption leading-relaxed text-text-secondary">{body}</p>
           </li>
         ))}
       </ol>
@@ -642,7 +642,7 @@ function ExampleSection() {
                 <GermanText className="text-sm font-semibold text-text-primary">{right}</GermanText>
               </div>
             </div>
-            <p className="mt-3 pt-3 border-t border-border-subtle text-[13px] leading-relaxed text-text-secondary">
+            <p className="mt-3 pt-3 border-t border-border-subtle text-caption leading-relaxed text-text-secondary">
               {why}
             </p>
           </div>
@@ -661,13 +661,13 @@ function ComingSection() {
           قريباً
         </Badge>
         <h2 className="mt-4 text-xl sm:text-2xl font-bold">الطريق إلى الشهادة</h2>
-        <p className="mt-3 text-[13px] sm:text-sm leading-relaxed text-text-secondary max-w-2xl">
+        <p className="mt-3 text-caption sm:text-sm leading-relaxed text-text-secondary max-w-2xl">
           نعمل حالياً على القراءة وتدريب صيغة مهام الامتحان الكاملة والتصحيح الزمني
           (<GermanText className="text-xs">Goethe</GermanText> · <GermanText className="text-xs">telc</GermanText> ·{' '}
           <GermanText className="text-xs">DTZ</GermanText> من A1 إلى B2) ليصبح كاتزو تحضيراً صادقاً للشهادة، لا لعبة.
           نُطلقها فقط عندما تكون جاهزة وقابلة للقياس.
         </p>
-        <ul className="mt-5 grid gap-2 sm:grid-cols-3 text-[13px] text-text-secondary">
+        <ul className="mt-5 grid gap-2 sm:grid-cols-3 text-caption text-text-secondary">
           <li className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-primary shrink-0" aria-hidden />
             نصوص قراءة متدرّجة
@@ -726,7 +726,7 @@ function Footer({ onOpenTrustPage }: Pick<LandingScreenProps, 'onOpenTrustPage'>
           <KatzuMascot name="badge" className="w-8 h-8" alt="" aria-hidden />
           <span className="text-sm text-text-muted">Katzu — رفيقك لتعلم الألمانية</span>
         </div>
-        <nav className="flex items-center gap-5 text-[13px] text-text-secondary">
+        <nav className="flex items-center gap-5 text-caption text-text-secondary">
           <button type="button" className="hover:text-primary transition-colors" onClick={() => onOpenTrustPage('privacy')}>
             الخصوصية
           </button>
@@ -747,7 +747,7 @@ function SectionHeading({ eyebrow, title, subtitle }: { eyebrow: string; title: 
     <div className="text-center max-w-2xl mx-auto">
       <p className="text-xs font-semibold text-primary tracking-wide">{eyebrow}</p>
       <h2 className="mt-2.5 text-2xl sm:text-3xl font-bold tracking-tight">{title}</h2>
-      <p className="mt-3 text-[13px] sm:text-sm text-text-secondary leading-relaxed">{subtitle}</p>
+      <p className="mt-3 text-caption sm:text-sm text-text-secondary leading-relaxed">{subtitle}</p>
     </div>
   );
 }

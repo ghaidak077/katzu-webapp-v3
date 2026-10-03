@@ -502,7 +502,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
               return (
                 <div key={dateKey} className="flex flex-col items-center gap-1.5">
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl text-[0.7rem] font-bold transition-all ${
+                    className={`flex h-8 w-8 items-center justify-center rounded-xl text-micro font-bold transition-all ${
                       hasActivity
                         ? 'bg-kz-lavender/20 text-kz-lavender shadow-kz-lavender'
                         : 'border border-white/[0.06] text-kz-inkFaint'

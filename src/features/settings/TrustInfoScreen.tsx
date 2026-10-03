@@ -1,7 +1,8 @@
 import React from 'react';
-import { ArrowRight, Mail, ShieldCheck } from 'lucide-react';
+import { Mail, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { BackButton } from '@/components/common/BackButton';
 
 type TrustPage = 'privacy' | 'terms' | 'contact' | 'imprint' | 'refund';
 
@@ -56,13 +57,7 @@ export const TrustInfoScreen: React.FC<TrustInfoScreenProps> = ({ page, onBack }
   return (
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={onBack}
-          aria-label="العودة"
-          className="p-2.5 rounded-2xl bg-surface-card border border-border-subtle"
-        >
-          <ArrowRight className="w-5 h-5 text-text-secondary" />
-        </button>
+        <BackButton onBack={onBack} label="العودة" />
         <h1 className="text-xl font-bold font-arabic">{selected.title}</h1>
       </div>
       <Card className="p-5 space-y-4">

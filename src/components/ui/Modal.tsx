@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
-import { cn } from './Button';
+import { cn } from '@/lib/cn';
 import { GlassSurface } from '@/components/glass/GlassSurface';
 
 export interface ModalProps {

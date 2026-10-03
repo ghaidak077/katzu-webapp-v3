@@ -9,6 +9,7 @@ import { workerClient } from '@/lib/api/workerClient';
 import { ArrowRight, Check, KeyRound, UserCheck, AlertCircle, Gift, ExternalLink, ShoppingCart, ShieldCheck } from 'lucide-react';
 import { getProPriceLabel, FALLBACK_PRICE_LABEL, SALES_URL, buildSalesUrl } from '@/lib/utils/links';
 import { track } from '@/lib/analytics/client';
+import { BackButton } from '@/components/common/BackButton';
 
 export interface SubscriptionRedemptionScreenProps {
   onBack: () => void;
@@ -111,12 +112,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
     <div className="min-h-screen flex flex-col justify-between p-6 bg-black text-text-primary max-w-md mx-auto relative overflow-y-auto">
       {/* Top Bar */}
       <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={onBack}
-          className="p-2.5 rounded-2xl bg-surface-card border border-border-subtle hover:bg-surface-subtle transition-colors"
-        >
-          <ArrowRight className="w-5 h-5 text-text-secondary" />
-        </button>
+        <BackButton onBack={onBack} />
         <span className="font-arabic font-bold text-sm text-text-secondary">عضوية Katzu Pro</span>
         <div className="w-10" />
       </div>
@@ -135,7 +131,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
               حالة الاشتراك
             </span>
             <span
-              className={`text-[11px] font-arabic font-bold px-2 py-0.5 rounded-full ${
+              className={`text-micro font-arabic font-bold px-2 py-0.5 rounded-full ${
                 user?.isSubscriptionActive
                   ? 'bg-status-success/20 text-status-success'
                   : 'bg-surface-subtle text-text-secondary border border-border-subtle'
@@ -144,14 +140,14 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
               {user?.isSubscriptionActive ? 'Pro نشط' : 'الحساب المجاني'}
             </span>
           </div>
-          <p className="mt-2 text-[11px] font-arabic text-text-secondary leading-relaxed">
+          <p className="mt-2 text-micro font-arabic text-text-secondary leading-relaxed">
             {user?.isSubscriptionActive
               ? user.subscriptionExpiresAt
                 ? `ينتهي الاشتراك في ${new Date(user.subscriptionExpiresAt).toLocaleDateString('ar')} — يمكنك تفعيل كود جديد في أي وقت لإضافة المدة.`
                 : 'اشتراكك نشط بدون تاريخ انتهاء محدد.'
               : `لديك ${user?.freeSessionsRemaining ?? 3} جلسات محادثة تجريبية. المراجعة وكل ما تعلّمته مجانيان بلا حد.`}
           </p>
-          <p className="mt-2 text-[10px] font-arabic text-text-muted leading-relaxed">
+          <p className="mt-2 text-micro font-arabic text-text-muted leading-relaxed">
             الدفع يتم على صفحة الشراء الرسمية، ثم تُفعّل الكود هنا. لا نحتفظ بأي بيانات بطاقة في التطبيق.
           </p>
         </Card>
@@ -195,7 +191,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
               <UserCheck className="w-4 h-4 text-status-success flex-shrink-0" />
               <span>الحساب المتصل: <span className="font-mono text-text-primary font-bold">{user.email}</span></span>
             </div>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-success/20 text-status-success font-bold">
+            <span className="text-micro px-2 py-0.5 rounded-full bg-status-success/20 text-status-success font-bold">
               Google ✓
             </span>
           </div>
@@ -215,7 +211,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
                 dir="ltr"
-                className="flex-1 h-11 bg-black border border-border-subtle focus:border-status-learning rounded-xl px-3 text-xs font-mono font-bold uppercase tracking-wider outline-none text-status-learning"
+                className="flex-1 h-11 bg-black border border-border-subtle focus:border-status-learning rounded-xl px-3 text-xs font-mono font-bold uppercase tracking-wider text-status-learning"
               />
               <Button
                 type="button"
@@ -242,7 +238,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
             </div>
             {referralMessage && (
               <div
-                className={`mt-2.5 p-2 rounded-lg text-[11px] font-semibold ${
+                className={`mt-2.5 p-2 rounded-lg text-micro font-semibold ${
                   referralMessage.kind === 'success'
                     ? 'bg-status-success/15 border border-status-success/30 text-status-success'
                     : 'bg-status-error/15 border border-status-error/30 text-status-error'
@@ -261,7 +257,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
             <ShoppingCart className="w-3.5 h-3.5 text-primary" />
             لا تملك كود تفعيل بعد؟
           </label>
-          <p className="text-[11px] text-text-secondary font-arabic leading-relaxed mb-3">
+          <p className="text-micro text-text-secondary font-arabic leading-relaxed mb-3">
             اشترِ كوداً من صفحة الشراء الرسمية بـ {priceLabel} — الدفع بالبطاقة أو العملات الرقمية،
             وللمقيمين في سوريا خيارات الدفع المحلي (سيرياتيل كاش، MTN كاش، حوالة بنكية). يصل الكود
             إليك مباشرة ثم تفعّله هنا.
@@ -272,13 +268,13 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => track('purchase_clicked', { source: 'subscription_screen' })}
-              className="flex-1 h-11 rounded-2xl bg-primary text-white text-xs font-bold font-arabic flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity"
+              className="flex-1 h-11 rounded-2xl bg-fill text-on-fill text-xs font-bold font-arabic flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               اشترِ كود تفعيل الآن
             </a>
           </div>
-          <div className="mt-2 text-[10px] text-text-muted font-mono break-all text-center" dir="ltr">
+          <div className="mt-2 text-micro text-text-muted font-mono break-all text-center" dir="ltr">
             {SALES_URL}
           </div>
         </Card>
@@ -295,7 +291,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
               placeholder="DE-6M-A1B2C3D4-E5F6G7H8"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              className="flex-1 h-11 bg-surface-card border border-border-subtle focus:border-primary rounded-xl px-3 text-xs font-mono font-bold uppercase tracking-wider outline-none text-cyan-300"
+              className="flex-1 h-11 bg-surface-card border border-border-subtle focus:border-primary rounded-xl px-3 text-xs font-mono font-bold uppercase tracking-wider text-cyan-300"
             />
             <Button type="submit" size="sm" isLoading={isLoading} disabled={!code.trim()}>
               تفعيل
@@ -303,13 +299,13 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           </form>
 
           {errorMessage && (
-            <div className="mt-2.5 p-2 rounded-lg bg-status-error/15 border border-status-error/30 text-status-error text-[11px] font-semibold flex items-center gap-1.5">
+            <div className="mt-2.5 p-2 rounded-lg bg-status-error/15 border border-status-error/30 text-status-error text-micro font-semibold flex items-center gap-1.5">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
           {successMessage && (
-            <div className="mt-2.5 p-2 rounded-lg bg-status-success/15 border border-status-success/30 text-status-success text-[11px] font-semibold flex items-center gap-1.5">
+            <div className="mt-2.5 p-2 rounded-lg bg-status-success/15 border border-status-success/30 text-status-success text-micro font-semibold flex items-center gap-1.5">
               <Check className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{successMessage}</span>
             </div>
@@ -317,7 +313,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
         </Card>
 
         {/* Plans info */}
-        <p className="w-full mb-3 text-center text-[11px] text-text-muted font-arabic">
+        <p className="w-full mb-3 text-center text-micro text-text-muted font-arabic">
           التفعيل متاح حالياً عبر كود مرتبط بحسابك الموثّق.
         </p>
       </div>

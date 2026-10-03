@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from './Button';
+import { cn } from '@/lib/cn';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: 'primary' | 'der' | 'die' | 'das' | 'success' | 'learning' | 'error' | 'subtle';
@@ -25,7 +25,7 @@ export const Badge: React.FC<BadgeProps> = ({
   };
 
   const sizes = {
-    sm: 'text-[11px] px-2 py-0.5 rounded-lg font-medium',
+    sm: 'text-micro px-2 py-0.5 rounded-lg font-medium',
     md: 'text-xs px-2.5 py-1 rounded-xl font-semibold',
   };
 

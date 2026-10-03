@@ -314,7 +314,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                     const value = event.target.value ? new Date(event.target.value).getTime() : null;
                     setAnswers((prev) => ({ ...prev, targetDate: value }));
                   }}
-                  className="h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink outline-none focus:border-kz-lavender/50"
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink focus:border-kz-lavender/50"
                 />
               </label>
             )}

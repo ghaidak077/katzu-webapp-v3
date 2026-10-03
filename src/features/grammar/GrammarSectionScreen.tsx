@@ -81,7 +81,7 @@ const ExerciseCard: React.FC<{
 }> = ({ exercise, attempt, onType, onCheck, onRetry, reviewLabel }) => (
   <Card className="p-4 space-y-2">
     {reviewLabel && (
-      <p className="text-[10px] font-arabic font-bold text-primary">{reviewLabel}</p>
+      <p className="text-micro font-arabic font-bold text-primary">{reviewLabel}</p>
     )}
     <p className="text-xs font-arabic text-text-muted">{exercise.promptAr}</p>
     {exercise.displayDe && (
@@ -107,7 +107,7 @@ const ExerciseCard: React.FC<{
         value={attempt?.text || ''}
         onChange={(event) => onType(event.target.value)}
         placeholder="اكتب بالألمانية"
-        className="h-10 min-w-0 flex-1 rounded-xl border border-border-subtle bg-surface-subtle px-3 font-german text-xs text-text-primary outline-none placeholder:font-arabic placeholder:text-text-muted focus:border-primary/60"
+        className="h-10 min-w-0 flex-1 rounded-xl border border-border-subtle bg-surface-subtle px-3 font-german text-xs text-text-primary placeholder:font-arabic placeholder:text-text-muted focus:border-primary/60"
       />
       <Button size="sm" onClick={onCheck}>
         تحقّق
@@ -116,24 +116,24 @@ const ExerciseCard: React.FC<{
     {attempt?.verdict && (
       <div className="flex items-start gap-1.5">
         {attempt.verdict === 'correct' ? (
-          <p className={`flex items-center gap-1.5 text-[11px] font-arabic ${verdictStyle.correct}`}>
+          <p className={`flex items-center gap-1.5 text-micro font-arabic ${verdictStyle.correct}`}>
             <Check className="w-3.5 h-3.5 shrink-0" />
             صحيحة.
           </p>
         ) : attempt.verdict === 'close' ? (
-          <p className={`text-[11px] font-arabic ${verdictStyle.close}`}>
+          <p className={`text-micro font-arabic ${verdictStyle.close}`}>
             قريبة جداً — القاعدة نفسها لكن بصيغة مختلفة. قارن: <GermanText>{exercise.answerDe}</GermanText>
           </p>
         ) : (
           <div className="space-y-1">
-            <p className={`flex items-center gap-1.5 text-[11px] font-arabic ${verdictStyle.wrong}`}>
+            <p className={`flex items-center gap-1.5 text-micro font-arabic ${verdictStyle.wrong}`}>
               <X className="w-3.5 h-3.5 shrink-0" />
               ليست صحيحة بعد. الصواب: <GermanText>{exercise.answerDe}</GermanText>
             </p>
-            <p className="text-[10px] font-arabic text-text-muted">سجّلنا المحاولة في ذاكرتك — سنعيد إليك هذه القاعدة.</p>
+            <p className="text-micro font-arabic text-text-muted">سجّلنا المحاولة في ذاكرتك — سنعيد إليك هذه القاعدة.</p>
             <button
               onClick={onRetry}
-              className="flex items-center gap-1 text-[11px] font-arabic text-primary hover:underline"
+              className="flex items-center gap-1 text-micro font-arabic text-primary hover:underline"
             >
               <RotateCcw className="w-3 h-3" />
               أعد المحاولة من جديد
@@ -491,7 +491,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                   } ${locked ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-subtle text-[11px] font-bold text-text-secondary">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-subtle text-micro font-bold text-text-secondary">
                       {node.lesson.order}
                     </span>
                     <Badge variant="primary" size="sm">{node.lesson.level}</Badge>
@@ -506,19 +506,19 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                   </div>
                   <div className="mt-1.5 flex items-center gap-2">
                     {node.isNext && (
-                      <span className="text-[10px] font-arabic font-bold text-primary">التالي</span>
+                      <span className="text-micro font-arabic font-bold text-primary">التالي</span>
                     )}
                     {node.optional && node.state !== 'passed' && node.state !== 'tested_out' && (
-                      <span className="text-[10px] font-arabic text-text-muted">مراجعة اختيارية</span>
+                      <span className="text-micro font-arabic text-text-muted">مراجعة اختيارية</span>
                     )}
                     {node.state === 'tested_out' && (
-                      <span className="text-[10px] font-arabic text-status-success">تجاوزته</span>
+                      <span className="text-micro font-arabic text-status-success">تجاوزته</span>
                     )}
                     {node.state === 'in_progress' && (
-                      <span className="text-[10px] font-arabic text-status-learning">قيد التقدّم</span>
+                      <span className="text-micro font-arabic text-status-learning">قيد التقدّم</span>
                     )}
                   </div>
-                  <p className="mt-1 line-clamp-2 text-[11px] font-arabic text-text-muted">{node.lesson.ruleAr}</p>
+                  <p className="mt-1 line-clamp-2 text-micro font-arabic text-text-muted">{node.lesson.ruleAr}</p>
                 </button>
               );
             })}

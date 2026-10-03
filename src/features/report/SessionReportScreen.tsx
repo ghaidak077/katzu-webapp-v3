@@ -368,7 +368,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                   <p className="font-german text-[0.78rem] leading-relaxed text-kz-inkFaint line-through">
                     <GermanText>{mistake.original}</GermanText>
                   </p>
-                  <p className="font-german text-[0.82rem] font-medium leading-relaxed text-kz-ink">
+                  <p className="font-german text-caption font-medium leading-relaxed text-kz-ink">
                     <GermanText>{mistake.corrected}</GermanText>
                   </p>
                   <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{mistake.grammarRule} — {mistake.noteAr}</p>
@@ -536,7 +536,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                                 [index]: { text: event.target.value, result: prev[index]?.result || null },
                               }))
                             }
-                            className="h-11 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/40 px-3 font-german text-xs text-kz-ink outline-none placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                            className="h-11 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/40 px-3 font-german text-xs text-kz-ink placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                           />
                           <GlassButton
                             variant="secondary"
@@ -646,7 +646,7 @@ const ExamResultCard: React.FC<{ card: ExamCard; firstName?: string; scenarioTit
               <p className="font-german text-[0.78rem] leading-relaxed text-kz-inkFaint line-through">
                 <GermanText>{correction.original}</GermanText>
               </p>
-              <p className="font-german text-[0.82rem] font-medium leading-relaxed text-kz-ink">
+              <p className="font-german text-caption font-medium leading-relaxed text-kz-ink">
                 <GermanText>{correction.corrected}</GermanText>
               </p>
             </div>

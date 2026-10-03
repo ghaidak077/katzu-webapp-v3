@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
 import { KatzuMascot, type MascotSticker } from '@/components/common/KatzuMascot';
 
 /**
@@ -73,10 +73,12 @@ export const KatzuPresence: React.FC<KatzuPresenceProps> = ({
   className,
 }) => {
   const { pose, glow } = POSES[state];
-  // Magenta is the earned signal; the pose keeps its own lavender drop-shadow.
+  // Earned glow is `--kz-magenta` (174 123 255); the pose keeps its own
+  // lavender drop-shadow. Both are arbitrary values on purpose — the mascot is
+  // an SVG, not a token consumer — and both mirror src/index.css.
   const glowClass = glow
     ? state === 'independent'
-      ? 'drop-shadow-[0_0_26px_rgba(255,111,216,0.42)]'
+      ? 'drop-shadow-[0_0_26px_rgba(174,123,255,0.42)]'
       : 'drop-shadow-[0_0_22px_rgba(180,160,255,0.42)]'
     : undefined;
 

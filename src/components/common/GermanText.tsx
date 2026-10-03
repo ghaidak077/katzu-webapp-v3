@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '../ui/Button';
+import { cn } from '@/lib/cn';
 
 export interface GermanTextProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode;

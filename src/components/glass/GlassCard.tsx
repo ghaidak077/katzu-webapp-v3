@@ -1,43 +1,38 @@
 import React from 'react';
-import { cn } from '@/components/ui/Button';
+import { Card, type CardEmphasis } from '@/components/ui/Card';
 import { GlassSurface, type GlassTier } from './GlassSurface';
+import { cn } from '@/lib/cn';
 
+/**
+ * Compatibility wrapper — the V2 name for the app's one card.
+ *
+ * `glass/GlassCard` and `ui/Card` used to be separate components with separate
+ * prop vocabularies (`tier` vs `variant`). There is now one implementation
+ * (`ui/Card`); this file maps the old vocabulary onto it so the screens that
+ * already say `GlassCard` keep working, including their 16px default padding.
+ */
 export interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** Retained from the old API: `canvas` → subtle panel, `glass` → standard. */
   tier?: Extract<GlassTier, 'canvas' | 'glass'>;
-  /** Lifts the card and lights its edge — for the one action that matters. */
-  emphasis?: 'none' | 'primary' | 'earned';
+  emphasis?: CardEmphasis;
   padded?: boolean;
 }
 
-/**
- * A content panel. `emphasis` is the only way a card gets glow, and `earned` is
- * reserved for progress the app actually recorded — magenta never means "tap me".
- */
 export const GlassCard: React.FC<GlassCardProps> = ({
   tier = 'glass',
   emphasis = 'none',
   padded = true,
   className,
-  style,
-  children,
   ...props
-}) => {
-  return (
-    // A card that should feel alive wears `BorderBeam role="ambient"` around it;
-    // it is not baked in here, because an ambient beam on every card on a screen is
-    // exactly the "too many simultaneous glass effects" cost the glass guidance warns
-    // about. `emphasis` remains the card's own treatment (and `earned` its magenta).
-    <GlassSurface
-      tier={tier}
-      earned={emphasis === 'earned'}
-      className={cn('overflow-hidden', padded && 'p-4', className)}
-      style={style}
-      {...props}
-    >
-      {children}
-    </GlassSurface>
-  );
-};
+}) => (
+  <Card
+    variant={tier === 'canvas' ? 'subtle' : 'card'}
+    emphasis={emphasis}
+    padded={padded}
+    className={cn(padded ? '!p-4' : 'overflow-hidden', className)}
+    {...props}
+  />
+);
 
 export interface FloatingControlProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Magenta edge for earned states only. */
@@ -58,7 +53,7 @@ export const FloatingControl: React.FC<FloatingControlProps> = ({
 }) => (
   <GlassSurface
     tier="floating"
-    className={cn('rounded-[26px]', className)}
+    className={cn('rounded-sheet', className)}
     style={{ '--kz-glow-rgb': tone === 'magenta' ? 'var(--kz-magenta)' : 'var(--kz-lavender)' } as React.CSSProperties}
     {...props}
   >
@@ -88,4 +83,4 @@ export const AdaptiveTintLayer: React.FC<{
   >
     {children}
   </div>
-);
+);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { triggerHaptic } from '@/lib/utils/haptics';
@@ -15,6 +16,8 @@ import {
   Lock,
 } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
+import { BackButton } from '@/components/common/BackButton';
+import { GoogleSignInButton } from '@/components/common/GoogleMark';
 
 export interface SignInScreenProps {
   initialMode?: 'signin' | 'signup';
@@ -35,6 +38,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [isLoading, setIsLoading] = useState(false);
+  // True once Google has actually drawn its own button. Until then (and on
+  // origins Google refuses, such as localhost) Katzu renders a single fallback
+  // of its own — exactly one sign-in choice is on screen at any moment.
+  const [googleButtonRendered, setGoogleButtonRendered] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
@@ -69,6 +76,11 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 
         if (googleBtnContainerRef.current) {
           googleBtnContainerRef.current.innerHTML = '';
+          // The container is emptied and refilled on every mode switch. Reset the
+          // gate with it, otherwise for the ~700ms before Google's button comes
+          // back the screen would show neither button: Google's is gone from the
+          // DOM and Katzu's is hidden because the flag still says "rendered".
+          setGoogleButtonRendered(false);
           // Google renders its button inside an iframe titled in Indonesian by
           // default — label the container in Arabic so a screen-reader user
           // hears what the button actually does.
@@ -82,6 +94,16 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             text: mode === 'signup' ? 'signup_with' : 'signin_with',
             locale: 'ar',
           });
+
+          // Google refuses to draw its button on an origin that is not in the
+          // console's Authorized JavaScript origins list — which is exactly the
+          // case on `http://localhost`. GSI injects asynchronously, so the only
+          // honest check is whether anything actually appeared.
+          window.setTimeout(() => {
+            if (isMounted) {
+              setGoogleButtonRendered(googleBtnContainerRef.current!.childElementCount > 0);
+            }
+          }, 700);
         }
       } catch (err) {
         console.warn('GIS initialization error:', err);
@@ -215,6 +237,11 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       return;
     }
 
+    // A signup that starts at Google's own button cannot be caught by a click
+    // handler — GSI draws that button inside a cross-origin iframe. Firing here
+    // records the same funnel step at the moment it actually completes.
+    if (mode === 'signup') track('signup_started', { source: 'google_button' });
+
     setIsLoading(true);
     setErrorMessage('');
     try {
@@ -236,10 +263,11 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 
   const handleTriggerGooglePrompt = () => {
     triggerHaptic('light');
-    if (mode === 'signup') track('signup_started', { source: 'google_button' });
     setErrorMessage('');
     if (window.google?.accounts?.id) {
       window.google.accounts.id.prompt();
+    } else {
+      setErrorMessage('تعذر تحميل خدمة Google الآن. تحقق من الاتصال وحاول مجدداً.');
     }
   };
 
@@ -248,12 +276,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     return (
       <div className="min-h-screen flex flex-col justify-between p-6 bg-black text-text-primary max-w-md mx-auto relative font-arabic">
         <div>
-          <button
-            onClick={onBack}
-            className="p-2.5 rounded-2xl bg-surface-card border border-border-subtle hover:bg-surface-subtle transition-colors mb-6"
-          >
-            <ArrowRight className="w-5 h-5 text-text-secondary" />
-          </button>
+          <BackButton onBack={onBack} className="mb-6" />
         </div>
 
         <div className="flex flex-col items-center text-center my-auto px-2 space-y-4">
@@ -277,7 +300,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             <p className="text-text-muted leading-relaxed">
               يرجى ضبط متغير البيئة التالي في ملف <code className="text-primary font-mono">.env</code> أو لوحة Cloudflare Pages:
             </p>
-            <div className="p-2.5 bg-black rounded-xl font-mono text-[11px] text-accent-light border border-border-subtle break-all">
+            <div className="p-2.5 bg-black rounded-xl font-mono text-micro text-accent-light border border-border-subtle break-all">
               VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
             </div>
           </div>
@@ -314,12 +337,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       {/* Top Bar */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={onBack}
-            className="p-2.5 rounded-2xl bg-surface-card border border-border-subtle hover:bg-surface-subtle transition-colors"
-          >
-            <ArrowRight className="w-5 h-5 text-text-secondary" />
-          </button>
+          <BackButton onBack={onBack} className="mb-6" />
           <span className="font-bold text-sm text-text-secondary">
             {mode === 'signin' ? 'تسجيل الدخول' : 'إنشاء حساب جديد'}
           </span>
@@ -337,7 +355,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             }}
             className={`py-2 rounded-xl text-xs font-bold transition-all ${
               mode === 'signin'
-                ? 'bg-primary text-white shadow-glow-purple'
+                ? 'bg-fill text-on-fill shadow-glow-purple'
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
@@ -353,7 +371,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             }}
             className={`py-2 rounded-xl text-xs font-bold transition-all ${
               mode === 'signup'
-                ? 'bg-primary text-white shadow-glow-purple'
+                ? 'bg-fill text-on-fill shadow-glow-purple'
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
@@ -419,42 +437,37 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           </div>
         </div>
 
-        {/* Real Google Identity Services Button Container */}
-        <div className="w-full flex flex-col items-center justify-center space-y-3">
+        {/* Exactly one sign-in button at a time. Google Identity Services draws
+            the official button into this container on origins Google trusts; on
+            the ones it refuses (localhost, and any host missing from Authorized
+            JavaScript origins) it renders nothing, and Katzu's own button stands
+            in — behind the same `accounts.id.prompt()` call, so it works there
+            too. Showing both at once is what put two identical choices 12px
+            apart on the live sign-in page. */}
+        <div className="w-full flex flex-col items-center justify-center">
           <div
             ref={googleBtnContainerRef}
-            className="w-full flex items-center justify-center min-h-[44px]"
+            className={cn(
+              'w-full flex items-center justify-center',
+              googleButtonRendered && 'min-h-[44px]',
+            )}
           />
-
-          <Button
-            size="lg"
-            variant="secondary"
-            className="w-full flex items-center justify-center gap-3 bg-white text-black hover:bg-neutral-200 border-none font-bold shadow-md transition-transform"
-            onClick={handleTriggerGooglePrompt}
-            isLoading={isLoading}
-          >
-            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            <span>
-              {mode === 'signin' ? 'المتابعة باستخدام Google' : 'التسجيل السريع باستخدام Google'}
-            </span>
-          </Button>
+          {!googleButtonRendered && (
+            <GoogleSignInButton
+              onClick={handleTriggerGooglePrompt}
+              isLoading={isLoading}
+              label={
+                mode === 'signin'
+                  ? 'المتابعة باستخدام Google'
+                  : 'التسجيل السريع باستخدام Google'
+              }
+            />
+          )}
+          {isLoading && (
+            <p className="mt-3 text-caption text-text-secondary" role="status" aria-live="polite">
+              جارٍ التحقق من الحساب...
+            </p>
+          )}
         </div>
       </div>
 

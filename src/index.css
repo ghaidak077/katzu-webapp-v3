@@ -53,32 +53,79 @@
  *   --kz-glass-*       tier values (see [data-tier])
  */
 :root {
+  /* =====================================================================
+   * THE SINGLE PALETTE.
+   *
+   * Every colour in Katzu is declared here, once, as an RGB triplet so that
+   * `rgb(var(--kz-x) / a)` composes alpha without a second variable. Tailwind
+   * reads *these* tokens (tailwind.config.js maps both the `kz-*` names and the
+   * legacy `primary` / `text-text-*` / `surface-*` aliases onto them), so a
+   * screen that says `text-primary` and a screen that says `text-kz-lavender`
+   * paint the exact same colour. There is no second palette to drift from.
+   *
+   * Verified by scripts/contrast-check.mjs, which reads this file directly —
+   * every text pair here clears 4.5:1 on both the app background and a well.
+   * ===================================================================== */
+
   /* Foundation: true AMOLED black, then two near-blacks that only glass uses. */
   --kz-black: #000000;
   --kz-near-black: #050508;
   --kz-soft-black: #0a0a0d;
 
-  /* Katzu's eyes. RGB triplets so alpha compositing works in one declaration. */
+  /* Katzu's eyes. */
   --kz-lavender: 180 160 255;
   --kz-lavender-deep: 124 92 240;
-  --kz-magenta: 255 111 216;
-  --kz-magenta-deep: 226 63 174;
+  --kz-lavender-press: 110 76 224;
+  /* Earned. The one hue *outside* the lavender pair, and it stays a sibling,
+     not a second brand: OKLCH h 299 against lavender's 293 and deep's 288.
+     The previous value was h 339 — 46 degrees off, which is why sections built
+     on it read as a different product. White on it is 2.97:1, so earned stays
+     an edge / glow / text accent and never becomes a fill. */
+  --kz-magenta: 174 123 255;
+  --kz-magenta-deep: 115 67 222;
 
-  /* Text. Warm white stays legible over every scene colour we ship. */
+  /* Text. Warm white stays legible over every scene colour we ship.
+     `--kz-ink-faint` is the floor: 4.68:1 on the canvas, 4.81:1 on a well. The
+     legacy `text-text-muted` hex was 3.72:1 — below the 4.5:1 body-text floor
+     — which is why every "muted" label in the app now points here instead. */
   --kz-ink: 246 242 238;
   --kz-ink-dim: 167 159 196;
   --kz-ink-faint: 126 119 150;
 
-  /* Scene-derived accents used by status/progress chrome. */
+  /* Scene-derived accents. Derived from the scene palette in
+     src/lib/design/scenes.ts so status chrome and lighting agree. */
   --kz-warm: 255 201 138;
+  --kz-amber: 255 158 74;
+  --kz-cool: 143 184 255;
   --kz-neon: 111 240 208;
+
+  /* State. `danger` is the only destructive colour; it is never decorative. */
+  --kz-danger: 232 155 155;
+  --kz-info: 143 184 255;
+
+  /* Lines. `--kz-line` is decorative separation only. Anything a finger has to
+     find — a control edge, a focus ring, a selected outline — uses
+     `--kz-line-strong`, which clears the 3:1 non-text floor that
+     `--kz-line` (#2E2640, 1.37:1) does not and cannot. */
+  --kz-line: 46 38 64;
+  --kz-line-strong: 143 130 184;
+
+  /* On-colours. Kept here rather than written as `text-white` at the call
+     site, because "what reads on this fill" is a token decision. */
+  --kz-on-fill: 255 255 255;
+  --kz-on-lavender: 10 10 13;
+  /* Destructive fills are a light coral, so their label is dark — white on
+     `--kz-danger` was a 1.4:1 pairing and simply unreadable. */
+  --kz-on-danger: 10 10 13;
 
   /* Scene lighting — replaced per scene by SceneBackdrop. */
   --kz-scene-rgb: 255 201 138;
   --kz-scene-warmth: 0.55;
 
   /* Glass tier defaults (canvas). */
-  --kz-glass-base: 10 10 13;
+  /* Tinted toward the brand hue (h 294) instead of neutral #0a0a0d, so every
+     glass panel reads as lit violet over AMOLED black rather than grey. */
+  --kz-glass-base: 16 13 26;
   --kz-glass-opacity: 0.34;
   --kz-glass-blur: 14px;
   --kz-glass-saturate: 135%;
@@ -119,15 +166,25 @@
 
 @layer base {
   * {
-    border-color: #2E2640;
+    border-color: rgb(var(--kz-line));
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
     background-color: #000000;
-    color: #F2F0F7;
+    color: rgb(var(--kz-ink));
     overflow-x: hidden;
     font-family: 'Cairo', sans-serif;
+    color-scheme: dark;
+  }
+
+  /* One focus treatment for the whole app. Visible on every surface tier,
+     including the translucent ones, and never removed — only restyled for
+     users who navigate without a pointer. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--kz-lavender));
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
   /* Arabic display weight: Cairo is variable (100–900), so headings can be
@@ -257,7 +314,9 @@
   }
 
   .kz-surface[data-tier='well'] {
-    --kz-glass-base: 4 4 6;
+    /* Same violet cast as the canvas tier, just deeper: a well is a darker
+       surface, not a differently-coloured one. */
+    --kz-glass-base: 7 5 14;
     --kz-glass-opacity: 0.55;
     --kz-glass-blur: 10px;
     --kz-glass-saturate: 130%;
@@ -440,14 +499,14 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #000000;
+  background: rgb(var(--kz-black));
 }
 ::-webkit-scrollbar-thumb {
-  background: #2E2640;
+  background: rgb(var(--kz-line));
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #8B6FE8;
+  background: rgb(var(--kz-lavender));
 }
 
 /* German Text Direction Isolation */

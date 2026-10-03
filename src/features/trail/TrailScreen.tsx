@@ -230,7 +230,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             <p className="mt-0.5 font-arabic text-xs leading-snug text-text-secondary">{checkIn.sub}</p>
             {xpRank.next && (
               <div className="mt-2">
-                <div className="flex items-center justify-between text-[10px] font-arabic text-text-secondary">
+                <div className="flex items-center justify-between text-micro font-arabic text-text-secondary">
                   <span className="text-primary font-bold">{xpRank.rank.nameAr}</span>
                   <span>{xpRank.xpToNext} XP للرتبة التالية</span>
                 </div>
@@ -252,7 +252,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         >
           <span>
             <span className="block font-arabic text-sm font-bold text-text-primary">أكمل تفضيلاتك (٣٠ ثانية)</span>
-            <span className="block font-arabic text-[11px] text-text-secondary mt-0.5">
+            <span className="block font-arabic text-micro text-text-secondary mt-0.5">
               هدفك ووقتك اليومي يجعلان المهمة اليومية أدق — ومستواك يبقى غير مقيس حتى تختاره.
             </span>
           </span>
@@ -306,14 +306,14 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           {missionScenarioId && mission.kind !== 'review' && (
             <button
               onClick={() => handleScenarioClick(missionScenarioId)}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-glow-purple transition-all min-h-[44px]"
+              className="mt-2 inline-flex items-center gap-1 rounded-full bg-fill px-3.5 py-1.5 text-xs font-bold text-on-fill shadow-glow-purple transition-all min-h-[44px]"
             >
               <span>{mission.ctaAr}</span>
               <ArrowLeft className="w-3.5 h-3.5" />
             </button>
           )}
           {mission.kind === 'no_content' && (
-            <p className="mt-3 text-[11px] font-arabic text-text-muted leading-relaxed">
+            <p className="mt-3 text-micro font-arabic text-text-muted leading-relaxed">
               يمكنك المتابعة بالمراجعة والتدريبات المتاحة على هذا الجهاز حتى يتوفر الاتصال.
             </p>
           )}
@@ -331,7 +331,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
               onClick={() => handleLevelSelect(lvl)}
               className={`flex-1 min-h-[44px] py-2 rounded-xl text-xs font-german font-bold transition-all flex items-center justify-center gap-1 ${
                 selectedLevel === lvl
-                  ? 'bg-primary text-white shadow-glow-purple'
+                  ? 'bg-fill text-on-fill shadow-glow-purple'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
@@ -402,7 +402,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                     {scenario.title_ar}
                   </div>
                   {capabilityFor(scenario.id) === 'PRACTISING' && (
-                    <p className="mt-1.5 text-[10px] font-arabic text-status-learning">
+                    <p className="mt-1.5 text-micro font-arabic text-status-learning">
                       تدرّبت عليه — لم تصبح مستقلاً فيه بعد
                     </p>
                   )}

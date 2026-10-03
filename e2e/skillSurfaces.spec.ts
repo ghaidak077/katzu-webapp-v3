@@ -211,7 +211,7 @@ test('Writing grades a paragraph and shows the rubric and corrected copy', async
   await expect(page.getByRole('heading', { name: 'الكتابة (Schreiben)' })).toBeVisible();
 
   // The worker rejects anything under 20 characters, so the test writes a real one.
-  await page.getByPlaceholder('Schreiben Sie hier auf Deutsch...').fill(
+  await page.getByPlaceholder('Schreibe hier auf Deutsch…').fill(
     'Ich möchte einen Termin am Montag vereinbaren, weil ich zum Arzt muss.',
   );
   await page.getByRole('button', { name: 'صحّح نصّي' }).click();
@@ -239,7 +239,7 @@ test('Writing offers the scenario words to build the paragraph', async ({ page }
   const chip = bank.getByRole('button').first();
   const word = (await chip.textContent())?.trim() || '';
   await chip.click();
-  await expect(page.getByPlaceholder('Schreiben Sie hier auf Deutsch...')).toHaveValue(new RegExp(word));
+  await expect(page.getByPlaceholder('Schreibe hier auf Deutsch…')).toHaveValue(new RegExp(word));
 });
 
 test('the vocabulary bridge reports its bank taps and its reveals', async ({ page }) => {

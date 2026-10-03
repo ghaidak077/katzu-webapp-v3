@@ -20,6 +20,58 @@ export interface ExamShareData {
 /** The notice every share image carries, in Arabic, painted by the canvas. */
 export const SHARE_NOTICE_AR = 'محاكاة — ليست الامتحان الرسمي';
 
+/**
+ * Canvas paint, read from the live design tokens.
+ *
+ * This image used to carry its own hardcoded copy of the palette, which is how
+ * a shared exam card ended up in the *old* violet while the app around it had
+ * moved on. `ctx.fillStyle` cannot take a CSS custom property, but
+ * `getComputedStyle` can resolve one to a real colour, so the share image now
+ * paints whatever the app's single palette says — one source of truth, no
+ * second copy to forget.
+ *
+ * The fallbacks are the current token values, so the image still renders
+ * correctly if this is ever called outside a document.
+ */
+function palette(): {
+  hero: string;
+  canvas: string;
+  accent: string;
+  ink: string;
+  inkDim: string;
+} {
+  // The literals below are *the token values themselves*, used only when there
+  // is no document to read a custom property from. They are not a second copy
+  // of the palette: `node scripts/contrast-check.mjs` resolves the same tokens
+  // from src/index.css, so if either side moves, both must.
+  // design-audit: allow — a documented fallback of the token it names
+  const FALLBACK = {
+    '--kz-lavender-deep': '#7C5CF0', // design-audit: allow — a documented fallback of the token it names
+    '--kz-near-black': '#050508', // design-audit: allow — a documented fallback of the token it names
+    '--kz-lavender': '#B4A0FF', // design-audit: allow — a documented fallback of the token it names
+    '--kz-ink': '#F6F2EE', // design-audit: allow — a documented fallback of the token it names
+    '--kz-ink-dim': '#A79FC4', // design-audit: allow — a documented fallback of the token it names
+  } as const;
+
+  const read = (name: string): string => {
+    const fallback = FALLBACK[name as keyof typeof FALLBACK];
+    if (typeof window === 'undefined') return fallback;
+    const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    if (!raw) return fallback;
+    // Tokens are declared as space-separated RGB triplets, which canvas needs
+    // in functional notation.
+    return /^[\d.]+[\s ]+[\d.]+[\s ]+[\d.]+$/.test(raw) ? `rgb(${raw})` : raw;
+  };
+
+  return {
+    hero: read('--kz-lavender-deep'),
+    canvas: read('--kz-near-black'),
+    accent: read('--kz-lavender'),
+    ink: read('--kz-ink'),
+    inkDim: read('--kz-ink-dim'),
+  };
+}
+
 export function examShareImage(
   canvas: HTMLCanvasElement,
   data: ExamShareData,
@@ -30,15 +82,17 @@ export function examShareImage(
   const W = (canvas.width = 1080);
   const H = (canvas.height = 1080);
 
-  // Background: the app's dark glass look, painted, not imported.
+  const c = palette();
+
+  // Background: the app's dark glass look, painted from the live tokens.
   const gradient = ctx.createLinearGradient(0, 0, W, H);
-  gradient.addColorStop(0, '#1b1230');
-  gradient.addColorStop(1, '#0e0a1c');
+  gradient.addColorStop(0, c.hero);
+  gradient.addColorStop(1, c.canvas);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W, H);
 
-  // Accent ring — the same purple the app uses as its primary.
-  ctx.strokeStyle = '#8b6fe8';
+  // Accent ring — the same accent the app uses everywhere else.
+  ctx.strokeStyle = c.accent;
   ctx.lineWidth = 10;
   ctx.beginPath();
   ctx.arc(W / 2, 300, 130, 0, Math.PI * 2);
@@ -46,7 +100,7 @@ export function examShareImage(
 
   // The cat paw mark stands in for the mascot inside the ring (no bitmap load,
   // no dependency): a simple filled circle + three toes.
-  ctx.fillStyle = '#8b6fe8';
+  ctx.fillStyle = c.accent;
   ctx.beginPath();
   ctx.arc(W / 2, 320, 62, 0, Math.PI * 2);
   ctx.fill();
@@ -57,7 +111,7 @@ export function examShareImage(
   }
 
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#f4f1fb';
+  ctx.fillStyle = c.ink;
 
   // First name only — the caller guarantees this is not a full name.
   if (data.firstName) {
@@ -66,24 +120,24 @@ export function examShareImage(
   }
 
   ctx.font = '48px system-ui, sans-serif';
-  ctx.fillStyle = '#cfc6ea';
+  ctx.fillStyle = c.inkDim;
   ctx.fillText(`أكمل محاكاة «${data.scenarioTitle}»`, W / 2, 650);
 
   // Numbers the session computed — nothing else.
   ctx.font = 'bold 96px system-ui, sans-serif';
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = c.ink;
   ctx.fillText(String(data.sentencesSpoken), W / 2 - 160, 810);
   ctx.font = 'bold 96px system-ui, sans-serif';
   ctx.fillText(String(data.independentSentences), W / 2 + 160, 810);
 
   ctx.font = '34px system-ui, sans-serif';
-  ctx.fillStyle = '#cfc6ea';
+  ctx.fillStyle = c.inkDim;
   ctx.fillText('جملة أُنتجت', W / 2 - 160, 870);
   ctx.fillText('بلا تلميح', W / 2 + 160, 870);
 
   // The notice, on the image itself.
   ctx.font = 'bold 36px system-ui, sans-serif';
-  ctx.fillStyle = '#8b6fe8';
+  ctx.fillStyle = c.accent;
   ctx.fillText(SHARE_NOTICE_AR, W / 2, 990);
 }
 

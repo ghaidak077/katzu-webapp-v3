@@ -79,7 +79,7 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
         {/* Example Sentence */}
         {word.example_de && (
           <div className="p-4 rounded-3xl bg-surface-subtle border border-border-subtle space-y-1.5">
-            <span className="text-[11px] font-bold text-primary block font-arabic">
+            <span className="text-micro font-bold text-primary block font-arabic">
               مثال عملي في جملة:
             </span>
             <GermanText className="text-sm font-semibold text-text-primary block">

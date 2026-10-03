@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { cn } from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
 import { useReducedMotion } from '@/components/glass/GlassSurface';
 import { VOICE_ACTIVITY_THRESHOLD, type MicSample } from '@/lib/audio/useMicLevel';
 import { VoicePoweredOrb } from '@/components/effects/VoicePoweredOrb';
@@ -65,8 +65,11 @@ interface Orbit {
   alpha: number;
 }
 
+// Mirrors --kz-lavender / --kz-magenta. The orb paints into a canvas, which
+// cannot read a CSS variable; tests/designSystem.test.ts pins these against
+// src/index.css so this copy cannot drift into another hue.
 const LAVENDER = [180, 160, 255] as const;
-const MAGENTA = [255, 111, 216] as const;
+const MAGENTA = [174, 123, 255] as const;
 const SILVER = [228, 226, 245] as const;
 const MUTED = [148, 148, 166] as const;
 

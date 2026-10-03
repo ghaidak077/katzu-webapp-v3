@@ -222,14 +222,15 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
                 setNewName(user?.displayName || '');
                 setShowEditName(true);
               }}
-              className="p-1 text-text-muted hover:text-primary transition-colors"
+              aria-label="تعديل الاسم"
+              className="p-1 min-h-touch min-w-touch flex items-center justify-center text-text-muted hover:text-primary transition-colors"
             >
-              <Edit2 className="w-4 h-4" />
+              <Edit2 className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
           <div className="text-xs text-text-secondary mb-3 flex items-center gap-1.5 flex-wrap">
             <span>{user?.email || user?.googleAccountEmail || 'حساب Google متصل'}</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-success/20 text-status-success font-bold">
+            <span className="text-micro px-1.5 py-0.5 rounded-full bg-status-success/20 text-status-success font-bold">
               متصل بحساب Google ✓
             </span>
           </div>
@@ -248,7 +249,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           className="p-4 mb-6 bg-gradient-to-r from-primary/20 via-surface-card to-surface-card border border-primary/40 cursor-pointer flex items-center justify-between shadow-glow-purple"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-fill text-on-fill flex items-center justify-center">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -288,7 +289,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           <p className="text-text-muted">{levelInfo.detailAr}</p>
         </div>
         {!user?.onboardingCompletedAt && (
-          <p className="text-[11px] font-arabic text-status-learning leading-relaxed">
+          <p className="text-micro font-arabic text-status-learning leading-relaxed">
             لم تُكمل هذه الأسئلة بعد — إجابتها تجعل المهمة اليومية أدقّ، ويمكنك أيضاً إجراء الاختبار التحديدي
             من الزر أدناه.
           </p>
@@ -304,7 +305,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </div>
           <Badge variant="learning" size="sm">٣ أيام لأول درس · شهر لكل اشتراك</Badge>
         </div>
-        <p className="text-[11px] text-text-muted leading-relaxed">
+        <p className="text-micro text-text-muted leading-relaxed">
           شارك كودك مع الأصدقاء: عندما يُكمل صديقك أول درس، تحصلان معاً على ٣ أيام وصول — ودون أي شراء. وإذا اشترك صديقك لاحقاً في Katzu Pro، تحصل أنت على شهر Pro إضافي يُضاف تلقائياً إلى حسابك.
         </p>
 
@@ -324,7 +325,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             </button>
           </div>
         ) : (
-          <div className="text-[11px] text-text-muted">تعذر تحميل كود الإحالة. تحقق من الاتصال وأعد المحاولة.</div>
+          <div className="text-micro text-text-muted">تعذر تحميل كود الإحالة. تحقق من الاتصال وأعد المحاولة.</div>
         )}
 
         {!referralLoading && referralInfo && (
@@ -354,11 +355,11 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             <ScrollText className="w-4 h-4 text-primary" />
             سجل الأخطاء التشخيصي
           </label>
-          <span className="text-[11px] font-arabic text-text-muted">
+          <span className="text-micro font-arabic text-text-muted">
             {showDiagnostics ? 'إخفاء' : `${logCount} سجل`} ‹
           </span>
         </button>
-        <p className="text-[11px] text-text-muted">
+        <p className="text-micro text-text-muted">
           سجل زمني لكل الأخطاء (مع الطوابع الزمنية) لمساعدتنا في إصلاح أي مشكلة تحدث لك. انسخه أو نزّله وأرسله لنا للدعم.
         </p>
 
@@ -368,19 +369,19 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
               readOnly
               dir="ltr"
               value={diagnosticsText}
-              className="w-full h-40 bg-black border border-border-subtle rounded-xl p-2 text-[10px] font-mono text-text-secondary outline-none resize-none"
+              className="w-full h-40 bg-black border border-border-subtle rounded-xl p-2 text-micro font-mono text-text-secondary resize-none"
             />
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={handleCopyDiagnostics}
-                className="py-2 rounded-xl text-[11px] font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-all flex items-center justify-center gap-1"
+                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-all flex items-center justify-center gap-1"
               >
                 {diagnosticsCopied ? <Check className="w-3.5 h-3.5 text-status-success" /> : <Copy className="w-3.5 h-3.5" />}
                 {diagnosticsCopied ? 'تم النسخ' : 'نسخ'}
               </button>
               <button
                 onClick={handleDownloadDiagnostics}
-                className="py-2 rounded-xl text-[11px] font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-all flex items-center justify-center gap-1"
+                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-all flex items-center justify-center gap-1"
               >
                 <Download className="w-3.5 h-3.5" />
                 تنزيل
@@ -390,7 +391,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
                   clearDiagnostics();
                   setDiagnosticsText(formatDiagnosticsText());
                 }}
-                className="py-2 rounded-xl text-[11px] font-bold border bg-surface-subtle border-status-error/40 text-status-error hover:bg-status-error/10 transition-all flex items-center justify-center gap-1"
+                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-status-error/40 text-status-error hover:bg-status-error/10 transition-all flex items-center justify-center gap-1"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 مسح
@@ -439,7 +440,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           <Sliders className="w-4 h-4 text-primary" />
           شخصية كَاتْزُو ونبرة السخرية الذكية
         </label>
-        <p className="text-[11px] text-text-muted">
+        <p className="text-micro text-text-muted">
           تحدد أسلوب تعليقات كاتزو عند تصحيحك في المحادثات المباشرة.
         </p>
 
@@ -470,7 +471,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           <Sliders className="w-4 h-4 text-primary" />
           مستواي الحالي
         </label>
-        <p className="text-[11px] text-text-muted">
+        <p className="text-micro text-text-muted">
           {user?.placementEstimatedLevel
             ? `قدّر اختبار تحديد المستوى مستواك ${user.placementEstimatedLevel}. يمكنك تغييره في أي وقت.`
             : 'المستوى يحدد السيناريوهات التي تظهر لك وصعوبة المحادثات.'}
@@ -509,25 +510,25 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </label>
           <button
             onClick={handleOpenMemory}
-            className="text-[11px] font-arabic text-primary hover:underline transition-colors"
+            className="text-micro font-arabic text-primary hover:underline transition-colors"
           >
             {memoryRows === null ? 'عرض ما نذكره عنك' : 'تحديث'}
           </button>
         </div>
-        <p className="text-[11px] font-arabic text-text-muted leading-relaxed">
+        <p className="text-micro font-arabic text-text-muted leading-relaxed">
           نتذكر الأخطاء المتكررة والكلمات التي تعود للنسيان وهدفك من التعلم — نصوص محادثاتك لا تُخزَّن ولا تُرسل.
           يمكنك حذف أي سطر أو كل الذاكرة.
         </p>
         {memoryRows !== null && (
           memoryRows.length === 0 ? (
-            <p className="text-[11px] font-arabic text-text-muted py-2">لا شيء محفوظ بعد.</p>
+            <p className="text-micro font-arabic text-text-muted py-2">لا شيء محفوظ بعد.</p>
           ) : (
             <div className="space-y-2">
               {memoryRows.map((row) => (
                 <div key={row.patternId} className="flex items-center justify-between gap-2 rounded-xl bg-surface-subtle border border-border-subtle px-3 py-2">
                   <span className="min-w-0">
-                    <span className="block text-[11px] font-arabic text-text-primary truncate">{row.labelAr}</span>
-                    <span className="block text-[10px] font-arabic text-text-muted">
+                    <span className="block text-micro font-arabic text-text-primary truncate">{row.labelAr}</span>
+                    <span className="block text-micro font-arabic text-text-muted">
                       {row.kind === 'mistake' ? 'خطأ متكرر' : 'كلمة ضعيفة'} · {row.count} مرة
                     </span>
                   </span>
@@ -542,7 +543,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
               ))}
               <button
                 onClick={handleClearMemory}
-                className="w-full text-center text-[11px] font-arabic text-status-error hover:underline transition-colors py-1"
+                className="w-full text-center text-micro font-arabic text-status-error hover:underline transition-colors py-1"
               >
                 حذف كل الذاكرة التعليمية
               </button>
@@ -557,7 +558,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           <Users className="w-4 h-4 text-primary" />
           مجالك المهني
         </label>
-        <p className="text-[11px] font-arabic text-text-muted leading-relaxed">
+        <p className="text-micro font-arabic text-text-muted leading-relaxed">
           يوجّه المواقف التي ندرّبك عليها نحو ما تحتاجه فعلاً.
         </p>
         <div className="grid grid-cols-3 gap-2">
@@ -592,7 +593,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           >
             <span className="text-start">
               <span className="block text-xs font-bold font-arabic text-text-primary">إحصاءات الاستخدام</span>
-              <span className="block text-[10px] font-arabic text-text-muted mt-0.5 leading-relaxed">
+              <span className="block text-micro font-arabic text-text-muted mt-0.5 leading-relaxed">
                 نرسل أحداثاً مجهولة (فتح صفحة، إكمال درس) لمعرفة أين يتوقف المتعلمون. لا نرسل نصوصك ولا بريدك.
                 إيقافها يحذف ما لم يُرسل.
               </span>
@@ -634,7 +635,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           <Download className="w-4 h-4 text-primary" />
           <span className="text-xs font-bold text-text-secondary">تصدير بياناتي</span>
         </div>
-        <p className="text-[11px] text-text-muted leading-relaxed">
+        <p className="text-micro text-text-muted leading-relaxed">
           نزّل نسخة JSON من كل ما نحتفظ به عنك على الخادم: مستواك، تقدمك، جلساتك، أخطائك، وحالة اشتراكك. لا تتضمن النسخة أي رموز دخول أو بيانات حساسة.
         </p>
         <button
@@ -653,7 +654,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           <Trash2 className="w-4 h-4 text-status-error" />
           <span className="text-xs font-bold text-status-error">حذف الحساب نهائياً</span>
         </div>
-        <p className="text-[11px] text-text-muted leading-relaxed">
+        <p className="text-micro text-text-muted leading-relaxed">
           حذف الحساب <b className="text-status-error">لا يمكن التراجع عنه</b>. سيتم حذف نهائي لـ: تقدمك ومستواك، جميع الجلسات والأخطاء المحفوظة، الكلمات المحفوظة، أيام التتابع، حالة الاشتراك المتبقية، وكل بياناتك السحابية، مع إنهاء جميع جلسات الدخول فوراً.
         </p>
         {!showDeleteConfirm ? (
@@ -669,18 +670,18 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-[11px] text-text-secondary">
+            <p className="text-micro text-text-secondary">
               اكتب <b className="font-mono" dir="ltr">حذف</b> للتأكيد النهائي:
             </p>
             <input
               type="text"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
-              className="w-full h-11 bg-black border border-border-subtle focus:border-status-error rounded-xl px-4 text-sm font-arabic outline-none"
+              className="w-full h-11 bg-black border border-border-subtle focus:border-status-error rounded-xl px-4 text-sm font-arabic"
               placeholder="اكتب هنا للتأكيد"
             />
             {deleteStatus === 'error' && (
-              <div className="p-2.5 rounded-xl bg-status-error/10 border border-status-error/40 text-[11px] text-status-error">
+              <div className="p-2.5 rounded-xl bg-status-error/10 border border-status-error/40 text-micro text-status-error">
                 {deleteError}
               </div>
             )}
@@ -695,7 +696,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
               <button
                 onClick={handleDeleteAccount}
                 disabled={deleteConfirmText.trim() !== 'حذف' || deleteStatus === 'deleting'}
-                className="py-2.5 rounded-xl text-xs font-bold bg-status-error text-white disabled:opacity-40"
+                className="py-2.5 rounded-xl text-xs font-bold bg-status-error text-on-danger disabled:opacity-40"
               >
                 {deleteStatus === 'deleting' ? 'جاري الحذف…' : 'تأكيد الحذف النهائي'}
               </button>
@@ -711,7 +712,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            className="w-full h-12 bg-surface-card border border-border-subtle focus:border-primary rounded-xl px-4 text-sm font-arabic outline-none"
+            className="w-full h-12 bg-surface-card border border-border-subtle focus:border-primary rounded-xl px-4 text-sm font-arabic"
             placeholder="اسمك الجديد"
             required
           />

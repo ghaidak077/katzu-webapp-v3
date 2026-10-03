@@ -18,6 +18,20 @@
  * be untested code pretending to be a feature.
  */
 
+/**
+ * The beam's bloom and mask gradients are pure white with an alpha. That is
+ * deliberate and is *not* a missing design token: the white is a light source
+ * that the beam's palette then tints, so baking it to `--kz-ink` (a warm
+ * off-white) would drag every beam toward amber. It stays neutral by design.
+ *
+ * Naming it here keeps the six gradient call sites below readable and records
+ * the reason in one place instead of six.
+ */
+const WHITE = '#fff'; // design-audit: allow — a neutral light source, not a theme colour
+
+/** Neutral white at a given alpha, for bloom falloff and CSS masks. */
+const bloom = (alpha: number) => `rgba(255,255,255,${alpha})`; // design-audit: allow — see WHITE
+
 /** Motion is slowed rather than removed: the beam is information, not decoration. */
 export const REDUCED_MOTION_SCALE = 3;
 
@@ -38,9 +52,12 @@ const PALETTES: Record<BeamPalette, { base: Rgb; accent: Rgb; deep: Rgb }> = {
     deep: { r: 124, g: 92, b: 240 },
   },
   earned: {
-    base: { r: 255, g: 111, b: 216 },
-    accent: { r: 255, g: 190, b: 240 },
-    deep: { r: 226, g: 63, b: 174 },
+    // Mirrors --kz-magenta / --kz-magenta-deep. A canvas string cannot read a
+    // CSS variable, so these three numbers are a copy — pinned against
+    // src/index.css by tests/designSystem.test.ts.
+    base: { r: 174, g: 123, b: 255 },
+    accent: { r: 214, g: 200, b: 250 },
+    deep: { r: 115, g: 67, b: 222 },
   },
 };
 
@@ -298,10 +315,10 @@ function motionDur(seconds: number): string {
 }
 
 const MASK_RING = (id: string) =>
-  `linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)`;
+  `linear-gradient(${WHITE} 0 0) content-box, linear-gradient(${WHITE} 0 0)`;
 const MASK_COMET = (id: string) => `radial-gradient(
       ellipse calc(78px * var(--rim-w-${id})) calc(60px * var(--rim-h-${id})) at calc(var(--rim-x-${id}) * 100%) 100%,
-      white 0%, rgba(255,255,255,0.5) 45%, transparent 100%
+      white 0%, ${bloom(0.5)} 45%, transparent 100%
     )`;
 
 /** The ambient layer: a slow outward breathe on a glass surface at rest. */
@@ -397,7 +414,7 @@ ${propertyRegs(id, false)}
   content: ""; position: absolute; inset: 0; border-radius: ${innerRadius}px; padding: ${borderWidth}px;
   clip-path: inset(0 round ${borderRadius}px);
   background:
-    radial-gradient(ellipse calc(24px * var(--rim-w-${id})) calc(28px * var(--rim-h-${id})) at calc(var(--rim-x-${id}) * 100%) calc(100% + 2px), rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.12) 30%, transparent 65%),
+    radial-gradient(ellipse calc(24px * var(--rim-w-${id})) calc(28px * var(--rim-h-${id})) at calc(var(--rim-x-${id}) * 100%) calc(100% + 2px), ${bloom(0.38)} 0%, ${bloom(0.12)} 30%, transparent 65%),
     ${RING.map((_, index) => traceStop(palette, index, id, false)).join(',')};
   -webkit-mask: ${MASK_COMET(id)}, ${MASK_RING(id)};
   -webkit-mask-composite: source-in, xor;
@@ -411,7 +428,7 @@ ${propertyRegs(id, false)}
 [data-rim="${id}"][data-active]::before, [data-rim="${id}"][data-fading]::before {
   content: ""; position: absolute; inset: 0; border-radius: ${borderRadius}px;
   background: ${RING.map((_, index) => traceStop(palette, index, id, true)).join(',')};
-  box-shadow: inset 0 0 9px 1px rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 9px 1px ${bloom(0.1)};
   -webkit-mask-image: ${MASK_COMET(id)},
     linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),
     linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);
@@ -432,11 +449,11 @@ ${propertyRegs(id, false)}
   padding: 0;
   -webkit-mask: radial-gradient(
     ellipse calc(84px * var(--rim-w-${id})) calc(110px * var(--rim-h-${id})) at calc(var(--rim-x-${id}) * 100%) 100%,
-    white 0%, rgba(255,255,255,0.5) 35%, transparent 100%
+    white 0%, ${bloom(0.5)} 35%, transparent 100%
   );
   mask: radial-gradient(
     ellipse calc(84px * var(--rim-w-${id})) calc(110px * var(--rim-h-${id})) at calc(var(--rim-x-${id}) * 100%) 100%,
-    white 0%, rgba(255,255,255,0.5) 35%, transparent 100%
+    white 0%, ${bloom(0.5)} 35%, transparent 100%
   );
   background: ${RING.map((_, index) => {
     const { r, g, b } = stopColor(palette, index);

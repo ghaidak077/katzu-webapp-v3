@@ -137,15 +137,15 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
       {/* Metric Cards */}
       <div className="grid grid-cols-3 gap-2 mb-6">
         <Card className="p-3 text-center">
-          <span className="text-[10px] text-text-secondary block">إجمالي المفردات</span>
+          <span className="text-micro text-text-secondary block">إجمالي المفردات</span>
           <div className="text-lg font-bold font-german text-primary">{vocabulary.length}</div>
         </Card>
         <Card className="p-3 text-center">
-          <span className="text-[10px] text-text-secondary block">المحفوظة</span>
+          <span className="text-micro text-text-secondary block">المحفوظة</span>
           <div className="text-lg font-bold font-german text-status-learning">{savedWords.length}</div>
         </Card>
         <Card className="p-3 text-center">
-          <span className="text-[10px] text-text-secondary block">بنك الأخطاء</span>
+          <span className="text-micro text-text-secondary block">بنك الأخطاء</span>
           <div className="text-lg font-bold font-german text-status-error">{mistakes.length}</div>
         </Card>
       </div>
@@ -164,7 +164,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         </div>
         <div className="flex-1 min-w-0">
           <span className="text-sm font-bold font-arabic block">ملف أخطائك</span>
-          <span className="text-[11px] text-text-secondary font-arabic">
+          <span className="text-micro text-text-secondary font-arabic">
             {mistakes.length > 0
               ? `اعرف نمط أخطائك في ${mistakes.length} تصحيحاً سابقاً، وتدرّب على الأكثر تكراراً`
               : 'ابدأ بالحديث وسأجمع أخطاءك هنا وأخبرك بما يتكرر'}
@@ -190,7 +190,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           </div>
           <div className="flex-1 min-w-0">
             <span className="text-sm font-bold font-arabic block">اسأل كَاتْزُو عن الألمانية</span>
-            <span className="text-[11px] text-text-secondary font-arabic">
+            <span className="text-micro text-text-secondary font-arabic">
               ترجمة، قاعدة، كلمة، صحّح جملتك، أو نصّ ألماني رسمي — ثم تمرين قصير يتأكد أنك فهمت
             </span>
           </div>
@@ -266,7 +266,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             placeholder="ابحث عن كلمة ألمانية أو معناها بالعربية..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-11 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl ps-10 pe-4 text-xs font-arabic outline-none"
+            className="w-full h-11 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl ps-10 pe-4 text-xs font-arabic"
           />
         </div>
 
@@ -275,7 +275,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             onClick={() => setSelectedCategory('ALL')}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               selectedCategory === 'ALL'
-                ? 'bg-primary text-white shadow-glow-purple'
+                ? 'bg-fill text-on-fill shadow-glow-purple'
                 : 'bg-surface-card text-text-secondary border border-border-subtle'
             }`}
           >
@@ -384,7 +384,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             >
               {!isFlipped ? (
                 <>
-                  <span className="text-[11px] text-primary font-bold mb-3 font-arabic">
+                  <span className="text-micro text-primary font-bold mb-3 font-arabic">
                     الوجه الألماني (اضغط للقلب)
                   </span>
                   {currentFlashcard.article && (
@@ -399,7 +399,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                 </>
               ) : (
                 <>
-                  <span className="text-[11px] text-status-success font-bold mb-3 font-arabic">
+                  <span className="text-micro text-status-success font-bold mb-3 font-arabic">
                     المعنى العربي
                   </span>
                   <div className="text-2xl font-bold font-arabic text-text-primary mb-2">
@@ -527,7 +527,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-text-secondary font-arabic">{m.grammarRule}</p>
+                  <p className="text-micro text-text-secondary font-arabic">{m.grammarRule}</p>
 
                   {isMastered ? (
                     <div className="flex items-center gap-1.5 text-status-success text-xs font-bold font-arabic pt-1 border-t border-border-subtle/40">
@@ -549,7 +549,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                         onChange={(e) =>
                           setRetypedMistakes({ ...retypedMistakes, [mId]: e.target.value })
                         }
-                        className="flex-1 h-9 bg-surface-subtle border border-border-subtle focus:border-primary rounded-xl px-2.5 text-xs font-german outline-none"
+                        className="flex-1 h-9 bg-surface-subtle border border-border-subtle focus:border-primary rounded-xl px-2.5 text-xs font-german"
                       />
                       <Button
                         size="sm"

@@ -14,6 +14,7 @@ import { logEvent, logError } from '@/lib/utils/diagnostics';
 import { enrolStudiedPhrases, enrolStudiedVocabulary } from '@/lib/srs/store';
 import { track } from '@/lib/analytics/client';
 import { ArrowRight, Volume2, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
+import { BackButton } from '@/components/common/BackButton';
 
 export interface QuizScreenProps {
   scenarioId: string;
@@ -157,12 +158,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
       {/* Top Bar */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={onBack}
-            className="p-2.5 rounded-2xl bg-surface-card border border-border-subtle hover:bg-surface-subtle transition-colors"
-          >
-            <ArrowRight className="w-5 h-5 text-text-secondary" />
-          </button>
+          <BackButton onBack={onBack} />
           <span className="font-arabic font-bold text-xs text-text-secondary">
             السؤال {currentIndex + 1} من {questions.length}
           </span>
@@ -186,7 +182,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
         <div className="my-auto space-y-6">
           {/* Prompt Card */}
           <Card variant="hero" className="p-6 text-center relative border border-primary/30 shadow-glow-purple">
-            <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider block mb-2">
+            <span className="text-micro font-semibold text-text-secondary uppercase tracking-wider block mb-2">
               {currentQ.kind === 'vocab' ? 'ما معنى هذه الكلمة؟' : 'ما معنى هذه الجملة؟'}
             </span>
             <GermanText className="text-xl font-bold text-text-primary mb-3 block">
@@ -196,19 +192,21 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
                 itself (the prompt above is what the options translate). */}
             {currentQ.kind === 'vocab' && currentQ.exampleSentence && (
               <div className="mb-3">
-                <span className="text-[10px] text-text-muted font-arabic block mb-1">في جملة:</span>
+                <span className="text-micro text-text-muted font-arabic block mb-1">في جملة:</span>
                 <GermanText className="text-sm text-text-secondary italic block">
                   {currentQ.exampleSentence}
                 </GermanText>
               </div>
             )}
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => speak(currentQ.germanPrompt)}
-              className="p-2.5 rounded-full bg-primary/20 text-primary hover:bg-primary/30 mx-auto inline-flex items-center gap-1.5 text-xs font-semibold"
+              className="mx-auto"
             >
-              <Volume2 className="w-4 h-4" />
+              <Volume2 className="h-4 w-4" />
               استمع للنطق
-            </button>
+            </Button>
           </Card>
 
           {/* Options */}

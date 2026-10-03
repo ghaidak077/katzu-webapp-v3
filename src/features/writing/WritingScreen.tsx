@@ -186,7 +186,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold font-arabic">تصحيح الكتابة</h2>
-            <p className="text-[11px] text-text-secondary font-arabic">{copy.formatDe}</p>
+            <p className="text-micro text-text-secondary font-arabic">{copy.formatDe}</p>
           </div>
           <Badge variant="subtle" size="sm">
             {level}
@@ -204,8 +204,8 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
             {Object.entries(feedback.scores).map(([dimension, score]) => (
               <div key={dimension}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-arabic">{DIMENSION_LABELS[dimension] || dimension}</span>
-                  <span className="text-[11px] font-german text-text-secondary">
+                  <span className="text-micro font-arabic">{DIMENSION_LABELS[dimension] || dimension}</span>
+                  <span className="text-micro font-german text-text-secondary">
                     {score} / {feedback.maxScore}
                   </span>
                 </div>
@@ -264,7 +264,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
                       {mistake.corrected}
                     </span>
                   </div>
-                  <p className="mt-2 text-[11px] font-arabic text-text-secondary leading-relaxed">
+                  <p className="mt-2 text-micro font-arabic text-text-secondary leading-relaxed">
                     {mistake.ruleDe && <span className="text-status-learning">{mistake.ruleDe} — </span>}
                     {mistake.explanationAr}
                   </p>
@@ -291,7 +291,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-bold font-arabic">الكتابة (Schreiben)</h2>
-          <p className="text-[11px] text-text-secondary font-arabic">
+          <p className="text-micro text-text-secondary font-arabic">
             مهارة الاختبار التي تُحدد الشهادة — اكتب ثم اعرف بالضبط ما يجب إصلاحه.
           </p>
         </div>
@@ -303,11 +303,11 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
           <Badge variant="primary" size="sm">
             {copy.titleAr}
           </Badge>
-          <span className="text-[10px] font-german text-text-muted">{copy.formatDe}</span>
+          <span className="text-micro font-german text-text-muted">{copy.formatDe}</span>
         </div>
         <p className="text-xs font-arabic leading-relaxed mb-2">{copy.briefAr}</p>
         {scenario && (
-          <p className="text-[11px] font-arabic text-text-secondary">
+          <p className="text-micro font-arabic text-text-secondary">
             الموضوع: <span className="text-text-primary">{scenario.title_ar}</span>
           </p>
         )}
@@ -315,7 +315,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
 
       {targetPhrases.length > 0 && (
         <Card className="p-4 mb-4">
-          <h3 className="text-[11px] font-bold font-arabic text-text-secondary mb-2">
+          <h3 className="text-micro font-bold font-arabic text-text-secondary mb-2">
             عبارات من المشهد — استخدم ما تحتاجه فقط، والأفضل استخدامها بشكل صحيح
           </h3>
           <ul className="space-y-1">
@@ -332,7 +332,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         <Card className="p-4 mb-4">
           {wordBank.length > 0 && (
             <div data-testid="word-bank" dir="ltr" className="mb-3">
-              <span className="mb-1 block text-[10px] font-arabic text-text-muted">
+              <span className="mb-1 block text-micro font-arabic text-text-muted">
                 بنك الكلمات — اضغط لتضيف الكلمة
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -352,21 +352,26 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
               </div>
             </div>
           )}
+          {/* A placeholder is not a label: it vanishes the moment there is text,
+              so the field ends up unnamed. `aria-label` keeps it announced. The
+              German copy matches GuidedPracticeScreen — informal "du", one
+              ellipsis glyph. */}
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             dir="ltr"
             rows={7}
             maxLength={MAX_CHARS}
-            placeholder="Schreiben Sie hier auf Deutsch..."
-            className="w-full resize-y bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl p-3 text-sm font-german leading-relaxed outline-none transition-all"
+            aria-label="اكتب ما تريد قوله بالألمانية"
+            placeholder="Schreibe hier auf Deutsch…"
+            className="w-full resize-y bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl p-3 text-sm font-german leading-relaxed transition-all"
           />
           <div className="flex items-center justify-between mt-2">
-            <span className={`text-[10px] font-german ${trimmedLength >= MIN_CHARS ? 'text-text-muted' : 'text-status-learning'}`}>
+            <span className={`text-micro font-german ${trimmedLength >= MIN_CHARS ? 'text-text-muted' : 'text-status-learning'}`}>
               {trimmedLength} / {MAX_CHARS}
             </span>
             {trimmedLength < MIN_CHARS && (
-              <span className="text-[10px] font-arabic text-text-muted">
+              <span className="text-micro font-arabic text-text-muted">
                 {MIN_CHARS - trimmedLength} حرفاً على الأقل ليصبح التصحيح مفيداً
               </span>
             )}
@@ -375,7 +380,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
 
         {error && (
           <div className="mb-4 rounded-2xl border border-status-error/40 bg-status-error/10 p-3" role="alert">
-            <p className="text-[11px] font-arabic text-text-secondary leading-relaxed">{error}</p>
+            <p className="text-micro font-arabic text-text-secondary leading-relaxed">{error}</p>
             {paywall && onOpenSubscription && (
               <Button size="sm" className="mt-2" onClick={onOpenSubscription}>
                 <Sparkles className="w-3.5 h-3.5" /> عرض الاشتراك
@@ -397,7 +402,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         </Button>
       </form>
 
-      <p className="mt-3 text-[10px] font-arabic text-text-muted text-center leading-relaxed">
+      <p className="mt-3 text-micro font-arabic text-text-muted text-center leading-relaxed">
         التصحيح يشرح الأخطاء بالعربية، وكل خطأ يدخل في قائمة مراجعتك حتى لا يتكرر.
       </p>
     </div>

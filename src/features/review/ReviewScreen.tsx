@@ -276,7 +276,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
               {current.level && (
                 <>
                   <span className="text-kz-inkFaint">·</span>
-                  <span className="font-german text-[0.72rem] text-kz-inkFaint">{current.level}</span>
+                  <span className="font-german text-micro text-kz-inkFaint">{current.level}</span>
                 </>
               )}
             </div>
@@ -361,7 +361,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
                   onChange={(e) => setAnswer(e.target.value)}
                   placeholder={current.direction === 'de_to_ar' ? 'اكتب المعنى بالعربية…' : 'اكتب بالألمانية…'}
                   aria-label={current.direction === 'de_to_ar' ? 'إجابتك بالعربية' : 'إجابتك بالألمانية'}
-                  className={`h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-base text-kz-ink outline-none placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50 ${current.direction === 'de_to_ar' ? 'font-arabic' : 'font-german'}`}
+                  className={`h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-base text-kz-ink placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50 ${current.direction === 'de_to_ar' ? 'font-arabic' : 'font-german'}`}
                 />
                 <GlassButton variant="primary" size="lg" fullWidth type="submit" disabled={!answer.trim()}>
                   تحقّق من إجابتي

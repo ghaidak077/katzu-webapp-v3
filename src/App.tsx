@@ -560,7 +560,7 @@ function TabButton({ glassKey, active, onClick, icon, label }: { glassKey?: stri
           className: `w-5 h-5 ${active ? 'stroke-[2.5]' : ''}`,
         })
         }
-        <span className="font-arabic text-[10px]">{label}</span>
+        <span className="font-arabic text-micro">{label}</span>
       </button>
     </div>
   );

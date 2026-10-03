@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { cn } from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
 import { useReducedMotion } from '@/components/glass/GlassSurface';
 import { attachPulse, buildBeamCss, buildPulseConfig, type BeamPalette } from './borderBeamCss';
 

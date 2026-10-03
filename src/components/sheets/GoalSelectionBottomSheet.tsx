@@ -96,7 +96,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
                 onClick={() => setLevel(lvl)}
                 className={`py-3 rounded-2xl font-german font-bold text-sm border transition-all ${
                   level === lvl
-                    ? 'bg-primary text-white border-primary shadow-glow-purple'
+                    ? 'bg-fill text-on-fill border-primary shadow-glow-purple'
                     : 'bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary'
                 }`}
               >

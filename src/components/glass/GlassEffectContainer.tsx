@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { cn } from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
 import { useReducedMotion } from './GlassSurface';
 
 /**
@@ -206,7 +206,7 @@ export const GlassEffectContainer: React.FC<GlassEffectContainerProps> = ({
         <div
           data-glass-ignore
           aria-hidden
-          className="pointer-events-none absolute z-0 rounded-[999px]"
+          className="pointer-events-none absolute z-0 rounded-full"
           style={{
             left: union.left,
             top: union.top,

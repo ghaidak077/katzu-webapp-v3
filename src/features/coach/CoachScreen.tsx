@@ -122,7 +122,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
                 <h3 className="text-base font-bold font-arabic leading-snug mb-1">
                   {profile.headlineAr}
                 </h3>
-                <p className="text-[11px] text-text-secondary font-arabic leading-relaxed">
+                <p className="text-micro text-text-secondary font-arabic leading-relaxed">
                   {profile.detailAr}
                 </p>
               </div>
@@ -131,17 +131,17 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
             <div className="grid grid-cols-3 gap-2 mt-4">
               <div className="rounded-2xl bg-surface-subtle p-3 text-center">
                 <div className="text-lg font-bold font-german text-status-error">{profile.open}</div>
-                <span className="text-[10px] font-arabic text-text-secondary">تحتاج عملاً</span>
+                <span className="text-micro font-arabic text-text-secondary">تحتاج عملاً</span>
               </div>
               <div className="rounded-2xl bg-surface-subtle p-3 text-center">
                 <div className="text-lg font-bold font-german text-status-success">
                   {profile.mastered}
                 </div>
-                <span className="text-[10px] font-arabic text-text-secondary">أتقنتها</span>
+                <span className="text-micro font-arabic text-text-secondary">أتقنتها</span>
               </div>
               <div className="rounded-2xl bg-surface-subtle p-3 text-center">
                 <div className="text-lg font-bold font-german text-primary">{profile.total}</div>
-                <span className="text-[10px] font-arabic text-text-secondary">إجمالي الأخطاء</span>
+                <span className="text-micro font-arabic text-text-secondary">إجمالي الأخطاء</span>
               </div>
             </div>
           </Card>
@@ -171,7 +171,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
           {!profile.hasEnoughEvidence && (
             <Card className="p-4 mb-4 text-center">
               <KatzuMascot name="listening" className="w-20 h-20 object-contain mx-auto mb-2" />
-              <p className="text-[11px] text-text-secondary font-arabic leading-relaxed">
+              <p className="text-micro text-text-secondary font-arabic leading-relaxed">
                 سجّلت حتى الآن {profile.total} من الأخطاء. تابع الحديث مع كَاتْزُو، وعندما تتضح الصورة
                 سأخبرك بأهم ثلاثة أنماط لديك وطريقة علاج كل واحد.
               </p>
@@ -185,10 +185,10 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
                 {profile.categories.slice(3).map((stat) => (
                   <div key={stat.category}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] font-arabic text-text-secondary">
+                      <span className="text-micro font-arabic text-text-secondary">
                         {CATEGORY_COPY[stat.category].labelAr}
                       </span>
-                      <span className="text-[11px] font-german text-text-muted">{stat.count}</span>
+                      <span className="text-micro font-german text-text-muted">{stat.count}</span>
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
                       <div
@@ -205,7 +205,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
           {weekly && (
             <Card className="p-4 mb-4">
               <h3 className="text-sm font-bold font-arabic mb-3">هذا الأسبوع</h3>
-              <ul className="space-y-2.5 text-[11px] font-arabic leading-relaxed">
+              <ul className="space-y-2.5 text-micro font-arabic leading-relaxed">
                 <li className="flex items-start gap-2">
                   <span className="shrink-0 text-status-success" aria-hidden>
                     ✓
@@ -235,7 +235,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
                 </li>
               </ul>
               {!weekly.hasData && (
-                <p className="mt-3 text-[10px] font-arabic text-text-muted leading-relaxed">
+                <p className="mt-3 text-micro font-arabic text-text-muted leading-relaxed">
                   نعرض فقط ما نستطيع قياسه — بلا أرقام مزوّفة.
                 </p>
               )}
@@ -310,7 +310,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
         />
       </div>
 
-      <p className="text-[10px] text-text-muted font-arabic mb-2">
+      <p className="text-micro text-text-muted font-arabic mb-2">
         {stat.sharePercent}% من أخطائك
         {stat.mastered > 0 ? ` — أتقنت ${stat.mastered} منها` : ''}
       </p>
@@ -318,7 +318,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
       {examples.length > 0 && (
         <div className="rounded-2xl bg-surface-subtle p-3 mb-3 space-y-1.5">
           {examples.map((mistake, index) => (
-            <div key={mistake.id ?? index} className="text-[11px] leading-relaxed">
+            <div key={mistake.id ?? index} className="text-micro leading-relaxed">
               <span className="text-status-error line-through decoration-status-error/50">
                 <GermanText>{mistake.original}</GermanText>
               </span>
@@ -331,10 +331,10 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
         </div>
       )}
 
-      <p className="text-[11px] text-text-secondary font-arabic leading-relaxed mb-3">{copy.adviceAr}</p>
+      <p className="text-micro text-text-secondary font-arabic leading-relaxed mb-3">{copy.adviceAr}</p>
 
       {trend && (
-        <p className="text-[10px] font-arabic text-text-muted mb-3 flex flex-wrap gap-x-3 gap-y-1">
+        <p className="text-micro font-arabic text-text-muted mb-3 flex flex-wrap gap-x-3 gap-y-1">
           {trend.lastPracticedAt && <span>آخر تدريب: {formatDay(trend.lastPracticedAt)}</span>}
           {trend.nextReviewAt && <span>المراجعة القادمة: {formatDay(trend.nextReviewAt)}</span>}
           {trend.open > 0 && <span>مفتوح: {trend.open}</span>}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
 
 export type ConnectionState = 'online' | 'offline' | 'syncing' | 'cached';
 

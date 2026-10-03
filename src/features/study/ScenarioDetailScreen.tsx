@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/Badge';
 import { ScenarioBanner } from '@/components/glass/ScenarioBanner';
 import { sceneFor } from '@/lib/design/scenes';
 import { safetyDisclaimerFor } from '@/lib/utils/scenarioVocab';
-import { ArrowRight, BookOpen, CheckCircle, Lock, MessagesSquare, Sparkles } from 'lucide-react';
+import { BookOpen, CheckCircle, Lock, MessagesSquare, Sparkles } from 'lucide-react';
+import { BackButton } from '@/components/common/BackButton';
 
 export interface ScenarioDetailScreenProps {
   scenarioId: string;
@@ -103,12 +104,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
     <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto relative pb-16">
       {/* Top Bar */}
       <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={onBack}
-          className="p-2.5 rounded-2xl bg-surface-card border border-border-subtle hover:bg-surface-subtle transition-colors"
-        >
-          <ArrowRight className="w-5 h-5 text-text-secondary" />
-        </button>
+        <BackButton onBack={onBack} />
         <Badge variant="primary" size="md">
           {user?.cefrLevel || 'A1'} • محادثة واقعية
         </Badge>
@@ -119,7 +115,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
           it: the learner recognises the situation before reading a word. */}
       <ScenarioBanner
         scene={sceneFor({ id: scenario.id, category: scenario.category, bannerUrl: scenario.banner_url })}
-        className="mb-4 rounded-[28px]"
+        className="mb-4 rounded-sheet"
         drift
         loading="eager"
       />
@@ -171,7 +167,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             </Button>
             <button
               onClick={skipToConversation}
-              className="mt-3 w-full text-center text-[11px] font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
+              className="mt-3 w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
             >
               تخطَّ التدريب وابدأ المحادثة مباشرة
             </button>
@@ -183,7 +179,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             </Button>
             <button
               onClick={isQuizPassed ? onStartStudy : handleTrainingStart}
-              className="w-full text-center text-[11px] font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
+              className="w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
             >
               {isQuizPassed ? 'أعد التدريب من بطاقات الكلمات' : 'أكمل التدريب بدلاً من ذلك'}
             </button>
@@ -234,7 +230,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
           }`}
         >
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isConversationUnlocked ? 'bg-primary text-white' : 'bg-surface-subtle text-text-muted'}`}>
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isConversationUnlocked ? 'bg-fill text-on-fill' : 'bg-surface-subtle text-text-muted'}`}>
               {isConversationUnlocked ? <MessagesSquare className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
             </div>
             <div>
@@ -242,7 +238,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
                 <span className={`text-sm font-bold font-arabic ${isConversationUnlocked ? 'text-primary' : 'text-text-secondary'}`}>
                   3. المحادثة الحية مع كَاتْزُو
                 </span>
-                {!isPro && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-bold">تحقق الحصة عند البدء</span>}
+                {!isPro && <span className="text-micro px-2 py-0.5 rounded-full bg-primary/20 text-primary font-bold">تحقق الحصة عند البدء</span>}
               </div>
               <div className="text-xs text-text-secondary">
                 {isConversationUnlocked ? 'تحدث بصوتك مباشرة وخض الحوار التفاعلي' : 'تُفتح بعد إتمام التدريب — أو تخطَّه صراحةً'}
@@ -263,7 +259,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             </Button>
             <button
               onClick={skipToConversation}
-              className="w-full text-center text-[11px] font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
+              className="w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
             >
               تخطَّ إلى المحادثة الآن
             </button>

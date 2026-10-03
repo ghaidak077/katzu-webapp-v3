@@ -91,13 +91,13 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                 className={`relative flex flex-col items-center gap-0.5 p-2 rounded-xl bg-surface-subtle border transition-colors border-border-subtle hover:border-primary/50 ${p.recommended ? 'border-primary' : ''}`}
               >
                 {p.recommended && (
-                  <span className="absolute -top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary text-white text-[8px] font-bold font-arabic" dir="rtl">
+                  <span className="absolute -top-2 right-2 px-1.5 py-0.5 rounded-full bg-fill text-on-fill text-micro font-bold font-arabic" dir="rtl">
                     موصى به
                   </span>
                 )}
-                <span className="text-[11px] font-bold font-arabic" dir="rtl">{p.label_ar}</span>
+                <span className="text-micro font-bold font-arabic" dir="rtl">{p.label_ar}</span>
                 <span className="text-sm font-bold text-primary">${p.priceUsd}</span>
-                <span className="text-[9px] text-text-muted font-arabic" dir="rtl">{p.months === 1 ? 'شهر' : `${p.months} أشهر`}</span>
+                <span className="text-micro text-text-muted font-arabic" dir="rtl">{p.months === 1 ? 'شهر' : `${p.months} أشهر`}</span>
               </a>
             ))}
           </div>
@@ -109,7 +109,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
         {/* A plain comparison, and nothing else: no countdown, no price framing,
             no promise the product cannot keep ("fluent in 30 days"). */}
         <div className="w-full space-y-2 mb-4 text-start">
-          <p className="text-[11px] font-arabic text-text-muted">ما يفتحه Pro:</p>
+          <p className="text-micro font-arabic text-text-muted">ما يفتحه Pro:</p>
           {[
             'محادثات صوتية بلا حد بعد الجلسات التجريبية',
             'كل المستويات والمشاهد من A1 إلى B2',
@@ -130,8 +130,8 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
         {/* What stays free: saying this out loud is what keeps the paywall from
             feeling like a bait-and-switch. */}
         <div className="w-full p-3 rounded-2xl bg-status-success/10 border border-status-success/25 text-start mb-5">
-          <p className="text-[11px] font-arabic text-status-success font-bold mb-1">ويبقى مجانياً دائماً:</p>
-          <p className="text-[11px] font-arabic text-text-secondary leading-relaxed">
+          <p className="text-micro font-arabic text-status-success font-bold mb-1">ويبقى مجانياً دائماً:</p>
+          <p className="text-micro font-arabic text-text-secondary leading-relaxed">
             مهمة اليوم، ومراجعة كل ما تعلّمته، والاختبار التحديدي، وبنك أخطائك، ودرسك التجريبي.
             لن نُغلق أمامك ما تعلّمته بالفعل — ولا نطلب منك شيئاً قبل أن تجرّب.
           </p>
@@ -146,7 +146,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
               track('purchase_clicked', { source: 'paywall' });
               onClose();
             }}
-            className="w-full h-14 rounded-2xl bg-primary text-white font-bold font-arabic flex items-center justify-center gap-2 shadow-glow-purple transition-all"
+            className="w-full h-14 rounded-2xl bg-fill text-on-fill font-bold font-arabic flex items-center justify-center gap-2 shadow-glow-purple transition-all"
           >
             <ExternalLink className="w-4 h-4" aria-hidden />
             اشترِ كود تفعيل Pro
@@ -177,7 +177,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
               so a new tab keeps the offer on screen while the learner reads. */}
           <nav
             aria-label="الصفحات القانونية"
-            className="flex items-center justify-center gap-1 pt-1 text-[11px] font-arabic text-text-muted"
+            className="flex items-center justify-center gap-1 pt-1 text-micro font-arabic text-text-muted"
           >
             <a
               href={legalPageUrl('privacy')}
