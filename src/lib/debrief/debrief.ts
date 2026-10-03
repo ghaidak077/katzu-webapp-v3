@@ -1,4 +1,6 @@
 import type { CEFRLevel, SessionMode } from '@/types/models';
+import { arCount } from '@/lib/i18n/arabicCount';
+import { SENTENCE_NOM } from '@/lib/i18n/countForms';
 
 /**
  * The end-of-session Arabic debrief (V21 Phase 2) — deterministic.
@@ -93,7 +95,7 @@ function headlineAr(scenarioTitle: string, mode: SessionMode, sentencesSpoken: n
   if (mode === 'real') {
     return `أكملت موقف «${scenarioTitle}» من البداية إلى نهايته بالألمانية، بلا مساعدة.`;
   }
-  return `أنتجت ${sentencesSpoken} ${sentencesSpoken === 1 ? 'جملة' : 'جُمل'} في موقف «${scenarioTitle}».`;
+  return `أنتجت ${arCount(sentencesSpoken, SENTENCE_NOM)} في موقف «${scenarioTitle}».`;
 }
 
 function didWellAr(input: Pick<SessionDebriefInput, 'sentencesSpoken' | 'independentSentences' | 'assistedSentences' | 'accuracyPercent' | 'mistakes'>): string[] {
@@ -105,7 +107,7 @@ function didWellAr(input: Pick<SessionDebriefInput, 'sentencesSpoken' | 'indepen
       independentSentences > 0 && independentSentences === sentencesSpoken
         ? 'أنتجت كل جُملك بلا تلميحات — هذه هي المهارة التي تحملك في الموقف الحقيقي.'
         : independentSentences > 0
-          ? `أنتجت ${independentSentences} جملة من دماغك مباشرة بلا تلميح — أكثر ما يهم.`
+          ? `أنتجت ${arCount(independentSentences, SENTENCE_NOM)} من دماغك مباشرة بلا تلميح — أكثر ما يهم.`
           : 'أكملت الحديث باستخدام التلميحات — بداية مقبولة، والهدف القادم جملة واحدة بلا تلميح.',
     );
   }

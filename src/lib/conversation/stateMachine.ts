@@ -22,6 +22,8 @@
  *    a retry cannot burn the learner's remaining allowance.
  */
 
+import { isEntitlementUnavailable, isEntitlementWall } from '@/lib/entitlement/codes';
+
 export type ConversationStatus =
   | 'idle'
   | 'recording'
@@ -267,17 +269,29 @@ export function conversationReducer(state: ConversationState, event: Conversatio
  * Maps a thrown turn error (the worker client's coded errors) to the state
  * machine's vocabulary. Unknown failures are `ai_service` and retryable: the
  * learner's sentence is preserved, so retrying is always safe for them.
+ *
+ * V31: the code is matched against the shared entitlement set, not against one
+ * literal. `FREE_QUOTA_EXHAUSTED` is exactly as terminal as `PAYWALL_REQUIRED`
+ * — both spend money to clear — and classifying it as a retryable AI glitch is
+ * what gave a free learner an unresolvable "try again" card.
  */
 export function classifyTurnError(error: unknown): ConversationError {
   const code = String((error as { code?: string })?.code || '');
   const raw = String((error as { message?: string })?.message || '');
-  if (code === 'PAYWALL_REQUIRED' || /quota|trial|entitlement|paywall/i.test(raw)) {
+  if (isEntitlementWall(code) || /quota|trial|entitlement|paywall/i.test(raw)) {
     return { kind: 'quota', messageAr: QUOTA_MESSAGE_AR, retryable: false };
   }
   if (code === 'UNAUTHENTICATED' || code === 'SESSION_EXPIRED' || code === 'invalid_id_token') {
     return { kind: 'invalid_session', messageAr: SESSION_INVALID_MESSAGE_AR, retryable: false };
   }
-  if (code === 'REQUEST_TIMEOUT' || code === 'NETWORK_ERROR' || code === 'WORKER_URL_MISSING') {
+  if (
+    code === 'REQUEST_TIMEOUT' ||
+    code === 'NETWORK_ERROR' ||
+    code === 'WORKER_URL_MISSING' ||
+    // The Worker could not read the trial ledger. The allowance is unknown, not
+    // gone, so this is the one quota code a retry can genuinely clear.
+    isEntitlementUnavailable(code)
+  ) {
     return { kind: 'network', messageAr: NETWORK_ERROR_MESSAGE_AR, retryable: true };
   }
   return { kind: 'ai_service', messageAr: AI_SERVICE_MESSAGE_AR, retryable: true };

@@ -10,6 +10,8 @@ import { ArrowRight, Check, KeyRound, UserCheck, AlertCircle, Gift, ExternalLink
 import { getProPriceLabel, FALLBACK_PRICE_LABEL, SALES_URL, buildSalesUrl } from '@/lib/utils/links';
 import { track } from '@/lib/analytics/client';
 import { BackButton } from '@/components/common/BackButton';
+import { useReducedMotion } from '@/components/glass/GlassSurface';
+import { freeSessionsCopy } from '@/lib/entitlement/trialCopy';
 
 export interface SubscriptionRedemptionScreenProps {
   onBack: () => void;
@@ -25,6 +27,8 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  // Confetti was the one animated subsystem in the app that ignored this.
+  const reducedMotion = useReducedMotion();
   const [referralCode, setReferralCode] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -35,8 +39,14 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
   });
   const [referralMessage, setReferralMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
-  const user = useLiveQuery(() => db.users.get('current_user'));
-  const [priceLabel, setPriceLabel] = useState(FALLBACK_PRICE_LABEL);
+  const user = useLiveQuery(() => db.users.get('current_user'));const [priceLabel, setPriceLabel] = useState(FALLBACK_PRICE_LABEL);
+  /**
+   * V31: how many free conversations the SERVER says are left. `null` until the
+   * ledger answers, and it stays `null` if it cannot — which is a different
+   * thing from zero, and the copy below says exactly that instead of printing
+   * the locally-seeded 3 forever.
+   */
+  const [freeSessions, setFreeSessions] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -47,6 +57,23 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const token = user?.sessionToken?.trim();
+    if (!token) return;
+    workerClient
+      .checkSubscriptionStatus(token)
+      .then((status) => {
+        if (alive) setFreeSessions(typeof status.freeSessionsRemaining === 'number' ? status.freeSessionsRemaining : null);
+      })
+      .catch(() => {
+        /* the copy falls back to "unknown", which is honest — never to a guess */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [user?.sessionToken]);
 
   const handleRedeem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,14 +95,20 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
       const res = await workerClient.verifyCode(cleanCode, activeToken);
 
       if (res.success && res.valid === true && res.months && res.expiresAt) {
-        // Trigger celebratory confetti
-        try {
-          confetti({
-            particleCount: 100,
-            spread: 80,
-            origin: { y: 0.6 },
-          });
-        } catch (_) {}
+        // Celebration, unless the learner has asked their OS for less motion.
+        // The subscription is granted either way — this is decoration, not
+        // part of the outcome, so it is the only thing gated.
+        if (!reducedMotion) {
+          try {
+            confetti({
+              particleCount: 100,
+              spread: 80,
+              origin: { y: 0.6 },
+            });
+          } catch {
+            // A celebration is never worth an unhandled error.
+          }
+        }
 
         const grantedMonths = res.months;
         const expiryIso = res.expiresAt;
@@ -145,7 +178,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
               ? user.subscriptionExpiresAt
                 ? `ينتهي الاشتراك في ${new Date(user.subscriptionExpiresAt).toLocaleDateString('ar')} — يمكنك تفعيل كود جديد في أي وقت لإضافة المدة.`
                 : 'اشتراكك نشط بدون تاريخ انتهاء محدد.'
-              : `لديك ${user?.freeSessionsRemaining ?? 3} جلسات محادثة تجريبية. المراجعة وكل ما تعلّمته مجانيان بلا حد.`}
+              : freeSessionsCopy(freeSessions)}
           </p>
           <p className="mt-2 text-micro font-arabic text-text-muted leading-relaxed">
             الدفع يتم على صفحة الشراء الرسمية، ثم تُفعّل الكود هنا. لا نحتفظ بأي بيانات بطاقة في التطبيق.
@@ -207,6 +240,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
             <div className="flex gap-2">
               <input
                 type="text"
+                aria-label="كود إحالة من صديق"
                 placeholder="REF-XXXXXXXX"
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
@@ -288,6 +322,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           <form onSubmit={handleRedeem} className="flex gap-2">
             <input
               type="text"
+              aria-label="كود تفعيل الاشتراك"
               placeholder="DE-6M-A1B2C3D4-E5F6G7H8"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}

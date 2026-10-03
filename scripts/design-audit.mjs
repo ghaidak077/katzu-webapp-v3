@@ -88,6 +88,33 @@ const RULES = [
     budget: 0,
   },
   {
+    // A placeholder is not a label: it disappears the moment there is text, so
+    // the field ends up with no accessible name at all. Every form control in
+    // this app therefore needs an explicit `aria-label` (or a real <label>).
+    kind: 'unnamed-field',
+    test: (c, lines, index) => {
+      if (!/<(input|textarea|select)\b/.test(c)) return false;
+      if (/type=["']hidden["']/.test(c)) return false;
+      // A control is named by anything on its own opening tag, or by a wrapping
+      // <label>. Scanning the tag alone would false-positive on multi-line
+      // elements, so the check is structural and reads the surrounding lines.
+      return isUnnamedControl(lines, index);
+    },
+    why: 'form control with no accessible name — add aria-label or a wrapping <label>',
+    budget: 0,
+  },
+  {
+    // `transition-all` subscribes an element to every animatable property,
+    // including the layout ones the design system decided not to animate.
+    // Every site in Katzu now names the family it actually changes; this rule
+    // keeps that from decaying back into "safe" folklore. `transition` on its
+    // own is fine — that is the property-scoped default.
+    kind: 'transition-all',
+    test: (c) => /(?<![-\w])transition-all/.test(c),
+    why: 'transition-all — name the properties this element actually animates',
+    budget: 0,
+  },
+  {
     // `outline-none` is a *utilities-layer* rule and `:focus-visible` lives in
     // `@layer base`, so it wins on layer order no matter the specificity. A bare
     // `outline-none` therefore deletes the app's only focus ring — the audited
@@ -100,6 +127,35 @@ const RULES = [
     budget: 0,
   },
 ];
+
+/**
+ * A form control is named if its opening tag carries `aria-label` /
+ * `aria-labelledby` / an `id` a `<label for>` could point at, or if it is
+ * wrapped in a `<label>`. Returns true only when none of those hold, which means
+ * a screen reader would announce nothing for the field.
+ *
+ * The opening tag can span many lines, so the tag text is collected forward
+ * until the line that closes it, and the `<label>` search walks backwards over
+ * the lines above.
+ */
+function isUnnamedControl(all, index) {
+  let end = index;
+  while (end < all.length && end - index < 15 && !/\/>\s*$/.test(all[end])) end++;
+
+  for (let i = index; i <= end; i++) {
+    if (/aria-label=/.test(all[i]) || /aria-labelledby=/.test(all[i]) || /\bid=/.test(all[i])) return false;
+    if (/<label\b/.test(all[i])) return false;
+  }
+  // A <label> that opened on an earlier line and has not closed yet wraps this
+  // control: count opens and closes walking back up.
+  let opens = 0;
+  for (let i = index - 1; i >= 0; i--) {
+    opens += (all[i].match(/<label\b/g) ?? []).length;
+    opens -= (all[i].match(/<\/label>/g) ?? []).length;
+    if (opens > 0) return false;
+  }
+  return true;
+}
 
 const findings = [];
 for (const [file, text] of src) {
@@ -130,7 +186,7 @@ for (const [file, text] of src) {
   for (const rule of RULES) {
     if (rule.skip?.(file)) continue;
     lines.forEach((line, i) => {
-      if (!rule.test(line) || line.includes(ALLOW)) return;
+      if (!rule.test(line, lines, i) || line.includes(ALLOW)) return;
       if (rule.kind === 'raw-rgb' && inUnstyleableContext[i]) return;
       findings.push({ file, kind: rule.kind, line: i + 1, snippet: line.trim().slice(0, 88) });
     });

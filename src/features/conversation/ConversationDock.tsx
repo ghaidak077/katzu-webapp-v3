@@ -37,6 +37,8 @@ export interface ConversationControlsProps {
   isHintRevealed: boolean;
   isHintExpanded: boolean;
   isRefreshingHints: boolean;
+  /** V31: today's AI hint budget is spent — the floor below is all that is left. */
+  hintQuotaSpent?: boolean;
   micError: string | null;
   orbState: OrbState;
   orbTone: 'lavender' | 'earned';
@@ -65,6 +67,7 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
   isHintRevealed,
   isHintExpanded,
   isRefreshingHints,
+  hintQuotaSpent,
   micError,
   orbState,
   orbTone,
@@ -130,7 +133,9 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
           <button
             onClick={onRefreshHints}
             aria-label="تحديث الاقتراحات"
-            className="shrink-0 rounded-xl kz-chip border border-white/10 bg-white/5 p-2 text-kz-inkDim transition-colors hover:text-primary"
+            disabled={hintQuotaSpent}
+            title={hintQuotaSpent ? 'استهلكت اقتراحات اليوم — جرّب غداً' : undefined}
+            className="shrink-0 rounded-xl kz-chip border border-white/10 bg-white/5 p-2 text-kz-inkDim transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-kz-inkDim"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingHints ? 'animate-spin' : ''}`} />
           </button>
@@ -142,6 +147,16 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
             ✕
           </button>
         </div>
+      )}
+
+      {/* V31: said once, out loud. The starter-phrase floor still works after
+          today's hint budget is spent, so nothing breaks — but a button that
+          looks alive and only ever returns the same generic chips is a lie by
+          omission, and this is where the truth costs nothing. */}
+      {showHelp && hintQuotaSpent && (
+        <p className="kz-ar-micro mb-2 text-kz-inkFaint" role="status">
+          استهلكت اقتراحات اليوم. هذه عبارات من الموقف نفسه، وتتجدّد غداً.
+        </p>
       )}
 
       {/* The words of the offered reply. The suggestion sends a whole sentence;
@@ -263,6 +278,7 @@ export const ConversationComposer: React.FC<ConversationComposerProps> = ({
           ref={inputRef}
           type="text"
           dir="ltr"
+          aria-label={isRecording ? 'أنا أستمع إليك' : 'اكتب جملتك بالألمانية'}
           placeholder={isRecording ? 'أنا أستمع إليك…' : 'اكتب جملتك بالألمانية…'}
           value={inputText}
           onChange={(e) => onInputTextChange(e.target.value)}

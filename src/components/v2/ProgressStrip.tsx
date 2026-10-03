@@ -55,7 +55,7 @@ export const ProgressStrip: React.FC<ProgressStripProps> = ({
             <span
               key={index}
               data-state={isComplete ? 'complete' : isActive ? 'active' : 'pending'}
-              className="h-[3px] flex-1 rounded-full transition-all duration-500"
+              className="h-[3px] flex-1 rounded-full transition-colors duration-panels"
               style={{
                 background: isComplete
                   ? `rgb(${toneRgb} / 0.85)`
@@ -88,7 +88,7 @@ export const ProgressRail: React.FC<{ value: number; max: number; earned?: boole
   return (
     <span className={cn('block h-[3px] w-full overflow-hidden rounded-full bg-white/[0.07]', className)}>
       <span
-        className="block h-full rounded-full transition-all duration-500"
+        className="block h-full rounded-full transition-colors duration-panels"
         style={{
           width: `${ratio * 100}%`,
           background: `rgb(var(--kz-${earned ? 'magenta' : 'lavender'}) / 0.85)`,

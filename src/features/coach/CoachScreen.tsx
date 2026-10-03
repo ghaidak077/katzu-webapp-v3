@@ -192,8 +192,8 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
                       <div
-                        className="h-full rounded-full bg-border-subtle"
-                        style={{ width: `${Math.max(stat.sharePercent, 4)}%` }}
+                        className="h-full w-full rounded-full bg-border-subtle origin-right"
+                        style={{ transform: `scaleX(${Math.max(stat.sharePercent, 4) / 100})` }}
                       />
                     </div>
                   </div>
@@ -305,8 +305,8 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
 
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle mb-2">
         <div
-          className="h-full rounded-full bg-status-error transition-all"
-          style={{ width: `${Math.max(stat.sharePercent, 4)}%` }}
+          className="h-full w-full rounded-full bg-status-error origin-right transition-transform duration-panels ease-out"
+          style={{ transform: `scaleX(${Math.max(stat.sharePercent, 4) / 100})` }}
         />
       </div>
 

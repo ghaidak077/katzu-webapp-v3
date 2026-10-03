@@ -59,7 +59,7 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => onToggleSave(word.id)}
-              className={`p-3 rounded-full border transition-all ${
+              className={`p-3 rounded-full border transition-colors ${
                 isSaved
                   ? 'bg-status-learning/20 border-status-learning/40 text-status-learning'
                   : 'bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary'

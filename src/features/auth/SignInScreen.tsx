@@ -353,7 +353,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
               setErrorMessage('');
               triggerHaptic('light');
             }}
-            className={`py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`min-h-touch py-2 rounded-xl text-xs font-bold transition-colors duration-fast ease-out ${
               mode === 'signin'
                 ? 'bg-fill text-on-fill shadow-glow-purple'
                 : 'text-text-secondary hover:text-text-primary'
@@ -369,7 +369,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
               setErrorMessage('');
               triggerHaptic('light');
             }}
-            className={`py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`min-h-touch py-2 rounded-xl text-xs font-bold transition-colors duration-fast ease-out ${
               mode === 'signup'
                 ? 'bg-fill text-on-fill shadow-glow-purple'
                 : 'text-text-secondary hover:text-text-primary'
@@ -425,7 +425,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
                   setSelectedLevel(lvl);
                   triggerHaptic('light');
                 }}
-                className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                className={`min-h-touch min-w-touch py-2 rounded-xl text-xs font-bold border transition-colors duration-fast ease-out ${
                   selectedLevel === lvl
                     ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
                     : 'bg-surface-card border-border-subtle text-text-secondary hover:text-text-primary'

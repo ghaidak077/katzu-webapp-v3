@@ -28,6 +28,8 @@ import { workerClient } from '@/lib/api/workerClient';
 import { clearMemoryPatterns, deleteMemoryPattern, listMemoryPatterns, rebuildMemoryPatterns } from '@/lib/memory/patterns';
 import { ARRIVAL_COPY, GOAL_COPY, TARGET_DATE_COPY, describeLearnerLevel } from '@/lib/onboarding/preferences';
 import { isAnalyticsOptedOut, setAnalyticsOptOut } from '@/lib/analytics/client';
+import { arCount } from '@/lib/i18n/arabicCount';
+import { LOG_ENTRY_NOM } from '@/lib/i18n/countForms';
 import {
   clearDiagnostics,
   copyDiagnostics,
@@ -356,7 +358,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             سجل الأخطاء التشخيصي
           </label>
           <span className="text-micro font-arabic text-text-muted">
-            {showDiagnostics ? 'إخفاء' : `${logCount} سجل`} ‹
+            {showDiagnostics ? 'إخفاء' : arCount(logCount, LOG_ENTRY_NOM)} ‹
           </span>
         </button>
         <p className="text-micro text-text-muted">
@@ -368,20 +370,21 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             <textarea
               readOnly
               dir="ltr"
+              aria-label="بيانات التشخيص"
               value={diagnosticsText}
               className="w-full h-40 bg-black border border-border-subtle rounded-xl p-2 text-micro font-mono text-text-secondary resize-none"
             />
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={handleCopyDiagnostics}
-                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-all flex items-center justify-center gap-1"
+                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center gap-1"
               >
                 {diagnosticsCopied ? <Check className="w-3.5 h-3.5 text-status-success" /> : <Copy className="w-3.5 h-3.5" />}
                 {diagnosticsCopied ? 'تم النسخ' : 'نسخ'}
               </button>
               <button
                 onClick={handleDownloadDiagnostics}
-                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-all flex items-center justify-center gap-1"
+                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center gap-1"
               >
                 <Download className="w-3.5 h-3.5" />
                 تنزيل
@@ -391,7 +394,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
                   clearDiagnostics();
                   setDiagnosticsText(formatDiagnosticsText());
                 }}
-                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-status-error/40 text-status-error hover:bg-status-error/10 transition-all flex items-center justify-center gap-1"
+                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-status-error/40 text-status-error hover:bg-status-error/10 transition-colors flex items-center justify-center gap-1"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 مسح
@@ -413,7 +416,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => handleUpdateSpeed(1.0)}
-            className={`py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+            className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
               (user?.speechSpeed || 1.0) === 1.0
                 ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
                 : 'bg-surface-subtle border-border-subtle text-text-secondary'
@@ -423,7 +426,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </button>
           <button
             onClick={() => handleUpdateSpeed(0.8)}
-            className={`py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+            className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
               user?.speechSpeed === 0.8
                 ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
                 : 'bg-surface-subtle border-border-subtle text-text-secondary'
@@ -453,7 +456,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             <button
               key={item.value}
               onClick={() => handleUpdateSarcasm(item.value as SarcasmLevel)}
-              className={`py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+              className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
                 (user?.sarcasmLevel || 'SASSY') === item.value
                   ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
                   : 'bg-surface-subtle border-border-subtle text-text-secondary'
@@ -481,7 +484,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             <button
               key={level}
               onClick={() => handleUpdateLevel(level)}
-              className={`py-2.5 rounded-xl text-xs font-german font-bold border transition-all ${
+              className={`py-2.5 rounded-xl text-xs font-german font-bold border transition-colors ${
                 (user?.cefrLevel || 'A1') === level
                   ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
                   : 'bg-surface-subtle border-border-subtle text-text-secondary'
@@ -566,7 +569,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             <button
               key={option}
               onClick={() => handleUpdateProfession(option)}
-              className={`py-2.5 rounded-xl text-xs font-arabic font-bold border transition-all ${
+              className={`py-2.5 rounded-xl text-xs font-arabic font-bold border transition-colors ${
                 user?.profession === option
                   ? 'bg-primary/20 border-primary text-primary'
                   : 'bg-surface-subtle border-border-subtle text-text-secondary'
@@ -641,7 +644,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         <button
           onClick={handleExportData}
           disabled={exporting}
-          className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all bg-surface-subtle border-border-subtle text-primary hover:bg-primary/10 disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-2.5 rounded-xl text-xs font-bold border transition-colors bg-surface-subtle border-border-subtle text-primary hover:bg-primary/10 disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <Download className="w-4 h-4" />
           {exporting ? 'جاري التحضير…' : exportDone ? 'تم تنزيل الملف ✓' : 'تنزيل نسخة بياناتي'}
@@ -660,7 +663,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         {!showDeleteConfirm ? (
           <button
             onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(''); setDeleteStatus('idle'); setDeleteError(''); }}
-            className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all bg-status-error/10 border-status-error/40 text-status-error hover:bg-status-error/20"
+            className="w-full py-2.5 rounded-xl text-xs font-bold border transition-colors bg-status-error/10 border-status-error/40 text-status-error hover:bg-status-error/20"
           >
             أريد حذف حسابي
           </button>
@@ -675,6 +678,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             </p>
             <input
               type="text"
+              aria-label="اكتب حذف للتأكيد النهائي"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
               className="w-full h-11 bg-black border border-border-subtle focus:border-status-error rounded-xl px-4 text-sm font-arabic"
@@ -710,6 +714,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         <form onSubmit={handleSaveName} className="space-y-4 py-2">
           <input
             type="text"
+            aria-label="اسمك الأول"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             className="w-full h-12 bg-surface-card border border-border-subtle focus:border-primary rounded-xl px-4 text-sm font-arabic"

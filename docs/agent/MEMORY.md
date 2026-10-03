@@ -14,7 +14,7 @@ file is the digest that is short enough to always read.
 - **Update in the same commit** as the change it describes. If a durable fact changes (URL,
   id, quota, level range), fix the row here immediately.
 
-*Last consolidated: 2026-10-02 (V28).*
+*Last consolidated: 2026-10-04 (V30).*
 
 ---
 
@@ -30,7 +30,7 @@ file is the digest that is short enough to always read.
 | Reporter trap | Vitest = `dot`/default; **`--reporter=line` is Playwright-only and errors in Vitest** |
 | Search | `rg` is NOT installed → `grep -rn` / `git grep -n` |
 | App / worker / sales | `katzu-webapp-v3.pages.dev` · `katzu-test.ghaidakalosh008.workers.dev` · `katzu-sales.pages.dev` |
-| AI free quota | `MAX_FREE_AI_SESSIONS = 3` (`cloudflare-unified-worker.js`) |
+| AI free quota | `MAX_FREE_AI_SESSIONS = 3` (`cloudflare-unified-worker.js`). Session-quota-exempt AI routes still need their OWN daily scope or they are an uncapped bill: `/ai/ask` = 8 free / 60 Pro, **`/ai/hints` = 30 free / 120 Pro** (`hintsQuotaFor`, `cloudflare-hints.js`), all via `checkGlobalRateLimit({ scope })`. |
 | Levels | A0–B2 (`src/lib/levels/levelSpec.ts`) |
 | Sign-in | Google-only |
 | Payments | NOWPayments **test mode**, `ready:false` |
@@ -80,6 +80,11 @@ file is the digest that is short enough to always read.
 | 17 | A "large unused bundle" item kept directing work for versions | A **stale metric** nobody re-measured (measured 0% unused when finally probed) | Re-measure a performance claim before acting; record metrics with their measurement date. |
 | 18 | Review showed questions with no clear answer | Items were built from a field that is not a question (`grammarRule` as the prompt) and nothing validated them before display | Validate every generated item before it is shown; suppress (never delete) the ones that fail. |
 | 19 | The chat felt illogical (a hint that ignored the question, a no-op correction, an obstacle on turn 1) | Each output shape was checked for presence, never for whether it answered the turn | Validate the AI's own output against the turn (does the hint answer the question, does the correction change anything); gate behaviours, don't cycle them blindly. |
+| 20 | A whole feature "felt like a different product" while every check stayed green | Five palette values sat **50° off the brand hue** in OKLCH; valid tokens, wrong hue. No audit could see it, because validity ≠ belonging | Assert **hue**, not just contrast and token-name: a brand-token test that fails if a shipped colour lands in a foreign band. |
+| 21 | The app's motion felt arbitrary, then slower after "fixing" it | The declared motion ladder had **zero readers**, so every transition silently used Tailwind's undeclared 150ms default | A token with no reader is not a token. Assert each scale variable is referenced by the config that is supposed to consume it. |
+| 22 | A transition class was present but never fired | The element did not exist on the frame before it became visible (`if (!isOpen) return null`), so there was no second state to interpolate from | An entrance needs two rendered states: mount hidden, settle on the next frame. `transition-opacity` on a never-mounted element is dead code. |
+| 23 | The global focus ring measured `outline: 2px solid rgba(0,0,0,0)` | `outline-none` is a **utilities-layer** rule and `:focus-visible` lives in `@layer base` — the layer order wins regardless of specificity | A utility that deletes a base-layer treatment needs an audit rule. Verify focus by pressing Tab, never by reading a class list. |
+| 24 | A "quota-exempt" AI route turned out to be an uncapped bill | Exempting a route from the session counter left it with **only** the global per-day ceiling | Every session-quota-exempt AI route gets its own `checkGlobalRateLimit({ scope })` with a free/Pro ceiling, and answers the limit as a **usable empty result**, not an error. |
 
 ---
 

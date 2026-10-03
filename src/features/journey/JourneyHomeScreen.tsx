@@ -24,6 +24,11 @@ import { ProgressStrip } from '@/components/v2/ProgressStrip';
 import { StatusIndicator } from '@/components/v2/StatusIndicator';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
 import { useOnlineStatus } from '@/lib/utils/onlineStatus';
+import { arCount, arNoun } from '@/lib/i18n/arabicCount';
+
+/** V31: counts that reach a learner's eye agree with their noun. See `arabicCount`. */
+const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
+const MINUTE_FORMS = { one: 'دقيقة', two: 'دقيقتان', few: 'دقائق', many: 'دقيقة' } as const;
 import { ArrowLeft, Brain, RefreshCw, Sparkles } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
 
@@ -325,7 +330,9 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
               </>
             ) : (
               <p className="kz-ar-title text-kz-ink">
-                {mission.kind === 'review' ? `مراجعة اليوم — ${dueCount} عنصر` : 'مهمتك اليومية قيد التجهيز'}
+                {mission.kind === 'review'
+                  ? `مراجعة اليوم — ${arCount(dueCount, REVIEW_ITEM_FORMS)}`
+                  : 'مهمتك اليومية قيد التجهيز'}
               </p>
             )}
 
@@ -333,7 +340,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             <p className="kz-ar-micro mt-2 text-kz-inkFaint">
               {mission.kind === 'review'
                 ? 'المراجعة تعمل بدون اتصال'
-                : `وقت متوقع: ${totalMinutes} دقائق`}
+                : `وقت متوقع: ${arCount(totalMinutes, MINUTE_FORMS)}`}
             </p>
             {/* Said out loud rather than discovered mid-conversation: the episode
                 runs at a level the free tier serves, and that is why it is not
@@ -457,7 +464,7 @@ function missionTitleBadgeAr(kind: string, dueCount: number, scenarioId?: string
   if (scenarioId === INTRO_SCENARIO_ID) return 'لحظة الوصول · أول موقف في القصة';
   switch (kind) {
     case 'review':
-      return `مراجعة اليوم · ${dueCount}`;
+      return `مراجعة اليوم · ${arNoun(dueCount, REVIEW_ITEM_FORMS)}`;
     case 'continue':
       return 'أكمل مشهداً مفتوحاً';
     case 'weak_skill':

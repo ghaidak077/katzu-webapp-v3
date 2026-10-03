@@ -1,4 +1,5 @@
-import type { CapabilityState } from '@/types/models';
+import { arCount } from '@/lib/i18n/arabicCount';
+import { STREAK_DAY_NOM } from '@/lib/i18n/countForms';import type { CapabilityState } from '@/types/models';
 
 /**
  * The shareable progress card.
@@ -96,7 +97,7 @@ export function buildShareCard(input: ShareCardInput): ShareCard | null {
   if (typeof input.independentAccuracy === 'number' && Number.isFinite(input.independentAccuracy)) {
     lines.push(`أداء مستقل: ${Math.round(input.independentAccuracy)}٪`);
   }
-  if (hasStreak) lines.push(`${input.streakDays} أيام متتالية في كاتزو`);
+  if (hasStreak) lines.push(`${arCount(input.streakDays || 0, STREAK_DAY_NOM)} في كاتزو`);
 
   const name = sanitizeDisplayName(input.displayName);
   const headlineAr = hasCapability ? `اليوم في كاتزو` : `تقدّمي في كاتزو`;

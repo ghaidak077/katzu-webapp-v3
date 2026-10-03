@@ -26,7 +26,8 @@ import {
   Target,
   PenLine,
 } from 'lucide-react';
-import type { VocabularyEntity, GrammarEntity, MistakeEntity } from '@/types/models';
+import { arCount } from '@/lib/i18n/arabicCount';
+import { CORRECTION_NOM } from '@/lib/i18n/countForms';import type { VocabularyEntity, GrammarEntity, MistakeEntity } from '@/types/models';
 
 export interface PracticeScreenProps {
   onOpenListening?: () => void;
@@ -157,7 +158,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           triggerHaptic('light');
           onOpenCoach?.();
         }}
-        className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex items-center gap-3 text-start transition-all"
+        className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex items-center gap-3 text-start transition-colors"
       >
         <div className="w-10 h-10 shrink-0 rounded-full bg-status-error/20 text-status-error flex items-center justify-center">
           <Target className="w-5 h-5" />
@@ -166,7 +167,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           <span className="text-sm font-bold font-arabic block">ملف أخطائك</span>
           <span className="text-micro text-text-secondary font-arabic">
             {mistakes.length > 0
-              ? `اعرف نمط أخطائك في ${mistakes.length} تصحيحاً سابقاً، وتدرّب على الأكثر تكراراً`
+              ? `اعرف نمط أخطائك في ${arCount(mistakes.length, CORRECTION_NOM)} سابقة، وتدرّب على الأكثر تكراراً`
               : 'ابدأ بالحديث وسأجمع أخطاءك هنا وأخبرك بما يتكرر'}
           </span>
         </div>
@@ -183,7 +184,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             triggerHaptic('light');
             onOpenAsk();
           }}
-          className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex items-center gap-3 text-start transition-all"
+          className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex items-center gap-3 text-start transition-colors"
         >
           <div className="w-10 h-10 shrink-0 rounded-full bg-primary/20 text-primary flex items-center justify-center">
             <HelpCircle className="w-5 h-5" />
@@ -206,7 +207,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             setIsFlipped(false);
             setShowFlashcards(true);
           }}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
             <Sparkles className="w-4 h-4" />
@@ -216,7 +217,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
         <button
           onClick={() => setShowGrammarModal(true)}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
             <BookOpen className="w-4 h-4" />
@@ -226,7 +227,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
         <button
           onClick={() => setShowMistakesModal(true)}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-status-error/20 text-status-error flex items-center justify-center">
             <AlertCircle className="w-4 h-4" />
@@ -236,7 +237,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
         <button
           onClick={onOpenListening}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
             <Headphones className="w-4 h-4" />
@@ -247,7 +248,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         {onOpenWriting && (
           <button
             onClick={onOpenWriting}
-            className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-all"
+            className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
               <PenLine className="w-4 h-4" />
@@ -263,6 +264,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           <Search className="w-4 h-4 text-text-muted absolute start-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
+            aria-label="ابحث عن كلمة ألمانية أو معناها بالعربية"
             placeholder="ابحث عن كلمة ألمانية أو معناها بالعربية..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -273,7 +275,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         <div className="flex gap-2">
           <button
             onClick={() => setSelectedCategory('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
               selectedCategory === 'ALL'
                 ? 'bg-fill text-on-fill shadow-glow-purple'
                 : 'bg-surface-card text-text-secondary border border-border-subtle'
@@ -283,7 +285,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           </button>
           <button
             onClick={() => setSelectedCategory('SAVED')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
               selectedCategory === 'SAVED'
                 ? 'bg-status-learning text-black font-bold'
                 : 'bg-surface-card text-text-secondary border border-border-subtle'
@@ -380,7 +382,12 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           <div className="space-y-6 py-2">
             <div
               onClick={() => setIsFlipped(!isFlipped)}
-              className="h-60 rounded-3xl bg-surface-hero border border-primary/40 shadow-glow-purple p-6 flex flex-col items-center justify-center text-center cursor-pointer select-none transition-all transform hover:scale-[1.02]"
+              // `scale-[1.01]` on a 240px card is 1.2px of growth: perceptible, not
+              // distracting. 1.02 was 4.8px, which reads as a misfire on the frame
+              // before the tap lands. Tailwind 3.4 already gates `hover:` behind
+              // `(hover: hover)`, so no pointer media query is needed, and
+              // `motion-reduce` removes the movement while keeping the response.
+              className="h-60 rounded-3xl bg-surface-hero border border-primary/40 shadow-glow-purple p-6 flex flex-col items-center justify-center text-center cursor-pointer select-none transition-transform duration-fast ease-out hover:scale-[1.01] motion-reduce:transform-none"
             >
               {!isFlipped ? (
                 <>
@@ -503,7 +510,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
               return (
                 <div
                   key={m.id}
-                  className={`p-3.5 rounded-2xl border transition-all space-y-2 ${
+                  className={`p-3.5 rounded-2xl border transition-colors space-y-2 ${
                     isMastered
                       ? 'bg-status-success/15 border-status-success/40'
                       : 'bg-surface-card border-border-subtle'
@@ -544,6 +551,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                       <input
                         type="text"
                         dir="ltr"
+                        aria-label="أعد كتابة الكلمة للتثبيت"
                         placeholder="أعد كتابة الصواب للتثبيت..."
                         value={retypedMistakes[mId] || ''}
                         onChange={(e) =>

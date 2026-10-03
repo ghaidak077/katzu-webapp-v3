@@ -266,7 +266,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
                       triggerHaptic('light');
                       dispatch({ type: 'answer_quiz', chosenIndex: index });
                     }}
-                    className={`w-full text-start rounded-2xl border p-3.5 text-sm font-arabic transition-all min-h-[44px] ${
+                    className={`w-full text-start rounded-2xl border p-3.5 text-sm font-arabic transition-colors min-h-[44px] ${
                       reveal && isCorrect
                         ? 'bg-status-success/15 border-status-success/50 text-status-success'
                         : isChosen
@@ -318,7 +318,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 placeholder={voice.isRecording ? 'أنا أستمع إليك…' : 'اكتب بالألمانية...'}
-                className="flex-1 h-12 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl px-4 text-sm font-german transition-all"
+                className="flex-1 h-12 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl px-4 text-sm font-german transition-colors"
                 aria-label="جملتك بالألمانية"
               />
               {voice.isSupported && (
@@ -338,7 +338,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
                     });
                   }}
                   aria-label={voice.isRecording ? 'إيقاف الإدخال الصوتي' : 'ابدأ الإدخال الصوتي'}
-                  className={`p-3.5 rounded-2xl border transition-all min-h-[44px] min-w-[44px] ${
+                  className={`p-3.5 rounded-2xl border transition-colors min-h-[44px] min-w-[44px] ${
                     voice.isRecording
                       ? 'bg-status-error border-status-error text-on-danger animate-pulse'
                       : 'bg-surface-card border-border-subtle text-primary'

@@ -1,4 +1,6 @@
 import type { SessionDebrief } from '@/lib/debrief/debrief';
+import { arCount } from '@/lib/i18n/arabicCount';
+import { SENTENCE_NOM } from '@/lib/i18n/countForms';
 
 /**
  * The mock-exam result card (V24 Phase 5) — deterministic, Arabic, honest.
@@ -46,7 +48,7 @@ export function buildExamCard(input: ExamCardInput): ExamCard {
   // how much of what the learner said came without a hint.
   const fluencyAr: string[] = [];
   if (sentencesSpoken > 0) {
-    fluencyAr.push(`أنتجت ${sentencesSpoken} ${sentencesSpoken === 1 ? 'جملة' : 'جُمل'} في المحاكاة.`);
+    fluencyAr.push(`أنتجت ${arCount(sentencesSpoken, SENTENCE_NOM)} في المحاكاة.`);
     if (independentSentences > 0) {
       fluencyAr.push(`${independentSentences} منها بلا تلميح — هذه نسبة الاستقلال الحقيقية.`);
     } else {

@@ -136,18 +136,50 @@ export function useSpecularHighlight<T extends HTMLElement = HTMLDivElement>() {
     const baseY = -0.18;
     setVars(baseX, baseY);
 
+    // Reading `getBoundingClientRect()` inside a scroll handler forces
+    // synchronous layout on every scroll event, at 60-120Hz, on the screen
+    // learners scroll most. `{ passive: true }` only means "don't call
+    // preventDefault" — it does not throttle. So: measure the element's
+    // position in the page once, then derive the viewport position from
+    // `scrollY` alone, and do the work at most once per frame.
+    //
+    // An element's position in the page is invariant unless something other
+    // than scrolling moves it. If content above it resizes, the highlight
+    // drifts until the next reflow is observed — the correct follow-up there
+    // is a ResizeObserver, not a return to measuring every frame.
+    const rectTopInPage = node.getBoundingClientRect().top + window.scrollY;
+    let lastPageY = window.scrollY;
+    let ticking = false;
+    let rafId = 0;
+
     const onScroll = () => {
-      const rect = node.getBoundingClientRect();
-      const viewport = window.innerHeight || 1;
-      // 0 at the bottom of the viewport, 1 at the top: the highlight drifts as
-      // the surface travels, which is what makes it feel lit rather than drawn.
-      const progress = Math.min(1, Math.max(0, 1 - rect.top / viewport));
-      setVars(baseX + progress * 0.34, baseY + progress * 0.3);
+      if (ticking) return;
+      ticking = true;
+      rafId = requestAnimationFrame(() => {
+        ticking = false;
+        const pageY = window.scrollY;
+        // Scroll events also fire for horizontal-only scrolls and layout
+        // shifts; skipping those is free correctness.
+        if (pageY === lastPageY) return;
+        lastPageY = pageY;
+
+        const viewport = window.innerHeight || 1;
+        // 0 at the bottom of the viewport, 1 at the top: the highlight drifts
+        // as the surface travels, which is what makes it feel lit rather than
+        // drawn. The math is unchanged from the per-frame version.
+        const rectTop = rectTopInPage - pageY;
+        const progress = Math.min(1, Math.max(0, 1 - rectTop / viewport));
+        setVars(baseX + progress * 0.34, baseY + progress * 0.3);
+      });
     };
 
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      // Otherwise a queued frame would call setVars on an unmounted node.
+      if (ticking) cancelAnimationFrame(rafId);
+    };
   }, [setVars]);
 
   return { ref, onPointerMove };

@@ -16,6 +16,10 @@ import { countDue } from '@/lib/srs/engine';
 import { buildGrammarEntries, buildVocabularyEntries } from '@/lib/progress/collections';
 import { buildShareCard, buildShareText, isShareTextSafe } from '@/lib/share/card';
 import { publicAppUrl } from '@/lib/utils/links';
+import { arCount } from '@/lib/i18n/arabicCount';
+
+/** V31: "راجع 3 عناصر الآن" — the count agrees with the noun, in every range. */
+const REVIEW_ITEM_FORMS = { one: 'عنصراً', two: 'عنصرين', few: 'عناصر', many: 'عنصراً' } as const;
 import type { SessionEntity } from '@/types/models';
 
 const WEEKDAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -502,7 +506,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
               return (
                 <div key={dateKey} className="flex flex-col items-center gap-1.5">
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl text-micro font-bold transition-all ${
+                    className={`flex h-8 w-8 items-center justify-center rounded-xl text-micro font-bold transition-colors ${
                       hasActivity
                         ? 'bg-kz-lavender/20 text-kz-lavender shadow-kz-lavender'
                         : 'border border-white/[0.06] text-kz-inkFaint'
@@ -541,7 +545,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
       {dueCount > 0 && onOpenReview && (
         <FloatingControl className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md rounded-t-[26px] border-t border-white/[0.06] p-4 pb-6">
           <PrimaryAction hintAr="المراجعة هي ما يثبّت كل ما تراه في هذه الصفحة." onClick={onOpenReview}>
-            راجع {dueCount} عنصراً الآن
+            راجع {arCount(dueCount, REVIEW_ITEM_FORMS)} الآن
           </PrimaryAction>
         </FloatingControl>
       )}

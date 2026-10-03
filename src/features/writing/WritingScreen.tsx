@@ -14,6 +14,7 @@ import { isProEffective } from '@/lib/utils/subscription';
 import { buildWordBankFrom } from '@/lib/utils/wordBank';
 import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
 import { servedLevel } from '@/lib/entitlement/trial';
+import { isEntitlementWall } from '@/lib/entitlement/codes';
 import { track } from '@/lib/analytics/client';
 import { ArrowLeft, CheckCircle2, PenLine, Sparkles, Volume2, XCircle } from 'lucide-react';
 import { KatzuThinking } from '@/components/effects/KatzuThinking';
@@ -36,7 +37,10 @@ const DIMENSION_LABELS: Record<string, string> = {
   vocabulary: 'المفردات',
 };
 
-const PAYWALL_CODES = new Set(['PAYWALL_REQUIRED', 'FREE_QUOTA_EXHAUSTED', 'QUOTA_UNAVAILABLE']);
+// V31: the shared entitlement set, so this screen and the conversation agree.
+// `QUOTA_UNAVAILABLE` deliberately is NOT in it — a ledger the Worker could not
+// read is a glitch, and showing a paywall for it would charge the learner's
+// trust for the server's bad morning.
 
 /** Honest verdict wording: the score is a rubric total, not a certificate. */
 function verdictAr(percent: number): string {
@@ -126,7 +130,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
       // The learner's text is untouched on every failure path: an AI hiccup must
       // never cost someone a paragraph they just wrote.
       setError(result.error);
-      setPaywall(PAYWALL_CODES.has(result.code));
+      setPaywall(isEntitlementWall(result.code));
       triggerHaptic('error');
       setIsSubmitting(false);
       return;
@@ -211,8 +215,8 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
                   <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${Math.round(((score || 0) / feedback.maxScore) * 100)}%` }}
+                    className="h-full w-full rounded-full bg-primary origin-right transition-transform duration-panels ease-out"
+                    style={{ transform: `scaleX(${Math.round(((score || 0) / feedback.maxScore) * 100) / 100})` }}
                   />
                 </div>
               </div>
@@ -364,7 +368,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
             maxLength={MAX_CHARS}
             aria-label="اكتب ما تريد قوله بالألمانية"
             placeholder="Schreibe hier auf Deutsch…"
-            className="w-full resize-y bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl p-3 text-sm font-german leading-relaxed transition-all"
+            className="w-full resize-y bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl p-3 text-sm font-german leading-relaxed transition-colors"
           />
           <div className="flex items-center justify-between mt-2">
             <span className={`text-micro font-german ${trimmedLength >= MIN_CHARS ? 'text-text-muted' : 'text-status-learning'}`}>

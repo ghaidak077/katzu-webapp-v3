@@ -117,7 +117,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
       <div className="flex bg-surface-card border border-border-subtle rounded-2xl p-1 mb-6">
         <button
           onClick={() => setActiveTab('phrases')}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-colors ${
             activeTab === 'phrases' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
           }`}
         >
@@ -125,7 +125,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
         </button>
         <button
           onClick={() => setActiveTab('vocab')}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-colors ${
             activeTab === 'vocab' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
           }`}
         >
@@ -133,7 +133,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
         </button>
         <button
           onClick={() => setActiveTab('grammar')}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-colors ${
             activeTab === 'grammar' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
           }`}
         >

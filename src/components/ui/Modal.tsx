@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { GlassSurface } from '@/components/glass/GlassSurface';
@@ -29,6 +29,19 @@ export const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen]);
 
+  // Same reason as BottomSheet: one rendered state cannot animate. A modal is
+  // centred, so it fades and grows rather than sliding — and it grows from 95%,
+  // never from 0, because nothing in the real world appears from nothing.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    if (!isOpen) {
+      setMounted(false);
+      return;
+    }
+    const frame = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   // V20: the scrim's blur honours the renderer tier — on a reduced device the
@@ -36,7 +49,10 @@ export const Modal: React.FC<ModalProps> = ({
   // expensive backdrop on the screen, and it sits BEHIND content the learner
   // is reading). `.kz-scrim` drops its blur under .kz-lite.
   return (
-    <div className="kz-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
+    <div
+      data-mounted={mounted || undefined}
+      className="kz-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-fast ease-out data-[mounted]:opacity-100 opacity-0"
+    >
       <div
         className="fixed inset-0"
         onClick={onClose}
@@ -46,6 +62,8 @@ export const Modal: React.FC<ModalProps> = ({
         tier="floating"
         className={cn(
           'relative w-full max-w-lg rounded-3xl p-6 z-10 max-h-[90vh] overflow-y-auto text-text-primary',
+          'transition-[opacity,transform] duration-panels ease-spring',
+          mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-95',
           className
         )}
       >
@@ -55,9 +73,10 @@ export const Modal: React.FC<ModalProps> = ({
           ) : <div />}
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-surface-subtle text-text-secondary hover:text-text-primary transition-colors"
+            aria-label="إغلاق"
+            className="p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-full hover:bg-surface-subtle text-text-secondary hover:text-text-primary transition-colors duration-fast ease-out"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
         {children}

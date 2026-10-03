@@ -1,6 +1,7 @@
 import type { ArrivalStatus, CEFRLevel, LearnerGoal } from '@/types/models';
 import { INTRO_SCENARIO_ID, type DailyMissionPlan, type MissionScenario } from '@/lib/mission/selectMission';
-import { goalMatchScore } from '@/lib/onboarding/preferences';
+import { arCount } from '@/lib/i18n/arabicCount';
+import { REVIEW_ITEM_NOM } from '@/lib/i18n/countForms';import { goalMatchScore } from '@/lib/onboarding/preferences';
 
 /**
  * Journey Home's context: where the learner is, and why today's mission is
@@ -195,7 +196,7 @@ export function missionReasonAr(
       const count = plan.dueCount || 0;
       return count === 1
         ? 'عنصر واحد على وشك أن يُنسى — تثبيته الآن يوفّر عليك إعادة تعلّمه.'
-        : `${count} عناصر على وشك أن تُنسى — تثبيتها الآن أرخص من إعادة تعلّمها.`;
+        : `${arCount(count, REVIEW_ITEM_NOM)} على وشك أن تُنسى — تثبيتها الآن أرخص من إعادة تعلّمها.`;
     }
     case 'continue':
       return 'بدأت هذا المشهد ولم تُكمله — إكماله اليوم هو ما يثبّت ما تعلّمته فيه.';

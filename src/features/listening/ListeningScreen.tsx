@@ -207,7 +207,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
       </div>
 
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle mb-5">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
+        <div className="h-full w-full rounded-full bg-primary origin-right transition-transform duration-panels ease-out" style={{ transform: `scaleX(${progressPercent / 100})` }} />
       </div>
 
       {!audioAvailable && (
@@ -224,7 +224,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                 <button
                   type="button"
                   onClick={() => speak(current.german)}
-                  className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mx-auto transition-all"
+                  className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mx-auto transition-colors"
                   aria-label="تشغيل الجملة"
                 >
                   <Volume2 className="w-8 h-8" />
@@ -302,7 +302,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                 onChange={(e) => setTyped(e.target.value)}
                 placeholder="اكتب ما سمعته بالألمانية..."
                 aria-label="ما سمعته بالألمانية"
-                className="w-full h-12 bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl px-4 text-base font-german transition-all"
+                className="w-full h-12 bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl px-4 text-base font-german transition-colors"
               />
               <Button type="submit" className="w-full" disabled={!typed.trim()}>
                 تحقّق

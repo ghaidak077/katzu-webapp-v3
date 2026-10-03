@@ -75,6 +75,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     isHintExpanded,
     setIsHintExpanded,
     isRefreshingHints,
+    hintQuotaSpent,
     turnError,
     micError,
     isSessionCompleted,
@@ -246,6 +247,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         isHintRevealed={isHintRevealed}
         isHintExpanded={isHintExpanded}
         isRefreshingHints={isRefreshingHints}
+        hintQuotaSpent={hintQuotaSpent}
         micError={micError}
         orbState={orbState}
         orbTone={orbTone}

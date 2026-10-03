@@ -14,6 +14,7 @@ import { suppressInvalidReviewItems } from '@/lib/srs/store';
 import { applyRendererTier, useRendererTier } from '@/lib/design/rendererTier';
 import { workerClient } from '@/lib/api/workerClient';
 import { needsOnboarding } from '@/lib/onboarding/preferences';
+import { latestRecoverableSession, summaryFromSession, type RecoveredSummary } from '@/features/report/recover';
 import { isDevBuild } from '@/lib/utils/env';
 import { DAILY_MINUTE_CHOICES, type DailyMinuteChoice } from '@/types/models';
 
@@ -111,8 +112,9 @@ const DesignSystemScreen = isDevBuild
   : null;
 
 // Navigation & Icons
-import { Map, Dumbbell, BarChart3, User } from 'lucide-react';
+import { Map, Dumbbell, BarChart3, User, ClipboardList, ArrowLeft } from 'lucide-react';
 import { GlassEffectContainer } from '@/components/glass/GlassEffectContainer';
+import { GlassButton } from '@/components/glass/GlassButton';
 
 type NavigationTab = 'Trail' | 'Practice' | 'Progress' | 'Profile';
 
@@ -656,24 +658,99 @@ function LiveRoute({ onComplete }: { onComplete: (summary: any) => void }) {
   return <LiveConversationScreen scenarioId={scenarioId} vocabularyContext={vocabularyContext} grammarId={grammarId} onBack={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}`)} onOpenSubscription={() => navigate('/subscription')} onCompleteSession={onComplete} />;
 }
 
+/**
+ * The debrief, or an honest absence of one.
+ *
+ * V31: this used to `<Navigate to="/app/trail" replace />` the moment the
+ * in-memory summary was gone, which is what a refresh, a discarded PWA tab or a
+ * window closed inside the 3.2 s gap between the last turn and the navigation
+ * all looked like. The reward simply disappeared. Now the summary is rebuilt
+ * from the `sessions` and `mistakes` rows the app already owns, and if there is
+ * genuinely nothing to rebuild the learner is TOLD that — with a way forward —
+ * rather than dropped on the home screen wondering what they did wrong.
+ */
 function ReportRoute({ summary, onLoadSummary }: { summary: any; onLoadSummary: (summary: any) => void }) {
   const navigate = useNavigate();
+  const [recovered, setRecovered] = useState<RecoveredSummary | null>(null);
+  const [looked, setLooked] = useState(Boolean(summary));
+
   useEffect(() => {
-    if (!summary) {
-      try {
-        const stored = sessionStorage.getItem('katzu_session_summary');
-        if (stored) onLoadSummary(JSON.parse(stored));
-      } catch {}
+    if (summary) return;
+    let cancelled = false;
+    try {
+      const stored = sessionStorage.getItem('katzu_session_summary');
+      if (stored) {
+        onLoadSummary(JSON.parse(stored));
+        return;
+      }
+    } catch {
+      /* a corrupt copy is not worth a crash — fall through to the rebuild */
     }
+    void (async () => {
+      try {
+        const [sessions, mistakes] = await Promise.all([db.sessions.toArray(), db.mistakes.toArray()]);
+        if (cancelled) return;
+        const latest = latestRecoverableSession(sessions);
+        const rebuilt = latest ? summaryFromSession(latest, mistakes, sessions) : null;
+        if (!cancelled) {
+          setRecovered(rebuilt);
+          setLooked(true);
+        }
+      } catch {
+        if (!cancelled) setLooked(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [summary, onLoadSummary]);
-  if (!summary) return <Navigate to="/app/trail" replace />;
+
+  if (summary) {
+    return (
+      <SessionReportScreen
+        summary={summary}
+        onReturnToTrail={() => navigate('/app/trail')}
+        onOpenReview={() => navigate('/app/review')}
+        onOpenSubscription={() => navigate('/subscription')}
+      />
+    );
+  }
+  if (recovered) {
+    return (
+      <SessionReportScreen
+        summary={recovered}
+        onReturnToTrail={() => navigate('/app/trail')}
+        onOpenReview={() => navigate('/app/review')}
+        onOpenSubscription={() => navigate('/subscription')}
+      />
+    );
+  }
+  if (!looked) return <RouteFallback />;
+  return <NoSavedReportScreen onReturnToTrail={() => navigate('/app/trail')} />;
+}
+
+/**
+ * Nothing to rebuild. Said plainly, with the one action that helps — the same
+ * rule every empty state in this app already follows: cause, then next step.
+ */
+function NoSavedReportScreen({ onReturnToTrail }: { onReturnToTrail: () => void }) {
   return (
-    <SessionReportScreen
-      summary={summary}
-      onReturnToTrail={() => navigate('/app/trail')}
-      onOpenReview={() => navigate('/app/review')}
-      onOpenSubscription={() => navigate('/subscription')}
-    />
+    <div className="min-h-screen bg-black text-kz-ink flex flex-col justify-center items-center gap-5 px-6 text-center font-arabic">
+      <div className="w-16 h-16 rounded-3xl bg-surface-card border border-border-subtle flex items-center justify-center">
+        <ClipboardList className="w-8 h-8 text-kz-lavender" aria-hidden />
+      </div>
+      <div className="space-y-2 max-w-sm">
+        <h1 className="text-xl font-bold">لا يوجد تقرير محفوظ</h1>
+        <p className="text-sm text-kz-inkFaint leading-relaxed">
+          لم نجد محادثة مكتملة محفوظة على هذا الجهاز — ربما أُغلقت الصفحة قبل حفظ التقرير.
+          المراجعة والأخطاء التي سجّلتها ما زالت هنا.
+        </p>
+      </div>
+      <GlassButton variant="primary" fullWidth onClick={onReturnToTrail} className="max-w-sm justify-center">
+        <span className="font-arabic">ابدأ مشهداً جديداً</span>
+        <ArrowLeft className="w-4 h-4" aria-hidden />
+      </GlassButton>
+    </div>
   );
 }
 

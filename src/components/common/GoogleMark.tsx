@@ -68,7 +68,7 @@ export const GoogleSignInButton: React.FC<{
     aria-busy={isLoading || undefined}
     className={
       'w-full min-h-control flex items-center justify-center gap-3 rounded-control bg-white text-black ' +
-      'font-bold shadow-md transition-colors hover:bg-neutral-200 ' +
+      'font-bold shadow-md transition-colors duration-fast ease-out hover:bg-neutral-200 ' +
       'disabled:opacity-60 disabled:pointer-events-none ' +
       (className ?? '')
     }

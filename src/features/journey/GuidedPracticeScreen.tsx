@@ -478,6 +478,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                 <input
                   type="text"
                   dir="ltr"
+                  aria-label="اكتب ما سمعته بالألمانية"
                   value={heardText}
                   onChange={(event) => setHeardText(event.target.value)}
                   onKeyDown={(event) => {
@@ -487,7 +488,6 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                     setRepeatMessage(result.messageAr);
                   }}
                   placeholder="اكتب ما سمعته…"
-                  aria-label="اكتب ما سمعته بالألمانية"
                   className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink transition-colors placeholder:font-arabic placeholder:text-micro placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                 />
 

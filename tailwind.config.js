@@ -179,6 +179,26 @@ export default {
       minHeight: { touch: '44px', control: '48px' },
       minWidth: { touch: '44px', control: '48px' },
 
+      /* ------------------------------------------------------------------ *
+       * Motion. The fifth scale, and the one that was missing: the app had
+       * a complete, deliberate motion ladder in src/index.css that nothing
+       * read, so every transition in Katzu silently fell back to Tailwind's
+       * undeclared 150ms default. Nobody chose 150ms; that is what you get
+       * when you write `transition-colors` and stop.
+       *
+       * These are readers, not copies — a value change in the token block
+       * moves every transition in the app.
+       * ------------------------------------------------------------------ */
+      transitionDuration: {
+        fast: 'var(--kz-dur-fast)',
+        DEFAULT: 'var(--kz-dur)',
+        panels: 'var(--kz-dur-panels)',
+      },
+      transitionTimingFunction: {
+        spring: 'var(--kz-ease-spring)',
+        out: 'var(--kz-ease-out)',
+      },
+
       boxShadow: {
         'glow-purple': '0 0 25px rgba(139, 111, 232, 0.25)',
         'glow-purple-lg': '0 0 40px rgba(139, 111, 232, 0.4)',

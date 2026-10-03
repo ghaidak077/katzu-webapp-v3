@@ -1,5 +1,10 @@
 import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from './taxonomy';
 import type { MistakeEntity, ReviewItemEntity, SessionEntity } from '@/types/models';
+import { arCount, arNoun } from '@/lib/i18n/arabicCount';
+
+/** V31: agreement for every count this file puts in front of a learner. */
+const MISTAKE_FORMS = { one: 'خطأ', two: 'خطآن', few: 'أخطاء', many: 'خطأً' } as const;
+const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصرين', few: 'عناصر', many: 'عنصراً' } as const;
 
 /**
  * The learner's error profile: which mistake classes recur, how often, and how
@@ -86,7 +91,7 @@ export function buildMistakeProfile(mistakes: MistakeEntity[]): MistakeProfile {
       categories,
       top,
       hasEnoughEvidence: false,
-      headlineAr: `${total} ${total === 1 ? 'خطأ مسجل' : 'أخطاء مسجلة'} حتى الآن`,
+      headlineAr: `${arCount(total, MISTAKE_FORMS)} مسجّل حتى الآن`,
       detailAr: 'تحدث أكثر قليلاً، وسأستطيع أن أخبرك بنمط أخطائك بدقة بدلاً من التخمين.',
     };
   }
@@ -101,8 +106,8 @@ export function buildMistakeProfile(mistakes: MistakeEntity[]): MistakeProfile {
     hasEnoughEvidence: true,
     headlineAr: `أكثر ما يتكرر عندك: ${leadCopy.labelAr}`,
     detailAr:
-      `من ${total} خطأً مسجلاً، ${lead.sharePercent}% منها في ${leadCopy.labelAr}` +
-      (mastered > 0 ? ` — وقد أتقنت ${mastered} منها بالفعل.` : '.'),
+      `من ${arCount(total, MISTAKE_FORMS)} مسجّلة، ${lead.sharePercent}% منها في ${leadCopy.labelAr}` +
+      (mastered > 0 ? ` — وقد أتقنت ${arNoun(mastered, MISTAKE_FORMS)} منها بالفعل.` : '.'),
   };
 }
 
@@ -322,7 +327,7 @@ export function buildWeeklyCoachSummary(
     : 'لا يوجد نمط يتكرر على أخطائك المفتوحة في هذه الفترة.';
 
   const nextAr = input.dueReviewCount && input.dueReviewCount > 0
-    ? `التالي: ${input.dueReviewCount} عنصراً مستحقاً في المراجعة اليوم.`
+    ? `التالي: ${arCount(input.dueReviewCount, REVIEW_ITEM_FORMS)} مستحق في المراجعة اليوم.`
     : repeatLead
       ? `التالي: تدرّب على ${CATEGORY_COPY[repeatLead.category].labelAr} — أثره في الأسبوع المقبل سيكون مرئياً.`
       : 'التالي: أكمل مشهداً جديداً — سنبني عليه بيانات الأسبوع القادم.';

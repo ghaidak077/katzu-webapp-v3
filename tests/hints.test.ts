@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { handleHintsRoute, selectDistinctHints, HINT_INTENTS, MAX_HINTS } from '../cloudflare-hints';
+import { handleHintsRoute, selectDistinctHints, hintsQuotaFor, HINT_INTENTS, MAX_HINTS } from '../cloudflare-hints';
 
 /**
  * Multi-move hints (Call C).
@@ -198,5 +198,89 @@ describe('handleHintsRoute', () => {
     const res = await handleHintsRoute(hintsRequest({ last_ai_reply: 'Hallo' }), {}, CORS, rejecting);
     expect(res.status).toBe(401);
     expect(d.callCount()).toBe(0);
+  });
+
+  /**
+   * Hints are quota-exempt from the trial SESSION counter on purpose — a learner
+   * mid-conversation must not lose the hint sheet. That exemption used to leave
+   * this route with no ceiling of its own, so asking for fresh hints repeatedly
+   * was an uncapped bill from a free account. These pin the ceiling and, just as
+   * importantly, pin that exceeding it costs the learner nothing: the client
+   * already falls back to starter phrases on an empty hint set.
+   */
+  describe('daily ceiling', () => {
+    const authed = (sub = 'acct-1') => ({
+      account: { sub },
+    });
+
+    it('caps a free account with its own scope and no model call', async () => {
+      const d = deps(MODEL_REPLY);
+      const capped = {
+        ...d.value,
+        authenticateAiRequest: async () => authed(),
+        checkUserEntitlement: async () => ({ allowed: true, isSubscribed: false }),
+        checkGlobalRateLimit: async () => ({ allowed: false, retryAfter: 3600 }),
+      };
+      const res = await handleHintsRoute(
+        hintsRequest({ last_ai_reply: 'Möchten Sie einen Kaffee?', cefr_level: 'A1' }),
+        {},
+        CORS,
+        capped
+      );
+      const body = await res.json();
+      // 200 on purpose: the UI shows starter phrases, which beats an error.
+      expect(res.status).toBe(200);
+      expect(body.hints).toEqual([]);
+      expect(body.code).toBe('HINTS_QUOTA_EXCEEDED');
+      expect(d.callCount()).toBe(0);
+    });
+
+    it('uses the hints scope so it cannot eat the ask or turn budget', async () => {
+      const d = deps(MODEL_REPLY);
+      const scopes: string[] = [];
+      const scoping = {
+        ...d.value,
+        authenticateAiRequest: async () => authed(),
+        checkUserEntitlement: async () => ({ allowed: true, isSubscribed: false }),
+        checkGlobalRateLimit: async (_sub: string, _env: unknown, scope?: { scope?: string }) => {
+          scopes.push(String(scope?.scope));
+          return { allowed: true };
+        },
+      };
+      await handleHintsRoute(hintsRequest({ last_ai_reply: 'Hallo', cefr_level: 'A1' }), {}, CORS, scoping);
+      expect(scopes).toContain('hints');
+    });
+
+    it('gives a Pro account a higher ceiling than a free one', () => {
+      const free = hintsQuotaFor({}, false);
+      const pro = hintsQuotaFor({}, true);
+      expect(pro.perDay).toBeGreaterThan(free.perDay);
+      expect(hintsQuotaFor({ HINTS_FREE_PER_DAY: '5' }, false).perDay).toBe(5);
+    });
+
+    it('still lets a free learner past the session quota', async () => {
+      // The whole point of quotaExempt: exhausting the three free sessions must
+      // not close the hint sheet. authenticateAiRequest owns that decision, so
+      // this asserts hints passes quotaExempt through rather than re-checking.
+      let seen: { quotaExempt?: boolean } = {};
+      const d = deps(MODEL_REPLY);
+      const spying = {
+        ...d.value,
+        authenticateAiRequest: async (
+          _req: Request,
+          _body: unknown,
+          _env: unknown,
+          _cors: unknown,
+          opts: { quotaExempt?: boolean }
+        ) => {
+          seen = opts;
+          return authed();
+        },
+        checkUserEntitlement: async () => ({ allowed: true, isSubscribed: false }),
+        checkGlobalRateLimit: async () => ({ allowed: true }),
+      };
+      await handleHintsRoute(hintsRequest({ last_ai_reply: 'Hallo', cefr_level: 'A1' }), {}, CORS, spying);
+      expect(seen.quotaExempt).toBe(true);
+    });
   });
 });

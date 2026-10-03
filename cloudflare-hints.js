@@ -39,6 +39,31 @@ export const HINT_INTENTS = [
 /** Explicit output ceiling (~90 tokens per option + JSON overhead). */
 export const MAX_OUTPUT_TOKENS = 400;
 
+/**
+ * Hints are quota-exempt from the trial SESSION counter on purpose — a learner
+ * mid-conversation must never lose the hint sheet because they spent their three
+ * free turns. But that exemption left this route with no ceiling of its own: the
+ * only limit was the global 200/day, so repeatedly asking for fresh hints was an
+ * uncapped AI bill from a free account. `/ai/ask` already solves this with its
+ * own scope, and hints now does the same. Free is deliberately generous: a real
+ * learner refreshes a handful of times per session.
+ */
+export const HINTS_QUOTA_DEFAULTS = { freePerDay: 30, proPerDay: 120, perMinute: 6 };
+
+/** The per-day ceiling that applies, read from worker config. */
+export function hintsQuotaFor(env = {}, isPro = false) {
+  const read = (key, fallback) => {
+    const n = parseInt(env?.[key], 10);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  };
+  return {
+    perMinute: read("HINTS_RATE_PER_MINUTE", HINTS_QUOTA_DEFAULTS.perMinute),
+    perDay: isPro
+      ? read("HINTS_PRO_PER_DAY", HINTS_QUOTA_DEFAULTS.proPerDay)
+      : read("HINTS_FREE_PER_DAY", HINTS_QUOTA_DEFAULTS.freePerDay),
+  };
+}
+
 const ARABIC_RE = /[\u0600-\u06FF]/;
 
 function normalizeGerman(value) {
@@ -120,6 +145,8 @@ function buildResponseSchema() {
 export async function handleHintsRoute(request, env, cors, deps) {
   const {
     authenticateAiRequest,
+    checkGlobalRateLimit,
+    checkUserEntitlement,
     boundedHistory,
     hasUsableProvider,
     readAiCache,
@@ -138,6 +165,39 @@ export async function handleHintsRoute(request, env, cors, deps) {
     requireEntitlement: true,
   });
   if (auth.response) return auth.response;
+
+  // Pro detection for the ceiling only — this never consumes the session quota.
+  const isPro =
+    typeof checkUserEntitlement === 'function'
+      ? (await checkUserEntitlement(auth.account, "A1", env, { skipQuota: true }))?.isSubscribed === true
+      : false;
+  const limits = hintsQuotaFor(env, isPro);
+
+  if (typeof checkGlobalRateLimit === 'function') {
+    const rate = await checkGlobalRateLimit(auth.account.sub, env, {
+      scope: "hints",
+      perMinute: limits.perMinute,
+      perDay: limits.perDay,
+    });
+    if (!rate.allowed) {
+      // 200, not 429: the client already treats a failed hints fetch as "use the
+      // starter phrases", so a learner mid-conversation keeps a usable sheet and
+      // never sees an error. A 429 would surface as a failure the UI has to
+      // special-case, and the starter phrases are a better answer than a message.
+      return json(
+        {
+          hints: [],
+          code: "HINTS_QUOTA_EXCEEDED",
+          retry_after: rate.retryAfter,
+          daily_limit: limits.perDay,
+          is_pro: isPro,
+          message: "استخدمت حدّ الاقتراحات اليوم. يمكنك متابعة المحادثة بالعبارات الجاهزة، ويعود الحد غداً.",
+        },
+        200,
+        cors,
+      );
+    }
+  }
 
   const reply = (last_ai_reply || "").trim();
   const recentHistory = boundedHistory(history, "hints");

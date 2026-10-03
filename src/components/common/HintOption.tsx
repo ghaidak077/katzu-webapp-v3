@@ -19,7 +19,7 @@ export const HintOption: React.FC<HintOptionProps> = ({ hint, onUse, primary = f
   return (
     <button
       onClick={onUse}
-      className={`w-full px-3 py-2 rounded-2xl bg-surface-card border text-xs font-semibold text-start transition-all flex flex-col gap-1 ${
+      className={`w-full px-3 py-2 rounded-2xl bg-surface-card border text-xs font-semibold text-start transition-colors flex flex-col gap-1 ${
         primary ? 'border-primary/40 hover:border-primary/70' : 'border-border-subtle hover:border-primary/40'
       }`}
     >

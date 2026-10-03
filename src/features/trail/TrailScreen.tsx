@@ -209,7 +209,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           <button
             onClick={onOpenSubscription}
             aria-label="اكتشف مزايا Pro"
-            className="flex min-h-[44px] items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary text-xs font-bold shadow-glow-purple transition-all"
+            className="flex min-h-[44px] items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary text-xs font-bold shadow-glow-purple transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>اكتشف مزايا Pro</span>
@@ -235,7 +235,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                   <span>{xpRank.xpToNext} XP للرتبة التالية</span>
                 </div>
                 <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
-                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${xpRank.progressPercent}%` }} />
+                  <div className="h-full w-full rounded-full bg-primary origin-right transition-transform duration-panels ease-out" style={{ transform: `scaleX(${xpRank.progressPercent / 100})` }} />
                 </div>
               </div>
             )}
@@ -248,7 +248,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
       {user?.isLoggedIn && !user.onboardingCompletedAt && onOpenOnboarding && (
         <button
           onClick={onOpenOnboarding}
-          className="w-full mb-3 flex items-center justify-between gap-3 rounded-3xl border border-primary/30 bg-primary/10 p-4 text-start transition-all min-h-[44px]"
+          className="w-full mb-3 flex items-center justify-between gap-3 rounded-3xl border border-primary/30 bg-primary/10 p-4 text-start transition-colors min-h-[44px]"
         >
           <span>
             <span className="block font-arabic text-sm font-bold text-text-primary">أكمل تفضيلاتك (٣٠ ثانية)</span>
@@ -297,7 +297,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           {mission.kind === 'review' && (
             <button
               onClick={onOpenReview}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-status-learning px-3.5 py-1.5 text-xs font-bold text-black shadow-glow-purple transition-all min-h-[44px]"
+              className="mt-2 inline-flex items-center gap-1 rounded-full bg-status-learning px-3.5 py-1.5 text-xs font-bold text-black shadow-glow-purple transition-colors min-h-[44px]"
             >
               <Brain className="w-3.5 h-3.5" />
               <span>{mission.ctaAr}</span>
@@ -306,7 +306,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           {missionScenarioId && mission.kind !== 'review' && (
             <button
               onClick={() => handleScenarioClick(missionScenarioId)}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-fill px-3.5 py-1.5 text-xs font-bold text-on-fill shadow-glow-purple transition-all min-h-[44px]"
+              className="mt-2 inline-flex items-center gap-1 rounded-full bg-fill px-3.5 py-1.5 text-xs font-bold text-on-fill shadow-glow-purple transition-colors min-h-[44px]"
             >
               <span>{mission.ctaAr}</span>
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -329,7 +329,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             <button
               key={lvl}
               onClick={() => handleLevelSelect(lvl)}
-              className={`flex-1 min-h-[44px] py-2 rounded-xl text-xs font-german font-bold transition-all flex items-center justify-center gap-1 ${
+              className={`flex-1 min-h-[44px] py-2 rounded-xl text-xs font-german font-bold transition-colors flex items-center justify-center gap-1 ${
                 selectedLevel === lvl
                   ? 'bg-fill text-on-fill shadow-glow-purple'
                   : 'text-text-secondary hover:text-text-primary'
@@ -363,7 +363,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 type="button"
                 onClick={() => handleScenarioClick(scenario.id)}
                 aria-label={`${scenario.title_ar} (${scenario.title_de})`}
-                className={`relative w-[82%] overflow-hidden rounded-3xl border text-start cursor-pointer transition-all transform ${
+                className={`relative w-[82%] overflow-hidden rounded-3xl border text-start cursor-pointer transition-[background-color,border-color,box-shadow] ${
                   isMastered
                     ? 'bg-surface-card border-status-success/40 shadow-glow-green'
                     : 'bg-surface-card border-border-subtle hover:border-primary/50'

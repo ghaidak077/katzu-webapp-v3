@@ -168,8 +168,8 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
         {/* Progress Bar */}
         <div className="w-full h-1.5 bg-surface-card rounded-full overflow-hidden mb-8">
           <div
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+            className="h-full w-full bg-primary origin-right transition-transform duration-panels ease-out"
+            style={{ transform: `scaleX(${(currentIndex + 1) / questions.length})` }}
           />
         </div>
       </div>
@@ -231,7 +231,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
                   key={idx}
                   onClick={() => handleSelectOption(idx)}
                   disabled={isAnswerSubmitted}
-                  className={`w-full p-4 rounded-2xl border text-sm font-semibold font-arabic transition-all flex items-center justify-between ${style}`}
+                  className={`w-full p-4 rounded-2xl border text-sm font-semibold font-arabic transition-colors flex items-center justify-between ${style}`}
                 >
                   <span>{opt}</span>
                   {isAnswerSubmitted && isCorrect && <CheckCircle2 className="w-5 h-5 text-status-success" />}

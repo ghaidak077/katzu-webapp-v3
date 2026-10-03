@@ -143,12 +143,17 @@
   --kz-glow-rgb: var(--kz-lavender);
   --kz-glow-strength: 0.34;
 
-  /* Motion. Springs, never linear. */
+  /* Motion. Springs, never linear. This ladder is consumed by Tailwind as
+     `duration-fast` / `duration-*` / `duration-panels` and `ease-spring` /
+     `ease-out` (tailwind.config.js reads these variables, it never copies
+     them), so a bare `transition-colors` now resolves to `--kz-dur` instead of
+     Tailwind's undeclared 150ms default. Nothing here exceeds 300ms: the UI
+     budget is 300ms and a longer value is not "slower and nicer", it is late. */
   --kz-ease-spring: cubic-bezier(0.22, 1.12, 0.36, 1);
   --kz-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --kz-dur-fast: 160ms;
   --kz-dur: 280ms;
-  --kz-dur-slow: 560ms;
+  --kz-dur-panels: 300ms;
 
   /* Arabic typographic scale — display is heavy and roomy, body is comfortable. */
   --kz-ar-display: clamp(1.6rem, 6.6vw, 2.1rem);

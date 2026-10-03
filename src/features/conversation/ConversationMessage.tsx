@@ -109,7 +109,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                     onClick={isKnown ? () => onWordClick(segment.text) : undefined}
                     aria-current={isSpoken ? 'true' : undefined}
                     className={[
-                      'rounded-tag transition-colors duration-150',
+                      'rounded-tag transition-colors duration-fast',
                       // The word Katzu is saying right now. It is a reading aid, so
                       // it is a background, not a colour change: German stays
                       // legible whether or not the highlight is on.

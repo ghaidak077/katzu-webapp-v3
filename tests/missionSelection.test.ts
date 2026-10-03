@@ -54,8 +54,46 @@ describe('daily mission selection', () => {
     );
     expect(plan.kind).toBe('review');
     expect(plan.dueCount).toBe(2);
-    expect(plan.ctaAr).toContain('2');
     expect(plan.scenarioId).toBeUndefined();
+  });
+
+  // V31: the CTA used to read "راجع 2 الآن" — a bare digit with no noun, asking
+  // the learner to review two of something unspecified. It now names the item in
+  // the dual ("راجع عنصرين"), so these assert the requirement (the CTA says WHAT
+  // and agrees with the count) rather than the old string's shape.
+  it('the review CTA names the item and agrees with the count of two', () => {
+    const plan = selectDailyMission(
+      base({
+        reviewItems: [
+          { dueAt: new Date(2026, 8, 25).getTime(), kind: 'vocab' },
+          { dueAt: new Date(2026, 8, 26).getTime(), kind: 'mistake' },
+        ],
+      }),
+    );
+    expect(plan.ctaAr).toBe('راجع عنصرين الآن');
+    expect(plan.ctaAr).not.toMatch(/\d/);
+  });
+
+  it('the review CTA uses the agreeing plural from three up', () => {
+    const plan = selectDailyMission(
+      base({
+        reviewItems: [
+          { dueAt: new Date(2026, 8, 25).getTime(), kind: 'vocab' },
+          { dueAt: new Date(2026, 8, 26).getTime(), kind: 'mistake' },
+          { dueAt: new Date(2026, 8, 25).getTime(), kind: 'phrase' },
+        ],
+      }),
+    );
+    expect(plan.dueCount).toBe(3);
+    expect(plan.ctaAr).toBe('راجع 3 عناصر الآن');
+    expect(plan.subtitleAr).toContain('3 عناصر');
+  });
+
+  it('the review CTA uses the singular for exactly one', () => {
+    const plan = selectDailyMission(
+      base({ reviewItems: [{ dueAt: new Date(2026, 8, 25).getTime(), kind: 'vocab' }] }),
+    );
+    expect(plan.ctaAr).toBe('راجع عنصراً الآن');
   });
 
   it('ignores review items that are not due yet', () => {

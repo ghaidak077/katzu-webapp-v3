@@ -16,6 +16,10 @@ import { triggerHaptic } from '@/lib/utils/haptics';
 import { track } from '@/lib/analytics/client';
 import { ArrowLeft, CheckCircle2, RotateCcw, Sparkles, Volume2, XCircle } from 'lucide-react';
 import type { ReviewGrade, ReviewItemEntity } from '@/types/models';
+import { arCount } from '@/lib/i18n/arabicCount';
+
+/** V31: agreement for the sentence under the tally. See `arabicCount`. */
+const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصرين', few: 'عناصر', many: 'عنصراً' } as const;
 
 export interface ReviewScreenProps {
   onBack: () => void;
@@ -232,7 +236,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
             </div>
             <p className="mt-3 kz-ar-micro leading-relaxed text-kz-inkDim">
               {remainingDue > 0
-                ? `لا يزال ${remainingDue} عنصراً مستحقاً — جلسة أخرى قصيرة تكفي.`
+                ? `لا يزال ${arCount(remainingDue, REVIEW_ITEM_FORMS)} مستحقاً — جلسة أخرى قصيرة تكفي.`
                 : 'لا شيء مستحق بعد الآن — سأعيدها عليك في الوقت المناسب.'}
             </p>
           </GlassCard>

@@ -528,6 +528,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                             type="text"
                             dir="ltr"
                             inputMode="text"
+                            aria-label="اكتب الجملة الصحيحة"
                             placeholder="اكتب الجملة الصحيحة"
                             value={row?.text || ''}
                             onChange={(event) =>

@@ -2258,10 +2258,28 @@ async function handleCheckStatus(request, env, cors) {
     return json({ active: false, days_remaining: 0, server_time: now.toISOString(), reason: "invalid_id_token" }, 200, cors);
   }
 
+  // V31: the paywall states how many free conversations are left, so the number
+  // has to come from the ledger that owns it. The client used to print its own
+  // locally-seeded value (always 3), which meant a learner who had spent all
+  // three was told they still had three — on the screen where trust is bought.
+  // `null` means the ledger could not be read, which is different from zero and
+  // must never be rendered as "0 جلسات متبقية".
+  const quota = await readTrialQuota(account.sub, env);
+  const freeSessionsRemaining = quota.available
+    ? Math.max(0, MAX_FREE_AI_SESSIONS - quota.used)
+    : null;
+
   const accountKey = `account:${account.sub}`;
   const raw = await env.REDEEMED_CODES.get(accountKey);
   if (!raw) {
-    return json({ active: false, days_remaining: 0, server_time: now.toISOString(), expiresAt: null }, 200, cors);
+    return json({
+      active: false,
+      days_remaining: 0,
+      free_sessions_remaining: freeSessionsRemaining,
+      max_free_sessions: MAX_FREE_AI_SESSIONS,
+      server_time: now.toISOString(),
+      expiresAt: null,
+    }, 200, cors);
   }
 
   const record = JSON.parse(raw);
@@ -2273,6 +2291,8 @@ async function handleCheckStatus(request, env, cors) {
   return json({
     active,
     days_remaining: daysRemaining,
+    free_sessions_remaining: freeSessionsRemaining,
+    max_free_sessions: MAX_FREE_AI_SESSIONS,
     server_time: now.toISOString(),
     expiresAt: record.expiresAt,
   }, 200, cors);

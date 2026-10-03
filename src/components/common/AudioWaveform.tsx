@@ -18,13 +18,18 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
         <span
           key={i}
           className={cn(
-            'w-1 bg-primary rounded-full transition-all duration-300',
+            // `scaleY` from the bottom edge, not `height`: this bar animates on
+            // a timer while audio plays, so an animated `height` was forcing
+            // layout on every frame of the most performance-sensitive screen in
+            // the app. `h-1.5` gives the bar its physical size; the transform
+            // only changes how much of it is showing.
+            'w-1 h-full bg-primary rounded-full origin-bottom transition-transform duration-fast',
             isPlaying
               ? 'animate-pulse'
-              : 'h-1.5 opacity-40'
+              : 'opacity-40'
           )}
           style={{
-            height: isPlaying ? `${Math.max(25, (i + 1) * 20 % 100)}%` : '6px',
+            transform: isPlaying ? `scaleY(${Math.max(0.25, (((i + 1) * 20) % 100) / 100)})` : 'scaleY(0.3)',
             animationDelay: `${i * 120}ms`,
             animationDuration: '600ms',
           }}

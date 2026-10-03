@@ -12,6 +12,7 @@ import { logError, logEvent } from '@/lib/utils/diagnostics';
 import { track } from '@/lib/analytics/client';
 import { isProEffective } from '@/lib/utils/subscription';
 import { servedLevel } from '@/lib/entitlement/trial';
+import { isEntitlementUnavailable, isEntitlementWall } from '@/lib/entitlement/codes';
 import { levelSpecFor } from '@/lib/levels/levelSpec';
 import { calculateIndependentAccuracy } from '@/features/report/metrics';
 import { buildSessionDebrief, type SessionDebrief } from '@/lib/debrief/debrief';
@@ -262,8 +263,10 @@ export function useLiveConversation({
     }
   }, [voice.isRecording, conversation.status]);
 
-  // Magenta is reserved for a turn the learner actually got right — the last
-  // evaluation produced no correction. It is never the resting colour.
+  // The `earned` tone (the --kz-magenta violet) is reserved for a turn the learner
+  // actually got right — the last evaluation produced no correction. It is never
+  // the resting colour. V31: named by role, not by an old hue name, so nobody
+  // reads "magenta" here and paints a pink that is no longer in the palette.
   const lastEvaluation = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       const message = messages[index];
@@ -764,14 +767,20 @@ export function useLiveConversation({
       }
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
-      if (err?.code === 'PAYWALL_REQUIRED') {
-        // Server-side entitlement rejection (level lock or quota) — show the
-        // Katzu paywall instead of a dead error in the chat, and mark the quota
-        // state so a retry cannot burn the learner's remaining allowance.
+      if (isEntitlementWall(err?.code)) {
+        // Server-side entitlement rejection (level lock, or the three free
+        // conversations spent) — show the Katzu paywall instead of a dead error
+        // in the chat, and mark the quota state so a retry cannot burn the
+        // learner's remaining allowance.
+        //
+        // V31: this used to match only `PAYWALL_REQUIRED`, so `FREE_QUOTA_EXHAUSTED`
+        // fell through to the generic branch and produced a "try again" card that
+        // no retry could ever clear. The entitlement that must be paid for is the
+        // same entitlement either way.
         dispatch({ type: 'quota_exhausted', messageAr: err?.message });
         setPaywall({
           isOpen: true,
-          title: 'هذا المستوى ميزة Pro',
+          title: err?.code === 'FREE_QUOTA_EXHAUSTED' ? 'انتهت جلساتك المجانية' : 'هذا المستوى ميزة Pro',
           description: err?.message || 'رَقِّ حسابك لفتح كل المستويات من A1 حتى B2 ومحادثات غير محدودة.',
         });
       } else {
@@ -783,8 +792,13 @@ export function useLiveConversation({
             : err?.code === 'NETWORK_ERROR'
               ? 'تعذر الوصول إلى الخادم. جملتك محفوظة هنا، أعد المحاولة.'
               : err?.code === 'WORKER_URL_MISSING'
-                ? 'رابط الخادم غير مضبوط في هذا الإصدار — حدّث التطبيق أو تواصل مع الدعم.'
-                : classifyTurnError(e).messageAr;
+                ? 'خدمة كَاتْزُو غير متاحة في هذه النسخة. تواصل معنا وسنعيد لك للعمل — جملتك محفوظة.'
+                : // The Worker could not read the trial ledger. Say THAT, rather
+                  // than the generic AI-service line: the learner has not run out,
+                  // the server lost count, and retrying is the honest action.
+                  isEntitlementUnavailable(err?.code)
+                  ? 'تعذّر التحقق من رصيدك على الخادم الآن — لم تُستهلك جلسة. جملتك محفوظة، أعد المحاولة بعد قليل.'
+                  : classifyTurnError(e).messageAr;
         dispatch({ type: 'turn_failed', error: { ...classifyTurnError(e), messageAr: message } });
         logError('ai/turn', `Turn failed (${err?.code || 'UNKNOWN'}): ${message}`);
       }
@@ -835,13 +849,19 @@ export function useLiveConversation({
   );
 
   const [isRefreshingHints, setIsRefreshingHints] = useState(false);
+  /**
+   * V31: today's AI hint budget is spent. The starter-phrase floor keeps the
+   * panel useful, but the learner is told once and the refresh stops pretending
+   * to do something it can no longer do.
+   */
+  const [hintQuotaSpent, setHintQuotaSpent] = useState(false);
   const refreshHints = async () => {
-    if (isRefreshingHints) return;
+    if (isRefreshingHints || hintQuotaSpent) return;
     setIsRefreshingHints(true);
     try {
       const lastKatzu = [...messages].reverse().find((m) => m.sender === 'KATZU');
       if (lastKatzu) {
-        const fresh = await workerClient.fetchHints({
+        const { hints: fresh, quotaExceeded } = await workerClient.fetchHintsWithStatus({
           scenarioTitle: scenario?.title_de || '',
           cefrLevel: effectiveLevel,
           lastAiReply: lastKatzu.germanText,
@@ -850,7 +870,11 @@ export function useLiveConversation({
             text: m.germanText,
           })),
         });
-        if (fresh && fresh.length > 0) {
+        if (quotaExceeded) {
+          setHintQuotaSpent(true);
+          void loadStarterHints();
+          logEvent('hints', 'daily hint budget spent — showing the starter floor');
+        } else if (fresh.length > 0) {
           setCurrentHints(fresh);
           logEvent('hints', `Hints refreshed manually (${fresh.length})`);
         } else {
@@ -1067,6 +1091,7 @@ export function useLiveConversation({
     isHintExpanded,
     setIsHintExpanded,
     isRefreshingHints,
+    hintQuotaSpent,
     turnError,
     micError,
     isSessionCompleted,

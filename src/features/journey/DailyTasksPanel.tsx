@@ -3,7 +3,8 @@ import { Check, Circle } from 'lucide-react';
 import { GlassWell } from '@/components/glass/GlassSurface';
 import { GlassButton } from '@/components/glass/GlassButton';
 import type { DailyTasksSnapshot } from '@/lib/daily/taskStore';
-import type { DailyTaskKind } from '@/lib/daily/tasks';
+import { arCount } from '@/lib/i18n/arabicCount';
+import { STREAK_DAY_NOM } from '@/lib/i18n/countForms';import type { DailyTaskKind } from '@/lib/daily/tasks';
 
 export interface DailyTasksPanelProps {
   snapshot: DailyTasksSnapshot | undefined;
@@ -35,7 +36,7 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAc
 
       <p className="kz-ar-micro mt-1 text-kz-inkFaint">
         {streakDays > 0
-          ? `${streakDays} ${streakDays === 1 ? 'يوم متتالٍ' : 'أيام متتالية'} في مهام اليوم${
+          ? `${arCount(streakDays, STREAK_DAY_NOM)} في مهام اليوم${
               forgiving ? ' — يوم واحد مسموح ومُتجاوَز' : ''
             }`
           : 'أكمل المهام الثلاث لتبدأ سلسلتك اليومية.'}

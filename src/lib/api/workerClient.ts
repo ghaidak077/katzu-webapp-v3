@@ -617,17 +617,61 @@ export class WorkerClient {
             intent: h.intent || undefined,
           }));
         }
+        // V31: an over-quota answer is HTTP 200 with an empty list plus a code,
+        // because the learner must still get the starter-phrase floor. The floor
+        // is a good fallback — but returning it SILENTLY made the 💡 button look
+        // alive forever while always returning the same generic chips. The code
+        // travels with the answer so the caller can say so once.
+        if (data.code === 'HINTS_QUOTA_EXCEEDED') {
+          const exhausted: any = new Error('hint quota exhausted');
+          exhausted.code = 'HINTS_QUOTA_EXCEEDED';
+          throw exhausted;
+        }
         logEvent('ai/hints', '200 OK but empty hints array — will use starter phrases');
       }
     } catch (e: any) {
       if (e?.code === 'PAYWALL_REQUIRED') {
         throw e;
       }
+      if (e?.code === 'HINTS_QUOTA_EXCEEDED') {
+        // Not an error to shout about: the floor below still works. Carried as a
+        // coded result rather than a rejection so the conversation never shows a
+        // failure card for something the learner can still use.
+        const err: any = new Error('hint quota exhausted');
+        err.code = 'HINTS_QUOTA_EXCEEDED';
+        throw err;
+      }
       logError('ai/hints', `Hints fetch failed: ${e?.code || 'NETWORK'} ${e?.status || ''}`);
       console.warn('Hints fetch failed:', e);
     }
 
     return [];
+  }
+
+  /**
+   * V31: the same request, but reporting WHY it came back empty.
+   *
+   * `fetchHints` collapses every non-paywall outcome into `[]`, which is right
+   * for the suggestions themselves and wrong for the truth about them: a learner
+   * who has spent today's hint budget and a learner on a dead network deserve
+   * different words. `quotaExceeded` separates them without changing the
+   * existing array-returning contract the rest of the app depends on.
+   */
+  async fetchHintsWithStatus(params: {
+    scenarioTitle: string;
+    cefrLevel: CEFRLevel;
+    lastAiReply: string;
+    history?: Array<{ sender?: string; role?: string; text: string }>;
+    idToken?: string;
+  }): Promise<{ hints: ContextualHint[]; quotaExceeded: boolean }> {
+    try {
+      const hints = await this.fetchHints(params);
+      return { hints, quotaExceeded: false };
+    } catch (e: any) {
+      if (e?.code === 'HINTS_QUOTA_EXCEEDED') return { hints: [], quotaExceeded: true };
+      if (e?.code === 'PAYWALL_REQUIRED') throw e;
+      return { hints: [], quotaExceeded: false };
+    }
   }
 
   // --- Edge-Cached Translation via /ai/translate ---
@@ -757,15 +801,22 @@ export class WorkerClient {
     daysRemaining?: number;
     expiresAt?: string | null;
     serverTime?: string;
+    /**
+     * V31: the free-conversation allowance, from the ledger that owns it.
+     * `null` means the Worker could not read the ledger — unknown, NOT zero —
+     * so the paywall can say so instead of inventing a number.
+     */
+    freeSessionsRemaining?: number | null;
+    maxFreeSessions?: number | null;
   }> {
     const token = await this.getEffectiveAuthToken(idToken);
     if (!token) {
       const user = await db.users.get('current_user');
       if (user?.subscriptionExpiresAt) {
         const isActive = new Date(user.subscriptionExpiresAt).getTime() > Date.now();
-        return { active: isActive, expiresAt: user.subscriptionExpiresAt };
+        return { active: isActive, expiresAt: user.subscriptionExpiresAt, freeSessionsRemaining: null };
       }
-      return { active: false, expiresAt: null };
+      return { active: false, expiresAt: null, freeSessionsRemaining: null };
     }
 
     try {
@@ -780,17 +831,20 @@ export class WorkerClient {
 
       if (res.ok) {
         const data = await res.json();
+        const remaining = data.free_sessions_remaining;
         return {
           active: !!data.active,
           daysRemaining: data.days_remaining ?? 0,
           expiresAt: data.expiresAt || null,
           serverTime: data.server_time,
+          freeSessionsRemaining: typeof remaining === 'number' ? remaining : null,
+          maxFreeSessions: typeof data.max_free_sessions === 'number' ? data.max_free_sessions : null,
         };
       }
     } catch (e) {
       console.warn('Check subscription failed:', e);
     }
-    return { active: false };
+    return { active: false, freeSessionsRemaining: null };
   }
 
   // --- Referral Program (/referral/info, /referral/claim) ---

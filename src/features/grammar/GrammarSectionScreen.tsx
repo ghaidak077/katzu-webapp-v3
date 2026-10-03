@@ -104,6 +104,7 @@ const ExerciseCard: React.FC<{
       <input
         type="text"
         dir="ltr"
+        aria-label="اكتب جملة القاعدة بالألمانية"
         value={attempt?.text || ''}
         onChange={(event) => onType(event.target.value)}
         placeholder="اكتب بالألمانية"
@@ -457,8 +458,8 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-subtle">
               <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${path.totalCount ? (path.completedCount / path.totalCount) * 100 : 0}%` }}
+                className="h-full w-full rounded-full bg-primary origin-right transition-transform duration-panels ease-out"
+                style={{ transform: `scaleX(${path.totalCount ? path.completedCount / path.totalCount : 0})` }}
               />
             </div>
           </Card>
@@ -484,7 +485,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                   key={node.lesson.id}
                   disabled={locked}
                   onClick={() => openLesson(node.lesson.id)}
-                  className={`w-full rounded-2xl border p-4 text-start transition-all ${
+                  className={`w-full rounded-2xl border p-4 text-start transition-colors ${
                     node.isNext
                       ? 'border-primary/60 bg-primary/10'
                       : 'border-border-subtle bg-surface-card hover:border-primary/40'

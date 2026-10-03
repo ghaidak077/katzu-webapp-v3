@@ -366,7 +366,7 @@ function WhySection() {
         {REASONS.map(({ icon: Icon, title, body }) => (
           <div
             key={title}
-            className="group rounded-3xl p-5 bg-surface-card border border-border-subtle hover:border-primary/40 hover:-translate-y-0.5 transition-all"
+            className="group rounded-3xl p-5 bg-surface-card border border-border-subtle hover:border-primary/40 hover:-translate-y-0.5 transition-[color,background-color,border-color,transform]"
           >
             <div className="w-11 h-11 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
               <Icon className="w-5 h-5 text-primary" aria-hidden />

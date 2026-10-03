@@ -3,7 +3,8 @@
 // grammar — never the learner. Pure logic, unit-tested.
 // Date handling reuses the streak helpers (local, string-based, tested).
 
-import { localDateKey, shiftDateKey } from './streak';
+import { arCount } from '@/lib/i18n/arabicCount';
+import { STREAK_DAY_ACC } from '@/lib/i18n/countForms';import { localDateKey, shiftDateKey } from './streak';
 
 export interface CheckInInput {
   lastActiveDate: string | null | undefined; // local YYYY-MM-DD ('' = first visit)
@@ -44,7 +45,7 @@ export function buildCheckInMessage(input: CheckInInput): CheckInMessage {
   if (last === yesterdayKey && input.streakDays > 0) {
     return {
       tone: 'streak-keep',
-      headline: `سلسلتك ${input.streakDays} يوم — اليوم نكمّلها!`,
+      headline: `سلسلتك ${arCount(input.streakDays, STREAK_DAY_ACC)} — اليوم نكمّلها!`,
       sub: 'جلسة واحدة قصيرة تحافظ على السلسلة كما هي.',
     };
   }

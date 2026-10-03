@@ -73,7 +73,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
             placeholder="ما هو اسمك الأول؟"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full h-14 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl px-5 text-center text-base font-arabic font-semibold transition-all placeholder:text-text-muted"
+            className="w-full h-14 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl px-5 text-center text-base font-arabic font-semibold transition-colors placeholder:text-text-muted"
             required
           />
           <p className="text-micro font-arabic text-text-muted px-2">
@@ -113,7 +113,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
           <button
             type="button"
             onClick={() => onGoToSignIn('signin')}
-            className="hover:text-primary transition-colors"
+            className="min-h-touch -mx-2 px-2 flex items-center hover:text-primary transition-colors duration-fast ease-out"
           >
             لديك حساب؟ <span className="text-primary underline font-bold">تسجيل الدخول</span>
           </button>
@@ -121,7 +121,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
           <button
             type="button"
             onClick={() => onGoToSignIn('signup')}
-            className="hover:text-primary transition-colors text-text-secondary"
+            className="min-h-touch -mx-2 px-2 flex items-center hover:text-primary transition-colors duration-fast ease-out text-text-secondary"
           >
             <span className="text-primary underline font-bold">إنشاء حساب جديد</span>
           </button>

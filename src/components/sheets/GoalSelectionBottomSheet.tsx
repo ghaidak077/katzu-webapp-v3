@@ -48,7 +48,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
               <button
                 key={opt.value}
                 onClick={() => setMinutes(opt.value)}
-                className={`py-3 px-2 rounded-2xl text-xs font-semibold border transition-all text-center ${
+                className={`py-3 px-2 rounded-2xl text-xs font-semibold border transition-colors text-center ${
                   minutes === opt.value
                     ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
                     : 'bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary'
@@ -71,7 +71,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
               <button
                 key={d}
                 onClick={() => setDays(d)}
-                className={`py-3 rounded-2xl text-sm font-bold border transition-all ${
+                className={`py-3 rounded-2xl text-sm font-bold border transition-colors ${
                   days === d
                     ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
                     : 'bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary'
@@ -94,7 +94,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
               <button
                 key={lvl}
                 onClick={() => setLevel(lvl)}
-                className={`py-3 rounded-2xl font-german font-bold text-sm border transition-all ${
+                className={`py-3 rounded-2xl font-german font-bold text-sm border transition-colors ${
                   level === lvl
                     ? 'bg-fill text-on-fill border-primary shadow-glow-purple'
                     : 'bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary'

@@ -122,7 +122,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
               QUESTION_STEPS.map((questionStep, index) => (
                 <span
                   key={questionStep}
-                  className={`h-1.5 rounded-full transition-all ${
+                  className={`h-1.5 rounded-full transition-[width] duration-panels ease-out ${
                     isPlacement || index < questionIndex
                       ? 'w-4 bg-kz-lavender/70'
                       : index === questionIndex
@@ -155,7 +155,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                     setAnswers((prev) => ({ ...prev, primaryGoal: goal }));
                     advance('arrival');
                   }}
-                  className={`w-full rounded-2xl border p-4 text-start transition-all ${
+                  className={`w-full rounded-2xl border p-4 text-start transition-colors ${
                     answers.primaryGoal === goal
                       ? 'border-kz-lavender/50 bg-kz-lavender/10'
                       : 'border-white/[0.07] bg-white/[0.02]'
@@ -190,7 +190,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                     setAnswers((prev) => ({ ...prev, arrivalStatus: status }));
                     advance('previous');
                   }}
-                  className={`min-h-[48px] w-full rounded-2xl border p-4 text-start kz-ar-body transition-all ${
+                  className={`min-h-[48px] w-full rounded-2xl border p-4 text-start kz-ar-body transition-colors ${
                     answers.arrivalStatus === status
                       ? 'border-kz-lavender/50 bg-kz-lavender/10'
                       : 'border-white/[0.07] bg-white/[0.02]'
@@ -221,7 +221,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                     setAnswers((prev) => ({ ...prev, previousGerman: previous }));
                     advance('time');
                   }}
-                  className={`min-h-[48px] w-full rounded-2xl border p-4 text-start transition-all ${
+                  className={`min-h-[48px] w-full rounded-2xl border p-4 text-start transition-colors ${
                     answers.previousGerman === previous
                       ? 'border-kz-lavender/50 bg-kz-lavender/10'
                       : 'border-white/[0.07] bg-white/[0.02]'
@@ -255,7 +255,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                     setAnswers((prev) => ({ ...prev, dailyMinutes: minutes }));
                     advance('target');
                   }}
-                  className={`min-h-[88px] rounded-2xl border p-4 transition-all ${
+                  className={`min-h-[88px] rounded-2xl border p-4 transition-colors ${
                     answers.dailyMinutes === minutes
                       ? 'border-kz-lavender/50 bg-kz-lavender/10'
                       : 'border-white/[0.07] bg-white/[0.02]'
@@ -290,7 +290,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                       targetDate: prev.targetDateKind === kind ? null : prev.targetDate,
                     }))
                   }
-                  className={`min-h-[48px] rounded-2xl border p-3 kz-ar-micro font-semibold transition-all ${
+                  className={`min-h-[48px] rounded-2xl border p-3 kz-ar-micro font-semibold transition-colors ${
                     answers.targetDateKind === kind
                       ? 'border-kz-lavender/50 bg-kz-lavender/10 text-kz-ink'
                       : 'border-white/[0.07] bg-white/[0.02] text-kz-inkDim'

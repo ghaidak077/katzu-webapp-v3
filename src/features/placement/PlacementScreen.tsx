@@ -237,7 +237,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
               key={level}
               disabled={saving}
               onClick={() => finishWith(level, 'chosen')}
-              className="w-full flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface-card p-4 text-start transition-all hover:border-primary/40 disabled:opacity-50"
+              className="w-full flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface-card p-4 text-start transition-colors hover:border-primary/40 disabled:opacity-50"
             >
               <Badge variant="primary" size="md" className="shrink-0">
                 {level}
@@ -339,7 +339,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
       </div>
 
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle mb-5">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
+        <div className="h-full w-full rounded-full bg-primary origin-right transition-transform duration-panels ease-out" style={{ transform: `scaleX(${progressPercent / 100})` }} />
       </div>
 
       <Card className="p-5 mb-4">
@@ -362,7 +362,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
             <button
               type="button"
               onClick={() => speak(item.german)}
-              className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mx-auto transition-all"
+              className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mx-auto transition-colors"
               aria-label="إعادة تشغيل المقطع"
             >
               <Volume2 className="w-8 h-8" />
@@ -394,7 +394,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
               key={`${item.id}-${index}`}
               disabled={answered}
               onClick={() => answer(index)}
-              className={`w-full rounded-2xl border p-4 text-start font-arabic text-sm transition-all ${tone}`}
+              className={`w-full rounded-2xl border p-4 text-start font-arabic text-sm transition-colors ${tone}`}
             >
               {option}
             </button>

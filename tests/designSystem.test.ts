@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -221,6 +221,61 @@ const BRAND_HUE_TOKENS = [
   'kz-magenta-deep',
   'kz-line-strong',
 ];
+
+describe('motion scale', () => {
+  const MOTION = [
+    'kz-dur-fast',
+    'kz-dur',
+    'kz-dur-panels',
+    'kz-ease-spring',
+    'kz-ease-out',
+  ] as const;
+
+  it.each(MOTION)('Tailwind reads --%s rather than copying its value', (name) => {
+    expect(config, `tailwind.config.js must reference --${name}, not redeclare it`).toContain(
+      `var(--${name})`,
+    );
+    expect(tokens.has(name), `--${name} must be declared in src/index.css`).toBe(true);
+  });
+
+  it.each(MOTION)('--%s is declared exactly once', (name) => {
+    const hits = css.match(new RegExp(`--${name}:`, 'g')) ?? [];
+    expect(hits, `--${name} is declared ${hits.length} times; a shadowed token is a trap`).toHaveLength(1);
+  });
+
+  it('keeps every duration inside the 300ms UI budget', () => {
+    for (const [name, value] of tokens) {
+      if (!name.startsWith('kz-dur')) continue;
+      const ms = Number(String(value).replace(/ms$/, '').trim());
+      expect(Number.isFinite(ms), `--${name} = "${value}" is not a millisecond value`).toBe(true);
+      expect(ms, `--${name} is ${ms}ms, past the 300ms UI budget`).toBeLessThanOrEqual(300);
+    }
+  });
+
+  it('retires the over-budget --kz-dur-slow rather than leaving it declared', () => {
+    expect(css, '--kz-dur-slow is retired, not merely unused').not.toContain('--kz-dur-slow');
+    expect(config).not.toContain('kz-dur-slow');
+  });
+
+  it('leaves no hardcoded Tailwind duration behind', () => {
+    // `duration-[Nms]` and `duration-NNN` both bypass the ladder. The only legal
+    // literal forms are the ones Tailwind itself defines.
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (full.endsWith('.tsx')) {
+          for (const m of readFileSync(full, 'utf8').matchAll(/(?<![-\w])duration-(?!fast\b|slow\b|panels\b)[\w[\]]+/g)) {
+            offenders.push(`${full.replace(/\\/g, '/')}: ${m[0]}`);
+          }
+        }
+      }
+    };
+    walk(join(ROOT, 'src'));
+    expect(offenders, `hardcoded durations bypass the motion ladder:\n${offenders.join('\n')}`).toEqual([]);
+  });
+});
 
 describe('one hue family', () => {
   it.each(BRAND_HUE_TOKENS)('%s stays in the violet arc, never the rose band', (name) => {

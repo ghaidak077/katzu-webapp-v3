@@ -279,6 +279,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
                         <input
                           type="text"
                           dir="ltr"
+                          aria-label="اكتب الجواب بالألمانية"
                           placeholder="اكتب الجواب بالألمانية"
                           value={row?.text || ''}
                           onChange={(event) =>

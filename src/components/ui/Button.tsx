@@ -131,8 +131,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           'inline-flex select-none items-center justify-center font-arabic',
           IS_SURFACE[variant] && 'kz-surface kz-interactive',
           // A disabled control must look disabled *and* be inert; `aria-disabled`
-          // is implied by the real `disabled` attribute above.
-          'transition-colors disabled:opacity-45 disabled:pointer-events-none',
+          // is implied by the real `disabled` attribute above. `duration-fast` +
+          // `ease-out` is the single most-felt timing in the product — every
+          // press and every disabled fade, dozens of times a session — so it is
+          // pinned here rather than inherited from a 280ms default.
+          'transition-colors duration-fast ease-out disabled:opacity-45 disabled:pointer-events-none',
           VARIANTS[variant],
           SIZES[size],
           fullWidth && 'w-full',
