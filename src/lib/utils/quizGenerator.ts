@@ -1,5 +1,5 @@
 import type { StarterPhraseEntity, VocabularyEntity } from '@/types/models';
-import { hashString, seededRng } from '@/lib/grammar/exercises';
+import { hashString, seededRng } from './seededRng.ts';
 
 export interface QuizQuestion {
   /** Vocabulary questions ask about ONE word; phrase questions about a whole sentence. */
