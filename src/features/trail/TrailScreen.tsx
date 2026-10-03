@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { arCount } from '@/lib/i18n/arabicCount';
+import { GlassButton } from '@/components/glass/GlassButton';
 import { isProEffective } from '@/lib/utils/subscription';
 import { FREE_LEVEL, isLevelFree, servedLevel } from '@/lib/entitlement/trial';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
@@ -23,6 +25,10 @@ import {
   weakestMeasuredSkill,
 } from '@/lib/capability/model';
 
+/** V32: how many situations the roadmap shows before the learner asks for more. */
+const TRAIL_PREVIEW_COUNT = 5;
+const MORE_FORMS = { one: 'مشهد واحد', two: 'مشهدان', few: 'مشاهد', many: 'مشهداً' } as const;
+
 export interface TrailScreenProps {
   onSelectScenario: (scenarioId: string) => void;
   onOpenSubscription: () => void;
@@ -40,6 +46,8 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('A1');
   const [levelChosen, setLevelChosen] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  /** V32: the roadmap opens on the next few situations, not on all 49 at once. */
+  const [showAllScenarios, setShowAllScenarios] = useState(false);
   const [paywallReason, setPaywallReason] = useState({ title: '', description: '' });
 
   const user = useLiveQuery(() => db.users.get('current_user'));
@@ -342,12 +350,20 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         })}
       </div>
 
-      {/* Vertical Curriculum Trail Roadmap */}
+      {/* Vertical Curriculum Trail Roadmap.
+
+          V32: measured 12 controls on this screen that all read as *the* main
+          action — eight 82%-wide cards plus four level chips, with the level
+          pills sitting ABOVE the cards so they led the hierarchy. The trail
+          metaphor is worth keeping; what is not worth keeping is a wall of
+          equals. The roadmap now opens on the next few situations with one
+          obvious "show the rest" action, and the level row is demoted to a
+          quiet filter. */}
       <div className="relative flex flex-col items-center space-y-6">
         {/* Glowing Path Line */}
         <div className="absolute top-4 bottom-4 w-1 bg-gradient-to-b from-primary via-primary/30 to-border-subtle z-0" />
 
-        {scenarios.map((scenario: ScenarioEntity, index: number) => {
+        {scenarios.slice(0, showAllScenarios ? undefined : TRAIL_PREVIEW_COUNT).map((scenario: ScenarioEntity, index: number) => {
           const state = capabilityFor(scenario.id);
           const isMastered = state === 'INDEPENDENT' || state === 'RETAINED';
           const isOffsetLeft = index % 2 === 0;
@@ -412,6 +428,21 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           );
         })}
       </div>
+
+      {/* The one obvious thing left to do on a wall of cards. */}
+      {!showAllScenarios && scenarios.length > TRAIL_PREVIEW_COUNT && (
+        <GlassButton
+          variant="secondary"
+          fullWidth
+          onClick={() => setShowAllScenarios(true)}
+          className="justify-center"
+        >
+          <span className="font-arabic">اعرض بقية المشاهد</span>
+          <span className="kz-ar-micro font-german text-kz-inkFaint">
+            ({arCount(scenarios.length - TRAIL_PREVIEW_COUNT, MORE_FORMS)})
+          </span>
+        </GlassButton>
+      )}
 
       {/* Paywall Modal */}
       <PaywallModal

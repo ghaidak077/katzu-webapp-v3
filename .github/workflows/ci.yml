@@ -66,6 +66,12 @@ jobs:
           node scripts/eval-chat-quality.mjs
           node scripts/measure-turn-cost.mjs
 
+      - name: Simplicity + design gates
+        run: |
+          node scripts/simplicity-check.mjs
+          node scripts/design-audit.mjs
+          node scripts/contrast-check.mjs
+
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
 

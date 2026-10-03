@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { logError } from '@/lib/utils/diagnostics';
 import { gradeAskPractice, askPracticeFeedbackAr } from '@/lib/ask/practice';
-import { ASK_LEGAL_NOTICE_AR, ASK_PRACTICE_NOTE_AR, ASK_SUGGESTIONS } from '@/lib/ask/notices';
+import { ASK_EXAMPLE_AR, ASK_LEGAL_NOTICE_AR, ASK_PRACTICE_NOTE_AR, ASK_SUGGESTIONS } from '@/lib/ask/notices';
 import type { AskAnswer, AskPracticeItem } from '@/types/models';
 
 /**
@@ -142,7 +142,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
           <ArrowRight className="h-5 w-5" />
         </button>
         <div className="min-w-0 flex-1 text-center">
-          <p className="kz-ar-caption truncate font-bold text-kz-ink">اسأل كَاتْزُو عن الألمانية</p>
+          <h1 className="kz-ar-caption truncate font-bold text-kz-ink">اسأل كَاتْزُو عن الألمانية</h1>
           <p className="kz-ar-micro text-kz-inkFaint">ترجمة · قواعد · كلمة · تصحيح جملة · ألمانية رسمية</p>
         </div>
         <KatzuMascot name="avatar" className="h-9 w-9 shrink-0" />
@@ -153,6 +153,20 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
             contract obvious before the learner types anything. */}
         {!answer && (
           <div className="flex flex-wrap gap-2">
+            {/* V32: the placeholder's example was the only clue about what a
+                good question looks like, and placeholders cannot be tapped. A
+                first-timer who does not know how to start could read it and still
+                have nothing to do. Now it is a button. */}
+            <button
+              type="button"
+              onClick={() => {
+                setQuestion(ASK_EXAMPLE_AR);
+                setError(null);
+              }}
+              className="kz-ar-micro rounded-full border border-kz-lavender/30 bg-kz-lavender/10 px-3 py-1.5 font-semibold text-kz-lavender transition-colors hover:border-kz-lavender/60 min-h-touch"
+            >
+              جرّب مثالاً
+            </button>
             {ASK_SUGGESTIONS.map((suggestion) => (
               <button
                 key={suggestion.labelAr}
@@ -182,7 +196,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
             onKeyDown={(event) => {
               if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void ask();
             }}
-            placeholder="مثال: ما الفرق بين «seit» و«vor»؟"
+            placeholder={`مثال: ${ASK_EXAMPLE_AR}`}
             className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-3 py-2.5 font-arabic text-sm text-kz-ink transition-colors placeholder:text-kz-inkFaint focus:border-primary/60"
           />
           <div className="mt-2 flex items-center justify-between gap-2">

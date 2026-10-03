@@ -14,6 +14,13 @@ export const ASK_PRACTICE_NOTE_AR =
   'أجب لتتأكد أنك فهمت — الإجابة الخطأ تعود إليك في مراجعتك المجدولة بدل أن تُنسى.';
 
 /** The prompt suggestions, keyed by the intent the learner is most likely to want. */
+/**
+ * V32: the example the input's placeholder used to show. Placeholders cannot be
+ * tapped and disappear the moment you type, so it was the one piece of guidance
+ * a first-timer could not act on. It is now a real, fillable suggestion.
+ */
+export const ASK_EXAMPLE_AR = 'ما الفرق بين «seit» و«vor»؟';
+
 export const ASK_SUGGESTIONS: Array<{ labelAr: string; promptAr: string }> = [
   { labelAr: 'ترجمة', promptAr: 'ترجم هذه الجملة إلى الألمانية: أحتاج موعداً مع الطبيب.' },
   { labelAr: 'قاعدة', promptAr: 'اشرح لي الفرق بين Akkusativ و Dativ ببساطة.' },

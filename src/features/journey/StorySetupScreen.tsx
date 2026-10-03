@@ -254,8 +254,11 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
               </div>
             )}
 
+            {/* V32: the button said "بدء" — start WHAT? On a first run, with
+                everything else new, that one word asks the learner to guess the
+                app's own vocabulary. It now names the step it opens. */}
             <PrimaryAction hintAr="خطوتان قصيرتان ثم تبدأ المحادثة." onClick={onStart}>
-              بدء
+              ابدأ التدريب
             </PrimaryAction>
 
             <GlassButton variant="quiet" fullWidth onClick={onBack}>

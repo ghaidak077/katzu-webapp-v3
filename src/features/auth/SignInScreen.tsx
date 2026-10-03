@@ -411,7 +411,13 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           </div>
         )}
 
-        {/* Level Selection for Profile */}
+        {/* Level selection — SIGN-UP ONLY.
+
+            V32: a returning learner was asked to re-pick a level the app already
+            stores, and the A1/A2/B1/B2 row read as a third primary action on a
+            screen whose only job is "sign in". Profile still lets anyone change
+            their level later, so nothing is lost by not asking twice. */}
+        {mode === 'signup' && (
         <div className="w-full mb-6 text-start">
           <label className="block text-xs font-bold text-text-secondary mb-1.5">
             مستواك المستهدف في اللغة الألمانية — تقدير أولي، سنضبطه بالمحادثة
@@ -436,6 +442,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             ))}
           </div>
         </div>
+        )}
 
         {/* Exactly one sign-in button at a time. Google Identity Services draws
             the official button into this container on origins Google trusts; on

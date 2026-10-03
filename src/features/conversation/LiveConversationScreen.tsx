@@ -144,21 +144,38 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           </p>
         </div>
         <div className="space-y-3">
+          {/* V32: two equal cards asked a learner who has never spoken German to
+              choose between "with help" and "without help" — a judgement they
+              cannot make yet. PRACTICE is now marked recommended and the whole
+              card is one tap to START; REAL mode stays exactly one tap below, so
+              recommending a default never takes the choice away. */}
           <button
             type="button"
             onClick={() => setSessionMode('practice')}
-            className="w-full rounded-3xl border border-primary/40 bg-white/5 p-5 text-start transition-colors hover:bg-white/10"
+            className="w-full rounded-3xl border border-primary/50 bg-primary/10 p-5 text-start transition-colors hover:bg-primary/15"
           >
-            <strong className="kz-ar-caption mb-1 block text-primary">{SESSION_MODE_COPY.practice.labelAr}</strong>
-            <span className="kz-ar-micro text-kz-inkDim">{SESSION_MODE_COPY.practice.descriptionAr}</span>
+            <span className="mb-1 flex items-center justify-between gap-2">
+              <strong className="kz-ar-caption block text-primary">{SESSION_MODE_COPY.practice.labelAr}</strong>
+              <span className="kz-ar-micro shrink-0 rounded-full border border-primary/40 px-2 py-0.5 font-bold text-primary">
+                موصى به
+              </span>
+            </span>
+            <span className="kz-ar-micro block text-kz-inkDim">{SESSION_MODE_COPY.practice.descriptionAr}</span>
           </button>
           <button
             type="button"
             onClick={() => setSessionMode('real')}
             className="w-full rounded-3xl kz-chip border border-white/10 bg-white/5 p-5 text-start transition-colors hover:bg-white/10"
           >
-            <strong className="kz-ar-caption mb-1 block text-primary">{SESSION_MODE_COPY.real.labelAr}</strong>
-            <span className="kz-ar-micro text-kz-inkDim">{SESSION_MODE_COPY.real.descriptionAr}</span>
+            <strong className="kz-ar-caption mb-1 block text-kz-inkDim">{SESSION_MODE_COPY.real.labelAr}</strong>
+            <span className="kz-ar-micro text-kz-inkFaint">{SESSION_MODE_COPY.real.descriptionAr}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSessionMode('practice')}
+            className="w-full rounded-2xl px-4 py-3 text-center font-arabic text-xs font-bold text-kz-lavender transition-colors hover:text-kz-ink min-h-touch"
+          >
+            ابدأ «تدريب» الآن
           </button>
         </div>
       </main>

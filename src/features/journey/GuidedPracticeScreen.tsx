@@ -317,13 +317,20 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   track('word_bank_tapped', { skill: 'practice', kind: 'grammar' });
                   setGrammarAnswer((prev) => (prev ? `${prev} ${word}` : word));
                 })}
+                {/* V32: each box now says which question it answers. Two boxes
+                    sharing "Schreibe hier auf Deutsch…" left the learner reading
+                    upwards to work out where the answer went. */}
+                <label className="kz-ar-micro mt-2 block text-kz-inkDim" htmlFor="grammar-answer">
+                  إجابتك عن القاعدة بالألمانية
+                </label>
                 <input
+                  id="grammar-answer"
                   type="text"
                   dir="ltr"
                   value={grammarAnswer}
                   onChange={(event) => setGrammarAnswer(event.target.value)}
                   onKeyDown={(event) => event.key === 'Enter' && handleCheckGrammar()}
-                  placeholder="Schreibe hier auf Deutsch…"
+                  placeholder="اكتب جملتك بالألمانية هنا…"
                   aria-label="اكتب جملة القاعدة بالألمانية"
                   className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink transition-colors placeholder:font-arabic placeholder:text-micro placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                 />
@@ -385,13 +392,17 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   track('word_bank_tapped', { skill: 'practice', kind: 'retrieval' });
                   setRetrievalAnswer((prev) => (prev ? `${prev} ${word}` : word));
                 })}
+                <label className="kz-ar-micro mt-2 block text-kz-inkDim" htmlFor="retrieval-answer">
+                  جملتك بالألمانية
+                </label>
                 <input
+                  id="retrieval-answer"
                   type="text"
                   dir="ltr"
                   value={retrievalAnswer}
                   onChange={(event) => setRetrievalAnswer(event.target.value)}
                   onKeyDown={(event) => event.key === 'Enter' && handleCheckRetrieval()}
-                  placeholder="Schreibe hier auf Deutsch…"
+                  placeholder="اكتب الجملة التي قالها Katzu…"
                   aria-label="اكتب الجملة بالألمانية"
                   className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink transition-colors placeholder:font-arabic placeholder:text-micro placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                 />

@@ -15,6 +15,10 @@ import { enrolStudiedPhrases, enrolStudiedVocabulary } from '@/lib/srs/store';
 import { track } from '@/lib/analytics/client';
 import { ArrowRight, Volume2, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
 import { BackButton } from '@/components/common/BackButton';
+import { arCount } from '@/lib/i18n/arabicCount';
+
+/** V32: the score line agreed with its number too — "1 إجابات صحيحة". */
+const CORRECT_FORMS = { one: 'إجابة واحدة', two: 'إجابتان', few: 'إجابات', many: 'إجابة' } as const;
 
 export interface QuizScreenProps {
   scenarioId: string;
@@ -32,6 +36,8 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [isQuizCompleted, setIsQuizCompleted] = useState(false);
+  /** V32: this question was revealed rather than answered, so it scored zero. */
+  const [didReveal, setDidReveal] = useState(false);
 
   const { speak } = useSpeechOutput();
 
@@ -130,6 +136,33 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
     }
   };
 
+  /**
+   * V32: the way out of a question you do not know.
+   *
+   * The "next" button is disabled until an option is tapped, which made guessing
+   * the only way forward — and a learner who guesses to escape is being taught
+   * that the app rewards a coin flip. This is the same exit Review already
+   * offers («لا أتذكّر — أرني الإجابة»), it costs no score for the learner and
+   * no dignity: the question is marked missed, the answer is shown, and the item
+   * enters the review queue exactly as a wrong answer does.
+   */
+  const handleReveal = () => {
+    if (!currentQ || isAnswerSubmitted) return;
+    setSelectedOption(null);
+    setIsAnswerSubmitted(true);
+    setDidReveal(true);
+    triggerHaptic('error');
+    // Same evidence as a wrong answer, so the review queue treats it identically:
+    // if the learner could not produce it unprompted, it is not learned yet.
+    if (currentQ.sourceKind === 'vocab') {
+      const word = (vocabQ || []).find((candidate) => candidate.id === currentQ.sourceId);
+      if (word) void enrolStudiedVocabulary([word]);
+    } else {
+      const phrase = (phrasesQ || []).find((candidate) => candidate.id === currentQ.sourceId);
+      if (phrase) void enrolStudiedPhrases([phrase]);
+    }
+  };
+
   const handleNext = async () => {
     // No buildable questions (content missing): continue to conversation
     // rather than trapping the learner in an empty quiz.
@@ -141,6 +174,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
       setCurrentIndex((i) => i + 1);
       setSelectedOption(null);
       setIsAnswerSubmitted(false);
+      setDidReveal(false);
     } else {
       const finalAccuracy = Math.round((score / questions.length) * 100);
       await db.scenario_training.update(scenarioId, {
@@ -241,9 +275,31 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
             })}
           </div>
 
+          {/* The escape hatch. It sits under the options, visually quiet, and
+              exists on EVERY question — a learner must never have to guess to be
+              allowed to continue. */}
+          {!isAnswerSubmitted && (
+            <button
+              type="button"
+              onClick={handleReveal}
+              className="w-full rounded-2xl px-4 py-3 text-center font-arabic text-xs text-text-muted underline decoration-dotted transition-colors hover:text-primary min-h-touch"
+            >
+              لا أعرف — أرني الإجابة
+            </button>
+          )}
+
           {/* Explanation Banner */}
           {isAnswerSubmitted && (
             <div className="p-4 rounded-2xl bg-surface-subtle border border-border-subtle text-xs">
+              {/* V32: after a wrong answer or a reveal, the correct option used to
+                  be marked only by a green tint. Remembering which of four was
+                  green is work. It is now stated in words. */}
+              {(didReveal || (selectedOption !== null && selectedOption !== currentQ.correctIndex)) && (
+                <p className="text-text-primary font-semibold mb-2">
+                  الصحيحة: <span className="text-status-success">{currentQ.options[currentQ.correctIndex]}</span>
+                  {didReveal && <span className="text-text-muted font-normal"> — لم تختر، فهذه لا تُحسب صحيحة.</span>}
+                </p>
+              )}
               <span className="font-bold text-primary block mb-1">ملاحظة كَاتْزُو:</span>
               <p className="text-text-secondary">{currentQ.explanation}</p>
             </div>
@@ -257,7 +313,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
           </div>
           <h3 className="text-2xl font-bold font-arabic">أحسنت! أتممت الاختبار</h3>
           <p className="text-sm text-text-secondary font-arabic">
-            نتيجتك: {score} من {questions.length} إجابات صحيحة
+            نتيجتك: {arCount(score, CORRECT_FORMS)} صحيحة من {questions.length}
           </p>
           <div className="text-xs text-text-muted">
             أنت الآن جاهز تماماً لبدء المحادثة الحية المباشرة مع كَاتْزُو بالصوت!

@@ -27,7 +27,12 @@ import {
   PenLine,
 } from 'lucide-react';
 import { arCount } from '@/lib/i18n/arabicCount';
-import { CORRECTION_NOM } from '@/lib/i18n/countForms';import type { VocabularyEntity, GrammarEntity, MistakeEntity } from '@/types/models';
+import { CORRECTION_NOM } from '@/lib/i18n/countForms';
+import { buildWordBankFrom } from '@/lib/utils/wordBank';
+import type { VocabularyEntity, GrammarEntity, MistakeEntity } from '@/types/models';
+
+/** V32: the word-bank headline agrees with its number. */
+const WORD_FORMS = { one: 'كلمة واحدة', two: 'كلمتان', few: 'كلمات', many: 'كلمة' } as const;
 
 export interface PracticeScreenProps {
   onOpenListening?: () => void;
@@ -39,6 +44,13 @@ export interface PracticeScreenProps {
 export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenWriting, onOpenCoach, onOpenAsk }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  /**
+   * V32: the screen opened with all 48 words as 48 tappable rows — 110 controls
+   * measured on a 360px phone, with nothing saying which one to do. The list is
+   * an archive you search, not a task you perform, so it now stays closed until
+   * the learner asks for it, and the header says how many words are waiting.
+   */
+  const [browseWords, setBrowseWords] = useState(false);
 
   // Modals
   const [showFlashcards, setShowFlashcards] = useState(false);
@@ -274,17 +286,23 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
         <div className="flex gap-2">
           <button
-            onClick={() => setSelectedCategory('ALL')}
+            onClick={() => {
+              setSelectedCategory('ALL');
+              setBrowseWords(true);
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
               selectedCategory === 'ALL'
                 ? 'bg-fill text-on-fill shadow-glow-purple'
                 : 'bg-surface-card text-text-secondary border border-border-subtle'
             }`}
           >
-            الكل ({vocabulary.length})
+            ابحث في الكل ({vocabulary.length})
           </button>
           <button
-            onClick={() => setSelectedCategory('SAVED')}
+            onClick={() => {
+              setSelectedCategory('SAVED');
+              setBrowseWords(true);
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
               selectedCategory === 'SAVED'
                 ? 'bg-status-learning text-black font-bold'
@@ -296,7 +314,18 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         </div>
       </div>
 
-      {/* Vocabulary List */}
+      {/* Vocabulary List — opened only when asked for. */}
+      {!browseWords ? (
+        <div className="rounded-2xl border border-border-subtle bg-surface-card p-5 text-center">
+          <p className="text-sm font-arabic font-bold text-text-primary">بنك الكلمات</p>
+          <p className="mt-1.5 text-micro font-arabic leading-relaxed text-text-secondary">
+            {arCount(vocabulary.length, WORD_FORMS)} بانتظارك هنا. ابحث عن أي كلمة ألمانية أو معناها بالعربية.
+          </p>
+          <Button variant="secondary" size="md" className="mt-3" onClick={() => setBrowseWords(true)}>
+            تصفّح الكلمات
+          </Button>
+        </div>
+      ) : (
       <div className="space-y-2.5">
         {/* An empty result is the commonest dead end on this screen: a search
             that matches nothing, or a saved list on a learner who has not saved
@@ -317,6 +346,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
               onClick={() => {
                 setSearchQuery('');
                 setSelectedCategory('ALL');
+                setBrowseWords(false);
               }}
             >
               {searchQuery || selectedCategory === 'SAVED' ? 'اعرض كل الكلمات' : 'أعد المحاولة'}
@@ -371,6 +401,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           );
         })}
       </div>
+      )}
 
       {/* Flashcards Modal */}
       <Modal

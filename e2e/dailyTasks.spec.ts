@@ -51,7 +51,10 @@ test('a completed day renders as done and starts the daily streak', async ({ pag
 
   const panel = page.getByTestId('daily-tasks');
   await expect(panel.getByText('3 من 3', { exact: true })).toBeVisible();
-  await expect(panel.getByText('1 يوم متتالٍ في مهام اليوم')).toBeVisible();
+  // V31: the one is written as a WORD, not as "1 يوم" — Arabic does not put a
+  // digit in front of the singular. The string below is the correct Arabic, and
+  // this assertion is what keeps it that way.
+  await expect(panel.getByText('يوم متتالٍ في مهام اليوم')).toBeVisible();
   await expect(panel.getByText('تم', { exact: true })).toHaveCount(3);
   // No action left to take today.
   await expect(panel.getByRole('button', { name: 'ابدأ محادثة' })).toHaveCount(0);

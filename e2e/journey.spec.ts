@@ -77,7 +77,7 @@ test('Story Setup introduces a situation, not a settings screen', async ({ page 
   await expect(page).toHaveURL(/\/scenario\/.+\/story$/);
 
   // Two ways out of the opening, and only one of them is the primary action.
-  const start = page.getByRole('button', { name: 'بدء' });
+  const start = page.getByRole('button', { name: 'ابدأ التدريب' });
   await expect(start).toBeVisible({ timeout: EPISODE_READY_MS });
   await expect(page.getByRole('button', { name: 'ليس الآن' })).toBeVisible();
 

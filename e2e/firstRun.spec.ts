@@ -57,7 +57,8 @@ test('a saved-word list with nothing in it offers the way out', async ({ page })
   // And the way out actually works: the full list comes back.
   await back.click();
   await expect(page.getByText(/لم تحفظ أي كلمة بعد/)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /^الكل \(/ })).toBeVisible();
+  // V32: the word list is an archive you search, so the filter now says so.
+  await expect(page.getByRole('button', { name: /^ابحث في الكل \(/ })).toBeVisible();
 });
 
 test('the Pro offer names the price, the free tier, the terms and who sells it', async ({ page }) => {

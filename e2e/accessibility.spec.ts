@@ -49,7 +49,7 @@ test('Trail has no critical or serious violations', async ({ page }) => {
 test('Story Setup has no critical or serious violations', async ({ page }) => {
   await bootSignedIn(page);
   await page.goto('/scenario/cafe_order/story');
-  await expect(page.getByRole('button', { name: 'بدء' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ابدأ التدريب' })).toBeVisible();
   assertClean(await scan(page), 'story setup');
 });
 

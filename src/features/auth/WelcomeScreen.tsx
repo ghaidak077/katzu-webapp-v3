@@ -8,6 +8,9 @@ import { db } from '@/lib/db/katzuDb';
 import type { CEFRLevel } from '@/types/models';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 
+/** V32: what Katzu calls you when you would rather not say. */
+const DEFAULT_DISPLAY_NAME = 'متعلم';
+
 export interface WelcomeScreenProps {
   onGoToSignIn: (mode?: 'signin' | 'signup') => void;
   /** Public demo: a real lesson without creating an account. */
@@ -20,13 +23,18 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
     setShowGoalSheet(true);
   };
 
   const handleSaveGoal = async (minutes: number, days: number, level: CEFRLevel) => {
     await db.users.update('current_user', {
-      displayName: name.trim(),
+      // V32: the name is optional. An empty field means "متعلم", not a blocked
+      // door — a required free-text box at the front of the app buys nothing the
+      // screen has not already promised (no email, no personal data), and it is
+      // editable later in Profile. The field stays because Katzu addressing
+      // someone by name makes the conversation warmer, and the default keeps it
+      // warm for anyone who would rather not type.
+      displayName: name.trim() || DEFAULT_DISPLAY_NAME,
       dailyGoalMinutes: minutes,
       weeklyGoalDays: days,
       cefrLevel: level,
@@ -69,18 +77,17 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
         <form onSubmit={handleStart} className="w-full mt-8 space-y-3">
           <input
             type="text"
-            aria-label="ما هو اسمك الأول؟"
-            placeholder="ما هو اسمك الأول؟"
+            aria-label="اسمك داخل المحادثة (اختياري)"
+            placeholder="اسمك داخل المحادثة — اختياري"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full h-14 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl px-5 text-center text-base font-arabic font-semibold transition-colors placeholder:text-text-muted"
-            required
           />
           <p className="text-micro font-arabic text-text-muted px-2">
-            نستخدم اسمك داخل المحادثة فقط — لا بريد ولا بيانات شخصية.
+            اختياري — إن لم تكتب شيئاً سأُدعى «{DEFAULT_DISPLAY_NAME}». نستخدم الاسم داخل المحادثة فقط، ولا بريد ولا بيانات شخصية.
           </p>
 
-          <Button type="submit" size="lg" className="w-full" disabled={!name.trim()}>
+          <Button type="submit" size="lg" className="w-full">
             ابدأ رحلتك الآن
             <ArrowLeft className="w-5 h-5 me-2" />
           </Button>

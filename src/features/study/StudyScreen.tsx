@@ -164,7 +164,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
               </div>
               <button
                 onClick={() => handlePlay(p.german)}
-                aria-label="استمع إلى النطق"
+                aria-label={`استمع إلى نطق: ${p.german}`}
                 className="w-11 h-11 min-h-touch min-w-touch rounded-full bg-primary/20 text-primary hover:bg-primary/30 flex items-center justify-center flex-shrink-0"
               >
                 {playingText === p.german && isPlaying ? (
@@ -234,7 +234,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
                   </button>
                   <button
                     onClick={() => handlePlay(`${v.article || ''} ${v.german}`)}
-                    aria-label="استمع إلى النطق"
+                    aria-label={`استمع إلى نطق: ${v.article ? v.article + ' ' : ''}${v.german}`}
                     className="w-10 h-10 min-h-touch min-w-touch rounded-full bg-primary/20 text-primary flex items-center justify-center"
                   >
                     <Volume2 className="w-4 h-4" aria-hidden="true" />

@@ -43,6 +43,17 @@ const AUDIBLE_RMS = 0.05;
 const SPEECH_HOLD_MS = 400;
 const SPEECH_CEILING_MS = 1500;
 
+/**
+ * Extra time the scripted recogniser waits for the live caption to appear.
+ *
+ * `interimHoldMs` (the `holdMs` a test asks for) is the floor: the interim must
+ * survive at least that long, because that is how long `say()` takes to raise the
+ * scripted microphone level. This grace is the ceiling on top of it — the engine
+ * waits this much longer when the caption still is not in the DOM, which happens
+ * when a loaded runner batches the interim and the final into one render.
+ */
+const INTERIM_GRACE_MS = 1000;
+
 /** The orb's accessible name while the app is recording. */
 const RECORDING_ACTION = /إيقاف التسجيل/;
 
@@ -447,7 +458,7 @@ export async function installVoiceStub(
     // Constants that `speak()` needs are passed in, not read from this module:
     // `page.evaluate` serialises the function and runs it in the page, where
     // module scope does not exist.
-    ({ installNative, holdMs, denyPermission, audibleRms, speechHoldMs, speechCeilingMs }) => {
+    ({ installNative, holdMs, denyPermission, audibleRms, speechHoldMs, speechCeilingMs, interimGraceMs }) => {
     type Scope = Record<string, unknown>;
     const scope = window as unknown as Scope;
     const bridge = (scope.__katzuE2E as Record<string, unknown>) || {};
@@ -515,13 +526,34 @@ export async function installVoiceStub(
           this.onresult?.(ScriptedRecognition.event([{ transcript: text.slice(0, split), isFinal: false }], 0));
         }, 40);
         // Then the finalised sentence, and the engine closes on its own.
-        setTimeout(() => {
+        //
+        // The interim is held for at least `holdMs` — that is the whole point of
+        // the flag, and shortening it finalises the utterance before `say()` has
+        // even finished raising the scripted level, so the caption is gone by the
+        // time anyone looks for it. On top of that floor, the engine waits for the
+        // page to actually *render* `[data-testid="live-caption"]`, up to one grace
+        // period more. A fixed hold alone is the bug the 2026-09-29 note below
+        // describes: on a loaded runner React can batch the interim and the final
+        // into one render, the caption never exists, and the test fails with
+        // "element not found" while the product is right — measured 2026-10-04 as
+        // exactly that, 1 failure in a 67-test run that passed in isolation.
+        const interimRendered = () => document.querySelector('[data-testid="live-caption"]') !== null;
+        const startedAt = Date.now();
+        const poll = () => {
           if (this.closed) return;
-          this.onresult?.(ScriptedRecognition.event([{ transcript: text, isFinal: true }], 0));
-          this.closed = true;
-          this.onend?.();
-          if (listening === this) listening = null;
-        }, 40 + holdMs);
+          const elapsed = Date.now() - startedAt;
+          const done =
+            elapsed >= holdMs && (interimRendered() || elapsed >= holdMs + interimGraceMs);
+          if (done) {
+            this.onresult?.(ScriptedRecognition.event([{ transcript: text, isFinal: true }], 0));
+            this.closed = true;
+            this.onend?.();
+            if (listening === this) listening = null;
+            return;
+          }
+          setTimeout(poll, 25);
+        };
+        setTimeout(poll, 40);
       }
 
       stop() {
@@ -697,6 +729,7 @@ export async function installVoiceStub(
       audibleRms: AUDIBLE_RMS,
       speechHoldMs: SPEECH_HOLD_MS,
       speechCeilingMs: SPEECH_CEILING_MS,
+      interimGraceMs: INTERIM_GRACE_MS,
     },
   );
 }
