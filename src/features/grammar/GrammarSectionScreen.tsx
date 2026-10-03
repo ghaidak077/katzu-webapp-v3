@@ -20,6 +20,7 @@ import {
   isTestOutPass,
   lessonState,
   mixedReviewLessonIds,
+  type GrammarPathNode,
 } from '@/lib/grammar/path';
 import { markLessonTestedOut, recordLessonAttempt } from '@/lib/grammar/pathStore';
 import { markGrammarTaskDone } from '@/lib/daily/taskStore';
@@ -47,6 +48,24 @@ export interface GrammarSectionScreenProps {
  * `pathStore`, and keeps the same memory contract the section always had (a
  * genuinely wrong production writes a mistake row and enrols a review item).
  */
+
+/**
+ * Why a lesson is locked, in the learner's own words.
+ *
+ * A greyed-out row that says only "مقفل" is a dead end: the learner cannot tell
+ * whether it is broken, whether they did something wrong, or how long they are
+ * stuck. So the row names the lesson that is actually holding it — the unmet
+ * prerequisite by title — because that is the one action that changes anything.
+ */
+function lockReasonAr(node: GrammarPathNode, nodes: GrammarPathNode[]): string {
+  const titles = node.lesson.prerequisites
+    .map((id) => nodes.find((candidate) => candidate.lesson.id === id))
+    .filter((candidate): candidate is GrammarPathNode => Boolean(candidate))
+    .map((candidate) => `«${candidate.lesson.titleAr}»`);
+  if (titles.length === 0) return 'الدرس الذي قبله';
+  if (titles.length === 1) return `الدرس ${titles[0]}`;
+  return `الدرسين ${titles.join(' و')}`;
+}
 
 /** The scenario each live grammar row teaches (SCENARIO_GRAMMAR_IDS, inverted). */
 const GRAMMAR_SCENARIOS: Record<string, string> = Object.entries(SCENARIO_GRAMMAR_IDS).reduce<Record<string, string>>(
@@ -505,6 +524,11 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                       <CheckCircle2 className="w-4 h-4 shrink-0 text-status-success" />
                     ) : null}
                   </div>
+                  {locked && (
+                    <p className="mt-1.5 text-micro font-arabic text-text-secondary">
+                      مقفل — يُفتح بعد إتمام {lockReasonAr(node, path.nodes)}
+                    </p>
+                  )}
                   <div className="mt-1.5 flex items-center gap-2">
                     {node.isNext && (
                       <span className="text-micro font-arabic font-bold text-primary">التالي</span>

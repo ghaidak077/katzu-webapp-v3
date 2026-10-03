@@ -251,23 +251,6 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         </div>
       )}
 
-      {/* Learners whose profile predates onboarding are prompted once here —
-          never redirected mid-task, and never asked twice after they answer. */}
-      {user?.isLoggedIn && !user.onboardingCompletedAt && onOpenOnboarding && (
-        <button
-          onClick={onOpenOnboarding}
-          className="w-full mb-3 flex items-center justify-between gap-3 rounded-3xl border border-primary/30 bg-primary/10 p-4 text-start transition-colors min-h-[44px]"
-        >
-          <span>
-            <span className="block font-arabic text-sm font-bold text-text-primary">أكمل تفضيلاتك (٣٠ ثانية)</span>
-            <span className="block font-arabic text-micro text-text-secondary mt-0.5">
-              هدفك ووقتك اليومي يجعلان المهمة اليومية أدق — ومستواك يبقى غير مقيس حتى تختاره.
-            </span>
-          </span>
-          <ArrowLeft className="h-4 w-4 shrink-0 text-primary" />
-        </button>
-      )}
-
       {/* ONE primary action for today. Review-due content becomes this card
           rather than a competing banner: the mission selector already put it
           first, and two prominent CTAs is how a learner ends up doing neither. */}
@@ -328,6 +311,30 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         </div>
         <KatzuMascot name="trail_header" className="w-24 h-24 object-contain -me-2 z-10" />
       </Card>
+
+      {/* Learners whose profile predates onboarding are prompted once here —
+          never redirected mid-task, and never asked twice after they answer.
+
+          V32: this used to sit ABOVE the mission, where it read as a second,
+          equally-urgent thing to do. The mission is today's work; this is setup.
+          Below it, and quiet, it stops competing with the one action that
+          matters. */}
+      {user?.isLoggedIn && !user.onboardingCompletedAt && onOpenOnboarding && (
+        <button
+          onClick={onOpenOnboarding}
+          className="mb-6 flex w-full items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors hover:border-primary/40 min-h-[44px]"
+        >
+          <span className="min-w-0">
+            <span className="block font-arabic text-xs font-bold text-text-primary">
+              أكمل تفضيلاتك (٣٠ ثانية)
+            </span>
+            <span className="mt-0.5 block font-arabic text-micro text-text-secondary">
+              يجعل المهمة اليومية أدق — ومستواك غير مقيس حتى تختاره.
+            </span>
+          </span>
+          <ArrowLeft className="h-4 w-4 shrink-0 text-text-secondary" />
+        </button>
+      )}
 
       {/* CEFR Level Selector Pills */}
       <div className="flex items-center justify-between gap-2 p-1.5 bg-surface-card border border-border-subtle rounded-2xl mb-8">

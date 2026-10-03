@@ -16,6 +16,7 @@ import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { StepTrail } from '@/components/ui/StepTrail';
 import { Badge } from '@/components/ui/Badge';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { buildWordBank } from '@/lib/utils/wordBank';
@@ -28,6 +29,15 @@ export interface ListeningScreenProps {
 
 /** How long the sentence stays visible in the no-audio fallback. */
 const PEEK_MS = 3000;
+
+/**
+ * The three moves of a dictation, in order.
+ *
+ * The audit found this screen never numbered its steps, so a learner had to infer
+ * listen → type → check from the layout. Numbered, the same screen teaches its
+ * own procedure and the next one is never a surprise.
+ */
+const LISTENING_STEPS = ['استمع', 'اكتب', 'تحقّق'] as const;
 
 function speechIsAvailable(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
@@ -191,6 +201,10 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
 
   const progressPercent = Math.round((index / queue.length) * 100);
 
+  // Which move the learner is on: the prompt is showing (1), they are writing (2),
+  // or the answer is back and they are reading it (3).
+  const step = result !== null ? 2 : typed.trim() ? 1 : 0;
+
   return (
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto pb-28">
       <div className="flex items-center justify-between mb-3">
@@ -209,6 +223,8 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle mb-5">
         <div className="h-full w-full rounded-full bg-primary origin-right transition-transform duration-panels ease-out" style={{ transform: `scaleX(${progressPercent / 100})` }} />
       </div>
+
+      <StepTrail steps={LISTENING_STEPS} current={step} />
 
       {!audioAvailable && (
         <p className="mb-3 rounded-2xl border border-status-learning/40 bg-status-learning/10 p-3 text-micro font-arabic text-text-secondary">

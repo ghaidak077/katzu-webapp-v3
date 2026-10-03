@@ -162,10 +162,16 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
       {/* The words of the offered reply. The suggestion sends a whole sentence;
           a learner who wants to say it in their own words (or is not ready to
           send it) can build it from the same chips as every other production
-          surface instead. */}
+          surface instead.
+
+          V32: the audit found this bank merely mirrored the others, so a learner
+          had no way to know it was the one place you can BUILD a sentence rather
+          than send one. It now says so, and says the words are in order. */}
       {showHelp && isHintRevealed && hintBank.length > 0 && (
         <div data-testid="word-bank" dir="ltr" className="mb-2">
-          <span className="kz-ar-micro mb-1 block text-kz-inkFaint">بنك الكلمات — اضغط لتضيف الكلمة</span>
+          <span className="kz-ar-micro mb-1 block text-kz-inkFaint">
+            هذه كلمات الجملة بالترتيب — اضغط لتبني جملتك بنفسك
+          </span>
           <div className="flex flex-wrap gap-1.5">
             {hintBank.map((word, wordIndex) => (
               <button

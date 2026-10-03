@@ -88,6 +88,7 @@ file is the digest that is short enough to always read.
 | 25 | The free wall was a dead end — «حاول مرة أخرى» on a condition that had already ended | Every surface kept its own hard-coded list of paywall codes, so `FREE_QUOTA_EXHAUSTED` matched none of them | One module owns the codes (`src/lib/entitlement/codes.ts`); surfaces classify by set, and an unreadable ledger is retryable, not a payment. |
 | 26 | A simplicity gate flagged 12 healthy screens, and a heading gate reported them as headingless | A source-level count of `GlassButton`/`variant="primary"` cannot see hierarchy, and an `<h1>`-only match ignores a correct `<h2>` | Measure a new gate against the healthy tree before trusting it; if a heuristic cannot be made honest, delete it and pin its absence with a test. |
 | 27 | Arabic counts read «راجع 2 الآن» and «1 يوم» | A digit was interpolated straight into an Arabic phrase; Arabic needs the one/dual as **words** and the noun changing form (3–10 plural, 11+ singular, modulus `% 100`) | Route every count through `arCount`/`arCountWith` (`src/lib/i18n/`) with a form table; never interpolate a bare digit into Arabic prose. |
+| 28 | A rendered-control measurement came back as `{}` and looked like "nothing to measure" | `page.evaluate` given a **function string** evaluates to the function itself, which is not serializable, so it returned `undefined` for every screen | Pass a real function, or wrap the string as an IIFE (`(() => {…})()`). An all-`undefined` measurement is a broken harness, not a zero result. |
 
 ---
 

@@ -5,6 +5,7 @@ import { isProEffective } from '@/lib/utils/subscription';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Card } from '@/components/ui/Card';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -212,6 +213,11 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
 
   return (
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto relative pb-28">
+      {/* V32: 29 flat controls with no grouping. Three sections, folded by
+          default: identity and subscription stay open because that is what
+          people open this screen for; everything else is one tap away and says
+          what it contains while folded. */}
+      <CollapsibleSection title="حسابي" hint="اسمك، اشتراكك، وإحالة صديق" defaultOpen>
       {/* Profile Card Banner */}
       <Card variant="hero" className="p-5 mb-6 relative overflow-hidden border border-primary/30 flex items-center justify-between shadow-glow-purple">
         <div className="max-w-[70%]">
@@ -262,7 +268,9 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           <span className="text-xs font-bold font-arabic text-primary">ترقية ←</span>
         </Card>
       )}
+      </CollapsibleSection>
 
+      <CollapsibleSection title="طريقة تعلّمي" hint="المستوى، الصوت، نبرة Katzu، ومهنتك">
       {/* Learning preferences — the answers that steer the daily mission. */}
       <Card className="p-4 mb-6 space-y-3">
         <div className="flex items-center justify-between gap-2">
@@ -580,7 +588,12 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           ))}
         </div>
       </Card>
+      </CollapsibleSection>
 
+      {/* Memory lives here too, but it is grouped with the data controls below
+          rather than with preferences: it is about what Katzu remembers, not how
+          the learner learns. */}
+      <CollapsibleSection title="بياناتك" hint="ما يتذكّره Katzu، مع Exports وحذف الحساب">
       {/* App Info & Sign Out */}
       <div className="space-y-3">
           <button
@@ -708,6 +721,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </div>
         )}
       </Card>
+      </CollapsibleSection>
 
       {/* Edit Name Modal */}
       <Modal isOpen={showEditName} onClose={() => setShowEditName(false)} title="تعديل الاسم">

@@ -295,13 +295,22 @@ name is **optional** (default «متعلم»), and chat **preselects تدريب*
 | **P2-10** quiz score | `arCount(score, CORRECT_FORMS)` — 1/2 as words, 3–10 plural, 11+ singular | unit |
 | **P2-17** standing gate | new `scripts/simplicity-check.mjs` (26 screens; `control-budget` + `unnamed-heading`), wired into `.github/workflows/ci.yml`, pinned by `tests/simplicityGate.test.ts` (5) | `npm test` + CI |
 
-**Deliberately not done, and why.** P2-12 (numbering the Listen/Write steps),
-P2-13 (collapsible profile sections), P2-14 (inline lock reasons), P2-15 (moving
-the preferences nag) and P2-16 (the chat "how to build it" affordance) are
-real findings, but each one restructures a screen rather than clarifying it, and
-restructuring is exactly the risk this pass was chartered to remove. They are
-backlog, not done. The **primary-budget** rule was written, measured and then
-**deleted**: it flagged 12 healthy screens, because a source-level count of
-`GlassButton`/`variant="primary"` cannot tell a real competing action from a
-button inside a card. A gate that cries wolf gets deleted — the gate that stayed
-(`control-budget`, `unnamed-heading`) means exactly what it says.
+**P2-12/13/14/15/16 were filed as backlog here and are now CLOSED (V33).** They
+were held back only because they restructure a screen rather than clarify one,
+and the owner's next instruction was to fix everything and ship it. They are done:
+the Listen/Write steps are numbered by a shared `StepTrail`; Profile is three
+collapsible sections, **measured in a 360px browser at 29 → 8 rendered controls**
+with an e2e pinning ≤ 12 so the wall cannot return; a locked grammar lesson names
+the lesson holding it (`lockReasonAr`, built from the unmet `prerequisites`); the
+preferences nag sits below today's mission as a quiet row instead of a second
+hero; and the chat word bank says you can build a sentence from it rather than
+only send one. See the `V33-1` ledger row and `tests/v33SimplifyPolish.test.ts`
+(16) + `e2e/polish.spec.ts` (4).
+
+**The `primary-budget` rule was written, measured and then DELETED** — and that
+decision still stands. It flagged 12 healthy screens, because a source-level
+count of `GlassButton`/`variant="primary"` cannot tell a real competing action
+from a button inside a card. A gate that cries wolf gets deleted; the two that
+stayed (`control-budget`, `unnamed-heading`) mean exactly what they say. V33 is
+the proof that the honest way to police hierarchy is to **measure the rendered
+screen in a browser**, which is what `e2e/polish.spec.ts` now does for Profile.

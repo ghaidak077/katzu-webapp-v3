@@ -111,6 +111,13 @@ elsewhere, four new V10 entries.
 
 2026-10-04 | A new e2e timed out on the LAST question of a loop, waiting for a button that had correctly disappeared | The loop asked 'is the result screen up?' immediately after clicking «عرض النتيجة», which renders nothing yet, so the answer was always *no* and the next iteration waited 30 s for the escape button that never comes back | Never branch on a state that is about to change. After an action, wait on **either** outcome (`expect(a.or(b)).toBeVisible()`), and treat an arbitrarily-capped `for` loop as a silent bug: the cap hid that the deck is longer than 12.
 
+
+2026-10-04 | Deferring five P2 findings as “restructure, don't clarify”, then being told to fix everything and ship | They were real findings that needed a judgement call, not a smaller class of problem | A deferral is a *decision with a trigger*, so record it as backlog with the trigger and the owner's answer closes it. V33 closed all five; the honest way to police hierarchy afterwards was to **measure the rendered screen in a browser** (Profile 29 → 8), which is what `e2e/polish.spec.ts` does — the source-counting gate could never have seen folding.
+
+2026-10-04 | A rendered-control harness reported every screen as empty | `page.evaluate` was handed a **function string**, so it evaluated to the function and returned `undefined` instead of calling it | Pass a function, or wrap the string as an IIFE. An all-undefined measurement is a broken harness — treat “is this number zero?” as “is this harness working?” first.
+
+2026-10-04 | Two of my own new tests were wrong before they were ever run | One asserted `aria-expanded` on the wrong component and used `.toMatch` on a string; another pointed at `/app/listening` when the route is `/app/listen`, so it rendered the empty state and the steps were legitimately absent | Read the route table and the component's own contract before asserting on them. A test that fails because the *test* guessed wrong is fixed in the test, never worked around in the product.
+
 ## Pruned (encoded elsewhere — kept here only as a pointer)
 
 - `npx vitest run --reporter=line` fails: `line` is a Playwright reporter. Now stated in `AGENTS.md` §5 (`--reporter=line` is Playwright-only; use `dot` or the default for Vitest).

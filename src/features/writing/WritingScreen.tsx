@@ -8,6 +8,7 @@ import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { StepTrail } from '@/components/ui/StepTrail';
 import { Badge } from '@/components/ui/Badge';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { isProEffective } from '@/lib/utils/subscription';
@@ -29,6 +30,9 @@ export interface WritingScreenProps {
 /** The worker owns these limits; mirrored here only to warn before submitting. */
 const MIN_CHARS = 20;
 const MAX_CHARS = 900;
+
+/** The three moves of a writing task, in order — see `StepTrail`. */
+const WRITING_STEPS = ['اقرأ المهمة', 'اكتب', 'اقرأ التصحيح'] as const;
 
 const DIMENSION_LABELS: Record<string, string> = {
   task: 'تنفيذ المهمة',
@@ -197,6 +201,8 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
           </Badge>
         </div>
 
+        <StepTrail steps={WRITING_STEPS} current={2} />
+
         <Card variant="hero" glow className="p-5 mb-4 text-center">
           <div className="text-3xl font-bold font-german text-primary mb-1">{feedback.percent}%</div>
           <p className="text-xs font-arabic text-text-secondary leading-relaxed">{verdictAr(feedback.percent)}</p>
@@ -333,6 +339,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
       )}
 
       <form onSubmit={handleSubmit}>
+        <StepTrail steps={WRITING_STEPS} current={isSubmitting ? 1 : trimmedLength ? 1 : 0} />
         <Card className="p-4 mb-4">
           {wordBank.length > 0 && (
             <div data-testid="word-bank" dir="ltr" className="mb-3">
