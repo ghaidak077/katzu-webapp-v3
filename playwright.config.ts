@@ -81,6 +81,9 @@ export default defineConfig({
     // the turn before any fetch). A VITE_ var must exist at build/dev-server
     // start, so the suite carries its own placeholder instead of depending on
     // an untracked .env that only some checkouts have.
-    env: { VITE_WORKER_URL: 'https://e2e-worker.test' },
+    // VITE_ANALYTICS_DEV: `track()` is suppressed in a dev build, and the CI e2e
+    // job runs `npx playwright test` with no E2E_TARGET (i.e. `npm run dev`), so
+    // without this the analytics spec captures nothing. Test-only opt-in.
+    env: { VITE_WORKER_URL: 'https://e2e-worker.test', VITE_ANALYTICS_DEV: '1' },
   },
 });
