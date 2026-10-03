@@ -19,9 +19,9 @@ gotcha/limitation ⇒ update the matching row here **in the same commit**. Add a
 - Cross-session memory (mistakes + decisions): `docs/agent/MEMORY.md`.
 - Current status/ledger: `docs/AGENT-STATE.md`. Owner-facing snapshot: `docs/agent/PROJECT-BRIEF.md`.
 
-*Last verified: 2026-10-04 (V32-DEPLOY). Verified against `src/App.tsx`, `package.json`, `wrangler.toml`,
+*Last verified: 2026-10-04 (V33-DEPLOY). Verified against `src/App.tsx`, `package.json`, `wrangler.toml`,
 `cloudflare-unified-worker.js`, `tests/`, `e2e/`, and the live deploy targets below (worker
-`aafcf3bf-8307-4e20-bca6-240a075c8dd3`, Pages `assets/index-DmLEsqPT.js`). Re-check the four "volatile"
+`aafcf3bf-8307-4e20-bca6-240a075c8dd3`, Pages `assets/index-C2UyWulE.js`). Re-check the four "volatile"
 sections — routes, endpoints, tables, deploy ids — on first touch of any of them.*
 
 ---
