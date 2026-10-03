@@ -151,6 +151,26 @@ export interface DailyTaskEntity {
   updatedAt: number;
 }
 
+/**
+ * The server-authoritative daily ledger snapshot (V29). The SERVER owns the day
+ * (derived from its own clock plus a locked UTC offset), so `totalXp` and
+ * `streakDays` here override whatever the device computed locally — that is what
+ * stops a device clock/timezone change from granting a fresh day. Written only by
+ * `adoptDailyAuthority` after a sync; absent until the first server sync.
+ */
+export interface DailyAuthority {
+  dayKey: string;
+  /** The UTC offset locked on the first sync; later device changes are ignored. */
+  offsetMinutes: number;
+  xpToday: number;
+  totalXp: number;
+  streakDays: number;
+  cap: number;
+  earnedToday: boolean;
+  tasks: { scenario: boolean; grammar: boolean; review: boolean };
+  updatedAt: number;
+}
+
 export interface SavedWordEntity {
   wordId: number;
   savedAt: number;
@@ -210,6 +230,10 @@ export interface UserEntity {
    * next sync; enables real conflict signalling instead of last-write-wins).
    * Optional + non-indexed: old rows simply lack it, no migration needed. */
   syncRev?: number;
+  /** Server-authoritative daily ledger snapshot (V29). The server owns the day,
+   * the daily XP cap and the streak; this is the last answer adopted, and it
+   * overrides the device's local computation for both UI and the next sync. */
+  dailyAuthority?: DailyAuthority;
   // --- Long memory (V21 Phase 3) — allow-listed facts only, never transcripts
   // or audio; the learner can view and delete every line of it in Settings. ---
   /** Where the learner needs German to actually work: a profession focus inside

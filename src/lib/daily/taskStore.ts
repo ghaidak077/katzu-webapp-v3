@@ -120,11 +120,18 @@ export async function readDailyTasks(now: number = Date.now()): Promise<DailyTas
     completedToday,
   });
 
+  // V29: the server owns the day and the streak. When it has answered, its streak
+  // wins over the device's local count, so a clock/timezone jump cannot inflate it.
+  const user = await db.users.get('current_user').catch(() => undefined);
+  const serverStreak = user?.dailyAuthority?.streakDays;
+  const streakDays =
+    typeof serverStreak === 'number' && Number.isFinite(serverStreak) ? Math.max(0, serverStreak) : streak.streakDays;
+
   return {
     statuses,
     doneCount: dailyTasksDoneCount(statuses),
     allDone: allDailyTasksDone(statuses),
-    streakDays: streak.streakDays,
+    streakDays,
     forgiving: streak.forgiving,
     missedDateKey: streak.missedDateKey,
     dueCount,

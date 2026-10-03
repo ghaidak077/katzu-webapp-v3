@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { INTRO_SCENARIO_ID } from '@/lib/mission/selectMission';
+import { DAILY_EVENT_QUEUE_KEY } from '@/lib/progress/dailyQueueKey';
 import type {
   ScenarioEntity,
   StarterPhraseEntity,
@@ -251,6 +252,14 @@ export async function wipeUserScopedData(): Promise<void> {
     db.grammar_lessons.clear(),
     db.daily_tasks.clear(),
   ]);
+
+  // The durable daily-event queue (V29) lives in localStorage, not Dexie, so the
+  // table loop above does not touch it. Without this removal a signed-out
+  // learner's queued sessions would be credited to the NEXT account that signs in
+  // on the same device — one account's activity landing in another's ledger.
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(DAILY_EVENT_QUEUE_KEY);
+  } catch { /* private mode / storage disabled: nothing to remove */ }
 
   await db.users.put({
     id: 'current_user',

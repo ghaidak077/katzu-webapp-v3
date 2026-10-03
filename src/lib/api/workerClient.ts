@@ -1,6 +1,8 @@
 import { db } from '../db/katzuDb';
 import { WORKER_BASE_URL } from './workerUrl';
 import { adoptRemoteReviewItems, loadReviewItems } from '@/lib/srs/store';
+import { adoptDailyAuthority, buildDailyPayload, clearDailyEvents, readDailyEventQueue } from '@/lib/progress/dailyAuthority';
+import type { DailyAuthority, DailyPayload } from '@/lib/progress/dailyAuthority';
 import { logError, logEvent, logNetwork } from '../utils/diagnostics';
 import type {
   ScenarioEntity,
@@ -75,6 +77,8 @@ export interface ProgressPayload {
   saved_word_ids: number[];
   mistakes: any[];
   session_summaries: any[];
+  /** Server-authoritative daily events (V29). Old servers ignore the extra field. */
+  daily?: DailyPayload;
 }
 
 const updatedAt = (value: any): number => typeof value === 'number' ? value : -Infinity;
@@ -875,6 +879,13 @@ export class WorkerClient {
       const mistakes = await db.mistakes.toArray();
       const sessions = await db.sessions.toArray();
 
+      // Snapshot the session events we are about to send, so a successful sync
+      // clears exactly those from the durable queue (never events queued mid-flight).
+      const dailyPayload = await buildDailyPayload();
+      const sentSessionEventIds = dailyPayload.events
+        .filter((event) => event.type === 'session')
+        .map((event) => event.id);
+
       const payload: ProgressPayload = {
         stats: {
           level: user?.cefrLevel || 'A1',
@@ -914,6 +925,9 @@ export class WorkerClient {
           is_mastered: !!m.isMastered,
           updated_at: m.updatedAt || m.timestamp,
         })),
+        // Server-authoritative daily ledger: the device reports what it measured
+        // (and, once, its offset + completed-day history). The server owns the day.
+        daily: dailyPayload,
         session_summaries: sessions.map((s) => ({
           id: s.id,
           scenario_id: s.scenarioId,
@@ -930,9 +944,16 @@ export class WorkerClient {
         })),
       };
 
-      const ok = await this.postProgressPayload(payload, idToken);
-      if (ok) await this.flushPendingSync(idToken);
-      else await this.queueSyncPayload(payload);
+      const { ok, daily } = await this.postProgressPayload(payload, idToken);
+      if (ok) {
+        // Server-authoritative day: adopt its XP/streak, then drop the session
+        // events it accepted so an offline retry cannot double-credit them.
+        await adoptDailyAuthority(daily);
+        clearDailyEvents(sentSessionEventIds);
+        await this.flushPendingSync(idToken);
+      } else {
+        await this.queueSyncPayload(payload);
+      }
       return ok;
     } catch (e) {
       console.error('Progress sync failed:', e);
@@ -940,7 +961,7 @@ export class WorkerClient {
     }
   }
 
-  private async postProgressPayload(payload: ProgressPayload, idToken?: string): Promise<boolean> {
+  private async postProgressPayload(payload: ProgressPayload, idToken?: string): Promise<{ ok: boolean; daily?: DailyAuthority }> {
     try {
       const token = await this.getEffectiveAuthToken(idToken);
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -968,20 +989,20 @@ export class WorkerClient {
           headers,
           body: JSON.stringify(fresh?.syncRev != null ? { ...payload, base_rev: fresh.syncRev } : payload),
         });
-        if (!retry.ok) return false;
+        if (!retry.ok) return { ok: false };
         const retryBody = await retry.json().catch(() => ({}));
         if (retryBody?.rev != null) await this.storeSyncRev(Number(retryBody.rev));
-        return !retryBody?.error;
+        return { ok: !retryBody?.error, daily: retryBody?.daily };
       }
-      if (!res.ok) return false;
+      if (!res.ok) return { ok: false };
       // A 200 carrying an error body is NOT a stored payload. The legacy worker
       // answered an expired session exactly that way, and trusting `res.ok` alone
       // made flushPendingSync delete progress it had just failed to save.
       const body = await res.json().catch(() => ({}));
       if (body?.rev != null) await this.storeSyncRev(Number(body.rev));
-      return !body?.error;
+      return { ok: !body?.error, daily: body?.daily };
     } catch (e) {
-      return false;
+      return { ok: false };
     }
   }
 
@@ -1007,8 +1028,13 @@ export class WorkerClient {
     if (!token) return;
     const pending = await db.sync_queue.where('nextRetryAt').belowOrEqual(Date.now()).toArray();
     for (const item of pending) {
-      const ok = await this.postProgressPayload(item.payload as ProgressPayload, token);
+      const { ok, daily } = await this.postProgressPayload(item.payload as ProgressPayload, token);
       if (ok) {
+        await adoptDailyAuthority(daily);
+        const sentIds = (item.payload as ProgressPayload).daily?.events
+          ?.filter((event) => event.type === 'session')
+          .map((event) => event.id) ?? [];
+        clearDailyEvents(sentIds);
         if (item.id != null) await db.sync_queue.delete(item.id);
       } else if (item.id != null) {
         await db.sync_queue.update(item.id, {
@@ -1068,6 +1094,10 @@ export class WorkerClient {
             session_summaries: data.session_summaries || data.sessions || [],
           });
           const stats = merged.stats;
+          // Server-authoritative day: the overlay on stats already carries the
+          // server's XP/streak; adopt the ledger snapshot so the panel/rank and the
+          // next sync all agree with it.
+          if (data.daily) await adoptDailyAuthority(data.daily);
           await db.users.update('current_user', {
             cefrLevel: stats.level || 'A1',
             streakDays: stats.streak_days ?? 0,

@@ -77,6 +77,7 @@ import {
 // secret) out of the PWA entirely.
 import { handleCryptoRoutes, timingSafeEqualHex } from "./cloudflare-crypto.js";
 import { ensureContentColumns } from "./cloudflare-content-schema.js";
+import { dailyKey, processDailySync, readAuthoritativeDaily, overlayStatsWithDaily } from "./cloudflare-daily.js";
 
 // ============================================================================
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
@@ -769,6 +770,12 @@ async function handleDeleteUser(request, env, cors) {
   };
 
   await tryStep("progress", () => env.USER_PROGRESS.delete(`progress:${account.sub}`));
+  // The server-authoritative daily ledger (V29) is per-account data too: it
+  // carries the earned-day history and the seen-event ids. Deletion must clear
+  // it like `progress:` — before V29 existed there was nothing else to clear, so
+  // it is easy to miss and it is exactly the kind of record a data-rights
+  // request is about.
+  await tryStep("daily_ledger", () => env.USER_PROGRESS.delete(dailyKey(account.sub)));
   await tryStep("ai_quota", () => env.USER_PROGRESS.delete(quotaKey(account.sub)));
 
   // Revoke ALL live sessions (KV has no prefix listing — use the per-user index).
@@ -917,6 +924,11 @@ async function handleUserExport(request, env, cors) {
     const progressRaw = await env.USER_PROGRESS.get(`progress:${account.sub}`).catch(() => null);
     if (progressRaw) {
       try { exportData.progress = stripCredentials(JSON.parse(progressRaw)); } catch {}
+    }
+    // Portability (GDPR Art. 20): the daily ledger is this account's data too.
+    const dailyRaw = await env.USER_PROGRESS.get(dailyKey(account.sub)).catch(() => null);
+    if (dailyRaw) {
+      try { exportData.daily_ledger = stripCredentials(JSON.parse(dailyRaw)); } catch {}
     }
     const quotaRaw = await env.USER_PROGRESS.get(quotaKey(account.sub)).catch(() => null);
     if (quotaRaw) {
@@ -2686,6 +2698,7 @@ async function handleProgressSync(request, env, cors) {
   const incomingSavedWordIds = body?.saved_word_ids;
   const incomingMistakes = body?.mistakes;
   const incomingSessionSummaries = body?.session_summaries;
+  const incomingDaily = body?.daily;
 
   if (!idToken || typeof idToken !== "string") {
     return json({ error: "missing_id_token" }, 400, cors);
@@ -2738,16 +2751,71 @@ async function handleProgressSync(request, env, cors) {
           mistakes: incomingMistakes, session_summaries: incomingSessionSummaries,
         }, now)
       : freshProgress(incomingStats, incomingTrainings, incomingSavedWordIds, incomingMistakes, incomingSessionSummaries, now);
+    // Server-authoritative day (V29): process the daily payload, then overlay the
+    // authoritative XP/streak so a client clock/timezone cannot widen a day or its
+    // cap. Seeded from the best-known server total so XP is never reset.
+    //
+    // A sync is under daily authority whether or not it carries a `daily`
+    // payload: a missing one is treated as empty, so the ledger is always created
+    // and the server always owns the day/cap/streak. A stats-only client cannot
+    // opt out — it can only reconcile the lifetime total upward, bounded inside
+    // processDailySync to the daily cap times the elapsed days.
+    const seedTotal = Math.max(
+      Number(incomingStats?.total_points) || 0,
+      Number(existing?.stats?.total_points) || 0,
+      Number(incomingDaily?.totalXp) || 0,
+    );
+    const daily = await processDailySync(env, account.sub, { ...(incomingDaily || {}), totalXp: seedTotal }, now);
+    merged.stats = overlayStatsWithDaily(merged.stats, daily);
     await env.USER_PROGRESS.put(key, JSON.stringify(merged));
     // V21 Phase 6: first lesson just landed (see the D1 path below).
     if (firstLessonLanded(existing, merged)) {
       await awardReferralLessonPayout(account, env);
     }
-    return json({ success: true, updated_at: now }, 200, cors);
+    return json({ success: true, updated_at: now, daily }, 200, cors);
   }
 
   const MAX_MERGE_ATTEMPTS = 3;
   let lastRev = 0;
+  const baseRev = Number.isFinite(Number(body?.base_rev)) && body?.base_rev != null
+    ? Number(body.base_rev)
+    : null;
+
+  // A request we are about to reject must not advance the ledger: check the
+  // revision first so a stale sync cannot reconcile XP or mark a task before it
+  // gets its 409. The merge loop still re-checks under the read for the race it
+  // can win, but the common stale case returns before any shared state moves.
+  if (baseRev !== null) {
+    let preRev = 0;
+    try {
+      const preRow = await env.DB.prepare(
+        "SELECT rev FROM sync_revisions WHERE user_id = ?"
+      ).bind(account.sub).first();
+      preRev = Number(preRow?.rev) || 0;
+    } catch { /* D1 hiccup: fall through to the merge loop's own check */ }
+    if (preRev !== baseRev) {
+      return json({ error: "sync_conflict", code: "SYNC_CONFLICT", rev: preRev }, 409, cors);
+    }
+  }
+
+  // Server-authoritative daily ledger (V29), processed ONCE before the merge
+  // loop so a conflict retry can never credit the same event twice. Seeded from
+  // the best-known server total (the KV mirror tracks D1 after each commit) so a
+  // first-ever ledger never resets the learner's XP.
+  //
+  // As in the KV-degrade path: the ledger is created on every sync, a missing
+  // `daily` payload included, so no client can opt out of authority. The lifetime
+  // total is seeded from the best-known value and reconciled upward only inside
+  // processDailySync's plausible-growth bound.
+  let seedTotalPoints = Number(incomingStats?.total_points) || 0;
+  try {
+    const seedRaw = await env.USER_PROGRESS.get(key);
+    const seedPrev = seedRaw ? JSON.parse(seedRaw) : null;
+    const prevTotal = Number(seedPrev?.stats?.total_points) || 0;
+    if (prevTotal > seedTotalPoints) seedTotalPoints = prevTotal;
+  } catch { /* KV miss: the client's total is the best estimate */ }
+  if (Number(incomingDaily?.totalXp) > seedTotalPoints) seedTotalPoints = Number(incomingDaily.totalXp);
+  const daily = await processDailySync(env, account.sub, { ...(incomingDaily || {}), totalXp: seedTotalPoints }, Date.now());
 
   for (let attempt = 0; attempt < MAX_MERGE_ATTEMPTS; attempt++) {
     // Authoritative state read: rev + payload from the same D1 row.
@@ -2769,9 +2837,7 @@ async function handleProgressSync(request, env, cors) {
 
     // Old clients (no rev field) merge unconditionally but still merge — the
     // merge with current server state happens either way, so nothing is lost.
-    const baseRev = Number.isFinite(Number(body?.base_rev)) && body?.base_rev != null
-      ? Number(body.base_rev)
-      : null;
+    // (`baseRev` was computed before the ledger was touched; reuse it here.)
     if (baseRev !== null && baseRev !== currentRev) {
       // Stale view: hand the client the current state + rev so it can re-merge.
       return json({ error: "sync_conflict", code: "SYNC_CONFLICT", rev: currentRev }, 409, cors);
@@ -2785,6 +2851,9 @@ async function handleProgressSync(request, env, cors) {
     const merged = existing
       ? mergeProgress(existing, incoming, now)
       : freshProgress(incomingStats, incomingTrainings, incomingSavedWordIds, incomingMistakes, incomingSessionSummaries, now);
+    // The server's day owns XP and the streak: overlay its values so a client
+    // clock/timezone can never make a larger total or streak stick in D1.
+    merged.stats = overlayStatsWithDaily(merged.stats, daily);
 
     // Atomic commit: the conditional UPDATE both verifies the rev and stores
     // the merged payload. meta.changes === 0 means another device committed
@@ -2823,7 +2892,7 @@ async function handleProgressSync(request, env, cors) {
     if (firstLessonLanded(existing, merged)) {
       await awardReferralLessonPayout(account, env);
     }
-    return json({ success: true, updated_at: now, rev: currentRev + 1 }, 200, cors);
+    return json({ success: true, updated_at: now, rev: currentRev + 1, daily }, 200, cors);
   }
 
   return json({ error: "sync_conflict", code: "SYNC_CONFLICT", rev: lastRev }, 409, cors);
@@ -2913,11 +2982,16 @@ async function handleProgressGet(request, env, cors) {
     payload = raw ? JSON.parse(raw) : null;
   }
 
+  // Server-authoritative day (V29): the ledger owns XP and the streak, so the
+  // read overlays its values. Null on an account that has never synced a ledger.
+  const daily = await readAuthoritativeDaily(env, account.sub);
+
   if (!payload) {
     return json({
       updated_at: null,
       rev,
-      stats: { level: "A1", streak_days: 0, total_points: 0, last_active_date: null },
+      stats: overlayStatsWithDaily({ level: "A1", streak_days: 0, total_points: 0, last_active_date: null }, daily),
+      daily,
       trainings: [],
       saved_word_ids: [],
       mistakes: [],
@@ -2925,7 +2999,7 @@ async function handleProgressGet(request, env, cors) {
     }, 200, cors);
   }
 
-  return json({ ...payload, rev }, 200, cors);
+  return json({ ...payload, stats: overlayStatsWithDaily(payload.stats, daily), daily, rev }, 200, cors);
 }
 
 function mergeStats(existingStats, incomingStats) {

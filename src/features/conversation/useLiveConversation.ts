@@ -18,6 +18,7 @@ import { buildSessionDebrief, type SessionDebrief } from '@/lib/debrief/debrief'
 import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 import { sessionXp } from '@/lib/progress/sessionXp';
 import { creditXp, xpEarnedToday } from '@/lib/progress/dailyXp';
+import { enqueueDailyEvent, sessionEventId } from '@/lib/progress/dailyAuthority';
 import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
@@ -974,6 +975,17 @@ export function useLiveConversation({
 
     // V28 Stage 3: today's scenario task is done the moment a conversation ends.
     await markScenarioTaskDone();
+
+    // V29: report what this session measured to the server, which owns the day —
+    // so the daily XP cap and the streak are enforced against the SERVER's clock,
+    // not this device's. Queued durably; sent by the sync below (or next online).
+    enqueueDailyEvent({
+      id: sessionEventId(Date.now()),
+      type: 'session',
+      accuracyPercent: accuracy,
+      assistedSentences: assistedMsgs.length,
+      mode: sessionMode || 'practice',
+    });
 
     // Auto sync progress to cloud if authenticated (session token only)
     if (user?.sessionToken) {

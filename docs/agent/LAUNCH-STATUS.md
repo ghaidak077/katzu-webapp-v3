@@ -123,13 +123,13 @@ session's allowance is spent (the terminal `quota_exhausted` state).
 
 | Check | Status | Evidence |
 | --- | --- | --- |
-| Analytics is an allow-list on both sides | READY | server `cloudflare-analytics.js:40 EVENT_NAMES` + `:122` rejects anything else (`unknown_event`); client `src/lib/analytics/events.ts:49 ALLOWED_PROP_KEYS`; `tests/analyticsEvents.test.ts`, `tests/analyticsRoute.test.ts` |
+| Analytics is an allow-list on both sides | READY | server `cloudflare-analytics.js:40 EVENT_NAMES` + `:127` rejects anything else (`unknown_event`); client `src/lib/analytics/events.ts:60 ALLOWED_PROP_KEYS`; `tests/analyticsEvents.test.ts`, `tests/analyticsRoute.test.ts` |
 | No tokens in anonymous storage | READY | live battery: `localStorage keys: katzu_analytics_queue_v1, katzu_install_id; cookies: 0`; `tests/tokenHygiene.test.ts`; `scripts/smoke-token-hygiene.cjs` |
 | No transcripts or audio in logs / crash reports | READY | `tests/diagnosticsPersistence.test.ts` (never stores console output), `tests/clientCrashReporting.test.ts`, `tests/clientErrorReport.test.ts`; the crash path sends capped, PII-free fields to `/client-error` |
 | Client crash reporting works | READY | `installDiagnosticsCapture()` in `src/main.tsx` → local ring buffer → `/client-error` → `error_reports` (admin dashboard); local real-D1 first-run probe (V9-3) stored a row |
 | `/health` and error routes leak nothing | READY | `tests/healthPrivacy.test.ts`; live `/health` asserted key-for-key in §2 |
 | Legal pages render | READY (copy) / **OWNER-ONLY** (review) | `/trust/privacy`, `/trust/terms`, `/trust/imprint`, `/trust/refund` all 200 with the copy visible in the deployed app; **counsel review, entity name, jurisdiction, retention window and the 16+ age floor are the owner's** |
-| Deletion and export | READY | `tests/accountOps.test.ts`; export strips `id_token`/secrets |
+| Deletion and export | READY | `tests/accountOps.test.ts`; export strips `id_token`/secrets. **V29-5:** deletion also clears the server-authoritative daily ledger `daily:<sub>` (it survived deletion before) and sign-out clears the queued daily events (`wipeUserScopedData` → `katzu_daily_events_v1`); export includes the ledger |
 
 ## 5. Failure UX — Arabic message with a next action — **READY**
 
@@ -194,3 +194,29 @@ Adjacent states that also have copy: unusable transcript
 8. **Public-launch items that are *not* gaps for a closed beta but must not be forgotten:** payments (provider account + secrets + a real sandbox pass), counsel-reviewed privacy/terms, Play submission items, custom domain + OAuth origins, and an on-call/incident owner. All are OWNER-ONLY and listed in §7.
 
 **Counts:** READY **12** · OWNER-ONLY **11** · BLOCKED **0**.
+
+---
+
+## 9. Public-launch gate — 2026-10-03 (V29-5)
+
+The scope above is the closed beta. Read against a **final public** launch, the code is
+certified but the launch remains owner-gated and deploy-gated.
+
+**Code-side certification (this pass, on the uncommitted `launch-hardening` tree):**
+`npm run build` OK · `npx tsc --noEmit` and `npx tsc -p e2e --noEmit` clean ·
+`npm test` **105 files / 1266 tests** · `npx playwright test` **62 passed** against the
+production bundle · `node --check cloudflare-*.js` clean · the four content audits exit 0 ·
+`npm audit --omit=dev --audit-level=high` **0 vulnerabilities** · the CI `secret-scan`
+patterns locally clean. V29-4 (server-authoritative daily XP/streak) was adversarially probed
+and hardened; the two data-lifecycle bugs it had introduced — the daily ledger surviving
+account deletion, and the queued daily events surviving sign-out — were found and fixed.
+
+**Owner-only, before a *public* launch (unchanged from §7/§8):** rotate `ADMIN_SECRET` ·
+attach a domain so `robots.txt`/`sitemap.xml` resolve · NowPayments account + the two secrets +
+a real sandbox pass (`NOWPAYMENTS_ENVIRONMENT` is still `test_mode`) · counsel-reviewed
+privacy/terms + Play Data Safety · real-device voice on two phones · an on-call/incident owner.
+
+**Agent-side blocker (needs `DEPLOY-AUTHORIZED`):** a **worker deploy** — required for V29-3
+analytics and V29-4 daily authority to exist on the live worker at all — then a **Pages
+deploy**, in that order (the app is service-worker cached). No commit has been made either
+(not requested).

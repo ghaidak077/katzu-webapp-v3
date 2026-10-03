@@ -186,12 +186,51 @@ file is the digest that is short enough to always read.
   the COMPOSER — it is the bottom boundary `e2e/conversationLayout.spec.ts` measures against (transcript ≥50% of a
   360×640 viewport, composer ≤20%). Hint options now live under `conversation-controls`, not `conversation-dock`.
 - **Every production surface offers the words (V29).** `buildWordBank` (`src/lib/utils/wordBank.ts`) returns the
-  target sentence's distinct words as tappable chips; it is used by Review's `ar_to_de` cards and both Guided
-  Practice production beats, but deliberately NOT for `de_to_ar` (the prompt is the German) or a mistake
-  reconstruction (the words are the answer). Review also has an explicit «لا أتذكّر — أرني الإجابة» — a reveal is
-  counted once as a miss. Any tapped chat word opens the insight sheet; an unknown word gets an honest, no-AI
-  card (no quota) instead of the old silent no-op. `selectGrammarRule` prefers a rule whose example reuses the
-  episode's words and never serves an off-scenario rule while a relevant one exists.
+  target sentence's distinct words as tappable chips; it is used by Review's `ar_to_de` cards, both Guided
+  Practice production beats, the chat's hint chips (the offered reply's words append into the composer), and the
+  Listening dictation (the audio is the prompt and the German is the answer). Writing has no single answer, so it
+  uses the sibling `buildWordBankFrom(parts, max)` — assembled from the scenario's own vocabulary + phrases, and
+  CAPPING a large pool instead of returning nothing. All bank containers carry `data-testid="word-bank"`. It is
+  deliberately NOT built for `de_to_ar` (the prompt is the German), a mistake reconstruction (the words are the
+  answer), or a single-word item (one chip would be the whole answer). Review also has an explicit
+  «لا أتذكّر — أرني الإجابة» — a reveal is counted once as a miss. Any tapped chat word opens the insight sheet;
+  an unknown word gets an honest, no-AI card (no quota) instead of the old silent no-op. `selectGrammarRule`
+  prefers a rule whose example reuses the episode's words and never serves an off-scenario rule while a relevant
+  one exists.
+- **The vocabulary bridge is measured (V29).** Two allow-listed analytics events, mirrored in
+  `cloudflare-analytics.js` and pinned equal by `tests/analyticsRoute.test.ts`: `word_bank_tapped` (every chip
+  tap, prop `skill` = the production surface, + `kind` on review/practice) and `review_revealed` (the explicit
+  «لا أتذكّر — أرني الإجابة» give-up). They answer "does offering the words reduce give-ups?" by comparing the
+  reveal rate with and without bank use. There is no session id in the schema — join by `installId` + `route` +
+  day. `e2e/skillSurfaces.spec.ts` proves both events actually POST to `/analytics/events`.
+- **The day belongs to the server now, not the device (V29-4).** The daily XP cap and the streak were computed
+  from the device clock (`dailyXp.ts` + `streak.ts`), so moving the clock or the timezone granted a fresh day.
+  `cloudflare-daily.js` now derives the day from the **server** clock shifted by the learner's UTC offset, and
+  **locks that offset on the first sync** — a later device timezone cannot move the boundary. State lives in one
+  KV record `daily:<sub>`; events are deduped by a stable id, so a retried offline batch credits exactly once.
+  On first creation the ledger is seeded from the client's `totalXp` and completed-day history (bounded) so
+  shipping never resets an existing learner, then client history is ignored. `/progress/sync` processes the
+  ledger **once** before the D1 merge loop and overlays `total_points`/`streak_days`; the client
+  (`src/lib/progress/dailyAuthority.ts`) keeps a durable localStorage event queue and **adopts** the server's
+  answer. A sync with **no** `daily` payload (old stats-only client) never creates or seeds a ledger — it keeps
+  the plain max-merge — but still adopts an existing ledger, so it cannot inflate an account already under
+  daily authority. **A worker deploy is required** for this to bite on a real device (the live worker has no
+  `cloudflare-daily.js`).
+- **What the daily ledger does and does NOT defend (V29-4, measured).** `tests/dailyLedgerAdversarial.test.ts`
+  (19 cases) is the reference. **Blocked / bounded:** replaying a given event id credits once; a clock/timezone
+  change cannot move the day (offset locked); lifetime XP can never exceed one capped day (600) per server day
+  (replaying ids across a day boundary credits nothing); future/invalid seed days, unknown event kinds, ids
+  shorter than 4 chars and offsets outside −720..840 are all rejected; accuracy lies and fresh-id replays land
+  but stop at the 600/day cap and 1 earned day/day. **Hardened (V29-5) — the four landing attacks are now
+  closed:** (1) the ledger is created on EVERY sync, so a missing `daily` payload cannot opt out; a client total
+  rises only by `DAILY_XP_CAP × elapsed days`; (2) the one-time first-sync seed is clamped
+  (`SEED_MAX_TOTAL`/`SEED_MAX_STREAK`); (3) a per-account async lock serializes the KV read-modify-write
+  **within one isolate**, so two concurrent devices no longer drop each other's events; (4) the dedupe window is
+  2000 ids. **One residual — do not claim it fixed:** two requests to *different* Cloudflare isolates can still
+  race the KV read-modify-write (a LOSS, never inflation); only a D1/DO compare-and-swap closes it.
+  **Data lifecycle (V29-5):** account deletion now deletes `daily:<sub>`, `/user/export` includes it, and
+  `wipeUserScopedData` clears the localStorage daily-event queue (`katzu_daily_events_v1`) so a signed-out
+  learner's sessions cannot be credited to the next account on the device.
 
 ---
 
@@ -200,7 +239,7 @@ file is the digest that is short enough to always read.
 - Rotate `ADMIN_SECRET` (was exposed in an earlier prompt).
 - `katzu.app` does not resolve though robots/sitemap advertise it.
 - Imprint placeholder + refund one-liner need real wording before public launch.
-- ~~No dedicated e2e for review/listen/write/coach.~~ **Closed (V28-4):** `e2e/skillSurfaces.spec.ts` (5) covers review, listening, writing, coach and the Trail rank badge; V29 added `e2e/quizStability.spec.ts` and extended skillSurfaces/journey/conversationLayout, so the suite is 59 e2e. What remains uncovered by e2e is only the *live* behaviour of these screens on a real device, not their rendering.
+- ~~No dedicated e2e for review/listen/write/coach.~~ **Closed (V28-4):** `e2e/skillSurfaces.spec.ts` (5) covers review, listening, writing, coach and the Trail rank badge; V29 added `e2e/quizStability.spec.ts` and extended skillSurfaces/journey/conversationLayout, so the suite is 61 e2e (the word-bank extension added the Writing-bank and hint-bank cases and widened the listening case). What remains uncovered by e2e is only the *live* behaviour of these screens on a real device, not their rendering.
 - Real-device voice input unverified.
 - Live-walkthrough defects to triage: `/ai/translate` intermittent abort + retry; Trail
   scene-image placeholder line.

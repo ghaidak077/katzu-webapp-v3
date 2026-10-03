@@ -285,6 +285,7 @@ describe('Phase 3: complete account deletion', () => {
     const env = makeEnv();
     const sub = 'user-gone', email = 'gone@test.dev';
     await (env.USER_PROGRESS as MemoryKv).put(`progress:${sub}`, JSON.stringify({ stats: { level: 'A1' } }));
+    await (env.USER_PROGRESS as MemoryKv).put(`daily:${sub}`, JSON.stringify({ dayKey: '2026-10-03', totalXp: 300 }));
     await (env.USER_PROGRESS as MemoryKv).put('ai-quota:user-gone', JSON.stringify({ used: 1 }));
     const sess = await worker.fetch(new Request('https://worker.test/auth/session', {
       method: 'POST',
@@ -301,12 +302,15 @@ describe('Phase 3: complete account deletion', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { success: boolean; deleted_steps: string[] };
     expect(body.success).toBe(true);
-    for (const step of ['progress', 'ai_quota', 'sessions', 'referral_claim', 'email_index']) {
+    for (const step of ['progress', 'daily_ledger', 'ai_quota', 'sessions', 'referral_claim', 'email_index']) {
       expect(body.deleted_steps).toContain(step);
     }
 
     const up = env.USER_PROGRESS as MemoryKv;
     expect(await up.get(`progress:${sub}`)).toBeNull();
+    // V29-4: the server-authoritative daily ledger is per-account data and must
+    // be wiped with the rest (regression: it was not).
+    expect(await up.get(`daily:${sub}`)).toBeNull();
     expect(await up.get('ai-quota:user-gone')).toBeNull();
     // Session revoked: the old token no longer authenticates.
     const after = await worker.fetch(new Request('https://worker.test/check-status', {
@@ -349,6 +353,7 @@ describe('Phase 4: data export', () => {
       stats: { level: 'B1', streak_days: 4, total_points: 120 },
       mistakes: [{ id: 1, text: 'Ich bin gegangen' }],
     }));
+    await (env.USER_PROGRESS as MemoryKv).put(`daily:${sub}`, JSON.stringify({ dayKey: '2026-10-03', totalXp: 300 }));
     await (env.REDEEMED_CODES as MemoryKv).put(`account:${sub}`, JSON.stringify({
       email, expiresAt: new Date(Date.now() + 86400000 * 30).toISOString(),
     }));
@@ -358,12 +363,15 @@ describe('Phase 4: data export', () => {
     const body = await res.json() as {
       profile: { account_id: string; email: string };
       progress: { stats: { level: string } } | null;
+      daily_ledger: { totalXp: number } | null;
       subscription: { active: boolean };
       referral: { history: unknown[] };
     };
     expect(body.profile.account_id).toBe(sub);
     expect(body.profile.email).toBe(email);
     expect(body.progress?.stats.level).toBe('B1');
+    // V29-4: portability includes the daily ledger.
+    expect(body.daily_ledger?.totalXp).toBe(300);
     expect(body.subscription.active).toBe(true);
     expect(Array.isArray(body.referral.history)).toBe(true);
   });
@@ -427,7 +435,7 @@ describe('Phase 2: revision-guarded progress sync', () => {
       body: syncPayload(stats),
     }), env as never);
 
-  it('two sequential device syncs both survive — XP and streak never decrease', async () => {
+  it('two sequential device syncs both survive — XP never decreases (the streak is server-owned)', async () => {
     const env = makeEnv();
     const r1 = await sync(env, { total_points: 10, streak_days: 1 });
     expect(r1.status).toBe(200);
@@ -444,8 +452,12 @@ describe('Phase 2: revision-guarded progress sync', () => {
       body: JSON.stringify({}),
     }), env as never);
     const data = await get.json() as { stats: { total_points: number; streak_days: number }; rev: number };
+    // XP is monotonic: the 25 survives (the server accepts the client total
+    // upward, bounded by the daily cap per elapsed day — V29-4).
     expect(data.stats.total_points).toBe(25);
-    expect(data.stats.streak_days).toBe(3);
+    // The STREAK is server-owned now: a stats-only sync carries no earned-day
+    // evidence, so the server reports 0 rather than trusting the client's 3.
+    expect(data.stats.streak_days).toBe(0);
     expect(data.rev).toBeGreaterThanOrEqual(2);
   });
 
