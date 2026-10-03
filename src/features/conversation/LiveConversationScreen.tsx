@@ -7,7 +7,7 @@ import { triggerHaptic } from '@/lib/utils/haptics';
 import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
 import type { CEFRLevel } from '@/types/models';
-import { ConversationDock } from './ConversationDock';
+import { ConversationComposer, ConversationControls } from './ConversationDock';
 import { ConversationTranscript } from './ConversationTranscript';
 import { useLiveConversation } from './useLiveConversation';
 
@@ -158,10 +158,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   const turnProgress = Math.min(1, userTurnsCount / Math.max(1, targetTurns));
 
   return (
-    // The whole screen is one column that fits the visible viewport. The transcript
-    // scrolls inside its own region and the dock is a sibling below it, so no
-    // message can ever end up underneath the orb — the overlap reported from a
-    // real session was a `fixed` dock over a list that could not know its height.
+    // The whole screen is one column that fits the visible viewport, ordered
+    // header → voice/hint controls → transcript → composer (V29). The transcript
+    // is the only flexible row, so it takes every pixel the chrome does not; the
+    // voice mass sits ABOVE it and the thumb-reachable composer BELOW it, so no
+    // message can ever end up under either.
     <div className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-black text-kz-ink">
       {/* Header: who the learner is talking to, which round, and the two controls
           that belong to the conversation as a whole. */}
@@ -229,6 +230,46 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         <div className="absolute bottom-0 start-0 h-[2px] rounded-full bg-primary" style={{ width: `${turnProgress * 100}%` }} />
       </GlassSurface>
 
+      {/* The voice control and the suggestions, compact, under the header. */}
+      <ConversationControls
+        showHelp={!realMode}
+        visibleHints={visibleHints}
+        isHintRevealed={isHintRevealed}
+        isHintExpanded={isHintExpanded}
+        isRefreshingHints={isRefreshingHints}
+        micError={micError}
+        orbState={orbState}
+        orbTone={orbTone}
+        orbSize={orbSize}
+        orbLabelAr={orbLabelAr}
+        orbReadLevel={voice.read}
+        orbDisabled={!voice.isSupported || live.conversation.status === 'quota_exhausted'}
+        isRecording={voice.isRecording}
+        conversationStatusLabelAr={
+          voice.isRecording
+            ? 'أنا أستمع إليك… تحدث الآن'
+            : live.conversation.status === 'transcribing'
+              ? 'جارٍ التعرف على كلامك…'
+              : !voice.isSupported
+                ? 'الإدخال الصوتي غير متاح — اكتب بالألمانية'
+                : 'اضغط على الدائرة وتحدث'
+        }
+        interimText={voice.interimText}
+        onOrbPress={() => void handleOrbPress()}
+        onRevealHint={() => {
+          setIsHintRevealed(true);
+          triggerHaptic('light');
+        }}
+        onHideHint={() => setIsHintRevealed(false)}
+        onToggleHintExpanded={() => {
+          setIsHintExpanded((v) => !v);
+          triggerHaptic('light');
+        }}
+        onRefreshHints={refreshHints}
+        onUseHint={handleUseHint}
+        onDismissError={() => dispatch({ type: 'dismiss_error' })}
+      />
+
       <ConversationTranscript
         scrollRef={scrollRef}
         onScroll={handleTranscriptScroll}
@@ -249,51 +290,16 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         onRetryFailedTurn={retryFailedTurn}
       />
 
-      <ConversationDock
+      {/* The typed composer: one thumb-reachable row at the bottom. */}
+      <ConversationComposer
         inputRef={inputRef}
-        showHelp={!realMode}
-        visibleHints={visibleHints}
-        isHintRevealed={isHintRevealed}
-        isHintExpanded={isHintExpanded}
-        isRefreshingHints={isRefreshingHints}
-        micError={micError}
-        orbState={orbState}
-        orbTone={orbTone}
-        orbSize={orbSize}
-        orbLabelAr={orbLabelAr}
-        orbReadLevel={voice.read}
-        orbDisabled={!voice.isSupported || live.conversation.status === 'quota_exhausted'}
-        isRecording={voice.isRecording}
-        isVoiceSupported={voice.isSupported}
-        conversationStatusLabelAr={
-          voice.isRecording
-            ? 'أنا أستمع إليك… تحدث الآن'
-            : live.conversation.status === 'transcribing'
-              ? 'جارٍ التعرف على كلامك…'
-              : !voice.isSupported
-                ? 'الإدخال الصوتي غير متاح — اكتب بالألمانية'
-                : 'اضغط على الدائرة وتحدث'
-        }
-        interimText={voice.interimText}
         inputText={inputText}
         isGenerating={isGenerating}
+        isRecording={voice.isRecording}
         onInputTextChange={setInputText}
         onInputKeyDown={(key) => key === 'Enter' && handleSendMessage()}
         onSend={() => handleSendMessage()}
         onTypeInstead={handleTypeInstead}
-        onOrbPress={() => void handleOrbPress()}
-        onRevealHint={() => {
-          setIsHintRevealed(true);
-          triggerHaptic('light');
-        }}
-        onHideHint={() => setIsHintRevealed(false)}
-        onToggleHintExpanded={() => {
-          setIsHintExpanded((v) => !v);
-          triggerHaptic('light');
-        }}
-        onRefreshHints={refreshHints}
-        onUseHint={handleUseHint}
-        onDismissError={() => dispatch({ type: 'dismiss_error' })}
       />
 
       {/* Word Insight Bottom Sheet */}

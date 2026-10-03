@@ -1,4 +1,5 @@
 import type { StarterPhraseEntity, VocabularyEntity } from '@/types/models';
+import { hashString, seededRng } from '@/lib/grammar/exercises';
 
 export interface QuizQuestion {
   /** Vocabulary questions ask about ONE word; phrase questions about a whole sentence. */
@@ -41,6 +42,21 @@ function shuffle<T>(items: T[], rng: () => number = Math.random): T[] {
 }
 
 const MIN_OPTIONS = 4;
+
+/**
+ * The quiz's shuffler for one scenario.
+ *
+ * `generateQuizQuestions` defaults to `Math.random`, which is fine for a single
+ * one-shot build but wrong for a screen that re-derives its deck whenever its
+ * live queries emit: the mount-time content refresh re-emits those queries
+ * several times, so the options reordered under the learner's eyes (measured:
+ * the first quiz of a scenario visibly reshuffled ~5 times). Seeding from the
+ * scenario id makes every rebuild of the same content byte-identical, so an
+ * unrelated write can no longer move an option or the correct index.
+ */
+export function quizRngForScenario(scenarioId: string): () => number {
+  return seededRng(hashString(scenarioId || 'quiz'));
+}
 
 // Guard against garbled/stale D1 rows: a translation without a single Arabic
 // letter is never a valid option (character-scrambled legacy rows historically

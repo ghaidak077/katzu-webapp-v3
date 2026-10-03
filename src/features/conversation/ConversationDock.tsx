@@ -8,20 +8,25 @@ import type { MicSample } from '@/lib/audio/useMicLevel';
 import type { ContextualHint } from '@/types/models';
 
 /**
- * The bottom dock of the live conversation (B4d mechanical split).
+ * The conversation chrome, in two pieces (V29 layout).
  *
- * Extracted verbatim from `LiveConversationScreen`'s JSX: the on-demand hint pill
- * and its expanded options, the microphone error banner, the orb with its state
- * label, the live caption, and the typed-composer row. Zero behaviour change:
- * every value arrives as a prop, every class name and aria label is byte-identical
- * to what the screen rendered before, and the input ref stays parent-owned so the
- * screen's focus calls (`handleTypeInstead`, transcript arrival, hint use) keep
- * landing on the same element.
+ * The owner's report was geometric: the dock — a full-width orb, its status
+ * line, the suggestion panel and the composer — measured 245 px of a 539 px
+ * phone viewport (304 px with a suggestion open), so the transcript the learner
+ * actually reads was squeezed into a sliver. The fix is structural, not
+ * cosmetic: the voice/hint mass moves to a compact control bar under the header
+ * and the composer shrinks to one row at the bottom, leaving the transcript the
+ * middle of the screen.
+ *
+ * Splitting it this way also removes the whole class of overlap bug the old
+ * layout had: the orb can no longer float over a message, because the messages
+ * now live in their own region *below* the control bar and can never reach it.
+ * Behaviour is unchanged: every value still arrives as a prop, every aria label
+ * and the `conversation-dock` test id (now on the composer, which stays the
+ * bottom boundary the layout tests measure against) are preserved.
  */
 
-export interface ConversationDockProps {
-  /** Live element for the composer input (owned by the parent). */
-  inputRef: React.Ref<HTMLInputElement>;
+export interface ConversationControlsProps {
   /**
    * V28 Stage 1D: whether the suggestion pill renders. REAL mode passes false
    * (the hint floor is already empty there, so this is belt-and-braces); the
@@ -40,15 +45,8 @@ export interface ConversationDockProps {
   orbReadLevel: () => MicSample;
   orbDisabled: boolean;
   isRecording: boolean;
-  isVoiceSupported: boolean;
   conversationStatusLabelAr: string;
   interimText: string;
-  inputText: string;
-  isGenerating: boolean;
-  onInputTextChange: (value: string) => void;
-  onInputKeyDown: (key: string) => void;
-  onSend: () => void;
-  onTypeInstead: () => void;
   onOrbPress: () => void;
   onRevealHint: () => void;
   onHideHint: () => void;
@@ -58,8 +56,7 @@ export interface ConversationDockProps {
   onDismissError: () => void;
 }
 
-export const ConversationDock: React.FC<ConversationDockProps> = ({
-  inputRef,
+export const ConversationControls: React.FC<ConversationControlsProps> = ({
   showHelp,
   visibleHints,
   isHintRevealed,
@@ -73,15 +70,8 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
   orbReadLevel,
   orbDisabled,
   isRecording,
-  isVoiceSupported,
   conversationStatusLabelAr,
   interimText,
-  inputText,
-  isGenerating,
-  onInputTextChange,
-  onInputKeyDown,
-  onSend,
-  onTypeInstead,
   onOrbPress,
   onRevealHint,
   onHideHint,
@@ -92,9 +82,8 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
 }) => {
   return (
     <FloatingControl
-      data-testid="conversation-dock"
-      className="shrink-0 rounded-b-none rounded-t-[26px] border-t border-white/[0.08] px-4 pt-2.5"
-      style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      data-testid="conversation-controls"
+      className="shrink-0 rounded-none border-b border-white/[0.06] px-3 py-2"
     >
       {/* Hints as an on-demand button: a single 💡 pill that reveals the one
           context-aware suggestion when tapped — no always-visible strip
@@ -111,7 +100,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
 
       {showHelp && visibleHints.length > 0 && isHintRevealed && (
         <div className="mb-2 flex items-start gap-1.5">
-          <div className="max-h-[26vh] min-w-0 flex-1 space-y-1.5 overflow-y-auto">
+          <div className="max-h-[22vh] min-w-0 flex-1 space-y-1.5 overflow-y-auto">
             <HintOption hint={visibleHints[0]} onUse={() => onUseHint(visibleHints[0])} primary />
             {visibleHints.length > 1 && (
               <>
@@ -165,9 +154,10 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
         </div>
       )}
 
-      {/* The orb owns the microphone, and the label under it is the only place
-          the app says what the microphone is doing. */}
-      <div className="flex flex-col items-center">
+      {/* The orb owns the microphone; the status line beside it is the only place
+          the app says what the microphone is doing. It is a compact row now — the
+          voice control no longer eats a third of the screen. */}
+      <div className="flex items-center gap-3">
         <KatzuOrb
           state={orbState}
           readLevel={orbReadLevel}
@@ -177,34 +167,71 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           disabled={orbDisabled}
           labelAr={orbLabelAr}
         />
-        <span
-          className={`kz-ar-micro h-4 transition-opacity ${
-            isRecording ? 'text-kz-lavender opacity-100' : 'text-kz-inkFaint opacity-70'
-          }`}
-        >
-          {conversationStatusLabelAr}
-        </span>
-      </div>
-
-      {/* Live captions while the learner speaks. The platform recogniser returns
-          words as they are said, so the learner can see their own German land —
-          which is the difference between dictating and being transcribed after
-          the fact. It renders only when there is something to show (the recorder
-          fallback cannot know the words until the recording ends), so nothing
-          here can announce a caption that is not coming. */}
-      {isRecording && interimText && (
-        <div
-          data-testid="live-caption"
-          className="mt-2 flex items-center gap-2 rounded-xl border border-kz-lavender/25 bg-kz-lavender/10 px-3 py-2"
-        >
-          <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">أسمع</span>
-          <span dir="ltr" className="min-w-0 flex-1 truncate font-german text-sm text-kz-ink">
-            {interimText}
+        <div className="min-w-0 flex-1">
+          <span
+            className={`kz-ar-caption block transition-opacity ${
+              isRecording ? 'text-kz-lavender opacity-100' : 'text-kz-inkFaint opacity-80'
+            }`}
+          >
+            {conversationStatusLabelAr}
           </span>
-        </div>
-      )}
 
-      <div className="mt-2 flex items-center gap-2">
+          {/* Live captions while the learner speaks. The platform recogniser returns
+              words as they are said, so the learner can see their own German land —
+              which is the difference between dictating and being transcribed after
+              the fact. It renders only when there is something to show. */}
+          {isRecording && interimText && (
+            <div
+              data-testid="live-caption"
+              className="mt-1 flex items-center gap-2 rounded-xl border border-kz-lavender/25 bg-kz-lavender/10 px-2.5 py-1.5"
+            >
+              <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">أسمع</span>
+              <span dir="ltr" className="min-w-0 flex-1 truncate font-german text-sm text-kz-ink">
+                {interimText}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </FloatingControl>
+  );
+};
+
+export interface ConversationComposerProps {
+  /** Live element for the composer input (owned by the parent). */
+  inputRef: React.Ref<HTMLInputElement>;
+  inputText: string;
+  isGenerating: boolean;
+  isRecording: boolean;
+  onInputTextChange: (value: string) => void;
+  onInputKeyDown: (key: string) => void;
+  onSend: () => void;
+  onTypeInstead: () => void;
+}
+
+/**
+ * The typed composer: one thumb-reachable row at the bottom, and nothing else.
+ *
+ * It keeps the `conversation-dock` test id because it is the bottom boundary the
+ * transcript's layout tests measure against — a message must still end above it.
+ */
+export const ConversationComposer: React.FC<ConversationComposerProps> = ({
+  inputRef,
+  inputText,
+  isGenerating,
+  isRecording,
+  onInputTextChange,
+  onInputKeyDown,
+  onSend,
+  onTypeInstead,
+}) => {
+  return (
+    <FloatingControl
+      data-testid="conversation-dock"
+      className="shrink-0 rounded-b-none rounded-t-[26px] border-t border-white/[0.08] px-4 pt-2.5"
+      style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+    >
+      <div className="flex items-center gap-2">
         <input
           ref={inputRef}
           type="text"
@@ -213,7 +240,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           value={inputText}
           onChange={(e) => onInputTextChange(e.target.value)}
           onKeyDown={(e) => onInputKeyDown(e.key)}
-          className="h-11 min-w-0 flex-1 rounded-2xl kz-chip border border-white/10 bg-white/5 px-4 font-german text-sm outline-none transition-colors placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-primary/60"
+          className="h-10 min-w-0 flex-1 rounded-2xl kz-chip border border-white/10 bg-white/5 px-4 font-german text-sm outline-none transition-colors placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-primary/60"
         />
 
         {/* Typing is always one tap away — and it is a control inside the row,
@@ -221,14 +248,14 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
         <button
           onClick={onTypeInstead}
           aria-label="اكتب بدلاً من التحدث"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 text-kz-inkDim transition-colors hover:text-kz-ink"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 text-kz-inkDim transition-colors hover:text-kz-ink"
         >
           <Keyboard className="h-4 w-4" />
         </button>
 
         <Button
           size="md"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl p-0"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl p-0"
           disabled={!inputText.trim() || isGenerating}
           onClick={onSend}
           aria-label="أرسل جملتك"

@@ -93,6 +93,51 @@ test('Review shows only answerable cards, grades one, and reaches its summary', 
   await expect(page.getByText('من أول محاولة')).toBeVisible();
 });
 
+test('Review hands the learner the words, and an honest way out', async ({ page }) => {
+  await bootSignedIn(page);
+
+  // A production card the learner may not have the vocabulary for: the Arabic
+  // prompt is clear, but building `der Termin` needs the words.
+  await seedRows(page, 'review_items', [
+    {
+      userId: 'current_user',
+      kind: 'vocab',
+      refId: 'vocab:999',
+      sourceId: 999,
+      promptAr: 'موعد',
+      answerDe: 'der Termin',
+      direction: 'ar_to_de',
+      dueAt: DUE,
+      intervalDays: 1,
+      ease: 2.5,
+      reps: 0,
+      lapses: 0,
+      reviews: 0,
+      createdAt: 1,
+    },
+  ]);
+
+  await page.goto('/app/review');
+  await expect(page.getByText('موعد')).toBeVisible();
+
+  // The word bank is offered and its chips assemble the answer.
+  await expect(page.getByText('بنك الكلمات — اضغط لتضيف الكلمة')).toBeVisible();
+  await page.getByRole('button', { name: 'der', exact: true }).click();
+  await page.getByRole('button', { name: 'Termin', exact: true }).click();
+  await expect(page.getByLabel('إجابتك بالألمانية')).toHaveValue(/der.*Termin|Termin.*der/);
+
+  // The honest way out: reveal the answer without guessing, and it is recorded
+  // as a miss, not a clean recall.
+  await page.getByRole('button', { name: 'لا أتذكّر — أرني الإجابة' }).click();
+  await expect(page.getByText('ليس بعد — هذه هي الصيغة الصحيحة')).toBeVisible();
+  await expect(page.getByText('كشفت الإجابة')).toBeVisible();
+  // Graded (not "again", which would requeue the single card) and the reveal is
+  // counted once as a miss, not as a clean recall.
+  await page.getByRole('button', { name: 'بصعوبة' }).click();
+  await expect(page.getByRole('heading', { name: 'مراجعة اليوم' })).toBeVisible();
+  await expect(page.getByText('يحتاج تثبيتاً')).toBeVisible();
+});
+
 test('Listening dictation grades what was heard and reveals the sentence', async ({ page }) => {
   await bootSignedIn(page);
 

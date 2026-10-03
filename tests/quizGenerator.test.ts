@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateQuizQuestions, optionsCollide } from '@/lib/utils/quizGenerator';
+import { generateQuizQuestions, optionsCollide, quizRngForScenario } from '@/lib/utils/quizGenerator';
 import type { StarterPhraseEntity, VocabularyEntity } from '@/types/models';
 
 // Seeded rng so option order is deterministic in assertions.
@@ -110,5 +110,24 @@ describe('generateQuizQuestions', () => {
       expect(q.correctIndex).toBeGreaterThanOrEqual(0);
       expect(q.correctIndex).toBeLessThan(q.options.length);
     }
+  });
+});
+
+// Regression for the shipped "options keep changing on the first quiz" defect:
+// the screen re-derives its deck whenever its live queries emit, and the
+// generator used to reshuffle with Math.random on every rebuild. The deck must
+// be a pure function of (content, scenario id) so a rebuild is a no-op.
+describe('quizRngForScenario', () => {
+  it('builds a byte-identical deck for the same scenario and content', () => {
+    const first = generateQuizQuestions(vocab, phrases, quizRngForScenario('airport_arrival'));
+    const second = generateQuizQuestions(vocab, phrases, quizRngForScenario('airport_arrival'));
+    expect(first.length).toBeGreaterThan(0);
+    expect(second).toEqual(first);
+  });
+
+  it('seeds per scenario, so two scenarios do not share one fixed order', () => {
+    const a = generateQuizQuestions(vocab, phrases, quizRngForScenario('airport_arrival'));
+    const b = generateQuizQuestions(vocab, phrases, quizRngForScenario('cafe_order'));
+    expect(a.map((q) => q.options.join('|'))).not.toEqual(b.map((q) => q.options.join('|')));
   });
 });

@@ -69,9 +69,11 @@ function orbSizeForViewport(): number {
   if (typeof window === 'undefined') return 148;
   const height = window.innerHeight || 800;
   const width = window.innerWidth || 400;
-  // Big enough to be the app's signature object, never big enough to leave the
-  // transcript a slot instead of a screen.
-  return Math.round(Math.min(168, Math.max(116, Math.min(height * 0.19, width * 0.44))));
+  // V29: the orb now lives in a compact control bar above the transcript, so it
+  // is sized to be a clear target in that row — never big enough to push the
+  // conversation into a sliver (measured: the old 116–168 px orb plus its label
+  // and the suggestion pill made the dock 245 px of a 539 px viewport).
+  return Math.round(Math.min(120, Math.max(84, Math.min(height * 0.13, width * 0.3))));
 }
 
 export function useLiveConversation({
@@ -552,18 +554,42 @@ export function useLiveConversation({
     requestOpenerTranslation(welcomeMsg.id, welcomeMsg.germanText);
   }, [scenario, scenarioId, effectiveLevel, sessionMode, loadStarterHints, requestOpenerTranslation]);
 
-  // Handle German word click for insight
+  // Handle German word click for insight.
+  //
+  // V29: every tapped word opens the sheet. It used to open only when the word was
+  // an exact match in the loaded topic vocabulary, so an unknown word — exactly the
+  // word a struggling learner taps — did nothing at all, which reads as a broken
+  // app. An unmatched word now gets an honest, non-AI card (no quota spent): the
+  // word itself, its pronunciation, and where to take it next. Saving is disabled
+  // for it, because it has no content row to remember.
   const handleWordClick = useCallback(
     (wordRaw: string) => {
       const cleaned = wordRaw.replace(/[^a-zA-ZäöüÄÖÜß]/g, '');
+      if (!cleaned) return;
       const found = vocabulary.find((v) => v.german.toLowerCase() === cleaned.toLowerCase());
-      if (found) setSelectedWordForInsight(found);
+      setSelectedWordForInsight(
+        found ?? {
+          id: 0,
+          german: cleaned,
+          article: '',
+          plural: '',
+          translation_ar: 'هذه الكلمة ليست في محتوى مشهدك بعد. يمكنك سماعها الآن، وستُضاف إلى مفرداتك عند دراستها.',
+          translation_en: '',
+          example_de: '',
+          example_ar: '',
+          part_of_speech: '—',
+          level: effectiveLevel,
+          topic: '',
+        },
+      );
     },
-    [vocabulary],
+    [vocabulary, effectiveLevel],
   );
 
   // Toggle saving word in insight sheet
   const handleToggleSaveWord = async (wordId: number) => {
+    // The synthetic "not in your content yet" card has no row to save.
+    if (!wordId) return;
     const exists = savedWords.some((sw) => sw.wordId === wordId);
     if (exists) {
       await db.saved_words.delete(wordId);

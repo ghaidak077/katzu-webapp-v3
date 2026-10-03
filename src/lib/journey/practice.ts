@@ -102,13 +102,32 @@ function cardFromVocabulary(word: VocabularyEntity): PracticeCard {
  * whose example is a sentence already on the deck is skipped — teaching the same
  * line twice is not reinforcement, it is padding.
  */
+// Words long enough to carry meaning (`der`, `ich` are noise for a relevance test).
+function contentWords(text: string): string[] {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-zäöüß\s]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length > 3);
+}
+
+/** How many of a rule's example words the episode's own content already uses. */
+function sharedWordCount(example: string, vocabulary: Set<string>): number {
+  if (vocabulary.size === 0) return 0;
+  return contentWords(example).filter((word) => vocabulary.has(word)).length;
+}
+
 export function selectGrammarRule(
   grammar: GrammarEntity[],
   level: CEFRLevel,
-  options: { now?: number; excludeGerman?: string[] } = {},
+  options: { now?: number; excludeGerman?: string[]; scenarioVocabulary?: string[] } = {},
 ): PracticeGrammar | null {
   const learnerRank = levelRank(level);
   const excluded = new Set((options.excludeGerman || []).map((value) => normalizeGermanAnswer(value)));
+  // Words the episode already put in front of the learner. A rule whose example
+  // reuses them is possible to ATTEMPT; the off-scenario rule (measured: airport
+  // luggage taught "trennbare Verben" with "Ich richte den Zugang ein") is not.
+  const scenarioVocabulary = new Set((options.scenarioVocabulary || []).flatMap(contentWords));
 
   const pool = (grammar || [])
     .filter((rule) => rule?.id && rule.title_ar?.trim() && rule.rule_ar?.trim() && rule.example_de?.trim())
@@ -121,8 +140,15 @@ export function selectGrammarRule(
 
   if (pool.length === 0) return null;
 
+  // Relevance filter: when any rule reuses the episode's own words, the day's
+  // rule is drawn from those and never from the off-scenario remainder. When
+  // none do (a topic-poor device), the previous full-pool behaviour stands, so
+  // the screen still teaches something real rather than nothing.
+  const relevant = pool.filter((rule) => sharedWordCount(rule.example_de, scenarioVocabulary) > 0);
+  const rotationPool = relevant.length > 0 ? relevant : pool;
+
   const dayIndex = dayIndexFor(new Date(options.now ?? Date.now()));
-  const rule = pool[((dayIndex % pool.length) + pool.length) % pool.length];
+  const rule = rotationPool[((dayIndex % rotationPool.length) + rotationPool.length) % rotationPool.length];
 
   return {
     id: rule.id,
@@ -193,6 +219,9 @@ export function buildGuidedPractice(input: {
   const grammar = selectGrammarRule(input.grammar || [], level, {
     now: input.now,
     excludeGerman: cards.map((card) => card.de),
+    // Relevance key: the words on today's deck plus the topic pool the following
+    // conversation will draw from.
+    scenarioVocabulary: [...cards.map((card) => card.de), ...vocabularyContext],
   });
 
   // The empty state is honest, not a placeholder: it means there is nothing on

@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { triggerHaptic } from '@/lib/utils/haptics';
-import { generateQuizQuestions, type QuizQuestion } from '@/lib/utils/quizGenerator';
+import { generateQuizQuestions, quizRngForScenario, type QuizQuestion } from '@/lib/utils/quizGenerator';
 import { scenarioToVocabTopic, vocabularyWithinLevelRadius } from '@/lib/utils/scenarioVocab';
 import type { VocabularyEntity } from '@/types/models';
 import { GermanText } from '@/components/common/GermanText';
@@ -51,12 +51,33 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
   // D5: quiz questions draw from the learner's level ±1 only (never-empty
   // fallback) — an A1 learner is not quizzed on B2 rows while A1 rows exist.
 
-  // Regenerates only when the underlying D1 content loads/changes — questions
-  // stay stable across unrelated re-renders (answer states, score, etc.).
-  const questions = useMemo<QuizQuestion[]>(
-    () => generateQuizQuestions(vocabularyWithinLevelRadius(vocabQ || [], user?.cefrLevel), phrasesQ || []),
-    [vocabQ, phrasesQ, user?.cefrLevel]
-  );
+  // The deck is built ONCE and latched.
+  //
+  // Two defects met here. The generator defaulted to `Math.random`, and the
+  // content-heal below bulkPuts this scenario's phrases/topic vocabulary, which
+  // re-emits `phrasesQ`/`vocabQ` (plus `scenarioQ`/`user`) several times on the
+  // first visit — so the options visibly reordered and the correct index moved
+  // about five times before settling. Content is now considered ready only when
+  // the scenario, its phrases and the topic query have all settled, the shuffler
+  // is seeded from the scenario id (`quizRngForScenario`, same content ⇒ same
+  // deck), and the first non-empty deck is frozen for the rest of the visit, so
+  // no background write can move an option under the learner.
+  const contentReady =
+    scenarioQ !== undefined &&
+    phrasesQ !== undefined &&
+    (vocabTopic === '' || vocabQ !== undefined);
+  const questionsRef = useRef<QuizQuestion[] | null>(null);
+  const questions = useMemo<QuizQuestion[]>(() => {
+    if (questionsRef.current) return questionsRef.current;
+    if (!contentReady) return [];
+    const built = generateQuizQuestions(
+      vocabularyWithinLevelRadius(vocabQ || [], user?.cefrLevel),
+      phrasesQ || [],
+      quizRngForScenario(scenarioId)
+    );
+    if (built.length > 0) questionsRef.current = built;
+    return built;
+  }, [contentReady, vocabQ, phrasesQ, user?.cefrLevel, scenarioId]);
 
   // Heal stale content on entry: earlier D1 uploads shipped some garbled
   // Arabic translations that persisted in the device's Dexie cache forever,
@@ -191,7 +212,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
           </Card>
 
           {/* Options */}
-          <div className="space-y-3">
+          <div className="space-y-3" data-testid="quiz-options">
             {currentQ.options.map((opt, idx) => {
               const isSelected = selectedOption === idx;
               const isCorrect = idx === currentQ.correctIndex;

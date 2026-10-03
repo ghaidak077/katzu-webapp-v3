@@ -174,6 +174,14 @@ test('Guided Practice rehearses real lines and grades honestly', async ({ page }
   // the learner produced it. Scoped to its own card, because today's grammar rule
   // carries a second "أرني الصحيحة" further up the screen.
   const retrieval = page.getByTestId('retrieval-card');
+
+  // The vocabulary bridge (V29): the sentence's words are tappable chips, so a
+  // learner who knows the meaning but not the words can still build the answer.
+  const retrievalBank = retrieval.locator('div[dir="ltr"] button');
+  await expect(retrievalBank.first()).toBeVisible();
+  await retrievalBank.first().click();
+  await expect(retrieval.getByLabel('اكتب الجملة بالألمانية')).not.toHaveValue('');
+
   await retrieval.getByRole('button', { name: 'أرني الصحيحة' }).click();
   await expect(retrieval.getByText(/الجملة الصحيحة:/)).toBeVisible();
 

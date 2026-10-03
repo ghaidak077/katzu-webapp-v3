@@ -71,7 +71,9 @@ test('the suggestion floor answers the last AI message, not the scenario first p
   // address the luggage (or be a yes/no move), never the passport line the
   // old sort_order floor opened with.
   await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
-  const first = page.locator('[data-testid="conversation-dock"] button').filter({ hasText: /[Gg]epäck|[Kk]offer|^Ja,|^Nein,/ }).first();
+  // V29: the suggestion pill and its options moved to the control bar under the
+  // header, so the floor's answers are addressed there now.
+  const first = page.locator('[data-testid="conversation-controls"] button').filter({ hasText: /[Gg]epäck|[Kk]offer|^Ja,|^Nein,/ }).first();
   await expect(first).toBeVisible();
   await expect(page.getByText('Guten Tag. Hier ist mein Pass.')).toHaveCount(0);
 });

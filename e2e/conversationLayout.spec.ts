@@ -35,8 +35,10 @@ function intersects(a: { x: number; y: number; width: number; height: number }, 
 async function assertNothingIsCovered(page: Page): Promise<void> {
   const dock = await page.getByTestId('conversation-dock').boundingBox();
   const orbBox = await orb(page).boundingBox();
+  const transcript = await page.getByTestId('conversation-transcript').boundingBox();
   expect(dock, 'the dock must be laid out').not.toBeNull();
   expect(orbBox, 'the orb must be laid out').not.toBeNull();
+  expect(transcript, 'the transcript must be laid out').not.toBeNull();
 
   const bubbles = page.locator('article');
   const count = await bubbles.count();
@@ -66,10 +68,19 @@ async function assertNothingIsCovered(page: Page): Promise<void> {
   for (let index = 0; index < count; index += 1) {
     const box = await bubbles.nth(index).boundingBox();
     if (!box) continue;
-    // A message scrolled out of the top of the region is fine. A message whose box
-    // reaches into the dock is the bug: that is a sentence the learner cannot read.
-    expect(box.y + box.height, `message ${index} reaches into the dock`).toBeLessThanOrEqual(dock!.y + 2);
-    expect(intersects(box, orbBox!), `message ${index} is under the orb`).toBe(false);
+    // Only the VISIBLE part of a message can hide anything. A bounding box knows
+    // nothing about the transcript's `overflow` clip, so a message scrolled past
+    // the top still reports its full layout rect — which, now that the orb lives
+    // in the control bar above the transcript (V29), would falsely "intersect" it.
+    // Clipping to the scroll region measures what the learner can actually see.
+    const top = Math.max(box.y, transcript!.y);
+    const bottom = Math.min(box.y + box.height, transcript!.y + transcript!.height);
+    if (bottom <= top) continue; // fully scrolled out of the region
+    const visible = { x: box.x, y: top, width: box.width, height: bottom - top };
+    // A visible message whose box reaches into the dock is the bug: that is a
+    // sentence the learner cannot read.
+    expect(bottom, `message ${index} reaches into the dock`).toBeLessThanOrEqual(dock!.y + 2);
+    expect(intersects(visible, orbBox!), `message ${index} is under the orb`).toBe(false);
   }
 }
 
@@ -116,6 +127,13 @@ test('the dock fits a short phone without pushing the transcript off screen', as
   await assertNothingIsCovered(page);
 
   const transcript = await page.getByTestId('conversation-transcript').boundingBox();
-  // The transcript keeps at least a third of the screen even here.
+  const dock = await page.getByTestId('conversation-dock').boundingBox();
+  const viewport = page.viewportSize()!;
+  // V29 metric: the transcript the learner reads keeps at least half the screen,
+  // and the composer — one row now, not the old orb+label+pill+input stack —
+  // stays under a fifth of it. The old dock measured ~45% of a 539 px viewport;
+  // these two bars are what "the chat shape took too much space" is now held to.
   expect(transcript!.height).toBeGreaterThan(180);
+  expect(transcript!.height).toBeGreaterThanOrEqual(viewport.height * 0.5);
+  expect(dock!.height).toBeLessThanOrEqual(viewport.height * 0.2);
 });

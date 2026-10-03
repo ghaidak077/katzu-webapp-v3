@@ -174,6 +174,25 @@ file is the digest that is short enough to always read.
   rather than faked. **Verified not exploitable:** multi-device `totalXp` merges Last-Write-Wins (`mergeLatest`), so
   device totals never sum, and synced `session_summaries` land in local `db.sessions` so the cap self-corrects.
 
+- **A quiz deck is built once, from a seeded shuffle (V29).** `generateQuizQuestions` defaulted to `Math.random`,
+  and `QuizScreen` re-derived its deck on every live-query emit — so the mount-time content heal, which bulkPuts
+  the scenario + phrases + topic vocabulary and re-emits `scenarioQ`/`phrasesQ`/`vocabQ`, visibly reordered the
+  options (and moved `correctIndex`) ~5 times. The deck is now seeded per scenario (`quizRngForScenario`, reusing
+  `seededRng`/`hashString`) and frozen after the first non-empty build. `e2e/quizStability.spec.ts` reproduces the
+  real trigger (a delayed mocked worker refresh) and is proven to fail on the pre-fix code.
+- **The chat has two pieces, and the transcript keeps the middle (V29).** `ConversationDock` is split into a
+  compact `ConversationControls` bar under the header (orb, status, hints) and a one-row thumb-reachable
+  `ConversationComposer` at the bottom; the orb is 84–120px (was 116–168). The `conversation-dock` test id is on
+  the COMPOSER — it is the bottom boundary `e2e/conversationLayout.spec.ts` measures against (transcript ≥50% of a
+  360×640 viewport, composer ≤20%). Hint options now live under `conversation-controls`, not `conversation-dock`.
+- **Every production surface offers the words (V29).** `buildWordBank` (`src/lib/utils/wordBank.ts`) returns the
+  target sentence's distinct words as tappable chips; it is used by Review's `ar_to_de` cards and both Guided
+  Practice production beats, but deliberately NOT for `de_to_ar` (the prompt is the German) or a mistake
+  reconstruction (the words are the answer). Review also has an explicit «لا أتذكّر — أرني الإجابة» — a reveal is
+  counted once as a miss. Any tapped chat word opens the insight sheet; an unknown word gets an honest, no-AI
+  card (no quota) instead of the old silent no-op. `selectGrammarRule` prefers a rule whose example reuses the
+  episode's words and never serves an off-scenario rule while a relevant one exists.
+
 ---
 
 ## E. Open items the owner must decide (not an agent's call)
@@ -181,7 +200,7 @@ file is the digest that is short enough to always read.
 - Rotate `ADMIN_SECRET` (was exposed in an earlier prompt).
 - `katzu.app` does not resolve though robots/sitemap advertise it.
 - Imprint placeholder + refund one-liner need real wording before public launch.
-- ~~No dedicated e2e for review/listen/write/coach.~~ **Closed (V28-4):** `e2e/skillSurfaces.spec.ts` (5) covers review, listening, writing, coach and the Trail rank badge; the suite is 57 e2e. What remains uncovered by e2e is only the *live* behaviour of these screens on a real device, not their rendering.
+- ~~No dedicated e2e for review/listen/write/coach.~~ **Closed (V28-4):** `e2e/skillSurfaces.spec.ts` (5) covers review, listening, writing, coach and the Trail rank badge; V29 added `e2e/quizStability.spec.ts` and extended skillSurfaces/journey/conversationLayout, so the suite is 59 e2e. What remains uncovered by e2e is only the *live* behaviour of these screens on a real device, not their rendering.
 - Real-device voice input unverified.
 - Live-walkthrough defects to triage: `/ai/translate` intermittent abort + retry; Trail
   scene-image placeholder line.

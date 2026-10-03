@@ -4,7 +4,7 @@ import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { gradeReviewItem } from '@/lib/srs/store';
 import { SESSION_LIMIT, buildReviewQueue, countDue, gradeAnswer, gradeCorrectionRetype, type AnswerVerdict } from '@/lib/srs/engine';
-import { clozeContext, dedupeReviewItems, gradeArabicAnswer, isServableReviewItem } from '@/lib/review/validate';
+import { buildWordBank, clozeContext, dedupeReviewItems, gradeArabicAnswer, isServableReviewItem } from '@/lib/review/validate';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
 import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
@@ -66,6 +66,10 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [verdict, setVerdict] = useState<AnswerVerdict | null>(null);
+  // "I could not recall it" — the explicit way out the screen used to lack. Before
+  // this, a learner who simply did not know a word had no move except to type a
+  // guess and be graded, which made the honest answer impossible to give.
+  const [revealed, setRevealed] = useState(false);
   const [tally, setTally] = useState({ correct: 0, close: 0, wrong: 0, again: 0 });
   const { speak } = useSpeechOutput();
 
@@ -82,6 +86,17 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   const current = queue && index < queue.length ? queue[index] : null;
   const isFinished = queue !== null && index >= queue.length;
 
+  // The word bank helps only where the learner must PRODUCE German they may not
+  // own. For `de_to_ar` the prompt is the German, and for a mistake correction the
+  // words ARE the answer — handing either over would erase the task.
+  const wordBank = useMemo(
+    () =>
+      current && current.kind !== 'mistake' && current.direction !== 'de_to_ar'
+        ? buildWordBank(current.answerDe)
+        : [],
+    [current],
+  );
+
   // A finished session is when the schedule has changed most, and it is the only
   // moment the learner cannot notice the upload: the next device they open Katzu
   // on already knows what they are about to forget.
@@ -97,6 +112,16 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
     }
   }, [isFinished, user?.sessionToken]);
 
+  const handleReveal = () => {
+    if (!current) return;
+    setRevealed(true);
+    // A reveal is a miss. It is tallied through `handleGrade` (`verdict: 'wrong'`
+    // is exactly the miss bucket) so the item is counted once, not twice.
+    setVerdict('wrong');
+    triggerHaptic('light');
+    speak(current.answerDe);
+  };
+
   const handleCheck = (e: React.FormEvent) => {
     e.preventDefault();
     if (!current || !answer.trim()) return;
@@ -106,6 +131,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
         : current.kind === 'mistake'
           ? gradeCorrectionRetype(current.answerDe, answer)
           : gradeAnswer(current.answerDe, answer);
+    setRevealed(false);
     setVerdict(result);
     triggerHaptic(result === 'correct' ? 'success' : result === 'close' ? 'light' : 'error');
     speak(current.answerDe);
@@ -133,6 +159,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
 
     setAnswer('');
     setVerdict(null);
+    setRevealed(false);
     setIndex((i) => i + 1);
   };
 
@@ -301,6 +328,25 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
 
             {verdict === null ? (
               <form onSubmit={handleCheck} className="mt-4 space-y-3">
+                {/* The words of the sentence, tappable: the learner who knows the
+                    meaning but not the vocabulary can still build the answer. */}
+                {wordBank.length > 0 && (
+                  <div>
+                    <span className="kz-ar-micro block text-kz-inkFaint">بنك الكلمات — اضغط لتضيف الكلمة</span>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5" dir="ltr">
+                      {wordBank.map((word, wordIndex) => (
+                        <button
+                          type="button"
+                          key={`${word}-${wordIndex}`}
+                          onClick={() => setAnswer((prev) => (prev ? `${prev} ${word}` : word))}
+                          className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors hover:border-kz-lavender/50"
+                        >
+                          {word}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <input
                   type="text"
                   dir={current.direction === 'de_to_ar' ? 'rtl' : 'ltr'}
@@ -314,6 +360,15 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
                 <GlassButton variant="primary" size="lg" fullWidth type="submit" disabled={!answer.trim()}>
                   تحقّق من إجابتي
                 </GlassButton>
+                {/* The honest way out: no guess, no shame, just the answer and a
+                    soon-due repeat. */}
+                <button
+                  type="button"
+                  onClick={handleReveal}
+                  className="kz-ar-micro w-full text-center text-kz-inkDim underline decoration-dotted underline-offset-4 transition-colors hover:text-kz-ink"
+                >
+                  لا أتذكّر — أرني الإجابة
+                </button>
               </form>
             ) : (
               <div className="mt-4 space-y-3">
@@ -360,6 +415,11 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
                   </div>
                 </GlassWell>
 
+                {revealed && (
+                  <p className="text-center kz-ar-micro text-kz-inkDim">
+                    كشفت الإجابة — الأصدق أن تختار «لم أتذكّر» فتعود قريباً.
+                  </p>
+                )}
                 <p className="text-center kz-ar-micro text-kz-inkFaint">
                   كيف كان استرجاعك؟ هذا ما يحدّد موعد عودتها.
                 </p>

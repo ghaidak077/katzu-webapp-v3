@@ -11,6 +11,7 @@ import {
 import { DEFAULT_EASE, newReviewItemFromMistake, newReviewItemFromPhrase, newReviewItemFromVocabulary } from '@/lib/srs/engine';
 import {
   BANNED_PROMPT_PLACEHOLDERS,
+  buildWordBank,
   clozeContext,
   dedupeReviewItems,
   directionFromRefId,
@@ -225,6 +226,29 @@ describe('store enforcement', () => {
     await enrolStudiedPhrases([{ id: 1, scenario_id: 'cafe_order', level: 'A1', german: 'Guten Morgen!', translation_ar: 'صباح الخير!', sort_order: 1 } as StarterPhraseEntity], NOW);
     const stored = (await db.review_items.toArray())[0];
     expect(isServableReviewItem(stored)).toBe(true);
+  });
+});
+
+describe('buildWordBank', () => {
+  it('offers every distinct word of the sentence exactly once', () => {
+    const bank = buildWordBank('Ich habe einen Termin und einen Kaffee');
+    expect(new Set(bank).size).toBe(bank.length);
+    expect(bank).toEqual(expect.arrayContaining(['Ich', 'habe', 'einen', 'Termin', 'und', 'Kaffee']));
+    expect(bank.filter((word) => word === 'einen')).toHaveLength(1);
+  });
+
+  it('is deterministic, so the chips never move under the learner', () => {
+    const sentence = 'Ich möchte einen Termin am Montag vereinbaren';
+    expect(buildWordBank(sentence)).toEqual(buildWordBank(sentence));
+  });
+
+  it('has nothing to bank for a single-word answer', () => {
+    expect(buildWordBank('Termin')).toEqual([]);
+  });
+
+  it('refuses a wall of chips for an over-long sentence', () => {
+    const long = Array.from({ length: 15 }, (_, index) => `Wort${index}`).join(' ');
+    expect(buildWordBank(long)).toEqual([]);
   });
 });
 

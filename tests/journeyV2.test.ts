@@ -432,6 +432,26 @@ describe('selectGrammarRule', () => {
     expect(selectGrammarRule([rule({ example_de: '' })], 'A1', { now: dayZero })).toBeNull();
   });
 
+  it('never serves an off-scenario rule while a relevant one exists', () => {
+    // Measured defect: airport-luggage practice taught "trennbare Verben" with
+    // "Ich richte den Zugang ein" — a rule whose sentence shares no word with the
+    // episode. Relevance now beats the day rotation.
+    const rows = [
+      rule({ id: 'g_off', level: 'A1', example_de: 'Ich richte den Zugang ein.' }),
+      rule({ id: 'g_on', level: 'A1', example_de: 'Wo ist mein Koffer?' }),
+    ];
+    for (const day of [0, 1, 2, 3]) {
+      const picked = selectGrammarRule(rows, 'A1', { now: dayZero + day * DAY, scenarioVocabulary: ['Koffer'] });
+      expect(picked?.id).toBe('g_on');
+    }
+  });
+
+  it('falls back to the full pool when no rule shares the episode vocabulary', () => {
+    const rows = [rule({ id: 'g_off', level: 'A1', example_de: 'Ich richte den Zugang ein.' })];
+    const picked = selectGrammarRule(rows, 'A1', { now: dayZero, scenarioVocabulary: ['Koffer'] });
+    expect(picked?.id).toBe('g_off');
+  });
+
   it('rotates by calendar day, and is stable within one day', () => {
     const rows = [
       rule({ id: 'g_a1', level: 'A1' }),

@@ -6,6 +6,7 @@ import { enrolStudiedPhrases, enrolStudiedVocabulary } from '@/lib/srs/store';
 import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
 import { sceneFor } from '@/lib/design/scenes';
 import { buildGuidedPractice, gradeRepeat, gradeTypedProduction, type PracticeCard } from '@/lib/journey/practice';
+import { buildWordBank } from '@/lib/utils/wordBank';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { useVoiceCapture, voiceStartFailureMessageAr } from '@/lib/audio/useVoiceCapture';
 import { track } from '@/lib/analytics/client';
@@ -85,6 +86,34 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
     () => buildGuidedPractice({ phrases: phrasesQ || [], vocabulary: vocabQ || [], grammar: grammarQ || [], level }),
     [phrasesQ, vocabQ, grammarQ, level],
   );
+
+  // The words of each production target, tappable. The owner's report was that
+  // these two beats ask the learner to build a German sentence with no way to
+  // find the vocabulary; the bank is that way.
+  const grammarBank = useMemo(
+    () => (practice.grammar ? buildWordBank(practice.grammar.exampleDe) : []),
+    [practice.grammar],
+  );
+  const retrievalBank = useMemo(
+    () => (practice.retrieval ? buildWordBank(practice.retrieval.answerDe) : []),
+    [practice.retrieval],
+  );
+
+  const renderBank = (bank: string[], onPick: (word: string) => void) =>
+    bank.length > 0 ? (
+      <div className="mt-2 flex flex-wrap gap-1.5" dir="ltr">
+        {bank.map((word, wordIndex) => (
+          <button
+            key={`${word}-${wordIndex}`}
+            type="button"
+            onClick={() => onPick(word)}
+            className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1 font-german text-sm text-kz-ink transition-colors hover:border-kz-lavender/50"
+          >
+            {word}
+          </button>
+        ))}
+      </div>
+    ) : null;
 
   const { speak, isPlaying, activeCharIndex } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
 
@@ -284,6 +313,9 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   اكتب بالألمانية ما تعنيه:{' '}
                   <span className="font-bold">{practice.grammar.exampleAr}</span>
                 </p>
+                {renderBank(grammarBank, (word) =>
+                  setGrammarAnswer((prev) => (prev ? `${prev} ${word}` : word)),
+                )}
                 <input
                   type="text"
                   dir="ltr"
@@ -348,6 +380,9 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                 <p className="kz-ar-body text-kz-ink">
                   قل أو اكتب بالألمانية: <span className="font-bold">{practice.retrieval.promptAr}</span>
                 </p>
+                {renderBank(retrievalBank, (word) =>
+                  setRetrievalAnswer((prev) => (prev ? `${prev} ${word}` : word)),
+                )}
                 <input
                   type="text"
                   dir="ltr"
