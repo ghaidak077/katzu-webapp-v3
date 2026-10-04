@@ -726,14 +726,26 @@ function Footer({ onOpenTrustPage }: Pick<LandingScreenProps, 'onOpenTrustPage'>
           <KatzuMascot name="badge" className="w-8 h-8" alt="" aria-hidden />
           <span className="text-sm text-text-muted">Katzu — رفيقك لتعلم الألمانية</span>
         </div>
-        <nav className="flex items-center gap-5 text-caption text-text-secondary">
-          <button type="button" className="pointer-hover:text-primary transition-colors" onClick={() => onOpenTrustPage('privacy')}>
+        <nav className="flex items-center gap-2 text-caption text-text-secondary sm:gap-5">
+          <button
+            type="button"
+            className="pointer-hover:text-primary transition-colors inline-flex min-h-touch items-center px-2"
+            onClick={() => onOpenTrustPage('privacy')}
+          >
             الخصوصية
           </button>
-          <button type="button" className="pointer-hover:text-primary transition-colors" onClick={() => onOpenTrustPage('terms')}>
+          <button
+            type="button"
+            className="pointer-hover:text-primary transition-colors inline-flex min-h-touch items-center px-2"
+            onClick={() => onOpenTrustPage('terms')}
+          >
             الشروط
           </button>
-          <button type="button" className="pointer-hover:text-primary transition-colors" onClick={() => onOpenTrustPage('contact')}>
+          <button
+            type="button"
+            className="pointer-hover:text-primary transition-colors inline-flex min-h-touch items-center px-2"
+            onClick={() => onOpenTrustPage('contact')}
+          >
             تواصل معنا
           </button>
         </nav>

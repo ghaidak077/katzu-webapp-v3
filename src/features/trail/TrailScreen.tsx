@@ -421,7 +421,9 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                   <GermanText className="text-base font-bold text-text-primary block mb-0.5">
                     {scenario.title_de}
                   </GermanText>
-                  <div className="text-xs text-text-secondary font-arabic line-clamp-1">
+                  {/* V35: one line cut Arabic scenario titles mid-phrase. The card opens the
+                      full title, but a card should not need opening to be read. */}
+                  <div className="text-xs text-text-secondary font-arabic line-clamp-2">
                     {scenario.title_ar}
                   </div>
                   {capabilityFor(scenario.id) === 'PRACTISING' && (

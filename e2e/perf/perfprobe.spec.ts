@@ -25,7 +25,10 @@ interface Metrics {
 }
 
 async function snapshot(cdp: import('@playwright/test').CDPSession): Promise<Metrics> {
-  const { metrics } = (await cdp.send('Performance.getMetrics')) as { metrics: Metrics[] };
+  // Playwright types `Metric` as a closed object; the map we build below wants
+  // a plain `Record<string, number>`, so the cast goes through `unknown` rather
+  // than pretending the two shapes are compatible.
+  const { metrics } = (await cdp.send('Performance.getMetrics')) as unknown as { metrics: Metrics[] };
   const out: Metrics = {};
   for (const m of metrics) out[m.name] = m.value;
   return out;

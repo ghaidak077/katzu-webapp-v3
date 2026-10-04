@@ -125,6 +125,10 @@ elsewhere, four new V10 entries.
 2026-10-04 | A gate against the live site failed for a reason two releases old | `smoke-token-hygiene.cjs` dropped to 10/11 because V33 had folded sign-out into a collapsed Profile section; the local suites were all green | Live-site smoke is the only check that sees what the last deploy actually did. Run it after any change to how controls are grouped, and never record it as passing without the run.
 
 ## Pruned (encoded elsewhere — kept here only as a pointer)
+2026-10-04 | Three "HIGH" findings from the cross-discipline review dissolved on the second measurement | Accessible-name checks that skip `<label for>`, `scrollWidth` read as horizontal scroll, and Arabic glyph overflow read as clipped text all report failures that no user can perceive | Before a finding becomes a fix, ask what the user would *do* differently: `labels[]` association is how the platform names a field, `window.scrollX` after a real swipe is whether a page moves, and a 3px line-box overflow in Cairo is not an ellipsis. Three harness fixes, zero product changes.
+
+2026-10-04 | Two gates were quoted as passing on the strength of a piped exit code | `… 2>&1 | head -5; echo $?` returns `head`'s status; `npx tsc -p e2e --noEmit` had been failing since the perf probe was committed, and the ledger recorded it clean twice | Redirect the output to a file, read that file, and echo the command's own `$?` immediately after the command and before any pipe. The failure was real and shipped in a commit; only a re-run caught it.
+
 
 - `npx vitest run --reporter=line` fails: `line` is a Playwright reporter. Now stated in `AGENTS.md` §5 (`--reporter=line` is Playwright-only; use `dot` or the default for Vitest).
 - `rg` is missing on this machine. Now stated in `AGENTS.md` §1 and `docs/agent/ENV-FACTS.md` (use `grep -rn` / `git grep -n`, never retry `rg`).

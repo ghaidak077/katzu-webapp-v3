@@ -1,14 +1,46 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { bootSignedIn, seedRows } from './harness';
 
 /**
- * V33 — the V32 audit's P2 backlog, closed.
+ * V33 — the V32 audit's P2 backlog, closed — plus V35's cross-discipline review.
  *
  * The unit tests pin the source. Only a browser can prove what the audit
  * actually asked for: that a learner sees WHY a lesson is locked, that a skill
  * screen says which move comes next, and that Profile no longer opens as a wall
  * of equal controls.
+ *
+ * The V35 additions measure what a source assertion cannot: the *rendered* size
+ * of a hit area and the *rendered* font size of a field. Three separate false
+ * findings in that review came from harness mistakes, so each of these asserts
+ * a measurement the browser produced, not a class name.
  */
+
+/** Every visible control's rendered box, in CSS pixels. */
+async function controls(page: Page) {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll('button, a[href], [role="button"], input, textarea, select'))
+      .map((node) => {
+        const rect = node.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1) return null;
+        const style = getComputedStyle(node);
+        if (style.visibility === 'hidden' || style.display === 'none') return null;
+        return {
+          name: (
+            node.getAttribute('aria-label') ||
+            (node as HTMLInputElement).labels?.[0]?.textContent ||
+            node.textContent ||
+            node.tagName
+          )
+            .trim()
+            .slice(0, 30),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          fontSize: parseFloat(style.fontSize),
+        };
+      })
+      .filter((entry): entry is { name: string; width: number; height: number; fontSize: number } => entry !== null),
+  );
+}
 
 test.use({ viewport: { width: 360, height: 640 } });
 
@@ -88,4 +120,74 @@ test('profile offers far fewer controls than it used to', async ({ page }) => {
     }).length;
   });
   expect(count).toBeLessThanOrEqual(12);
+});
+
+test('the landing footer links are thumb-sized, not 20px slivers', async ({ page }) => {
+  await page.goto('/');
+  const links = page.getByRole('button', { name: /الخصوصية|الشروط|تواصل معنا/ });
+  await expect(links.first()).toBeVisible({ timeout: 30_000 });
+
+  // The cross-discipline review measured 55x20, 38x20 and 60x20 here — under
+  // WCAG 2.5.8's 24px floor, let alone the project's 44px thumb target.
+  const boxes = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('footer button'))
+      .map((node) => {
+        const rect = node.getBoundingClientRect();
+        return { name: (node.textContent ?? '').trim(), height: Math.round(rect.height) };
+      })
+      .filter((entry) => entry.height > 0),
+  );
+  expect(boxes.length).toBeGreaterThanOrEqual(3);
+  for (const box of boxes) {
+    expect(box.height, `footer link "${box.name}" is ${box.height}px tall`).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test('listening keeps its playback controls and its exit reachable by thumb', async ({ page }) => {
+  await bootSignedIn(page);
+  await seedRows(page, 'starter_phrases', [
+    {
+      id: 701,
+      scenario_id: 'cafe_order',
+      german: 'Ich habe gestern Fieber gehabt.',
+      translation_ar: 'لقد شعرت بالحمى أمس.',
+      level: 'A1',
+      sort_order: 1,
+    },
+  ]);
+  await page.goto('/app/listen');
+  await expect(page.getByTestId('step-trail')).toBeVisible({ timeout: 30_000 });
+
+  // The review measured «تشغيل بطيء» at 83x17 and «إعادة» at 25x17.
+  const slow = page.getByRole('button', { name: 'تشغيل بطيء 0.8x' });
+  await expect(slow).toBeVisible();
+  for (const name of ['تشغيل بطيء 0.8x', 'إعادة', 'إنهاء التدريب والعودة']) {
+    const box = await page.getByRole('button', { name }).boundingBox();
+    expect(box, `"${name}" must be on screen`).not.toBeNull();
+    expect(box!.height, `"${name}" is ${box!.height}px tall`).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test('every field the learner types into is at least 16px, or iOS zooms the page', async ({ page }) => {
+  await bootSignedIn(page);
+  for (const path of ['/app/ask', '/app/practice', '/app/write']) {
+    await page.goto(path);
+    await page.waitForTimeout(900);
+    const typed = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('input, textarea, select'))
+        .map((node) => {
+          const rect = node.getBoundingClientRect();
+          if (rect.width < 1 || rect.height < 1) return null;
+          return {
+            id: node.id || node.tagName.toLowerCase(),
+            size: parseFloat(getComputedStyle(node).fontSize),
+          };
+        })
+        .filter((entry): entry is { id: string; size: number } => entry !== null),
+    );
+    expect(typed.length, `${path} has no field to check`).toBeGreaterThan(0);
+    for (const field of typed) {
+      expect(field.size, `${path} #${field.id} renders at ${field.size}px`).toBeGreaterThanOrEqual(16);
+    }
+  }
 });

@@ -142,7 +142,9 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
           <ArrowRight className="h-5 w-5" />
         </button>
         <div className="min-w-0 flex-1 text-center">
-          <h1 className="kz-ar-caption truncate font-bold text-kz-ink">اسأل كَاتْزُو عن الألمانية</h1>
+          {/* V35: `truncate` cut this heading's own words at 320px with nothing to
+              reveal the rest. The header row has room for two lines. */}
+          <h1 className="kz-ar-caption text-balance font-bold text-kz-ink">اسأل كَاتْزُو عن الألمانية</h1>
           <p className="kz-ar-micro text-kz-inkFaint">ترجمة · قواعد · كلمة · تصحيح جملة · ألمانية رسمية</p>
         </div>
         <KatzuMascot name="avatar" className="h-9 w-9 shrink-0" />
@@ -197,7 +199,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
               if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void ask();
             }}
             placeholder={`مثال: ${ASK_EXAMPLE_AR}`}
-            className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-3 py-2.5 font-arabic text-sm text-kz-ink transition-colors placeholder:text-kz-inkFaint focus:border-primary/60"
+            className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-3 py-2.5 font-arabic text-base text-kz-ink transition-colors placeholder:text-kz-inkFaint focus:border-primary/60"
           />
           <div className="mt-2 flex items-center justify-between gap-2">
             <span className="kz-ar-micro text-kz-inkFaint">

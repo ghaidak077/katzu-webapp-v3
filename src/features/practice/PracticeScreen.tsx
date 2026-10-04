@@ -280,7 +280,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             placeholder="ابحث عن كلمة ألمانية أو معناها بالعربية..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-11 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl ps-10 pe-4 text-xs font-arabic"
+            className="w-full h-11 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl ps-10 pe-4 text-base font-arabic"
           />
         </div>
 
@@ -290,7 +290,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
               setSelectedCategory('ALL');
               setBrowseWords(true);
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+            className={`inline-flex min-h-touch items-center px-3 rounded-xl text-xs font-semibold transition-colors ${
               selectedCategory === 'ALL'
                 ? 'bg-fill text-on-fill shadow-glow-purple'
                 : 'bg-surface-card text-text-secondary border border-border-subtle'
@@ -303,7 +303,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
               setSelectedCategory('SAVED');
               setBrowseWords(true);
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+            className={`inline-flex min-h-touch items-center px-3 rounded-xl text-xs font-semibold transition-colors ${
               selectedCategory === 'SAVED'
                 ? 'bg-status-learning text-black font-bold'
                 : 'bg-surface-card text-text-secondary border border-border-subtle'

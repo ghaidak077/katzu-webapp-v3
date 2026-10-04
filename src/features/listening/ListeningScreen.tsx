@@ -245,19 +245,24 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                 >
                   <Volume2 className="w-8 h-8" />
                 </button>
-                <div className="flex items-center justify-center gap-3 mt-3">
+                <div className="flex items-center justify-center gap-1 mt-1">
+                  {/* V35: these two were 17px tall — below the 24px WCAG 2.5.8
+                      floor, let alone the project's 44px thumb target. They are
+                      text, so the hit area is padded rather than restyled. */}
                   <button
                     type="button"
                     onClick={() => speakSlow(current.german)}
-                    className="text-micro font-arabic text-text-secondary pointer-hover:text-primary transition-colors"
+                    className="inline-flex min-h-touch items-center px-3 text-micro font-arabic text-text-secondary pointer-hover:text-primary transition-colors"
                   >
                     تشغيل بطيء 0.8x
                   </button>
-                  <span className="text-text-muted">•</span>
+                  <span className="text-text-muted" aria-hidden>
+                    •
+                  </span>
                   <button
                     type="button"
                     onClick={() => speak(current.german)}
-                    className="text-micro font-arabic text-text-secondary pointer-hover:text-primary transition-colors"
+                    className="inline-flex min-h-touch items-center px-3 text-micro font-arabic text-text-secondary pointer-hover:text-primary transition-colors"
                   >
                     إعادة
                   </button>
@@ -377,7 +382,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
 
       <button
         onClick={onBack}
-        className="w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
+        className="inline-flex min-h-touch w-full items-center justify-center text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors"
       >
         <RotateCcw className="w-3 h-3 inline me-1" />
         إنهاء التدريب والعودة

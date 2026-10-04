@@ -267,7 +267,11 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             <p className="kz-ar-micro text-kz-inkFaint">
               اليوم {context.dayNumber} · الفصل {context.chapterIndex} من {context.chapterCount}
             </p>
-            <h1 className="kz-ar-title mt-0.5 truncate text-kz-ink">{context.chapterTitleAr}</h1>
+            {/* V35: this heading used to `truncate`, so a chapter title longer than the
+                header clipped its own meaning with no way to read it. Two lines
+                cost nothing here and the title is the one thing this screen
+                states. */}
+            <h1 className="kz-ar-title mt-0.5 text-balance text-kz-ink">{context.chapterTitleAr}</h1>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <StatusIndicator state={isOnline ? 'online' : 'offline'} compact />

@@ -375,7 +375,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
             maxLength={MAX_CHARS}
             aria-label="اكتب ما تريد قوله بالألمانية"
             placeholder="Schreibe hier auf Deutsch…"
-            className="w-full resize-y bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl p-3 text-sm font-german leading-relaxed transition-colors"
+            className="w-full resize-y bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl p-3 text-base font-german leading-relaxed transition-colors"
           />
           <div className="flex items-center justify-between mt-2">
             <span className={`text-micro font-german ${trimmedLength >= MIN_CHARS ? 'text-text-muted' : 'text-status-learning'}`}>
