@@ -23,7 +23,7 @@ file is the digest that is short enough to always read.
 | Fact | Value |
 |---|---|
 | Repo root | `C:/Users/Lenovo/Desktop/k1/katzu` (shell starts at `/c/Users/Lenovo/Desktop/k1`) |
-| Branch of record | `main` at `a9d0441` after the V37 deploy (`1a72827` was the excellence-batch start); inspect current Git state rather than switching to historical `launch-hardening` |
+| Branch of record | `main` at `93653dc` after the V38 deploy (`3776b1c` was the docs commit before it); inspect current Git state rather than switching to historical `launch-hardening` |
 | Remote | `github.com/ghaidak077/katzu-webapp-v3` |
 | Node here / in CI | v24.14.0 here; **24.15.0** pinned in CI (EBADENGINE warning here is expected) |
 | Gate commands | `npx tsc --noEmit` (== `npm run lint`); `npm test`; `E2E_TARGET=preview npx playwright test`; `npm run build`; `node --check cloudflare-*.js` |
@@ -38,7 +38,7 @@ file is the digest that is short enough to always read.
 | Working tree | CRLF (despite `.gitattributes` pinning LF) |
 | Ledger of record | `docs/AGENT-STATE.md` |
 | Session start | `npm run session:start` — ledger NEXT + APP-MAP §9 + MEMORY §A + git + OPEN ITEMS (owner-only/unproven) |
-| Deployed (2026-10-04, V37) | worker `66e1c99d-b8aa-4f93-ba05-2a8b60270c88` · Pages production `ed995593-0a8d-4e50-9b18-bde6b6308719` serving `assets/index-Cipqt6LI.js` · live content **49 scenarios / 531 vocabulary / 73 grammar** |
+| Deployed (2026-10-04, V38) | worker `4d34c8eb-6047-4b4a-a859-cea43d673e1f` · Pages production `ef91fad7-f5d9-4764-8e7f-f93952808bdb` serving `assets/index-DHO4J2Da.js` · live content **49 scenarios / 531 vocabulary / 73 grammar** |
 
 ---
 

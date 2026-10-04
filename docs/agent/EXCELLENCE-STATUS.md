@@ -116,3 +116,31 @@ batch 5 remainder / batch 6 journey resilience.
   confirmed no account + no AI call on load, service-worker registration and clean network — it did
   **not** submit a live demo turn, to avoid spending the production AI key. The demo e2e spec could
   not be run as-is against the remote origin because its harness mocks all non-localhost traffic.
+
+## Deploy record — 2026-10-04 (V38, `DEPLOY-AUTHORIZED: merge, worker, pages`)
+
+**Batch:** the install-icon fix (opaque, correctly-sized manifest icons + the iOS apple-touch-icon)
+and the conversation polish (a full-size centred thinking card, a centred voice orb, 44px composer
+controls, and an orb that yields pixels on short phones so the transcript keeps half the screen).
+Gates: `tsc` ×2 clean · `npm test` **116 files / 1437 tests** · Playwright **81 passed** · build OK ·
+`node --check cloudflare-unified-worker.js` clean · design-audit / contrast clean · `npm audit` 0.
+
+- **merge:** committed the tree to `main` as `93653dc`, pushed `3776b1c..93653dc` (no force). Pages
+  builds from git on push.
+- **worker:** `npm run deploy:worker` → `katzu-test`, version
+  **`4d34c8eb-6047-4b4a-a859-cea43d673e1f`** (was `66e1c99d-b8aa-4f93-ba05-2a8b60270c88`).
+  Verified: `/health` = `{status,service,ready,maintenance}` only; `/crypto/health` unchanged
+  (`ready:false`); unauth `/admin/api/overview` and `/admin/schema` → **401**.
+- **pages:** deployment **`ef91fad7-f5d9-4764-8e7f-f93952808bdb`** (source `93653dc`, Production).
+  Verified: `https://katzu-webapp-v3.pages.dev/` → 200 serving **`assets/index-DHO4J2Da.js`** (was
+  `index-Cipqt6LI.js`); the four icons serve 200 at exact byte sizes
+  (25 487 / 128 393 / 89 590 / 22 649); `manifest.webmanifest` lists 3 icons; `/demo` loads with
+  **no account and no `/ai/` call** (only `/analytics/events`); `scripts/verification-battery.cjs`
+  **12/12** including SW active, precache **105** and offline navigation.
+- **Rollback:** worker `npx wrangler rollback 66e1c99d-b8aa-4f93-ba05-2a8b60270c88`; Pages previous
+  production deployment `d1d9c23b-f4e7-4965-8b42-360512f89052` (source `3776b1c`).
+- **Substitution, recorded honestly:** the runbook's step-4 smoke names the demo e2e spec against the
+  production URL, but its harness mocks all non-localhost traffic (`e2e/harness.ts:168`), so it
+  cannot run against a remote origin; `verification-battery.cjs` (purpose-built, read-only) was used
+  instead, and the no-AI-call clause was confirmed directly in a browser.
+- **Not touched:** no secret change, no production D1 write, no owner-only item.

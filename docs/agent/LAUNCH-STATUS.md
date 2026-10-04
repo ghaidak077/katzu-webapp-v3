@@ -13,11 +13,11 @@ listed separately as **OWNER-ONLY** or **BLOCKED** so it is not mistaken for don
 - App `https://katzu-webapp-v3.pages.dev` · worker `https://katzu-test.ghaidakalosh008.workers.dev`
   · sales `https://katzu-sales.pages.dev`.
 - Live content after the V18 load: **15 scenarios / 221 vocabulary / 111 phrases / 22 grammar**.
-- **Latest deploy (V37, 2026-10-04):** `main` = `a9d0441` · worker `66e1c99d-b8aa-4f93-ba05-2a8b60270c88` ·
-  Pages production `ed995593-0a8d-4e50-9b18-bde6b6308719` serving `assets/index-Cipqt6LI.js`. Live
+- **Latest deploy (V38, 2026-10-04):** `main` = `93653dc` · worker `4d34c8eb-6047-4b4a-a859-cea43d673e1f` ·
+  Pages production `ef91fad7-f5d9-4764-8e7f-f93952808bdb` serving `assets/index-DHO4J2Da.js`. Live
   content re-measured read-only this run: **49 scenarios / 531 vocabulary / 73 grammar**. Current
   status and verification: [EXCELLENCE-STATUS](EXCELLENCE-STATUS.md); rollback refs: worker
-  `aafcf3bf-8307-4e20-bca6-240a075c8dd3`, Pages `d97e280e-bd66-4669-a27b-0a5c3beb6365`.
+  `66e1c99d-b8aa-4f93-ba05-2a8b60270c88`, Pages `d1d9c23b-f4e7-4965-8b42-360512f89052`.
 
 **How to read the status column**
 
