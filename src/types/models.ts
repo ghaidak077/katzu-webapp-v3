@@ -54,6 +54,8 @@ export type SarcasmLevel = 'DEADPAN' | 'SASSY' | 'GENTLE';
 
 export interface ScenarioEntity {
   id: string;
+  /** Authored ordering returned by the curriculum API. */
+  sequence_order?: number;
   title_de: string;
   title_ar: string;
   ai_persona: string;
@@ -186,6 +188,8 @@ export interface UserEntity {
    * session tokens only. Sign-in converts the ID token to a session and discards it. */
   idToken?: string;
   sessionToken?: string;
+  /** Google subject identifying the owner of retained offline sync work. */
+  accountId?: string;
   isLoggedIn: boolean;
   subscriptionExpiresAt: string | null;
   isSubscriptionActive: boolean;
@@ -410,6 +414,8 @@ export type CapabilityState = 'NOT_STARTED' | 'INTRODUCED' | 'PRACTISING' | 'IND
 
 export interface SyncQueueEntity {
   id?: number;
+  /** Missing on legacy rows: retained in quarantine, never auto-uploaded. */
+  ownerAccountId?: string;
   payload: unknown;
   createdAt: number;
   attempts: number;

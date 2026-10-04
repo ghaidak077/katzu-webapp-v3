@@ -201,6 +201,25 @@ describe('content schema — ensureContentColumns behaviour', () => {
     error.mockRestore();
   });
 
+  it('retries after a transient failure and scopes success to the database binding', async () => {
+    vi.resetModules();
+    const mod = await import('../cloudflare-content-schema.js');
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let healthy = false;
+    const run = vi.fn(async () => { if (!healthy) throw new Error('database is locked'); });
+    const env = { DB: { prepare: () => ({ run }) } };
+    expect(await mod.ensureContentColumns(env as never)).toBe(false);
+    healthy = true;
+    expect(await mod.ensureContentColumns(env as never)).toBe(true);
+    expect(run).toHaveBeenCalledTimes(10);
+    expect(await mod.ensureContentColumns(env as never)).toBe(true);
+    expect(run).toHaveBeenCalledTimes(10);
+    const second = vi.fn(async () => {});
+    expect(await mod.ensureContentColumns({ DB: { prepare: () => ({ run: second }) } } as never)).toBe(true);
+    expect(second).toHaveBeenCalledTimes(5);
+    error.mockRestore();
+  });
+
   it('does nothing without a D1 binding', async () => {
     vi.resetModules();
     const mod = await import('../cloudflare-content-schema.js');

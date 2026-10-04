@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { GlassSurface } from '@/components/glass/GlassSurface';
+import { useModalDialog } from '@/components/ui/useModalDialog';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -42,6 +43,12 @@ export const Modal: React.FC<ModalProps> = ({
     return () => cancelAnimationFrame(frame);
   }, [isOpen]);
 
+  // Real dialog semantics: focus in, Tab trapped, Escape to close, focus back to
+  // the trigger. Called before the early return so hook order never changes.
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useModalDialog(isOpen, onClose, dialogRef);
+
   if (!isOpen) return null;
 
   // V20: the scrim's blur honours the renderer tier — on a reduced device the
@@ -67,19 +74,28 @@ export const Modal: React.FC<ModalProps> = ({
           className
         )}
       >
-        <div className="flex items-center justify-between pb-4 border-b border-border-subtle mb-4">
-          {title ? (
-            <h3 className="text-lg font-bold font-arabic text-text-primary">{title}</h3>
-          ) : <div />}
-          <button
-            onClick={onClose}
-            aria-label="إغلاق"
-            className="p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-full pointer-hover:bg-surface-subtle text-text-secondary pointer-hover:text-text-primary transition-colors duration-fast ease-out"
-          >
-            <X className="w-5 h-5" aria-hidden="true" />
-          </button>
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? titleId : undefined}
+          aria-label={title ? undefined : 'نافذة حوار'}
+          tabIndex={-1}
+        >
+          <div className="flex items-center justify-between pb-4 border-b border-border-subtle mb-4">
+            {title ? (
+              <h3 id={titleId} className="text-lg font-bold font-arabic text-text-primary">{title}</h3>
+            ) : <div />}
+            <button
+              onClick={onClose}
+              aria-label="إغلاق"
+              className="p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-full pointer-hover:bg-surface-subtle text-text-secondary pointer-hover:text-text-primary transition-colors duration-fast ease-out"
+            >
+              <X className="w-5 h-5" aria-hidden="true" />
+            </button>
+          </div>
+          {children}
         </div>
-        {children}
       </GlassSurface>
     </div>
   );

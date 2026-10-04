@@ -1,5 +1,19 @@
 # ENV-FACTS — measured environment for the Katzu workspace
 
+## Current overlay — 2026-10-04
+
+The sections below are historical recon, not current production/readiness claims.
+Current checkout at excellence-batch start: `main`, `1a72827`; source changes are local and
+uncommitted. Node remains 24.14.0 / npm 11.9.0, below the declared Node floor; no system-wide
+runtime upgrade is authorized or performed. A local `.env` exists now: never print its contents.
+The preceding audit passed 1,410 unit tests and 80 dev-server browser tests; these numbers are
+not coverage for later edits. Final edited-file evidence lives in `EXCELLENCE-STATUS.md`.
+The root shell directory is still the parent workspace; commands for the app need `cwd: katzu`.
+Use bundled code_search when available, `git grep` fallback otherwise. Inspect listeners before
+starting servers and never terminate another thread's process. No production/network secret
+operations are necessary for the current batch. CLAUDE.md and AGENTS.md share one instruction
+source, and neither grants automatic commits or deploys.
+
 One-time recon, read-only. Every `FACT` line carries the command and its result.
 `UNKNOWN` means the probe could not prove the claim — never a guess.
 Recon date: 2026-09-29. Host: the owner's Windows desktop (Freebuff desktop app).

@@ -138,10 +138,12 @@ export async function buildDailyPayload(): Promise<DailyPayload> {
  * server WINS: whatever the device computed locally, this overwrites the total
  * and the streak with the server's values so a clock jump cannot outlive a sync.
  */
-export async function adoptDailyAuthority(daily: DailyAuthority | null | undefined): Promise<void> {
+export async function adoptDailyAuthority(daily: DailyAuthority | null | undefined, sessionToken?: string): Promise<void> {
   if (!daily || typeof daily.totalXp !== 'number') return;
   try {
-    await db.users.update('current_user', {
+    await db.users.where('id').equals('current_user').modify((user) => {
+      if (sessionToken && user.sessionToken !== sessionToken) return;
+      Object.assign(user, {
       totalXp: Math.max(0, Math.floor(daily.totalXp)),
       streakDays: Math.max(0, Math.floor(daily.streakDays || 0)),
       dailyAuthority: {
@@ -159,6 +161,7 @@ export async function adoptDailyAuthority(daily: DailyAuthority | null | undefin
         },
         updatedAt: Number(daily.updatedAt) || Date.now(),
       },
+      });
     });
   } catch {
     /* a failed adopt is non-fatal: the next sync re-sends the same truth */

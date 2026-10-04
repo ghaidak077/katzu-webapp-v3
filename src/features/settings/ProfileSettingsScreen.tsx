@@ -262,7 +262,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             </div>
             <div>
               <div className="text-sm font-bold font-arabic text-primary">الترقية إلى Katzu Pro</div>
-              <div className="text-xs text-text-secondary">محادثات لا محدودة وكافة السيناريوهات</div>
+              <div className="text-xs text-text-secondary">محادثات بلا حدّ جلسات وكافة السيناريوهات</div>
             </div>
           </div>
           <span className="text-xs font-bold font-arabic text-primary">ترقية ←</span>

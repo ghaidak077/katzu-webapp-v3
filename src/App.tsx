@@ -212,11 +212,18 @@ function AppRoutes() {
   const handleSignOut = async () => {
     try { await workerClient.signOutSession(); } catch { /* best-effort */ }
     await wipeUserScopedData();
+    setSessionSummary(null);
     navigate('/signin');
   };
 
   return (
-    <div className="min-h-screen bg-black text-text-primary flex flex-col justify-between">
+    // `overflow-x-clip` contains purely decorative bleed (the ambient BorderBeam
+    // halo is drawn `inset: -30px`, i.e. deliberately larger than its card) so a
+    // glow can never widen the document and add a horizontal scrollbar. Measured
+    // before the fix: /app/trail and /dev/system reported scrollWidth 325 at a
+    // 320px viewport and 394 at 390 — the halo, not any control. `clip` is used
+    // rather than `hidden` so no scroll container is created.
+    <div className="min-h-screen bg-black text-text-primary flex flex-col justify-between overflow-x-clip">
       {/* Active Screen View */}
       <main className="flex-1 w-full">
         {/* A lazily-loaded route shows this while its code arrives. Without a

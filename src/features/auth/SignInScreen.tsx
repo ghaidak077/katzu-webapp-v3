@@ -150,7 +150,8 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     userEmail: string,
     userDisplayName: string,
     idToken: string,
-    level: CEFRLevel = 'A1'
+    level: CEFRLevel = 'A1',
+    accountId?: string,
   ) => {
     const cleanEmail = userEmail.trim().toLowerCase();
     const cleanName = userDisplayName.trim() || cleanEmail.split('@')[0] || 'طالب كَاتْزُو';
@@ -182,6 +183,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       // idToken is deliberately NOT persisted (only cleared from any legacy row).
       idToken: undefined,
       sessionToken,
+      accountId,
       isLoggedIn: true,
       cefrLevel: level,
       updatedAt: Date.now(),
@@ -252,7 +254,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       }
       const userName = payload.name || payload.given_name || 'مستخدم كَاتْزُو';
 
-      await completeUserAuth(userEmail, userName, idToken, selectedLevel);
+      await completeUserAuth(userEmail, userName, idToken, selectedLevel, typeof payload.sub === 'string' ? payload.sub : undefined);
     } catch (e: any) {
       setErrorMessage('فشل التحقق من تسجيل الدخول عبر Google، يرجى المحاولة ثانية.');
       triggerHaptic('error');

@@ -28,6 +28,7 @@ import type { GrammarEntity } from '@/types/models';
 import { SCENARIO_GRAMMAR_IDS } from '@/lib/content/scenarioGrammar';
 import { Check, X, RotateCcw, ArrowLeft, Lock, CheckCircle2, FastForward, Trophy } from 'lucide-react';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { BackButton } from '@/components/common/BackButton';
 
 export interface GrammarSectionScreenProps {
   onBack: () => void;
@@ -459,6 +460,11 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
   return (
     <div className="min-h-screen bg-black text-text-primary">
       <div className="mx-auto max-w-md p-5">
+        {/* The path screen had no way out: `onBack` was accepted and never used,
+            so the only exits were the browser back button or the tab bar. */}
+        <div className="mb-4">
+          <BackButton onBack={onBack} />
+        </div>
         <div className="mb-5 text-center">
           <KatzuMascot name="practice" glow className="mx-auto mb-2 h-24 w-24 object-contain" />
           <h1 className="text-xl font-bold font-arabic">مسار القواعد</h1>

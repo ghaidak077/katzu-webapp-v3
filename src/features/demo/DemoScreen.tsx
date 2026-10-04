@@ -127,7 +127,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
 
   if (!state) {
     return (
-      <main className="min-h-screen bg-black text-text-primary max-w-md mx-auto p-6 flex flex-col">
+      <div className="min-h-screen bg-black text-text-primary max-w-md mx-auto p-6 flex flex-col">
         <TopBar onHome={onHome} />
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
           <KatzuMascot name={contentUnavailable ? 'listening' : 'avatar'} className="w-24 h-24 object-contain" />
@@ -147,7 +147,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
             <p className="text-sm text-text-secondary font-arabic animate-pulse">جارٍ تحضير الدرس التجريبي…</p>
           )}
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -159,7 +159,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
   const summary = summarizeDemo(state);
 
   return (
-    <main className="min-h-screen bg-black text-text-primary max-w-md mx-auto pb-10">
+    <div className="min-h-screen bg-black text-text-primary max-w-md mx-auto pb-10">
       <div className="p-4">
         <TopBar onHome={onHome} />
       </div>
@@ -455,7 +455,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 };
 

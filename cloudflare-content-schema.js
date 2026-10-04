@@ -164,7 +164,7 @@ const ADDITIVE_COLUMNS = {
   ],
 };
 
-let columnsEnsured = null;
+const columnsEnsured = new WeakMap();
 
 /**
  * Brings every existing content table up to the schema above.
@@ -175,10 +175,12 @@ let columnsEnsured = null;
  * a schema this worker cannot write to would silently break the banner editor.
  */
 export function ensureContentColumns(env) {
-  if (columnsEnsured) return columnsEnsured;
-  if (!env?.DB || typeof env.DB.prepare !== "function") return Promise.resolve(false);
+  const db = env?.DB;
+  if (!db || typeof db.prepare !== "function") return Promise.resolve(false);
+  const memo = columnsEnsured.get(db);
+  if (memo) return memo;
 
-  columnsEnsured = (async () => {
+  const attempt = (async () => {
     let ok = true;
     for (const [table, columns] of Object.entries(ADDITIVE_COLUMNS)) {
       for (const column of columns) {
@@ -196,7 +198,11 @@ export function ensureContentColumns(env) {
     return ok;
   })();
 
-  return columnsEnsured;
+  columnsEnsured.set(db, attempt);
+  attempt.then((ok) => {
+    if (!ok && columnsEnsured.get(db) === attempt) columnsEnsured.delete(db);
+  });
+  return attempt;
 }
 
 /** The value a row must carry to address an existing row: `rowid` or the text `id`. */

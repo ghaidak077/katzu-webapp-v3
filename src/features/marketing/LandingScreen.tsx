@@ -102,7 +102,9 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-5">          <Hero
+      {/* App already renders the page's single <main> landmark around the route.
+          A second one nested inside it is a duplicated landmark for screen readers. */}
+      <div className="max-w-5xl mx-auto px-5">          <Hero
           isSignedIn={isSignedIn}
           onStart={onStart}
           onSignIn={onSignIn}
@@ -119,7 +121,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
         <ComingSection />
         <FaqSection />
         <FinalCta isSignedIn={isSignedIn} onStart={onStart} onContinue={onContinue} onTryDemo={onTryDemo} />
-      </main>
+      </div>
 
       <Footer onOpenTrustPage={onOpenTrustPage} />
     </div>
@@ -149,7 +151,7 @@ function Hero({
         </h1>
 
         <p className="mt-5 text-sm sm:text-lg text-text-secondary leading-relaxed max-w-2xl px-2">
-          كاتزو تطبيق عربي لتعلّم الألمانية من <span className="text-text-primary font-semibold">A1 إلى B2</span>:
+          كاتزو تطبيق عربي لتعلّم الألمانية من <span className="text-text-primary font-semibold">A0 إلى B2</span>:
           تتدرّب على مواقف حقيقية في ألمانيا — التسجيل في البلدية، المواعيد، التأمين، العمل — وتتحدّث
           بصوت عالٍ كل يوم، وكاتزو يتذكّر أخطاءك ويعيدها عليك في الوقت المناسب.
         </p>
@@ -161,20 +163,24 @@ function Hero({
               متابعة رحلتك
             </Button>
           ) : (
-            <Button size="lg" className="w-full sm:w-auto" onClick={onStart}>
-              ابدأ مجاناً الآن
-              <ArrowLeft className="w-5 h-5" aria-hidden />
-            </Button>
-          )}
-          {!isSignedIn && (
             <>
-              <Button size="lg" variant="outline" className="w-full sm:w-auto" onClick={onTryDemo}>
+              {/* Demo-first for a visitor: the product's own promise is "try before
+                  you sign up", so the hero's one primary action is the real lesson
+                  without an account. Signup stays visible as the clear second
+                  choice rather than competing for the same emphasis. */}
+              <Button size="lg" className="w-full sm:w-auto" onClick={onTryDemo}>
                 جرّب درساً بدون حساب
+                <ArrowLeft className="w-5 h-5" aria-hidden />
               </Button>
-              <Button size="lg" variant="ghost" className="w-full sm:w-auto" onClick={onSignIn}>
-                لديّ حساب
+              <Button size="lg" variant="outline" className="w-full sm:w-auto" onClick={onStart}>
+                ابدأ مجاناً الآن
               </Button>
             </>
+          )}
+          {!isSignedIn && (
+            <Button size="lg" variant="ghost" className="w-full sm:w-auto" onClick={onSignIn}>
+              لديّ حساب
+            </Button>
           )}
         </div>
 
@@ -233,7 +239,15 @@ function VideoSlot() {
     let alive = true;
     fetch('/videos/katzu_hero_video.mp4', { method: 'HEAD' })
       .then((res) => {
-        if (alive && res.ok) setSrc('/videos/katzu_hero_video.mp4');
+        if (!alive || !res.ok) return;
+        // `res.ok` alone is not enough: a single-page app's dev/preview server
+        // answers an unknown asset path with index.html and a 200, so a video
+        // that was never shipped would look present and render a broken player
+        // (measured: 200 `text/html` for a missing /videos/katzu_hero_video.mp4).
+        // The content type is what actually separates a shipped video from the
+        // fallback page.
+        const type = res.headers.get('content-type') || '';
+        if (type.startsWith('video/')) setSrc('/videos/katzu_hero_video.mp4');
       })
       .catch(() => {});
     return () => {
@@ -271,7 +285,7 @@ const WHO_IT_IS_FOR = [
   {
     icon: Clock,
     title: 'من جرّب تطبيقات كثيرة وملّ',
-    body: 'لا نقاط ولا إشعارات مُلحّة. مهمة واحدة قصيرة يومياً، وتقدّم تقوله لك الحقيقة.',
+    body: 'لا إشعارات مُلحّة. مهمة واحدة قصيرة يومياً، وتقدّم يُبنى على تدريبك الفعلي لا على وقتك.',
   },
 ] as const;
 
@@ -342,7 +356,10 @@ function FaqSection() {
           <details key={q} className="group rounded-2xl bg-surface-card border border-border-subtle open:border-primary/30">
             <summary className="flex items-center justify-between gap-3 p-4 cursor-pointer text-sm font-bold font-arabic select-none [&::-webkit-details-marker]:hidden">
               {q}
-              <span className="text-primary text-lg leading-none group-open:rotate-45 transition-transform" aria-hidden>
+              {/* The open state is carried by the glyph itself (plus → close), not
+                  by animating it: a rotation on six disclosure rows is decoration,
+                  and it was the one transition the reduced-motion rules missed. */}
+              <span className="text-primary text-lg leading-none group-open:rotate-45" aria-hidden>
                 +
               </span>
             </summary>
@@ -474,8 +491,8 @@ function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSign
           </Badge>
           <ul className="mt-5 space-y-3 text-caption text-text-secondary">
             {[
-              'محادثات غير محدودة مع كاتزو بعد انتهاء الجلسات التجريبية.',
-              'كل المستويات والمشاهد من A1 إلى B2.',
+              'محادثات بلا حدّ على عدد الجلسات بعد انتهاء الجلسات التجريبية.',
+              'كل المستويات والمشاهد من A0 إلى B2.',
               'توليد تلميحات إضافية وتغيير الصعوبة أثناء المحادثة.',
               'بنك مراجعة موسّع لا يتوقف عند حدّ الجلسات المجانية.',
             ].map((item) => (
@@ -487,6 +504,9 @@ function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSign
           </ul>
           <p className="mt-5 text-micro text-text-muted leading-relaxed">
             يمكنك دائماً إكمال ما بدأته والمراجعة بلا حدود — لن نُغلق أمامك ما تعلّمته بالفعل.
+          </p>
+          <p className="mt-2 text-micro text-text-muted leading-relaxed">
+            نطبّق حدّاً عادلاً للاستخدام يحمي الخدمة من الإساءة، ولا يمسّ الاستخدام اليومي العادي.
           </p>
           <Button size="md" className="mt-4 w-full" onClick={onStart}>
             {isSignedIn ? 'افتح صفحة Pro' : 'ابدأ مجاناً ثم رقِّ لاحقاً'}

@@ -131,7 +131,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
   );
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-black text-kz-ink">
+    <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-black text-kz-ink">
       <header className="flex items-center gap-2 border-b border-white/[0.08] px-3 py-3">
         <button
           type="button"
@@ -352,6 +352,6 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 };

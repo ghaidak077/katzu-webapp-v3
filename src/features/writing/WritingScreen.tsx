@@ -302,7 +302,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         <div>
           <h2 className="text-lg font-bold font-arabic">الكتابة (Schreiben)</h2>
           <p className="text-micro text-text-secondary font-arabic">
-            مهارة الاختبار التي تُحدد الشهادة — اكتب ثم اعرف بالضبط ما يجب إصلاحه.
+            إحدى المهارات الأربع التي يقيسها الاختبار الحقيقي — اكتب ثم اعرف بالضبط ما يجب إصلاحه.
           </p>
         </div>
         <KatzuMascot name="practice" className="w-14 h-14 object-contain" />

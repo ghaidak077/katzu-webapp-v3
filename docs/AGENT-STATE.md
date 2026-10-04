@@ -1,5 +1,11 @@
 # Katzu Agent State Ledger
 
+## Current mission overlay — 2026-10-04
+
+Autonomous excellence execution is tracked in [EXCELLENCE-STATUS](agent/EXCELLENCE-STATUS.md).
+That status supersedes historical NEXT/branch/readiness assertions below. Current local batch
+has not been committed, pushed, merged, or deployed. Historical rows remain provenance.
+
 Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; this file records status and evidence only.
 
 ## ITEMS

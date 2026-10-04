@@ -124,6 +124,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         onPointerUp={press.onPointerUp}
         onPointerCancel={press.onPointerCancel}
         onPointerLeave={press.onPointerLeave}
+        // A busy button is still a named action. Without this a screen reader
+        // announces only "button" while the spinner runs, because the thinking
+        // indicator is aria-hidden decoration.
+        aria-busy={isLoading || undefined}
         // V20: `transition-colors`, not `transition-all` — colour feedback is what
         // a button needs, and `all` also tracks layout properties on a throttled
         // phone. The old `active:scale` is gone with the V19 motion budget.
@@ -146,7 +150,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {isLoading ? (
           // The app's one thinking motion, at control scale. A button that spins
           // its own bordered circle is a second loading language; this is not.
-          <KatzuThinking size={20} layout="inline" />
+          // `sr-only` keeps the label in the accessibility tree while the visual
+          // slot shows the indicator — the motion replaces the pixels, never the
+          // meaning.
+          <>
+            <KatzuThinking size={20} layout="inline" />
+            <span className="sr-only">{children}</span>
+          </>
         ) : (
           children
         )}

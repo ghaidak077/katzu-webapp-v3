@@ -1,5 +1,7 @@
 
 !.vscode/extensions.json
+# Local D1/content recovery dumps — carry a copy of a database, never source.
+backups/
 # Dependencies
 # Editor & OS files
 # Environment variables

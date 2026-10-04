@@ -627,7 +627,10 @@
 
     .kz-surface,
     .kz-surface::after,
-    .kz-primary {
+    .kz-primary,
+    /* The scrim is not a `.kz-surface`, so the fade it ran on open used to
+       survive the reduced-motion block while the panel behind it snapped. */
+    .kz-scrim {
       transition-duration: 1ms !important;
     }
   }

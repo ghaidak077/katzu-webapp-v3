@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { isSoftwareRenderer } from '@/lib/utils/rendererTier';
+import { useReducedMotion } from '@/components/glass/GlassSurface';
 
 /**
  * The app's one thinking/loading motion language.
@@ -298,6 +299,10 @@ export const SiriWave: React.FC<SiriWaveProps> = ({
   // WebGL is the enhancement, never the indicator itself: when the engine cannot
   // give us a usable context the CSS pulse below says "working" instead.
   const [fallback, setFallback] = useState(false);
+  // Read live, not once at setup: a learner who turns reduced motion on while a
+  // long AI turn is still spinning used to keep the full-rate loop running, because
+  // the old `matchMedia` read was captured when the effect mounted.
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -312,9 +317,6 @@ export const SiriWave: React.FC<SiriWaveProps> = ({
       setFallback(true);
       return;
     }
-
-    const reduceMotion =
-      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     let program: WebGLProgram | null = null;
     let vertex: WebGLShader | null = null;
@@ -415,7 +417,7 @@ export const SiriWave: React.FC<SiriWaveProps> = ({
       // lost context.
       cleanup();
     };
-  }, [variant, size, renderScale]);
+  }, [variant, size, renderScale, reduceMotion]);
 
   const classes = ['kz-animated', fallback && 'kz-siri-fallback animate-kz-glow-pulse', className]
     .filter(Boolean)

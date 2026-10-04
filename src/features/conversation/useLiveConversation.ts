@@ -781,7 +781,7 @@ export function useLiveConversation({
         setPaywall({
           isOpen: true,
           title: err?.code === 'FREE_QUOTA_EXHAUSTED' ? 'انتهت جلساتك المجانية' : 'هذا المستوى ميزة Pro',
-          description: err?.message || 'رَقِّ حسابك لفتح كل المستويات من A1 حتى B2 ومحادثات غير محدودة.',
+          description: err?.message || 'رَقِّ حسابك لفتح كل المستويات من A0 حتى B2 ومحادثات بلا حدّ جلسات.',
         });
       } else {
         // The user's message stays in the transcript with a visible error card

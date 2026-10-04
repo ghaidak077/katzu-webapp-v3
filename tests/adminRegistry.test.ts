@@ -591,7 +591,11 @@ describe('Admin dashboard aggregation API', () => {
     expect(res.status).toBe(200);
     expect(env.DB.createdTables).toEqual(expect.arrayContaining(['users']));
     // And the DDL is still additive-only.
-    expect(env.DB.statements.filter((s) => /\b(DROP|ALTER|RENAME)\b/i.test(s))).toEqual([]);
+    const schemaChanges = env.DB.statements.filter((s) => /\b(DROP|ALTER|RENAME)\b/i.test(s));
+    // Each binding now runs its own content bootstrap; only additive columns
+    // are legal, never destructive ALTER/DROP/RENAME operations.
+    expect(schemaChanges.every((sql) => /^ALTER TABLE \w+ ADD COLUMN \w+ TEXT$/i.test(sql))).toBe(true);
+    expect(schemaChanges).toHaveLength(5);
   });
 
   it('a free user is findable on a fresh deploy without any prior AI/verify traffic', async () => {

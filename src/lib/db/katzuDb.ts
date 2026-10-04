@@ -241,17 +241,26 @@ export const db = new KatzuDatabase();
 
 // Wipes all user-scoped data (sessions, mistakes, saved words, training, redeemed codes) on sign-out
 export async function wipeUserScopedData(): Promise<void> {
-  await Promise.all([
-    db.sessions.clear(),
-    db.mistakes.clear(),
-    db.saved_words.clear(),
-    db.scenario_training.clear(),
-    db.redeemed_codes.clear(),
-    db.review_items.clear(),
-    db.skill_practice.clear(),
-    db.grammar_lessons.clear(),
-    db.daily_tasks.clear(),
-  ]);
+  await db.transaction('rw', [db.users, db.sessions, db.mistakes, db.saved_words,
+    db.scenario_training, db.redeemed_codes, db.review_items, db.skill_practice,
+    db.grammar_lessons, db.daily_tasks, db.memory_patterns], async () => {
+    await Promise.all([
+      db.sessions.clear(),
+      db.mistakes.clear(),
+      db.saved_words.clear(),
+      db.scenario_training.clear(),
+      db.redeemed_codes.clear(),
+      db.review_items.clear(),
+      db.skill_practice.clear(),
+      db.grammar_lessons.clear(),
+      db.daily_tasks.clear(),
+      db.memory_patterns.clear(),
+    ]);
+
+    // Owned sync snapshots remain recoverable by their original account; unowned
+    // legacy snapshots stay quarantined. Never replay them for the next learner.
+    await db.users.put(signedOutUser());
+  });
 
   // The durable daily-event queue (V29) lives in localStorage, not Dexie, so the
   // table loop above does not touch it. Without this removal a signed-out
@@ -261,7 +270,19 @@ export async function wipeUserScopedData(): Promise<void> {
     if (typeof localStorage !== 'undefined') localStorage.removeItem(DAILY_EVENT_QUEUE_KEY);
   } catch { /* private mode / storage disabled: nothing to remove */ }
 
-  await db.users.put({
+  try {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('katzu_session_summary');
+  } catch { /* unavailable session storage has no readable report to clear */ }
+
+  try {
+    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id?.disableAutoSelect) {
+      (window as any).google.accounts.id.disableAutoSelect();
+    }
+  } catch {}
+}
+
+function signedOutUser(): UserEntity {
+  return {
     id: 'current_user',
     email: '',
     googleAccountEmail: '',
@@ -280,13 +301,7 @@ export async function wipeUserScopedData(): Promise<void> {
     freeSessionsRemaining: 3,
     dailyGoalMinutes: 15,
     weeklyGoalDays: 5,
-  });
-
-  try {
-    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id?.disableAutoSelect) {
-      (window as any).google.accounts.id.disableAutoSelect();
-    }
-  } catch {}
+  };
 }
 
 /**

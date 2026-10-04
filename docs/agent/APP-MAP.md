@@ -47,6 +47,15 @@ Re-check the four "volatile" sections — routes, endpoints, tables, deploy ids 
 
 ---
 
+## Current execution overlay (2026-10-04)
+
+See [EXCELLENCE-STATUS](EXCELLENCE-STATUS.md) for the uncommitted local excellence batch.
+Account-owned offline snapshots are retained across sign-out; legacy unowned snapshots are
+quarantined and never auto-uploaded. Local report/pattern data is cleared; late progress/review
+responses are session-guarded. No new Dexie table or version is introduced: ownership metadata
+is additive, non-indexed. Scenario detail now preserves A0 opener/order; offline topic filters
+match online queries; content bootstrap retries failures and memoizes by DB binding.
+
 ## 1. Tech stack (v1.1.0)
 
 | Layer | Choice | Notes |
@@ -55,8 +64,8 @@ Re-check the four "volatile" sections — routes, endpoints, tables, deploy ids 
 | Styling | **Tailwind 3.4** + `clsx` + `tailwind-merge` | design tokens in `tailwind.config.js`, `.kz-*` utilities in `src/index.css` |
 | Routing | **react-router-dom 7.3** | all routes in `src/App.tsx`; screens lazy-loaded |
 | Client state | **Dexie 4 / IndexedDB** (`src/lib/db/katzuDb.ts`) | offline fixtures + queue + local fallback |
-| Server state | **@tanstack/react-query 5** | remote fetches |
-| Validation | **zod 3.24** | request/response shapes |
+| Server state | **Dexie + WorkerClient** | React Query is declared but unused; removal remains planned |
+| Validation | **Explicit validators and TypeScript contracts** | Zod is declared but unused; broader contract hardening remains planned |
 | Icons / FX | `lucide-react`, `canvas-confetti`, `ogl` (hero/background) | |
 | PWA | `vite-plugin-pwa` 0.21 (Workbox) + `workbox-window` | `registerType: 'autoUpdate'`; precache manifest |
 | Backend | **Cloudflare Workers** (JS, no framework) + **D1** + **KV** + Workers AI | `cloudflare-unified-worker.js` + 13 sibling `cloudflare-*.js` modules |
@@ -585,6 +594,7 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-10-04 | Excellence batch 1 (local) | Account-owned pending progress, transactional sign-out/report cleanup, stale progress/review response guards, lossless A0/order detail caching, offline topic-filter parity, and binding-scoped retryable content bootstrap. Current status: EXCELLENCE-STATUS.md; no deploy. |
 | 2026-10-02 | V26 | Created. Consolidates product, stack, tree, screens, features, data, endpoints, tests, env, limits and gotchas into one orientation file; wired the update rule into `AGENTS.md` §12. |
 | 2026-10-02 | V26 | Added §14 machine-checked manifest (`appmap-routes`, `appmap-screens`, `appmap-endpoints`, `appmap-tables`) and `tests/appMap.test.ts`, which fails when code and this file diverge. |
 | 2026-10-02 | V26 | Fixed the session-report retype drill rejecting a correct full sentence: new pure `gradeCorrectionRetype` in `src/lib/srs/engine.ts` (content-word run, either direction), used by `SessionReportScreen`; `gradeAnswer` stays exact. |

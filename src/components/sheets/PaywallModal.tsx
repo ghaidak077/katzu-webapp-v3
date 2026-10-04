@@ -41,7 +41,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   onClose,
   onUpgrade,
   title = 'ما يفتحه Pro — وما يبقى مجانياً',
-  description = 'محادثات صوتية بلا حد، وكل المستويات من A1 إلى B2. ويبقى كل ما تعلّمته — المراجعة والمهمة اليومية وبنك أخطائك — مجانياً دائماً.',
+  description = 'محادثات صوتية بلا حدّ جلسات، وكل المستويات من A0 إلى B2. ويبقى كل ما تعلّمته — المراجعة والمهمة اليومية وبنك أخطائك — مجانياً دائماً.',
 }) => {
   const salesUrl = useMemo(() => buildSalesUrl(referralFromUrl()), []);
   const [priceLabel, setPriceLabel] = useState<string | null>(null);
@@ -112,7 +112,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
           <p className="text-micro font-arabic text-text-muted">ما يفتحه Pro:</p>
           {[
             'محادثات صوتية بلا حد بعد الجلسات التجريبية',
-            'كل المستويات والمشاهد من A1 إلى B2',
+            'كل المستويات والمشاهد من A0 إلى B2',
             'تغيير الصعوبة أثناء المحادثة وتلميحات إضافية',
           ].map((benefit) => (
             <div

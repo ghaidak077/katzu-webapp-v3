@@ -93,7 +93,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
   };
 
   return (
-    <main className="min-h-screen bg-kz-black pb-10 text-kz-ink">
+    <div className="min-h-screen bg-kz-black pb-10 text-kz-ink">
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 pt-6">
         <div className="mb-6 flex items-center justify-between">
           <button
@@ -348,7 +348,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
             </div>
             <h1 className="mt-2 kz-ar-title text-kz-ink">هل أقيس مستواك الآن؟</h1>
             <p className="mt-2 kz-ar-caption leading-relaxed text-kz-inkDim">
-              الاختبار القصير يحدد نقطة البداية الصحيحة (من A1 إلى B2) حتى لا أعلّمك ما تعرفه ولا
+              الاختبار القصير يحدد نقطة البداية الصحيحة (من A0 إلى B2) حتى لا أعلّمك ما تعرفه ولا
               أتجاوز ما لا تعرفه. يمكنك تخطّيه — وسأترك مستواك «غير مقيس» بصراحة، ولن أدّعي أنك
               أتقنت شيئاً لم أقسْه.
             </p>
@@ -379,7 +379,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
           </GlassCard>
         )}
       </div>
-    </main>
+    </div>
   );
 };
 

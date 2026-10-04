@@ -158,8 +158,8 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             <div className="flex items-start gap-3 mb-3">
               <KatzuMascot name="scenario_host" className="w-12 h-12 object-contain shrink-0" />
               <p className="text-xs font-arabic text-text-secondary leading-relaxed">
-                خطوتان قصيرتان ثم نتحدث: بطاقات الكلمات أولاً، ثم اختبار سريع. بدونها سترتجل أمامي،
-                وأنا ألاحظ الارتجال فوراً.
+                خطوتان قصيرتان ثم نتحدث: بطاقات الكلمات أولاً، ثم اختبار سريع يعرّفك بالسؤال.
+                يمكنك البدء مباشرة إن كنت جاهزاً.
               </p>
             </div>
             <Button size="lg" className="w-full" onClick={handleTrainingStart}>

@@ -23,7 +23,7 @@ file is the digest that is short enough to always read.
 | Fact | Value |
 |---|---|
 | Repo root | `C:/Users/Lenovo/Desktop/k1/katzu` (shell starts at `/c/Users/Lenovo/Desktop/k1`) |
-| Branch of record | `launch-hardening` (named in the ledger, not hardcoded) |
+| Branch of record | Actual checkout was `main` at `1a72827` at excellence-batch start; inspect current Git state rather than switching to historical `launch-hardening` |
 | Remote | `github.com/ghaidak077/katzu-webapp-v3` |
 | Node here / in CI | v24.14.0 here; **24.15.0** pinned in CI (EBADENGINE warning here is expected) |
 | Gate commands | `npx tsc --noEmit` (== `npm run lint`); `npm test`; `E2E_TARGET=preview npx playwright test`; `npm run build`; `node --check cloudflare-*.js` |
@@ -40,6 +40,15 @@ file is the digest that is short enough to always read.
 | Session start | `npm run session:start` — ledger NEXT + APP-MAP §9 + MEMORY §A + git + OPEN ITEMS (owner-only/unproven) |
 
 ---
+
+## Current excellence facts (2026-10-04)
+
+- Current status is `docs/agent/EXCELLENCE-STATUS.md`; roadmap is `plans/008-katzu-excellence-master-plan.md`.
+- Shared instructions live in AGENTS.md; CLAUDE.md delegates, never duplicates policies.
+- No automatic commits/pushes/deploys. Keep owner-only §3 unchanged.
+- Offline sync snapshots now carry an owner; legacy unowned snapshots are quarantined, not attributed to the next user. Signing back into the owning account allows replay.
+- Sign-out clears active report/pattern data; progress/review adoption checks the current session inside a Dexie transaction. Broader in-flight conversation lifecycle hardening remains planned.
+- React Query and Zod are declared but unused; do not assume they are architectural dependencies.
 
 ## B. Frozen decisions (do not relitigate)
 

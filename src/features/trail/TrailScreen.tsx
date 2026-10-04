@@ -184,7 +184,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
     if (levelLocked(selectedLevel)) {
       setPaywallReason({
         title: `مستوى ${selectedLevel} يُفتح مع Pro`,
-        description: `في الخطة المجانية تتدرب على مستوى ${FREE_LEVEL}. Pro يفتح كل المستويات من A1 إلى B2 لمتابعة ما بعدها.`,
+        description: `في الخطة المجانية تتدرب على مستوى ${FREE_LEVEL}. Pro يفتح كل المستويات من A0 إلى B2 لمتابعة ما بعدها.`,
       });
       setShowPaywall(true);
       return;

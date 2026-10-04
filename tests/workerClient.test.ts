@@ -17,6 +17,21 @@ describe('WorkerClient API Contract Integration', () => {
     expect(mapRedemptionReasonToArabic('malformed')).toContain('DE-1M-');
   });
 
+  it('does not send referral requests when no worker origin is configured', async () => {
+    // With an empty origin `${baseUrl}/referral/info` collapses to a same-origin
+    // `/referral/info`, which every host answers with a 404 — measured as four
+    // failed requests on `/app/profile`. The client must refuse to send it.
+    const unconfigured = new WorkerClient('');
+    const fetchSpy = vi.fn();
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    await expect(unconfigured.getReferralInfo()).resolves.toBeNull();
+    const claim = await unconfigured.claimReferral('FRIEND123');
+    expect(claim.success).toBe(false);
+    expect(claim.errorCode).toBe('WORKER_URL_MISSING');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('formats /ai/turn payload to snake_case matching cloudflare-unified-worker.js', async () => {
     let capturedBody: any = null;
 
@@ -311,9 +326,10 @@ describe('WorkerClient API Contract Integration', () => {
 
   it('keeps queued progress when the worker answers 200 with an error body', async () => {
     const deleted: number[] = [];
-    const queued = [{ id: 7, payload: { stats: { level: 'A1' } }, attempts: 0, nextRetryAt: 0 }];
+    const queued = [{ id: 7, ownerAccountId: 'test-account', payload: { stats: { level: 'A1' } }, attempts: 0, nextRetryAt: 0 }];
     vi.spyOn(await import('../src/lib/db/katzuDb'), 'db', 'get').mockReturnValue({
-      users: { get: async () => ({ sessionToken: 'sess_stored_session_token' }) },
+      users: { get: async () => ({ accountId: 'test-account', sessionToken: 'sess_stored_session_token' }) },
+      transaction: async (_mode: string, _tables: unknown[], run: () => Promise<void>) => run(),
       sync_queue: {
         where: () => ({ belowOrEqual: () => ({ toArray: async () => queued }) }),
         delete: async (id: number) => { deleted.push(id); },

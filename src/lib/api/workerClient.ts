@@ -150,6 +150,16 @@ export function mapRedemptionReasonToArabic(reason?: string): string {
 export class WorkerClient {
   private baseUrl: string;
 
+  private async isCurrentSession(token: string): Promise<boolean> {
+    const user = await db.users.get('current_user');
+    return Boolean(token && user?.sessionToken === token);
+  }
+
+  private async queueOwner(): Promise<string | undefined> {
+    const user = await db.users.get('current_user');
+    return user?.accountId || (user?.email ? `email:${user.email.trim().toLowerCase()}` : undefined);
+  }
+
   constructor(baseUrl: string = WORKER_BASE_URL) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     if (typeof window !== 'undefined') {
@@ -259,6 +269,8 @@ export class WorkerClient {
             ai_persona: data.ai_persona || '',
             category: data.category || '',
             icon: data.icon || 'message-square',
+            initial_message_a0: typeof data.initial_message_a0 === 'string' ? data.initial_message_a0 : undefined,
+            sequence_order: typeof data.sequence_order === 'number' ? data.sequence_order : undefined,
             initial_message_a1: data.initial_message_a1 || '',
             initial_message_a2: data.initial_message_a2 || '',
             initial_message_b1: data.initial_message_b1 || '',
@@ -306,7 +318,9 @@ export class WorkerClient {
     if (level && topic) {
       return db.vocabulary.filter((v) => v.level === level && v.topic === topic).toArray();
     } else if (level) {
-      return db.vocabulary.filter((v) => v.level === level).toArray();
+      return db.vocabulary.where('level').equals(level).toArray();
+    } else if (topic) {
+      return db.vocabulary.where('topic').equals(topic).toArray();
     }
     return db.vocabulary.toArray();
   }
@@ -857,6 +871,12 @@ export class WorkerClient {
     total_reward_months: number;
     referrals: Array<{ invited_email_masked: string; status: 'pending' | 'verified'; awarded_at: string | null }>;
   } | null> {
+    // With no worker origin configured this would become a same-origin
+    // `POST /referral/info`, which every host answers with a 404 — a guaranteed
+    // failed request logged on the Profile screen for a call that can never
+    // succeed (measured: four such 404s on `/app/profile`). Refuse to send it,
+    // the same way the AI endpoints do, instead of probing a URL we know is wrong.
+    if (!this.baseUrl) return null;
     const token = await this.getEffectiveAuthToken(idToken);
     if (!token) return null;
     try {
@@ -884,6 +904,9 @@ export class WorkerClient {
     error?: string;
     errorCode?: string;
   }> {
+    if (!this.baseUrl) {
+      return { success: false, errorCode: 'WORKER_URL_MISSING', error: 'تعذر الاتصال بالخادم: رابط الخادم غير مضبوط في هذا الإصدار.' };
+    }
     const token = await this.getEffectiveAuthToken(idToken);
     if (!token) {
       return { success: false, errorCode: 'UNAUTHENTICATED', error: 'يرجى تسجيل الدخول أولاً لتطبيق كود الإحالة.' };
@@ -924,7 +947,8 @@ export class WorkerClient {
   // --- Progress Sync (/progress/sync) ---
 
   async syncProgress(idToken: string): Promise<boolean> {
-    if (!idToken) return false;
+    if (!idToken || !(await this.isCurrentSession(idToken))) return false;
+    const ownerAccountId = await this.queueOwner();
 
     try {
       const user = await db.users.get('current_user');
@@ -998,16 +1022,19 @@ export class WorkerClient {
         })),
       };
 
+      if (!(await this.isCurrentSession(idToken))) return false;
       const { ok, daily } = await this.postProgressPayload(payload, idToken);
-      if (ok) {
-        // Server-authoritative day: adopt its XP/streak, then drop the session
-        // events it accepted so an offline retry cannot double-credit them.
-        await adoptDailyAuthority(daily);
-        clearDailyEvents(sentSessionEventIds);
-        await this.flushPendingSync(idToken);
-      } else {
-        await this.queueSyncPayload(payload);
-      }
+      if (!(await this.isCurrentSession(idToken))) return false;
+      await db.transaction('rw', [db.users, db.sync_queue], async () => {
+        if (!(await this.isCurrentSession(idToken))) return;
+        if (ok) {
+          await adoptDailyAuthority(daily, idToken);
+          clearDailyEvents(sentSessionEventIds);
+        } else {
+          await this.queueSyncPayload(payload, ownerAccountId);
+        }
+      });
+      if (ok) await this.flushPendingSync(idToken);
       return ok;
     } catch (e) {
       console.error('Progress sync failed:', e);
@@ -1018,10 +1045,9 @@ export class WorkerClient {
   private async postProgressPayload(payload: ProgressPayload, idToken?: string): Promise<{ ok: boolean; daily?: DailyAuthority }> {
     try {
       const token = await this.getEffectiveAuthToken(idToken);
+      if (!(await this.isCurrentSession(token))) return { ok: false };
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) {
-        headers['Authorization'] = 'Bearer ' + token;
-      }
+      headers['Authorization'] = 'Bearer ' + token;
       // Attach the revision this device last saw, so the server can signal a
       // lost race (409) instead of silently applying a merge against stale
       // state. Old servers ignore the extra field; first sync sends none.
@@ -1032,11 +1058,13 @@ export class WorkerClient {
         headers,
         body: JSON.stringify(bodyPayload),
       });
+      if (!(await this.isCurrentSession(token))) return { ok: false };
       if (res.status === 409) {
         // Conflict: another device committed since our last read. Refetch the
         // server state (which re-merges into local data via restoreProgress —
         // never wiping local rows), then retry ONCE with the fresh revision.
         await this.restoreProgress(token);
+        if (!(await this.isCurrentSession(token))) return { ok: false };
         const fresh = await db.users.get('current_user');
         const retry = await fetch(`${this.baseUrl}/progress/sync`, {
           method: 'POST',
@@ -1045,7 +1073,8 @@ export class WorkerClient {
         });
         if (!retry.ok) return { ok: false };
         const retryBody = await retry.json().catch(() => ({}));
-        if (retryBody?.rev != null) await this.storeSyncRev(Number(retryBody.rev));
+        if (!(await this.isCurrentSession(token))) return { ok: false };
+        if (retryBody?.rev != null) await this.storeSyncRev(Number(retryBody.rev), token);
         return { ok: !retryBody?.error, daily: retryBody?.daily };
       }
       if (!res.ok) return { ok: false };
@@ -1053,7 +1082,8 @@ export class WorkerClient {
       // answered an expired session exactly that way, and trusting `res.ok` alone
       // made flushPendingSync delete progress it had just failed to save.
       const body = await res.json().catch(() => ({}));
-      if (body?.rev != null) await this.storeSyncRev(Number(body.rev));
+      if (!(await this.isCurrentSession(token))) return { ok: false };
+      if (body?.rev != null) await this.storeSyncRev(Number(body.rev), token);
       return { ok: !body?.error, daily: body?.daily };
     } catch (e) {
       return { ok: false };
@@ -1061,15 +1091,18 @@ export class WorkerClient {
   }
 
   /** Persists the server's monotonic sync revision (memory-safe: advisory). */
-  private async storeSyncRev(rev: number): Promise<void> {
+  private async storeSyncRev(rev: number, token: string): Promise<void> {
     if (!Number.isFinite(rev) || rev < 0) return;
     try {
-      await db.users.update('current_user', { syncRev: rev });
+      await db.users.where('id').equals('current_user').modify((user) => {
+        if (user.sessionToken === token) user.syncRev = rev;
+      });
     } catch { /* non-fatal: worst case the next sync is treated as legacy */ }
   }
 
-  private async queueSyncPayload(payload: ProgressPayload): Promise<void> {
+  private async queueSyncPayload(payload: ProgressPayload, ownerAccountId?: string): Promise<void> {
     await db.sync_queue.add({
+      ownerAccountId,
       payload,
       createdAt: Date.now(),
       attempts: 0,
@@ -1079,23 +1112,36 @@ export class WorkerClient {
 
   async flushPendingSync(idToken?: string): Promise<void> {
     const token = await this.getEffectiveAuthToken(idToken);
-    if (!token) return;
+    if (!token || !(await this.isCurrentSession(token))) return;
+    const owner = await this.queueOwner();
+    if (!owner) return;
+    const user = await db.users.get('current_user');
+    const owners = new Set([owner]);
+    // Upgrade continuity: previously signed-in users bound new snapshots to
+    // their verified Google email before the subject field was introduced.
+    if (user?.email) owners.add(`email:${user.email.trim().toLowerCase()}`);
     const pending = await db.sync_queue.where('nextRetryAt').belowOrEqual(Date.now()).toArray();
     for (const item of pending) {
+      if (!item.ownerAccountId || !owners.has(item.ownerAccountId)) continue;
+      if (!(await this.isCurrentSession(token))) return;
       const { ok, daily } = await this.postProgressPayload(item.payload as ProgressPayload, token);
-      if (ok) {
-        await adoptDailyAuthority(daily);
-        const sentIds = (item.payload as ProgressPayload).daily?.events
-          ?.filter((event) => event.type === 'session')
-          .map((event) => event.id) ?? [];
-        clearDailyEvents(sentIds);
-        if (item.id != null) await db.sync_queue.delete(item.id);
-      } else if (item.id != null) {
-        await db.sync_queue.update(item.id, {
-          attempts: item.attempts + 1,
-          nextRetryAt: Date.now() + Math.min(60 * 60 * 1000, 1000 * 2 ** Math.min(item.attempts, 10)),
-        });
-      }
+      if (!(await this.isCurrentSession(token))) return;
+      await db.transaction('rw', [db.users, db.sync_queue], async () => {
+        if (!(await this.isCurrentSession(token))) return;
+        if (ok) {
+          await adoptDailyAuthority(daily, token);
+          const sentIds = (item.payload as ProgressPayload).daily?.events
+            ?.filter((event) => event.type === 'session')
+            .map((event) => event.id) ?? [];
+          clearDailyEvents(sentIds);
+          if (item.id != null) await db.sync_queue.delete(item.id);
+        } else if (item.id != null) {
+          await db.sync_queue.update(item.id, {
+            attempts: item.attempts + 1,
+            nextRetryAt: Date.now() + Math.min(60 * 60 * 1000, 1000 * 2 ** Math.min(item.attempts, 10)),
+          });
+        }
+      });
     }
   }
 
@@ -1103,7 +1149,7 @@ export class WorkerClient {
 
   async restoreProgress(idToken?: string): Promise<boolean> {
     const token = await this.getEffectiveAuthToken(idToken);
-    if (!token) return false;
+    if (!token || !(await this.isCurrentSession(token))) return false;
     // Retry queued writes opportunistically; restoration itself remains UI-blocking only on its read.
     void this.flushPendingSync(token);
 
@@ -1120,9 +1166,12 @@ export class WorkerClient {
 
       if (res.ok) {
         const data = await res.json();
+        return await db.transaction('rw', [db.users, db.scenario_training, db.mistakes,
+          db.sessions, db.saved_words], async () => {
+        if (!(await this.isCurrentSession(token))) return false;
         if (data && data.stats) {
           // Track the server revision so the next sync can send base_rev.
-          if (data.rev != null) await this.storeSyncRev(Number(data.rev));
+          if (data.rev != null) await this.storeSyncRev(Number(data.rev), token);
           const localTrainings = await db.scenario_training.toArray();
           const localMistakes = await db.mistakes.toArray();
           const localSessions = await db.sessions.toArray();
@@ -1151,7 +1200,7 @@ export class WorkerClient {
           // Server-authoritative day: the overlay on stats already carries the
           // server's XP/streak; adopt the ledger snapshot so the panel/rank and the
           // next sync all agree with it.
-          if (data.daily) await adoptDailyAuthority(data.daily);
+          if (data.daily) await adoptDailyAuthority(data.daily, token);
           await db.users.update('current_user', {
             cefrLevel: stats.level || 'A1',
             streakDays: stats.streak_days ?? 0,
@@ -1226,6 +1275,8 @@ export class WorkerClient {
 
           return true;
         }
+        return false;
+        });
       }
     } catch (e) {
       console.error('Progress restore failed:', e);
@@ -1435,7 +1486,9 @@ export class WorkerClient {
     const token = await this.getEffectiveAuthToken(idToken);
     if (!token) return false;
     try {
+      if (!(await this.isCurrentSession(token))) return false;
       const items = await loadReviewItems();
+      if (!(await this.isCurrentSession(token))) return false;
       const res = await fetch(`${this.baseUrl}/review/sync`, {
         method: 'POST',
         headers: {
@@ -1462,8 +1515,11 @@ export class WorkerClient {
             }
           : undefined,
       }));
-      await adoptRemoteReviewItems(normalizedItems as ReviewItemEntity[]);
-      return true;
+      return await db.transaction('rw', [db.users, db.review_items], async () => {
+        if (!(await this.isCurrentSession(token))) return false;
+        await adoptRemoteReviewItems(normalizedItems as ReviewItemEntity[]);
+        return true;
+      });
     } catch (e) {
       logNetwork('review/sync', `Review sync failed: ${e instanceof Error ? e.message : String(e)}`);
       return false;
@@ -1477,7 +1533,7 @@ export class WorkerClient {
     try {
       const token = await this.getEffectiveAuthToken();
       if (!token) return false;
-      const res = await fetch(`${this.baseUrl}/auth/signout`, {
+      const res = await fetchWithTimeout(`${this.baseUrl}/auth/signout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

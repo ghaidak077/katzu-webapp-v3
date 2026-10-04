@@ -194,14 +194,14 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           اشتريت كوداً بالفعل؟ فعّله الآن
         </a>
         <p className="text-xs text-text-secondary font-arabic mb-5 max-w-xs leading-relaxed">
-          محادثات ذكية غير محدودة بدون قيود يومية، مع تصحيح فوري للنطق والقواعد لجميع المستويات (A1 - B2).
+          محادثات ذكية بلا حدّ على عدد الجلسات، مع تصحيح فوري للنطق والقواعد لجميع المستويات (A0 - B2).
         </p>
 
         {/* Feature Highlights */}
         <div className="w-full space-y-2 mb-5 text-start">
           {[
-            'محادثات صوتية غير محدودة مع كَاتْزُو بالذكاء الاصطناعي',
-            'فتح كامل مسار المستويات الواقعية من A1 إلى B2',
+            'محادثات صوتية بلا حدّ جلسات مع كَاتْزُو بالذكاء الاصطناعي',
+            'فتح كامل مسار المستويات الواقعية من A0 إلى B2',
             'تحليل وتصحيح فوري للقواعد مع شرح باللغة العربية',
             'بنك مخصص لمراجعة الأخطاء وتثبيت المفردات',
           ].map((feat, i) => (
@@ -216,6 +216,10 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
             </div>
           ))}
         </div>
+
+        <p className="w-full mb-4 text-micro font-arabic text-text-muted leading-relaxed text-center">
+          نطبّق حدّاً عادلاً للاستخدام يحمي الخدمة من الإساءة، ولا يمسّ الاستخدام اليومي العادي.
+        </p>
 
         {/* Account Link Status */}
         {user?.email && (

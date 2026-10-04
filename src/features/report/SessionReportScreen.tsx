@@ -459,7 +459,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
               <li className="flex items-start gap-2">
                 <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-lavender" aria-hidden />
                 <span className="kz-ar-micro leading-relaxed text-kz-ink">
-                  محادثات صوتية بلا حد، وكل المستويات من A1 إلى B2
+                  محادثات صوتية بلا حدّ جلسات، وكل المستويات من A0 إلى B2
                 </span>
               </li>
               <li className="flex items-start gap-2">

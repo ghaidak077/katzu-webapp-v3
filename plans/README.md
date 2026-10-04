@@ -1,4 +1,20 @@
-# Motion plans
+# Katzu plans
+
+## Product-wide roadmap
+
+[008 — Katzu Excellence Master Plan](./008-katzu-excellence-master-plan.md) is the owner-approved 2026 roadmap for autonomous local execution for trust fixes, production verification, clean architecture, scalable sync, measured performance, learning quality, premium UX, and launch readiness. It includes acceptance criteria and milestone gates. Current partial implementation is tracked in [EXCELLENCE-STATUS](../docs/agent/EXCELLENCE-STATUS.md). Deployment and production changes still require separate authorization.
+
+## Current coordinated audit (approval pending)
+
+[009 — Experience, interface and motion audit](./009-coordinated-experience-interface-motion-audit.md)
+contains the current evidence-backed findings, coverage gaps, local implementation proposal and
+separate deployment gate. It does not claim a complete visual/runtime pass. Motion findings M1/M2
+await owner selection; the older proposals below must not be replayed blindly. Source inspection
+confirms that token wiring, the confetti guard and overlay entrances already exist.
+
+## Historical motion plans
+
+The seven motion proposals below predate the product-wide roadmap. Reconcile each against the current code before execution; their listed TODO status and measurements are historical, not a fresh audit.
 
 Seven self-contained plans from the 2026-10-03 animation audit of Katzu (`ef1fb92`).
 

@@ -128,7 +128,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
   if (!sessionMode) {
     return (
-      <main className="flex min-h-screen max-w-md mx-auto flex-col justify-center bg-black p-6 text-kz-ink">
+      <div className="flex min-h-screen max-w-md mx-auto flex-col justify-center bg-black p-6 text-kz-ink">
         <button
           type="button"
           onClick={onBack}
@@ -178,7 +178,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             ابدأ «تدريب» الآن
           </button>
         </div>
-      </main>
+      </div>
     );
   }
 
