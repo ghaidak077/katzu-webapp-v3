@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { bootSignedIn, seedRows } from './harness';
 
 /**
@@ -14,33 +14,6 @@ import { bootSignedIn, seedRows } from './harness';
  * findings in that review came from harness mistakes, so each of these asserts
  * a measurement the browser produced, not a class name.
  */
-
-/** Every visible control's rendered box, in CSS pixels. */
-async function controls(page: Page) {
-  return page.evaluate(() =>
-    Array.from(document.querySelectorAll('button, a[href], [role="button"], input, textarea, select'))
-      .map((node) => {
-        const rect = node.getBoundingClientRect();
-        if (rect.width < 1 || rect.height < 1) return null;
-        const style = getComputedStyle(node);
-        if (style.visibility === 'hidden' || style.display === 'none') return null;
-        return {
-          name: (
-            node.getAttribute('aria-label') ||
-            (node as HTMLInputElement).labels?.[0]?.textContent ||
-            node.textContent ||
-            node.tagName
-          )
-            .trim()
-            .slice(0, 30),
-          width: Math.round(rect.width),
-          height: Math.round(rect.height),
-          fontSize: parseFloat(style.fontSize),
-        };
-      })
-      .filter((entry): entry is { name: string; width: number; height: number; fontSize: number } => entry !== null),
-  );
-}
 
 test.use({ viewport: { width: 360, height: 640 } });
 
