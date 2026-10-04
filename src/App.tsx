@@ -188,6 +188,14 @@ function AppRoutes() {
   const isAuthResolved = !isAuthLoading && user !== undefined;
   const isAuthenticated = user?.isLoggedIn === true;
 
+  // V36: twenty-six screens all shipped the same `document.title`, so a learner
+  // with four Katzu tabs open — or a screen reader announcing the page — could
+  // never tell two of them apart. The title follows the route; the brand name
+  // stays on the end of it.
+  useEffect(() => {
+    document.title = `${titleForPath(location.pathname)} · كَاتْزُو`;
+  }, [location.pathname]);
+
   if (!isAuthResolved) {
     return (
       <div
@@ -285,6 +293,46 @@ function RouteFallback() {
       <span className="font-arabic text-sm text-text-secondary">جارٍ التحميل…</span>
     </div>
   );
+}
+
+/**
+ * The name a route shows in the tab, the history entry and the screen reader's
+ * page announcement. Order matters: the first match wins, so the specific
+ * `/scenario/:id/...` patterns come before the bare `/scenario/:id` one.
+ */
+export function titleForPath(pathname: string): string {
+  const path = pathname.replace(/\/+$/, '') || '/';
+  const exact: Record<string, string> = {
+    '/': 'تعلم الألمانية',
+    '/welcome': 'ابدأ رحلتك',
+    '/signin': 'تسجيل الدخول',
+    '/demo': 'درس تجريبي',
+    '/onboarding': 'التهيئة',
+    '/placement': 'اختبار المستوى',
+    '/subscription': 'تفعيل الاشتراك',
+    '/session-report': 'ملخص الجلسة',
+    '/app/trail': 'المهمة اليومية',
+    '/app/library': 'مكتبة المشاهد',
+    '/app/practice': 'التدريب',
+    '/app/grammar': 'القواعد',
+    '/app/review': 'المراجعة',
+    '/app/listen': 'الاستماع',
+    '/app/write': 'الكتابة',
+    '/app/coach': 'ملف أخطائك',
+    '/app/ask': 'اسأل كَاتْزُو',
+    '/app/progress': 'تقدمك',
+    '/app/profile': 'بياناتك',
+  };
+  if (exact[path]) return exact[path];
+  if (path.startsWith('/trust/')) return 'الخصوصية والثقة';
+  if (/^\/scenario\/[^/]+\/story$/.test(path)) return 'الموقف';
+  if (/^\/scenario\/[^/]+\/practice$/.test(path)) return 'تدريب موجّه';
+  if (/^\/scenario\/[^/]+\/study$/.test(path)) return 'جلسة الدراسة';
+  if (/^\/scenario\/[^/]+\/quiz$/.test(path)) return 'اختبار سريع';
+  if (/^\/scenario\/[^/]+\/live$/.test(path)) return 'المحادثة الحية';
+  if (/^\/scenario\/[^/]+$/.test(path)) return 'المشهد';
+  if (/^\/app\//.test(path)) return 'كَاتْزُو';
+  return 'كَاتْزُو';
 }
 
 function isPublicPath(pathname: string) {

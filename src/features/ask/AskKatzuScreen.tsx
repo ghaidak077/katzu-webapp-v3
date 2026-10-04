@@ -219,7 +219,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
 
         {/* Failure keeps the question and offers the retry — never a dead end. */}
         {error && (
-          <Card className="border-status-error/40 p-3.5">
+          <Card role="alert" className="border-status-error/40 p-3.5">
             <p className="kz-ar-caption font-bold text-status-error">تعذّر الحصول على شرح</p>
             <p className="kz-ar-micro mt-1 text-kz-inkDim">{error}</p>
             <Button size="sm" variant="secondary" className="mt-2 rounded-xl" onClick={() => void ask()}>

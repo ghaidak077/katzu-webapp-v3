@@ -93,13 +93,22 @@ function countControls(source) {
 /**
  * Does this screen name itself?
  *
- * h1–h3 all count: a screen whose title is an `<h2>` is perfectly nameable by a
- * screen reader, and an earlier version of this rule accepted only `<h1>` and
+ * `<h1>` and `<h2>` count: a screen titled by an `<h2>` is perfectly nameable by
+ * a screen reader, and an earlier version of this rule accepted only `<h1>` and
  * therefore reported twelve healthy screens as nameless. A rule that invents
  * twelve defects is a rule people delete.
+ *
+ * `<h3>` does NOT count, and that tightening is measured, not guessed. A screen
+ * whose only heading is an `<h3>` has no name: heading levels start below the
+ * top of the page with nothing above them, and the `<h3>` is almost always a
+ * section label buried in the middle of the page. Running the strict rule over
+ * all 27 screens names exactly two offenders, and both are genuinely unnamed:
+ * Guided Practice (an `<h3>` for a grammar title at line 304) and Quiz (an
+ * `<h3>` that only appeared on the result screen). Two real defects is a rule
+ * people keep.
  */
 function hasHeading(source) {
-  return /<h[123]\b/.test(source) || /role="heading"/.test(source) || /Heading\b/.test(source);
+  return /<h[12]\b/.test(source) || /as="h[12]"/.test(source) || /role="heading"/.test(source);
 }
 
 function walk(dir) {

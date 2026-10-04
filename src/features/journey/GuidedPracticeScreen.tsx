@@ -240,7 +240,14 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
             <ArrowRight className="h-5 w-5 text-kz-inkDim" />
           </button>
           <div className="text-end">
-            <p className="kz-ar-micro text-kz-inkFaint">تدريب موجّه · {practice.cards.length} عبارات</p>
+            {/* V36: this screen had no heading of its own — the only heading in
+                the file was an `<h3>` for a grammar title halfway down the page,
+                so a screen reader could never name this screen. The line that
+                already says what this is becomes the `<h1>`; same classes, same
+                pixels, a name at last. */}
+            <h1 className="kz-ar-micro text-kz-inkFaint">
+              تدريب موجّه · {practice.cards.length} عبارات
+            </h1>
             <p className="kz-ar-caption text-kz-ink">{scene.locationAr}</p>
           </div>
         </header>
@@ -301,7 +308,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                 <p className="kz-ar-micro mb-2 text-kz-inkFaint">
                   قاعدة اليوم · {practice.grammar.level}
                 </p>
-                <h3 className="kz-ar-body text-kz-ink">{practice.grammar.titleAr}</h3>
+                <h2 className="kz-ar-body text-kz-ink">{practice.grammar.titleAr}</h2>
                 <p className="kz-ar-caption mt-1.5 leading-relaxed text-kz-inkDim">{practice.grammar.ruleAr}</p>
                 {practice.grammar.ruleDe && (
                   <GermanText className="kz-de-caption mt-1.5 block text-kz-inkFaint">

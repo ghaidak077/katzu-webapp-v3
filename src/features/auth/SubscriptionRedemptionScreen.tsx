@@ -334,13 +334,20 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           </form>
 
           {errorMessage && (
-            <div className="mt-2.5 p-2 rounded-lg bg-status-error/15 border border-status-error/30 text-status-error text-micro font-semibold flex items-center gap-1.5">
+            <div
+              role="alert"
+              className="mt-2.5 p-2 rounded-lg bg-status-error/15 border border-status-error/30 text-status-error text-micro font-semibold flex items-center gap-1.5"
+            >
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
           {successMessage && (
-            <div className="mt-2.5 p-2 rounded-lg bg-status-success/15 border border-status-success/30 text-status-success text-micro font-semibold flex items-center gap-1.5">
+            <div
+              role="status"
+              aria-live="polite"
+              className="mt-2.5 p-2 rounded-lg bg-status-success/15 border border-status-success/30 text-status-success text-micro font-semibold flex items-center gap-1.5"
+            >
               <Check className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{successMessage}</span>
             </div>

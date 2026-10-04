@@ -403,7 +403,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
       </div>
 
       {answered && (
-        <Card className="p-4 mb-4">
+        <Card role="status" aria-live="polite" className="p-4 mb-4">
           <p className="text-xs font-arabic leading-relaxed text-text-secondary">
             {chosen === item.correctIndex ? 'صحيح ✓ ' : 'الإجابة الصحيحة: '}
             {chosen !== item.correctIndex && <GermanText className="text-text-primary">{item.german}</GermanText>}

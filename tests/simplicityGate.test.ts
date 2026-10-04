@@ -28,11 +28,44 @@ describe('the simplicity gate', () => {
     expect(output).toContain('Within budget.');
   });
 
-  it('counts h2 and h3 as nameable headings, not only h1', () => {
+  it('counts h2 as a nameable heading, not only h1', () => {
     // Regression guard for the twelve false reports: a screen titled by an <h2>
     // is perfectly nameable.
-    expect(gate).toContain('<h[123]');
+    expect(gate).toContain('<h[12]');
     expect(gate).not.toContain('return /<h1\\b/.test(source) ||');
+  });
+
+  it('refuses a screen whose only heading is an h3, because h3 is not a name', () => {
+    // V36: the loose rule accepted `<h3>`, so Guided Practice passed on an
+    // `<h3>` for a grammar title at line 304 and Quiz passed on an `<h3>` that
+    // only rendered on the result screen. Neither screen could be named.
+    // Running the strict rule over all 27 screens names exactly those two, so
+    // the tightening costs two fixes rather than inventing a wall of defects.
+    const h3Only = `
+      export const ThingScreen: React.FC = () => (
+        <div>
+          <h3>قاعدة اليوم</h3>
+        </div>
+      );
+    `;
+    const named = `
+      export const ThingScreen: React.FC = () => (
+        <div>
+          <h2>جلسة الدراسة</h2>
+          <h3>قاعدة اليوم</h3>
+        </div>
+      );
+    `;
+    // The rule is lifted out of the gate source and evaluated as the real
+    // function, so this test exercises the shipped expression rather than a
+    // copy of it that could drift.
+    const expr = gate.match(/function hasHeading\(source\) \{\s*return (.*);\s*\}/)?.[1];
+    expect(expr, 'hasHeading must be a single return expression').toBeTruthy();
+    const hasHeading = new Function('source', `return (${expr as unknown as string})`) as (
+      source: string
+    ) => boolean;
+    expect(hasHeading(h3Only)).toBe(false);
+    expect(hasHeading(named)).toBe(true);
   });
 
   it('keeps the primary-action rule out of the source gate', () => {

@@ -193,9 +193,16 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
       <div>
         <div className="flex items-center justify-between mb-4">
           <BackButton onBack={onBack} />
-          <span className="font-arabic font-bold text-xs text-text-secondary">
-            السؤال {currentIndex + 1} من {questions.length}
-          </span>
+          {/* V36: this screen had no heading of its own — the only one was an
+              `<h3>` on the RESULT screen, so a learner using a screen reader was
+              told nothing about where they were for every one of the questions.
+              The counter already sits here, so the screen's name sits with it. */}
+          <div className="text-center">
+            <h1 className="font-arabic text-sm font-bold text-text-primary">اختبار سريع</h1>
+            <p className="font-arabic text-xs text-text-secondary">
+              السؤال {currentIndex + 1} من {questions.length}
+            </p>
+          </div>
           <div className="w-10" />
         </div>
 
@@ -290,7 +297,11 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
 
           {/* Explanation Banner */}
           {isAnswerSubmitted && (
-            <div className="p-4 rounded-2xl bg-surface-subtle border border-border-subtle text-xs">
+            <div
+              role="status"
+              aria-live="polite"
+              className="p-4 rounded-2xl bg-surface-subtle border border-border-subtle text-xs"
+            >
               {/* V32: after a wrong answer or a reveal, the correct option used to
                   be marked only by a green tint. Remembering which of four was
                   green is work. It is now stated in words. */}
@@ -311,7 +322,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
           <div className="w-20 h-20 rounded-full bg-status-success/20 text-status-success flex items-center justify-center mx-auto mb-2 shadow-glow-green">
             <Sparkles className="w-10 h-10" />
           </div>
-          <h3 className="text-2xl font-bold font-arabic">أحسنت! أتممت الاختبار</h3>
+          <h2 className="text-2xl font-bold font-arabic">أحسنت! أتممت الاختبار</h2>
           <p className="text-sm text-text-secondary font-arabic">
             نتيجتك: {arCount(score, CORRECT_FORMS)} صحيحة من {questions.length}
           </p>
