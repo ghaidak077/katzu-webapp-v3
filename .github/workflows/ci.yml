@@ -100,6 +100,15 @@ jobs:
         run: npm run build
 
       - name: E2E tests (vite preview, chromium)
+        # The step name said "vite preview" while the command ran the dev server,
+        # so CI verified a different artifact than the one that ships. E2E_TARGET
+        # switches `playwright.config.ts` to `npm run build && vite preview` (and
+        # off `reuseExistingServer`), which is the target the suite is written
+        # against — the same one `E2E_TARGET=preview npx playwright test` runs
+        # locally. The build inside the webServer gets its VITE_WORKER_URL from
+        # the config's `webServer.env`, as the harness requires.
+        env:
+          E2E_TARGET: preview
         run: npx playwright test --project=chromium
 
   secret-scan:

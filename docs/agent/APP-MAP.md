@@ -88,7 +88,7 @@ katzu/
 ├─ vitest.config.ts                # node + jsdom projects
 ├─ tailwind.config.js              # design tokens (colors, fonts, kz animations)
 ├─ wrangler.toml                   # worker name, D1/KV/AI bindings, vars, cron
-├─ .github/workflows/ci.yml        # verify + e2e + secret-scan (Node 24.15.0)
+├─ .github/workflows/ci.yml        # verify + e2e + secret-scan (Node 24.15.0); e2e runs the preview bundle (E2E_TARGET=preview)
 │
 ├─ src/
 │  ├─ App.tsx                      # ★ ALL routes + auth gate + tab routing (see §3)
@@ -595,6 +595,7 @@ source line for the guard to read. Worker-created ledger tables are the ones the
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-10-04 | V40-4 | **CI flakes fixed at the cause.** `e2e/firstRun.spec.ts` now waits for `Modal`'s entrance animation to settle before measuring a tap target (the transformed box read 43.5 px mid-`scale-95`); `e2e/simplicity.spec.ts` waits on `escape.or(finished)` instead of the always-mounted `quiz-options`; `e2e/harness.ts` seeds `katzu_onboarding_completed` so a `bootSignedIn` learner matches a real sign-in and the sign-out guard no longer races the handler to `/welcome`. `.github/workflows/ci.yml`'s e2e step now sets `E2E_TARGET: preview`, so it runs the bundle its name claims. No assertion weakened. |
 | 2026-10-04 | Excellence batch 1 (local) | Account-owned pending progress, transactional sign-out/report cleanup, stale progress/review response guards, lossless A0/order detail caching, offline topic-filter parity, and binding-scoped retryable content bootstrap. Current status: EXCELLENCE-STATUS.md; no deploy. |
 | 2026-10-02 | V26 | Created. Consolidates product, stack, tree, screens, features, data, endpoints, tests, env, limits and gotchas into one orientation file; wired the update rule into `AGENTS.md` §12. |
 | 2026-10-02 | V26 | Added §14 machine-checked manifest (`appmap-routes`, `appmap-screens`, `appmap-endpoints`, `appmap-tables`) and `tests/appMap.test.ts`, which fails when code and this file diverge. |

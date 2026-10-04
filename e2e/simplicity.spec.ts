@@ -25,21 +25,24 @@ test('the quiz can be finished without ever guessing an answer', async ({ page }
   await expect(escape).toBeVisible();
 
   const finished = page.getByText('أحسنت! أتممت الاختبار');
-  const options = page.getByTestId('quiz-options');
 
   // Walk the whole deck through the exit hatch alone — no option is ever tapped.
   //
-  // After clicking «عرض النتيجة» the result screen has not rendered yet, so asking
-  // "is it finished?" at that instant answers *no* and the next iteration waits for
-  // an escape button that will never come back. The wait is therefore on **either**
-  // outcome: the next question's options, or the result screen.
+  // After clicking «عرض النتيجة» the result screen has not rendered yet, and the
+  // options container stays mounted while a question is revealed — so waiting on it
+  // proves nothing about whether the next state arrived (it is visible on the very
+  // question just answered). The loop then raced the finish and, on the last
+  // question, waited forever for an escape button the finished deck never brings
+  // back. That was the CI hang. The state really changed only when the escape hatch
+  // returns (a fresh question) or the result screen appears (the deck ended), so
+  // wait on exactly those two.
   for (let question = 0; question < 40; question += 1) {
     if (await finished.isVisible()) break;
     await escape.click();
     // The reveal must state the answer in words, not only tint one option green.
     await expect(page.getByText(/الصحيحة:/)).toBeVisible();
     await page.getByRole('button', { name: /السؤال التالي|عرض النتيجة/ }).click();
-    await expect(options.or(finished)).toBeVisible();
+    await expect(escape.or(finished)).toBeVisible();
   }
 
   await expect(finished).toBeVisible({ timeout: 20_000 });

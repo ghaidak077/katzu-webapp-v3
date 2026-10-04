@@ -20,6 +20,23 @@ test.use({ viewport: { width: 390, height: 844 } });
 /** Every control a thumb must hit, measured rather than assumed. */
 async function expectTapTarget(locator: Locator, label: string) {
   await expect(locator, label).toBeVisible();
+  // The Pro offer arrives inside `Modal`, which grows from `scale-95` as it opens,
+  // and `boundingBox()` reports the *transformed* rectangle. Measuring during that
+  // entrance read the dismiss CTA as 43.4955px on a loaded CI runner — a control
+  // that is 44px the instant the dialog settles. Wait for the running animations to
+  // finish first. The wait is bounded so a perpetual animation elsewhere on the
+  // page cannot hang the test, and infinite loops are excluded because their
+  // `finished` promise never resolves.
+  await locator.evaluate(async () => {
+    const running = document.getAnimations().filter((animation) => {
+      const timing = animation.effect?.getComputedTiming();
+      return animation.playState === 'running' && timing?.iterations !== Infinity;
+    });
+    await Promise.race([
+      Promise.all(running.map((animation) => animation.finished.catch(() => undefined))),
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+  });
   const box = await locator.boundingBox();
   expect(box, `${label} must be laid out`).not.toBeNull();
   expect(

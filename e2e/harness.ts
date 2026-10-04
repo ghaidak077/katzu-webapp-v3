@@ -419,6 +419,21 @@ async function readUserIsSignedIn(page: Page): Promise<boolean> {
 export async function seedSignedInUser(page: Page, overrides: Record<string, unknown> = {}): Promise<void> {
   const user = { ...E2E_USER, ...overrides };
 
+  // A real sign-in is `SignInScreen`'s `onSuccess`, which also records that
+  // onboarding is done (`App.tsx` reads `katzu_onboarding_completed` to choose
+  // where a signed-out learner goes). This harness writes the row straight into
+  // Dexie and skipped that step, so a `bootSignedIn` learner looked like a
+  // first-time visitor to the auth guard — which then raced the sign-out handler
+  // to `/welcome` instead of `/signin` (measured on CI: 33 polls on /welcome).
+  // Record it here so the seeded learner is the same learner a real sign-in makes.
+  await page.evaluate(() => {
+    try {
+      localStorage.setItem('katzu_onboarding_completed', 'true');
+    } catch {
+      /* private mode / storage disabled: the guard falls back to /welcome */
+    }
+  });
+
   for (let attempt = 0; attempt < 60; attempt += 1) {
     const progress = await seedProgress(page);
     if (progress?.hasUser && progress.scenarios > 0) {
