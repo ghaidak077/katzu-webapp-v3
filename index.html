@@ -10,7 +10,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Katzu" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- Pinch-zoom is allowed, deliberately. It used to be blocked
+         (`maximum-scale=1.0, user-scalable=no`), which is the one way a low-vision
+         learner can enlarge the German, and it is a WCAG 1.4.4 failure (axe
+         `meta-viewport`). The reason it was there — a double-tap zooming the page
+         mid-drill — is a double-tap problem, so it is fixed as one, below.
+         `viewport-fit=cover` is what makes the bottom bar's
+         `env(safe-area-inset-bottom)` real on a notched phone. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="تدرّب على محادثات ألمانية واقعية وتعلّم كيف تتحدث وتستمع بثقة قبل الانتقال أو العمل أو الدراسة في ألمانيا." />
     <meta name="application-name" content="Katzu" />

@@ -166,9 +166,29 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
         />
 
         {/* Dynamic action button: the orb while the field is empty, the send plane
-            the moment there is something to send. Cross-faded, one tap target. */}
+            the moment there is something to send. Same 56px slot, one tap target.
+
+            Whichever half is not showing is hidden from assistive tech, not merely
+            made transparent. An `opacity-0` control is still in the accessibility
+            tree and still in the tab order, so with an empty field a screen reader
+            offered the learner an invisible "أرسل جملتك" between the field and the
+            microphone — and, once they typed, the microphone stayed announced
+            behind the send button. Measured on the built bundle before the fix:
+            `disabled=true` (so Tab could not reach it) but still announced.
+
+            Three declarations cover the three channels, on purpose:
+              · `aria-hidden` removes the subtree from the accessibility tree;
+              · `disabled` + `tabIndex={-1}` remove it from the tab order, because a
+                disabled <button> still accepts a programmatic `focus()`;
+              · `pointer-events-none` removes it from hit-testing.
+            The `inert` attribute would do all three in one word, but React 18.3
+            does not pass it through — measured: `inertAttr=false` in the DOM, with
+            no error — so it is not used here rather than relied on silently. Both
+            halves stay mounted, because a cross-fade needs two rendered states. */}
         <div className="relative h-14 w-14 shrink-0">
           <div
+            aria-hidden={hasText || undefined}
+            tabIndex={-1}
             className={`absolute inset-0 transition-opacity duration-fast ${
               hasText ? 'pointer-events-none opacity-0' : 'opacity-100'
             }`}
@@ -199,6 +219,8 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
             </div>
           </div>
           <div
+            aria-hidden={!hasText || undefined}
+            tabIndex={-1}
             className={`absolute inset-0 transition-opacity duration-fast ${
               hasText ? 'opacity-100' : 'pointer-events-none opacity-0'
             }`}
@@ -207,6 +229,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
               type="button"
               onClick={onSend}
               disabled={isGenerating || !hasText}
+              tabIndex={hasText ? 0 : -1}
               aria-label="أرسل جملتك"
               className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-fill to-fill-pressed text-on-fill shadow-glow-purple transition-colors disabled:opacity-60"
             >

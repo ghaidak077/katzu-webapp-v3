@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import { expect, test, type Page } from '@playwright/test';
 import * as axe from 'axe-core';
-import { bootSignedIn } from './harness';
+import { bootSignedIn, mockBackend } from './harness';
 
 const require = createRequire(import.meta.url);
 
@@ -20,7 +20,7 @@ const require = createRequire(import.meta.url);
  * axe-core package ships the engine, and injecting it into the live DOM is the
  * documented playwright-free path.
  */
-async function scan(page: Page) {
+async function scanAll(page: Page) {
   // Inject the engine, then run it with the WCAG 2.0/2.1 A+AA ruleset.
   await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
   const results = await page.evaluate(async () => {
@@ -29,7 +29,11 @@ async function scan(page: Page) {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
     });
   });
-  return results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+  return results.violations;
+}
+
+async function scan(page: Page) {
+  return (await scanAll(page)).filter((v) => v.impact === 'critical' || v.impact === 'serious');
 }
 
 function assertClean(violations: Awaited<ReturnType<typeof scan>>, screen: string) {
@@ -80,6 +84,28 @@ test('Live Conversation has no critical or serious violations', async ({ page })
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.getByRole('button', { name: 'ابدأ التحدث' })).toBeVisible();
   assertClean(await scan(page), 'live conversation');
+});
+
+test('the public screens are clean at every impact, not only critical/serious', async ({ page }) => {
+  // The six scans above filter to critical/serious, which is the right bar for a
+  // screen under active development — but it is also the band the WCAG 1.4.4
+  // viewport failure was NOT in. `index.html` shipped `maximum-scale=1.0,
+  // user-scalable=no` for a week, was reported by Lighthouse (V9-10, where the
+  // ledger records it as "unfixed"), and no gate could see it: axe rates
+  // `meta-viewport` *moderate*. The screens a signed-out learner can reach are
+  // therefore held to the stricter rule, and the failure mode that motivated it is
+  // named here so the next person does not wonder why these two are special.
+  await mockBackend(page);
+  const offenders: string[] = [];
+  for (const url of ['/', '/welcome']) {
+    await page.goto(url);
+    await expect(page.locator('#root')).not.toBeEmpty({ timeout: 20_000 });
+    const violations = await scanAll(page);
+    offenders.push(
+      ...violations.map((v) => `${url} → ${v.id}(${v.impact}) x${v.nodes.length}: ${v.nodes[0]?.target.join(' ')}`),
+    );
+  }
+  expect(offenders, offenders.join('; ')).toEqual([]);
 });
 
 test('primary actions keep 44px targets at 360px on the Trail', async ({ page }) => {

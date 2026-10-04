@@ -224,8 +224,12 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   return (
     // The whole screen is one column that fits the visible viewport. The transcript
     // is the only flexible row, so it takes every pixel the chrome does not.
+    //
+    // `kz-viewport-pin` rather than a bare `h-[100dvh]`: it carries a `100vh`
+    // fallback first, so an engine without `dvh` (Safari < 15.4) gets a full-height
+    // column instead of a collapsed one.
     <div
-      className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-kz-soft-black text-kz-ink"
+      className="kz-viewport-pin relative mx-auto flex max-w-md flex-col overflow-hidden bg-kz-soft-black text-kz-ink"
       style={viewportHeight ? { height: viewportHeight } : undefined}
     >
       {/* A single low radial light behind the chat, so the screen reads as one

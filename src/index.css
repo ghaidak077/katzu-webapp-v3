@@ -767,3 +767,35 @@
       transition-duration: 1ms !important;
     }
   }
+
+/* ── Viewport pin (WCAG 1.4.4) ────────────────────────────────────────────────
+   Pinch-zoom is enabled in `index.html` on purpose: enlarging the German is the
+   one accessibility affordance a learner with low vision has, and the meta tag
+   that blocked it was the only axe violation left on the live conversation
+   screen. Three rules pay for it, so nothing regresses in exchange:
+
+   1. `overscroll-behavior: none` — a two-finger pinch at the end of the chat
+      would otherwise pull the whole page into a rubber-band bounce, dragging the
+      input bar away from the thumb mid-drill.
+   2. `touch-action: manipulation` on the controls — that is the double-tap-to-zoom
+      suppression the old `user-scalable=no` was really being used for, applied
+      where it is wanted instead of to the whole document. `pan-x pan-y pinch-zoom`
+      keeps single-finger scrolling and pinch-zoom on the transcript.
+   3. `100dvh` with a `100vh` fallback on the conversation root — engines without
+      `dvh` (Safari < 15.4) would otherwise collapse a `100dvh`-only height to
+      auto, which is a worse bug than the one `dvh` fixes. */
+html {
+  overscroll-behavior: none;
+}
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
+}
+[data-testid='conversation-transcript'] {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+.kz-viewport-pin {
+  height: 100vh;
+  height: 100dvh;
+}

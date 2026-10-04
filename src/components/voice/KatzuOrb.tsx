@@ -351,6 +351,13 @@ export const KatzuOrb: React.FC<KatzuOrbProps> = ({
       type="button"
       onClick={onPress}
       disabled={disabled}
+      // `disabled` blocks the pointer and the tab order, but Chromium still lets a
+      // *programmatic* `focus()` land on it. In the conversation bar the orb is
+      // disabled exactly when it is not the action on screen (there is text to send
+      // instead), so without this the one control the learner must not reach while
+      // typing could still take their focus. `-1` states that intent for every
+      // engine instead of relying on the pointer-events trick.
+      tabIndex={disabled ? -1 : 0}
       aria-label={labelAr}
       className={cn(
         // V20: no active:scale — the orb's press feedback is its own light (the
