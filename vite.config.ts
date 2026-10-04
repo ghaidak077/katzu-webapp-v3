@@ -33,16 +33,31 @@ export const pwaOptions = {
     display: 'standalone',
     dir: 'rtl',
     lang: 'ar',
+    // Opaque, correctly sized icons. The art used to ship as the raw mascot PNG
+    // with a transparent background and a declared size that did not match the
+    // file (a 512px image labelled 192x192), which an Android/iOS launcher draws
+    // on white — the "white and broken" install icon. These are composited on the
+    // brand's near-black violet so no transparency can ever show through, and
+    // `sizes` is the real pixel size. The maskable copy keeps the head inside the
+    // 40%-radius safe zone so a squircle mask never clips it.
     icons: [
       {
-        src: 'assets/mascot/katzu_avatar.png',
+        src: 'assets/mascot/katzu_icon_192.png',
         sizes: '192x192',
-        type: 'image/png'
+        type: 'image/png',
+        purpose: 'any'
       },
       {
-        src: 'assets/mascot/katzu_welcome.png',
+        src: 'assets/mascot/katzu_icon_512.png',
         sizes: '512x512',
-        type: 'image/png'
+        type: 'image/png',
+        purpose: 'any'
+      },
+      {
+        src: 'assets/mascot/katzu_icon_maskable_512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable'
       }
     ]
   },

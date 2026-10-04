@@ -75,7 +75,17 @@ function orbSizeForViewport(): number {
   // is sized to be a clear target in that row — never big enough to push the
   // conversation into a sliver (measured: the old 116–168 px orb plus its label
   // and the suggestion pill made the dock 245 px of a 539 px viewport).
-  return Math.round(Math.min(120, Math.max(84, Math.min(height * 0.13, width * 0.3))));
+  //
+  // V33: on the shortest supported phone (360×640) the header, the voice bar and
+  // the composer together were squeezing the transcript just under its half-screen
+  // floor once the voice bar got its comfort pass (measured: 309.7 px of 320).
+  // The orb is the one piece of chrome that can give pixels back without hiding
+  // any information, so below ~760 px of height it scales down smoothly (never
+  // under 68 px — still a comfortable target) while taller phones keep the full
+  // 0.13 sizing and their large, comfortable orb.
+  const shrink = Math.min(1, Math.max(0, (760 - height) / 200));
+  const factor = 0.13 - 0.035 * shrink;
+  return Math.round(Math.min(120, Math.max(68, Math.min(height * factor, width * 0.3))));
 }
 
 export function useLiveConversation({

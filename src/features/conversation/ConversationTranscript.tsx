@@ -67,7 +67,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
       ref={scrollRef}
       onScroll={onScroll}
       data-testid="conversation-transcript"
-      className="min-h-0 flex-1 space-y-3.5 overflow-y-auto px-4 py-4"
+      className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
     >
       {messages.map((msg) => {
         // Explicit per-message choice overrides the global toggle. The
@@ -97,9 +97,23 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
         );
       })}
 
+      {/* Katzu's "composing a reply" state.
+
+          It used to be a 20 px wave inside a slim chip pinned to the start
+          edge — small enough to read as decoration and easy to miss entirely,
+          which is exactly how it was reported ("the loading animation is too
+          small"). It is now its own centred glass card with the wave at full
+          size, so the wait is the most legible thing on screen while it lasts
+          and then gets out of the way. */}
       {isGenerating && (
-        <div className="flex w-fit items-center gap-2 rounded-2xl kz-chip border border-white/10 bg-white/5 px-3 py-2">
-          <KatzuThinking size={20} layout="inline" labelAr="كَاتْزُو يفكر في الرد…" className="gap-2" />
+        <div className="flex justify-center py-1.5">
+          <div
+            data-testid="katzu-thinking"
+            data-tier="canvas"
+            className="kz-surface flex flex-col items-center gap-2.5 rounded-panel px-7 py-4"
+          >
+            <KatzuThinking size={56} layout="block" labelAr="كَاتْزُو يفكر في الرد…" />
+          </div>
         </div>
       )}
 
@@ -134,7 +148,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
             </div>
             <div className="mt-1">
               <KatzuThinking
-                size={22}
+                size={30}
                 layout="inline"
                 labelAr="أحسنت! جاري إعداد تقرير أدائك اللغوي مع كَاتْزُو..."
                 className="gap-2"

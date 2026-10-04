@@ -2,7 +2,14 @@
 <html lang="ar" dir="rtl" class="bg-black text-text-primary antialiased">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/assets/mascot/katzu_avatar.png" />
+    <link rel="icon" type="image/png" href="/assets/mascot/katzu_icon_192.png" />
+    <!-- iOS ignores the web manifest for the home-screen icon and uses this one.
+         Same opaque, correctly sized art as the manifest so the installed app is
+         never a white placeholder. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/mascot/katzu_apple_180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Katzu" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="تدرّب على محادثات ألمانية واقعية وتعلّم كيف تتحدث وتستمع بثقة قبل الانتقال أو العمل أو الدراسة في ألمانيا." />
@@ -10,11 +17,11 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Katzu — تدرّب على الألمانية في مواقف حقيقية" />
     <meta property="og:description" content="محادثات وتدريب استماع ألماني بالعربية، مع سيناريوهات عملية وتقدم صادق." />
-    <meta property="og:image" content="/assets/mascot/katzu_welcome.png" />
+    <meta property="og:image" content="/assets/mascot/katzu_icon_512.png" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Katzu — تدرّب على الألمانية في مواقف حقيقية" />
     <meta name="twitter:description" content="محادثات وتدريب استماع ألماني بالعربية، مع سيناريوهات عملية وتقدم صادق." />
-    <meta name="twitter:image" content="/assets/mascot/katzu_welcome.png" />
+    <meta name="twitter:image" content="/assets/mascot/katzu_icon_512.png" />
     <title>Katzu — رفيقك لتعلم الألمانية</title>
   </head>
   <body class="bg-black text-text-primary font-arabic selection:bg-primary/30 selection:text-white min-h-screen">

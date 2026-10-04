@@ -202,10 +202,17 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
         </div>
       )}
 
-      {/* The orb owns the microphone; the status line beside it is the only place
-          the app says what the microphone is doing. It is a compact row now — the
-          voice control no longer eats a third of the screen. */}
-      <div className="flex items-center gap-3">
+      {/* The voice stage.
+
+          The orb owns the microphone, and the status line under it is the only
+          place the app says what the microphone is doing. It is CENTRED, not
+          pinned to the start of a wide, mostly-empty row: the control is the
+          anchor of the screen, and an anchor belongs in the middle of what it
+          anchors. The state sits directly beneath the thing it describes, so the
+          label reads as the orb's own voice rather than as a caption far to one
+          side. Still compact — the voice control does not eat a third of the
+          screen — but no longer a stray avatar in a corner. */}
+      <div className="flex flex-col items-center gap-2 pt-0.5">
         <KatzuOrb
           state={orbState}
           readLevel={orbReadLevel}
@@ -215,10 +222,10 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
           disabled={orbDisabled}
           labelAr={orbLabelAr}
         />
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 max-w-full flex-col items-center gap-1.5 text-center">
           <span
-            className={`kz-ar-caption block transition-opacity ${
-              isRecording ? 'text-kz-lavender opacity-100' : 'text-kz-inkFaint opacity-80'
+            className={`kz-ar-caption block transition-colors duration-fast ${
+              isRecording ? 'font-semibold text-kz-lavender' : 'text-kz-inkDim'
             }`}
           >
             {conversationStatusLabelAr}
@@ -231,7 +238,7 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
           {isRecording && interimText && (
             <div
               data-testid="live-caption"
-              className="mt-1 flex items-center gap-2 rounded-xl border border-kz-lavender/25 bg-kz-lavender/10 px-2.5 py-1.5"
+              className="flex max-w-[92%] items-center gap-2 rounded-xl border border-kz-lavender/25 bg-kz-lavender/10 px-2.5 py-1.5"
             >
               <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">أسمع</span>
               <span dir="ltr" className="min-w-0 flex-1 truncate font-german text-sm text-kz-ink">
@@ -279,7 +286,7 @@ export const ConversationComposer: React.FC<ConversationComposerProps> = ({
       className="shrink-0 rounded-b-none rounded-t-[26px] border-t border-white/[0.08] px-4 pt-2.5"
       style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <input
           ref={inputRef}
           type="text"
@@ -289,7 +296,7 @@ export const ConversationComposer: React.FC<ConversationComposerProps> = ({
           value={inputText}
           onChange={(e) => onInputTextChange(e.target.value)}
           onKeyDown={(e) => onInputKeyDown(e.key)}
-          className="h-10 min-w-0 flex-1 rounded-2xl kz-chip border border-white/10 bg-white/5 px-4 font-german text-sm transition-colors placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-primary/60"
+          className="h-11 min-w-0 flex-1 rounded-2xl kz-chip border border-white/10 bg-white/5 px-4 font-german text-sm transition-colors placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-primary/60"
         />
 
         {/* Typing is always one tap away — and it is a control inside the row,
@@ -297,14 +304,14 @@ export const ConversationComposer: React.FC<ConversationComposerProps> = ({
         <button
           onClick={onTypeInstead}
           aria-label="اكتب بدلاً من التحدث"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 text-kz-inkDim transition-colors pointer-hover:text-kz-ink"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 text-kz-inkDim transition-colors pointer-hover:text-kz-ink"
         >
           <Keyboard className="h-4 w-4" />
         </button>
 
         <Button
           size="md"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl p-0"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl p-0"
           disabled={!inputText.trim() || isGenerating}
           onClick={onSend}
           aria-label="أرسل جملتك"

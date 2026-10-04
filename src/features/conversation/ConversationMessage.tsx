@@ -84,8 +84,8 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
         <div
           className={
             isKatzu
-              ? 'kz-surface rounded-panel rounded-ss-tag px-3.5 py-3'
-              : 'rounded-panel rounded-se-tag bg-gradient-to-br from-fill to-fill-pressed px-3.5 py-3 text-on-fill shadow-glow-purple'
+              ? 'kz-surface rounded-panel rounded-ss-tag px-4 py-3.5'
+              : 'rounded-panel rounded-se-tag bg-gradient-to-br from-fill to-fill-pressed px-4 py-3.5 text-on-fill shadow-glow-purple'
           }
           data-tier={isKatzu ? 'canvas' : undefined}
         >
