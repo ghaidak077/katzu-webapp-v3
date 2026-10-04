@@ -312,10 +312,15 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
  * The platform recogniser returns words while the learner is still speaking, which
  * is what makes the conversation feel live instead of transcribed-after-the-fact.
  * `interimHoldMs` holds the interim open long enough to assert it on a sandbox that
- * dilates timers; the app itself never waits for anything here.
+ * dilates timers; the app itself never waits for anything here. It must comfortably
+ * exceed the harness's own speaking ceiling (`SPEECH_CEILING_MS`, 1500 ms): `say()`
+ * does not resolve until the scripted microphone has been audibly held, and on a
+ * loaded runner that can take the full ceiling — so with a hold equal to the ceiling
+ * the caption finalises at the same instant `say()` returns and the first poll finds
+ * nothing (measured: CI run 37217073081, «element(s) not found», 1 failed / 86).
  */
 test('the learner sees their own German while they are still speaking', async ({ page }) => {
-  await bootSignedIn(page, { interimHoldMs: 1500 });
+  await bootSignedIn(page, { interimHoldMs: 3000 });
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
