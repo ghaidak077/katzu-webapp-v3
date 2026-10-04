@@ -8,7 +8,7 @@ queued progress, active sign-out/report cleanup, delayed progress/review respons
 A0/order scenario caching, offline topic filtering, and failed schema-bootstrap recovery.
 Shared agent guidance now delegates through AGENTS.md + CLAUDE.md instead of conflicting
 commit rules; Node guidance and unused-dependency claims are corrected. No deployment,
-commit, production write, secret change, or claim of public-launch readiness is made.
+commit, or production write is made. **Deployed 2026-10-04 under `DEPLOY-AUTHORIZED: merge, worker, pages`:** `main` = `a9d0441`, worker **`66e1c99d-b8aa-4f93-ba05-2a8b60270c88`**, Pages production **`ed995593-0a8d-4e50-9b18-bde6b6308719`** serving `assets/index-Cipqt6LI.js`; live content **49 scenarios / 531 vocabulary / 73 grammar**. The batch added real dialog semantics + a keyboard/focus trap, reduced-motion coverage, honest level/limit copy, one `<main>` per page, and fixed three measured defects (the ambient beam halo widened the page at 320px, a relative `/referral/info` logged four 404s on Profile, and the hero-video slot accepted the SPA fallback). No secret change, no production D1 write, and no claim of public-launch readiness is made.
 All narrative below is historical provenance; old counts, branch names, and release assertions
 must not be read as current facts. The complete master plan remains incomplete.
 

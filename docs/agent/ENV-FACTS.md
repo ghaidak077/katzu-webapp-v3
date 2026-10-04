@@ -146,7 +146,7 @@ Playwright browsers installed in `%LOCALAPPDATA%/ms-playwright`: `chromium-1243`
 | `wrangler whoami` | FACT logged in via **OAuth Token**, email `ghaidakalosh008@gmail.com`, account `00df3d915626e0a681f4fef98c1c587c`; token scopes include `workers (write)`, `workers_kv (write)`, `workers_scripts (write)` → **this machine can deploy**. Credentials stored at `%APPDATA%/xdg.config/.wrangler/config/default.toml`. |
 | Git remote | FACT `origin` = `https://github.com/ghaidak077/katzu-webapp-v3.git`; `git ls-remote --heads origin` exit 0 |
 | Push permitted? | FACT yes: `git push --dry-run origin launch-hardening` → `22fe6aa..a74014a launch-hardening -> launch-hardening`, exit 0. (Nothing was pushed.) |
-| Live `/health` body | FACT still returns the pre-hardening disclosure (`aiPool.entries:9`, `tiers`, `active` provider/model names, `strategy`, `cachedTranslationsCount`) → **production runs old code (commit `22fe6aa`)**, matching the RC-6 ledger entry. |
+| Live `/health` body | FACT now returns **only** `{status,service,ready,maintenance}` — the pre-hardening disclosure (`aiPool.entries:9`, `tiers`, `active` provider/model names, `strategy`, `cachedTranslationsCount`) is gone. Re-verified 2026-10-04 after worker deploy `66e1c99d-b8aa-4f93-ba05-2a8b60270c88`; `/crypto/health` unchanged (`ready:false`, `environment:test_mode`). |
 | `wrangler d1 execute … --remote` (read-only SELECT) | FACT works; used for the counts in §F/content state. |
 
 ---

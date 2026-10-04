@@ -14,7 +14,7 @@ file is the digest that is short enough to always read.
 - **Update in the same commit** as the change it describes. If a durable fact changes (URL,
   id, quota, level range), fix the row here immediately.
 
-*Last consolidated: 2026-10-04 (V30).*
+*Last consolidated: 2026-10-04 (V37).*
 
 ---
 
@@ -23,7 +23,7 @@ file is the digest that is short enough to always read.
 | Fact | Value |
 |---|---|
 | Repo root | `C:/Users/Lenovo/Desktop/k1/katzu` (shell starts at `/c/Users/Lenovo/Desktop/k1`) |
-| Branch of record | Actual checkout was `main` at `1a72827` at excellence-batch start; inspect current Git state rather than switching to historical `launch-hardening` |
+| Branch of record | `main` at `a9d0441` after the V37 deploy (`1a72827` was the excellence-batch start); inspect current Git state rather than switching to historical `launch-hardening` |
 | Remote | `github.com/ghaidak077/katzu-webapp-v3` |
 | Node here / in CI | v24.14.0 here; **24.15.0** pinned in CI (EBADENGINE warning here is expected) |
 | Gate commands | `npx tsc --noEmit` (== `npm run lint`); `npm test`; `E2E_TARGET=preview npx playwright test`; `npm run build`; `node --check cloudflare-*.js` |
@@ -38,6 +38,7 @@ file is the digest that is short enough to always read.
 | Working tree | CRLF (despite `.gitattributes` pinning LF) |
 | Ledger of record | `docs/AGENT-STATE.md` |
 | Session start | `npm run session:start` — ledger NEXT + APP-MAP §9 + MEMORY §A + git + OPEN ITEMS (owner-only/unproven) |
+| Deployed (2026-10-04, V37) | worker `66e1c99d-b8aa-4f93-ba05-2a8b60270c88` · Pages production `ed995593-0a8d-4e50-9b18-bde6b6308719` serving `assets/index-Cipqt6LI.js` · live content **49 scenarios / 531 vocabulary / 73 grammar** |
 
 ---
 
@@ -107,6 +108,9 @@ file is the digest that is short enough to always read.
 | 34 | Two screens passed a heading gate that accepted any h3 | A screen whose only heading is an h3 for a section label deep in the page has no name: Guided Practice was named by a grammar title at line 304, Quiz by a result heading that renders only after the last question | Tighten the rule only after measuring it on every screen first — the strict h1-or-h2 rule named exactly those two, so it cost two fixes and invented none. A heading gate that accepts any level is a gate that cannot fail.
 | 35 | A failure the learner can see is still a failure the learner cannot hear | The Ask card drew its error and its retry with no live region, so a screen-reader user was told nothing had happened; four more result surfaces (Placement feedback, Quiz explanation, redemption error/success) had the same gap while Listening and Writing already did it right | Rendering an outcome is not announcing it. When a state appears only after an action, the state needs role=status or role=alert, and the pattern has to be checked screen by screen, not assumed from the one screen that got it right.
 | 36 | Twenty-six screens shared one document.title | The title was set once in index.html and never updated on navigation, so two Katzu tabs — and a screen reader announcing the page — were indistinguishable | A route->name map in the router, with a test that asserts no two declared routes collide. Distinctness was the whole defect, so distinctness is what the test asserts.
+| 37 | Narrow phones scrolled sideways with no visible off-screen control | Decorative absolutely-positioned boxes still count toward `document.scrollWidth`: the ambient `BorderBeam` halo is drawn `inset: -30px` with no clipping ancestor, so ~5px escaped on each side | Measure `document.documentElement.scrollWidth` vs `innerWidth` at 320 before claiming no overflow, and clip decoration at the shell (`overflow-x: clip` — not `hidden`, so no scroll container and the fixed nav is untouched). |
+| 38 | A never-shipped asset was treated as present | A dev/preview server answers an unknown path with `index.html` and **200 `text/html`**, so `res.ok` alone cannot distinguish a shipped file from the fallback | Gate an optional asset on its **content type**, not only its status (`content-type: video/*`), so the SPA fallback cannot fake it. |
+| 39 | Four 404s on the Profile screen | `workerClient.getReferralInfo()` built `${baseUrl}/referral/info`; with no worker origin configured the base is empty, so it fired a **same-origin** request every host answers with 404 | When a base URL is empty, refuse to send (as the AI endpoints already do); a request you know is wrong is worse than none. |
 ---
 
 ## D. Important details worth not rediscovering
