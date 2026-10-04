@@ -83,8 +83,11 @@ describe('V33 — Profile is grouped, not a wall of 29 controls', () => {
   });
 
   it('a folded group says what it contains', () => {
+    // V34 retitles the third group «الحساب والخصوصية»: sign-out left it for the foot
+    // of the screen, so what remains there is privacy, export and deletion. The
+    // requirement this test states is unchanged; only the string moved with the copy.
     expect(section).toContain('{!open && hint &&');
-    for (const title of ['حسابي', 'طريقة تعلّمي', 'بياناتك']) {
+    for (const title of ['حسابي', 'طريقة تعلّمي', 'الحساب والخصوصية']) {
       expect(profile).toMatch(new RegExp(`title="${title}"[\\s\\S]{0,120}hint=`));
     }
   });
