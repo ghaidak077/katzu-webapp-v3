@@ -147,7 +147,9 @@ export function useLiveConversation({
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  // V40: the sentence field is a textarea so it can grow to three lines, but
+  // every caller only ever focuses it, so the element type is all that changed.
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   // Only follow the conversation when the learner is already at its end: yanking
   // someone who scrolled back to re-read a correction is the rudest thing a chat
   // can do.
@@ -616,6 +618,17 @@ export function useLiveConversation({
     (message: ChatMessage) => {
       setSpeakingId(message.id);
       speak(message.germanText);
+    },
+    [speak],
+  );
+
+  // The slow replay: the same sentence at a learner's pace, for the moment a
+  // bubble was too fast to follow. It reuses the existing speak path (which
+  // already accepts a rate) — no change to the speech engine itself.
+  const handleSlowSpeak = useCallback(
+    (message: ChatMessage) => {
+      setSpeakingId(message.id);
+      speak(message.germanText, 0.6);
     },
     [speak],
   );
@@ -1137,6 +1150,7 @@ export function useLiveConversation({
     handleWordClick,
     handleToggleSaveWord,
     handleSpeak,
+    handleSlowSpeak,
     handleSendMessage,
     retryFailedTurn,
     requestOpenerTranslation,

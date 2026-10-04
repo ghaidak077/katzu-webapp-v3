@@ -53,8 +53,7 @@ test('a typed turn costs exactly one /ai/turn and no other AI call', async ({ pa
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]').first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'اكتب بدلاً من التحدث' }).click();
-  await page.getByPlaceholder(/اكتب جملتك بالألمانية/).fill('Mein Koffer ist nicht angekommen.');
+  await page.getByPlaceholder(/Schreib deinen Satz/).fill('Mein Koffer ist nicht angekommen.');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
 
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
@@ -93,5 +92,5 @@ test('the suggestion chips offer their words to build the reply', async ({ page 
   const chip = bank.getByRole('button').first();
   const word = (await chip.textContent())?.trim() || '';
   await chip.click();
-  await expect(page.getByPlaceholder('اكتب جملتك بالألمانية…')).toHaveValue(new RegExp(word));
+  await expect(page.getByPlaceholder('Schreib deinen Satz…')).toHaveValue(new RegExp(word));
 });

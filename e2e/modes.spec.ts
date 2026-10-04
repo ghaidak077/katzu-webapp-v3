@@ -43,8 +43,7 @@ test('PRACTICE mode shows the hint and the live correction, one /ai/turn per tur
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
-  await page.getByRole('button', { name: 'اكتب بدلاً من التحدث' }).click();
-  await page.getByPlaceholder(/اكتب جملتك بالألمانية/).fill('Ich möchte ein Kaffee');
+  await page.getByPlaceholder(/Schreib deinen Satz/).fill('Ich möchte ein Kaffee');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Verstanden.')).toBeVisible();
 
@@ -82,7 +81,7 @@ test('REAL mode hides every aid, still reports the mistake, and its correction i
   await expect(page.getByText('عرض الترجمة')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /الترجمات/ })).toHaveCount(0);
 
-  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+  const input = page.getByPlaceholder(/Schreib deinen Satz/);
   const replies = [
     'Guten Tag! Möchten Sie einen Kaffee?',
     'Gerne. Einen Kaffee, bitte schön.',

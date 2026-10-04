@@ -1,15 +1,15 @@
-import React, { useMemo } from 'react';
-import { ArrowRight, Languages } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, ChevronDown, ChevronUp, Languages, MoreHorizontal } from 'lucide-react';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
-import { GlassSurface } from '@/components/glass/GlassSurface';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
 import { buildWordBank } from '@/lib/utils/wordBank';
 import { track } from '@/lib/analytics/client';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
 import type { CEFRLevel } from '@/types/models';
-import { ConversationComposer, ConversationControls } from './ConversationDock';
+import { ConversationDock } from './ConversationDock';
 import { ConversationTranscript } from './ConversationTranscript';
 import { useLiveConversation } from './useLiveConversation';
 
@@ -34,15 +34,18 @@ export interface LiveConversationScreenProps {
 }
 
 /**
- * The live conversation screen (B4d mechanical split).
+ * The live conversation screen (V40 layout).
  *
- * All conversation logic — state machine, voice, turn sending, session
- * finishing — lives in `useLiveConversation`; the transcript region is
- * `ConversationTranscript` and the dock is `ConversationDock`. This file is the
- * layout that wires them together. Zero behaviour change: every prop passed
- * down is the same value the inline JSX read before the split, and the DOM
- * structure (including every `data-testid`, aria label and class name) is
- * byte-identical to the pre-split screen.
+ * All conversation logic — state machine, voice, turn sending, session finishing —
+ * lives in `useLiveConversation`. This file is the layout:
+ *
+ *   header (back · title + round segments + level · ⋯)
+ *   → chat (the flexible hero, nothing floating over it)
+ *   → bottom input bar (hint · field · orb/send)
+ *
+ * The difficulty and translate controls moved into the ⋯ sheet, so the header is
+ * three controls at most, and the orb is now the input bar's action button rather
+ * than a card above the chat.
  */
 export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   scenarioId,
@@ -52,6 +55,30 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   onOpenSubscription,
   onCompleteSession,
 }) => {
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  /**
+   * The visual viewport, when the engine has one.
+   *
+   * `100dvh` tracks the browser chrome, but on iOS Safari the soft keyboard shrinks
+   * only the *visual* viewport, not the layout one — so the input bar would sit
+   * underneath the keys. Sizing the screen to `visualViewport.height` keeps the
+   * field just above the keyboard on every engine that reports it; the `dvh` class
+   * below is the fallback where it does not.
+   */
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  useEffect(() => {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (!vv) return;
+    const update = () => setViewportHeight(vv.height);
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, []);
+
   const live = useLiveConversation({
     scenarioId,
     vocabularyContext,
@@ -90,7 +117,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     orbState,
     orbTone,
     orbLabelAr,
-    orbSize,
     speakingId,
     activeCharIndex,
     voice,
@@ -104,13 +130,13 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     inputRef,
     // handlers
     handleOrbPress,
-    handleTypeInstead,
     handleToggleTranslation,
     handleToggleAllTranslations,
     handleTranscriptScroll,
     handleWordClick,
     handleToggleSaveWord,
     handleSpeak,
+    handleSlowSpeak,
     handleSendMessage,
     retryFailedTurn,
     requestOpenerTranslation,
@@ -182,126 +208,81 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     );
   }
 
-  const turnProgress = Math.min(1, userTurnsCount / Math.max(1, targetTurns));
+  // A short, honest status line under the chat only while it has something to say.
+  const statusLabelAr = voice.isRecording
+    ? 'أنا أستمع إليك… تحدث الآن'
+    : voice.mode === 'recorder'
+      ? 'أفتح المايك… اسمح بالوصول إن ظهرت نافذة الإذن'
+      : live.conversation.status === 'transcribing'
+        ? 'جارٍ التعرف على كلامك…'
+        : !voice.isSupported
+          ? 'الإدخال الصوتي غير متاح — اكتب بالألمانية'
+          : null;
+
+  const showEmptyHint = messages.length <= 1 && !isGenerating && !isSessionCompleted;
 
   return (
-    // The whole screen is one column that fits the visible viewport, ordered
-    // header → voice/hint controls → transcript → composer (V29). The transcript
-    // is the only flexible row, so it takes every pixel the chrome does not; the
-    // voice mass sits ABOVE it and the thumb-reachable composer BELOW it, so no
-    // message can ever end up under either.
-    <div className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-black text-kz-ink">
-      {/* Header: who the learner is talking to, which round, and the two controls
-          that belong to the conversation as a whole. */}
-      {/* V20: the header is a glass surface like the dock below it — one
-          material for the conversation's floating chrome. Rounded-bottom pill
-          look is wrong for a top bar, so it is a flush glass slab with the
-          same edge light; blur is tier-aware via kz-surface/kz-lite. */}
-      <GlassSurface
-        tier="floating"
-        className="relative z-20 shrink-0 rounded-none border-b border-white/[0.08] px-3 pt-2.5"
-      >
-        <div className="flex items-center gap-2">
+    // The whole screen is one column that fits the visible viewport. The transcript
+    // is the only flexible row, so it takes every pixel the chrome does not.
+    <div
+      className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-kz-soft-black text-kz-ink"
+      style={viewportHeight ? { height: viewportHeight } : undefined}
+    >
+      {/* A single low radial light behind the chat, so the screen reads as one
+          surface instead of a black rectangle with a header glued on. */}
+      <div aria-hidden className="kz-conversation-bg pointer-events-none absolute inset-0" />
+
+      {/* Header: back · title with the round segments · ⋯. Three controls at most;
+          difficulty and translate live behind the ⋯. */}
+      <header className="relative z-20 shrink-0 border-b border-white/[0.06] bg-kz-soft-black/50 px-2 py-1 backdrop-blur-sm">
+        <div className="flex items-center gap-1">
           <button
             onClick={onBack}
             aria-label="العودة"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 transition-colors pointer-hover:bg-white/10"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-kz-inkDim transition-colors pointer-hover:bg-white/10"
           >
-            <ArrowRight className="h-5 w-5 text-kz-inkDim" />
+            <ArrowRight className="h-5 w-5" />
           </button>
 
-          <div className="min-w-0 flex-1 text-center">
-            <p className="kz-ar-caption truncate text-kz-ink">{characterNameAr}</p>
-            <p className="kz-ar-micro text-kz-inkFaint">
-              الجولة {Math.min(userTurnsCount + 1, targetTurns)} من {targetTurns} · {effectiveLevel}
-            </p>
+          <div className="min-w-0 flex-1 px-1">
+            <p className="kz-ar-caption truncate text-center text-kz-ink">{characterNameAr}</p>
+            <div className="mt-1 flex items-center justify-center gap-2">
+              <div
+                data-testid="round-progress"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={targetTurns}
+                aria-valuenow={userTurnsCount}
+                aria-label={`الجولة ${Math.min(userTurnsCount + 1, targetTurns)} من ${targetTurns}`}
+                className="flex items-center gap-1"
+              >
+                {Array.from({ length: targetTurns }).map((_, index) => (
+                  <span
+                    key={index}
+                    className={`h-1 w-4 rounded-full transition-colors duration-fast ${
+                      index < userTurnsCount ? 'bg-primary' : 'bg-white/15'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span
+                data-testid="level-chip"
+                className="kz-de-caption shrink-0 rounded-full border border-white/10 px-1.5 font-german font-bold text-kz-lavender"
+              >
+                {effectiveLevel}
+              </span>
+            </div>
           </div>
 
-          {!realMode && (
-            <button
-              onClick={handleToggleAllTranslations}
-              aria-label={showAllTranslations ? 'إخفاء كل الترجمات' : 'إظهار كل الترجمات'}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-colors ${
-                showAllTranslations
-                  ? 'border-primary/50 bg-primary/20 text-primary'
-                  : 'border-white/10 bg-white/5 text-kz-inkDim pointer-hover:bg-white/10'
-              }`}
-            >
-              <Languages className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Difficulty: real functionality, deliberately secondary — a learner who
-            never touches it still finishes the episode. */}
-        <div className="mt-1 flex items-center justify-center gap-1">
           <button
-            onClick={() => handleNudgeDifficulty('easier')}
-            disabled={effectiveLevel === 'A1'}
-            className="kz-ar-micro flex min-h-[28px] items-center rounded-full px-2.5 text-kz-inkFaint transition-colors pointer-hover:text-kz-inkDim disabled:opacity-25"
+            onClick={() => setOptionsOpen(true)}
+            aria-label="خيارات الجلسة"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-kz-inkDim transition-colors pointer-hover:bg-white/10"
           >
-            أسهل
-          </button>
-          <span className="kz-de-caption px-1 font-german font-bold text-kz-lavender">{effectiveLevel}</span>
-          <button
-            onClick={() => handleNudgeDifficulty('harder')}
-            disabled={effectiveLevel === 'B2'}
-            className="kz-ar-micro flex min-h-[28px] items-center rounded-full px-2.5 text-kz-inkFaint transition-colors pointer-hover:text-kz-inkDim disabled:opacity-25"
-          >
-            أصعب
+            <MoreHorizontal className="h-5 w-5" />
           </button>
         </div>
-
-        {/* The round progress, as the header's own bottom edge. Instant width
-            change (V19 motion rule): a transition here is decoration. */}
-        <div className="absolute bottom-0 start-0 h-[2px] rounded-full bg-primary" style={{ width: `${turnProgress * 100}%` }} />
-      </GlassSurface>
-
-      {/* The voice control and the suggestions, compact, under the header. */}
-      <ConversationControls
-        showHelp={!realMode}
-        visibleHints={visibleHints}
-        isHintRevealed={isHintRevealed}
-        isHintExpanded={isHintExpanded}
-        isRefreshingHints={isRefreshingHints}
-        hintQuotaSpent={hintQuotaSpent}
-        micError={micError}
-        orbState={orbState}
-        orbTone={orbTone}
-        orbSize={orbSize}
-        orbLabelAr={orbLabelAr}
-        orbReadLevel={voice.read}
-        orbDisabled={!voice.isSupported || live.conversation.status === 'quota_exhausted'}
-        isRecording={voice.isRecording}
-        conversationStatusLabelAr={
-          voice.isRecording
-            ? 'أنا أستمع إليك… تحدث الآن'
-            : live.conversation.status === 'transcribing'
-              ? 'جارٍ التعرف على كلامك…'
-              : !voice.isSupported
-                ? 'الإدخال الصوتي غير متاح — اكتب بالألمانية'
-                : 'اضغط على الدائرة وتحدث'
-        }
-        interimText={voice.interimText}
-        onOrbPress={() => void handleOrbPress()}
-        onRevealHint={() => {
-          setIsHintRevealed(true);
-          triggerHaptic('light');
-        }}
-        onHideHint={() => setIsHintRevealed(false)}
-        onToggleHintExpanded={() => {
-          setIsHintExpanded((v) => !v);
-          triggerHaptic('light');
-        }}
-        onRefreshHints={refreshHints}
-        onUseHint={handleUseHint}
-        hintBank={hintBank}
-        onPickHintWord={(word) => {
-          track('word_bank_tapped', { skill: 'chat' });
-          setInputText((prev) => (prev ? `${prev} ${word}` : word));
-        }}
-        onDismissError={() => dispatch({ type: 'dismiss_error' })}
-      />
+      </header>
 
       <ConversationTranscript
         scrollRef={scrollRef}
@@ -319,21 +300,120 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         onToggleTranslation={handleToggleTranslation}
         onRetryTranslation={requestOpenerTranslation}
         onSpeak={handleSpeak}
+        onSlowSpeak={handleSlowSpeak}
         onWordClick={handleWordClick}
         onRetryFailedTurn={retryFailedTurn}
       />
 
-      {/* The typed composer: one thumb-reachable row at the bottom. */}
-      <ConversationComposer
+      {/* Empty / first state: one line telling the learner what the microphone is
+          for. It disappears the moment the conversation has something in it. */}
+      {showEmptyHint && (
+        <p className="pointer-events-none px-4 pb-1 text-center kz-ar-caption text-kz-inkDim">
+          اضغط على الميكروفون وتحدث
+        </p>
+      )}
+
+      {statusLabelAr && (
+        <p
+          className="pointer-events-none px-4 pb-1 text-center kz-ar-micro font-semibold text-kz-lavender"
+          role="status"
+        >
+          {statusLabelAr}
+        </p>
+      )}
+
+      {/* The bottom input bar: hint · field · orb/send. */}
+      <ConversationDock
+        showHelp={!realMode}
+        visibleHints={visibleHints}
+        isHintRevealed={isHintRevealed}
+        isHintExpanded={isHintExpanded}
+        isRefreshingHints={isRefreshingHints}
+        hintQuotaSpent={hintQuotaSpent}
+        micError={micError}
+        orbState={orbState}
+        orbTone={orbTone}
+        orbLabelAr={orbLabelAr}
+        orbReadLevel={voice.read}
+        orbDisabled={!voice.isSupported || live.conversation.status === 'quota_exhausted'}
+        isRecording={voice.isRecording}
+        isCoachSpeaking={speakingId !== null}
+        interimText={voice.interimText}
+        onOrbPress={() => {
+          // A tap on the microphone is a physical event; say so on the hand as well
+          // as on the screen, where the platform can.
+          triggerHaptic('light');
+          void handleOrbPress();
+        }}
+        onRevealHint={() => {
+          setIsHintRevealed(true);
+          triggerHaptic('light');
+        }}
+        onHideHint={() => setIsHintRevealed(false)}
+        onToggleHintExpanded={() => {
+          setIsHintExpanded((v) => !v);
+          triggerHaptic('light');
+        }}
+        onRefreshHints={refreshHints}
+        onUseHint={handleUseHint}
+        hintBank={hintBank}
+        onPickHintWord={(word) => {
+          track('word_bank_tapped', { skill: 'chat' });
+          setInputText((prev) => (prev ? `${prev} ${word}` : word));
+        }}
+        onDismissError={() => dispatch({ type: 'dismiss_error' })}
         inputRef={inputRef}
         inputText={inputText}
         isGenerating={isGenerating}
-        isRecording={voice.isRecording}
         onInputTextChange={setInputText}
         onInputKeyDown={(key) => key === 'Enter' && handleSendMessage()}
         onSend={() => handleSendMessage()}
-        onTypeInstead={handleTypeInstead}
       />
+
+      {/* ⋯: the conversation-level controls, out of the header and into a sheet. */}
+      <BottomSheet isOpen={optionsOpen} onClose={() => setOptionsOpen(false)} title="خيارات الجلسة">
+        <div className="space-y-1">
+          <button
+            onClick={() => handleNudgeDifficulty('easier')}
+            disabled={effectiveLevel === 'A1'}
+            className="flex min-h-control w-full items-center justify-between rounded-control px-3 kz-ar-caption text-kz-ink transition-colors pointer-hover:bg-white/5 disabled:opacity-30"
+          >
+            <span>أسهل</span>
+            <ChevronDown className="h-4 w-4 text-kz-inkFaint" />
+          </button>
+          <div className="flex min-h-control w-full items-center justify-between rounded-control px-3 kz-ar-caption text-kz-inkDim">
+            <span>المستوى الحالي</span>
+            <span className="kz-de-caption font-german font-bold text-kz-lavender">{effectiveLevel}</span>
+          </div>
+          <button
+            onClick={() => handleNudgeDifficulty('harder')}
+            disabled={effectiveLevel === 'B2'}
+            className="flex min-h-control w-full items-center justify-between rounded-control px-3 kz-ar-caption text-kz-ink transition-colors pointer-hover:bg-white/5 disabled:opacity-30"
+          >
+            <span>أصعب</span>
+            <ChevronUp className="h-4 w-4 text-kz-inkFaint" />
+          </button>
+          {!realMode && (
+            <button
+              onClick={handleToggleAllTranslations}
+              aria-label={showAllTranslations ? 'إخفاء كل الترجمات' : 'إظهار كل الترجمات'}
+              className="flex min-h-control w-full items-center justify-between rounded-control px-3 kz-ar-caption text-kz-ink transition-colors pointer-hover:bg-white/5"
+            >
+              <span className="flex items-center gap-2">
+                <Languages className="h-4 w-4 text-kz-inkDim" />
+                إظهار الترجمة تلقائياً
+              </span>
+              <span
+                className={`kz-ar-micro rounded-full px-2 py-0.5 font-bold ${
+                  showAllTranslations ? 'bg-primary text-on-lavender' : 'bg-white/10 text-kz-inkDim'
+                }`}
+              >
+                {showAllTranslations ? 'مفعّل' : 'متوقف'}
+              </span>
+            </button>
+          )}
+        </div>
+      </BottomSheet>
 
       {/* Word Insight Bottom Sheet */}
       <WordInsightBottomSheet
@@ -358,5 +438,3 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     </div>
   );
 };
-
-

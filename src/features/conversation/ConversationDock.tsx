@@ -1,53 +1,45 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, Keyboard, Lightbulb, MicOff, RefreshCw, Send } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lightbulb, MicOff, RefreshCw, Send, X } from 'lucide-react';
 import { HintOption } from '@/components/common/HintOption';
-import { Button } from '@/components/ui/Button';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { FloatingControl } from '@/components/glass/GlassCard';
 import { KatzuOrb, type OrbState } from '@/components/voice/KatzuOrb';
 import type { MicSample } from '@/lib/audio/useMicLevel';
 import type { ContextualHint } from '@/types/models';
 
 /**
- * The conversation chrome, in two pieces (V29 layout).
+ * The conversation's bottom bar (V40).
  *
- * The owner's report was geometric: the dock — a full-width orb, its status
- * line, the suggestion panel and the composer — measured 245 px of a 539 px
- * phone viewport (304 px with a suggestion open), so the transcript the learner
- * actually reads was squeezed into a sliver. The fix is structural, not
- * cosmetic: the voice/hint mass moves to a compact control bar under the header
- * and the composer shrinks to one row at the bottom, leaving the transcript the
- * middle of the screen.
+ * One rounded container pinned to the bottom edge, holding the three things a
+ * thumb reaches for: the hint button, the sentence field, and the action button.
+ * The orb — the microphone — IS the action button, so the idle screen has no
+ * large bordered card wrapping a control that does nothing, and no message can
+ * ever sit under the microphone because it lives in the input row.
  *
- * Splitting it this way also removes the whole class of overlap bug the old
- * layout had: the orb can no longer float over a message, because the messages
- * now live in their own region *below* the control bar and can never reach it.
- * Behaviour is unchanged: every value still arrives as a prop, every aria label
- * and the `conversation-dock` test id (now on the composer, which stays the
- * bottom boundary the layout tests measure against) are preserved.
+ * The hint suggestions moved into a bottom sheet behind the lightbulb so the
+ * chat is not crowded by an always-visible suggestion panel; the word bank and
+ * the refresh/hide controls travel with them. Every value still arrives as a
+ * prop and the behaviour is unchanged.
  */
 
-export interface ConversationControlsProps {
-  /**
-   * V28 Stage 1D: whether the suggestion pill renders. REAL mode passes false
-   * (the hint floor is already empty there, so this is belt-and-braces); the
-   * microphone and the typed fallback stay in every mode.
-   */
+export interface ConversationDockProps {
+  /** V28 Stage 1D: whether the hint affordance renders (REAL mode passes false). */
   showHelp: boolean;
   visibleHints: ContextualHint[];
   isHintRevealed: boolean;
   isHintExpanded: boolean;
   isRefreshingHints: boolean;
-  /** V31: today's AI hint budget is spent — the floor below is all that is left. */
+  /** V31: today's AI hint budget is spent. */
   hintQuotaSpent?: boolean;
   micError: string | null;
   orbState: OrbState;
   orbTone: 'lavender' | 'earned';
-  orbSize: number;
   orbLabelAr: string;
   orbReadLevel: () => MicSample;
   orbDisabled: boolean;
   isRecording: boolean;
-  conversationStatusLabelAr: string;
+  /** Katzu is speaking: the microphone dims so it does not compete with the voice. */
+  isCoachSpeaking?: boolean;
   interimText: string;
   onOrbPress: () => void;
   onRevealHint: () => void;
@@ -59,9 +51,16 @@ export interface ConversationControlsProps {
   hintBank: string[];
   onPickHintWord: (word: string) => void;
   onDismissError: () => void;
+  /** Live element for the sentence field (owned by the parent). */
+  inputRef: React.Ref<HTMLTextAreaElement>;
+  inputText: string;
+  isGenerating: boolean;
+  onInputTextChange: (value: string) => void;
+  onInputKeyDown: (key: string) => void;
+  onSend: () => void;
 }
 
-export const ConversationControls: React.FC<ConversationControlsProps> = ({
+export const ConversationDock: React.FC<ConversationDockProps> = ({
   showHelp,
   visibleHints,
   isHintRevealed,
@@ -71,12 +70,11 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
   micError,
   orbState,
   orbTone,
-  orbSize,
   orbLabelAr,
   orbReadLevel,
   orbDisabled,
   isRecording,
-  conversationStatusLabelAr,
+  isCoachSpeaking = false,
   interimText,
   onOrbPress,
   onRevealHint,
@@ -87,238 +85,234 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
   hintBank,
   onPickHintWord,
   onDismissError,
-}) => {
-  return (
-    <FloatingControl
-      data-testid="conversation-controls"
-      className="shrink-0 rounded-none border-b border-white/[0.06] px-3 py-2"
-    >
-      {/* Hints as an on-demand button: a single 💡 pill that reveals the one
-          context-aware suggestion when tapped — no always-visible strip
-          competing with the chat. */}
-      {showHelp && visibleHints.length > 0 && !isHintRevealed && (
-        <button
-          onClick={onRevealHint}
-          className="kz-ar-micro mb-2 flex items-center gap-1.5 rounded-full border border-primary/30 bg-white/5 px-3 py-1.5 font-semibold text-primary transition-colors pointer-hover:border-primary/60"
-        >
-          <Lightbulb className="h-3.5 w-3.5" />
-          اقتراح لردّك
-        </button>
-      )}
-
-      {showHelp && visibleHints.length > 0 && isHintRevealed && (
-        <div className="mb-2 flex items-start gap-1.5">
-          <div className="max-h-[22vh] min-w-0 flex-1 space-y-1.5 overflow-y-auto">
-            <HintOption hint={visibleHints[0]} onUse={() => onUseHint(visibleHints[0])} primary />
-            {visibleHints.length > 1 && (
-              <>
-                <button
-                  onClick={onToggleHintExpanded}
-                  className="kz-ar-micro flex w-full items-center justify-between rounded-xl kz-chip border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-kz-inkDim transition-colors pointer-hover:text-primary"
-                >
-                  <span>
-                    {isHintExpanded
-                      ? 'إخفاء الخيارات الأخرى'
-                      : `خيارات أخرى في هذا الموقف (${visibleHints.length - 1})`}
-                  </span>
-                  {isHintExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                </button>
-                {isHintExpanded &&
-                  visibleHints.slice(1, 4).map((hint, hIdx) => (
-                    <HintOption key={hIdx} hint={hint} onUse={() => onUseHint(hint)} />
-                  ))}
-              </>
-            )}
-          </div>
-          <button
-            onClick={onRefreshHints}
-            aria-label="تحديث الاقتراحات"
-            disabled={hintQuotaSpent}
-            title={hintQuotaSpent ? 'استهلكت اقتراحات اليوم — جرّب غداً' : undefined}
-            className="shrink-0 rounded-xl kz-chip border border-white/10 bg-white/5 p-2 text-kz-inkDim transition-colors pointer-hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:pointer-hover:text-kz-inkDim"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingHints ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={onHideHint}
-            aria-label="إخفاء الاقتراح"
-            className="shrink-0 rounded-xl p-2 text-kz-inkDim transition-colors pointer-hover:text-kz-ink"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* V31: said once, out loud. The starter-phrase floor still works after
-          today's hint budget is spent, so nothing breaks — but a button that
-          looks alive and only ever returns the same generic chips is a lie by
-          omission, and this is where the truth costs nothing. */}
-      {showHelp && hintQuotaSpent && (
-        <p className="kz-ar-micro mb-2 text-kz-inkFaint" role="status">
-          استهلكت اقتراحات اليوم. هذه عبارات من الموقف نفسه، وتتجدّد غداً.
-        </p>
-      )}
-
-      {/* The words of the offered reply. The suggestion sends a whole sentence;
-          a learner who wants to say it in their own words (or is not ready to
-          send it) can build it from the same chips as every other production
-          surface instead.
-
-          V32: the audit found this bank merely mirrored the others, so a learner
-          had no way to know it was the one place you can BUILD a sentence rather
-          than send one. It now says so, and says the words are in order. */}
-      {showHelp && isHintRevealed && hintBank.length > 0 && (
-        <div data-testid="word-bank" dir="ltr" className="mb-2">
-          <span className="kz-ar-micro mb-1 block text-kz-inkFaint">
-            هذه كلمات الجملة بالترتيب — اضغط لتبني جملتك بنفسك
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            {hintBank.map((word, wordIndex) => (
-              <button
-                key={`${word}-${wordIndex}`}
-                type="button"
-                onClick={() => onPickHintWord(word)}
-                className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors pointer-hover:border-primary/50"
-              >
-                {word}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Mic / STT error banner */}
-      {micError && (
-        <div className="kz-ar-micro mb-2 flex items-start gap-2 rounded-xl border border-status-learning/40 bg-white/5 p-2.5 text-status-learning">
-          <MicOff className="mt-0.5 h-4 w-4 shrink-0" />
-          <span className="flex-1">{micError}</span>
-          <button
-            onClick={onDismissError}
-            aria-label="إخفاء"
-            className="min-h-[32px] min-w-[32px] text-kz-inkFaint pointer-hover:text-kz-ink"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* The voice stage.
-
-          The orb owns the microphone, and the status line under it is the only
-          place the app says what the microphone is doing. It is CENTRED, not
-          pinned to the start of a wide, mostly-empty row: the control is the
-          anchor of the screen, and an anchor belongs in the middle of what it
-          anchors. The state sits directly beneath the thing it describes, so the
-          label reads as the orb's own voice rather than as a caption far to one
-          side. Still compact — the voice control does not eat a third of the
-          screen — but no longer a stray avatar in a corner. */}
-      <div className="flex flex-col items-center gap-2 pt-0.5">
-        <KatzuOrb
-          state={orbState}
-          readLevel={orbReadLevel}
-          tone={orbTone}
-          size={orbSize}
-          onPress={onOrbPress}
-          disabled={orbDisabled}
-          labelAr={orbLabelAr}
-        />
-        <div className="flex min-w-0 max-w-full flex-col items-center gap-1.5 text-center">
-          <span
-            className={`kz-ar-caption block transition-colors duration-fast ${
-              isRecording ? 'font-semibold text-kz-lavender' : 'text-kz-inkDim'
-            }`}
-          >
-            {conversationStatusLabelAr}
-          </span>
-
-          {/* Live captions while the learner speaks. The platform recogniser returns
-              words as they are said, so the learner can see their own German land —
-              which is the difference between dictating and being transcribed after
-              the fact. It renders only when there is something to show. */}
-          {isRecording && interimText && (
-            <div
-              data-testid="live-caption"
-              className="flex max-w-[92%] items-center gap-2 rounded-xl border border-kz-lavender/25 bg-kz-lavender/10 px-2.5 py-1.5"
-            >
-              <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">أسمع</span>
-              <span dir="ltr" className="min-w-0 flex-1 truncate font-german text-sm text-kz-ink">
-                {interimText}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    </FloatingControl>
-  );
-};
-
-export interface ConversationComposerProps {
-  /** Live element for the composer input (owned by the parent). */
-  inputRef: React.Ref<HTMLInputElement>;
-  inputText: string;
-  isGenerating: boolean;
-  isRecording: boolean;
-  onInputTextChange: (value: string) => void;
-  onInputKeyDown: (key: string) => void;
-  onSend: () => void;
-  onTypeInstead: () => void;
-}
-
-/**
- * The typed composer: one thumb-reachable row at the bottom, and nothing else.
- *
- * It keeps the `conversation-dock` test id because it is the bottom boundary the
- * transcript's layout tests measure against — a message must still end above it.
- */
-export const ConversationComposer: React.FC<ConversationComposerProps> = ({
   inputRef,
   inputText,
   isGenerating,
-  isRecording,
   onInputTextChange,
   onInputKeyDown,
   onSend,
-  onTypeInstead,
 }) => {
+  const hasText = inputText.trim().length > 0;
+  const hintsAvailable = showHelp && visibleHints.length > 0;
+  // The orb is "working" for the whole turn it is not the learner's: recognising
+  // their words, evaluating them, or composing the reply.
+  const isProcessing = orbState === 'transcribing' || orbState === 'evaluating' || orbState === 'replying';
+
   return (
-    <FloatingControl
+    <>
+      <FloatingControl
       data-testid="conversation-dock"
-      className="shrink-0 rounded-b-none rounded-t-[26px] border-t border-white/[0.08] px-4 pt-2.5"
-      style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      className="shrink-0 rounded-b-none rounded-t-sheet border-t border-white/[0.06] px-3 pt-2"
+      style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
     >
-      <div className="flex items-center gap-2.5">
-        <input
+      {/* Mic / STT error banner — stated where the microphone is. */}
+      {micError && (
+        <div className="kz-ar-micro mb-2 flex items-start gap-2 rounded-xl border border-status-learning/40 bg-white/5 p-2.5 text-status-learning">
+          <MicOff className="mt-0.5 h-4 w-4 shrink-0" />
+          <span className="flex-1" role="alert">
+            {micError}
+          </span>
+          <button
+            onClick={onDismissError}
+            aria-label="إخفاء"
+            className="flex min-h-touch min-w-touch items-center justify-center text-kz-inkFaint pointer-hover:text-kz-ink"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* The learner's own German while they are still speaking: the live transcript,
+          grey and italic, right where the final sentence will land. */}
+      {isRecording && interimText && (
+        <div data-testid="live-caption" className="mb-1.5 flex items-center gap-2 px-1">
+          <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">أسمع</span>
+          <span dir="ltr" className="min-w-0 flex-1 truncate font-german text-base italic text-kz-inkDim">
+            {interimText}
+          </span>
+        </div>
+      )}
+
+      {/* The one rounded container: hint · field · action. */}
+      <div className="flex items-end gap-2 rounded-sheet border border-white/[0.06] bg-surface-hero px-2 py-1.5">
+        {showHelp && (
+          <button
+            type="button"
+            onClick={onRevealHint}
+            aria-label="اقتراح لردّك"
+            className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full kz-chip border border-white/10 bg-white/5 text-kz-lavender transition-colors pointer-hover:bg-white/10"
+          >
+            <Lightbulb className="h-5 w-5" />
+            {hintsAvailable && !isHintRevealed && (
+              <span
+                aria-hidden
+                className="absolute end-1.5 top-1.5 h-2 w-2 rounded-full bg-kz-lavender ring-2 ring-surface-hero"
+              />
+            )}
+          </button>
+        )}
+
+        <textarea
           ref={inputRef}
-          type="text"
+          rows={1}
           dir="ltr"
-          aria-label={isRecording ? 'أنا أستمع إليك' : 'اكتب جملتك بالألمانية'}
-          placeholder={isRecording ? 'أنا أستمع إليك…' : 'اكتب جملتك بالألمانية…'}
+          aria-label="اكتب جملتك بالألمانية"
+          placeholder="Schreib deinen Satz…"
           value={inputText}
           onChange={(e) => onInputTextChange(e.target.value)}
           onKeyDown={(e) => onInputKeyDown(e.key)}
-          className="h-11 min-w-0 flex-1 rounded-2xl kz-chip border border-white/10 bg-white/5 px-4 font-german text-sm transition-colors placeholder:font-arabic placeholder:text-xs placeholder:text-kz-inkFaint focus:border-primary/60"
+          style={{ fieldSizing: 'content' } as React.CSSProperties}
+          className="max-h-24 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-2 py-3 font-german text-base leading-tight text-kz-ink placeholder:font-arabic placeholder:text-sm placeholder:text-kz-inkFaint"
         />
 
-        {/* Typing is always one tap away — and it is a control inside the row,
-            not a third line of copy under it. */}
-        <button
-          onClick={onTypeInstead}
-          aria-label="اكتب بدلاً من التحدث"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 text-kz-inkDim transition-colors pointer-hover:text-kz-ink"
-        >
-          <Keyboard className="h-4 w-4" />
-        </button>
-
-        <Button
-          size="md"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl p-0"
-          disabled={!inputText.trim() || isGenerating}
-          onClick={onSend}
-          aria-label="أرسل جملتك"
-        >
-          <Send className="h-5 w-5 rotate-180" aria-hidden />
-        </Button>
+        {/* Dynamic action button: the orb while the field is empty, the send plane
+            the moment there is something to send. Cross-faded, one tap target. */}
+        <div className="relative h-14 w-14 shrink-0">
+          <div
+            className={`absolute inset-0 transition-opacity duration-fast ${
+              hasText ? 'pointer-events-none opacity-0' : 'opacity-100'
+            }`}
+          >
+            <div
+              className={`relative h-14 w-14 transition-opacity duration-fast ${
+                isCoachSpeaking ? 'opacity-60' : ''
+              }`}
+            >
+              {/* The breath belongs to a decorative layer behind the control, never
+                  to the button itself: a hit target that scales forever is both
+                  hard to tap and impossible to drive in a test. */}
+              {orbState === 'idle' && (
+                <span aria-hidden className="kz-orb-glow kz-animated pointer-events-none absolute inset-0 rounded-full" />
+              )}
+              {isProcessing && (
+                <span aria-hidden className="kz-animated kz-orb-ring pointer-events-none absolute inset-0 rounded-full" />
+              )}
+              <KatzuOrb
+                state={orbState}
+                readLevel={orbReadLevel}
+                tone={orbTone}
+                size={56}
+                onPress={onOrbPress}
+                disabled={orbDisabled || hasText}
+                labelAr={orbLabelAr}
+              />
+            </div>
+          </div>
+          <div
+            className={`absolute inset-0 transition-opacity duration-fast ${
+              hasText ? 'opacity-100' : 'pointer-events-none opacity-0'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={isGenerating || !hasText}
+              aria-label="أرسل جملتك"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-fill to-fill-pressed text-on-fill shadow-glow-purple transition-colors disabled:opacity-60"
+            >
+              <Send className="h-5 w-5 rotate-180" aria-hidden />
+            </button>
+          </div>
+        </div>
       </div>
     </FloatingControl>
+
+      {/* Suggestions, the word bank and the quota note — one bottom sheet behind
+          the lightbulb. It is a SIBLING of the dock, not a child: the dock's
+          glass surface carries `backdrop-filter`, which makes it the containing
+          block for a `position: fixed` descendant — nesting the sheet would trap
+          it inside the dock's box instead of overlaying the screen. `conversation-controls` keeps the container the AI-economy
+          tests address the suggestion buttons through. */}
+      <BottomSheet isOpen={isHintRevealed} onClose={onHideHint} title="اقتراح لردّك">
+        <div data-testid="conversation-controls">
+          {visibleHints.length > 0 ? (
+            <div className="space-y-1.5">
+              <HintOption
+                hint={visibleHints[0]}
+                onUse={() => {
+                  onHideHint();
+                  onUseHint(visibleHints[0]);
+                }}
+                primary
+              />
+              {visibleHints.length > 1 && (
+                <>
+                  <button
+                    onClick={onToggleHintExpanded}
+                    className="kz-ar-micro flex min-h-touch w-full items-center justify-between rounded-xl kz-chip border border-white/10 bg-white/5 px-3 py-2 font-semibold text-kz-inkDim transition-colors pointer-hover:text-primary"
+                  >
+                    <span>
+                      {isHintExpanded
+                        ? 'إخفاء الخيارات الأخرى'
+                        : `خيارات أخرى في هذا الموقف (${visibleHints.length - 1})`}
+                    </span>
+                    {isHintExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </button>
+                  {isHintExpanded &&
+                    visibleHints.slice(1, 4).map((hint, hIdx) => (
+                      <HintOption
+                        key={hIdx}
+                        hint={hint}
+                        onUse={() => {
+                          onHideHint();
+                          onUseHint(hint);
+                        }}
+                      />
+                    ))}
+                </>
+              )}
+            </div>
+          ) : (
+            <p className="kz-ar-micro text-kz-inkFaint">لا توجد اقتراحات لهذه اللحظة.</p>
+          )}
+
+          {hintQuotaSpent && (
+            <p className="kz-ar-micro mt-3 text-kz-inkFaint" role="status">
+              استهلكت اقتراحات اليوم. هذه عبارات من الموقف نفسه، وتتجدد غداً.
+            </p>
+          )}
+
+          {/* The words of the offered reply, so a learner who is not ready to send
+              the canned sentence can build their own from the same chips. */}
+          {isHintRevealed && hintBank.length > 0 && (
+            <div data-testid="word-bank" dir="ltr" className="mt-3">
+              <span className="kz-ar-micro mb-1 block text-kz-inkFaint">
+                هذه كلمات الجملة بالترتيب — اضغط لتبني جملتك بنفسك
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {hintBank.map((word, wordIndex) => (
+                  <button
+                    key={`${word}-${wordIndex}`}
+                    type="button"
+                    onClick={() => onPickHintWord(word)}
+                    className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors pointer-hover:border-primary/50"
+                  >
+                    {word}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <button
+              onClick={onRefreshHints}
+              disabled={hintQuotaSpent}
+              className="kz-ar-micro flex min-h-touch items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 text-kz-inkDim transition-colors pointer-hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingHints ? 'kz-animated animate-spin' : ''}`} />
+              تحديث الاقتراحات
+            </button>
+            <button
+              onClick={onHideHint}
+              aria-label="إخفاء الاقتراح"
+              className="flex min-h-touch min-w-touch items-center justify-center rounded-full text-kz-inkDim transition-colors pointer-hover:text-kz-ink"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
+    </>
   );
 };

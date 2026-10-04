@@ -329,11 +329,22 @@ export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureRe
 
   const startRecorder = useCallback(async (): Promise<VoiceCaptureFailure | null> => {
     if (!canRecord()) return 'unsupported';
+    // Say that the microphone is being opened BEFORE awaiting it. A device that
+    // never answers `getUserMedia` (an embedded browser with no capture device)
+    // then shows "opening the microphone" instead of an idle orb that looks dead —
+    // the state the owner reported as the microphone simply not working.
+    setMode('recorder');
     const micFailure = await startMic();
-    if (micFailure) return micFailure;
+    if (micFailure) {
+      setMode(null);
+      return micFailure;
+    }
 
     const stream = getStream();
-    if (!stream) return 'failed';
+    if (!stream) {
+      setMode(null);
+      return 'failed';
+    }
 
     try {
       const mimeType = pickAudioMime((type) => MediaRecorder.isTypeSupported(type));
@@ -422,6 +433,33 @@ export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureRe
     }
   }, [finish, getStream, readMic, releaseMic, startMic, transcribe]);
 
+  /**
+   * The platform recogniser proved it cannot do the job on this device — the
+   * learner already gave us the tap, so the recorder answers THIS attempt rather
+   * than making them tap, wait out another watchdog and tap again.
+   *
+   * This is the fix for the owner's report that "the microphone does not work".
+   * An engine that exists but never speaks (Electron's `webkitSpeechRecognition`,
+   * some Android and Edge builds) fires no `onstart`, no result and no error, so
+   * the old flow waited the full start watchdog, showed the learner a "we heard
+   * nothing clear" line that blamed them, and only switched engines after a third
+   * tap. Now the first silent attempt hands straight over to the recorder: the
+   * learner keeps the same tap and the same listening state.
+   */
+  const handOffToRecorder = useCallback(async (): Promise<void> => {
+    spendFallback();
+    // The budget is gone: the engine has failed this session's allowance, so the
+    // next tap will record from the start. Nothing to hand over to this time.
+    if (nativeRetiredRef.current) {
+      optionsRef.current.onFailure('empty', UNUSABLE_TRANSCRIPT_MESSAGE_AR);
+      return;
+    }
+    const failure = await startRecorder();
+    if (failure) {
+      optionsRef.current.onFailure(failure, voiceStartFailureMessageAr(failure));
+    }
+  }, [spendFallback, startRecorder]);
+
   const startNative = useCallback((): VoiceCaptureFailure | null => {
     const session = startNativeRecognition({
       onStart: () => {
@@ -453,16 +491,20 @@ export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureRe
         closeNative();
         // The engine closed without a final result. That is the case the phone
         // reported, and it is the reason the recorder pipeline is still here: the
-        // next attempt uses it.
-        spendFallback();
-        optionsRef.current.onFailure('empty', UNUSABLE_TRANSCRIPT_MESSAGE_AR);
+        // SAME attempt hands over to it, so one tap is a recording, not a shrug.
+        void handOffToRecorder();
       },
       onError: (code) => {
         const verdict = classifyRecognitionError(code, {
           requestedStop: nativeAskedStopRef.current,
         });
         closeNative();
-        if (verdict.fallback) spendFallback();
+        // A refusal (`not-allowed`, `audio-capture`) fails identically in the
+        // recorder, so it is told to the learner instead of retried.
+        if (verdict.fallback) {
+          void handOffToRecorder();
+          return;
+        }
         if (verdict.failure) {
           optionsRef.current.onFailure(verdict.failure, voiceStartFailureMessageAr(verdict.failure));
         }
@@ -501,12 +543,18 @@ export function useVoiceCapture(options: VoiceCaptureOptions): UseVoiceCaptureRe
       const heard = nativeHeardRef.current;
       closeNative();
       open.abort();
-      spendFallback();
-      if (heard) optionsRef.current.onTranscript(heard);
-      else optionsRef.current.onFailure('empty', UNUSABLE_TRANSCRIPT_MESSAGE_AR);
+      // Words on screen are the learner's sentence, so they are kept. An engine
+      // that said nothing at all is a broken engine, not a silent learner: the
+      // recorder answers this same tap rather than blaming them.
+      if (heard) {
+        spendFallback();
+        optionsRef.current.onTranscript(heard);
+      } else {
+        void handOffToRecorder();
+      }
     }, 500);
     return null;
-  }, [closeNative, spendFallback]);
+  }, [closeNative, handOffToRecorder, spendFallback]);
 
   const start = useCallback(async (): Promise<VoiceCaptureFailure | null> => {
     if (recorderRef.current || nativeRef.current) {

@@ -618,6 +618,139 @@
   unicode-bidi: isolate;
   text-align: start;
   font-family: 'Satoshi', sans-serif;
+}
+
+/* ------------------------------------------------------------------ *
+ * Live conversation (V40)
+ * ------------------------------------------------------------------ */
+
+/* The German sentence in a transcript bubble: 17px, the size a spoken line is
+   read at — tighter than the Arabic body step it previously inherited. */
+.kz-de-message {
+  font-family: 'Satoshi', sans-serif;
+  font-size: 1.0625rem; /* 17px */
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* The chat's single light: a soft lavender radial from the top centre, so the
+   screen reads as one lit surface rather than a black rectangle. */
+.kz-conversation-bg {
+  background-image: radial-gradient(
+    120% 60% at 50% 0%,
+    rgb(var(--kz-lavender) / 0.08),
+    transparent 62%
+  );
+}
+
+/* The Arabic under a German sentence: collapsed to zero height and grown on
+   demand. Animating grid-template-rows (0fr → 1fr) moves the height with no
+   hardcoded pixel target, which is what keeps the bubble from jumping. */
+.kz-translation {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--kz-dur-fast) var(--kz-ease-out),
+    opacity var(--kz-dur-fast) var(--kz-ease-out);
+}
+.kz-translation[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.kz-translation > * {
+  min-height: 0;
+}
+
+/* A new message enters: fade + an 8px rise, once, on mount. */
+@keyframes kz-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.kz-message-in {
+  animation: kz-message-in var(--kz-dur-fast) var(--kz-ease-out) both;
+}
+
+/* Katzu is composing a reply: three dots, no separate spinner card. */
+@keyframes kz-typing-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+.kz-typing-dot {
+  animation: kz-typing-dot 1.2s ease-in-out infinite;
+}
+.kz-typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.kz-typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* The microphone orb, at rest: a slow breath, so the control reads as alive
+   without asking for attention. */
+@keyframes kz-orb-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+.kz-orb-glow {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgb(var(--kz-lavender) / 0.4) 0%,
+    rgb(var(--kz-lavender) / 0) 68%
+  );
+  animation: kz-orb-breathe 3s ease-in-out infinite;
+}
+
+/* While Katzu works, the orb wears a thin rotating ring: recognising, evaluating
+   or replying, the control says "busy" instead of looking like a dead button. */
+@keyframes kz-orb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.kz-orb-ring {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgb(var(--kz-lavender) / 0.6) 140deg,
+    rgb(var(--kz-magenta) / 0.4) 220deg,
+    transparent 320deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  animation: kz-orb-spin 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kz-message-in,
+  .kz-typing-dot,
+  .kz-orb-glow,
+  .kz-orb-ring {
+    animation: none;
+  }
+  .kz-translation {
+    transition: none;
+  }
 }  /* Reduced motion: continuous/animated decoration stops, state changes stay
      instant-but-visible, and nothing loses its function. */
   @media (prefers-reduced-motion: reduce) {

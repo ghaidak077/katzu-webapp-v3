@@ -88,3 +88,29 @@ test('the orb is driven by a real microphone stream, not a fake amplitude', asyn
   await orb(page).click();
   await expect(orb(page)).toHaveAttribute('aria-label', 'إيقاف التسجيل');
 });
+
+/**
+ * The microphone the owner reported as "not working".
+ *
+ * A recogniser that exists but never answers (Electron, some Android and Edge
+ * builds) used to cost three taps: the app waited out the start watchdog, told the
+ * learner it "heard nothing clear" — blaming them for a dead engine — and only
+ * reached the recorder after two more attempts. The one tap now hands straight over
+ * to the recorder, so the learner ends up listening instead of being told they said
+ * nothing.
+ */
+test('a platform recogniser that never answers hands the same tap to the recorder', async ({ page }) => {
+  await bootSignedIn(page, { zombieNative: true });
+  await page.goto('/scenario/cafe_order/live');
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
+
+  await expect(orb(page)).toHaveAttribute('aria-label', 'ابدأ التحدث');
+  await orb(page).click();
+
+  // The zombie engine fires nothing, so the watchdog abandons it and THIS tap opens
+  // the recorder. Long enough for the 3 s watchdog plus the recorder's own start.
+  await expect(page.getByRole('button', { name: 'إيقاف التسجيل' })).toBeVisible({ timeout: 8000 });
+  // And the learner is never told they spoke unclearly by an engine that was never
+  // listening: the blaming message must not appear.
+  await expect(page.getByText(/لم نسمع جملة واضحة/)).toHaveCount(0);
+});

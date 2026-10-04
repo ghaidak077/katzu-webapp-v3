@@ -219,7 +219,8 @@ test('Live Interaction runs a turn with the orb and keeps the typed path open', 
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   // Turn one of three at A1 — pacing comes from the tested rule, not the screen.
-  await expect(page.getByText(/الجولة 1 من 4/)).toBeVisible();
+  // The round now reads as a segmented progress bar instead of a text line.
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
 
   // The orb is the microphone control, and says which state it is in.
   await expect(orb(page)).toHaveAttribute('aria-label', 'ابدأ التحدث');
@@ -231,14 +232,14 @@ test('Live Interaction runs a turn with the orb and keeps the typed path open', 
   // the worker recognises it, and the sentence lands in the LTR input.
   await say(page, 'Guten Tag, ich möchte einen Kaffee bitte');
   await silence(page);
-  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+  const input = page.getByPlaceholder(/Schreib deinen Satz/);
   await expect(input).toHaveValue('Guten Tag, ich möchte einen Kaffee bitte');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
 
   // In flight the orb says what it is doing rather than showing a spinner.
   await expect(page.getByRole('button', { name: 'كَاتْزُو يعمل على ردّك' })).toBeVisible();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
-  await expect(page.getByText(/الجولة 2 من 4/)).toBeVisible();
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 2 من 4/);
 
   // The opening plus the first learner turn and reply stay mounted on the live screen.
   const messages = page.locator('article[aria-label="رسالة من كَاتْزُو"], article[aria-label="رسالتك"]');
@@ -247,8 +248,9 @@ test('Live Interaction runs a turn with the orb and keeps the typed path open', 
     await expect(message).toHaveAttribute('aria-label', /رسالة من كَاتْزُو|رسالتك/);
   }
 
-  // The typed path is always one tap away, never behind a failure.
-  await page.getByRole('button', { name: 'اكتب بدلاً من التحدث' }).click();
+  // The sentence field is always on screen, so the typed path is never behind a
+  // failure; one tap focuses it.
+  await input.click();
   await expect(input).toBeFocused();
 });
 
@@ -282,7 +284,7 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
   ];
 
   for (const reply of replies) {
-    const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+    const input = page.getByPlaceholder(/Schreib deinen Satz/);
     await input.fill('Ich möchte einen Kaffee bitte');
     await page.getByRole('button', { name: 'أرسل جملتك' }).click();
     // Each turn's own reply is the completion signal; the state machine refuses a
@@ -328,7 +330,7 @@ test('the learner sees their own German while they are still speaking', async ({
 
   // The final result still lands in the composer, and the caption goes away with
   // the session that produced it.
-  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+  const input = page.getByPlaceholder(/Schreib deinen Satz/);
   await expect(input).toHaveValue('Guten Tag, ich möchte einen Kaffee bitte');
   await expect(caption).toHaveCount(0);
 });
@@ -352,7 +354,7 @@ test('a browser without a platform recogniser still speaks through the worker', 
   await say(page, 'Guten Tag, ich möchte einen Kaffee bitte');
   await silence(page);
 
-  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+  const input = page.getByPlaceholder(/Schreib deinen Satz/);
   await expect(input).toHaveValue('Guten Tag, ich möchte einen Kaffee bitte');
   // No native engine, so no live caption is possible — and none is claimed.
   await expect(page.getByTestId('live-caption')).toHaveCount(0);
@@ -370,7 +372,7 @@ test('a denied microphone is stated in Arabic and never closes the typed path', 
   await expect(page.getByText(/لم يُسمح بالوصول للمايك/)).toBeVisible();
 
   // The escape hatch still works: the learner types and the turn goes through.
-  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+  const input = page.getByPlaceholder(/Schreib deinen Satz/);
   await input.fill('Guten Tag');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();

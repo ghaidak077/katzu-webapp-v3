@@ -452,13 +452,18 @@ export async function seedSignedInUser(page: Page, overrides: Record<string, unk
  */
 export async function installVoiceStub(
   page: Page,
-  { native = true, interimHoldMs = 250, deny = false }: { native?: boolean; interimHoldMs?: number; deny?: boolean } = {},
+  {
+    native = true,
+    interimHoldMs = 250,
+    deny = false,
+    zombie = false,
+  }: { native?: boolean; interimHoldMs?: number; deny?: boolean; zombie?: boolean } = {},
 ): Promise<void> {
   await page.addInitScript(
     // Constants that `speak()` needs are passed in, not read from this module:
     // `page.evaluate` serialises the function and runs it in the page, where
     // module scope does not exist.
-    ({ installNative, holdMs, denyPermission, audibleRms, speechHoldMs, speechCeilingMs, interimGraceMs }) => {
+    ({ installNative, holdMs, denyPermission, zombieNative, audibleRms, speechHoldMs, speechCeilingMs, interimGraceMs }) => {
     type Scope = Record<string, unknown>;
     const scope = window as unknown as Scope;
     const bridge = (scope.__katzuE2E as Record<string, unknown>) || {};
@@ -490,6 +495,15 @@ export async function installVoiceStub(
       onerror: ((event: { error: string }) => void) | null = null;
       onend: (() => void) | null = null;
       private closed = false;
+      /**
+       * The engine that exists and never answers.
+       *
+       * Desktop Edge, some Android builds and every embedded Chromium (Electron)
+       * expose `webkitSpeechRecognition` and then fire no `onstart`, no result and
+       * no error when it is started. That is the exact engine the owner's "the
+       * microphone does not work" report describes, so the suite can build one.
+       */
+      private zombie = zombieNative;
 
       /** The shape the real API sends: cumulative results, `resultIndex` at the change. */
       private static event(items: Array<{ transcript: string; isFinal: boolean }>, resultIndex: number) {
@@ -499,6 +513,8 @@ export async function installVoiceStub(
       start() {
         listening = this;
         this.closed = false;
+        // Silent engine: consume the call and answer nothing at all, ever.
+        if (this.zombie) return;
         if (denyPermission) {
           // A refused microphone, as the platform recogniser reports it.
           setTimeout(() => {
@@ -557,6 +573,11 @@ export async function installVoiceStub(
       }
 
       stop() {
+        if (this.zombie) {
+          this.closed = true;
+          if (listening === this) listening = null;
+          return;
+        }
         // A learner tapping stop: whatever was said is finalised, nothing is invented.
         const text = queued.shift();
         this.closed = true;
@@ -567,6 +588,11 @@ export async function installVoiceStub(
 
       abort() {
         this.closed = true;
+        // A silent engine ignores the abort too, exactly as the real ones do.
+        if (this.zombie) {
+          if (listening === this) listening = null;
+          return;
+        }
         this.onend?.();
         if (listening === this) listening = null;
       }
@@ -726,6 +752,7 @@ export async function installVoiceStub(
       installNative: native,
       holdMs: interimHoldMs,
       denyPermission: deny,
+      zombieNative: zombie,
       audibleRms: AUDIBLE_RMS,
       speechHoldMs: SPEECH_HOLD_MS,
       speechCeilingMs: SPEECH_CEILING_MS,
@@ -782,6 +809,11 @@ export interface BootOptions extends MockOptions {
    * looks: the app must then record and recognise on the worker instead.
    */
   nativeSpeech?: boolean;
+  /**
+   * `true` installs a recogniser that exists but never answers (Electron, some
+   * Android/Edge builds), so the hand-off to the recorder is exercised.
+   */
+  zombieNative?: boolean;
 }
 
 /**
@@ -850,6 +882,7 @@ export async function bootSignedIn(page: Page, options: BootOptions = {}): Promi
       native: options.nativeSpeech !== false,
       interimHoldMs: options.interimHoldMs,
       deny: options.denyMicrophone === true,
+      zombie: options.zombieNative === true,
     });
   }
 

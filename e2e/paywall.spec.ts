@@ -39,12 +39,13 @@ test('an A2 learner is not gated before their first episode', async ({ page }) =
   // send the learner into a wall on their own first turn.
   await page.goto(`/scenario/${scenarioId}/live`);
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
-  await expect(page.getByText(/الجولة 1 من 4 · A1/)).toBeVisible();
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
+  await expect(page.getByTestId('level-chip')).toHaveText('A1');
 
   // The whole point of the rule: the first episode *completes*. The mock refuses
   // any level but A1 for this account exactly as the Worker does, so a reply
   // here is proof the turn was sent at a level the trial serves.
-  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+  const input = page.getByPlaceholder(/Schreib deinen Satz/);
   await input.fill('Guten Tag');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
@@ -74,9 +75,10 @@ test('a Pro learner runs the episode at their own measured level', async ({ page
 
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
-  await expect(page.getByText(/الجولة 1 من 6 · A2/)).toBeVisible();
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 6/);
+  await expect(page.getByTestId('level-chip')).toHaveText('A2');
 
-  const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+  const input = page.getByPlaceholder(/Schreib deinen Satz/);
   await input.fill('Guten Tag');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
@@ -96,7 +98,7 @@ test('the Pro offer appears on the Debrief, after the episode is finished', asyn
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   for (const reply of ['Guten Tag! Möchten Sie einen Kaffee?', 'Gerne, einen Kaffee.', 'Sehr gern. Möchten Sie noch etwas?', 'Perfekt, bis bald!']) {
-    const input = page.getByPlaceholder(/اكتب جملتك بالألمانية|أنا أستمع إليك/);
+    const input = page.getByPlaceholder(/Schreib deinen Satz/);
     await input.fill('Ich möchte einen Kaffee bitte');
     await page.getByRole('button', { name: 'أرسل جملتك' }).click();
     await expect(page.getByText(reply)).toBeVisible();
