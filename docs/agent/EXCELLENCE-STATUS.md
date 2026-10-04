@@ -97,3 +97,22 @@ Verification on the final artifact: `tsc` 0; `tsc -p e2e` 0; **115 files / 1432 
 `tests/workerClient.test.ts`. Still **uncommitted and not deployed** (no `DEPLOY-AUTHORIZED:` line).
 Still unproven: full route-state matrix, real OAuth/payment/device/screen-reader/200 % zoom, and the
 batch 5 remainder / batch 6 journey resilience.
+
+## Deploy record — 2026-10-04 (`DEPLOY-AUTHORIZED: merge, worker, pages`)
+
+- **merge:** `main` pushed `1a72827..633319b` (no force). Pages builds from git on push.
+- **worker:** `npm run deploy:worker` → `katzu-test`, version
+  **`66e1c99d-b8aa-4f93-ba05-2a8b60270c88`** (was `aafcf3bf-8307-4e20-bca6-240a075c8dd3`).
+  Verified: `/health` = `{status,service,ready,maintenance}` only; `/crypto/health` unchanged
+  (`ready:false`); unauth `/admin/api/overview` and `/admin/schema` → **401**.
+- **pages:** deployment **`4cf0d3a7-8e66-4eb4-b056-dcbb05a38631`** (source `633319b`, Production).
+  Verified: `https://katzu-webapp-v3.pages.dev/` → 200, serving `assets/index-Cipqt6LI.js` (was
+  `index-CfZ6VaJV.js`), `sw.js` → 200; `/demo` loads with **no account and no `/ai/` call**, the
+  service worker registers and controls, and all content fetches (`/scenarios`, `/vocabulary`,
+  `/grammar`) return 200 with zero console errors.
+- **Rollback:** worker `npx wrangler rollback aafcf3bf-8307-4e20-bca6-240a075c8dd3`; Pages previous
+  production deployment `d97e280e-bd66-4669-a27b-0a5c3beb6365` (source `1a72827`).
+- **Substitution, recorded honestly:** the public-demo smoke loaded the production `/demo` and
+  confirmed no account + no AI call on load, service-worker registration and clean network — it did
+  **not** submit a live demo turn, to avoid spending the production AI key. The demo e2e spec could
+  not be run as-is against the remote origin because its harness mocks all non-localhost traffic.
