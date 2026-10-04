@@ -99,7 +99,7 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
       {showHelp && visibleHints.length > 0 && !isHintRevealed && (
         <button
           onClick={onRevealHint}
-          className="kz-ar-micro mb-2 flex items-center gap-1.5 rounded-full border border-primary/30 bg-white/5 px-3 py-1.5 font-semibold text-primary transition-colors hover:border-primary/60"
+          className="kz-ar-micro mb-2 flex items-center gap-1.5 rounded-full border border-primary/30 bg-white/5 px-3 py-1.5 font-semibold text-primary transition-colors pointer-hover:border-primary/60"
         >
           <Lightbulb className="h-3.5 w-3.5" />
           اقتراح لردّك
@@ -114,7 +114,7 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
               <>
                 <button
                   onClick={onToggleHintExpanded}
-                  className="kz-ar-micro flex w-full items-center justify-between rounded-xl kz-chip border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-kz-inkDim transition-colors hover:text-primary"
+                  className="kz-ar-micro flex w-full items-center justify-between rounded-xl kz-chip border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-kz-inkDim transition-colors pointer-hover:text-primary"
                 >
                   <span>
                     {isHintExpanded
@@ -135,14 +135,14 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
             aria-label="تحديث الاقتراحات"
             disabled={hintQuotaSpent}
             title={hintQuotaSpent ? 'استهلكت اقتراحات اليوم — جرّب غداً' : undefined}
-            className="shrink-0 rounded-xl kz-chip border border-white/10 bg-white/5 p-2 text-kz-inkDim transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-kz-inkDim"
+            className="shrink-0 rounded-xl kz-chip border border-white/10 bg-white/5 p-2 text-kz-inkDim transition-colors pointer-hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:pointer-hover:text-kz-inkDim"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingHints ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={onHideHint}
             aria-label="إخفاء الاقتراح"
-            className="shrink-0 rounded-xl p-2 text-kz-inkDim transition-colors hover:text-kz-ink"
+            className="shrink-0 rounded-xl p-2 text-kz-inkDim transition-colors pointer-hover:text-kz-ink"
           >
             ✕
           </button>
@@ -178,7 +178,7 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
                 key={`${word}-${wordIndex}`}
                 type="button"
                 onClick={() => onPickHintWord(word)}
-                className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors hover:border-primary/50"
+                className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors pointer-hover:border-primary/50"
               >
                 {word}
               </button>
@@ -195,7 +195,7 @@ export const ConversationControls: React.FC<ConversationControlsProps> = ({
           <button
             onClick={onDismissError}
             aria-label="إخفاء"
-            className="min-h-[32px] min-w-[32px] text-kz-inkFaint hover:text-kz-ink"
+            className="min-h-[32px] min-w-[32px] text-kz-inkFaint pointer-hover:text-kz-ink"
           >
             ✕
           </button>
@@ -297,7 +297,7 @@ export const ConversationComposer: React.FC<ConversationComposerProps> = ({
         <button
           onClick={onTypeInstead}
           aria-label="اكتب بدلاً من التحدث"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 text-kz-inkDim transition-colors hover:text-kz-ink"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 text-kz-inkDim transition-colors pointer-hover:text-kz-ink"
         >
           <Keyboard className="h-4 w-4" />
         </button>

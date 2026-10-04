@@ -115,7 +115,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                       // legible whether or not the highlight is on.
                       isSpoken ? 'bg-kz-lavender/25 text-kz-ink shadow-[0_0_0_3px_rgba(180,160,255,0.12)]' : '',
                       !isSpoken && isKnown
-                        ? 'cursor-pointer underline decoration-dotted decoration-1 underline-offset-[3px] hover:bg-white/10'
+                        ? 'cursor-pointer underline decoration-dotted decoration-1 underline-offset-[3px] pointer-hover:bg-white/10'
                         : '',
                     ]
                       .filter(Boolean)
@@ -134,7 +134,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 type="button"
                 onClick={() => onSpeak(message)}
                 aria-label="اسمع الجملة بالألمانية"
-                className="flex h-11 w-11 items-center justify-center rounded-full text-kz-lavender transition-colors hover:bg-white/10"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-kz-lavender transition-colors pointer-hover:bg-white/10"
               >
                 <Volume2 className="h-4 w-4" />
               </button>
@@ -145,7 +145,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                     type="button"
                     onClick={() => onToggleTranslation(message.id)}
                     aria-label={isTranslationVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}
-                    className="kz-ar-micro flex min-h-[44px] items-center gap-1 rounded-full px-2 py-1 text-kz-inkFaint transition-colors hover:text-kz-ink"
+                    className="kz-ar-micro flex min-h-[44px] items-center gap-1 rounded-full px-2 py-1 text-kz-inkFaint transition-colors pointer-hover:text-kz-ink"
                   >
                     <Languages className="h-3.5 w-3.5" />
                     {isTranslationVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}
@@ -159,7 +159,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                   <button
                     type="button"
                     onClick={() => onRetryTranslation(message.id, message.germanText)}
-                    className="kz-ar-micro flex items-center gap-1 text-status-learning transition-colors hover:text-status-learning/80"
+                    className="kz-ar-micro flex items-center gap-1 text-status-learning transition-colors pointer-hover:text-status-learning/80"
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
                     تعذرت الترجمة — أعد المحاولة

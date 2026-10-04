@@ -88,7 +88,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => track('purchase_clicked', { source: `paywall_plan_${p.id}` })}
-                className={`relative flex flex-col items-center gap-0.5 p-2 rounded-xl bg-surface-subtle border transition-colors border-border-subtle hover:border-primary/50 ${p.recommended ? 'border-primary' : ''}`}
+                className={`relative flex flex-col items-center gap-0.5 p-2 rounded-xl bg-surface-subtle border transition-colors border-border-subtle pointer-hover:border-primary/50 ${p.recommended ? 'border-primary' : ''}`}
               >
                 {p.recommended && (
                   <span className="absolute -top-2 right-2 px-1.5 py-0.5 rounded-full bg-fill text-on-fill text-micro font-bold font-arabic" dir="rtl">
@@ -168,7 +168,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-3 text-xs font-semibold font-arabic text-text-muted hover:text-text-secondary min-h-[44px]"
+            className="w-full py-3 text-xs font-semibold font-arabic text-text-muted pointer-hover:text-text-secondary min-h-[44px]"
           >
             ليس الآن — تابع بالمجاني
           </button>
@@ -183,7 +183,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
               href={legalPageUrl('privacy')}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center min-h-[44px] px-2 underline underline-offset-2 hover:text-text-secondary"
+              className="inline-flex items-center min-h-[44px] px-2 underline underline-offset-2 pointer-hover:text-text-secondary"
             >
               سياسة الخصوصية
             </a>
@@ -192,7 +192,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
               href={legalPageUrl('terms')}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center min-h-[44px] px-2 underline underline-offset-2 hover:text-text-secondary"
+              className="inline-flex items-center min-h-[44px] px-2 underline underline-offset-2 pointer-hover:text-text-secondary"
             >
               شروط الاستخدام
             </a>

@@ -356,7 +356,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             className={`min-h-touch py-2 rounded-xl text-xs font-bold transition-colors duration-fast ease-out ${
               mode === 'signin'
                 ? 'bg-fill text-on-fill shadow-glow-purple'
-                : 'text-text-secondary hover:text-text-primary'
+                : 'text-text-secondary pointer-hover:text-text-primary'
             }`}
           >
             تسجيل الدخول
@@ -372,7 +372,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             className={`min-h-touch py-2 rounded-xl text-xs font-bold transition-colors duration-fast ease-out ${
               mode === 'signup'
                 ? 'bg-fill text-on-fill shadow-glow-purple'
-                : 'text-text-secondary hover:text-text-primary'
+                : 'text-text-secondary pointer-hover:text-text-primary'
             }`}
           >
             إنشاء حساب جديد
@@ -434,7 +434,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
                 className={`min-h-touch min-w-touch py-2 rounded-xl text-xs font-bold border transition-colors duration-fast ease-out ${
                   selectedLevel === lvl
                     ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
-                    : 'bg-surface-card border-border-subtle text-text-secondary hover:text-text-primary'
+                    : 'bg-surface-card border-border-subtle text-text-secondary pointer-hover:text-text-primary'
                 }`}
               >
                 {lvl}

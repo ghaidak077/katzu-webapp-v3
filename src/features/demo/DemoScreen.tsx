@@ -381,7 +381,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
             <button
               type="button"
               onClick={() => dispatch({ type: 'skip_production' })}
-              className="w-full py-2 text-xs font-arabic text-text-muted hover:text-text-secondary min-h-[44px]"
+              className="w-full py-2 text-xs font-arabic text-text-muted pointer-hover:text-text-secondary min-h-[44px]"
             >
               تخطّي هذه الخطوة
             </button>
@@ -447,7 +447,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
               <button
                 type="button"
                 onClick={onHome}
-                className="w-full py-2 text-xs font-arabic text-text-muted hover:text-text-secondary min-h-[44px]"
+                className="w-full py-2 text-xs font-arabic text-text-muted pointer-hover:text-text-secondary min-h-[44px]"
               >
                 العودة إلى الصفحة الرئيسية
               </button>

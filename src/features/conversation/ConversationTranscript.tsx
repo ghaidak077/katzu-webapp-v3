@@ -116,7 +116,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
           <p className="kz-ar-micro text-kz-inkDim">{turnError.message}</p>
           <button
             onClick={onRetryFailedTurn}
-            className="kz-ar-micro flex items-center gap-1.5 rounded-xl border border-primary/50 bg-primary/20 px-3 py-1.5 font-bold text-primary transition-colors hover:bg-primary/30"
+            className="kz-ar-micro flex items-center gap-1.5 rounded-xl border border-primary/50 bg-primary/20 px-3 py-1.5 font-bold text-primary transition-colors pointer-hover:bg-primary/30"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             إعادة المحاولة

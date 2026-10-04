@@ -249,7 +249,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                   <button
                     type="button"
                     onClick={() => speakSlow(current.german)}
-                    className="text-micro font-arabic text-text-secondary hover:text-primary transition-colors"
+                    className="text-micro font-arabic text-text-secondary pointer-hover:text-primary transition-colors"
                   >
                     تشغيل بطيء 0.8x
                   </button>
@@ -257,7 +257,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                   <button
                     type="button"
                     onClick={() => speak(current.german)}
-                    className="text-micro font-arabic text-text-secondary hover:text-primary transition-colors"
+                    className="text-micro font-arabic text-text-secondary pointer-hover:text-primary transition-colors"
                   >
                     إعادة
                   </button>
@@ -276,7 +276,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                         setPeekVisible(true);
                         setTimeout(() => setPeekVisible(false), PEEK_MS);
                       }}
-                      className="text-micro font-arabic text-primary hover:underline"
+                      className="text-micro font-arabic text-primary pointer-hover:underline"
                     >
                       اعرضها مرة أخرى
                     </button>
@@ -302,7 +302,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                           track('word_bank_tapped', { skill: 'listening' });
                           setTyped((prev) => (prev ? `${prev} ${word}` : word));
                         }}
-                        className="rounded-xl border border-border-subtle bg-surface-subtle px-2.5 py-1 font-german text-sm text-text-primary transition-colors hover:border-primary/50"
+                        className="rounded-xl border border-border-subtle bg-surface-subtle px-2.5 py-1 font-german text-sm text-text-primary transition-colors pointer-hover:border-primary/50"
                       >
                         {word}
                       </button>
@@ -377,7 +377,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
 
       <button
         onClick={onBack}
-        className="w-full text-center text-xs font-arabic text-text-muted hover:text-text-primary transition-colors py-2"
+        className="w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
       >
         <RotateCcw className="w-3 h-3 inline me-1" />
         إنهاء التدريب والعودة

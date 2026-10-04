@@ -49,7 +49,8 @@
  * cool one without a second style.
  *
  *   --kz-scene-rgb     set by SceneBackdrop per location; bleeds into any glass
- *   --kz-spec-x / -y   pointer/scroll-driven highlight position
+ *   --kz-spec-x / -y   the fixed direction the material is lit from
+ *   --kz-radius-*      the one corner-radius ladder (read by Tailwind)
  *   --kz-glass-*       tier values (see [data-tier])
  */
 :root {
@@ -133,8 +134,27 @@
   --kz-glass-tint-alpha: 0.03;
   --kz-glass-edge: 0.09;
   --kz-glass-elev: 1;
-  --kz-glass-radius: 28px;
+  --kz-glass-radius: var(--kz-radius-sheet);
 
+  /* The corner ladder. Declared here so CSS and Tailwind read one truth
+     (tailwind.config.js references these, it never copies them), and so a
+     surface's radius and a control's radius cannot drift apart.
+     The order is concentric: a child inset inside a parent keeps the parent's
+     curve, which is the same inner-radius rule the glass pill follows. */
+  --kz-radius-tag: 8px;
+  --kz-radius-chip: 12px;
+  --kz-radius-control: 20px;
+  --kz-radius-panel: 24px;
+  --kz-radius-sheet: 28px;
+  --kz-radius-hero: 34px;
+
+  /* V34: where the material is lit from — a fixed direction, up and to the
+     left, exactly as a real pane of glass would be. It used to be written by
+     `useSpecularHighlight`, which followed the pointer and the scroll
+     position; measured on the production bundle, 200 pointer moves over
+     Journey Home cost 969 ms of style recalculation, and an idle screen still
+     burned 100 ms of it in five seconds. A phone has no pointer to follow, so
+     the whole cost bought nothing. The surface keeps its edge light. */
   --kz-spec-x: 28%;
   --kz-spec-y: -18%;
   --kz-spec-strength: 0.09;
@@ -185,11 +205,15 @@
 
   /* One focus treatment for the whole app. Visible on every surface tier,
      including the translucent ones, and never removed — only restyled for
-     users who navigate without a pointer. */
+     users who navigate without a pointer.
+
+     V34: the `border-radius: 4px` that used to sit here is gone. An outline
+     already follows the element's own corner radius, so that line was not
+     rounding the ring — it was overriding it, drawing a square ring around
+     every rounded control in the app. */
   :focus-visible {
     outline: 2px solid rgb(var(--kz-lavender));
     outline-offset: 2px;
-    border-radius: 4px;
   }
 
   /* Arabic display weight: Cairo is variable (100–900), so headings can be
@@ -249,6 +273,27 @@
     font-weight: 500;
     line-height: 1.6;
     letter-spacing: 0.01em;
+  }
+
+  /* Apple sizes type by size: small text takes a little positive tracking to
+     stay legible, large text takes negative tracking so it reads as one shape.
+     That is applied to the Latin scale only — Arabic is a cursive script, and
+     letter-spacing pulls joined letters apart, so the Arabic steps above never
+     take a positive value. */
+  .kz-de-caption {
+    font-family: 'Satoshi', sans-serif;
+    font-size: var(--kz-de-caption);
+    font-weight: 500;
+    line-height: 1.6;
+    letter-spacing: 0.015em;
+  }
+
+  .kz-de-display {
+    letter-spacing: -0.015em;
+  }
+
+  .kz-de-title {
+    letter-spacing: -0.01em;
   }
 }
 
@@ -447,10 +492,13 @@
     );
   }
 
-  /* One primary action: a soft lavender light, not a filled neon slab. */
+  /* One primary action: a soft lavender light, not a filled neon slab.
+     Its radius is the `control` step of the ladder — it used to be a private
+     22px, two pixels off the secondary button beside it, which is exactly the
+     kind of drift a named scale exists to prevent. */
   .kz-primary {
     position: relative;
-    border-radius: 22px;
+    border-radius: var(--kz-radius-control);
     color: rgb(var(--kz-ink));
     background-image: linear-gradient(
       168deg,
@@ -479,12 +527,49 @@
     color: rgb(var(--kz-magenta));
   }
 
-  /* V19: the specular highlight is gone. Phase 0 measured it as continuous
-     pointer-following motion on every surface hover, and the mission keeps only
-     motion that carries meaning (the orb, a new message). The surface keeps its
-     static top edge light — that is the glass look, and it costs nothing. */
-  .kz-specular {
-    display: none;
+  /* V34: the specular layer is gone for good. `GlassSurface` used to render one
+     per surface and `useSpecularHighlight` drove it from the pointer and the
+     scroll position; both are deleted, so this class has no remaining users.
+     The static edge light in `.kz-surface` is the whole glass look and it costs
+     nothing. */
+
+  /* V34: the two accessibility switches the glass material has to answer to.
+     Both keep every colour, contrast ratio and edge in place and change only
+     what is composited — the same promise `.kz-lite` makes, driven by the OS. */
+  @media (prefers-reduced-transparency: reduce) {
+    .kz-surface {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      --kz-glass-opacity: 0.9;
+    }
+
+    .kz-surface::after {
+      content: none;
+    }
+
+    .kz-primary {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+
+    .kz-scrim {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
+  @media (prefers-contrast: more) {
+    /* Near-solid panels and a defined edge, so separation never depends on a
+       translucency the learner has asked the system to take away. */
+    .kz-surface,
+    .kz-surface[data-tier='canvas'],
+    .kz-surface[data-tier='well'],
+    .kz-surface[data-tier='glass'],
+    .kz-surface[data-tier='floating'] {
+      --kz-glass-opacity: 0.88;
+      --kz-glass-edge: 0.5;
+      --kz-glass-tint-alpha: 0.02;
+    }
   }
 
   /* V20: dialog scrims. The dim (bg-black/80) does the contrast work everywhere;
@@ -510,8 +595,13 @@
   background: rgb(var(--kz-line));
   border-radius: 9999px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--kz-lavender));
+
+/* Hover only exists where there is a pointer to hover with. On a phone the
+   scrollbar thumb would otherwise stay lavender after one flick. */
+@media (hover: hover) and (pointer: fine) {
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--kz-lavender));
+  }
 }
 
 /* German Text Direction Isolation */
@@ -537,8 +627,7 @@
 
     .kz-surface,
     .kz-surface::after,
-    .kz-primary,
-    .kz-specular {
+    .kz-primary {
       transition-duration: 1ms !important;
     }
   }

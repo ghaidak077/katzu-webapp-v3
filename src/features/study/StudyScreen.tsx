@@ -102,7 +102,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
         {/* Speed Toggle (1.0x / 0.8x) */}
         <button
           onClick={() => setSpeed((s) => (s === 1.0 ? 0.8 : 1.0))}
-          className="px-3 py-1.5 rounded-xl bg-surface-card border border-border-subtle text-xs font-german font-bold text-text-secondary hover:text-primary transition-colors"
+          className="px-3 py-1.5 rounded-xl bg-surface-card border border-border-subtle text-xs font-german font-bold text-text-secondary pointer-hover:text-primary transition-colors"
         >
           سرعة الصوت: {speed === 1.0 ? '1.0x عادية' : '0.8x هادئة'}
         </button>
@@ -165,7 +165,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
               <button
                 onClick={() => handlePlay(p.german)}
                 aria-label={`استمع إلى نطق: ${p.german}`}
-                className="w-11 h-11 min-h-touch min-w-touch rounded-full bg-primary/20 text-primary hover:bg-primary/30 flex items-center justify-center flex-shrink-0"
+                className="w-11 h-11 min-h-touch min-w-touch rounded-full bg-primary/20 text-primary pointer-hover:bg-primary/30 flex items-center justify-center flex-shrink-0"
               >
                 {playingText === p.german && isPlaying ? (
                   <AudioWaveform isPlaying={true} aria-hidden />
@@ -227,7 +227,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
                     className={`p-2 min-h-touch min-w-touch rounded-full border transition-colors ${
                       isSaved
                         ? 'bg-status-learning/20 border-status-learning/40 text-status-learning'
-                        : 'bg-surface-subtle border-border-subtle text-text-muted hover:text-text-primary'
+                        : 'bg-surface-subtle border-border-subtle text-text-muted pointer-hover:text-text-primary'
                     }`}
                   >
                     <Bookmark className="w-4 h-4 fill-current" aria-hidden="true" />

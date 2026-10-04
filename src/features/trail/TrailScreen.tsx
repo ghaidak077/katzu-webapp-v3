@@ -322,7 +322,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
       {user?.isLoggedIn && !user.onboardingCompletedAt && onOpenOnboarding && (
         <button
           onClick={onOpenOnboarding}
-          className="mb-6 flex w-full items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors hover:border-primary/40 min-h-[44px]"
+          className="mb-6 flex w-full items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors pointer-hover:border-primary/40 min-h-[44px]"
         >
           <span className="min-w-0">
             <span className="block font-arabic text-xs font-bold text-text-primary">
@@ -347,7 +347,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
               className={`flex-1 min-h-[44px] py-2 rounded-xl text-xs font-german font-bold transition-colors flex items-center justify-center gap-1 ${
                 selectedLevel === lvl
                   ? 'bg-fill text-on-fill shadow-glow-purple'
-                  : 'text-text-secondary hover:text-text-primary'
+                  : 'text-text-secondary pointer-hover:text-text-primary'
               }`}
             >
               <span>{lvl}</span>
@@ -389,7 +389,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 className={`relative w-[82%] overflow-hidden rounded-3xl border text-start cursor-pointer transition-[background-color,border-color,box-shadow] ${
                   isMastered
                     ? 'bg-surface-card border-status-success/40 shadow-glow-green'
-                    : 'bg-surface-card border-border-subtle hover:border-primary/50'
+                    : 'bg-surface-card border-border-subtle pointer-hover:border-primary/50'
                 }`}
               >
                 {/* The scenario's 16:9 thumbnail — the same banner the mission card

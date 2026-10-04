@@ -210,13 +210,13 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
         <button
           disabled={saving}
           onClick={() => finishWith('A0', 'chosen')}
-          className="mt-3 w-full text-center text-xs font-arabic text-text-muted hover:text-text-primary transition-colors py-2"
+          className="mt-3 w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
         >
           لا أعرف الألمانية بعد — ابدأ من الصفر
         </button>
         <button
           onClick={() => setPhase('manual')}
-          className="mt-3 w-full text-center text-xs font-arabic text-text-muted hover:text-text-primary transition-colors py-2"
+          className="mt-3 w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
         >
           أعرف مستواي — اختره بنفسي
         </button>
@@ -237,7 +237,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
               key={level}
               disabled={saving}
               onClick={() => finishWith(level, 'chosen')}
-              className="w-full flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface-card p-4 text-start transition-colors hover:border-primary/40 disabled:opacity-50"
+              className="w-full flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface-card p-4 text-start transition-colors pointer-hover:border-primary/40 disabled:opacity-50"
             >
               <Badge variant="primary" size="md" className="shrink-0">
                 {level}
@@ -248,7 +248,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
         </div>
         <button
           onClick={() => setPhase('intro')}
-          className="mt-4 w-full text-center text-xs font-arabic text-text-muted hover:text-text-primary transition-colors py-2"
+          className="mt-4 w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
         >
           عد إلى الاختبار
         </button>
@@ -272,7 +272,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
         </Button>
         <button
           onClick={onDone}
-          className="mt-3 w-full text-center text-xs font-arabic text-text-muted hover:text-text-primary transition-colors py-2"
+          className="mt-3 w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
         >
           تخطَّ الآن — عد إلى المسار
         </button>
@@ -304,7 +304,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
         </Card>
         <button
           onClick={() => setPhase('manual')}
-          className="mt-3 w-full text-center text-xs font-arabic text-text-muted hover:text-text-primary transition-colors py-2"
+          className="mt-3 w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
         >
           ليس مستواي — أختار بنفسي
         </button>
@@ -383,7 +383,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
           const isCorrect = index === item.correctIndex;
           const isChosen = index === chosen;
           const tone = !answered
-            ? 'border-border-subtle bg-surface-card hover:border-primary/40'
+            ? 'border-border-subtle bg-surface-card pointer-hover:border-primary/40'
             : isCorrect
               ? 'border-status-success/50 bg-status-success/15'
               : isChosen

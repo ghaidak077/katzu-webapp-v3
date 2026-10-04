@@ -249,7 +249,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
               const isSelected = selectedOption === idx;
               const isCorrect = idx === currentQ.correctIndex;
 
-              let style = 'bg-surface-card border-border-subtle text-text-primary hover:border-primary/50';
+              let style = 'bg-surface-card border-border-subtle text-text-primary pointer-hover:border-primary/50';
               if (isAnswerSubmitted) {
                 if (isCorrect) {
                   style = 'bg-status-success/20 border-status-success text-status-success';
@@ -282,7 +282,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
             <button
               type="button"
               onClick={handleReveal}
-              className="w-full rounded-2xl px-4 py-3 text-center font-arabic text-xs text-text-muted underline decoration-dotted transition-colors hover:text-primary min-h-touch"
+              className="w-full rounded-2xl px-4 py-3 text-center font-arabic text-xs text-text-muted underline decoration-dotted transition-colors pointer-hover:text-primary min-h-touch"
             >
               لا أعرف — أرني الإجابة
             </button>

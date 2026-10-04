@@ -366,7 +366,7 @@ function WhySection() {
         {REASONS.map(({ icon: Icon, title, body }) => (
           <div
             key={title}
-            className="group rounded-3xl p-5 bg-surface-card border border-border-subtle hover:border-primary/40 hover:-translate-y-0.5 transition-[color,background-color,border-color,transform]"
+            className="group rounded-3xl p-5 bg-surface-card border border-border-subtle pointer-hover:border-primary/40 pointer-hover:-translate-y-0.5 transition-[color,background-color,border-color,transform]"
           >
             <div className="w-11 h-11 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
               <Icon className="w-5 h-5 text-primary" aria-hidden />
@@ -727,13 +727,13 @@ function Footer({ onOpenTrustPage }: Pick<LandingScreenProps, 'onOpenTrustPage'>
           <span className="text-sm text-text-muted">Katzu — رفيقك لتعلم الألمانية</span>
         </div>
         <nav className="flex items-center gap-5 text-caption text-text-secondary">
-          <button type="button" className="hover:text-primary transition-colors" onClick={() => onOpenTrustPage('privacy')}>
+          <button type="button" className="pointer-hover:text-primary transition-colors" onClick={() => onOpenTrustPage('privacy')}>
             الخصوصية
           </button>
-          <button type="button" className="hover:text-primary transition-colors" onClick={() => onOpenTrustPage('terms')}>
+          <button type="button" className="pointer-hover:text-primary transition-colors" onClick={() => onOpenTrustPage('terms')}>
             الشروط
           </button>
-          <button type="button" className="hover:text-primary transition-colors" onClick={() => onOpenTrustPage('contact')}>
+          <button type="button" className="pointer-hover:text-primary transition-colors" onClick={() => onOpenTrustPage('contact')}>
             تواصل معنا
           </button>
         </nav>

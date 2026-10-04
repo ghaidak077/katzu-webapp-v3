@@ -16,6 +16,16 @@
  *
  * Dark only: this app is AMOLED black with no light theme, so a light branch would
  * be untested code pretending to be a feature.
+ *
+ * V34: the ambient role is **painted, not animated**. It used to run a shared
+ * 30fps rAF driver that wrote seventeen custom properties per mounted beam,
+ * forever, to breathe nine radial gradients — measured on the production bundle
+ * as 100ms of style recalculation in five idle seconds, on the one screen that
+ * carries it, on a phone with nothing else running. The edge is now a single
+ * 600ms fade-in and then nothing, which is the same picture at rest and no
+ * loop. The *active* role keeps its travelling comet: that one is a control the
+ * learner is holding, it is pure CSS (so it never touches the main thread), and
+ * the motion means "engaged".
  */
 
 /**
@@ -32,7 +42,10 @@ const WHITE = '#fff'; // design-audit: allow — a neutral light source, not a t
 /** Neutral white at a given alpha, for bloom falloff and CSS masks. */
 const bloom = (alpha: number) => `rgba(255,255,255,${alpha})`; // design-audit: allow — see WHITE
 
-/** Motion is slowed rather than removed: the beam is information, not decoration. */
+/**
+ * Motion is slowed rather than removed — for the one role that still moves.
+ * The ambient role has nothing left to slow: it is a painted edge.
+ */
 export const REDUCED_MOTION_SCALE = 3;
 
 /** Which of the two colours a beam is allowed to use. */
@@ -106,41 +119,6 @@ const TRACE_INNER = [
   { sizeW: 18, sizeH: 26, offsetX: -66, offsetY: -1 },
 ] as const;
 
-/** The ambient breathe: where each blob sits while the ring is at rest. */
-const BREATHE_CORE = [
-  { ci: 0, region: 1, quad: 'tl', w: 80, h: 19, x: '27%', y: '0%' },
-  { ci: 6, region: 2, quad: 'tr', w: 74, h: 11, x: '73%', y: '-1%' },
-  { ci: 7, region: 3, quad: 'tr', w: 15, h: 44, x: '100%', y: '33%' },
-  { ci: 8, region: 1, quad: 'br', w: 19, h: 38, x: '101%', y: '72%' },
-  { ci: 4, region: 2, quad: 'br', w: 84, h: 13, x: '67%', y: '100%' },
-  { ci: 1, region: 3, quad: 'bl', w: 60, h: 21, x: '24%', y: '101%' },
-  { ci: 2, region: 1, quad: 'bl', w: 17, h: 40, x: '0%', y: '60%' },
-  { ci: 3, region: 2, quad: 'tl', w: 13, h: 32, x: '-1%', y: '28%' },
-] as const;
-
-/** The outward bloom behind the core, at the reference's wider sizes. */
-const BREATHE_BLOOM = [
-  { ci: 0, region: 1, quad: 'tl', w: 110, h: 30, x: '27%', y: '3%' },
-  { ci: 6, region: 2, quad: 'tr', w: 100, h: 20, x: '73%', y: '1%' },
-  { ci: 7, region: 3, quad: 'tr', w: 26, h: 62, x: '100%', y: '33%' },
-  { ci: 8, region: 1, quad: 'br', w: 30, h: 56, x: '101%', y: '72%' },
-  { ci: 4, region: 2, quad: 'br', w: 120, h: 22, x: '67%', y: '99%' },
-  { ci: 1, region: 3, quad: 'bl', w: 88, h: 32, x: '24%', y: '99%' },
-  { ci: 2, region: 1, quad: 'bl', w: 28, h: 58, x: '0%', y: '60%' },
-] as const;
-
-const REGION_QUAD = [
-  { region: 1, quad: 'tl' },
-  { region: 2, quad: 'tl' },
-  { region: 3, quad: 'bl' },
-  { region: 1, quad: 'bl' },
-  { region: 2, quad: 'br' },
-  { region: 3, quad: 'br' },
-  { region: 1, quad: 'tr' },
-  { region: 2, quad: 'tr' },
-  { region: 3, quad: 'tr' },
-] as const;
-
 function rgb({ r, g, b }: Rgb): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
@@ -187,73 +165,7 @@ function traceStop(palette: BeamPalette, index: number, id: string, inner: boole
   return `radial-gradient(ellipse calc(${geometry.sizeW}px * var(--rim-w-${id})) calc(${geometry.sizeH}px * var(--rim-h-${id})) at calc(var(--rim-x-${id}) * 100%${offsetX}) calc(100%${offsetY}), ${rgba(stopColor(palette, index), alpha)}, transparent)`;
 }
 
-function breatheStop(palette: BeamPalette, id: string, entry: (typeof BREATHE_CORE)[number] | (typeof BREATHE_BLOOM)[number], staticAlpha?: number): string {
-  const { r, g, b } = stopColor(palette, entry.ci);
-  const x = 'x' in entry ? entry.x : '0%';
-  const y = 'y' in entry ? entry.y : '0%';
-  const alpha = staticAlpha === undefined ? `var(--qop-${entry.quad}-${id})` : staticAlpha.toFixed(3);
-  return `radial-gradient(ellipse calc(${entry.w}px * var(--qw${entry.region}-${id}) * var(--pulse-scale-x, 1) * var(--pulse-boost, 1)) calc(${entry.h}px * var(--qh${entry.region}-${id}) * var(--qgh-${id}) * var(--pulse-scale-y, 1) * var(--pulse-boost, 1)) at calc(${x} + var(--qx${entry.region}-${id})) calc(${y} + var(--qy${entry.region}-${id})), rgba(${r}, ${g}, ${b}, ${alpha}), transparent)`;
-}
-
-/** The ambient ring, at rest: nine blobs that breathe outward. */
-function breatheRing(palette: BeamPalette, id: string): string {
-  return RING.map((stop, index) => {
-    const { region, quad } = REGION_QUAD[index];
-    const [x, y] = stop.pos.split(' ');
-    const [w, h] = stop.size.split(' ').map(parseFloat);
-    const { r, g, b } = stopColor(palette, index);
-    return `radial-gradient(ellipse calc(${w}px * var(--qw${region}-${id}) * var(--pulse-scale-x, 1) * var(--pulse-boost, 1)) calc(${h}px * var(--qh${region}-${id}) * var(--qgh-${id}) * var(--pulse-scale-y, 1) * var(--pulse-boost, 1)) at calc(${x} + var(--qx${region}-${id})) calc(${y} + var(--qy${region}-${id})), rgba(${r}, ${g}, ${b}, var(--qop-${quad}-${id})), transparent)`;
-  }).join(',');
-}
-
-const DUR_SCALE = (duration: number) => duration / 2.3;
-
-/** The waveform the pulse driver animates: same shape and phases as the reference. */
-export interface PulseOscillator {
-  prop: string;
-  a: number;
-  b: number;
-  period: number;
-  delay: number;
-  unit: string;
-}
-
-export interface PulseDriverConfig {
-  oscillators: PulseOscillator[];
-}
-
-export function buildPulseConfig(duration: number, id: string, reduced: boolean): PulseDriverConfig {
-  const scale = DUR_SCALE(duration);
-  const sp = 0.28;
-  const dr = 14;
-  const op = 0.46;
-  const gh = 0.16;
-  const bs = 2.3 * scale;
-  const ss = 6.4 * scale;
-  const ghs = 2.4 * scale;
-  const motion = reduced ? REDUCED_MOTION_SCALE : 1;
-  const oscillators: PulseOscillator[] = [
-    { prop: `--qw1-${id}`, a: 1 - sp, b: 1 + sp * 1.1, period: ss * 0.9 * motion, delay: 0, unit: '' },
-    { prop: `--qh1-${id}`, a: 1 + sp * 0.9, b: 1 - sp * 0.85, period: ss * 1.26 * motion, delay: 0, unit: '' },
-    { prop: `--qx1-${id}`, a: -dr, b: dr * 0.9, period: bs * 1.6 * motion, delay: 0, unit: 'px' },
-    { prop: `--qy1-${id}`, a: dr * 0.55, b: -dr * 0.7, period: bs * 1.6 * motion, delay: 0, unit: 'px' },
-    { prop: `--qw2-${id}`, a: 1 + sp, b: 1 - sp * 0.85, period: ss * 1.1 * motion, delay: 0, unit: '' },
-    { prop: `--qh2-${id}`, a: 1 - sp * 0.8, b: 1 + sp * 1.05, period: ss * 0.81 * motion, delay: 0, unit: '' },
-    { prop: `--qx2-${id}`, a: dr * 0.8, b: -dr * 0.9, period: bs * 1.88 * motion, delay: 0, unit: 'px' },
-    { prop: `--qy2-${id}`, a: -dr, b: dr * 0.65, period: bs * 1.88 * motion, delay: 0, unit: 'px' },
-    { prop: `--qw3-${id}`, a: 1 - sp * 0.6, b: 1 + sp * 1.15, period: ss * 0.98 * motion, delay: 0, unit: '' },
-    { prop: `--qh3-${id}`, a: 1 + sp * 0.75, b: 1 - sp, period: ss * 1.4 * motion, delay: 0, unit: '' },
-    { prop: `--qx3-${id}`, a: -dr * 0.6, b: dr, period: bs * 1.45 * motion, delay: 0, unit: 'px' },
-    { prop: `--qy3-${id}`, a: -dr * 0.85, b: dr * 0.45, period: bs * 1.45 * motion, delay: 0, unit: 'px' },
-    { prop: `--qgh-${id}`, a: 1 - gh, b: 1 + gh, period: ghs * motion, delay: 0, unit: '' },
-    { prop: `--qop-tl-${id}`, a: 1 - op, b: 1, period: bs * motion, delay: 0, unit: '' },
-    { prop: `--qop-tr-${id}`, a: 1 - op, b: 1, period: bs * 1.32 * motion, delay: bs * 0.28, unit: '' },
-    { prop: `--qop-bl-${id}`, a: 1 - op, b: 1, period: bs * 0.84 * motion, delay: bs * 0.55, unit: '' },
-    { prop: `--qop-br-${id}`, a: 1 - op, b: 1, period: bs * 1.58 * motion, delay: bs * 0.83, unit: '' },
-  ];
-  return { oscillators };
-}
-
+/** The options both roles are generated from. */
 export interface BeamCssOptions {
   id: string;
   variant: 'pulse-outside' | 'line';
@@ -264,24 +176,25 @@ export interface BeamCssOptions {
   strength: number;
 }
 
-function propertyRegs(id: string, breathe: boolean): string {
-  if (!breathe) {
-    return `
+/**
+ * The one property the ambient edge animates: a single 600ms fade from nothing
+ * to lit, registered so it interpolates as a number. It was one of seventeen
+ * before V34; the other sixteen were the breathe.
+ */
+function fadeProperty(id: string): string {
+  return `@property --rim-opacity-${id} {\n  syntax: "<number>";\n  initial-value: 0;\n  inherits: true;\n}`;
+}
+
+/** The travelling comet's own registered properties (the active role only). */
+function traceProperties(id: string): string {
+  return `
 @property --rim-x-${id} { syntax: "<number>"; initial-value: 0; inherits: true; }
 @property --rim-w-${id} { syntax: "<number>"; initial-value: 1; inherits: true; }
 @property --rim-h-${id} { syntax: "<number>"; initial-value: 1; inherits: true; }
 @property --rim-spike-${id} { syntax: "<number>"; initial-value: 1; inherits: true; }
 @property --rim-spike2-${id} { syntax: "<number>"; initial-value: 1; inherits: true; }
 @property --rim-edge-${id} { syntax: "<number>"; initial-value: 1; inherits: true; }
-@property --rim-opacity-${id} { syntax: "<number>"; initial-value: 0; inherits: true; }`;
-  }
-  const numbers = ['bw1', 'bh1', 'bw2', 'bh2', 'bw3', 'bh3', 'bgh', 'bop-tl', 'bop-tr', 'bop-bl', 'bop-br'];
-  const lengths = ['bx1', 'by1', 'bx2', 'by2', 'bx3', 'by3'];
-  return [
-    ...numbers.map((name) => `@property --${name}-${id} {\n  syntax: "<number>";\n  initial-value: 1;\n  inherits: true;\n}`),
-    ...lengths.map((name) => `@property --${name}-${id} {\n  syntax: "<length>";\n  initial-value: 0px;\n  inherits: true;\n}`),
-    `@property --rim-opacity-${id} {\n  syntax: "<number>";\n  initial-value: 0;\n  inherits: true;\n}`,
-  ].join('\n\n');
+${fadeProperty(id)}`;
 }
 
 function frozenAnimRule(id: string): string {
@@ -297,9 +210,9 @@ function frozenAnimRule(id: string): string {
 /**
  * Reduced motion slows the *loop* rather than removing the beam.
  *
- * The driver scales its periods, and the CSS animations scale through
- * `--rim-motion-scale`, so a learner who has asked for calm gets a slow breathe
- * instead of a strobe — not a missing surface.
+ * Only the active role has a loop left; a learner who has asked for calm gets a
+ * slower comet instead of a strobe — not a missing surface. The ambient edge is
+ * already still, so it needs nothing here.
  */
 function reducedMotionRule(id: string): string {
   return `
@@ -321,47 +234,55 @@ const MASK_COMET = (id: string) => `radial-gradient(
       white 0%, ${bloom(0.5)} 45%, transparent 100%
     )`;
 
-/** The ambient layer: a slow outward breathe on a glass surface at rest. */
-function pulseOutsideCss({ id, palette, borderRadius, borderWidth, strength }: BeamCssOptions): string {
+/**
+ * The ambient layer: the lit edge of a glass surface at rest.
+ *
+ * Painted once. Three layers exactly as before — the 1px ring, an inner wash and
+ * an outer bloom — but with the ring's nine stops at their resting geometry
+ * instead of positions a timer was rewriting thirty times a second. The single
+ * animation left is the 600ms fade-in, so the material *arrives* rather than
+ * snapping on.
+ */
+function pulseOutsideCss({ id, palette, borderRadius, strength }: BeamCssOptions): string {
   const strokeOpacity = 0.94;
   const innerOpacity = 0.34;
   const bloomOpacity = 0.3;
   const brightness = 1.9;
   const saturation = 1.2;
   return `
-${propertyRegs(id, true)}
+${fadeProperty(id)}
 
 [data-rim="${id}"] { position: relative; border-radius: ${borderRadius}px; overflow: visible; isolation: isolate; }
-[data-rim="${id}"][data-active] { animation: rim-fade-in-${id} ${motionDur(0.6)} ease forwards; }
-[data-rim="${id}"][data-fading] { animation: rim-fade-out-${id} ${motionDur(0.5)} ease forwards; }
+[data-rim="${id}"][data-active] { animation: rim-fade-in-${id} 600ms ease forwards; }
+[data-rim="${id}"][data-fading] { animation: rim-fade-out-${id} 500ms ease forwards; }
 
 [data-rim="${id}"][data-active]::after, [data-rim="${id}"][data-fading]::after {
   content: ""; position: absolute; inset: 0; border-radius: ${borderRadius}px; padding: 1px;
   clip-path: inset(0 round ${borderRadius}px);
-  background: ${breatheRing(palette, id)};
+  background: ${ringGradients(palette)};
   -webkit-mask: ${MASK_RING(id)};
   -webkit-mask-composite: xor;
   mask: ${MASK_RING(id)};
   mask-composite: exclude;
-  pointer-events: none; z-index: 2; will-change: opacity, filter;
+  pointer-events: none; z-index: 2;
   opacity: calc(var(--rim-opacity-${id}) * ${strokeOpacity} * var(--rim-stroke-opacity, 1) * var(--rim-strength, ${strength}));
   filter: brightness(${brightness}) saturate(${saturation});
 }
 
 [data-rim="${id}"][data-active]::before, [data-rim="${id}"][data-fading]::before {
   content: ""; position: absolute; inset: -10px; z-index: -1; border-radius: ${borderRadius + 10}px;
-  background: ${BREATHE_CORE.map((entry) => breatheStop(palette, id, entry)).join(',')};
+  background: ${coreGradients(palette)};
   transform: scale(0.95, 0.9);
-  pointer-events: none; will-change: opacity, filter;
+  pointer-events: none;
   opacity: calc(var(--rim-opacity-${id}) * ${innerOpacity} * var(--rim-inner-opacity, 1) * var(--rim-strength, ${strength}));
   filter: blur(3px) brightness(${brightness}) saturate(${saturation});
 }
 
 [data-rim="${id}"] [data-rim-glow] {
   display: none; position: absolute; inset: -30px; z-index: -1; border-radius: ${borderRadius + 30}px;
-  background: ${BREATHE_BLOOM.map((entry) => breatheStop(palette, id, entry, 0.77)).join(',')};
+  background: ${ringGradients(palette)};
   transform: scale(0.95, 0.9);
-  pointer-events: none; will-change: transform; opacity: 0;
+  pointer-events: none; opacity: 0;
 }
 
 [data-rim="${id}"][data-active] [data-rim-glow], [data-rim="${id}"][data-fading] [data-rim-glow] {
@@ -372,8 +293,6 @@ ${propertyRegs(id, true)}
 
 @keyframes rim-fade-in-${id} { to { --rim-opacity-${id}: 1; } }
 @keyframes rim-fade-out-${id} { from { --rim-opacity-${id}: 1; } to { --rim-opacity-${id}: 0; } }
-${frozenAnimRule(id)}
-${reducedMotionRule(id)}
 `;
 }
 
@@ -386,7 +305,7 @@ function lineCss({ id, palette, borderRadius, borderWidth, duration, strength }:
   const saturation = 1.2;
   const innerRadius = Math.max(0, borderRadius - borderWidth);
   return `
-${propertyRegs(id, false)}
+${traceProperties(id)}
 
 [data-rim="${id}"] { position: relative; border-radius: ${borderRadius}px; overflow: hidden; }
 
@@ -525,64 +444,3 @@ export function buildBeamCss(options: BeamCssOptions): string {
   return options.variant === 'line' ? lineCss(options) : pulseOutsideCss(options);
 }
 
-/**
- * The shared pulse driver.
- *
- * One rAF loop for every beam on screen, capped at 30 fps: the ambient layer is a
- * slow breathe, so thirty updates a second is indistinguishable from sixty and
- * costs half the main-thread time. The loop stops itself when the last beam
- * detaches, which is what keeps a screen with no beams entirely idle.
- */
-interface PulseEntry {
-  el: HTMLElement;
-  config: PulseDriverConfig;
-}
-
-const activeBeams = new Set<PulseEntry>();
-let beamFrame: number | null = null;
-let lastBeamTick = 0;
-const MIN_TICK_GAP = 1000 / 30 - 2;
-const TAU = Math.PI * 2;
-
-function easeCycle(phase: number): number {
-  return (1 - Math.cos(TAU * phase)) / 2;
-}
-
-function beamTick(timestamp: number): void {
-  beamFrame = requestAnimationFrame(beamTick);
-  if (timestamp - lastBeamTick < MIN_TICK_GAP) return;
-  lastBeamTick = timestamp;
-  const seconds = timestamp / 1000;
-  activeBeams.forEach(({ el, config }) => {
-    for (const oscillator of config.oscillators) {
-      const phase = (seconds - oscillator.delay) / oscillator.period;
-      const value = oscillator.a + (oscillator.b - oscillator.a) * easeCycle(phase);
-      el.style.setProperty(oscillator.prop, oscillator.unit === 'px' ? `${value.toFixed(2)}px` : value.toFixed(4));
-    }
-  });
-}
-
-function ensureBeamLoop(): void {
-  if (beamFrame === null) {
-    lastBeamTick = 0;
-    beamFrame = requestAnimationFrame(beamTick);
-  }
-}
-
-function haltBeamLoopIfIdle(): void {
-  if (activeBeams.size === 0 && beamFrame !== null) {
-    cancelAnimationFrame(beamFrame);
-    beamFrame = null;
-  }
-}
-
-/** Attaches an element to the shared loop; the returned function detaches it. */
-export function attachPulse(el: HTMLElement, config: PulseDriverConfig): () => void {
-  const entry = { el, config };
-  activeBeams.add(entry);
-  ensureBeamLoop();
-  return () => {
-    activeBeams.delete(entry);
-    haltBeamLoopIfIdle();
-  };
-}

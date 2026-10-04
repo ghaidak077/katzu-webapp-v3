@@ -62,14 +62,14 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
               className={`p-3 rounded-full border transition-colors ${
                 isSaved
                   ? 'bg-status-learning/20 border-status-learning/40 text-status-learning'
-                  : 'bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary'
+                  : 'bg-surface-subtle border-border-subtle text-text-secondary pointer-hover:text-text-primary'
               }`}
             >
               <Bookmark className="w-5 h-5 fill-current" />
             </button>
             <button
               onClick={() => speak(`${word.article || ''} ${word.german}`)}
-              className="p-3 rounded-full bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+              className="p-3 rounded-full bg-primary/20 text-primary pointer-hover:bg-primary/30 transition-colors"
             >
               <Volume2 className="w-5 h-5" />
             </button>

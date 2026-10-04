@@ -349,7 +349,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
                             track('word_bank_tapped', { skill: 'review', kind: current.kind });
                             setAnswer((prev) => (prev ? `${prev} ${word}` : word));
                           }}
-                          className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors hover:border-kz-lavender/50"
+                          className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors pointer-hover:border-kz-lavender/50"
                         >
                           {word}
                         </button>
@@ -375,7 +375,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
                 <button
                   type="button"
                   onClick={handleReveal}
-                  className="kz-ar-micro w-full text-center text-kz-inkDim underline decoration-dotted underline-offset-4 transition-colors hover:text-kz-ink"
+                  className="kz-ar-micro w-full text-center text-kz-inkDim underline decoration-dotted underline-offset-4 transition-colors pointer-hover:text-kz-ink"
                 >
                   لا أتذكّر — أرني الإجابة
                 </button>
@@ -410,7 +410,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
                         <button
                           type="button"
                           onClick={() => speak(current.answerDe)}
-                          className="rounded-full p-1.5 text-kz-lavender transition-colors hover:bg-white/5"
+                          className="rounded-full p-1.5 text-kz-lavender transition-colors pointer-hover:bg-white/5"
                           aria-label="استمع للنطق الصحيح"
                         >
                           <Volume2 className="h-3.5 w-3.5" />

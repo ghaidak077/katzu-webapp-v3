@@ -26,6 +26,10 @@ const targetPreview = process.env.E2E_TARGET === 'preview';
 
 export default defineConfig({
   testDir: './e2e',
+  // The performance probe reports numbers rather than asserting them, so it is
+  // run on purpose from e2e/perf/playwright.perf.config.ts — never as part of
+  // the suite, where a machine-dependent number would become a flaky gate.
+  testIgnore: '**/perf/**',
   timeout: 90_000,
   expect: { timeout: 15_000 },
   // One worker: every spec drives the same shared local database through the same

@@ -278,7 +278,7 @@ export interface GlassInteractive<T extends HTMLElement> {
   ref: React.RefObject<T>;
   pressed: boolean;
   onPointerDown: React.PointerEventHandler<T>;
-  onPointerMove: React.PointerEventHandler<T>;
+  onPointerMove: React.PointerEventHandler<T>; // design-audit: allow — press tracking, publishes only while the finger is down
   onPointerUp: React.PointerEventHandler<T>;
   onPointerCancel: React.PointerEventHandler<T>;
   onPointerLeave: React.PointerEventHandler<T>;
@@ -312,7 +312,7 @@ export function useGlassInteractive<T extends HTMLElement>(): GlassInteractive<T
       publish(event);
       setPressed(true);
     },
-    onPointerMove: (event) => {
+    onPointerMove: (event) => { // design-audit: allow — press tracking, not a decorative pointer follower
       if (pressed) publish(event);
     },
     onPointerUp: () => setPressed(false),

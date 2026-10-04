@@ -1,13 +1,12 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
-import { useReducedMotion } from '@/components/glass/GlassSurface';
-import { attachPulse, buildBeamCss, buildPulseConfig, type BeamPalette } from './borderBeamCss';
+import { buildBeamCss, type BeamPalette } from './borderBeamCss';
 
 /**
- * The living edge, in two roles.
+ * The lit edge, in two roles.
  *
- *   ambient  → the outward breathe on a glass card at rest: the mission card, an
- *              earned capability. This is the layer that makes a still screen feel
+ *   ambient  → the edge on a glass card at rest: the mission card, an earned
+ *              capability. This is the layer that makes a still screen feel
  *              inhabited rather than painted.
  *   active   → the travelling comet on a control that is engaged: the active tab,
  *              a control under the finger.
@@ -17,10 +16,16 @@ import { attachPulse, buildBeamCss, buildPulseConfig, type BeamPalette } from '.
  * earned — and `palette="earned"` is the only way to ask for magenta, so a screen
  * cannot quietly use it for decoration.
  *
- * Cost control, because a glowing border is not worth a janky conversation:
- *  - one shared 30 fps driver for every beam in the app, stopped when none is mounted;
- *  - nothing is animated off-screen (`data-paused` under IntersectionObserver);
- *  - reduced motion slows the loop rather than freezing the surface.
+ * V34 cost control, because a glowing border is not worth a janky conversation:
+ *  - the ambient role is *painted*, not driven. It used to run a shared 30 fps rAF
+ *    loop writing seventeen custom properties per mounted beam, forever, which on
+ *    Journey Home cost 100ms of style recalculation in five idle seconds. It now
+ *    fades in once over 600ms and is then completely still;
+ *  - the active role keeps its motion because the learner is holding the control,
+ *    and it is pure CSS, so it never reaches the main thread; it is paused while
+ *    off-screen (`data-paused` under an IntersectionObserver), which is the only
+ *    observer this component still runs;
+ *  - reduced motion slows the comet rather than freezing the surface.
  */
 export interface BorderBeamProps {
   children?: React.ReactNode;
@@ -30,7 +35,7 @@ export interface BorderBeamProps {
   palette?: BeamPalette;
   /** Turn the beam off without unmounting the surface it decorates. */
   enabled?: boolean;
-  /** Seconds per cycle. Ambient is slower, active is a touch quicker. */
+  /** Seconds per cycle. Applies to the active role; the ambient edge is still. */
   duration?: number;
   /** Corner radius. Omit to inherit the child's own radius. */
   borderRadius?: number;
@@ -59,14 +64,13 @@ export const BorderBeam: React.FC<BorderBeamProps> = ({
 }) => {
   const rawId = useId();
   const id = rawId.replace(/[:«»]/g, '');
-  const reduceMotion = useReducedMotion();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [autoRadius, setAutoRadius] = useState<number | null>(null);
   const [onScreen, setOnScreen] = useState(true);
   const [mounted, setMounted] = useState(false);
 
   const variant = role === 'active' ? 'line' : 'pulse-outside';
-  const cycle = duration ?? (role === 'active' ? 3.1 : 2.3);
+  const cycle = duration ?? 3.1;
   const radius = borderRadius ?? autoRadius ?? 24;
 
   // Fade the beam in on the frame after mount so the first paint is the surface,
@@ -94,7 +98,10 @@ export const BorderBeam: React.FC<BorderBeamProps> = ({
     return () => observer.disconnect();
   }, [borderRadius, children]);
 
+  // Only the travelling comet is worth watching for: the ambient edge is a
+  // painted layer with nothing to pause, so it costs no observer at all.
   useEffect(() => {
+    if (variant !== 'line') return;
     const host = hostRef.current;
     if (!host || typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver(
@@ -105,7 +112,7 @@ export const BorderBeam: React.FC<BorderBeamProps> = ({
     );
     observer.observe(host);
     return () => observer.disconnect();
-  }, []);
+  }, [variant]);
 
   const css = useMemo(
     () =>
@@ -122,15 +129,6 @@ export const BorderBeam: React.FC<BorderBeamProps> = ({
   );
 
   const animating = enabled && mounted && onScreen;
-
-  // The ambient role is the one driven by the JS oscillator; the active role is
-  // pure CSS keyframes, so it costs nothing on the main thread.
-  useEffect(() => {
-    if (variant !== 'pulse-outside' || !animating) return;
-    const host = hostRef.current;
-    if (!host) return;
-    return attachPulse(host, buildPulseConfig(cycle, id, reduceMotion));
-  }, [variant, animating, cycle, id, reduceMotion]);
 
   return (
     <>

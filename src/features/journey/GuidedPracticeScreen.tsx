@@ -107,7 +107,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
             key={`${word}-${wordIndex}`}
             type="button"
             onClick={() => onPick(word)}
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1 font-german text-sm text-kz-ink transition-colors hover:border-kz-lavender/50"
+            className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1 font-german text-sm text-kz-ink transition-colors pointer-hover:border-kz-lavender/50"
           >
             {word}
           </button>
@@ -530,7 +530,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
               <button
                 type="button"
                 onClick={handleOpenDeepPractice}
-                className="kz-ar-caption mt-4 flex min-h-[44px] w-full items-center justify-center gap-1.5 text-kz-inkFaint transition-colors hover:text-kz-inkDim"
+                className="kz-ar-caption mt-4 flex min-h-[44px] w-full items-center justify-center gap-1.5 text-kz-inkFaint transition-colors pointer-hover:text-kz-inkDim"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 تدريب أعمق على هذا المشهد (اختياري)

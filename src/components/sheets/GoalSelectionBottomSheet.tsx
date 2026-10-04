@@ -51,7 +51,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
                 className={`py-3 px-2 rounded-2xl text-xs font-semibold border transition-colors text-center ${
                   minutes === opt.value
                     ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
-                    : 'bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary'
+                    : 'bg-surface-subtle border-border-subtle text-text-secondary pointer-hover:text-text-primary'
                 }`}
               >
                 {opt.label}
@@ -74,7 +74,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
                 className={`py-3 rounded-2xl text-sm font-bold border transition-colors ${
                   days === d
                     ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
-                    : 'bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary'
+                    : 'bg-surface-subtle border-border-subtle text-text-secondary pointer-hover:text-text-primary'
                 }`}
               >
                 {d} أيام
@@ -97,7 +97,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
                 className={`py-3 rounded-2xl font-german font-bold text-sm border transition-colors ${
                   level === lvl
                     ? 'bg-fill text-on-fill border-primary shadow-glow-purple'
-                    : 'bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary'
+                    : 'bg-surface-subtle border-border-subtle text-text-secondary pointer-hover:text-text-primary'
                 }`}
               >
                 {lvl}

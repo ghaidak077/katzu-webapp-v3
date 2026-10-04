@@ -302,7 +302,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => track('purchase_clicked', { source: 'subscription_screen' })}
-              className="flex-1 h-11 rounded-2xl bg-fill text-on-fill text-xs font-bold font-arabic flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity"
+              className="flex-1 h-11 rounded-2xl bg-fill text-on-fill text-xs font-bold font-arabic flex items-center justify-center gap-1.5 pointer-hover:opacity-90 transition-opacity"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               اشترِ كود تفعيل الآن

@@ -120,7 +120,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
           <button
             type="button"
             onClick={() => onGoToSignIn('signin')}
-            className="min-h-touch -mx-2 px-2 flex items-center hover:text-primary transition-colors duration-fast ease-out"
+            className="min-h-touch -mx-2 px-2 flex items-center pointer-hover:text-primary transition-colors duration-fast ease-out"
           >
             لديك حساب؟ <span className="text-primary underline font-bold">تسجيل الدخول</span>
           </button>
@@ -128,7 +128,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
           <button
             type="button"
             onClick={() => onGoToSignIn('signup')}
-            className="min-h-touch -mx-2 px-2 flex items-center hover:text-primary transition-colors duration-fast ease-out text-text-secondary"
+            className="min-h-touch -mx-2 px-2 flex items-center pointer-hover:text-primary transition-colors duration-fast ease-out text-text-secondary"
           >
             <span className="text-primary underline font-bold">إنشاء حساب جديد</span>
           </button>

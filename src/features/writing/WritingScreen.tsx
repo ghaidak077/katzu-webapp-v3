@@ -244,7 +244,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
               <button
                 type="button"
                 onClick={() => speak(feedback.correctedDe)}
-                className="p-1.5 rounded-lg bg-surface-subtle hover:bg-primary/20 text-primary transition-colors"
+                className="p-1.5 rounded-lg bg-surface-subtle pointer-hover:bg-primary/20 text-primary transition-colors"
                 aria-label="استمع للنسخة المصححة"
               >
                 <Volume2 className="w-3.5 h-3.5" />
@@ -355,7 +355,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
                       track('word_bank_tapped', { skill: 'writing' });
                       setText((prev) => (prev ? `${prev} ${word}` : word));
                     }}
-                    className="rounded-xl border border-border-subtle bg-surface-subtle px-2.5 py-1 font-german text-sm text-text-primary transition-colors hover:border-primary/50"
+                    className="rounded-xl border border-border-subtle bg-surface-subtle px-2.5 py-1 font-german text-sm text-text-primary transition-colors pointer-hover:border-primary/50"
                   >
                     {word}
                   </button>

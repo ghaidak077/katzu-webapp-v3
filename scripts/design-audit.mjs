@@ -126,6 +126,28 @@ const RULES = [
     why: 'bare outline-none deletes the global focus ring — remove it',
     budget: 0,
   },
+  {
+    // V34. A phone has no hovering pointer, and browsers emulate `:hover` from
+    // the last tap — so a bare `hover:` left a tapped card looking selected
+    // until the learner tapped somewhere else, and asked a blurred surface to
+    // repaint for a state a touch device can never be in. `pointer-hover:` is
+    // the same rule compiled under `(hover: hover) and (pointer: fine)`.
+    kind: 'hover-on-touch',
+    test: (c) => /(?<![-\w])hover:|[\s'"]group-hover:|[\s'"]peer-hover:/.test(c),
+    why: "bare hover: — use pointer-hover: so a tap cannot leave a control looking hovered",
+    budget: 0,
+  },
+  {
+    // V34. Motion that follows a pointer is motion a phone cannot use and a
+    // desktop pays for on every move: the retired `useSpecularHighlight` cost
+    // 969ms of style recalculation per 200 pointer moves over Journey Home. A
+    // `pointermove` handler is legal only when it is tracking a *press* — the
+    // live highlight under the finger, which is real feedback — and says so.
+    kind: 'pointer-follow',
+    test: (c) => /(?<![-\w])(onMouseMove|onMouseOver)\b|(?<![-\w])onPointerMove\b/.test(c),
+    why: 'pointer-following effect — a press highlight is fine (allow it), a decorative one is not',
+    budget: 0,
+  },
 ];
 
 /**

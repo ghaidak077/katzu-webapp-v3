@@ -118,6 +118,12 @@ elsewhere, four new V10 entries.
 
 2026-10-04 | Two of my own new tests were wrong before they were ever run | One asserted `aria-expanded` on the wrong component and used `.toMatch` on a string; another pointed at `/app/listening` when the route is `/app/listen`, so it rendered the empty state and the steps were legitimately absent | Read the route table and the component's own contract before asserting on them. A test that fails because the *test* guessed wrong is fixed in the test, never worked around in the product.
 
+2026-10-04 | A mechanical `hover:` → `pointer-hover:` rewrite broke the WebGL orb's build | The same regex also rewrote the **shader uniform** `hover: Uniform<number>` in `VoicePoweredOrb.tsx`, and a type error there reads as a Babel parse failure ("Unexpected \"-\""), not as a rename | After a repo-wide search-and-replace, re-run `tsc` **and** look at every file the search touched that is not a component; and remember that an audit rule which must tolerate an identifier will need a reviewed, local exemption rather than a looser pattern.
+
+2026-10-04 | "One-off radius" turned out to be a focus ring being squared off | `:focus-visible { border-radius: 4px }` looked like an unowned one-off, but an `outline` already follows the element's own radius — the declaration was overriding the ring into a rectangle on every rounded control | When a token rule looks like drift, check what the platform already does for free before inventing a value; the fix is usually to delete the line, not to name it.
+
+2026-10-04 | A gate against the live site failed for a reason two releases old | `smoke-token-hygiene.cjs` dropped to 10/11 because V33 had folded sign-out into a collapsed Profile section; the local suites were all green | Live-site smoke is the only check that sees what the last deploy actually did. Run it after any change to how controls are grouped, and never record it as passing without the run.
+
 ## Pruned (encoded elsewhere — kept here only as a pointer)
 
 - `npx vitest run --reporter=line` fails: `line` is a Playwright reporter. Now stated in `AGENTS.md` §5 (`--reporter=line` is Playwright-only; use `dot` or the default for Vitest).

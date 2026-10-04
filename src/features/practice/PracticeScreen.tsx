@@ -170,7 +170,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           triggerHaptic('light');
           onOpenCoach?.();
         }}
-        className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex items-center gap-3 text-start transition-colors"
+        className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex items-center gap-3 text-start transition-colors"
       >
         <div className="w-10 h-10 shrink-0 rounded-full bg-status-error/20 text-status-error flex items-center justify-center">
           <Target className="w-5 h-5" />
@@ -196,7 +196,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             triggerHaptic('light');
             onOpenAsk();
           }}
-          className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex items-center gap-3 text-start transition-colors"
+          className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex items-center gap-3 text-start transition-colors"
         >
           <div className="w-10 h-10 shrink-0 rounded-full bg-primary/20 text-primary flex items-center justify-center">
             <HelpCircle className="w-5 h-5" />
@@ -219,7 +219,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             setIsFlipped(false);
             setShowFlashcards(true);
           }}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
             <Sparkles className="w-4 h-4" />
@@ -229,7 +229,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
         <button
           onClick={() => setShowGrammarModal(true)}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
             <BookOpen className="w-4 h-4" />
@@ -239,7 +239,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
         <button
           onClick={() => setShowMistakesModal(true)}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-status-error/20 text-status-error flex items-center justify-center">
             <AlertCircle className="w-4 h-4" />
@@ -249,7 +249,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
 
         <button
           onClick={onOpenListening}
-          className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
+          className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
             <Headphones className="w-4 h-4" />
@@ -260,7 +260,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         {onOpenWriting && (
           <button
             onClick={onOpenWriting}
-            className="p-3 rounded-2xl bg-surface-card border border-border-subtle hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
+            className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
               <PenLine className="w-4 h-4" />
@@ -385,14 +385,14 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                   className={`p-2 rounded-full border transition-colors ${
                     isSaved
                       ? 'bg-status-learning/20 border-status-learning/40 text-status-learning'
-                      : 'bg-surface-subtle border-border-subtle text-text-muted hover:text-text-primary'
+                      : 'bg-surface-subtle border-border-subtle text-text-muted pointer-hover:text-text-primary'
                   }`}
                 >
                   <Bookmark className="w-4 h-4 fill-current" />
                 </button>
                 <button
                   onClick={() => speak(`${v.article || ''} ${v.german}`)}
-                  className="p-2 rounded-full bg-primary/20 text-primary hover:bg-primary/30"
+                  className="p-2 rounded-full bg-primary/20 text-primary pointer-hover:bg-primary/30"
                 >
                   <Volume2 className="w-4 h-4" />
                 </button>
@@ -415,10 +415,10 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
               onClick={() => setIsFlipped(!isFlipped)}
               // `scale-[1.01]` on a 240px card is 1.2px of growth: perceptible, not
               // distracting. 1.02 was 4.8px, which reads as a misfire on the frame
-              // before the tap lands. Tailwind 3.4 already gates `hover:` behind
-              // `(hover: hover)`, so no pointer media query is needed, and
+              // before the tap lands. Tailwind 3.4 already gates `pointer-hover:` behind
+              // `(pointer-hover: hover)`, so no pointer media query is needed, and
               // `motion-reduce` removes the movement while keeping the response.
-              className="h-60 rounded-3xl bg-surface-hero border border-primary/40 shadow-glow-purple p-6 flex flex-col items-center justify-center text-center cursor-pointer select-none transition-transform duration-fast ease-out hover:scale-[1.01] motion-reduce:transform-none"
+              className="h-60 rounded-3xl bg-surface-hero border border-primary/40 shadow-glow-purple p-6 flex flex-col items-center justify-center text-center cursor-pointer select-none transition-transform duration-fast ease-out pointer-hover:scale-[1.01] motion-reduce:transform-none"
             >
               {!isFlipped ? (
                 <>
@@ -454,7 +454,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
               <span>البطاقة {flashcardIndex + 1} من {vocabulary.length}</span>
               <button
                 onClick={() => speak(currentFlashcard.german)}
-                className="flex items-center gap-1 text-primary hover:underline font-arabic"
+                className="flex items-center gap-1 text-primary pointer-hover:underline font-arabic"
               >
                 <Volume2 className="w-4 h-4" /> استمع للنطق
               </button>
@@ -554,7 +554,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => speak(m.corrected)}
-                        className="p-1 rounded-lg bg-surface-subtle hover:bg-primary/20 text-primary transition-colors"
+                        className="p-1 rounded-lg bg-surface-subtle pointer-hover:bg-primary/20 text-primary transition-colors"
                         title="استمع للنطق الصحيح"
                       >
                         <Volume2 className="w-3.5 h-3.5" />

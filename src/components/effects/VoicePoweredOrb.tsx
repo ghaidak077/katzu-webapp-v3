@@ -235,7 +235,7 @@ interface OrbUniforms extends Record<string, unknown> {
   iTime: Uniform<number>;
   iResolution: Uniform<Vec3>;
   hue: Uniform<number>;
-  hover: Uniform<number>;
+  hover: Uniform<number>; // design-audit: allow — a shader uniform named after voice swell, not a CSS :hover
   rot: Uniform<number>;
   hoverIntensity: Uniform<number>;
   uColorA: Uniform<Vec3>;
@@ -323,7 +323,7 @@ export const VoicePoweredOrb: React.FC<VoicePoweredOrbProps> = ({
         iTime: { value: 0 },
         iResolution: { value: new Vec3(context.canvas.width, context.canvas.height, 1) },
         hue: { value: 0 },
-        hover: { value: 0 },
+        hover: { value: 0 }, // design-audit: allow — a shader uniform named after voice swell, not a CSS :hover
         rot: { value: 0 },
         hoverIntensity: { value: 0 },
         uColorA: { value: new Vec3(...LAVENDER) },

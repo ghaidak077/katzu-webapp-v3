@@ -152,7 +152,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <button
             type="button"
             onClick={() => setSessionMode('practice')}
-            className="w-full rounded-3xl border border-primary/50 bg-primary/10 p-5 text-start transition-colors hover:bg-primary/15"
+            className="w-full rounded-3xl border border-primary/50 bg-primary/10 p-5 text-start transition-colors pointer-hover:bg-primary/15"
           >
             <span className="mb-1 flex items-center justify-between gap-2">
               <strong className="kz-ar-caption block text-primary">{SESSION_MODE_COPY.practice.labelAr}</strong>
@@ -165,7 +165,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <button
             type="button"
             onClick={() => setSessionMode('real')}
-            className="w-full rounded-3xl kz-chip border border-white/10 bg-white/5 p-5 text-start transition-colors hover:bg-white/10"
+            className="w-full rounded-3xl kz-chip border border-white/10 bg-white/5 p-5 text-start transition-colors pointer-hover:bg-white/10"
           >
             <strong className="kz-ar-caption mb-1 block text-kz-inkDim">{SESSION_MODE_COPY.real.labelAr}</strong>
             <span className="kz-ar-micro text-kz-inkFaint">{SESSION_MODE_COPY.real.descriptionAr}</span>
@@ -173,7 +173,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <button
             type="button"
             onClick={() => setSessionMode('practice')}
-            className="w-full rounded-2xl px-4 py-3 text-center font-arabic text-xs font-bold text-kz-lavender transition-colors hover:text-kz-ink min-h-touch"
+            className="w-full rounded-2xl px-4 py-3 text-center font-arabic text-xs font-bold text-kz-lavender transition-colors pointer-hover:text-kz-ink min-h-touch"
           >
             ابدأ «تدريب» الآن
           </button>
@@ -205,7 +205,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <button
             onClick={onBack}
             aria-label="العودة"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl kz-chip border border-white/10 bg-white/5 transition-colors pointer-hover:bg-white/10"
           >
             <ArrowRight className="h-5 w-5 text-kz-inkDim" />
           </button>
@@ -224,7 +224,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-colors ${
                 showAllTranslations
                   ? 'border-primary/50 bg-primary/20 text-primary'
-                  : 'border-white/10 bg-white/5 text-kz-inkDim hover:bg-white/10'
+                  : 'border-white/10 bg-white/5 text-kz-inkDim pointer-hover:bg-white/10'
               }`}
             >
               <Languages className="h-4 w-4" />
@@ -238,7 +238,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <button
             onClick={() => handleNudgeDifficulty('easier')}
             disabled={effectiveLevel === 'A1'}
-            className="kz-ar-micro flex min-h-[28px] items-center rounded-full px-2.5 text-kz-inkFaint transition-colors hover:text-kz-inkDim disabled:opacity-25"
+            className="kz-ar-micro flex min-h-[28px] items-center rounded-full px-2.5 text-kz-inkFaint transition-colors pointer-hover:text-kz-inkDim disabled:opacity-25"
           >
             أسهل
           </button>
@@ -246,7 +246,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <button
             onClick={() => handleNudgeDifficulty('harder')}
             disabled={effectiveLevel === 'B2'}
-            className="kz-ar-micro flex min-h-[28px] items-center rounded-full px-2.5 text-kz-inkFaint transition-colors hover:text-kz-inkDim disabled:opacity-25"
+            className="kz-ar-micro flex min-h-[28px] items-center rounded-full px-2.5 text-kz-inkFaint transition-colors pointer-hover:text-kz-inkDim disabled:opacity-25"
           >
             أصعب
           </button>

@@ -70,7 +70,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           <button
             onClick={onClose}
             aria-label="إغلاق"
-            className="p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-full hover:bg-surface-highest text-text-secondary hover:text-text-primary transition-colors duration-fast ease-out"
+            className="p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-full pointer-hover:bg-surface-highest text-text-secondary pointer-hover:text-text-primary transition-colors duration-fast ease-out"
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>

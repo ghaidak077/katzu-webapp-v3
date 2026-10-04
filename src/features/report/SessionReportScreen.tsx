@@ -388,7 +388,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                     <button
                       type="button"
                       onClick={() => speak(phrase.german)}
-                      className="shrink-0 rounded-full p-1 text-kz-lavender transition-colors hover:bg-white/5"
+                      className="shrink-0 rounded-full p-1 text-kz-lavender transition-colors pointer-hover:bg-white/5"
                       aria-label="استمع إلى العبارة"
                     >
                       <Volume2 className="h-3.5 w-3.5" />
@@ -501,7 +501,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                       <button
                         type="button"
                         onClick={() => speak(mistake.corrected)}
-                        className="shrink-0 rounded-full p-1.5 text-kz-lavender transition-colors hover:bg-white/5"
+                        className="shrink-0 rounded-full p-1.5 text-kz-lavender transition-colors pointer-hover:bg-white/5"
                         aria-label="استمع إلى النطق الصحيح"
                       >
                         <Volume2 className="h-3.5 w-3.5" />

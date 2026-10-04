@@ -153,7 +153,7 @@ const ExerciseCard: React.FC<{
             <p className="text-micro font-arabic text-text-muted">سجّلنا المحاولة في ذاكرتك — سنعيد إليك هذه القاعدة.</p>
             <button
               onClick={onRetry}
-              className="flex items-center gap-1 text-micro font-arabic text-primary hover:underline"
+              className="flex items-center gap-1 text-micro font-arabic text-primary pointer-hover:underline"
             >
               <RotateCcw className="w-3 h-3" />
               أعد المحاولة من جديد
@@ -303,7 +303,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
         <div className="mx-auto max-w-md p-5">
           <button
             onClick={closeLesson}
-            className="mb-4 flex items-center gap-2 text-xs font-arabic text-text-muted hover:text-text-primary transition-colors"
+            className="mb-4 flex items-center gap-2 text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors"
           >
             <ArrowLeft className="w-4 h-4 rotate-180" />
             كل الدروس
@@ -421,7 +421,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                   setAttempts({});
                   setSubmitted('none');
                 }}
-                className="flex w-full items-center justify-center gap-1.5 py-1 text-xs font-arabic text-text-muted hover:text-primary transition-colors"
+                className="flex w-full items-center justify-center gap-1.5 py-1 text-xs font-arabic text-text-muted pointer-hover:text-primary transition-colors"
               >
                 <FastForward className="w-3.5 h-3.5" />
                 أعرف القاعدة؟ اختبر نفسك لتتجاوز الدرس
@@ -441,7 +441,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
           {GRAMMAR_SCENARIOS[openRow.id] && (
             <button
               onClick={() => onOpenScenario(GRAMMAR_SCENARIOS[openRow.id])}
-              className="mt-6 w-full text-center text-xs font-arabic text-primary hover:underline transition-colors py-2"
+              className="mt-6 w-full text-center text-xs font-arabic text-primary pointer-hover:underline transition-colors py-2"
             >
               تدرّب القاعدة في موقف حقيقي ←
             </button>
@@ -507,7 +507,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                   className={`w-full rounded-2xl border p-4 text-start transition-colors ${
                     node.isNext
                       ? 'border-primary/60 bg-primary/10'
-                      : 'border-border-subtle bg-surface-card hover:border-primary/40'
+                      : 'border-border-subtle bg-surface-card pointer-hover:border-primary/40'
                   } ${locked ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-center gap-2">

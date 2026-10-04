@@ -136,11 +136,22 @@ describe('scales', () => {
   });
 
   it('names every radius so a chip, control and sheet cannot disagree', () => {
+    // V34: the ladder moved into src/index.css and Tailwind reads it, so the
+    // assertion is now the stronger one — the same value, declared once.
     for (const step of ['chip', 'control', 'panel', 'sheet', 'tag']) {
-      expect(config, `borderRadius.${step} must be named`).toMatch(
-        new RegExp(`(\\s|^)${step}:\\s*'\\d+px'`),
+      expect(config, `borderRadius.${step} must read the token`).toContain(`radius('${step}')`);
+      expect(tokens.has(`kz-radius-${step}`), `--kz-radius-${step} must be declared in src/index.css`).toBe(
+        true,
       );
     }
+  });
+
+  it('compiles hover only under a real-pointer media query', () => {
+    // V34. A bare `hover:` on a phone leaves the last-tapped control looking
+    // selected; `pointer-hover:` is the same rule scoped to devices that have a
+    // pointer to hover with.
+    expect(config).toContain("addVariant('pointer-hover'");
+    expect(config).toContain('@media (hover: hover) and (pointer: fine)');
   });
 
   it('keeps the 44px thumb-target floor available', () => {

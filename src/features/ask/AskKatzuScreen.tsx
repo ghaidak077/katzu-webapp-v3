@@ -163,7 +163,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
                 setQuestion(ASK_EXAMPLE_AR);
                 setError(null);
               }}
-              className="kz-ar-micro rounded-full border border-kz-lavender/30 bg-kz-lavender/10 px-3 py-1.5 font-semibold text-kz-lavender transition-colors hover:border-kz-lavender/60 min-h-touch"
+              className="kz-ar-micro rounded-full border border-kz-lavender/30 bg-kz-lavender/10 px-3 py-1.5 font-semibold text-kz-lavender transition-colors pointer-hover:border-kz-lavender/60 min-h-touch"
             >
               جرّب مثالاً
             </button>
@@ -175,7 +175,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
                   setQuestion(suggestion.promptAr);
                   setError(null);
                 }}
-                className="kz-ar-micro rounded-full border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-kz-inkDim transition-colors hover:border-primary/50 hover:text-primary"
+                className="kz-ar-micro rounded-full border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-kz-inkDim transition-colors pointer-hover:border-primary/50 pointer-hover:text-primary"
               >
                 {suggestion.labelAr}
               </button>

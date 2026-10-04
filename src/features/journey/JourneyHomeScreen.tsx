@@ -18,7 +18,7 @@ import { GermanText } from '@/components/common/GermanText';
 
 import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
-import { GlassWell, useSpecularHighlight } from '@/components/glass/GlassSurface';
+import { GlassWell } from '@/components/glass/GlassSurface';
 import { ScenarioBanner } from '@/components/glass/ScenarioBanner';
 import { ProgressStrip } from '@/components/v2/ProgressStrip';
 import { StatusIndicator } from '@/components/v2/StatusIndicator';
@@ -61,7 +61,6 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   onOpenLibrary,
   onOpenOnboarding,
 }) => {
-  const specular = useSpecularHighlight<HTMLDivElement>();
   const isOnline = useOnlineStatus();
 
   const user = useLiveQuery(() => db.users.get('current_user'));
@@ -260,11 +259,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   };
 
   return (
-    <div
-      ref={specular.ref}
-      onPointerMove={specular.onPointerMove}
-      className="min-h-screen bg-black px-4 pb-28 pt-5"
-    >
+    <div className="min-h-screen bg-black px-4 pb-28 pt-5">
       <div className="mx-auto max-w-md">
         {/* Status line: where am I? Day, chapter, and the situation it belongs to. */}
         <header className="mb-5 flex items-start justify-between gap-3">
@@ -301,8 +296,10 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
 
         {/* The mission. Scene art carries the mood; the glass panel carries the
             Arabic story and the one action. */}
-        {/* The mission card breathes: an ambient lavender beam at rest is the layer
-            that makes the one thing to do today feel alive rather than painted. */}
+        {/* The mission card is lit: a lavender edge at rest is the layer that makes
+            the one thing to do today feel alive rather than painted. V34 — the
+            edge is painted once rather than breathed on a timer, so the screen
+            this lives on costs nothing while it is being read. */}
         <BorderBeam role="ambient" className="mb-4">
         <GlassCard
           tier="glass"

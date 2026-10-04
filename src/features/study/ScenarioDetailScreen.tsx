@@ -167,7 +167,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             </Button>
             <button
               onClick={skipToConversation}
-              className="mt-3 w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
+              className="mt-3 w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
             >
               تخطَّ التدريب وابدأ المحادثة مباشرة
             </button>
@@ -179,7 +179,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             </Button>
             <button
               onClick={isQuizPassed ? onStartStudy : handleTrainingStart}
-              className="w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
+              className="w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
             >
               {isQuizPassed ? 'أعد التدريب من بطاقات الكلمات' : 'أكمل التدريب بدلاً من ذلك'}
             </button>
@@ -191,7 +191,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         {/* Step 1: Study */}
         <div
           onClick={onStartStudy}
-          className="p-4 rounded-3xl bg-surface-card border border-border-subtle hover:border-primary/50 cursor-pointer flex items-center justify-between transition-colors"
+          className="p-4 rounded-3xl bg-surface-card border border-border-subtle pointer-hover:border-primary/50 cursor-pointer flex items-center justify-between transition-colors"
         >
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isStudied ? 'bg-status-success/20 text-status-success' : 'bg-primary/20 text-primary'}`}>
@@ -208,7 +208,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         {/* Step 2: Quiz */}
         <div
           onClick={onStartQuiz}
-          className="p-4 rounded-3xl bg-surface-card border border-border-subtle hover:border-primary/50 cursor-pointer flex items-center justify-between transition-colors"
+          className="p-4 rounded-3xl bg-surface-card border border-border-subtle pointer-hover:border-primary/50 cursor-pointer flex items-center justify-between transition-colors"
         >
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isQuizPassed ? 'bg-status-success/20 text-status-success' : 'bg-primary/20 text-primary'}`}>
@@ -226,7 +226,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         <div
           onClick={handleConversationClick}
           className={`p-4 rounded-3xl bg-surface-card border cursor-pointer flex items-center justify-between transition-colors ${
-            isConversationUnlocked ? 'border-primary/40 hover:border-primary shadow-glow-purple' : 'border-border-subtle opacity-80'
+            isConversationUnlocked ? 'border-primary/40 pointer-hover:border-primary shadow-glow-purple' : 'border-border-subtle opacity-80'
           }`}
         >
           <div className="flex items-center gap-3">
@@ -259,7 +259,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             </Button>
             <button
               onClick={skipToConversation}
-              className="w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted hover:text-text-secondary transition-colors"
+              className="w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
             >
               تخطَّ إلى المحادثة الآن
             </button>

@@ -54,15 +54,15 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
  */
 const VARIANTS: Record<ButtonVariant, string> = {
   primary: 'kz-primary text-kz-ink font-bold',
-  secondary: 'kz-surface !rounded-control font-semibold text-kz-inkDim hover:text-kz-ink',
+  secondary: 'kz-surface !rounded-control font-semibold text-kz-inkDim pointer-hover:text-kz-ink',
   earned: 'kz-primary kz-earned text-kz-ink font-bold',
   quiet:
-    'bg-transparent font-medium text-kz-inkFaint hover:text-kz-inkDim underline-offset-4 hover:underline',
-  outline: 'bg-transparent border border-primary/70 font-semibold text-primary hover:bg-primary/10',
+    'bg-transparent font-medium text-kz-inkFaint pointer-hover:text-kz-inkDim underline-offset-4 pointer-hover:underline',
+  outline: 'bg-transparent border border-primary/70 font-semibold text-primary pointer-hover:bg-primary/10',
   ghost:
-    'bg-transparent border border-transparent font-medium text-text-secondary hover:text-text-primary hover:bg-surface-subtle',
+    'bg-transparent border border-transparent font-medium text-text-secondary pointer-hover:text-text-primary pointer-hover:bg-surface-subtle',
   danger:
-    'bg-status-error/20 text-status-error border border-status-error/40 hover:bg-status-error/30 font-semibold',
+    'bg-status-error/20 text-status-error border border-status-error/40 pointer-hover:bg-status-error/30 font-semibold',
 };
 
 const SIZES: Record<ButtonSize, string> = {
@@ -120,7 +120,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isDisabled}
         data-tier={IS_SURFACE[variant] ? 'canvas' : undefined}
         onPointerDown={press.onPointerDown}
-        onPointerMove={press.onPointerMove}
+        onPointerMove={press.onPointerMove} // design-audit: allow — the live highlight tracks the press, not the hover
         onPointerUp={press.onPointerUp}
         onPointerCancel={press.onPointerCancel}
         onPointerLeave={press.onPointerLeave}

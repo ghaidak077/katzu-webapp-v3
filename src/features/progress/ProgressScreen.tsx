@@ -236,7 +236,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                     <button
                       type="button"
                       onClick={() => openScenario(item.scenarioId)}
-                      className="w-full rounded-2xl border border-white/[0.06] p-3 text-start transition-colors hover:bg-white/[0.03]"
+                      className="w-full rounded-2xl border border-white/[0.06] p-3 text-start transition-colors pointer-hover:bg-white/[0.03]"
                     >
                       <CapabilityRow
                         statementAr={item.statementAr}
@@ -396,7 +396,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                               <button
                                 type="button"
                                 onClick={() => openScenario(entry.scenarioId)}
-                                className="underline-offset-2 hover:underline"
+                                className="underline-offset-2 pointer-hover:underline"
                               >
                                 من {entry.scenarioTitleAr}
                               </button>

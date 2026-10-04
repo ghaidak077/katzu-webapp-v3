@@ -42,7 +42,7 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
           aria-expanded={open}
           aria-controls={panelId}
           data-testid="section-toggle"
-          className="flex w-full min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors hover:border-primary/40"
+          className="flex w-full min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors pointer-hover:border-primary/40"
         >
           <span className="min-w-0">
             <span className="block font-arabic text-sm font-bold text-text-primary">{title}</span>

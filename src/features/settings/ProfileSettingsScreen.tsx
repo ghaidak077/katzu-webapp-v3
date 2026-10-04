@@ -231,7 +231,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
                 setShowEditName(true);
               }}
               aria-label="تعديل الاسم"
-              className="p-1 min-h-touch min-w-touch flex items-center justify-center text-text-muted hover:text-primary transition-colors"
+              className="p-1 min-h-touch min-w-touch flex items-center justify-center text-text-muted pointer-hover:text-primary transition-colors"
             >
               <Edit2 className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -281,7 +281,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           {onOpenPreferences && (
             <button
               onClick={onOpenPreferences}
-              className="text-xs font-arabic font-bold text-primary hover:underline min-h-[44px] px-2"
+              className="text-xs font-arabic font-bold text-primary pointer-hover:underline min-h-[44px] px-2"
             >
               تعديل
             </button>
@@ -328,7 +328,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             </div>
             <button
               onClick={handleCopyReferral}
-              className="h-10 px-3 flex items-center gap-1.5 rounded-xl bg-primary/20 border border-primary text-primary text-xs font-bold font-arabic hover:bg-primary/30 transition-colors"
+              className="h-10 px-3 flex items-center gap-1.5 rounded-xl bg-primary/20 border border-primary text-primary text-xs font-bold font-arabic pointer-hover:bg-primary/30 transition-colors"
             >
               {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
               {copied ? 'تم النسخ' : 'مشاركة'}
@@ -385,14 +385,14 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={handleCopyDiagnostics}
-                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center gap-1"
+                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-border-subtle text-text-secondary pointer-hover:text-text-primary transition-colors flex items-center justify-center gap-1"
               >
                 {diagnosticsCopied ? <Check className="w-3.5 h-3.5 text-status-success" /> : <Copy className="w-3.5 h-3.5" />}
                 {diagnosticsCopied ? 'تم النسخ' : 'نسخ'}
               </button>
               <button
                 onClick={handleDownloadDiagnostics}
-                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center gap-1"
+                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-border-subtle text-text-secondary pointer-hover:text-text-primary transition-colors flex items-center justify-center gap-1"
               >
                 <Download className="w-3.5 h-3.5" />
                 تنزيل
@@ -402,7 +402,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
                   clearDiagnostics();
                   setDiagnosticsText(formatDiagnosticsText());
                 }}
-                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-status-error/40 text-status-error hover:bg-status-error/10 transition-colors flex items-center justify-center gap-1"
+                className="py-2 rounded-xl text-micro font-bold border bg-surface-subtle border-status-error/40 text-status-error pointer-hover:bg-status-error/10 transition-colors flex items-center justify-center gap-1"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 مسح
@@ -505,7 +505,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         {onOpenPlacement && (
           <button
             onClick={onOpenPlacement}
-            className="w-full text-center text-xs font-arabic text-primary hover:underline transition-colors"
+            className="w-full text-center text-xs font-arabic text-primary pointer-hover:underline transition-colors"
           >
             أعد اختبار تحديد المستوى
           </button>
@@ -521,7 +521,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </label>
           <button
             onClick={handleOpenMemory}
-            className="text-micro font-arabic text-primary hover:underline transition-colors"
+            className="text-micro font-arabic text-primary pointer-hover:underline transition-colors"
           >
             {memoryRows === null ? 'عرض ما نذكره عنك' : 'تحديث'}
           </button>
@@ -545,7 +545,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
                   </span>
                   <button
                     onClick={() => handleDeleteMemoryPattern(row.patternId)}
-                    className="shrink-0 rounded-full p-1.5 text-text-muted hover:text-status-error transition-colors"
+                    className="shrink-0 rounded-full p-1.5 text-text-muted pointer-hover:text-status-error transition-colors"
                     aria-label="حذف هذا السطر"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -554,7 +554,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
               ))}
               <button
                 onClick={handleClearMemory}
-                className="w-full text-center text-micro font-arabic text-status-error hover:underline transition-colors py-1"
+                className="w-full text-center text-micro font-arabic text-status-error pointer-hover:underline transition-colors py-1"
               >
                 حذف كل الذاكرة التعليمية
               </button>
@@ -593,7 +593,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
       {/* Memory lives here too, but it is grouped with the data controls below
           rather than with preferences: it is about what Katzu remembers, not how
           the learner learns. */}
-      <CollapsibleSection title="بياناتك" hint="ما يتذكّره Katzu، مع Exports وحذف الحساب">
+      <CollapsibleSection title="الحساب والخصوصية" hint="الخصوصية والشروط، تصدير بياناتك، وحذف الحساب">
       {/* App Info & Sign Out */}
       <div className="space-y-3">
           <button
@@ -605,7 +605,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
               setAnalyticsOptOut(next);
               setAnalyticsOff(next);
             }}
-            className="w-full flex items-center justify-between gap-3 py-3 px-3 rounded-2xl bg-surface-subtle border border-border-subtle min-h-[44px] hover:border-primary/40 transition-colors"
+            className="w-full flex items-center justify-between gap-3 py-3 px-3 rounded-2xl bg-surface-subtle border border-border-subtle min-h-[44px] pointer-hover:border-primary/40 transition-colors"
           >
             <span className="text-start">
               <span className="block text-xs font-bold font-arabic text-text-primary">إحصاءات الاستخدام</span>
@@ -625,24 +625,14 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </button>
 
         <div className="flex items-center justify-center gap-4 text-xs text-text-secondary font-arabic">
-          <button onClick={() => onOpenTrustPage?.('privacy')} className="hover:text-primary underline">الخصوصية</button>
-          <button onClick={() => onOpenTrustPage?.('terms')} className="hover:text-primary underline">الشروط</button>
-          <button onClick={() => onOpenTrustPage?.('contact')} className="hover:text-primary underline">الدعم</button>
+          <button onClick={() => onOpenTrustPage?.('privacy')} className="pointer-hover:text-primary underline">الخصوصية</button>
+          <button onClick={() => onOpenTrustPage?.('terms')} className="pointer-hover:text-primary underline">الشروط</button>
+          <button onClick={() => onOpenTrustPage?.('contact')} className="pointer-hover:text-primary underline">الدعم</button>
         </div>
         <div className="p-4 rounded-2xl bg-surface-card border border-border-subtle text-center text-xs text-text-muted space-y-1">
           <div>Katzu Web App v1.0.0 (PWA)</div>
           <div className="text-text-secondary">صُنع بواسطة غيدق علوش — ghaidak.com</div>
         </div>
-
-        <Button
-          variant="danger"
-          size="md"
-          className="w-full flex items-center justify-center gap-2"
-          onClick={onSignOut}
-        >
-          <LogOut className="w-4 h-4" />
-          تسجيل الخروج من الحساب
-        </Button>
       </div>
 
       {/* Data Export (Phase 4) */}
@@ -657,7 +647,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         <button
           onClick={handleExportData}
           disabled={exporting}
-          className="w-full py-2.5 rounded-xl text-xs font-bold border transition-colors bg-surface-subtle border-border-subtle text-primary hover:bg-primary/10 disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-2.5 rounded-xl text-xs font-bold border transition-colors bg-surface-subtle border-border-subtle text-primary pointer-hover:bg-primary/10 disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <Download className="w-4 h-4" />
           {exporting ? 'جاري التحضير…' : exportDone ? 'تم تنزيل الملف ✓' : 'تنزيل نسخة بياناتي'}
@@ -676,7 +666,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         {!showDeleteConfirm ? (
           <button
             onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(''); setDeleteStatus('idle'); setDeleteError(''); }}
-            className="w-full py-2.5 rounded-xl text-xs font-bold border transition-colors bg-status-error/10 border-status-error/40 text-status-error hover:bg-status-error/20"
+            className="w-full py-2.5 rounded-xl text-xs font-bold border transition-colors bg-status-error/10 border-status-error/40 text-status-error pointer-hover:bg-status-error/20"
           >
             أريد حذف حسابي
           </button>
@@ -722,6 +712,22 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         )}
       </Card>
       </CollapsibleSection>
+
+      {/* Signing out is an account action, not a data setting, and it must never
+          need a fold to find: V33 hid it inside «بياناتك», which meant one extra
+          tap on the only control a learner reaches for when they want to leave.
+          Apple puts Sign Out at the foot of the account list, always visible;
+          so does Katzu now. The smoke test that drives the deployed app is the
+          thing that proves it is reachable without expanding anything. */}
+      <Button
+        variant="danger"
+        size="md"
+        className="mt-4 w-full flex items-center justify-center gap-2"
+        onClick={onSignOut}
+      >
+        <LogOut className="w-4 h-4" />
+        تسجيل الخروج من الحساب
+      </Button>
 
       {/* Edit Name Modal */}
       <Modal isOpen={showEditName} onClose={() => setShowEditName(false)} title="تعديل الاسم">

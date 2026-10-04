@@ -19,10 +19,19 @@
  * Never write `bg-primary text-white`; that pairing no longer exists.
  */
 
+import plugin from 'tailwindcss/plugin';
+
 /** @type {import('tailwindcss').Config} */
 
 /** RGB-triplet token reference that keeps Tailwind's `/opacity` modifier alive. */
 const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
+/**
+ * The one corner ladder, read from src/index.css rather than copied here.
+ * (Same rule the motion ladder already follows: this file references tokens, it
+ * never redeclares their values.)
+ */
+const radius = (name) => `var(--kz-radius-${name})`;
 
 export default {
   content: [
@@ -155,16 +164,21 @@ export default {
        * and a sheet can never disagree about how round they are. Tailwind's
        * default `rounded-2xl`/`3xl` are left alone: hundreds of call sites
        * already resolve to them and redefining them would shift live layouts.
+       *
+       * V34: the values moved into src/index.css (`--kz-radius-*`) and are read
+       * from here. `.kz-primary` used to carry its own private 22px while the
+       * secondary button beside it used `control`, so two neighbouring buttons
+       * differed by two pixels. One ladder, declared once, is what stops that.
        * ------------------------------------------------------------------ */
       borderRadius: {
-        chip: '12px',
-        control: '20px',
-        panel: '24px',
-        sheet: '28px',
+        chip: radius('chip'),
+        control: radius('control'),
+        panel: radius('panel'),
+        sheet: radius('sheet'),
         /** Inline text highlight on a single word — tight, or it reads as a box. */
-        tag: '8px',
-        squircle: '28px',
-        'squircle-lg': '34px',
+        tag: radius('tag'),
+        squircle: radius('sheet'),
+        'squircle-lg': radius('hero'),
       },
 
       /* ------------------------------------------------------------------ *
@@ -222,5 +236,20 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    /**
+     * `pointer-hover:` — hover, only where a pointer can hover.
+     *
+     * V34: every `hover:` in the app became this. A phone has no hovering
+     * pointer, and browsers emulate `:hover` from the last tap — so a tap on a
+     * card used to leave that card looking selected until the learner tapped
+     * somewhere else. Gating the variant on `(hover: hover) and (pointer: fine)`
+     * is the web's version of the platform rule that hover effects belong on
+     * devices with a pointer, and it also stops the app from repainting a
+     * blurred surface for a state a touch device can never be in.
+     */
+    plugin(({ addVariant }) => {
+      addVariant('pointer-hover', ['@media (hover: hover) and (pointer: fine) { &:hover }']);
+    }),
+  ],
 };
