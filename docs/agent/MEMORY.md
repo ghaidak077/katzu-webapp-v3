@@ -23,7 +23,7 @@ file is the digest that is short enough to always read.
 | Fact | Value |
 |---|---|
 | Repo root | `C:/Users/Lenovo/Desktop/k1/katzu` (shell starts at `/c/Users/Lenovo/Desktop/k1`) |
-| Branch of record | `main` at `93653dc` after the V38 deploy (`3776b1c` was the docs commit before it); inspect current Git state rather than switching to historical `launch-hardening` |
+| Branch of record | `main`; run `git log -1 main` rather than trusting a hash written here, and never switch to the historical `launch-hardening` |
 | Remote | `github.com/ghaidak077/katzu-webapp-v3` |
 | Node here / in CI | v24.14.0 here; **24.15.0** pinned in CI (EBADENGINE warning here is expected) |
 | Gate commands | `npx tsc --noEmit` (== `npm run lint`); `npm test`; `E2E_TARGET=preview npx playwright test`; `npm run build`; `node --check cloudflare-*.js` |
@@ -34,7 +34,7 @@ file is the digest that is short enough to always read.
 | Levels | A0–B2 (`src/lib/levels/levelSpec.ts`) |
 | Sign-in | Google-only |
 | Payments | NOWPayments **test mode**, `ready:false` |
-| Deploy / content gates | `DEPLOY-AUTHORIZED:` / `CONTENT-LOAD-AUTHORIZED:` owner lines only; see `docs/agent/DEPLOY.md`, `CONTENT-LOAD.md` |
+| Deploy / content gates | **Deploy:** the owner's word is enough — `deploy`, `ship it`, or `DEPLOY-AUTHORIZED` with or without targets (V40-3 relaxed §3; targets `merge`/`worker`/`pages`, chosen and stated before production is touched). **Content load:** still the exact `CONTENT-LOAD-AUTHORIZED: <files>` line. See `docs/agent/DEPLOY.md`, `CONTENT-LOAD.md` |
 | Working tree | CRLF (despite `.gitattributes` pinning LF) |
 | Ledger of record | `docs/AGENT-STATE.md` |
 | Session start | `npm run session:start` — ledger NEXT + APP-MAP §9 + MEMORY §A + git + OPEN ITEMS (owner-only/unproven) |
