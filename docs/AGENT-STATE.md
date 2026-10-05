@@ -2,17 +2,24 @@
 
 ## RESUME
 
-- **Last sha:** `0ead9c2` (OWNER LIST / RESUME). CI `37277034302` **success**.
-- **Open CI run:** none.
-- **Next item:** **Batch 2 item B1** — pricing config table by region (standard €29/€12.99/€9,
-  special SY/EG/IQ/PS €12/€5/€3, experiment cells) plus a server region resolver reading the
-  Cloudflare country header, with tests for all four special countries, unknown country, missing
-  header → standard, and stable experiment bucketing.
+- **Last sha:** `8b3ad4f` (Batch 2: pricing table, region resolver, entitlements).
+- **Open CI run:** none — `55e74d4`, `8b3ad4f` are committed but **not pushed**.
+- **Next item:** push and wait for green CI, then Batch 2 items B3–B5 (free B1 mock, paywall,
+  funnel events + admin) and B6 (onboarding, .ics, share/referral e2e).
 - **Live now:** worker `115d5630-402e-4fbe-ae6b-d3b93c2fe2f8`, Pages
-  `48617093-bd19-41d9-9c5b-f9d5c743bb11` from `0ead9c2`.
+  `48617093-bd19-41d9-9c5b-f9d5c743bb11` from `0ead9c2`. CI `37278430234` success on `73757bc`.
 - **Batch 1 is complete and deployed.** Cheap routing and the translate cache are live.
 
 ## OWNER LIST (deduplicated — no secrets, no values)
+
+0. **No throwaway account can be created for the live authenticated proof.** Sign-in is
+   Google-only, so the closing check (repeated `/ai/translate` showing a cache hit, an easy A1
+   turn reaching the `mid` tier, a code redemption granting its entitlement) cannot be run
+   without a real Google account an agent must not touch. Either sign in once yourself and
+   paste back the three responses, **or** mint a test code from your own shell with
+   `POST /admin/generate` and redeem it through `/verify`. Until one of those happens these
+   three remain **UNPROVEN in production**; they are covered only by route tests against the
+   real handlers.
 
 Both of these are safe to leave unset: the spend cap is unlimited when absent, and the origin
 falls back to the host the app is served from.
