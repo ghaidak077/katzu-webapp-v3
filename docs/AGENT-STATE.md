@@ -2,13 +2,15 @@
 
 ## RESUME
 
-- **Last sha:** `84439ab` (C1) pushed. CI `37300564199` on `84439ab` was **failure**:
-  `tests/interfaceContracts.test.ts` bans the Arabic word for "unlimited", and the C1
-  fair-use clause used it inside a denial. Copy reworded to `بلا حدود`, `tests/trustContent.test.ts` updated. **Unpushed: that fix + C2.**
-- **Next:** push the copy fix + C2 together, wait for green CI, then **deploy worker +
-  Pages** (Batch 2 has never been deployed) and verify live. Then C3, C4, C5.
+- **Last sha:** `4eeee5b` pushed, **CI `37304454314` = success.** C1 (copy fix) + C2 (secret
+  scan) are therefore deployed-ready. C3 committed on top, not yet pushed.
+- **Next:** push C3, then **deploy worker + Pages** — Batch 2 has still never been deployed —
+  and verify live. Then C4 (Play readiness), C5 (final gates).
+- **Prior failure for the record:** CI `37300564199` on `84439ab` failed the copy contract
+  (`tests/interfaceContracts.test.ts` bans the Arabic word for "unlimited"); fixed in `4eeee5b`.
 - **Live now:** worker `30d65294-3cd9-4251-9aca-229bd6bf7662`, Pages `48617093-bd19-41d9-9c5b-f9d5c743bb11`.
-- Full suite green locally: **125 files / 1617 tests**, `npm run lint` 0.
+- Green locally: **125 files / 1617 tests** before C3; C3 adds `tests/codeAbuse.test.ts` (11) and
+  one paywall e2e. `npm run lint` 0.
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 

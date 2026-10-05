@@ -13,6 +13,7 @@ import {
   priceLabel,
   type OfferProduct,
 } from '@/lib/offers/pricing';
+import { paymentInstructionsFor } from '@/lib/offers/paymentInstructions';
 
 /**
  * The paywall: Exam Pass first, Monthly second, a single mock as a link.
@@ -70,6 +71,11 @@ export const PaywallScreen: React.FC = () => {
       cancelled = true;
     };
   }, []);
+
+  const instructions = useMemo(
+    () => paymentInstructionsFor(pricing?.group),
+    [pricing?.group],
+  );
 
   const priceByProduct = useMemo(() => {
     const map = new Map<string, PriceRow>();
@@ -204,7 +210,23 @@ export const PaywallScreen: React.FC = () => {
 
         {overlay === 'purchase' ? (
           <GlassCard>
-            <p className="kz-ar-caption text-kz-ink">اشترِ الكود من صفحة البيع الرسمية، ثم فعّله هنا.</p>
+            {/* C3: the steps are written for the region the SERVER resolved, and
+                say up front which part is outside the app's control. */}
+            <p className="kz-ar-caption font-bold text-kz-ink">{instructions.headingAr}</p>
+            <ol className="mt-2 space-y-1">
+              {instructions.stepsAr.map((step, i) => (
+                <li key={step} className="kz-ar-micro text-kz-inkDim">
+                  {`${i + 1}. ${step}`}
+                </li>
+              ))}
+            </ol>
+            {instructions.timingAr ? (
+              <p className="kz-ar-micro mt-3 text-kz-inkFaint">
+                وقت التفعيل: {instructions.timingAr}
+              </p>
+            ) : null}
+            <p className="kz-ar-micro mt-2 text-kz-inkFaint">{instructions.caveatAr}</p>
+            <p className="kz-ar-micro mt-3 text-kz-ink">اشترِ الكود من صفحة البيع الرسمية، ثم فعّله هنا.</p>
             <div className="mt-3 flex flex-col gap-2">
               <PrimaryAction onClick={() => setOverlay('redeem')}>
                 <span>لديّ كود — فعّله الآن</span>

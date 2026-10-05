@@ -80,6 +80,15 @@ import { ensureContentColumns } from "./cloudflare-content-schema.js";
 import { mockExamBrief, mockExamInstructionForPart } from "./cloudflare-mock-exam.js";
 import { decideMockAccess, mockDebriefAccess, catalogueFor, experimentBucket, isRegionMismatch, regionGroupFromRequest, PASS_CELLS } from "./cloudflare-pricing.js";
 import { dailyKey, processDailySync, readAuthoritativeDaily, overlayStatsWithDaily } from "./cloudflare-daily.js";
+import {
+  decideCodeAttempt,
+  isDuplicateCodeError,
+  noteCodeFailure,
+  readCodeAttempts,
+  resetCodeAttempts,
+  CODE_LEDGER_UNAVAILABLE_MESSAGE,
+  CODE_LOCKOUT_MESSAGE,
+} from "./cloudflare-code-abuse.js";
 
 // ============================================================================
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
@@ -2587,28 +2596,58 @@ async function handleVerify(request, env, cors) {
     return json({ valid: false, reason: "invalid_id_token" }, 200, cors);
   }
 
+  // C3 abuse control: the account is known before any code is judged, so the
+  // lockout is keyed on the learner rather than on a guessable code shape. This
+  // sits BEFORE `parseCode` so a flood of malformed codes is rate-limited too.
+  const attemptRecord = await readCodeAttempts(env, account.sub);
+  const attemptDecision = decideCodeAttempt({ attempts: attemptRecord.attempts, lockedUntil: attemptRecord.lockedUntil });
+  if (!attemptDecision.allowed) {
+    return json({
+      valid: false,
+      reason: "locked_out",
+      retry_after: attemptDecision.retryAfterSeconds,
+      message: CODE_LOCKOUT_MESSAGE,
+    }, 429, cors);
+  }
+
   const parsed = parseCode(code);
   if (!parsed) {
+    await noteCodeFailure(env, account.sub, attemptDecision);
     return json({ valid: false, reason: "malformed" }, 400, cors);
   }
 
   const { months, nonce, signature } = parsed;
   const expectedSig = await sign(`DE-${months}M-${nonce}`, env.HMAC_SECRET);
   if (expectedSig !== signature) {
+    await noteCodeFailure(env, account.sub, attemptDecision);
     return json({ valid: false, reason: "invalid_signature" }, 200, cors);
   }
 
   // Phase 2: the redemption claim is atomic. With D1, the PRIMARY KEY insert
   // settles concurrent double-spend across isolates: exactly one request wins,
   // every loser gets "already_redeemed". Without D1, falls back to KV read-check.
+  //
+  // C3: a failed insert is only a spent code if the database SAYS the constraint
+  // was violated. A D1 outage fails the same statement, and answering
+  // "already_redeemed" there would tell a paying learner their code is gone while
+  // it still works — so anything else is reported as a temporary failure and
+  // retried.
   const ledgerReady = await ensureLedgerTables(env);
   if (ledgerReady) {
     try {
       await env.DB.prepare(
         "INSERT INTO redeemed_codes_ledger (code, account_id, months, redeemed_at) VALUES (?, ?, ?, ?)"
       ).bind(code, account.sub, months, new Date().toISOString()).run();
-    } catch {
-      return json({ valid: false, reason: "already_redeemed" }, 200, cors);
+    } catch (e) {
+      if (isDuplicateCodeError(e)) {
+        return json({ valid: false, reason: "already_redeemed" }, 200, cors);
+      }
+      await recordActivity(env, account.sub, "code_redeem_failed", { reason: "ledger_unavailable" });
+      return json({
+        valid: false,
+        reason: "ledger_unavailable",
+        message: CODE_LEDGER_UNAVAILABLE_MESSAGE,
+      }, 503, cors);
     }
   } else {
     const codeKey = `code:${code}`;
@@ -2643,6 +2682,9 @@ async function handleVerify(request, env, cors) {
   if (account.email) {
     await env.REDEEMED_CODES.put(`email_index:${account.email.toLowerCase().trim()}`, account.sub);
   }
+
+  // A code that worked clears the strike record: only repeated failures lock.
+  await resetCodeAttempts(env, account.sub);
 
   if (isFirstRedemption) {
     await awardVerifiedReferral(account, env);

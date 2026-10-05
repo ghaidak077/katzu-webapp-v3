@@ -356,6 +356,33 @@ export function classifyNowPaymentsStatus(status) {
 //   failed   -> invoice expired / payment failed / amount mismatch
 // ============================================================================
 
+/**
+ * How long a buyer waited between starting the transfer and holding the code.
+ *
+ * WHY THIS IS COMPUTED, NOT SHOWN
+ * The owner sells this product to people in four countries where the payment
+ * chain is longer than the payment itself, and "how long will this take" is the
+ * single most-asked question. The number has to come from real deliveries rather
+ * than from the estimate the purchase screen prints, otherwise a slow chain looks
+ * fine right up until a learner chases support.
+ *
+ * It is derived from timestamps the database already holds — `paid_at` is when the
+ * provider confirmed the transfer, `delivered_at` is when the code became
+ * readable — so no new column and no new write is needed. Returns null whenever
+ * either timestamp is missing or unparseable: a fabricated 0 would read as
+ * "instant", which is the one answer this function must never give.
+ */
+export function activationDelayMs(order) {
+  const paid = Date.parse(String(order?.paid_at || ""));
+  const delivered = Date.parse(String(order?.delivered_at || ""));
+  if (!Number.isFinite(paid) || !Number.isFinite(delivered)) return null;
+  const ms = delivered - paid;
+  // A clock skew between the provider and the isolate can produce a negative
+  // value; report zero rather than an impossible negative duration.
+  if (ms < 0) return 0;
+  return ms;
+}
+
 /** Best-effort statement: a failed bookkeeping write must never fail a webhook. */
 async function safeRun(stmt) {
   try {
@@ -713,12 +740,21 @@ export async function handleCryptoWebhook(request, env, cors, deps = {}) {
   const result = await fulfillCryptOrder(env, order, payment, deps);
   if (result.delivered || result.duplicate) {
     if (result.delivered) {
+      // C3: the transfer-start → code-activated delay, logged on every real
+      // delivery. Read back from the row because `fulfillCryptOrder` wrote
+      // `delivered_at` itself and the in-memory `order` predates it.
+      const settled = await readOrder(env, orderId);
+      const delayMs = activationDelayMs(settled);
       await recordActivity(env, null, "crypto_code_delivered", {
         order_id: orderId,
         months: order.months,
         price_usd: order.price_usd,
         environment: getCryptoEnvironment(env),
+        activation_delay_ms: delayMs,
       });
+      if (delayMs !== null) {
+        console.log(`[crypto] activated ${orderId} ${Math.round(delayMs / 1000)}s after transfer start`);
+      }
     }
     return json({ ok: true, delivered: result.delivered, duplicate: result.duplicate, status }, 200, cors);
   }

@@ -61,4 +61,21 @@ test.describe('the paywall', () => {
     // And the honest alternative is still there.
     await expect(page.getByRole('button', { name: /محاكاة B1/ }).first()).toBeVisible();
   });
+
+  test('tells a special-region buyer, in Arabic, what happens after they pay', async ({ page }) => {
+    const special = PRICES.map((row) => ({ ...row, group: 'special', amountCents: 1200 }));
+    await bootSignedIn(page, { pricing: { prices: special, group: 'special', cell: 1 } });
+    await page.goto('/paywall');
+
+    // The instructions open on the buy click, not before: a learner who is only
+    // looking is not shown a form of words about bank transfers.
+    await expect(page.getByText(/مصرف وسيط/)).toHaveCount(0);
+    await page.getByRole('button', { name: /فعّل بكود/ }).first().click();
+
+    await expect(page.getByText('كيف تدفع من هذه المنطقة')).toBeVisible();
+    await expect(page.getByText(/١|1\./).first()).toBeVisible();
+    // The honest part: the timing is an estimate, and the caveat names the risk.
+    await expect(page.getByText(/يوم عمل واحد/)).toBeVisible();
+    await expect(page.getByText(/تمرّ عبر مصرف وسيط/)).toBeVisible();
+  });
 });
