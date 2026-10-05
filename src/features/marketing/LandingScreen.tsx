@@ -106,23 +106,32 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
 
       {/* App already renders the page's single <main> landmark around the route.
           A second one nested inside it is a duplicated landmark for screen readers. */}
-      <div className="max-w-5xl mx-auto px-5">          <Hero
+      <div className="max-w-5xl mx-auto px-5">          {/* F9: the page follows the order a stranger actually decides in —
+            hero, the demo they can take right now, proof of what that looks
+            like, what it costs, who made it, then the questions. Everything that
+            used to sit between those (three "why us" sections, a three-step
+            explainer, a second CTA block at the bottom) is gone: each said the
+            same thing as the hero, and a page that repeats its main action twice
+            has two main actions.
+
+            The four funnel steps stay separately measurable — `landing_viewed`
+            here, `demo_started` in the demo, `signup_started`/`signup_completed`
+            in sign-in, `first_independent_turn` in the conversation — so this
+            reordering costs no measurement. */}
+        <Hero
           isSignedIn={isSignedIn}
           onStart={onStart}
           onSignIn={onSignIn}
           onContinue={onContinue}
           onTryDemo={onTryDemo}
         />
-        <WhySection />
-        <WhoItIsForSection />
         <TryDemoSection onTryDemo={onTryDemo} />
-        <SkillsSection />
-        <StepsSection />
         <ExampleSection />
         <FreeVsProSection onStart={onStart} isSignedIn={isSignedIn} />
+        <FounderSection />
+        <SkillsSection />
         <ComingSection />
         <FaqSection />
-        <FinalCta isSignedIn={isSignedIn} onStart={onStart} onContinue={onContinue} onTryDemo={onTryDemo} />
       </div>
 
       <Footer onOpenTrustPage={onOpenTrustPage} />
@@ -209,23 +218,7 @@ function Hero({
   );
 }
 
-const REASONS = [
-  {
-    icon: Brain,
-    title: 'يتذكّر ما تنساه',
-    body: 'كل كلمة تدرسها، وكل خطأ تصحّحه، يدخل قائمة مراجعة ذكية تُعيده عليك في اللحظة التي كنت ستصدأ فيها — لا مرة واحدة ثم نسيان.',
-  },
-  {
-    icon: MessagesSquare,
-    title: 'تتكلّم، لا تختار فقط',
-    body: 'شريك محادثة صبور لا يسخر منك، مع شرح بالعربية بعد كل جملة: لماذا كانت صحيحة، وما الخطأ الذي كررته.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'تقدّم صادق',
-    body: 'لا أرقام مزيّفة. نُفرّق بين الجملة التي كتبتها بنفسك والجملة التي ساعدتك فيها التلميحات، ونقول لك أيهما تتقنه فعلاً.',
-  },
-] as const;
+
 
 /**
  * V21 Phase 8: the video slot. Renders nothing until /videos/katzu_hero_video.mp4
@@ -291,31 +284,6 @@ const WHO_IT_IS_FOR = [
   },
 ] as const;
 
-function WhoItIsForSection() {
-  return (
-    <section className="py-14 sm:py-20 border-t border-border-subtle/60">
-      <SectionHeading
-        eyebrow="لمن هذا التطبيق"
-        title="صُمّم لأربع حالات، بصراحة"
-        subtitle="إن لم تجد حالتك هنا فربما لم نبنِ ما تحتاج بعد — ونُفضّل أن نقول ذلك بدل أن نعدك بكل شيء."
-      />
-      <div className="mt-10 grid gap-4 sm:grid-cols-2">
-        {WHO_IT_IS_FOR.map(({ icon: Icon, title, body }) => (
-          <div key={title} className="rounded-3xl p-5 bg-surface-subtle border border-border-subtle">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
-                <Icon className="w-5 h-5 text-primary" aria-hidden />
-              </div>
-              <h3 className="font-bold">{title}</h3>
-            </div>
-            <p className="mt-3 text-caption leading-relaxed text-text-secondary">{body}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 /** V21 Phase 8: the FAQ — objections answered plainly, collapse-free (details
     elements are native, keyboard-accessible, and print-friendly). */
 const FAQ_ITEMS = [
@@ -367,32 +335,6 @@ function FaqSection() {
             </summary>
             <p className="px-4 pb-4 text-caption leading-relaxed text-text-secondary font-arabic">{a}</p>
           </details>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function WhySection() {
-  return (
-    <section className="py-14 sm:py-20 border-t border-border-subtle/60">
-      <SectionHeading
-        eyebrow="لماذا كاتزو"
-        title="رفيق يومي، لا درس تُنسى نهايته"
-        subtitle="تطبيقات كثيرة تُعلّمك كلمة مرة واحدة. الفرق أن كاتزو يبني عادة يومية قصيرة حولها."
-      />
-      <div className="mt-10 grid gap-4 sm:grid-cols-3">
-        {REASONS.map(({ icon: Icon, title, body }) => (
-          <div
-            key={title}
-            className="group rounded-3xl p-5 bg-surface-card border border-border-subtle pointer-hover:border-primary/40 pointer-hover:-translate-y-0.5 transition-[color,background-color,border-color,transform]"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
-              <Icon className="w-5 h-5 text-primary" aria-hidden />
-            </div>
-            <h3 className="mt-4 font-bold">{title}</h3>
-            <p className="mt-2 text-caption leading-relaxed text-text-secondary">{body}</p>
-          </div>
         ))}
       </div>
     </section>
@@ -571,45 +513,7 @@ function SkillsSection() {
   );
 }
 
-const STEPS = [
-  {
-    icon: Target,
-    title: 'يعرف مستواك في ٣ دقائق',
-    body: 'اختبار قصير يتكيّف مع إجاباتك، فيبدأ من مستواك الحقيقي بدل أن يُعيد عليك الأساسيات.',
-  },
-  {
-    icon: MessagesSquare,
-    title: 'مشهد واحد كل يوم',
-    body: 'مفهوم جديد، ثم تدريب، ثم محادثة حقيقية في المكان نفسه — بمواقف ستقف فيها فعلاً في ألمانيا.',
-  },
-  {
-    icon: Clock,
-    title: 'مراجعة ذكية تعيد الخطأ',
-    body: 'ما أخطأت فيه يعود إليك في اليوم التالي ثم بعد أسبوع ثم بعد شهر، حتى يصبح تلقائياً.',
-  },
-] as const;
 
-function StepsSection() {
-  return (
-    <section className="py-14 sm:py-20 border-t border-border-subtle/60">
-      <SectionHeading eyebrow="كيف يعمل" title="حلقة يومية قصيرة" subtitle="من خمس إلى عشر دقائق يومياً تكفي لبناء عادة تبقى." />
-      <ol className="mt-10 grid gap-4 sm:grid-cols-3">
-        {STEPS.map(({ icon: Icon, title, body }, index) => (
-          <li key={title} className="rounded-3xl p-5 bg-surface-card border border-border-subtle">
-            <div className="flex items-center gap-3">
-              <span className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 text-primary text-xs font-bold flex items-center justify-center">
-                {index + 1}
-              </span>
-              <Icon className="w-5 h-5 text-primary" aria-hidden />
-            </div>
-            <h3 className="mt-4 font-bold">{title}</h3>
-            <p className="mt-2 text-caption leading-relaxed text-text-secondary">{body}</p>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
 
 const EXAMPLE_MISTAKES = [
   {
@@ -700,40 +604,47 @@ function ComingSection() {
   );
 }
 
-function FinalCta({
-  isSignedIn,
-  onStart,
-  onContinue,
-  onTryDemo,
-}: Pick<LandingScreenProps, 'onStart' | 'onContinue' | 'onTryDemo'> & { isSignedIn: boolean }) {
+/**
+ * Who made this, and what it is not.
+ *
+ * The non-affiliation sentence is VERBATIM from playbook §3.6 and must not be
+ * reworded, shortened or paraphrased — it is the line that separates an
+ * independent practice tool from an exam board's product, and a learner who
+ * reads it as anything else was misinformed. It sits here because the page now
+ * puts price above the questions, and a price is exactly where somebody asks
+ * "is this official?".
+ *
+ * Nothing above it claims who the author is: the repo does not state it, and a
+ * landing page that invents a founder is the same class of defect as a landing
+ * page that invents a screenshot. The one claim made here is the one the
+ * product can keep — everything inside it is measured, and anything that is not
+ * is labelled as not measured.
+ *
+ * ⚠️ Native read required if this section is ever changed.
+ */
+const NON_AFFILIATION_AR =
+  'كَاتْزُو أداة تدريب مستقلة. غير تابعة ولا معتمدة من Goethe-Institut أو telc أو أي جهة امتحانات. الامتحان الرسمي والشهادة من المركز الرسمي فقط.';
+
+function FounderSection() {
   return (
     <section className="py-14 sm:py-20 border-t border-border-subtle/60">
-      <div className="flex flex-col items-center text-center">
-        <KatzuMascot name="thumbs_up" className="w-28 h-28" />
-        <h2 className="mt-5 text-2xl sm:text-3xl font-bold">ابدأ اليوم بخمس دقائق</h2>
-        <p className="mt-3 text-sm text-text-secondary max-w-xl leading-relaxed">
-          أنشئ حسابك، سنعرف مستواك في دقائق، وستتحدّث الألمانية من الجلسة الأولى.
+      <div className="rounded-3xl p-6 sm:p-8 bg-surface-subtle border border-border-subtle">
+        <h2 className="text-xl sm:text-2xl font-bold">ما الذي نعدك به</h2>
+        <p className="mt-3 text-caption sm:text-sm leading-relaxed text-text-secondary max-w-2xl">
+          كل رقم تراه داخل التطبيق مقيس من جلساتك أنت، لا مقدَّر مسبقاً. وإذا كان أي جزء لم يُقاس بعد،
+          فالتطبيق يقول ذلك صراحةً بدل أن يدّعيه: «هذا تقدير تدريبي»، و«هذه محاكاة وليست الامتحان»،
+          و«هذا الرقم لم يُثبت بعد». إن أخطأنا في يوم، نُصلحه ونكتب ذلك.
         </p>
-        <Button
-          size="lg"
-          className="mt-7 w-full sm:w-auto min-w-[15rem]"
-          onClick={isSignedIn ? onContinue : onStart}
-        >
-          {isSignedIn ? 'متابعة رحلتك' : 'ابدأ مجاناً الآن'}
-          <ArrowLeft className="w-5 h-5" aria-hidden />
-        </Button>
-        {!isSignedIn && (
-          <Button size="md" variant="outline" className="mt-3 w-full sm:w-auto min-w-[15rem]" onClick={onTryDemo}>
-            أو جرّب درساً كاملاً بدون حساب
-          </Button>
-        )}
+        {/* Verbatim §3.6 — do not edit. */}
+        <p className="mt-4 text-micro leading-relaxed text-text-muted max-w-2xl border-s-2 border-border-subtle ps-3">
+          {NON_AFFILIATION_AR}
+        </p>
       </div>
     </section>
   );
 }
 
-function Footer({ onOpenTrustPage }: Pick<LandingScreenProps, 'onOpenTrustPage'>) {
-  return (
+function Footer({ onOpenTrustPage }: Pick<LandingScreenProps, 'onOpenTrustPage'>) {  return (
     <footer className="border-t border-border-subtle/60 mt-4">
       <div className="max-w-5xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
