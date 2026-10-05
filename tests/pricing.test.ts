@@ -5,6 +5,11 @@ import {
   PRODUCTS,
   SPECIAL_COUNTRIES,
   catalogueFor,
+  daysUntilExpiry,
+  entitlementExpiryFor,
+  isEntitlementActive,
+  mockCreditsRemaining,
+  shouldRemindAboutExpiry,
   experimentBucket,
   isRegionMismatch,
   priceFor,
@@ -167,5 +172,63 @@ describe('isRegionMismatch', () => {
     // Legacy codes carry no region and must not be reported as mismatches.
     expect(isRegionMismatch(null, 'special')).toBe(false);
     expect(isRegionMismatch(undefined, 'standard')).toBe(false);
+  });
+});
+/**
+ * Expiry is the boundary that quietly costs someone 90 paid days, so it is
+ * pinned at the exact millisecond rather than approximated.
+ */
+describe('entitlement duration and expiry', () => {
+  const T0 = Date.parse('2026-10-05T00:00:00.000Z');
+  const DAY = 86400000;
+
+  it('pass90 lasts 90 days and monthly 30', () => {
+    expect(entitlementExpiryFor('pass90', T0)).toBe('2027-01-03T00:00:00.000Z');
+    expect(entitlementExpiryFor('monthly', T0)).toBe('2026-11-04T00:00:00.000Z');
+  });
+
+  it('gives a mock no expiry, because it is a count not a clock', () => {
+    expect(entitlementExpiryFor('mock', T0)).toBeNull();
+    expect(entitlementExpiryFor('not_a_product', T0)).toBeNull();
+  });
+
+  it('is live right up to the expiry and over at the exact millisecond', () => {
+    const record = { expiresAt: entitlementExpiryFor('pass90', T0) };
+    const expiry = Date.parse(record.expiresAt);
+    expect(isEntitlementActive(record, expiry - 1)).toBe(true);
+    expect(isEntitlementActive(record, expiry)).toBe(false);
+    expect(isEntitlementActive(record, expiry + 1)).toBe(false);
+  });
+
+  it('treats a missing or unparseable expiry as not active', () => {
+    expect(isEntitlementActive(null)).toBe(false);
+    expect(isEntitlementActive({})).toBe(false);
+    expect(isEntitlementActive({ expiresAt: 'not-a-date' })).toBe(false);
+  });
+
+  it('counts whole days left and never goes negative', () => {
+    const expiresAt = entitlementExpiryFor('pass90', T0);
+    expect(daysUntilExpiry(expiresAt, T0)).toBe(90);
+    expect(daysUntilExpiry(expiresAt, T0 + 89 * DAY)).toBe(1);
+    expect(daysUntilExpiry(expiresAt, T0 + 200 * DAY)).toBe(0);
+    expect(daysUntilExpiry(null)).toBeNull();
+  });
+
+  it('warns only inside the 7-day window', () => {
+    const record = { expiresAt: entitlementExpiryFor('pass90', T0) };
+    expect(shouldRemindAboutExpiry(record, T0)).toBe(false);
+    // 8 whole days left is outside the window; 7 is the first day inside it.
+    expect(shouldRemindAboutExpiry(record, T0 + 82 * DAY)).toBe(false);
+    expect(shouldRemindAboutExpiry(record, T0 + 83 * DAY)).toBe(true);
+    expect(shouldRemindAboutExpiry(record, T0 + 84 * DAY)).toBe(true);
+    // Already lapsed: do not tell someone they are about to expire.
+    expect(shouldRemindAboutExpiry(record, T0 + 90 * DAY)).toBe(false);
+  });
+
+  it('never reports negative mock credits', () => {
+    expect(mockCreditsRemaining({ mockCredits: 2 })).toBe(2);
+    expect(mockCreditsRemaining({ mockCredits: -3 })).toBe(0);
+    expect(mockCreditsRemaining({})).toBe(0);
+    expect(mockCreditsRemaining(null)).toBe(0);
   });
 });

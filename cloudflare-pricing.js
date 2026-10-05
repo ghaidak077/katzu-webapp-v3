@@ -111,3 +111,63 @@ export function isRegionMismatch(codeGroup, learnerGroup) {
   if (!codeGroup) return false;
   return codeGroup !== (learnerGroup || 'standard');
 }
+
+const DAY_MS = 86400000;
+
+/** How long each product lasts, in days. `mock` lasts no time — it is a count. */
+export const PRODUCT_DURATION_DAYS = { pass90: 90, monthly: 30, mock: 0 };
+
+/**
+ * When an entitlement redeemed at `from` runs out. Returns null for products
+ * that are not time-boxed (a mock credit), which is the honest answer rather
+ * than a sentinel date nobody should ever see.
+ */
+export function entitlementExpiryFor(product, from = Date.now()) {
+  const days = PRODUCT_DURATION_DAYS[product];
+  if (!Number.isFinite(days) || days <= 0) return null;
+  return new Date(Number(from) + days * DAY_MS).toISOString();
+}
+
+/**
+ * Is a stored entitlement still live at `now`?
+ *
+ * The comparison is strict: at exactly `expiresAt` the entitlement is over. A
+ * learner who redeems at 23:59:59 gets a full day, and a learner whose expiry
+ * lands on this millisecond gets nothing — which is the correct reading of "90
+ * days", and is pinned by a boundary test so it cannot drift to `>=`.
+ */
+export function isEntitlementActive(record, now = Date.now()) {
+  if (!record || !record.expiresAt) return false;
+  const expiry = new Date(record.expiresAt).getTime();
+  if (!Number.isFinite(expiry)) return false;
+  return expiry > now;
+}
+
+/** Whole days left, floored at 0. `null` when there is no expiry to count to. */
+export function daysUntilExpiry(expiresAt, now = Date.now()) {
+  if (!expiresAt) return null;
+  const expiry = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiry)) return null;
+  return Math.max(0, Math.floor((expiry - now) / DAY_MS));
+}
+
+/** How many mock credits a learner has left. Never negative. */
+export function mockCreditsRemaining(record) {
+  const credits = Number(record?.mockCredits);
+  if (!Number.isFinite(credits) || credits < 0) return 0;
+  return Math.floor(credits);
+}
+
+/** The 7-day warning the app shows before an entitlement lapses. */
+export const EXPIRY_REMINDER_DAYS = 7;
+
+/**
+ * Should the learner be warned yet? True only inside the reminder window, so a
+ * subscriber with 60 days left is not nagged and an expired one is not told they
+ * are about to expire.
+ */
+export function shouldRemindAboutExpiry(record, now = Date.now()) {
+  if (!isEntitlementActive(record, now)) return false;
+  const days = daysUntilExpiry(record.expiresAt, now);
+  return days !== null && days <= EXPIRY_REMINDER_DAYS;
+}
