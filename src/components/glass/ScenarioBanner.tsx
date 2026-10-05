@@ -1,6 +1,5 @@
 import React from 'react';
 import { cn } from '@/lib/cn';
-import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { sceneBackdropLayers, type SceneLighting } from '@/lib/design/scenes';
 
 /**
@@ -75,12 +74,15 @@ export const ScenarioBanner: React.FC<ScenarioBannerProps> = ({
           className="absolute inset-0 h-full w-full scale-105 object-cover"
         />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center gap-3 px-4">
-          <KatzuMascot name="scenario_host" className="h-12 w-12 object-contain opacity-80" />
-          <p className="kz-ar-micro max-w-[16rem] leading-relaxed text-kz-inkDim">
-            صورة هذا الموقف (16:9) ستُضاف هنا — الشكل واللون من مكان الموقف نفسه.
-          </p>
-        </div>
+        /* No artwork for this scenario yet.
+           This used to print a sentence telling the learner the picture "will be
+           added here" — a placeholder note addressed to the developer, shown to
+           the one person who cannot act on it, in the place where a learner's
+           first impression of the situation is being formed. The scene lighting
+           below is a real, deliberate design rather than a stand-in, so a
+           scenario without artwork now simply looks like a lit scene, and says
+           nothing about what it is missing. */
+        <div className="absolute inset-0" aria-hidden />
       )}
 
       {/* Film grain: keeps a large dark gradient from banding on an AMOLED panel. */}

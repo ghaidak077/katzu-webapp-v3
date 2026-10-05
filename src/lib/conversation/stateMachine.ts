@@ -98,6 +98,22 @@ export const AI_SERVICE_MESSAGE_AR =
 export const QUOTA_MESSAGE_AR =
   'انتهت جلساتك المجانية. جملتك محفوظة ويمكنك متابعة ما تعلمته والمراجعة، أو تفعيل Pro لمحادثات بلا حدّ جلسات.';
 
+/**
+ * The daily spend cap, in the learner's words.
+ *
+ * `DAILY_SPEND_CAP` is the owner's emergency brake on the AI bill, and the
+ * Worker already sends a message with it. Without a case here the code fell
+ * through to the generic AI-service line, so a learner stopped by the cap was
+ * told "تعذر إكمال هذا الدور" — a fault in their sentence, which is the one
+ * thing they will try to fix by trying again, all day, into a closed door.
+ *
+ * It must NOT say anything about their account, their plan or their allowance:
+ * the cap is the operator's decision and has nothing to do with them. It is
+ * retryable, because it lifts on its own.
+ */
+export const DAILY_SPEND_CAP_MESSAGE_AR =
+  'أوقفنا المحادثات مع Katzu مؤقتاً حتى تبقى الخدمة مستقرة. تقدّمك محفوظ تماماً — جرّب بعد قليل، أو راجع كلماتك في هذه الأثناء.';
+
 export const SESSION_INVALID_MESSAGE_AR =
   'انتهت جلسة الدخول. سجّل الدخول من جديد ثم أعد إرسال جملتك — لن تُفقد.';
 
@@ -278,6 +294,12 @@ export function conversationReducer(state: ConversationState, event: Conversatio
 export function classifyTurnError(error: unknown): ConversationError {
   const code = String((error as { code?: string })?.code || '');
   const raw = String((error as { message?: string })?.message || '');
+  // BEFORE the quota test: `/quota/i` would otherwise match `daily_spend_cap`'s
+  // neighbours and tell a learner their free sessions are gone when what
+  // actually happened is that the service paused for everyone.
+  if (code === 'DAILY_SPEND_CAP' || code === 'daily_spend_cap') {
+    return { kind: 'network', messageAr: DAILY_SPEND_CAP_MESSAGE_AR, retryable: true };
+  }
   if (isEntitlementWall(code) || /quota|trial|entitlement|paywall/i.test(raw)) {
     return { kind: 'quota', messageAr: QUOTA_MESSAGE_AR, retryable: false };
   }
