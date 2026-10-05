@@ -50,12 +50,12 @@ describe('the trust pages', () => {
   });
 
   it('never claims unlimited AI, which the fair-use cap contradicts', () => {
-    // "غير محدود" appears once, inside a denial: the only mention of it says we
-    // do NOT sell an unlimited service.
+    // The repo-wide copy test bans the word "unlimited" outright, so the fair-use
+    // clause denies a boundless service without ever using the banned adjective.
     const all = JSON.stringify(TRUST_CONTENT);
-    const mentions = all.split('غير محدود').length - 1;
-    expect(mentions).toBe(1);
-    expect(all).toMatch(/لا نبيع خدمة غير محدودة/);
+    for (const banned of ['غير محدود', 'غير محدودة']) {
+      expect(all, banned).not.toContain(banned);
+    }
     expect(TRUST_CONTENT.terms.sections.find((s) => s.id === 'fairuse')!.bodyAr).toMatch(/نوضّح أي حد قبل أن تصل إليه/);
   });
 });

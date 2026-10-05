@@ -18,6 +18,7 @@
     "design:contrast": "node scripts/contrast-check.mjs",
     "design": "npm run design:audit && npm run design:contrast",
     "check:launch": "node scripts/check-launch.mjs",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
     "check:launch:strict": "LAUNCH_STRICT=1 node scripts/check-launch.mjs",
     "session:start": "node scripts/session-start.mjs",
     "deploy:worker": "wrangler deploy",

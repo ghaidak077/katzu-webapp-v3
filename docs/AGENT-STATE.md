@@ -2,15 +2,13 @@
 
 ## RESUME
 
-- **Last sha:** `077d1cc` (Batch 2) pushed; **C1 committed on top, not yet pushed.**
-- **Open CI run:** `37298109423` on `077d1cc` — polled twice and still `in_progress` at the time
-  of writing. **Do not deploy until green.** Re-check with
-  `gh run view 37298109423 --json status,conclusion`.
-- **Then:** C2 (secret scan over the tree AND full history, file:line + secret NAME, CI,
-  `wrangler secret put <NAME>` list), C3 (payments hardening), C4 (Play readiness), C5 (final
-  gates + deploy).
+- **Last sha:** `84439ab` (C1) pushed. CI `37300564199` on `84439ab` was **failure**:
+  `tests/interfaceContracts.test.ts` bans the Arabic word for "unlimited", and the C1
+  fair-use clause used it inside a denial. Copy reworded to `بلا حدود`, `tests/trustContent.test.ts` updated. **Unpushed: that fix + C2.**
+- **Next:** push the copy fix + C2 together, wait for green CI, then **deploy worker +
+  Pages** (Batch 2 has never been deployed) and verify live. Then C3, C4, C5.
 - **Live now:** worker `30d65294-3cd9-4251-9aca-229bd6bf7662`, Pages `48617093-bd19-41d9-9c5b-f9d5c743bb11`.
-- **Batch 1 deployed. Batch 2 + C1 in code; the push is out, the deploy is not.**
+- Full suite green locally: **125 files / 1617 tests**, `npm run lint` 0.
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 

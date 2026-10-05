@@ -149,6 +149,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Secret scan (tree + FULL history, names only)
+        # C2. `scripts/scan-secrets.mjs` walks every commit, not just HEAD: a
+        # secret deleted later is still in every clone. It prints file:line and
+        # the secret's NAME and never the value, and it is read-only — no
+        # history rewriting, which stays the owner's decision.
+        run: node scripts/scan-secrets.mjs
+
       - name: Scan tracked source for secret-shaped strings
         shell: bash
         run: |
