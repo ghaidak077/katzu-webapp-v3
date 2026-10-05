@@ -2,13 +2,14 @@
 
 ## RESUME
 
-- **Last sha:** `8b3ad4f` (Batch 2: pricing table, region resolver, entitlements).
-- **Open CI run:** none — `55e74d4`, `8b3ad4f` are committed but **not pushed**.
-- **Next item:** push and wait for green CI, then Batch 2 items B3–B5 (free B1 mock, paywall,
-  funnel events + admin) and B6 (onboarding, .ics, share/referral e2e).
-- **Live now:** worker `115d5630-402e-4fbe-ae6b-d3b93c2fe2f8`, Pages
-  `48617093-bd19-41d9-9c5b-f9d5c743bb11` from `0ead9c2`. CI `37278430234` success on `73757bc`.
-- **Batch 1 is complete and deployed.** Cheap routing and the translate cache are live.
+- **Last sha:** `33ec8e0`. CI `37285620163` **success**. Pushed.
+- **Open CI run:** none.
+- **Next item:** **Batch 2 item B3** — the free B1 speaking mock (three parts: plan together,
+  present a topic, react to questions) on the live-conversation engine, with timing, a
+  "practice estimate" score and an Arabic debrief. Check the repo for an existing B1 mock first.
+  Then B4 (paywall), B5 (events + admin funnel), B6 (onboarding, .ics, share/referral e2e).
+- **Live now:** worker `30d65294-3cd9-4251-9aca-229bd6bf7662`, Pages `48617093-bd19-41d9-9c5b-f9d5c743bb11`.
+- **Batch 1 complete and deployed. Batch 2 items 1 and 2 done and deployed.**
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 
