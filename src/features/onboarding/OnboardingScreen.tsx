@@ -313,6 +313,13 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                   onChange={(event) => {
                     const value = event.target.value ? new Date(event.target.value).getTime() : null;
                     setAnswers((prev) => ({ ...prev, targetDate: value }));
+                    // The lead time in DAYS, never the date: a date is the kind of
+                    // thing a learner would recognise in a log, and "how far out
+                    // is this person" is the question the event actually answers.
+                    // Empty and cleared both report 0 — there is no intent to read
+                    // in "they removed it again".
+                    const days = value ? Math.max(0, Math.round((value - Date.now()) / 86_400_000)) : 0;
+                    track('exam_date_set', { kind: answers.targetDateKind || 'exam', count: days });
                   }}
                   className="h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink focus:border-kz-lavender/50"
                 />

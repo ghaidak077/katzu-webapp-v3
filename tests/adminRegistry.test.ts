@@ -314,10 +314,16 @@ describe('Step 2: additive user registry schema', () => {
     );
     expect(env.DB.createdIndexes.length).toBeGreaterThan(0);
 
-    // Additive only: nothing may drop, rename or alter an existing table.
-    const destructive = env.DB.statements.filter((s) => /\b(DROP|ALTER|RENAME)\b/i.test(s));
+    // Additive only. `CREATE TABLE IF NOT EXISTS` cannot add a column to a table
+    // that already exists in production, so the registry bootstrap now carries
+    // exactly one ALTER for the channel tag (`users.src`). The rule is not "no
+    // ALTER" — a bootstrap with no migration path is how the first sign-in after
+    // a deploy fails (MEMORY 7) — it is "only ADD COLUMN, and nothing else".
+    const destructive = env.DB.statements.filter((s) => /\b(DROP|RENAME)\b/i.test(s));
     expect(destructive).toEqual([]);
-    for (const stmt of env.DB.statements) {
+    const alters = env.DB.statements.filter((s) => /\bALTER\b/i.test(s));
+    expect(alters).toEqual(['ALTER TABLE users ADD COLUMN src TEXT']);
+    for (const stmt of env.DB.statements.filter((s) => !/\bALTER\b/i.test(s))) {
       expect(stmt).toMatch(/^CREATE (TABLE|INDEX) IF NOT EXISTS/i);
     }
   });
@@ -593,9 +599,10 @@ describe('Admin dashboard aggregation API', () => {
     // And the DDL is still additive-only.
     const schemaChanges = env.DB.statements.filter((s) => /\b(DROP|ALTER|RENAME)\b/i.test(s));
     // Each binding now runs its own content bootstrap; only additive columns
-    // are legal, never destructive ALTER/DROP/RENAME operations.
+    // are legal, never destructive ALTER/DROP/RENAME operations. Six, not
+    // five: the registry adds `users.src` for the `?src=` channel tag.
     expect(schemaChanges.every((sql) => /^ALTER TABLE \w+ ADD COLUMN \w+ TEXT$/i.test(sql))).toBe(true);
-    expect(schemaChanges).toHaveLength(5);
+    expect(schemaChanges).toHaveLength(6);
   });
 
   it('a free user is findable on a fresh deploy without any prior AI/verify traffic', async () => {

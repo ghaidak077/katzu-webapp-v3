@@ -23,6 +23,8 @@ import { DAILY_MINUTE_CHOICES, type DailyMinuteChoice } from '@/types/models';
 import { WelcomeScreen } from '@/features/auth/WelcomeScreen';
 import { SignInScreen } from '@/features/auth/SignInScreen';
 import { LandingScreen } from '@/features/marketing/LandingScreen';
+import { captureSourceFromSearch, readShareMarkerFromSearch } from '@/lib/attribution/source';
+import { track } from '@/lib/analytics/client';
 
 /**
  * Everything behind sign-in loads on navigation, not before it.
@@ -156,6 +158,24 @@ function AppRoutes() {
   useEffect(() => {
     applyRendererTier(rendererTier);
   }, [rendererTier]);
+
+  // The channel tag is captured on EVERY route change, not once at boot: the
+  // link that brought someone in is often the demo link or the signup link, and
+  // a tag that only lives in the address bar is gone by the time they would pay.
+  // Pure and total — an invalid or absent tag is simply not stored.
+  useEffect(() => {
+    captureSourceFromSearch(location.search);
+  }, [location.search]);
+
+  // The receiving half of `share_click`: this visit arrived on a link somebody
+  // shared. Fired once per page load, on the first query string that carries a
+  // code — a client-side route change re-runs this effect, and a learner who
+  // navigates ten times must not become ten shares.
+  useEffect(() => {
+    const marker = readShareMarkerFromSearch(location.search);
+    if (marker) track('share_landed', { kind: marker });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Initialize database seed on first load and fetch latest scenarios from Cloudflare
   useEffect(() => {

@@ -272,6 +272,14 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
                     return;
                   }
                   const result = await workerClient.claimReferral(referralCode, activeToken);
+                  // A referral that the SERVER accepted. `code_redeemed` counts the
+                  // months bought; this counts the thing that produced them, which
+                  // is the only way to answer "do referrals pay for themselves".
+                  // The code itself is not carried — a referral code is a public
+                  // handle, but it still has no business in an event log.
+                  if (result.success) {
+                    track('referral_converted', { kind: 'code_claim' });
+                  }
                   setReferralMessage(
                     result.success
                       ? { kind: 'success', text: 'تم ربط حسابك بكود الإحالة ✓ بعد أول اشتراك سيحصل صديقك على شهر Pro.' }

@@ -831,6 +831,13 @@ export function useLiveConversation({
               : 'هذا المستوى ميزة Pro',
           description: err?.message || 'رَقِّ حسابك لفتح كل المستويات من A0 حتى B2 ومحادثات بلا حدّ جلسات.',
         });
+        // The top of the priced funnel, counted once per turn that hits the wall.
+        // A level lock is NOT this event: a learner locked out of B2 on turn one
+        // has not spent anything, and counting the two together would make the
+        // free allowance look far more exhausted than it is.
+        if (err?.code === 'FREE_QUOTA_EXHAUSTED') {
+          track('free_session_exhausted', { kind: 'trial', state: 'wall' });
+        }
       } else {
         // The user's message stays in the transcript with a visible error card
         // and a one-tap retry — never a silent spinner or a swallowed error.

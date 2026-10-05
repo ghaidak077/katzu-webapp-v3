@@ -163,7 +163,11 @@ describe('what the funnel stores', () => {
       'code_redeemed', 'debrief_view', 'mock_finish', 'mock_start',
       'onboarding_goal', 'paywall_view', 'share_click', 'upgrade_click',
     ]);
-    expect(FUNNEL_EVENTS.size).toBe(8);
+    // Ten, not eight: the two conversion edges the launch funnel was missing —
+    // the free allowance running out, and a referral being claimed.
+    expect(FUNNEL_EVENTS.size).toBe(10);
+    expect(FUNNEL_EVENTS.has('free_session_exhausted')).toBe(true);
+    expect(FUNNEL_EVENTS.has('referral_converted')).toBe(true);
   });
 
   it('carries the price group and cell, and nothing that identifies a person', async () => {

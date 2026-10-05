@@ -13,10 +13,11 @@
  * not live. Every amount the learner sees now comes from `GET /pricing` through
  * `src/lib/offers/priceSource.ts`, and nothing is shown when that call fails.
  */
+import { withSource } from '@/lib/attribution/source';
+
 const env = (import.meta as any).env || {};
 
 export const SALES_URL: string = String(env.VITE_SALES_URL || 'https://katzu-sales.pages.dev').replace(/\/+$/, '');
-
 
 /**
  * The app's own public origin. `katzu.app` does not resolve yet, so nothing may
@@ -45,20 +46,27 @@ export function legalPageUrl(page: 'privacy' | 'terms' | 'contact'): string {
 }
 
 /**
- * The sales page with referral attribution preserved. Referral codes live in
- * the URL (`?ref=REF-XXXXXXXX`) and the sales site forwards them to checkout, so
- * a learner who was invited does not lose the attribution by leaving the app.
+ * The sales page with attribution preserved.
+ *
+ * Two different things travel with the learner, and they answer different
+ * questions: `ref` is a referral CODE (who invited you, which buys them months)
+ * and `src` is the CHANNEL that produced the visit. The sales site forwards both
+ * to checkout, so neither is lost by leaving the app.
  */
-export function buildSalesUrl(referralCode?: string | null): string {
+export function buildSalesUrl(referralCode?: string | null, source?: string | null): string {
   const code = String(referralCode || '').trim().toUpperCase();
-  if (!code) return SALES_URL;
-  try {
-    const url = new URL(SALES_URL);
-    url.searchParams.set('ref', code);
-    return url.toString();
-  } catch {
-    // A malformed SALES_URL must not break the CTA: return it unchanged rather
-    // than a URL assembled by string concatenation.
-    return SALES_URL;
-  }
+  const withRef = code
+    ? (() => {
+        try {
+          const url = new URL(SALES_URL);
+          url.searchParams.set('ref', code);
+          return url.toString();
+        } catch {
+          // A malformed SALES_URL must not break the CTA: return it unchanged
+          // rather than a URL assembled by string concatenation.
+          return SALES_URL;
+        }
+      })()
+    : SALES_URL;
+  return withSource(withRef, source);
 }

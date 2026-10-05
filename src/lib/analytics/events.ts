@@ -61,6 +61,25 @@ export const ANALYTICS_EVENTS = [
   'upgrade_click',
   'purchase_clicked',
   'code_redeemed',
+  // The moments the launch funnel could not previously see.
+  //
+  // `free_session_exhausted` is the top of the priced funnel: the exact count of
+  // learners who ran out of the free allowance. `share_landed` pairs with the
+  // existing `share_click` — a click is counted on the sharer's device, the
+  // landing on the receiver's, and only the pair measures whether sharing works.
+  // `referral_converted` is the other end of the same question, for codes.
+  // `exam_date_set` says who is buying: an allowance runs out fastest for a
+  // learner with a date. It carries no date value — `count` is the lead time in
+  // days, never the date itself.
+  //
+  // NOT ADDED, ON PURPOSE: `share_clicked` (the existing `share_click` already
+  // fires at all four share surfaces; a second name would split the funnel), and
+  // `order_intent` (the app never creates an order — check-out lives on the
+  // separate sales site, and `purchase_clicked` already marks the outbound buy).
+  'free_session_exhausted',
+  'share_landed',
+  'referral_converted',
+  'exam_date_set',
   'app_error',
 ] as const;
 

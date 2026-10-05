@@ -356,7 +356,7 @@ async function handleAuthSession(request, env, cors) {
   // break a sign-in) — so without this a brand-new account's registry row was
   // lost silently on a fresh database.
   await ensureLedgerTablesOnce(env);
-  await upsertUserFromAccount(account, request, env);
+  await upsertUserFromAccount(account, request, env, { src: body?.source });
   await recordActivity(env, account.sub, "session_created", { via: "auth_session" });
 
   return json({ session_token: sessionToken, expires_in: SESSION_TOKEN_TTL_MS / 1000 }, 200, cors);

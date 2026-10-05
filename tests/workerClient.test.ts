@@ -375,7 +375,10 @@ describe('WorkerClient API Contract Integration', () => {
 
     const result = await client.exchangeGoogleToken('google_credential_id_token_123');
     expect(capturedUrl).toBe('https://mock-worker.test/auth/session');
-    expect(capturedBody).toEqual({ id_token: 'google_credential_id_token_123' });
+    // `source` is the `?src=` channel tag, carried so the account records where
+    // it came from. It is `null` with no tag held, and the Worker sanitises it
+    // again before writing — a client cannot widen what it accepts.
+    expect(capturedBody).toEqual({ id_token: 'google_credential_id_token_123', source: null });
     expect(result).toEqual({
       session_token: 'mock_jwt_session_token_xyz',
       expires_in: 2592000,

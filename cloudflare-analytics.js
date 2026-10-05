@@ -73,6 +73,10 @@ export const EVENT_NAMES = [
   "upgrade_click",
   "purchase_clicked",
   "code_redeemed",
+  "free_session_exhausted",
+  "share_landed",
+  "referral_converted",
+  "exam_date_set",
   "app_error",
 ];
 
@@ -114,6 +118,13 @@ export const FUNNEL_EVENTS = new Set([
   "upgrade_click",
   "code_redeemed",
   "share_click",
+  // The conversion edges the funnel was missing: the moment the free allowance
+  // runs out (how much of the top of the funnel is priced), and the moment a
+  // shared or referred link produces a redeemed code. Both are rare, both decide
+  // whether the launch is working, and both belong in a table with a TTL rather
+  // than in KV.
+  "free_session_exhausted",
+  "referral_converted",
 ]);
 
 /** Abuse control only. Isolate-local, so it throttles rather than guarantees. */

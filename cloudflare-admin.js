@@ -49,6 +49,19 @@ import { handleAnalyticsRoute } from "./cloudflare-analytics.js";
 export async function ensureRegistryTables(env) {
   if (!env?.DB) return false;
   try {
+    // L3: the channel tag (`?src=`) is an ADDITIVE column. It is added outside
+    // the batch because a D1 batch is transactional: on a fresh database the
+    // CREATE below already carries `source`, so an ALTER in the same batch would
+    // fail with "duplicate column name" and roll the whole thing back. Here the
+    // failure is isolated, and "already exists" is the expected steady state
+    // rather than an error (the same rule `ensureContentColumns` follows).
+    try {
+      await env.DB.prepare(`ALTER TABLE users ADD COLUMN src TEXT`).run();
+    } catch (error) {
+      if (!/duplicate column name/i.test(String(error?.message || error))) {
+        throw error;
+      }
+    }
     await env.DB.batch([
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -58,7 +71,8 @@ export async function ensureRegistryTables(env) {
         plan TEXT DEFAULT 'free',
         plan_expires_at INTEGER,
         last_ip TEXT,
-        platform TEXT
+        platform TEXT,
+        src TEXT
       )`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS activity_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,6 +89,7 @@ export async function ensureRegistryTables(env) {
         message TEXT,
         created_at INTEGER
       )`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_users_src ON users (src)`),
       env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_users_last_seen ON users (last_seen_at)`),
       env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log (user_id, created_at)`),
       env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_type ON activity_log (event_type, created_at)`),
@@ -104,8 +119,7 @@ const CREDENTIAL_PATTERNS = [
   /[A-Za-z0-9_-]{40,}\.[A-Za-z0-9_-]{20,}/g, // long opaque pairs
 ];
 
-export function sanitizeLogMessage(value, maxLength = 400) {
-  if (value === null || value === undefined) return null;
+export function sanitizeLogMessage(value, maxLength = 400) {  if (value === null || value === undefined) return null;
   let text = typeof value === "string" ? value : String(value?.message || value);
   for (const pattern of CREDENTIAL_PATTERNS) {
     text = text.replace(pattern, "[redacted]");
@@ -158,18 +172,42 @@ function deriveIp(request) {
  * only signs in (never redeems) is registered and therefore findable by admins.
  * Preserves created_at and plan on subsequent sign-ins.
  */
+/**
+ * The channel tag (`?src=`), or nothing.
+ *
+ * The whole grammar: lowercase letters, digits, underscore and dash, 1–32 of
+ * them. A full URL, an email, an Arabic sentence or anything longer is DROPPED
+ * rather than trimmed — this value is rendered in the admin UI, so a hostile
+ * link must not be able to store content there. Same rule as the client's
+ * `sanitizeSource`, written twice on purpose: the client can be bypassed.
+ *
+ * Named `src` and not `source` throughout: `describeUser`'s `source` already
+ * means which store a record was read from ("users" / "email_index"), and two
+ * meanings of one name in the same response is a silent bug waiting to happen.
+ */
+export function sanitizeSrcTag(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  return /^[a-z0-9_-]{1,32}$/.test(trimmed) ? trimmed : null;
+}
+
 export async function upsertUserFromAccount(account, request, env, extra = {}) {
   if (!env?.DB || !account?.sub) return false;
   try {
     const now = Date.now();
+    // The channel tag, sanitised at the boundary. `null` means "nothing valid was
+    // offered", which is different from "" and keeps the UPDATE from blanking a
+    // tag an earlier sign-in already recorded.
+    const src = sanitizeSrcTag(extra.src);
     await env.DB.prepare(
-      `INSERT INTO users (id, email, created_at, last_seen_at, plan, plan_expires_at, last_ip, platform)
-       VALUES (?, ?, ?, ?, 'free', NULL, ?, ?)
+      `INSERT INTO users (id, email, created_at, last_seen_at, plan, plan_expires_at, last_ip, platform, src)
+       VALUES (?, ?, ?, ?, 'free', NULL, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          email = COALESCE(excluded.email, users.email),
          last_seen_at = excluded.last_seen_at,
          last_ip = excluded.last_ip,
-         platform = excluded.platform`
+         platform = excluded.platform,
+         src = COALESCE(excluded.src, users.src)`
     )
       .bind(
         account.sub,
@@ -177,7 +215,8 @@ export async function upsertUserFromAccount(account, request, env, extra = {}) {
         now,
         now,
         deriveIp(request),
-        derivePlatform(request)
+        derivePlatform(request),
+        src
       )
       .run();
     if (extra.plan === "pro") {
@@ -366,6 +405,8 @@ export async function resolveUserRecord(env, { email, id } = {}) {
     registered: Boolean(user),
     registryOnly: Boolean(user) && !user?.plan_expires_at && plan === "free" ? false : false,
     source: source || null,
+    /** The channel tag from `?src=` — never PII, and `null` when none arrived. */
+    src: user?.src ? sanitizeSrcTag(user.src) : null,
   };
 }
 

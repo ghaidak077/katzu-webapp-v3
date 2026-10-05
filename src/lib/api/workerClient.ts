@@ -1,6 +1,7 @@
 import { db } from '../db/katzuDb';
 import { WORKER_BASE_URL } from './workerUrl';
 import { adoptRemoteReviewItems, loadReviewItems } from '@/lib/srs/store';
+import { currentSource } from '@/lib/attribution/source';
 import { adoptDailyAuthority, buildDailyPayload, clearDailyEvents, readDailyEventQueue } from '@/lib/progress/dailyAuthority';
 import type { DailyAuthority, DailyPayload } from '@/lib/progress/dailyAuthority';
 import { logError, logEvent, logNetwork } from '../utils/diagnostics';
@@ -236,10 +237,13 @@ export class WorkerClient {
   async exchangeGoogleToken(idToken: string): Promise<{ session_token: string; expires_in: number } | null> {
     if (!idToken) return null;
     try {
+      // The channel tag rides along so the account records where it came from.
+      // It is a short slug the owner chose (`[a-z0-9_-]{1,32}`), never identity:
+      // the Worker sanitises it again before it writes anything.
       const res = await fetchWithTimeout(`${this.baseUrl}/auth/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken }),
+        body: JSON.stringify({ id_token: idToken, source: currentSource() }),
       });
       if (res.ok) {
         const data = await res.json();
