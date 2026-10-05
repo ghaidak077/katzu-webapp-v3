@@ -1,8 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import worker, {
+  DAILY_SPEND_CAP_MESSAGE,
   ERROR_REPORT_RETENTION_MS,
   RATE_LIMIT_RETENTION_MS,
+  checkDailySpendCap,
   checkRateLimit,
   checkUserEntitlement,
   consumeTrialQuota,
@@ -725,5 +727,96 @@ describe('client error reports are stored bounded and redacted (RC-4)', () => {
     expect(stored.length).toBeLessThanOrEqual(400);
     expect(stored).not.toContain('sk-abcdefghijklmnopqrstuvwxyz012345');
     expect(stored).not.toContain('Bearer sk-');
+  });
+});
+
+/**
+ * Global daily AI spend cap (Batch 1).
+ *
+ * The cap is the operator's stop for the bill, so the two directions both matter:
+ * it must actually engage (cap=0 blocks everything) and it must never freeze a
+ * learner on a mistake — absent means unlimited, and a D1 failure fails open.
+ */
+describe('daily AI spend cap', () => {
+  /** Minimal D1 double over the one table the cap uses. */
+  function countersDb(seed: Record<string, number> = {}) {
+    const rows = new Map<string, { window_start: number; count: number }>(
+      Object.entries(seed).map(([id, count]) => [id, { window_start: 0, count }]),
+    );
+    return {
+      rows,
+      db: {
+        prepare: (sql: string) => ({
+          bind: (...args: any[]) => ({
+            run: async () => {
+              if (/INSERT INTO rate_limit_counters/i.test(sql)) {
+                const [id, ws] = args;
+                if (rows.has(String(id))) throw new Error('UNIQUE constraint failed');
+                // The SQL seeds the literal 0; the counter is incremented separately.
+                rows.set(String(id), { window_start: Number(ws), count: 0 });
+              } else if (/SET window_start = \?, count = 0/i.test(sql)) {
+                const [ws, id, current] = args;
+                const row = rows.get(String(id));
+                if (row && row.window_start !== Number(current)) {
+                  rows.set(String(id), { window_start: Number(ws), count: 0 });
+                }
+              } else if (/count = count \+ 1/i.test(sql)) {
+                const id = String(args[0]);
+                const row = rows.get(id);
+                if (row) row.count += 1;
+              }
+              return {};
+            },
+            first: async () => {
+              const row = rows.get(String(args[0]));
+              return row ? { count: row.count } : null;
+            },
+          }),
+        }),
+      },
+    };
+  }
+
+  it('blocks every AI call when the cap is 0, the operator stop', async () => {
+    const { db, rows } = countersDb();
+    const result = await checkDailySpendCap({ AI_DAILY_SPEND_CAP: '0', DB: db } as never);
+    expect(result.allowed).toBe(false);
+    // A stop that never opens must not spend a write per call.
+    expect(rows.size).toBe(0);
+  });
+
+  it('is unlimited when the cap is absent', async () => {
+    const { db } = countersDb();
+    await expect(checkDailySpendCap({ DB: db } as never)).resolves.toMatchObject({ allowed: true, cap: null });
+    await expect(checkDailySpendCap({ AI_DAILY_SPEND_CAP: '', DB: db } as never)).resolves.toMatchObject({ allowed: true });
+  });
+
+  it('fails OPEN on a misconfigured cap rather than freezing every learner', async () => {
+    const { db } = countersDb();
+    await expect(checkDailySpendCap({ AI_DAILY_SPEND_CAP: 'lots', DB: db } as never)).resolves.toMatchObject({ allowed: true, cap: null });
+    await expect(checkDailySpendCap({ AI_DAILY_SPEND_CAP: '-5', DB: db } as never)).resolves.toMatchObject({ allowed: true, cap: null });
+  });
+
+  it('fails OPEN when D1 throws, so an accounting error never costs a learner their lesson', async () => {
+    const broken = {
+      prepare: () => ({ bind: () => ({ run: async () => { throw new Error('D1 down'); }, first: async () => { throw new Error('D1 down'); } }) }),
+    };
+    await expect(checkDailySpendCap({ AI_DAILY_SPEND_CAP: '5', DB: broken } as never)).resolves.toMatchObject({ allowed: true });
+  });
+
+  it('allows exactly the cap, then blocks', async () => {
+    const { db, rows } = countersDb();
+    const env = { AI_DAILY_SPEND_CAP: '2', DB: db } as never;
+    await expect(checkDailySpendCap(env)).resolves.toMatchObject({ allowed: true });
+    await expect(checkDailySpendCap(env)).resolves.toMatchObject({ allowed: true });
+    await expect(checkDailySpendCap(env)).resolves.toMatchObject({ allowed: false });
+    // Every call counts, including the one that was refused: the counter measures
+    // demand, so the owner can see how far over the cap the day went.
+    expect(rows.get('global-ai-spend')?.count).toBe(3);
+  });
+
+  it('answers in Arabic, so the pause is a sentence and not a stack trace', () => {
+    expect(DAILY_SPEND_CAP_MESSAGE).toMatch(/[؀-ۿ]/);
+    expect(DAILY_SPEND_CAP_MESSAGE).toContain('تقدّمك محفوظ');
   });
 });

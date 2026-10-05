@@ -606,6 +606,64 @@ async function checkGlobalRateLimit(accountId, env, scope = {}) {
   }
 }
 
+/**
+ * Global daily AI spend cap (Batch 1).
+ *
+ * The per-account limits above bound one learner; this bounds the bill. It is a
+ * deliberately blunt proxy — a count of AI calls across all accounts — because a
+ * true currency cap needs per-model prices that only the owner can confirm, and
+ * a wrong price is worse than a rough ceiling.
+ *
+ * Semantics: ABSENT means unlimited. Any value present, including 0, is enforced,
+ * so `AI_DAILY_SPEND_CAP = "0"` stops all AI traffic — which is exactly how the
+ * operator stops spend without a deploy, and how the test proves it engages.
+ */
+const DAILY_SPEND_CAP_MESSAGE =
+  "أوقفنا المحادثات مع Katzu مؤقتاً حتى تبقى الخدمة مستقرة وتتمتع بمخصصك. " +
+  "تقدّمك محفوظ تماماً — جرّب بعد قليل، أو راجع كلماتك في هذه الأثناء.";
+
+async function checkDailySpendCap(env) {
+  const raw = env?.AI_DAILY_SPEND_CAP;
+  if (raw === undefined || raw === null || String(raw).trim() === "") return { allowed: true, cap: null };
+  const cap = Number(raw);
+  // A non-numeric or negative cap is a config mistake, not an outage: fail OPEN and
+  // let the per-account limits keep doing their job rather than freezing every learner.
+  if (!Number.isFinite(cap) || cap < 0) return { allowed: true, cap: null };
+  if (!env.DB) return { allowed: true, cap }; // no durable store: per-account limits only
+  // A cap of 0 is a stop, and a stop must not depend on a database being healthy:
+  // it blocks before touching storage, so the emergency path cannot be taken out
+  // by the same outage that stopped the bill.
+  if (cap === 0) return { allowed: false, cap, count: 0 };
+  try {
+    const dayWindow = Math.floor(Date.now() / 86400000);
+    const counterId = "global-ai-spend";
+    // `count` is the number of AI calls admitted TODAY. Every call increments
+    // before the check, so the cap admits exactly `cap` calls and blocks the
+    // next one — an off-by-one here would silently overspend by one call a day.
+    try {
+      await env.DB.prepare(
+        "INSERT INTO rate_limit_counters (counter_id, window_start, count) VALUES (?, ?, 0)"
+      ).bind(counterId, dayWindow).run();
+    } catch {
+      // Row already exists: fall through and roll the window forward.
+      await env.DB.prepare(
+        "UPDATE rate_limit_counters SET window_start = ?, count = 0 WHERE counter_id = ? AND window_start != ?"
+      ).bind(dayWindow, counterId, dayWindow).run();
+    }
+    await env.DB.prepare(
+      "UPDATE rate_limit_counters SET count = count + 1 WHERE counter_id = ?"
+    ).bind(counterId).run();
+    const row = await env.DB.prepare(
+      "SELECT count FROM rate_limit_counters WHERE counter_id = ?"
+    ).bind(counterId).first();
+    const count = Number(row?.count ?? 0);
+    if (count > cap) return { allowed: false, cap, count };
+    return { allowed: true, cap, count };
+  } catch {
+    return { allowed: true, cap }; // D1 hiccup: never freeze learners on an accounting error
+  }
+}
+
 function trialSessionKey(accountId, sessionId) {
   // Sanitize: session_id comes from the client, keep keys bounded and readable.
   const safe = String(sessionId).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
@@ -716,6 +774,17 @@ async function authenticateAiRequest(request, body, env, cors, {
   }
 
   if (rateLimit) {
+    const spend = await checkDailySpendCap(env);
+    if (!spend.allowed) {
+      return {
+        response: json({
+          error: "daily_spend_cap",
+          code: "DAILY_SPEND_CAP",
+          message: DAILY_SPEND_CAP_MESSAGE,
+          retry_after: 3600
+        }, 503, cors)
+      };
+    }
     const rate = await checkGlobalRateLimit(account.sub, env);
     if (!rate.allowed) {
       return {
@@ -3249,6 +3318,8 @@ function adminJson(obj, status, cors, extraHeaders = {}) {
 }
 
 export {
+  checkDailySpendCap,
+  DAILY_SPEND_CAP_MESSAGE,
   checkRateLimit,
   checkUserEntitlement,
   consumeTrialQuota,
