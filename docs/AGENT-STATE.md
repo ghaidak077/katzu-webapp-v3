@@ -2,13 +2,18 @@
 
 ## RESUME
 
-- **Last sha:** `c07758d` (C3) committed locally, **not pushed**. C4 is committed on top of it.
-- **CI on the last PUSHED sha** `4eeee5b` was **success** (`37304454314`).
-- **Next:** push C3+C4, wait for green CI, then **deploy worker + Pages** — Batch 2, C1, C2,
-  C3 and C4 have still never been deployed — and verify live. Then C5 (final gates).
-- **Measured this session:** full suite **128 files / 1643 tests** green, `npm run lint` 0,
-  Lighthouse performance **0.87** at 360x640 (blocked the Kaspersky injection that made it read
-  0.79), offline start proven by `e2e/playReadiness.spec.ts` (3/3).
+- **Last sha:** `f82ebe5` (C4) pushed. CI `37307569675` on it was **failure**, one step:
+  `npx tsc -p e2e` — the harness `pricing` mock lacked the top-level `cell`, which the C3 paywall
+  spec passes. Fixed by making it optional; `npx tsc -p e2e --noEmit` now clean. **Unpushed.**
+- **Next:** push that fix, wait for green CI, then **deploy worker + Pages** — Batch 2, C1–C4
+  have still never been deployed — verify live, then C5 (final gates) which is already run
+  locally and green.
+- **C5 gates run locally on `f82ebe5`:** `npm test` **128 files / 1643 tests**, `npm run lint` 0,
+  `npm audit --omit=dev` **0 vulnerabilities**, design-audit **within budget**, contrast **all pairs
+  pass** (tightest 4.52:1), simplicity **within budget** (29 screens), verification battery
+  **12/12**, Lighthouse performance **0.87** at 360x640, play-readiness e2e **3/3**.
+- **Deferred notes** written: `docs/agent/DEFERRED-NOTES.md` (email OTP, web push, Play Billing,
+  domain switch, Play wrapper — one paragraph each, nothing built).
 - **Live now:** worker `30d65294-3cd9-4251-9aca-229bd6bf7662`, Pages `48617093-bd19-41d9-9c5b-f9d5c743bb11`.
 
 ## OWNER LIST (deduplicated — no secrets, no values)

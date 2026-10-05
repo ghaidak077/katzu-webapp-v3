@@ -122,6 +122,8 @@ export interface MockOptions {
   pricing?: {
     prices: Array<{ product: string; amountCents: number; currency: string; group: string; cell: number | null }>;
     group: string;
+    /** The experiment bucket the account was assigned, or null when none runs. */
+    cell?: number | null;
   } | null;
 }
 
