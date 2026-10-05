@@ -266,7 +266,7 @@ file is the digest that is short enough to always read.
 
 ## E. Open items the owner must decide (not an agent's call)
 
-- Rotate `ADMIN_SECRET` (was exposed in an earlier prompt).
+- ~~Rotate `ADMIN_SECRET` (was exposed in an earlier prompt).~~ **Closed by owner decision, 2026-10-05** — the owner reviewed the exposure and accepts the secret as it stands. Recorded, not verified: a Worker secret cannot be read back.
 - `katzu.app` does not resolve though robots/sitemap advertise it.
 - Imprint placeholder + refund one-liner need real wording before public launch.
 - ~~No dedicated e2e for review/listen/write/coach.~~ **Closed (V28-4):** `e2e/skillSurfaces.spec.ts` (5) covers review, listening, writing, coach and the Trail rank badge; V29 added `e2e/quizStability.spec.ts` and extended skillSurfaces/journey/conversationLayout, so the suite is 61 e2e (the word-bank extension added the Writing-bank and hint-bank cases and widened the listening case). What remains uncovered by e2e is only the *live* behaviour of these screens on a real device, not their rendering.

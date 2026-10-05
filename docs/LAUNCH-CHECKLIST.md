@@ -159,8 +159,14 @@ self-serve refunds; an admin view of `crypto_orders` beyond a D1 query; and an
 in-app "manage subscription" screen (not applicable to one-off codes).
 
 ### 2.2 Security actions only you can take
-5. **Rotate `ADMIN_SECRET`.** The value you pasted in chat is now the live secret,
-   so it should be considered exposed. `npx wrangler secret put ADMIN_SECRET`.
+5. ~~Rotate `ADMIN_SECRET`.~~ **CLOSED — owner decision, 2026-10-05.** The owner
+   reviewed the V10 chat-prompt exposure and accepts the secret as it stands. It is
+   no longer tracked as an outstanding action and no longer gates the beta or a paid
+   launch. *What could not be verified from the repo:* a Worker secret cannot be read
+   back, and the local `.env` copy of `ADMIN_SECRET` is empty, so nothing here can
+   confirm whether the value was replaced or accepted as-is. Should that judgement be
+   revisited, the command is `npx wrangler secret put ADMIN_SECRET`, and §1 of
+   `docs/agent/OWNER-STEPS.md` holds the verify-and-roll-forward procedure.
 6. **Confirm the Google audience decision — read this one.** The worker now
    enforces the `aud` claim on Google ID tokens (`GOOGLE_CLIENT_ID`, matching
    `VITE_GOOGLE_CLIENT_ID`, exactly as DEPLOY.md specifies). The web app is

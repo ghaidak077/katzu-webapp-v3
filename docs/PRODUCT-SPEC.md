@@ -1447,7 +1447,7 @@ the Android-submission items (separate repo).
 | T8 | App CSP allows `script-src 'unsafe-inline'` | Weaker XSS defense | Remove inline scripts and tighten the policy |
 | T9 | CORS sets `access-control-allow-credentials: true` though no cookies are used | Cosmetic | Drop the header |
 | T10 | `.claude/settings.local.json` is **tracked in git** | Local tool config leaked | `git rm --cached` |
-| T11 | `ADMIN_SECRET` was shared in plain text | Exposed admin | Rotate it |
+| T11 | `ADMIN_SECRET` was shared in plain text | Exposed admin | ~~Rotate it~~ — **accepted by owner decision 2026-10-05**; the disclosure is a known, owner-accepted risk and no longer an open action. Prefer Cloudflare Access on `/admin/*` (T7) as the compensating control |
 | T12 | `robots.txt`/`sitemap.xml` advertise `katzu.app`, which doesn't resolve | Cosmetic SEO | Attach the domain or update the files |
 | T13 | `@tanstack/react-query`, `zod`, `workbox-window` declared but unused | Bloat/confusion | Remove or wire deliberately |
 | T14 | Isolate-local Maps still back the crypto/legacy paths (D1 covers AI) | Abuse-control weakness on some routes | Migrate fully to D1 counters |
@@ -1471,9 +1471,11 @@ the Android-submission items (separate repo).
   fulfilled until `NOWPAYMENTS_API_KEY` + `NOWPAYMENTS_IPN_SECRET` are set, verified in `test_mode`,
   then the environment flipped to `live_mode`.
 - **Local Syria payment details are placeholders** in `sales/sales.js` (the site warns loudly).
-- **Manual operator actions:** rotate `ADMIN_SECRET`; rotate/scope `CLOUDFLARE_API_TOKEN`; delete the
+- **Manual operator actions:** rotate/scope `CLOUDFLARE_API_TOKEN`; delete the
   unused `SESSION_SECRET`; decide where `/admin` lives (Cloudflare Access / separate hostname);
   untrack `.claude/settings.local.json`; attach the production domain.
+  (`ADMIN_SECRET` rotation was on this list and was **closed by owner decision on 2026-10-05** —
+  the owner reviewed the V10 chat-prompt exposure and accepts the secret as it stands.)
 - **Real paid crypto round-trip and real Google sign-in** could not be exercised autonomously
   (need the owner's credentials / keys).
 

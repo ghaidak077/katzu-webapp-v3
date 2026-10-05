@@ -15,9 +15,13 @@ with a check that proves it worked.
 | Sales site | `https://katzu-sales.pages.dev` (Pages project `katzu-sales`) |
 | Database | D1 `katzu-content` (`a80158e6-a5b4-49c0-b78a-67f390acf71d`) — 15 scenarios / 221 vocabulary / 111 phrases / 22 grammar |
 
-**If you only do three things before the beta starts:** rotate `ADMIN_SECRET` (§6), decide the
-URL you will hand out (§6 — `katzu.app` does not resolve today), and run the two-phone voice
-check (§2).
+**If you only do three things before the beta starts:** put Cloudflare Access in front of
+`/admin/*` (§1), decide the URL you will hand out (§6 — `katzu.app` does not resolve today),
+and run the two-phone voice check (§2).
+
+> **`ADMIN_SECRET` rotation is closed** — owner decision, 2026-10-05. It is no longer in this
+> short list and no longer in §6. The §5 row for an *actual* leak stays, because that procedure
+> is still the correct response if one ever happens.
 
 ---
 
@@ -199,7 +203,7 @@ is worth stopping and fixing before the next handout.
 | You need learners to stop writing **right now** | `MAINTENANCE_MODE = "on"` in `wrangler.toml`, `npm run deploy:worker` | Every learner write answers **503** with an Arabic message and a `Retry-After`; reads and `/admin/*` keep working. Set it back to `"off"` and redeploy to resume |
 | AI turns fail for everyone | `curl …/health` — `ready:false` means the key pool is unusable | Check the admin health view for an exhausted day-quota or a disabled key; add/replace a key, or raise `AI_RATE_LIMIT_PER_DAY` and redeploy |
 | A learner hit the free quota and thinks the app broke | Nothing is broken; they saw `انتهت الجلسات المجانية` | Mint them a code (§3) if they are in the beta, or point them at the Pro screen's "I already have a code" |
-| `ADMIN_SECRET` may have leaked | `npx wrangler secret put ADMIN_SECRET` with a new value | Confirm `/admin/api/users` is still **401** anonymously and the dashboard works with the new value. This is the one item **still open from V10** |
+| `ADMIN_SECRET` may have leaked | `npx wrangler secret put ADMIN_SECRET` with a new value | Confirm `/admin/api/users` is still **401** anonymously and the dashboard works with the new value. Procedure only — the standing rotation action was closed by owner decision on 2026-10-05 |
 | Content looks wrong or a scenario has no grammar rule | `node scripts/check-content-drift.mjs` (exit 0 = production matches the drafts) | If a row is `absent`, load the approved draft (`docs/agent/CONTENT-LOAD.md`); if a *grammar* row exists but no scenario points at it, that is an agent code change (`SCENARIO_GRAMMAR_IDS`) |
 | A D1 query or load goes wrong | **Export first**: `npx wrangler d1 export katzu-content --remote --output backup-<date>.sql` | Content loads are insert-only and key-addressed, so a bad load is fixed by loading a corrected file; deleting rows is a last resort and needs the export in hand |
 | Payments accidentally become live | Remove `NOWPAYMENTS_API_KEY` / `NOWPAYMENTS_IPN_SECRET` (`npx wrangler secret delete …`) and set `NOWPAYMENTS_ENVIRONMENT = "test_mode"` | `/crypto/health` must read `ready:false` again; the app has no checkout UI, so nothing can charge while the keys are absent |
@@ -212,7 +216,7 @@ is worth stopping and fixing before the next handout.
 
 | Item | Why it is owner-only | Done when |
 | --- | --- | --- |
-| **Rotate `ADMIN_SECRET`** | The value pasted into a V10 chat is still live; §3 forbids an agent handling secrets | `npx wrangler secret put ADMIN_SECRET` run, the dashboard works with the new value, and `/admin/api/users` is still 401 anonymously |
+| ~~**Rotate `ADMIN_SECRET`**~~ — **closed 2026-10-05**, owner decision | The owner reviewed the V10 chat-prompt exposure and accepts the secret as it stands. *Not verifiable from the repo:* a Worker secret cannot be read back and the local `.env` copy is empty, so nothing here proves the value was replaced | — nothing outstanding; the §5 leak row stands as a procedure |
 | **Decide the URL the cohort uses** | `robots.txt`/`sitemap.xml` advertise `https://katzu.app/`, which does not resolve; attaching a domain needs your DNS and a Google OAuth origin update | Either attach `katzu.app` to the Pages project (then update `ALLOWED_ORIGINS` + `VITE_PUBLIC_APP_URL`), or accept `katzu-webapp-v3.pages.dev` for the closed beta |
 | **Cloudflare Access on `/admin/*`** | Zero Trust is your account | §1's curl check shows a redirect instead of a 200 for the shell |
 | **NOWPayments live mode** | Needs live secrets and takes real money | One sandbox round-trip recorded, then `NOWPAYMENTS_ENVIRONMENT = "live_mode"`, then one real low-value purchase redeemed end to end. **Not needed for a free beta** |

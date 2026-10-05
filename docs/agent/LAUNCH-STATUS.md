@@ -173,7 +173,7 @@ Adjacent states that also have copy: unusable transcript
 | §1 done-and-verified (auth transport, revocation, deletion, export, CORS, ledgers, admin registry, legal pages, crypto code) | READY | re-verified this run where it is live (battery + curls); the two stale numbers in that table ("577 tests / 52 files", "201 tests / 22 files") describe old passes — current suite is **891 tests / 74 files** |
 | §2.1 crypto sales end-to-end | **OWNER-ONLY** (and deliberately off) | the code path is tested (`tests/cryptoPayments.test.ts`, 24 tests) but `/crypto/checkout` answers 503 and `/crypto/health` `ready:false` because the provider secrets are absent. For a **free closed beta this is the safe state**; enabling it is a paid-launch action |
 | §2.1 local Syria codes minted by hand | READY | `POST /admin/generate` proved against the local real D1 (this run); the owner mints codes from the dashboard |
-| §2.2 rotate `ADMIN_SECRET` | **OWNER-ONLY** | the value pasted into a V10 prompt is still the live secret (`wrangler secret put ADMIN_SECRET`). **Highest-value owner action in this document** |
+| §2.2 rotate `ADMIN_SECRET` | **CLOSED — owner decision 2026-10-05** | the owner reviewed the V10 chat-prompt exposure and accepts the secret as it stands; it no longer gates anything here. *Not independently verifiable:* a Worker secret cannot be read back and the local `.env` copy is empty. The §5 procedure in `OWNER-STEPS.md` stands if a leak ever happens |
 | §2.2 Google audience decision (Android `serverClientId`) | **OWNER-ONLY** | unchanged; only matters when the Android build signs in |
 | §2.2 Cloudflare Access in front of `/admin/*` | **OWNER-ONLY** | steps are in `docs/agent/OWNER-STEPS.md`; the worker's bearer gate stays as defence in depth (verified still 401) |
 | §2.2 add `D1:Edit` to the API token | **RESOLVED — stale item** | `wrangler d1 export` and `wrangler d1 execute --remote` both worked in V18 (and again in V17/V18 content work) |
@@ -189,16 +189,21 @@ Adjacent states that also have copy: unusable transcript
 
 ## 8. Gaps, ranked (nothing here is silently dropped)
 
-1. **`ADMIN_SECRET` rotation — OWNER-ONLY, highest value.** The exposed value is still live; everything else in this document assumes it will be replaced.
-2. **Beta cannot start before a domain or a clear URL decision — OWNER-ONLY.** `katzu-webapp-v3.pages.dev` works and is what a cohort can be handed today, but `robots.txt`, `sitemap.xml` and the store/legal URLs point at `katzu.app`, which does not resolve. Handing out the `pages.dev` URL is acceptable for a closed beta; it is not acceptable for a public launch.
-3. **Real-device voice is still unproven — OWNER-ONLY.** Every voice path in this repo runs against Chromium's fake device (`e2e/microphone.spec.ts`). The 10-minute iOS Safari + Android Chrome checklist in `BETA-KIT.md` is the only honest way to close it, and it needs two real phones.
-4. **Curriculum volume — OPEN, agent+owner authoring.** 15 scenarios / 221 words is a working product, not a 30-day track. This is the largest retention lever and the next content milestone.
-5. **Two-device sync is unit- and local-D1-proven, not observed in the wild** (`tests/sync.test.ts`, the V9-3 real-D1 probe). A beta is what will test it for real; the v2 two-device integration remains on the backlog.
-6. **`FreshD1` PRIMARY KEY semantics** (carried from V16/V17): the counter's insert-then-increment branch is still only covered through the real-D1 probe, not by a unit test with faithful D1 semantics.
-7. **No automated content-freshness alarm — agent.** `scripts/check-content-drift.mjs` is a pull check; the daily health card in `BETA-KIT.md` asks a human to run it. Making the deploy runbook call it automatically (and archive its `--json`) would turn "production agrees with the repo" into a recorded fact.
-8. **Public-launch items that are *not* gaps for a closed beta but must not be forgotten:** payments (provider account + secrets + a real sandbox pass), counsel-reviewed privacy/terms, Play submission items, custom domain + OAuth origins, and an on-call/incident owner. All are OWNER-ONLY and listed in §7.
+> **`ADMIN_SECRET` rotation is no longer a gap.** It was the top-ranked item here until the
+> owner's decision of 2026-10-05 closed it; the owner reviewed the exposure and accepts the
+> secret as it stands. The list below is renumbered accordingly. This is a recorded decision,
+> not a verification — a Worker secret cannot be read back, so nothing in this repo can prove
+> the value was replaced.
 
-**Counts:** READY **12** · OWNER-ONLY **11** · BLOCKED **0**.
+1. **Beta cannot start before a domain or a clear URL decision — OWNER-ONLY.** `katzu-webapp-v3.pages.dev` works and is what a cohort can be handed today, but `robots.txt`, `sitemap.xml` and the store/legal URLs point at `katzu.app`, which does not resolve. Handing out the `pages.dev` URL is acceptable for a closed beta; it is not acceptable for a public launch.
+2. **Real-device voice is still unproven — OWNER-ONLY.** Every voice path in this repo runs against Chromium's fake device (`e2e/microphone.spec.ts`). The 10-minute iOS Safari + Android Chrome checklist in `BETA-KIT.md` is the only honest way to close it, and it needs two real phones.
+3. **Curriculum volume — OPEN, agent+owner authoring.** 15 scenarios / 221 words is a working product, not a 30-day track. This is the largest retention lever and the next content milestone.
+4. **Two-device sync is unit- and local-D1-proven, not observed in the wild** (`tests/sync.test.ts`, the V9-3 real-D1 probe). A beta is what will test it for real; the v2 two-device integration remains on the backlog.
+5. **`FreshD1` PRIMARY KEY semantics** (carried from V16/V17): the counter's insert-then-increment branch is still only covered through the real-D1 probe, not by a unit test with faithful D1 semantics.
+6. **No automated content-freshness alarm — agent.** `scripts/check-content-drift.mjs` is a pull check; the daily health card in `BETA-KIT.md` asks a human to run it. Making the deploy runbook call it automatically (and archive its `--json`) would turn "production agrees with the repo" into a recorded fact.
+7. **Public-launch items that are *not* gaps for a closed beta but must not be forgotten:** payments (provider account + secrets + a real sandbox pass), counsel-reviewed privacy/terms, Play submission items, custom domain + OAuth origins, and an on-call/incident owner. All are OWNER-ONLY and listed in §7.
+
+**Counts:** READY **12** · OWNER-ONLY **10** · BLOCKED **0** (the `ADMIN_SECRET` rotation item moved out of OWNER-ONLY: closed by owner decision, 2026-10-05).
 
 ---
 
@@ -216,8 +221,8 @@ patterns locally clean. V29-4 (server-authoritative daily XP/streak) was adversa
 and hardened; the two data-lifecycle bugs it had introduced — the daily ledger surviving
 account deletion, and the queued daily events surviving sign-out — were found and fixed.
 
-**Owner-only, before a *public* launch (unchanged from §7/§8):** rotate `ADMIN_SECRET` ·
-attach a domain so `robots.txt`/`sitemap.xml` resolve · NowPayments account + the two secrets +
+**Owner-only, before a *public* launch (unchanged from §7/§8):** attach a domain so
+`robots.txt`/`sitemap.xml` resolve · NowPayments account + the two secrets +
 a real sandbox pass (`NOWPAYMENTS_ENVIRONMENT` is still `test_mode`) · counsel-reviewed
 privacy/terms + Play Data Safety · real-device voice on two phones · an on-call/incident owner.
 

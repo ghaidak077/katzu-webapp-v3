@@ -360,7 +360,7 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
 - **Payments not live** — crypto stays in `test_mode`; `ready:false`.
 - **Signup is Google-only.**
 - **Domain `katzu.app` does not resolve**, though robots/sitemap advertise it (owner item).
-- **`ADMIN_SECRET` must be rotated** (was exposed in an earlier prompt).
+- ~~**`ADMIN_SECRET` must be rotated**~~ — **closed by owner decision, 2026-10-05.** The owner reviewed the earlier-prompt exposure and accepts the secret as it stands; it is no longer an open item. Recorded, not verified: a Worker secret cannot be read back.
 - **Real-device voice input** never verified on iOS/Android; only Chromium fake capture.
 - **Reading skill** shows «لم يبدأ بعد — قريباً».
 - **Ask Katzu is German-only and quota-capped (V28 Stage 2A).** `/ai/ask` takes one question and
