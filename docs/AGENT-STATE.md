@@ -2,15 +2,14 @@
 
 ## RESUME
 
-- **Last sha:** `4eeee5b` pushed, **CI `37304454314` = success.** C1 (copy fix) + C2 (secret
-  scan) are therefore deployed-ready. C3 committed on top, not yet pushed.
-- **Next:** push C3, then **deploy worker + Pages** — Batch 2 has still never been deployed —
-  and verify live. Then C4 (Play readiness), C5 (final gates).
-- **Prior failure for the record:** CI `37300564199` on `84439ab` failed the copy contract
-  (`tests/interfaceContracts.test.ts` bans the Arabic word for "unlimited"); fixed in `4eeee5b`.
+- **Last sha:** `c07758d` (C3) committed locally, **not pushed**. C4 is committed on top of it.
+- **CI on the last PUSHED sha** `4eeee5b` was **success** (`37304454314`).
+- **Next:** push C3+C4, wait for green CI, then **deploy worker + Pages** — Batch 2, C1, C2,
+  C3 and C4 have still never been deployed — and verify live. Then C5 (final gates).
+- **Measured this session:** full suite **128 files / 1643 tests** green, `npm run lint` 0,
+  Lighthouse performance **0.87** at 360x640 (blocked the Kaspersky injection that made it read
+  0.79), offline start proven by `e2e/playReadiness.spec.ts` (3/3).
 - **Live now:** worker `30d65294-3cd9-4251-9aca-229bd6bf7662`, Pages `48617093-bd19-41d9-9c5b-f9d5c743bb11`.
-- Green locally: **125 files / 1617 tests** before C3; C3 adds `tests/codeAbuse.test.ts` (11) and
-  one paywall e2e. `npm run lint` 0.
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 
@@ -64,6 +63,34 @@ falls back to the host the app is served from.
    format (`DE-MOCK-<nonce>.<sig>`) or an owner-side balance change. Until that is chosen,
    a second mock is reachable only through an active subscription. Mint one yourself with
    `POST /admin/generate` to test the credit path end to end.
+
+5. **Android app identity (only if a Play build is planned).** `/.well-known/assetlinks.json`
+   is generated but currently an empty list `[]`, which fails Android verification on purpose.
+   Two build variables fill it, and neither is a secret:
+
+   ```bash
+   # Cloudflare Pages → katzu-webapp-v3 → Settings → Environment variables → Production
+   VITE_ANDROID_PACKAGE_NAME   = app.ghaidakalosh008.katzu
+   VITE_ANDROID_CERT_SHA256    = AA:BB:CC:...   # keytool -list -v -keystore upload.jks | grep SHA256
+   ```
+
+   Until both are set, the file stays `[]`; that is the honest state, not a bug. The
+   fingerprint must be the one Play signs with (the **upload** key, not the Play App Signing
+   key, if App Signing is on). Confirm with
+   `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://katzu-webapp-v3.pages.dev`.
+
+6. **Replace the Data Safety draft with the real answers.** `src/lib/trust/dataSafety.ts`
+   holds the answers this repo can derive (from the analytics allowlist and `package.json`);
+   the ones that are operational rather than code are marked UNCONFIRMED in that file's
+   `unconfirmed` array — retention periods in particular. Submit at Play Console → App content
+   → Data safety. Nothing there may be asserted from memory; `npm test` re-derives the derivable
+   half and fails if the code moves under an answer.
+
+7. **Confirm the activation timing claim.** `activationDelayMs` now logs the real
+   transfer-start → code-activated gap on every crypto delivery, but the copy in
+   `src/lib/offers/paymentInstructions.ts` is an estimate and is marked UNPROVEN. After a
+   handful of real orders, replace both ranges with what was measured. Crypto is in test mode,
+   so today it logs nothing.
 
 ## Current mission overlay — 2026-10-04
 

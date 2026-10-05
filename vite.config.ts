@@ -33,6 +33,18 @@ export const pwaOptions = {
     display: 'standalone',
     dir: 'rtl',
     lang: 'ar',
+    // C4: the install-identity fields. Without `id` and `start_url` a launcher
+    // derives the app's identity from wherever it happened to open the link, so
+    // the same install can appear twice on one phone and a re-share of a deep
+    // link can open a second, separate app. Both are pinned to the app root and
+    // `scope` is explicit, so every route inside the PWA belongs to this install.
+    id: '/',
+    start_url: '/?source=pwa',
+    scope: '/',
+    // Portrait phones are the whole audience; a landscape lock makes a mock
+    // interview feel broken on a phone held sideways.
+    orientation: 'portrait',
+    categories: ['education', 'productivity'],
     // Opaque, correctly sized icons. The art used to ship as the raw mascot PNG
     // with a transparent background and a declared size that did not match the
     // file (a 512px image labelled 192x192), which an Android/iOS launcher draws
@@ -58,6 +70,23 @@ export const pwaOptions = {
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable'
+      }
+    ],
+    // The two things a learner would want one tap from the installed icon. Each
+    // carries `url` inside the scope above, so a launcher shortcut can never open
+    // a route the service worker's offline shell does not cover.
+    shortcuts: [
+      {
+        name: 'محاكاة B1 مجانية',
+        short_name: 'محاكاة',
+        url: '/mock',
+        icons: [{ src: 'assets/mascot/katzu_icon_192.png', sizes: '192x192', type: 'image/png' }]
+      },
+      {
+        name: 'المهمة اليومية',
+        short_name: 'المهمة',
+        url: '/app/trail',
+        icons: [{ src: 'assets/mascot/katzu_icon_192.png', sizes: '192x192', type: 'image/png' }]
       }
     ]
   },
@@ -110,10 +139,47 @@ export const pwaOptions = {
  * When the origin is unset the entries are emitted as relative paths, which is
  * honest: a Pages build with no origin must not invent one.
  */
+/**
+ * The Digital Asset Links document, as a pure function of its two inputs.
+ *
+ * Exported so the contract can be tested without running a build: an empty list
+ * when unfilled, the real statement when both halves are present, and nothing
+ * usable when only one half is set. A file that exists but says nothing fails
+ * Android verification as loudly as a missing one — which is the honest state,
+ * and far better than a placeholder fingerprint that makes a wrong certificate
+ * look configured.
+ */
+export function assetLinksContent({
+  packageName,
+  certSha256,
+}: { packageName?: string | null; certSha256?: string | null } = {}): string {
+  const package_name = String(packageName || '').trim();
+  const sha256_cert_fingerprints = String(certSha256 || '').trim();
+  if (!package_name || !sha256_cert_fingerprints) return '[]\n';
+  return (
+    JSON.stringify(
+      [
+        {
+          relation: ['delegate_permission/common.handle_all_urls'],
+          target: {
+            namespace: 'android_app',
+            package_name,
+            sha256_cert_fingerprints: [sha256_cert_fingerprints],
+          },
+        },
+      ],
+      null,
+      2,
+    ) + '\n'
+  );
+}
+
 function publicOriginFiles(): Plugin {
   const origin = String(process.env.VITE_PUBLIC_APP_URL || '').replace(/\/+$/, '');
   const abs = (p: string) => (origin ? `${origin}${p}` : p);
   const routes = ['/', '/trust/privacy', '/trust/terms', '/demo', '/welcome'];
+  const packageName = String(process.env.VITE_ANDROID_PACKAGE_NAME || '').trim();
+  const sha256 = String(process.env.VITE_ANDROID_CERT_SHA256 || '').trim();
   return {
     name: 'katzu-public-origin-files',
     generateBundle() {
@@ -121,6 +187,17 @@ function publicOriginFiles(): Plugin {
         type: 'asset',
         fileName: 'robots.txt',
         source: ['User-agent: *', 'Allow: /', '', `Sitemap: ${abs('/sitemap.xml')}`, ''].join('\n'),
+      });
+
+      // C4: Digital Asset Links. Android refuses to hand a web app's real
+      // identity (and any Play-distributed build) to the browser until this file
+      // proves the signing certificate is the one Play signs with — so a TWA or a
+      // Play "web app" listing fails verification without it. See
+      // `assetLinksContent` for why an empty list beats a placeholder.
+      this.emitFile({
+        type: 'asset',
+        fileName: '.well-known/assetlinks.json',
+        source: assetLinksContent({ packageName, certSha256: sha256 }),
       });
       this.emitFile({
         type: 'asset',
