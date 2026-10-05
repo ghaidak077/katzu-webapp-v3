@@ -79,7 +79,19 @@ test('a saved-word list with nothing in it offers the way out', async ({ page })
 });
 
 test('the Pro offer names the price, the free tier, the terms and who sells it', async ({ page }) => {
-  await bootSignedIn(page);
+  // L1: the price the modal shows now comes from `GET /pricing`, in euros. This
+  // assertion used to look for «دولار / شهر» — the hardcoded crypto fallback,
+  // which is the defect this change removed, so the expected value moves to the
+  // server's own number and the "never a placeholder" check becomes explicit.
+  await bootSignedIn(page, {
+    pricing: {
+      prices: [
+        { product: 'pass90', amountCents: 2900, currency: 'EUR', group: 'standard', cell: null },
+        { product: 'monthly', amountCents: 1299, currency: 'EUR', group: 'standard', cell: null },
+      ],
+      group: 'standard',
+    },
+  });
 
   // The level pills live in the scenario library, one tap from the mission.
   await page.getByRole('button', { name: 'كل المشاهد والمستويات' }).click();
@@ -91,9 +103,11 @@ test('the Pro offer names the price, the free tier, the terms and who sells it',
 
   await expect(page.getByText('عضوية Katzu Pro')).toBeVisible();
 
-  // The price is the Worker's (or the app's honest fallback), never absent and
-  // never a placeholder.
-  await expect(page.getByText(/دولار \/ شهر/)).toBeVisible();
+  // The price is the server's, in its currency, never absent and never a
+  // placeholder — and never the retired hardcoded dollar fallback.
+  await expect(page.getByTestId('modal-price-pass90')).toHaveText('29 €');
+  await expect(page.getByText(/دولار \/ شهر/)).toHaveCount(0);
+  await expect(page.getByText(/€0|— €|غير متاح/)).toHaveCount(0);
 
   // What Pro unlocks, and — just as importantly — what stays free forever.
   await expect(page.getByText('ما يفتحه Pro:')).toBeVisible();
