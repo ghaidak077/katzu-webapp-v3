@@ -21,6 +21,7 @@
  */
 
 import { evaluateCorrection, hintMatchesQuestion, latestLearnerText, learnerAskedRepeat, obstacleInstructionForTurn } from "./cloudflare-turn-quality.js";
+import { normaliseMockPartIndex } from "./cloudflare-mock-exam.js";
 import { beatsInstruction } from "./cloudflare-conversation-beats.js";
 import { isEasyTurn } from "./cloudflare-ai-router.js";
 
@@ -71,6 +72,7 @@ export function buildTurnSystemInstruction({
   beats = [],
   levelConstraint = "",
   correctionBudget = 1,
+  mockExamInstruction = "",
 }) {
   const wrapUpInstruction = isFinalTurn
     ? "This is the final exchange. Give a warm realistic farewell and do not ask a new question."
@@ -182,7 +184,7 @@ How to use it:
     // The per-turn obstacle behaviour goes last: everything before it is
     // stable per scenario/level/episode, so the provider's prompt prefix
     // cache stays warm and only the short rotation tail re-sends.
-    parts: [fusionInstruction, safetyInstruction, identityInstruction, practiceInstruction, memoryInstruction, beatsPrompt, obstacleInstruction]
+    parts: [fusionInstruction, safetyInstruction, identityInstruction, practiceInstruction, memoryInstruction, beatsPrompt, obstacleInstruction, mockExamInstruction]
       .filter(Boolean)
       .map((text, index) => ({ text: index === 0 ? text : `\n\n${text}` })),
   };
@@ -205,6 +207,8 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     resolveScenarioIdentity,
     resolvePracticeGrammar,
     checkUserEntitlement,
+    verifyMockGrant,
+    mockExamInstructionForPart,
     isTrialSessionConsumed,
     consumeTrialQuota,
     trialSessionKey,
@@ -270,7 +274,24 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   const sarcasm_level = v.sarcasm_level;
   const is_final_turn = body.is_final_turn === true;
   const level = cefr_level;
-  const entitlement = await checkUserEntitlement(account, level, env);
+  // B3 mock mode. The grant is signed by `/mock/start` and bound to THIS
+  // account, so a client cannot turn the AI into an examiner for free — and a
+  // missing/foreign/expired grant simply produces an ordinary turn. The part
+  // index comes from the client but resolves against the SERVER's part list, so
+  // an out-of-range value is ignored rather than trusted.
+  const mockGrant = verifyMockGrant ? await verifyMockGrant({ token: body.mock_grant, accountId: account.sub, env }) : null;
+  const mockPartIndex = mockGrant ? normaliseMockPartIndex(body.mock_part) : null;
+  const mockExamInstruction =
+    mockPartIndex !== null && mockExamInstructionForPart
+      ? mockExamInstructionForPart({ part: mockPartIndex })
+      : null;
+  // The mock is metered by the MOCK entitlement, not by the beginner-level
+  // floor or the free-conversation counter: one free mock per account, already
+  // claimed at `/mock/start`. The daily spend cap and the global rate limit above
+  // still apply \u2014 the grant bypasses a quota, never a budget.
+  const entitlement = await checkUserEntitlement(account, level, env, mockGrant
+    ? { skipLevelGate: true, skipQuota: true }
+    : {});
   if (!entitlement.allowed) {
     const quotaFailure = ["FREE_QUOTA_EXHAUSTED", "QUOTA_UNAVAILABLE"].includes(entitlement.code);
     return json({
@@ -326,6 +347,9 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     beats: Array.isArray(scenarioIdentity.beats) ? scenarioIdentity.beats : [],
     levelConstraint: levelConstraintLine(level),
     correctionBudget: correctionBudgetFor(level),
+    // Last, so the provider prefix cache stays warm for ordinary turns: an exam
+    // turn is the rare case and must not change what every other turn sends.
+    mockExamInstruction: mockExamInstruction || "",
   });
   const turnPayload = {
     // Keep the base prompt first for provider prefix caching; per-episode context

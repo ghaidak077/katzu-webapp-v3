@@ -245,7 +245,8 @@ The canonical, machine-checked route list is §14 (`appmap-routes`); this sectio
   content tables `scenarios`, `vocabulary`, `grammar`, `starter_phrases` (remote wins) plus
   worker-created ledger tables: `redeemed_codes_ledger`, `trial_quota_ledger`,
   `referral_payouts`, `referral_lesson_payouts`, `rate_limit_counters`, `sync_revisions`,
-  `generated_codes`, `error_reports`. Content DDL is **unversioned** and lives only in the
+  `generated_codes`, `error_reports`, plus the B3 mock ledger `mock_free_claims` and
+  `mock_sessions`. Content DDL is **unversioned** and lives only in the
   deployment — read the live schema (`pragma_table_info`) before any write (see MEMORY).
 - **KV** — `USER_PROGRESS` (id `d901da2026dc4830940562c72935ec78`, progress + authoritative AI
   quota) · `REDEEMED_CODES` (id `2c60d78d9cbf4f5fa93c620043afb404`).
@@ -557,6 +558,7 @@ src/features/writing/WritingScreen.tsx
 /grammar
 /health
 /hints
+/mock/start
 /progress/get
 /progress/sync
 /referral/claim
@@ -578,6 +580,8 @@ crypto_events
 crypto_orders
 error_reports
 generated_codes
+mock_free_claims
+mock_sessions
 rate_limit_counters
 redeemed_codes_ledger
 referral_lesson_payouts

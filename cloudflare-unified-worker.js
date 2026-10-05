@@ -77,6 +77,8 @@ import {
 // secret) out of the PWA entirely.
 import { handleCryptoRoutes, timingSafeEqualHex } from "./cloudflare-crypto.js";
 import { ensureContentColumns } from "./cloudflare-content-schema.js";
+import { mockExamBrief, mockExamInstructionForPart } from "./cloudflare-mock-exam.js";
+import { decideMockAccess, mockDebriefAccess } from "./cloudflare-pricing.js";
 import { dailyKey, processDailySync, readAuthoritativeDaily, overlayStatsWithDaily } from "./cloudflare-daily.js";
 
 // ============================================================================
@@ -405,8 +407,11 @@ async function checkUserEntitlement(account, cefrLevel, env = {}, options = {}) 
   // 2. Trial access: restricted to the beginner floor (A0/A1) with a server-side quota.
   // A0 is free by V21 Phase 1: a learner the placement measured at A0 gets A0
   // conversations — serving them A1 they were measured below would defeat the check.
+  // `skipLevelGate` is the B1 mock: its grant is minted by `/mock/start` and is
+  // metered by the MOCK entitlement (one free mock, then a credit or a
+  // subscription), not by this level floor. It is never client-set.
   const level = (cefrLevel || "A1").toUpperCase();
-  if (level !== "A1" && level !== "A0") {
+  if (!options.skipLevelGate && level !== "A1" && level !== "A0") {
     return {
       allowed: false,
       code: "PAYWALL_REQUIRED",
@@ -501,6 +506,23 @@ async function ensureLedgerTables(env) {
         months INTEGER NOT NULL,
         label TEXT,
         created_at TEXT NOT NULL
+      )`),
+      // B3: the free B1 mock. ONE row per account, claimed by inserting it —
+      // the same exactly-once trick the code ledger uses, so two devices racing
+      // the first mock cannot both get it free. `sessions` records every mock
+      // start (free, credit or subscription) keyed by the client session id, so
+      // a retry after a dropped connection replays the same decision instead of
+      // spending a second credit.
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS mock_free_claims (
+        account_id TEXT PRIMARY KEY,
+        claimed_at INTEGER NOT NULL
+      )`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS mock_sessions (
+        account_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        source TEXT NOT NULL,
+        started_at INTEGER NOT NULL,
+        PRIMARY KEY (account_id, session_id)
       )`),
     ]);
     // Additive user registry + activity/error telemetry tables (SaaS admin).
@@ -1331,6 +1353,8 @@ function aiRouteDeps() {
     resolveScenarioIdentity,
     resolvePracticeGrammar,
     checkUserEntitlement,
+    verifyMockGrant,
+    mockExamInstructionForPart,
     isTrialSessionConsumed,
     consumeTrialQuota,
     trialSessionKey,
@@ -1678,6 +1702,12 @@ export default {
       // --- Worker 1 Core Auth & Progress Endpoints ---
       if (url.pathname === "/verify" && request.method === "POST") {
         return await withVerifyRegistry(() => handleVerify(request, env, cors), env);
+      }
+      // B3: claim a mock. One free B1 mock per account, then a mock credit or an
+      // active subscription. Returns the server-minted brief (parts, timings,
+      // topic) and a signed grant the turn route verifies.
+      if (url.pathname === "/mock/start" && request.method === "POST") {
+        return await handleMockStart(request, env, cors);
       }
       if (url.pathname === "/check-status" && request.method === "POST") {
         return await handleCheckStatus(request, env, cors);
@@ -2226,6 +2256,265 @@ async function handleAiHealth(env, cors) {
 // ============================================================================
 // WORKER 1 IMPLEMENTATION (AUTH, SUBSCRIPTIONS & PROGRESS)
 // ============================================================================
+
+/** How long a mock grant stays usable. One sitting, not one month. */
+const MOCK_GRANT_TTL_MS = 45 * 60 * 1000;
+
+/**
+ * The grant token `/mock/start` mints and `/ai/turn` verifies.
+ *
+ * WHY A SIGNED TOKEN
+ * The exam instruction is the one prompt in the app that changes how the AI
+ * talks (examiner instead of partner). Letting a client switch that with a body
+ * field would let anyone ask for a free "exam" mode, so the token binds the
+ * account, proves a mock was actually claimed, and expires. It carries no
+ * secret and no price — the signature is over the account and the expiry only.
+ */
+async function mintMockGrant(accountId, env, now = Date.now()) {
+  const expiresAt = now + MOCK_GRANT_TTL_MS;
+  const signature = await sign(`MOCK|${accountId}|${expiresAt}`, env.HMAC_SECRET);
+  return { token: `MOCK1.${expiresAt}.${signature}`, expiresAt };
+}
+
+/**
+ * Verify a mock grant for THIS account. Returns null for anything wrong — a
+ * malformed token, a signature from another account, a stale token, or a
+ * deployment without an HMAC secret. Null always degrades to an ordinary
+ * conversation: it never throws and never grants.
+ */
+async function verifyMockGrant({ token, accountId, env, now = Date.now() } = {}) {
+  if (!token || typeof token !== "string" || !accountId || !env?.HMAC_SECRET) return null;
+  const match = token.match(/^MOCK1\.(\d{10,16})\.([0-9A-Fa-f]{16})$/);
+  if (!match) return null;
+  const expiresAt = Number(match[1]);
+  if (!Number.isFinite(expiresAt) || expiresAt <= now) return null;
+  const expected = await sign(`MOCK|${accountId}|${expiresAt}`, env.HMAC_SECRET);
+  if (expected !== match[2].toUpperCase()) return null;
+  return { expiresAt };
+}
+
+function mockStateKey(accountId) {
+  return `mock-state:${accountId}`;
+}
+
+async function readMockState(accountId, env) {
+  if (!env?.REDEEMED_CODES || typeof env.REDEEMED_CODES.get !== "function") {
+    return { available: false, freeUsed: 0, credits: 0, subscribed: false };
+  }
+  try {
+    const raw = await env.REDEEMED_CODES.get(mockStateKey(accountId));
+    if (!raw) return { available: true, freeUsed: 0, credits: 0, subscribed: false };
+    const parsed = JSON.parse(raw);
+    return {
+      available: true,
+      freeUsed: Number.isFinite(parsed?.freeUsed) ? Math.max(0, Math.floor(parsed.freeUsed)) : 0,
+      credits: Number.isFinite(parsed?.credits) ? Math.max(0, Math.floor(parsed.credits)) : 0,
+      subscribed: false,
+    };
+  } catch {
+    return { available: false, freeUsed: 0, credits: 0, subscribed: false };
+  }
+}
+
+async function writeMockState(accountId, state, env) {
+  if (!env?.REDEEMED_CODES || typeof env.REDEEMED_CODES.put !== "function") return;
+  await env.REDEEMED_CODES.put(mockStateKey(accountId), JSON.stringify(state));
+}
+
+/** Live subscription state, read the same way `/verify` writes it. */
+async function hasLiveSubscription(accountId, env) {
+  if (!env?.REDEEMED_CODES || typeof env.REDEEMED_CODES.get !== "function") return false;
+  try {
+    const raw = await env.REDEEMED_CODES.get(`account:${accountId}`);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (parsed?.expiresAt && new Date(parsed.expiresAt).getTime() > Date.now()) return true;
+  } catch {}
+  return false;
+}
+
+/**
+ * `POST /mock/start` — claim the free B1 mock, or a paid one.
+ *
+ * THE PROMISE, and why it is enforced here rather than on the device
+ * "One free B1 mock per account" is the whole front door of the paid product, so
+ * it is decided server-side from a counter no client can edit. With D1 the free
+ * claim is an INSERT against a PRIMARY KEY: the first insert wins, a racing
+ * device loses and is told to pay. Without D1 it falls back to a KV
+ * read-check-write, which is weaker but never grants more than one free mock in
+ * normal use.
+ *
+ * The response also decides what the debrief may show (free tier: the estimate
+ * and the two most useful corrections), so the client never has to guess.
+ */
+async function handleMockStart(request, env, cors) {
+  const body = await request.json().catch(() => null);
+  const idToken = extractIdToken(request, body);
+  const sessionId = typeof body?.session_id === "string"
+    ? body.session_id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64)
+    : "";
+
+  if (!idToken || typeof idToken !== "string") {
+    return json({ allowed: false, code: "UNAUTHENTICATED", message: "يرجى تسجيل الدخول بحساب Google أولا، أو جرب المحاذاة." }, 401, cors);
+  }
+  const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+  if (!account) {
+    return json({ allowed: false, code: "UNAUTHENTICATED", message: "جلسة الدخول غير صالحة. يرجى تسجيل الدخول مرة أخرى." }, 401, cors);
+  }
+  if (!sessionId) {
+    return json({ allowed: false, code: "INVALID_MOCK_SESSION", message: "تعّذر محاذاة المحاظاة." }, 400, cors);
+  }
+
+  const state = await readMockState(account.sub, env);
+  if (!state.available) {
+    return json({ allowed: false, code: "MOCK_STATE_UNAVAILABLE", message: "تعذّر التحقق من رصيد المحاكاة. يرجى المحاولة لاحقاً." }, 503, cors);
+  }
+  const subscribed = await hasLiveSubscription(account.sub, env);
+
+  // A retry after a dropped connection replays the decision it already got, and
+  // the check comes BEFORE the decision: a learner who started the one free mock
+  // must never be told to pay for a session they are already in. The session id
+  // is the idempotency key in both stores.
+  const priorSource = await readMockSessionSource(account.sub, sessionId, env);
+  if (priorSource) {
+    return mockStartResponse({
+      account,
+      env,
+      cors,
+      source: priorSource,
+      freeUsed: state.freeUsed,
+      creditsRemaining: state.credits,
+    });
+  }
+
+  const access = decideMockAccess({ freeUsed: state.freeUsed, credits: state.credits, subscribed });
+  if (!access.allowed) {
+    return mockCreditRequired(cors, state.freeUsed, access);
+  }
+
+  let source = access.source;
+  let freeUsed = state.freeUsed;
+  let creditsRemaining = state.credits;
+
+  if (source === "free") {
+    const won = await claimFreeMock(account.sub, env);
+    if (!won) {
+      // Another device claimed the free mock first. Re-read and price THIS one
+      // honestly rather than handing out a second free attempt.
+      const fresh = await readMockState(account.sub, env);
+      const retry = decideMockAccess({ ...fresh, subscribed });
+      if (!retry.allowed) return mockCreditRequired(cors, fresh.freeUsed, retry);
+      source = retry.source;
+      freeUsed = fresh.freeUsed;
+      creditsRemaining = retry.consumeCredit ? retry.creditsRemaining : fresh.credits;
+      await writeMockState(account.sub, { freeUsed, credits: creditsRemaining }, env);
+    } else {
+      freeUsed = state.freeUsed + 1;
+      await writeMockState(account.sub, { freeUsed, credits: state.credits }, env);
+    }
+  } else if (access.consumeCredit) {
+    creditsRemaining = access.creditsRemaining;
+    await writeMockState(account.sub, { freeUsed, credits: creditsRemaining }, env);
+  }
+
+  await recordMockSession(account.sub, sessionId, source, env);
+  return mockStartResponse({ account, env, cors, source, freeUsed, creditsRemaining });
+}
+
+/** The one answer for "you have used the free mock", in the Arabic a learner reads. */
+function mockCreditRequired(cors, freeUsed, access) {
+  return json({
+    allowed: false,
+    code: "MOCK_CREDIT_REQUIRED",
+    reason: "mock_credit_required",
+    freeUsed: Number(freeUsed || 0),
+    creditsRemaining: 0,
+    debrief: mockDebriefAccess({ access }),
+    message: "انتهت المحاكاة المجانية الواحدة، والمحاكاة التالية تحتاج إلى اشتراك أو رصيد محاكاة."
+  }, 402, cors);
+}
+
+/**
+ * The reply for a claimed (or replayed) mock: the brief the app renders, the
+ * grant the turn route verifies, and exactly what the debrief may show.
+ */
+async function mockStartResponse({ account, env, cors, source, freeUsed, creditsRemaining }) {
+  const { token, expiresAt } = await mintMockGrant(account.sub, env);
+  const debrief = mockDebriefAccess({ access: { source } });
+  return json({
+    allowed: true,
+    source,
+    freeUsed: Number(freeUsed || 0),
+    creditsRemaining: Number(creditsRemaining || 0),
+    grant: token,
+    grantExpiresAt: expiresAt,
+    debrief,
+    brief: mockExamBrief({ accountId: account.sub }),
+  }, 200, cors);
+}
+
+/** Claim the single free mock for an account. True when THIS call won. */
+async function claimFreeMock(accountId, env) {
+  if (env?.DB) {
+    const ready = await ensureLedgerTables(env);
+    if (ready) {
+      try {
+        await env.DB.prepare(
+          "INSERT INTO mock_free_claims (account_id, claimed_at) VALUES (?, ?)"
+        ).bind(accountId, Date.now()).run();
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+  // No D1: KV read-check-write. Weaker (no atomic claim), never grants more than
+  // the one free mock in ordinary use \u2014 and it is the same fallback the trial
+  // quota has used since Phase 2.
+  if (!env?.REDEEMED_CODES || typeof env.REDEEMED_CODES.get !== "function") return false;
+  const key = `mock-free:${accountId}`;
+  const existing = await env.REDEEMED_CODES.get(key).catch(() => null);
+  if (existing) return false;
+  await env.REDEEMED_CODES.put(key, String(Date.now())).catch(() => {});
+  return true;
+}
+
+async function readMockSessionSource(accountId, sessionId, env) {
+  if (env?.DB) {
+    const ready = await ensureLedgerTables(env);
+    if (ready) {
+      try {
+        const row = await env.DB.prepare(
+          "SELECT source FROM mock_sessions WHERE account_id = ? AND session_id = ?"
+        ).bind(accountId, sessionId).first();
+        if (row?.source) return String(row.source);
+      } catch {
+        return null;
+      }
+    }
+  }
+  if (!env?.REDEEMED_CODES || typeof env.REDEEMED_CODES.get !== "function") return null;
+  return env.REDEEMED_CODES.get(`mock-session:${accountId}:${sessionId}`).catch(() => null);
+}
+
+async function recordMockSession(accountId, sessionId, source, env) {
+  if (env?.DB) {
+    const ready = await ensureLedgerTables(env);
+    if (ready) {
+      try {
+        await env.DB.prepare(
+          "INSERT INTO mock_sessions (account_id, session_id, source, started_at) VALUES (?, ?, ?, ?)"
+        ).bind(accountId, sessionId, source, Date.now()).run();
+        return;
+      } catch {
+        return;
+      }
+    }
+  }
+  if (env?.REDEEMED_CODES && typeof env.REDEEMED_CODES.put === "function") {
+    await env.REDEEMED_CODES.put(`mock-session:${accountId}:${sessionId}`, source, { expirationTtl: 6 * 3600 }).catch(() => {});
+  }
+}
 
 async function handleVerify(request, env, cors) {
   const body = await request.json().catch(() => null);
@@ -3322,6 +3611,9 @@ export {
   DAILY_SPEND_CAP_MESSAGE,
   checkRateLimit,
   checkUserEntitlement,
+  verifyMockGrant,
+  mintMockGrant,
+  handleMockStart,
   consumeTrialQuota,
   handleUserExport,
   getCorsHeaders,

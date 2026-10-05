@@ -2,14 +2,15 @@
 
 ## RESUME
 
-- **Last sha:** `33ec8e0`. CI `37285620163` **success**. Pushed.
+- **Last sha:** `6e9eecc`. CI `37287080431` **success** (docs-only run for that sha).
 - **Open CI run:** none.
-- **Next item:** **Batch 2 item B3** — the free B1 speaking mock (three parts: plan together,
-  present a topic, react to questions) on the live-conversation engine, with timing, a
-  "practice estimate" score and an Arabic debrief. Check the repo for an existing B1 mock first.
-  Then B4 (paywall), B5 (events + admin funnel), B6 (onboarding, .ics, share/referral e2e).
+- **Next item:** **B3 client half** — `/mock` route running the three parts on the live
+  conversation engine with a per-part timer, a "practice estimate" score, an Arabic debrief,
+  free tier = estimate + top 2 corrections, full debrief/repeat behind `pass90` or a mock
+  credit. Server half is committed and green. Then B4 (paywall), B5 (events + admin funnel),
+  B6 (onboarding, .ics, share/referral e2e) — then push, deploy worker + Pages, verify live.
 - **Live now:** worker `30d65294-3cd9-4251-9aca-229bd6bf7662`, Pages `48617093-bd19-41d9-9c5b-f9d5c743bb11`.
-- **Batch 1 complete and deployed. Batch 2 items 1 and 2 done and deployed.**
+- **Batch 1 complete and deployed. Batch 2 items 1, 2 and B3-server done.**
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 

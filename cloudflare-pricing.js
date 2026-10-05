@@ -158,6 +158,73 @@ export function mockCreditsRemaining(record) {
   return Math.floor(credits);
 }
 
+// ----------------------------------------------------------------------------
+// THE MOCK ENTITLEMENT
+// ----------------------------------------------------------------------------
+//
+// One free B1 mock per account, then a paid entry: a `mock` credit, or any live
+// Exam Pass / Monthly subscription. The free mock is what the whole funnel is
+// built on — it is why the learner stays long enough to see the debrief — so it
+// is deliberately generous and deliberately countable.
+//
+// DECIDED HERE, NOT IN THE HANDLER: `decideMockAccess` is pure and the worker
+// only reads its answer, which is what makes "one free mock" a rule that can be
+// tested without a KV or a D1.
+
+/** How many mocks an account gets before it must pay. */
+export const FREE_MOCKS_PER_ACCOUNT = 1;
+
+/** Corrections a free learner sees in the debrief. The full list is paid. */
+export const MOCK_TOP_CORRECTIONS_FREE = 2;
+
+/**
+ * May this learner start another mock, and what does it cost them?
+ *
+ * Order matters and is deliberate: the free mock first (so an account that has
+ * somehow lost its subscription still gets its one free attempt), then a credit,
+ * then a live subscription. `consume` says whether the caller must debit a
+ * credit — nothing else spends anything.
+ *
+ * Fails closed on nonsense input: a missing record means "no free mock yet",
+ * not "unlimited".
+ */
+export function decideMockAccess({ freeUsed = 0, credits = 0, subscribed = false } = {}) {
+  const used = Math.max(0, Number.isFinite(Number(freeUsed)) ? Math.floor(Number(freeUsed)) : 0);
+  const available = mockCreditsRemaining({ mockCredits: credits });
+  if (used < FREE_MOCKS_PER_ACCOUNT) {
+    return {
+      allowed: true,
+      source: 'free',
+      consumeCredit: false,
+      freeRemaining: FREE_MOCKS_PER_ACCOUNT - used,
+      creditsRemaining: available,
+    };
+  }
+  if (available >= 1) {
+    return { allowed: true, source: 'credit', consumeCredit: true, freeRemaining: 0, creditsRemaining: available - 1 };
+  }
+  if (subscribed) {
+    return { allowed: true, source: 'subscription', consumeCredit: false, freeRemaining: 0, creditsRemaining: 0 };
+  }
+  return { allowed: false, source: null, consumeCredit: false, freeRemaining: 0, creditsRemaining: 0 };
+}
+
+/**
+ * What the debrief may show.
+ *
+ * The free tier gets the number and the two most useful corrections — enough to
+ * want the rest — and never a pass mark, because the app cannot compute one.
+ */
+export function mockDebriefAccess({ access = null, hasActiveEntitlement = false } = {}) {
+  const paid = hasActiveEntitlement || ['credit', 'subscription'].includes(access?.source);
+  return {
+    fullDebrief: paid,
+    repeatMock: paid,
+    correctionsVisible: paid ? Number.POSITIVE_INFINITY : MOCK_TOP_CORRECTIONS_FREE,
+    reason: paid ? 'entitled' : 'free_mock',
+  };
+}
+
 /** The 7-day warning the app shows before an entitlement lapses. */
 export const EXPIRY_REMINDER_DAYS = 7;
 
