@@ -105,6 +105,39 @@ export function estimateTurnCostUsd({ tier, inputTokens, outputTokens = ASSUMED_
   return (inTok / 1e6) * price.input + (outTok / 1e6) * price.output;
 }
 
+/** Learner turns at or below this length are short enough to cheap-route. */
+export const EASY_TURN_MAX_CHARS = 60;
+
+/**
+ * Is this turn cheap enough to serve on a smaller model?
+ *
+ * Deliberately conservative, because a wrong "easy" is a learner getting a worse
+ * partner and never finding out why. It says yes only when all three hold:
+ * the level is beginner, the learner actually typed something short, and the
+ * turn is NOT the one that gets graded. An empty utterance is never easy — there
+ * is nothing to cheap-route, and treating it as easy would skip the flagship on a
+ * turn that may be the opener.
+ */
+export function isEasyTurn({ level, learnerTextLength, isFinalTurn }) {
+  if (isFinalTurn) return false;
+  const upper = String(level || '').toUpperCase();
+  if (upper !== 'A0' && upper !== 'A1') return false;
+  const len = Number(learnerTextLength);
+  if (!Number.isFinite(len) || len <= 0 || len > EASY_TURN_MAX_CHARS) return false;
+  return true;
+}
+
+/**
+ * The tier order the pool walk follows.
+ *
+ * An easy turn starts at `mid` and still reaches `flagship` — the walk is the
+ * failover mechanism, so reordering it does not remove the flagship, it only
+ * stops paying for it first. A hard turn is unchanged.
+ */
+export function tierWalkFor(easyTurn) {
+  return easyTurn ? ['mid', 'lite', 'flagship'] : PROVIDER_TIERS.slice();
+}
+
 export const PROVIDER_POOL = [
   // flagship
   { provider: "gemini", model: "gemini-3.8-flash", format: "gemini", tier: "flagship", rpd: 20 },
@@ -793,7 +826,7 @@ export async function callAiRouter(payload, env, deps = {}) {
 
   let lastError = null;
 
-  poolWalk: for (const tier of PROVIDER_TIERS) {
+  poolWalk: for (const tier of tierWalkFor(deps.easyTurn === true)) {
     const tierEntries = pool.filter((entry) => entry.tier === tier && isEntryConfigured(entry) && keysFor(entry.provider).length > 0);
     if (!tierEntries.length) continue;
     const start = nextRotation(tierRotations, `tier:${tier}`, tierEntries.length);

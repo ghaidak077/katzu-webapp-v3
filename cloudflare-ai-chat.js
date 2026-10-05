@@ -22,6 +22,7 @@
 
 import { evaluateCorrection, hintMatchesQuestion, latestLearnerText, learnerAskedRepeat, obstacleInstructionForTurn } from "./cloudflare-turn-quality.js";
 import { beatsInstruction } from "./cloudflare-conversation-beats.js";
+import { isEasyTurn } from "./cloudflare-ai-router.js";
 
 /**
  * The whole `/ai/turn` system instruction, assembled in ONE exported pure
@@ -374,7 +375,18 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     // total work — and doubled every failover walk with it.
     // `preferFast`: this is the route a learner is watching, so the tier walk is
     // ordered by measured latency instead of round-robin.
-    const raw = await callAiRouter(turnPayload, env, { preferFast: true });
+    // `easyTurn`: a short A0/A1 non-graded turn starts the walk at the cheaper
+    // `mid` tier. The flagship is still in the walk, so a cheaper answer that
+    // fails still fails over exactly as before — this only changes which tier
+    // pays first.
+    const raw = await callAiRouter(turnPayload, env, {
+      preferFast: true,
+      easyTurn: isEasyTurn({
+        level,
+        learnerTextLength: String(v.user_message || '').length,
+        isFinalTurn: is_final_turn,
+      }),
+    });
     let parsed = parseTurnJson(raw);
     // LEVEL-SPEC gate (V21 Phase 1): the reply's German must obey the level's
     // caps. One violation -> ONE repair call; still violating -> the

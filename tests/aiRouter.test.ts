@@ -3,7 +3,10 @@ import {
   AI_TIER_PRICES_USD_PER_MTOK,
   PROVIDER_POOL,
   PROVIDER_TIERS,
+  EASY_TURN_MAX_CHARS,
   estimateTurnCostUsd,
+  isEasyTurn,
+  tierWalkFor,
   callAiRouter,
   callProvider,
   classifyFailure,
@@ -594,5 +597,58 @@ describe('estimateTurnCostUsd (prices UNPROVEN)', () => {
 
   it('prices a zero-token turn at zero', () => {
     expect(estimateTurnCostUsd({ tier: 'mid', inputTokens: 0, outputTokens: 0 })).toBe(0);
+  });
+});
+
+describe('isEasyTurn — the one rule for cheap-routing', () => {
+  const easy = { level: 'A1', learnerTextLength: 20, isFinalTurn: false };
+
+  it('accepts a short beginner turn', () => {
+    expect(isEasyTurn(easy)).toBe(true);
+    expect(isEasyTurn({ ...easy, level: 'A0' })).toBe(true);
+    expect(isEasyTurn({ ...easy, learnerTextLength: EASY_TURN_MAX_CHARS })).toBe(true);
+  });
+
+  it('never cheap-routes the graded turn', () => {
+    // This is the turn the learner's score is built from. A cheap answer here is
+    // a wrong answer the learner cannot see the cause of.
+    expect(isEasyTurn({ ...easy, isFinalTurn: true })).toBe(false);
+  });
+
+  it('refuses anything past beginner level, or a long utterance', () => {
+    expect(isEasyTurn({ ...easy, level: 'A2' })).toBe(false);
+    expect(isEasyTurn({ ...easy, level: 'B1' })).toBe(false);
+    expect(isEasyTurn({ ...easy, learnerTextLength: EASY_TURN_MAX_CHARS + 1 })).toBe(false);
+  });
+
+  it('is not easy when there is nothing to route', () => {
+    // An empty utterance may be the opener; skipping flagship there is a gamble.
+    expect(isEasyTurn({ ...easy, learnerTextLength: 0 })).toBe(false);
+    expect(isEasyTurn({ ...easy, learnerTextLength: Number.NaN })).toBe(false);
+    expect(isEasyTurn({ level: 'A1', isFinalTurn: false })).toBe(false);
+  });
+
+  it('treats a missing level as not easy, failing toward the better model', () => {
+    expect(isEasyTurn({ learnerTextLength: 20, isFinalTurn: false })).toBe(false);
+  });
+});
+
+describe('tierWalkFor — cheap first, failover intact', () => {
+  it('keeps the flagship reachable for an easy turn', () => {
+    // Reordering must not remove the safety net.
+    expect(tierWalkFor(true)).toEqual(['mid', 'lite', 'flagship']);
+  });
+
+  it('leaves a hard turn exactly as before', () => {
+    expect(tierWalkFor(false)).toEqual(PROVIDER_TIERS);
+  });
+
+  it('never returns fewer tiers than the default walk', () => {
+    expect(new Set(tierWalkFor(true))).toEqual(new Set(PROVIDER_TIERS));
+  });
+
+  it('returns a copy, so a caller cannot mutate the shared tier list', () => {
+    tierWalkFor(false).push('injected');
+    expect(PROVIDER_TIERS).toEqual(['flagship', 'mid', 'lite']);
   });
 });

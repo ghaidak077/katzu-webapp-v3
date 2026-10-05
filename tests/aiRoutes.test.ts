@@ -285,9 +285,32 @@ describe('/ai/turn through the pool', () => {
     expect(body.reply_de).toContain('Guten Tag');
     expect(body.evaluation.is_correct).toBe(true);
     expect(body.provider).toBe('gemini');
-    expect(requested[0]).toContain('gemini-3.8-flash');
+    // This turn is a short A1 non-graded utterance, so isEasyTurn() routes it to
+    // the cheaper 'mid' tier first. Cheap-routing is the requested behaviour, so
+    // the old flagship assertion is replaced rather than loosened.
+    expect(requested[0]).toContain('gemini-3.6-flash');
     // The fusion: one learner message is ONE provider call, not two.
     expect(requested).toHaveLength(1);
+
+    // Cheap-routing must not cost the learner the good model where it matters:
+    // the graded turn is exempt and still goes to the flagship first.
+    const graded = await worker.fetch(
+      post(
+        '/ai/turn',
+        {
+          scenario_id: 'cafe_order',
+          cefr_level: 'A1',
+          user_message: 'Ich möchte einen Kaffee, bitte.',
+          session_id: 'sess-round-2',
+          history: [],
+          is_final_turn: true,
+        },
+        { Authorization: 'Bearer sess_turn_learner' },
+      ),
+      env as never,
+    );
+    expect(graded.status).toBe(200);
+    expect(requested[requested.length - 1]).toContain('gemini-3.8-flash');
 
     // withAiTelemetry records the completed turn in activity_log, and the admin
     // stats now read it instead of reporting a hardcoded zero.
