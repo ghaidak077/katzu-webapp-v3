@@ -24,6 +24,7 @@ import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
 import { sessionTurnCap } from '@/lib/conversation/turnPlan';
+import { MOCK_EXAM_LEVEL } from '@/lib/mockexam/constants';
 import type { OrbState } from '@/components/voice/KatzuOrb';
 import type {
   ChatMessage,
@@ -51,6 +52,16 @@ export interface UseLiveConversationOptions {
   scenarioId: string;
   vocabularyContext?: string[];
   grammarId?: string;
+  /**
+   * The B1 mock, when this conversation IS a mock part.
+   *
+   * `grant` is the token `/mock/start` minted; without it the worker ignores the
+   * whole part and answers as an ordinary conversation, so a broken or expired
+   * grant degrades to practice rather than to an error. `openerDe` replaces the
+   * scenario's opener with the examiner's own first line, which is what the
+   * learner sees before speaking.
+   */
+  mockPart?: { grant: string; partIndex: number; openerDe: string };
   onBack: () => void;
   onCompleteSession: (sessionSummary: {
     scenarioId: string;
@@ -92,6 +103,7 @@ export function useLiveConversation({
   scenarioId,
   vocabularyContext = [],
   grammarId,
+  mockPart,
   onCompleteSession,
 }: UseLiveConversationOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -180,7 +192,10 @@ export function useLiveConversation({
     setCurrentLevel(servedLevel(user?.cefrLevel, isProUser));
   }, [user?.cefrLevel, isProUser]);
 
-  const effectiveLevel = currentLevel;
+  // A mock part is a B1 exam whatever the learner was placed at: the chip, the
+  // turn pacing and the request must all agree with the level the worker forces,
+  // or the learner is told A1 and examined at B1.
+  const effectiveLevel = mockPart ? MOCK_EXAM_LEVEL : currentLevel;
 
   // Turn pacing comes from the explicit, tested rule in turnPlan.ts — the screen
   // no longer decides session length, so the documented and implemented numbers
@@ -544,7 +559,8 @@ export function useLiveConversation({
 
     // One level→opener rule, shared with the story screen's logic (tested in
     // openerForLevel): the same sentence the learner saw when the episode opened.
-    const initialMsgText = openerForLevel(scenario, effectiveLevel);
+    // A mock part overrides it: the examiner opens the part, not the scenario.
+    const initialMsgText = mockPart?.openerDe || openerForLevel(scenario, effectiveLevel);
 
     const welcomeMsg: ChatMessage = {
       id: 'msg_initial',
@@ -568,7 +584,7 @@ export function useLiveConversation({
     // refinement only when no gloss ships for this opener, with an honest
     // retry affordance on failure — see requestOpenerTranslation.
     requestOpenerTranslation(welcomeMsg.id, welcomeMsg.germanText);
-  }, [scenario, scenarioId, effectiveLevel, sessionMode, loadStarterHints, requestOpenerTranslation]);
+  }, [scenario, scenarioId, effectiveLevel, sessionMode, mockPart, loadStarterHints, requestOpenerTranslation]);
 
   // Handle German word click for insight.
   //
@@ -707,6 +723,9 @@ export function useLiveConversation({
         // live-conversation behaviour (ask, repeat-check, react, advance) on the
         // worker side without changing the wire format's other fields.
         turnIndex: userTurnsCount,
+        // Present only inside a mock part; the worker ignores both without a
+        // grant that verifies for this account.
+        ...(mockPart ? { mockGrant: mockPart.grant, mockPart: mockPart.partIndex } : {}),
       });
 
       // 3. Form Katzu reply with pedagogical evaluation embedded

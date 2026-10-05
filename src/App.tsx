@@ -36,6 +36,9 @@ import { LandingScreen } from '@/features/marketing/LandingScreen';
 const SubscriptionRedemptionScreen = React.lazy(() =>
   import('@/features/auth/SubscriptionRedemptionScreen').then((m) => ({ default: m.SubscriptionRedemptionScreen })),
 );
+const MockExamScreen = React.lazy(() =>
+  import('@/features/mockexam/MockExamScreen').then((m) => ({ default: m.MockExamScreen })),
+);
 const TrailScreen = React.lazy(() =>
   import('@/features/trail/TrailScreen').then((m) => ({ default: m.TrailScreen })),
 );
@@ -254,6 +257,13 @@ function AppRoutes() {
             />
             <Route path="/onboarding" element={<OnboardingRoute />} />
             <Route path="/subscription" element={<SubscriptionRoute />} />
+            {/* B3: the one free B1 speaking mock. The SERVER decides what this account may
+                run; the route only requires a session, because `/mock/start`
+                authenticates on its own and every answer is shown honestly. */}
+            <Route
+              path="/mock"
+              element={isAuthenticated ? <MockExamScreen /> : <Navigate to="/signin" replace />}
+            />
             <Route path="/placement" element={<PlacementRoute />} />
             {/* Katzu V2 episode: Journey Home → Story → Guided Practice → Live → Debrief.
                 `/app/library` keeps the pre-V2 trail reachable for browsing every
@@ -468,6 +478,7 @@ function SubscriptionRoute() {
       onBack={() => navigate('/app/trail')}
       onSuccess={() => navigate('/app/trail')}
       onGoToSignIn={() => navigate('/signin')}
+      onOpenMock={() => navigate('/mock')}
     />
   );
 }

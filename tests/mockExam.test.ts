@@ -406,6 +406,12 @@ describe('the mock grant on /ai/turn', () => {
     expect(res.status).toBe(200);
     expect(sent.join('\n')).toContain('EXAM MODE');
     expect(sent.join('\n')).toContain('PART 2');
+    // The scenario's own persona must NOT reach an exam turn: the model would
+    // otherwise be told it is a café server and an examiner in one prompt.
+    expect(sent.join('\n')).not.toContain('friendly café server');
+    expect(sent.join('\n')).toContain('speaking-exam partner');
+    // B1 is the exam's level whatever the request asked for.
+    expect(sent.join('\n')).toContain('CEFR level B1');
   });
 
   it('still refuses B1 without a grant, so the grant is what unlocks it', async () => {

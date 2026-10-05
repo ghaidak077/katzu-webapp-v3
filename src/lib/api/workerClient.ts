@@ -147,6 +147,50 @@ export function mapRedemptionReasonToArabic(reason?: string): string {
   }
 }
 
+/**
+ * One part of the mock, exactly as the server sends it.
+ *
+ * The Arabic is what the learner reads; `seconds` is the time budget the app
+ * counts down against. There is deliberately no score, no threshold and no
+ * exam-body name in this shape.
+ */
+export interface MockExamPart {
+  id: string;
+  index: number;
+  seconds: number;
+  titleAr: string;
+  titleDe: string;
+  briefAr: string;
+  briefDe: string;
+  openerDe: string;
+  openerAr: string;
+}
+
+export interface MockExamBrief {
+  level: string;
+  noticeAr: string;
+  unproven: boolean;
+  topic: { id: string; titleDe: string; titleAr: string; cardDe: string; cardAr: string };
+  parts: MockExamPart[];
+}
+
+/** The server's answer to "may I run a mock, and what may I show afterwards?". */
+export interface MockStartResponse {
+  allowed: boolean;
+  /** `free` | `credit` | `subscription` — what this mock cost, decided server-side. */
+  source?: 'free' | 'credit' | 'subscription';
+  code?: string;
+  reason?: string;
+  message?: string;
+  freeUsed?: number;
+  creditsRemaining?: number;
+  /** The signed token the turn route verifies. Present only when allowed. */
+  grant?: string;
+  grantExpiresAt?: number;
+  debrief?: { fullDebrief?: boolean; repeatMock?: boolean; correctionsVisible?: number };
+  brief?: MockExamBrief;
+}
+
 export class WorkerClient {
   private baseUrl: string;
 
@@ -374,6 +418,13 @@ export class WorkerClient {
     learnerMemory?: Array<{ rule: string; example?: string }>;
     vocabularyContext?: string[];
     grammarId?: string;
+    /**
+     * The B1 mock: the grant minted by `/mock/start` and the part index. Both are
+     * optional and both are ignored by the worker unless the grant verifies for
+     * this account — an ordinary conversation is unaffected by their absence.
+     */
+    mockGrant?: string;
+    mockPart?: number;
   }): Promise<TurnAiResponse> {
     try {
       return await this.sendTurnOnce(params);
@@ -410,6 +461,8 @@ export class WorkerClient {
     learnerMemory?: Array<{ rule: string; example?: string }>;
     vocabularyContext?: string[];
     grammarId?: string;
+    mockGrant?: string;
+    mockPart?: number;
   }): Promise<TurnAiResponse> {
     // Resolve credential early so a signed-out user fails fast (header-only transport;
     // the body never carries tokens).
@@ -451,6 +504,10 @@ export class WorkerClient {
     }
     if (params.grammarId && /^[a-z0-9_]{1,80}$/i.test(params.grammarId)) {
       payload.grammar_id = params.grammarId;
+    }
+    if (params.mockGrant && Number.isInteger(params.mockPart)) {
+      payload.mock_grant = params.mockGrant;
+      payload.mock_part = params.mockPart;
     }
 
     const headers: Record<string, string> = {
@@ -805,6 +862,45 @@ export class WorkerClient {
       };
     } catch (e) {
       return { success: false, error: 'تعذر الاتصال بالخادم، تحقق من اتصالك بالإنترنت.' };
+    }
+  }
+
+  // --- The free B1 mock (/mock/start) ---
+
+  /**
+   * Claim a mock seat.
+   *
+   * The server decides whether this is the one free mock, a credit or a paid
+   * repeat, and returns the brief (parts, timings, topic) it should render plus
+   * what the debrief may show. The client never decides either — `sessionId` is
+   * the idempotency key, so a retry after a dropped connection replays the same
+   * answer instead of spending a second credit.
+   */
+  async startMock(sessionId: string, idToken?: string): Promise<MockStartResponse> {
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) {
+      return {
+        allowed: false,
+        code: 'UNAUTHENTICATED',
+        message: 'يرجى تسجيل الدخول بحساب Google أولاً، ثم جرّب المحاولة.',
+      };
+    }
+    try {
+      const res = await fetch(`${this.baseUrl}/mock/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data) return data as MockStartResponse;
+      return {
+        allowed: false,
+        code: data?.code || 'MOCK_UNAVAILABLE',
+        message: data?.message || 'تعذّر بدء المحاكاة الآن. يرجى المحاولة لاحقاً.',
+        debrief: data?.debrief,
+      };
+    } catch (e) {
+      return { allowed: false, code: 'MOCK_UNAVAILABLE', message: 'تعذّر الاتصال بالخادم، تحقق من اتصالك بالإنترنت.' };
     }
   }
 

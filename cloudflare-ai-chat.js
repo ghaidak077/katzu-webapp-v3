@@ -21,7 +21,12 @@
  */
 
 import { evaluateCorrection, hintMatchesQuestion, latestLearnerText, learnerAskedRepeat, obstacleInstructionForTurn } from "./cloudflare-turn-quality.js";
-import { normaliseMockPartIndex } from "./cloudflare-mock-exam.js";
+import {
+  MOCK_EXAM_FORCED_LEVEL,
+  MOCK_EXAM_PERSONA,
+  MOCK_EXAM_SCENARIO_TITLE,
+  normaliseMockPartIndex,
+} from "./cloudflare-mock-exam.js";
 import { beatsInstruction } from "./cloudflare-conversation-beats.js";
 import { isEasyTurn } from "./cloudflare-ai-router.js";
 
@@ -273,7 +278,6 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   const session_id = v.session_id;
   const sarcasm_level = v.sarcasm_level;
   const is_final_turn = body.is_final_turn === true;
-  const level = cefr_level;
   // B3 mock mode. The grant is signed by `/mock/start` and bound to THIS
   // account, so a client cannot turn the AI into an examiner for free — and a
   // missing/foreign/expired grant simply produces an ordinary turn. The part
@@ -285,6 +289,11 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     mockPartIndex !== null && mockExamInstructionForPart
       ? mockExamInstructionForPart({ part: mockPartIndex })
       : null;
+  // An exam turn belongs to the exam, not to the scenario the conversation engine
+  // borrows: the persona, the title, the safety category and the level are all
+  // replaced, so the model is never told it is both a café server and an examiner.
+  const inMockExam = Boolean(mockExamInstruction);
+  const level = inMockExam ? MOCK_EXAM_FORCED_LEVEL : cefr_level;
   // The mock is metered by the MOCK entitlement, not by the beginner-level
   // floor or the free-conversation counter: one free mock per account, already
   // claimed at `/mock/start`. The daily spend cap and the global rate limit above
@@ -333,10 +342,12 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   // rotating obstacle, which must stay last for the provider prefix cache.
   const systemInstruction = buildTurnSystemInstruction({
     level,
-    scenarioTitle: scenario_title,
+    scenarioTitle: inMockExam ? MOCK_EXAM_SCENARIO_TITLE : scenario_title,
     scenarioId: scenario_id,
-    persona,
-    scenarioCategory: scenario_category,
+    persona: inMockExam ? MOCK_EXAM_PERSONA : persona,
+    // `exam` also switches on the safety block, which is right: a practice exam
+    // must never imply an official decision about the learner.
+    scenarioCategory: inMockExam ? "exam" : scenario_category,
     sarcasmLevel: sarcasm_level,
     isFinalTurn: is_final_turn,
     turnIndex,

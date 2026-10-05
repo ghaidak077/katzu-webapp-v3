@@ -17,11 +17,18 @@ export interface SubscriptionRedemptionScreenProps {
   onBack: () => void;
   onSuccess: () => void;
   onGoToSignIn?: () => void;
+  /**
+   * The free B1 mock, one click from the screen where a learner thinks about
+   * paying. It is the offer BEFORE the ask: a learner who has never spoken B1
+   * German cannot judge a price they have not tested.
+   */
+  onOpenMock?: () => void;
 }
 
 export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreenProps> = ({
   onBack,
   onSuccess,
+  onOpenMock,
 }) => {
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -362,6 +369,18 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
         <p className="w-full mb-3 text-center text-micro text-text-muted font-arabic">
           التفعيل متاح حالياً عبر كود مرتبط بحسابك الموثّق.
         </p>
+
+        {/* The free mock: one per account, decided server-side. Offered before
+            the price, not after it. */}
+        {onOpenMock ? (
+          <button
+            type="button"
+            onClick={onOpenMock}
+            className="mb-3 w-full rounded-lg border border-primary/40 bg-primary/10 p-3 text-center font-arabic text-micro font-semibold text-primary"
+          >
+            جرّب محاكاة B1 مجاناً — محادثة واحدة بثلاثة أجزاء
+          </button>
+        ) : null}
       </div>
 
       <div className="pt-2 text-center">

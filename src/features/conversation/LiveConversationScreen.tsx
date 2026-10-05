@@ -17,6 +17,16 @@ export interface LiveConversationScreenProps {
   scenarioId: string;
   vocabularyContext?: string[];
   grammarId?: string;
+  /** The B1 mock part this screen is running, when it is running one. */
+  mockPart?: { grant: string; partIndex: number; openerDe: string };
+  /**
+   * Chrome rendered between the header and the chat — the mock's part banner and
+   * timer. Passed in (not built here) so the exam owns its own clock and this
+   * screen stays a layout.
+   */
+  examChrome?: React.ReactNode;
+  /** Skip the help/no-help chooser: an exam has one way to run it. */
+  autoStartMode?: 'practice' | 'real';
   onBack: () => void;
   onOpenSubscription?: () => void;
   onCompleteSession: (sessionSummary: {
@@ -51,6 +61,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   scenarioId,
   vocabularyContext,
   grammarId,
+  mockPart,
+  examChrome,
+  autoStartMode,
   onBack,
   onOpenSubscription,
   onCompleteSession,
@@ -83,6 +96,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     scenarioId,
     vocabularyContext,
     grammarId,
+    mockPart,
     onBack,
     onCompleteSession,
   });
@@ -144,6 +158,12 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     refreshHints,
     handleNudgeDifficulty,
   } = live;
+
+  // An exam has no "with help / without help" question: the mock starts as it is.
+  // The setter is stable, so this runs once per mount and never re-fires.
+  useEffect(() => {
+    if (autoStartMode) setSessionMode(autoStartMode);
+  }, [autoStartMode, setSessionMode]);
 
   // The words behind the currently-offered suggestion, so the learner can build a
   // reply themselves instead of only sending the canned line.
@@ -287,6 +307,9 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           </button>
         </div>
       </header>
+
+      {/* The mock's own banner and clock, when this conversation is a mock part. */}
+      {examChrome}
 
       <ConversationTranscript
         scrollRef={scrollRef}

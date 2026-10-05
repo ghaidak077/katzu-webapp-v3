@@ -25,6 +25,31 @@
 /** The level this mock simulates. Never used to claim certification. */
 export const MOCK_EXAM_LEVEL = 'B1';
 
+/**
+ * The scenario identity an exam turn runs under, overriding the scenario row.
+ *
+ * A scenario's own persona is server-authoritative for an ordinary turn (a café
+ * server stays a café server). For an exam turn the server replaces it here,
+ * because the persona belongs to the exam, not to the scene the conversation
+ * engine borrows: without this the model is told it is a café server AND an
+ * examiner in one prompt. Only a signed `/mock/start` grant reaches it.
+ */
+export const MOCK_EXAM_SCENARIO_TITLE = 'B1 Sprechen — Prüfungssimulation';
+
+export const MOCK_EXAM_PERSONA =
+  'a B1 speaking-exam partner who asks short exam-style questions, never grades and never claims to be an exam body';
+
+/**
+ * An exam turn runs at B1 whatever level the request asked for.
+ *
+ * The mock IS a B1 exam; letting the request decide would let a client run the
+ * free mock as an A1 conversation and call the result a B1 estimate. It also
+ * means exam turns never qualify as "easy" for cheap-model routing — the
+ * flagship tier pays for the mock, which is the honest cost of a graded
+ * conversation.
+ */
+export const MOCK_EXAM_FORCED_LEVEL = 'B1';
+
 /** The one sentence that may never be dropped from any mock surface. */
 export const MOCK_EXAM_NOTICE_AR =
   'محاكاة تدريب بأسلوب امتحان B1 — ليست الامتحان الرسمي ولا تمنح درجة معتمدة.';

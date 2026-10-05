@@ -2,15 +2,14 @@
 
 ## RESUME
 
-- **Last sha:** `6e9eecc`. CI `37287080431` **success** (docs-only run for that sha).
-- **Open CI run:** none.
-- **Next item:** **B3 client half** — `/mock` route running the three parts on the live
-  conversation engine with a per-part timer, a "practice estimate" score, an Arabic debrief,
-  free tier = estimate + top 2 corrections, full debrief/repeat behind `pass90` or a mock
-  credit. Server half is committed and green. Then B4 (paywall), B5 (events + admin funnel),
-  B6 (onboarding, .ics, share/referral e2e) — then push, deploy worker + Pages, verify live.
+- **Last sha:** `2c01faa` (B3 server) + the B3 client commit on top, both green locally.
+- **Open CI run:** none yet — nothing pushed since `6e9eecc`.
+- **Next item:** **B4 paywall** — Exam Pass, then Monthly, then Single Mock as a link, priced by
+  `/pricing` from the server table (region-aware, experiment cell included). Then B5 (events +
+  admin funnel), B6 (onboarding, .ics, share/referral e2e) — then push, deploy worker + Pages,
+  verify live.
 - **Live now:** worker `30d65294-3cd9-4251-9aca-229bd6bf7662`, Pages `48617093-bd19-41d9-9c5b-f9d5c743bb11`.
-- **Batch 1 complete and deployed. Batch 2 items 1, 2 and B3-server done.**
+- **Batch 1 deployed. Batch 2 items 1, 2 and B3 (mock, server + client) done, not yet deployed.**
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 
@@ -43,6 +42,27 @@ falls back to the host the app is served from.
    ```
    Use this value until a real domain is bought; `robots.txt` and `sitemap.xml` are generated
    from it at build time, so no code change is needed.
+
+3. **Answer the B1 mock rubric question before the mock is sold as exam preparation.**
+   The mock now runs the real three-part shape with its own briefs and timings
+   (five minutes a part), and reports a **practice estimate** computed from the
+   learner's own sentences. Three things are the owner's call and are currently
+   marked UNPROVEN in the code:
+   - the **part timings** in `MOCK_EXAM_PARTS` (five minutes each) follow the common
+     shape of a B1 Sprechen but have not been checked against any real exam specification;
+   - the **weighting** of the estimate (`estimatePracticeScore`: independence 35%,
+     accuracy 35%, coverage 15%, pacing 15%) is a judgement, not a rubric from an exam body;
+   - whether the app may name the level it prepares for in marketing copy. Right now the
+     notice says only that this is not the official exam, and no exam-body name appears
+     anywhere in the learner-facing strings or the model prompts.
+   Edit `MOCK_EXAM_PARTS` / the weights and the notice follows; nothing else has to change.
+
+4. **Decide how a mock credit is delivered.** The entitlement is live and enforced
+   (`decideMockAccess`, `/mock/start`), but no code currently *grants* a credit: the code
+   format is `DE-<months>M-<nonce>.<sig>`, so a mock-only code needs either a new signed
+   format (`DE-MOCK-<nonce>.<sig>`) or an owner-side balance change. Until that is chosen,
+   a second mock is reachable only through an active subscription. Mint one yourself with
+   `POST /admin/generate` to test the credit path end to end.
 
 ## Current mission overlay — 2026-10-04
 

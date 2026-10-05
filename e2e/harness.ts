@@ -111,7 +111,51 @@ export interface MockOptions {
    * in. `bootSignedIn` sets both from this one flag.
    */
   isPro?: boolean;
+  /**
+   * What `/mock/start` answers.
+   *
+   * `false` (the default) mints the one free mock; `true` answers 402 so a test
+   * can drive the honest refusal a learner gets after using it.
+   */
+  mockCreditRequired?: boolean;
 }
+
+/** The three B1 parts, mirroring `cloudflare-mock-exam.js` for the offline suite. */
+const MOCK_PARTS_AR = [
+  {
+    id: 'plan',
+    index: 1,
+    seconds: 300,
+    titleAr: 'الجزء الأول: التخطيط مع شريك المحادثة',
+    titleDe: 'Teil 1 — Gemeinsam planen',
+    briefAr: 'تخطّط مع شريك المحادثة، واتفقا معاً على التفاصيل.',
+    briefDe: 'Planen Sie mit Ihrem Partner.',
+    openerDe: 'Guten Tag! Erzählen Sie mir bitte: Was möchten Sie gemeinsam planen?',
+    openerAr: 'الآن لديك حوالي خمس دقائق.',
+  },
+  {
+    id: 'present',
+    index: 2,
+    seconds: 300,
+    titleAr: 'الجزء الثاني: تقديم موضوع',
+    titleDe: 'Teil 2 — Ein Thema präsentieren',
+    briefAr: 'قدّم الموضوع المعطى واذكر سبب رأيك.',
+    briefDe: 'Präsentieren Sie das gegebene Thema.',
+    openerDe: 'Bitte präsentieren Sie jetzt das Thema.',
+    openerAr: 'قدّم الموضوع الآن.',
+  },
+  {
+    id: 'react',
+    index: 3,
+    seconds: 300,
+    titleAr: 'الجزء الثالث: التفاعل مع الأسئلة',
+    titleDe: 'Teil 3 — Auf Fragen reagieren',
+    briefAr: 'أجب عن الأسئلة، واذكر رأيك بوضوح.',
+    briefDe: 'Antworten Sie auf die Fragen des Prüfers.',
+    openerDe: 'Jetzt stelle ich Ihnen einige Fragen.',
+    openerAr: 'الآن سأسألك بعض الأسئلة.',
+  },
+];
 
 /**
  * The Worker's level rule, mirrored.
@@ -120,9 +164,16 @@ export interface MockOptions {
  * active subscription. The mock enforces it because a screen that builds a
  * session at a level the deployed Worker rejects is a bug, and a mock that
  * answers anything would let that bug pass the suite green.
+ *
+ * A turn carrying a mock grant is the one exception, mirroring the Worker: the
+ * mock is metered by the MOCK entitlement (`/mock/start`), not by this floor.
  */
 function refusesLevel(route: Route, isPro: boolean | undefined): boolean {
-  const body = JSON.parse(route.request().postData() || '{}') as { cefr_level?: string };
+  const body = JSON.parse(route.request().postData() || '{}') as {
+    cefr_level?: string;
+    mock_grant?: string;
+  };
+  if (typeof body.mock_grant === 'string' && body.mock_grant.length > 0) return false;
   return !isPro && String(body.cefr_level || 'A1').toUpperCase() !== 'A1';
 }
 
@@ -177,6 +228,43 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
     switch (true) {
+      case url.pathname === '/mock/start': {
+        if (options.mockCreditRequired) {
+          return route.fulfill({
+            status: 402,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              allowed: false,
+              code: 'MOCK_CREDIT_REQUIRED',
+              reason: 'mock_credit_required',
+              message: 'انتهت المحاكاة المجانية الواحدة، والمحاكاة التالية تحتاج إلى اشتراك أو رصيد محاكاة.',
+              debrief: { fullDebrief: false, repeatMock: false, correctionsVisible: 2 },
+            }),
+          });
+        }
+        return json({
+          allowed: true,
+          source: 'free',
+          freeUsed: 1,
+          creditsRemaining: 0,
+          grant: 'MOCK1.1800000000000.TESTTESTSIG01',
+          grantExpiresAt: Date.now() + 45 * 60_000,
+          debrief: { fullDebrief: false, repeatMock: false, correctionsVisible: 2 },
+          brief: {
+            level: 'B1',
+            noticeAr: 'محاكاة تدريب بأسلوب امتحان B1 — ليست الامتحان الرسمي ولا تمنح درجة معتمدة.',
+            unproven: true,
+            topic: {
+              id: 'wohnen',
+              titleDe: 'Wohnen in einer Großstadt',
+              titleAr: 'السكن في مدينة كبيرة',
+              cardDe: 'Wohnen in einer Großstadt: Mieten oder kaufen?',
+              cardAr: 'السكن في مدينة كبيرة: الإيجار أم الشراء؟',
+            },
+            parts: MOCK_PARTS_AR,
+          },
+        });
+      }
       case url.pathname === '/ai/turn': {
         if (refusesLevel(route, options.isPro)) return wall(route);
         const scripted = options.turns?.[turnIndex] ?? turn();

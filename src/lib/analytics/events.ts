@@ -49,6 +49,12 @@ export const ANALYTICS_EVENTS = [
   'writing_completed',
   'listening_completed',
   'paywall_viewed',
+  // The B1 mock, measured as a funnel of its own: what it cost (prop `kind` is
+  // the server's answer — free, credit or subscription), whether it finished,
+  // and whether its debrief was actually read.
+  'mock_start',
+  'mock_finish',
+  'debrief_view',
   'purchase_clicked',
   'code_redeemed',
   'app_error',
