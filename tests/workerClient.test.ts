@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { WorkerClient, mapRedemptionReasonToArabic } from '../src/lib/api/workerClient';
 
 describe('WorkerClient API Contract Integration', () => {
@@ -440,5 +440,114 @@ describe('WorkerClient API Contract Integration', () => {
     expect(capturedBody.session_id).toBe('sess_123456789_abcdef');
     expect(capturedBody.id_token).toBeUndefined();
     expect(capturedBody.is_final_turn).toBe(true);
+  });
+});
+
+/**
+ * Regression cover for the translate path (P0.1).
+ *
+ * The `net::ERR_ABORTED` seen in the field was never a missing timeout or a
+ * missing retry — `fetchWithTimeout` and `translateTextReliable` have both
+ * existed since V19 — so nothing here repairs a defect. It pins the behaviour
+ * that makes the field symptom harmless: a failed or aborted attempt is retried
+ * twice with the 500/1500 backoff and then degrades to `''`, which both call
+ * sites turn into the visible Arabic retry affordance. Without these tests that
+ * was true only by inspection.
+ */
+describe('translation reliability', () => {
+  let client: WorkerClient;
+
+  const gloss = (ar: string) => ({ ok: true, json: async () => ({ translation_ar: ar }) });
+  const netFail = () => new TypeError('Failed to fetch');
+
+  beforeEach(() => {
+    client = new WorkerClient('https://mock-worker.test');
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('returns the gloss on the first attempt and does not retry', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(gloss('صباح الخير'));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    await expect(client.translateTextReliable('Guten Morgen')).resolves.toBe('صباح الخير');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries after a failed attempt and returns the gloss from the retry', async () => {
+    const fetchSpy = vi.fn()
+      .mockRejectedValueOnce(netFail())
+      .mockResolvedValueOnce(gloss('صباح الخير'));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    await expect(client.translateTextReliable('Guten Morgen')).resolves.toBe('صباح الخير');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('makes exactly three attempts, then gives up without throwing', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi.fn().mockRejectedValue(netFail());
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const pending = client.translateTextReliable('Guten Morgen');
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    // `''` is the contract: both callers read empty as "say so and offer retry".
+    await expect(pending).resolves.toBe('');
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('waits 500ms then 1500ms between the three attempts', async () => {
+    vi.useFakeTimers();
+    let last = Date.now();
+    const gaps: number[] = [];
+    global.fetch = vi.fn().mockImplementation(async () => {
+      const now = Date.now();
+      gaps.push(now - last);
+      last = now;
+      throw netFail();
+    }) as unknown as typeof fetch;
+
+    const pending = client.translateTextReliable('Guten Morgen');
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expect(pending).resolves.toBe('');
+
+    expect(gaps).toHaveLength(3);
+    expect(gaps[1]).toBeGreaterThanOrEqual(500);
+    expect(gaps[2]).toBeGreaterThanOrEqual(1500);
+  });
+
+  it('aborts a hung request at the AI timeout instead of waiting forever', async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    // The double must reject on abort the way a real fetch does. A promise that
+    // simply never settles would hang here and prove nothing (APP-MAP §11.7).
+    global.fetch = vi.fn().mockImplementation((_url: string, init: any) => {
+      signal = init?.signal;
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+      });
+    }) as unknown as typeof fetch;
+
+    const pending = client.translateTextReliable('Guten Morgen');
+    // Three attempts x the 30s AI timeout, plus the 500/1500 backoff.
+    await vi.advanceTimersByTimeAsync(120_000);
+    await expect(pending).resolves.toBe('');
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it('blanks an empty request without spending a network call', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi.fn();
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const pending = client.translateTextReliable('   ');
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await expect(pending).resolves.toBe('');
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
