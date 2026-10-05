@@ -1,5 +1,37 @@
 # Katzu Agent State Ledger
 
+## RESUME
+
+- **Last sha:** `5b4dc4a` (cheap-routing before/after report). Local gates green at that sha.
+- **Open CI run:** none yet — `ecd4796`, `821176f`, `5b4dc4a` are committed but **not pushed**.
+- **Next item:** push, wait for green CI, then deploy worker + Pages for the Batch 1 finish
+  (cheap-model routing + hashed translate cache). Verify live, including a cache hit on a
+  repeated `/ai/translate` and the cheap tier on an easy turn.
+- **Live now:** worker `bf272ecf`, Pages `4aa3fcb4` from `cc30ed8`.
+
+## OWNER LIST (deduplicated — no secrets, no values)
+
+Both of these are safe to leave unset: the spend cap is unlimited when absent, and the origin
+falls back to the host the app is served from.
+
+1. **Set the daily AI spend cap.** Plain env var, not a secret. Edit `wrangler.toml`:
+   ```toml
+   AI_DAILY_SPEND_CAP = "292"
+   ```
+   then `npm run deploy:worker`. `292` is the value from `node scripts/measure-turn-cost.mjs`
+   ($1/day ÷ 5 active users ÷ $0.0007 per flagship turn). **UNPROVEN — both the $1 ceiling and
+   the price table are assumptions**; confirm prices against a real invoice first. Setting
+   `"0"` stops all AI traffic immediately without a redeploy of the app.
+
+2. **Set the public app origin** so the sitemap emits absolute URLs (it currently emits
+   relative paths, which the sitemap spec disallows). In the Cloudflare Pages project
+   `katzu-webapp-v3` → Settings → Environment variables → Production:
+   ```
+   VITE_PUBLIC_APP_URL = "https://katzu-webapp-v3.pages.dev"
+   ```
+   Use this value until a real domain is bought; `robots.txt` and `sitemap.xml` are generated
+   from it at build time, so no code change is needed.
+
 ## Current mission overlay — 2026-10-04
 
 Autonomous excellence execution is tracked in [EXCELLENCE-STATUS](agent/EXCELLENCE-STATUS.md).
