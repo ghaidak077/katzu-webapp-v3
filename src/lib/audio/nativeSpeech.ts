@@ -188,6 +188,24 @@ export function isNativeRecognitionAvailable(): boolean {
   return recognitionConstructor() !== null;
 }
 
+/**
+ * Whether this browser can speak German back to the learner.
+ *
+ * The twin of `isNativeRecognitionAvailable`, and it exists because the TTS side
+ * had no named check: `useSpeechOutput` asked `'speechSynthesis' in window` inline
+ * at three separate sites, so the answer was duplicated, untested, and invisible
+ * to a screen that wanted to offer typed input instead. One function means one
+ * place to test and one place to branch on.
+ *
+ * Presence of the API is not the same as a usable voice: a browser can expose
+ * `speechSynthesis` and still ship zero voices. Callers pair this with
+ * `useSpeechOutput`'s `voicesReady` before promising spoken playback.
+ */
+export function isSpeechOutputAvailable(): boolean {
+  if (typeof window === 'undefined') return false;
+  return 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function';
+}
+
 export interface NativeRecognitionHandlers {
   /** The words so far, re-sent as they change. Interims must never be sent as a turn. */
   onInterim: (text: string) => void;

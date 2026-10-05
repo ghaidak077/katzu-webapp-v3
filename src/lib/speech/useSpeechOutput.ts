@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { chooseGermanVoice } from './voiceChoice';
+import { isSpeechOutputAvailable } from '@/lib/audio/nativeSpeech';
 
 interface UseSpeechOutputOptions {
   speed?: number; // 0.8 or 1.0
@@ -61,7 +62,7 @@ export function useSpeechOutput({
   // Synth + voice discovery. Chrome/Android populate voices asynchronously —
   // listening for 'voiceschanged' is what makes auto-speak actually audible.
   useEffect(() => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (!isSpeechOutputAvailable()) return;
     const synth = window.speechSynthesis;
     synthRef.current = synth;
 
@@ -91,7 +92,7 @@ export function useSpeechOutput({
     const prime = () => {
       ttsPrimedByGesture = true;
       try {
-        if ('speechSynthesis' in window) {
+        if (isSpeechOutputAvailable()) {
           const u = new SpeechSynthesisUtterance(' ');
           u.volume = 0;
           u.lang = 'de-DE';

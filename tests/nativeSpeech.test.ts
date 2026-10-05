@@ -6,6 +6,7 @@ import {
   NATIVE_START_TIMEOUT_MS,
   classifyRecognitionError,
   isNativeRecognitionAvailable,
+  isSpeechOutputAvailable,
   mayFallBack,
   nativeWatchdogVerdict,
   syntheticListeningSample,
@@ -73,6 +74,28 @@ describe('mayFallBack', () => {
     expect(mayFallBack(1)).toBe(true);
     expect(mayFallBack(2)).toBe(false);
     expect(mayFallBack(3)).toBe(false);
+  });
+});
+
+describe('isSpeechOutputAvailable', () => {
+  it('is false when there is no window at all (server render, worker)', () => {
+    vi.stubGlobal('window', undefined);
+    expect(isSpeechOutputAvailable()).toBe(false);
+  });
+
+  it('requires the constructor too, not just the speechSynthesis property', () => {
+    // A half-present engine is the real hazard: the property exists but calling
+    // new SpeechSynthesisUtterance() throws, so treating it as available would
+    // take down the screen rather than fall back to typed input.
+    vi.stubGlobal('window', { speechSynthesis: {} });
+    expect(isSpeechOutputAvailable()).toBe(false);
+    vi.stubGlobal('window', { speechSynthesis: {}, SpeechSynthesisUtterance: class {} });
+    expect(isSpeechOutputAvailable()).toBe(true);
+  });
+
+  it('is false where nothing speaks, so the UI can offer typing instead', () => {
+    vi.stubGlobal('window', {});
+    expect(isSpeechOutputAvailable()).toBe(false);
   });
 });
 
