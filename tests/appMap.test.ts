@@ -182,3 +182,55 @@ describe('the guard itself is real (not a vacuous pass)', () => {
     expect(codeEndpoints(sample)).toEqual(['/a', '/b/*']);
   });
 });
+
+/**
+ * No shipped code may hardcode a production hostname.
+ *
+ * `robots.txt` and `sitemap.xml` used to be checked-in files holding
+ * `https://katzu.app`, a host that does not resolve, and the sitemap listed
+ * `/privacy` and `/terms` — routes the app does not have. Both are now generated
+ * from `VITE_PUBLIC_APP_URL` by a build plugin. This test is the gate that stops
+ * a literal creeping back into the bundle, where it would advertise a dead
+ * domain to every crawler and share card.
+ *
+ * Comments and doc prose are excluded: naming the domain in a comment is how this
+ * bug gets *explained*, and `guest@katzu.app` is an email, not a URL.
+ */
+describe('no hardcoded production hostname ships', () => {
+  const root = join(fileURLToPath(new URL('..', import.meta.url)));
+  const URL_LITERAL = /https?:\/\/katzu\.app\b/g;
+
+  function shippedFiles(dir: string): string[] {
+    return readdirSync(join(root, dir), { withFileTypes: true }).flatMap((entry) => {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) return shippedFiles(full);
+      return /\.(ts|tsx|html|json|webmanifest|txt|xml)$/.test(entry.name) ? [full] : [];
+    });
+  }
+
+  function codeOnly(text: string): string {
+    return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  }
+
+  it('finds no https://katzu.app literal in shipped app code', () => {
+    const offenders: string[] = [];
+    for (const file of ['src', 'public'].flatMap(shippedFiles).concat('index.html')) {
+      const text = codeOnly(readFileSync(join(root, file), 'utf8'));
+      if (URL_LITERAL.test(text)) offenders.push(file);
+      URL_LITERAL.lastIndex = 0;
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('generates robots.txt and sitemap.xml instead of shipping static copies', () => {
+    // A checked-in copy is what drifted; if one reappears the generator is bypassed.
+    for (const name of ['robots.txt', 'sitemap.xml']) {
+      expect(() => readFileSync(join(root, 'public', name), 'utf8')).toThrow();
+    }
+    const config = readFileSync(join(root, 'vite.config.ts'), 'utf8');
+    expect(config).toContain('katzu-public-origin-files');
+    // The routes the sitemap advertises must actually exist as /trust/* routes.
+    expect(config).toContain('/trust/privacy');
+    expect(config).not.toMatch(/'\/privacy'/);
+  });
+});

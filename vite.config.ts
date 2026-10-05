@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
@@ -98,9 +98,47 @@ export const pwaOptions = {
   }
 };
 
+/**
+ * `APP_ORIGIN` — the single host every public URL is derived from.
+ *
+ * `robots.txt` and `sitemap.xml` were checked-in files holding `https://katzu.app`,
+ * a host that does not resolve, so they advertised a dead domain and listed
+ * routes that do not exist (`/privacy` — the real one is `/trust/privacy`).
+ * They are generated at build time from `VITE_PUBLIC_APP_URL` instead, so a
+ * domain change is one env var and the files can never drift from the app.
+ *
+ * When the origin is unset the entries are emitted as relative paths, which is
+ * honest: a Pages build with no origin must not invent one.
+ */
+function publicOriginFiles(): Plugin {
+  const origin = String(process.env.VITE_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+  const abs = (p: string) => (origin ? `${origin}${p}` : p);
+  const routes = ['/', '/trust/privacy', '/trust/terms', '/demo', '/welcome'];
+  return {
+    name: 'katzu-public-origin-files',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'robots.txt',
+        source: ['User-agent: *', 'Allow: /', '', `Sitemap: ${abs('/sitemap.xml')}`, ''].join('\n'),
+      });
+      this.emitFile({
+        type: 'asset',
+        fileName: 'sitemap.xml',
+        source:
+          '<?xml version="1.0" encoding="UTF-8"?>\n' +
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+          routes.map((r) => `  <url>\n    <loc>${abs(r)}</loc>\n  </url>`).join('\n') +
+          '\n</urlset>\n',
+      });
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
+    publicOriginFiles(),
     VitePWA(pwaOptions)
   ],
   resolve: {
