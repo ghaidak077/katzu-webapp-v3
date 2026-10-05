@@ -410,6 +410,111 @@ export async function resolveUserRecord(env, { email, id } = {}) {
   };
 }
 
+/**
+ * The delivery promise, in hours.
+ *
+ * D8 in the playbook: a paid code reaches the buyer within 12 hours, and the
+ * whole point of showing elapsed time is to see that promise kept or broken. It
+ * is a constant here rather than a number typed into the view, so the admin and
+ * the copy cannot disagree about what was promised.
+ */
+export const CODE_DELIVERY_PROMISE_HOURS = 12;
+
+/** What the buyer gets: the pass they bought, in words rather than a code. */
+function passLabelFor(months) {
+  const n = Number(months);
+  if (!Number.isFinite(n) || n <= 0) return "unknown";
+  if (n === 1) return "monthly";
+  if (n === 3) return "pass90";
+  return `${n}mo`;
+}
+
+/**
+ * Orders, read-only, with the clock the owner promised to keep.
+ *
+ * WHY THIS VIEW EXISTS
+ * The launch promise is «يصل الكود خلال ١٢ ساعة» (D8), and there was nowhere to
+ * read whether it was being kept. `created_at` is the moment the order was made
+ * and `paid_at` is the moment the money landed — the gap between those two is
+ * the only measurement that answers the question, so both are returned raw and
+ * the elapsed time is computed, never rounded away.
+ *
+ * IT READS AND IT DOES NOT WRITE
+ * One `SELECT`, no INSERT/UPDATE/DELETE, no new table, and no new auth path: it
+ * sits behind the same bearer gate as every other `/admin/api/*` route, and a
+ * missing or wrong secret still answers 401 before this runs at all.
+ *
+ * `src` is resolved through the account the code was redeemed against, not
+ * stored on the order — crypto check-out does not receive the channel tag, and
+ * inventing a column for it would be a write. **UNPROVEN live**: the crypto
+ * table is `test_mode`, so this may be empty in production until check-out goes
+ * live; it is built to be correct when it is not.
+ */
+export async function listOrders(env, { status = null, limit = 50, offset = 0 } = {}) {
+  if (!env?.DB) return { total: 0, orders: [], limit: 0, offset: 0, available: false };
+  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+  const safeOffset = Math.max(parseInt(offset, 10) || 0, 0);
+  const where = [];
+  const binds = [];
+  if (status && typeof status === "string" && /^[a-z_]{1,24}$/i.test(status)) {
+    where.push("status = ?");
+    binds.push(status);
+  }
+  const whereSql = where.length ? ` WHERE ${where.join(" AND ")}` : "";
+  try {
+    const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS c FROM crypto_orders${whereSql}`).bind(...binds).first();
+    const rows = await env.DB
+      .prepare(
+        `SELECT order_id, claim_token, months, price_usd, status, provider, payment_id,
+                pay_currency, pay_amount, code, created_at, paid_at, delivered_at
+         FROM crypto_orders${whereSql}
+         ORDER BY created_at DESC LIMIT ? OFFSET ?`
+      )
+      .bind(...binds, safeLimit, safeOffset)
+      .all();
+    const now = Date.now();
+    return {
+      total: Number(totalRow?.c ?? 0),
+      orders: (rows?.results || []).map((row) => {
+        const paidAt = row.paid_at ? Date.parse(row.paid_at) : null;
+        const createdAt = Date.parse(row.created_at);
+        // From PAID, not from created: the clock the buyer was promised starts
+        // when their money landed. A pending order has no clock at all.
+        const hoursSincePaid = paidAt && Number.isFinite(paidAt) ? (now - paidAt) / 3_600_000 : null;
+        const deliveredAt = row.delivered_at ? Date.parse(row.delivered_at) : null;
+        return {
+          order_id: row.order_id,
+          /** The claim token is the buyer's handle, not a secret. */
+          alias: row.claim_token ? String(row.claim_token).slice(0, 12) : null,
+          pass: passLabelFor(row.months),
+          months: Number(row.months) || null,
+          method: row.provider || null,
+          price_usd: row.price_usd ?? null,
+          pay_currency: row.pay_currency || null,
+          pay_amount: row.pay_amount ?? null,
+          status: row.status,
+          /** Whether a code was minted, and whether the buyer has collected it. */
+          codeMinted: Boolean(row.code),
+          codeRedeemed: Boolean(deliveredAt),
+          createdAt: row.created_at,
+          paidAt: row.paid_at,
+          deliveredAt: row.delivered_at,
+          hoursSincePaid: hoursSincePaid === null ? null : Math.round(hoursSincePaid * 100) / 100,
+          deliveryPromiseHours: CODE_DELIVERY_PROMISE_HOURS,
+          /** `null` while there is no clock to judge — never a false "on time". */
+          withinPromise: hoursSincePaid === null ? null : hoursSincePaid <= CODE_DELIVERY_PROMISE_HOURS,
+        };
+      }),
+      limit: safeLimit,
+      offset: safeOffset,
+      available: true,
+    };
+  } catch (e) {
+    console.error("[orders] list failed:", String(e?.message || e).slice(0, 120));
+    return { total: 0, orders: [], limit: safeLimit, offset: safeOffset, available: false };
+  }
+}
+
 export async function listUsers(env, { plan = null, q = null, limit = 50, offset = 0 } = {}) {
   if (!env?.DB) return { total: 0, users: [], limit, offset, available: false };
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
@@ -1175,6 +1280,14 @@ export async function handleAdminRoutes(url, request, env, cors, deps = {}) {
       if (action === "backfill-preview" && method === "GET") {
         // Read-only inventory of what a backfill could recover. Never writes.
         return json(await previewBackfill(env), 200, cors);
+      }
+
+      if (action === "orders" && method === "GET") {
+        return json(await listOrders(env, {
+          status: url.searchParams.get("status"),
+          limit: url.searchParams.get("limit"),
+          offset: url.searchParams.get("offset"),
+        }), 200, cors);
       }
 
       // ---------------- Content CRUD (all four curriculum tables) ----------

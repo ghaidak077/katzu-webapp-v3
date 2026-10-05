@@ -5,6 +5,7 @@ import { arCount } from '@/lib/i18n/arabicCount';
 import { GlassButton } from '@/components/glass/GlassButton';
 import { isProEffective } from '@/lib/utils/subscription';
 import { FREE_LEVEL, isLevelFree, servedLevel } from '@/lib/entitlement/trial';
+import { examFirstScenarios } from '@/lib/levels/levelSpec';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { ScenarioBanner } from '@/components/glass/ScenarioBanner';
@@ -51,7 +52,10 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const [paywallReason, setPaywallReason] = useState({ title: '', description: '' });
 
   const user = useLiveQuery(() => db.users.get('current_user'));
-  const scenarios = useLiveQuery(() => db.scenarios.toArray()) || [];
+  // Exam scenarios lead the Trail (F8): the preview a learner lands on is now
+  // the reason they arrived. Nothing is hidden — the "show the rest" control and
+  // the level filter below are untouched, and `examFirstScenarios` only reorders.
+  const scenarios = examFirstScenarios(useLiveQuery(() => db.scenarios.toArray()) || []);
   const trainingRecords = useLiveQuery(() => db.scenario_training.toArray()) || [];
   const reviewItems = useLiveQuery(() => db.review_items.toArray()) || [];
   const mistakes = useLiveQuery(() => db.mistakes.toArray()) || [];
