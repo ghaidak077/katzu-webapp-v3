@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker, { resetScenarioBeatsCache } from '../cloudflare-unified-worker';
+import { translateCacheKey } from '../cloudflare-ai-chat.js';
 import { getRegistryStats } from '../cloudflare-admin.js';
 import { resetRouterState } from '../cloudflare-ai-router.js';
 
@@ -876,5 +877,30 @@ describe('level enforcement on /ai/turn (V21 Phase 1, e2e-pinned here)', () => {
     const body = await res.json() as any;
     expect(body.reply_de).toBe('Ich verstehe. Wir üben weiter.');
     expect(body.reply_ar).toBe('فهمت. نكمل التدريب.');
+  });
+});
+
+describe('translateCacheKey', () => {
+  it('is stable for the same sentence and target language', async () => {
+    expect(await translateCacheKey('Guten Tag', 'ar')).toBe(await translateCacheKey('Guten Tag', 'ar'));
+  });
+
+  it('ignores case and surrounding whitespace, which are the same request', async () => {
+    expect(await translateCacheKey('  Guten Tag  ', 'ar')).toBe(await translateCacheKey('guten tag', 'ar'));
+  });
+
+  it('separates target languages, so a second language cannot collide', async () => {
+    expect(await translateCacheKey('Guten Tag', 'ar')).not.toBe(await translateCacheKey('Guten Tag', 'en'));
+  });
+
+  it('produces a key inside the 512-byte KV limit for a very long sentence', async () => {
+    // The old key was the raw text, so a long sentence could not be written at all.
+    const long = 'Ich moechte bitte einen Kaffee und ein Stueck Kuchen '.repeat(40);
+    expect((await translateCacheKey(long, 'ar')).length).toBeLessThan(512);
+    expect(long.length).toBeGreaterThan(512);
+  });
+
+  it('distinguishes different sentences', async () => {
+    expect(await translateCacheKey('Guten Tag', 'ar')).not.toBe(await translateCacheKey('Guten Morgen', 'ar'));
   });
 });

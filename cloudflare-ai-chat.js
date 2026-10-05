@@ -25,6 +25,27 @@ import { beatsInstruction } from "./cloudflare-conversation-beats.js";
 import { isEasyTurn } from "./cloudflare-ai-router.js";
 
 /**
+ * The KV key for one cached translation.
+ *
+ * It used to be the sentence itself, lowercased. Two problems with that: a KV key
+ * is capped at 512 bytes, so a long German sentence could not be written at all
+ * (the cache silently did nothing for exactly the inputs that benefit most), and
+ * nothing in the key said which language was the target, so the cache could not
+ * grow to a second language later without every entry colliding.
+ *
+ * SHA-256 truncated to 128 bits keeps collisions out of reach for a cache this
+ * size while fitting the key limit with room to spare.
+ */
+export async function translateCacheKey(text, targetLang = "ar") {
+  const normalized = String(text || "").trim().toLowerCase();
+  const bytes = new TextEncoder().encode(`${targetLang}\u0000${normalized}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  let hex = "";
+  for (const byte of new Uint8Array(digest).slice(0, 16)) hex += byte.toString(16).padStart(2, "0");
+  return `v2:${hex}`;
+}
+
+/**
  * The whole `/ai/turn` system instruction, assembled in ONE exported pure
  * function.
  *
@@ -758,7 +779,7 @@ export async function handleTranslateRoute(request, env, cors, deps) {
   if (!text) return json({ translation_ar: "" }, 200, cors);
   if (!hasUsableProvider(env)) return json({ error: "ai_unavailable" }, 503, cors);
 
-  const cacheKey = text.toLowerCase();
+  const cacheKey = await translateCacheKey(text, "ar");
   const cached = await readAiCache(env, "tr", cacheKey);
   if (typeof cached === "string" && cached) {
     return json({ translation_ar: cached, cached: true }, 200, cors);
