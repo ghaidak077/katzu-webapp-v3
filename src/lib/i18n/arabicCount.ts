@@ -97,3 +97,20 @@ export function arCountWith(count: number, forms: ArabicCountForms, numeral: (n:
   if (form === 'one' || form === 'two') return forms[form];
   return `${numeral(n)} ${forms[form]}`;
 }
+
+const ARABIC_INDIC_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+
+/**
+ * Western digits in, Arabic-Indic digits out.
+ *
+ * The numeral the app's Arabic copy actually uses: the landing page writes «٣
+ * جلسات», not "3 جلسات", and a promise about a number is prose, not a data
+ * table. Latin digits stay Latin where the reader is looking at German, a level
+ * chip or a price — this is for the numeral inside an Arabic sentence.
+ *
+ * The agreement form is unaffected: the one and the dual are still written as
+ * words by `arCount`/`arCountWith` before a numeral is ever needed.
+ */
+export function toArabicDigits(value: number | string): string {
+  return String(value).replace(/\d/g, (d) => ARABIC_INDIC_DIGITS[Number(d)]);
+}

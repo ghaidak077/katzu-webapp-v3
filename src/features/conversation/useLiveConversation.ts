@@ -25,6 +25,7 @@ import { classifyTurnError, conversationReducer, initialConversationState, isTur
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
 import { sessionTurnCap } from '@/lib/conversation/turnPlan';
 import { MOCK_EXAM_LEVEL } from '@/lib/mockexam/constants';
+import { MAX_FREE_SESSIONS_AR } from '@/lib/entitlement/trialCopy';
 import type { OrbState } from '@/components/voice/KatzuOrb';
 import type {
   ChatMessage,
@@ -822,7 +823,12 @@ export function useLiveConversation({
         dispatch({ type: 'quota_exhausted', messageAr: err?.message });
         setPaywall({
           isOpen: true,
-          title: err?.code === 'FREE_QUOTA_EXHAUSTED' ? 'انتهت جلساتك المجانية' : 'هذا المستوى ميزة Pro',
+          // The number the Worker enforced, named in the words the learner was
+          // promised before they ever started — not a vague "your free sessions".
+          title:
+            err?.code === 'FREE_QUOTA_EXHAUSTED'
+              ? `انتهت ${MAX_FREE_SESSIONS_AR} محادثة مجانية`
+              : 'هذا المستوى ميزة Pro',
           description: err?.message || 'رَقِّ حسابك لفتح كل المستويات من A0 حتى B2 ومحادثات بلا حدّ جلسات.',
         });
       } else {

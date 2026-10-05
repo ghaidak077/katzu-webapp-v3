@@ -6,96 +6,17 @@
  * `/verify` and never takes a payment. Overridable at build time with
  * `VITE_SALES_URL`; the production value is the default so nothing has to be
  * configured for the link to work.
+ *
+ * NO PRICE LIVES HERE. It used to: `getProPriceLabel()` mirrored the crypto
+ * check-out's `/crypto/health` and fell back to a hardcoded «5 دولار / شهر», so
+ * two sources in two currencies could reach the learner — one of them (checkout)
+ * not live. Every amount the learner sees now comes from `GET /pricing` through
+ * `src/lib/offers/priceSource.ts`, and nothing is shown when that call fails.
  */
 const env = (import.meta as any).env || {};
 
 export const SALES_URL: string = String(env.VITE_SALES_URL || 'https://katzu-sales.pages.dev').replace(/\/+$/, '');
 
-export const FALLBACK_PRICE_LABEL = '5 دولار / شهر';
-
-/**
- * Live price label, mirrored from the worker's `/crypto/health` (which exposes
- * only `priceUsd` and `months`). The worker owns the price — this keeps the
- * paywall, landing page and redemption screen from drifting from what checkout
- * actually charges. Session-cached, one in-flight request, and the constant
- * fallback on any failure so a broken fetch can never blank the paywall.
- */
-let cachedPriceLabel: string | null = null;
-let priceInflight: Promise<string> | null = null;
-
-/** One plan tier as the worker vouched for it (V21 Phase 7). */
-export interface PlanTier {
-  id: string;
-  months: number;
-  priceUsd: number;
-  label_ar: string;
-  requires_discount_code?: boolean;
-  /** The worker marks the tier the paywall and sales page lead with (V24). */
-  recommended?: boolean;
-}
-
-/**
- * Order tiers for display: the server-recommended tier first (the 3-month
- * pass), then the rest in the worker's own order. Pure — the worker keeps
- * owning both the price and the recommendation; the client only re-orders.
- */
-export function orderTiersByRecommendation(tiers: PlanTier[]): PlanTier[] {
-  const recommended = tiers.filter((p) => p.recommended);
-  const rest = tiers.filter((p) => !p.recommended);
-  return [...recommended, ...rest];
-}
-
-let cachedPlans: PlanTier[] | null = null;
-
-async function fetchPriceData(): Promise<{ label: string; plans: PlanTier[] } | null> {
-  const workerUrl = String((import.meta as any).env?.VITE_WORKER_URL || '').replace(/\/+$/, '');
-  if (!workerUrl) return null;
-  const res = await fetch(`${workerUrl}/crypto/health`, { headers: { Accept: 'application/json' } });
-  if (!res.ok) return null;
-  const data = (await res.json()) as { priceUsd?: unknown; months?: unknown; plans?: unknown };
-  const price = Number(data.priceUsd);
-  const months = Number(data.months);
-  // Only a sane, positive price the worker actually vouched for changes the label.
-  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(months) || months < 1) {
-    return null;
-  }
-  const monthsPart = months === 1 ? 'شهر' : `${months} أشهر`;
-  const plans = Array.isArray(data.plans)
-    ? (data.plans as PlanTier[]).filter(
-        (p) => p && typeof p.id === 'string' && Number.isFinite(Number(p.priceUsd)) && Number(p.priceUsd) > 0,
-      )
-    : [];
-  return { label: `${price} دولار / ${monthsPart}`, plans };
-}
-
-/** Resolves the live price label; never throws. */
-export async function getProPriceLabel(): Promise<string> {
-  if (cachedPriceLabel) return cachedPriceLabel;
-  if (!priceInflight) {
-    priceInflight = fetchPriceData()
-      .then((data) => {
-        const label = data?.label ?? FALLBACK_PRICE_LABEL;
-        cachedPriceLabel = label;
-        cachedPlans = data?.plans?.length ? data.plans : null;
-        return label;
-      })
-      .catch(() => FALLBACK_PRICE_LABEL)
-      .finally(() => {
-        priceInflight = null;
-      });
-  }
-  return priceInflight;
-}
-
-/**
- * Resolves the plan tiers the worker currently sells. Empty when the worker is
- * unreachable or pre-Phase-7 — callers must render an honest single-price view
- * from getProPriceLabel() in that case, never invent tiers.
- */
-export async function getProPlanTiers(): Promise<PlanTier[]> {
-  if (!cachedPlans) await getProPriceLabel();
-  return cachedPlans ?? [];
-}
 
 /**
  * The app's own public origin. `katzu.app` does not resolve yet, so nothing may

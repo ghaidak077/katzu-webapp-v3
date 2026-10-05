@@ -7,7 +7,8 @@ import { Card } from '@/components/ui/Card';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { ArrowRight, Check, KeyRound, UserCheck, AlertCircle, Gift, ExternalLink, ShoppingCart, ShieldCheck } from 'lucide-react';
-import { getProPriceLabel, FALLBACK_PRICE_LABEL, SALES_URL, buildSalesUrl } from '@/lib/utils/links';
+import { SALES_URL, buildSalesUrl } from '@/lib/utils/links';
+import { usePricing } from '@/lib/offers/priceSource';
 import { track } from '@/lib/analytics/client';
 import { BackButton } from '@/components/common/BackButton';
 import { useReducedMotion } from '@/components/glass/GlassSurface';
@@ -53,7 +54,10 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
   });
   const [referralMessage, setReferralMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
-  const user = useLiveQuery(() => db.users.get('current_user'));const [priceLabel, setPriceLabel] = useState(FALLBACK_PRICE_LABEL);
+  const user = useLiveQuery(() => db.users.get('current_user'));
+  // The one price table. `headline` is `null` until the server answers and stays
+  // `null` if it cannot, so the sentence below reads honestly either way.
+  const { headline } = usePricing();
   /**
    * V31: how many free conversations the SERVER says are left. `null` until the
    * ledger answers, and it stays `null` if it cannot — which is a different
@@ -61,16 +65,6 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
    * the locally-seeded 3 forever.
    */
   const [freeSessions, setFreeSessions] = useState<number | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    getProPriceLabel().then((label) => {
-      if (alive) setPriceLabel(label);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -310,9 +304,19 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
             لا تملك كود تفعيل بعد؟
           </label>
           <p className="text-micro text-text-secondary font-arabic leading-relaxed mb-3">
-            اشترِ كوداً من صفحة الشراء الرسمية بـ {priceLabel} — الدفع بالبطاقة أو العملات الرقمية،
-            وللمقيمين في سوريا خيارات الدفع المحلي (سيرياتيل كاش، MTN كاش، حوالة بنكية). يصل الكود
-            إليك مباشرة ثم تفعّله هنا.
+            {headline ? (
+              <>
+                اشترِ كوداً من صفحة الشراء الرسمية بـ {headline} — الدفع بالبطاقة أو العملات الرقمية،
+                وللمقيمين في سوريا خيارات الدفع المحلي (سيرياتيل كاش، MTN كاش، حوالة بنكية). يصل الكود
+                إليك مباشرة ثم تفعّله هنا.
+              </>
+            ) : (
+              <>
+                اشترِ كوداً من صفحة الشراء الرسمية — الدفع بالبطاقة أو العملات الرقمية، وللمقيمين في
+                سوريا خيارات الدفع المحلي (سيرياتيل كاش، MTN كاش، حوالة بنكية). يظهر السعر على صفحة
+                الشراء، ويصل الكود إليك مباشرة ثم تفعّله هنا.
+              </>
+            )}
           </p>
           <div className="flex gap-2">
             <a

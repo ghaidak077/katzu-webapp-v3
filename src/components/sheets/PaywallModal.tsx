@@ -4,8 +4,24 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Sparkles, Check, KeyRound, ExternalLink } from 'lucide-react';
-import { getProPriceLabel, getProPlanTiers, orderTiersByRecommendation, FALLBACK_PRICE_LABEL, buildSalesUrl, legalPageUrl, type PlanTier } from '@/lib/utils/links';
+import { buildSalesUrl, legalPageUrl } from '@/lib/utils/links';
+import { OFFER_COPY } from '@/lib/offers/pricing';
+import { usePricing } from '@/lib/offers/priceSource';
 import { track } from '@/lib/analytics/client';
+
+/**
+ * The two offers the server actually sells, in the order they are worth reading.
+ *
+ * `pass90` is the 3-month pass and leads: it is the product the free B1 mock is
+ * a sample of. `monthly` is the comparison that makes the pass look considered.
+ * There is no annual and no student tier here, and there is no env toggle to
+ * reveal one: `/pricing` has never priced them, so there is nothing to reveal.
+ * Inventing a third card would be inventing an offer.
+ */
+const OFFERED_TIERS = [
+  { product: 'pass90', nameAr: OFFER_COPY.pass90.nameAr, recommended: true },
+  { product: 'monthly', nameAr: OFFER_COPY.monthly.nameAr, recommended: false },
+] as const;
 
 export interface PaywallModalProps {
   isOpen: boolean;
@@ -44,21 +60,10 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   description = 'محادثات صوتية بلا حدّ جلسات، وكل المستويات من A0 إلى B2. ويبقى كل ما تعلّمته — المراجعة والمهمة اليومية وبنك أخطائك — مجانياً دائماً.',
 }) => {
   const salesUrl = useMemo(() => buildSalesUrl(referralFromUrl()), []);
-  const [priceLabel, setPriceLabel] = useState<string | null>(null);
-  const [plans, setPlans] = useState<PlanTier[]>([]);
-
-  useEffect(() => {
-    let alive = true;
-    getProPriceLabel().then((label) => {
-      if (alive) setPriceLabel(label);
-    });
-    getProPlanTiers().then((tiers) => {
-      if (alive) setPlans(orderTiersByRecommendation(tiers.filter((p) => !p.requires_discount_code)));
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // The one price table. No amount is rendered from anything else, and no buy
+  // control appears without one: if the server cannot be reached the learner is
+  // told so, which is better than a price the app made up.
+  const { loaded, headline, priceFor } = usePricing();
 
   useEffect(() => {
     if (isOpen) track('paywall_viewed', { source: title.slice(0, 64) });
@@ -69,39 +74,44 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
       <div className="flex flex-col items-center text-center p-2">
         <KatzuMascot name="badge" glow className="w-24 h-24 mb-3" />
 
+        {/* The price, or the reason there is none. Never a placeholder number. */}
         <Badge variant="primary" size="sm" className="mb-2">
           <Sparkles className="w-3 h-3" aria-hidden />
-          {priceLabel ?? FALLBACK_PRICE_LABEL}
+          {headline ?? (loaded ? 'السعر غير متاح الآن' : 'جارٍ تحميل السعر…')}
         </Badge>
 
-        {/* Plan tiers from the worker (V21 Phase 7). Hidden entirely when the
-            worker pre-dates tiers — one honest price instead of invented cards.
-            The student tier is not listed here: it needs a code the owner hands
-            out, and advertising it without one would promise what the learner
-            cannot buy. */}
-        {plans.length > 0 && (
-          <div className="w-full grid grid-cols-3 gap-2 mb-4" dir="ltr">
-            {plans.map((p) => (
-              <a
-                key={p.id}
-                href={salesUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => track('purchase_clicked', { source: `paywall_plan_${p.id}` })}
-                className={`relative flex flex-col items-center gap-0.5 p-2 rounded-xl bg-surface-subtle border transition-colors border-border-subtle pointer-hover:border-primary/50 ${p.recommended ? 'border-primary' : ''}`}
-              >
-                {p.recommended && (
-                  <span className="absolute -top-2 right-2 px-1.5 py-0.5 rounded-full bg-fill text-on-fill text-micro font-bold font-arabic" dir="rtl">
-                    موصى به
-                  </span>
-                )}
-                <span className="text-micro font-bold font-arabic" dir="rtl">{p.label_ar}</span>
-                <span className="text-sm font-bold text-primary">${p.priceUsd}</span>
-                <span className="text-micro text-text-muted font-arabic" dir="rtl">{p.months === 1 ? 'شهر' : `${p.months} أشهر`}</span>
-              </a>
-            ))}
+        {/* Two tiers, both priced by the server, 3-month pass recommended. Each
+            card is a link out to the official sales page — the app never takes a
+            payment itself. */}
+        {loaded && headline ? (
+          <div className="w-full grid grid-cols-2 gap-2 mb-4">
+            {OFFERED_TIERS.map((tier) => {
+              const amount = priceFor(tier.product);
+              return (
+                <a
+                  key={tier.product}
+                  href={salesUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => track('purchase_clicked', { source: `paywall_plan_${tier.product}` })}
+                  className={`relative flex flex-col items-center gap-0.5 p-2.5 min-h-[44px] rounded-xl bg-surface-subtle border transition-colors border-border-subtle pointer-hover:border-primary/50 ${tier.recommended ? 'border-primary' : ''}`}
+                >
+                  {tier.recommended && (
+                    <span className="absolute -top-2 end-2 px-1.5 py-0.5 rounded-full bg-fill text-on-fill text-micro font-bold font-arabic">
+                      موصى به
+                    </span>
+                  )}
+                  <span className="text-micro font-bold font-arabic text-center">{tier.nameAr}</span>
+                  {amount ? (
+                    <span className="text-sm font-bold text-primary" data-testid={`modal-price-${tier.product}`}>
+                      {amount}
+                    </span>
+                  ) : null}
+                </a>
+              );
+            })}
           </div>
-        )}
+        ) : null}
 
         <h3 className="text-xl font-bold font-arabic text-text-primary mb-2">{title}</h3>
         <p className="text-xs text-text-secondary font-arabic mb-5 leading-relaxed max-w-xs">{description}</p>
@@ -138,19 +148,24 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
         </div>
 
         <div className="w-full space-y-2.5">
-          <a
-            href={salesUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => {
-              track('purchase_clicked', { source: 'paywall' });
-              onClose();
-            }}
-            className="w-full h-14 rounded-2xl bg-fill text-on-fill font-bold font-arabic flex items-center justify-center gap-2 shadow-glow-purple transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" aria-hidden />
-            اشترِ كود تفعيل Pro
-          </a>
+          {/* No server price means no buy control: a "buy" next to a price the
+              app cannot name is a dead end, and a price the app invented is a
+              worse one. The free path below stays open either way. */}
+          {headline ? (
+            <a
+              href={salesUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                track('purchase_clicked', { source: 'paywall' });
+                onClose();
+              }}
+              className="w-full h-14 rounded-2xl bg-fill text-on-fill font-bold font-arabic flex items-center justify-center gap-2 shadow-glow-purple transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" aria-hidden />
+              اشترِ كود تفعيل Pro
+            </a>
+          ) : null}
 
           <Button
             size="md"

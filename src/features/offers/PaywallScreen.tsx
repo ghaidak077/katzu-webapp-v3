@@ -3,16 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
-import { workerClient } from '@/lib/api/workerClient';
 import { track } from '@/lib/analytics/client';
 import { SubscriptionRedemptionScreen } from '@/features/auth/SubscriptionRedemptionScreen';
 import {
   OFFER_COPY,
   OFFER_ORDER,
   REFUND_TEXT,
-  priceLabel,
   type OfferProduct,
 } from '@/lib/offers/pricing';
+import { usePricing } from '@/lib/offers/priceSource';
 import { paymentInstructionsFor } from '@/lib/offers/paymentInstructions';
 
 /**
@@ -35,55 +34,15 @@ import { paymentInstructionsFor } from '@/lib/offers/paymentInstructions';
  * and the one-off mock is the honest entry for someone who only wants one test.
  */
 
-interface PriceRow {
-  product: string;
-  amountCents: number;
-  currency: string;
-  group: string;
-  cell: number | null;
-}
-
-interface PricingAnswer {
-  prices?: PriceRow[];
-  group?: string;
-  /** The bucket the account was assigned, or null when no experiment is running. */
-  cell?: number | null;
-  unproven?: boolean;
-}
-
 export const PaywallScreen: React.FC = () => {
   const navigate = useNavigate();
-  const [pricing, setPricing] = useState<PricingAnswer | null>(null);
-  const [loaded, setLoaded] = useState(false);
   const [overlay, setOverlay] = useState<'purchase' | 'redeem' | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const answer = await workerClient.getPricing();
-        if (!cancelled) setPricing(answer);
-      } finally {
-        if (!cancelled) setLoaded(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // The same one-call source the modal, the landing page and the redemption
+  // screen read, so four surfaces cannot quote four different amounts.
+  const { pricing, loaded, group, cell, priceFor } = usePricing();
 
-  const instructions = useMemo(
-    () => paymentInstructionsFor(pricing?.group),
-    [pricing?.group],
-  );
-
-  const priceByProduct = useMemo(() => {
-    const map = new Map<string, PriceRow>();
-    for (const row of pricing?.prices ?? []) {
-      if (row && typeof row.product === 'string') map.set(row.product, row);
-    }
-    return map;
-  }, [pricing]);
+  const instructions = useMemo(() => paymentInstructionsFor(group), [group]);
 
   const handleUpgradeClick = useCallback(
     (product: OfferProduct) => {
@@ -91,13 +50,13 @@ export const PaywallScreen: React.FC = () => {
       // never a guess — B5 reads both off this event.
       track('upgrade_click', {
         kind: product,
-        region: pricing?.group || 'standard',
-        cell: String(pricing?.cell ?? 'none'),
+        region: group || 'standard',
+        cell: String(cell ?? 'none'),
       });
-      track('purchase_clicked', { kind: product, state: pricing?.group || 'standard' });
+      track('purchase_clicked', { kind: product, state: group || 'standard' });
       setOverlay('purchase');
     },
-    [pricing?.group, pricing?.cell],
+    [group, cell],
   );
 
   useEffect(() => {
@@ -145,7 +104,7 @@ export const PaywallScreen: React.FC = () => {
 
         {OFFER_ORDER.map((product) => {
           const copy = OFFER_COPY[product];
-          const label = priceLabel(priceByProduct.get(product));
+          const label = priceFor(product);
           const lead = !copy.isLink;
           return (
             <GlassCard key={product}>

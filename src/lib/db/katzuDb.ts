@@ -1,6 +1,9 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { INTRO_SCENARIO_ID } from '@/lib/mission/selectMission';
 import { DAILY_EVENT_QUEUE_KEY } from '@/lib/progress/dailyQueueKey';
+// The local seed only: the Worker's ledger is authoritative and every visible
+// count comes from it, so this must never be a second number that can disagree.
+import { MAX_FREE_AI_SESSIONS } from '@/lib/entitlement/trialCopy';
 import type {
   ScenarioEntity,
   StarterPhraseEntity,
@@ -298,7 +301,7 @@ function signedOutUser(): UserEntity {
     totalXp: 0,
     speechSpeed: 1.0,
     sarcasmLevel: 'SASSY',
-    freeSessionsRemaining: 3,
+    freeSessionsRemaining: MAX_FREE_AI_SESSIONS,
     dailyGoalMinutes: 15,
     weeklyGoalDays: 5,
   };
@@ -349,7 +352,7 @@ export async function initializeDatabaseSeed(): Promise<void> {
     totalXp: 0,
       speechSpeed: 1.0,
       sarcasmLevel: 'SASSY',
-      freeSessionsRemaining: 3,
+      freeSessionsRemaining: MAX_FREE_AI_SESSIONS,
       dailyGoalMinutes: 15,
       weeklyGoalDays: 5,
     });

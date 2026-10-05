@@ -447,8 +447,8 @@ Build-ready Arabic for the landing. One primary action: start the free demo. Acc
 
 - H1: «تدرّب على امتحان B1 الشفوي بالعربي — قبل ما تدفع ٢٥٩ يورو للامتحان الحقيقي» ⚠️🇸🇾 (variant B to test later: «امتحانك الشفوي قرب؟ اعرف مستواك الحقيقي اليوم» ⚠️)
 - Sub: «محاكاة بنفس شكل الامتحان، تصحيح عربي صريح من جملك انت، وتقدّم تراه بعينك. غير تابع لأي جهة امتحانات رسمية.» ⚠️
-- CTA primary: «ابدأ الدرس المجاني» → `/demo` (no account) · secondary: «أنشئ حسابك المجاني» → signup (unlocks the one free AI session).
-- Honesty line under CTA: «الدرس التجريبي بدون حساب. جلسة المحاكاة بالذكاء الاصطناعي بتفتح بعد إنشاء حساب مجاني — مرة وحدة، بدون أي بيانات دفع.» ⚠️🇸🇾
+- CTA primary: «ابدأ الدرس المجاني» → `/demo` (no account) · secondary: «أنشئ حسابك المجاني» → signup (unlocks the ٣ free AI sessions).
+- Honesty line under CTA: «الدرس التجريبي بدون حساب. محادثات المحاكاة بالذكاء الاصطناعي بتفتح بعد إنشاء حساب مجاني — ٣ جلسات، بدون أي بيانات دفع.» ⚠️🇸🇾
 
 ### How it works (3 steps, ≤40 words)
 
@@ -460,13 +460,14 @@ Build-ready Arabic for the landing. One primary action: start the free demo. Acc
 
 | | مجاني | باقة شهر | باقة ٣ شهور (الأكثر طلباً) |
 |---|---|---|---|
-| السعر | ٠$ | ١٥$ | ٣٠$ |
+| السعر | — | ‎١٢٫٩٩ € | ‎٢٩ € |
 | درس تجريبي بدون حساب | ✓ | ✓ | ✓ |
-| جلسة محاكاة بالذكاء الاصطناعي | وحدة (بعد الحساب المجاني) | غير محدودة* | غير محدودة* |
+| محادثات بالذكاء الاصطناعي | ٣ جلسات (بعد الحساب المجاني) | غير محدودة* | غير محدودة* |
 | كل المحتوى A0–B2 وكل المسارات | — | ✓ | ✓ |
 | التصحيح العربي الصريح | ✓ | ✓ | ✓ |
 | حفظ أخطائك ومراجعتها | ✓ | ✓ | ✓ |
 
+- **The price row is owned by the server, not by this document.** The amounts above are the `standard` group in `cloudflare-pricing.js` (`PRICES.standard`); a learner in SY/EG/IQ/PS is quoted the `special` group (€5 / €12), and the app renders whatever `GET /pricing` returns — never a number written here or in the code. **UNPROVEN:** every amount, marked `unproven: true` in the payload itself.
 - Fair-use note (*): «للاستخدام الشخصي بحدود معقولة — العدد الفعلي للجلسات اليومية بينشر بعد ما نتأكد من العدل للجميع» ⚠️ until D16's number exists; then replace with the measured cap.
 - Anchoring line: «٣ شهور تدريب بأقل من ثمن وجبة عائلية — والامتحان الحقيقي لحاله: ٢٥٩ يورو.» ⚠️
 - Regional line (shown only to code-holders or in FAQ): «في كود خصم سوري/عراقي/مصري؟ جرّبه بشاشة الاشتراك.» ⚠️
@@ -512,10 +513,10 @@ Build-ready Arabic for the landing. One primary action: start the free demo. Acc
 
 Voice per §3/§15 rules. Event names map to §10.2. All ⚠️ native read.
 
-**Free-session boundary (new, D1):**
-- FS1 pre-session (signed-in, 0 used): «عندك جلسة محاكاة مجانية وحدة — استخدمها بذكاء: خلّيها أول اختبار حقيقي إلك.» ⚠️
-- FS2 session end: «خلّصت جلستك المجانية 🌟 باقة التدريب بتفتح المحاكيات بلا حد.» ⚠️
-- FS3 exhausted: «جلستك المجانية خلصت. باقة التدريب بتفتح كل شي — أو كمّل بالمراجعة المجانية.» ⚠️ (replaces the current 3-session copy `انتهت الجلسات التجريبية المجانية (3 جلسات)…`, `cloudflare-unified-worker.js:432`)
+**Free-session boundary (new, D1):** the allowance is **3 free conversations**, enforced by `MAX_FREE_AI_SESSIONS = 3` in `cloudflare-unified-worker.js` and mirrored once on the client (`MAX_FREE_AI_SESSIONS` in `src/lib/entitlement/trialCopy.ts`, with `tests/trialPromise.test.ts` reading the Worker's declaration and failing on mismatch). Every string below must say three, and no string may say واحدة/وحدة — the earlier drafts of this section promised ONE conversation, which the Worker never granted.
+- FS1 pre-session (signed-in, 0 used): «عندك ٣ جلسات محاكاة مجانية — استخدمها بذكاء: خلّيها أول اختبارات حقيقية إلك.» ⚠️
+- FS2 session end: «خلّصت إحدى جلساتك المجانية 🌟 لسّك ٢ أو ٣ — باقة التدريب بتفتح المحاكيات بلا حد.» ⚠️
+- FS3 exhausted: «خلصت جلساتك المجانية الثلاثة. باقة التدريب بتفتح كل شي — أو كمّل بالمراجعة المجانية.» ⚠️ (replaces the current copy `انتهت الجلسات التجريبية المجانية (3 جلسات)…`, `cloudflare-unified-worker.js:432`)
 
 **Exam-date prompt (§12 P6; fires once after the free session, dismissible):**
 - E1: «متى امتحانك الشفوي؟ (اختياري) — منستخدمه نبعتلك خطة تدريب وعداد جاهزية.» ⚠️

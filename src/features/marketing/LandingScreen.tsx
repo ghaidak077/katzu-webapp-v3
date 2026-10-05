@@ -5,7 +5,9 @@ import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { getProPriceLabel, FALLBACK_PRICE_LABEL, publicAppUrl } from '@/lib/utils/links';
+import { publicAppUrl } from '@/lib/utils/links';
+import { usePricing } from '@/lib/offers/priceSource';
+import { MAX_FREE_SESSIONS_AR } from '@/lib/entitlement/trialCopy';
 import { track } from '@/lib/analytics/client';
 import {
   ArrowLeft,
@@ -327,7 +329,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'ما الفرق بين المجاني و Pro؟',
-    a: 'المجاني دائم: المهمة اليومية، والمراجعة، والاختبار التحديدي، وبنك أخطائك، و٣ جلسات محادثة مجانية. Pro يفتح المحادثات بلا حدّ وكل المستويات. لن نُغلق أمامك ما تعلّمته بالفعل أبداً.',
+    a: `المجاني دائم: المهمة اليومية، والمراجعة، والاختبار التحديدي، وبنك أخطائك، و${MAX_FREE_SESSIONS_AR} محادثة مجانية. Pro يفتح المحادثات بلا حدّ وكل المستويات. لن نُغلق أمامك ما تعلّمته بالفعل أبداً.`,
   },
   {
     q: 'هل يصل بي إلى مستوى الامتحان؟',
@@ -446,17 +448,9 @@ function TryDemoSection({ onTryDemo }: Pick<LandingScreenProps, 'onTryDemo'>) {
  * learned content is behind Pro.
  */
 function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSignedIn: boolean }) {
-  const [priceLabel, setPriceLabel] = useState(FALLBACK_PRICE_LABEL);
-
-  useEffect(() => {
-    let alive = true;
-    getProPriceLabel().then((label) => {
-      if (alive) setPriceLabel(label);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // The server's number, or no number. A landing page that cannot say what the
+  // offer costs says so plainly rather than showing a figure it invented.
+  const { loaded, headline } = usePricing();
 
   return (
     <section className="py-14 sm:py-20 border-t border-border-subtle/60">
@@ -475,7 +469,7 @@ function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSign
               'الدرس التجريبي بدون حساب، ثم حساب مجاني يحفظ تقدّمك.',
               'المهمة اليومية والمراجعة الذكية لكل ما تعلّمته مجاناً.',
               'الاختبار التحديدي وبنك الأخطاء وتقرير الأداء.',
-              '٣ جلسات محادثة مجانية (يمكنك دائماً كتابة الرد إذا تعذّر الصوت)، والمراجعة والمهمة اليومية بلا حدّ.',
+              `${MAX_FREE_SESSIONS_AR} محادثة مجانية (يمكنك دائماً كتابة الرد إذا تعذّر الصوت)، والمراجعة والمهمة اليومية بلا حدّ.`,
             ].map((item) => (
               <li key={item} className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-status-success shrink-0 mt-0.5" aria-hidden />
@@ -485,9 +479,9 @@ function FreeVsProSection({ onStart, isSignedIn }: { onStart: () => void; isSign
           </ul>
         </div>
         <div className="rounded-3xl p-6 bg-gradient-to-br from-surface-hero to-surface-card border border-primary/30">
-          <Badge variant="primary" size="md">
+          <Badge variant="primary" size="md" data-testid="landing-price">
             <Sparkles className="w-3.5 h-3.5" aria-hidden />
-            Katzu Pro — {priceLabel}
+            {headline ? `Katzu Pro — ${headline}` : loaded ? 'Katzu Pro — السعر عند صفحة الشراء' : 'Katzu Pro'}
           </Badge>
           <ul className="mt-5 space-y-3 text-caption text-text-secondary">
             {[
