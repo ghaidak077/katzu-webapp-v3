@@ -90,8 +90,11 @@ describe('the events the funnel was missing', () => {
     expect(onDate.slice(onDate.indexOf("track('exam_date_set'"), onDate.indexOf("track('exam_date_set'") + 160)).toMatch(
       /count: days/,
     );
-    // And the date value itself is never a property.
-    expect(source('src/features/analytics/../../lib/analytics/events.ts')).not.toMatch(/targetDate/);
+    // And the date value itself is never an allow-listed property. (The path is
+    // the direct one: a `..` chain through a directory that does not exist
+    // resolves on Windows and throws ENOENT on Linux — this test was green here
+    // and red on CI for exactly that reason.)
+    expect(source('src/lib/analytics/events.ts')).not.toMatch(/targetDate/);
 
     const referral = source('src/features/auth/SubscriptionRedemptionScreen.tsx');
     const claim = referral.slice(referral.indexOf("track('referral_converted'"));
