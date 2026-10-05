@@ -138,12 +138,17 @@ test('Progress leads with capability and tags every row with its state and origi
   await expect(page.getByText('وقت التحدث')).toHaveCount(0);
 });
 
-test('Progress states an unmeasured skill instead of showing a zero', async ({ page }) => {
+test('Progress states an unmeasured skill instead of showing a zero, and never promises Reading', async ({ page }) => {
   await bootSignedIn(page);
   await page.goto('/app/progress');
 
-  // Three of the four skills are genuinely unmeasured on a fresh account; each
-  // one says so instead of rendering a zero.
+  // The three trainable skills are genuinely unmeasured on a fresh account;
+  // each one says so instead of rendering a zero.
   await expect(page.getByText('لم تُقس بعد')).toHaveCount(3);
-  await expect(page.getByText('لم يبدأ بعد — قريباً')).toBeVisible();
+  // Reading has no practice surface, so it must not be advertised as coming
+  // soon (S1.2). This assertion is the inverse of the one it replaces: the old
+  // test *required* the «قريباً» promise to be visible, which is exactly the
+  // dead end the learner was told to expect.
+  await expect(page.getByText('لم يبدأ بعد — قريباً')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'المهارات', exact: true })).toBeVisible();
 });

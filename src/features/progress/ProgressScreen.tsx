@@ -58,6 +58,13 @@ const SKILL_LABELS: Record<Skill, string> = {
   reading: 'القراءة',
 };
 
+/**
+ * The skills Progress lists. Reading has no practice surface, so it is withheld
+ * rather than advertised as «قريباً»: a promise with nothing behind it is the
+ * dead end this list must not ship (S1.2). Add `'reading'` here when it exists.
+ */
+const PROGRESS_SKILLS: readonly Skill[] = ['speaking', 'listening', 'writing'];
+
 /** How many rows of each list are visible before the learner asks for more. */
 const LIST_PREVIEW = 6;
 
@@ -329,16 +336,14 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
 
         {/* 3. Skills: measured or honestly unmeasured, never zeroed. */}
         <GlassCard className="mt-4">
-          <h2 className="kz-ar-caption text-kz-inkDim">المهارات الأربع</h2>
+          <h2 className="kz-ar-caption text-kz-inkDim">المهارات</h2>
           <p className="mt-1 kz-ar-micro text-kz-inkFaint">لا نعرض إلا ما قِسناه من تدريباتك.</p>
           <ul className="mt-3 space-y-2.5">
-            {skillSummary.stats.map((stat) => (
+            {skillSummary.stats.filter((stat) => PROGRESS_SKILLS.includes(stat.skill)).map((stat) => (
               <li key={stat.skill} className="flex items-center justify-between gap-3">
                 <span className="kz-ar-caption text-kz-ink">{SKILL_LABELS[stat.skill]}</span>
                 {stat.score === null ? (
-                  <span className="kz-ar-micro text-kz-inkFaint">
-                    {stat.skill === 'reading' ? 'لم يبدأ بعد — قريباً' : 'لم تُقس بعد'}
-                  </span>
+                  <span className="kz-ar-micro text-kz-inkFaint">لم تُقس بعد</span>
                 ) : (
                   <span className="flex items-center gap-2">
                     <span className="kz-ar-micro text-kz-inkFaint">{stat.attempts} محاولة</span>
