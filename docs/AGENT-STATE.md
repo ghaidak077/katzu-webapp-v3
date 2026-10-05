@@ -2,12 +2,15 @@
 
 ## RESUME
 
-- **Last sha:** `5b4dc4a` (cheap-routing before/after report). Local gates green at that sha.
-- **Open CI run:** none yet — `ecd4796`, `821176f`, `5b4dc4a` are committed but **not pushed**.
-- **Next item:** push, wait for green CI, then deploy worker + Pages for the Batch 1 finish
-  (cheap-model routing + hashed translate cache). Verify live, including a cache hit on a
-  repeated `/ai/translate` and the cheap tier on an easy turn.
-- **Live now:** worker `bf272ecf`, Pages `4aa3fcb4` from `cc30ed8`.
+- **Last sha:** `0ead9c2` (OWNER LIST / RESUME). CI `37277034302` **success**.
+- **Open CI run:** none.
+- **Next item:** **Batch 2 item B1** — pricing config table by region (standard €29/€12.99/€9,
+  special SY/EG/IQ/PS €12/€5/€3, experiment cells) plus a server region resolver reading the
+  Cloudflare country header, with tests for all four special countries, unknown country, missing
+  header → standard, and stable experiment bucketing.
+- **Live now:** worker `115d5630-402e-4fbe-ae6b-d3b93c2fe2f8`, Pages
+  `48617093-bd19-41d9-9c5b-f9d5c743bb11` from `0ead9c2`.
+- **Batch 1 is complete and deployed.** Cheap routing and the translate cache are live.
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 
