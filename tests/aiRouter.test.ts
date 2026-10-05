@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AI_TIER_PRICES_USD_PER_MTOK,
   PROVIDER_POOL,
+  PROVIDER_TIERS,
+  estimateTurnCostUsd,
   callAiRouter,
   callProvider,
   classifyFailure,
@@ -558,5 +561,38 @@ describe('shared AI cache', () => {
   it('returns null rather than throwing when nothing is cached or the binding is absent', async () => {
     expect(await readAiCache({} as any, 'hints', 'missing')).toBeNull();
     expect(await readAiCache({ USER_PROGRESS: new MemoryKv() } as any, 'hints', 'missing')).toBeNull();
+  });
+});
+
+describe('estimateTurnCostUsd (prices UNPROVEN)', () => {
+  it('prices a turn from the tier table, input and output separately', () => {
+    const usd = estimateTurnCostUsd({ tier: 'flagship', inputTokens: 1_000_000, outputTokens: 1_000_000 });
+    const price = AI_TIER_PRICES_USD_PER_MTOK.flagship;
+    expect(usd).toBeCloseTo(price.input + price.output, 10);
+  });
+
+  it('is cheaper or equal at every lower tier, which is what cheap-routing relies on', () => {
+    const costs = PROVIDER_TIERS.map((tier) => estimateTurnCostUsd({ tier, inputTokens: 1528 }));
+    for (let i = 1; i < costs.length; i++) expect(costs[i]).toBeLessThanOrEqual(costs[i - 1]);
+  });
+
+  it('returns 0 for an unknown tier rather than guessing a price', () => {
+    // A silent wrong price is worse than none: it would make the report lie.
+    expect(estimateTurnCostUsd({ tier: 'mystery', inputTokens: 1528 })).toBe(0);
+  });
+
+  it('never returns a negative cost for negative or junk tokens', () => {
+    expect(estimateTurnCostUsd({ tier: 'lite', inputTokens: -5, outputTokens: -5 })).toBe(0);
+    // A NaN prompt must contribute nothing rather than poison the total.
+    expect(estimateTurnCostUsd({ tier: 'lite', inputTokens: Number.NaN, outputTokens: 0 })).toBe(0);
+  });
+
+  it('falls back to the assumed completion length when none is given', () => {
+    // Omitting outputTokens is not free: it means 'assume a typical reply'.
+    expect(estimateTurnCostUsd({ tier: 'flagship', inputTokens: 0 })).toBeGreaterThan(0);
+  });
+
+  it('prices a zero-token turn at zero', () => {
+    expect(estimateTurnCostUsd({ tier: 'mid', inputTokens: 0, outputTokens: 0 })).toBe(0);
   });
 });

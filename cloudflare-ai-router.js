@@ -72,6 +72,39 @@ const EXTRA_KEY_VAR_PATTERNS = {
 
 export const PROVIDER_TIERS = ["flagship", "mid", "lite"];
 
+/**
+ * Indicative list price per 1M tokens, by tier. **UNPROVEN.**
+ *
+ * These are planning numbers, not a billing fact: they were written from
+ * published free/paid tier sheets without a confirmed provider invoice, and the
+ * pool mixes paid keys with free-tier keys, so a real blended rate depends on
+ * which keys are set. The owner must confirm these against an actual invoice
+ * before the daily spend cap derived from them means anything.
+ *
+ * `0` means "free tier as configured today", which is why `lite` prices at zero
+ * for the Groq and OpenRouter entries.
+ */
+export const AI_TIER_PRICES_USD_PER_MTOK = {
+  flagship: { input: 0.30, output: 2.50 },
+  mid: { input: 0.15, output: 1.25 },
+  lite: { input: 0.075, output: 0.30 },
+};
+
+/** Typical completion for a learner turn, used only by the cost report. */
+export const ASSUMED_COMPLETION_TOKENS = 90;
+
+/**
+ * Cost of one turn in USD. Pure so the report and its test agree by construction.
+ * Returns 0 for an unknown tier rather than guessing a price.
+ */
+export function estimateTurnCostUsd({ tier, inputTokens, outputTokens = ASSUMED_COMPLETION_TOKENS }) {
+  const price = AI_TIER_PRICES_USD_PER_MTOK[tier];
+  if (!price) return 0;
+  const inTok = Math.max(0, Number(inputTokens) || 0);
+  const outTok = Math.max(0, Number(outputTokens) || 0);
+  return (inTok / 1e6) * price.input + (outTok / 1e6) * price.output;
+}
+
 export const PROVIDER_POOL = [
   // flagship
   { provider: "gemini", model: "gemini-3.8-flash", format: "gemini", tier: "flagship", rpd: 20 },
