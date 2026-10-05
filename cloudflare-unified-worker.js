@@ -78,7 +78,7 @@ import {
 import { handleCryptoRoutes, timingSafeEqualHex } from "./cloudflare-crypto.js";
 import { ensureContentColumns } from "./cloudflare-content-schema.js";
 import { mockExamBrief, mockExamInstructionForPart } from "./cloudflare-mock-exam.js";
-import { decideMockAccess, mockDebriefAccess, catalogueFor, experimentBucket, regionGroupFromRequest, PASS_CELLS } from "./cloudflare-pricing.js";
+import { decideMockAccess, mockDebriefAccess, catalogueFor, experimentBucket, isRegionMismatch, regionGroupFromRequest, PASS_CELLS } from "./cloudflare-pricing.js";
 import { dailyKey, processDailySync, readAuthoritativeDaily, overlayStatsWithDaily } from "./cloudflare-daily.js";
 
 // ============================================================================
@@ -2454,6 +2454,27 @@ async function handlePricing(request, env, cors) {
   return json({ ...catalogue, experimentEnabled: cell !== null, unproven: true }, 200, cors);
 }
 
+/**
+ * The price group a code was minted for, or null when it records none.
+ *
+ * Today no code does — the signed format is `DE-<months>M-<nonce>.<sig>` and
+ * carries no region. The lookup is kept honest rather than guessed: a mismatch
+ * metric built on an assumed group would look like data and be fiction.
+ */
+async function codeRegionGroup(env, code) {
+  if (!env?.DB) return null;
+  try {
+    const row = await env.DB.prepare("SELECT region_group FROM generated_codes WHERE code = ?")
+      .bind(String(code || ""))
+      .first();
+    const group = row?.region_group;
+    return group === "standard" || group === "special" ? group : null;
+  } catch {
+    // No such column yet: the metric reads zero rather than failing a redemption.
+    return null;
+  }
+}
+
 /** The one answer for "you have used the free mock", in the Arabic a learner reads. */
 function mockCreditRequired(cors, freeUsed, access) {
   return json({
@@ -2625,6 +2646,22 @@ async function handleVerify(request, env, cors) {
 
   if (isFirstRedemption) {
     await awardVerifiedReferral(account, env);
+  }
+
+  // B5: a durable funnel row for what was redeemed, carrying the learner's price
+  // group so the dashboard can cut conversion by region.
+  //
+  // `region_mismatch` is LOGGED, never enforced — a code is a code, and a learner
+  // who moved must keep what they paid for. The row is only written when the code
+  // itself records a region group; today's codes record none (`DE-<months>M-…`),
+  // so this counts ZERO rather than inventing a comparison the data cannot
+  // support. It starts counting the day codes carry a group — an owner decision,
+  // on the OWNER LIST.
+  const learnerGroup = regionGroupFromRequest(request);
+  await recordActivity(env, account.sub, "code_redeemed", { months, region: learnerGroup });
+  const codeGroup = await codeRegionGroup(env, code);
+  if (codeGroup && isRegionMismatch(codeGroup, learnerGroup)) {
+    await recordActivity(env, account.sub, "region_mismatch", { region: learnerGroup, code_group: codeGroup });
   }
 
   return json({

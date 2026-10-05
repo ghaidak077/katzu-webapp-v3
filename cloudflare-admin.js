@@ -605,6 +605,7 @@ export async function getRegistryStats(env) {
     } catch {}
 
     const active24 = totals?.active24 || 0;
+    const funnel = await buildLaunchFunnel(env, now);
     return {
       available: true,
       total_users: totalUsers,
@@ -629,9 +630,155 @@ export async function getRegistryStats(env) {
       signups_by_day: signupsByDay,
       top_events: topEvents,
       top_errors: topErrors,
+      funnel,
     };
   } catch (e) {
     console.error("[registry] stats failed:", String(e?.message || e).slice(0, 120));
+    return empty;
+  }
+}
+
+/**
+ * The launch funnel, aggregated from `activity_log`.
+ *
+ * WHICH NUMBERS THE OWNER NEEDS
+ * Not totals — the sequence. Where do learners stop: after the free mock, before
+ * the debrief, after seeing a price? And does the answer differ by price group or
+ * by price cell? Those are the two questions that decide whether the Exam Pass
+ * price is aimed correctly, and both need `metadata`, which is why these events
+ * are written to D1 rather than only to KV.
+ *
+ * COUNTS, NOT RATES, WHERE THE DENOMINATOR IS UNKNOWN
+ * Each step is a count of distinct accounts in the window. A conversion percentage
+ * is only printed where the previous step is a real denominator (see
+ * `stepConversionPercent`), so the dashboard never shows "50% of learners" of
+ * something the dashboard counted once.
+ *
+ * WHAT IS NOT HERE: anything about a person. Region is a two-value price group and
+ * a cell is a bucket index — both derived server-side — so the cut answers
+ * "which price works" without storing where anybody lives.
+ */
+const FUNNEL_STEPS = [
+  "onboarding_goal",
+  "mock_start",
+  "mock_finish",
+  "debrief_view",
+  "paywall_view",
+  "upgrade_click",
+  "code_redeemed",
+];
+
+/** 30 days: long enough to see a monthly cohort, short enough to act on. */
+const FUNNEL_WINDOW_DAYS = 30;
+
+async function buildLaunchFunnel(env, now = Date.now()) {
+  const empty = {
+    windowDays: FUNNEL_WINDOW_DAYS,
+    steps: FUNNEL_STEPS.map((name) => ({ name, accounts: 0 })),
+    conversion: [],
+    by_region: [],
+    by_cell: [],
+    region_mismatches_30d: 0,
+    cohorts: { d1: 0, d7: 0, d30: 0 },
+    unproven: true,
+  };
+  if (!env?.DB) return empty;
+  const day = 86_400_000;
+  const since = now - FUNNEL_WINDOW_DAYS * day;
+  try {
+    const counts = new Map();
+    for (const step of FUNNEL_STEPS) {
+      const row = await env.DB.prepare(
+        "SELECT COUNT(DISTINCT COALESCE(user_id, metadata)) AS c FROM activity_log WHERE event_type = ? AND created_at > ?"
+      )
+        .bind(step, since)
+        .first();
+      counts.set(step, Number(row?.c || 0));
+    }
+    const steps = FUNNEL_STEPS.map((name) => ({ name, accounts: counts.get(name) || 0 }));
+
+    // Step-to-step conversion, only where the previous step has accounts.
+    const conversion = [];
+    for (let i = 1; i < steps.length; i += 1) {
+      const previous = steps[i - 1].accounts;
+      conversion.push({
+        from: steps[i - 1].name,
+        to: steps[i].name,
+        accounts: steps[i].accounts,
+        previous,
+        percent: previous > 0 ? Math.round((steps[i].accounts / previous) * 1000) / 10 : null,
+      });
+    }
+
+    // The two cuts the price experiment needs. `region` and `cell` are allowlisted
+    // props, so this is a json_extract over stored metadata, never free text.
+    // Each read is wrapped in its own try: a dashboard that loses one cut must
+    // still answer the rest of the question.
+    let byRegion = [];
+    let byCell = [];
+    try {
+      const rows = await env.DB.prepare(
+        `SELECT COALESCE(json_extract(metadata, '$.region'), 'unknown') AS region, COUNT(*) AS c
+       FROM activity_log WHERE created_at > ? AND event_type IN ('paywall_view', 'upgrade_click', 'code_redeemed')
+       GROUP BY region ORDER BY c DESC LIMIT 10`
+      )
+        .bind(since)
+        .all();
+      byRegion = rows?.results || [];
+    } catch {}
+    try {
+      const rows = await env.DB.prepare(
+        `SELECT COALESCE(json_extract(metadata, '$.cell'), 'none') AS cell,
+              SUM(CASE WHEN event_type = 'paywall_view' THEN 1 ELSE 0 END) AS views,
+              SUM(CASE WHEN event_type = 'upgrade_click' THEN 1 ELSE 0 END) AS clicks,
+              SUM(CASE WHEN event_type = 'code_redeemed' THEN 1 ELSE 0 END) AS purchases
+       FROM activity_log WHERE created_at > ? AND event_type IN ('paywall_view', 'upgrade_click', 'code_redeemed')
+       GROUP BY cell ORDER BY views DESC LIMIT 10`
+      )
+        .bind(since)
+        .all();
+      byCell = rows?.results || [];
+    } catch {}
+
+    // Region mismatches are LOGGED, never blocked: a code is a code, and a learner
+    // who moved must keep what they paid for. The count exists so the owner can
+    // see whether the price table is aimed at the right countries.
+    let mismatches = 0;
+    try {
+      const row = await env.DB.prepare(
+        "SELECT COUNT(*) AS c FROM activity_log WHERE event_type = 'region_mismatch' AND created_at > ?"
+      )
+        .bind(since)
+        .first();
+      mismatches = Number(row?.c || 0);
+    } catch {}
+
+    // Cohort sizes: who started a mock (day 1), who paid (by day 7), and everyone
+    // who ever signed up (day 30) — the three denominators a conversion claim needs.
+    let signedUp30d = 0;
+    try {
+      const row = await env.DB.prepare("SELECT COUNT(*) AS c FROM users WHERE created_at > ?")
+        .bind(now - 30 * day)
+        .first();
+      signedUp30d = Number(row?.c || 0);
+    } catch {}
+
+    return {
+      windowDays: FUNNEL_WINDOW_DAYS,
+      steps,
+      conversion,
+      by_region: byRegion,
+      by_cell: byCell,
+      region_mismatches_30d: mismatches,
+      cohorts: {
+        d1: counts.get("mock_start") || 0,
+        d7: counts.get("code_redeemed") || 0,
+        d30: signedUp30d,
+      },
+      unproven: true,
+    };
+  } catch (e) {
+    console.error("[registry] funnel failed:", String(e?.message || e).slice(0, 120));
     return empty;
   }
 }
@@ -849,7 +996,7 @@ export async function handleAdminRoutes(url, request, env, cors, deps = {}) {
   // the edit tooling can reach: the worker's own routing table sits past the
   // ~48 KB byte offset its header documents. Returning null for every other
   // path keeps the admin router's contract unchanged.
-  const analyticsResponse = await handleAnalyticsRoute(url, request, env, cors, { json });
+  const analyticsResponse = await handleAnalyticsRoute(url, request, env, cors, { json, recordActivity });
   if (analyticsResponse) return analyticsResponse;
 
   const isApi = path.startsWith(ADMIN_API_PREFIX);

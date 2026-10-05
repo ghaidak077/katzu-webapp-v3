@@ -45,6 +45,8 @@ interface PriceRow {
 interface PricingAnswer {
   prices?: PriceRow[];
   group?: string;
+  /** The bucket the account was assigned, or null when no experiment is running. */
+  cell?: number | null;
   unproven?: boolean;
 }
 
@@ -79,17 +81,26 @@ export const PaywallScreen: React.FC = () => {
 
   const handleUpgradeClick = useCallback(
     (product: OfferProduct) => {
-      // The funnel needs the product and the cell the learner was actually shown,
+      // The funnel needs the group and the cell this learner was actually SHOWN,
       // never a guess — B5 reads both off this event.
+      track('upgrade_click', {
+        kind: product,
+        region: pricing?.group || 'standard',
+        cell: String(pricing?.cell ?? 'none'),
+      });
       track('purchase_clicked', { kind: product, state: pricing?.group || 'standard' });
       setOverlay('purchase');
     },
-    [pricing?.group],
+    [pricing?.group, pricing?.cell],
   );
 
   useEffect(() => {
     if (loaded && pricing) {
-      track('paywall_view', { kind: pricing.group || 'standard', state: 'offer' });
+      track('paywall_view', {
+        kind: pricing.group || 'standard',
+        region: pricing.group || 'standard',
+        cell: String(pricing.cell ?? 'none'),
+      });
     }
   }, [loaded, pricing]);
 

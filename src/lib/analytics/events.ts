@@ -49,6 +49,8 @@ export const ANALYTICS_EVENTS = [
   'writing_completed',
   'listening_completed',
   'paywall_viewed',
+  'onboarding_goal',
+  'share_click',
   // The B1 mock, measured as a funnel of its own: what it cost (prop `kind` is
   // the server's answer — free, credit or subscription), whether it finished,
   // and whether its debrief was actually read.
@@ -74,6 +76,15 @@ export const ALLOWED_PROP_KEYS = [
   'state',
   'reason',
   'count',
+  /**
+   * Which price group and which price cell this learner was shown.
+   *
+   * Both come from `/pricing`, which derived them server-side (a two-value country
+   * group and a bucket index), so neither is PII — and they are the two cuts the
+   * funnel has to be broken down by before any price decision is made.
+   */
+  'region',
+  'cell',
 ] as const;
 
 export type AnalyticsPropKey = (typeof ALLOWED_PROP_KEYS)[number];

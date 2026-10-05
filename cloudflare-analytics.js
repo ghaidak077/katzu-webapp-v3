@@ -64,6 +64,8 @@ export const EVENT_NAMES = [
   "writing_completed",
   "listening_completed",
   "paywall_viewed",
+  "onboarding_goal",
+  "share_click",
   "mock_start",
   "mock_finish",
   "debrief_view",
@@ -84,10 +86,35 @@ export const PROP_KEYS = [
   "state",
   "reason",
   "count",
+  // B5: which price group and which price cell a learner was shown. Both are
+  // server-derived (a country group and a bucket index), so they are not PII and
+  // they are the two dimensions the funnel has to be cut by.
+  "region",
+  "cell",
 ];
 
 const LEVELS = new Set(["A1", "A2", "B1", "B2"]);
 const GOALS = new Set(["daily_life", "work", "university", "exam"]);
+
+/**
+ * The events that are ALSO written to D1, so the admin can aggregate them.
+ *
+ * WHY A SUBSET
+ * Raw analytics live in KV and expire in 30 days; an owner asking "did the free
+ * mock convert in Egypt" cannot answer that from KV with SQL. These seven steps
+ * are the launch funnel and are worth a durable row each. Everything else stays
+ * in KV, where a stray event cannot grow a table.
+ */
+export const FUNNEL_EVENTS = new Set([
+  "onboarding_goal",
+  "mock_start",
+  "mock_finish",
+  "debrief_view",
+  "paywall_view",
+  "upgrade_click",
+  "code_redeemed",
+  "share_click",
+]);
 
 /** Abuse control only. Isolate-local, so it throttles rather than guarantees. */
 export const ANALYTICS_RATE_LIMITS = { perMinute: 30, perDay: 600 };
@@ -175,7 +202,7 @@ export function validateAnalyticsEvent(input, now = Date.now()) {
  */
 export async function handleAnalyticsRoute(url, request, env, cors, deps) {
   if (!url || url.pathname !== "/analytics/events") return null;
-  const { json, checkRateLimit } = deps || {};
+  const { json, checkRateLimit, recordActivity } = deps || {};
   if (typeof json !== "function") return null;
 
   if (request.method !== "POST") {
@@ -235,6 +262,24 @@ export async function handleAnalyticsRoute(url, request, env, cors, deps) {
       );
     } catch (error) {
       console.error("[analytics] store failed:", String(error?.message || error).slice(0, 160));
+    }
+  }
+
+  // The durable funnel rows. `recordActivity` is injected so this module owns no
+  // SQL and no metadata sanitizer; when the admin binding is missing (local dev,
+  // a test) the KV copy above is still written and nothing fails.
+  if (typeof recordActivity === "function" && env?.DB) {
+    for (const event of accepted) {
+      if (!FUNNEL_EVENTS.has(event.name)) continue;
+      try {
+        await recordActivity(env, event.userId || null, event.name, {
+          ...(event.props || {}),
+          ...(event.goal ? { goal: event.goal } : {}),
+          ...(event.level ? { level: event.level } : {}),
+        });
+      } catch {
+        // Analytics must never fail a learner's request.
+      }
     }
   }
 
