@@ -1,4 +1,5 @@
-import type { CEFRLevel, LearnerGoal } from '@/types/models';
+import type { CEFRLevel, LearnerGoal, TargetDateKind } from '@/types/models';
+import { countdownLineAr, shouldFeatureCountdown } from '@/lib/mission/examCountdown';
 import { dayIndexFor } from '@/lib/utils/dailyMission';
 import { goalMatchScore } from '@/lib/onboarding/preferences';
 import { arCount } from '@/lib/i18n/arabicCount';
@@ -71,6 +72,14 @@ export interface MissionInput {
   /** Present only when a skill has actually been measured and is the weakest. */
   weakestSkill?: WeakSkillHint | null;
   dailyMinutes?: number;
+  /**
+   * The learner's own date and what kind of day it is.
+   *
+   * Only used to attach the countdown line to the plan; it never changes which
+   * scenario is chosen. A missing or past date changes nothing at all.
+   */
+  targetDate?: number | null;
+  targetDateKind?: TargetDateKind | null;
   now?: number;
 }
 
@@ -97,6 +106,8 @@ export interface DailyMissionPlan {
   titleAr?: string;
   /** Arabic one-liner under the title: why this is today's action. */
   subtitleAr: string;
+  /** Days-left line, present only inside the last month of an exam. */
+  countdownAr?: string;
   /** Arabic label of the single primary button. */
   ctaAr: string;
   /** Honest estimate for the chosen action, in minutes. */
@@ -171,7 +182,23 @@ function minutesForPlan(dailyMinutes: number | undefined, totalItems: number): n
  * The one action for today. Never throws on empty content: a learner on a train
  * with an empty cache gets an honest Arabic empty state, not a blank card.
  */
+/**
+ * The plan, plus the countdown when there is one worth showing.
+ *
+ * The countdown is attached here rather than inside each branch: a mission is
+ * chosen by what the learner should DO today, and the date is a second fact about
+ * today, not a reason to change the choice. Wrapping also means one place decides
+ * whether the number is shouted (inside the last month, exam only).
+ */
 export function selectDailyMission(input: MissionInput): DailyMissionPlan {
+  const plan = selectMissionAction(input);
+  const countdown = countdownLineAr(input?.targetDate, input?.targetDateKind ?? 'exam', input?.now ?? Date.now());
+  return shouldFeatureCountdown(input?.targetDate, input?.targetDateKind ?? 'exam', input?.now ?? Date.now())
+    ? { ...plan, countdownAr: countdown ?? undefined }
+    : plan;
+}
+
+function selectMissionAction(input: MissionInput): DailyMissionPlan {
   const {
     level,
     goal,

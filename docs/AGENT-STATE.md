@@ -2,15 +2,18 @@
 
 ## RESUME
 
-- **Last sha:** `c78abcd` (B4). B5 (events + admin funnel) committed on top, green locally.
-- **Open CI run:** none yet — nothing pushed since `6e9eecc`.
-- **Next item:** **B6** — skippable onboarding (goal + exam date) feeding `selectMission` with days
-  left, a daily `.ics` reminder, a share card + referral link with an e2e, and teacher codes whose
-  reward counts only verified paid orders. **Then: push, deploy worker + Pages, verify live**
-  (/health, unauth admin 401, /demo makes no /ai call, service worker active) and record deploy +
-  rollback ids.
+- **Last sha:** B6 committed on top of `d390335`. **Next action: push, then deploy worker +
+  Pages, then verify live** (/health, unauth admin 401, /demo makes no /ai call, service worker
+  active) and record deploy + rollback ids.
+- **Open CI run:** none — read it from `gh run list` right after the push (poll at most twice;
+  do not deploy until green).
+- **Then:** Batch 3 — C1 (trust pages from structured fields + the `{{OWNER_FILL}}` strict
+  launch check), C2 (secret scan), C3 (payments hardening), C4 (Play readiness), C5 (final
+  gates). One-paragraph design notes only for: email OTP, web-push, Play Billing, domain switch,
+  Play wrapper.
 - **Live now:** worker `30d65294-3cd9-4251-9aca-229bd6bf7662`, Pages `48617093-bd19-41d9-9c5b-f9d5c743bb11`.
-- **Batch 1 deployed. Batch 2 items 1, 2, B3, B4, B5 done, not yet deployed.**
+- **Batch 1 deployed. Batch 2 (pricing, mock, paywall, funnel, onboarding/share) complete in
+  code, not yet deployed.**
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 

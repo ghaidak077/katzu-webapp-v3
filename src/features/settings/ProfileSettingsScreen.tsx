@@ -23,12 +23,15 @@ import {
   ScrollText,
   Download,
   Trash2,
+  CalendarPlus,
 } from 'lucide-react';
+import { buildExamReminderIcs, reminderFileName } from '@/lib/reminder/ics';
 import type { CEFRLevel, MemoryPatternEntity, SarcasmLevel } from '@/types/models';
 import { workerClient } from '@/lib/api/workerClient';
 import { clearMemoryPatterns, deleteMemoryPattern, listMemoryPatterns, rebuildMemoryPatterns } from '@/lib/memory/patterns';
 import { ARRIVAL_COPY, GOAL_COPY, TARGET_DATE_COPY, describeLearnerLevel } from '@/lib/onboarding/preferences';
 import { isAnalyticsOptedOut, setAnalyticsOptOut } from '@/lib/analytics/client';
+import { track } from '@/lib/analytics/client';
 import { arCount } from '@/lib/i18n/arabicCount';
 import { LOG_ENTRY_NOM } from '@/lib/i18n/countForms';
 import {
@@ -211,6 +214,35 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
     }
   };
 
+  /**
+   * The reminder as a download.
+   *
+   * No push server and no VAPID keys yet (both deferred), so the app hands the
+   * learner a calendar file instead of promising a notification it cannot
+   * deliver. It is the learner's own date, at their own time, in their own
+   * calendar \u2014 and it stops mattering the day after.
+   */
+  const handleDownloadReminder = () => {
+    const ics = buildExamReminderIcs({
+      targetDate: Number(user?.targetDate),
+      reminderTime: user?.preferredReminderTime,
+      titleAr: `${TARGET_DATE_COPY[user?.targetDateKind || 'exam']} \u2014 كَاتْزُو`,
+      descriptionAr: 'ابدأ اليوم بمحادثة قصيرة على كاتزو \u2014 عشر دقائق تكفي.',
+      uid: `katzu-${user?.id || 'me'}`,
+    });
+    if (!ics) return;
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = reminderFileName();
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+    track('share_click', { kind: 'ics_reminder' });
+  };
+
   return (
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto relative pb-28">
       {/* V32: 29 flat controls with no grouping. Three sections, folded by
@@ -292,9 +324,22 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           <p>وضعك: {user?.arrivalStatus ? ARRIVAL_COPY[user.arrivalStatus] : 'لم تحدّده بعد'}</p>
           <p>وقتك اليومي: {user?.dailyGoalMinutes ?? 15} دقائق</p>
           {user?.targetDate && user.targetDateKind && (
-            <p>
-              {TARGET_DATE_COPY[user.targetDateKind]}: {new Date(user.targetDate).toLocaleDateString('ar')}
-            </p>
+            <>
+              <p>
+                {TARGET_DATE_COPY[user.targetDateKind]}: {new Date(user.targetDate).toLocaleDateString('ar')}
+              </p>
+              {/* B6: the reminder is a file the learner owns. There is no push
+                  server yet (VAPID keys are deferred), so the app offers a
+                  calendar entry and does not pretend to speak at the learner. */}
+              <button
+                type="button"
+                onClick={handleDownloadReminder}
+                className="kz-ar-micro mt-1 inline-flex items-center gap-1 rounded-xl border border-white/10 px-3 py-2 text-text-secondary min-h-touch"
+              >
+                <CalendarPlus className="w-3.5 h-3.5" />
+                <span>أضف تذكيراً يومياً إلى التقويم</span>
+              </button>
+            </>
           )}
           <p className="text-text-muted">{levelInfo.detailAr}</p>
         </div>

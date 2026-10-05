@@ -6,6 +6,7 @@ import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { GermanText } from '@/components/common/GermanText';
 import { workerClient, type MockExamPart, type MockStartResponse } from '@/lib/api/workerClient';
 import { debriefView, estimatePracticeScore, formatPartClock, type MockPartResult } from '@/lib/mockexam/score';
+import { buildShareLink, buildShareText } from '@/lib/offers/share';
 import { LiveConversationScreen } from '@/features/conversation/LiveConversationScreen';
 import { track } from '@/lib/analytics/client';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
@@ -236,6 +237,36 @@ const MockResultScreen: React.FC<{
   onExit: () => void;
   onOpenSubscription: () => void;
 }> = ({ claim, summaries, estimate, onExit, onOpenSubscription }) => {
+  const [shareNote, setShareNote] = useState<string | null>(null);
+
+  /**
+   * Share the result, never a certificate.
+   *
+   * The text says "practice estimate" in the same words the card uses, so a
+   * screenshot of the share cannot claim more than the app claims. The link
+   * carries the learner's referral code and nothing else — no transcript, no
+   * mistakes, no account id.
+   */
+  const handleShare = useCallback(async () => {
+    const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const referralCode = await workerClient
+      .getReferralInfo()
+      .then((info) => info?.referral_code || null)
+      .catch(() => null);
+    const link = buildShareLink({ appUrl, referralCode });
+    const text = `${buildShareText({ appUrl, referralCode, estimate: estimate.score, level: 'B1' })} ${link}`.trim();
+    track('share_click', { kind: 'mock_result', source: referralCode ? 'referral' : 'plain' });
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share({ title: 'Katzu', text, url: link });
+        return;
+      }
+      await navigator.clipboard?.writeText(text);
+      setShareNote('نُسخ الرابط — شاركه مع من يستعد للامتحان.');
+    } catch {
+      setShareNote('تعذّر النسخ الآن. جرّب مرة أخرى.');
+    }
+  }, [estimate.score]);
   const allMistakes = summaries.flatMap((row) =>
     row.result.mistakes.map((mistake) => ({ original: mistake.original, corrected: mistake.corrected })),
   );
@@ -320,6 +351,11 @@ const MockResultScreen: React.FC<{
           </div>
         </GlassCard>
       ) : null}
+
+      <GlassButton onClick={() => void handleShare()}>
+        <span>شارك تقديرك مع صديق</span>
+      </GlassButton>
+      {shareNote ? <p className="kz-ar-micro text-kz-inkDim">{shareNote}</p> : null}
 
       <GlassButton onClick={onExit}>
         <span>العودة إلى المسار</span>

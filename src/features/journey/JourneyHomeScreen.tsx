@@ -137,8 +137,12 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           practice: skillPractice,
         }),
         dailyMinutes: user?.dailyGoalMinutes,
+        // B6: the learner's own date, as a second fact about today. It never
+        // changes WHICH mission is chosen.
+        targetDate: user?.targetDate,
+        targetDateKind: user?.targetDateKind,
       }),
-    [level, user?.primaryGoal, user?.dailyGoalMinutes, data, scenarios, training, reviewItems, scenarioLevels, skillPractice],
+    [level, user?.primaryGoal, user?.dailyGoalMinutes, user?.targetDate, user?.targetDateKind, data, scenarios, training, reviewItems, scenarioLevels, skillPractice],
   );
 
   const missionScenario = useMemo(
@@ -353,6 +357,13 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             )}
 
             <div className="mt-4">
+              {/* B6: the days-left line, only inside the last month of an exam and
+                  only beside the mission \u2014 never as a reason to replace it. */}
+              {mission.countdownAr ? (
+                <p data-testid="exam-countdown" className="mb-3 text-xs font-arabic text-status-warning">
+                  {mission.countdownAr}
+                </p>
+              ) : null}
               {/* The plan owns the button's wording, so today's action is named once.
                   That is what lets the opening episode say "ابدأ من لحظة الوصول"
                   while a scheduled day says "ابدأ مهمة اليوم (10 د)" — one label,

@@ -126,8 +126,12 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         scenarioLevels,
         weakestSkill: weakestMeasuredSkill({ sessions, practice: skillPractice }),
         dailyMinutes: user?.dailyGoalMinutes,
+        // B6: the learner's own date. It never chooses the mission — it only adds
+        // the days-left line when there are thirty or fewer of them.
+        targetDate: user?.targetDate,
+        targetDateKind: user?.targetDateKind,
       }),
-    [episodeLevel, user?.primaryGoal, user?.dailyGoalMinutes, scenarios, trainingRecords, reviewItems, scenarioLevels, skillPractice, sessions],
+    [episodeLevel, user?.primaryGoal, user?.dailyGoalMinutes, user?.targetDate, user?.targetDateKind, scenarios, trainingRecords, reviewItems, scenarioLevels, skillPractice, sessions],
   );
   const missionScenarioId = mission.scenarioId;
 
@@ -294,6 +298,14 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
               <span>{mission.ctaAr}</span>
             </button>
           )}
+
+          {/* B6: the days-left line, only inside the last month of an exam, and
+              never as a reason to skip the mission above it. */}
+          {mission.countdownAr ? (
+            <p data-testid="exam-countdown" className="mt-2 text-xs font-arabic text-status-warning">
+              {mission.countdownAr}
+            </p>
+          ) : null}
           {missionScenarioId && mission.kind !== 'review' && (
             <button
               onClick={() => handleScenarioClick(missionScenarioId)}

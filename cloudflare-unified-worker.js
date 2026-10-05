@@ -3069,6 +3069,51 @@ async function handleAdminGenerate(request, env, cors) {
 // V24 Phase 6: read-only per-label tracking — codes created vs activated.
 // Activation is whatever redeemed_codes_ledger actually holds, so the report
 // reflects real redemptions, not the ledger's own optimism.
+/**
+ * What a teacher/cohort label is owed.
+ *
+ * THE ONE RULE: a reward counts REDEMPTIONS, never codes printed. `created` is
+ * what a teacher handed out; `activated` is what a learner actually paid for and
+ * redeemed on their own account, which is the join above (a code only appears in
+ * `redeemed_codes_ledger` once `handleVerify` has claimed it exactly once). A
+ * teacher who prints fifty codes and sells two earns for two.
+ *
+ * The month rate is a **planning assumption, not a paid rate** (UNPROVEN, and
+ * flagged in the payload itself): nothing has been settled with a teacher yet, so
+ * the number is what a reward WOULD be if the owner paid it out this month. The
+ * owner sets it; it is one constant, not a policy in the dashboard.
+ */
+const TEACHER_REWARD_MONTHS_PER_ACTIVATION = 1;
+
+/**
+ * One line per label, plus the month total. Pure, so the rule is unit-testable
+ * without a database and cannot drift from the handler.
+ */
+export function teacherRewardSummary(
+  labels,
+  monthsPerActivation = TEACHER_REWARD_MONTHS_PER_ACTIVATION,
+) {
+  const rows = (Array.isArray(labels) ? labels : []).map((label) => {
+    const activated = Math.max(0, Number(label?.activated) || 0);
+    const created = Math.max(0, Number(label?.created) || 0);
+    return {
+      label: label?.label ?? null,
+      created,
+      activated,
+      // Printed but unredeemed codes: visible, and worth zero.
+      outstanding: Math.max(0, created - activated),
+      rewardMonths: activated * monthsPerActivation,
+    };
+  });
+  return {
+    monthsPerActivation,
+    rows,
+    totalRewardMonths: rows.reduce((sum, row) => sum + row.rewardMonths, 0),
+    totalOutstanding: rows.reduce((sum, row) => sum + row.outstanding, 0),
+    unproven: true,
+  };
+}
+
 async function handleAdminCodeReport(request, env, cors) {
   if (!(await isAdminAuthorized(request, env))) {
     return adminJson({ error: "unauthorized" }, 401, cors);
@@ -3109,6 +3154,7 @@ async function handleAdminCodeReport(request, env, cors) {
         created: labels.reduce((sum, l) => sum + l.created, 0),
         activated: labels.reduce((sum, l) => sum + l.activated, 0),
       },
+      teacher_reward: teacherRewardSummary(labels),
     },
     200,
     cors,
