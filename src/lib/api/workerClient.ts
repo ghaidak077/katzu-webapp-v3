@@ -865,6 +865,35 @@ export class WorkerClient {
     }
   }
 
+  /**
+   * The price table, from the server.
+   *
+   * `null` means the call failed, which the paywall shows as "no price" rather
+   * than as a number: a learner must never be shown an amount the app made up.
+   */
+  async getPricing(): Promise<{
+    prices: Array<{ product: string; amountCents: number; currency: string; group: string; cell: number | null }>;
+    group: string;
+    currency?: string;
+    unproven?: boolean;
+    experimentEnabled?: boolean;
+  } | null> {
+    try {
+      const token = await this.getEffectiveAuthToken();
+      const res = await fetch(`${this.baseUrl}/pricing`, {
+        method: 'GET',
+        headers: token ? { Authorization: 'Bearer ' + token } : {},
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!Array.isArray(data?.prices)) return null;
+      return data;
+    } catch (e) {
+      console.warn('Pricing fetch failed:', e);
+      return null;
+    }
+  }
+
   // --- The free B1 mock (/mock/start) ---
 
   /**

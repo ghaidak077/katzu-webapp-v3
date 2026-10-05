@@ -23,12 +23,19 @@ export interface SubscriptionRedemptionScreenProps {
    * German cannot judge a price they have not tested.
    */
   onOpenMock?: () => void;
+  /**
+   * The priced offer. B4: a learner who came here to redeem a code and has none
+   * should see what the thing costs and what the free mock offers, not a dead
+   * end \u2014 and the code path itself stays exactly as it was.
+   */
+  onOpenPaywall?: () => void;
 }
 
 export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreenProps> = ({
   onBack,
   onSuccess,
   onOpenMock,
+  onOpenPaywall,
 }) => {
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -372,6 +379,15 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
 
         {/* The free mock: one per account, decided server-side. Offered before
             the price, not after it. */}
+        {onOpenPaywall ? (
+          <button
+            type="button"
+            onClick={onOpenPaywall}
+            className="mb-2 w-full rounded-lg border border-white/10 p-2.5 text-center font-arabic text-micro text-text-muted"
+          >
+            لا يوجد لديك كود؟ اعرف الأسعار
+          </button>
+        ) : null}
         {onOpenMock ? (
           <button
             type="button"

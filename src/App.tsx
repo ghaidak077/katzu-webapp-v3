@@ -39,6 +39,9 @@ const SubscriptionRedemptionScreen = React.lazy(() =>
 const MockExamScreen = React.lazy(() =>
   import('@/features/mockexam/MockExamScreen').then((m) => ({ default: m.MockExamScreen })),
 );
+const PaywallScreen = React.lazy(() =>
+  import('@/features/offers/PaywallScreen').then((m) => ({ default: m.PaywallScreen })),
+);
 const TrailScreen = React.lazy(() =>
   import('@/features/trail/TrailScreen').then((m) => ({ default: m.TrailScreen })),
 );
@@ -257,6 +260,8 @@ function AppRoutes() {
             />
             <Route path="/onboarding" element={<OnboardingRoute />} />
             <Route path="/subscription" element={<SubscriptionRoute />} />
+            {/* B4: the priced offer. Every number comes from `/pricing`. */}
+            <Route path="/paywall" element={<PaywallRoute />} />
             {/* B3: the one free B1 speaking mock. The SERVER decides what this account may
                 run; the route only requires a session, because `/mock/start`
                 authenticates on its own and every answer is shown honestly. */}
@@ -471,6 +476,13 @@ function OnboardingRoute() {
   );
 }
 
+/**
+ * The offer, then the code.
+ *
+ * `/subscription` shows the priced offer (server prices, plainly stated limits)
+ * and opens the existing redemption screen inside it, so buying and redeeming
+ * stay one path and the code format stays untouched.
+ */
 function SubscriptionRoute() {
   const navigate = useNavigate();
   return (
@@ -479,8 +491,14 @@ function SubscriptionRoute() {
       onSuccess={() => navigate('/app/trail')}
       onGoToSignIn={() => navigate('/signin')}
       onOpenMock={() => navigate('/mock')}
+      onOpenPaywall={() => navigate('/paywall')}
     />
   );
+}
+
+function PaywallRoute() {
+  const navigate = useNavigate();
+  return <PaywallScreen />;
 }
 
 function ReviewRoute() {

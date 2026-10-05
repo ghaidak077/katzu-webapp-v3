@@ -67,6 +67,8 @@ export const EVENT_NAMES = [
   "mock_start",
   "mock_finish",
   "debrief_view",
+  "paywall_view",
+  "upgrade_click",
   "purchase_clicked",
   "code_redeemed",
   "app_error",

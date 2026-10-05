@@ -78,7 +78,7 @@ import {
 import { handleCryptoRoutes, timingSafeEqualHex } from "./cloudflare-crypto.js";
 import { ensureContentColumns } from "./cloudflare-content-schema.js";
 import { mockExamBrief, mockExamInstructionForPart } from "./cloudflare-mock-exam.js";
-import { decideMockAccess, mockDebriefAccess } from "./cloudflare-pricing.js";
+import { decideMockAccess, mockDebriefAccess, catalogueFor, experimentBucket, regionGroupFromRequest, PASS_CELLS } from "./cloudflare-pricing.js";
 import { dailyKey, processDailySync, readAuthoritativeDaily, overlayStatsWithDaily } from "./cloudflare-daily.js";
 
 // ============================================================================
@@ -1709,6 +1709,13 @@ export default {
       if (url.pathname === "/mock/start" && request.method === "POST") {
         return await handleMockStart(request, env, cors);
       }
+      // B4: the price table. Region comes from the Cloudflare country header and
+      // the experiment cell from a hash of the account, so a client cannot price
+      // itself. Public on purpose — an unauthenticated visitor can see a price,
+      // which is what stops the paywall from being a surprise at the last step.
+      if (url.pathname === "/pricing" && request.method === "GET") {
+        return await handlePricing(request, env, cors);
+      }
       if (url.pathname === "/check-status" && request.method === "POST") {
         return await handleCheckStatus(request, env, cors);
       }
@@ -2419,6 +2426,32 @@ async function handleMockStart(request, env, cors) {
 
   await recordMockSession(account.sub, sessionId, source, env);
   return mockStartResponse({ account, env, cors, source, freeUsed, creditsRemaining });
+}
+
+/**
+ * `GET /pricing` — what this learner pays, decided server-side.
+ *
+ * Region is read from `CF-IPCountry` and the Exam Pass cell from a stable hash of
+ * the account id, so the same learner sees the same price on every device and no
+ * client can pick the cheaper group. Unauthenticated callers get the standard
+ * group and no cell: showing a price is public information, and inventing a bucket
+ * for an anonymous visitor would make the first price they see a different one
+ * from the price they are asked to pay.
+ *
+ * The payload carries `unproven: true` because the table is a planning guess; the
+ * client is expected to render the numbers as they are, not to soften them.
+ */
+async function handlePricing(request, env, cors) {
+  const group = regionGroupFromRequest(request);
+  const idToken = extractIdToken(request, null);
+  let accountId = "";
+  if (idToken) {
+    const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
+    if (account?.sub) accountId = account.sub;
+  }
+  const cell = accountId ? experimentBucket(accountId, PASS_CELLS[group].length) : null;
+  const catalogue = catalogueFor({ group, cell });
+  return json({ ...catalogue, experimentEnabled: cell !== null, unproven: true }, 200, cors);
 }
 
 /** The one answer for "you have used the free mock", in the Arabic a learner reads. */
@@ -3612,6 +3645,7 @@ export {
   checkRateLimit,
   checkUserEntitlement,
   verifyMockGrant,
+  handlePricing,
   mintMockGrant,
   handleMockStart,
   consumeTrialQuota,

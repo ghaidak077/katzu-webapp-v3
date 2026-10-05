@@ -2,14 +2,15 @@
 
 ## RESUME
 
-- **Last sha:** `2c01faa` (B3 server) + the B3 client commit on top, both green locally.
+- **Last sha:** `11549fc` (B3 client). B4 (paywall) committed on top, green locally.
 - **Open CI run:** none yet — nothing pushed since `6e9eecc`.
-- **Next item:** **B4 paywall** — Exam Pass, then Monthly, then Single Mock as a link, priced by
-  `/pricing` from the server table (region-aware, experiment cell included). Then B5 (events +
-  admin funnel), B6 (onboarding, .ics, share/referral e2e) — then push, deploy worker + Pages,
-  verify live.
+- **Next item:** **B5 events + admin funnel** — `onboarding_goal`, `mock_start/finish`,
+  `debrief_view`, `paywall_view` (+ region, price cell), `upgrade_click`, `code_redeemed`,
+  `share_click`; admin shows the funnel, D1/D7/D30 cohorts, conversion by region and price
+  cell, and region mismatches (log only). Then B6 (onboarding, .ics, share/referral e2e)
+  — then push, deploy worker + Pages, verify live.
 - **Live now:** worker `30d65294-3cd9-4251-9aca-229bd6bf7662`, Pages `48617093-bd19-41d9-9c5b-f9d5c743bb11`.
-- **Batch 1 deployed. Batch 2 items 1, 2 and B3 (mock, server + client) done, not yet deployed.**
+- **Batch 1 deployed. Batch 2 items 1, 2, B3 (mock) and B4 (paywall) done, not yet deployed.**
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 

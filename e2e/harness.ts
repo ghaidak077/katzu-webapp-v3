@@ -118,6 +118,11 @@ export interface MockOptions {
    * can drive the honest refusal a learner gets after using it.
    */
   mockCreditRequired?: boolean;
+  /** What `/pricing` answers. `null` (the default) makes the call fail. */
+  pricing?: {
+    prices: Array<{ product: string; amountCents: number; currency: string; group: string; cell: number | null }>;
+    group: string;
+  } | null;
 }
 
 /** The three B1 parts, mirroring `cloudflare-mock-exam.js` for the offline suite. */
@@ -344,6 +349,14 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
         return json({ hints: [] });
       case url.pathname === '/check-status':
         return json({ active: false, expires_at: null });
+      case url.pathname === '/pricing': {
+        // `null` means "the server could not be reached", which the paywall must
+        // render as no price at all rather than as a number of its own.
+        if (!options.pricing) {
+          return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+        }
+        return json({ ...options.pricing, currency: 'EUR', unproven: true });
+      }
       case url.pathname === '/review/sync':
         return json({ items: [] });
       case url.pathname === '/progress/sync' || url.pathname === '/progress/get':
