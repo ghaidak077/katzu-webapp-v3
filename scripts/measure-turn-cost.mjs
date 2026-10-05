@@ -110,6 +110,30 @@ const saving = perUserDay.flagship - perUserDay.lite;
 console.log('');
 console.log(`flagship → lite saves ${usd(saving)} per user-day (~${Math.round((saving / (perUserDay.flagship || 1)) * 100)}%)`);
 
+// ---------------------------------------------------------------------------
+// Before / after cheap-routing. UNPROVEN: the easy share is a planning
+// assumption, not a measurement — no production turn log is available to this
+// script, so `EASY_SHARE` must be replaced with a measured figure before these
+// numbers are quoted as fact. 0.5 means "half of all turns are easy".
+// ---------------------------------------------------------------------------
+const EASY_SHARE = Number(process.env.EASY_SHARE ?? 0.5);
+const EASY_TIER = 'mid';
+const beforePerTurn = estimateTurnCostUsd({ tier: 'flagship', inputTokens: meanPromptTokens });
+const afterPerTurn =
+  beforePerTurn * EASY_SHARE + estimateTurnCostUsd({ tier: EASY_TIER, inputTokens: meanPromptTokens }) * (1 - EASY_SHARE);
+const beforeDay = beforePerTurn * TURNS_PER_USER_DAY;
+const afterDay = afterPerTurn * TURNS_PER_USER_DAY;
+console.log('');
+console.log(`cheap-routing before/after (easy share ${(EASY_SHARE * 100).toFixed(0)}% — UNPROVEN)`);
+console.log(`${''.padEnd(18)}${'before'.padStart(10)} ${'after'.padStart(10)} ${'saved'.padStart(10)}`);
+for (const [label, turns] of [['per turn', 1], ['per mock', MOCK_TURNS], ['per user-day', TURNS_PER_USER_DAY]]) {
+  const b = beforePerTurn * turns;
+  const a = afterPerTurn * turns;
+  console.log(`${label.padEnd(18)}${usd(b).padStart(10)} ${usd(a).padStart(10)} ${usd(b - a).padStart(10)}`);
+}
+console.log(`saved ${usd(beforeDay - afterDay)} per user-day (~${Math.round(((beforeDay - afterDay) / (beforeDay || 1)) * 100)}%)`);
+console.log('UNPROVEN: EASY_SHARE is an assumption. Set EASY_SHARE=1 for no saving, =0 for the full saving.');
+
 // A recommended daily cap for the operator's AI_DAILY_SPEND_CAP. It is expressed
 // in CALLS, because that is what the cap counts — the prices only choose the
 // number. The budget ceiling is deliberately a guess the owner edits: one week
