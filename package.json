@@ -17,6 +17,8 @@
     "design:audit": "node scripts/design-audit.mjs",
     "design:contrast": "node scripts/contrast-check.mjs",
     "design": "npm run design:audit && npm run design:contrast",
+    "check:launch": "node scripts/check-launch.mjs",
+    "check:launch:strict": "LAUNCH_STRICT=1 node scripts/check-launch.mjs",
     "session:start": "node scripts/session-start.mjs",
     "deploy:worker": "wrangler deploy",
     "tail:worker": "wrangler tail",

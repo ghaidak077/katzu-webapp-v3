@@ -42,6 +42,9 @@ const MockExamScreen = React.lazy(() =>
 const PaywallScreen = React.lazy(() =>
   import('@/features/offers/PaywallScreen').then((m) => ({ default: m.PaywallScreen })),
 );
+const DeletionRequestScreen = React.lazy(() =>
+  import('@/features/settings/DeletionRequestScreen').then((m) => ({ default: m.DeletionRequestScreen })),
+);
 const TrailScreen = React.lazy(() =>
   import('@/features/trail/TrailScreen').then((m) => ({ default: m.TrailScreen })),
 );
@@ -301,6 +304,8 @@ function AppRoutes() {
             }} />} />
             <Route path="/session-report" element={<ReportRoute summary={sessionSummary} onLoadSummary={setSessionSummary} />} />
             <Route path="/trust/:page" element={<TrustRoute />} />
+            {/* C1: erasure that does not depend on still holding a session. */}
+            <Route path="/delete-account" element={<DeletionRequestScreen />} />
             <Route path="*" element={<Navigate to={isAuthenticated ? '/app/trail' : '/'} replace />} />
           </Routes>
         </Suspense>

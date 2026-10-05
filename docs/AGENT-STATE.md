@@ -2,18 +2,15 @@
 
 ## RESUME
 
-- **Last sha:** B6 committed on top of `d390335`. **Next action: push, then deploy worker +
-  Pages, then verify live** (/health, unauth admin 401, /demo makes no /ai call, service worker
-  active) and record deploy + rollback ids.
-- **Open CI run:** none — read it from `gh run list` right after the push (poll at most twice;
-  do not deploy until green).
-- **Then:** Batch 3 — C1 (trust pages from structured fields + the `{{OWNER_FILL}}` strict
-  launch check), C2 (secret scan), C3 (payments hardening), C4 (Play readiness), C5 (final
-  gates). One-paragraph design notes only for: email OTP, web-push, Play Billing, domain switch,
-  Play wrapper.
+- **Last sha:** `077d1cc` (Batch 2) pushed; **C1 committed on top, not yet pushed.**
+- **Open CI run:** `37298109423` on `077d1cc` — polled twice and still `in_progress` at the time
+  of writing. **Do not deploy until green.** Re-check with
+  `gh run view 37298109423 --json status,conclusion`.
+- **Then:** C2 (secret scan over the tree AND full history, file:line + secret NAME, CI,
+  `wrangler secret put <NAME>` list), C3 (payments hardening), C4 (Play readiness), C5 (final
+  gates + deploy).
 - **Live now:** worker `30d65294-3cd9-4251-9aca-229bd6bf7662`, Pages `48617093-bd19-41d9-9c5b-f9d5c743bb11`.
-- **Batch 1 deployed. Batch 2 (pricing, mock, paywall, funnel, onboarding/share) complete in
-  code, not yet deployed.**
+- **Batch 1 deployed. Batch 2 + C1 in code; the push is out, the deploy is not.**
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 

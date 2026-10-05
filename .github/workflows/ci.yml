@@ -111,6 +111,36 @@ jobs:
           E2E_TARGET: preview
         run: npx playwright test --project=chromium
 
+  # C1: the strict launch gate.
+  #
+  # WHY A SEPARATE JOB, AND WHY IT SWALLOWS NOTHING
+  # The legal text belongs to the owner and this repository may not write it, so
+  # those places are `{{OWNER_FILL}}` and the strict check is expected to fail
+  # until they are filled. `tests/ciWorkflow.test.ts` forbids any step that
+  # tolerates a failure — a gate that swallows its own result teaches everyone to
+  # ignore red — so this job does not tolerate one either: it runs
+  # `LAUNCH_VERIFY=1`, which executes the strict gate and FAILS unless the gate
+  # behaved (exit 1 exactly while a field is open, 0 when none are). The job is
+  # red when the gate is broken and green while the outstanding fields are
+  # genuinely the owner's; the pre-submission run is `npm run check:launch:strict`.
+  launch-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.15.0"
+
+      - name: Report outstanding legal fields
+        run: node scripts/check-launch.mjs
+
+      - name: Verify the launch gate itself
+        env:
+          LAUNCH_VERIFY: "1"
+        run: node scripts/check-launch.mjs
+
   secret-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 5
