@@ -20,6 +20,9 @@ import base from '../playwright.config';
 export default defineConfig(base, {
   testDir: '.',
   testMatch: /playReadiness\.spec\.ts/,
+  // The base config ignores this very spec, because the base configuration
+  // blocks service workers and the offline assertion cannot pass without one.
+  // Clearing the ignore is what makes this config able to run it at all.
   testIgnore: /^$/,
   use: {
     ...base.use,

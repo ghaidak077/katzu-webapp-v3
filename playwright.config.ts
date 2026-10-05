@@ -29,7 +29,14 @@ export default defineConfig({
   // The performance probe reports numbers rather than asserting them, so it is
   // run on purpose from e2e/perf/playwright.perf.config.ts — never as part of
   // the suite, where a machine-dependent number would become a flaky gate.
-  testIgnore: '**/perf/**',
+  // Two directories are excluded, for two different reasons. `**/perf/**` reports
+  // numbers instead of asserting them, so it belongs to a human run. The
+  // play-readiness spec cannot run HERE at all: this configuration blocks service
+  // workers on purpose (see `use.serviceWorkers`), so the page never gets a
+  // controller and the offline assertion it exists to make cannot pass. It runs
+  // under e2e/playReadiness.playwright.config.ts, which flips exactly that one
+  // setting back.
+  testIgnore: ['**/perf/**', '**/playReadiness.spec.ts'],
   timeout: 90_000,
   expect: { timeout: 15_000 },
   // One worker: every spec drives the same shared local database through the same
