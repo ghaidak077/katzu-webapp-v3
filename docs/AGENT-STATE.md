@@ -23,7 +23,36 @@
 
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 
-Recorded 2026-10-06 **before** this deploy session touched anything:
+Recorded 2026-10-06 **before** the journey-polish deploy session touched anything. Supersedes the
+pre-UI-polish snapshot below: its worker target `476bac16-…` was replaced as production by the
+UI-polish deploy later the same day.
+
+- Worker version id (rollback target): `315ec953-d234-481a-93c3-8c493818df5e` (100%, created
+  2026-10-06T12:53:36.297Z, author ghaidakalosh008@gmail.com) — the UI-polish deploy. Older
+  rollback target available: `476bac16-eb7c-4cb9-8ccb-72ac35faf208` (created 2026-10-06T05:51:18Z).
+- Pages production deployment id (rollback target): `43f5985a-5c4e-4820-9efc-0cbcbfd5163b`,
+  branch `main`, commit `a821b18` — a git-triggered build of the docs-only ledger commit, serving
+  the same bundle name `assets/index-ANqcguFZ.js` as the UI-polish build from `349faf0` (deployment
+  `67888b41-23ea-4585-a4d2-345b8281119f`, still available as an older rollback target; before that,
+  `08f0082d-c041-41c8-b1e8-d9938c3188d3` from `463e292`).
+- `GET /health` body (worker, read 2026-10-06 before this session):
+  `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false}`.
+- `GET /crypto/health` body (worker, read 2026-10-06 before this session):
+  `{"ok":true,"provider":"nowpayments","environment":"test_mode",...,"priceUsd":5,"months":1,"plans":[...],"ready":false}`
+  — unchanged from every previous ledger reading.
+- Unauthenticated `GET /admin/api/users` → **401**; production `/` → **200** serving
+  `assets/index-ANqcguFZ.js`.
+- Local HEAD on `main` at snapshot time: `db9bb2e` (journey polish `1c82059` + follow-up `ce533f2`
+  + evidence recapture `db9bb2e`), 3 commits ahead of `a821b18`/`origin/main`; **not pushed at
+  snapshot time**. No `cloudflare-*.js`, `wrangler.toml` or `migrations/` file changed in
+  `349faf0..db9bb2e`, so the worker is expected to stay untouched this session.
+- **Rollback is PROVEN available** for both targets: `wrangler whoami` reports account
+  `00df3d915626e0a681f4fef98c1c587c` with `workers (write)`; `wrangler pages deployment list`
+  lists the production deployment and its predecessors.
+
+## SNAPSHOT — superseded pre-UI-polish record (kept for provenance)
+
+Recorded 2026-10-06 before the UI-polish deploy session touched anything:
 
 - Worker version id (rollback target): `476bac16-eb7c-4cb9-8ccb-72ac35faf208` (100%, created
   2026-10-06T05:51:18.154Z, author ghaidakalosh008@gmail.com). Older rollback target available:
