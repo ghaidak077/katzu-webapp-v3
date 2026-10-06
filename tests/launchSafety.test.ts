@@ -160,3 +160,32 @@ describe('the reading skill is honest and has no dead tap target', () => {
     expect(LANDING).toMatch(/نُطلقها فقط عندما تكون جاهزة وقابلة للقياس/);
   });
 });
+
+describe('the operator cap is configured, and a free session counts against it', () => {
+  const CONFIG = readFileSync('wrangler.toml', 'utf8');
+  const WORKER = readFileSync('cloudflare-unified-worker.js', 'utf8');
+
+  it('sets AI_DAILY_SPEND_CAP as a plain [vars] entry, at 292', () => {
+    // A value the operator can read and change with one deploy: the ceiling is
+    // worth reviewing, and worthless as a mystery. Any present value, including
+    // 0, is enforced; absent means unlimited (pinned in the block above).
+    expect(CONFIG).toMatch(/^\s*AI_DAILY_SPEND_CAP = "292"$/m);
+    // Never a secret. The cap is a number to tune, and the repo forbids writing
+    // secret values to git (`scripts/scan-secrets.mjs`).
+    expect(CONFIG).not.toMatch(/AI_DAILY_SPEND_CAP[^\n]*secret/i);
+  });
+
+  it('counts every AI call in one global counter, the free tier included', () => {
+    // The cap runs on the way into the AI routes BEFORE any trial-ledger read —
+    // the ordering is pinned above — and the counter it rolls is a single id for
+    // the whole service, so a free learner's conversation moves the same number a
+    // Pro learner's does. That is the point: the bill is not a paid-users-only
+    // bill, and "free" here means free to the learner, not free to run.
+    expect(WORKER).toMatch(/counterId = "global-ai-spend"/);
+    expect(WORKER).toMatch(/UPDATE rate_limit_counters SET count = count \+ 1 WHERE counter_id = \?/);
+    // Incremented before the comparison, so the cap admits exactly `cap` calls
+    // and blocks the next — an off-by-one would overspend by one call a day.
+    const fn = WORKER.slice(WORKER.indexOf('async function checkDailySpendCap'));
+    expect(fn.indexOf('count = count + 1')).toBeLessThan(fn.indexOf('count > cap'));
+  });
+});

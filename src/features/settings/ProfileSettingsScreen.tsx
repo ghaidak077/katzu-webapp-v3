@@ -118,7 +118,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
 
   const handleCopyReferral = async () => {
     if (!referralInfo?.referral_code) return;
-    const shareText = `تعلّم الألمانية مع كَاتْزُو 🐱\nاستخدم كود الإحالة ${referralInfo.referral_code}، وأكمل أول درس: تحصل أنت وصديقك معاً على ٣ أيام وصول مجاناً!`;
+    const shareText = `تعلّم الألمانية مع كَاتْزُو 🐱\nاستخدم كود الإحالة ${referralInfo.referral_code}، وأكمل أول درس: تحصل أنت وصديقك معاً على 3 أيام وصول مجاناً!`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Katzu — تعلّم الألمانية', text: shareText });
@@ -358,10 +358,10 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             <Gift className="w-5 h-5 text-status-learning" />
             <div className="text-sm font-bold font-arabic">ادعُ صديقاً، اربحا معاً</div>
           </div>
-          <Badge variant="learning" size="sm">٣ أيام لأول درس · شهر لكل اشتراك</Badge>
+          <Badge variant="learning" size="sm">3 أيام لأول درس · شهر لكل اشتراك</Badge>
         </div>
         <p className="text-micro text-text-muted leading-relaxed">
-          شارك كودك مع الأصدقاء: عندما يُكمل صديقك أول درس، تحصلان معاً على ٣ أيام وصول — ودون أي شراء. وإذا اشترك صديقك لاحقاً في Katzu Pro، تحصل أنت على شهر Pro إضافي يُضاف تلقائياً إلى حسابك.
+          شارك كودك مع الأصدقاء: عندما يُكمل صديقك أول درس، تحصلان معاً على 3 أيام وصول — ودون أي شراء. وإذا اشترك صديقك لاحقاً في Katzu Pro، تحصل أنت على شهر Pro إضافي يُضاف تلقائياً إلى حسابك.
         </p>
 
         {referralLoading ? (

@@ -9,7 +9,7 @@
  * believed.
  */
 
-import { arCountWith, toArabicDigits } from '@/lib/i18n/arabicCount';
+import { arCount } from '@/lib/i18n/arabicCount';
 
 /**
  * The free-conversation allowance, in ONE place on the client.
@@ -21,7 +21,7 @@ import { arCountWith, toArabicDigits } from '@/lib/i18n/arabicCount';
  * and the ledger cannot drift apart without turning the gate red.
  *
  * WHY THE MIRROR AT ALL
- * Every public promise about the trial ("٣ جلسات محادثة مجانية") has to be
+ * Every public promise about the trial ("3 جلسات محادثة مجانية") has to be
  * written before the learner has an account, when there is no ledger to ask. A
  * number that is written by hand in each surface is how "three" turns into
  * "five" on the landing page while the Worker still enforces three.
@@ -35,16 +35,19 @@ const SESSION_FORMS = {
   many: 'جلسة',
 } as const;
 
-/** The allowance as Arabic words, e.g. «٣ جلسات». Never a bare digit. */
-export const MAX_FREE_SESSIONS_AR: string = arCountWith(
-  MAX_FREE_AI_SESSIONS,
-  SESSION_FORMS,
-  toArabicDigits,
-);
+/**
+ * The allowance in Arabic, e.g. «3 جلسات».
+ *
+ * Western digits (3), per the launch numeral rule: every user-facing price and
+ * session count is written with Latin digits. Arabic-Indic digits (٣) are gone
+ * from the product — `tests/westernNumerals.test.ts` fails if one reappears in
+ * a price or session string.
+ */
+export const MAX_FREE_SESSIONS_AR: string = arCount(MAX_FREE_AI_SESSIONS, SESSION_FORMS);
 
 /** The same shapes, for the balance the server reports. */
 function sessionsPhrase(count: number): string {
-  return arCountWith(count, SESSION_FORMS, toArabicDigits);
+  return arCount(count, SESSION_FORMS);
 }
 
 /** What the paywall says about the free allowance. Never guesses a number. */

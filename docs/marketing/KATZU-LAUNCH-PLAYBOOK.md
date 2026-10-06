@@ -445,33 +445,33 @@ Build-ready Arabic for the landing. One primary action: start the free demo. Acc
 
 ### Hero
 
-- H1: «تدرّب على امتحان B1 الشفوي بالعربي — قبل ما تدفع ٢٥٩ يورو للامتحان الحقيقي» ⚠️🇸🇾 (variant B to test later: «امتحانك الشفوي قرب؟ اعرف مستواك الحقيقي اليوم» ⚠️)
+- H1: «تدرّب على امتحان B1 الشفوي بالعربي — قبل ما تدفع 259 يورو للامتحان الحقيقي» ⚠️🇸🇾 (variant B to test later: «امتحانك الشفوي قرب؟ اعرف مستواك الحقيقي اليوم» ⚠️)
 - Sub: «محاكاة بنفس شكل الامتحان، تصحيح عربي صريح من جملك انت، وتقدّم تراه بعينك. غير تابع لأي جهة امتحانات رسمية.» ⚠️
-- CTA primary: «ابدأ الدرس المجاني» → `/demo` (no account) · secondary: «أنشئ حسابك المجاني» → signup (unlocks the ٣ free AI sessions).
-- Honesty line under CTA: «الدرس التجريبي بدون حساب. محادثات المحاكاة بالذكاء الاصطناعي بتفتح بعد إنشاء حساب مجاني — ٣ جلسات، بدون أي بيانات دفع.» ⚠️🇸🇾
+- CTA primary: «ابدأ الدرس المجاني» → `/demo` (no account) · secondary: «أنشئ حسابك المجاني» → signup (unlocks the 3 free AI sessions).
+- Honesty line under CTA: «الدرس التجريبي بدون حساب. محادثات المحاكاة بالذكاء الاصطناعي بتفتح بعد إنشاء حساب مجاني — 3 جلسات، بدون أي بيانات دفع.» ⚠️🇸🇾
 
 ### How it works (3 steps, ≤40 words)
 
-> ١. افتح الدرس المجاني — بدون حساب (٢ دقائق) ⚠️
-> ٢. أنشئ حسابك المجاني — وخلّص أول محاكاة بالذكاء الاصطناعي ⚠️
-> ٣. اقرأ التصحيح العربي الصريح — وكمّل تدريبك بالباقة ⚠️
+> 1. افتح الدرس المجاني — بدون حساب (2 دقائق) ⚠️
+> 2. أنشئ حسابك المجاني — وخلّص أول محاكاة بالذكاء الاصطناعي ⚠️
+> 3. اقرأ التصحيح العربي الصريح — وكمّل تدريبك بالباقة ⚠️
 
 ### Pricing block (after the demo section, not before)
 
-| | مجاني | باقة شهر | باقة ٣ شهور (الأكثر طلباً) |
+| | مجاني | باقة شهر | باقة 3 شهور (الأكثر طلباً) |
 |---|---|---|---|
-| السعر | — | ‎١٢٫٩٩ € | ‎٢٩ € |
+| السعر | — | ‎12,99 € | ‎29 € |
 | درس تجريبي بدون حساب | ✓ | ✓ | ✓ |
-| محادثات بالذكاء الاصطناعي | ٣ جلسات (بعد الحساب المجاني) | غير محدودة* | غير محدودة* |
+| محادثات بالذكاء الاصطناعي | 3 جلسات (بعد الحساب المجاني) | غير محدودة* | غير محدودة* |
 | كل المحتوى A0–B2 وكل المسارات | — | ✓ | ✓ |
 | التصحيح العربي الصريح | ✓ | ✓ | ✓ |
 | حفظ أخطائك ومراجعتها | ✓ | ✓ | ✓ |
 
 - **The price row is owned by the server, not by this document.** The amounts above are the `standard` group in `cloudflare-pricing.js` (`PRICES.standard`); a learner in SY/EG/IQ/PS is quoted the `special` group (€5 / €12), and the app renders whatever `GET /pricing` returns — never a number written here or in the code. **UNPROVEN:** every amount, marked `unproven: true` in the payload itself.
 - Fair-use note (*): «للاستخدام الشخصي بحدود معقولة — العدد الفعلي للجلسات اليومية بينشر بعد ما نتأكد من العدل للجميع» ⚠️ until D16's number exists; then replace with the measured cap.
-- Anchoring line: «٣ شهور تدريب بأقل من ثمن وجبة عائلية — والامتحان الحقيقي لحاله: ٢٥٩ يورو.» ⚠️
+- Anchoring line: «3 شهور تدريب بأقل من ثمن وجبة عائلية — والامتحان الحقيقي لحاله: 259 يورو.» ⚠️
 - Regional line (shown only to code-holders or in FAQ): «في كود خصم سوري/عراقي/مصري؟ جرّبه بشاشة الاشتراك.» ⚠️
-- Payment line: «دفع مرن: تحويل بنكي، USDT، محافظ ومكاتب تحويل محلية — الكود بيوصلك خلال ١٢ ساعة كحد أقصى.» ⚠️🇸🇾
+- Payment line: «دفع مرن: تحويل بنكي، USDT، محافظ ومكاتب تحويل محلية — الكود بيوصلك خلال 12 ساعة كحد أقصى.» ⚠️🇸🇾
 - Refund line: **none at launch** (§4.3 fallback). Add only the lawyer-approved wording later.
 
 ### Trust block (between pricing and FAQ)
@@ -490,7 +490,7 @@ Build-ready Arabic for the landing. One primary action: start the free demo. Acc
 
 1. «هل أنتم تابعون لـ Goethe أو telc؟» → «لا. محاكاة تدريبية فقط بأسلوب الامتحانات، بدون أي ارتباط رسمي.» ⚠️
 2. «شو الفرق بين الدرس المجاني وجلسة المحاكاة؟» → «الدرس التجريبي بيشتغل بدون حساب وبس ثواني معدودة. جلسة المحاكاة محادثة كاملة بالصوت مع تصحيح عربي — بتفتح مرة وحدة بعد الحساب المجاني.» ⚠️🇸🇾
-3. «ما عندي فيزا — كيف أدفع؟» → «تحويل بنكي أو USDT أو محافظ ومكاتب تحويل محلية. الكود بيوصلك خلال ١٢ ساعة.» ⚠️🇸🇾
+3. «ما عندي فيزا — كيف أدفع؟» → «تحويل بنكي أو USDT أو محافظ ومكاتب تحويل محلية. الكود بيوصلك خلال 12 ساعة.» ⚠️🇸🇾
 4. «هل الصوت بينخزن؟» → «لا، بينعالج بس. التفاصيل برابط الخصوصية.» ⚠️
 5. «وإذا ما عني ميك؟» → «كل التدريب بيشتغل كتابةً كمان. الميك أحسن، بس الكتابة بتسوي الشغل.» ⚠️
 6. «قدّيش لازم يكون مستواي؟» → «الباقة لمن درس A2 وبستعد لـ B1، بس في مسارات لكل المستويات من A0. جرب الدرس المجاني وتعرف وين واقف.» ⚠️
@@ -514,8 +514,8 @@ Build-ready Arabic for the landing. One primary action: start the free demo. Acc
 Voice per §3/§15 rules. Event names map to §10.2. All ⚠️ native read.
 
 **Free-session boundary (new, D1):** the allowance is **3 free conversations**, enforced by `MAX_FREE_AI_SESSIONS = 3` in `cloudflare-unified-worker.js` and mirrored once on the client (`MAX_FREE_AI_SESSIONS` in `src/lib/entitlement/trialCopy.ts`, with `tests/trialPromise.test.ts` reading the Worker's declaration and failing on mismatch). Every string below must say three, and no string may say واحدة/وحدة — the earlier drafts of this section promised ONE conversation, which the Worker never granted.
-- FS1 pre-session (signed-in, 0 used): «عندك ٣ جلسات محاكاة مجانية — استخدمها بذكاء: خلّيها أول اختبارات حقيقية إلك.» ⚠️
-- FS2 session end: «خلّصت إحدى جلساتك المجانية 🌟 لسّك ٢ أو ٣ — باقة التدريب بتفتح المحاكيات بلا حد.» ⚠️
+- FS1 pre-session (signed-in, 0 used): «عندك 3 جلسات محاكاة مجانية — استخدمها بذكاء: خلّيها أول اختبارات حقيقية إلك.» ⚠️
+- FS2 session end: «خلّصت إحدى جلساتك المجانية 🌟 لسّك 2 أو 3 — باقة التدريب بتفتح المحاكيات بلا حد.» ⚠️
 - FS3 exhausted: «خلصت جلساتك المجانية الثلاثة. باقة التدريب بتفتح كل شي — أو كمّل بالمراجعة المجانية.» ⚠️ (replaces the current copy `انتهت الجلسات التجريبية المجانية (3 جلسات)…`, `cloudflare-unified-worker.js:432`)
 
 **Exam-date prompt (§12 P6; fires once after the free session, dismissible):**

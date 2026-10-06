@@ -28,11 +28,19 @@
     <meta property="og:locale:alternate" content="en_US" />
     <meta property="og:title" content="Katzu — تدرّب على الألمانية في مواقف حقيقية" />
     <meta property="og:description" content="محادثات وتدريب استماع ألماني بالعربية، مع سيناريوهات عملية وتقدم صادق." />
-    <meta property="og:image" content="/assets/mascot/katzu_icon_512.png" />
+    <!-- The share card, not the app icon: a 1200x630 Arabic card built for this
+         slot by `npm run make:share-image`. Root-relative on purpose — the build
+         makes it absolute from `VITE_PUBLIC_APP_URL` when one is set, and this
+         repo must never hardcode a host it cannot resolve. -->
+    <meta property="og:image" content="/assets/share/katzu-share-ar.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="كَاتْزُو — تحدّث الألمانية التي تحتاجها فعلاً. لا كلمات تحفظها وتنساها" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Katzu — تدرّب على الألمانية في مواقف حقيقية" />
     <meta name="twitter:description" content="محادثات وتدريب استماع ألماني بالعربية، مع سيناريوهات عملية وتقدم صادق." />
-    <meta name="twitter:image" content="/assets/mascot/katzu_icon_512.png" />
+    <meta name="twitter:image" content="/assets/share/katzu-share-ar.png" />
+    <meta name="twitter:image:alt" content="كَاتْزُو — تحدّث الألمانية التي تحتاجها فعلاً" />
     <title>Katzu — رفيقك لتعلم الألمانية</title>
   </head>
   <body class="bg-black text-text-primary font-arabic selection:bg-primary/30 selection:text-white min-h-screen">

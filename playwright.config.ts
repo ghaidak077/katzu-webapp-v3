@@ -23,6 +23,12 @@ import { defineConfig, devices } from '@playwright/test';
 // (measured: 27/37 that way, 37/37 with the origin set). `webServer.env` supplies it to the
 // build subprocess, so no shell prefix and no platform-specific syntax is needed.
 const targetPreview = process.env.E2E_TARGET === 'preview';
+// `E2E_TARGET=production` points the suite at the live site and starts NO
+// webServer — the read-only smoke in `e2e/productionSmoke.spec.ts` is the one
+// that runs there (the rest need the mocked backend and the local server).
+// The host is overridable so a smoke can be pointed at any deployment.
+const targetProduction = process.env.E2E_TARGET === 'production';
+const PRODUCTION_URL = process.env.E2E_PRODUCTION_URL || 'https://katzu-webapp-v3.pages.dev';
 
 export default defineConfig({
   testDir: './e2e',
@@ -45,7 +51,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: targetProduction ? PRODUCTION_URL : 'http://localhost:3000',
     trace: 'retain-on-failure',
     // The built app registers a Workbox service worker, which then serves requests that
     // `page.route()` mocks never reach — measured: the same 37 tests scored 26/37 against
@@ -78,23 +84,25 @@ export default defineConfig({
     permissions: ['microphone'],
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
-    command: targetPreview
-      ? 'npm run build && npx vite preview --port 3000 --strictPort'
-      : 'npm run dev',
-    url: 'http://localhost:3000',
-    // Never reuse a server for the preview run: a stray dev server would silently turn the
-    // "production bundle" run back into a dev run.
-    reuseExistingServer: !targetPreview,
-    timeout: 120_000,
-    // The harness mocks every off-origin request, but the app refuses to send
-    // one at all when no worker origin is configured (WORKER_URL_MISSING fails
-    // the turn before any fetch). A VITE_ var must exist at build/dev-server
-    // start, so the suite carries its own placeholder instead of depending on
-    // an untracked .env that only some checkouts have.
-    // VITE_ANALYTICS_DEV: `track()` is suppressed in a dev build, and the CI e2e
-    // job runs `npx playwright test` with no E2E_TARGET (i.e. `npm run dev`), so
-    // without this the analytics spec captures nothing. Test-only opt-in.
-    env: { VITE_WORKER_URL: 'https://e2e-worker.test', VITE_ANALYTICS_DEV: '1' },
-  },
+  webServer: targetProduction
+    ? undefined
+    : {
+        command: targetPreview
+          ? 'npm run build && npx vite preview --port 3000 --strictPort'
+          : 'npm run dev',
+        url: 'http://localhost:3000',
+        // Never reuse a server for the preview run: a stray dev server would silently turn the
+        // "production bundle" run back into a dev run.
+        reuseExistingServer: !targetPreview,
+        timeout: 120_000,
+        // The harness mocks every off-origin request, but the app refuses to send
+        // one at all when no worker origin is configured (WORKER_URL_MISSING fails
+        // the turn before any fetch). A VITE_ var must exist at build/dev-server
+        // start, so the suite carries its own placeholder instead of depending on
+        // an untracked .env that only some checkouts have.
+        // VITE_ANALYTICS_DEV: `track()` is suppressed in a dev build, and the CI e2e
+        // job runs `npx playwright test` with no E2E_TARGET (i.e. `npm run dev`), so
+        // without this the analytics spec captures nothing. Test-only opt-in.
+        env: { VITE_WORKER_URL: 'https://e2e-worker.test', VITE_ANALYTICS_DEV: '1' },
+      },
 });

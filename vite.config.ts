@@ -174,6 +174,27 @@ export function assetLinksContent({
   );
 }
 
+/**
+ * Make the share image absolute when the build knows its origin.
+ *
+ * `index.html` deliberately holds a root-relative `og:image`, because this repo
+ * must never hardcode a host it cannot resolve (`tests/landingMinimal.test.ts`
+ * fails if one appears). But a social crawler fetches the image by absolute URL,
+ * so when `VITE_PUBLIC_APP_URL` is set the build rewrites exactly the two image
+ * tags and nothing else — the width/height/alt lines and everything else are
+ * left byte-for-byte. With no origin the tags stay relative, which resolves
+ * against whatever host serves the page and is the honest state until a domain
+ * is decided. Exported so the transform is tested without running a build.
+ */
+export function absoluteOgImages(html: string, origin: string): string {
+  const base = String(origin || '').trim().replace(/\/+$/, '');
+  if (!base) return html;
+  return html.replace(
+    /(<meta\s+(?:property="og:image"|name="twitter:image")\s+content=")(\/[^"]*)(")/g,
+    (_match, head: string, path: string, tail: string) => `${head}${base}${path}${tail}`,
+  );
+}
+
 function publicOriginFiles(): Plugin {
   const origin = String(process.env.VITE_PUBLIC_APP_URL || '').replace(/\/+$/, '');
   const abs = (p: string) => (origin ? `${origin}${p}` : p);
@@ -182,6 +203,10 @@ function publicOriginFiles(): Plugin {
   const sha256 = String(process.env.VITE_ANDROID_CERT_SHA256 || '').trim();
   return {
     name: 'katzu-public-origin-files',
+    transformIndexHtml(html) {
+      // Same origin as robots/sitemap: one env var decides every public URL.
+      return absoluteOgImages(html, origin);
+    },
     generateBundle() {
       this.emitFile({
         type: 'asset',

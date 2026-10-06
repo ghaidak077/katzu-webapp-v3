@@ -84,6 +84,15 @@ AI_RATE_LIMIT_PER_MINUTE = "10"
 AI_RATE_LIMIT_PER_DAY = "200"
 # Set to "0" to disable the Workers AI fallback (Gemini-only mode).
 AI_FALLBACK_ENABLED = "1"
+# GLOBAL daily AI spend cap — a count of AI calls across ALL accounts, free tier
+# included, enforced by `checkDailySpendCap` before the trial ledger so no call
+# reaches a provider once the ceiling is hit. Absent means unlimited; 0 is a
+# hard stop. 292 is the figure scripts/measure-turn-cost.mjs recommends.
+# UNPROVEN: derived from measured per-turn cost, not from observed production
+# spend — the owner should replace it with a number read from real usage. It is a
+# plain var on purpose (a tuned ceiling, not a credential): it must stay
+# reviewable in git and must never move to a secret.
+AI_DAILY_SPEND_CAP = "292"
 # Operator kill switch (RC-4). Off unless deliberately turned on, so a normal
 # deploy never freezes learner writes: "off", "0" and an absent value all read as
 # off, while "1"/"true"/"on"/"yes" freeze every POST/PUT/PATCH/DELETE and leave

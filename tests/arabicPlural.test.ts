@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { arCount, arCountWith, arNoun, arabicCountForm } from '@/lib/i18n/arabicCount';
+import { arCount, arNoun, arabicCountForm } from '@/lib/i18n/arabicCount';
 
 const ITEM = {
   one: 'عنصر واحد',
@@ -103,12 +103,14 @@ describe('arNoun / arCount', () => {
     expect(arNoun(-2, ITEM)).toBe(ITEM.two);
   });
 
-  it('accepts a custom numeral shape, because the app writes some counts in Arabic-Indic digits', () => {
-    const toArabicIndic = (n: number) => String(n).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)]);
-    expect(arCountWith(3, ITEM, toArabicIndic)).toBe('٣ عناصر');
-    expect(arCountWith(11, ITEM, toArabicIndic)).toBe('١١ عنصراً');
-    // and the dual stays a word even under a custom numeral shape
-    expect(arCountWith(2, ITEM, toArabicIndic)).toBe('عنصران');
+  it('writes the numeral as a Western digit, the launch numeral rule', () => {
+    // L12: every user-facing count is Western — «3 عناصر», never «٣ عناصر». The
+    // digit shape has no option any more, so there is no second numeral helper
+    // to pass in; `tests/westernNumerals.test.ts` guards the surfaces.
+    expect(arCount(3, ITEM)).toBe('3 عناصر');
+    expect(arCount(11, ITEM)).toBe('11 عنصراً');
+    // and the dual is still a word, never a digit
+    expect(arCount(2, ITEM)).toBe('عنصران');
   });
 });
 

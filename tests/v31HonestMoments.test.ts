@@ -92,10 +92,10 @@ describe('entitlement codes — the free wall is a wall', () => {
 describe('the paywall states a count it owns', () => {
   it('uses the server number, not the locally seeded three', () => {
     expect(freeSessionsCopy(1)).toContain('جلسة واحدة');
-    // L2: the numeral in Arabic prose is Arabic-Indic, matching the landing
-    // page's «٣ جلسات». The assertion this replaces checked the same fact with a
-    // Western "3"; only the digit shape moved.
-    expect(freeSessionsCopy(3)).toContain('٣ جلسات');
+    // L12: the numeral in every user-facing price/session string is Western —
+    // «3 جلسات», never «٣ جلسات». This reverses L2's digit shape at the owner's
+    // instruction; the count itself is unchanged.
+    expect(freeSessionsCopy(3)).toContain('3 جلسات');
     expect(freeSessionsCopy(0)).toContain('انتهت جلساتك');
   });
 

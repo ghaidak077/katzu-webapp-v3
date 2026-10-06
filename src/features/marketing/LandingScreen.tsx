@@ -519,7 +519,7 @@ const EXAMPLE_MISTAKES = [
   {
     wrong: 'Ich habe 25 Jahre.',
     right: 'Ich bin 25 Jahre alt.',
-    why: 'العمر في الألمانية بفعل sein لا haben — «أنا ٢٥ سنة» لا «عندي ٢٥ سنة».',
+    why: 'العمر في الألمانية بفعل sein لا haben — «أنا 25 سنة» لا «عندي 25 سنة».',
   },
   {
     wrong: 'Ich gehe nach Arzt.',

@@ -18,6 +18,7 @@
     "design:contrast": "node scripts/contrast-check.mjs",
     "design": "npm run design:audit && npm run design:contrast",
     "check:launch": "node scripts/check-launch.mjs",
+    "make:share-image": "node scripts/make-share-image.mjs",
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "measure:perf": "node scripts/measure-lighthouse.mjs",
     "check:launch:strict": "LAUNCH_STRICT=1 node scripts/check-launch.mjs",

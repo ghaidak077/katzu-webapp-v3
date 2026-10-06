@@ -65,11 +65,22 @@ for (const match of text.matchAll(/id:\s*'([a-z-]+)'[\s\S]{0,200}?bodyAr:\s*`\$\
   if (!outstanding.includes(sectionId)) outstanding.push(sectionId);
 }
 
+// A second, independent launch blocker: the public origin. Until
+// `VITE_PUBLIC_APP_URL` is set, the generated robots/sitemap stay relative and so
+// does the share image in `index.html` — which resolves, but a social crawler
+// wants absolute. It is owner-only (the domain is not the agent's to choose), so
+// it is counted alongside the legal fields and fails the strict gate the same way.
+const appUrl = String(process.env.VITE_PUBLIC_APP_URL || '').trim();
+const blockers = [...outstanding];
+if (!appUrl) blockers.push('VITE_PUBLIC_APP_URL');
+
 console.log(`[launch-check] strict=${strict ? '1' : '0'}`);
 console.log(`[launch-check] outstanding ${PLACEHOLDER} fields: ${outstanding.length}`);
 for (const sectionId of outstanding) console.log(`  - ${sectionId}`);
 if (outstanding.length === 0) console.log('[launch-check] every legal field is filled in.');
 else console.log('[launch-check] these belong to the owner; see the OWNER LIST in docs/AGENT-STATE.md.');
+if (appUrl) console.log(`[launch-check] VITE_PUBLIC_APP_URL set → og:image and robots/sitemap use absolute URLs.`);
+else console.log('[launch-check] VITE_PUBLIC_APP_URL is NOT set → share image and robots/sitemap stay relative; crawlers want absolute. Owner-only.');
 
 if (verify) {
   // The gate is verified by re-running it in strict mode and demanding the exact
@@ -79,7 +90,7 @@ if (verify) {
     env: { ...process.env, LAUNCH_STRICT: '1', LAUNCH_VERIFY: '0' },
     encoding: 'utf8',
   });
-  const expected = outstanding.length > 0 ? 1 : 0;
+  const expected = blockers.length > 0 ? 1 : 0;
   if (child.status !== expected) {
     console.error(`[launch-check] GATE BROKEN: strict run exited ${child.status}, expected ${expected}.`);
     process.exit(3);
@@ -88,8 +99,8 @@ if (verify) {
     console.error('[launch-check] GATE BROKEN: the strict run produced no machine-readable count.');
     process.exit(3);
   }
-  console.log(`[launch-check] gate verified: strict exits ${expected} with ${outstanding.length} open field(s).`);
+  console.log(`[launch-check] gate verified: strict exits ${expected} with ${blockers.length} open blocker(s).`);
   process.exit(0);
 }
 
-process.exit(strict && outstanding.length > 0 ? 1 : 0);
+process.exit(strict && blockers.length > 0 ? 1 : 0);
