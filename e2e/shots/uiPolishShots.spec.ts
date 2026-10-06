@@ -103,18 +103,46 @@ for (const { w, h } of VIEWPORTS) {
 }
 
 // The three verdict states — one screenshot each at 390x844, after the polish.
+// Test-only fixtures: three due cards, each graded to a specific verdict so the
+// three result states can be captured and inspected for warm tones (no red).
 test('review verdict states [after]', async ({ page }) => {
   if (TAG !== 'after') return;
   await setViewport(page, 390, 844);
   await bootSignedIn(page);
-  await seedRows(page, 'review_items', [reviewRow('موعد', 'der Termin')]);
+  await seedRows(page, 'review_items', [
+    reviewRow('موعد', 'der Termin'),
+    reviewRow('فاتورة', 'die Rechnung'),
+    reviewRow('قهوة', 'der Kaffee'),
+  ]);
   await page.goto('/app/review');
   await expect(page.getByRole('heading', { name: 'مراجعة الذاكرة' })).toBeVisible({ timeout: 30_000 });
 
-  // correct
+  // Card 1 (der Termin): exact answer → correct
   await page.getByLabel('إجابتك بالألمانية').fill('der Termin');
   await page.getByRole('button', { name: 'تحقّق من إجابتي' }).click();
   await expect(page.getByText('إجابة صحيحة')).toBeVisible();
   await page.waitForTimeout(400);
   await shoot(page, 'review-verdict-correct');
+
+  // Advance: good → next card
+  await page.getByRole('button', { name: 'بسهولة' }).click();
+  await page.waitForTimeout(300);
+
+  // Card 2 (die Rechnung): wrong article → close (almost)
+  await page.getByLabel('إجابتك بالألمانية').fill('der Rechnung');
+  await page.getByRole('button', { name: 'تحقّق من إجابتي' }).click();
+  await expect(page.getByText('المعنى صحيح')).toBeVisible();
+  await page.waitForTimeout(400);
+  await shoot(page, 'review-verdict-almost');
+
+  // Advance: good → next card
+  await page.getByRole('button', { name: 'بسهولة' }).click();
+  await page.waitForTimeout(300);
+
+  // Card 3 (der Kaffee): different noun → wrong (incorrect)
+  await page.getByLabel('إجابتك بالألمانية').fill('der Tee');
+  await page.getByRole('button', { name: 'تحقّق من إجابتي' }).click();
+  await expect(page.getByText('ليس بعد')).toBeVisible();
+  await page.waitForTimeout(400);
+  await shoot(page, 'review-verdict-incorrect');
 });

@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
  * The UI-polish screenshot rig (`e2e/shots/`).
@@ -49,6 +53,7 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.E2E_TARGET || process.env.E2E_TARGET !== 'preview',
     timeout: 180_000,
+    cwd: join(__dirname, '..'),
     env: { VITE_WORKER_URL: 'https://e2e-worker.test', VITE_ANALYTICS_DEV: '1' },
   },
 });
