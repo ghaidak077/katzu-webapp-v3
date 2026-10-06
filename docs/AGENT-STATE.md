@@ -21,6 +21,28 @@
   `assets/index-bWgfrKSi.js` (rollback `ec47b2ff-5cc8-4e89-9209-ac851d00538b`). The worker now
   carries `fe1d504` + `4d05905` and the newly armed `AI_DAILY_SPEND_CAP="292"`.
 
+## SNAPSHOT — current production rollbacks (read before any deploy touch)
+
+Recorded 2026-10-06 **before** this deploy session touched anything:
+
+- Worker version id (rollback target): `476bac16-eb7c-4cb9-8ccb-72ac35faf208` (100%, created
+  2026-10-06T05:51:18.154Z, author ghaidakalosh008@gmail.com). Older rollback target available:
+  `aafcf3bf-8307-4e20-bca6-240a075c8dd3`.
+- Pages production deployment id (rollback target): `08f0082d-c041-41c8-b1e8-d9938c3188d3`,
+  branch `main`, commit `463e292`, Active → production hostname serves
+  `assets/index-bWgfrKSi.js`. Older rollback target available: `b2eeae7f-5f0f-45a0-85b8-2ff923f54478`
+  (commit `e55b654`).
+- `GET /health` body (worker, read 2026-10-06):
+  `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false}`.
+- `GET /crypto/health` body (worker, read 2026-10-06):
+  `{"ok":true,"provider":"nowpayments","environment":"test_mode",...,"priceUsd":5,"months":1,"plans":[...],"ready":false}`.
+- Local HEAD on `main`: `26d7f55` ("G3: reserve the nav gap outside the last child, and prove it
+  with a browser check"), 4 commits ahead of `463e292`; `main` is up to date with `origin/main`
+  (`0 0` in `git rev-list --left-right --count main...HEAD`), **not pushed since the polish batch**.
+- **Rollback is PROVEN available** for both targets: `wrangler whoami` reports account
+  `00df3d915626e0a681f4fef98c1c587c` with `workers (write)`; `wrangler pages deployment list`
+  lists the production deployment and its predecessors.
+
 ## OWNER LIST (deduplicated — no secrets, no values)
 
 0. **No throwaway account can be created for the live authenticated proof.** Sign-in is
