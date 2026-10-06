@@ -635,9 +635,17 @@
 /* G3 (launch polish): the shared scroll container under the fixed tab bar.
    The bar is pt-2 (8px) + a 48px button + pb max(8px, safe-area) ≈ 64px plus
    the safe-area inset, so content reserves nav + inset + 16px of breathing
-   room — the last card and its buttons can never hide behind the glass. */
+   room — the last card and its buttons can never hide behind the glass.
+   Margin-bottom (not only padding) because the app shell is `min-h-screen`
+   flex `justify-between`: padding stretches the page but a SHORT page then
+   centres with the padding inside the flex box and the nav still over the
+   content; reserving space OUTSIDE the last child keeps the gap honest in
+   both the tall and the short case. */
 .kz-tab-scroll {
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
+}
+.kz-tab-scroll > :last-child {
+  margin-bottom: calc(72px + env(safe-area-inset-bottom));
 }
 
 /* The V2 equivalent: any German run — phrase, article, single word — is LTR

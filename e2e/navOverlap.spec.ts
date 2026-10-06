@@ -21,24 +21,38 @@ test.use({ viewport: { width: 360, height: 740 } });
  * element has no testid the test waits on `name` first and resolves the CSS
  * after, so Playwright-only pseudo-selectors are never needed.
  */
-const LAST_ELEMENTS = [
+const LAST_ELEMENTS: Array<{ tab: string; css: string; name?: string }> = [
   { tab: '/app/trail', css: '[data-testid="journey-level-chip"]' },
   // The vocabulary bank's browse button is the last control on the Practice tab.
   { tab: '/app/practice', css: 'div.rounded-2xl > button', name: 'تصفّح الكلمات' },
-] as const;
+];
 
 async function bottomGap(page: Page, selector: string): Promise<{ gap: number; tappable: boolean }> {
   // Scroll the page itself to the very bottom, then ask the browser whether a
   // tap at the element's centre would hit THE ELEMENT (not the glass nav).
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  await page.waitForTimeout(300);
-  return page.evaluate((sel) => {
+  // Scroll to the DOCUMENT's maximum scroll first — scrollIntoView({block:'end'})
+  // aligns the element with the VIEWPORT bottom, which is exactly under the
+  // fixed nav and would measure the middle of the screen, not the worst case
+  // a scrolling learner reaches. The frame settles before the rects are read.
+  return page.evaluate(async (sel) => {
     const el = document.querySelector(sel);
     if (!el) return { gap: -1, tappable: false };
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
     const rect = el.getBoundingClientRect();
     const nav = document.querySelector('nav.fixed');
     const navTop = nav ? nav.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
     const gap = navTop - rect.bottom;
+    const debug = JSON.stringify({
+      sel,
+      elBottomDoc: Math.round(rect.bottom + window.scrollY),
+      navTopViewport: Math.round(navTop),
+      docScrollHeight: document.documentElement.scrollHeight,
+      scrollY: Math.round(window.scrollY),
+      innerHeight: window.innerHeight,
+    });
+    (window as unknown as { __g3?: string }).__g3 = debug;
     // elementFromPoint is the honest tap test: an overlay covering the centre
     // answers with itself, not with the element under the finger.
     const cx = rect.left + rect.width / 2;
@@ -77,7 +91,12 @@ for (const { tab, css, name } of LAST_ELEMENTS) {
     const { gap, tappable } = await bottomGap(page, resolvedCss);
     // 4px tolerance: a hairline border may graze the nav's top edge without
     // the content being covered in any meaningful way.
-    expect(gap, `bottom of the last element must clear the tab bar (gap ${gap}px)`).toBeGreaterThanOrEqual(4);
+    expect(
+      gap,
+      `bottom of the last element must clear the tab bar (gap ${gap}px, geometry ${
+        await page.evaluate(() => (window as unknown as { __g3?: string }).__g3 ?? 'n/a')
+      })`,
+    ).toBeGreaterThanOrEqual(4);
     expect(tappable, 'the element must receive a tap at its own centre').toBe(true);
   });
 }
