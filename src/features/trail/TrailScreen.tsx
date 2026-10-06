@@ -15,11 +15,12 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { track } from '@/lib/analytics/client';
-import type { CEFRLevel, ScenarioEntity } from '@/types/models';
+import type { CEFRLevel, CapabilityState, ScenarioEntity } from '@/types/models';
 import { Sparkles, Check, Lock, Play, Flame, ArrowLeft, Brain } from 'lucide-react';
 import { rankFor } from '@/lib/progress/ranks';
 import { countDue } from '@/lib/srs/engine';
 import { missionStatusAr, selectDailyMission, type ScenarioLevelIndex } from '@/lib/mission/selectMission';
+import { buildCheckInMessage } from '@/lib/utils/checkIn';
 import {
   CAPABILITY_LABEL_AR,
   buildCapabilityModel,
@@ -31,6 +32,22 @@ const TRAIL_PREVIEW_COUNT = 5;
 const MORE_FORMS = { one: 'مشهد واحد', two: 'مشهدان', few: 'مشاهد', many: 'مشهداً' } as const;
 /** V31: agreement for the review strip's title. See `arabicCount`. */
 const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
+
+/**
+ * The path chip's wording, per state.
+ *
+ * The bare state name for PRACTISING («قيد التدريب») failed the new-learner
+ * test: beside «لم يبدأ» it says that something is happening, but not THAT THE
+ * LEARNER practised it and is not independent in it yet — which is exactly what
+ * the old hint line under the card said. That hint is folded into the chip so
+ * the state stays one line and carries its own meaning. Other states keep the
+ * shared labels; the longer sentence is a Trail-only override, so compact
+ * surfaces elsewhere (Progress, the capability card) are untouched.
+ */
+const PATH_CHIP_LABEL_AR: Record<CapabilityState, string> = {
+  ...CAPABILITY_LABEL_AR,
+  PRACTISING: 'تدرّبت عليه — لم تستقل فيه بعد',
+};
 
 export interface TrailScreenProps {
   onSelectScenario: (scenarioId: string) => void;
@@ -158,6 +175,21 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
 
   const xpRank = useMemo(() => rankFor(user?.totalXp ?? 0), [user?.totalXp]);
   const streakDays = user?.streakDays ?? 0;
+
+  // Katzu's one-line welcome, restored from the old check-in card: the same
+  // existing copy, now a single quiet line above the mission strip. The second
+  // line (the card's old subtitle) stays dropped — one line, no card.
+  const checkIn = useMemo(
+    () =>
+      user
+        ? buildCheckInMessage({ lastActiveDate: user.lastActiveDate, streakDays: user.streakDays || 0 })
+        : null,
+    [user?.lastActiveDate, user?.streakDays],
+  );
+
+  // Katzu's one-line welcome, restored from the old check-in card: the same
+  // existing copy, now a single quiet line above the mission strip. The second
+  // line (the card's old subtitle) stays dropped — one line, no card.
 
   /**
    * The scenario card's status now comes from the capability model, so "done"
@@ -326,6 +358,17 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           </Badge>
         </div>
       </header>
+
+      {/* The greeting, one line: the same check-in copy the old card carried,
+          kept only while it costs the path nothing (probe-pinned below). */}
+      {checkIn && (
+        <p
+          data-testid="journey-greeting"
+          className="mb-2 font-arabic text-sm leading-relaxed text-text-secondary"
+        >
+          {checkIn.headline}
+        </p>
+      )}
 
       {/* TODAY'S MISSION — one compact strip (≈88px). ONE primary action for today,
        * as before; it just no longer needs 200px to say it.
@@ -518,7 +561,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
                   <div className="flex items-center gap-1.5">
                     <Badge variant={done ? 'success' : 'subtle'} size="sm">
-                      {CAPABILITY_LABEL_AR[state]}
+                      {PATH_CHIP_LABEL_AR[state]}
                     </Badge>
                     <Play className="h-3.5 w-3.5 text-text-muted" aria-hidden />
                   </div>
