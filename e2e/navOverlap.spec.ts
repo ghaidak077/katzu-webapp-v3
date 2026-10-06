@@ -37,9 +37,19 @@ async function bottomGap(page: Page, selector: string): Promise<{ gap: number; t
   return page.evaluate(async (sel) => {
     const el = document.querySelector(sel);
     if (!el) return { gap: -1, tappable: false };
-    window.scrollTo(0, document.documentElement.scrollHeight);
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    // Scroll until the page has actually reached its own bottom: screens that
+    // hydrate content lazily (task panel, progress strip) grow the document
+    // AFTER the first scroll, so the browser can stop at an earlier maximum and
+    // a mid-page frame gets measured as if it were the worst case. A stable
+    // scrollY is not enough — the loop only ends when scrollY is the max.
+    for (let round = 0; round < 10; round += 1) {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (window.scrollY >= max - 1) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
     const rect = el.getBoundingClientRect();
     const nav = document.querySelector('nav.fixed');
     const navTop = nav ? nav.getBoundingClientRect().top : Number.POSITIVE_INFINITY;

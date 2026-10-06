@@ -4,8 +4,7 @@ import { dayIndexFor } from '@/lib/utils/dailyMission';
 import { goalMatchScore } from '@/lib/onboarding/preferences';
 import { arCount } from '@/lib/i18n/arabicCount';
 
-/** V31: agreement for the review mission's two lines. See `arabicCount`. */
-const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
+/** V31: agreement for the review mission's CTA. See `arabicCount`. */
 const REVIEW_ITEM_ACC_FORMS = { one: 'عنصراً', two: 'عنصرين', few: 'عناصر', many: 'عنصراً' } as const;
 
 /**
@@ -222,7 +221,10 @@ function selectMissionAction(input: MissionInput): DailyMissionPlan {
   if (dueCount > 0) {
     return {
       kind: 'review',
-      subtitleAr: `${arCount(dueCount, REVIEW_ITEM_FORMS)} حان وقت تثبيته`,
+      // The count lives in the caller's title («8 عناصر للمراجعة») and the CTA
+      // («راجع 8 عناصر الآن»); repeating it in the subtitle said the same thing
+      // three times on one card. المراجعة is feminine, so the pronoun is ها.
+      subtitleAr: 'حان وقت تثبيتها',
       // V31: this used to read "راجع 3 الآن" — a count with no noun at all,
       // which asks the learner to review three of something unspecified.
       ctaAr: `راجع ${arCount(dueCount, REVIEW_ITEM_ACC_FORMS)} الآن`,

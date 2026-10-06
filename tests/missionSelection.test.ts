@@ -86,7 +86,9 @@ describe('daily mission selection', () => {
     );
     expect(plan.dueCount).toBe(3);
     expect(plan.ctaAr).toBe('راجع 3 عناصر الآن');
-    expect(plan.subtitleAr).toContain('3 عناصر');
+    // The count belongs to the title and the CTA; the subtitle carries only the
+    // reason, and المراجعة is feminine — تثبيتها, not تثبيته.
+    expect(plan.subtitleAr).toBe('حان وقت تثبيتها');
   });
 
   it('the review CTA uses the singular for exactly one', () => {

@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { arCount } from '@/lib/i18n/arabicCount';
 import { GlassButton } from '@/components/glass/GlassButton';
+import { Button } from '@/components/ui/Button';
 import { isProEffective } from '@/lib/utils/subscription';
 import { FREE_LEVEL, isLevelFree, servedLevel } from '@/lib/entitlement/trial';
 import { examFirstScenarios } from '@/lib/levels/levelSpec';
@@ -15,8 +16,7 @@ import { Badge } from '@/components/ui/Badge';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { track } from '@/lib/analytics/client';
 import type { CEFRLevel, ScenarioEntity } from '@/types/models';
-import { Sparkles, CheckCircle2, Lock, Play, Flame, ArrowLeft, Brain } from 'lucide-react';
-import { buildCheckInMessage } from '@/lib/utils/checkIn';
+import { Sparkles, Check, Lock, Play, Flame, ArrowLeft, Brain } from 'lucide-react';
 import { rankFor } from '@/lib/progress/ranks';
 import { countDue } from '@/lib/srs/engine';
 import { missionStatusAr, selectDailyMission, type ScenarioLevelIndex } from '@/lib/mission/selectMission';
@@ -29,6 +29,8 @@ import {
 /** V32: how many situations the roadmap shows before the learner asks for more. */
 const TRAIL_PREVIEW_COUNT = 5;
 const MORE_FORMS = { one: 'مشهد واحد', two: 'مشهدان', few: 'مشاهد', many: 'مشهداً' } as const;
+/** V31: agreement for the review strip's title. See `arabicCount`. */
+const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
 
 export interface TrailScreenProps {
   onSelectScenario: (scenarioId: string) => void;
@@ -38,6 +40,21 @@ export interface TrailScreenProps {
   onOpenOnboarding?: () => void;
 }
 
+/**
+ * The journey path — every situation, on one timeline.
+ *
+ * Layout rules this screen now follows (they were the defects in review):
+ *  - ONE column, full-width cards. The old zigzag narrowed every card to 82%,
+ *    pushed alternate rows off the edge, and ran the timeline straight through
+ *    the artwork.
+ *  - The timeline is a hairline on the START edge (right in RTL) with one node
+ *    per card, so it can never cross a card.
+ *  - A card with no real artwork renders compact — no blank 16:9 block. A card
+ *    that has artwork shows it as a small 16:9 thumbnail.
+ *  - Exactly one glow on the screen: the current node's card.
+ *  - Section rhythm is the shared spacing scale, and every surface is the shared
+ *    card material (`Card` → `.kz-surface`), not a hand-rolled panel.
+ */
 export const TrailScreen: React.FC<TrailScreenProps> = ({
   onSelectScenario,
   onOpenSubscription,
@@ -139,16 +156,8 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   );
   const missionScenarioId = mission.scenarioId;
 
-  // Katzu's daily welcome-back line reflects the user's real habit state.
-  const checkIn = useMemo(
-    () =>
-      user
-        ? buildCheckInMessage({ lastActiveDate: user.lastActiveDate, streakDays: user.streakDays || 0 })
-        : null,
-    [user?.lastActiveDate, user?.streakDays],
-  );
-
   const xpRank = useMemo(() => rankFor(user?.totalXp ?? 0), [user?.totalXp]);
+  const streakDays = user?.streakDays ?? 0;
 
   /**
    * The scenario card's status now comes from the capability model, so "done"
@@ -156,6 +165,10 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
    * answering one quiz. Tests pin those transitions.
    */
   const capabilityFor = (scenarioId: string) => capability.byScenario[scenarioId]?.state || 'NOT_STARTED';
+  const isDone = (scenarioId: string) => {
+    const state = capabilityFor(scenarioId);
+    return state === 'INDEPENDENT' || state === 'RETAINED';
+  };
 
   // The pills start on the learner's measured level (never silently A1), and a
   // deliberate tap wins from then on.
@@ -200,259 +213,330 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
     onSelectScenario(scenarioId);
   };
 
+  // The one mission action, shared by every mission kind so the screen keeps
+  // exactly one primary button.
+  const missionCta = (() => {
+    if (mission.kind === 'review') {
+      return (
+        <Button variant="primary" size="sm" onClick={onOpenReview} className="shrink-0">
+          <Brain className="h-3.5 w-3.5" aria-hidden />
+          <span className="whitespace-nowrap">{mission.ctaAr}</span>
+        </Button>
+      );
+    }
+    if (mission.kind === 'no_content') {
+      return (
+        <Button variant="primary" size="sm" onClick={() => window.location.reload()} className="shrink-0">
+          <span className="whitespace-nowrap">{mission.ctaAr}</span>
+        </Button>
+      );
+    }
+    if (missionScenarioId) {
+      return (
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => handleScenarioClick(missionScenarioId)}
+          className="shrink-0"
+        >
+          <span className="whitespace-nowrap">{mission.ctaAr}</span>
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+        </Button>
+      );
+    }
+    return null;
+  })();
+
+  const missionTitle =
+    mission.kind === 'review' ? (
+      <p className="font-arabic text-sm font-bold leading-snug text-text-primary">
+        {arCount(dueCount, REVIEW_ITEM_FORMS)} للمراجعة
+      </p>
+    ) : mission.scenarioId && mission.titleDe ? (
+      <GermanText className="block text-sm font-bold leading-snug text-text-primary">
+        {mission.titleDe}
+      </GermanText>
+    ) : (
+      <p className="font-arabic text-sm font-bold leading-snug text-text-primary">مهمتك اليومية قيد التجهيز</p>
+    );
+
+  const missionSubtitle = mission.kind === 'review' ? (
+    <p className="text-sm font-arabic leading-relaxed text-text-secondary">{mission.subtitleAr}</p>
+  ) : (
+    <p className="line-clamp-2 text-sm font-arabic leading-relaxed text-text-secondary">
+      <bdi dir="rtl">{mission.titleAr || mission.subtitleAr}</bdi>
+    </p>
+  );
+
   return (
     <div className="min-h-screen bg-black text-text-primary pb-28 pt-4 px-4 max-w-md mx-auto relative">
-      {/* Top Header Bar */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <KatzuMascot name="avatar" className="w-10 h-10" />
-          <div>
-            <h2 className="text-base font-bold font-arabic leading-tight">{user?.displayName || 'مستكشف كَاتْزُو'}</h2>
-            <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-              <span className="flex items-center gap-1 text-learning font-bold">
-                <Flame className="w-3.5 h-3.5 fill-learning text-learning" />
-                {user?.streakDays ?? 0} أيام حماس
-              </span>
-              <span>•</span>
-              <span className="text-primary font-bold">
-                {xpRank.rank.nameAr} · الرتبة {xpRank.rankNumber} من {xpRank.totalRanks}
-              </span>
-            </div>
+      {/* ---------------------------------------------------------------- *
+       * HEADER — one row for identity, one for status.
+       *
+       * The old header put the streak, a "•" separator and the full rank name
+       * on one line beside the name, which wrapped on a 360px phone and left
+       * the separator orphaned. Now: avatar + name on the start side, the Pro
+       * badge on the end side, then TWO chips that never wrap — a streak chip
+       * and a rank pill carrying only «الرتبة N من M». The rank's name moved
+       * into the rank card below, where it has room.
+       * ---------------------------------------------------------------- */}
+      <header className="mb-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <KatzuMascot name="avatar" className="h-10 w-10 shrink-0" />
+            <h2 className="truncate text-base font-bold font-arabic leading-tight">
+              {user?.displayName || 'مستكشف كَاتْزُو'}
+            </h2>
           </div>
+          {!isPro ? (
+            <button
+              onClick={onOpenSubscription}
+              aria-label="اكتشف مزايا Pro"
+              className="flex min-h-touch shrink-0 items-center gap-1.5 rounded-chip border border-primary/40 bg-primary/15 px-3 text-micro font-bold text-primary transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              <span className="whitespace-nowrap">اكتشف مزايا Pro</span>
+            </button>
+          ) : (
+            <Badge variant="success" size="sm">
+              Katzu Pro نشط
+            </Badge>
+          )}
         </div>
 
-        {!isPro ? (
-          <button
-            onClick={onOpenSubscription}
-            aria-label="اكتشف مزايا Pro"
-            className="flex min-h-[44px] items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary text-xs font-bold shadow-glow-purple transition-colors"
+        {/* Two chips, each on one line. A zero-day streak is a GOAL, so it reads
+            neutral grey; a live streak is the warm highlight. */}
+        <div className="mt-2 flex items-center gap-2">
+          <span
+            data-testid="trail-streak-chip"
+            className={`inline-flex min-h-touch items-center gap-1 whitespace-nowrap rounded-chip border px-2.5 font-arabic text-micro ${
+              streakDays > 0
+                ? 'border-status-learning/30 bg-status-learning/15 font-bold text-status-learning'
+                : 'border-border-subtle bg-surface-subtle text-text-muted'
+            }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>اكتشف مزايا Pro</span>
-          </button>
-        ) : (
-          <Badge variant="success" size="sm">
-            Katzu Pro نشط
+            <Flame
+              className={`h-3.5 w-3.5 ${streakDays > 0 ? 'fill-learning text-learning' : 'text-text-muted'}`}
+              aria-hidden
+            />
+            {streakDays} أيام حماس
+          </span>
+          <Badge variant="primary" size="sm" data-testid="trail-rank-pill">
+            الرتبة {xpRank.rankNumber} من {xpRank.totalRanks}
           </Badge>
-        )}
-      </div>
+        </div>
+      </header>
 
-      {/* Katzu Daily Check-in */}
-      {checkIn && (
-        <div className="mb-4 flex items-center gap-3 rounded-3xl border border-border-subtle bg-surface-card p-4">
-          <KatzuMascot name="peace" className="h-14 w-14 shrink-0 object-contain" />
-          <div className="min-w-0">
-            <p className="font-arabic text-sm font-bold leading-snug text-text-primary">{checkIn.headline}</p>
-            <p className="mt-0.5 font-arabic text-xs leading-snug text-text-secondary">{checkIn.sub}</p>
-            {xpRank.next && (
-              <div className="mt-2">
-                <div className="flex items-center justify-between text-micro font-arabic text-text-secondary">
-                  <span className="text-primary font-bold">{xpRank.rank.nameAr}</span>
-                  <span>{xpRank.xpToNext} XP للرتبة التالية</span>
-                </div>
-                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
-                  <div className="h-full w-full rounded-full bg-primary origin-right transition-transform duration-panels ease-out" style={{ transform: `scaleX(${xpRank.progressPercent / 100})` }} />
-                </div>
-              </div>
+      {/* TODAY'S MISSION — one compact strip (≈88px). ONE primary action for today,
+       * as before; it just no longer needs 200px to say it.
+       * It used to be a 200px+ hero with a 96px mascot, a tag that repeated its
+       * own title, a peach CTA that competed with the app's purple primary, and
+       * a purple glow. Now: small mascot, one title, one subtitle, one primary
+       * button, shared card material, no glow. Peach is gone — the Review
+       * screen's own review CTA is the primary fill, so this one is too.
+       * ---------------------------------------------------------------- */}
+      <Card variant="card" className="mb-4 p-3">
+        <div className="flex items-center gap-3">
+          <KatzuMascot
+            name={mission.kind === 'review' ? 'thumbs_up' : 'trail_header'}
+            className="h-12 w-12 shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            {mission.kind !== 'review' && (
+              <Badge variant={mission.kind === 'no_content' ? 'subtle' : 'primary'} size="sm" className="mb-1">
+                {missionStatusAr(mission.kind)}
+              </Badge>
+            )}
+            {missionTitle}
+            {missionSubtitle}
+            {/* B6: the days-left line, only inside the last month of an exam, and
+                never as a reason to skip the mission above it. */}
+            {mission.countdownAr ? (
+              <p data-testid="exam-countdown" className="mt-1 font-arabic text-micro text-status-warning">
+                {mission.countdownAr}
+              </p>
+            ) : null}
+            {mission.kind === 'no_content' && (
+              <p className="mt-1 font-arabic text-micro leading-relaxed text-text-muted">
+                يمكنك المتابعة بالمراجعة والتدريبات المتاحة على هذا الجهاز حتى يتوفر الاتصال.
+              </p>
             )}
           </div>
+          {missionCta}
         </div>
-      )}
-
-      {/* ONE primary action for today. Review-due content becomes this card
-          rather than a competing banner: the mission selector already put it
-          first, and two prominent CTAs is how a learner ends up doing neither. */}
-      <Card
-        variant="hero"
-        className={`p-4 mb-6 relative overflow-hidden flex items-center justify-between border shadow-glow-purple ${
-          mission.kind === 'review' ? 'border-status-learning/50' : 'border-primary/40'
-        }`}
-      >
-        <div className="z-10 max-w-[65%]">
-          <Badge variant={mission.kind === 'review' ? 'learning' : 'primary'} size="sm" className="mb-2">
-            {missionStatusAr(mission.kind)}
-          </Badge>
-          {mission.kind === 'review' ? (
-            <>
-              <h3 className="text-base font-bold font-arabic mb-1 leading-snug">
-                مراجعة اليوم: {dueCount} عنصر
-              </h3>
-              <p className="text-xs text-text-secondary font-arabic">{mission.subtitleAr}</p>
-            </>
-          ) : mission.scenarioId ? (
-            <>
-              <GermanText className="text-base font-bold text-text-primary block mb-1 leading-snug">
-                {mission.titleDe || ''}
-              </GermanText>
-              <p className="text-xs text-text-secondary font-arabic">{mission.titleAr || mission.subtitleAr}</p>
-            </>
-          ) : (
-            <>
-              <h3 className="text-base font-bold font-arabic mb-1 leading-snug">مهمتك اليومية قيد التجهيز</h3>
-              <p className="text-xs text-text-secondary font-arabic">{mission.subtitleAr}</p>
-            </>
-          )}
-
-          {mission.kind === 'review' && (
-            <button
-              onClick={onOpenReview}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-status-learning px-3.5 py-1.5 text-xs font-bold text-black shadow-glow-purple transition-colors min-h-[44px]"
-            >
-              <Brain className="w-3.5 h-3.5" />
-              <span>{mission.ctaAr}</span>
-            </button>
-          )}
-
-          {/* B6: the days-left line, only inside the last month of an exam, and
-              never as a reason to skip the mission above it. */}
-          {mission.countdownAr ? (
-            <p data-testid="exam-countdown" className="mt-2 text-xs font-arabic text-status-warning">
-              {mission.countdownAr}
-            </p>
-          ) : null}
-          {missionScenarioId && mission.kind !== 'review' && (
-            <button
-              onClick={() => handleScenarioClick(missionScenarioId)}
-              className="mt-2 inline-flex items-center gap-1 rounded-full bg-fill px-3.5 py-1.5 text-xs font-bold text-on-fill shadow-glow-purple transition-colors min-h-[44px]"
-            >
-              <span>{mission.ctaAr}</span>
-              <ArrowLeft className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {mission.kind === 'no_content' && (
-            <p className="mt-3 text-micro font-arabic text-text-muted leading-relaxed">
-              يمكنك المتابعة بالمراجعة والتدريبات المتاحة على هذا الجهاز حتى يتوفر الاتصال.
-            </p>
-          )}
-        </div>
-        <KatzuMascot name="trail_header" className="w-24 h-24 object-contain -me-2 z-10" />
       </Card>
 
       {/* Learners whose profile predates onboarding are prompted once here —
-          never redirected mid-task, and never asked twice after they answer.
-
-          V32: this used to sit ABOVE the mission, where it read as a second,
-          equally-urgent thing to do. The mission is today's work; this is setup.
-          Below it, and quiet, it stops competing with the one action that
-          matters. */}
+          never redirected mid-task, and never asked twice after they answer. */}
       {user?.isLoggedIn && !user.onboardingCompletedAt && onOpenOnboarding && (
         <button
           onClick={onOpenOnboarding}
-          className="mb-6 flex w-full items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors pointer-hover:border-primary/40 min-h-[44px]"
+          className="mb-4 flex w-full min-h-touch items-center justify-between gap-3 rounded-panel border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors pointer-hover:border-primary/40"
         >
           <span className="min-w-0">
-            <span className="block font-arabic text-xs font-bold text-text-primary">
+            <span className="block font-arabic text-sm font-bold text-text-primary">
               أكمل تفضيلاتك (30 ثانية)
             </span>
-            <span className="mt-0.5 block font-arabic text-micro text-text-secondary">
+            <span className="mt-0.5 block font-arabic text-micro leading-relaxed text-text-secondary">
               يجعل المهمة اليومية أدق — ومستواك غير مقيس حتى تختاره.
             </span>
           </span>
-          <ArrowLeft className="h-4 w-4 shrink-0 text-text-secondary" />
+          <ArrowLeft className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
         </button>
       )}
 
-      {/* CEFR Level Selector Pills */}
-      <div className="flex items-center justify-between gap-2 p-1.5 bg-surface-card border border-border-subtle rounded-2xl mb-8">
+      {/* ---------------------------------------------------------------- *
+       * RANK CARD — collapsed to ~72px: name, the XP line, one full-width bar.
+       *
+       * The bar used to be a 6px sliver inside a paragraph of greeting copy,
+       * with the XP label rendered as «XP 325 للرتبة التالية» — the number and
+       * its unit were split by the bidi algorithm. The label now isolates
+       * «325 XP» in a <bdi dir="ltr">, so it reads in the intended order, and
+       * the number sits directly above a bar the eye can actually follow.
+       * ---------------------------------------------------------------- */}
+      <Card variant="card" className="mb-4 p-3" data-testid="trail-rank-card">
+        <div className="flex items-center gap-3">
+          <KatzuMascot name="peace" className="h-10 w-10 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate font-arabic text-sm font-bold text-text-primary">
+                {xpRank.rank.nameAr}
+              </span>
+              {xpRank.next ? (
+                <span className="shrink-0 whitespace-nowrap font-arabic text-micro text-text-secondary">
+                  <bdi dir="ltr">{xpRank.xpToNext} XP</bdi> للرتبة التالية
+                </span>
+              ) : (
+                <span className="shrink-0 font-arabic text-micro text-text-secondary">أعلى رتبة</span>
+              )}
+            </div>
+            <div
+              className="mt-2 h-[7px] w-full overflow-hidden rounded-full bg-surface-subtle"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={xpRank.progressPercent}
+              aria-label={`التقدم نحو ${xpRank.next ? xpRank.next.nameAr : 'أعلى رتبة'}`}
+            >
+              <div
+                className="h-full w-full rounded-full bg-primary origin-right transition-transform duration-panels ease-out"
+                style={{ transform: `scaleX(${xpRank.progressPercent / 100})` }}
+              />
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* CEFR level tabs — the same segmented shape as the Practice filters:
+          44px targets, the chip radius, `fill` for the selected segment. The
+          selected pill's glow is gone; the one glow on this screen belongs to
+          the current path node. */}
+      <div className="mb-4 flex items-center justify-between gap-2 rounded-panel border border-border-subtle bg-surface-card p-1.5">
         {levels.map((lvl) => {
           const isLvlLocked = levelLocked(lvl);
           return (
             <button
               key={lvl}
               onClick={() => handleLevelSelect(lvl)}
-              className={`flex-1 min-h-[44px] py-2 rounded-xl text-xs font-german font-bold transition-colors flex items-center justify-center gap-1 ${
+              className={`flex min-h-touch flex-1 items-center justify-center gap-1 rounded-chip py-2 font-german text-xs font-bold transition-colors ${
                 selectedLevel === lvl
-                  ? 'bg-fill text-on-fill shadow-glow-purple'
+                  ? 'bg-fill text-on-fill'
                   : 'text-text-secondary pointer-hover:text-text-primary'
               }`}
             >
               <span>{lvl}</span>
-              {isLvlLocked && <Lock className="w-3 h-3 text-text-muted" />}
+              {isLvlLocked && <Lock className="h-3 w-3 text-text-muted" aria-hidden />}
             </button>
           );
         })}
       </div>
 
-      {/* Vertical Curriculum Trail Roadmap.
+      {/* ---------------------------------------------------------------- *
+       * THE PATH — one column, a hairline on the start edge, one node per card.
+       * ---------------------------------------------------------------- */}
+      <ol className="relative space-y-4" data-testid="trail-path">
+        {/* The timeline: inside the node gutter only, so it can never cross a
+            card. `start` is the right edge in RTL. */}
+        <div
+          aria-hidden
+          className="absolute bottom-3 top-3 w-[2px] bg-border-subtle start-[19px]"
+        />
 
-          V32: measured 12 controls on this screen that all read as *the* main
-          action — eight 82%-wide cards plus four level chips, with the level
-          pills sitting ABOVE the cards so they led the hierarchy. The trail
-          metaphor is worth keeping; what is not worth keeping is a wall of
-          equals. The roadmap now opens on the next few situations with one
-          obvious "show the rest" action, and the level row is demoted to a
-          quiet filter. */}
-      <div className="relative flex flex-col items-center space-y-6">
-        {/* Glowing Path Line */}
-        <div className="absolute top-4 bottom-4 w-1 bg-gradient-to-b from-primary via-primary/30 to-border-subtle z-0" />
-
-        {scenarios.slice(0, showAllScenarios ? undefined : TRAIL_PREVIEW_COUNT).map((scenario: ScenarioEntity, index: number) => {
+        {scenarios.slice(0, showAllScenarios ? undefined : TRAIL_PREVIEW_COUNT).map((scenario: ScenarioEntity) => {
           const state = capabilityFor(scenario.id);
-          const isMastered = state === 'INDEPENDENT' || state === 'RETAINED';
-          const isOffsetLeft = index % 2 === 0;
+          const done = isDone(scenario.id);
+          const current = !done && scenario.id === missionScenarioId;
+          const scene = sceneFor({
+            id: scenario.id,
+            category: scenario.category,
+            bannerUrl: scenario.banner_url,
+          });
 
           return (
-            <div
-              key={scenario.id}
-              className={`w-full flex items-center z-10 ${
-                isOffsetLeft ? 'justify-start pe-8' : 'justify-end ps-8'
-              }`}
-            >
+            <li key={scenario.id} className="relative flex items-stretch gap-3">
+              {/* Node gutter. The node is the state marker; the line runs behind
+                  it and stops at the gutter's edge. */}
+              <div className="relative z-10 flex w-10 shrink-0 items-center justify-center">
+                <span
+                  data-testid={`trail-node-${state}`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+                    done
+                      ? 'border-transparent bg-fill text-on-fill'
+                      : current
+                        ? 'border-primary bg-black'
+                        : 'border-border-subtle bg-surface-subtle'
+                  }`}
+                >
+                  {done ? (
+                    <Check className="h-4 w-4" aria-hidden />
+                  ) : current ? (
+                    <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden />
+                  ) : null}
+                </span>
+              </div>
+
               <button
                 type="button"
                 onClick={() => handleScenarioClick(scenario.id)}
                 aria-label={`${scenario.title_ar} (${scenario.title_de})`}
-                className={`relative w-[82%] overflow-hidden rounded-3xl border text-start cursor-pointer transition-[background-color,border-color,box-shadow] ${
-                  isMastered
-                    ? 'bg-surface-card border-status-success/40 shadow-glow-green'
-                    : 'bg-surface-card border-border-subtle pointer-hover:border-primary/50'
+                className={`flex min-h-touch flex-1 items-stretch gap-3 overflow-hidden rounded-panel border bg-surface-card p-3 text-start transition-[background-color,border-color,box-shadow] ${
+                  current
+                    ? 'border-primary/60 shadow-glow-purple'
+                    : done
+                      ? 'border-status-success/40 pointer-hover:border-status-success/60'
+                      : 'border-border-subtle pointer-hover:border-primary/50'
                 }`}
               >
-                {/* The scenario's 16:9 thumbnail — the same banner the mission card
-                    and the scenario's own screen use, so one scenario looks like one
-                    situation everywhere. */}
-                <ScenarioBanner
-                  scene={sceneFor({
-                    id: scenario.id,
-                    category: scenario.category,
-                    bannerUrl: scenario.banner_url,
-                  })}
-                >
-                  <div className="flex items-start justify-end p-2.5">
-                    <Badge variant={isMastered ? 'success' : 'subtle'} size="sm">
+                {/* A real 16:9 thumbnail when the scenario has artwork; nothing at
+                    all when it does not. The old card always reserved a 16:9 box,
+                    so a scenario with no art showed a blank dark gradient that
+                    read as a broken image and cost ~140px of scroll. */}
+                {scene.artUrl && (
+                  <ScenarioBanner scene={scene} className="w-32 shrink-0 self-center" />
+                )}
+
+                <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant={done ? 'success' : 'subtle'} size="sm">
                       {CAPABILITY_LABEL_AR[state]}
                     </Badge>
+                    <Play className="h-3.5 w-3.5 text-text-muted" aria-hidden />
                   </div>
-                </ScenarioBanner>
-
-                <div className="p-3.5">
-                  {isMastered ? (
-                    <CheckCircle2 className="mb-1 h-5 w-5 text-status-success" />
-                  ) : (
-                    <div className="mb-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-primary">
-                      <Play className="h-3.5 w-3.5 fill-primary text-primary" />
-                    </div>
-                  )}
-
-                  <GermanText className="text-base font-bold text-text-primary block mb-0.5">
+                  <GermanText className="block text-sm font-bold leading-snug text-text-primary">
                     {scenario.title_de}
                   </GermanText>
-                  {/* V35: one line cut Arabic scenario titles mid-phrase. The card opens the
-                      full title, but a card should not need opening to be read. */}
-                  <div className="text-xs text-text-secondary font-arabic line-clamp-2">
-                    {scenario.title_ar}
-                  </div>
-                  {capabilityFor(scenario.id) === 'PRACTISING' && (
-                    <p className="mt-1.5 text-micro font-arabic text-status-learning">
-                      تدرّبت عليه — لم تصبح مستقلاً فيه بعد
-                    </p>
-                  )}
+                  {/* The Arabic title can carry Latin parentheses («(أسلوب
+                      الامتحان)»); the <bdi dir="rtl"> keeps them on the RTL base
+                      direction so they mirror the way Arabic reads them. */}
+                  <p className="line-clamp-2 font-arabic text-sm leading-relaxed text-text-secondary">
+                    <bdi dir="rtl">{scenario.title_ar}</bdi>
+                  </p>
                 </div>
               </button>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ol>
 
       {/* The one obvious thing left to do on a wall of cards. */}
       {!showAllScenarios && scenarios.length > TRAIL_PREVIEW_COUNT && (
@@ -460,7 +544,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           variant="secondary"
           fullWidth
           onClick={() => setShowAllScenarios(true)}
-          className="justify-center"
+          className="mt-4 justify-center"
         >
           <span className="font-arabic">اعرض بقية المشاهد</span>
           <span className="kz-ar-micro font-german text-kz-inkFaint">

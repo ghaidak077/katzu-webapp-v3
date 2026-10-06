@@ -355,6 +355,9 @@ test('Trail shows the earned Arabic rank and its position in the ladder', async 
 
   await page.goto('/app/library');
 
-  await expect(page.getByText('صياد الأُملاوت · الرتبة 3 من 6')).toBeVisible();
+  // The rank name and the rank number are two chips now: the pill in the header
+  // carries only «الرتبة 3 من 6», and the name lives in the rank card below.
+  await expect(page.getByText('الرتبة 3 من 6')).toBeVisible();
+  await expect(page.getByText('صياد الأُملاوت')).toBeVisible();
   await expect(page.getByText(/XP للرتبة التالية/)).toBeVisible();
 });
