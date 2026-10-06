@@ -49,7 +49,9 @@ test('an empty mistake bank says what to do next instead of only congratulating'
   await bootSignedIn(page);
   await page.goto('/app/practice');
 
-  await page.getByRole('button', { name: 'بنك الأخطاء' }).first().click();
+  // Launch polish: the drill tile was RENAMED «تدريب الأخطاء» so it says what
+  // it opens (the retype modal), distinct from the «ملف أخطائك» patterns card.
+  await page.getByRole('button', { name: 'تدريب الأخطاء' }).first().click();
 
   // The state, then the mechanism — a learner who has never made a recorded
   // mistake must still learn how mistakes get recorded.
@@ -74,8 +76,9 @@ test('a saved-word list with nothing in it offers the way out', async ({ page })
   // And the way out actually works: the full list comes back.
   await back.click();
   await expect(page.getByText(/لم تحفظ أي كلمة بعد/)).toHaveCount(0);
-  // V32: the word list is an archive you search, so the filter now says so.
-  await expect(page.getByRole('button', { name: /^ابحث في الكل \(/ })).toBeVisible();
+  // Launch polish 4.5: the filter names the STATE («الكل (n)»), not an action
+  // («ابحث في الكل» duplicated the search field above it).
+  await expect(page.getByRole('button', { name: /^الكل \(/ })).toBeVisible();
 });
 
 test('the Pro offer names the price, the free tier, the terms and who sells it', async ({ page }) => {

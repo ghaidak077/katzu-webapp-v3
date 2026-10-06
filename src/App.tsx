@@ -609,6 +609,7 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
           onOpenWriting={() => navigate('/app/write')}
           onOpenCoach={() => navigate('/app/coach')}
           onOpenAsk={() => navigate('/app/ask')}
+          onOpenReview={() => navigate('/app/review')}
         />
       )}
       {activeTab === 'Progress' && (

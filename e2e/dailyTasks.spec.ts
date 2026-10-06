@@ -24,11 +24,14 @@ test('Journey Home names the three daily tasks with one action each', async ({ p
   await expect(panel.getByText('محادثة مشهد واحدة')).toBeVisible();
   await expect(panel.getByText('خطوة قواعد واحدة')).toBeVisible();
   await expect(panel.getByText('دفعة مراجعة')).toBeVisible();
-  await expect(panel.getByText('0 من 3', { exact: true })).toBeVisible();
-
-  await expect(panel.getByRole('button', { name: 'ابدأ محادثة' })).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'افتح القاعدة' })).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'ابدأ المراجعة' })).toBeVisible();
+  // Launch polish: the panel is a compact checklist — whole rows are the tap
+  // targets now, so the per-task text buttons are gone. The names survive as
+  // the row's accessible name; the done state renders as a checklist row, not
+  // a removed button.
+  await expect(panel.getByRole('button', { name: /محادثة مشهد واحدة/ })).toBeVisible();
+  await expect(panel.getByRole('button', { name: /خطوة قواعد واحدة/ })).toBeVisible();
+  await expect(panel.getByRole('button', { name: /دفعة مراجعة/ })).toBeVisible();
+  await expect(panel.getByText('0 / 3')).toBeVisible();
 });
 
 test('a completed day renders as done and starts the daily streak', async ({ page }) => {
@@ -50,13 +53,10 @@ test('a completed day renders as done and starts the daily streak', async ({ pag
   await page.goto('/app/trail');
 
   const panel = page.getByTestId('daily-tasks');
-  await expect(panel.getByText('3 من 3', { exact: true })).toBeVisible();
+  await expect(panel.getByText('3 / 3')).toBeVisible();
   // V31: the one is written as a WORD, not as "1 يوم" — Arabic does not put a
   // digit in front of the singular. The string below is the correct Arabic, and
   // this assertion is what keeps it that way.
   await expect(panel.getByText('يوم متتالٍ في مهام اليوم')).toBeVisible();
   await expect(panel.getByText('تم', { exact: true })).toHaveCount(3);
-  // No action left to take today.
-  await expect(panel.getByRole('button', { name: 'ابدأ محادثة' })).toHaveCount(0);
-  await expect(panel.getByRole('button', { name: 'ابدأ المراجعة' })).toHaveCount(0);
 });

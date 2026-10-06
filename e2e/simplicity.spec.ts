@@ -54,18 +54,26 @@ test('the quiz can be finished without ever guessing an answer', async ({ page }
 test('guided practice gives every input its own label', async ({ page }) => {
   await bootSignedIn(page);
   await page.goto('/scenario/cafe_order/practice');
-  await expect(page.getByText('قاعدة اليوم').first()).toBeVisible({ timeout: 30_000 });
+  // Launch polish: the beats are collapsed into a ONE-OPEN accordion, so the
+  // screen never shows three inputs at once — which is the stronger version of
+  // the defect this test pinned. Open the first section, then assert every
+  // visible input still carries its own words.
+  await page.getByRole('button', { name: 'قاعدة اليوم' }).click();
+  await expect(page.getByLabel('اكتب جملة القاعدة بالألمانية')).toBeVisible({ timeout: 30_000 });
 
-  // The defect: two boxes on one screen both reading "Schreibe hier auf Deutsch…",
-  // so there was no way to tell which answer went where without reading up.
   const placeholders = await page.evaluate(() =>
     [...document.querySelectorAll('input, textarea')]
       .map((el) => (el.getAttribute('placeholder') || '').trim())
       .filter(Boolean),
   );
-  expect(placeholders.length).toBeGreaterThan(1);
+  expect(placeholders.length).toBeGreaterThan(0);
   const duplicates = placeholders.filter((p, i) => placeholders.indexOf(p) !== i);
   expect(duplicates, `duplicate input placeholders: ${duplicates.join(' | ')}`).toEqual([]);
+
+  // One input at a time: with the grammar section open, the retrieval and
+  // listening fields must not be on the screen.
+  expect(await page.getByLabel('اكتب الجملة بالألمانية').count()).toBe(0);
+  expect(await page.getByLabel('اكتب ما سمعته بالألمانية').count()).toBe(0);
 });
 
 test('the study screen gives every listen button its own name', async ({ page }) => {

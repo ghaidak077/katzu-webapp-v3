@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { BackButton } from '@/components/common/BackButton';
+import { LtrCounter } from '@/components/common/LtrCounter';
 import { useVoiceCapture, voiceStartFailureMessageAr } from '@/lib/audio/useVoiceCapture';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { triggerHaptic } from '@/lib/utils/haptics';
@@ -207,7 +208,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
           <Card>
             <div className="flex items-center justify-between mb-3">
               <span className="text-micro font-arabic text-text-secondary">
-                {state.studyIndex + 1} / {state.items.length}
+              <LtrCounter value={state.studyIndex + 1} total={state.items.length} className="text-micro font-arabic text-text-secondary" />
               </span>
               <Badge variant="primary" size="sm">
                 {studyItem.kind === 'phrase' ? 'عبارة' : 'مفردة'}
@@ -442,7 +443,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
                 <ArrowLeft className="w-4 h-4" />
               </Button>
               <Button size="md" variant="secondary" className="w-full" onClick={onStartPlacement}>
-                أكمل بالاختبار التحديدي (٦ دقائق)
+                أكمل بالاختبار التحديدي (6 دقائق)
               </Button>
               <button
                 type="button"

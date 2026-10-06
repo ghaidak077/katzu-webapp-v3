@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { StepTrail } from '@/components/ui/StepTrail';
 import { Badge } from '@/components/ui/Badge';
+import { LtrCounter } from '@/components/common/LtrCounter';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { buildWordBank } from '@/lib/utils/wordBank';
 import { track } from '@/lib/analytics/client';
@@ -216,7 +217,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
         </div>
         <Badge variant="subtle" size="sm">
           <Headphones className="w-3 h-3" />
-          {index + 1} / {queue.length}
+          <LtrCounter value={index + 1} total={queue.length} className="font-german" />
         </Badge>
       </div>
 

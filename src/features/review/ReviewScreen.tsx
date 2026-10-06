@@ -9,6 +9,7 @@ import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
 import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
+import { Button } from '@/components/ui/Button';
 import { GlassWell } from '@/components/glass/GlassSurface';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
 import { ProgressRail } from '@/components/v2/ProgressStrip';
@@ -17,6 +18,7 @@ import { track } from '@/lib/analytics/client';
 import { ArrowLeft, CheckCircle2, RotateCcw, Sparkles, Volume2, XCircle } from 'lucide-react';
 import type { ReviewGrade, ReviewItemEntity } from '@/types/models';
 import { arCount } from '@/lib/i18n/arabicCount';
+import { LtrCounter } from '@/components/common/LtrCounter';
 
 /** V31: agreement for the sentence under the tally. See `arabicCount`. */
 const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصرين', few: 'عناصر', many: 'عنصراً' } as const;
@@ -256,8 +258,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   }
 
   return (
-    <div className="min-h-screen bg-kz-black pb-28 text-kz-ink">
-      <div className="mx-auto max-w-md px-5 pt-6">
+    <div className="flex min-h-screen flex-col bg-kz-black text-kz-ink">
+      <div className="mx-auto w-full max-w-md px-5 pt-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="kz-ar-title text-kz-ink">مراجعة الذاكرة</h1>
@@ -265,40 +267,71 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
               اكتب الألمانية من معناها العربي، أو المعنى من الألمانية — الاسترجاع هو ما يثبّت.
             </p>
           </div>
-          <GlassWell className="shrink-0 px-3 py-1.5">
-            <span className="font-german text-xs font-bold text-kz-inkDim">
-              {index + 1} / {queue.length}
-            </span>
-          </GlassWell>
+          {/* Screen 3.6: «إنهاء المراجعة والعودة للرحلة» became this close
+              button — a whole text button at the page bottom read as a second
+              task. 44px, named. */}
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="إنهاء المراجعة والعودة للرحلة"
+            data-testid="review-close"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-white/10 bg-white/[0.04]"
+          >
+            <ArrowLeft className="h-5 w-5 rotate-180 text-kz-inkDim" aria-hidden />
+          </button>
         </div>
-        <ProgressRail value={index} max={queue.length} className="mt-4" />
+        {/* Screen 3.1: the counter is Arabic prose («1 من 8») under a segmented
+            rail. The old «1 / 8» flipped to "8 / 1" under the bidi algorithm
+            because "/" is direction-neutral; «من» is a strong RTL word, so the
+            sentence reads correctly with no isolation needed. The rail sits
+            directly under the header so progress is visible without scrolling. */}
+        <div className="mt-2 flex items-center justify-between">
+          <span className="kz-ar-micro text-kz-inkDim" data-testid="review-counter">
+            {index + 1} من {queue.length}
+          </span>
+          <span className="kz-ar-micro text-kz-inkFaint">مراجعة الذاكرة</span>
+        </div>
+        <ProgressRail value={index} max={queue.length} className="mt-1.5" />
 
+        {/* Screen 3.6: the card sits in the upper third and the actions are
+            anchored at the bottom (flex column + mt-auto), so the keyboard
+            never pushes the input out of reach — and on tall screens the
+            actions stay where the thumb is. */}
         {current && (
-          <GlassCard className="mt-5">
-            <div className="flex items-center gap-2">
-              <span className={`kz-ar-micro ${KIND_TONE[current.kind]}`}>{KIND_LABELS[current.kind]}</span>
+          <GlassCard className="mt-4">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* Screen 3.2: the KIND is a small chip, not the headline. */}
+              <span className={`kz-ar-micro rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 ${KIND_TONE[current.kind]}`}>
+                {KIND_LABELS[current.kind] === 'خطأ سابق' ? 'للتثبيت' : KIND_LABELS[current.kind]}
+              </span>
               {current.level && (
-                <>
-                  <span className="text-kz-inkFaint">·</span>
-                  <span className="font-german text-micro text-kz-inkFaint">{current.level}</span>
-                </>
+                <span className="font-german text-micro rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-kz-inkFaint">
+                  {current.level}
+                </span>
               )}
             </div>
 
-            {/* The Arabic side: what it means, or the rule that was broken. */}
-            <p className="mt-4 kz-ar-micro text-kz-inkFaint">
-              {current.direction === 'de_to_ar'
-                ? 'المعنى الألماني — اكتب المعنى بالعربية'
-                : current.kind === 'mistake'
-                  ? 'صحّح الجملة التي كتبتها سابقاً'
-                  : 'المعنى بالعربية'}
-            </p>
+            {/* Screen 3.2: the MEANING is the headline — the thing to express,
+                not the topic. For mistake cards the prompt IS the cue, so it
+                leads here exactly like a vocab card's Arabic does. */}
             {current.direction === 'de_to_ar' ? (
-              <GermanText className="mt-1 block text-2xl font-bold leading-relaxed text-kz-ink">
-                {current.answerDe}
-              </GermanText>
+              <>
+                <p className="mt-3.5 kz-ar-micro text-kz-inkFaint">
+                  اكتب المعنى بالعربية
+                </p>
+                <GermanText className="mt-1 block text-2xl font-bold leading-relaxed text-kz-ink">
+                  {current.answerDe}
+                </GermanText>
+              </>
             ) : (
-              <p className="mt-1 kz-ar-title leading-relaxed text-kz-ink">{current.promptAr}</p>
+              <>
+                <p className="mt-3.5 kz-ar-micro text-kz-inkFaint">
+                  {current.kind === 'mistake'
+                    ? 'صحّح الجملة التي كتبتها سابقاً'
+                    : 'اكتب بالألمانية ما تعنيه:'}
+                </p>
+                <p className="mt-1 kz-ar-title leading-relaxed text-kz-ink">{current.promptAr}</p>
+              </>
             )}
 
             {current.kind === 'mistake' && current.grammarId && current.grammarReference?.id === current.grammarId && (
@@ -312,13 +345,14 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
               </GlassWell>
             )}
 
+            {/* Screen 3.3: the learner's earlier attempt in a quiet line —
+                no strikethrough (it is THEIR text, not a wrong answer to
+                cross out) and no red. */}
             {current.kind === 'mistake' && current.contextDe && (
-              <GlassWell className="mt-3 p-3">
-                <span className="kz-ar-micro block text-kz-inkFaint">ما كتبته سابقاً</span>
-                <GermanText className="mt-1 font-german text-sm text-kz-inkDim line-through">
-                  {current.contextDe}
-                </GermanText>
-              </GlassWell>
+              <p className="kz-ar-micro mt-3 leading-relaxed text-kz-inkDim">
+                ما كتبته سابقاً:{' '}
+                <GermanText className="font-german text-kz-inkDim">{current.contextDe}</GermanText>
+              </p>
             )}
 
             {current.direction !== 'de_to_ar' &&
@@ -367,18 +401,31 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
                   aria-label={current.direction === 'de_to_ar' ? 'إجابتك بالعربية' : 'إجابتك بالألمانية'}
                   className={`h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-base text-kz-ink placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50 ${current.direction === 'de_to_ar' ? 'font-arabic' : 'font-german'}`}
                 />
-                <GlassButton variant="primary" size="lg" fullWidth type="submit" disabled={!answer.trim()}>
+                {/* Screen 3.4: the disabled state keeps ≥4.5:1 label contrast
+                    (text-kz-inkDim on the glass, NOT the old 45%-opacity fade)
+                    and reads clearly inactive; the enabled state is the strong
+                    primary. Full width, ≥48px (size lg). */}
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  type="submit"
+                  disabled={!answer.trim()}
+                  className={answer.trim() ? '' : 'kz-primary-disabled'}
+                >
                   تحقّق من إجابتي
-                </GlassButton>
-                {/* The honest way out: no guess, no shame, just the answer and a
-                    soon-due repeat. */}
-                <button
+                </Button>
+                {/* Screen 3.5: the honest way out is a visible OUTLINE button
+                    (≥44px), not a small underlined link a learner could miss. */}
+                <GlassButton
                   type="button"
+                  variant="outline"
+                  fullWidth
+                  className="min-h-[44px]"
                   onClick={handleReveal}
-                  className="kz-ar-micro w-full text-center text-kz-inkDim underline decoration-dotted underline-offset-4 transition-colors pointer-hover:text-kz-ink"
                 >
                   لا أتذكّر — أرني الإجابة
-                </button>
+                </GlassButton>
               </form>
             ) : (
               <div className="mt-4 space-y-3">
@@ -450,10 +497,6 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
             )}
           </GlassCard>
         )}
-
-        <GlassButton variant="quiet" fullWidth className="mt-3" onClick={onBack}>
-          إنهاء المراجعة والعودة للرحلة
-        </GlassButton>
       </div>
     </div>
   );

@@ -80,7 +80,9 @@ test('Review shows only answerable cards, grades one, and reaches its summary', 
   await expect(page.getByRole('heading', { name: 'مراجعة الذاكرة' })).toBeVisible();
   await expect(page.getByText('موعد')).toBeVisible();
   await expect(page.getByText('صيغة صحيحة')).toHaveCount(0);
-  await expect(page.getByText('1 / 1')).toBeVisible();
+  // Screen 3.1: the counter is Arabic prose now («1 من 1»); the old «1 / 1"
+  // bidi-flipped to "1 / 1"'s mirror on RTL layouts.
+  await expect(page.getByTestId('review-counter')).toHaveText('1 من 1');
 
   // The learner produces German from the Arabic meaning and it grades correctly.
   await page.getByLabel('إجابتك بالألمانية').fill('der Termin');

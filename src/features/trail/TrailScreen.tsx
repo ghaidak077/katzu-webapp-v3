@@ -342,7 +342,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         >
           <span className="min-w-0">
             <span className="block font-arabic text-xs font-bold text-text-primary">
-              أكمل تفضيلاتك (٣٠ ثانية)
+              أكمل تفضيلاتك (30 ثانية)
             </span>
             <span className="mt-0.5 block font-arabic text-micro text-text-secondary">
               يجعل المهمة اليومية أدق — ومستواك غير مقيس حتى تختاره.

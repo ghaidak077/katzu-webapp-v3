@@ -19,6 +19,7 @@ import { isEntitlementWall } from '@/lib/entitlement/codes';
 import { track } from '@/lib/analytics/client';
 import { ArrowLeft, CheckCircle2, PenLine, Sparkles, Volume2, XCircle } from 'lucide-react';
 import { KatzuThinking } from '@/components/effects/KatzuThinking';
+import { LtrCounter } from '@/components/common/LtrCounter';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import type { CEFRLevel, WritingFeedback } from '@/types/models';
 
@@ -215,9 +216,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
               <div key={dimension}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-micro font-arabic">{DIMENSION_LABELS[dimension] || dimension}</span>
-                  <span className="text-micro font-german text-text-secondary">
-                    {score} / {feedback.maxScore}
-                  </span>
+                  <LtrCounter value={score} total={feedback.maxScore} className="text-micro font-german text-text-secondary" />
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
                   <div
@@ -378,9 +377,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
             className="w-full resize-y bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl p-3 text-base font-german leading-relaxed transition-colors"
           />
           <div className="flex items-center justify-between mt-2">
-            <span className={`text-micro font-german ${trimmedLength >= MIN_CHARS ? 'text-text-muted' : 'text-status-learning'}`}>
-              {trimmedLength} / {MAX_CHARS}
-            </span>
+            <LtrCounter value={trimmedLength} total={MAX_CHARS} className={`text-micro font-german ${trimmedLength >= MIN_CHARS ? 'text-text-muted' : 'text-status-learning'}`} />
             {trimmedLength < MIN_CHARS && (
               <span className="text-micro font-arabic text-text-muted">
                 {MIN_CHARS - trimmedLength} حرفاً على الأقل ليصبح التصحيح مفيداً

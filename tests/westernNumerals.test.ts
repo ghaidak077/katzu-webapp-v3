@@ -18,8 +18,12 @@ import { MAX_FREE_SESSIONS_AR, freeSessionsCopy } from '../src/lib/entitlement/t
  */
 
 const ARABIC_INDIC = /[\u0660-\u0669\u06F0-\u06F9]/;
-/** A line is a price/session string when it carries this numeral's own noun. */
-const PRICE_SESSION_TOKEN = /جلسة|جلسات|محادثة|يورو|€|السعر|شهر|شهور|يوم|أيام/;
+/**
+ * Every user-facing numeral is Western (launch-week G1 extended the rule from
+ * prices/session counts to ALL UI strings), so no noun token gates the scan
+ * any more. A digits-in-anything line fails; prose about digits in comments is
+ * still stripped below.
+ */
 
 /** Every source file under src/, so a new surface cannot slip past a fixed list. */
 function sourceFiles(dir: string): string[] {
@@ -38,17 +42,25 @@ function withoutComments(code: string): string {
 }
 
 describe('the Western-numeral rule', () => {
-  it('writes no price or session count in Arabic-Indic digits anywhere in src', () => {
+  it('writes NO user-facing string in Arabic-Indic digits anywhere in src', () => {
     const offenders: string[] = [];
     for (const file of sourceFiles('src')) {
       const code = withoutComments(readFileSync(file, 'utf8'));
       code.split(/\r?\n/).forEach((line, i) => {
-        if (ARABIC_INDIC.test(line) && PRICE_SESSION_TOKEN.test(line)) {
+        if (ARABIC_INDIC.test(line)) {
           offenders.push(`${file}:${i + 1}: ${line.trim()}`);
         }
       });
     }
     expect(offenders).toEqual([]);
+  });
+
+  it('still keeps the whole rule honest: reintroducing ٣ fails the scan', () => {
+    // Guard-the-guard: the scan must fail on the exact defective shape it
+    // exists for («0 من ٣ خطوات» reached production through the old noun
+    // token gap), so a future loosening cannot pass silently.
+    const defective = 'readyBadge: "0 من ٣ خطوات"';
+    expect(ARABIC_INDIC.test(defective)).toBe(true);
   });
 
   it('writes the free-session promise with a Western digit', () => {

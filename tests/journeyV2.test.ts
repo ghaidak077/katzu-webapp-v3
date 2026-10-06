@@ -414,16 +414,33 @@ describe('selectGrammarRule', () => {
   });
 
   it('skips a rule whose example is already on the deck', () => {
-    // Teaching the same sentence twice is padding, not reinforcement.
+    // Teaching the same sentence twice is padding, not reinforcement. Both
+    // fallback rows stay at the learner's level — the level cap (next test)
+    // must not change this behaviour.
     const rows = [
       rule({ id: 'g_a1', level: 'A1', example_de: 'Ich möchte einen Kaffee.' }),
-      rule({ id: 'g_a2', level: 'A2' }),
+      rule({ id: 'g_a2', level: 'A1', title_ar: 'قاعدة بديلة' }),
     ];
     const picked = selectGrammarRule(rows, 'A1', {
       now: dayZero,
       excludeGerman: ['ich moechte einen Kaffee'],
     });
     expect(picked?.id).toBe('g_a2');
+  });
+
+  it('never serves a rule ABOVE the learner level while at-or-below rules exist', () => {
+    // Launch polish (Screen 2.3): a B1 rule (sich freuen auf) appeared inside
+    // an A1 scenario to an A1 learner. The app's own rule is "never harder
+    // than the level", so the pool is capped: the B1 row is unreachable while
+    // any A1 row exists — regardless of the day rotation.
+    const rows = [rule({ id: 'g_b1', level: 'B1' }), rule({ id: 'g_a1a', level: 'A1' }), rule({ id: 'g_a1b', level: 'A1' })];
+    for (let day = 0; day < 7; day += 1) {
+      const picked = selectGrammarRule(rows, 'A1', { now: dayZero + day * 86_400_000 });
+      expect(picked?.level).toBe('A1');
+    }
+    // And the fallback the cap allows: with ONLY harder rows present, the beat
+    // still teaches something rather than nothing.
+    expect(selectGrammarRule([rule({ id: 'g_b1', level: 'B1' })], 'A1', { now: dayZero })?.level).toBe('B1');
   });
 
   it('returns null rather than inventing a rule the device does not have', () => {

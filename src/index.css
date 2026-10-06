@@ -86,11 +86,13 @@
   --kz-magenta-deep: 115 67 222;
 
   /* Text. Warm white stays legible over every scene colour we ship.
-     `--kz-ink-faint` is the floor: 4.68:1 on the canvas, 4.81:1 on a well. The
-     legacy `text-text-muted` hex was 3.72:1 — below the 4.5:1 body-text floor
-     — which is why every "muted" label in the app now points here instead. */
+     G4: `--kz-ink-faint` is the floor at 4.68:1 on the canvas — used for
+     tertiary micro labels only. `--kz-ink-dim` (secondary) was raised to
+     ≥7:1 on the canvas per the launch review (was 167 159 196 ≈ 6.0:1).
+     The legacy `text-text-muted` hex was 3.72:1 — below the 4.5:1 body-text
+     floor — which is why every "muted" label in the app points at the tokens. */
   --kz-ink: 246 242 238;
-  --kz-ink-dim: 167 159 196;
+  --kz-ink-dim: 184 177 208;
   --kz-ink-faint: 126 119 150;
 
   /* Scene-derived accents. Derived from the scene palette in
@@ -175,12 +177,16 @@
   --kz-dur: 280ms;
   --kz-dur-panels: 300ms;
 
-  /* Arabic typographic scale — display is heavy and roomy, body is comfortable. */
+  /* Arabic typographic scale — display is heavy and roomy, body is comfortable.
+     G4 (launch polish): the floor moved up — secondary (caption) ≥13px,
+     micro ≥12px, nothing smaller; line-height ≥1.6 everywhere so Arabic script
+     keeps its joins. Secondary ink was raised to ≥7:1 on the canvas (see
+     --kz-ink-dim below); do not lower any ratio. */
   --kz-ar-display: clamp(1.6rem, 6.6vw, 2.1rem);
   --kz-ar-title: clamp(1.15rem, 4.6vw, 1.4rem);
-  --kz-ar-body: 0.95rem;
-  --kz-ar-caption: 0.8rem;
-  --kz-ar-micro: 0.7rem;
+  --kz-ar-body: 1rem;
+  --kz-ar-caption: 0.8125rem;
+  --kz-ar-micro: 0.75rem;
 
   /* German scale — Satoshi, always LTR, slightly looser tracking at body size. */
   --kz-de-display: clamp(1.25rem, 5vw, 1.6rem);
@@ -244,14 +250,14 @@
     font-family: 'Cairo', sans-serif;
     font-size: var(--kz-ar-caption);
     font-weight: 500;
-    line-height: 1.6;
+    line-height: 1.65;
   }
 
   .kz-ar-micro {
     font-family: 'Cairo', sans-serif;
     font-size: var(--kz-ar-micro);
     font-weight: 600;
-    line-height: 1.5;
+    line-height: 1.6;
   }
 
   .kz-de-display {
@@ -523,6 +529,21 @@
       0 12px 40px rgb(var(--kz-magenta-deep) / 0.32);
   }
 
+  /* Screen 3.4: a disabled primary that stays readable. The old state faded
+     the whole control to 45% opacity, which put the label around 2.4:1 on the
+     glass — nearly invisible. This keeps the label at full ink (≥4.5:1) and
+     communicates "inactive" through the surface: no glow, no edge light, a
+     dimmed fill. */
+  .kz-primary-disabled {
+    background-image: none;
+    background-color: rgb(var(--kz-glass-base) / 0.55);
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.08);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    color: rgb(var(--kz-ink-dim));
+  }
+
   .kz-earned-text {
     color: rgb(var(--kz-magenta));
   }
@@ -609,6 +630,14 @@
   direction: ltr;
   unicode-bidi: isolate;
   font-family: 'Satoshi', sans-serif;
+}
+
+/* G3 (launch polish): the shared scroll container under the fixed tab bar.
+   The bar is pt-2 (8px) + a 48px button + pb max(8px, safe-area) ≈ 64px plus
+   the safe-area inset, so content reserves nav + inset + 16px of breathing
+   room — the last card and its buttons can never hide behind the glass. */
+.kz-tab-scroll {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 /* The V2 equivalent: any German run — phrase, article, single word — is LTR

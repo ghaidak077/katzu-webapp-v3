@@ -175,6 +175,10 @@ test('Guided Practice rehearses real lines and grades honestly', async ({ page }
   // carries a second "أرني الصحيحة" further up the screen.
   const retrieval = page.getByTestId('retrieval-card');
 
+  // Launch polish: the deeper beats live in a one-open accordion, so the test
+  // opens the retrieval section before reaching for its bank and input.
+  await retrieval.getByRole('button', { name: 'استرجاع سريع' }).click();
+
   // The vocabulary bridge (V29): the sentence's words are tappable chips, so a
   // learner who knows the meaning but not the words can still build the answer.
   const retrievalBank = retrieval.locator('div[dir="ltr"] button');
@@ -190,13 +194,17 @@ test('Guided Practice rehearses real lines and grades honestly', async ({ page }
   // calendar date, so this asserts the reveal rather than one rule's text.
   const grammar = page.getByTestId('grammar-card');
   await expect(grammar).toBeVisible();
+  // Open the collapsed section (one-open accordion) before typing into it.
+  await grammar.getByRole('button', { name: 'قاعدة اليوم' }).click();
   await grammar.getByLabel('اكتب جملة القاعدة بالألمانية').fill('Falscher Satz');
   await grammar.getByRole('button', { name: 'تحقق' }).click();
   await grammar.getByRole('button', { name: 'أرني الصحيحة' }).click();
   await expect(grammar.getByText(/الجملة الصحيحة:/)).toBeVisible();
 
   // Listening: a repeat is reported as word coverage, never as a pronunciation
-  // score the app cannot measure.
+  // score the app cannot measure. Its section opens only after the retrieval
+  // one is closed (one-open accordion), so "كرّر بصوتك" is visible now.
+  await page.getByRole('button', { name: 'استمع وكرّر' }).first().click();
   await page.getByRole('button', { name: 'كرّر بصوتك' }).click();
   // Wait for the microphone to be open before speaking — the same gate the live
   // conversation's test uses. Without it the tone could be raised and dropped

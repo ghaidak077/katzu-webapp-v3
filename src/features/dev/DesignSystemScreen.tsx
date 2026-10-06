@@ -119,7 +119,7 @@ export const DesignSystemScreen: React.FC = () => {
       </Section>
 
       <Section titleAr="الإجراء الأساسي والحالات" subtitle="إجراء أساسي واحد لكل شاشة">
-        <PrimaryAction hintAr="سطر واحد يوضّح ما سيحدث بعد الضغط." subLabel="١٠ دقائق">
+        <PrimaryAction hintAr="سطر واحد يوضّح ما سيحدث بعد الضغط." subLabel="10 دقائق">
           ابدأ مهمة اليوم
         </PrimaryAction>
 
@@ -180,7 +180,7 @@ export const DesignSystemScreen: React.FC = () => {
       </Section>
 
       <Section titleAr="التقدم والحالات" subtitle="الحالة لا تُقال بالنص وحده">
-        <ProgressStrip segments={5} completed={3} activeIndex={3} labelAr="الفصل الأول — ٣ من ٥" />
+        <ProgressStrip segments={5} completed={3} activeIndex={3} labelAr="الفصل الأول — 3 من 5" />
         <div className="mt-4">
           <ProgressRail value={3} max={4} />
         </div>

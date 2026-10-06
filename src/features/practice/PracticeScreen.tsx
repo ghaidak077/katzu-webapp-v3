@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { enrolMistake, enrolSavedWord, gradeReviewItem } from '@/lib/srs/store';
-import { gradeCorrectionRetype, reviewRefId } from '@/lib/srs/engine';
+import { countDue, gradeCorrectionRetype, reviewRefId } from '@/lib/srs/engine';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
@@ -33,15 +33,19 @@ import type { VocabularyEntity, GrammarEntity, MistakeEntity } from '@/types/mod
 
 /** V32: the word-bank headline agrees with its number. */
 const WORD_FORMS = { one: 'كلمة واحدة', two: 'كلمتان', few: 'كلمات', many: 'كلمة' } as const;
+/** Launch polish: the due-count line on the lead card. */
+const REVIEW_NOM = { one: 'عنصر واحد', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
 
 export interface PracticeScreenProps {
   onOpenListening?: () => void;
   onOpenWriting?: () => void;
   onOpenCoach?: () => void;
   onOpenAsk?: () => void;
+  /** The review-due entry — the SAME helper the Journey hero uses. */
+  onOpenReview?: () => void;
 }
 
-export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenWriting, onOpenCoach, onOpenAsk }) => {
+export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenWriting, onOpenCoach, onOpenAsk, onOpenReview }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   /**
@@ -72,6 +76,10 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
   const mistakes = useLiveQuery(() => db.mistakes.toArray()) || [];
   const grammarList = useLiveQuery(() => db.grammar.toArray()) || [];
+  // The due count the lead card shows — read from the same review store the
+  // Journey hero's countDue uses, so both screens answer identically.
+  const reviewItems = useLiveQuery(() => db.review_items.toArray()) || [];
+  const dueCount = countDue(reviewItems, Date.now());
 
   const { speak } = useSpeechOutput();
 
@@ -137,7 +145,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
   const currentFlashcard = vocabulary[flashcardIndex];
 
   return (
-    <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto relative pb-28">
+    <div className="kz-tab-scroll min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto relative">
       {/* Top Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -147,18 +155,46 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         <KatzuMascot name="practice" className="w-12 h-12 object-contain" />
       </div>
 
-      {/* Metric Cards */}
+      {/* Lead with ONE action (Screen 4.1): the review-due entry, the same
+          countDue helper the Journey hero reads. A hub with no path now opens
+          with the path. */}
+      {onOpenReview && (
+        <button
+          onClick={() => {
+            triggerHaptic('light');
+            onOpenReview();
+          }}
+          data-testid="practice-review-card"
+          className="w-full mb-4 p-4 rounded-2xl bg-surface-card border border-primary/40 shadow-kz-lavender flex items-center gap-3 text-start transition-colors pointer-hover:border-primary/70"
+        >
+          <div className="w-10 h-10 shrink-0 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+            <RotateCcw className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-bold font-arabic block text-text-primary">للمراجعة اليوم</span>
+            <span className="text-micro text-text-secondary font-arabic">
+              {dueCount > 0
+                ? `${arCount(dueCount, REVIEW_NOM)} بانتظارك — دقائق قليلة تثبّتها`
+                : 'لا شيء مستحق الآن — ذاكرتك مرتاحة'}
+            </span>
+          </div>
+          <ArrowLeft className="w-4 h-4 text-text-muted shrink-0" />
+        </button>
+      )}
+
+      {/* Stats row (Screen 4.2): first chip is the DUE count; the vocabulary
+          total moved into the vocabulary section title where it belongs. */}
       <div className="grid grid-cols-3 gap-2 mb-6">
         <Card className="p-3 text-center">
-          <span className="text-micro text-text-secondary block">إجمالي المفردات</span>
-          <div className="text-lg font-bold font-german text-primary">{vocabulary.length}</div>
+          <span className="text-micro text-text-secondary block">للمراجعة اليوم</span>
+          <div className="text-lg font-bold font-german text-primary">{dueCount}</div>
         </Card>
         <Card className="p-3 text-center">
           <span className="text-micro text-text-secondary block">المحفوظة</span>
           <div className="text-lg font-bold font-german text-status-learning">{savedWords.length}</div>
         </Card>
         <Card className="p-3 text-center">
-          <span className="text-micro text-text-secondary block">بنك الأخطاء</span>
+          <span className="text-micro text-text-secondary block">أخطاء للتثبيت</span>
           <div className="text-lg font-bold font-german text-status-error">{mistakes.length}</div>
         </Card>
       </div>
@@ -211,8 +247,13 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         </button>
       )}
 
-      {/* Quick Action Hub */}
-      <div className="grid grid-cols-4 gap-2 mb-6">
+      {/* Tool grid (Screen 4.3/4.4): the mistakes tile stayed but was RENAMED
+          — it opens the retype DRILL modal, which is a different thing from the
+          «ملف أخطائك» patterns card (verified: card → onOpenCoach aggregate
+          view; tile → per-mistake retype modal), so the difference is now
+          obvious: profile vs drill. Five tools → 3 columns, 24px icons,
+          single-line labels, no orphan. */}
+      <div className="grid grid-cols-3 gap-2 mb-6">
         <button
           onClick={() => {
             setFlashcardIndex(0);
@@ -221,18 +262,18 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           }}
           className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-            <Sparkles className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+            <Sparkles className="w-6 h-6" />
           </div>
-          <span className="text-xs font-bold font-arabic">فلاش كاردز</span>
+          <span className="text-xs font-bold font-arabic">بطاقات المراجعة</span>
         </button>
 
         <button
           onClick={() => setShowGrammarModal(true)}
           className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
-            <BookOpen className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
+            <BookOpen className="w-6 h-6" />
           </div>
           <span className="text-xs font-bold font-arabic">ملخص القواعد</span>
         </button>
@@ -241,18 +282,18 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           onClick={() => setShowMistakesModal(true)}
           className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-status-error/20 text-status-error flex items-center justify-center">
-            <AlertCircle className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-full bg-status-error/20 text-status-error flex items-center justify-center">
+            <AlertCircle className="w-6 h-6" />
           </div>
-          <span className="text-xs font-bold font-arabic">بنك الأخطاء</span>
+          <span className="text-xs font-bold font-arabic">تدريب الأخطاء</span>
         </button>
 
         <button
           onClick={onOpenListening}
           className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-            <Headphones className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+            <Headphones className="w-6 h-6" />
           </div>
           <span className="text-xs font-bold font-arabic">الاستماع</span>
         </button>
@@ -262,8 +303,8 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             onClick={onOpenWriting}
             className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
-              <PenLine className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
+              <PenLine className="w-6 h-6" />
             </div>
             <span className="text-xs font-bold font-arabic">الكتابة</span>
           </button>
@@ -284,6 +325,9 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           />
         </div>
 
+        {/* Screen 4.5: the filters name STATES (الكل / المحفوظة) with their
+            counts — «ابحث في الكل» read as an action and duplicated the search
+            field above it. The vocabulary total moved into the section title. */}
         <div className="flex gap-2">
           <button
             onClick={() => {
@@ -292,11 +336,11 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             }}
             className={`inline-flex min-h-touch items-center px-3 rounded-xl text-xs font-semibold transition-colors ${
               selectedCategory === 'ALL'
-                ? 'bg-fill text-on-fill shadow-glow-purple'
+                ? 'bg-fill text-on-fill'
                 : 'bg-surface-card text-text-secondary border border-border-subtle'
             }`}
           >
-            ابحث في الكل ({vocabulary.length})
+            الكل ({vocabulary.length})
           </button>
           <button
             onClick={() => {
@@ -314,14 +358,17 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         </div>
       </div>
 
-      {/* Vocabulary List — opened only when asked for. */}
+      {/* Vocabulary bank — DEMOTED below the tools (Screen 4.5): it is an
+          archive you search, not the screen's job. The title carries the total. */}
       {!browseWords ? (
-        <div className="rounded-2xl border border-border-subtle bg-surface-card p-5 text-center">
-          <p className="text-sm font-arabic font-bold text-text-primary">بنك الكلمات</p>
-          <p className="mt-1.5 text-micro font-arabic leading-relaxed text-text-secondary">
-            {arCount(vocabulary.length, WORD_FORMS)} بانتظارك هنا. ابحث عن أي كلمة ألمانية أو معناها بالعربية.
+        <div className="rounded-2xl border border-border-subtle bg-surface-card p-4 text-center">
+          <p className="text-sm font-arabic font-bold text-text-primary">
+            بنك الكلمات ({vocabulary.length})
           </p>
-          <Button variant="secondary" size="md" className="mt-3" onClick={() => setBrowseWords(true)}>
+          <p className="mt-1 text-micro font-arabic leading-relaxed text-text-secondary">
+            {arCount(vocabulary.length, WORD_FORMS)} تبحثها هنا بالألمانية أو العربية.
+          </p>
+          <Button variant="secondary" size="md" className="mt-2.5" onClick={() => setBrowseWords(true)}>
             تصفّح الكلمات
           </Button>
         </div>

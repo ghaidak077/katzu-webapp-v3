@@ -263,7 +263,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-black px-4 pb-28 pt-5">
+    <div className="kz-tab-scroll min-h-screen bg-black px-4 pt-5">
       <div className="mx-auto max-w-md">
         {/* Status line: where am I? Day, chapter, and the situation it belongs to. */}
         <header className="mb-5 flex items-start justify-between gap-3">
@@ -293,7 +293,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         {user?.isLoggedIn && !user.onboardingCompletedAt && onOpenOnboarding && (
           <GlassButton variant="secondary" fullWidth onClick={onOpenOnboarding} className="mb-4 justify-between">
             <span className="flex flex-col items-start text-start">
-              <span className="kz-ar-caption text-kz-ink">أكمل تفضيلاتك (٣٠ ثانية)</span>
+              <span className="kz-ar-caption text-kz-ink">أكمل تفضيلاتك (30 ثانية)</span>
               <span className="kz-ar-micro font-normal text-kz-inkFaint">
                 هدفك ووقتك يجعلان مهمة اليوم أدق
               </span>
@@ -311,7 +311,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         <BorderBeam role="ambient" className="mb-4">
         <GlassCard
           tier="glass"
-          emphasis="primary"
+          emphasis="none"
           padded={false}
           className="overflow-hidden"
         >
@@ -322,7 +322,9 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
               <span className="kz-ar-micro self-start rounded-full bg-black/45 px-2.5 py-1 text-kz-inkDim backdrop-blur-sm">
                 {scene.locationAr}
               </span>
-              <KatzuPresence state="journey" size="md" className="self-end" />
+              {/* G5: the mascot is already on this screen (the Katzu line card
+                  below); the hero keeps the scene art alone, so the one glow
+                  budget stays on the primary action's beam. */}
             </div>
           </ScenarioBanner>
 
@@ -344,7 +346,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             <p className="kz-ar-caption mt-2 text-kz-inkDim">{reasonAr}</p>
             <p className="kz-ar-micro mt-2 text-kz-inkFaint">
               {mission.kind === 'review'
-                ? 'المراجعة تعمل بدون اتصال'
+                ? 'المراجعة محفوظة على جهازك.'
                 : `وقت متوقع: ${arCount(totalMinutes, MINUTE_FORMS)}`}
             </p>
             {/* Said out loud rather than discovered mid-conversation: the episode
@@ -421,16 +423,25 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         )}
 
         {/* Earned capability. Magenta appears here and nowhere else on this
-            screen, and only when the app recorded a real unaided success. */}
-        {latestCapability && (
-          <BorderBeam role="ambient" palette="earned" className="mb-4">
-            <GlassCard tier="canvas" emphasis="earned">
-              <p className="kz-ar-micro kz-earned-text mb-1">قدرة مكتسبة · {latestCapability.labelAr}</p>
-              <p className="kz-ar-caption text-kz-ink">
-                تستطيع التعامل مع «{latestCapability.titleAr}» بالألمانية بدون مساعدة.
-              </p>
-            </GlassCard>
-          </BorderBeam>
+            screen, and ONLY when the app recorded a real unaided success — the
+            state machine (`buildCapabilityModel`) emits INDEPENDENT/RETAINED
+            from recorded sessions alone, so an unearned card cannot render
+            here by construction. When nothing is earned yet the card shows the
+            chapter's goal instead, so the slot motivates rather than lies. */}
+        {latestCapability ? (
+          <GlassCard tier="canvas" className="mb-4">
+            <p className="kz-ar-micro kz-earned-text mb-1">قدرة مكتسبة · {latestCapability.labelAr}</p>
+            <p className="kz-ar-caption text-kz-ink">
+              تستطيع التعامل مع «{latestCapability.titleAr}» بالألمانية بدون مساعدة.
+            </p>
+          </GlassCard>
+        ) : (
+          <GlassCard tier="canvas" className="mb-4" data-testid="chapter-goal-card">
+            <p className="kz-ar-micro mb-1 text-kz-inkDim">هدفك في هذا الفصل</p>
+            <p className="kz-ar-caption text-kz-ink">
+              أنهِ مشاهد هذا الفصل لتتقن التعامل مع موقفه بالألمانية بدون مساعدة.
+            </p>
+          </GlassCard>
         )}
 
         {/* Chapter progress: segments, never a percentage. */}
@@ -450,20 +461,24 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           />
         </GlassWell>
 
-        {/* Grammar + library + level: real navigation, kept quiet so the mission
-            stays the only prominent path forward. */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            {onOpenGrammar && (
-              <GlassButton variant="quiet" onClick={onOpenGrammar}>
-                القواعد
-              </GlassButton>
-            )}
-            <GlassButton variant="quiet" onClick={onOpenLibrary}>
-              كل المشاهد والمستويات
+        {/* Grammar + library + level: three clear secondary chips (44px) — the
+            footer row used to read as unstyled links, and the level was a stray
+            label instead of the chip it is. */}
+        <div className="flex flex-wrap items-center gap-2">
+          {onOpenGrammar && (
+            <GlassButton variant="secondary" className="min-h-[44px] rounded-chip px-4 text-micro" onClick={onOpenGrammar}>
+              القواعد
             </GlassButton>
-          </div>
-          <span className="kz-ar-micro shrink-0 text-kz-inkFaint">مستواك: {learnerLevel}</span>
+          )}
+          <GlassButton variant="secondary" className="min-h-[44px] rounded-chip px-4 text-micro" onClick={onOpenLibrary}>
+            كل المشاهد والمستويات
+          </GlassButton>
+          <span
+            className="kz-ar-micro inline-flex min-h-[44px] items-center rounded-chip border border-white/10 bg-white/[0.03] px-4 text-kz-inkDim"
+            data-testid="journey-level-chip"
+          >
+            المستوى {learnerLevel}
+          </span>
         </div>
       </div>
 

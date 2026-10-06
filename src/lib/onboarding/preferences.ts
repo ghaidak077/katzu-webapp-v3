@@ -245,7 +245,7 @@ export function describeLearnerLevel(user: Pick<UserEntity, 'cefrLevel' | 'place
   return {
     levelLabel: level,
     measured: false,
-    detailAr: 'مستواك غير مقيس بعد. ابدأ الاختبار التحديدي (٦ دقائق) لنبني مسارك على قياسك الحقيقي.',
+    detailAr: 'مستواك غير مقيس بعد. ابدأ الاختبار التحديدي (6 دقائق) لنبني مسارك على قياسك الحقيقي.',
   };
 }
 

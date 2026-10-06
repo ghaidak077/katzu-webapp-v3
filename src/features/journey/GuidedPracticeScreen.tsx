@@ -73,6 +73,12 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
   const [repeatTone, setRepeatTone] = useState<'earned' | 'neutral'>('neutral');
   const [micError, setMicError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  /**
+   * Launch polish (Screen 2.1/2.5): the deeper beats are collapsed by default
+   * and ONE section is open at a time, so the default view is phrases + CTA
+   * and at most one text field is ever on screen.
+   */
+  const [openSection, setOpenSection] = useState<'grammar' | 'retrieval' | 'listening' | null>(null);
 
   // The rehearsal deck is drawn at the level the episode runs at — the level the
   // conversation that follows will be served at.
@@ -101,17 +107,20 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
 
   const renderBank = (bank: string[], onPick: (word: string) => void) =>
     bank.length > 0 ? (
-      <div className="mt-2 flex flex-wrap gap-1.5" dir="ltr">
-        {bank.map((word, wordIndex) => (
-          <button
-            key={`${word}-${wordIndex}`}
-            type="button"
-            onClick={() => onPick(word)}
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1 font-german text-sm text-kz-ink transition-colors pointer-hover:border-kz-lavender/50"
-          >
-            {word}
-          </button>
-        ))}
+      <div className="mt-2">
+        <p className="kz-ar-micro text-kz-inkFaint">رتّب الكلمات</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2" dir="ltr">
+          {bank.map((word, wordIndex) => (
+            <button
+              key={`${word}-${wordIndex}`}
+              type="button"
+              onClick={() => onPick(word)}
+              className="flex min-h-[44px] items-center rounded-xl border border-white/10 bg-white/[0.04] px-3 font-german text-sm text-kz-ink transition-colors pointer-hover:border-kz-lavender/50"
+            >
+              {word}
+            </button>
+          ))}
+        </div>
       </div>
     ) : null;
 
@@ -214,7 +223,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
   // Two steps without a rule on this device, three with one — the rail must
   // never promise a step the learner has no way to finish.
   const totalSteps = practice.grammar ? 3 : 2;
-  const totalStepsAr = totalSteps === 3 ? '٣' : '٢';
+  const totalStepsAr = String(totalSteps);
 
   // The deck comes from local content, so this is usually a single frame on a warm
   // cache — but it is still a load, and it is announced in the app's one processing
@@ -228,7 +237,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-black px-4 pb-32 pt-5">
+    <div className="min-h-screen bg-black px-4 pt-5" style={{ paddingBottom: 'calc(132px + env(safe-area-inset-bottom))' }}>
       <div className="mx-auto max-w-md">
         <header className="mb-4 flex items-center justify-between">
           <button
@@ -244,11 +253,18 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                 the file was an `<h3>` for a grammar title halfway down the page,
                 so a screen reader could never name this screen. The line that
                 already says what this is becomes the `<h1>`; same classes, same
-                pixels, a name at last. */}
+                pixels, a name at last. Screen 2.6: the level lives HERE as a
+                chip; the per-phrase floating level is gone. */}
             <h1 className="kz-ar-micro text-kz-inkFaint">
               تدريب موجّه · {practice.cards.length} عبارات
             </h1>
             <p className="kz-ar-caption text-kz-ink">{scene.locationAr}</p>
+            <span
+              data-testid="practice-level-chip"
+              className="kz-ar-micro mt-1 inline-block rounded-full border border-kz-lavender/30 bg-kz-lavender/10 px-2.5 py-0.5 font-semibold text-kz-lavender"
+            >
+              {level}
+            </span>
           </div>
         </header>
 
@@ -292,7 +308,6 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                         <GermanText className="kz-de-body block text-kz-ink">{card.de}</GermanText>
                         <p className="kz-ar-caption mt-1 text-kz-inkDim">{card.ar}</p>
                         {card.noteAr && <p className="kz-ar-micro mt-1 text-kz-inkFaint">{card.noteAr}</p>}
-                        <span className="kz-ar-micro mt-1.5 inline-block text-kz-inkFaint">{card.level}</span>
                       </div>
                     </div>
                   </GlassCard>
@@ -300,14 +315,22 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
               ))}
             </ul>
 
-            {/* 2. Today's rule, then its example produced from the Arabic meaning.
-                   This is the "explain" beat between the story and the conversation,
-                   and it comes from a real grammar row — never generated text. */}
+            {/* 2. Today's rule — INSIDE the deeper-practice accordion (Screen 2.1).
+                   Everything the launch review named (grammar rule, quick
+                   retrieval, listen-and-repeat) stays here with its logic and
+                   its graders untouched; only the DEFAULT VISIBILITY changed.
+                   One section open at a time (2.5): opening a section closes the
+                   others, so no screen ever shows three inputs. */}
             {practice.grammar && (
               <GlassCard tier="glass" data-testid="grammar-card" className="mt-4">
-                <p className="kz-ar-micro mb-2 text-kz-inkFaint">
-                  قاعدة اليوم · {practice.grammar.level}
-                </p>
+                <AccordionHeader
+                  labelAr="قاعدة اليوم"
+                  level={practice.grammar.level}
+                  open={openSection === 'grammar'}
+                  onToggle={() => setOpenSection(openSection === 'grammar' ? null : 'grammar')}
+                />
+                {openSection === 'grammar' && (
+                <div>
                 <h2 className="kz-ar-body text-kz-ink">{practice.grammar.titleAr}</h2>
                 <p className="kz-ar-caption mt-1.5 leading-relaxed text-kz-inkDim">{practice.grammar.ruleAr}</p>
                 {practice.grammar.ruleDe && (
@@ -385,13 +408,21 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                     )}
                   </>
                 )}
+                </div>
+                )}
               </GlassCard>
             )}
 
-            {/* 3. One retrieval: produce the German from the Arabic meaning. */}
+            {/* 3. One retrieval (collapsed by default, same grading). */}
             {practice.retrieval && (
               <GlassCard tier="glass" data-testid="retrieval-card" className="mt-4">
-                <p className="kz-ar-micro mb-2 text-kz-inkFaint">استرجاع سريع</p>
+                <AccordionHeader
+                  labelAr="استرجاع سريع"
+                  open={openSection === 'retrieval'}
+                  onToggle={() => setOpenSection(openSection === 'retrieval' ? null : 'retrieval')}
+                />
+                {openSection === 'retrieval' && (
+                <div>
                 <p className="kz-ar-body text-kz-ink">
                   قل أو اكتب بالألمانية: <span className="font-bold">{practice.retrieval.promptAr}</span>
                 </p>
@@ -447,13 +478,21 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                     {retrievalOutcome.messageAr}
                   </p>
                 )}
+                </div>
+                )}
               </GlassCard>
             )}
 
-            {/* 4. One listening moment: hear it, repeat it, and see what was heard. */}
+            {/* 4. One listening moment (collapsed by default, same grading). */}
             {practice.listening && (
               <GlassCard tier="glass" className="mt-4">
-                <p className="kz-ar-micro mb-2 text-kz-inkFaint">استمع وكرّر</p>
+                <AccordionHeader
+                  labelAr="استمع وكرّر"
+                  open={openSection === 'listening'}
+                  onToggle={() => setOpenSection(openSection === 'listening' ? null : 'listening')}
+                />
+                {openSection === 'listening' && (
+                <div>
                 <GermanText className="kz-de-body block text-kz-ink">{practice.listening.de}</GermanText>
                 <p className="kz-ar-caption mt-1 text-kz-inkDim">{practice.listening.ar}</p>
 
@@ -529,6 +568,8 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                     {repeatMessage}
                   </p>
                 )}
+                </div>
+                )}
               </GlassCard>
             )}
 
@@ -547,22 +588,30 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
           </>
         )}
 
-        <GlassWell className="mt-5 p-3.5">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="kz-ar-micro text-kz-inkDim">جاهزيتك لهذا الموقف</span>
-            <span className="kz-ar-micro text-kz-inkFaint">
-              {handled} من {totalStepsAr} خطوات
+        {/* Readiness (Screen 2.7): collapsed progress dots + the number — the
+            card it used to be spent a whole panel saying what three dots say. */}
+        <div className="mt-5 flex items-center justify-between" data-testid="readiness">
+          <span className="kz-ar-micro text-kz-inkDim">جاهزيتك لهذا الموقف</span>
+          <span className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5" aria-hidden>
+              {Array.from({ length: totalSteps }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-2 w-2 rounded-full ${i < handled ? 'bg-kz-lavender/90' : 'bg-white/[0.16]'}`}
+                />
+              ))}
             </span>
-          </div>
-          <ProgressRail value={handled} max={totalSteps} />
-          <p className="kz-ar-micro mt-2 text-kz-inkFaint">
-            هذا ليس تقييماً — إنه تمرين. المحادثة هي المكان الذي نقيس فيه فعلاً.
-          </p>
-        </GlassWell>
+            <span className="kz-ar-micro text-kz-inkFaint">
+              {handled} من {totalStepsAr}
+            </span>
+          </span>
+        </div>
       </div>
 
-      {/* The one action, docked above the safe area. */}
-      <FloatingControl className="fixed bottom-0 start-0 end-0 z-20 mx-auto max-w-md p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {/* The one action, docked above the safe area (Screen 2.2): solid blurred
+          backdrop so content scrolls BENEATH it, safe-area padding, and enough
+          reserved space below the content that no input is ever covered. */}
+      <FloatingControl className="fixed bottom-0 start-0 end-0 z-20 mx-auto max-w-md rounded-t-sheet border-t border-white/[0.06] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <PrimaryAction
           hintAr="بعدها تبدأ المحادثة الحقيقية — بالصوت أو بالكتابة."
           onClick={handleReady}
@@ -570,9 +619,50 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
         >
           أنا جاهز
         </PrimaryAction>
+        {/* The reassurance sits directly under the CTA now, instead of at the
+            bottom of the page where it read as fine print about nothing. */}
+        <p className="kz-ar-micro mt-2 text-center text-kz-inkFaint">
+          هذا ليس تقييماً — إنه تمرين.
+        </p>
       </FloatingControl>
     </div>
   );
 };
 
 export default GuidedPracticeScreen;
+
+/**
+ * One accordion header for the deeper-practice group (launch polish, Screen
+ * 2.1): a 44px chevron row, the section name, and the rule's level chip kept
+ * with the section it belongs to. Rendering the BODY is the caller's job —
+ * the header is the only new shape.
+ */
+function AccordionHeader({
+  labelAr,
+  open,
+  onToggle,
+  level,
+}: {
+  labelAr: string;
+  open: boolean;
+  onToggle: () => void;
+  level?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="flex min-h-[44px] w-full items-center justify-between gap-2 text-start"
+    >
+      <span className="flex items-center gap-2">
+        <span className="kz-ar-micro text-kz-inkDim">{labelAr}</span>
+        {level && <span className="font-german text-micro text-kz-inkFaint">{level}</span>}
+      </span>
+      <ChevronLeft
+        aria-hidden
+        className={`h-4 w-4 text-kz-inkFaint transition-transform ${open ? '-rotate-90' : ''}`}
+      />
+    </button>
+  );
+}

@@ -144,8 +144,10 @@ export default {
         display: ['var(--kz-ar-display)', { lineHeight: '1.32', letterSpacing: '-0.01em' }],
         title: ['var(--kz-ar-title)', { lineHeight: '1.45' }],
         body: ['var(--kz-ar-body)', { lineHeight: '1.75' }],
-        caption: ['var(--kz-ar-caption)', { lineHeight: '1.6' }],
-        micro: ['var(--kz-ar-micro)', { lineHeight: '1.5' }],
+        // G4: caption ≥13px and micro ≥12px — the legibility floor for Arabic
+        // on AMOLED; line-height ≥1.6 keeps the script's joins intact.
+        caption: ['var(--kz-ar-caption)', { lineHeight: '1.65' }],
+        micro: ['var(--kz-ar-micro)', { lineHeight: '1.6' }],
       },
       fontWeight: {
         /* Cairo is variable 100–900, so "bold" can be genuinely bold without

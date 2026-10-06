@@ -129,8 +129,22 @@ export function selectGrammarRule(
   // luggage taught "trennbare Verben" with "Ich richte den Zugang ein") is not.
   const scenarioVocabulary = new Set((options.scenarioVocabulary || []).flatMap(contentWords));
 
-  const pool = (grammar || [])
-    .filter((rule) => rule?.id && rule.title_ar?.trim() && rule.rule_ar?.trim() && rule.example_de?.trim())
+  /**
+   * Level cap (launch polish, Screen 2.3 — verify then fix, owner brief): the
+   * app's own rule is "never harder than the level". The old pool sorted by
+   * DISTANCE from the learner's level, so a thin grammar table served a B1
+   * rule (sich freuen auf) inside an A1 scenario to an A1 learner — a
+   * deliberate-looking stretch nobody had decided on. The pool is now CAPPED
+   * at the learner's rank: at-or-below first, and above the level only when
+   * nothing at or below it exists (a scarce table must not empty the beat).
+   */
+  const valid = (grammar || []).filter(
+    (rule) => rule?.id && rule.title_ar?.trim() && rule.rule_ar?.trim() && rule.example_de?.trim(),
+  );
+  const atOrBelow = valid.filter((rule) => levelRank(rule.level) <= learnerRank);
+  const cappedPool = atOrBelow.length > 0 ? atOrBelow : valid;
+
+  const pool = cappedPool
     .filter((rule) => !excluded.has(normalizeGermanAnswer(rule.example_de)))
     .sort(
       (a, b) =>
