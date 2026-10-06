@@ -2,11 +2,11 @@
 
 ## RESUME
 
-- **Last sha:** `463e292` **pushed and deployed** (L17). CI run `37420600607` — **success**
-  (`secret-scan`, `launch-check`, `verify`, `e2e` all green). The FINAL LAUNCH PASS (steps 1–7) is
-  complete: Western numerals in every price/session string, an owner-true read of production vs
-  HEAD, a real 1200x630 share card, the spend cap configured, all pre-deploy gates green, a
-  read-only production smoke, and the deploy itself.
+- **Last sha:** `6621c53` **pushed and deployed** (journey polish, L18). CI run `37494923231` —
+  **success** (`secret-scan`, `launch-check`, `verify`, `e2e` all green). The journey path/library
+  screen polish (`1c82059`) + follow-up (`ce533f2`: one-line Katzu greeting back above the review
+  strip, «لم تستقل فيه بعد» folded into the PRACTISING chip) + genuine before-shot recapture
+  (`db9bb2e`) + pre-deploy snapshot (`6621c53`) are shipped.
 - **Next:** the owner-only launch items still gate public launch — the 10 `{{OWNER_FILL}}` legal
   fields and `VITE_PUBLIC_APP_URL` (11 blockers under `npm run check:launch:strict`). Nothing else
   is deployable without an owner decision.
@@ -16,10 +16,14 @@
   Lighthouse performance **0.87** at 360x640, play-readiness e2e **3/3**.
 - **Deferred notes:** `docs/agent/DEFERRED-NOTES.md` (email OTP, web push, Play Billing, domain
   switch, Play wrapper — one paragraph each, nothing built).
-- **Live now:** worker `476bac16-eb7c-4cb9-8ccb-72ac35faf208` (rollback `0a653eca-2224-4114-b1fa-749bb2cb1251`),
-  Pages production `08f0082d-c041-41c8-b1e8-d9938c3188d3` from `463e292`, serving
-  `assets/index-bWgfrKSi.js` (rollback `ec47b2ff-5cc8-4e89-9209-ac851d00538b`). The worker now
-  carries `fe1d504` + `4d05905` and the newly armed `AI_DAILY_SPEND_CAP="292"`.
+- **Live now:** worker `315ec953-d234-481a-93c3-8c493818df5e` (the UI-polish deploy, untouched by
+  the journey session — no `cloudflare-*.js`/`wrangler.toml`/`migrations/` file changed in
+  `349faf0..6621c53`; rollback target `476bac16-eb7c-4cb9-8ccb-72ac35faf208`, older
+  `0a653eca-2224-4114-b1fa-749bb2cb1251`), Pages production `d3165772-4adc-4118-9895-b7e53188b407`
+  from `6621c53`, serving `assets/index-B0IutCpH.js` with the journey polish proven in the shipped
+  lazy chunk `assets/TrailScreen-DtGnRxP-.js` (the new chip label present, 1 occurrence; rollback
+  `43f5985a-5c4e-4820-9efc-0cbcbfd5163b` from `a821b18`, older `67888b41-23ea-4585-a4d2-345b8281119f`).
+  The worker still carries `fe1d504` + `4d05905` and the armed `AI_DAILY_SPEND_CAP="292"`.
 
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 
@@ -166,6 +170,7 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 | ID | Status | Evidence / blocker |
 |---|---|---|
+| Journey path/library screen polish (2026-10-06) — shipped | done | Commits `1c82059` (22 files, +625/−213) + `ce533f2` + `db9bb2e` + `6621c53` on `main` (pushed, deployed). **What changed on `/app/library` (TrailScreen):** one-column path with node gutter (w-10, line at `start-[19px]`), node states done (filled purple + check) / current (ring + dot + single glow) / locked (hollow); mission strip ~88px; rank card ~72px with `<bdi dir="ltr">` XP; the one-line Katzu greeting (`journey-greeting`, existing `checkIn.headline` copy, 22.75px tall) directly above the review strip — the first path card stays above the fold at 390x844 (bottom 624px, 220px slack, per `e2e/shots/journeyLayoutProbe.spec.ts`); the "practiced but not independent" state is now legible in the chip itself: `PATH_CHIP_LABEL_AR` overrides `CAPABILITY_LABEL_AR` with `PRACTISING: 'تدرّبت عليه — لم تستقل فيه بعد'` (Trail-only) and the old hint row under the cards is gone; review mission subtitle «حان وقت تثبيتها» with the count kept only in the CTA «راجع 8 عناصر الآن» (pinned by `tests/missionSelection.test.ts`). e2e fixes: `navOverlap.spec.ts` scrolls until `scrollY >= scrollHeight - innerHeight - 1` (lazy hydration left the page short of the bottom), `skillSurfaces.spec.ts` rank assertion split (`الرتبة 3 من 6` + `صياد الأُملاوت`). **Evidence:** 12 genuine before/after shots in `docs/agent/journey-polish/` (all 6 pairs byte-DIFFER; 3 "before" files had been overwritten with post-polish renders and were re-shot from `a821b18`), mascot contact sheet (review strip `thumbs_up`, path cards `trail_header` at 12px). **Gates (this session, captured exit statuses):** tsc 0 · tsc -p e2e 0 · `npm test` 139 files / 1787 passed · `E2E_TARGET=preview npx playwright test` 132 passed + 2 skipped (pre-existing env-skips) · build 0 · design-audit 0 · contrast 0 · simplicity 29/29. **Deploy:** `DEPLOY-AUTHORIZED: worker, pages`; worker NOT deployed — no worker file changed since the deployed `349faf0`, per the V10-5/V17-3 precedent; live worker verified unchanged (`/health` identical, `/crypto/health` `ready:false` test_mode unchanged, unauth `/admin/api/users` 401). Pages production `d3165772-4adc-4118-9895-b7e53188b407` from `6621c53` (git-triggered), serving `assets/index-B0IutCpH.js`; the polish proven in the shipped chunk `assets/TrailScreen-DtGnRxP-.js` (new chip label present); `/` 200, `/demo` 200. **CI:** run `37494923231` — success (pushed sha `6621c53`). **Production smoke:** `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → 3 passed + 2 skipped (pre-existing: one needs `/pricing` to fail, one needs sign-in for `/paywall`), exit 0. **Rollback targets (recorded pre-deploy, proven available, not needed):** worker `315ec953-…` (older `476bac16-…`), Pages `43f5985a-5c4e-4820-9efc-0cbcbfd5163b` from `a821b18` (older `67888b41-…` from `349faf0`). |
 | UI-polish launch week (2026-10-06) — shipped verdict evidence | done | Commits `e5bda87` + `df594f5` + `3503154` + `26d7f55` + `a181116` + `9986c5d` + `f7f2de6` on `main` (pushed, deployed): G1–G6 + Screens 1–4 per the owner's polish brief. Gates, all from this session with captured exit statuses: `npx tsc --noEmit` 0 · `npx tsc -p e2e --noEmit` 0 · `npm test` 139 files / 1787 passed · `E2E_TARGET=preview npx playwright test` 122 passed + 2 skipped (pre-existing env-skips) · `npm run build` 0 · design-audit 0 · simplicity-check 29 screens 0 · contrast-check 0 · `npm audit --omit=dev --audit-level=high` 0 vulns · `node --check` on the worker modules 0. Before/after real-viewport screenshots (390x844 + 360x740) in `docs/agent/ui-polish/` (19 files incl. 3 review verdict states). Review verdict states: all three use warm tones only — correct `text-kz-neon`, almost `text-kz-lavender`, incorrect `text-kz-warm` (RGB 255,201,138 peach, **not red**); the «almost» and «incorrect» states captured from test-only fixtures (3 due cards: exact / wrong-article / different-noun) at 390x844, never prod data. Owner-approved Arabic copy kept as-is: «للتثبيت» (mistake kind chip) and «بطاقات المراجعة» (flashcard tile) unchanged from the polish commit. **Deploy:** worker `315ec953-d234-481a-93c3-8c493818df5e` (new, from `npm run deploy:worker`, exit 0), verified: `/health` status-only, `/crypto/health` unchanged, `/admin/api/users` + `/admin/api/orders` → 401; Pages production `67888b41-23ea-4585-a4d2-345b8281119f` from commit `349faf0` (git-triggered build, 13 min after push), verified: `/` 200, `/demo` 200, bundle `assets/index-ANqcguFZ.js` carries worker origin. **CI:** run `37464899367` — success (pushed sha `349faf0`). **Production smoke:** `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → 3 passed + 2 skipped (pre-existing: one needs `/pricing` to fail, one needs sign-in for `/paywall`). **Rollback targets (still proven):** worker `476bac16-eb7c-4cb9-8ccb-72ac35faf208` (older), Pages `08f0082d-c041-41c8-b1e8-d9938c3188d3` (older). |
 | Baseline | done | Historical baseline recorded before this continuation: `npm run lint` passed; `npx tsc -p e2e --noEmit` passed; `npm test -- --run` passed 62 files / 718 tests; `npm run build` passed (entry 490.60 kB / 157.56 kB gzip; 83 precache entries, 3978.03 KiB). Branch `launch-hardening`; original work checkpoint `6ddb39f`. |
 | Chat-bubble assertion move | done | Assertion moved into live-interaction test after turn one, while transcript messages are mounted. Historical `npm run lint && npx tsc -p e2e --noEmit` passed after the edit. The focused live-interaction browser test after this move remains unproven; see UNPROVEN/B8. |
