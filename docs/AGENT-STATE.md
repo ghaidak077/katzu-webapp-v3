@@ -34,6 +34,20 @@
   `d082e49..HEAD`. **Live before this session's deploy touch:** worker `/health` status-only healthy,
   `/crypto/health` test_mode unchanged, unauth `/admin/api/users` 401, Pages `/` 200.
 
+- **Deployed this session (owner authorized: merge, worker, pages):** `git push origin main` → `46d8de6`
+  on `main` (`origin/main` now == HEAD, `0 0`); git-triggered Pages build became the new production
+  deployment **`5b7eae6e-3214-4cd1-a5fe-a11a2fb4cba2`** from `46d8de6` (Active; previous production
+  deployment `dbe443f7-...` from `d082e49`); worker **`daa9101f-da5a-4f4c-a798-4fd92e28d6f8`**
+  (bindings unchanged: KV ×2, D1, AI, 17 env vars incl. `AI_DAILY_SPEND_CAP="292"` and
+  `MAINTENANCE_MODE="off"`; cron `17 4 * * *` intact). **Live verify after deploy:** worker
+  `/health` `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false}`
+  (shape unchanged), `/crypto/health` unchanged (`test_mode`, `ready:false`, no NOWPayments config),
+  unauth `/admin/api/users` → **401**, Pages `/` → **200**. **Live render (this session, this thread): the
+  production Trail path was opened in a fresh browser and rendered the V41 journey-ordered cards with
+  banners as intended.** `valibjorn-brief.md` + `valibjorn-brief.pdf` left untracked (external read, not
+  part of this deploy). **CI:** run **`37601819662`** for pushed sha `46d8de6` — **success** (9 m 27 s).
+  No production D1 write, no secret read, no owner-only item touched.
+
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 
 Recorded 2026-10-06 **before** the journey-polish deploy session touched anything. Supersedes the
