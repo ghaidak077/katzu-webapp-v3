@@ -117,28 +117,8 @@ export function levelConstraintLine(level: CEFRLevel): string {
   return `LEVEL CAPS — write German at CEFR ${level}: at most ${s.maxWordsPerSentence} words per sentence; ${tenses}; ${connectors}. Correct at most ${s.maxCorrectionsPerTurn} mistake${s.maxCorrectionsPerTurn === 1 ? '' : 's'} per turn, the most important one first.`;
 }
 
-/**
- * The Trail's order, as a rule rather than a habit.
- *
- * WHY EXAM SCENARIOS COME FIRST
- * The Trail opens on a handful of situations and hides the rest behind one
- * "show the rest" control. A learner who arrived to prepare for an exam was
- * previously shown five everyday scenarios before any exam scenario, and had to
- * know the difference between the two to find the one they came for. Putting
- * `exam_*` first means the preview is the reason they arrived, and the everyday
- * life of the language is still exactly as reachable behind the control.
- *
- * NOT a filter: nothing is hidden, and the "show the rest" control is untouched.
- * This only decides what the first screen is made of.
- *
- * The order within each group is the scenario's own `sort_order`, so the author
- * still decides the sequence — and the original array order breaks any tie,
- * which keeps this a stable sort rather than a reshuffle.
- */
-export function examFirstScenarios<T extends { id: string; sort_order?: number | null }>(scenarios: T[]): T[] {
-  const isExam = (s: T) => String(s?.id ?? '').startsWith('exam_');
-  const byAuthoredOrder = (a: T, b: T) => (Number(a?.sort_order ?? 0) - Number(b?.sort_order ?? 0));
-  const exams = (scenarios || []).filter(isExam).sort(byAuthoredOrder);
-  const rest = (scenarios || []).filter((s) => !isExam(s)).sort(byAuthoredOrder);
-  return [...exams, ...rest];
-}
+// The Trail's order used to live here as `examFirstScenarios`. It moved to
+// `src/lib/content/scenarioOrder.ts` on 2026-10-07: the sort read a `sort_order`
+// field no row carries, so it did nothing and the list fell back to the object
+// store's key order — alphabetical by id. Ordering is a content concern, not a
+// level concern, and it now lives with the content.

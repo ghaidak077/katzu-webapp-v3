@@ -4,8 +4,15 @@ import { bootSignedIn, seedRows } from '../harness';
 /**
  * Acceptance probe for the journey-polish brief — measures the rendered layout
  * instead of trusting an eyeball: the current node visible without scrolling at
- * 390x844, no horizontal clipping, unwrapped header chips, compact sections,
- * and 16:9 thumbnails where artwork exists.
+ * 390x844, no horizontal clipping, unwrapped header chips, compact sections, and
+ * a full-width 16:9 banner on every path card.
+ *
+ * The banner assertion used to cap thumbnails at 120px, because a card rendered
+ * its artwork as a small 96px-wide thumbnail and only when the scenario had one.
+ * The owner replaced that on 2026-10-07: every card now leads with its own
+ * full-width 16:9 banner and the Arabic title as the headline, so the ceiling is
+ * gone and the span is asserted instead. What still has to hold is the thing the
+ * ceiling was protecting — the first card stays fully inside one screen.
  */
 
 function reviewRow(promptAr: string, answerDe: string): Record<string, unknown> {
@@ -83,8 +90,11 @@ test('layout probe at 390x844', async ({ page }) => {
   // The timeline never crosses a card: it lives in the 40px node gutter.
   expect(metrics.line!.width).toBeLessThanOrEqual(4);
   for (const b of metrics.banners) {
-    expect(b.h, 'thumbnail ≤120px').toBeLessThanOrEqual(120);
-    expect(Math.abs(b.ratio - 16 / 9), `16:9 thumbnail (${b.w}x${b.h})`).toBeLessThan(0.05);
+    // Full-width, not a thumbnail: a card is 306px wide at 390x844 after the
+    // page padding and the 40px node gutter, so the banner spans most of it.
+    // 200 is a floor that still fails if the banner is shrunk back to a corner.
+    expect(b.w, 'banner spans the card').toBeGreaterThanOrEqual(200);
+    expect(Math.abs(b.ratio - 16 / 9), `16:9 banner (${b.w}x${b.h})`).toBeLessThan(0.05);
   }
   // Glow rule: at most one, and only a card can carry it. With reviews due the
   // mission is the review strip, so no path card is current — 0 is correct.

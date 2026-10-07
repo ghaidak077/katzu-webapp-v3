@@ -6,7 +6,7 @@ import { GlassButton } from '@/components/glass/GlassButton';
 import { Button } from '@/components/ui/Button';
 import { isProEffective } from '@/lib/utils/subscription';
 import { FREE_LEVEL, isLevelFree, servedLevel } from '@/lib/entitlement/trial';
-import { examFirstScenarios } from '@/lib/levels/levelSpec';
+import { journeyOrderedScenarios } from '@/lib/content/scenarioOrder';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
 import { ScenarioBanner } from '@/components/glass/ScenarioBanner';
@@ -86,10 +86,13 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const [paywallReason, setPaywallReason] = useState({ title: '', description: '' });
 
   const user = useLiveQuery(() => db.users.get('current_user'));
-  // Exam scenarios lead the Trail (F8): the preview a learner lands on is now
-  // the reason they arrived. Nothing is hidden — the "show the rest" control and
-  // the level filter below are untouched, and `examFirstScenarios` only reorders.
-  const scenarios = examFirstScenarios(useLiveQuery(() => db.scenarios.toArray()) || []);
+  // The Trail is a journey, not a list: the order comes from
+  // `journeyOrderedScenarios` (arrival → first words → everyday → home →
+  // official → health → work → interviews → exam practice). Nothing is hidden —
+  // the "show the rest" control and the level filter below are untouched, and
+  // the rule only reorders. It replaced `examFirstScenarios` on 2026-10-07, which
+  // sorted on a field no row has and so fell back to alphabetical id order.
+  const scenarios = journeyOrderedScenarios(useLiveQuery(() => db.scenarios.toArray()) || []);
   const trainingRecords = useLiveQuery(() => db.scenario_training.toArray()) || [];
   const reviewItems = useLiveQuery(() => db.review_items.toArray()) || [];
   const mistakes = useLiveQuery(() => db.mistakes.toArray()) || [];
@@ -505,7 +508,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           className="absolute bottom-3 top-3 w-[2px] bg-border-subtle start-[19px]"
         />
 
-        {scenarios.slice(0, showAllScenarios ? undefined : TRAIL_PREVIEW_COUNT).map((scenario: ScenarioEntity) => {
+        {scenarios.slice(0, showAllScenarios ? undefined : TRAIL_PREVIEW_COUNT).map((scenario: ScenarioEntity, index) => {
           const state = capabilityFor(scenario.id);
           const done = isDone(scenario.id);
           const current = !done && scenario.id === missionScenarioId;
@@ -542,7 +545,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 type="button"
                 onClick={() => handleScenarioClick(scenario.id)}
                 aria-label={`${scenario.title_ar} (${scenario.title_de})`}
-                className={`flex min-h-touch flex-1 items-stretch gap-3 overflow-hidden rounded-panel border bg-surface-card p-3 text-start transition-[background-color,border-color,box-shadow] ${
+                className={`flex min-h-touch flex-1 flex-col overflow-hidden rounded-panel border bg-surface-card text-start transition-[background-color,border-color,box-shadow] ${
                   current
                     ? 'border-primary/60 shadow-glow-purple'
                     : done
@@ -550,30 +553,50 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                       : 'border-border-subtle pointer-hover:border-primary/50'
                 }`}
               >
-                {/* A real 16:9 thumbnail when the scenario has artwork; nothing at
-                    all when it does not. The old card always reserved a 16:9 box,
-                    so a scenario with no art showed a blank dark gradient that
-                    read as a broken image and cost ~140px of scroll. */}
-                {scene.artUrl && (
-                  <ScenarioBanner scene={scene} className="w-32 shrink-0 self-center" />
-                )}
+                {/* Every card now leads with its own 16:9 banner, full width.
+                    WHY THIS REVERSED
+                    The card used to render a 96px thumbnail only when the
+                    scenario had artwork, and nothing at all otherwise — a
+                    compact-text card for the art-less majority. That made the
+                    list two different products side by side, and made the
+                    situations a learner cannot yet read (the ones with no art)
+                    the hardest to recognise, which is exactly backwards: the
+                    banner is what says "this is a bakery" before any German is
+                    read.
+                    The floor is not a broken frame — `sceneFor` always returns
+                    usable scene lighting, so an art-less scenario shows a lit
+                    16:9 scene rather than a grey box (see ScenarioBanner).
+                    The first card loads eagerly: it is above the fold, and lazy
+                    there costs a visible pop-in on the screen's hero. */}
+                <ScenarioBanner scene={scene} loading={index === 0 ? 'eager' : 'lazy'} className="shrink-0" />
 
-                <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3">
                   <div className="flex items-center gap-1.5">
                     <Badge variant={done ? 'success' : 'subtle'} size="sm">
                       {PATH_CHIP_LABEL_AR[state]}
                     </Badge>
                     <Play className="h-3.5 w-3.5 text-text-muted" aria-hidden />
                   </div>
-                  <GermanText className="block text-sm font-bold leading-snug text-text-primary">
-                    {scenario.title_de}
-                  </GermanText>
-                  {/* The Arabic title can carry Latin parentheses («(أسلوب
-                      الامتحان)»); the <bdi dir="rtl"> keeps them on the RTL base
-                      direction so they mirror the way Arabic reads them. */}
-                  <p className="line-clamp-2 font-arabic text-sm leading-relaxed text-text-secondary">
+                  {/* The headline is the Arabic title, and the German is the
+                      label underneath.
+                      WHY
+                      The card's biggest line used to be German (`title_de`,
+                      bold, primary) with the Arabic as a smaller grey line.
+                      Katzu teaches German TO Arabic speakers, and the learner
+                      is choosing a situation, not reading a sentence: «عند
+                      الخبّاز» is a decision they can make at a glance, while
+                      «Beim Bäcker einkaufen» is homework for a word they have
+                      not learned yet. The German stays — one line, beneath, as
+                      the thing they are about to learn. */}
+                  <p className="font-arabic text-base font-bold leading-snug text-text-primary">
+                    {/* The Arabic title can carry Latin parentheses («(أسلوب
+                        الامتحان)»); the <bdi dir="rtl"> keeps them on the RTL base
+                        direction so they mirror the way Arabic reads them. */}
                     <bdi dir="rtl">{scenario.title_ar}</bdi>
                   </p>
+                  <GermanText className="line-clamp-1 block text-xs leading-snug text-text-secondary">
+                    {scenario.title_de}
+                  </GermanText>
                 </div>
               </button>
             </li>

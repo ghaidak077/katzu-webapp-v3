@@ -28,7 +28,7 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 | Route | State | Proof |
 |---|---|---|
 | `/demo` public demo | **works** | `npx playwright test e2e/demo.spec.ts` → 1 passed, 8 s vs dev, 7 s vs `vite preview`; **re-proved on production in V10** in this thread's own logged-out browser — all four steps completed, **zero console messages**, **no `/ai/turn`** |
-| `/app/trail` (Journey Home) | **works** | `e2e/journey.spec.ts` 12/12 + `e2e/firstRun.spec.ts` 3/3, ledger RC-5; **V28** added the daily-tasks panel (seen live: «مهام اليوم · 0 من 3») with `e2e/dailyTasks.spec.ts` 2/2 |
+| `/app/trail` (Journey Home) | **works** | `e2e/journey.spec.ts` 12/12 + `e2e/firstRun.spec.ts` 3/3, ledger RC-5; **V28** added the daily-tasks panel (seen live: «مهام اليوم · 0 من 3») with `e2e/dailyTasks.spec.ts` 2/2; **V41** (2026-10-07, local only, uncommitted) replaced the accidental alphabetical order with the journey order (`src/lib/content/scenarioOrder.ts`) and gave every path card a full-width 16:9 banner with the Arabic title as its headline — `e2e/banner.spec.ts` + `e2e/journey.spec.ts` 14/14, `e2e/shots/journeyLayoutProbe.spec.ts` 3/3 |
 | `/app/ask` (Ask Katzu) | **works** | `e2e/ask.spec.ts` 2/2 + `tests/askRoutes.test.ts` (23) + `tests/askPractice.test.ts` (6); seen live returning Arabic + German + 3 practice items |
 | `/app/grammar` (locked path) | **works** | `tests/grammarPath.test.ts` (18) + `tests/grammarPathStore.test.ts` (5) + `e2e/grammarPath.spec.ts` (2); seen live as «مسار القواعد · أكملت 0 من 77» with later lessons locked |
 | Story Setup → Guided Practice → Live Conversation → Debrief | **works** | `e2e/journey.spec.ts`, `e2e/conversationLayout.spec.ts`, `e2e/microphone.spec.ts`; ledger RC-0 rerun |

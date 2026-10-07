@@ -1,124 +1,130 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { examFirstScenarios } from '../src/lib/levels/levelSpec';
+import { journeyOrderedScenarios, journeyStageFor } from '../src/lib/content/scenarioOrder';
 
 /**
- * The Trail leads with the exam scenarios.
+ * The Trail is a journey, not a list, and not the alphabet.
  *
- * The rule is narrow on purpose: reorder, never filter. A learner who came to
- * prepare for an exam used to be shown five everyday situations first and had to
- * know that `exam_` meant what it meant. Nothing about the "show the rest"
- * control changes, and nothing disappears — this batch is about what the first
- * screen is made of, not about what exists.
+ * This file replaces `tests/trailOrdering.test.ts`'s earlier contract, which
+ * pinned `examFirstScenarios`. That function sorted on a `sort_order` field no
+ * scenario row has; the comparison was 0 for every pair, so the sort did nothing
+ * and the screen kept the object store's key order — alphabetical by id. The
+ * tests passed because they exercised the function directly with fixtures that
+ * *did* set `sort_order`, so they proved a rule the app never actually ran
+ * against a real list. Ordering now lives in `src/lib/content/scenarioOrder.ts`
+ * and is tested through the same function the screen calls.
+ *
+ * The rule is narrow on purpose: reorder, never filter. Nothing about the «اعرض
+ * بقية المشاهد» control or the level filter changes, and nothing disappears.
  */
 
-type S = { id: string; sort_order?: number | null };
+describe('the journey order', () => {
+  const list = [
+    { id: 'exam_sich_vorstellen', category: 'exam' },
+    { id: 'cafe_order', category: 'daily_life' },
+    { id: 'anmeldung_buergeramt', category: 'official' },
+    { id: 'train_station', category: 'travel' },
+    { id: 'airport_arrival', category: 'travel' },
+  ];
 
-describe('examFirstScenarios', () => {
-  it('puts every exam scenario before every other one', () => {
-    const result = examFirstScenarios([
-      { id: 'cafe_order', sort_order: 1 },
-      { id: 'exam_sich_vorstellen', sort_order: 9 },
-      { id: 'supermarket', sort_order: 2 },
-      { id: 'exam_erfahrungen_sprechen', sort_order: 8 },
-    ]);
-    expect(result.map((s) => s.id)).toEqual([
-      'exam_erfahrungen_sprechen',
-      'exam_sich_vorstellen',
+  it('opens where the learner\'s story opens — at the airport', () => {
+    expect(journeyOrderedScenarios(list)[0].id).toBe('airport_arrival');
+  });
+
+  it('ends with exam practice', () => {
+    expect(journeyOrderedScenarios(list).at(-1)?.id).toBe('exam_sich_vorstellen');
+  });
+
+  it('walks the journey in order: arrival, everyday, official, exam', () => {
+    expect(journeyOrderedScenarios(list).map((s) => s.id)).toEqual([
+      'airport_arrival',
+      'train_station',
       'cafe_order',
-      'supermarket',
+      'anmeldung_buergeramt',
+      'exam_sich_vorstellen',
     ]);
   });
 
-  it('keeps the author\'s own order inside each group', () => {
-    // `sort_order` is the content author's decision. This function decides which
-    // group a scenario is in and nothing else.
-    const result = examFirstScenarios([
-      { id: 'zebra_shop', sort_order: 30 },
-      { id: 'exam_third', sort_order: 3 },
-      { id: 'exam_first', sort_order: 1 },
-      { id: 'apple_store', sort_order: 20 },
-      { id: 'exam_second', sort_order: 2 },
-    ]);
-    expect(result.map((s) => s.id)).toEqual([
-      'exam_first',
-      'exam_second',
-      'exam_third',
-      'apple_store',
-      'zebra_shop',
+  it('keeps the arrival chain in the order a traveller meets it', () => {
+    const arrivals = ['train_first_ride', 'train_station', 'airport_arrival'].map((id) => ({
+      id,
+      category: 'travel',
+    }));
+    expect(journeyOrderedScenarios(arrivals).map((s) => s.id)).toEqual([
+      'airport_arrival',
+      'train_station',
+      'train_first_ride',
     ]);
   });
 
-  it('hides nothing — every scenario survives', () => {
-    const input: S[] = [
-      { id: 'a', sort_order: 1 },
-      { id: 'exam_b', sort_order: 2 },
-      { id: 'c', sort_order: 3 },
-      { id: 'd', sort_order: 4 },
-    ];
-    const result = examFirstScenarios(input);
-    expect(result).toHaveLength(input.length);
-    expect(result.map((s) => s.id).sort()).toEqual(['a', 'c', 'd', 'exam_b']);
+  it('never reads the order it was handed', () => {
+    // The defect this replaces was dependency on the caller's order. Shuffling
+    // the same rows must not change the screen.
+    const shuffled = [list[2], list[4], list[0], list[3], list[1]];
+    expect(journeyOrderedScenarios(shuffled).map((s) => s.id)).toEqual(
+      journeyOrderedScenarios(list).map((s) => s.id),
+    );
   });
 
-  it('does not mutate the array it was given', () => {
-    const input: S[] = [
-      { id: 'cafe_order', sort_order: 2 },
-      { id: 'exam_first', sort_order: 1 },
-    ];
+  it('hides nothing and does not mutate the array it was given', () => {
+    const input = [{ id: 'exam_b' }, { id: 'a' }, { id: 'c' }];
     const copy = input.map((s) => ({ ...s }));
-    examFirstScenarios(input);
+    const result = journeyOrderedScenarios(input);
+    expect(result).toHaveLength(input.length);
     expect(input).toEqual(copy);
+    expect(result.map((s) => s.id).sort()).toEqual(['a', 'c', 'exam_b']);
   });
 
-  it('leaves an all-exam or all-everyday list in its authored order', () => {
-    const exams = examFirstScenarios([
-      { id: 'exam_b', sort_order: 2 },
-      { id: 'exam_a', sort_order: 1 },
+  it('places a scenario nobody listed by its category, not at the end', () => {
+    // Content grows without this file being edited for every new row: a new
+    // travel scenario joins the arrival chain on its own.
+    expect(journeyStageFor('taxi_ride_to_hotel', 'travel')).toBe('arrival');
+    expect(journeyStageFor('unknown_thing', 'unknown_category')).toBe('other');
+    const withNewcomer = journeyOrderedScenarios([
+      ...list,
+      { id: 'taxi_ride_to_hotel', category: 'travel' },
     ]);
-    expect(exams.map((s) => s.id)).toEqual(['exam_a', 'exam_b']);
-
-    const everyday = examFirstScenarios([
-      { id: 'b', sort_order: 2 },
-      { id: 'a', sort_order: 1 },
-    ]);
-    expect(everyday.map((s) => s.id)).toEqual(['a', 'b']);
+    const airportAt = withNewcomer.findIndex((s) => s.id === 'airport_arrival');
+    const taxiAt = withNewcomer.findIndex((s) => s.id === 'taxi_ride_to_hotel');
+    const cafeAt = withNewcomer.findIndex((s) => s.id === 'cafe_order');
+    expect(taxiAt).toBeGreaterThan(airportAt);
+    expect(taxiAt).toBeLessThan(cafeAt);
   });
 
-  it('copes with an empty list and missing sort orders', () => {
-    expect(examFirstScenarios([])).toEqual([]);
-    const messy = examFirstScenarios([
-      { id: 'exam_x' },
-      { id: 'y' },
-      { id: 'exam_a', sort_order: null },
-    ]);
-    expect(messy).toHaveLength(3);
-    expect(messy[0].id).toBe('exam_x');
-    expect(messy[1].id).toBe('exam_a');
+  it('places the interview family with the interviews, not with the day job', () => {
+    expect(journeyStageFor('interview_arzt', 'work')).toBe('professional');
+    expect(journeyStageFor('daily_standup', 'work')).toBe('work');
   });
 
-  it('only treats the `exam_` prefix as an exam scenario', () => {
-    // Not `EXAM_` (ids are lowercase by convention) and not a word that merely
-    // contains "exam" — a mis-prefixed id would otherwise jump the queue.
-    const result = examFirstScenarios([
-      { id: 'my_exam_prep', sort_order: 1 },
-      { id: 'exam', sort_order: 2 },
-      { id: 'exam_real_one', sort_order: 3 },
-    ]);
-    expect(result.map((s) => s.id)).toEqual(['exam_real_one', 'my_exam_prep', 'exam']);
+  it('falls back to the author\'s sequence_order inside a stage, then to the id', () => {
+    const authored = [
+      { id: 'zeta_store', category: 'daily_life', sequence_order: 1 },
+      { id: 'alpha_store', category: 'daily_life', sequence_order: 2 },
+    ];
+    expect(journeyOrderedScenarios(authored).map((s) => s.id)).toEqual(['zeta_store', 'alpha_store']);
+    const untitled = [
+      { id: 'b_store', category: 'daily_life' },
+      { id: 'a_store', category: 'daily_life' },
+    ];
+    expect(journeyOrderedScenarios(untitled).map((s) => s.id)).toEqual(['a_store', 'b_store']);
+  });
+
+  it('copes with an empty list', () => {
+    expect(journeyOrderedScenarios([])).toEqual([]);
   });
 });
 
 describe('the Trail uses the rule and keeps its own controls', () => {
   const TRAIL = readFileSync('src/features/trail/TrailScreen.tsx', 'utf8');
 
-  it('applies the ordering to the scenario list it renders', () => {
-    expect(TRAIL).toMatch(/examFirstScenarios\(useLiveQuery/);
+  it('applies the journey order to the scenario list it renders', () => {
+    expect(TRAIL).toMatch(/journeyOrderedScenarios\(useLiveQuery/);
+    // Not called anywhere — the retired name survives only in the comment that
+    // records why it was retired, so assert on the call, not the word.
+    expect(TRAIL).not.toMatch(/examFirstScenarios\(/);
   });
 
   it('keeps the "show the rest" control and its preview count', () => {
-    // The whole point of the rule is that the preview is exam-shaped. If the
-    // control went, this would become a filter by accident.
     expect(TRAIL).toMatch(/TRAIL_PREVIEW_COUNT/);
     expect(TRAIL).toMatch(/setShowAllScenarios\(true\)/);
     expect(TRAIL).toMatch(/اعرض بقية المشاهد/);
@@ -126,5 +132,21 @@ describe('the Trail uses the rule and keeps its own controls', () => {
 
   it('still renders the same list, not a filtered one', () => {
     expect(TRAIL).toMatch(/scenarios\.slice\(0, showAllScenarios \? undefined : TRAIL_PREVIEW_COUNT\)/);
+  });
+
+  it('gives every card its banner, not only the cards that have artwork', () => {
+    // The old card rendered artwork conditionally, so the majority of situations
+    // were a text-only row beside a photographed one.
+    expect(TRAIL).not.toMatch(/scene\.artUrl &&/);
+    expect(TRAIL).toMatch(/<ScenarioBanner scene=\{scene\}[^>]*className="shrink-0"/);
+  });
+
+  it('leads each card with the Arabic title and puts the German underneath', () => {
+    expect(TRAIL).toMatch(
+      /font-arabic text-base font-bold leading-snug text-text-primary">[\s\S]*?\{scenario\.title_ar\}/,
+    );
+    expect(TRAIL).toMatch(
+      /<GermanText className="line-clamp-1 block text-xs leading-snug text-text-secondary">\s*\{scenario\.title_de\}\s*<\/GermanText>/,
+    );
   });
 });

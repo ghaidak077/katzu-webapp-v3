@@ -109,6 +109,20 @@ const CATEGORY_ART: Record<string, string> = {
   health: '/scenes/health.jpg',
   food: '/scenes/food.jpg',
   daily_life: '/scenes/daily_life.jpg',
+  // V33: the categories added with the exam/visa/study modules had lighting but
+  // no picture, so a card in them rendered as a lit empty frame while its
+  // neighbours showed a scene. Every category now resolves to a real local
+  // image. These are floors, not art direction: the nearest honest scene from
+  // the set we already ship, replaced the moment the owner sets a per-scenario
+  // `banner_url` in the content studio. Exam and visa borrow the authority
+  // photo (the same cool office light the practice rooms use), study and the
+  // trades the work photo, basics the everyday street.
+  exam: '/scenes/official.jpg',
+  visa: '/scenes/official.jpg',
+  study: '/scenes/work.jpg',
+  services: '/scenes/work.jpg',
+  trades: '/scenes/work.jpg',
+  basics: '/scenes/daily_life.jpg',
 };
 
 const CATEGORY_LABELS_AR: Record<string, string> = {
