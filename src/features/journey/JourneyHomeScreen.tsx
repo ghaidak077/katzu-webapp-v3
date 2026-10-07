@@ -29,7 +29,7 @@ import { arCount, arNoun } from '@/lib/i18n/arabicCount';
 /** V31: counts that reach a learner's eye agree with their noun. See `arabicCount`. */
 const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
 const MINUTE_FORMS = { one: 'دقيقة', two: 'دقيقتان', few: 'دقائق', many: 'دقيقة' } as const;
-import { ArrowLeft, Brain, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowLeft, Brain, RefreshCw, Sparkles, X } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
 
 export interface JourneyHomeScreenProps {
@@ -290,16 +290,26 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
 
         {/* Learners whose profile predates onboarding answer once, here, and are
             never redirected mid-task. */}
-        {user?.isLoggedIn && !user.onboardingCompletedAt && onOpenOnboarding && (
-          <GlassButton variant="secondary" fullWidth onClick={onOpenOnboarding} className="mb-4 justify-between">
-            <span className="flex flex-col items-start text-start">
-              <span className="kz-ar-caption text-kz-ink">أكمل تفضيلاتك (30 ثانية)</span>
-              <span className="kz-ar-micro font-normal text-kz-inkFaint">
-                هدفك ووقتك يجعلان مهمة اليوم أدق
+        {/* Same shared dismissal as the Trail: one X here hides it everywhere. */}
+        {user?.isLoggedIn && !user.onboardingCompletedAt && !user.onboardingPromptDismissedAt && onOpenOnboarding && (
+          <div className="relative mb-4">
+            <GlassButton variant="secondary" fullWidth onClick={onOpenOnboarding} className="justify-between">
+              <span className="flex flex-col items-start text-start">
+                <span className="kz-ar-caption text-kz-ink">أكمل تفضيلاتك (30 ثانية)</span>
+                <span className="kz-ar-micro font-normal text-kz-inkFaint">
+                  هدفك ووقتك يجعلان مهمة اليوم أدق
+                </span>
               </span>
-            </span>
-            <ArrowLeft className="h-4 w-4 shrink-0" />
-          </GlassButton>
+              <ArrowLeft className="h-4 w-4 shrink-0" />
+            </GlassButton>
+            <button
+              onClick={() => void db.users.update('current_user', { onboardingPromptDismissedAt: Date.now() })}
+              aria-label="إخفاء هذا التنبيه"
+              className="absolute top-1.5 end-1.5 rounded-full p-1.5 text-kz-inkFaint hover:bg-black/10"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </div>
         )}
 
         {/* The mission. Scene art carries the mood; the glass panel carries the

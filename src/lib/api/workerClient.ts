@@ -284,7 +284,16 @@ export class WorkerClient {
 
   // --- Curriculum Content Sync ---
 
+  /** No worker origin configured (e.g. a local dev build): every server URL
+   * would resolve against the page origin, returning HTML that fails JSON
+   * parsing. Go straight to the offline cache — the cache IS the content in
+   * this configuration — instead of a doomed fetch per table on every load. */
+  private hasServer(): boolean {
+    return this.baseUrl !== '';
+  }
+
   async fetchScenarios(): Promise<ScenarioEntity[]> {
+    if (!this.hasServer()) return db.scenarios.toArray();
     try {
       const res = await fetch(`${this.baseUrl}/scenarios`);
       if (res.ok) {
@@ -301,6 +310,11 @@ export class WorkerClient {
   }
 
   async fetchScenarioDetail(id: string): Promise<{ scenario: ScenarioEntity | null; starterPhrases: StarterPhraseEntity[] }> {
+    if (!this.hasServer()) {
+      const cachedScenario = await db.scenarios.get(id);
+      const cachedPhrases = await db.starter_phrases.where('scenario_id').equals(id).sortBy('sort_order');
+      return { scenario: cachedScenario || null, starterPhrases: cachedPhrases };
+    }
     try {
       const res = await fetch(`${this.baseUrl}/scenarios/${encodeURIComponent(id)}`);
       if (res.ok) {
@@ -346,6 +360,9 @@ export class WorkerClient {
   }
 
   async fetchVocabulary(level?: CEFRLevel, topic?: string): Promise<VocabularyEntity[]> {
+    if (!this.hasServer()) {
+      // Fall through to the cache path at the bottom of this method.
+    } else
     try {
       const url = new URL(`${this.baseUrl}/vocabulary`);
       if (level) url.searchParams.set('level', level);
@@ -374,6 +391,9 @@ export class WorkerClient {
   }
 
   async fetchGrammar(level?: CEFRLevel): Promise<GrammarEntity[]> {
+    if (!this.hasServer()) {
+      // Fall through to the cache path at the bottom of this method.
+    } else
     try {
       const url = level ? `${this.baseUrl}/grammar?level=${encodeURIComponent(level)}` : `${this.baseUrl}/grammar`;
       const res = await fetch(url);
@@ -883,6 +903,7 @@ export class WorkerClient {
     experimentEnabled?: boolean;
   } | null> {
     try {
+      if (!this.hasServer()) return null;
       const token = await this.getEffectiveAuthToken();
       const res = await fetch(`${this.baseUrl}/pricing`, {
         method: 'GET',
@@ -912,10 +933,18 @@ export class WorkerClient {
   async startMock(sessionId: string, idToken?: string): Promise<MockStartResponse> {
     const token = await this.getEffectiveAuthToken(idToken);
     if (!token) {
+      // A learner whose row says logged-in but whose session token is missing or
+      // stale must NOT be told to "sign in with Google first" — that copy is for
+      // the signed-out case only, and telling a signed-in learner to sign in
+      // again reads as a lie (the profile header shows ✓ connected).
+      const user = await db.users.get('current_user');
+      const signedIn = Boolean(user?.isLoggedIn);
       return {
         allowed: false,
         code: 'UNAUTHENTICATED',
-        message: 'يرجى تسجيل الدخول بحساب Google أولاً، ثم جرّب المحاولة.',
+        message: signedIn
+          ? 'انتهت جلسة الدخول. سجّل الدخول من جديد من «الملف» ثم جرّب المحاولة.'
+          : 'يرجى تسجيل الدخول بحساب Google أولاً، ثم جرّب المحاولة.',
       };
     }
     try {

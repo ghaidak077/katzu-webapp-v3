@@ -217,6 +217,10 @@ export interface UserEntity {
   // above rather than adding a duplicate field. ---
   /** Set once the learner finished the onboarding questions. */
   onboardingCompletedAt?: number;
+  /** Epoch ms of when the learner dismissed the «أكمل تفضيلاتك» prompt. Hides
+   * that prompt on every screen until onboarding completes — a dismissal is
+   * once-per-learner, not once-per-screen. */
+  onboardingPromptDismissedAt?: number;
   primaryGoal?: LearnerGoal;
   arrivalStatus?: ArrivalStatus;
   /** Self-reported prior exposure; decides the placement offer, never the level. */
@@ -455,6 +459,10 @@ export interface ChatMessage {
   positiveNoteAr?: string;
   wasHintUsed?: boolean;
   isGenerating?: boolean;
+  /** The server never accepted this turn (network/timeout). The bubble stays in
+   * the transcript for the retry affordance, but it is NOT a completed round:
+   * the round counter and the debrief must not count it as spoken. */
+  sendFailed?: boolean;
   timestamp: number;
 }
 

@@ -162,7 +162,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
   return (
     <div className="min-h-screen bg-black text-text-primary max-w-md mx-auto pb-10">
       <div className="p-4">
-        <TopBar onHome={onHome} />
+        <TopBar onHome={onHome} hideBack={state.stage === 'done'} />
       </div>
 
       <div className="px-4">
@@ -460,10 +460,12 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
   );
 };
 
-function TopBar({ onHome }: { onHome: () => void }) {
+function TopBar({ onHome, hideBack }: { onHome: () => void; hideBack?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <BackButton onBack={onHome} label="العودة إلى الصفحة الرئيسية" />
+      {/* The done screen renders its own full-width «العودة إلى الصفحة الرئيسية»
+          CTA; a second exit in the header is a duplicate, not a convenience. */}
+      {hideBack ? <div className="w-10" /> : <BackButton onBack={onHome} label="العودة إلى الصفحة الرئيسية" />}
       <span className="font-arabic text-sm font-bold text-text-secondary">تجربة كَاتْزُو</span>
       <div className="w-10" />
     </div>

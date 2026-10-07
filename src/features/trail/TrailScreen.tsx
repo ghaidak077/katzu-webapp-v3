@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/Badge';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { track } from '@/lib/analytics/client';
 import type { CEFRLevel, CapabilityState, ScenarioEntity } from '@/types/models';
-import { Sparkles, Check, Lock, Play, Flame, ArrowLeft, Brain } from 'lucide-react';
+import { Sparkles, Check, Lock, Play, Flame, ArrowLeft, Brain, X } from 'lucide-react';
 import { rankFor } from '@/lib/progress/ranks';
 import { countDue } from '@/lib/srs/engine';
 import { missionStatusAr, selectDailyMission, type ScenarioLevelIndex } from '@/lib/mission/selectMission';
@@ -81,7 +81,9 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('A1');
   const [levelChosen, setLevelChosen] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  /** V32: the roadmap opens on the next few situations, not on all 49 at once. */
+  /** V32: the roadmap opens on the next few situations, not on the whole catalog at once.
+   * The count is always derived from the rows the device actually has (see the
+   * «اعرض بقية المشاهد» control below) — never a hardcoded catalog size. */
   const [showAllScenarios, setShowAllScenarios] = useState(false);
   const [paywallReason, setPaywallReason] = useState({ title: '', description: '' });
 
@@ -413,22 +415,32 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
       </Card>
 
       {/* Learners whose profile predates onboarding are prompted once here —
-          never redirected mid-task, and never asked twice after they answer. */}
-      {user?.isLoggedIn && !user.onboardingCompletedAt && onOpenOnboarding && (
-        <button
-          onClick={onOpenOnboarding}
-          className="mb-4 flex w-full min-h-touch items-center justify-between gap-3 rounded-panel border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors pointer-hover:border-primary/40"
-        >
-          <span className="min-w-0">
-            <span className="block font-arabic text-sm font-bold text-text-primary">
-              أكمل تفضيلاتك (30 ثانية)
+          never redirected mid-task. The X persists the dismissal on the user
+          row, so it disappears from Journey Home too: dismissed is dismissed. */}
+      {user?.isLoggedIn && !user.onboardingCompletedAt && !user.onboardingPromptDismissedAt && onOpenOnboarding && (
+        <div className="relative mb-4">
+          <button
+            onClick={onOpenOnboarding}
+            className="flex w-full min-h-touch items-center justify-between gap-3 rounded-panel border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors pointer-hover:border-primary/40"
+          >
+            <span className="min-w-0">
+              <span className="block font-arabic text-sm font-bold text-text-primary">
+                أكمل تفضيلاتك (30 ثانية)
+              </span>
+              <span className="mt-0.5 block font-arabic text-micro leading-relaxed text-text-secondary">
+                يجعل المهمة اليومية أدق — ومستواك غير مقيس حتى تختاره.
+              </span>
             </span>
-            <span className="mt-0.5 block font-arabic text-micro leading-relaxed text-text-secondary">
-              يجعل المهمة اليومية أدق — ومستواك غير مقيس حتى تختاره.
-            </span>
-          </span>
-          <ArrowLeft className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
-        </button>
+            <ArrowLeft className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
+          </button>
+          <button
+            onClick={() => void db.users.update('current_user', { onboardingPromptDismissedAt: Date.now() })}
+            aria-label="إخفاء هذا التنبيه"
+            className="absolute top-1.5 end-1.5 rounded-full p-1.5 text-text-secondary hover:bg-surface-raised"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
       )}
 
       {/* ---------------------------------------------------------------- *

@@ -242,68 +242,6 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           </div>
         )}
 
-        {/* Referral Code Claim (new accounts, pre-purchase) */}
-        {!user?.isSubscriptionActive && (
-          <Card className="w-full p-4 bg-surface-card border-status-learning/40 text-start mb-4">
-            <label className="flex items-center gap-1.5 text-xs font-bold text-text-secondary mb-2 font-arabic">
-              <Gift className="w-3.5 h-3.5 text-status-learning" />
-              كود إحالة من صديق؟ (اختياري)
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                aria-label="كود إحالة من صديق"
-                placeholder="REF-XXXXXXXX"
-                value={referralCode}
-                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                dir="ltr"
-                className="flex-1 h-11 bg-black border border-border-subtle focus:border-status-learning rounded-xl px-3 text-xs font-mono font-bold uppercase tracking-wider text-status-learning"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                disabled={!referralCode.trim()}
-                onClick={async () => {
-                  setReferralMessage(null);
-                  const activeToken = user?.sessionToken?.trim();
-                  if (!user?.isLoggedIn || !activeToken) {
-                    setReferralMessage({ kind: 'error', text: 'يلزم تسجيل الدخول بحساب Google أولاً.' });
-                    return;
-                  }
-                  const result = await workerClient.claimReferral(referralCode, activeToken);
-                  // A referral that the SERVER accepted. `code_redeemed` counts the
-                  // months bought; this counts the thing that produced them, which
-                  // is the only way to answer "do referrals pay for themselves".
-                  // The code itself is not carried — a referral code is a public
-                  // handle, but it still has no business in an event log.
-                  if (result.success) {
-                    track('referral_converted', { kind: 'code_claim' });
-                  }
-                  setReferralMessage(
-                    result.success
-                      ? { kind: 'success', text: 'تم ربط حسابك بكود الإحالة ✓ بعد أول اشتراك سيحصل صديقك على شهر Pro.' }
-                      : { kind: 'error', text: result.error || 'تعذر تطبيق كود الإحالة.' },
-                  );
-                }}
-              >
-                ربط
-              </Button>
-            </div>
-            {referralMessage && (
-              <div
-                className={`mt-2.5 p-2 rounded-lg text-micro font-semibold ${
-                  referralMessage.kind === 'success'
-                    ? 'bg-status-success/15 border border-status-success/30 text-status-success'
-                    : 'bg-status-error/15 border border-status-error/30 text-status-error'
-                }`}
-              >
-                {referralMessage.text}
-              </div>
-            )}
-          </Card>
-        )}
-
         {/* Where a code comes from: the separate sales site (cards/crypto + local
             Syria payment). The app never takes a payment itself. */}
         <Card className="w-full p-4 bg-surface-subtle border-primary/30 text-start mb-4">
@@ -384,10 +322,64 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           )}
         </Card>
 
-        {/* Plans info */}
-        <p className="w-full mb-3 text-center text-micro text-text-muted font-arabic">
-          التفعيل متاح حالياً عبر كود مرتبط بحسابك الموثّق.
-        </p>
+        {/* Referral Code Claim (new accounts, pre-purchase). Sits BELOW the value
+            list, the buy CTA and the redeem box: a referral is a nice-to-have,
+            never a detour on the way to paying. */}
+        {!user?.isSubscriptionActive && (
+          <Card className="w-full p-4 bg-surface-card border-status-learning/40 text-start mb-4">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-text-secondary mb-2 font-arabic">
+              <Gift className="w-3.5 h-3.5 text-status-learning" />
+              كود إحالة من صديق؟ (اختياري)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                aria-label="كود إحالة من صديق"
+                placeholder="REF-XXXXXXXX"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                dir="ltr"
+                className="flex-1 h-11 bg-black border border-border-subtle focus:border-status-learning rounded-xl px-3 text-xs font-mono font-bold uppercase tracking-wider text-status-learning"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={!referralCode.trim()}
+                onClick={async () => {
+                  setReferralMessage(null);
+                  const activeToken = user?.sessionToken?.trim();
+                  if (!user?.isLoggedIn || !activeToken) {
+                    setReferralMessage({ kind: 'error', text: 'يلزم تسجيل الدخول بحساب Google أولاً.' });
+                    return;
+                  }
+                  const result = await workerClient.claimReferral(referralCode, activeToken);
+                  if (result.success) {
+                    track('referral_converted', { kind: 'code_claim' });
+                  }
+                  setReferralMessage(
+                    result.success
+                      ? { kind: 'success', text: 'تم ربط حسابك بكود الإحالة ✓ بعد أول اشتراك سيحصل صديقك على شهر Pro.' }
+                      : { kind: 'error', text: result.error || 'تعذر تطبيق كود الإحالة.' },
+                  );
+                }}
+              >
+                ربط
+              </Button>
+            </div>
+            {referralMessage && (
+              <div
+                className={`mt-2.5 p-2 rounded-lg text-micro font-semibold ${
+                  referralMessage.kind === 'success'
+                    ? 'bg-status-success/15 border border-status-success/30 text-status-success'
+                    : 'bg-status-error/15 border border-status-error/30 text-status-error'
+                }`}
+              >
+                {referralMessage.text}
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* The free mock: one per account, decided server-side. Offered before
             the price, not after it. */}

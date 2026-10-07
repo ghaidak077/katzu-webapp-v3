@@ -7,7 +7,7 @@ import { GlassWell } from '@/components/glass/GlassSurface';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuPresence, type KatzuState } from '@/components/v2/KatzuPresence';
 import { Modal } from '@/components/ui/Modal';
-import { Flame, Share2, Sparkles, ArrowLeft, ChevronDown } from 'lucide-react';
+import { Flame, Share2, Sparkles, ArrowLeft, ChevronDown, Lock } from 'lucide-react';
 import { buildSkillSummary, type Skill } from '@/lib/skills/summary';
 import { buildCapabilityModel, CAPABILITY_LABEL_AR } from '@/lib/capability/model';
 import { buildMistakeProfile } from '@/lib/coach/profile';
@@ -538,6 +538,9 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
         >
           <Share2 className="h-4 w-4 text-kz-lavender" aria-hidden />
           مشاركة بطاقة إنجازك
+          {/* Color is never the only signal: a locked card also shows a lock icon,
+              so the disabled state is readable without relying on the muted tint. */}
+          {!shareCard && <Lock className="h-3.5 w-3.5 text-kz-inkFaint" aria-hidden />}
         </GlassButton>
         {!shareCard && (
           <p className="mt-2 text-center kz-ar-micro text-kz-inkFaint">

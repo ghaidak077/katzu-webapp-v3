@@ -206,7 +206,7 @@ export function useLiveConversation({
   // translation, no live correction. The turn call is unchanged and still returns
   // the evaluation, so the end-of-session report is built from it.
   const realMode = sessionMode === 'real';
-  const userTurnsCount = messages.filter((m) => m.sender === 'USER').length;
+  const userTurnsCount = messages.filter((m) => m.sender === 'USER' && !m.sendFailed).length;
 
   /**
    * The bubble being spoken, and the word of it that is being said.
@@ -855,6 +855,16 @@ export function useLiveConversation({
                   ? 'تعذّر التحقق من رصيدك على الخادم الآن — لم تُستهلك جلسة. جملتك محفوظة، أعد المحاولة بعد قليل.'
                   : classifyTurnError(e).messageAr;
         dispatch({ type: 'turn_failed', error: { ...classifyTurnError(e), messageAr: message } });
+        // Mark the bubble as failed so the round counter («الجولة N من M») and
+        // the debrief only count turns the server actually accepted. The learner
+        // never sees progress they have not earned.
+        setMessages((prev) => {
+          const idx = prev.map((m) => m.id).lastIndexOf(userMsg.id);
+          if (idx === -1) return prev;
+          const copy = [...prev];
+          copy[idx] = { ...copy[idx], sendFailed: true };
+          return copy;
+        });
         logError('ai/turn', `Turn failed (${err?.code || 'UNKNOWN'}): ${message}`);
       }
     } finally {
@@ -946,7 +956,9 @@ export function useLiveConversation({
   };
 
   const finishSession = async (finalMessages: ChatMessage[]) => {
-    const userMsgs = finalMessages.filter((m) => m.sender === 'USER');
+    // A failed send is not a spoken sentence: the debrief counts only turns the
+    // server accepted (the retry path re-sends them anyway).
+    const userMsgs = finalMessages.filter((m) => m.sender === 'USER' && !m.sendFailed);
     const independentMsgs = userMsgs.filter((m) => !m.wasHintUsed);
     const assistedMsgs = userMsgs.filter((m) => m.wasHintUsed);
 
