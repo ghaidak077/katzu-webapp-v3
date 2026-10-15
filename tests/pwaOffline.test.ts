@@ -57,8 +57,20 @@ describe('offline app shell', () => {
     expect(extensions).toContain('png');
   });
 
-  it('lets workbox content-hash the public files copied under assets/', () => {
-    // Without an override the plugin treats everything under `assets/` as
+  it('does not precache the TTF fallbacks a supported browser never requests (A7)', () => {
+    // Measured before this rule: 114 precache entries / 4951.75 KiB, of which
+    // 821 KB was the four TTF faces. Each is the second `src` in an `@font-face`
+    // whose first is woff2 — so the only browser that would ever fetch one cannot
+    // run a service worker at all, and the bytes were paid by every install for
+    // nobody. The files stay served online; they are just not install weight.
+    const extensions = (pwaOptions.workbox.globPatterns as unknown as string[]).join(' ');
+    expect(extensions).not.toContain('ttf');
+    // The woff2 faces are the ones actually rendered and must still be there, or
+    // the diet becomes a first-paint flash of a system font.
+    expect(extensions).toContain('woff2');
+  });
+
+  it('lets workbox content-hash the public files copied under assets/', () => {    // Without an override the plugin treats everything under `assets/` as
     // content-addressed and precaches it with `revision: null` (immutable).
     // Bundled chunks really are addressed by their hash; the public files this
     // app keeps there — `assets/fonts/*.ttf`, `assets/mascot/*.png` — are not,

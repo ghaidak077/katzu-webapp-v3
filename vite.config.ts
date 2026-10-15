@@ -95,7 +95,14 @@ export const pwaOptions = {
     // painted sticker the app renders at full width): without it the precache
     // would ship a hero that only exists online, and a cold offline open would
     // show the app shell with a broken image (V16).
-    globPatterns: ['**/*.{js,css,html,ico,png,webp,ttf,woff2}'],
+    // A7: `ttf` is deliberately NOT here. The four TTF faces (cairo 586 KB +
+    // three Satoshi ~72 KB) are the second `src` in each `@font-face`, i.e. a
+    // fallback a browser only reaches for when it cannot read woff2 — and such a
+    // browser cannot register a service worker, so it never reads this precache
+    // either. Precaching them cost every install **821 KB** of downloads that
+    // nothing on any supported browser would ever request. The files stay in
+    // `public/` so the online fallback is unchanged.
+    globPatterns: ['**/*.{js,css,html,ico,png,webp,woff2}'],
     // The plugin treats everything under Vite's `assets/` directory as
     // content-addressed and precaches it with `revision: null` (immutable).
     // That is true for bundled chunks (`index-iXSWghpY.js`) but false for the
