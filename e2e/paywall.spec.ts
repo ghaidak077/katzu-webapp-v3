@@ -114,3 +114,14 @@ test('the Pro offer appears on the Debrief, after the episode is finished', asyn
   await expect(page.getByText(/ينتهي العرض|عرض محدود|آخر فرصة|باقي \d+|السعر سيرتفع/)).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'العودة إلى الرحلة' })).toBeVisible();
 });
+
+/**
+ * A6: a redeem link carries the code, so the box starts filled and normalised.
+ * This is the one interface a paying learner actually uses, so the prefill is
+ * verified through the browser rather than by type-checking alone.
+ */
+test('a redeem link pre-fills the code box, normalised to uppercase', async ({ page }) => {
+  await bootSignedIn(page);
+  await page.goto('/subscription?code=de-1m-abc123');
+  await expect(page.getByLabel('كود تفعيل الاشتراك')).toHaveValue('DE-1M-ABC123');
+});

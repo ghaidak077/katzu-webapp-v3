@@ -38,7 +38,17 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
   onOpenMock,
   onOpenPaywall,
 }) => {
-  const [code, setCode] = useState('');
+  // A6: a redeem link already carries the code (`/subscription?code=DE-...`), so the
+  // box starts filled instead of asking the learner to retype what they were sent.
+  // Read once on mount; the value is normalised the same way the input is.
+  const [code, setCode] = useState(() => {
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get('code');
+      return fromUrl ? fromUrl.trim().toUpperCase() : '';
+    } catch {
+      return '';
+    }
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
