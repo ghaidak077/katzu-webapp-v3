@@ -195,7 +195,31 @@ export function absoluteOgImages(html: string, origin: string): string {
   );
 }
 
+/**
+ * A8: the variables a Play build must have, as a pure function of the env.
+ *
+ * A Play/TWA build that ships without any one of these is worse than a build that
+ * does not ship: a missing origin bakes relative canonical/og URLs, and a missing
+ * package or certificate makes `.well-known/assetlinks.json` an empty `[]` that
+ * Android rejects — so link handling silently fails after the app is installed.
+ * Outside a Play build this returns an empty list: the app build has to keep
+ * working with nothing configured (the honest relative/empty states).
+ */
+export function missingPlayBuildVars(env: Record<string, string | undefined> = {}): string[] {
+  if (String(env.VITE_PLAY_BUILD || '') !== '1') return [];
+  return ['VITE_PUBLIC_APP_URL', 'VITE_ANDROID_PACKAGE_NAME', 'VITE_ANDROID_CERT_SHA256']
+    .filter((name) => !String(env[name] || '').trim());
+}
+
 function publicOriginFiles(): Plugin {
+  // Fail the build before anything is emitted: a Play build with an unfilled
+  // value is a configuration error, not a deployment to discover in the store.
+  const missingPlayVars = missingPlayBuildVars(process.env as Record<string, string | undefined>);
+  if (missingPlayVars.length) {
+    throw new Error(
+      `VITE_PLAY_BUILD=1 requires ${missingPlayVars.join(', ')} — refusing to build a Play bundle with an unfilled value.`,
+    );
+  }
   const origin = String(process.env.VITE_PUBLIC_APP_URL || '').replace(/\/+$/, '');
   const abs = (p: string) => (origin ? `${origin}${p}` : p);
   const routes = ['/', '/trust/privacy', '/trust/terms', '/demo', '/welcome'];

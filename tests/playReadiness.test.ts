@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assetLinksContent, pwaOptions } from '../vite.config';
+import { assetLinksContent, missingPlayBuildVars, pwaOptions } from '../vite.config';
 
 describe('the installed app identity', () => {
   it('pins the install identity to the app root, so one phone cannot install two', () => {
@@ -74,5 +74,35 @@ describe('digital asset links', () => {
     expect(JSON.parse(assetLinksContent({ certSha256: 'AA:BB:CC' }))).toEqual([]);
     // Whitespace is not a value.
     expect(JSON.parse(assetLinksContent({ packageName: '  ', certSha256: 'AA:BB:CC' }))).toEqual([]);
+  });
+});
+
+describe('the Play build gate', () => {
+  const complete = {
+    VITE_PLAY_BUILD: '1',
+    VITE_PUBLIC_APP_URL: 'https://katzu.example',
+    VITE_ANDROID_PACKAGE_NAME: 'app.katzu',
+    VITE_ANDROID_CERT_SHA256: 'AA:BB',
+  };
+
+  it('only applies to a Play build, so the normal app build never needs these', () => {
+    expect(missingPlayBuildVars({})).toEqual([]);
+    expect(missingPlayBuildVars({ VITE_PLAY_BUILD: '0' })).toEqual([]);
+    expect(missingPlayBuildVars({ VITE_PLAY_BUILD: '1' })).toEqual([
+      'VITE_PUBLIC_APP_URL',
+      'VITE_ANDROID_PACKAGE_NAME',
+      'VITE_ANDROID_CERT_SHA256',
+    ]);
+  });
+
+  it('names exactly the values a Play bundle is still missing', () => {
+    expect(missingPlayBuildVars(complete)).toEqual([]);
+    expect(missingPlayBuildVars({ ...complete, VITE_PUBLIC_APP_URL: '' })).toEqual(['VITE_PUBLIC_APP_URL']);
+    expect(missingPlayBuildVars({ ...complete, VITE_ANDROID_CERT_SHA256: '  ' })).toEqual(['VITE_ANDROID_CERT_SHA256']);
+    expect(missingPlayBuildVars({
+      ...complete,
+      VITE_ANDROID_PACKAGE_NAME: undefined,
+      VITE_ANDROID_CERT_SHA256: undefined,
+    })).toEqual(['VITE_ANDROID_PACKAGE_NAME', 'VITE_ANDROID_CERT_SHA256']);
   });
 });
