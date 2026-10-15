@@ -12,7 +12,10 @@ import { describe, expect, it } from 'vitest';
  * It compares four things in both directions (in the map but not the code, and in
  * the code but not the map):
  *
- *   routes    <Route path="…"> in src/App.tsx      ↔ §14 `appmap-routes`
+ *   routes    <Route path="…"> in the router tree     ↔ §14 `appmap-routes`
+ *             (src/App.tsx holds `/`, the whole app shell is the lazy
+ *             src/app/AppShell.tsx — both are read, or the guard would see two
+ *             routes and call the other thirty missing from the code)
  *   screens   src/**\/*Screen.tsx                  ↔ §14 `appmap-screens`
  *   endpoints url.pathname dispatch in the worker  ↔ §14 `appmap-endpoints`
  *   tables    CREATE TABLE IF NOT EXISTS in worker ↔ §14 `appmap-tables`
@@ -28,7 +31,15 @@ import { describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const appMap = readFileSync(join(root, 'docs', 'agent', 'APP-MAP.md'), 'utf8');
-const appSource = readFileSync(join(root, 'src', 'App.tsx'), 'utf8');
+/**
+ * Both halves of the router. A7 split the entry (landing + frame) from the app
+ * shell (every other route), so a route list read from `App.tsx` alone would
+ * now report thirty routes missing from the code.
+ */
+const appSource = [
+  readFileSync(join(root, 'src', 'App.tsx'), 'utf8'),
+  readFileSync(join(root, 'src', 'app', 'AppShell.tsx'), 'utf8'),
+].join('\n');
 const workerSource = readFileSync(join(root, 'cloudflare-unified-worker.js'), 'utf8');
 
 /** One fenced ```` ```name ```` block from APP-MAP, as trimmed non-comment lines. */

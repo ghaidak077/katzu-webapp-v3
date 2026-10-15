@@ -131,7 +131,16 @@ describe('layout and resource honesty', () => {
   it('the app shell clips decorative bleed so no glow can widen the document', () => {
     // Measured before the fix: an ambient BorderBeam halo (`inset: -30px`) pushed
     // /app/trail and /dev/system to scrollWidth 325 at a 320px viewport.
-    expect(read('src/App.tsx')).toContain('overflow-x-clip');
+    //
+    // A7 moved the route container — and with it this class — from `src/App.tsx`
+    // into the lazily loaded `src/app/AppShell.tsx`. The claim is about the
+    // container that wraps the screens, so the anchor follows the element rather
+    // than being dropped: an assertion pointed at a file that no longer holds it
+    // would pass on nothing.
+    expect(read('src/app/AppShell.tsx')).toContain('overflow-x-clip');
+    // And the entry no longer wraps screens at all, so a stale copy of the rule
+    // here would mean the split silently went back inside the first paint.
+    expect(read('src/App.tsx')).not.toContain('overflow-x-clip');
   });
 
   it('the hero-video slot only activates for a real video, not the SPA fallback', () => {

@@ -522,6 +522,19 @@ async function readUserIsSignedIn(page: Page): Promise<boolean> {
 export async function seedSignedInUser(page: Page, overrides: Record<string, unknown> = {}): Promise<void> {
   const user = { ...E2E_USER, ...overrides };
 
+  // A7 split the app shell out of the entry, so the seed no longer runs on the
+  // landing page: `/` paints the marketing page and nothing else, and the Dexie
+  // seed + content fetch happen when a route that needs the app loads. This
+  // harness is routinely handed a page sitting on `/` (`bootSignedIn`), where the
+  // poll below would wait forever for a database nothing was going to create.
+  // Moving to a shell route first keeps the invariant the poll is about — the
+  // database the APP created, after the APP seeded it — instead of pinning the
+  // moment the seed starts to a page that no longer does it.
+  if (new URL(page.url()).pathname === '/') {
+    await page.goto('/welcome');
+    await expect(page.locator('#root')).not.toBeEmpty({ timeout: 30_000 });
+  }
+
   // A real sign-in is `SignInScreen`'s `onSuccess`, which also records that
   // onboarding is done (`App.tsx` reads `katzu_onboarding_completed` to choose
   // where a signed-out learner goes). This harness writes the row straight into

@@ -1,7 +1,12 @@
 # APP-MAP — the whole of Katzu on one page (360° orientation)
 
-**Purpose.** Read this file to understand what Katzu *is*, how it is built, every screen and
-feature, where each thing lives, and what will bite you — **without opening the source tree**.
+**Size: ~126 KB.** Read the *section* you need, never the whole file: `grep -n "^## " docs/agent/APP-MAP.md`
+first, then read that range. `npm run session:start` already prints §9 (deploy targets + manifest
+counts), which is the part that changes; `tests/agentDocs.test.ts` caps the file at 135 KB so it
+cannot grow into something nobody can load.
+
+**Purpose.** Read the section you need to understand what Katzu *is*, how it is built, every screen
+and feature, where each thing lives, and what will bite you — **without opening the source tree**.
 It is an index, not a novel: every line is a pointer, a fact, or a rule. When you need depth,
 follow the path.
 
@@ -63,7 +68,7 @@ match online queries; content bootstrap retries failures and memoizes by DB bind
 |---|---|---|
 | UI | **React 18.3** + **TypeScript 5.7** + **Vite 6** | single framework, no second one (AGENTS §3) |
 | Styling | **Tailwind 3.4** + `clsx` + `tailwind-merge` | design tokens in `tailwind.config.js`, `.kz-*` utilities in `src/index.css` |
-| Routing | **react-router-dom 7.3** | all routes in `src/App.tsx`; screens lazy-loaded |
+| Routing | **react-router-dom 7.3** | routes in `src/app/AppShell.tsx` (lazy); `src/App.tsx` holds only `/` + the frame; screens lazy-loaded |
 | Client state | **Dexie 4 / IndexedDB** (`src/lib/db/katzuDb.ts`) | offline fixtures + queue + local fallback |
 | Server state | **Dexie + WorkerClient** | React Query is declared but unused; removal remains planned |
 | Validation | **Explicit validators and TypeScript contracts** | Zod is declared but unused; broader contract hardening remains planned |
@@ -73,7 +78,8 @@ match online queries; content bootstrap retries failures and memoizes by DB bind
 | Testing | **Vitest 5** (node/jsdom) + **Playwright 1.63** (chromium only) | `tests/` and `e2e/` |
 | Tooling | `wrangler 4`, `axe-core`, `lighthouse` (dev only) | Node **24.15.0** pinned in CI; this machine runs 24.14.0 (EBADENGINE warning only) |
 
-Root tells: `index.html` → `src/main.tsx` → `src/App.tsx`. `metadata.json` is app metadata.
+Root tells: `index.html` → `src/main.tsx` → `src/App.tsx` (landing + frame) → `src/app/AppShell.tsx`
+(the app shell, a dynamic import). `metadata.json` is app metadata.
 
 ---
 
@@ -154,9 +160,13 @@ katzu/
 
 ## 3. Screens, routes and what each one does
 
-All routes are declared in **`src/App.tsx`**. Screens default to lazy `React.lazy`; a
-`<Suspense fallback>` shows `RouteFallback` while a chunk loads (never a blank page).
+All routes are declared in **`src/app/AppShell.tsx`**, except `/` which `src/App.tsx`
+renders directly (A7: the landing must not wait on the app's Dexie seed, its three
+content fetches or the auth gate — those run in the shell, which is a dynamic import).
+Screens default to lazy `React.lazy`; a `<Suspense fallback>` shows `RouteFallback`
+(`src/components/common/RouteFallback.tsx`) while a chunk loads (never a blank page).
 The canonical, machine-checked route list is §14 (`appmap-routes`); this section explains it.
+`tests/appMap.test.ts` reads BOTH files for that list, so a route declared in either is seen.
 
 ### Public / pre-auth
 | Route | Screen (file) | What it is |
@@ -290,7 +300,8 @@ Pro status or AI allowance. AI never governs billing/account state.
 
 | I need to change… | Start at |
 |---|---|
-| a route or auth gate | `src/App.tsx` |
+| a route or auth gate | `src/app/AppShell.tsx` (all of them but `/`) |
+| the landing page or the tab title | `src/App.tsx` |
 | a screen's UI/Copy | matching `src/features/<area>/*Screen.tsx` |
 | any Worker/API call | `src/lib/api/workerClient.ts` |
 | an AI endpoint or prompt | `cloudflare-unified-worker.js` + `cloudflare-ai-chat.js` |
