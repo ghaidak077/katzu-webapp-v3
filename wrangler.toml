@@ -132,6 +132,13 @@ NOWPAYMENTS_BASE_URL = ""
 # Origin of the sales site: where a paying customer is returned, and the only
 # origin allowed to call /crypto/checkout from a browser.
 SALES_ORIGIN = "https://katzu-sales.pages.dev"
+# Public base URL of the APP (not the sales site). The admin dashboard's "copy
+# message" helper builds a redeem link from it — <app>/subscription?code=XXXX —
+# for a code it just generated. Empty means the copied message carries the code
+# only: the dashboard is served from the worker origin and will not invent an app
+# host from it (A6). The app build calls the same value VITE_PUBLIC_APP_URL and
+# either name is read here.
+PUBLIC_APP_URL = ""
 # Price of one activation code and how many months of Pro it grants.
 CRYPTO_PRICE_USD = "5"
 CRYPTO_MONTHS = "1"

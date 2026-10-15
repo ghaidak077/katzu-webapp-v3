@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import worker from '../cloudflare-unified-worker';
-import { ensureRegistryTables, sanitizeLogMessage } from '../cloudflare-admin';
+import {
+  ensureRegistryTables,
+  publicAppOrigin,
+  redeemMessageAr,
+  sanitizeLogMessage,
+} from '../cloudflare-admin';
 
 /**
  * SaaS admin control plane tests.
@@ -690,6 +695,71 @@ describe('Admin auth gate is unchanged', () => {
     // and looks like "no learners" rather than like a broken panel.
     expect(html).toContain('/admin/api/metrics');
     expect(html).toContain('funnel-steps');
+  });
+});
+
+describe('A6: the copy-message helper', () => {
+  it('accepts the app URL the owner supplies, under either name', () => {
+    // `VITE_PUBLIC_APP_URL` is the name the app build already uses; the worker
+    // spelling is `PUBLIC_APP_URL`. Either one is the same fact.
+    expect(publicAppOrigin({ VITE_PUBLIC_APP_URL: 'https://katzuai.com' })).toBe('https://katzuai.com');
+    expect(publicAppOrigin({ PUBLIC_APP_URL: 'https://katzuai.com' })).toBe('https://katzuai.com');
+    // A trailing slash or a path must not end up glued to `/subscription`.
+    expect(publicAppOrigin({ PUBLIC_APP_URL: 'https://katzuai.com/' })).toBe('https://katzuai.com');
+    expect(publicAppOrigin({ PUBLIC_APP_URL: 'https://katzuai.com/app?x=1' })).toBe('https://katzuai.com');
+    // A local worker is a real development case, so loopback over http is kept.
+    expect(publicAppOrigin({ PUBLIC_APP_URL: 'http://localhost:8787' })).toBe('http://localhost:8787');
+  });
+
+  it('refuses to put anything else in a learner-facing message', () => {
+    // No invented host, no path, no scheme that a chat client would render as a
+    // link to somewhere else entirely.
+    expect(publicAppOrigin({})).toBeNull();
+    expect(publicAppOrigin({ PUBLIC_APP_URL: '   ' })).toBeNull();
+    expect(publicAppOrigin({ PUBLIC_APP_URL: 'katzuai.com' })).toBeNull();
+    expect(publicAppOrigin({ PUBLIC_APP_URL: 'javascript:alert(1)' })).toBeNull();
+    expect(publicAppOrigin({ PUBLIC_APP_URL: 'http://katzuai.com' })).toBeNull();
+  });
+
+  it('names the code, the link when there is one, and nothing it cannot promise', () => {
+    // The dashboard builds this once per code by passing `%CODE%`, so the template
+    // is what the worker ships and the substitution below is exactly what the
+    // inline script does with it.
+    const template = redeemMessageAr('%CODE%', 'https://katzuai.com');
+    const withLink = template
+      .split('%CODE_URI%').join(encodeURIComponent('ABC123'))
+      .split('%CODE%').join('ABC123');
+    expect(withLink).toContain('ABC123');
+    expect(withLink).toContain('https://katzuai.com/subscription?code=ABC123');
+    // No placeholder may survive into what a learner reads.
+    expect(withLink).not.toContain('%CODE');
+    // The message may say where to redeem and nothing about duration, price or
+    // refunds — those live in the offer, and an admin paste is not the offer.
+    expect(withLink).not.toMatch(/شهر|مجان|استرداد|دولار/);
+
+    const codeOnly = redeemMessageAr('ABC123', null);
+    expect(codeOnly).toContain('ABC123');
+    expect(codeOnly).not.toContain('http');
+    expect(codeOnly).toContain('تفعيل الاشتراك');
+  });
+
+  it('ships the message as a template, and says so when no URL is configured', async () => {
+    const without = await (
+      await worker.fetch(request('/admin', { method: 'GET' }), makeEnv() as never)
+    ).text();
+    // The panel must not claim to include a link it cannot build.
+    expect(without).toContain('PUBLIC_APP_URL');
+    expect(without).toContain('REDEEM_TEMPLATE');
+    expect(without).toContain('Copy message');
+
+    const withUrl = await (
+      await worker.fetch(
+        request('/admin', { method: 'GET' }),
+        { ...makeEnv(), PUBLIC_APP_URL: 'https://katzuai.com' } as never,
+      )
+    ).text();
+    expect(withUrl).toContain('https://katzuai.com/subscription?code=%CODE_URI%');
+    expect(withUrl).not.toContain('No app URL configured');
   });
 });
 

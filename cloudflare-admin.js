@@ -1508,9 +1508,64 @@ export async function previewBackfill(env, { emailIndexKeys = [] } = {}) {
 // into innerHTML (which is only used to clear a container).
 // ============================================================================
 
+/**
+ * The app's public origin, or `null` when the owner has not said what it is.
+ *
+ * A6: the admin's "copy message" helper needs to put a redeem link in front of a
+ * learner, and the dashboard deliberately does NOT guess that host. It used to be
+ * blocked on this value entirely; the honest middle is to accept it when the
+ * owner supplies it and say so in the panel when they have not.
+ *
+ * `VITE_PUBLIC_APP_URL` is the name the app build already uses, so the same value
+ * works in both places; `PUBLIC_APP_URL` is accepted as the clearer worker-side
+ * spelling. Anything that is not an absolute http(s) URL, or is not https off
+ * loopback, is rejected rather than pasted into a learner's message — a typo'd host in a
+ * payment message is worse than no link at all.
+ */
+export function publicAppOrigin(env) {
+  const raw = String(env?.PUBLIC_APP_URL || env?.VITE_PUBLIC_APP_URL || "").trim();
+  if (!raw) return null;
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  const loopback = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) return null;
+  return url.origin;
+}
+
+/**
+ * The message the owner sends a learner with a code.
+ *
+ * Arabic, because the person who receives it is the learner and every other
+ * learner-facing string in this project is Arabic. `%CODE%` and `%CODE_URI%` are
+ * placeholders the dashboard fills per code, so this text — the copy that could
+ * promise the wrong thing — has exactly one owner and is testable without a
+ * browser. It states where to redeem and nothing about duration, price or
+ * refunds: those live in the offer, not in a message an admin pastes into a
+ * chat.
+ */
+export function redeemMessageAr(code, appOrigin) {
+  const safeCode = String(code || "").trim();
+  const lines = ["مرحباً! هذا رمز تفعيل اشتراك كَاتْزُو:", "", safeCode, ""];
+  if (appOrigin) {
+    lines.push("فعّله مباشرة من هذا الرابط:", `${appOrigin}/subscription?code=%CODE_URI%`, "");
+  }
+  lines.push("في التطبيق: «تفعيل الاشتراك» ← الصق الرمز.");
+  return lines.join("\n");
+}
+
 export function renderAdminDashboardHtml(env) {
   const workerName = env?.WORKER_NAME || "katzu";
-  return `<!DOCTYPE html>
+  const appOrigin = publicAppOrigin(env);
+  // The message travels to the browser as a template with the two placeholders
+  // intact, so the code is substituted per generated code and the copy itself
+  // stays in `redeemMessageAr` (one owner, unit-tested) rather than being
+  // written a second time inside the inline script.
+  const redeemTemplate = JSON.stringify(redeemMessageAr("%CODE%", appOrigin));
+  const raw = `<!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
@@ -1747,6 +1802,9 @@ ${CONTENT_STUDIO_CSS}
             <button class="btn primary" id="gen-codes-btn" type="button">Generate</button>
           </div>
           <div class="muted" style="font-size:12px;margin-top:8px">Codes are signed HMAC licenses. Treat generated output as sensitive.</div>
+          ${appOrigin
+            ? `<div class="muted" style="font-size:12px;margin-top:4px">Redeem links in the copied message point at <code>${appOrigin}</code>.</div>`
+            : `<div class="muted" style="font-size:12px;margin-top:4px">No app URL configured, so the copied message carries the code only. Set <code>PUBLIC_APP_URL</code> (or <code>VITE_PUBLIC_APP_URL</code>) as a worker variable to include a redeem link.</div>`}
           <div id="gen-result" class="mono" style="margin-top:12px;white-space:pre-wrap"></div>
         </div>
         <div class="card">
@@ -1768,7 +1826,15 @@ ${CONTENT_STUDIO_UI_SCRIPT}
 ${CONTENT_STUDIO_TOOLS_SCRIPT}
 
 <script>
-  var state = { tab: "overview", userOffset: 0, userLimit: 25, adminKey: "" };
+  var state = { tab: "overview", userOffset: 0, userLimit: 25, adminKey: "" };    // A6: built server-side by the exported redeemMessageAr() and inlined here as
+    // a template, so the message a learner receives has one definition.
+    // %CODE% is the code as issued, %CODE_URI% its URL-escaped form in the link.    // Filled in on the server: see the two .replace calls at the end of
+    // renderAdminDashboardHtml. Sentinels rather than interpolations, because
+    // tests/adminDashboardHtml.test.ts parses this script block straight out of
+    // the source file with new Function() — the way a browser parses the served
+    // copy — and an interpolation is only valid after rendering.
+  var REDEEM_TEMPLATE = "%%REDEEM_TEMPLATE%%";
+  var APP_ORIGIN = "%%APP_ORIGIN%%";
 
   // SECURITY INVARIANT: every DB-sourced or user-controlled value below is
   // written with textContent via el()/appendChild — never string-interpolated
@@ -2232,9 +2298,80 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     api("/admin/generate", { method: "POST", body: JSON.stringify({ months: Number(months), count: count, label: label }) })
       .then(function (data) {
         var codes = data.codes || (data.code ? [data.code] : [JSON.stringify(data)]);
-        out.textContent = codes.join("\\n");
+        out.textContent = "";
+        for (var i = 0; i < codes.length; i++) {
+          out.appendChild(codeRow(codes[i]));
+        }
       })
       .catch(function () { out.textContent = "Generation failed."; });
+  }
+
+  /**
+   * One generated code, with the two things the owner actually does next.
+   *
+   * "Copy message" is the A6 helper: the whole Arabic message, ready to paste into
+   * a chat, with the redeem link when an app URL is configured. "Copy code" stays
+   * because a code is sometimes all that is wanted (a printed card, a spreadsheet).
+   */
+  function codeRow(code) {
+    var row = el("div", "row");
+    row.style.margin = "6px 0";
+    var value = el("span", "mono", code);
+    value.style.flex = "1";
+    value.style.minWidth = "220px";
+    value.style.overflowWrap = "anywhere";
+    row.appendChild(value);
+    row.appendChild(codeButton("Copy message", code, true));
+    row.appendChild(codeButton("Copy code", code, false));
+    return row;
+  }
+
+  function codeButton(label, code, asMessage) {
+    var btn = el("button", "btn", label);
+    btn.type = "button";
+    btn.onclick = function () {
+      var text = asMessage
+        ? REDEEM_TEMPLATE.split("%CODE_URI%").join(encodeURIComponent(code)).split("%CODE%").join(code)
+        : code;
+      copyText(text, asMessage ? "Message copied" : "Code copied");
+    };
+    return btn;
+  }
+
+  /**
+   * Clipboard, with a fallback and an honest failure.
+   *    * navigator.clipboard is undefined on the plain-http origin an admin sometimes
+     * runs the worker on locally, and writeText rejects when the document is not
+     * focused. Either way the owner must not be told "copied" when nothing was:
+   * the fallback selects the text so a manual ⌘/Ctrl+C still works, and a real
+   * failure says so.
+   */
+  function copyText(text, okMessage) {
+    function done(ok) {
+      if (ok) toast(okMessage);
+      else toast("Could not copy — select the text and copy manually.", true);
+    }
+    function fallback() {
+      try {
+        var area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "readonly");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        var ok = document.execCommand("copy");
+        document.body.removeChild(area);
+        done(ok);
+      } catch (err) {
+        done(false);
+      }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+      return;
+    }
+    fallback();
   }
 
   function loadCodesReport() {
@@ -2324,6 +2461,13 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
 </script>
 </body>
 </html>`;
+
+  // The two server-owned constants, substituted as whole JSON literals (quotes
+  // included) so the sentinels cannot survive into a served page. Kept at the end
+  // of the function, next to the template they belong to.
+  return raw
+    .replace('"%%REDEEM_TEMPLATE%%"', () => redeemTemplate)
+    .replace('"%%APP_ORIGIN%%"', () => JSON.stringify(appOrigin));
 }
 
 function escapeHtml(value) {
