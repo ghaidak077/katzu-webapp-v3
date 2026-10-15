@@ -219,7 +219,7 @@ export function useLiveConversation({
   // The level sets the base speaking speed (LEVEL-SPEC.md); a learner's own
   // speed preference still wins — the spec default is a starting point, not a
   // cage, and it must never make speech *faster* than their own setting.
-  const { speak, stop: stopSpeaking, activeCharIndex } = useSpeechOutput({
+  const { speak, stop: stopSpeaking, activeCharIndex, hasGermanVoice } = useSpeechOutput({
     speed: Math.min(user?.speechSpeed || 1.0, levelSpecFor(currentLevel).speakingSpeed),
     onEnd: () => setSpeakingId(null),
   });
@@ -1176,6 +1176,8 @@ export function useLiveConversation({
     orbSize,
     speakingId,
     activeCharIndex,
+    /** A4: `false` when the device has no German voice — the screen says so. */
+    hasGermanVoice,
     voice,
     paywall,
     setPaywall,

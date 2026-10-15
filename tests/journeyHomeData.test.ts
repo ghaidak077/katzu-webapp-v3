@@ -234,6 +234,10 @@ describe('B4a: JourneyHome bounded read is identity-preserving', () => {
       accuracyPercent: 90,
       independentSentences: 3,
       hintAssistedSentences: 0,
+      // Added by A4's weekly recap: minutes spoken is the one number the recap
+      // needs and no other derived slice carries. Everything else is still
+      // pinned exactly, so an accidental field is still caught here.
+      durationSeconds: 120,
     });
     // mistake: four capability fields survive
     expect(p.mistakesByScenario.cafe_order[0]).toEqual({

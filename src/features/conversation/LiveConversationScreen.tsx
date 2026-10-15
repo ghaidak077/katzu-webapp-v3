@@ -4,6 +4,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { NO_GERMAN_VOICE_MESSAGE_AR } from '@/lib/speech/useSpeechOutput';
 import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
 import { buildWordBank } from '@/lib/utils/wordBank';
 import { track } from '@/lib/analytics/client';
@@ -133,6 +134,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     orbLabelAr,
     speakingId,
     activeCharIndex,
+    // A4: `false` when the device has no German voice, `null` until it knows.
+    hasGermanVoice,
     voice,
     paywall,
     setPaywall,
@@ -346,6 +349,17 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           role="status"
         >
           {statusLabelAr}
+        </p>
+      )}
+
+      {/* A4: no German voice on this device. Silence reads as a broken app, and
+          the learner would keep tapping the speaker; one line stops that. */}
+      {hasGermanVoice === false && (
+        <p
+          data-testid="no-german-voice"
+          className="shrink-0 px-4 pb-1 text-center kz-ar-micro leading-relaxed text-kz-warm"
+        >
+          {NO_GERMAN_VOICE_MESSAGE_AR}
         </p>
       )}
 

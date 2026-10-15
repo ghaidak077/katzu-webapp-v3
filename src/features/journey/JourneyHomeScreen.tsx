@@ -25,6 +25,7 @@ import { StatusIndicator } from '@/components/v2/StatusIndicator';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
 import { useOnlineStatus } from '@/lib/utils/onlineStatus';
 import { arCount, arNoun } from '@/lib/i18n/arabicCount';
+import { buildWeeklyRecap } from '@/lib/journey/weeklyRecap';
 
 /** V31: counts that reach a learner's eye agree with their noun. See `arabicCount`. */
 const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
@@ -77,6 +78,19 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   const reviewItems = data?.reviewItems ?? [];
   const skillPractice = data?.skillPractice ?? [];
   const scenarioLevels = data?.scenarioLevels ?? {};
+  // A4's weekly recap, from the same single read the screen already does. The
+  // projection stays lean and carries scenario IDS, so the titles the recap
+  // shows are resolved from the scenario list this screen already has.
+  const weeklySessions = useMemo(() => {
+    const titles = new Map(scenarios.map((scenario) => [scenario.id, scenario.title_ar || scenario.title_de || '']));
+    return (data ? Object.values(data.sessionsByScenario).flat() : []).map((session) => ({
+      scenarioTitle: titles.get(session.scenarioId) || '',
+      durationSeconds: session.durationSeconds,
+      timestamp: session.timestamp,
+      independentSentences: session.independentSentences,
+    }));
+  }, [data, scenarios]);
+  const weeklyRecap = useMemo(() => buildWeeklyRecap(weeklySessions), [weeklySessions]);
   const capability = useMemo(
     () =>
       buildCapabilityModel({
@@ -470,6 +484,22 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             labelAr={context.chapterTitleAr}
           />
         </GlassWell>
+
+        {/* A4: the week in one honest line. Rendered only when the week actually
+            has something in it — the home screen is where the learner is told
+            what to do next, not where they are told off for last week. */}
+        {weeklyRecap.episodes > 0 && (
+          <GlassCard tier="canvas" className="mb-4" data-testid="weekly-recap-card">
+            <p className="kz-ar-micro mb-1 text-kz-inkDim">أسبوعك في كَاتْزُو</p>
+            <p className="kz-ar-caption text-kz-ink">{weeklyRecap.headlineAr}</p>
+            {weeklyRecap.topScenarioTitle && (
+              <p className="mt-1 kz-ar-micro text-kz-inkFaint">
+                أكثر مشهد زرته:{' '}
+                <GermanText className="text-kz-inkDim">{weeklyRecap.topScenarioTitle}</GermanText>
+              </p>
+            )}
+          </GlassCard>
+        )}
 
         {/* Grammar + library + level: three clear secondary chips (44px) — the
             footer row used to read as unstyled links, and the level was a stray

@@ -825,6 +825,8 @@ function ReportRoute({ summary, onLoadSummary }: { summary: any; onLoadSummary: 
         onReturnToTrail={() => navigate('/app/trail')}
         onOpenReview={() => navigate('/app/review')}
         onOpenSubscription={() => navigate('/subscription')}
+        onOpenScenario={(scenarioId) => navigate(`/scenario/${scenarioId}/story`)}
+        onOpenPlacement={() => navigate('/placement')}
       />
     );
   }
@@ -835,6 +837,8 @@ function ReportRoute({ summary, onLoadSummary }: { summary: any; onLoadSummary: 
         onReturnToTrail={() => navigate('/app/trail')}
         onOpenReview={() => navigate('/app/review')}
         onOpenSubscription={() => navigate('/subscription')}
+        onOpenScenario={(scenarioId) => navigate(`/scenario/${scenarioId}/story`)}
+        onOpenPlacement={() => navigate('/placement')}
       />
     );
   }

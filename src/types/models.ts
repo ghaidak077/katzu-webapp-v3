@@ -228,6 +228,10 @@ export interface UserEntity {
   /** Epoch ms of the learner's optional target date (move/exam/interview). */
   targetDate?: number;
   targetDateKind?: TargetDateKind;
+  /** Epoch ms of when the one-time post-episode follow-up card (A4) was shown.
+   * Optional + non-indexed: rows written before it exist simply lack it, and
+   * the card is then offered once — never twice. */
+  followUpCardSeenAt?: number;
   /** HH:mm the learner prefers to be reminded; display only, no notifications. */
   preferredReminderTime?: string;
   /** BCP-47 locale the learner's device reported (e.g. 'ar'). */

@@ -14,10 +14,12 @@ import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { CAPABILITY_LABEL_AR, capabilityFromSession } from '@/lib/capability/model';
 import { completedEpisodeCount, shouldOfferPro } from '@/lib/entitlement/trial';
 import { isProEffective } from '@/lib/utils/subscription';
-import { MASTERED_REPS, gradeCorrectionRetype, reviewRefId } from '@/lib/srs/engine';
+import { MASTERED_REPS, countDue, gradeCorrectionRetype, reviewRefId } from '@/lib/srs/engine';
 import { enrolMistake, gradeReviewItem } from '@/lib/srs/store';
 import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
+import { buildTomorrowTeaser, nextScenarioAfter } from '@/lib/debrief/tomorrow';
+import { buildFollowUpCard, type FollowUpCard } from '@/lib/debrief/followUpCard';
 import { buildExamCard, firstNameOf, MOCK_NOTICE_AR, type ExamCard } from '@/lib/debrief/examCard';
 import { useExamShareImage } from '@/lib/debrief/examShareImage';
 import { Volume2, Check, TrendingUp, CalendarClock, Sparkles } from 'lucide-react';
@@ -46,6 +48,10 @@ export interface SessionReportScreenProps {
   onOpenReview?: () => void;
   /** The subscription screen, where the Pro offer (after a win) leads. */
   onOpenSubscription?: () => void;
+  /** V33/A4: one more scene, in one tap, without a detour through the trail. */
+  onOpenScenario?: (scenarioId: string) => void;
+  /** V33/A4: the placement check, when the one-time card offers it. */
+  onOpenPlacement?: () => void;
 }
 
 /** One row of the retype drill: either answered, or waiting for the learner. */
@@ -107,10 +113,16 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   onReturnToTrail,
   onOpenReview,
   onOpenSubscription,
+  onOpenScenario,
+  onOpenPlacement,
 }) => {
   const user = useLiveQuery(() => db.users.get('current_user'));
   const scenario = useLiveQuery(() => db.scenarios.get(summary.scenarioId));
   const sessions = useLiveQuery(() => db.sessions.toArray()) || [];
+  // A4: the teaser needs the path (for tomorrow's scene) and the review queue
+  // (for what is genuinely due) — both already on disk, no extra AI call.
+  const scenarios = useLiveQuery(() => db.scenarios.toArray()) || [];
+  const reviewItems = useLiveQuery(() => db.review_items.toArray()) || [];
   const [drill, setDrill] = useState<Record<number, { text: string; result: DrillState | null }>>({});
   const [isLevelPromoted, setIsLevelPromoted] = useState(false);
 
@@ -133,6 +145,45 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   );
 
   const { speak } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
+
+  // A4 — «غداً» plus the one-tap «مشهد آخر». Both come from the journey order
+  // and the review queue, so this screen and the trail cannot disagree about
+  // what tomorrow holds.
+  const nextScenario = useMemo(() => nextScenarioAfter(scenarios, summary.scenarioId), [scenarios, summary.scenarioId]);
+  const dueCount = useMemo(() => countDue(reviewItems, Date.now()), [reviewItems]);
+  const tomorrowTeaser = useMemo(
+    () => buildTomorrowTeaser({ nextScenarioTitle: nextScenario?.title, dueCount }),
+    [nextScenario?.title, dueCount],
+  );
+
+  // A4 — the one question worth asking after a first real episode, asked once.
+  const [followUpSeen, setFollowUpSeen] = useState(false);
+  const followUpCard: FollowUpCard | null = useMemo(
+    () =>
+      followUpSeen
+        ? null
+        : buildFollowUpCard({ user, hasCompletedEpisode: sessions.length > 0 || summary.sentencesSpoken > 0 }),
+    [followUpSeen, user, sessions.length, summary.sentencesSpoken],
+  );
+
+  const handleFollowUpAction = useCallback(
+    (card: FollowUpCard) => {
+      setFollowUpSeen(true);
+      void db.users
+        .update('current_user', { followUpCardSeenAt: Date.now() })
+        .catch((err) => console.warn('Could not stamp the follow-up card:', err));
+      if (card.kind === 'placement') onOpenPlacement?.();
+      else onReturnToTrail();
+    },
+    [onOpenPlacement, onReturnToTrail],
+  );
+
+  const handleFollowUpSkip = useCallback(() => {
+    setFollowUpSeen(true);
+    void db.users
+      .update('current_user', { followUpCardSeenAt: Date.now() })
+      .catch((err) => console.warn('Could not stamp the follow-up card:', err));
+  }, []);
 
   const scene = useMemo(
     () => sceneFor(scenario ? { id: scenario.id, category: scenario.category } : { id: summary.scenarioId }),
@@ -349,7 +400,23 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             proved — same numbers as this screen, no extra AI call behind it. */}
         <GlassCard className="mt-4">
           <p className="kz-ar-caption text-kz-lavender">خلاصة الجلسة</p>
-          <p className="kz-ar-micro text-kz-inkDim mt-1">غداً: مشهد جديد ينتظرك — دقيقتان تكفيان.</p>
+          {/* A4: the return line names tomorrow's scene and the real number of
+              reviews waiting — a fixed sentence here would be skipped, not read. */}
+          <div className="mt-1 flex items-start gap-1.5">
+            <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-lavender" aria-hidden />
+            <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
+              {tomorrowTeaser.missionAr}، {tomorrowTeaser.reviewAr}
+            </p>
+          </div>
+          {onOpenScenario && nextScenario?.id && (
+            <GlassButton
+              variant="quiet"
+              className="mt-2"
+              onClick={() => onOpenScenario(nextScenario.id)}
+            >
+              مشهد آخر الآن
+            </GlassButton>
+          )}
           <p className="mt-1.5 kz-ar-body font-bold leading-relaxed text-kz-ink">{summary.debrief.headlineAr}</p>
           {summary.debrief.didWellAr.length > 0 && (
             <ul className="mt-3 space-y-1.5">
@@ -409,6 +476,23 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             </p>
           )}
         </GlassCard>
+
+        {/* A4: the one question the app asks after a real episode, and only the
+            first time. Skippable, and it never blocks the next action. */}
+        {followUpCard && (
+          <GlassCard className="mt-4" data-testid="follow-up-card">
+            <p className="kz-ar-body font-bold text-kz-ink">{followUpCard.titleAr}</p>
+            <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">{followUpCard.bodyAr}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <GlassButton variant="secondary" onClick={() => handleFollowUpAction(followUpCard)}>
+                {followUpCard.actionAr}
+              </GlassButton>
+              <GlassButton variant="quiet" onClick={handleFollowUpSkip}>
+                {followUpCard.skipAr}
+              </GlassButton>
+            </div>
+          </GlassCard>
+        )}
 
         {/* The mock-exam card (V24 Phase 5): exam scenarios only. It says
             محاكاة, never claims a score, and carries the share image built from

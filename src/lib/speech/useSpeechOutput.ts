@@ -16,6 +16,17 @@ let ttsPrimedByGesture = false;
 let voicesDiscovered = false;
 
 /**
+ * What the learner is told when the device has no German voice (A4).
+ *
+ * A phone with no `de-*` voice does not fail loudly: it either stays silent or
+ * reads German with an English mouth, and the learner has no way to tell whether
+ * that is the app or their device. So the app says which one it is, and says it
+ * is not the learner's problem to solve.
+ */
+export const NO_GERMAN_VOICE_MESSAGE_AR =
+  'جهازك لا يحتوي على صوت ألماني للنطق — النصوص والتصحيح يعملان كما هما. يمكنك إضافة صوت ألماني من إعدادات الجهاز إن أردت السمع.';
+
+/**
  * The device's own German voice when it has one, otherwise the best available.
  *
  * The ranking lives in `voiceChoice.ts` so the decision is testable; this is only
@@ -47,6 +58,10 @@ export function useSpeechOutput({
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeCharIndex, setActiveCharIndex] = useState<number | null>(null);
   const [voicesReady, setVoicesReady] = useState(voicesDiscovered);
+  // `null` until the engine has answered: "not answered yet" is not the same as
+  // "no German voice", and rendering the disclaimer during that gap would tell
+  // most learners something false for a moment on every load.
+  const [hasGermanVoice, setHasGermanVoice] = useState<boolean | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
 
   // Latest callbacks via refs so a changing identity never breaks speech.
@@ -70,6 +85,7 @@ export function useSpeechOutput({
       if (synth.getVoices().length > 0) {
         voicesDiscovered = true;
         setVoicesReady(true);
+        setHasGermanVoice(selectGermanVoice(synth) !== null);
       }
     };
     loadVoices();
@@ -171,6 +187,8 @@ export function useSpeechOutput({
     isPlaying,
     activeCharIndex,
     voicesReady,
+    /** `true`/`false` once the engine has answered, `null` before that. */
+    hasGermanVoice,
     hasGestureUnlock: ttsPrimedByGesture,
   };
 }

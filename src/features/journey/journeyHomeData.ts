@@ -56,6 +56,10 @@ export interface JourneySessionSlice {
   accuracyPercent: number | null;
   independentSentences: number;
   hintAssistedSentences: number;
+  /** A4: the weekly recap reports minutes of German actually spoken, and this
+   * is the only place that number exists. One more field on a row already read
+   * — no extra query. */
+  durationSeconds: number;
 }
 
 export interface JourneyMistakeSlice {
@@ -129,6 +133,7 @@ export function projectJourneyHomeData(rows: {
       accuracyPercent: session.accuracyPercent,
       independentSentences: session.independentSentences ?? 0,
       hintAssistedSentences: session.hintAssistedSentences ?? 0,
+      durationSeconds: session.durationSeconds ?? 0,
     };
     allSessions.push({ timestamp: slice.timestamp });
     if (session.scenarioId) {
