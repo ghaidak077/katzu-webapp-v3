@@ -6,7 +6,11 @@ import { Badge } from '@/components/ui/Badge';
 import { Sparkles, Check, KeyRound, ExternalLink } from 'lucide-react';
 import { buildSalesUrl, legalPageUrl } from '@/lib/utils/links';
 import { OFFER_COPY } from '@/lib/offers/pricing';
-import { usePricing } from '@/lib/offers/priceSource';
+import {
+  PRICING_NOT_CONFIGURED_AR,
+  PRICING_UNAVAILABLE_AR,
+  usePricing,
+} from '@/lib/offers/priceSource';
 import { track } from '@/lib/analytics/client';
 
 /**
@@ -63,7 +67,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   // The one price table. No amount is rendered from anything else, and no buy
   // control appears without one: if the server cannot be reached the learner is
   // told so, which is better than a price the app made up.
-  const { loaded, headline, priceFor } = usePricing();
+  const { loaded, headline, priceFor, configured } = usePricing();
 
   useEffect(() => {
     if (isOpen) track('paywall_viewed', { source: title.slice(0, 64) });
@@ -77,7 +81,16 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
         {/* The price, or the reason there is none. Never a placeholder number. */}
         <Badge variant="primary" size="sm" className="mb-2">
           <Sparkles className="w-3 h-3" aria-hidden />
-          {headline ?? (loaded ? 'السعر غير متاح الآن' : 'جارٍ تحميل السعر…')}
+          {/* Three states, three sentences: no server in this build (a
+              configuration fact), the server did not answer with a price (try
+              again), and not answered yet. Conflating the first two is what made
+              a stale dev server look like a missing price in the paywall. */}
+          {headline ??
+            (!configured
+              ? PRICING_NOT_CONFIGURED_AR
+              : loaded
+                ? PRICING_UNAVAILABLE_AR
+                : 'جارٍ تحميل السعر…')}
         </Badge>
 
         {/* Two tiers, both priced by the server, 3-month pass recommended. Each

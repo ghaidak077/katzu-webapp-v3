@@ -17,7 +17,27 @@
 
 import { useEffect, useState } from 'react';
 import { workerClient } from '@/lib/api/workerClient';
+import { WORKER_BASE_URL } from '@/lib/api/workerUrl';
 import { priceLabel } from './pricing';
+
+/**
+ * Whether this BUILD knows where the server is.
+ *
+ * Two different failures were wearing one sentence. "The server did not answer"
+ * is transient and the learner should try again; "this build was compiled with
+ * no worker origin" is a configuration fact that will never change on retry, and
+ * the old copy («السعر غير متاح الآن») sent whoever hit it looking for a network
+ * fault. The check reads a compile-time constant, so it is synchronous and
+ * cannot itself fail — take the argument form in tests.
+ */
+export function priceSourceConfigured(baseUrl: string = WORKER_BASE_URL): boolean {
+  return Boolean(String(baseUrl || '').trim());
+}
+
+/** Shown where a price would be, when the build has no server to ask. */
+export const PRICING_NOT_CONFIGURED_AR = 'الأسعار غير متاحة في هذا الإصدار';
+/** Shown where a price would be, when the server did not answer with one. */
+export const PRICING_UNAVAILABLE_AR = 'السعر غير متاح الآن';
 
 /** One row of `GET /pricing`, exactly as the server sent it. */
 export interface PriceRow {
@@ -102,6 +122,8 @@ export function headlinePrice(answer: PricingAnswer | null): string | null {
 export function usePricing(): {
   pricing: PricingAnswer | null;
   loaded: boolean;
+  /** False when the build itself has no worker origin — never a retry problem. */
+  configured: boolean;
   /** The headline amount, or `null` — never a fallback number. */
   headline: string | null;
   /** The region group the SERVER resolved, for instructions and analytics. */
@@ -128,6 +150,7 @@ export function usePricing(): {
   return {
     pricing,
     loaded,
+    configured: priceSourceConfigured(),
     headline: headlinePrice(pricing),
     group: pricing?.group ?? null,
     cell: pricing?.cell ?? null,

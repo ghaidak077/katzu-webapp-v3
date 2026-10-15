@@ -19,12 +19,35 @@ vi.mock('@/lib/api/workerClient', () => ({
 }));
 
 import {
+  PRICING_NOT_CONFIGURED_AR,
+  PRICING_UNAVAILABLE_AR,
   headlinePrice,
   loadPricing,
   priceFor,
+  priceSourceConfigured,
   priceRowFor,
   resetPriceCache,
 } from '../src/lib/offers/priceSource';
+
+/**
+ * "This build has no server address" and "the server did not answer" are
+ * different problems with different fixes, and the paywall used to say the same
+ * sentence for both. It cost real time once: a reused dev server started from an
+ * empty `VITE_WORKER_URL` made the price assertions fail as if the paywall had
+ * dropped the price.
+ */
+describe('the two reasons a price can be missing', () => {
+  it('a build with no worker origin is a configuration fact, not a retry', () => {
+    expect(priceSourceConfigured('')).toBe(false);
+    expect(priceSourceConfigured('   ')).toBe(false);
+    expect(priceSourceConfigured('https://worker.example')).toBe(true);
+  });
+
+  it('names each state in its own words', () => {
+    expect(PRICING_NOT_CONFIGURED_AR).not.toBe(PRICING_UNAVAILABLE_AR);
+    expect(PRICING_UNAVAILABLE_AR).toBe('السعر غير متاح الآن');
+  });
+});
 
 /** The catalogue `GET /pricing` answers with, standard group. */
 const ANSWER = {
