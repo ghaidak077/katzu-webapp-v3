@@ -173,7 +173,9 @@ export function sanitizeTargetDate(kind: TargetDateKind | null, date: number | n
 }
 
 export function isOnboardingComplete(answers: OnboardingAnswers): boolean {
-  return answers.primaryGoal !== null && answers.arrivalStatus !== null && answers.dailyMinutes !== null;
+  // A3: first-run collects only the goal and the daily minutes. Arrival is now an
+  // optional later answer (the debrief card), so it must not gate completion.
+  return answers.primaryGoal !== null && answers.dailyMinutes !== null;
 }
 
 /**

@@ -30,8 +30,14 @@ export interface OnboardingScreenProps {
 
 type Step = 'goal' | 'arrival' | 'previous' | 'time' | 'target' | 'placement';
 
-/** The questions proper; `placement` is the offer that follows them. */
-const QUESTION_STEPS: Step[] = ['goal', 'arrival', 'previous', 'time', 'target'];
+/**
+ * A3: the front door asks once. A first-run learner answers TWO questions — why
+ * they are learning and how many minutes a day — and nothing else. Arrival,
+ * previous German, the target date and the placement offer move to the debrief
+ * card (A4). The edit screen keeps the full set.
+ */
+const FIRST_RUN_STEPS: Step[] = ['goal', 'time'];
+const EDIT_STEPS: Step[] = ['goal', 'arrival', 'previous', 'time', 'target'];
 
 const GOAL_ICONS: Record<LearnerGoal, React.ReactNode> = {
   daily_life: <Compass className="w-5 h-5" />,
@@ -64,7 +70,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
     if (mode === 'first_run') track('onboarding_started');
   }, [mode]);
 
-  const questionIndex = useMemo(() => QUESTION_STEPS.indexOf(step), [step]);
+  const questionSteps = mode === 'edit' ? EDIT_STEPS : FIRST_RUN_STEPS;
+  const questionIndex = useMemo(() => questionSteps.indexOf(step), [questionSteps, step]);
   const isPlacement = step === 'placement';
   const placement = useMemo(() => placementOffer(answers.previousGerman), [answers.previousGerman]);
 
@@ -73,12 +80,18 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
     setStep(next);
   };
 
-  const save = async (choice: PlacementChoice) => {
+  const save = async (choice: PlacementChoice, overrides: Partial<OnboardingAnswers> = {}) => {
     if (isSaving) return;
     setIsSaving(true);
     try {
-      await db.users.update('current_user', onboardingPatch(answers));
-      if (choice === 'skip') {
+      // `overrides` carries the answer from the step that ends the flow: that
+      // click sets state and saves in the same tick, so the state update is not
+      // visible to this closure yet — the explicit value is the one just chosen.
+      await db.users.update('current_user', onboardingPatch({ ...answers, ...overrides }));
+      // Only the edit flow records an explicit placement skip. A first-run learner
+      // is never asked, so their level stays unmeasured rather than being written
+      // as "skipped" — the debrief card (A4) offers the placement later.
+      if (choice === 'skip' && mode === 'edit') {
         await db.users.update('current_user', placementSkipPatch());
       }
       track('onboarding_completed', { source: choice });
@@ -112,14 +125,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
             className="flex items-center gap-1.5"
             role="progressbar"
             aria-valuemin={1}
-            aria-valuemax={QUESTION_STEPS.length}
-            aria-valuenow={isPlacement ? QUESTION_STEPS.length : questionIndex + 1}
+            aria-valuemax={questionSteps.length}
+            aria-valuenow={isPlacement ? questionSteps.length : questionIndex + 1}
             aria-label="تقدم الأسئلة"
           >
             {mode === 'edit' ? (
               <span className="kz-ar-micro text-kz-inkDim">تعديل التفضيلات</span>
             ) : (
-              QUESTION_STEPS.map((questionStep, index) => (
+              questionSteps.map((questionStep, index) => (
                 <span
                   key={questionStep}
                   className={`h-1.5 rounded-full transition-[width] duration-panels ease-out ${
@@ -141,7 +154,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
             <KatzuPresence state="story" size="md" className="self-start" />
             <h1 className="mt-3 kz-ar-title text-kz-ink">قبل أن نبدأ، عرّفني بنفسك</h1>
             <p className="mt-2 kz-ar-caption leading-relaxed text-kz-inkDim">
-              خمسة أسئلة قصيرة، سؤال واحد في كل شاشة. بها أختار لك ما تبدأ به فعلاً — لا أريد أن
+              أسئلة قصيرة، سؤال واحد في كل شاشة. بها أختار لك ما تبدأ به فعلاً — لا أريد أن
               أُضيع وقتك في شيء لن تحتاجه.
             </p>
             <p className="mt-5 kz-ar-body font-bold text-kz-ink">لماذا تتعلّم الألمانية؟</p>
@@ -153,7 +166,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                   type="button"
                   onClick={() => {
                     setAnswers((prev) => ({ ...prev, primaryGoal: goal }));
-                    advance('arrival');
+                    advance(mode === 'edit' ? 'arrival' : 'time');
                   }}
                   className={`w-full rounded-2xl border p-4 text-start transition-colors ${
                     answers.primaryGoal === goal
@@ -253,7 +266,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                   type="button"
                   onClick={() => {
                     setAnswers((prev) => ({ ...prev, dailyMinutes: minutes }));
-                    advance('target');
+                    // A3: first-run ends here — save and go straight to the mission;
+                    // the edit flow keeps the remaining questions.
+                    if (mode === 'edit') advance('target');
+                    else void save('skip', { dailyMinutes: minutes });
                   }}
                   className={`min-h-[88px] rounded-2xl border p-4 transition-colors ${
                     answers.dailyMinutes === minutes

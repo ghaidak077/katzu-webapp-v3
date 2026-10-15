@@ -47,13 +47,6 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
   const currentUser = useLiveQuery(() => db.users.get('current_user'));
-  const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('A1');
-
-  useEffect(() => {
-    if (currentUser?.cefrLevel) {
-      setSelectedLevel(currentUser.cefrLevel);
-    }
-  }, [currentUser]);
 
   const googleClientId: string | undefined = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
 
@@ -254,7 +247,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       }
       const userName = payload.name || payload.given_name || 'مستخدم كَاتْزُو';
 
-      await completeUserAuth(userEmail, userName, idToken, selectedLevel, typeof payload.sub === 'string' ? payload.sub : undefined);
+      await completeUserAuth(userEmail, userName, idToken, 'A1', typeof payload.sub === 'string' ? payload.sub : undefined);
     } catch (e: any) {
       setErrorMessage('فشل التحقق من تسجيل الدخول عبر Google، يرجى المحاولة ثانية.');
       triggerHaptic('error');
@@ -311,7 +304,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             size="md"
             variant="primary"
             className="w-full mt-4"
-            onClick={() => completeUserAuth('guest@katzu.app', currentUser?.displayName || 'مستكشف كَاتْزُو', 'preview_guest_token', selectedLevel)}
+            onClick={() => completeUserAuth('guest@katzu.app', currentUser?.displayName || 'مستكشف كَاتْزُو', 'preview_guest_token', 'A1')}
           >
             المتابعة كضيف للمعاينة التجريبية
           </Button>
@@ -413,38 +406,9 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           </div>
         )}
 
-        {/* Level selection — SIGN-UP ONLY.
-
-            V32: a returning learner was asked to re-pick a level the app already
-            stores, and the A1/A2/B1/B2 row read as a third primary action on a
-            screen whose only job is "sign in". Profile still lets anyone change
-            their level later, so nothing is lost by not asking twice. */}
-        {mode === 'signup' && (
-        <div className="w-full mb-6 text-start">
-          <label className="block text-xs font-bold text-text-secondary mb-1.5">
-            مستواك المستهدف في اللغة الألمانية — تقدير أولي، سنضبطه بالمحادثة
-          </label>
-          <div className="grid grid-cols-5 gap-2">
-            {(['A0', 'A1', 'A2', 'B1', 'B2'] as CEFRLevel[]).map((lvl) => (
-              <button
-                key={lvl}
-                type="button"
-                onClick={() => {
-                  setSelectedLevel(lvl);
-                  triggerHaptic('light');
-                }}
-                className={`min-h-touch min-w-touch py-2 rounded-xl text-xs font-bold border transition-colors duration-fast ease-out ${
-                  selectedLevel === lvl
-                    ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
-                    : 'bg-surface-card border-border-subtle text-text-secondary pointer-hover:text-text-primary'
-                }`}
-              >
-                {lvl}
-              </button>
-            ))}
-          </div>
-        </div>
-        )}
+        {/* A3: no level picker on the sign-in tab. The level is a measurement, not
+            a sign-up field: it is set by the optional placement check (offered on the
+            debrief) and stays A1 until measured. Profile still lets anyone change it. */}
 
         {/* Exactly one sign-in button at a time. Google Identity Services draws
             the official button into this container on origins Google trusts; on

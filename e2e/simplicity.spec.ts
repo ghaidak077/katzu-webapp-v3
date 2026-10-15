@@ -118,6 +118,10 @@ test('a learner can reach sign-in from /welcome without typing anything', async 
   // V32: the name used to be required, and the primary button stayed disabled
   // until it was typed — a free-text gate at the front door of the app.
   await expect(start).toBeEnabled();
+  // A3: no goal sheet opens here any more — the name is optional and the front
+  // door hands straight to sign-in, so no sheet and no extra question stand
+  // between the learner and the account step.
   await start.click();
-  await expect(page.getByRole('button', { name: /تابع|أكمل/ }).first()).toBeVisible({ timeout: 10_000 });
+  await expect(page).toHaveURL(/\/signin/, { timeout: 10_000 });
+  await expect(page.getByText('انضم إلى عائلة كَاتْزُو')).toBeVisible();
 });

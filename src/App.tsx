@@ -450,10 +450,10 @@ function SignInRoute() {
           navigate('/onboarding', { replace: true });
           return;
         }
-        // A learner who has never been measured starts with the placement check,
-        // so the Trail is built from their real level instead of a guess.
-        const needsPlacement = !!user && !user.placementCompletedAt && !user.placementSkippedAt;
-        navigate(needsPlacement ? '/placement' : '/app/trail', { replace: true });
+        // A3: sign-in always lands on the mission. The placement check is offered
+        // later (the debrief card / the Trail prompt), never forced on the way in —
+        // so the path is landing → sign-in → two questions → first mission.
+        navigate('/app/trail', { replace: true });
       }}
     />
   );
@@ -495,7 +495,10 @@ function OnboardingRoute() {
           navigate('/app/profile', { replace: true });
           return;
         }
-        navigate(choice === 'take' ? '/placement' : '/app/trail', { replace: true });
+        // A3: never auto-route to /placement. `choice` stays in the signature for
+        // the shared screen API, but first-run always lands on the mission.
+        void choice;
+        navigate('/app/trail', { replace: true });
       }}
     />
   );

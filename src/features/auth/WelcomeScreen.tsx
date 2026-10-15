@@ -3,9 +3,7 @@ import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GoogleSignInButton } from '@/components/common/GoogleMark';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { GoalSelectionBottomSheet } from '@/components/sheets/GoalSelectionBottomSheet';
 import { db } from '@/lib/db/katzuDb';
-import type { CEFRLevel } from '@/types/models';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 
 /** V32: what Katzu calls you when you would rather not say. */
@@ -19,31 +17,21 @@ export interface WelcomeScreenProps {
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTryDemo }) => {
   const [name, setName] = useState('');
-  const [showGoalSheet, setShowGoalSheet] = useState(false);
 
+  // A3: the front door asks once. The minutes/days/level sheet that used to open
+  // here duplicated questions the onboarding step already asks (minutes) or the
+  // placement check measures (level). The name is the only thing this screen
+  // collects, and it is optional — then it hands straight to sign-in.
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowGoalSheet(true);
-  };
-
-  const handleSaveGoal = async (minutes: number, days: number, level: CEFRLevel) => {
     await db.users.update('current_user', {
       // V32: the name is optional. An empty field means "متعلم", not a blocked
       // door — a required free-text box at the front of the app buys nothing the
       // screen has not already promised (no email, no personal data), and it is
-      // editable later in Profile. The field stays because Katzu addressing
-      // someone by name makes the conversation warmer, and the default keeps it
-      // warm for anyone who would rather not type.
+      // editable later in Profile.
       displayName: name.trim() || DEFAULT_DISPLAY_NAME,
-      dailyGoalMinutes: minutes,
-      weeklyGoalDays: days,
-      cefrLevel: level,
       updatedAt: Date.now(),
     });
-    try {
-      localStorage.setItem('katzu_onboarding_completed', 'true');
-    } catch {}
-    // Google sign-in is essential: proceed directly to account setup
     onGoToSignIn('signup');
   };
 
@@ -139,12 +127,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
         </p>
       </div>
 
-      {/* Goal Bottom Sheet */}
-      <GoalSelectionBottomSheet
-        isOpen={showGoalSheet}
-        onClose={() => setShowGoalSheet(false)}
-        onSave={handleSaveGoal}
-      />
     </div>
   );
 };

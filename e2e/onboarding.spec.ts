@@ -4,12 +4,14 @@ import { bootSignedIn, readStoredUser } from './harness';
 /**
  * Onboarding, as the first conversation with Katzu.
  *
- * The assertions are about structure and effect, not adjectives: one question per
- * screen, dots instead of a counter, and every answer visible in the stored
- * profile afterwards. The last one matters most — a question whose answer goes
- * nowhere is data collection dressed up as personalisation.
+ * A3 changed the shape: first-run asks exactly TWO questions (goal + daily
+ * minutes) and lands on the mission; the arrival, previous-German and target-date
+ * questions plus the placement offer moved to the debrief card. The edit screen
+ * keeps the full set. The assertions are about structure and effect, not
+ * adjectives — a question whose answer goes nowhere is data collection dressed up
+ * as personalisation.
  */
-test('Onboarding asks one question at a time and stores every answer', async ({ page }) => {
+test('first run asks two questions and lands on the mission', async ({ page }) => {
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
 
@@ -17,58 +19,55 @@ test('Onboarding asks one question at a time and stores every answer', async ({ 
   await expect(page.getByRole('progressbar', { name: 'تقدم الأسئلة' })).toBeVisible();
   await expect(page.getByText(/سؤال \d من/)).toHaveCount(0);
 
-  // Katzu's opening, and exactly one question on screen.
-  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+  // Katzu's opening, and the first question.
   await expect(page.getByText('قبل أن نبدأ، عرّفني بنفسك')).toBeVisible();
-
   await expect(page.getByText('لماذا تتعلّم الألمانية؟')).toBeVisible();
   await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
 
-  await expect(page.getByText('وأين أنت الآن من ألمانيا؟')).toBeVisible();
-  await page.getByRole('button', { name: 'أعيش في ألمانيا بالفعل' }).click();
-
-  // The question that decides how the placement is offered.
-  await expect(page.getByText('هل جرّبت الألمانية قبل اليوم؟')).toBeVisible();
-  await page.getByRole('button', { name: /أستطيع إدارة محادثة بسيطة/ }).click();
-
+  // The second and LAST question. The moved questions must not appear on the
+  // first-run path at all.
   await expect(page.getByText('وكم دقيقة تستطيع أن تعطيني يومياً؟')).toBeVisible();
+  await expect(page.getByText('وأين أنت الآن من ألمانيا؟')).toHaveCount(0);
+  await expect(page.getByText('هل جرّبت الألمانية قبل اليوم؟')).toHaveCount(0);
+  await expect(page.getByText('هل هناك تاريخ تنتظره؟ (اختياري)')).toHaveCount(0);
+  await expect(page.getByText('هل أقيس مستواك الآن؟')).toHaveCount(0);
+
   await page.getByRole('button', { name: /20\s*دقائق/ }).click();
 
-  await expect(page.getByText('هل هناك تاريخ تنتظره؟ (اختياري)')).toBeVisible();
-  await page.getByRole('button', { name: 'لا يوجد تاريخ محدد' }).click();
+  // Straight to the mission — never the placement check.
+  await expect(page).toHaveURL(/\/app\/trail$/);
 
-  // Someone who already speaks some German is offered the measurement first —
-  // that is the one decision the previous-experience answer is allowed to make.
-  await expect(page.getByText(/دقيقتان من القياس قد توفّر/)).toBeVisible();
-  await page.getByRole('button', { name: /ابدأ القياس/ }).click();
-  await expect(page).toHaveURL(/\/placement$/);
+  const stored = await readStoredUser(page);
+  expect(stored?.primaryGoal).toBe('daily_life');
+  expect(stored?.dailyGoalMinutes).toBe(20);
+  expect(typeof stored?.onboardingCompletedAt).toBe('number');
+  // The level stays the A1 default: a first-run learner is never asked, so nothing
+  // may be invented for them (the seeded 'preparing' arrival status is left as it
+  // was — first-run does not ask or overwrite it).
+  expect(stored?.cefrLevel).toBe('A1');
+  // No implicit "skipped" either — the placement offer is still available later.
+  // (The seeded value is 0; a first-run save must not stamp it with a timestamp.)
+  expect(stored?.placementSkippedAt || 0).toBe(0);
+});
+
+test('the edit flow keeps the full question set and stores every answer', async ({ page }) => {
+  await bootSignedIn(page, { user: { onboardingCompletedAt: Date.now() } });
+  await page.goto('/onboarding?mode=edit');
+
+  await expect(page.getByText('تعديل التفضيلات')).toBeVisible();
+  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
+  await page.getByRole('button', { name: /أعيش في ألمانيا بالفعل/ }).click();
+  await page.getByRole('button', { name: /أستطيع إدارة محادثة بسيطة/ }).click();
+  await page.getByRole('button', { name: /20\s*دقائق/ }).click();
+
+  // Edit mode ends on the target-date step, whose action is "حفظ التفضيلات"
+  // (the first-run-only "no date" shortcut is not shown here).
+  await page.getByRole('button', { name: /حفظ التفضيلات/ }).click();
+  await expect(page).toHaveURL(/\/app\/profile$/);
 
   const stored = await readStoredUser(page);
   expect(stored?.primaryGoal).toBe('daily_life');
   expect(stored?.arrivalStatus).toBe('living_in_germany');
   expect(stored?.previousGerman).toBe('can_hold');
   expect(stored?.dailyGoalMinutes).toBe(20);
-  expect(typeof stored?.onboardingCompletedAt).toBe('number');
-  // A self-report never sets a level: only the placement check may do that.
-  expect(stored?.cefrLevel).toBe('A1');
-});
-
-test('a first-timer is offered the start rather than pushed into the check', async ({ page }) => {
-  await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
-  await page.goto('/onboarding');
-
-  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
-  await page.getByRole('button', { name: /ما زلت أستعد للسفر/ }).click();
-  await page.getByRole('button', { name: /لم أجرّب الألمانية قبل/ }).click();
-  await page.getByRole('button', { name: /10\s*دقائق/ }).click();
-  await page.getByRole('button', { name: 'لا يوجد تاريخ محدد' }).click();
-
-  await expect(page.getByText(/يمكنك أن تبدأ الآن مباشرة/)).toBeVisible();
-  await page.getByRole('button', { name: /ابدأ من A1 مباشرة/ }).click();
-
-  // Skipping leaves the level unmeasured, and the journey is where they land.
-  await expect(page).toHaveURL(/\/app\/trail$/);
-  const stored = await readStoredUser(page);
-  expect(stored?.previousGerman).toBe('first_time');
-  expect(typeof stored?.placementSkippedAt).toBe('number');
 });
