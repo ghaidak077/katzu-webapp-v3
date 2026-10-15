@@ -1,0 +1,361 @@
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+/**
+ * Budgets for the documents a run must read before it can work.
+ *
+ * WHY THIS EXISTS
+ * On 2026-10-15 an hour was spent failing to save screenshots while the two facts that
+ * would have made it a one-minute task — Chromium is already cached, and a screenshot
+ * rig already exists — sat unread in `ENV-FACTS.md` and `e2e/shots/`. `AGENTS.md` §1
+ * asked every run to read this whole set in order; the set had grown to ~780 KB
+ * (≈190k tokens, the ledger alone ~450 KB) so it could not be read at all, and the
+ * instruction was skipped. A rule that cannot be executed is not a rule.
+ *
+ * The fix has two halves and this file is the second one: §1 now says *read sections,
+ * never documents*, and these assertions keep the set small enough that sections stay
+ * findable and a session-start readout stays a glance. Nothing here asserts content
+ * quality — only that nobody quietly turns a memory back into a book.
+ *
+ * WHEN A BUDGET IS HIT, THE FIX IS SPLITTING, NOT RAISING
+ * Moving history into a focused document (and linking it) keeps the entry point small;
+ * raising the number here is the same failure one release later. If a genuine exception
+ * is needed, raise it in the same commit as the reason, in this comment.
+ */
+const BUDGETS_KB: Record<string, number> = {
+  'AGENTS.md': 22, // the rules; readable in full, deliberately
+  'CLAUDE.md': 4, // a pointer, not a second copy of the rules
+  'docs/agent/MEMORY.md': 45, // the digest a run reads in full
+  'docs/agent/ENV-FACTS.md': 30, // environment facts; a run reads the sections it needs
+  'docs/agent/LESSONS.md': 60, // append-only log; grep it, never load it
+  'docs/agent/APP-MAP.md': 135, // the map: read by section, and the cap freezes its growth
+  'docs/agent/PROJECT-BRIEF.md': 80, // refreshed per run, read by humans and advisors
+  // Live board + current state only. History goes to the archive: `npm run ledger:archive`.
+  'docs/AGENT-STATE.md': 80,
+  // Named because they sit above DEFAULT_DOC_KB; their caps are the size they measured when this
+  // list was written, so the next growth is a decision in a commit instead of drift.
+  'docs/PRODUCT-SPEC.md': 105,
+  'docs/marketing/KATZU-LAUNCH-PLAYBOOK.md': 85,
+  'docs/LEARNING-ROADMAP.md': 42,
+  'docs/agent/EXPERIENCE-AUDIT-V31.md': 28,
+  'docs/LAUNCH-CHECKLIST.md': 27,
+  'docs/agent/LAUNCH-STATUS.md': 25,
+  'docs/current-state.md': 24,
+  // Owner-requested product documents (2026-10-16), not agent orientation docs:
+  // `katzu-baseline.md` is the row-by-row comparison file the owner asked for and
+  // carries the per-task "## Launch tracker" appended during the launch pass, so it
+  // must be free to grow; `katzu-user-journey.md` is its companion journey audit.
+  // Both are read by the owner, not loaded by a run, which is why they are named
+  // with a cap rather than split.
+  'docs/katzu-baseline.md': 120,
+  'docs/katzu-user-journey.md': 60,
+};
+
+/**
+ * The cap every other document gets, without anyone having to name it.
+ *
+ * WHY A DEFAULT AND NOT JUST THIS MAP
+ * When this file first shipped, eight files had budgets and **37 did not** — so the next agent could
+ * create a 300 KB orientation guide and nothing objected. That is the same bug the ledger had at
+ * 444 KB, one document later: a bound that only covers the files someone remembered is not a bound.
+ * 22 KB is roughly what a run can read in one go, and every file above it is now named above.
+ */
+const DEFAULT_DOC_KB = 22;
+
+/**
+ * Exempt, with the reason. These are the documents where size is not a reading cost, because nothing
+ * reads them: they are searched. `grep -rn "<topic>" docs/` is how they get used.
+ */
+const DOC_EXEMPT: Record<string, string> = {
+  'docs/agent/ARCHIVE-AGENT-STATE.md':
+    'append-only history moved out of the ledger; never read whole, only grepped — capping it would mean deleting history, which this repo does not do',
+};
+
+const docFiles = (): string[] => walk('docs').filter((file) => file.endsWith('.md')).sort();
+
+/**
+ * The ledger is read in sections (see its own header) and, since 2026-10-15, capped as well: it had
+ * reached 444 KB, of which 71% was a table of completed items no run reads. The cap is what makes
+ * splitting happen again as it fills — the fix is `npm run ledger:archive`, never a bigger number here.
+ */
+const LEDGER = 'docs/AGENT-STATE.md';
+const ARCHIVE = 'docs/agent/ARCHIVE-AGENT-STATE.md';
+
+/** One `## Section` of a document, up to the next heading. */
+const sectionOf = (doc: string, heading: string): string => {
+  const at = doc.indexOf(`\n## ${heading}`);
+  if (at < 0) return '';
+  const rest = doc.slice(at + 1);
+  const end = rest.indexOf('\n## ');
+  return end < 0 ? rest : rest.slice(0, end);
+};
+
+/**
+ * The ledger's own definition of history, kept in step with `scripts/archive-ledger-rows.mjs` and
+ * `summariseBullets` in `scripts/session-start.mjs`. Three copies of this rule is two too many, but
+ * a shared regex that silently drifts is worse: each is where it is used, and this test is what
+ * notices when they disagree.
+ */
+const isClosed = (line: string): boolean =>
+  /resolved|superseded|kept for history/i.test(line) || /\bDONE\b/.test(line);
+
+const root = join(__dirname, '..');
+const bytes = (rel: string) => statSync(join(root, rel)).size;
+const text = (rel: string) => readFileSync(join(root, rel), 'utf8');
+
+/** Every file under a directory, as a repo-relative path (same shape as the other guard files). */
+const walk = (dir: string): string[] =>
+  readdirSync(join(root, dir), { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory() ? walk(`${dir}/${entry.name}`) : [`${dir}/${entry.name}`],
+  );
+
+describe('agent orientation documents stay readable', () => {
+  it('every document under docs/ is budgeted, so none can be born unbounded', () => {
+    const docs = docFiles();
+    // A guard over an empty or stale walk passes everything; assert it found the real set.
+    expect(docs.length, 'the docs walk found almost nothing — the guard is not looking where docs live').toBeGreaterThan(50);
+    expect(DEFAULT_DOC_KB, 'the default cap must be smaller than the biggest named budgets').toBeLessThan(
+      BUDGETS_KB['docs/agent/APP-MAP.md'],
+    );
+
+    const over: string[] = [];
+    for (const file of docs) {
+      if (file in DOC_EXEMPT) continue;
+      const cap = BUDGETS_KB[file] ?? DEFAULT_DOC_KB;
+      const kb = bytes(file) / 1024;
+      if (kb > cap) {
+        over.push(
+          `${file} is ${kb.toFixed(0)} KB (${file in BUDGETS_KB ? 'named' : `default`} cap ${cap} KB)`,
+        );
+      }
+    }
+    expect(
+      over,
+      `a document is over its budget. Split it and link the split, or — only if it genuinely must be this big — name a cap for it in BUDGETS_KB with the reason. The default cap is ${DEFAULT_DOC_KB} KB:\n${over.join('\n')}`,
+    ).toEqual([]);
+  });
+
+  it('every named budget points at a real file, and every exemption explains itself', () => {
+    for (const file of Object.keys(BUDGETS_KB)) {
+      expect(existsSync(join(root, file)), `${file} is budgeted but does not exist`).toBe(true);
+    }
+    for (const [file, reason] of Object.entries(DOC_EXEMPT)) {
+      expect(existsSync(join(root, file)), `${file} is exempted but does not exist`).toBe(true);
+      expect(reason.length, `${file} needs a reason, not a placeholder`).toBeGreaterThan(40);
+      expect(BUDGETS_KB[file], `${file} is both budgeted and exempt — pick one`).toBeUndefined();
+    }
+  });
+
+  it('no document is exempt for being merely large', () => {
+    // The exemption is "nothing reads this whole", not "this one got big". A file that a run reads
+    // must be budgeted, however awkward the number is.
+    for (const file of Object.keys(DOC_EXEMPT)) {
+      expect(file, 'only the ledger archive is exempt from a size cap').toBe('docs/agent/ARCHIVE-AGENT-STATE.md');
+    }
+    expect(Object.keys(DOC_EXEMPT).length).toBeLessThanOrEqual(2);
+  });
+
+  for (const [file, budgetKb] of Object.entries(BUDGETS_KB)) {
+    it(`${file} stays within ${budgetKb} KB`, () => {
+      const kb = bytes(file) / 1024;
+      expect(
+        kb,
+        `${file} is ${kb.toFixed(0)} KB (budget ${budgetKb} KB). Split it and link the split, rather than raising the budget.`,
+      ).toBeLessThanOrEqual(budgetKb);
+    });
+  }
+
+  it('the ledger tells a reader how to read it without loading it whole', () => {
+    const ledger = text(LEDGER);
+    expect(ledger).toMatch(/How to read this file/);
+    expect(ledger).toMatch(/session:start/);
+    // The session-start readout parses these; losing them silently breaks orientation.
+    expect(ledger).toMatch(/\n## RESUME/);
+    expect(ledger).toMatch(/\n## OWNER-OPEN/);
+  });
+
+  it('AGENTS.md §1 forbids loading whole documents and names the entry command', () => {
+    const agents = text('AGENTS.md');
+    expect(agents).toMatch(/npm run session:start/);
+    expect(agents).toMatch(/read sections, never documents/i);
+    // The rule that was missing when an hour went to the browser tool.
+    expect(agents).toMatch(/preview_screenshot.*never writes a file/s);
+  });
+
+  it('keeps closed bullets out of the live sections', () => {
+    const ledger = text(LEDGER);
+    for (const heading of ['UNPROVEN', 'OWNER-OPEN']) {
+      const bullets = sectionOf(ledger, heading)
+        .split('\n')
+        .filter((line) => line.startsWith('- '));
+      expect(bullets.length, `${heading} lost its bullets`).toBeGreaterThan(0);
+      const closed = bullets.filter(isClosed).map((line) => line.slice(0, 70));
+      expect(
+        closed,
+        `${heading} has history in it — run \`npm run ledger:archive\` (it moves, never deletes):\n${closed.join('\n')}`,
+      ).toEqual([]);
+    }
+  });
+
+  it('no single entry has grown into a document', () => {
+    // The rule the ledger header states, made mechanical: a 56 KB bullet was 43% of this file on
+    // 2026-10-15. An entry that big is a document; give it its own file and link it.
+    const ledger = text(LEDGER);
+    const tooBig: string[] = [];
+    for (const heading of ['ITEMS', 'UNPROVEN', 'OWNER-OPEN']) {
+      const limitKb = heading === 'ITEMS' ? 12 : 8;
+      const lines = sectionOf(ledger, heading).split('\n');
+      const starts = (line: string) =>
+        heading === 'ITEMS'
+          ? line.startsWith('| ') && !/^\|\s*(ID|--)/.test(line)
+          : line.startsWith('- ');
+      let start = -1;
+      for (let i = 0; i <= lines.length; i++) {
+        if (start >= 0 && (i === lines.length || starts(lines[i]) || /^(>|#{1,6} )/.test(lines[i]))) {
+          const kb = lines.slice(start, i).join('\n').length / 1024;
+          if (kb > limitKb) tooBig.push(`${heading}: ${kb.toFixed(1)} KB — "${lines[start].slice(0, 60)}…"`);
+          start = -1;
+        }
+        if (i < lines.length && starts(lines[i])) start = i;
+      }
+    }
+    expect(
+      tooBig,
+      `an entry has grown into a document (limit 12 KB for a row, 8 KB for a bullet); give it its own file and link it:\n${tooBig.join('\n')}`,
+    ).toEqual([]);
+  });
+
+  it('names every open owner item in the plain-language checklist', () => {
+    // The owner is not a developer. The ledger's OWNER-OPEN is the record; this is the version they can
+    // act on, and the ids are what stops the two drifting apart.
+    const bullets = sectionOf(text(LEDGER), 'OWNER-OPEN')
+      .split('\n')
+      .filter((line) => line.startsWith('- '));
+    expect(bullets.length, 'OWNER-OPEN lost its items').toBeGreaterThan(0);
+    const ids = [...new Set(bullets.flatMap((line) => line.slice(0, 150).match(/V\d+-\d+/g) ?? []))];
+    const checklist = text('docs/agent/OWNER-CHECKLIST.md');
+    const missing = ids.filter((id) => !checklist.includes(id));
+    expect(
+      missing,
+      `an open owner item is missing from docs/agent/OWNER-CHECKLIST.md: ${missing.join(', ')}`,
+    ).toEqual([]);
+    expect(checklist.length / 1024, 'the owner checklist is meant to be one page').toBeLessThanOrEqual(6);
+    expect(checklist, 'the checklist must point back at the record').toMatch(/AGENT-STATE\.md/);
+  });
+
+  it('the deploy runbook points at the one command instead of keeping its own list', () => {
+    // The runbook used to spell the T2 steps out and quote a test count ("50/50") that had been wrong
+    // for releases. A list in two places is a list that disagrees with itself, and a count written into
+    // prose is wrong within a week; both are now a pointer at `npm run verify`.
+    const deploy = text('docs/agent/DEPLOY.md');
+    expect(deploy, 'DEPLOY.md must name the gate').toMatch(/npm run verify/);
+    expect(deploy, 'the browser suite is the part a deploy cannot skip').toMatch(/--e2e/);
+    // The stale shape was a pass ratio ("50/50"), which is two equal numbers; 401/403 is a status code
+    // pair and legitimate, so this looks for the ratio and not for any pair of numbers.
+    expect(deploy, 'a hard-coded pass count in the runbook goes stale — quote the gate\'s own output').not.toMatch(
+      /\b(\d{1,4})\s*\/\s*\1\b/,
+    );
+    expect(deploy.length / 1024, 'DEPLOY.md is a runbook, not a manual').toBeLessThanOrEqual(8);
+  });
+
+  it('the content schema is documented where a load will look for it', () => {
+    // Not invented here: `migrations/0001_content_tables.sql` records production verbatim, `README.md`
+    // explains why the directory exists, and `tests/contentSchema.test.ts` holds the executable half.
+    // This asserts the pointer survives, because the failure it prevents (V12-2, a load that died on a
+    // missing `grammar.rule_de` after three batches had already been written) cost real production rows.
+    const env = text('docs/agent/ENV-FACTS.md');
+    expect(env, 'the task index must point at the deployed schema before a content load').toMatch(/migrations\/0001_content_tables\.sql/);
+    expect(existsSync(join(root, 'migrations/0001_content_tables.sql'))).toBe(true);
+    expect(existsSync(join(root, 'migrations/README.md'))).toBe(true);
+  });
+
+  it('ENV-FACTS states the tool boundary and the cached browser as facts', () => {
+    const env = text('docs/agent/ENV-FACTS.md');
+    expect(env).toMatch(/never writes a file/i);
+    expect(env).toMatch(/never run `playwright install/i);
+  });
+
+  it('the ledger is a live board, and the history it gave up is linked', () => {
+    const ledger = text(LEDGER);
+    const itemsStart = ledger.indexOf('\n## ITEMS');
+    const decisionsStart = ledger.indexOf('\n## DECISIONS');
+    expect(itemsStart, 'the ledger lost its ## ITEMS section').toBeGreaterThan(0);
+    expect(decisionsStart, 'the ledger lost its ## DECISIONS section').toBeGreaterThan(itemsStart);
+
+    const completed = ledger
+      .slice(itemsStart, decisionsStart)
+      .split('\n')
+      .filter((line) => line.startsWith('| '))
+      .filter((line) => (line.split('|')[2] ?? '').trim().startsWith('done'));
+    expect(
+      completed,
+      `${completed.length} completed row(s) are back in the ledger's ITEMS table. Run \`npm run ledger:archive\` — moving them deletes nothing.`,
+    ).toEqual([]);
+
+    // An archive nobody can find is a deleted archive. The pointer must be a real block, not a
+    // survivor: an automated rewrite of this section once ate the second half of it, and a test
+    // that only looks for the filename would have passed while the instructions were gone.
+    // (Kept below the pointer checks; see also the live-section shape tests in the next two.)
+    const itemsLines = ledger.slice(itemsStart, decisionsStart).split('\n');
+    // `indexOf` found the newline *before* the heading, so the slice starts with an empty element.
+    const headingAt = itemsLines.findIndex((line) => line.startsWith('## ITEMS'));
+    const headerAt = itemsLines.findIndex((line) => /^\|\s*ID\s*\|/.test(line));
+    expect(headingAt, 'the ITEMS heading is gone').toBeGreaterThanOrEqual(0);
+    expect(headerAt, 'the ITEMS table header is gone').toBeGreaterThan(headingAt);
+    const pointer = itemsLines.slice(headingAt + 1, headerAt).filter((line) => line.trim() !== '');
+    expect(pointer.length, 'the ITEMS pointer lost lines — it should still explain where history went').toBeGreaterThanOrEqual(4);
+    expect(pointer.join('\n')).toMatch(/ARCHIVE-AGENT-STATE\.md/);
+    expect(pointer.every((line) => line.startsWith('>')), 'the ITEMS pointer should be one blockquote').toBe(true);
+    const archived = text(ARCHIVE).split('\n').filter((line) => line.startsWith('| '));
+    expect(archived.length, 'the archive lost the completed rows').toBeGreaterThan(100);
+  });
+});
+
+/**
+ * A task index is only worth having if it is true. Every command the index names must still exist:
+ * a `script:` someone deleted, a rig that was renamed, a spec that moved. Without this, the index
+ * rots into the thing it was written to replace — a document a run tries and then abandons.
+ */
+describe('the task → command index cannot rot (ENV-FACTS §C)', () => {
+  const env = text('docs/agent/ENV-FACTS.md');
+  const start = env.indexOf('### Task → the one command');
+  const end = env.indexOf('### Producing a file');
+  const index = start >= 0 && end > start ? env.slice(start, end) : '';
+
+  const captures = (re: RegExp, source: string): string[] => {
+    const found: string[] = [];
+    const rx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
+    let match = rx.exec(source);
+    while (match) {
+      found.push(match[1]);
+      match = rx.exec(source);
+    }
+    return found;
+  };
+
+  it('exists, and still names the jobs this project actually does', () => {
+    expect(index, 'ENV-FACTS §C lost its task → command index').not.toBe('');
+    const rows = index.split('\n').filter((line) => /^\| .+ \| .+ \|/.test(line));
+    expect(rows.length).toBeGreaterThanOrEqual(15);
+  });
+
+  it('every command in the index resolves to a real script, config or file', () => {
+    const scripts = Object.keys(
+      (JSON.parse(text('package.json')) as { scripts?: Record<string, string> }).scripts ?? {},
+    );
+    const missing: string[] = [];
+    const check = (what: string, exists: boolean) => {
+      if (!exists) missing.push(what);
+    };
+
+    for (const name of captures(/`npm run ([a-z][\w:.-]*)`/, index)) check(`npm run ${name}`, scripts.includes(name));
+    for (const name of captures(/`npm (test|build|preview)`/, index)) check(`npm ${name}`, scripts.includes(name));
+    for (const file of captures(/\bnode (scripts\/[\w.-]+)/, index)) check(file, existsSync(join(root, file)));
+    // Nested paths matter: the perf probe's config is `e2e/perf/playwright.perf.config.ts`.
+    for (const config of captures(/-c (e2e\/[\w./-]+\.ts)/, index)) check(config, existsSync(join(root, config)));
+    for (const spec of captures(/\b(e2e\/[\w.-]+\.spec\.ts)/, index)) check(spec, existsSync(join(root, spec)));
+
+    expect(missing, `the index names things that no longer exist: ${missing.join(', ')}`).toEqual([]);
+  });
+});

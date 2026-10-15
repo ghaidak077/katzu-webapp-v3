@@ -72,7 +72,7 @@ ENVIRONMENT = "production"
 # are stripped automatically by the worker. The sales site must be listed: the
 # crypto checkout is posted from a browser on that origin, and CORS is strict in
 # production. Keep in sync with the Pages custom domain when one is attached.
-ALLOWED_ORIGINS = "https://katzu-test.ghaidakalosh008.workers.dev,https://katzu-webapp-v3.pages.dev,https://katzu-sales.pages.dev"
+ALLOWED_ORIGINS = "https://katzu-test.ghaidakalosh008.workers.dev,https://katzu-webapp-v3.pages.dev,https://katzu-sales.pages.dev,https://katzuai.com,https://www.katzuai.com"
 # Public by design (shipped to every browser in the client bundle). Setting it here
 # lets the worker enforce the `aud` claim on Google ID tokens — without it that
 # check is skipped and a token minted for any other OAuth client would be accepted.
@@ -88,6 +88,16 @@ AI_FALLBACK_ENABLED = "1"
 # included, enforced by `checkDailySpendCap` before the trial ledger so no call
 # reaches a provider once the ceiling is hit. Absent means unlimited; 0 is a
 # hard stop. 292 is the figure scripts/measure-turn-cost.mjs recommends.
+#
+# THE FORMULA (owner input):  cap = daily AI budget in USD / cost per turn in USD
+#   - cost per turn = estimateTurnCostUsd({ tier, inputTokens, outputTokens }) in
+#     cloudflare-ai-router.js (the tier prices there are UNPROVEN planning numbers).
+#   - the numerator — "daily AI budget in USD" — is an OWNER DECISION, not the
+#     agent's to pick; 292 assumes ~$1.00/day across ~5 active users at the
+#     flagship price. Every AI turn now emits a structured `{"event":"ai_turn",…}`
+#     log with tier, tokens in/out and estimated cost, and `checkDailySpendCap`
+#     emits a warning at 80% of the cap, so the budget can be read from real
+#     usage instead of guessed.
 # UNPROVEN: derived from measured per-turn cost, not from observed production
 # spend — the owner should replace it with a number read from real usage. It is a
 # plain var on purpose (a tuned ceiling, not a credential): it must stay

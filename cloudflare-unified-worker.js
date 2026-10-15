@@ -195,6 +195,17 @@ function isProductionEnv(env = {}) {
   );
 }
 
+// The token-verification bypass (`TEST_MODE`) is honored ONLY when the deploy
+// explicitly declares `ENVIRONMENT="test"`. Anything else — unset, misspelled,
+// "development", "staging" — is treated as production, so a stale or mis-typed
+// var can never reopen the bypass. This is the fail-closed half of the guard in
+// `fetch`: the old check only neutralized TEST_MODE under an explicit production
+// marker, which meant a deploy whose ENVIRONMENT was missing or unknown kept the
+// forged-token shortcut live.
+function isExplicitTestEnv(env = {}) {
+  return String(env?.ENVIRONMENT || "").toLowerCase() === "test";
+}
+
 function getCorsHeaders(request, env = {}) {
   const origin = request.headers.get("Origin") || "";
   const configuredOrigins = typeof env?.ALLOWED_ORIGINS === "string"
@@ -688,6 +699,19 @@ async function checkDailySpendCap(env) {
       "SELECT count FROM rate_limit_counters WHERE counter_id = ?"
     ).bind(counterId).first();
     const count = Number(row?.count ?? 0);
+    // Operator-visible early warning at 80% of the ceiling, so the cap is a
+    // planned brake rather than a surprise outage. One structured line per
+    // crossing check; the counter only moves on a real AI call, so this cannot
+    // spam. `count` may exceed `cap` (the caller is blocked separately).
+    if (cap > 0 && count >= Math.ceil(cap * 0.8)) {
+      console.warn(JSON.stringify({
+        event: "ai_daily_spend_cap_warning",
+        threshold: 0.8,
+        cap,
+        count,
+        remaining: Math.max(0, cap - count),
+      }));
+    }
     if (count > cap) return { allowed: false, cap, count };
     return { allowed: true, cap, count };
   } catch {
@@ -1384,6 +1408,9 @@ function aiRouteDeps() {
       callAiRouter(payload, callEnv, opts ? { ...aiRouterDeps(), ...opts } : aiRouterDeps()),
     routerCounters: routerCountersSnapshot,
     getProvider: () => lastAiProvider,
+    // The model the pool served last (pinned by the router's onModel hook), read
+    // by the turn route for its structured per-turn cost log.
+    getModel: () => primaryWorkingModel,
   };
 }
 
@@ -1478,8 +1505,8 @@ export default {
     // verifyGoogleIdToken, so a stale var left in a production deploy would let
     // anyone mint a session for any account. Neutralize it before any handler
     // runs (env is a local parameter, so the bypass branch can no longer see it).
-    if (env?.TEST_MODE && isProductionEnv(env)) {
-      console.error("[security] TEST_MODE ignored: the token-verification bypass is disabled in production");
+    if (env?.TEST_MODE && !isExplicitTestEnv(env)) {
+      console.error("[security] TEST_MODE ignored: the token-verification bypass is disabled unless ENVIRONMENT is explicitly \"test\"");
       env = { ...env, TEST_MODE: undefined };
     }
 

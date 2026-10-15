@@ -33,9 +33,9 @@
  * legitimately the owner's to write. The owner's own pre-submission run is
  * `npm run check:launch:strict`, whose exit code is the gate.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(root, 'src', 'lib', 'trust', 'content.ts');
@@ -65,13 +65,56 @@ for (const match of text.matchAll(/id:\s*'([a-z-]+)'[\s\S]{0,200}?bodyAr:\s*`\$\
   if (!outstanding.includes(sectionId)) outstanding.push(sectionId);
 }
 
-// A second, independent launch blocker: the public origin. Until
+// A second placeholder guard, independent of the trust content: fail if ANY
+// shipped source still contains a `{{...}}` placeholder token — e.g.
+// `REFUND_TEXT = '{{OWNER_FILL}}'` in `src/lib/offers/pricing.ts`. An app must
+// never render an unrendered template string to a learner, and the trust-content
+// scan above only knows its own file. This is a source scan (no build needed) and
+// matches `{{` followed by an uppercase letter or underscore — the placeholder
+// shape — so it deliberately does NOT match JSX `{{ ... }}` expressions or JSDoc
+// object types like `{{ ok: boolean }}`.
+const SHIPPED_ROOTS = ['src', 'sales'];
+const shippedFiles = [];
+const collectShipped = (dir) => {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    const stats = statSync(full);
+    if (stats.isDirectory()) { collectShipped(full); continue; }
+    if (/\.(ts|tsx|js|jsx|html|css|json)$/.test(entry)) shippedFiles.push(full);
+  }
+};
+for (const shippedRoot of SHIPPED_ROOTS) {
+  try { collectShipped(join(root, shippedRoot)); } catch { /* root may not exist */ }
+}
+try {
+  for (const entry of readdirSync(root)) {
+    if (/^cloudflare-.*\.js$/.test(entry)) shippedFiles.push(join(root, entry));
+  }
+} catch { /* unreadable project root */ }
+const PLACEHOLDER_TOKEN = /\{\{[A-Z_]/;
+const placeholders = [];
+for (const file of shippedFiles) {
+  let text;
+  try { text = readFileSync(file, 'utf8'); } catch { continue; }
+  text.split(/\r?\n/).forEach((line, index) => {
+    const trimmed = line.trim();
+    // Skip comment-only lines: a comment explaining the placeholder is not a
+    // shipped string. A trailing comment on a code line is still caught.
+    if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
+    if (PLACEHOLDER_TOKEN.test(line)) {
+      placeholders.push({ file: relative(root, file), line: index + 1, text: trimmed.slice(0, 120) });
+    }
+  });
+}
+
+// A third, independent launch blocker: the public origin. Until
 // `VITE_PUBLIC_APP_URL` is set, the generated robots/sitemap stay relative and so
 // does the share image in `index.html` — which resolves, but a social crawler
 // wants absolute. It is owner-only (the domain is not the agent's to choose), so
 // it is counted alongside the legal fields and fails the strict gate the same way.
 const appUrl = String(process.env.VITE_PUBLIC_APP_URL || '').trim();
 const blockers = [...outstanding];
+if (placeholders.length) blockers.push('{{placeholders}}');
 if (!appUrl) blockers.push('VITE_PUBLIC_APP_URL');
 
 console.log(`[launch-check] strict=${strict ? '1' : '0'}`);
@@ -79,6 +122,12 @@ console.log(`[launch-check] outstanding ${PLACEHOLDER} fields: ${outstanding.len
 for (const sectionId of outstanding) console.log(`  - ${sectionId}`);
 if (outstanding.length === 0) console.log('[launch-check] every legal field is filled in.');
 else console.log('[launch-check] these belong to the owner; see the OWNER LIST in docs/AGENT-STATE.md.');
+console.log(`[launch-check] shipped strings containing a {{ placeholder token: ${placeholders.length}`);
+for (const spot of placeholders) {
+  console.log(`  - ${spot.file}:${spot.line}  ${spot.text}`);
+}
+if (placeholders.length === 0) console.log('[launch-check] no unrendered {{ placeholder ships to a learner.');
+else console.log('[launch-check] replace these before shipping (e.g. REFUND_TEXT in src/lib/offers/pricing.ts).');
 if (appUrl) console.log(`[launch-check] VITE_PUBLIC_APP_URL set → og:image and robots/sitemap use absolute URLs.`);
 else console.log('[launch-check] VITE_PUBLIC_APP_URL is NOT set → share image and robots/sitemap stay relative; crawlers want absolute. Owner-only.');
 

@@ -9,6 +9,7 @@ import worker, {
   checkUserEntitlement,
   consumeTrialQuota,
   getCorsHeaders,
+  isTrialSessionConsumed,
   sweepExpiredRows,
   verifyGoogleIdToken,
 } from '../cloudflare-unified-worker';
@@ -101,11 +102,11 @@ describe('Worker security controls', () => {
     )).toBeNull();
   });
 
-  it('ignores TEST_MODE in production so a forged token cannot mint a session', async () => {
+  it('honors TEST_MODE only when ENVIRONMENT is explicitly "test" (fail closed)', async () => {
     const base = { TEST_MODE: true, GOOGLE_CLIENT_ID: 'client-id', USER_PROGRESS: new MemoryKv() };
     // Verify-by-tokeninfo normally short-circuits whenever NODE_ENV=test (which the
     // test runner always sets), so pin it to "production" here. That leaves
-    // TEST_MODE as the only trigger, making the assertions below non-vacuous.
+    // TEST_MODE as the only possible trigger, making the assertions below non-vacuous.
     vi.stubEnv('NODE_ENV', 'production');
     const provider = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ error: 'invalid_token' }), { status: 400 }),
@@ -118,19 +119,25 @@ describe('Worker security controls', () => {
       }), env);
 
     try {
-      // Control: with no production marker the TEST_MODE shortcut is honoured and
-      // the forged token is accepted, so the rejection below can only come from the
-      // production guard — not from some other payload check.
-      const control = await signIn({ ...base });
-      expect(control.status).toBe(200);
-      expect((await control.json()).session_token).toMatch(/^sess_/);
-      expect(provider).not.toHaveBeenCalled();
+      // Fail closed: TEST_MODE with NO ENVIRONMENT marker is NOT a bypass. The
+      // forged token is verified and rejected by the provider, not accepted.
+      const missing = await signIn({ ...base });
+      expect(missing.status).toBe(401);
+      expect(await missing.json()).toEqual({ error: 'invalid_id_token' });
+      expect(provider).toHaveBeenCalled();
 
+      // A misspelled / unknown value behaves exactly like production.
+      const unknown = await signIn({ ...base, ENVIRONMENT: 'staging' });
+      expect(unknown.status).toBe(401);
+
+      // The bypass is honored ONLY under an explicit ENVIRONMENT="test".
+      const explicitTest = await signIn({ ...base, ENVIRONMENT: 'test' });
+      expect(explicitTest.status).toBe(200);
+      expect((await explicitTest.json()).session_token).toMatch(/^sess_/);
+
+      // And an explicit production marker is the strict case it always was.
       const guarded = await signIn({ ...base, ENVIRONMENT: 'production' });
       expect(guarded.status).toBe(401);
-      expect(await guarded.json()).toEqual({ error: 'invalid_id_token' });
-      // Verification reached the provider instead of being short-circuited.
-      expect(provider).toHaveBeenCalled();
     } finally {
       provider.mockRestore();
       vi.unstubAllEnvs();
@@ -247,6 +254,36 @@ describe('Worker security controls', () => {
       allowed: false,
       code: 'FREE_QUOTA_EXHAUSTED',
     });
+  });
+
+  it('cannot exceed three free conversations by relabelling a Pro-level profile as A1', async () => {
+    // A learner the placement measured above the free floor can send
+    // `cefr_level: "A1"` and still be served (A0/A1 are the free floor) — but the
+    // 3-session quota is the SAME bucket regardless of the label, so the level is
+    // not a way past it. The two assertions below must point in opposite
+    // directions, or the block could just be the level gate in disguise.
+    const spent = new MemoryKv();
+    await spent.put('ai-quota:pro-level-user', JSON.stringify({ used: 3 }));
+    expect(await checkUserEntitlement({ sub: 'pro-level-user' }, 'A1', { USER_PROGRESS: spent })).toMatchObject({
+      allowed: false,
+      code: 'FREE_QUOTA_EXHAUSTED',
+    });
+    // With the quota unspent, the same A1 request is allowed — so the block above
+    // comes from the quota, not from the level.
+    expect(await checkUserEntitlement({ sub: 'pro-level-user' }, 'A1', { USER_PROGRESS: new MemoryKv() })).toMatchObject({
+      allowed: true,
+      isSubscribed: false,
+    });
+  });
+
+  it('charges a retried conversation once, so replaying a session is not a new free conversation', async () => {
+    const progress = new MemoryKv();
+    // The route consults this fast-path key before the counter: a replay of a
+    // session already marked consumed never reaches the counter, so retrying the
+    // same conversation cannot mint a 4th free conversation.
+    await progress.put('ai-trial-session:retry-user:s1', JSON.stringify({ consumed_at: 1 }));
+    expect(await isTrialSessionConsumed('retry-user', 's1', { USER_PROGRESS: progress })).toBe(true);
+    expect(await isTrialSessionConsumed('retry-user', 's2', { USER_PROGRESS: progress })).toBe(false);
   });
 
   it('limits requests per user', () => {

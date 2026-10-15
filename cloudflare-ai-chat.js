@@ -28,7 +28,12 @@ import {
   normaliseMockPartIndex,
 } from "./cloudflare-mock-exam.js";
 import { beatsInstruction } from "./cloudflare-conversation-beats.js";
-import { isEasyTurn } from "./cloudflare-ai-router.js";
+import { isEasyTurn, PROVIDER_POOL, estimateTurnCostUsd } from "./cloudflare-ai-router.js";
+
+/** char/4 token estimate — the same estimator `scripts/measure-turn-cost.mjs` uses. */
+const estimateTokens = (value) => Math.ceil(String(value ?? "").length / 4);
+/** Which tier served a pool model name, for the per-turn cost log. */
+const TIER_BY_MODEL = new Map(PROVIDER_POOL.map((entry) => [entry.model, entry.tier]));
 
 /**
  * The KV key for one cached translation.
@@ -222,6 +227,7 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     callAiRouter,
     routerCounters,
     getProvider,
+    getModel,
     validateGermanAgainstLevel,
     levelFallbackLine,
     levelConstraintLine,
@@ -532,6 +538,28 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     const linkedGrammarId = grammarReference && !evaluation.is_correct && evaluation.grammar_id === grammarReference.id
       ? grammarReference.id
       : "";
+    // Structured, content-free cost line per served turn: tier, tokens in/out and
+    // the estimated cost, so the daily spend cap can be tuned against real usage
+    // instead of the UNPROVEN planning prices. Never logs prompt or learner text.
+    try {
+      const servedModel = getModel ? getModel() : null;
+      const tier = (servedModel && TIER_BY_MODEL.get(servedModel)) || "unknown";
+      const inputTokens = estimateTokens(systemInstruction) + estimateTokens(JSON.stringify(turnPayload.contents));
+      const outputTokens = estimateTokens(raw);
+      console.log(JSON.stringify({
+        event: "ai_turn",
+        tier,
+        model: servedModel,
+        provider: getProvider(),
+        level,
+        mode,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        estimated_cost_usd: Number(estimateTurnCostUsd({ tier, inputTokens, outputTokens }).toFixed(6)),
+      }));
+    } catch {
+      /* a log line must never fail a learner's turn */
+    }
     return json({
       reply_de: replyDe,
       reply_ar: replyAr,
