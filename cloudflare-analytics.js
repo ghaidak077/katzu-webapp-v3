@@ -52,6 +52,7 @@ export const EVENT_NAMES = [
   "scenario_completed",
   "quiz_completed",
   "conversation_started",
+  "time_to_first_turn",
   "first_independent_turn",
   "conversation_completed",
   "return_day1",

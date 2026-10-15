@@ -31,6 +31,10 @@ export const ANALYTICS_EVENTS = [
   'scenario_completed',
   'quiz_completed',
   'conversation_started',
+  // A5: seconds from opening a scenario to the first accepted turn. Speaks to
+  // whether the microphone is easy to start using — the independence event
+  // below fires only when no hint was needed, which is a different question.
+  'time_to_first_turn',
   'first_independent_turn',
   'conversation_completed',
   'return_day1',

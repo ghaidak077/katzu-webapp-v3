@@ -184,6 +184,11 @@ export function useLiveConversation({
   }, [arabicDefaultForLevel, currentLevel]);
   const isSessionCompleted = conversation.status === 'completed';
   const firstIndependentTrackedRef = useRef(false);
+  // A5: how long it takes from the scenario opening to the learner's first
+  // accepted sentence. The number that says whether speaking is easy to start
+  // or a wall — a screen can be "opened" and still produce nothing.
+  const sessionOpenedAtRef = useRef(0);
+  const firstTurnTrackedRef = useRef(false);
   const inFlightRef = useRef(false);
 
   // Sync the episode's level once the learner row is loaded, and again if they
@@ -576,6 +581,8 @@ export function useLiveConversation({
 
     setMessages([welcomeMsg]);
     dispatch({ type: 'reset' });
+    sessionOpenedAtRef.current = Date.now();
+    firstTurnTrackedRef.current = false;
     track('conversation_started', { scenarioId, kind: sessionMode });
 
     // Load cached starter phrases as initial hints (never in REAL mode).
@@ -751,6 +758,20 @@ export function useLiveConversation({
       const updatedHistory = [...newMessages, katzuReply];
       setMessages(updatedHistory);
       dispatch({ type: 'turn_ok' });
+
+      // A5: the first ACCEPTED turn, whether or not it needed a hint — the
+      // seconds from opening the scenario to actually speaking German. Kept
+      // separate from the independence moment below, because "how long until
+      // they spoke" and "how long until they spoke unaided" are different
+      // questions and merging them would answer neither.
+      if (!firstTurnTrackedRef.current) {
+        firstTurnTrackedRef.current = true;
+        const elapsedSeconds = Math.max(
+          0,
+          Math.round((Date.now() - (sessionOpenedAtRef.current || Date.now())) / 1000),
+        );
+        track('time_to_first_turn', { scenarioId, kind: sessionMode ?? undefined, count: elapsedSeconds });
+      }
 
       // The first sentence produced without a hint is the product's real "you
       // can speak" moment, and the funnel needs to know it happened.

@@ -10,6 +10,7 @@ import { GermanText } from '@/components/common/GermanText';
 import { KatzuPresence, type KatzuState } from '@/components/v2/KatzuPresence';
 import { ProgressRail } from '@/components/v2/ProgressStrip';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { track } from '@/lib/analytics/client';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { CAPABILITY_LABEL_AR, capabilityFromSession } from '@/lib/capability/model';
 import { completedEpisodeCount, shouldOfferPro } from '@/lib/entitlement/trial';
@@ -694,6 +695,10 @@ const ExamResultCard: React.FC<{ card: ExamCard; firstName?: string; scenarioTit
 
   const handleShare = useCallback(async () => {
     if (!shareUrl) return;
+    // A5: the exam result is the one share that carries a learner's own
+    // achievement, so it is counted under its own kind — `share_click` already
+    // fires at every other share surface, and the funnel needs to tell them apart.
+    track('share_click', { kind: 'exam_card' });
     try {
       const blob = await fetch(shareUrl).then((r) => r.blob());
       const file = new File([blob], 'katzu-mock-exam.png', { type: 'image/png' });

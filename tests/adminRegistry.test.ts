@@ -543,6 +543,44 @@ describe('Admin dashboard aggregation API', () => {
     expect(body.recent_activity.length).toBeGreaterThan(0);
   });
 
+  it('serves the launch funnel on /admin/api/metrics, and only to the admin', async () => {
+    const env = makeEnv() as Env;
+    await signIn(env, 'metric-user', 'metric@test.dev');
+
+    const res = await adminGet('/admin/api/metrics', env);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      funnel: {
+        windowDays: number;
+        steps: Array<{ name: string; accounts: number }>;
+        conversion: Array<{ from: string; to: string; percent: number | null }>;
+        by_region: unknown[];
+        by_cell: unknown[];
+        unproven: boolean;
+      };
+    };
+    // The sequence, in order — the whole point of the endpoint is that the owner
+    // can see WHERE learners stop, not how many there are.
+    expect(body.funnel.steps.map((step) => step.name)).toEqual([
+      'onboarding_goal',
+      'mock_start',
+      'mock_finish',
+      'debrief_view',
+      'paywall_view',
+      'upgrade_click',
+      'code_redeemed',
+    ]);
+    expect(body.funnel.windowDays).toBe(30);
+    expect(body.funnel.steps.every((step) => Number.isFinite(step.accounts))).toBe(true);
+    expect(body.funnel.conversion).toHaveLength(body.funnel.steps.length - 1);
+    // `unproven` rides along so a reader can tell this is a measurement, not a
+    // promise: it becomes false only when there is a real cohort to read.
+    expect(body.funnel.unproven).toBe(true);
+
+    const unauth = await worker.fetch(request('/admin/api/metrics', { method: 'GET' }), env as never);
+    expect(unauth.status).toBe(401);
+  });
+
   it('lists all registered users including free ones', async () => {
     const env = makeEnv() as Env;
     await signIn(env, 'list-a', 'lista@test.dev');
@@ -648,6 +686,10 @@ describe('Admin auth gate is unchanged', () => {
     const html = await res.text();
     expect(html).toContain('Katzu');
     expect(html).toContain('/admin/api/overview');
+    // The funnel panel has to be wired to a real endpoint, or it renders nothing
+    // and looks like "no learners" rather than like a broken panel.
+    expect(html).toContain('/admin/api/metrics');
+    expect(html).toContain('funnel-steps');
   });
 });
 

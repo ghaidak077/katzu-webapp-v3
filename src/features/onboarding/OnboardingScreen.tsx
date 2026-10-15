@@ -166,6 +166,11 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                   type="button"
                   onClick={() => {
                     setAnswers((prev) => ({ ...prev, primaryGoal: goal }));
+                    // A5: the first funnel step. The answer arrives with `goal`
+                    // on every later event too, but without this line the
+                    // funnel's opening step has no rows at all — the owner
+                    // could see who finished and not who began.
+                    track('onboarding_goal', { kind: goal, source: mode });
                     advance(mode === 'edit' ? 'arrival' : 'time');
                   }}
                   className={`w-full rounded-2xl border p-4 text-start transition-colors ${

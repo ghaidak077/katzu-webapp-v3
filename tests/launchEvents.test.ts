@@ -113,6 +113,60 @@ describe('the events the funnel was missing', () => {
   });
 });
 
+/**
+ * A5: the four emissions the funnel was blind to.
+ *
+ * Each was a measurement the app appeared to take and did not: a name in the
+ * allow-list with no call site, or a call site under a name the D1 funnel does
+ * not aggregate. Both failures look identical on the dashboard — a permanent
+ * zero — which is why they are pinned here rather than trusted.
+ */
+describe('A5: the funnel can see these now', () => {
+  it('fires onboarding_goal at the moment the goal is chosen', () => {
+    const text = source('src/features/onboarding/OnboardingScreen.tsx');
+    expect(text).toMatch(/track\(\s*'onboarding_goal'/);
+    // The goal it records is the one just picked, not a later default.
+    const call = text.slice(text.indexOf("track('onboarding_goal'"));
+    expect(call.slice(0, 120)).toMatch(/kind: goal/);
+  });
+
+  it('fires paywall_view from the modal too, not only paywall_viewed', () => {
+    // The modal used to fire ONLY `paywall_viewed`, and the funnel aggregates
+    // `paywall_view` — so every modal gate (level, session cap, mock) was
+    // invisible to it while looking like a paywall nobody ever saw.
+    const text = source('src/components/sheets/PaywallModal.tsx');
+    expect(text).toMatch(/track\(\s*'paywall_view',/);
+    expect(text).toMatch(/track\(\s*'paywall_viewed',/);
+    const call = text.slice(text.indexOf("track('paywall_view',"));
+    expect(call.slice(0, 120)).toMatch(/source: 'modal'/);
+  });
+
+  it('names the exam card share in its own kind', () => {
+    const text = source('src/features/report/SessionReportScreen.tsx');
+    const call = text.slice(text.indexOf("track('share_click'"));
+    expect(call.slice(0, 120)).toMatch(/kind: 'exam_card'/);
+  });
+
+  it('measures seconds to the first accepted turn, and nothing else', () => {
+    const text = source('src/features/conversation/useLiveConversation.ts');
+    expect(ANALYTICS_EVENTS).toContain('time_to_first_turn');
+    expect(EVENT_NAMES).toContain('time_to_first_turn');
+    const call = text.slice(text.indexOf("track('time_to_first_turn'"));
+    // A duration, never a timestamp or a transcript.
+    expect(call.slice(0, 160)).toMatch(/count: elapsedSeconds/);
+    expect(text).toMatch(/firstTurnTrackedRef/);
+  });
+
+  it('takes the elapsed time from the recording clock, not the wall clock', () => {
+    // A resumed session must not report hours: the measurement is anchored where
+    // the scenario opened, and the anchor is reset on every open.
+    const text = source('src/features/conversation/useLiveConversation.ts');
+    const anchor = text.indexOf('sessionOpenedAtRef.current = Date.now()');
+    expect(anchor).toBeGreaterThan(-1);
+    expect(text.slice(anchor, anchor + 200)).toMatch(/firstTurnTrackedRef.current = false/);
+  });
+});
+
 describe('the allow-list is still closed', () => {
   it('every event the app fires exists in both lists', () => {
     // Walks the app rather than trusting a hand-written list: a `track()` call

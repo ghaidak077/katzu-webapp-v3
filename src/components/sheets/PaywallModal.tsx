@@ -70,7 +70,14 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   const { loaded, headline, priceFor, configured } = usePricing();
 
   useEffect(() => {
-    if (isOpen) track('paywall_viewed', { source: title.slice(0, 64) });
+    if (!isOpen) return;
+    // A5: the same view, under both names. `paywall_view` is the name the D1
+    // funnel aggregates, and this modal used to fire only `paywall_viewed` — so
+    // every modal paywall (the level gate, the session cap, the mock) was
+    // invisible to the funnel, which read as "nobody hits a paywall". The old
+    // name keeps firing so nothing that already counts it loses its history.
+    track('paywall_viewed', { source: title.slice(0, 64) });
+    track('paywall_view', { source: 'modal', kind: title.slice(0, 64) });
   }, [isOpen, title]);
 
   return (

@@ -817,7 +817,7 @@ const FUNNEL_STEPS = [
 /** 30 days: long enough to see a monthly cohort, short enough to act on. */
 const FUNNEL_WINDOW_DAYS = 30;
 
-async function buildLaunchFunnel(env, now = Date.now()) {
+export async function buildLaunchFunnel(env, now = Date.now()) {
   const empty = {
     windowDays: FUNNEL_WINDOW_DAYS,
     steps: FUNNEL_STEPS.map((name) => ({ name, accounts: 0 })),
@@ -1238,6 +1238,15 @@ export async function handleAdminRoutes(url, request, env, cors, deps = {}) {
         return json({ stats, recent_activity: recentActivity, recent_errors: recentErrors }, 200, cors);
       }
 
+      // A5: the launch funnel on its own endpoint. It was already computed for
+      // `/admin/api/overview`, but only as one field of a payload the dashboard
+      // never rendered — the owner could see totals and not the sequence, which
+      // is the question the funnel exists to answer.
+      if (action === "metrics" && method === "GET") {
+        const funnel = await buildLaunchFunnel(env);
+        return json({ funnel }, 200, cors);
+      }
+
       if (action === "users" && method === "GET") {
         const result = await listUsers(env, {
           plan: url.searchParams.get("plan"),
@@ -1620,6 +1629,17 @@ ${CONTENT_STUDIO_CSS}
           <div id="top-events"></div>
         </div>
       </div>
+      <!-- The launch funnel: accounts per step, and the step-to-step rate only
+           where the previous step is a real denominator. Reads its own endpoint
+           so a slow funnel query cannot hold up the overview cards. -->
+      <div class="card" style="margin-top:18px">
+        <h2 style="margin-top:0">Launch funnel (30 days)</h2>
+        <div class="muted" style="font-size:11.5px">Distinct accounts per step · no rate is printed without a denominator.</div>
+        <div id="funnel-steps" style="margin-top:8px"></div>
+        <div id="funnel-conversion" class="mono muted" style="margin-top:10px;font-size:11.5px"></div>
+        <div id="funnel-cuts" style="margin-top:10px"></div>
+      </div>
+
       <div class="grid two" style="margin-top:18px">
         <div class="card">
           <h2 style="margin-top:0">Recent activity</h2>
@@ -1925,6 +1945,53 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
         function (i) { return i.message || i.error_type; },
         function (i) { return (i.endpoint || "") + (i.user_id ? " · " + i.user_id.slice(0, 14) : ""); },
         function (i) { return i.error_type; });
+    }).catch(function () {});
+    // Separate request on purpose: a heavy funnel query must not delay the cards.
+    loadFunnel();
+  }
+
+  /**
+   * The funnel panel. Steps as counts, then the step-to-step rate, then the two
+   * price cuts — in that order, because "where do they stop" comes before "which
+   * price did they see".
+   */
+  function renderFunnel(funnel) {
+    funnel = funnel || {};
+    var steps = (funnel.steps || []).map(function (s) { return { name: s.name, c: s.accounts }; });
+    renderTopList("funnel-steps", steps, "name");
+
+    var conv = document.getElementById("funnel-conversion");
+    conv.innerHTML = "";
+    var rows = funnel.conversion || [];
+    if (!rows.length) {
+      conv.appendChild(el("div", "muted", "No funnel activity in the window yet."));
+    } else {
+      rows.forEach(function (r) {
+        var percent = r.percent === null || r.percent === undefined ? "—" : r.percent + "%";
+        conv.appendChild(el("div", "", r.from + " → " + r.to + ": " + r.accounts + " of " + r.previous + " (" + percent + ")"));
+      });
+    }
+
+    var cuts = document.getElementById("funnel-cuts");
+    cuts.innerHTML = "";
+    var byCell = funnel.by_cell || [];
+    var byRegion = funnel.by_region || [];
+    if (byRegion.length) {
+      cuts.appendChild(el("div", "muted", "By price group: " + byRegion.map(function (r) { return r.region + " ×" + r.c; }).join(" · ")));
+    }
+    if (byCell.length) {
+      cuts.appendChild(el("div", "muted", "By price cell: " + byCell.map(function (r) {
+        return "cell " + r.cell + " " + r.views + "v/" + r.clicks + "c/" + r.purchases + "p";
+      }).join(" · ")));
+    }
+    if (funnel.region_mismatches_30d) {
+      cuts.appendChild(el("div", "muted", funnel.region_mismatches_30d + " region mismatch(es) in 30 days — logged, never blocked."));
+    }
+  }
+
+  function loadFunnel() {
+    api("/admin/api/metrics").then(function (data) {
+      renderFunnel(data.funnel);
     }).catch(function () {});
   }
 
