@@ -73,8 +73,17 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
       document.head.appendChild(canonical);
     }
     canonical.href = `${origin}/`;
-    const ogUrl = document.querySelector('meta[property="og:url"]') as HTMLMetaElement | null;
-    if (ogUrl) ogUrl.content = `${origin}/`;
+    // The build injects `og:url` only when it knows the origin (a relative one is
+    // invalid for crawlers), so a deploy without VITE_PUBLIC_APP_URL has no tag to
+    // update — this used to be a silent no-op. Create it, exactly as the canonical
+    // link above is created, so the page always ends up with an absolute one.
+    let ogUrl = document.querySelector('meta[property="og:url"]') as HTMLMetaElement | null;
+    if (!ogUrl) {
+      ogUrl = document.createElement('meta');
+      ogUrl.setAttribute('property', 'og:url');
+      document.head.appendChild(ogUrl);
+    }
+    ogUrl.content = `${origin}/`;
   }, [isSignedIn]);
 
   return (

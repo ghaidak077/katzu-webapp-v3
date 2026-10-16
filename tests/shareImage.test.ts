@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { absoluteOgImages } from '../vite.config';
+import { absoluteOgImages, withAbsoluteOgUrl } from '../vite.config';
 
 /**
  * The link preview, held to its two halves: the pixels and the tags.
@@ -99,6 +99,20 @@ describe('the share card is the file the tags promise', () => {
 });
 
 describe('the Open Graph tags point at it', () => {
+  // The landing screen updates `og:url` at runtime and it silently did nothing,
+  // because no HTML ever contained the tag. The build now injects it when it knows
+  // the origin, and leaves the document untouched when it does not — a relative
+  // `og:url` is invalid for a crawler that does not run JavaScript.
+  it('injects an absolute og:url only when the build knows its origin', () => {
+    const html = '<html><head><title>t</title></head><body></body></html>';
+    const withOrigin = withAbsoluteOgUrl(html, 'https://katzu.example/');
+    expect(withOrigin).toContain('<meta property="og:url" content="https://katzu.example/" />');
+    // Idempotent: a second pass must not add a second tag.
+    expect(withAbsoluteOgUrl(withOrigin, 'https://katzu.example')).toBe(withOrigin);
+    // No origin → byte-for-byte unchanged, and no host is ever hardcoded.
+    expect(withAbsoluteOgUrl(html, '')).toBe(html);
+  });
+
   it('names the share card on both og:image and twitter:image', () => {
     expect(INDEX).toMatch(/property="og:image" content="\/assets\/share\/katzu-share-ar\.png"/);
     expect(INDEX).toMatch(/name="twitter:image" content="\/assets\/share\/katzu-share-ar\.png"/);

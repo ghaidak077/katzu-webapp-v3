@@ -20,8 +20,10 @@
  *
  * Usage:
  *   node scripts/check-launch.mjs             # report only, never fails
- *   LAUNCH_STRICT=1 node scripts/check-launch.mjs   # fails while any field is open
- *   LAUNCH_VERIFY=1 node scripts/check-launch.mjs    # fails only if the GATE is broken
+ *   node scripts/check-launch.mjs --strict    # fails while any field is open
+ *   node scripts/check-launch.mjs --verify    # fails only if the GATE is broken
+ * The same three modes answer to LAUNCH_STRICT=1 / LAUNCH_VERIFY=1, which is what
+ * CI sets; the flags exist so the command is identical on every platform.
  *
  * WHY THE THIRD MODE EXISTS
  * `tests/ciWorkflow.test.ts` forbids `continue-on-error` anywhere in the workflow,
@@ -40,8 +42,13 @@ import { dirname, join, relative } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(root, 'src', 'lib', 'trust', 'content.ts');
 const PLACEHOLDER = '{{OWNER_FILL}}';
-const strict = process.env.LAUNCH_STRICT === '1';
-const verify = process.env.LAUNCH_VERIFY === '1';
+// Both an environment variable (what CI sets) and a flag, because the npm script
+// used to be the POSIX-only `LAUNCH_STRICT=1 node …` — which npm runs through cmd
+// on Windows, where it fails with "not recognized as an internal or external
+// command" and exits non-zero for the wrong reason. A release gate that cannot run
+// on the machine it is invoked from is not a gate.
+const strict = process.env.LAUNCH_STRICT === '1' || process.argv.includes('--strict');
+const verify = process.env.LAUNCH_VERIFY === '1' || process.argv.includes('--verify');
 
 let text = '';
 try {

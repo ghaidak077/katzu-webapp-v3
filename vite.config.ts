@@ -203,6 +203,24 @@ export function absoluteOgImages(html: string, origin: string): string {
 }
 
 /**
+ * Add `og:url` when the build knows its origin.
+ *
+ * WHY IT IS INJECTED RATHER THAN WRITTEN IN index.html
+ * `og:url` must be absolute, and this repository may not hardcode a host it cannot
+ * resolve — so a relative `/` in the source file would be an invalid tag shipped to
+ * every crawler that does not run JavaScript. The tag exists only when there is an
+ * origin to put in it; the app sets it at runtime from `publicAppUrl()` otherwise.
+ * (The landing screen already tried to update this tag — and silently did nothing,
+ * because no HTML ever contained one.)
+ */
+export function withAbsoluteOgUrl(html: string, origin: string): string {
+  const base = String(origin || '').trim().replace(/\/+$/, '');
+  if (!base) return html;
+  if (/property="og:url"/.test(html)) return html;
+  return html.replace('</head>', `  <meta property="og:url" content="${base}/" />\n</head>`);
+}
+
+/**
  * A8: the variables a Play build must have, as a pure function of the env.
  *
  * A Play/TWA build that ships without any one of these is worse than a build that
@@ -236,7 +254,7 @@ function publicOriginFiles(): Plugin {
     name: 'katzu-public-origin-files',
     transformIndexHtml(html) {
       // Same origin as robots/sitemap: one env var decides every public URL.
-      return absoluteOgImages(html, origin);
+      return withAbsoluteOgUrl(absoluteOgImages(html, origin), origin);
     },
     generateBundle() {
       this.emitFile({
