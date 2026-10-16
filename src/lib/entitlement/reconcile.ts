@@ -29,6 +29,12 @@ export interface ServerEntitlement {
   /** The server's answer: does this account have a live subscription? */
   active: boolean;
   /**
+   * B5: how many free conversations the server's ledger says are left. `null`
+   * means it could not be read — unknown, which is NOT zero and must never be
+   * written down as a number; the app then says nothing instead of inventing one.
+   */
+  freeSessionsRemaining?: number | null;
+  /**
    * Whether the server was actually asked and answered. `false` means the app is
    * looking at its own stored value, which can never correct anything.
    */
@@ -39,12 +45,14 @@ export interface ServerEntitlement {
 export interface LocalEntitlement {
   isSubscriptionActive?: boolean | null;
   subscriptionExpiresAt?: string | null;
+  freeSessionsRemaining?: number | null;
 }
 
 /** The fields to write, or `null` when the local row is already right. */
 export type EntitlementPatch = {
   isSubscriptionActive?: boolean;
   subscriptionExpiresAt?: string | null;
+  freeSessionsRemaining?: number;
 } | null;
 
 export function reconcileEntitlement(
@@ -67,6 +75,14 @@ export function reconcileEntitlement(
   }
   // On the inactive path `subscriptionExpiresAt` is deliberately left alone: it
   // is the record of when the subscription ended, and B3 reads it to say so.
+
+  // B5: the allowance, when the ledger could be read. A `null` count is the
+  // ledger being unreachable, and writing it would replace a true number with
+  // silence — or worse, a caller rendering the local value as a real balance.
+  const serverCount = status.freeSessionsRemaining;
+  if (typeof serverCount === 'number' && Number.isFinite(serverCount) && serverCount !== local?.freeSessionsRemaining) {
+    patch.freeSessionsRemaining = Math.max(0, Math.trunc(serverCount));
+  }
 
   return Object.keys(patch).length ? patch : null;
 }

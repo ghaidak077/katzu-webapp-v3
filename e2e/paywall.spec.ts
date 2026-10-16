@@ -138,6 +138,36 @@ test('a Pro learner nudges the level mid-conversation', async ({ page }) => {
   await expect(page.getByText('تغيير المستوى أثناء المحادثة ميزة Pro')).toHaveCount(0);
 });
 
+/**
+ * B5: the free allowance is said where it is spent, not only at the wall. The
+ * learner used to find out how many free conversations they had at the moment the
+ * last one ran out — the worst possible moment to be told there is a limit, and
+ * the worst moment to sell Pro from.
+ */
+test('the free allowance is stated before the first turn, from the server', async ({ page }) => {
+  await bootSignedIn(page, { freeSessionsRemaining: 2 });
+  await page.goto('/scenario/cafe_order/live');
+
+  const allowance = page.getByTestId('free-allowance');
+  await expect(allowance).toBeVisible();
+  // Two is the dual in Arabic, not "2 جلسة" — the copy owner decides the form.
+  await expect(allowance).toContainText(/محادثتان|جلستان/);
+});
+
+test('an unreadable ledger is not turned into a number', async ({ page }) => {
+  // `null` from the server is "we could not check", and the honest rendering is
+  // silence on this line rather than the locally-seeded 3 the app used to print.
+  await bootSignedIn(page, { freeSessionsRemaining: null });
+  await page.goto('/scenario/cafe_order/live');
+  await expect(page.getByTestId('free-allowance')).toHaveCount(0);
+});
+
+test('a Pro learner is not shown an allowance they do not have', async ({ page }) => {
+  await bootSignedIn(page, { isPro: true, freeSessionsRemaining: 3 });
+  await page.goto('/scenario/cafe_order/live');
+  await expect(page.getByTestId('free-allowance')).toHaveCount(0);
+});
+
 test('the last week of a paid month is named, with the way to renew it', async ({ page }) => {
   // B3: nothing told a paying learner their month was ending, so the first news
   // was the level dropping to A1 mid-episode with no explanation. The notice

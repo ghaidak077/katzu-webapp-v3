@@ -73,6 +73,33 @@ describe('reconciling the subscription with the server', () => {
     ).toEqual({ subscriptionExpiresAt: '2026-12-01T00:00:00.000Z' });
   });
 
+  it('stores the free allowance the ledger reports, and only a number (B5)', () => {
+    // The count is what the conversation screen shows before the wall. A number
+    // the server gave is stored; `null` (ledger unreachable) never overwrites
+    // what is there, because a stale number and no number are different claims.
+    expect(
+      reconcileEntitlement({ active: false, checked: true, freeSessionsRemaining: 2 }, { isSubscriptionActive: false, freeSessionsRemaining: 3 }),
+    ).toEqual({ freeSessionsRemaining: 2 });
+    expect(
+      reconcileEntitlement({ active: false, checked: true, freeSessionsRemaining: 0 }, { isSubscriptionActive: false, freeSessionsRemaining: 3 }),
+    ).toEqual({ freeSessionsRemaining: 0 });
+    expect(
+      reconcileEntitlement({ active: false, checked: true, freeSessionsRemaining: null }, { isSubscriptionActive: false, freeSessionsRemaining: 3 }),
+    ).toBeNull();
+    // Nothing about the allowance travels with an unanswered question either.
+    expect(
+      reconcileEntitlement({ active: false, checked: false, freeSessionsRemaining: 0 }, { isSubscriptionActive: false, freeSessionsRemaining: 3 }),
+    ).toBeNull();
+  });
+
+  it('truncates a fractional count instead of printing one', () => {
+    // A balance is a whole number of conversations; 2.5 remaining is not a thing
+    // the UI has a form for.
+    expect(
+      reconcileEntitlement({ active: false, checked: true, freeSessionsRemaining: 2.7 }, { isSubscriptionActive: false, freeSessionsRemaining: 3 }),
+    ).toEqual({ freeSessionsRemaining: 2 });
+  });
+
   it('tolerates a missing local row', () => {
     expect(reconcileEntitlement(ACTIVE, null)).toEqual({
       isSubscriptionActive: true,

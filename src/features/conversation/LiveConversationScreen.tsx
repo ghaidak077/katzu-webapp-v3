@@ -6,6 +6,7 @@ import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { NO_GERMAN_VOICE_MESSAGE_AR } from '@/lib/speech/useSpeechOutput';
 import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
+import { freeSessionsCopy } from '@/lib/entitlement/trialCopy';
 import { buildWordBank } from '@/lib/utils/wordBank';
 import { track } from '@/lib/analytics/client';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
@@ -104,6 +105,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
   const {
     // data
+    user,
+    isProUser,
     messages,
     dispatch,
     // state
@@ -219,6 +222,17 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             <strong className="kz-ar-caption mb-1 block text-kz-inkDim">{SESSION_MODE_COPY.real.labelAr}</strong>
             <span className="kz-ar-micro text-kz-inkFaint">{SESSION_MODE_COPY.real.descriptionAr}</span>
           </button>
+          {/* B5: the allowance, said HERE — where it is about to be spent — and
+              not only at the wall. The learner used to learn how many free
+              conversations they had at the moment the last one ran out; the count
+              comes from the server's ledger (B2 stores it on every open), and
+              when the ledger could not be read nothing is claimed at all, because
+              `freeSessionsCopy` says so rather than printing a stale local 3. */}
+          {!isProUser && typeof user?.freeSessionsRemaining === 'number' && (
+            <p data-testid="free-allowance" className="kz-ar-micro text-kz-inkDim">
+              {freeSessionsCopy(user.freeSessionsRemaining)}
+            </p>
+          )}
           <button
             type="button"
             onClick={() => setSessionMode('practice')}

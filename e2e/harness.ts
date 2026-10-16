@@ -92,6 +92,12 @@ export interface MockOptions {
    * see it has to say when the month ends.
    */
   subscriptionExpiresAt?: string;
+  /**
+   * What `/check-status` reports as the free allowance left. `null` is the ledger
+   * being unreadable, which the app must render as "we could not check" — never
+   * as a number it made up (B5).
+   */
+  freeSessionsRemaining?: number | null;
   turns?: ScriptedTurn[];
   /** Keeps a turn in flight long enough for the orb's in-progress states to be observed. */
   turnDelayMs?: number;
@@ -378,7 +384,8 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
           active: pro,
           days_remaining: daysRemaining,
           expiresAt,
-          free_sessions_remaining: null,
+          free_sessions_remaining:
+            options.freeSessionsRemaining === undefined ? null : options.freeSessionsRemaining,
           max_free_sessions: 3,
           server_time: new Date().toISOString(),
         });
