@@ -36,8 +36,17 @@ test.describe('the paywall', () => {
     // Both the pass and the monthly card state it; the point is that it is on
     // the page at all, next to the price rather than behind a link.
     await expect(page.getByText(/الحد العادل للاستخدام/).first()).toBeVisible();
-    // The refund line is still the owner's to write.
-    await expect(page.getByText('{{OWNER_FILL}}')).toBeVisible();
+    // B1: the refund line is still the owner's to write, and the page must NOT
+    // print their placeholder while they have not written it. The old assertion
+    // here pinned the opposite — that `{{OWNER_FILL}}` was visible — which meant
+    // a browser test was holding a paying-customer-facing defect in place: the
+    // price page read «سياسة الاسترداد: {{OWNER_FILL}}».
+    await expect(page.getByText('{{OWNER_FILL}}')).toHaveCount(0);
+    await expect(page.getByText(/لم تُنشر بعد/)).toBeVisible();
+    // And the way out of the question is on the page, not in a doc.
+    await expect(
+      page.getByRole('button', { name: /اسألنا عن سياسة الاسترداد/ }),
+    ).toBeVisible();
     // Nothing it must never claim.
     await expect(page.getByText('غير محدود')).toHaveCount(0);
     await expect(page.getByText(/مدى الحياة/)).toHaveCount(0);

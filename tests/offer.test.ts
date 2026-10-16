@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import worker from '../cloudflare-unified-worker';
 import {
@@ -6,7 +8,9 @@ import {
   OFFER_COPY,
   OFFER_ORDER,
   REFUND_TEXT,
+  REFUND_UNPUBLISHED_AR,
   formatEuro,
+  isOwnerFilled,
   priceLabel,
 } from '../src/lib/offers/pricing';
 import { PRICES } from '../cloudflare-pricing.js';
@@ -90,6 +94,30 @@ describe('the offer copy', () => {
   it('leaves the refund policy as a placeholder rather than inventing one', () => {
     expect(REFUND_TEXT).toBe('{{OWNER_FILL}}');
     expect(REFUND_TEXT).not.toMatch(/استرداد|ضمان|refund/i);
+  });
+
+  it('never prints that placeholder on the money page (B1)', () => {
+    // The constant above is deliberately unusable, and the paywall used to render
+    // it verbatim — «سياسة الاسترداد: {{OWNER_FILL}}» next to the price. Two
+    // different claims, so two different assertions: the placeholder still exists
+    // for the owner to fill, and the app never SHOWS a value it was not given.
+    const screen = readFileSync(join(__dirname, '..', 'src', 'features', 'offers', 'PaywallScreen.tsx'), 'utf8');
+    expect(screen).toContain('isOwnerFilled(REFUND_TEXT)');
+    // The old form was the JSX interpolation — the one that rendered the braces
+    // literally. (The new form still mentions REFUND_TEXT, inside the template
+    // that only runs once the line is filled, so the assertion names the shape it
+    // is banning rather than the variable.)
+    expect(screen).not.toContain('سياسة الاسترداد: {REFUND_TEXT}');
+    // The stand-in states the gap and promises nothing about money: no period, no
+    // percentage, no guarantee — the words a refund policy would need.
+    expect(REFUND_UNPUBLISHED_AR).toMatch(/[؀-ۿ]/);
+    expect(REFUND_UNPUBLISHED_AR).not.toMatch(/[0-9٠-٩]|يوماً|أيام|نضمن|ضمان/);
+
+    expect(isOwnerFilled(REFUND_TEXT)).toBe(false);
+    expect(isOwnerFilled('')).toBe(false);
+    expect(isOwnerFilled(null)).toBe(false);
+    expect(isOwnerFilled('   ')).toBe(false);
+    expect(isOwnerFilled('خلال 30 يوماً من الشراء')).toBe(true);
   });
 
   it('speaks Arabic first in every learner-facing line', () => {

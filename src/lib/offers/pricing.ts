@@ -103,6 +103,34 @@ export function formatEuro(amountCents: number, currency = 'EUR'): string {
 export const REFUND_TEXT = '{{OWNER_FILL}}';
 
 /**
+ * Whether a value is really copy, or still the owner's placeholder.
+ *
+ * B1: the placeholder existed so nobody would invent a policy, and the paywall
+ * rendered it anyway — a buyer reaching the price read «سياسة الاسترداد:
+ * {{OWNER_FILL}}». The constant stays a placeholder (the tests and
+ * `check:launch` depend on that being visible to the owner); what changes is that
+ * the app no longer PRINTS a value it has not been given. An empty string counts
+ * as unfilled for the same reason.
+ */
+export function isOwnerFilled(text: string | null | undefined): boolean {
+  const value = String(text ?? '').trim();
+  if (!value) return false;
+  return !value.includes('{{');
+}
+
+/**
+ * What the money page says while the refund line is unfilled.
+ *
+ * Hiding the row was the alternative and is worse: a buyer who looks for the
+ * policy and finds nothing learns the app omits things. This states what is true
+ * — the policy is not published yet, no invented one is shown — and offers the
+ * one action that resolves it. It promises nothing about money, which is the
+ * whole reason the owner has to write the real line.
+ */
+export const REFUND_UNPUBLISHED_AR =
+  'سياسة الاسترداد: لم تُنشر بعد — ولن نعرض لك سياسة مُخترعة. اسألنا قبل الدفع وسنجيبك بوضوح.';
+
+/**
  * Whether a price may be shown.
  *
  * A missing or malformed amount shows nothing rather than "€0" or a dash next to

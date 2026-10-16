@@ -6,9 +6,11 @@ import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { track } from '@/lib/analytics/client';
 import { SubscriptionRedemptionScreen } from '@/features/auth/SubscriptionRedemptionScreen';
 import {
+  isOwnerFilled,
   OFFER_COPY,
   OFFER_ORDER,
   REFUND_TEXT,
+  REFUND_UNPUBLISHED_AR,
   type OfferProduct,
 } from '@/lib/offers/pricing';
 import { usePricing } from '@/lib/offers/priceSource';
@@ -28,6 +30,11 @@ import { paymentInstructionsFor } from '@/lib/offers/paymentInstructions';
  * card that carries the price, and the refund line is the `{{OWNER_FILL}}`
  * placeholder the owner has to replace before launch (C1 makes that the only
  * thing standing between this screen and a strict launch pass).
+ *
+ * B1: it also does not PRINT the placeholder. Until the owner fills the line the
+ * screen says the policy is unpublished and offers to answer the question, which
+ * is the honest version of the same fact — the placeholder's whole job was to stop
+ * the app inventing a policy, and printing it did the opposite of that.
  *
  * Ordering is a decision, not a coincidence: the pass is what the free mock is
  * for, the subscription is the comparison that makes the pass look considered,
@@ -158,10 +165,21 @@ export const PaywallScreen: React.FC = () => {
         })}
 
         <GlassCard>
+          {/* Placeholder on purpose: the app must not invent a refund promise.
+              And B1: it must not show the placeholder either — `isOwnerFilled` is
+              the one place that decides which of the two sentences a buyer reads. */}
           <p className="kz-ar-micro text-kz-inkFaint">
-            {/* Placeholder on purpose: the app must not invent a refund promise. */}
-            سياسة الاسترداد: {REFUND_TEXT}
+            {isOwnerFilled(REFUND_TEXT) ? `سياسة الاسترداد: ${REFUND_TEXT}` : REFUND_UNPUBLISHED_AR}
           </p>
+          {isOwnerFilled(REFUND_TEXT) ? null : (
+            <button
+              type="button"
+              onClick={() => navigate('/trust/contact')}
+              className="mt-2 font-arabic text-micro text-kz-lavender underline underline-offset-4"
+            >
+              اسألنا عن سياسة الاسترداد قبل أن تدفع
+            </button>
+          )}
           <p className="kz-ar-micro mt-2 text-kz-inkFaint">
             التفعيل يتم عبر كود مرتبط بحسابك الموثّق — لا تُدخل أي بيانات بطاقة داخل التطبيق.
           </p>
