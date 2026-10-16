@@ -21,7 +21,7 @@
     "make:share-image": "node scripts/make-share-image.mjs",
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "measure:perf": "node scripts/measure-lighthouse.mjs",
-    "check:launch:strict": "LAUNCH_STRICT=1 node scripts/check-launch.mjs",
+    "check:launch:strict": "node scripts/check-launch.mjs --strict",
     "session:start": "node scripts/session-start.mjs",
     "deploy:worker": "wrangler deploy",
     "tail:worker": "wrangler tail",
