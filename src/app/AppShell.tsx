@@ -339,11 +339,20 @@ export function isPublicPath(pathname: string) {
   // holds the privacy policy and terms — a visitor must be able to read those
   // before creating an account — and `/demo` is the value-before-signup lesson,
   // which by definition cannot require an account.
+  //
+  // `/delete-account` is here for the same reason the page exists: the seed gives
+  // EVERY first-time visitor a `current_user` row with `isLoggedIn: false`, so the
+  // guard below treated the erasure link as a protected route and bounced a
+  // signed-out learner to `/welcome` — the one person it was written for (a lost
+  // token, a wiped device, someone asking on another's behalf). The reachability
+  // is now pinned by `e2e/deletionRequest.spec.ts`, which loads the page with no
+  // session at all.
   return (
     pathname === '/' ||
     pathname === '/welcome' ||
     pathname === '/signin' ||
     pathname === '/demo' ||
+    pathname === '/delete-account' ||
     pathname.startsWith('/trust')
   );
 }

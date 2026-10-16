@@ -136,6 +136,14 @@ export interface MockOptions {
    * can drive the honest refusal a learner gets after using it.
    */
   mockCreditRequired?: boolean;
+  /**
+   * What `/user/delete` answers.
+   *
+   * `false` (the default) is the server refusing — the honest shape the app has
+   * to render without claiming anything happened. `true` completes every step,
+   * which is the state the local wipe and the confirmation ride on.
+   */
+  deleteAccountOk?: boolean;
   /** What `/pricing` answers. `null` (the default) makes the call fail. */
   pricing?: {
     prices: Array<{ product: string; amountCents: number; currency: string; group: string; cell: number | null }>;
@@ -389,6 +397,20 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
           max_free_sessions: 3,
           server_time: new Date().toISOString(),
         });
+      }
+      case url.pathname === '/user/delete': {
+        return options.deleteAccountOk
+          ? json({ success: true, message: 'تم حذف الحساب وجميع البيانات السحابية بنجاح.' })
+          : route.fulfill({
+              status: 500,
+              contentType: 'application/json',
+              body: JSON.stringify({
+                success: false,
+                code: 'DELETE_INCOMPLETE',
+                failed_steps: ['d1_progress'],
+                message: 'تعذر إكمال حذف بعض البيانات. يرجى إعادة المحاولة.',
+              }),
+            });
       }
       case url.pathname === '/pricing': {
         // `null` means "the server could not be reached", which the paywall must

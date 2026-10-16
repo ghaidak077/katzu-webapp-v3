@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { BackButton } from '@/components/common/BackButton';
 import { workerClient } from '@/lib/api/workerClient';
+import { db, wipeUserScopedData } from '@/lib/db/katzuDb';
 
 /**
  * The public deletion-request page.
@@ -19,17 +20,67 @@ import { workerClient } from '@/lib/api/workerClient';
  * WHAT IT NEVER ASKS FOR
  * No password, no recovery phrase, no card. A request identifies itself with the
  * account's own email, and that is the whole credential.
+ *
+ * WHAT IT NEVER CLAIMS
+ * There is no server route that queues a deletion request — the mailbox IS the
+ * route — so this page never says a request was received. It opens the draft and
+ * says plainly that the learner sends it. Before this, a signed-out learner was
+ * told «استلمنا طلبك عبر البريد» after a call that could only have failed, which
+ * is a false receipt for an erasure request: the one sentence on this page that
+ * must not be wrong.
  */
+
+/** The one address this page can hand out without a session. */
+const SUPPORT_EMAIL = 'support@ghaidak.com';
+
+/** The prefilled draft, carrying the email the learner typed as identification. */
+function draftHref(email: string): string {
+  const subject = encodeURIComponent('طلب حذف حساب — كاتزو');
+  const body = encodeURIComponent(
+    `أطلب حذف حسابي وجميع بياناتي في كاتزو.\nالبريد المرتبط بالحساب: ${email}\n`,
+  );
+  return `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+}
+
 export const DeletionRequestScreen: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sent' | 'signed-in' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'draft' | 'deleted' | 'badEmail' | 'failed'>('idle');
   const [busy, setBusy] = useState(false);
+
+  // The same source of truth the shell uses for its own gate, read once: this is
+  // a one-shot action page, not a live view. `null` means the row has not
+  // answered yet, which is NOT the same as "signed out" — offering the mailbox
+  // to a learner who could have had a one-tap deletion is its own small
+  // dishonesty, so the button waits for the answer. (A `useLiveQuery` cannot
+  // tell the two apart here: it reports the same `undefined` for "loading" and
+  // for "no row", and a signed-out visitor has no row.)
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void db.users
+      .get('current_user')
+      .then((row) => {
+        if (alive) setSignedIn(row?.isLoggedIn === true);
+      })
+      .catch(() => {
+        if (alive) setSignedIn(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const sessionKnown = signedIn !== null;
 
   const handleRequest = async () => {
     const value = email.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
-      setStatus('error');
+      setStatus('badEmail');
+      return;
+    }
+    if (signedIn !== true) {
+      window.location.href = draftHref(value);
+      setStatus('draft');
       return;
     }
     setBusy(true);
@@ -38,13 +89,30 @@ export const DeletionRequestScreen: React.FC = () => {
     // could have fulfilled itself.
     const result = await workerClient.deleteAccount();
     setBusy(false);
-    setStatus(result.success ? 'signed-in' : 'sent');
+    // The confirmation follows the server's answer, not the attempt.
+    setStatus(result.success ? 'deleted' : 'failed');
+    if (result.success) {
+      // The copy above promises the deletion covers THIS device too, and the
+      // server route cannot know about a device — so the local wipe is this
+      // page's job, exactly as the in-app settings screen performs it. Leaving
+      // the row behind would keep the learner signed in to a deleted account
+      // with all of their data still on the phone.
+      await wipeUserScopedData();
+      setTimeout(() => navigate('/signin'), 1500);
+    }
   };
 
   return (
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <BackButton onBack={() => navigate(-1)} label="العودة" />
+        {/* This page is public and is often reached by a bare link, so "back"
+            cannot be history: a visitor with no history would leave the site, and
+            one signed in would be dropped on a protected route they may not have
+            opened. It follows the same rule `TrustRoute` does. */}
+        <BackButton
+          onBack={() => navigate(signedIn === true ? '/app/profile' : '/')}
+          label="العودة"
+        />
         <h1 className="text-xl font-bold font-arabic">طلب حذف الحساب</h1>
       </div>
       <Card className="p-5 space-y-4">
@@ -54,24 +122,40 @@ export const DeletionRequestScreen: React.FC = () => {
           ويلغي جلسات الدخول، ولا يمكن استرجاعه.
         </p>
         <p className="text-sm leading-7 text-text-secondary font-arabic">
-          إذا كان حسابك يعمل الآن، اضغط الزر أدناه وسيُحذف فوراً دون انتظار رد.
-          إن لم يعد بإمكانك الدخول من هذا الجهاز، أرسل بريدك إلى
-          <span className="font-bold"> support@ghaidak.com</span> وسنحذف الحساب بعد التحقق.
+          {signedIn === true ? (
+            <>
+              حسابك يعمل الآن على هذا الجهاز، لذلك اضغط الزر أدناه وسيُحذف فوراً دون انتظار رد.
+            </>
+          ) : (
+            <>
+              إن لم يعد بإمكانك الدخول من هذا الجهاز، اكتب بريدك المرتبط بالحساب واضغط الزر: سنفتح
+              رسالة جاهزة من بريدك إلى
+              <span className="font-bold"> {SUPPORT_EMAIL}</span>. لا يُرسل شيء من هذه الصفحة —
+              أنت ترسل الرسالة بنفسك، وسنحذف الحساب بعد التحقق.
+            </>
+          )}
         </p>
 
-        {status === 'sent' ? (
+        {status === 'draft' ? (
           <p role="status" className="text-sm font-arabic text-status-success">
-            استلمنا طلبك عبر البريد. سنؤكد الحذف على بريدك.
+            فتحنا رسالة جاهزة في بريدك. لم يُرسل شيء بعد: أرسلها وسنؤكد الحذف على بريدك. إن لم
+            تُفتح الرسالة، استخدم الرابط أدناه.
           </p>
         ) : null}
-        {status === 'signed-in' ? (
+        {status === 'deleted' ? (
           <p role="status" className="text-sm font-arabic text-status-success">
             تم حذف حسابك. يمكنك الآن تسجيل الدخول من جديد.
           </p>
         ) : null}
-        {status === 'error' ? (
+        {status === 'badEmail' ? (
           <p role="alert" className="text-sm font-arabic text-status-error">
-            اكتب بريداً صحيحاً لنرسل الطلب عليه.
+            اكتب بريداً صحيحاً لنعرف الحساب المطلوب حذفه.
+          </p>
+        ) : null}
+        {status === 'failed' ? (
+          <p role="alert" className="text-sm font-arabic text-status-error">
+            تعذّر إكمال الحذف من هنا. أعد المحاولة، وإن تكرّر أرسل بريدك إلى
+            <span className="font-bold"> {SUPPORT_EMAIL}</span> وسنكمله يدوياً.
           </p>
         ) : null}
 
@@ -89,11 +173,20 @@ export const DeletionRequestScreen: React.FC = () => {
 
         <Button
           className="w-full"
-          disabled={busy}
+          disabled={busy || !sessionKnown}
           onClick={() => void handleRequest()}
         >
-          {busy ? 'جارٍ الحذف…' : 'احذف حسابي الآن'}
+          {busy ? 'جارٍ الحذف…' : signedIn ? 'احذف حسابي الآن' : 'افتح رسالة الحذف في بريدي'}
         </Button>
+
+        {status === 'draft' ? (
+          <a
+            href={draftHref(email.trim())}
+            className="block text-center text-sm font-arabic text-kz-lavender underline"
+          >
+            افتح الرسالة مرة أخرى
+          </a>
+        ) : null}
 
         <p className="text-xs leading-6 text-text-muted font-arabic">
           لا نطلب كلمة مرور ولا رمز دخول ولا بيانات بطاقة على هذه الصفحة.
