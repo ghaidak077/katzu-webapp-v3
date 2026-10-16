@@ -347,6 +347,38 @@ describe('Phase 3: complete account deletion', () => {
     expect((env.DB as FakeD1).tables.activity_log?.has(handle)).toBe(false);
   });
 
+  // Five per-account records the deletion walk had missed: the review queue in KV,
+  // the mock's free claim / credit state in KV, the redemption lockout counter in
+  // KV, and the mock's two D1 tables. None of them is reachable from the Google
+  // sub the registry purge uses for `activity_log` and `activity_log`-style rows.
+  it('erases the review queue, the mock state and the mock ledger rows', async () => {
+    const env = makeEnv();
+    const sub = 'user-mocks', email = 'mocks@test.dev';
+    const up = env.USER_PROGRESS as MemoryKv;
+    const codes = env.REDEEMED_CODES as MemoryKv;
+    await up.put(`review:${sub}`, JSON.stringify({ items: [{ refId: 'w1', kind: 'word' }] }));
+    await codes.put(`mock-state:${sub}`, JSON.stringify({ freeUsed: 1, credits: 0 }));
+    await codes.put(`mock-free:${sub}`, String(Date.now()));
+    await codes.put(`codefail:${sub}`, JSON.stringify({ attempts: 3, lockedUntil: 0 }));
+    const db = env.DB as FakeD1;
+    await db.prepare('INSERT INTO mock_free_claims (account_id, claimed_at) VALUES (?, ?)').bind(sub, 1).run();
+    await db.prepare('INSERT INTO mock_sessions (account_id, session_id, source, started_at) VALUES (?, ?, ?, ?)').bind(sub, 'sess-1', 'free', 1).run();
+
+    const res = await post('/user/delete', {}, env, sub, email);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { success: boolean; deleted_steps: string[] };
+    expect(body.success).toBe(true);
+    for (const step of ['review_queue', 'mock_state', 'mock_free', 'code_lockout', 'mock_ledger', 'mock_sessions']) {
+      expect(body.deleted_steps).toContain(step);
+    }
+    expect(await up.get(`review:${sub}`)).toBeNull();
+    expect(await codes.get(`mock-state:${sub}`)).toBeNull();
+    expect(await codes.get(`mock-free:${sub}`)).toBeNull();
+    expect(await codes.get(`codefail:${sub}`)).toBeNull();
+    expect(db.tables.mock_free_claims?.size ?? 0).toBe(0);
+    expect(db.tables.mock_sessions?.size ?? 0).toBe(0);
+  });
+
   it('returns DELETE_INCOMPLETE with failed steps when a deletion step throws', async () => {
     const env = makeEnv();
     (env.USER_PROGRESS as MemoryKv).delete = async () => { throw new Error('KV unavailable'); };

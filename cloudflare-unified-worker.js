@@ -902,6 +902,10 @@ async function handleDeleteUser(request, env, cors) {
   // request is about.
   await tryStep("daily_ledger", () => env.USER_PROGRESS.delete(dailyKey(account.sub)));
   await tryStep("ai_quota", () => env.USER_PROGRESS.delete(quotaKey(account.sub)));
+  // The spaced-repetition queue is a merged, per-account record of what the
+  // learner got wrong — the most personal thing in KV after the progress blob,
+  // and the one key the deletion walk had simply missed.
+  await tryStep("review_queue", () => env.USER_PROGRESS.delete(`review:${account.sub}`));
 
   // Revoke ALL live sessions (KV has no prefix listing — use the per-user index).
   try {
@@ -933,6 +937,12 @@ async function handleDeleteUser(request, env, cors) {
     await tryStep("referral_claim", () => env.REDEEMED_CODES.delete(`referred-by:${account.sub}`));
     await tryStep("referral_history", () => env.REDEEMED_CODES.delete(`referrals:${account.sub}`));
     await tryStep("referral_code", () => env.REDEEMED_CODES.delete(`refcode:${generateReferralCode(account.sub)}`));
+    // Three more per-account records in the same namespace: the B1 mock's spent
+    // free claim and its credit/freeUsed state, and the code-redemption lockout
+    // counter (`codefail:`) that remembers how many wrong codes this account tried.
+    await tryStep("mock_state", () => env.REDEEMED_CODES.delete(mockStateKey(account.sub)));
+    await tryStep("mock_free", () => env.REDEEMED_CODES.delete(`mock-free:${account.sub}`));
+    await tryStep("code_lockout", () => env.REDEEMED_CODES.delete(`codefail:${account.sub}`));
     if (account.email) {
       await tryStep("email_index", () => env.REDEEMED_CODES.delete(`email_index:${account.email.toLowerCase().trim()}`));
     }
@@ -958,6 +968,16 @@ async function handleDeleteUser(request, env, cors) {
       await tryStep("referral_lesson_payouts", () => env.DB.prepare(
         "DELETE FROM referral_lesson_payouts WHERE invited_account_id = ? OR inviter_account_id = ?"
       ).bind(account.sub, account.sub).run());
+      // The mock's ledger rows: the one-free-exam claim and every mock start,
+      // both keyed by the account. Every other D1 row the account owns was
+      // already deleted here; these two tables arrived later (B3) and were never
+      // added to the walk.
+      await tryStep("mock_ledger", () => env.DB.prepare(
+        "DELETE FROM mock_free_claims WHERE account_id = ?"
+      ).bind(account.sub).run());
+      await tryStep("mock_sessions", () => env.DB.prepare(
+        "DELETE FROM mock_sessions WHERE account_id = ?"
+      ).bind(account.sub).run());
     }
     // The authoritative D1 copy of a learner's progress is the `sync_revisions`
     // row (P2 made it the commit gate; KV is only a mirror) — and it was never
