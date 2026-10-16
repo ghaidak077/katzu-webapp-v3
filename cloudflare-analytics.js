@@ -126,6 +126,14 @@ export const FUNNEL_EVENTS = new Set([
   // than in KV.
   "free_session_exhausted",
   "referral_converted",
+  // The retention question itself. `return_day1` / `return_day7` were emitted by
+  // the client and allowlisted from the beginning, but they were NOT funnel events
+  // — so they lived only in KV, which expires in 30 days and cannot be grouped, and
+  // "does anyone come back" had no durable answer at all. Two rows per returning
+  // learner, for the only two numbers that decide whether a launch is worth
+  // continuing.
+  "return_day1",
+  "return_day7",
 ]);
 
 /** Abuse control only. Isolate-local, so it throttles rather than guarantees. */

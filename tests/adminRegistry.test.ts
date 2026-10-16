@@ -442,6 +442,42 @@ describe('Step 3b: redemption flips the registry row to pro', () => {
     expect(events).toContain('code_redeemed');
   });
 
+  // The alertable signal: one structured line per attempt, success or failure,
+  // carrying the verdict and never the code. A spike in failures is the
+  // support-load signal of a launch day, and it was invisible before this line.
+  it('logs each redemption attempt as structured JSON, with no code value in it', async () => {
+    const env = makeEnv() as Env;
+    const sessionToken = await signIn(env, 'pro-sub', 'pro@test.dev');
+    const lines: string[] = [];
+    // A well-formed code with a wrong signature: the shape an attacker or a
+    // mistyped code produces.
+    const good = await makeCode(3, 'test-hmac-secret');
+    const tampered = `${good.slice(0, -1)}${good.endsWith('A') ? 'B' : 'A'}`;
+    const original = console.log;
+    console.log = (...args: unknown[]) => { lines.push(args.map(String).join(' ')); };
+    try {
+      const bad = await worker.fetch(request('/verify', { auth: sessionToken, body: { code: tampered } }), env as never);
+      expect(bad.status).toBe(200);
+
+      const ok = await worker.fetch(request('/verify', { auth: sessionToken, body: { code: good } }), env as never);
+      expect(((await ok.json()) as { valid: boolean }).valid).toBe(true);
+    } finally {
+      console.log = original;
+    }
+
+    const entries = lines
+      .map((line) => { try { return JSON.parse(line) as Record<string, unknown>; } catch { return null; } })
+      .filter((entry): entry is Record<string, unknown> => !!entry && entry.event === 'code_redemption');
+
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({ outcome: 'failure', reason: 'invalid_signature' });
+    expect(entries[1]).toMatchObject({ outcome: 'success', reason: null });
+    // No code value, no signature, nowhere in what was logged.
+    const logged = JSON.stringify(entries);
+    expect(logged).not.toMatch(/DE-\d+M-/);
+    expect(logged).not.toContain(good.slice(-16));
+  });
+
   it('creates the registry row even if the user somehow never had a session row', async () => {
     const env = makeEnv() as Env;
     const code = await makeCode(1, 'test-hmac-secret');
@@ -581,6 +617,21 @@ describe('Admin dashboard aggregation API', () => {
     // `unproven` rides along so a reader can tell this is a measurement, not a
     // promise: it becomes false only when there is a real cohort to read.
     expect(body.funnel.unproven).toBe(true);
+    // The four questions RC4 asked this endpoint to answer, present on the real
+    // surface (not only in the aggregation's own unit test): return, the
+    // paywall-to-redeem rate, and the AI spend the cap is holding back. Each is a
+    // count with a denominator, and each prints no rate on an empty database.
+    const metrics = body.funnel as unknown as {
+      returns: { accounts_active: number; day1: { accounts: number; of: number; percent: number | null }; day7: { of: number } };
+      rates: { paywall_to_redeem: { accounts: number; of: number; percent: number | null } };
+      ai: { calls_today: number; cap: number | null; utilization_percent: number | null };
+      signups_30d: number;
+    };
+    expect(metrics.returns.day1).toEqual({ accounts: 0, of: 0, percent: null });
+    expect(metrics.returns.day7.of).toBe(0);
+    expect(metrics.rates.paywall_to_redeem).toEqual({ accounts: 0, of: 0, percent: null });
+    expect(metrics.ai.calls_today).toBe(0);
+    expect(typeof metrics.signups_30d).toBe('number');
 
     const unauth = await worker.fetch(request('/admin/api/metrics', { method: 'GET' }), env as never);
     expect(unauth.status).toBe(401);

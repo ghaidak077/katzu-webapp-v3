@@ -160,3 +160,46 @@ describe('GET /health is status only (RC-4)', () => {
     }
   });
 });
+
+/**
+ * RC4: /health reported whether the AI engine could serve and said nothing about
+ * the two stores every other route depends on — so a monitoring check could not
+ * tell "the worker answers" apart from "the worker answers and its database is
+ * gone". It now probes both, read-only, and cannot call AI to do it.
+ */
+describe('GET /health storage liveness', () => {
+  const liveDb = { prepare: () => ({ first: async () => ({ 1: 1 }) }) };
+  const liveKv = { get: async () => null };
+
+  it('reports D1 and KV reachability without calling AI', async () => {
+    const aiCalls: unknown[] = [];
+    const { res, body } = await getHealth('/health', {
+      DB: liveDb,
+      USER_PROGRESS: liveKv,
+      AI: { run: async (...args: unknown[]) => { aiCalls.push(args); return {}; } },
+    });
+
+    expect(res.status).toBe(200);
+    expect(body.storage).toEqual({ d1: 'ok', kv: 'ok' });
+    // The probe must never spend an AI call: a health check that costs money is a
+    // health check an operator cannot run on a schedule.
+    expect(aiCalls).toEqual([]);
+  });
+
+  it('reports a storage failure instead of hiding it, and still answers 200', async () => {
+    const { res, body } = await getHealth('/health', {
+      DB: { prepare: () => { throw new Error('D1_ERROR: database is locked'); } },
+      USER_PROGRESS: { get: async () => { throw new Error('KV unavailable'); } },
+    });
+
+    expect(res.status).toBe(200);
+    expect(body.storage).toEqual({ d1: 'error', kv: 'error' });
+    // The failure is a word, not a body: no driver text, no count.
+    expect(JSON.stringify(body.storage)).not.toMatch(/locked|unavailable|D1_ERROR/i);
+  });
+
+  it('says unbound rather than healthy when a store is not attached', async () => {
+    const { body } = await getHealth('/health', { AI: {} });
+    expect(body.storage).toEqual({ d1: 'unbound', kv: 'unbound' });
+  });
+});

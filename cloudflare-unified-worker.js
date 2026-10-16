@@ -1348,6 +1348,30 @@ async function handlePublicHealth(env, cors) {
 
   const poolHealth = getPoolHealth({ env });
 
+  // Storage liveness, which this endpoint never checked: it reported whether the
+  // AI engine could serve, and said nothing about the two stores every other route
+  // depends on. A monitoring check has to be able to tell "the worker answers"
+  // apart from "the worker answers and its database is gone" — and the probe is
+  // read-only and bounded: one `SELECT 1` and one key read, never an AI call, never
+  // a count. The values are the three words below and nothing else.
+  const storage = { d1: "unbound", kv: "unbound" };
+  if (env?.DB && typeof env.DB.prepare === "function") {
+    try {
+      await env.DB.prepare("SELECT 1").first();
+      storage.d1 = "ok";
+    } catch {
+      storage.d1 = "error";
+    }
+  }
+  if (env?.USER_PROGRESS && typeof env.USER_PROGRESS.get === "function") {
+    try {
+      await env.USER_PROGRESS.get("health:probe");
+      storage.kv = "ok";
+    } catch {
+      storage.kv = "error";
+    }
+  }
+
   // Public projection: status only. Which providers exist, how many pool entries
   // there are, which model is pinned, cache counts and latency figures are
   // operator information — they stay in the internal report behind the admin
@@ -1362,6 +1386,8 @@ async function handlePublicHealth(env, cors) {
       ready: internal?.ready === true || poolHealth.active.length > 0,
       // Operational state a monitoring check should be able to see.
       maintenance: isMaintenanceMode(env),
+      // `ok` / `error` / `unbound`, per store. Never a count, never a key.
+      storage,
     },
     200,
     cors,

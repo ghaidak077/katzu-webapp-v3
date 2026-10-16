@@ -23,6 +23,8 @@ class MemoryKv {
 /** A D1 stub that answers the funnel's queries from an in-memory log. */
 class ActivityStub {
   rows: Array<{ user_id: string | null; event_type: string; metadata: string; created_at: number }> = [];
+  /** The AI spend brake's own table: one row per counter, latest window wins. */
+  counters: Array<{ counter_id: string; window_start: number; count: number }> = [];
   constructor(private users: Array<{ created_at: number }> = []) {}
   prepare(sql: string) {
     const text = sql.replace(/\s+/g, ' ').trim();
@@ -39,11 +41,20 @@ class ActivityStub {
       return { success: true };
     };
     const first = async (args: unknown[]) => {
+      if (/FROM rate_limit_counters/i.test(text)) {
+        const row = self.counters.find((c) => c.counter_id === String(args[0]));
+        return row ? { window_start: row.window_start, count: row.count } : null;
+      }
       if (/COUNT\(DISTINCT/i.test(text)) {
-        const step = String(args[0]);
-        const since = Number(args[1]);
+        // The same shape answers two questions: "how many accounts reached this
+        // step" (filtered by event type) and "how many accounts were active at
+        // all" (the denominator, unfiltered).
+        const filtered = /event_type = \?/i.test(text);
+        const step = filtered ? String(args[0]) : null;
+        const since = Number(filtered ? args[1] : args[0]);
         const seen = new Set(
-          self.rows.filter((r) => r.event_type === step && r.created_at > since)
+          self.rows
+            .filter((r) => r.created_at > since && (!filtered || r.event_type === step))
             .map((r) => r.user_id || r.metadata),
         );
         return { c: seen.size };
@@ -163,11 +174,24 @@ describe('what the funnel stores', () => {
       'code_redeemed', 'debrief_view', 'mock_finish', 'mock_start',
       'onboarding_goal', 'paywall_view', 'share_click', 'upgrade_click',
     ]);
-    // Ten, not eight: the two conversion edges the launch funnel was missing —
-    // the free allowance running out, and a referral being claimed.
-    expect(FUNNEL_EVENTS.size).toBe(10);
+    // Twelve, not eight: the two conversion edges the launch funnel was missing —
+    // the free allowance running out, and a referral being claimed — plus the two
+    // retention markers, which were allowlisted and emitted from the start but never
+    // stored durably, so "does anyone come back" had no answer in D1 at all.
+    expect(FUNNEL_EVENTS.size).toBe(12);
     expect(FUNNEL_EVENTS.has('free_session_exhausted')).toBe(true);
     expect(FUNNEL_EVENTS.has('referral_converted')).toBe(true);
+    expect(FUNNEL_EVENTS.has('return_day1')).toBe(true);
+    expect(FUNNEL_EVENTS.has('return_day7')).toBe(true);
+  });
+
+  it('stores the return markers durably, which is what makes retention answerable', async () => {
+    const db = new ActivityStub();
+    const { recorded } = await post(
+      [event('return_day1', {}, 'acct_1'), event('return_day7', {}, 'acct_2')],
+      db,
+    );
+    expect(recorded.map((row) => row.type).sort()).toEqual(['return_day1', 'return_day7']);
   });
 
   it('carries the price group and cell, and nothing that identifies a person', async () => {
@@ -227,6 +251,72 @@ describe('the admin funnel', () => {
     const paidCell = funnel.by_cell.find((row: any) => row.cell === '1');
     expect(paidCell).toMatchObject({ views: 1, clicks: 1, purchases: 0 });
     expect(funnel.by_region.find((row: any) => row.region === 'special').c).toBe(2);
+  });
+
+  // The four numbers STEP 3 asked /admin/api/metrics to show, each as a count with
+  // its own denominator: activation (the steps), day-1/day-7 return, the
+  // paywall-to-redeem rate, and the AI spend the cap is holding back.
+  it('reports return, paywall-to-redeem and AI spend against their denominators', async () => {
+    const db = new ActivityStub();
+    await post(
+      [
+        // Three accounts are active in the window; two came back on day 1.
+        event('onboarding_goal', { kind: 'exam' }, 'acct_1'),
+        event('mock_start', { kind: 'free' }, 'acct_1'),
+        event('return_day1', {}, 'acct_1'),
+        event('paywall_view', { region: 'special', cell: '1' }, 'acct_1'),
+        event('code_redeemed', { region: 'special' }, 'acct_1'),
+        event('onboarding_goal', { kind: 'work' }, 'acct_2'),
+        event('return_day1', {}, 'acct_2'),
+        event('paywall_view', { region: 'special', cell: '2' }, 'acct_2'),
+        event('onboarding_goal', { kind: 'travel' }, 'acct_3'),
+      ],
+      db,
+    );
+    db.counters.push({ counter_id: 'global-ai-spend', window_start: Math.floor(Date.now() / 86_400_000), count: 40 });
+
+    const overview = await getRegistryStats({
+      USER_PROGRESS: new MemoryKv(),
+      DB: db,
+      AI_DAILY_SPEND_CAP: '100',
+    } as never);
+    const funnel = overview.funnel as any;
+
+    // Return: 2 of the 3 active accounts, with no percentage invented for day 7 —
+    // nobody fired that marker, so the rate is null while the count is a real 0.
+    expect(funnel.returns.accounts_active).toBe(3);
+    expect(funnel.returns.day1).toMatchObject({ accounts: 2, of: 3, percent: 66.7 });
+    expect(funnel.returns.day7).toMatchObject({ accounts: 0, of: 3, percent: 0 });
+
+    // Paywall to redeemed: 1 of the 2 accounts that saw a paywall.
+    expect(funnel.rates.paywall_to_redeem).toMatchObject({ accounts: 1, of: 2, percent: 50 });
+
+    // AI spend: the brake's own counter, today's calls against the operator's cap.
+    expect(funnel.ai).toMatchObject({ calls_today: 40, cap: 100, utilization_percent: 40 });
+    expect(funnel.signups_30d).toBe(0);
+    // The mislabeled field is gone: a `d1` that held mock starts read as retention.
+    expect(funnel.cohorts).toBeUndefined();
+  });
+
+  it('reports no rate when there is no denominator, and no cap when none is set', async () => {
+    const db = new ActivityStub();
+    const overview = await getRegistryStats({ USER_PROGRESS: new MemoryKv(), DB: db } as never);
+    const funnel = overview.funnel as any;
+
+    expect(funnel.returns.day1).toMatchObject({ accounts: 0, of: 0, percent: null });
+    expect(funnel.rates.paywall_to_redeem).toMatchObject({ accounts: 0, of: 0, percent: null });
+    expect(funnel.ai).toMatchObject({ calls_today: 0, cap: null, utilization_percent: null });
+  });
+
+  it("does not report yesterday's spend as today's", async () => {
+    const db = new ActivityStub();
+    db.counters.push({
+      counter_id: 'global-ai-spend',
+      window_start: Math.floor(Date.now() / 86_400_000) - 1,
+      count: 999,
+    });
+    const overview = await getRegistryStats({ USER_PROGRESS: new MemoryKv(), DB: db, AI_DAILY_SPEND_CAP: '100' } as never);
+    expect((overview.funnel as any).ai.calls_today).toBe(0);
   });
 
   it('reports zero region mismatches rather than inventing a comparison', async () => {

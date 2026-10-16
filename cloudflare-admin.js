@@ -817,6 +817,47 @@ const FUNNEL_STEPS = [
 /** 30 days: long enough to see a monthly cohort, short enough to act on. */
 const FUNNEL_WINDOW_DAYS = 30;
 
+/**
+ * A count WITH its denominator, or `null` where no denominator exists.
+ * "100% of nobody" is not a measurement — the same rule the step-to-step
+ * conversion below already follows.
+ */
+function rateOf(accounts, denominator) {
+  const numerator = Number(accounts) || 0;
+  const base = Number(denominator) || 0;
+  return {
+    accounts: numerator,
+    of: base,
+    percent: base > 0 ? Math.round((numerator / base) * 1000) / 10 : null,
+  };
+}
+
+/**
+ * Distinct ACCOUNTS — not events — with activity since `since`, optionally of one
+ * event type. The key is the same one the funnel steps use: a signed-in account
+ * by its handle, an anonymous install by its metadata blob.
+ */
+async function countDistinctAccounts(env, eventType, since) {
+  const row = eventType
+    ? await env.DB.prepare(
+        "SELECT COUNT(DISTINCT COALESCE(user_id, metadata)) AS c FROM activity_log WHERE event_type = ? AND created_at > ?"
+      ).bind(eventType, since).first()
+    : await env.DB.prepare(
+        "SELECT COUNT(DISTINCT COALESCE(user_id, metadata)) AS c FROM activity_log WHERE created_at > ?"
+      ).bind(since).first();
+  return Number(row?.c || 0);
+}
+
+/** The return block, empty — one shape, whether or not a database answered. */
+function emptyReturns() {
+  return {
+    window_days: FUNNEL_WINDOW_DAYS,
+    accounts_active: 0,
+    day1: rateOf(0, 0),
+    day7: rateOf(0, 0),
+  };
+}
+
 export async function buildLaunchFunnel(env, now = Date.now()) {
   const empty = {
     windowDays: FUNNEL_WINDOW_DAYS,
@@ -825,7 +866,10 @@ export async function buildLaunchFunnel(env, now = Date.now()) {
     by_region: [],
     by_cell: [],
     region_mismatches_30d: 0,
-    cohorts: { d1: 0, d7: 0, d30: 0 },
+    returns: emptyReturns(),
+    rates: { paywall_to_redeem: rateOf(0, 0) },
+    signups_30d: 0,
+    ai: { calls_today: 0, cap: null, utilization_percent: null, active_accounts_today: 0 },
     unproven: true,
   };
   if (!env?.DB) return empty;
@@ -899,8 +943,11 @@ export async function buildLaunchFunnel(env, now = Date.now()) {
       mismatches = Number(row?.c || 0);
     } catch {}
 
-    // Cohort sizes: who started a mock (day 1), who paid (by day 7), and everyone
-    // who ever signed up (day 30) — the three denominators a conversion claim needs.
+    // Signups in the window: the one figure that was already here and was honest,
+    // under a name that says what it counts. (It used to ship as `cohorts.d30`
+    // beside a `d1` that held mock STARTS and a `d7` that held redemptions — two
+    // retention-looking names carrying numbers that say nothing about retention,
+    // which is worse than an empty field: an operator would read them.)
     let signedUp30d = 0;
     try {
       const row = await env.DB.prepare("SELECT COUNT(*) AS c FROM users WHERE created_at > ?")
@@ -909,6 +956,31 @@ export async function buildLaunchFunnel(env, now = Date.now()) {
       signedUp30d = Number(row?.c || 0);
     } catch {}
 
+    // Return: the two numbers a launch actually rests on, counted as distinct
+    // accounts against the honest denominator — every account with any activity in
+    // the window. No percentage without it.
+    const activeAccounts = await countDistinctAccounts(env, null, since);
+    const returnedDay1 = await countDistinctAccounts(env, "return_day1", since);
+    const returnedDay7 = await countDistinctAccounts(env, "return_day7", since);
+
+    // The AI spend brake's own counter: calls admitted TODAY against the operator's
+    // cap. D1 stores the CALL count, because that is what the cap bounds; the
+    // per-turn dollar estimate is a structured log line, not a row (see the
+    // tracker's RC4.2 for why that stays an owner-side query).
+    let aiCallsToday = 0;
+    try {
+      const row = await env.DB.prepare(
+        "SELECT window_start, count FROM rate_limit_counters WHERE counter_id = ?"
+      ).bind("global-ai-spend").first();
+      // The counter's window is the day index. A row left over from yesterday is
+      // yesterday's spend, not today's.
+      const todayIndex = Math.floor(now / day);
+      aiCallsToday = Number(row?.window_start) === todayIndex ? Number(row?.count || 0) : 0;
+    } catch {}
+    const activeToday = await countDistinctAccounts(env, null, Math.floor(now / day) * day);
+    const rawCap = env?.AI_DAILY_SPEND_CAP;
+    const cap = String(rawCap ?? "").trim() !== "" && Number.isFinite(Number(rawCap)) ? Number(rawCap) : null;
+
     return {
       windowDays: FUNNEL_WINDOW_DAYS,
       steps,
@@ -916,10 +988,26 @@ export async function buildLaunchFunnel(env, now = Date.now()) {
       by_region: byRegion,
       by_cell: byCell,
       region_mismatches_30d: mismatches,
-      cohorts: {
-        d1: counts.get("mock_start") || 0,
-        d7: counts.get("code_redeemed") || 0,
-        d30: signedUp30d,
+      // The headline priced-funnel question, end to end: of the accounts that SAW a
+      // paywall, how many ended up holding a redeemed code. The step-to-step rows
+      // answer a different question (how many clicked "upgrade") and the two must not
+      // be read as one number.
+      rates: {
+        paywall_to_redeem: rateOf(counts.get("code_redeemed") || 0, counts.get("paywall_view") || 0),
+      },
+      returns: {
+        window_days: FUNNEL_WINDOW_DAYS,
+        accounts_active: activeAccounts,
+        day1: rateOf(returnedDay1, activeAccounts),
+        day7: rateOf(returnedDay7, activeAccounts),
+      },
+      signups_30d: signedUp30d,
+      ai: {
+        calls_today: aiCallsToday,
+        cap,
+        // The number the "spend at 80% of cap" alert watches.
+        utilization_percent: cap && cap > 0 ? Math.round((aiCallsToday / cap) * 1000) / 10 : null,
+        active_accounts_today: activeToday,
       },
       unproven: true,
     };
@@ -984,6 +1072,17 @@ export async function withVerifyRegistry(runHandler, env) {
   }
   try {
     const data = await response.clone().json();
+    // One structured line per redemption ATTEMPT, which is what an alert rule can
+    // watch: only successes wrote a row (and only the lockout counter saw the
+    // misses), so a spike in people failing to redeem their code — the support-load
+    // signal of a launch day — was invisible. The CODE is not in this line and never
+    // reaches it: the wrapper sees the handler's verdict, not its input.
+    console.log(JSON.stringify({
+      event: "code_redemption",
+      outcome: data?.valid === true ? "success" : "failure",
+      reason: data?.valid === true ? null : String(data?.reason || "unknown").slice(0, 40),
+      locked_out: data?.reason === "locked_out",
+    }));
     if (data && data.valid === true) {
       const record = await resolveUserRecord(env, { email: data.email });
       if (record?.sub) {
@@ -1690,6 +1789,7 @@ ${CONTENT_STUDIO_CSS}
       <div class="card" style="margin-top:18px">
         <h2 style="margin-top:0">Launch funnel (30 days)</h2>
         <div class="muted" style="font-size:11.5px">Distinct accounts per step · no rate is printed without a denominator.</div>
+        <div id="funnel-health" style="margin-top:8px"></div>
         <div id="funnel-steps" style="margin-top:8px"></div>
         <div id="funnel-conversion" class="mono muted" style="margin-top:10px;font-size:11.5px"></div>
         <div id="funnel-cuts" style="margin-top:10px"></div>
@@ -2052,6 +2152,21 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     }
     if (funnel.region_mismatches_30d) {
       cuts.appendChild(el("div", "muted", funnel.region_mismatches_30d + " region mismatch(es) in 30 days — logged, never blocked."));
+    }
+
+    // The numbers the launch is actually judged on, each with its denominator.
+    var health = document.getElementById("funnel-health");
+    if (health) {
+      health.innerHTML = "";
+      var pct = function (r) { return !r || r.percent === null || r.percent === undefined ? "—" : r.percent + "%"; };
+      var of = function (r) { return r.accounts + " of " + r.of; };
+      var ret = funnel.returns || {};
+      health.appendChild(el("div", "", "Day 1 return: " + of(ret.day1 || { accounts: 0, of: 0 }) + " (" + pct(ret.day1) + ") · Day 7: " + of(ret.day7 || { accounts: 0, of: 0 }) + " (" + pct(ret.day7) + ")"));
+      health.appendChild(el("div", "", "Paywall → redeemed: " + of((funnel.rates || {}).paywall_to_redeem || { accounts: 0, of: 0 }) + " (" + pct((funnel.rates || {}).paywall_to_redeem) + ")"));
+      var ai = funnel.ai || {};
+      var util = ai.utilization_percent === null || ai.utilization_percent === undefined ? "—" : ai.utilization_percent + "%";
+      health.appendChild(el("div", "", "AI calls today: " + (ai.calls_today || 0) + (ai.cap === null || ai.cap === undefined ? " (no cap set)" : " of " + ai.cap + " — " + util) + " · " + (ai.active_accounts_today || 0) + " account(s) active today"));
+      health.appendChild(el("div", "muted", "Signups in 30 days: " + (funnel.signups_30d || 0) + " · window " + (funnel.windowDays || 30) + " days"));
     }
   }
 
