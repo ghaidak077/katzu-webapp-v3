@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { countDue } from '@/lib/srs/engine';
 import { isProEffective } from '@/lib/utils/subscription';
+import { expiryNoticeAr } from '@/lib/entitlement/expiry';
 import { servedLevel } from '@/lib/entitlement/trial';
 import { BorderBeam } from '@/components/effects/BorderBeam';
 import { selectDailyMission, INTRO_SCENARIO_ID } from '@/lib/mission/selectMission';
@@ -105,6 +106,10 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
 
   const learnerLevel: CEFRLevel = user?.cefrLevel || 'A1';
   const isPro = isProEffective(user);
+  // B3: computed from the stored date, not from a response — the notice has to
+  // survive an offline open, which is exactly when a learner is most likely to
+  // be sitting with the app and no way to renew yet.
+  const expiryNotice = expiryNoticeAr(user?.subscriptionExpiresAt, isPro);
 
   /**
    * The level today's episode runs at — not always the learner's own.
@@ -319,7 +324,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             <button
               onClick={() => void db.users.update('current_user', { onboardingPromptDismissedAt: Date.now() })}
               aria-label="إخفاء هذا التنبيه"
-              className="absolute top-1.5 end-1.5 rounded-full p-1.5 text-kz-inkFaint hover:bg-black/10"
+              className="absolute top-1.5 end-1.5 rounded-full p-1.5 text-kz-inkFaint pointer-hover:bg-black/10"
             >
               <X className="h-3.5 w-3.5" aria-hidden />
             </button>
@@ -484,6 +489,26 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             labelAr={context.chapterTitleAr}
           />
         </GlassWell>
+
+        {/* B3: the last week of a paid month, said once, where the learner already
+            is every day. Nothing said it before: the first news that a
+            subscription had ended was the level chip dropping to A1 mid-episode.
+            It reads the date the row already holds (refreshed on every open by
+            B2), so it works offline and costs no request. */}
+        {expiryNotice && (
+          <GlassCard tier="canvas" className="mb-4" data-testid="pro-expiry-card">
+            <p className="kz-ar-caption text-kz-ink">{expiryNotice}</p>
+            {onOpenSubscription && (
+              <GlassButton
+                variant="secondary"
+                className="mt-2 min-h-[44px] rounded-chip px-4 text-micro"
+                onClick={onOpenSubscription}
+              >
+                تجديد الاشتراك
+              </GlassButton>
+            )}
+          </GlassCard>
+        )}
 
         {/* A4: the week in one honest line. Rendered only when the week actually
             has something in it — the home screen is where the learner is told

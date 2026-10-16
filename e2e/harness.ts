@@ -86,6 +86,12 @@ export interface MockOptions {
    * a local row that says Pro while the server no longer honours it.
    */
   subscriptionActive?: boolean;
+  /**
+   * The expiry `/check-status` reports for a live subscription. Defaults to a
+   * month out; B3's notice only speaks in the last week, so a test that wants to
+   * see it has to say when the month ends.
+   */
+  subscriptionExpiresAt?: string;
   turns?: ScriptedTurn[];
   /** Keeps a turn in flight long enough for the orb's in-progress states to be observed. */
   turnDelayMs?: number;
@@ -363,10 +369,15 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
         // on its first navigation, and the failure would have looked like a
         // paywall bug rather than a mock that disagreed with its own fixture.
         const pro = options.subscriptionActive ?? options.isPro === true;
+        const expiresAt =
+          pro ? options.subscriptionExpiresAt ?? new Date(Date.now() + 30 * 86_400_000).toISOString() : null;
+        const daysRemaining = expiresAt
+          ? Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000))
+          : 0;
         return json({
           active: pro,
-          days_remaining: pro ? 30 : 0,
-          expiresAt: pro ? new Date(Date.now() + 30 * 86_400_000).toISOString() : null,
+          days_remaining: daysRemaining,
+          expiresAt,
           free_sessions_remaining: null,
           max_free_sessions: 3,
           server_time: new Date().toISOString(),

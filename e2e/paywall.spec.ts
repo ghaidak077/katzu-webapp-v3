@@ -105,6 +105,32 @@ test('a Pro row the server no longer honours stops being Pro on the next open', 
   await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
 });
 
+test('the last week of a paid month is named, with the way to renew it', async ({ page }) => {
+  // B3: nothing told a paying learner their month was ending, so the first news
+  // was the level dropping to A1 mid-episode with no explanation. The notice
+  // reads the date the row already holds, so this is also the offline case.
+  const soon = new Date(Date.now() + 3 * 86_400_000).toISOString();
+  await bootSignedIn(page, {
+    isPro: true,
+    subscriptionExpiresAt: soon,
+    user: { subscriptionExpiresAt: soon },
+  });
+
+  const card = page.getByTestId('pro-expiry-card');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('3 أيام');
+  // It is a notice with an action, not a nag: the renewal is one tap away.
+  await page.getByRole('button', { name: 'تجديد الاشتراك' }).click();
+  await expect(page).toHaveURL(/\/subscription$/);
+});
+
+test('a month with weeks left is left alone', async ({ page }) => {
+  // The other boundary: a countdown that runs from the day they pay is nagging,
+  // and it is what teaches a learner to stop reading that part of the screen.
+  await bootSignedIn(page, { isPro: true });
+  await expect(page.getByTestId('pro-expiry-card')).toHaveCount(0);
+});
+
 test('the Pro offer appears on the Debrief, after the episode is finished', async ({ page }) => {
   await bootSignedIn(page, {
     turns: [
