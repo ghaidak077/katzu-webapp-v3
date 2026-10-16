@@ -330,6 +330,62 @@ describe('a route must create the tables it uses (fresh database)', () => {
     expect(body.session_summaries).toEqual([]);
   });
 
+  // `migrations/` documents the *content* tables and says outright that nothing
+  // executes it. Everything the app's own tables need is created by the Worker on
+  // its first request, which makes one property load-bearing: running that DDL
+  // again — a second isolate, a second deploy, a database that already has half
+  // the tables — must be a no-op rather than an error.
+  //
+  // So this replays the statements the worker actually issued (recorded off a
+  // request, not copied from the source) through real SQLite, twice.
+  it('issues only additive, re-runnable DDL', async () => {
+    const issued: string[] = [];
+    const db = new FreshD1();
+    const env = makeEnv(db, {
+      DB: {
+        prepare: (sql: string) => { issued.push(sql); return db.prepare(sql); },
+        batch: (statements: { run(): Promise<unknown> }[]) => db.batch(statements),
+      },
+    });
+
+    const response = await sync(env, { stats: { level: 'A1', total_points: 3, updated_at: 1 } });
+    expect(response.status).toBe(200);
+
+    const norm = issued.map((sql) => sql.replace(/\s+/g, ' ').trim());
+    const creates = norm.filter((sql) => /^CREATE (TABLE|INDEX)/i.test(sql));
+    const alters = norm.filter((sql) => /^ALTER TABLE/i.test(sql));
+
+    expect(creates.length).toBeGreaterThan(6);
+    // Idempotent on their own — `IF NOT EXISTS` is what makes a second run safe.
+    for (const sql of creates) expect(sql).toMatch(/^CREATE (TABLE|INDEX) IF NOT EXISTS/i);
+    // Additive only: the one ALTER that runs is a column addition, and no
+    // statement in a normal request drops or empties anything.
+    for (const sql of alters) expect(sql).toMatch(/^ALTER TABLE \w+ ADD COLUMN/i);
+    expect(norm.some((sql) => /^(DROP|TRUNCATE|DELETE FROM users)\b/i.test(sql))).toBe(false);
+
+    // The real proof, when this Node has the built-in SQLite (Node >= 22.5).
+    let DatabaseSync: (new (path: string) => {
+      exec(sql: string): void;
+      prepare(sql: string): { all(): unknown[] };
+    }) | null = null;
+    try {
+      ({ DatabaseSync } = await import('node:sqlite') as never);
+    } catch {
+      DatabaseSync = null;
+    }
+    if (!DatabaseSync) return;
+
+    const mem = new DatabaseSync(':memory:');
+    for (const sql of creates) mem.exec(sql);
+    const schema = () => mem.prepare('SELECT type, name, sql FROM sqlite_master ORDER BY name').all();
+    const first = schema();
+    expect(first.length).toBeGreaterThan(6);
+
+    // Second run: the same statements, no error, identical schema.
+    for (const sql of creates) mem.exec(sql);
+    expect(schema()).toEqual(first);
+  });
+
   it('deletes the authoritative D1 progress row, so a deleted learner cannot restore it', async () => {
     const db = new FreshD1();
     const env = makeEnv(db);
