@@ -77,6 +77,7 @@ import {
 // secret) out of the PWA entirely.
 import { handleCryptoRoutes, timingSafeEqualHex } from "./cloudflare-crypto.js";
 import { ensureContentColumns } from "./cloudflare-content-schema.js";
+import { analyticsAccountHandle } from "./cloudflare-analytics.js";
 import { mockExamBrief, mockExamInstructionForPart } from "./cloudflare-mock-exam.js";
 import { decideMockAccess, mockDebriefAccess, catalogueFor, experimentBucket, isRegionMismatch, regionGroupFromRequest, PASS_CELLS } from "./cloudflare-pricing.js";
 import { dailyKey, processDailySync, readAuthoritativeDaily, overlayStatsWithDaily } from "./cloudflare-daily.js";
@@ -973,6 +974,18 @@ async function handleDeleteUser(request, env, cors) {
     try {
       await env.DB.prepare("DELETE FROM user_progress WHERE user_id = ?").bind(account.sub).run();
     } catch { /* legacy table: absent on any database created after P2 */ }
+
+    // Analytics funnel rows are keyed by the account handle the client sends
+    // (`acct_<djb2 of the email>`), NOT by the Google sub — so `purgeUserRegistry`
+    // below, which deletes `WHERE user_id = <sub>`, never reached them and a
+    // deleted learner kept one row per funnel event. The handle is 32 bits, so it
+    // is confirmable against a candidate email: exactly the link a deletion
+    // request asks us to remove.
+    if (account.email) {
+      await tryStep("analytics_rows", () => env.DB.prepare(
+        "DELETE FROM activity_log WHERE user_id = ?"
+      ).bind(analyticsAccountHandle(account.email)).run());
+    }
   }
 
   if (failed.length > 0) {

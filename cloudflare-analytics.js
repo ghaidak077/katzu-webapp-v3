@@ -131,6 +131,28 @@ export const FUNNEL_EVENTS = new Set([
 /** Abuse control only. Isolate-local, so it throttles rather than guarantees. */
 export const ANALYTICS_RATE_LIMITS = { perMinute: 30, perDay: 600 };
 
+/**
+ * The account handle the client puts on a signed-in event: `acct_` plus a base-36
+ * djb2 digest of the lowercased email. No email is ever stored, so this handle is
+ * the ONLY thing linking a funnel row to a learner — which is why the deletion
+ * path needs to compute it (see `handleDeleteUser`): `activity_log` rows carry
+ * this handle, not the Google sub, so purging the account registry by sub left
+ * every funnel row of a deleted learner behind.
+ *
+ * Kept in lockstep with `hashAccountId` in src/lib/analytics/client.ts, and a test
+ * asserts both produce the same handle for the same email: a silent divergence
+ * here would be a deletion that quietly stopped deleting.
+ */
+export function analyticsAccountHandle(email) {
+  const value = String(email || "").trim().toLowerCase();
+  if (!value) return "";
+  let hash = 5381;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = ((hash << 5) + hash + value.charCodeAt(i)) >>> 0;
+  }
+  return `acct_${hash.toString(36)}`;
+}
+
 const rateBuckets = new Map();
 
 /**

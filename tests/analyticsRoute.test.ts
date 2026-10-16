@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import {
   ANALYTICS_TTL_SECONDS,
@@ -5,10 +6,12 @@ import {
   MAX_BODY_BYTES,
   MAX_EVENTS_PER_BATCH,
   PROP_KEYS,
+  analyticsAccountHandle,
   handleAnalyticsRoute,
   validateAnalyticsEvent,
 } from '../cloudflare-analytics';
 import { ALLOWED_PROP_KEYS, ANALYTICS_EVENTS } from '../src/lib/analytics/events';
+import { hashAccountId } from '../src/lib/analytics/client';
 
 class MemoryKv {
   values = new Map<string, string>();
@@ -145,5 +148,18 @@ describe('analytics contract across runtimes', () => {
 
   it('keeps the worker property allowlist identical to the client list', () => {
     expect([...PROP_KEYS].sort()).toEqual([...ALLOWED_PROP_KEYS].sort());
+  });
+
+  // The handle is the only link between a funnel row and a learner, and the
+  // deletion path computes it on the server to erase those rows. If the two
+  // implementations ever drift, deletion silently stops deleting — so the pair is
+  // pinned here rather than trusted to a comment.
+  it('derives the same account handle as the client, for the same email', () => {
+    const emails = ['Learner@Example.com', '  spaced@test.dev ', 'a@b.co', 'ünïcode@test.dev'];
+    for (const email of emails) {
+      expect(analyticsAccountHandle(email)).toBe(hashAccountId(email));
+    }
+    expect(analyticsAccountHandle('Learner@Example.com')).toMatch(/^acct_[0-9a-z]+$/);
+    expect(analyticsAccountHandle('')).toBe('');
   });
 });

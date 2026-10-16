@@ -1,5 +1,8 @@
+import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import worker from '../cloudflare-unified-worker';
+import { recordActivity } from '../cloudflare-admin';
+import { hashAccountId } from '../src/lib/analytics/client';
 
 /**
  * Phase 2/3/4 worker tests: concurrency-safe redemption + referral payouts,
@@ -321,6 +324,27 @@ describe('Phase 3: complete account deletion', () => {
     const afterBody = await after.json() as { reason?: string; active: boolean };
     expect(afterBody.active).toBe(false);
     expect(await (env.REDEEMED_CODES as MemoryKv).get('email_index:gone@test.dev')).toBeNull();
+  });
+
+  // `activity_log` funnel rows are keyed by the client's account handle, not by
+  // the Google sub, so the registry purge never matched them: a deleted learner
+  // kept a row per funnel event, replicating a handle that is confirmable against
+  // a candidate email. Seeded with the CLIENT's hash on purpose — seeding with the
+  // worker's helper would make this test agree with itself rather than with the
+  // data the route really stores.
+  it('removes the analytics funnel rows of the deleted account', async () => {
+    const env = makeEnv();
+    const sub = 'user-funnel', email = 'funnel@test.dev';
+    const handle = hashAccountId(email);
+    await recordActivity(env, handle, 'signup_completed', { goal: 'work' });
+    expect((env.DB as FakeD1).tables.activity_log?.has(handle)).toBe(true);
+
+    const res = await post('/user/delete', {}, env, sub, email);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { success: boolean; deleted_steps: string[] };
+    expect(body.success).toBe(true);
+    expect(body.deleted_steps).toContain('analytics_rows');
+    expect((env.DB as FakeD1).tables.activity_log?.has(handle)).toBe(false);
   });
 
   it('returns DELETE_INCOMPLETE with failed steps when a deletion step throws', async () => {
