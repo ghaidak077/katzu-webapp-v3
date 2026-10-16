@@ -184,7 +184,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="mb-8 self-start rounded-2xl kz-chip border border-white/10 bg-white/5 p-2"
+          // 38px measured: a 20px icon in 8px padding, under the 44px floor.
+          className="mb-8 flex min-h-touch min-w-touch items-center justify-center self-start rounded-2xl kz-chip border border-white/10 bg-white/5 p-2"
           aria-label="العودة"
         >
           <ArrowRight className="h-5 w-5 text-kz-inkDim" />

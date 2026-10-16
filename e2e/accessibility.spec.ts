@@ -108,13 +108,13 @@ test('the public screens are clean at every impact, not only critical/serious', 
   expect(offenders, offenders.join('; ')).toEqual([]);
 });
 
-test('primary actions keep 44px targets at 360px on the Trail', async ({ page }) => {
-  await bootSignedIn(page);
-  await page.setViewportSize({ width: 360, height: 640 });
-  await page.goto('/app/trail');
-  await expect(page.getByText(/المهمة|مراجعة|ابدأ/).first()).toBeVisible();
-
-  const tooSmall = await page.evaluate(() => {
+/**
+ * Buttons and links whose box is under the 44px tap floor, measured in the live
+ * page. Shared by the two tests below so the Trail and the screens on the way to
+ * the first conversation are held to the same rule, not to two copies of it.
+ */
+async function undersizedTargets(page: Page) {
+  return page.evaluate(() => {
     const offenders: string[] = [];
     for (const el of Array.from(document.querySelectorAll('button, a[href]'))) {
       const box = el.getBoundingClientRect();
@@ -130,5 +130,40 @@ test('primary actions keep 44px targets at 360px on the Trail', async ({ page })
     }
     return offenders.slice(0, 5);
   });
+}
+
+test('primary actions keep 44px targets at 360px on the Trail', async ({ page }) => {
+  await bootSignedIn(page);
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto('/app/trail');
+  await expect(page.getByText(/المهمة|مراجعة|ابدأ/).first()).toBeVisible();
+
+  const tooSmall = await undersizedTargets(page);
   expect(tooSmall, tooSmall.join('; ')).toEqual([]);
+});
+
+test('the screens on the way to the first conversation keep 44px targets at 360px', async ({ page }) => {
+  // The launch audit found the same defect four more times than the Trail test
+  // covered: the dismissal X on the two home screens (26px), the skip-to-
+  // conversation shortcut (19px — the fastest path to first value, and the
+  // hardest thing on the screen to hit), the mode chooser's back chip (38px), the
+  // paywall's refund question (19px) and the code screen's price link (41px).
+  // Each is a real finger target; none of them is inside the transcript.
+  await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
+  await page.setViewportSize({ width: 360, height: 640 });
+
+  const offenders: Record<string, string[]> = {};
+  for (const [screen, path] of [
+    ['scenario detail', '/scenario/airport_arrival'],
+    ['mode chooser', '/scenario/airport_arrival/live'],
+    ['paywall', '/paywall'],
+    ['redeem', '/subscription'],
+  ] as const) {
+    await page.goto(path);
+    await expect(page.locator('#root')).not.toBeEmpty({ timeout: 20_000 });
+    await page.waitForTimeout(600);
+    const small = await undersizedTargets(page);
+    if (small.length) offenders[screen] = small;
+  }
+  expect(offenders, JSON.stringify(offenders)).toEqual({});
 });

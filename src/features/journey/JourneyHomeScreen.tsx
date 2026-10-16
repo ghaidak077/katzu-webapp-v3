@@ -324,7 +324,10 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             <button
               onClick={() => void db.users.update('current_user', { onboardingPromptDismissedAt: Date.now() })}
               aria-label="إخفاء هذا التنبيه"
-              className="absolute top-1.5 end-1.5 rounded-full p-1.5 text-kz-inkFaint pointer-hover:bg-black/10"
+              // 44px, not the 26px the icon asked for: an icon-only control is
+              // still a control, and `e2e/accessibility.spec.ts` measures the box.
+              // Same idiom as Modal's and BottomSheet's close buttons.
+              className="absolute top-1.5 end-1.5 flex min-h-touch min-w-touch items-center justify-center rounded-full text-kz-inkFaint pointer-hover:bg-black/10"
             >
               <X className="h-3.5 w-3.5" aria-hidden />
             </button>

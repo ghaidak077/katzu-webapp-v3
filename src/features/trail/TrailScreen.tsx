@@ -421,7 +421,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         <div className="relative mb-4">
           <button
             onClick={onOpenOnboarding}
-            className="flex w-full min-h-touch items-center justify-between gap-3 rounded-panel border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors pointer-hover:border-primary/40"
+            className="flex w-full min-h-touch items-center justify-between gap-3 rounded-control border border-border-subtle bg-surface-card px-4 py-3 text-start transition-colors pointer-hover:border-primary/40"
           >
             <span className="min-w-0">
               <span className="block font-arabic text-sm font-bold text-text-primary">
@@ -436,7 +436,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           <button
             onClick={() => void db.users.update('current_user', { onboardingPromptDismissedAt: Date.now() })}
             aria-label="إخفاء هذا التنبيه"
-            className="absolute top-1.5 end-1.5 rounded-full p-1.5 text-text-secondary hover:bg-surface-raised"
+            className="absolute top-1.5 end-1.5 flex min-h-touch min-w-touch items-center justify-center rounded-full text-text-secondary pointer-hover:bg-surface-raised"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -557,7 +557,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 type="button"
                 onClick={() => handleScenarioClick(scenario.id)}
                 aria-label={`${scenario.title_ar} (${scenario.title_de})`}
-                className={`flex min-h-touch flex-1 flex-col overflow-hidden rounded-panel border bg-surface-card text-start transition-[background-color,border-color,box-shadow] ${
+                className={`flex min-h-touch flex-1 flex-col overflow-hidden rounded-control border bg-surface-card text-start transition-[background-color,border-color,box-shadow] ${
                   current
                     ? 'border-primary/60 shadow-glow-purple'
                     : done

@@ -167,7 +167,8 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             </Button>
             <button
               onClick={skipToConversation}
-              className="mt-3 w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
+              // The fastest way to the first spoken turn was a 19px text link.
+              className="mt-3 flex min-h-touch w-full items-center justify-center text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
             >
               تخطَّ التدريب وابدأ المحادثة مباشرة
             </button>
@@ -179,7 +180,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             </Button>
             <button
               onClick={isQuizPassed ? onStartStudy : handleTrainingStart}
-              className="w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
+              className="flex min-h-touch w-full items-center justify-center text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
             >
               {isQuizPassed ? 'أعد التدريب من بطاقات الكلمات' : 'أكمل التدريب بدلاً من ذلك'}
             </button>
@@ -259,7 +260,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             </Button>
             <button
               onClick={skipToConversation}
-              className="w-full text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
+              className="flex min-h-touch w-full items-center justify-center text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
             >
               تخطَّ إلى المحادثة الآن
             </button>

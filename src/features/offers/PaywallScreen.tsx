@@ -175,7 +175,7 @@ export const PaywallScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/trust/contact')}
-              className="mt-2 font-arabic text-micro text-kz-lavender underline underline-offset-4"
+              className="mt-2 flex min-h-touch items-center font-arabic text-micro text-kz-lavender underline underline-offset-4"
             >
               اسألنا عن سياسة الاسترداد قبل أن تدفع
             </button>

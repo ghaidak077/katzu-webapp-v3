@@ -397,7 +397,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           <button
             type="button"
             onClick={onOpenPaywall}
-            className="mb-2 w-full rounded-lg border border-white/10 p-2.5 text-center font-arabic text-micro text-text-muted"
+            className="mb-2 flex min-h-touch w-full items-center justify-center rounded-lg border border-white/10 p-2.5 text-center font-arabic text-micro text-text-muted"
           >
             لا يوجد لديك كود؟ اعرف الأسعار
           </button>

@@ -3,7 +3,7 @@ import { Mail, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { BackButton } from '@/components/common/BackButton';
-import { TRUST_CONTENT, type TrustPage } from '@/lib/trust/content';
+import { OWNER_FILL, TRUST_CONTENT, type TrustPage } from '@/lib/trust/content';
 
 /**
  * The trust pages, rendered from fields.
@@ -24,9 +24,15 @@ export interface TrustInfoScreenProps {
   onBack: () => void;
 }
 
+/** What a visitor reads where the owner's sentence will go. */
+const OWNER_PENDING_AR = 'يُكمل هذا البند قبل النشر — لم نكتب هنا وعداً لا نستطيع الوفاء به.';
+
 export const TrustInfoScreen: React.FC<TrustInfoScreenProps> = ({ page, onBack }) => {
   const selected = TRUST_CONTENT[page] ?? TRUST_CONTENT.privacy;
-  const outstanding = selected.sections.filter((section) => section.bodyAr.includes('{{OWNER_FILL}}')).length;
+  // The token is imported rather than spelled here: `check:launch` greps shipped
+  // source for the literal, and a detector that contains the thing it detects
+  // reads as a fifth unfinished page.
+  const outstanding = selected.sections.filter((section) => section.bodyAr.includes(OWNER_FILL)).length;
 
   return (
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto">
@@ -42,7 +48,11 @@ export const TrustInfoScreen: React.FC<TrustInfoScreenProps> = ({ page, onBack }
             <h2 className="text-sm font-bold font-arabic text-text-primary">{section.headingAr}</h2>
             {section.bodyAr.split(String.fromCharCode(10)).map((line, index) => (
               <p key={`${section.id}-${index}`} className="text-sm leading-7 text-text-secondary font-arabic whitespace-pre-line">
-                {line}
+                {/* A visitor never reads the raw token. The count below still
+                    names how many sections are unfinished, so a page awaiting the
+                    owner's wording says so in words instead of in braces — the
+                    same choice B1 made for the paywall's refund line. */}
+                {line.includes(OWNER_FILL) ? OWNER_PENDING_AR : line}
               </p>
             ))}
           </section>

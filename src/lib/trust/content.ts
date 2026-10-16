@@ -33,6 +33,16 @@ export interface TrustSection {
 /** The fields only the owner can answer. Never invented, never guessed. */
 export const OWNER_FILL = '{{OWNER_FILL}}';
 
+/**
+ * The support address, as the app already prints it in three other places.
+ *
+ * It is NOT an owner field: the contact page's own button and the public
+ * deletion page both use it, so a privacy section that asked the owner for it
+ * was asking for a fact the code already had — and showing the raw
+ * `{{OWNER_FILL}}` token to a visitor in the meantime.
+ */
+export const SUPPORT_ADDRESS_AR = 'support@ghaidak.com';
+
 const EVENT_GLOSS: Record<string, string> = {
   landing_viewed: 'زيارة الصفحة الرئيسية',
   demo_started: 'بدء العرض التوضيحي',
@@ -100,7 +110,10 @@ export const TRUST_CONTENT: Record<TrustPage, TrustContent> = {
       { id: 'ai', headingAr: 'ما يُرسل إلى مزوّد الذكاء الاصطناعي', bodyAr: 'رسائل المحادثة والترجمة فقط، عند استخدامك المحادثة. تُرسل هذه النصوص إلى مزوّد الذكاء الاصطناعي لتوليد الرد، ولا نستخدمها للتسويق أو الإعلانات.' },
       { id: 'events', headingAr: 'أحداث القياس', bodyAr: eventsListAr() },
       { id: 'rights', headingAr: 'حقوقك', bodyAr: 'يمكنك تصدير كل بياناتك أو حذف حسابك من الإعدادات في أي وقت. الحذف يشمل بيانات الجهاز والخادم ويلغي جلسات الدخول، ولا يُترك أثر قابل للاسترجاع.' },
-      { id: 'contact-privacy', headingAr: 'لأي سؤال عن الخصوصية', bodyAr: `راسلنا على ${OWNER_FILL}.` },
+      // Not an owner field: the address is the app's own, the same one the contact
+      // button below this text opens and the deletion page names. Leaving it as a
+      // placeholder told a visitor that the app did not know where to write.
+      { id: 'contact-privacy', headingAr: 'لأي سؤال عن الخصوصية', bodyAr: `راسلنا على ${SUPPORT_ADDRESS_AR}.` },
     ],
   },
   terms: {
