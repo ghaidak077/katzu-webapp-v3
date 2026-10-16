@@ -46,15 +46,26 @@ test.describe('audited screens: practice, live failure, mock gate', () => {
   test('mock gate does not tell a signed-in learner to sign in with Google', async ({ page }) => {
     await bootSignedIn(page);
     await page.goto('/mock');
-    // Either the mock starts (worker reachable) or the gate shows. The gate copy
-    // must distinguish "not signed in" from "server unreachable/session stale".
+
+    // The screen settles into ONE of three states, and the third one is the
+    // happy path: with the mocked backend the free mock really starts, so the
+    // exam's own round counter is on screen. That arm was missing, which is why
+    // this spec was intermittently red — it waited for a loading label that
+    // React is free to batch away (measured: pass at 3.7s in one run, 20s
+    // timeout in the next, on identical code), and the page it had actually
+    // reached showed «الجولة 1 من 9» with the opener. The loading label is
+    // accepted only because the gate copy is what the assertion is about.
+    const started = page.getByRole('progressbar', { name: /الجولة 1 من/ });
     const gate = page.getByText(/تسجيل الدخول|تعذّر|تعذر/).first();
-    await expect(gate.or(page.getByText('جارٍ تجهيز المحاكاة…'))).toBeVisible({ timeout: 20_000 });
-    const gateText = (await gate.count()) ? await gate.innerText() : '';
-    if (gateText) {
-      expect(gateText, 'signed-in learner must not be told to sign in with Google').not.toContain(
-        'يرجى تسجيل الدخول بحساب Google أولاً',
-      );
-    }
+    await expect(
+      started.or(gate).or(page.getByText('جارٍ تجهيز المحاكاة…')),
+    ).toBeVisible({ timeout: 20_000 });
+
+    // The invariant, asserted unconditionally rather than only when a gate
+    // happens to be on screen: a signed-in learner is never sent to sign in.
+    await expect(
+      page.getByText('يرجى تسجيل الدخول بحساب Google أولاً'),
+      'signed-in learner must not be told to sign in with Google',
+    ).toHaveCount(0);
   });
 });
