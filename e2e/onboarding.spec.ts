@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { bootSignedIn, readStoredUser } from './harness';
+import { bootSignedIn, mockBackend, readStoredUser, seedSignedInUser } from './harness';
 
 /**
  * Onboarding, as the first conversation with Katzu.
@@ -48,6 +48,30 @@ test('first run asks two questions and lands on the mission', async ({ page }) =
   // No implicit "skipped" either — the placement offer is still available later.
   // (The seeded value is 0; a first-run save must not stamp it with a timestamp.)
   expect(stored?.placementSkippedAt || 0).toBe(0);
+});
+
+test('a stranger walks from the landing page to the first mission', async ({ page }) => {
+  // The launch path end to end, with the one seam the suite cannot cross made
+  // explicit: Google's own sign-in cannot be driven from a test, so the harness
+  // seeds exactly the session that button would have created, and everything
+  // before and after that point is the real app. Without this, every other spec
+  // starts inside the app and nothing checks that a stranger can get in.
+  await mockBackend(page);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('تحدّث الألمانية');
+  await page.getByRole('button', { name: 'ابدأ مجاناً الآن' }).click();
+  await expect(page).toHaveURL(/\/welcome$/);
+  await expect(page.getByRole('button', { name: /Google/ })).toBeVisible();
+
+  await seedSignedInUser(page, { onboardingCompletedAt: 0 });
+  await page.goto('/onboarding');
+  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
+  await page.getByRole('button', { name: /20\s*دقائق/ }).click();
+
+  // The mission, not the placement check, and nothing asked twice on the way.
+  await expect(page).toHaveURL(/\/app\/trail$/);
+  await expect(page.getByRole('heading', { level: 1 })).not.toBeEmpty();
+  await expect(page.getByText('وكم دقيقة تستطيع أن تعطيني يومياً؟')).toHaveCount(0);
 });
 
 test('the edit flow keeps the full question set and stores every answer', async ({ page }) => {
