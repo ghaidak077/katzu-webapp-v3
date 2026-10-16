@@ -6,6 +6,8 @@ import { suppressInvalidReviewItems } from '@/lib/srs/store';
 import { applyRendererTier, useRendererTier } from '@/lib/design/rendererTier';
 import { workerClient } from '@/lib/api/workerClient';
 import { needsOnboarding } from '@/lib/onboarding/preferences';
+import { reconcileEntitlement } from '@/lib/entitlement/reconcile';
+import { useOnlineStatus } from '@/lib/utils/onlineStatus';
 import { latestRecoverableSession, summaryFromSession, type RecoveredSummary } from '@/features/report/recover';
 import { isDevBuild } from '@/lib/utils/env';
 import { DAILY_MINUTE_CHOICES, type DailyMinuteChoice } from '@/types/models';
@@ -145,6 +147,8 @@ export function AppShell() {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   const user = useLiveQuery(() => db.users.get('current_user'));
+  const isOnline = useOnlineStatus();
+  const reconciledRef = React.useRef(false);
 
   // B4c: resolve the renderer tier once and publish it as a root class, so the
   // glass material can drop blur/saturation/grain on constrained devices.
@@ -189,6 +193,35 @@ export function AppShell() {
       navigate(hasCompletedOnboarding ? '/signin' : '/welcome', { replace: true });
     }
   }, [user, location.pathname, isAuthLoading, navigate]);
+
+  // B2: ask the server what this account is entitled to, once per open.
+  //
+  // The local Pro flag is written by sign-in and by redemption and by nothing
+  // else, so a learner who paid on one device, or whose subscription the server
+  // stopped honouring, kept the old answer until they signed in again. This is
+  // the reconciliation: the endpoint the sign-in path already trusts, now also
+  // asked on every open. Silent by design — nobody needs to be told their
+  // subscription was re-read — and it writes nothing unless the answer differs
+  // (see `reconcileEntitlement` for why an unanswered question must leave the row
+  // exactly as it was).
+  //
+  // Placed ABOVE the `!isAuthResolved` early return on purpose: a hook after a
+  // conditional return changes the hook count between renders, and React answers
+  // that with the error boundary instead of the screen.
+  useEffect(() => {
+    if (reconciledRef.current || isAuthLoading || user === undefined || user.isLoggedIn !== true || !isOnline) return;
+    reconciledRef.current = true;
+    void (async () => {
+      try {
+        const status = await workerClient.checkSubscriptionStatus();
+        const current = await db.users.get('current_user');
+        const patch = reconcileEntitlement(status, current);
+        if (patch) await db.users.update('current_user', patch);
+      } catch {
+        // An unanswered question is not a change of plan: leave the row as it is.
+      }
+    })();
+  }, [isAuthLoading, user, isOnline]);
 
   const isAuthResolved = !isAuthLoading && user !== undefined;
   const isAuthenticated = user?.isLoggedIn === true;

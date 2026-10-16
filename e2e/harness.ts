@@ -80,6 +80,12 @@ export function turn(overrides: Partial<ScriptedTurn> = {}): ScriptedTurn {
 }
 
 export interface MockOptions {
+  /**
+   * What `/check-status` answers about the account. Defaults to the learner this
+   * harness seeds (`isPro`). Set `false` to stage the case the app has to handle:
+   * a local row that says Pro while the server no longer honours it.
+   */
+  subscriptionActive?: boolean;
   turns?: ScriptedTurn[];
   /** Keeps a turn in flight long enough for the orb's in-progress states to be observed. */
   turnDelayMs?: number;
@@ -349,8 +355,23 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
       }
       case url.pathname === '/ai/hints':
         return json({ hints: [] });
-      case url.pathname === '/check-status':
-        return json({ active: false, expires_at: null });
+      case url.pathname === '/check-status': {
+        // B2: the app now reconciles its stored Pro flag against this answer when
+        // it opens, so the mock has to tell the truth about the learner this
+        // harness seeded. A blanket `{ active: false }` — which is what stood here
+        // — would have silently demoted every `bootSignedIn({ isPro: true })` test
+        // on its first navigation, and the failure would have looked like a
+        // paywall bug rather than a mock that disagreed with its own fixture.
+        const pro = options.subscriptionActive ?? options.isPro === true;
+        return json({
+          active: pro,
+          days_remaining: pro ? 30 : 0,
+          expiresAt: pro ? new Date(Date.now() + 30 * 86_400_000).toISOString() : null,
+          free_sessions_remaining: null,
+          max_free_sessions: 3,
+          server_time: new Date().toISOString(),
+        });
+      }
       case url.pathname === '/pricing': {
         // `null` means "the server could not be reached", which the paywall must
         // render as no price at all rather than as a number of its own.

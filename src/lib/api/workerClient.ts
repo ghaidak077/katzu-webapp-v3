@@ -970,6 +970,13 @@ export class WorkerClient {
 
   async checkSubscriptionStatus(idToken?: string): Promise<{
     active: boolean;
+    /**
+     * B2: whether the SERVER answered. Every failure path below returns
+     * `active: false` so a caller cannot mistake "no" for "we do not know" — but
+     * only a real answer may change what the app stores about a learner's
+     * subscription. `false` here means the value is this device's own guess.
+     */
+    checked: boolean;
     daysRemaining?: number;
     expiresAt?: string | null;
     serverTime?: string;
@@ -986,9 +993,9 @@ export class WorkerClient {
       const user = await db.users.get('current_user');
       if (user?.subscriptionExpiresAt) {
         const isActive = new Date(user.subscriptionExpiresAt).getTime() > Date.now();
-        return { active: isActive, expiresAt: user.subscriptionExpiresAt, freeSessionsRemaining: null };
+        return { active: isActive, checked: false, expiresAt: user.subscriptionExpiresAt, freeSessionsRemaining: null };
       }
-      return { active: false, expiresAt: null, freeSessionsRemaining: null };
+      return { active: false, checked: false, expiresAt: null, freeSessionsRemaining: null };
     }
 
     try {
@@ -1006,6 +1013,7 @@ export class WorkerClient {
         const remaining = data.free_sessions_remaining;
         return {
           active: !!data.active,
+          checked: true,
           daysRemaining: data.days_remaining ?? 0,
           expiresAt: data.expiresAt || null,
           serverTime: data.server_time,
@@ -1016,7 +1024,7 @@ export class WorkerClient {
     } catch (e) {
       console.warn('Check subscription failed:', e);
     }
-    return { active: false, freeSessionsRemaining: null };
+    return { active: false, checked: false, freeSessionsRemaining: null };
   }
 
   // --- Referral Program (/referral/info, /referral/claim) ---

@@ -84,6 +84,27 @@ test('a Pro learner runs the episode at their own measured level', async ({ page
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
 });
 
+test('a Pro row the server no longer honours stops being Pro on the next open', async ({ page }) => {
+  // B2, the case the app never handled: the stored row says Pro (the learner paid
+  // on another device, or was refunded since) while the server disagrees. The
+  // local flag used to be whatever sign-in last wrote, so Pro survived until the
+  // stored date happened to pass. Now the open reconciles it, and the visible
+  // proof is the level the episode is actually served at: the same A2 account as
+  // the Pro test above, minus the subscription the server honours.
+  await bootSignedIn(page, {
+    isPro: true,
+    subscriptionActive: false,
+    user: { cefrLevel: 'A2', placementCompletedAt: Date.now() },
+  });
+
+  await page.goto('/scenario/cafe_order/live');
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
+  // A1 and its four rounds are the trial's level; A2 and six rounds would mean the
+  // demotion never happened.
+  await expect(page.getByTestId('level-chip')).toHaveText('A1');
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
+});
+
 test('the Pro offer appears on the Debrief, after the episode is finished', async ({ page }) => {
   await bootSignedIn(page, {
     turns: [
