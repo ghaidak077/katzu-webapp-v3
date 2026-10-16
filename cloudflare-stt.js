@@ -139,6 +139,30 @@ export async function handleTranscribeRoute(request, env, cors, deps) {
     );
   }
 
+  // The operator's emergency brake, which this route was missing.
+  //
+  // `AI_DAILY_SPEND_CAP` is documented as the switch that "stops all AI traffic"
+  // so spend can be halted without a deploy. Every other AI route reaches it
+  // through `authenticateAiRequest`, but this one calls `env.AI.run` itself and
+  // never went through that gate — so at cap 0 the brake held the conversation
+  // and the translation routes while Whisper kept billing, which is the most
+  // expensive call per unit of learner value in the product. Same status, same
+  // sentence and the same counter as the other routes, so one number still
+  // bounds the day's spend.
+  const spend = await deps.checkDailySpendCap(env);
+  if (!spend.allowed) {
+    return json(
+      {
+        error: "daily_spend_cap",
+        code: "DAILY_SPEND_CAP",
+        message: deps.DAILY_SPEND_CAP_MESSAGE,
+        retry_after: 3600,
+      },
+      503,
+      cors
+    );
+  }
+
   try {
     const result = await env.AI.run("@cf/openai/whisper-large-v3-turbo", {
       audio,
@@ -172,12 +196,15 @@ export async function handleTranscribeRoute(request, env, cors, deps) {
     );
   } catch (err) {
     console.error("[ai/transcribe] failed:", String(err?.message || err).slice(0, 200));
+    // No `detail` in the answer. It carried the provider's own error text to
+    // whoever called the route, and nothing reads it: the client's only consumer
+    // of `detail` is the `/ai/turn` path (`workerClient`), which this route does
+    // not use. The line above still logs it for the operator.
     return json(
       {
         error: "stt_failed",
         code: "STT_FAILED",
         message: "تعذر التعرف على صوتك الآن. أعد المحاولة أو اكتب جملتك بالألمانية.",
-        detail: String(err?.message || "").slice(0, 180),
       },
       502,
       cors

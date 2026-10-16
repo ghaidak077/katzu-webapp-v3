@@ -1386,6 +1386,12 @@ function aiRouteDeps() {
     resolveScenarioIdentity,
     resolvePracticeGrammar,
     checkUserEntitlement,
+    // The operator's emergency brake, injected so EVERY AI route can reach it.
+    // `authenticateAiRequest` applies it for the five routes that go through it;
+    // `/ai/transcribe` calls `env.AI.run` directly and was the one route the cap
+    // did not reach (see the check in cloudflare-stt.js).
+    checkDailySpendCap,
+    DAILY_SPEND_CAP_MESSAGE,
     verifyMockGrant,
     mockExamInstructionForPart,
     isTrialSessionConsumed,

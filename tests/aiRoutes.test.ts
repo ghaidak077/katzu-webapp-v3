@@ -138,6 +138,61 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('/ai/transcribe obeys the operator brake', () => {
+  /** What the app sends: a short base64 clip with the mime the recorder produces. */
+  const clip = { audio: 'AAAA', mime: 'audio/webm' };
+
+  it('does not bill Whisper while the daily spend cap reads zero', async () => {
+    // The route that calls `env.AI.run` directly used to skip the cap entirely, so
+    // the documented "stops all AI traffic" emergency brake left the most
+    // expensive call in the product running. It answers exactly like the routes
+    // that go through `authenticateAiRequest`: same code, same sentence, 503.
+    const env = makeEnv({ AI_DAILY_SPEND_CAP: '0' });
+    await seedSession(env, 'stt-braked', 'sess_stt_braked');
+    const run = vi.fn();
+    env.AI = { run };
+
+    const res = await worker.fetch(
+      post('/ai/transcribe', clip, { Authorization: 'Bearer sess_stt_braked' }),
+      env as never,
+    );
+
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as any;
+    expect(body.code).toBe('DAILY_SPEND_CAP');
+    expect(body.message).toMatch(/[؀-ۿ]/);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('transcribes when the cap admits the call, and never echoes the provider error', async () => {
+    const env = makeEnv(); // no cap configured = unlimited, as before
+    await seedSession(env, 'stt-ok', 'sess_stt_ok');
+    env.AI = { run: async () => ({ text: 'Guten Tag', word_count: 2 }) };
+
+    const ok = await worker.fetch(
+      post('/ai/transcribe', clip, { Authorization: 'Bearer sess_stt_ok' }),
+      env as never,
+    );
+    expect(ok.status).toBe(200);
+    expect(((await ok.json()) as any).text).toBe('Guten Tag');
+
+    env.AI = {
+      run: async () => {
+        throw new Error('AiError: upstream model unavailable at provider-node-xyz');
+      },
+    };
+    const failed = await worker.fetch(
+      post('/ai/transcribe', clip, { Authorization: 'Bearer sess_stt_ok' }),
+      env as never,
+    );
+    expect(failed.status).toBe(502);
+    const body = (await failed.json()) as any;
+    expect(body.message).toMatch(/[؀-ۿ]/);
+    expect(body.detail).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain('provider-node-xyz');
+  });
+});
+
 describe('/ai/translate entitlement', () => {
   it('refuses an unauthenticated learner (401, no model call)', async () => {
     const calls = vi.fn();
