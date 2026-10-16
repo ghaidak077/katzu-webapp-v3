@@ -52,6 +52,42 @@ test('an A2 learner is not gated before their first episode', async ({ page }) =
   await expect(page.getByText('هذا المستوى ميزة Pro')).toHaveCount(0);
 });
 
+test('the fourth conversation ends in the Pro card, not in a retry that cannot clear', async ({ page }) => {
+  // Failure state #5 from the launch audit, and the one the whole priced funnel
+  // rests on: the three free conversations are spent. The mock answers exactly
+  // what the Worker answers (402, `FREE_QUOTA_EXHAUSTED`, its own sentence), so
+  // this is the state a real learner reaches on their fourth send.
+  const events: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (!url.pathname.endsWith('/analytics/events')) return;
+    try {
+      const body = JSON.parse(request.postData() || '{}');
+      for (const event of body.events || []) events.push(String(event.name));
+    } catch {
+      /* a malformed batch is not this test's concern */
+    }
+  });
+
+  await bootSignedIn(page, { freeQuotaExhausted: true });
+  await page.goto('/scenario/airport_arrival/live');
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
+
+  const input = page.getByPlaceholder(/Schreib deinen Satz/);
+  await input.fill('Guten Tag');
+  await page.getByRole('button', { name: 'أرسل جملتك' }).click();
+
+  // The offer names the allowance in the words the learner was promised before
+  // they started (B5's own `MAX_FREE_SESSIONS_AR`), not "your free sessions".
+  await expect(page.getByText(/انتهت 3/)).toBeVisible({ timeout: 20_000 });
+  // And it is NOT the generic failure card: before V31 a quota wall fell into
+  // that branch and offered a retry no retry could ever clear.
+  await expect(page.getByText('أعد المحاولة')).toHaveCount(0);
+  // The top of the funnel is measured, not assumed — the event A5 added has to
+  // reach the collector from the surface that hits it.
+  await expect.poll(() => events.filter((name) => name === 'free_session_exhausted').length).toBeGreaterThan(0);
+});
+
 test('writing is served at the level the trial allows, never the measured one', async ({ page }) => {
   // Same free-A2 account: writing must not be the skill where "more advanced"
   // means "locked out". The task is built at A1 and the paragraph gets graded.

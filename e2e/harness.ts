@@ -137,6 +137,15 @@ export interface MockOptions {
    */
   mockCreditRequired?: boolean;
   /**
+   * Answers the next `/ai/turn` the way a spent free allowance answers it.
+   *
+   * The Worker sends 402 with `FREE_QUOTA_EXHAUSTED` and this exact sentence
+   * (`cloudflare-unified-worker.js`), so the app's fourth-send path can be driven
+   * without spending anything: this is the state three real conversations end in,
+   * and it is the top of the priced funnel, not a generic error.
+   */
+  freeQuotaExhausted?: boolean;
+  /**
    * What `/user/delete` answers.
    *
    * `false` (the default) is the server refusing — the honest shape the app has
@@ -299,6 +308,17 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
         });
       }
       case url.pathname === '/ai/turn': {
+        if (options.freeQuotaExhausted) {
+          return route.fulfill({
+            status: 402,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              error: 'free_quota_error',
+              code: 'FREE_QUOTA_EXHAUSTED',
+              message: 'انتهت الجلسات التجريبية المجانية (3 جلسات). يرجى الاشتراك في Katzu Pro لمتابعة التعلم.',
+            }),
+          });
+        }
         if (refusesLevel(route, options.isPro)) return wall(route);
         const scripted = options.turns?.[turnIndex] ?? turn();
         turnIndex += 1;
