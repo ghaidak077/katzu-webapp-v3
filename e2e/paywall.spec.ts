@@ -105,6 +105,39 @@ test('a Pro row the server no longer honours stops being Pro on the next open', 
   await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
 });
 
+/**
+ * B4: the Pro benefit the paywall names third — «تغيير الصعوبة أثناء المحادثة» —
+ * is a real control (`handleNudgeDifficulty` behind the ⋯ sheet), and it is
+ * Pro-only: a free learner tapping it gets the offer instead of the level. The
+ * claim is on the screen that asks for money, so it is pinned here rather than
+ * left to a code read; the baseline used to record this as an unverified promise.
+ */
+test('the difficulty nudge is a real control, and it is Pro-only', async ({ page }) => {
+  await bootSignedIn(page);
+  await page.goto('/scenario/cafe_order/live');
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
+
+  await page.getByRole('button', { name: 'خيارات الجلسة' }).click();
+  await page.getByRole('button', { name: 'أصعب' }).click();
+
+  // The free learner is offered Pro, and the level does not move.
+  await expect(page.getByText('تغيير المستوى أثناء المحادثة ميزة Pro')).toBeVisible();
+  await expect(page.getByTestId('level-chip')).toHaveText('A1');
+});
+
+test('a Pro learner nudges the level mid-conversation', async ({ page }) => {
+  await bootSignedIn(page, { isPro: true });
+  await page.goto('/scenario/cafe_order/live');
+  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
+
+  await page.getByRole('button', { name: 'خيارات الجلسة' }).click();
+  await page.getByRole('button', { name: 'أصعب' }).click();
+
+  // The level moved, and nothing was sold: this is the benefit the paywall names.
+  await expect(page.getByTestId('level-chip')).toHaveText('A2');
+  await expect(page.getByText('تغيير المستوى أثناء المحادثة ميزة Pro')).toHaveCount(0);
+});
+
 test('the last week of a paid month is named, with the way to renew it', async ({ page }) => {
   // B3: nothing told a paying learner their month was ending, so the first news
   // was the level dropping to A1 mid-episode with no explanation. The notice

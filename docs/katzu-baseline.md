@@ -223,7 +223,7 @@ Funnel coverage today (visit → demo → sign-up → first Live turn → paywal
 | Slow replay | Built | `handleSlowSpeak` re-speaks at rate 0.6 `useLiveConversation` |
 | Session report / debrief | Built | `SessionReportScreen` + `buildSessionDebrief` (deterministic, **no extra AI call**); independent accuracy, mistakes, "vs previous attempt" (only if a prior row has `mistakesCount`) |
 | Spaced repetition | Built | `srs/engine.ts` + `srs/store.ts`; mistakes become production prompts (`newReviewItemFromMistake`) |
-| Difficulty nudge | Partial | `weakestMeasuredSkill` can set the mission (only when a skill is *measured*); level caps vary by CEFR; no live in-conversation difficulty slider beyond level (`PaywallModal` copy claims "change difficulty mid-conversation" — `[inferred]` this is the level/Pro unlock, not a control I found) |
+| Difficulty nudge | Built (B4) | `handleNudgeDifficulty` in `useLiveConversation.ts` moves the level one CEFR step from the ⋯ sheet («أسهل» / «أصعب»), Pro-only: a free learner gets the Pro card «تغيير المستوى أثناء المحادثة ميزة Pro» instead. `weakestMeasuredSkill` can set the mission (only when a skill is *measured*); level caps vary by CEFR. **Corrected in B4:** this row used to say the paywall's claim was `[inferred]` and unverified — the control exists and is pinned by two browser tests in `e2e/paywall.spec.ts` (free → offer, Pro → the chip moves A1→A2) |
 | Listen (dictation) | Built | `ListeningScreen`; STT model is **Whisper on Workers AI** |
 | Writing | Built | `WritingScreen` + `POST /ai/check-writing` |
 | Ask Katzu | Built | `AskKatzuScreen` + `POST /ai/ask` (German-only, own quota) |
