@@ -33,9 +33,9 @@
       "id": "akkusativ_articles",
       "level": "A1",
       "title_ar": "أداة النصب (Akkusativ)",
-      "explanation_ar": "عندما تكون الكلمة مفعولاً به، يتحول der إلى einen، وتبقى die وdas كما هما.",
-      "rule_de": "Nur der (maskulin) wird im Akkusativ zu einen; die und das bleiben gleich.",
-      "rule_ar": "فقط أداة der للمذكّر تتحول إلى einen في حالة النصب، أما die وdas فتبقيان كما هما.",
+      "explanation_ar": "عندما تكون الكلمة مفعولاً به، يتحول der المذكّر إلى den، ويصبح ein إلى einen، وتبقى die و das كما هما.",
+      "rule_de": "Im Akkusativ wird maskulin der zu den und ein zu einen; die und das bleiben gleich.",
+      "rule_ar": "في حالة النصب يتحوّل der المذكّر إلى den، و ein إلى einen، أما die و das فتبقيان كما هما.",
       "example_de": "Ich möchte einen Kaffee, bitte.",
       "example_ar": "أريد قهوةً، من فضلك."
     },
