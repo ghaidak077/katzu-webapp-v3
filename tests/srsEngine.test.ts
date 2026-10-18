@@ -245,6 +245,13 @@ describe('enrolment builders', () => {
     expect(newReviewItemFromVocabulary(word, NOW).answerDe).toBe('gern');
   });
 
+  it('composes the article once when the row already stores it in `german` (regression)', () => {
+    // The review answer is what the learner is graded against, so a doubled
+    // article here marked the correct answer wrong ("die die Verletzung").
+    const word = { id: 8, german: 'die Verletzung', article: 'die', translation_ar: 'إصابة' } as VocabularyEntity;
+    expect(newReviewItemFromVocabulary(word, NOW).answerDe).toBe('die Verletzung');
+  });
+
   it('retests a mistake from its rule, recording where it came from', () => {
     const mistake = {
       userId: 'current_user',

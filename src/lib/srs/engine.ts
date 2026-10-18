@@ -7,6 +7,7 @@ import type {
   StarterPhraseEntity,
   VocabularyEntity,
 } from '@/types/models';
+import { germanNounPhrase } from '@/lib/utils/germanNoun';
 
 /**
  * The memory engine: when to bring a piece of knowledge back.
@@ -318,15 +319,16 @@ export function newReviewItemFromVocabulary(
   now: number,
   userId = 'current_user',
 ): ReviewItemEntity {
-  const article = vocabulary.article ? `${vocabulary.article} ` : '';
   return newReviewItem(
     {
       kind: 'vocab',
       refId: reviewRefId('vocab', vocabulary.id),
       promptAr: vocabulary.translation_ar,
       // The article is part of the answer on purpose: gender is the detail
-      // Arabic speakers most often lose, and 'close' feedback teaches it.
-      answerDe: `${article}${vocabulary.german}`,
+      // Arabic speakers most often lose, and 'close' feedback teaches it. It goes
+      // through the shared helper so a row that already stores the article in
+      // `german` is never doubled into "der der …".
+      answerDe: germanNounPhrase(vocabulary.article, vocabulary.german),
       contextDe: vocabulary.example_de || undefined,
       explanationAr: vocabulary.example_ar || undefined,
       scenarioId: vocabulary.topic || undefined,

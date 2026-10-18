@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { isProEffective } from '@/lib/utils/subscription';
 import { buildWordBankFrom } from '@/lib/utils/wordBank';
+import { germanNounPhrase } from '@/lib/utils/germanNoun';
 import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
 import { servedLevel } from '@/lib/entitlement/trial';
 import { isEntitlementWall } from '@/lib/entitlement/codes';
@@ -108,7 +109,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
     const topic = scenarioToVocabTopic(scenario);
     const vocabWords = (vocabulary || [])
       .filter((word) => word.german && (!topic || word.topic === topic))
-      .map((word) => `${word.article ? `${word.article} ` : ''}${word.german}`);
+      .map((word) => germanNounPhrase(word.article, word.german));
     return buildWordBankFrom([...vocabWords, ...targetPhrases]);
   }, [vocabulary, scenario, targetPhrases]);
 

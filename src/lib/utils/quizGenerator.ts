@@ -1,4 +1,5 @@
 import type { StarterPhraseEntity, VocabularyEntity } from '@/types/models';
+import { germanNounPhrase } from './germanNoun.ts';
 import { hashString, seededRng } from './seededRng.ts';
 
 export interface QuizQuestion {
@@ -139,7 +140,7 @@ export function generateQuizQuestions(
     );
     if (distractors.length < MIN_OPTIONS - 1) continue; // not enough real options
     const options = shuffle([target.translation_ar, ...distractors], rng);
-    const word = `${target.article ? target.article + ' ' : ''}${target.german}`;
+    const word = germanNounPhrase(target.article, target.german);
     questions.push({
       kind: 'vocab',
       sourceKind: 'vocab',

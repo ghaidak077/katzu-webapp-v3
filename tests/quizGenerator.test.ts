@@ -98,6 +98,25 @@ describe('generateQuizQuestions', () => {
     expect(phraseUsed !== undefined).toBe(true);
   });
 
+  it('never doubles an article the row already stores inside `german` (regression)', () => {
+    // 78 D1 rows carry the article in BOTH `article` and `german`; the prompt used
+    // to render it twice ("die die Verletzung", "der der Reisepass").
+    const doubled: VocabularyEntity[] = [
+      { id: 71, german: 'die Verletzung', article: 'die', part_of_speech: 'Noun', translation_ar: 'إصابة', topic: 'health', level: 'B1' },
+      { id: 72, german: 'der Reisepass', article: 'der', part_of_speech: 'Noun', translation_ar: 'جواز سفر', topic: 'documents', level: 'A1' },
+      { id: 73, german: 'das Dokument', article: 'das', part_of_speech: 'Noun', translation_ar: 'وثيقة', topic: 'documents', level: 'A1' },
+      { id: 74, german: 'die Nummer', article: 'die', part_of_speech: 'Noun', translation_ar: 'رقم الهاتف', topic: 'documents', level: 'A1' },
+    ] as VocabularyEntity[];
+    seed = 13;
+    const questions = generateQuizQuestions(doubled, [], rng, 20);
+    expect(questions.length).toBeGreaterThan(0);
+    for (const q of questions) {
+      const doubledArticle = /\b(der|die|das)\s+\1\b/i;
+      expect(q.germanPrompt, `doubled article in prompt "${q.germanPrompt}"`).not.toMatch(doubledArticle);
+      expect(q.explanation, `doubled article in explanation "${q.explanation}"`).not.toMatch(doubledArticle);
+    }
+  });
+
   it('returns no questions when there is no usable content', () => {
     expect(generateQuizQuestions([], [], rng)).toEqual([]);
   });

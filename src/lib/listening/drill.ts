@@ -1,4 +1,5 @@
 import { normalizeGermanAnswer } from '@/lib/srs/engine';
+import { germanNounPhrase } from '@/lib/utils/germanNoun';
 import type { CEFRLevel, StarterPhraseEntity, VocabularyEntity } from '@/types/models';
 
 /**
@@ -105,7 +106,7 @@ function levelItems(pool: DrillPool, level: CEFRLevel, usedIds: Set<string>): Dr
       id: `vocab:${word.id}`,
       kind: 'vocab' as const,
       level,
-      german: word.article ? `${word.article} ${word.german}` : word.german,
+      german: germanNounPhrase(word.article, word.german),
       translationAr: word.translation_ar,
       sourceId: word.id,
       scenarioId: word.topic || undefined,

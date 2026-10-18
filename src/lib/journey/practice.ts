@@ -3,6 +3,7 @@ import { gradeAnswer, normalizeGermanAnswer, type AnswerVerdict } from '@/lib/sr
 import { diffDictation, type DictationResult } from '@/lib/listening/drill';
 import { dayIndexFor } from '@/lib/utils/dailyMission';
 import { vocabularyWithinLevelRadius } from '@/lib/utils/scenarioVocab';
+import { germanNounPhrase } from '@/lib/utils/germanNoun';
 
 /**
  * Guided Practice: the short preparation before the real conversation.
@@ -79,16 +80,16 @@ function cardFromPhrase(phrase: StarterPhraseEntity): PracticeCard {
 }
 
 function cardFromVocabulary(word: VocabularyEntity): PracticeCard {
-  const article = word.article ? `${word.article} ` : '';
+  const phrase = germanNounPhrase(word.article, word.german);
   const example = (word.example_de || '').trim();
   // A word card teaches a usable sentence where one exists: "der Termin" alone is
   // memorisation, "Ich habe morgen einen Termin." is something to say out loud.
   return {
     id: `vocab_${word.id}`,
-    de: example || `${article}${word.german}`.trim(),
+    de: example || phrase,
     ar: example ? word.example_ar.trim() : word.translation_ar.trim(),
     level: word.level,
-    noteAr: example ? `${article}${word.german} — ${word.translation_ar}`.trim() : undefined,
+    noteAr: example ? `${phrase} — ${word.translation_ar}`.trim() : undefined,
   };
 }
 

@@ -1,4 +1,5 @@
 import { isUsableTranslationAr, optionsCollide } from '@/lib/utils/quizGenerator';
+import { germanNounPhrase } from '@/lib/utils/germanNoun';
 import type { CEFRLevel, StarterPhraseEntity, VocabularyEntity } from '@/types/models';
 import { CEFR_LADDER, type PlacementKind } from './engine';
 
@@ -116,7 +117,7 @@ export function buildPlacementItem(
     ...vocabulary.map((word) => ({
       kind: 'vocab' as const,
       sourceId: word.id,
-      german: word.article ? `${word.article} ${word.german}` : word.german,
+      german: germanNounPhrase(word.article, word.german),
       correctAr: word.translation_ar,
       exampleAr: word.example_ar || undefined,
     })),

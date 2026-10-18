@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { germanHeadword, germanNounPhrase } from '@/lib/utils/germanNoun';
 import {
   BookOpen,
   Volume2,
@@ -420,7 +421,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                     </Badge>
                   )}
                   <GermanText className="text-sm font-bold text-text-primary">
-                    {v.german}
+                    {germanHeadword(v.german)}
                   </GermanText>
                 </div>
                 <div className="text-xs text-text-secondary font-arabic">{v.translation_ar}</div>
@@ -438,7 +439,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                   <Bookmark className="w-4 h-4 fill-current" />
                 </button>
                 <button
-                  onClick={() => speak(`${v.article || ''} ${v.german}`)}
+                  onClick={() => speak(germanNounPhrase(v.article, v.german))}
                   className="p-2 rounded-full bg-primary/20 text-primary pointer-hover:bg-primary/30"
                 >
                   <Volume2 className="w-4 h-4" />
@@ -478,7 +479,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                     </Badge>
                   )}
                   <GermanText className="text-2xl font-bold text-text-primary">
-                    {currentFlashcard.german}
+                    {germanHeadword(currentFlashcard.german)}
                   </GermanText>
                   <span className="text-xs text-text-muted mt-3">اضغط لكشف المعنى بالعربية 👆</span>
                 </>
@@ -500,7 +501,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             <div className="flex items-center justify-between text-xs text-text-muted">
               <span>البطاقة {flashcardIndex + 1} من {vocabulary.length}</span>
               <button
-                onClick={() => speak(currentFlashcard.german)}
+                onClick={() => speak(germanNounPhrase(currentFlashcard.article, currentFlashcard.german))}
                 className="flex items-center gap-1 text-primary pointer-hover:underline font-arabic"
               >
                 <Volume2 className="w-4 h-4" /> استمع للنطق

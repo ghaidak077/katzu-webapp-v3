@@ -7,6 +7,7 @@ import type {
 } from '@/types/models';
 import { MASTERED_REPS, reviewRefId } from '@/lib/srs/engine';
 import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
+import { germanNounPhrase } from '@/lib/utils/germanNoun';
 import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
 
 /**
@@ -85,7 +86,7 @@ export function buildVocabularyEntries(input: {
 
     entries.push({
       id: word.id,
-      de: `${word.article ? `${word.article} ` : ''}${word.german}`.trim(),
+      de: germanNounPhrase(word.article, word.german),
       ar: word.translation_ar || word.example_ar || '',
       level: word.level,
       topic: word.topic || '',

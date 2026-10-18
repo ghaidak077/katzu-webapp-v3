@@ -1,5 +1,6 @@
 import type { ScenarioEntity, StarterPhraseEntity, VocabularyEntity } from '@/types/models';
 import { gradeAnswer, type AnswerVerdict } from '@/lib/srs/engine';
+import { germanNounPhrase } from '@/lib/utils/germanNoun';
 
 /**
  * The public demo: one real, complete learning turn, without an account.
@@ -146,7 +147,7 @@ export function buildDemoLesson(
       ...scenarioVocab.map<DemoItem>((word) => ({
         kind: 'vocab',
         sourceId: word.id,
-        german: word.article ? `${word.article} ${word.german}` : word.german,
+        german: germanNounPhrase(word.article, word.german),
         translationAr: word.translation_ar,
         exampleDe: word.example_de || undefined,
       })),

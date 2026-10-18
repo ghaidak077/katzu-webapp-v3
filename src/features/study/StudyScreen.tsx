@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { enrolStudiedVocabulary } from '@/lib/srs/store';
 import { scenarioToVocabTopic, vocabularyWithinLevelRadius } from '@/lib/utils/scenarioVocab';
+import { germanHeadword, germanNounPhrase } from '@/lib/utils/germanNoun';
 import { track } from '@/lib/analytics/client';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
@@ -210,7 +211,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
                       </Badge>
                     )}
                     <GermanText className="text-base font-bold text-text-primary">
-                      {v.german}
+                      {germanHeadword(v.german)}
                     </GermanText>
                   </div>
                   <div className="text-xs text-text-secondary font-arabic mb-1">{v.translation_ar}</div>
@@ -233,8 +234,8 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
                     <Bookmark className="w-4 h-4 fill-current" aria-hidden="true" />
                   </button>
                   <button
-                    onClick={() => handlePlay(`${v.article || ''} ${v.german}`)}
-                    aria-label={`استمع إلى نطق: ${v.article ? v.article + ' ' : ''}${v.german}`}
+                    onClick={() => handlePlay(germanNounPhrase(v.article, v.german))}
+                    aria-label={`استمع إلى نطق: ${germanNounPhrase(v.article, v.german)}`}
                     className="w-10 h-10 min-h-touch min-w-touch rounded-full bg-primary/20 text-primary flex items-center justify-center"
                   >
                     <Volume2 className="w-4 h-4" aria-hidden="true" />
