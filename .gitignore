@@ -38,3 +38,10 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+# Stray run logs and scratch dumps local tooling writes into the tree.
+# A log that shows up in `git status` is a log that gets committed by accident.
+.verify.log
+.vite-dev.log
+tsc-verify.txt
+vitest-verify.txt
+*.tmp.txt
