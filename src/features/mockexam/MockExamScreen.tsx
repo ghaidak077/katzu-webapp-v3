@@ -171,7 +171,14 @@ export const MockExamScreen: React.FC = () => {
       <LiveConversationScreen
         key={`${sessionId}-${currentPart!.id}`}
         scenarioId={MOCK_SCENARIO_ID}
-        mockPart={{ grant: claim.grant, partIndex, openerDe: currentPart!.openerDe }}
+        mockPart={{
+          grant: claim.grant,
+          partIndex,
+          openerDe: currentPart!.openerDe,
+          // The topic the learner is reading, sent so the examiner discusses the
+          // same one (resolved server-side against the server's topic list).
+          topicId: claim.brief?.topic?.id ?? '',
+        }}
         autoStartMode="real"
         examChrome={
           <ExamBanner

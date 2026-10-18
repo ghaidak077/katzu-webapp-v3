@@ -71,7 +71,7 @@ function clampPercent(value: number): number {
 
 const BAND: Record<Exclude<EstimateBand, null>, { min: number; ar: string }> = {
   steady: { min: 70, ar: 'أداء ثابت في هذه الجلسة. كرّرها بعد يومين وستقارنها بنفسك.' },
-  getting_there: { min: 45, ar: 'أنت في منتصف الطريق —继续保持، والجزء الثالث هو الأضعف عادةً.' },
+  getting_there: { min: 45, ar: 'أنت في منتصف الطريق — واصل، والجزء الثالث هو الأضعف عادةً.' },
   needs_more: { min: 0, ar: 'ابدأ بالجزء الأول فقط هذه المرة؛ الاستقلال أهم من الطول الآن.' },
 };
 

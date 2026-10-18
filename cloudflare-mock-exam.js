@@ -187,6 +187,11 @@ function hashString(value) {
   return hash >>> 0;
 }
 
+export function mockTopicById(id) {
+  const key = String(id ?? '');
+  return MOCK_EXAM_TOPICS.find((topic) => topic.id === key) || null;
+}
+
 /** The UTC day number, so every device on the same calendar day gets one topic. */
 export function mockTopicDay(now = Date.now()) {
   return Math.floor(Number(now) / 86400000);
@@ -236,16 +241,23 @@ export function normaliseMockPartIndex(value) {
  * Appended to the turn system instruction by `/ai/turn` when — and only when —
  * the request carries a grant the worker minted at `/mock/start`. A client
  * cannot reach this by sending a field: the grant is signed.
+ *
+ * The TOPIC is the learner's topic, never a part title. `topicId` comes from the
+ * client but resolves against the SERVER's topic list (the same way the part
+ * index resolves against the server's part list), so a client can only name a
+ * real topic; anything else falls back to the deterministic daily topic the brief
+ * showed. This is what stopped the examiner being told "undefined" on the
+ * presentation part and a part title on the others.
  */
-export function mockExamInstructionForPart({ part } = {}) {
+export function mockExamInstructionForPart({ part, topicId, accountId = '', now = Date.now() } = {}) {
   const index = normaliseMockPartIndex(part);
   if (index === null) return null;
   const chosen = MOCK_EXAM_PARTS[index];
-  const topic = MOCK_EXAM_TOPICS[index % MOCK_EXAM_TOPICS.length];
+  const card = mockTopicById(topicId) || mockTopicFor({ accountId, day: mockTopicDay(now) });
   const topicLine =
     chosen.id === 'present'
-      ? `TOPIC CARD the learner presents from: "${chosen.cardDe}" (Arabic: ${chosen.cardAr}).`
-      : `TOPIC under discussion: "${chosen.titleDe}" (Arabic: ${chosen.titleAr}).`;
+      ? `TOPIC CARD the learner presents from: "${card.cardDe}" (Arabic: ${card.cardAr}).`
+      : `TOPIC under discussion: "${card.titleDe}" (Arabic: ${card.titleAr}).`;
   return [
     'EXAM MODE — this is a practice mock, not an official exam. Never state a grade, a percentage, a pass/fail or any exam-body name, and never claim certification.',
     `B1 SPEAKEN — PART ${chosen.index} of ${MOCK_EXAM_PARTS.length}: ${chosen.titleDe}. Time budget for this part: ${chosen.seconds} seconds.`,

@@ -443,12 +443,14 @@ export class WorkerClient {
     vocabularyContext?: string[];
     grammarId?: string;
     /**
-     * The B1 mock: the grant minted by `/mock/start` and the part index. Both are
-     * optional and both are ignored by the worker unless the grant verifies for
-     * this account — an ordinary conversation is unaffected by their absence.
+     * The B1 mock: the grant minted by `/mock/start`, the part index and the
+     * learner's topic id. All three are optional and all three are ignored by the
+     * worker unless the grant verifies for this account — an ordinary
+     * conversation is unaffected by their absence.
      */
     mockGrant?: string;
     mockPart?: number;
+    mockTopic?: string;
   }): Promise<TurnAiResponse> {
     try {
       return await this.sendTurnOnce(params);
@@ -487,6 +489,7 @@ export class WorkerClient {
     grammarId?: string;
     mockGrant?: string;
     mockPart?: number;
+    mockTopic?: string;
   }): Promise<TurnAiResponse> {
     // Resolve credential early so a signed-out user fails fast (header-only transport;
     // the body never carries tokens).
@@ -532,6 +535,11 @@ export class WorkerClient {
     if (params.mockGrant && Number.isInteger(params.mockPart)) {
       payload.mock_grant = params.mockGrant;
       payload.mock_part = params.mockPart;
+      // The topic the learner is looking at. The worker resolves it against its
+      // own topic list, so an invalid value is ignored rather than trusted.
+      if (params.mockTopic && /^[a-z0-9_]{1,40}$/i.test(params.mockTopic)) {
+        payload.mock_topic = params.mockTopic;
+      }
     }
 
     const headers: Record<string, string> = {

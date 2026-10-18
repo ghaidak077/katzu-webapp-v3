@@ -293,7 +293,14 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   const mockPartIndex = mockGrant ? normaliseMockPartIndex(body.mock_part) : null;
   const mockExamInstruction =
     mockPartIndex !== null && mockExamInstructionForPart
-      ? mockExamInstructionForPart({ part: mockPartIndex })
+      ? mockExamInstructionForPart({
+          part: mockPartIndex,
+          // The topic the learner is looking at, from the brief. It is resolved
+          // against the server's topic list; an unknown id falls back to the
+          // server's own daily topic, never to "undefined".
+          topicId: body.mock_topic,
+          accountId: account.sub,
+        })
       : null;
   // An exam turn belongs to the exam, not to the scenario the conversation engine
   // borrows: the persona, the title, the safety category and the level are all

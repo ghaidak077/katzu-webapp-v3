@@ -62,7 +62,7 @@ export interface UseLiveConversationOptions {
    * scenario's opener with the examiner's own first line, which is what the
    * learner sees before speaking.
    */
-  mockPart?: { grant: string; partIndex: number; openerDe: string };
+  mockPart?: { grant: string; partIndex: number; openerDe: string; topicId: string };
   onBack: () => void;
   onCompleteSession: (sessionSummary: {
     scenarioId: string;
@@ -733,7 +733,9 @@ export function useLiveConversation({
         turnIndex: userTurnsCount,
         // Present only inside a mock part; the worker ignores both without a
         // grant that verifies for this account.
-        ...(mockPart ? { mockGrant: mockPart.grant, mockPart: mockPart.partIndex } : {}),
+        ...(mockPart
+          ? { mockGrant: mockPart.grant, mockPart: mockPart.partIndex, mockTopic: mockPart.topicId }
+          : {}),
       });
 
       // 3. Form Katzu reply with pedagogical evaluation embedded

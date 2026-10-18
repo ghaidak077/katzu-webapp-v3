@@ -20,7 +20,7 @@ export interface LiveConversationScreenProps {
   vocabularyContext?: string[];
   grammarId?: string;
   /** The B1 mock part this screen is running, when it is running one. */
-  mockPart?: { grant: string; partIndex: number; openerDe: string };
+  mockPart?: { grant: string; partIndex: number; openerDe: string; topicId: string };
   /**
    * Chrome rendered between the header and the chat — the mock's part banner and
    * timer. Passed in (not built here) so the exam owns its own clock and this

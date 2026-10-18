@@ -35,6 +35,18 @@ describe('the practice estimate', () => {
     expect(estimate.score).not.toBe(0);
   });
 
+  it('keeps the band copy in Arabic — no CJK fragment (regression)', () => {
+    // The middle band's Arabic sentence used to carry a Chinese fragment
+    // ("继续保持") and was shown to the learner exactly as written.
+    const estimate = estimatePracticeScore([
+      part({ partIndex: 1, sentencesSpoken: 4, independentSentences: 2, accuracyPercent: 50, durationSeconds: 0 }),
+      part({ partIndex: 2, sentencesSpoken: 0, independentSentences: 0, accuracyPercent: null, durationSeconds: 0 }),
+    ]);
+    expect(estimate.band).toBe('getting_there');
+    expect(estimate.headlineAr).toContain('واصل');
+    expect(estimate.headlineAr).not.toMatch(/[\u3000-\u9fff\uff00-\uffef]/);
+  });
+
   it('computes every component from what the session measured', () => {
     const estimate = estimatePracticeScore([
       part({ partIndex: 1, sentencesSpoken: 5, independentSentences: 4, accuracyPercent: 80 }),

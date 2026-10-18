@@ -105,6 +105,27 @@ describe('the exam instruction', () => {
     expect(mockExamInstructionForPart({ part: 0 })).toMatch(/speaking-partner/i);
     expect(mockExamInstructionForPart({ part: 1 })).toMatch(/examiner/i);
   });
+
+  it('names the learner\u2019s real topic in every part, never "undefined" (regression)', () => {
+    const topic = MOCK_EXAM_TOPICS.find((t) => t.id === 'arbeit')!;
+    // Part 2 hands the examiner the card the learner actually presents from.
+    const present = mockExamInstructionForPart({ part: 1, topicId: 'arbeit' }) ?? '';
+    expect(present).toContain(topic.cardDe);
+    expect(present).not.toMatch(/undefined/);
+    // Parts 1 and 3 carry the topic, not the part title as if it were a topic.
+    for (const partIndex of [0, 2]) {
+      const instruction = mockExamInstructionForPart({ part: partIndex, topicId: 'arbeit' }) ?? '';
+      expect(instruction).toContain(topic.titleDe);
+      expect(instruction).not.toMatch(/undefined/);
+      expect(instruction).not.toContain(`TOPIC under discussion: "${MOCK_EXAM_PARTS[partIndex].titleDe}"`);
+    }
+  });
+
+  it('falls back to a real topic when the client names an unknown one', () => {
+    const instruction = mockExamInstructionForPart({ part: 1, topicId: 'not_a_topic' }) ?? '';
+    expect(instruction).not.toMatch(/undefined/);
+    expect(MOCK_EXAM_TOPICS.some((topic) => instruction.includes(topic.cardDe))).toBe(true);
+  });
 });
 
 describe('the mock brief the app renders', () => {
