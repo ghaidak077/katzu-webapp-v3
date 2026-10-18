@@ -91,6 +91,14 @@ describe('gradeGrammarAttempt', () => {
     expect(gradeGrammarAttempt(translate, 'Ich möchte einen Kaffee')).toBe('wrong');
     expect(gradeGrammarAttempt(translate, '')).toBe('wrong');
   });
+
+  it('never calls a partial answer "close" just because it is a substring (regression)', () => {
+    // The old substring check marked any word of the sentence 'close', so the
+    // learner saw "almost right" for an answer that was missing content.
+    expect(gradeGrammarAttempt(translate, 'Kaffee')).toBe('wrong');
+    expect(gradeGrammarAttempt(translate, 'ist')).toBe('wrong');
+    expect(gradeGrammarAttempt(translate, 'Der Kaffee ist')).toBe('wrong');
+  });
 });
 
 describe('grammarAttemptMistake', () => {

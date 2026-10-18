@@ -119,14 +119,15 @@ export function gradeGrammarAttempt(exercise: GrammarExercise, given: string): '
   if (!attempt) return 'wrong';
   if (target === attempt) return 'correct';
   // One correct word off (a wrong article, a wrong ending) is 'close' — the
-  // same distinction the review engine draws, so feedback words agree.
+  // same distinction the review engine draws, so feedback words agree. A partial
+  // answer is never 'close': a substring of the sentence (one word, or the first
+  // few) is missing content, which the length check above already rejects.
   const targetWords = target.split(' ');
   const attemptWords = attempt.split(' ');
   if (targetWords.length === attemptWords.length) {
     const wrong = targetWords.filter((word, index) => word !== attemptWords[index]).length;
     if (wrong <= 1) return 'close';
   }
-  if (target.includes(attempt) || attempt.includes(target)) return 'close';
   return 'wrong';
 }
 
