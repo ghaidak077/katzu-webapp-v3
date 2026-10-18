@@ -573,6 +573,12 @@ export interface AskPracticeItem {
   promptDe?: string;
   /** The one correct German answer the learner must produce. */
   answerDe: string;
+  /**
+   * Other German answers that are just as correct. A translation rarely has a
+   * single right form, so the worker ships up to three accepted alternates and
+   * the grader treats any of them as 'correct'.
+   */
+  acceptedDe?: string[];
 }
 
 export interface AskAnswer {

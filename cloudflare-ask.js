@@ -36,6 +36,8 @@ export const MAX_ASK_CHARS = 1200;
 
 export const MAX_ASK_EXAMPLES = 3;
 export const MAX_ASK_PRACTICE = 3;
+/** Other correct forms the model may list for one item, beside answer_de. */
+export const MAX_ASK_ALTERNATES = 3;
 
 /** ~1 explanation + examples + 3 items. */
 export const MAX_ASK_OUTPUT_TOKENS = 1200;
@@ -160,11 +162,11 @@ Otherwise set "in_scope" to true and:
     * fill: prompt_de is a German sentence with one blank written as ___ ; answer_de is the missing word(s) only.
     * reorder: prompt_ar says what to say, prompt_de lists the scrambled words; answer_de is the correct sentence.
     * translate: prompt_ar is an Arabic sentence; answer_de is its German.
-  Every answer_de must be exactly one correct German answer the learner can produce; no alternatives lists, no explanations inside answer_de.
+  answer_de is the single best German answer and must stand alone — no alternatives and no explanations inside it. If the learner could just as correctly write it another way (a different valid word order, or another correct article form), list up to ${MAX_ASK_ALTERNATES} such forms in "accepted_de"; otherwise use an empty array. Never list a wrong form there.
 Respond strictly in JSON:
 { "in_scope": boolean, "refusal_ar": string, "intent": "translate|grammar|word|check_sentence|official",
   "explanation_ar": string, "examples": [ { "de": string, "ar": string } ],
-  "practice": [ { "type": string, "prompt_ar": string, "prompt_de": string, "answer_de": string } ] }`;
+  "practice": [ { "type": string, "prompt_ar": string, "prompt_de": string, "answer_de": string, "accepted_de": [string] } ] }`;
 }
 
 export function buildAskResponseSchema() {
@@ -193,9 +195,10 @@ export function buildAskResponseSchema() {
             prompt_ar: { type: "STRING" },
             prompt_de: { type: "STRING" },
             answer_de: { type: "STRING" },
+            accepted_de: { type: "ARRAY", items: { type: "STRING" } },
           },
           required: ["type", "prompt_ar", "answer_de"],
-          propertyOrdering: ["type", "prompt_ar", "prompt_de", "answer_de"],
+          propertyOrdering: ["type", "prompt_ar", "prompt_de", "answer_de", "accepted_de"],
         },
       },
     },
@@ -241,12 +244,29 @@ export function normalizeAskAnswer(raw, { legal = false } = {}) {
     .slice(0, MAX_ASK_EXAMPLES);
 
   const practice = (Array.isArray(parsed.practice) ? parsed.practice : [])
-    .map((item) => ({
-      type: ASK_PRACTICE_TYPES.includes(item?.type) ? item.type : "translate",
-      promptAr: cleanText(item?.prompt_ar || item?.promptAr, 300),
-      promptDe: cleanText(item?.prompt_de || item?.promptDe, 300),
-      answerDe: cleanText(item?.answer_de || item?.answerDe, 200),
-    }))
+    .map((item) => {
+      const answerDe = cleanText(item?.answer_de || item?.answerDe, 200);
+      // Accepted alternates are case-insensitively de-duplicated against the main
+      // answer, so the same form can never appear twice in the accepted set.
+      const seen = new Set(answerDe ? [answerDe.toLowerCase()] : []);
+      const rawAccepted = item?.accepted_de ?? item?.acceptedDe;
+      const acceptedDe = (Array.isArray(rawAccepted) ? rawAccepted : [])
+        .map((value) => cleanText(value, 200))
+        .filter((value) => {
+          const key = value.toLowerCase();
+          if (!value || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, MAX_ASK_ALTERNATES);
+      return {
+        type: ASK_PRACTICE_TYPES.includes(item?.type) ? item.type : "translate",
+        promptAr: cleanText(item?.prompt_ar || item?.promptAr, 300),
+        promptDe: cleanText(item?.prompt_de || item?.promptDe, 300),
+        answerDe,
+        acceptedDe,
+      };
+    })
     .filter((item) => item.promptAr && item.answerDe)
     .slice(0, MAX_ASK_PRACTICE);
 

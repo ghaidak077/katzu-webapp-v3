@@ -59,6 +59,10 @@ describe('gradeAnswer', () => {
   it('reports a missing or wrong article as close, not wrong', () => {
     expect(gradeAnswer('der Kaffee', 'Kaffee')).toBe('close');
     expect(gradeAnswer('die Rechnung', 'der Rechnung')).toBe('close');
+    // The indefinite article counts the same way: the noun is right, the article is not.
+    expect(gradeAnswer('ein Termin', 'Termin')).toBe('close');
+    expect(gradeAnswer('der Kaffee', 'ein Kaffee')).toBe('close');
+    expect(gradeAnswer('einen Termin', 'ein Termin')).toBe('close');
   });
 
   it('reports a different word as wrong, and an empty answer never passes', () => {

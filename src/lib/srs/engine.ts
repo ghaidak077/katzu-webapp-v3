@@ -7,7 +7,7 @@ import type {
   StarterPhraseEntity,
   VocabularyEntity,
 } from '@/types/models';
-import { germanNounPhrase } from '@/lib/utils/germanNoun';
+import { germanNounPhrase, LEADING_ARTICLE } from '@/lib/utils/germanNoun';
 
 /**
  * The memory engine: when to bring a piece of knowledge back.
@@ -41,8 +41,12 @@ export const SESSION_LIMIT = 20;
 const MIN_INTERVAL_DAYS = 1;
 const MAX_INTERVAL_DAYS = 180;
 
-/** Leading article on a German noun phrase (`der Kaffee`). */
-const ARTICLE_PREFIX = /^(der|die|das|den|dem)\s+/;
+/**
+ * Leading article on a German noun phrase (`der Kaffee`). It includes the
+ * indefinite forms and `des` so "ein Termin" answered as "Termin" gets the same
+ * article-only 'close' verdict as "der Termin", instead of a false 'wrong'.
+ */
+const ARTICLE_PREFIX = LEADING_ARTICLE;
 
 /**
  * Words a full sentence supplies on its own: articles, pronouns and the

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { askPracticeFeedbackAr, gradeAskPractice } from '../src/lib/ask/practice';
+import { askPracticeFeedbackAr, gradeAskPractice, shouldEnrolAskMistake } from '../src/lib/ask/practice';
 import type { AskPracticeItem } from '../src/types/models';
 
 /**
@@ -25,6 +25,24 @@ describe('gradeAskPractice', () => {
     expect(gradeAskPractice(item({ answerDe: 'der Termin' }), 'die Termin')).toBe('close');
   });
 
+  it('accepts any listed alternate translation as correct', () => {
+    const withAlternates = item({
+      answerDe: 'Ich brauche einen Termin.',
+      acceptedDe: ['Ich brauche einen Termin beim Arzt.', 'Ich benötige einen Termin.'],
+    });
+    expect(gradeAskPractice(withAlternates, 'Ich brauche einen Termin.')).toBe('correct');
+    expect(gradeAskPractice(withAlternates, 'Ich brauche einen Termin beim Arzt.')).toBe('correct');
+    expect(gradeAskPractice(withAlternates, 'ich benoetige einen termin')).toBe('correct');
+    // A sentence that is not listed is still not 'correct' — the screen simply
+    // never files a translation for review, so it costs the learner nothing.
+    expect(gradeAskPractice(withAlternates, 'Ich möchte einen Termin.')).toBe('wrong');
+  });
+
+  it('treats a missing or wrong indefinite article as "close", not "wrong"', () => {
+    expect(gradeAskPractice(item({ answerDe: 'ein Termin' }), 'Termin')).toBe('close');
+    expect(gradeAskPractice(item({ answerDe: 'einen Termin' }), 'ein Termin')).toBe('close');
+  });
+
   it('grades a fill answer through the shared grader', () => {
     const fill = item({ type: 'fill', answerDe: 'den' });
     expect(gradeAskPractice(fill, 'den')).toBe('correct');
@@ -46,5 +64,18 @@ describe('gradeAskPractice', () => {
     for (const verdict of ['correct', 'close', 'wrong'] as const) {
       expect(askPracticeFeedbackAr(verdict)).toMatch(/[\u0600-\u06FF]/);
     }
+  });
+});
+
+describe('shouldEnrolAskMistake', () => {
+  it('files only a clear wrong on an item with one right form', () => {
+    expect(shouldEnrolAskMistake(item({ type: 'fill' }), 'wrong')).toBe(true);
+    expect(shouldEnrolAskMistake(item({ type: 'reorder' }), 'wrong')).toBe(true);
+  });
+
+  it('never files a near miss, a correct answer, or an open-ended translation', () => {
+    expect(shouldEnrolAskMistake(item({ type: 'fill' }), 'close')).toBe(false);
+    expect(shouldEnrolAskMistake(item({ type: 'fill' }), 'correct')).toBe(false);
+    expect(shouldEnrolAskMistake(item({ type: 'translate' }), 'wrong')).toBe(false);
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import worker from '../cloudflare-unified-worker';
 import {
   ASK_QUOTA_DEFAULTS,
+  MAX_ASK_ALTERNATES,
   MAX_ASK_CHARS,
   MAX_ASK_EXAMPLES,
   MAX_ASK_PRACTICE,
@@ -114,6 +115,37 @@ describe('normalizing the model answer', () => {
     expect(answer?.inScope).toBe(true);
     expect(answer?.practice).toHaveLength(3);
     expect(answer?.explanationAr).toContain('الأكوزاتيف');
+  });
+
+  it('keeps accepted alternates, capped and de-duplicated against the main answer', () => {
+    const answer = normalizeAskAnswer(
+      JSON.parse(
+        modelReply({
+          practice: [
+            {
+              type: 'translate',
+              prompt_ar: 'أحتاج موعداً.',
+              answer_de: 'Ich brauche einen Termin.',
+              accepted_de: [
+                'Ich brauche einen Termin.',
+                'Ich brauche einen Termin beim Arzt.',
+                'Ich brauche einen Termin beim Arzt.',
+                'Ich benötige einen Termin.',
+                'Ein fünfter Satz.',
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+    expect(answer?.practice[0].acceptedDe).toEqual([
+      'Ich brauche einen Termin beim Arzt.',
+      'Ich benötige einen Termin.',
+      'Ein fünfter Satz.',
+    ]);
+    expect(answer?.practice[0].acceptedDe?.length).toBeLessThanOrEqual(MAX_ASK_ALTERNATES);
+    // No alternates listed → an empty list, not undefined, so the client is simple.
+    expect(normalizeAskAnswer(JSON.parse(modelReply()))?.practice[0].acceptedDe).toEqual([]);
   });
 
   it('caps examples and practice rather than forwarding whatever came back', () => {

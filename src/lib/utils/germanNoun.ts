@@ -14,7 +14,7 @@
  */
 
 /** A leading definite or indefinite article, with the space after it. */
-const LEADING_ARTICLE = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines)\s+/i;
+export const LEADING_ARTICLE = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines)\s+/i;
 
 /**
  * The bare noun: a leading article already stored inside `german` is removed, so

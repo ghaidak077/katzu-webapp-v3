@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { logError } from '@/lib/utils/diagnostics';
-import { gradeAskPractice, askPracticeFeedbackAr } from '@/lib/ask/practice';
+import { gradeAskPractice, askPracticeFeedbackAr, shouldEnrolAskMistake } from '@/lib/ask/practice';
 import { ASK_EXAMPLE_AR, ASK_LEGAL_NOTICE_AR, ASK_PRACTICE_NOTE_AR, ASK_SUGGESTIONS } from '@/lib/ask/notices';
 import type { AskAnswer, AskPracticeItem } from '@/types/models';
 
@@ -21,8 +21,10 @@ import type { AskAnswer, AskPracticeItem } from '@/types/models';
  * explanation, examples, and three short practice items), then a deterministic
  * practice check. The mode is German-only by contract: the worker refuses
  * anything unrelated, and a refusal is rendered as a polite card, never as an
- * error. A wrong practice answer is not lost — it enters the same validated
- * review path the conversation uses, so "I got it wrong" becomes "it comes back".
+ * error. A clear wrong answer on an item with one right form enters the same
+ * validated review path the conversation uses, so "I got it wrong" becomes "it
+ * comes back"; a near miss or an open-ended translation is left alone, because it
+ * is not strong enough evidence to schedule as a false error.
  *
  * Everything the learner typed stays on the screen through any failure: a
  * network hiccup keeps the question and offers one retry.
@@ -109,6 +111,11 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
         return;
       }
       triggerHaptic('error');
+
+      // Only a clear 'wrong' on an item with one right form is filed for review:
+      // a near miss and an open-ended translation are not proof of a knowledge
+      // gap, and filing them would put a false error on the schedule.
+      if (!shouldEnrolAskMistake(item, verdict)) return;
 
       try {
         const mistake = {
