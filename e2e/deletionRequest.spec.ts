@@ -91,7 +91,10 @@ test('a deletion the server refused is never reported as a completed one', async
   await bootSignedIn(page);
   await page.goto('/delete-account');
 
-  await page.getByLabel('بريدك الإلكتروني').fill('e2e@katzu.test');
+  // Signed in, the page never renders an address field: this branch deletes the
+  // session's own account, so it asks for the same typed word the Profile screen
+  // asks for before anything irreversible happens.
+  await page.getByLabel('اكتب حذف للتأكيد النهائي').fill('حذف');
   await page.getByRole('button', { name: 'احذف حسابي الآن' }).click();
 
   await expect(page.getByRole('alert')).toContainText('تعذّر إكمال الحذف من هنا');
@@ -109,7 +112,7 @@ test('a completed deletion also clears this device and returns to sign-in', asyn
   ]);
   await page.goto('/delete-account');
 
-  await page.getByLabel('بريدك الإلكتروني').fill('e2e@katzu.test');
+  await page.getByLabel('اكتب حذف للتأكيد النهائي').fill('حذف');
   await page.getByRole('button', { name: 'احذف حسابي الآن' }).click();
 
   await expect(page.getByText(/تم حذف حسابك/)).toBeVisible();

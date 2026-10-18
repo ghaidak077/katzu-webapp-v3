@@ -47,6 +47,9 @@ export const DeletionRequestScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'draft' | 'deleted' | 'badEmail' | 'failed'>('idle');
   const [busy, setBusy] = useState(false);
+  // The signed-in path deletes immediately, so it asks for the same typed word
+  // the Profile screen asks for before anything irreversible happens.
+  const [confirmText, setConfirmText] = useState('');
 
   // The same source of truth the shell uses for its own gate, read once: this is
   // a one-shot action page, not a live view. `null` means the row has not
@@ -73,12 +76,16 @@ export const DeletionRequestScreen: React.FC = () => {
   const sessionKnown = signedIn !== null;
 
   const handleRequest = async () => {
-    const value = email.trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
-      setStatus('badEmail');
-      return;
-    }
+    // The address has a job only on the signed-out branch, which cannot call the
+    // server: it opens the mail draft. A signed-in learner has no address field on
+    // screen at all, so requiring one here would leave the one-tap deletion
+    // unreachable — the button would answer «اكتب بريداً صحيحاً» forever.
     if (signedIn !== true) {
+      const value = email.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
+        setStatus('badEmail');
+        return;
+      }
       window.location.href = draftHref(value);
       setStatus('draft');
       return;
@@ -159,6 +166,19 @@ export const DeletionRequestScreen: React.FC = () => {
           </p>
         ) : null}
 
+        {signedIn === true ? (
+          <label className="block text-sm font-arabic text-text-secondary">
+            اكتب <span className="font-bold">حذف</span> للتأكيد النهائي
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(event) => setConfirmText(event.target.value)}
+              placeholder="حذف"
+              className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm font-arabic"
+              autoComplete="off"
+            />
+          </label>
+        ) : (
         <label className="block text-sm font-arabic text-text-secondary">
           بريدك الإلكتروني
           <input
@@ -170,10 +190,11 @@ export const DeletionRequestScreen: React.FC = () => {
             dir="ltr"
           />
         </label>
+        )}
 
         <Button
           className="w-full"
-          disabled={busy || !sessionKnown}
+          disabled={busy || !sessionKnown || (signedIn === true && confirmText.trim() !== 'حذف')}
           onClick={() => void handleRequest()}
         >
           {busy ? 'جارٍ الحذف…' : signedIn ? 'احذف حسابي الآن' : 'افتح رسالة الحذف في بريدي'}
