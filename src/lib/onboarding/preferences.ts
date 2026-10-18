@@ -38,7 +38,10 @@ export const GOAL_COPY: Record<LearnerGoal, { labelAr: string; hintAr: string }>
   },
   exam: {
     labelAr: 'التحضير للامتحان',
-    hintAr: 'تمارين Goethe / telc / DTZ بصيغتها الحقيقية',
+    // What actually ships is one generic B1 speaking practice in exam style, and
+    // the app deliberately names no exam body anywhere in it. Promising three
+    // named bodies "in their real format" set an expectation nothing could meet.
+    hintAr: 'تدريب محادثة B1 بأسلوب الامتحان — وليس الصيغة الرسمية',
   },
 };
 

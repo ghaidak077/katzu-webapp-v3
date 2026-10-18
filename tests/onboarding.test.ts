@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_DAILY_MINUTES,
+  GOAL_COPY,
   PREVIOUS_GERMAN_COPY,
   emptyOnboardingAnswers,
   isOnboardingComplete,
@@ -99,5 +100,16 @@ describe('onboarding preferences', () => {
       expect(PREVIOUS_GERMAN_COPY[previous].labelAr).not.toHaveLength(0);
       expect(PREVIOUS_GERMAN_COPY[previous].hintAr).not.toHaveLength(0);
     }
+  });
+
+  it('promises exam-style B1 speaking practice, not a named official format (regression)', () => {
+    // The only exam artefact is one generic B1 speaking mock that names no exam
+    // body; the hint used to promise "Goethe / telc / DTZ in their real format".
+    const hint = GOAL_COPY.exam.hintAr;
+    for (const body of ['Goethe', 'telc', 'DTZ', 'ÖSD', 'OSD', 'TestDaF']) {
+      expect(hint).not.toContain(body);
+    }
+    expect(hint).toContain('B1');
+    expect(hint).toContain('الامتحان');
   });
 });
