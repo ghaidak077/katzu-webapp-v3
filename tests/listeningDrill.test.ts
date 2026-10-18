@@ -78,6 +78,24 @@ describe('dictation scoring', () => {
     expect(result.total).toBe(5);
   });
 
+  it('accepts a perfect answer that contains a standalone dash (regression)', () => {
+    // The dash folds to an empty token. Dropping it from the folded list while
+    // still walking the original words shifted every word after it by one, so a
+    // perfect answer was reported 'close' with the last word named as missed.
+    const sentence =
+      'Ich arbeite gern eigenverantwortlich und entschieden — auch unter Zeitdruck.';
+    const result = diffDictation(sentence, sentence);
+    expect(result.verdict).toBe('correct');
+    expect(result.missedWords).toEqual([]);
+    expect(result.matched).toBe(result.total);
+
+    // Omitting the dash is still a complete dictation of the words.
+    expect(
+      diffDictation(sentence, 'Ich arbeite gern eigenverantwortlich und entschieden auch unter Zeitdruck')
+        .verdict,
+    ).toBe('correct');
+  });
+
   it('does not count one word twice just because it was typed twice', () => {
     const result = diffDictation('Der Termin ist da', 'Termin Termin Termin');
     expect(result.matched).toBe(1);

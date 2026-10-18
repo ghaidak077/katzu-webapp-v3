@@ -46,41 +46,39 @@ export interface DictationResult {
 }
 
 /**
- * Words are compared with the same folding the review engine uses, so German has
- * exactly one definition of "the same word" across the app.
+ * Pairs each word with its folded form, dropping only the words that carry no
+ * letters or digits at all (a standalone dash, for example). Keeping the word and
+ * its folded token TOGETHER is what makes the feedback name the right words:
+ * folding the words into a separate, shorter list (with the empty ones removed)
+ * shifted every word after a dropped token onto the next token, so a perfect
+ * answer containing a dash was reported as 'close' with the last word "missed".
  */
-function normalizedTokens(text: string): string[] {
-  // Normalising per token keeps this array parallel to the original words, which
-  // is what lets the feedback name the words that were actually missed.
+function tokenPairs(text: string): Array<{ word: string; token: string }> {
   return String(text ?? '')
     .split(/\s+/)
     .filter(Boolean)
-    .map((token) => normalizeGermanAnswer(token))
-    .filter(Boolean);
+    .map((word) => ({ word, token: normalizeGermanAnswer(word) }))
+    .filter((pair) => pair.token);
 }
 
 export function diffDictation(expected: string, actual: string): DictationResult {
-  const expectedTokens = normalizedTokens(expected);
-  const remaining = normalizedTokens(actual);
+  const expectedPairs = tokenPairs(expected);
+  const remaining = tokenPairs(actual).map((pair) => pair.token);
 
   const missedWords: string[] = [];
   let matched = 0;
 
-  String(expected ?? '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .forEach((originalWord, index) => {
-      const token = expectedTokens[index];
-      const position = remaining.indexOf(token);
-      if (token && position >= 0) {
-        matched += 1;
-        remaining.splice(position, 1);
-      } else {
-        missedWords.push(originalWord.replace(/[.,!?;:]+$/, ''));
-      }
-    });
+  for (const { word, token } of expectedPairs) {
+    const position = remaining.indexOf(token);
+    if (position >= 0) {
+      matched += 1;
+      remaining.splice(position, 1);
+    } else {
+      missedWords.push(word.replace(/[.,!?;:]+$/, ''));
+    }
+  }
 
-  const total = expectedTokens.length;
+  const total = expectedPairs.length;
   if (total === 0) return { verdict: 'wrong', matched: 0, total: 0, missedWords: [] };
   if (missedWords.length === 0) return { verdict: 'correct', matched, total, missedWords };
 
