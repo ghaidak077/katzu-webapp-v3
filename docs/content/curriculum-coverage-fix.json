@@ -313,12 +313,12 @@
     {
       "german": "der Geschmack",
       "article": "der",
-      "plural": "die Geschmacker",
+      "plural": "die Geschmäcker",
       "part_of_speech": "Noun",
       "translation_ar": "المذاق",
       "translation_en": "taste",
       "example_de": "Der Geschmack ist angenehm würzig.",
-      "example_ar": "المذاق تبليبي لطيف.",
+      "example_ar": "المذاق لطيف وبنكهة التوابل.",
       "example_en": "The taste is pleasantly spiced.",
       "level": "B2",
       "topic": "food"

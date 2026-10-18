@@ -19,8 +19,8 @@ Method: `node scripts/audit-curriculum.mjs` (existing validator) plus a scripted
 
 | File | Item | Issue | Severity | Proposed fix |
 |---|---|---|---|---|
-| curriculum-ausbildung-exams.json | vocab `einpaken` (line 519) | Typo. Correct verb is *einpacken*. Headword and example use the typo. | P0 | Change to `einpacken` in headword (line 519) and example (line 1159). Verify the example sentence after the change. |
-| curriculum-ausbildung-exams.json | example line 1159 `Meine Mutter will mir jeden Tag Brötchen mit Wurst einpaken.` | Same typo in the example sentence. | P0 | Fix together with the headword. |
+| curriculum-ausbildung-exams.json | vocab `einpaken` (line 519) | Typo. Correct verb is *einpacken*. Headword and example use the typo. | P0 | Change to `einpacken` in headword (line 519) and example (line 1159). Verify the example sentence after the change. Fixed: both changed; the example now reads "Meine Mutter will mir jeden Tag Brötchen mit Wurst einpacken." |
+| curriculum-ausbildung-exams.json | example line 1159 `Meine Mutter will mir jeden Tag Brötchen mit Wurst einpaken.` | Same typo in the example sentence. | P0 | Fix together with the headword. Fixed with the headword. |
 | all modules | vocab `topic` | Topic `food` is used on 101 rows, including greetings (`hallo`, `tschüss`, `danke`, `ja`, `nein`, `bitte`) in a0-foundations. The label does not describe these items. | P1 | Re-tag greetings and yes/no words (e.g. `general`) and check the topic set against the scenario categories. Needs a decision on the topic taxonomy. |
 | 30day-module1 / arrival / a0 / etc. | duplicate headwords (27 found) | Same headword in more than one module, sometimes at different levels: `kaffee` A0/A1/A2, `tee` A0/A2, `brot` A0/A1, `trinken` A0/A1, `kosten` A0/A1, `hilfe` A0/A1, `wiederholen` A0/A2, `wohnung` A1/A2 (same module), `formular` A1/A2, `pause` A1/A2, `uhrzeit` A1/A2, `datum` A1/A2, `prüfung` A2/A2, `selbstständig` B1/B2, `anerkennen` B1/B2. | P1 | Keep one canonical row per headword at its primary level. Other modules should reference it, not repeat it. Needs a decision on whether repetition is intentional for spaced review. |
 | 30day-module1 / a0 / arrival / interview-tech | inconsistent `plural` for the same noun (`Kaffee`: `die Kaffees` in two modules, empty in interview-tech; `Tee`: `die Tees` vs empty) | Data drift between duplicate rows. Plural `Kaffees` is also a rare form for everyday use. | P2 | Use one plural per noun. Check `Kaffee`/`Tee` plural forms with a native speaker (*needs native or expert review*). |
@@ -84,7 +84,7 @@ A seeded generator (LCG, seed 7) drew 12 rows from the combined vocabulary and s
 | coverage-fix | vocab, B1, die Verletzung | Correct |
 | interview-tech | phrase, B1, Käse im Kühlschrank | Correct |
 | exam-speaking | phrase, A2, Ich heiße Omar… | Correct |
-| coverage-fix | vocab, **B2, der Geschmack** | **Defect (P0):** example_ar "المذاق تبليبي لطيف." contains a nonsense word (تبليبي). Plural "die Geschmacker" is doubtful, since the standard form is Geschmäcker. Needs native review. |
+| coverage-fix | vocab, **B2, der Geschmack** | **Defect (P0):** example_ar "المذاق تبليبي لطيف." contains a nonsense word (تبليبي). Plural "die Geschmacker" is doubtful, since the standard form is Geschmäcker. Needs native review. Fixed — see the disposition table at the end of this file. |
 | interview-medical | phrase, B1, Bewerbung: Ich möchte… | Correct |
 | interview-tech | vocab, A2, Ergebnis | Correct |
 | 30day-module1 | vocab, Sozialversicherungsnummer | Read at the start of the row only, no defect seen |
@@ -121,8 +121,8 @@ Script results:
 
 | File | Item | Severity | Issue | Proposed fix |
 |---|---|---|---|---|
-| curriculum-coverage-fix.json | der Geschmack (B2), example_ar | P0 | The Arabic example "المذاق تبليبي لطيف." contains a non-Arabic word (تبليبي), so the Arabic is wrong. | Native review and a corrected sentence. Not fixed in this pass. |
-| curriculum-coverage-fix.json | der Geschmack, plural | P1 | The plural is given as "die Geschmacker". The usual plural is "die Geschmäcker". | Native or expert review, then correct if confirmed. |
+| curriculum-coverage-fix.json | der Geschmack (B2), example_ar | P0 | The Arabic example "المذاق تبليبي لطيف." contains a non-Arabic word (تبليبي), so the Arabic is wrong. | Fixed: replaced by "المذاق لطيف وبنكهة التوابل.", a plain rendering of the row's own English "The taste is pleasantly spiced." **Needs native review of the wording.** |
+| curriculum-coverage-fix.json | der Geschmack, plural | P1 | The plural is given as "die Geschmacker". The usual plural is "die Geschmäcker". | Fixed to `die Geschmäcker` (standard German, as in "die Geschmäcker sind verschieden"). **Needs native review.** |
 | 78 rows in curriculum-*.json | `german` with the article, plus the `article` field | P0 | `german` already contains the article (e.g. "die Verletzung") and `article` is also set. The placement generator adds the article again, giving "die die …". Confirmed in placement; other vocabulary renderers not yet checked. | Fix once at the data or render layer, then check all screens. |
 | curriculum-30day-module1.json | Bürgeramt (example "Für die Anmeldung brauche ich einen Termin."), Versichertenkarte ("Ihre Karte kommt per Post…"), Übergabeprotokoll ("Im Protokoll stehen alle Mängel."), Sozialversicherungsnummer ("Diese Nummer brauchen wir…"), Steueridentifikationsnummer | P2 | The example uses a related word, not the headword. | Rewrite each example to contain the headword. |
 | curriculum-ausbildung-exams.json | Berufsschule | P2 | `plural` is an empty string; should be "die Berufsschulen". | Add plural. |

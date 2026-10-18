@@ -516,7 +516,7 @@
       "topic": "food"
     },
     {
-      "german": "einpaken",
+      "german": "einpacken",
       "article": "",
       "plural": "",
       "part_of_speech": "Verb",
@@ -1156,7 +1156,7 @@
     {
       "scenario_id": "betriebs_kantine",
       "level": "B1",
-      "german": "Meine Mutter will mir jeden Tag Brötchen mit Wurst einpaken.",
+      "german": "Meine Mutter will mir jeden Tag Brötchen mit Wurst einpacken.",
       "translation_en": "My mother wants to pack me bread rolls with cold meat every day.",
       "translation_ar": "أمي تريد أن تضع لي كل يوم خبزًا مع اللحم البارد.",
       "sort_order": 8
