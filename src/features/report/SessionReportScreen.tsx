@@ -1,11 +1,11 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { sceneFor } from '@/lib/design/scenes';
 import { SceneBackdrop } from '@/components/glass/SceneBackdrop';
 import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
-import { GlassWell } from '@/components/glass/GlassSurface';
+import { GlassWell, useReducedMotion } from '@/components/glass/GlassSurface';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuPresence, type KatzuState } from '@/components/v2/KatzuPresence';
 import { ProgressRail } from '@/components/v2/ProgressStrip';
@@ -98,6 +98,43 @@ const OUTCOME: Record<
     headlineAr: (title) => `«${title}» ثابت في ذاكرتك.`,
   },
 };
+
+/**
+ * Counts a number up once, on the frames after mount, so the session's result
+ * resolves instead of appearing fully formed.
+ *
+ * It runs only when the screen was opened at the end of a session (`run`), it
+ * lasts 420ms, and it is skipped entirely under reduced motion — where the
+ * finished number is simply there, which is the same information with none of
+ * the motion. No dependency, no spring, no bounce: this number is evidence, not
+ * a prize.
+ */
+function useCountUp(target: number, run: boolean, durationMs = 420): number {
+  // Start at 0 only when the count will really run. Initialising to the target
+  // and resetting inside the effect would paint the finished number for one
+  // frame, then snap back to zero and count up — a flicker that reads as a bug.
+  const [value, setValue] = useState(() => (run && target > 0 ? 0 : target));
+  const frameRef = useRef(0);
+
+  useEffect(() => {
+    if (!run || target <= 0) {
+      setValue(target);
+      return;
+    }
+    const start = performance.now();
+    setValue(0);
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / durationMs, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(Math.round(target * eased));
+      if (t < 1) frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameRef.current);
+  }, [target, run, durationMs]);
+
+  return value;
+}
 
 /**
  * The Debrief.
@@ -301,6 +338,12 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   const answeredCorrect = Object.values(drill).filter((row) => row.result?.status === 'correct').length;
   const openCorrections = Math.max(0, summary.mistakes.length - answeredCorrect);
 
+  // The one number this screen counts: sentences the learner actually said
+  // without help. It is the session's headline evidence, so it resolves on
+  // arrival rather than appearing already finished.
+  const reduceMotion = useReducedMotion();
+  const independentCount = useCountUp(summary.independentSentences, !reduceMotion);
+
   // This screen is where the episode ends, so it is the one place the Pro offer
   // can be made honestly: the learner has just finished something real. Nothing
   // is blocked by dismissing it, and the offer never appears before this point.
@@ -344,22 +387,25 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             {CAPABILITY_LABEL_AR[capabilityState]}
           </p>
           <ul className="mt-3 space-y-3">
-            <li>
+            <li className="kz-message-in">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="kz-ar-caption text-kz-inkDim">جُمل نطقتها بلا مساعدة</span>
                 <span className="font-german text-sm font-bold text-kz-ink">
-                  {summary.independentSentences}
+                  {independentCount}
                   <span className="text-kz-inkFaint"> / {Math.max(totalTurns, summary.independentSentences)}</span>
                 </span>
               </div>
               <ProgressRail
-                value={summary.independentSentences}
+                value={independentCount}
                 max={Math.max(totalTurns, summary.independentSentences)}
                 earned={capabilityState === 'INDEPENDENT' || capabilityState === 'RETAINED'}
                 className="mt-2"
               />
             </li>
-            <li className="flex items-baseline justify-between gap-3">
+            <li
+              className="kz-message-in flex items-baseline justify-between gap-3"
+              style={{ animationDelay: '60ms' }}
+            >
               <span className="kz-ar-caption text-kz-inkDim">دقة الجُمل المستقلة</span>
               <span className="text-end">
                 <span className="font-german text-sm font-bold text-kz-ink">
@@ -372,21 +418,30 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                 )}
               </span>
             </li>
-            <li className="flex items-baseline justify-between gap-3">
+            <li
+              className="kz-message-in flex items-baseline justify-between gap-3"
+              style={{ animationDelay: '120ms' }}
+            >
               <span className="kz-ar-caption text-kz-inkDim">تصحيحات هذه الجلسة</span>
               <span className="font-german text-sm font-bold text-kz-ink">
                 {summary.mistakes.length === 0 ? 'لا شيء' : summary.mistakes.length}
               </span>
             </li>
             {mainWeakness && (
-              <li className="flex items-baseline justify-between gap-3">
+              <li
+                className="kz-message-in flex items-baseline justify-between gap-3"
+                style={{ animationDelay: '180ms' }}
+              >
                 <span className="kz-ar-caption text-kz-inkDim">أبرز ما يحتاج تثبيتاً</span>
                 <span className="kz-ar-caption text-kz-ink">
                   {CATEGORY_COPY[mainWeakness[0]].labelAr} ({mainWeakness[1]})
                 </span>
               </li>
             )}
-            <li className="flex items-start gap-2 border-t border-white/[0.06] pt-3">
+            <li
+              className="kz-message-in flex items-start gap-2 border-t border-white/[0.06] pt-3"
+              style={{ animationDelay: '240ms' }}
+            >
               <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-kz-neon" aria-hidden />
               <span className="kz-ar-micro leading-relaxed text-kz-inkDim">
                 {summary.mistakes.length > 0

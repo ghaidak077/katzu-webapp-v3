@@ -394,7 +394,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                     <p
                       className={`kz-ar-caption mt-3 ${
                         grammarOutcome.tone === 'earned' ? 'kz-earned-text' : 'text-kz-inkDim'
-                      }`}
+                      } ${grammarOutcome.verdict === 'correct' ? 'kz-pop' : 'kz-shake'}`}
                     >
                       {grammarOutcome.messageAr}
                     </p>
@@ -473,7 +473,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   <p
                     className={`kz-ar-caption mt-3 ${
                       retrievalOutcome.tone === 'earned' ? 'kz-earned-text' : 'text-kz-inkDim'
-                    }`}
+                    } ${retrievalOutcome.verdict === 'correct' ? 'kz-pop' : 'kz-shake'}`}
                   >
                     {retrievalOutcome.messageAr}
                   </p>

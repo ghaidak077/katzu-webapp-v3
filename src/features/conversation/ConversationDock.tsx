@@ -200,9 +200,16 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
             >
               {/* The breath belongs to a decorative layer behind the control, never
                   to the button itself: a hit target that scales forever is both
-                  hard to tap and impossible to drive in a test. */}
-              {orbState === 'idle' && (
-                <span aria-hidden className="kz-orb-glow kz-animated pointer-events-none absolute inset-0 rounded-full" />
+                  hard to tap and impossible to drive in a test. It stays on while
+                  the microphone is open (and breathes faster), so "listening" is
+                  visible without reading a label. */}
+              {(orbState === 'idle' || orbState === 'listening') && (
+                <span
+                  aria-hidden
+                  className={`kz-orb-glow kz-animated pointer-events-none absolute inset-0 rounded-full ${
+                    orbState === 'listening' ? 'kz-orb-listening' : ''
+                  }`}
+                />
               )}
               {isProcessing && (
                 <span aria-hidden className="kz-animated kz-orb-ring pointer-events-none absolute inset-0 rounded-full" />

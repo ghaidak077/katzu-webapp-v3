@@ -259,9 +259,12 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
               let style = 'bg-surface-card border-border-subtle text-text-primary pointer-hover:border-primary/50';
               if (isAnswerSubmitted) {
                 if (isCorrect) {
-                  style = 'bg-status-success/20 border-status-success text-status-success';
+                  // The class both names the verdict and animates it once: the
+                  // right answer swells into place, the tapped-and-wrong one
+                  // shakes. Reduced motion drops the animation, not the colour.
+                  style = 'bg-status-success/20 border-status-success text-status-success kz-pop';
                 } else if (isSelected) {
-                  style = 'bg-status-error/20 border-status-error text-status-error';
+                  style = 'bg-status-error/20 border-status-error text-status-error kz-shake';
                 } else {
                   style = 'bg-surface-card border-border-subtle text-text-muted opacity-50';
                 }

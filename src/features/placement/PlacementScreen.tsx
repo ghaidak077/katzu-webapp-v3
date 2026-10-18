@@ -385,9 +385,9 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
           const tone = !answered
             ? 'border-border-subtle bg-surface-card pointer-hover:border-primary/40'
             : isCorrect
-              ? 'border-status-success/50 bg-status-success/15'
+              ? 'border-status-success/50 bg-status-success/15 kz-pop'
               : isChosen
-                ? 'border-status-error/50 bg-status-error/15'
+                ? 'border-status-error/50 bg-status-error/15 kz-shake'
                 : 'border-border-subtle bg-surface-card opacity-60';
           return (
             <button

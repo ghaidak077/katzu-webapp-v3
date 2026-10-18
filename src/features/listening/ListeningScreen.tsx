@@ -335,10 +335,10 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
               <div
                 className={`flex items-start gap-2 rounded-2xl p-3 ${
                   result.verdict === 'correct'
-                    ? 'bg-status-success/15 border border-status-success/40'
+                    ? 'bg-status-success/15 border border-status-success/40 kz-pop'
                     : result.verdict === 'close'
                       ? 'bg-status-learning/15 border border-status-learning/40'
-                      : 'bg-status-error/15 border border-status-error/40'
+                      : 'bg-status-error/15 border border-status-error/40 kz-shake'
                 }`}
                 role="status"
                 aria-live="polite"

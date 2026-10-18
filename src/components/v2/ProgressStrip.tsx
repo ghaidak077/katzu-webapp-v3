@@ -87,10 +87,14 @@ export const ProgressRail: React.FC<{ value: number; max: number; earned?: boole
   const ratio = Math.min(1, Math.max(0, value / safeMax));
   return (
     <span className={cn('block h-[3px] w-full overflow-hidden rounded-full bg-white/[0.07]', className)}>
+      {/* The fill animates `transform`, not `width`: the same visual, but it
+          stays on the compositor instead of triggering layout on every frame of
+          the transition. `origin-right` is the RTL start edge — the root is
+          `dir="rtl"`, so the rail fills from the right like the text does. */}
       <span
-        className="block h-full rounded-full transition-colors duration-panels"
+        className="block h-full w-full origin-right rounded-full transition-transform duration-panels ease-out"
         style={{
-          width: `${ratio * 100}%`,
+          transform: `scaleX(${ratio})`,
           background: `rgb(var(--kz-${earned ? 'magenta' : 'lavender'}) / 0.85)`,
           boxShadow: `0 0 10px rgb(var(--kz-${earned ? 'magenta' : 'lavender'}) / 0.4)`,
         }}

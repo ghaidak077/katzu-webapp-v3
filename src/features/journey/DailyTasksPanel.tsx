@@ -68,8 +68,15 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAc
       </p>
 
       <ul className="mt-2.5 space-y-1">
-        {statuses.map((status) => (
-          <li key={status.kind}>
+        {statuses.map((status, index) => (
+          /* Three rows, one 60ms apart, on first paint only: the panel states
+             today's shape in the order the rows arrive, and a row that is already
+             done is never re-animated when the live query refreshes it. */
+          <li
+            key={status.kind}
+            className="kz-message-in"
+            style={{ animationDelay: `${index * 60}ms` }}
+          >
             <button
               type="button"
               onClick={() => onAction(status.kind)}

@@ -208,6 +208,11 @@ export interface UserEntity {
   totalXp: number;
   speechSpeed: number; // 0.8 or 1.0
   sarcasmLevel: SarcasmLevel;
+  /**
+   * Haptic feedback. Absent means ON: rows written before the setting existed
+   * keep the designed feel, and only an explicit `false` turns it off.
+   */
+  hapticsEnabled?: boolean;
   freeSessionsRemaining: number;
   dailyGoalMinutes: number;
   weeklyGoalDays: number;

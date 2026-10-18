@@ -8,6 +8,7 @@ import { workerClient } from '@/lib/api/workerClient';
 import { needsOnboarding } from '@/lib/onboarding/preferences';
 import { reconcileEntitlement } from '@/lib/entitlement/reconcile';
 import { useOnlineStatus } from '@/lib/utils/onlineStatus';
+import { setHapticsEnabled } from '@/lib/utils/haptics';
 import { latestRecoverableSession, summaryFromSession, type RecoveredSummary } from '@/features/report/recover';
 import { isDevBuild } from '@/lib/utils/env';
 import { DAILY_MINUTE_CHOICES, type DailyMinuteChoice } from '@/types/models';
@@ -156,6 +157,14 @@ export function AppShell() {
   useEffect(() => {
     applyRendererTier(rendererTier);
   }, [rendererTier]);
+
+  // Haptics fire from event handlers and cannot await a database read, so the
+  // learner's switch is mirrored into the helper once here and whenever it
+  // changes. Absent means ON — only an explicit `false` mutes the device.
+  useEffect(() => {
+    if (user === undefined) return;
+    setHapticsEnabled(user?.hapticsEnabled !== false);
+  }, [user?.hapticsEnabled, user]);
 
   // Initialize database seed on first load and fetch latest scenarios from Cloudflare
   useEffect(() => {

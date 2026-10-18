@@ -758,6 +758,15 @@
   animation: kz-orb-breathe 3s ease-in-out infinite;
 }
 
+/* While the microphone is open the same halo breathes faster — 1.4s instead of
+   3s — so "listening" is visible at arm's length without reading a label. The
+   halo used to disappear entirely on that state change, which read as the control
+   going still exactly when it started working. Same keyframes, a shorter period:
+   a second breathing keyframe would be a second thing to keep in step. */
+.kz-orb-listening {
+  animation: kz-orb-breathe 1.4s ease-in-out infinite;
+}
+
 /* While Katzu works, the orb wears a thin rotating ring: recognising, evaluating
    or replying, the control says "busy" instead of looking like a dead button. */
 @keyframes kz-orb-spin {
@@ -778,11 +787,79 @@
   animation: kz-orb-spin 1.6s linear infinite;
 }
 
+/* Feedback motion. Two rules, both transform/opacity only and both short: a
+   verdict is a fact the learner just earned, and it should arrive while they are
+   still looking at the answer, not after they have moved on.
+
+   `.kz-pop` confirms: the element swells into place instead of appearing. It is
+   applied to the option or row the app is calling right.
+   `.kz-shake` denies: two small sideways nudges that read as "not this one". It
+   is deliberately short (240ms) and never repeats — a longer or looping shake
+   stops being information about the answer and becomes the app arguing. */
+@keyframes kz-pop {
+  from {
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.kz-pop {
+  animation: kz-pop var(--kz-dur-fast) var(--kz-ease-spring) both;
+}
+
+@keyframes kz-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+.kz-shake {
+  animation: kz-shake 240ms var(--kz-ease-out) both;
+}
+
+/* The flashcard's answer side: the card the learner just uncovered is the same
+   card seen from behind, so it turns in on its top edge instead of appearing.
+   220ms and a shallow 72° — a full 180° turn reads as a gimmick and doubles the
+   time before the answer can be read. */
+@keyframes kz-flip-in {
+  from {
+    transform: perspective(700px) rotateX(-72deg);
+    opacity: 0;
+  }
+  to {
+    transform: perspective(700px) rotateX(0);
+    opacity: 1;
+  }
+}
+.kz-flip-in {
+  transform-origin: center top;
+  animation: kz-flip-in 220ms var(--kz-ease-out) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .kz-message-in,
   .kz-typing-dot,
   .kz-orb-glow,
-  .kz-orb-ring {
+  .kz-orb-ring,
+  .kz-orb-listening,
+  .kz-pop,
+  .kz-shake,
+  .kz-flip-in {
     animation: none;
   }
   .kz-translation {

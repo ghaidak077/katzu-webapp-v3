@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { isProEffective } from '@/lib/utils/subscription';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
+import { haptic, setHapticsEnabled } from '@/lib/utils/haptics';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Card } from '@/components/ui/Card';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
@@ -14,6 +15,7 @@ import {
   Sparkles,
   LogOut,
   Sliders,
+  Vibrate,
   Check,
   Edit2,
   Gift,
@@ -147,6 +149,18 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
     );
   };
 
+  /**
+   * The haptics switch. Turning it ON taps once, so the learner feels what they
+   * just chose; turning it OFF stays silent, because that is what they asked
+   * for. The module flag is updated immediately — the database write is for the
+   * next launch.
+   */
+  const handleUpdateHaptics = async (on: boolean) => {
+    await db.users.update('current_user', { hapticsEnabled: on, updatedAt: Date.now() });
+    setHapticsEnabled(on);
+    if (on) haptic('tap');
+  };
+
   const handleUpdateSarcasm = async (level: SarcasmLevel) => {
     await db.users.update('current_user', { sarcasmLevel: level });
   };
@@ -211,6 +225,9 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
     } else {
       setDeleteStatus('error');
       setDeleteError(result.message || 'تعذر حذف الحساب. يرجى إعادة المحاولة.');
+      // The one place in this screen that may buzz strongly: a real failure of an
+      // irreversible action, where the learner must look again.
+      haptic('error');
     }
   };
 
@@ -490,6 +507,45 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         </div>
       </Card>
 
+      {/* Haptics Setting — feedback the learner feels. It carries no information
+          the screen does not already show, so "off" costs nothing. */}
+      <Card className="p-4 mb-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-text-secondary flex items-center gap-2">
+            <Vibrate className="w-4 h-4 text-primary" />
+            اهتزاز الردّ والتقدّم
+          </label>
+        </div>
+        <p className="text-micro text-text-muted">
+          رجّة قصيرة عند الإجابة الصحيحة أو الخاطئة، وعند فتح درس جديد. المحتوى نفسه لا يتغيّر.
+        </p>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => handleUpdateHaptics(true)}
+            aria-pressed={(user?.hapticsEnabled ?? true) === true}
+            className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
+              (user?.hapticsEnabled ?? true) === true
+                ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
+                : 'bg-surface-subtle border-border-subtle text-text-secondary'
+            }`}
+          >
+            مُفعَّل
+          </button>
+          <button
+            onClick={() => handleUpdateHaptics(false)}
+            aria-pressed={user?.hapticsEnabled === false}
+            className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
+              user?.hapticsEnabled === false
+                ? 'bg-primary/20 border-primary text-primary shadow-glow-purple'
+                : 'bg-surface-subtle border-border-subtle text-text-secondary'
+            }`}
+          >
+            مُغلَق
+          </button>
+        </div>
+      </Card>
+
       {/* Sarcasm Level Setting */}
       <Card className="p-4 mb-6 space-y-3">
         <label className="text-xs font-bold text-text-secondary flex items-center gap-2">
@@ -710,7 +766,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         </p>
         {!showDeleteConfirm ? (
           <button
-            onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(''); setDeleteStatus('idle'); setDeleteError(''); }}
+            onClick={() => { haptic('warning'); setShowDeleteConfirm(true); setDeleteConfirmText(''); setDeleteStatus('idle'); setDeleteError(''); }}
             className="w-full py-2.5 rounded-xl text-xs font-bold border transition-colors bg-status-error/10 border-status-error/40 text-status-error pointer-hover:bg-status-error/20"
           >
             أريد حذف حسابي

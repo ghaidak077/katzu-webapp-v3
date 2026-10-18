@@ -621,7 +621,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                       تم إتقان الصواب بنجاح ✓
                     </div>
                   ) : isCorrect ? (
-                    <div className="flex items-center gap-1.5 text-status-success text-xs font-arabic pt-1 border-t border-border-subtle/40">
+                    <div className="kz-pop flex items-center gap-1.5 text-status-success text-xs font-arabic pt-1 border-t border-border-subtle/40">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       صحيحة. ستعود هذه الجملة في مراجعتك المجدولة حتى تُتقنها.
                     </div>

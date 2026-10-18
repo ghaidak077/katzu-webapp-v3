@@ -135,7 +135,11 @@ const ExerciseCard: React.FC<{
       </Button>
     </div>
     {attempt?.verdict && (
-      <div className="flex items-start gap-1.5">
+      <div
+        className={`flex items-start gap-1.5 ${
+          attempt.verdict === 'correct' ? 'kz-pop' : attempt.verdict === 'wrong' ? 'kz-shake' : ''
+        }`}
+      >
         {attempt.verdict === 'correct' ? (
           <p className={`flex items-center gap-1.5 text-micro font-arabic ${verdictStyle.correct}`}>
             <Check className="w-3.5 h-3.5 shrink-0" />
@@ -430,7 +434,10 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
             )}
 
             {showNextButton && (
-              <Button className="w-full" onClick={() => openLesson(nextNode.lesson.id)}>
+              /* This button exists only once the lesson is cleared, so it is the
+                 unlock moment: the next lesson swells in rather than waiting
+                 unnoticed below the fold. */
+              <Button className="w-full kz-pop" onClick={() => openLesson(nextNode.lesson.id)}>
                 الدرس التالي:{' '}
                 {nextNode.lesson.titleAr.length > 34
                   ? `${nextNode.lesson.titleAr.slice(0, 34)}…`

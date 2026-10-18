@@ -428,9 +428,11 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
                 </GlassButton>
               </form>
             ) : (
-              <div className="mt-4 space-y-3">
+              <div className="kz-flip-in mt-4 space-y-3">
                 <GlassWell
-                  className="p-3"
+                  className={`p-3 ${
+                    verdict === 'correct' ? 'kz-pop' : verdict === 'close' ? '' : 'kz-shake'
+                  }`}
                   role="status"
                   aria-live="polite"
                 >

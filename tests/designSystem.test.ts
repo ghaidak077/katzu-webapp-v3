@@ -288,6 +288,41 @@ describe('motion scale', () => {
   });
 });
 
+/**
+ * Feedback motion is the one place a class carries a *verdict* as well as a
+ * look, so it gets its own guard: the two classes exist, they move transform and
+ * opacity only (a verdict that shifts layout is the bug the ladder exists to
+ * prevent), and reduced motion turns them off instead of removing the colour.
+ */
+describe('feedback motion', () => {
+  const FEEDBACK = ['kz-pop', 'kz-shake', 'kz-flip-in'] as const;
+  const reduced = css.split('@media (prefers-reduced-motion: reduce)').slice(1).join('');
+
+  it.each(FEEDBACK)('.%s is declared and animates no layout property', (name) => {
+    const at = css.indexOf(`.${name} {`);
+    expect(at, `.${name} must be declared in src/index.css`).toBeGreaterThan(-1);
+    const block = css.slice(at, css.indexOf('}', at));
+    expect(
+      block,
+      `.${name} must animate transform/opacity only — never width/height/top/left`,
+    ).not.toMatch(/\b(width|height|top|left|right|bottom|margin|padding)\s*:/);
+  });
+
+  it('turns every feedback animation off under prefers-reduced-motion, so the verdict stays visible', () => {
+    for (const name of FEEDBACK) {
+      expect(reduced, `.${name} must be neutralised, not merely animated`).toContain(`.${name}`);
+    }
+    expect(reduced).toContain('animation: none');
+  });
+
+  it('keeps the listening halo animated, and still under reduced motion', () => {
+    // The mic halo is state, not decoration: it must exist while listening and be
+    // neutralised (not deleted) when the system asks for calm.
+    expect(css).toContain('.kz-orb-listening {');
+    expect(reduced).toContain('.kz-orb-listening');
+  });
+});
+
 describe('one hue family', () => {
   it.each(BRAND_HUE_TOKENS)('%s stays in the violet arc, never the rose band', (name) => {
     const h = hue(triplet(name));

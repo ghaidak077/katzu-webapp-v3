@@ -144,3 +144,13 @@ Gates: `tsc` ×2 clean · `npm test` **116 files / 1437 tests** · Playwright **
   cannot run against a remote origin; `verification-battery.cjs` (purpose-built, read-only) was used
   instead, and the no-AI-call clause was confirmed directly in a browser.
 - **Not touched:** no secret change, no production D1 write, no owner-only item.
+
+## Haptics + purposeful motion - browser-suite reds classified (2026-10-18)
+
+The working tree's browser suite (`E2E_TARGET=preview npx playwright test`) was 138 passed / 2 skipped / **4 failed**. All four were re-run on the **base commit `e9ec954`** in a clean worktree (detached, `node_modules` junctioned, no working-tree changes, same three spec files - all three are unmodified in the working tree), with the run's own `--grep` on the four test titles:
+
+- `ask.spec.ts` "the Practice tab opens Ask Katzu..." (failure at `:62`, a mistake row not written) - **fails on base** -> pre-existing, not caused by this batch.
+- `simplicity.spec.ts` "a learner can reach sign-in from /welcome..." (failure at `:126`, the old `ابدأ رحلتك الآن` CTA is gone) - **fails on base** -> pre-existing.
+- `deletionRequest.spec.ts:94` and `:112` - **pass on base**, fail in this tree. Cause proven without a second build: the uncommitted `src/features/settings/DeletionRequestScreen.tsx` renders the email field only when signed out (`signedIn === true ? ...اكتب حذف... : ...بريدك الإلكتروني...`, lines 165-189) while both specs call `bootSignedIn` first, so `getByLabel('بريدك الإلكتروني')` can never appear. That screen is not touched by the haptics/motion change; the specs and that edit belong to the session that owns that screen. No fix was made here.
+
+Base worktree and its junction were removed after the run; nothing was committed from it.

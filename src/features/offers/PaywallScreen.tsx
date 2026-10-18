@@ -4,6 +4,7 @@ import { ShieldCheck } from 'lucide-react';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { track } from '@/lib/analytics/client';
+import { haptic } from '@/lib/utils/haptics';
 import { SubscriptionRedemptionScreen } from '@/features/auth/SubscriptionRedemptionScreen';
 import {
   isOwnerFilled,
@@ -53,6 +54,10 @@ export const PaywallScreen: React.FC = () => {
 
   const handleUpgradeClick = useCallback(
     (product: OfferProduct) => {
+      // A plain acknowledgement that the tap landed — `select`, never `success`:
+      // nothing has been bought yet, and a purchase-shaped buzz before the panel
+      // opens would be a lie the learner can feel.
+      haptic('select');
       // The funnel needs the group and the cell this learner was actually SHOWN,
       // never a guess — B5 reads both off this event.
       track('upgrade_click', {
