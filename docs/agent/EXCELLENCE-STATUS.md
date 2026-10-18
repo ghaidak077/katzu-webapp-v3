@@ -154,3 +154,11 @@ The working tree's browser suite (`E2E_TARGET=preview npx playwright test`) was 
 - `deletionRequest.spec.ts:94` and `:112` - **pass on base**, fail in this tree. Cause proven without a second build: the uncommitted `src/features/settings/DeletionRequestScreen.tsx` renders the email field only when signed out (`signedIn === true ? ...اكتب حذف... : ...بريدك الإلكتروني...`, lines 165-189) while both specs call `bootSignedIn` first, so `getByLabel('بريدك الإلكتروني')` can never appear. That screen is not touched by the haptics/motion change; the specs and that edit belong to the session that owns that screen. No fix was made here.
 
 Base worktree and its junction were removed after the run; nothing was committed from it.
+
+**Manual check on a real Android phone - NOT run by this session (no device on this machine, so every haptics claim stays `UNPROVEN` on hardware):**
+
+1. Settings (Profile) - haptics switch ON; answer a quiz question **wrong** -> one short sideways shake, once, no repeat.
+2. Answer one **right** -> the verdict row pops into place, no shake.
+3. Open a conversation and start the mic -> the halo stays lit while listening and breathes clearly faster than when idle (1.4 s vs 3 s); it must not go dark at the moment listening starts.
+4. Switch haptics OFF; repeat 1-2 -> the visuals still play but nothing vibrates anywhere (paywall button and the delete-account button included).
+5. Haptics ON + Android "Remove animations" (Developer options) -> pop, shake and card flip are gone, while the green/red verdict and the correct/wrong text still appear.

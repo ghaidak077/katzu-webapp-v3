@@ -112,7 +112,7 @@ security. Git credentials are platform-managed; never ask for a token.
 - Built-bundle e2e runs with service workers blocked.
 
 ## 6. Editing
-Working tree may be CRLF while blobs are LF: re-read exact lines, copy match text from output. Edit fails once → re-read; twice → temp-dir `patch.mjs` that asserts a single match. Run `tsc`/`node --check` right after.
+Working tree may be CRLF while blobs are LF: re-read exact lines, copy match text from output. Edit fails once → re-read; twice → temp-dir `patch.mjs` that asserts a single match. Run `tsc`/`node --check` right after. An insertion must re-state its anchor: to add a block above line X, keep `oldString` to that single unique line and end `newString` with that same line — every line `oldString` holds must still appear in `newString`, or a neighbour is deleted silently (three times so far: the 2026-09-30 ledger rows, then `tests/designSystem.test.ts` and `tests/haptics.test.ts` on 2026-10-18). Re-read the edited region, or run the touched test, before moving on.
 
 ## 7. Git
 Inspect the actual branch and status before work; historical ledger branch names are not instructions to switch. Never commit, stage, push, open a PR, or merge unless the current user explicitly requests that operation. Preserve existing dirty work; do not auto-checkpoint it. If commits are requested, include only owned relevant hunks after passing checks. Never force-push, reset, or discard changes. Deploys and merges to main only per §3 + `docs/agent/DEPLOY.md`.
