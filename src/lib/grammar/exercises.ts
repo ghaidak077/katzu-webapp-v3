@@ -84,12 +84,29 @@ export function buildGrammarExercises(
     gapAnswer,
   };
 
-  // ---- reorder: the sentence's own words plus a distractor from the row ----
-  const distractorPool = sentence
-    .split(' ')
-    .map((word) => word.replace(/[.,!?]/g, ''))
-    .filter((word) => word.length > 1 && !sentence.includes(` ${word} `));
-  const distractor = distractorPool[0] || 'nicht';
+  // ---- reorder: the sentence's own words plus one distractor from the row ----
+  // The distractor must be a word the learner can tell does NOT belong: a word
+  // from the row's own rule text that the sentence does not already use. The old
+  // pool searched the SENTENCE for a word not in the sentence — a contradiction —
+  // and its `" word "` substring test let the first and last words (and any word
+  // before punctuation) through, so the "distractor" was usually a duplicate of a
+  // word already in the bank.
+  const sentenceTokens = new Set(
+    sentence
+      .split(' ')
+      .map((word) => normalizeGermanAnswer(word))
+      .filter(Boolean),
+  );
+  const rowWords = (row.rule_de || '')
+    .split(/\s+/)
+    .map((word) => word.replace(/[.,!?;:()]/g, ''))
+    .filter((word) => word.length > 1);
+  const distractor =
+    rowWords.find((word) => !sentenceTokens.has(normalizeGermanAnswer(word))) ||
+    // Every row word is already in the sentence, or the row has none: fall back to
+    // a common word, still never one the sentence already contains.
+    ['nicht', 'immer', 'sehr', 'auch'].find((word) => !sentenceTokens.has(word)) ||
+    'nicht';
   const tokens = shuffle(
     [...sentence.split(' ').map((word) => word.replace(/[.,!?]/g, '')), distractor],
     rng,

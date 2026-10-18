@@ -8,6 +8,7 @@ import {
   seededRng,
 } from '../src/lib/grammar/exercises';
 import type { GrammarEntity } from '../src/types/models';
+import { normalizeGermanAnswer } from '../src/lib/srs/engine';
 
 /**
  * The القواعد section's exercises (V21 Phase 4): generated deterministically
@@ -59,6 +60,26 @@ describe('buildGrammarExercises', () => {
       expect(reorder?.tokens).toContain(word);
     }
     expect(reorder?.tokens!.length).toBe(answerWords.length + 1);
+  });
+
+  it('never repeats a word of the sentence in the reorder bank (regression)', () => {
+    // The pool used `" word "` substring matching, so the first and last words of
+    // the sentence — and every word followed by punctuation — slipped past the
+    // "already in the sentence" check, and the distractor was a duplicate.
+    const [, reorder] = buildGrammarExercises(row);
+    const tokens = (reorder?.tokens ?? []).map((token) => normalizeGermanAnswer(token));
+    const sentenceTokens = new Set(normalizeGermanAnswer(reorder!.answerDe).split(' ').filter(Boolean));
+    expect(sentenceTokens.size).toBe(4);
+    expect(tokens).toHaveLength(sentenceTokens.size + 1);
+    // No duplicate token at all, and exactly one token the sentence does not use.
+    expect(new Set(tokens).size).toBe(tokens.length);
+    expect(tokens.filter((token) => !sentenceTokens.has(token))).toHaveLength(1);
+  });
+
+  it('takes the distractor from the row\u2019s own rule text when it has a usable word', () => {
+    const [, reorder] = buildGrammarExercises(row);
+    const ruleWords = ['bestimmte', 'artikel', 'maskulin', 'feminin', 'neutral'];
+    expect(reorder?.tokens?.some((token) => ruleWords.includes(token.toLowerCase()))).toBe(true);
   });
 
   it('shows the Arabic prompt for the translate exercise', () => {
