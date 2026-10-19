@@ -12,7 +12,9 @@ Record in ledger: current worker version id (`wrangler deployments list`), curre
 
 ## Sequence
 1. `merge`: fast-forward or merge commit of the branch into `main`, push (no force). Pages builds from git on push: do NOT run a manual Pages deploy; wait for that build and verify it.
-2. `worker`: `npm run deploy:worker`. Verify with `curl -m 10`: `/health` returns only status/service/ready/maintenance (no aiPool, models, strategy); `/crypto/health` unchanged (`ready:false` is fine in closed beta); an admin route without auth returns 401/403.
+2. `worker`: `npm run deploy:worker`. Verify with `curl -m 10`: `/health` returns its four status
+   keys **plus `storage:{d1:"ok",kv:"ok"}`** (shipped by `9c07b44`, 2026-10-16 — health booleans only;
+   still **no aiPool, models, strategy** — those leak provider config); `/crypto/health` unchanged (`ready:false` is fine in closed beta); an admin route without auth returns 401/403.
 3. `pages`: verify the production URL returns 200, the built bundle loads the demo with no AI call and no account, and the service worker registers.
 4. Smoke: run the demo e2e spec against the production URL (read-only, no login).
 

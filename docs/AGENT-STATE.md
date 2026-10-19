@@ -26,7 +26,18 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **Current tree (2026-10-15, this session):** `main`, **uncommitted** — the agentic-system hardening
+## RESUME
+
+- **Current tree (2026-10-19, this deploy run):** `main` **= `origin/main` = `release-candidate` = `2fa5acd`** — no
+  uncommitted repo work. The launch candidate (the owner-approved 5-commit + 3-UX batch + 2 stale-contract
+  e2e fixes, 64 commits total) was **merged to `main` and deployed today**; see `## CURRENT MISSION`
+  (NEXT V42) and the rollback snapshot below. The two 2026-10-18 browser-suite reds are fixed at the
+  contract (`7b52230`, `2fa5acd`): CI **`39191010113`** = **141 passed / 2 skipped / 0 failed** for
+  `2fa5acd`. Local gate on the same tree: `npm run verify -- --ci --e2e` **14/14 in 486.8 s** (3 noisy-output
+  steps relabelled FLAKY, exit 0). Working tree clean except owned strays, unstaged and never committed:
+  `valibjorn-brief.md`, `valibjorn-brief.pdf`, `website/`. Nothing mid-flight.
+- **Superseded tree record (2026-10-15 — read as provenance only; the batch it describes is now part of `2fa5acd`):** `main`
+  as **uncommitted** — the agentic-system hardening
   batch. The gate finally has triggers: `.githooks/pre-commit` → `npm run verify -- --fast` (structural
   guards + syntax, ~8 s), `.githooks/pre-push` → the full gate with `--cost`, installed by
   `scripts/install-hooks.mjs` (`prepare` + `npm run hooks:install`, repo-local `core.hooksPath`).
@@ -98,36 +109,46 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## CURRENT MISSION
 
+NEXT (V42): **The launch candidate is merged and LIVE (2026-10-19) — `merge`, `worker` and `pages` all deployed and production-verified; production waits on owner items only (AI keys, LEGAL/OAuth fields, launch copy).** The owner asked in plain words («merge and deply all all»), which `AGENTS.md` §3 accepts in place of the magic line, so all three targets were touched through `docs/agent/DEPLOY.md`. **Preconditions (all verified before the merge):** owner words for a deploy ✓; the branch gate `npm run verify -- --ci --e2e` **VERIFY OK — 14/14 steps in 486.8 s** run in this working tree on the exact commit going out (3 steps carry FLAKY relabels for noisy output, every step exit 0) ✓; tree clean (three owned untracked strays only: `valibjorn-brief.md`, `valibjorn-brief.pdf`, `website/`) ✓; `origin/main..2fa5acd` diff reviewed — CI `secret-scan` green and a direct `git diff grep` for AIza-/sk-/gsk_/nvapi-shaped added lines came back empty ✓; `npx wrangler whoami` scoped ✓; **no migration file changed** in the merge range (`git diff --stat origin/main..2fa5acd -- migrations` = empty → no schema addition to list) ✓. **Merge:** `release-candidate` was a strict descendant of `main` (`git merge-base --is-ancestor` exit 0), so `git merge --ff-only 2fa5acd` — **no merge commit, linear history preserved**; **pushed** `a73a95b..2fa5acd` on `branch main` (no force). A stale local `main` ref at `df9fee8` caused a confusing moment: it is an ancestor of `2fa5acd` (verified), so the FF merge through it published **exactly** the 64 known commits and nothing extra (`git log --oneline a73a95b..2fa5acd` = 64, all known titles; `git log origin/main ^release-candidate` = **0**). **Worker:** `npm run deploy:worker` — **live version `66bd8b92-8db6-452d-ad99-88685cab0956` at 100%** (was `56425f30-…`, kept as rollback; it served from 2026-10-12). **Pages built from git on the push (never a manual Pages deploy)** → production deployment **`f805663e-d81c-46fc-92f1-f16ad4b3dc73`** from `2fa5acd`, serving **`assets/index-DZrigzP5.js`** (snapshot's live bundle was `index-ANqcguFZ.js`). **Verified live, read-only:** `/health` = `{status,service,ready:true,maintenance:false,storage:{d1:"ok",kv:"ok"}}` — **shape changed by audited code, not by an accident**: the `storage` field was added by `9c07b44` (2026-10-16, launch-metrics commit) *after* the last deploy (source `git log -S 'storage:{d1:"ok"'`), so the runbook's "only four keys" wording was behind; it discloses only health booleans — none of the three things the rule actually protects (`aiPool`, `models`, `strategy`) — so the deploy is NOT rolled back and the runbook + ENV-FACTS lines were corrected this commit instead of asserting old facts; `/crypto/health` unchanged (`ready:false`, `test_mode`, `apiKeyConfigured:false`); unauth `/admin/api/ai-providers` **401**, unauth `/admin/api/me` **401** (the new AI-pool admin routes are bearer-gated); production `/` **200**. **Production smoke** (`E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts`): **3 passed / 2 skipped / 0 failed — exit 0** (the skipped two are the conditional sales-reachability probes); predates the merge, same origin, re-verified by the read-only checks above: pool, models and strategy stay off every public surface, `/crypto/health` matches the snapshot, and both admin probes accept auth → the automatic rollback did not trigger. **Merge-driven CI** on `main` = **run `39191010113`** (`verify`, `launch-check`, `secret-scan`, `e2e`) — **all green** for `2fa5acd` before the push was made. **Rollback (recorded, not needed):** worker `npx wrangler rollback 56425f30-c67f-45ea-ace7-a9c4e9b47dd7`; Pages `2182564c-c25e-4990-bb89-f73759779cbd` (source `a73a95b`). **One marketing decision stays open** (OWNER-OPEN): `9d672e4` committed 48 marketing phone captures etc. (~65 MB → ~45 MB in the pack) onto `release-candidate`; already pushed and now merged — dropping them now means history rewriting, so they stay. No secret, no production D1 write, no owner-only item touched.
+
 NEXT (V41): **The FINAL LAUNCH PASS (change-log rows L12–L17) is complete and LIVE — all seven steps done, both targets deployed and production-verified; nothing is left to build or ship without an owner decision.** The owner asked in plain words («finish and deploy all»), which `AGENTS.md` §3 accepts in place of the magic line, so `merge`, `worker` and `pages` were all touched through `docs/agent/DEPLOY.md`. **Pushed** `a3cc0db..463e292` (no force). **Worker:** `476bac16-eb7c-4cb9-8ccb-72ac35faf208` (was `0a653eca-…`) — the first version to carry `fe1d504` + `4d05905` (source attribution and the owner's order view) **and** the newly armed `AI_DAILY_SPEND_CAP="292"`, confirmed live in the deploy output as `env.AI_DAILY_SPEND_CAP ("292")`. **Pages:** built from git on the push (never a manual Pages deploy) → production deployment `08f0082d-c041-41c8-b1e8-d9938c3188d3` from `463e292`, serving `assets/index-bWgfrKSi.js` (was `index-BudV5Bjk.js`). **Verified live, read-only:** `/` `/demo` `/welcome` `/sw.js` **200**; `/health` = `{status,service,ready:true,maintenance:false}` (no pool disclosure); `/crypto/health` unchanged (`ready:false`, `test_mode`, `apiKeyConfigured:false`); unauth `/admin/api/orders` **401**; the share card serves `200 image/png`, sig `89504e47`, **1200x630, 335078 bytes** — byte-identical to the committed artifact; `og:image:width`/`og:image:height` now on the live document. **Production smoke** (`E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts`): the two gaps the pre-deploy run found are **closed** — **3 passed / 2 skipped / 0 failed** (the skips are the anonymous paywall-parity and failure-mode-price cases). **CI:** run **`37420600607`** for `463e292` — **success** (`secret-scan`, `launch-check`, `verify`, `e2e`). **Rollback (recorded, not needed):** worker `npx wrangler rollback 0a653eca-2224-4114-b1fa-749bb2cb1251`; Pages `ec47b2ff-5cc8-4e89-9209-ac851d00538b` (source `a3cc0db`). No secret, no production D1 write, no owner-only item touched. **The one thing still between this and public launch is the owner's:** the 10 `{{OWNER_FILL}}` legal fields plus `VITE_PUBLIC_APP_URL` (11 blockers under `npm run check:launch:strict`); `AI_DAILY_SPEND_CAP=292` remains **UNPROVEN** as a value (it is a cost estimate, not observed spend). **Carried UNPROVEN, unchanged:** real-device voice and the iOS soft-keyboard path, screen-reader, 200 % zoom, real OAuth/payment, and every user statistic.
 
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 
-Recorded 2026-10-06 **before** the journey-polish deploy session touched anything. Supersedes the
-pre-UI-polish snapshot below: its worker target `476bac16-…` was replaced as production by the
-UI-polish deploy later the same day.
+Recorded 2026-10-19 **during** the V42 merge-and-deploy run: the live ids below are read from
+PRODUCTION after both targets were touched, and they are the rollback targets for the **next** deploy.
+Supersedes the 2026-10-06 snapshot below: its page-2 worker target `315ec953-…` was superseded by
+`56425f30-…` (2026-10-12) and then replaced by today's deploy.
 
-- Worker version id (rollback target): `315ec953-d234-481a-93c3-8c493818df5e` (100%, created
-  2026-10-06T12:53:36.297Z, author ghaidakalosh008@gmail.com) — the UI-polish deploy. Older
-  rollback target available: `476bac16-eb7c-4cb9-8ccb-72ac35faf208` (created 2026-10-06T05:51:18Z).
-- Pages production deployment id (rollback target): `43f5985a-5c4e-4820-9efc-0cbcbfd5163b`,
-  branch `main`, commit `a821b18` — a git-triggered build of the docs-only ledger commit, serving
-  the same bundle name `assets/index-ANqcguFZ.js` as the UI-polish build from `349faf0` (deployment
-  `67888b41-23ea-4585-a4d2-345b8281119f`, still available as an older rollback target; before that,
-  `08f0082d-c041-41c8-b1e8-d9938c3188d3` from `463e292`).
-- `GET /health` body (worker, read 2026-10-06 before this session):
-  `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false}`.
-- `GET /crypto/health` body (worker, read 2026-10-06 before this session):
+- Worker live version id (rollback target for the next deploy):
+  **`66bd8b92-8db6-452d-ad99-88685cab0956`** (100%, created 2026-10-19T03:10:42Z, author
+  ghaidakalosh008@gmail.com) — the V42 merge-deploy, first version to carry the owner-edited AI pool
+  (`030961a`) and the async `hasUsableProvider` wiring. Previous rollback target still available:
+  `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (created 2026-10-12), then the ids recorded in the
+  superseded snapshots below.
+- Pages live production deployment id (rollback target for the next deploy):
+  `f805663e-d81c-46fc-92f1-f16ad4b3dc73`, branch `main`, commit `2fa5acd` — a git-triggered
+  build, serving `assets/index-DZrigzP5.js`. Older rollback targets:
+  `2182564c-c25e-4990-bb89-f73759779cbd` (source `a73a95b`, the 2026-10-12 build V42 replaced),
+  then `43f5985a-5c4e-4820-9efc-0cbcbfd5163b` and `67888b41-23ea-4585-a4d2-345b8281119f` as listed
+  in the superseded snapshot below.
+- `GET /health` body (worker, read 2026-10-19 after the deploy):
+  `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false,"storage":{"d1":"ok","kv":"ok"}}`.
+  The `storage` object is shipped by `9c07b44` (2026-10-16 launch-metrics commit, verified with
+  `git log -S 'storage:{d1:"ok"' -- cloudflare-unified-worker.js`) and tells a learner only that the
+  data stores answer — no pool, no models, no strategy. KEEP it when editing that handler.
+- `GET /crypto/health` body (worker, read 2026-10-19 after the deploy):
   `{"ok":true,"provider":"nowpayments","environment":"test_mode",...,"priceUsd":5,"months":1,"plans":[...],"ready":false}`
   — unchanged from every previous ledger reading.
-- Unauthenticated `GET /admin/api/users` → **401**; production `/` → **200** serving
-  `assets/index-ANqcguFZ.js`.
-- Local HEAD on `main` at snapshot time: `db9bb2e` (journey polish `1c82059` + follow-up `ce533f2`
-  + evidence recapture `db9bb2e`), 3 commits ahead of `a821b18`/`origin/main`; **not pushed at
-  snapshot time**. No `cloudflare-*.js`, `wrangler.toml` or `migrations/` file changed in
-  `349faf0..db9bb2e`, so the worker is expected to stay untouched this session.
+- Unauthenticated `GET /admin/api/ai-providers` → **401** and `GET /admin/api/me` → **401**;
+  production `/` → **200** serving `assets/index-DZrigzP5.js`.
+- `origin/main` at snapshot time: `2fa5acd` — the exact tree whose CI run (`39191010113`:
+  `verify`, `launch-check`, `secret-scan`, `e2e` = **141 passed / 2 skipped / 0 failed**) and whose
+  local `npm run verify -- --ci --e2e` (**14/14 in 486.8 s**) are both green.
 - **Rollback is PROVEN available** for both targets: `wrangler whoami` reports account
-  `00df3d915626e0a681f4fef98c1c587c` with `workers (write)`; `wrangler pages deployment list`
-  lists the production deployment and its predecessors.
+  `00df3d915626e0a681f4fef98c1c587c` with `workers (write)` (used for the pre-deploy snapshot),
+  and `wrangler pages deployment list` lists the live production deployment and its predecessors
+  (used for both snapshots this run).
 
 ## SNAPSHOT — superseded pre-UI-polish record (kept for provenance)
 
@@ -260,6 +281,18 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | V12-2. Load module2 → grammar batch `HTTP 500` on a live schema gap; 89 inserted rows rolled back; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v12-load-module2.log 2>&1` → **exit 0**, 29 log lines, **`grep -c -E 'Bearer\|Authorization'` = 0** (run before anything was shown; the credential never reached the log). **Three of the four batches wrote, the fourth could not:** `scenarios ✔ HTTP 200 count 5`, `vocabulary ✔ 200 count 42` (7 of 49 rows skipped as already present), `starter_phrases ✔ 200 count 42`, and **`✘ grammar batch 1 failed (HTTP 500): {"error":"admin_route_failed","message":"D1_ERROR: table grammar has no column named rule_de: SQLITE_ERROR"}`** — **0 grammar rows written**. The loader then printed `DONE — 89 row(s) written.` and **exited 0**, because its verification loop covers scenarios and vocabulary topics only and never consults the per-batch statuses, so a failed batch is invisible in its exit code (recorded in `LESSONS.md`). **Rollback, exact, driven by the backup rather than by arithmetic on counts:** the pre-load export contains the two tables' `sqlite_sequence` rows (`vocabulary = 135`, `starter_phrases = 20`) and both are `INTEGER PRIMARY KEY AUTOINCREMENT`, so the new rows are provably `vocabulary id > 135` (42 rows, 136–177) and `starter_phrases id > 20` (42 rows, 21–62) — an id above the pre-load sequence cannot be a pre-existing row. `DELETE FROM starter_phrases WHERE id > 20; DELETE FROM vocabulary WHERE id > 135; DELETE FROM scenarios WHERE id IN ('airport_arrival','train_station','bakery_shopping','landlord_followup','friend_catchup');` → `changes` **42 / 42 / 5 = 89**, exactly the 89 the loader reported. **Both states measured:** post-attempt **10 scenarios / 156 vocabulary / 62 starter_phrases / 4 grammar**; post-rollback **5 / 114 / 20 / 4** with `MAX(vocabulary.id) = 135`, `MAX(starter_phrases.id) = 20`, 0 rows for the 5 new scenario ids and 0 `g_%` grammar ids; live scenario ids back to `apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview` and live grammar to `akkusativ_articles, dativ_prepositions, konjunktiv_ii, perfekt_tense`. **Three sampled old rows match the backup exactly:** vocabulary 22 `Reisepass`/`documents`/`جواز سفر`, 77 `Allergie`/`food`/`حساسية`, 135 `Wohnungsamt`/`housing`/`مكتب الإسكان`, and starter_phrase 1 = `embassy_appointment` "Ich habe einen Termin.". **Public endpoints back to normal:** `/scenarios` 5 rows containing **none** of the new ids, `/vocabulary` 114, `/grammar` 4, `/health` unchanged (`{status, service, ready, maintenance:false}`). **Root cause (read-only, proven twice):** the live `grammar` table is `id, level, title_ar, title_en, explanation_ar, explanation_en, example_de` (`SELECT GROUP_CONCAT(name) FROM pragma_table_info('grammar')`), while the draft row keys, `src/lib/content/curriculumAudit.ts:49`, `src/types/models.ts:89`, the Worker's own `resolvePracticeGrammar` (`cloudflare-unified-worker.js:1211`) and `docs/PRODUCT-SPEC.md:1021` all assume `id, title_ar, rule_de, rule_ar, level, explanation_ar, example_de, example_ar`. `handleAdminUpload` (`cloudflare-unified-worker.js:3053`) builds `INSERT INTO grammar (…)` from **the row's own keys**, so `rule_de` is sent to a table that has no such column; `SELECT id, rule_de FROM grammar LIMIT 1` fails with D1 error **7500** as the independent proof. **Deeper cause:** none of the four content tables' DDL exists anywhere in the repo (`git grep -n "CREATE TABLE.*grammar\|CREATE TABLE.*vocabulary\|CREATE TABLE.*scenarios\|CREATE TABLE.*starter_phrases"` → 0 hits; only the ledger tables are created by the Worker), so the live content schema is unversioned and has drifted — and the local dry-run cannot see it because it never touches the network, while the audit validates the draft against the *documented* field list. **Two production consequences beyond this load:** (a) `resolvePracticeGrammar` selects three columns the live table lacks and swallows the error in a `try/catch` that returns `null`, so the B2 grammar-reference link can never resolve in production; (b) the live grammar ids are `akkusativ_articles`-style while `SCENARIO_GRAMMAR_IDS` and the offline seed use `g_*`, so even with the columns added the five original scenarios would still have no matching D1 row. **Stopped:** module1's ten grammar rows carry the same `rule_de` field, so it was deliberately **not attempted** (rollback → mark blocked → stop). Owner fix is one additive DDL with no data loss, written into OWNER-OPEN; no deploy, no push, no further write. |
 
 ## DECISIONS
+
+- **V42 (2026-10-19) — three interpretive calls in one deploy, each the conservative option:** The owner's
+  words («merge and deply all all») named no targets → all three (`merge`, `worker`, `pages`) were
+  **stated in the report before production was touched**, as the runbook requires for an unnamed-target
+  deploy. The merge chose **fast-forward over a merge commit** because `release-candidate` is a strict
+  descendant of `main` (`merge-base --is-ancestor` exit 0) — linear history, zero semantics change, no
+  force. `/health`'s new `storage` field met the runbook's "only four keys" line → traced with
+  `git log -S` to the audited `9c07b44` (2026-10-16, newer than the previously deployed version, so
+  new-to-production today), verified it discloses only two health booleans — none of
+  `aiPool`/`models`/`strategy`, the values the rule actually protects — and **the runbook/ENV-FACTS/
+  MEMORY lines were corrected rather than rolling back** a reachable learner path. Every claim above
+  carries its command output in the run transcript.
 
 - **AI-POOL (2026-10-18) — "only OpenRouter and NVIDIA" means the DEFAULT pool, and dashboard-stored keys live in KV plaintext by design, masked on every read.** The owner's words set the default walk: Gemini and Groq default entries removed. They remain available as a *preset*, so "delete Gemini" is honored operationally — no request reaches them unless the owner deliberately adds an entry. Keys pasted in the dashboard live in the `USER_PROGRESS` KV namespace under `ai-provider-config`, reached by nothing except this worker's admin routes and provider calls — the same trust tier as a worker secret; the alternative (AES with a key derived from ADMIN_SECRET/HMAC_SECRET) was deferred as unnecessary machinery for a value the owner could equally store as an env secret. Every read path returns counts + non-reversible fingerprints only; nothing logs a key. Second decision under the same item: the guard `hasUsableProvider` became **async** (the owner config is a KV read) and every AI route awaits it — call sites were updated in the same change so the guard cannot silently go non-blocking.
 

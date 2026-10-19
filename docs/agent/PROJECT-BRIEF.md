@@ -1,5 +1,19 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
+**Deployed & merged (2026-10-19, V42 — read this first).** The launch candidate described below is now
+the production product: **PR #18 merged to `main` (`2fa5acd`, fast-forward of the 64-commit branch),
+worker `66bd8b92-8db6-452d-ad99-88685cab0956` at 100%, Pages production `f805663e-d81c-46fc-92f1-f16ad4b3dc73`
+serving `assets/index-DZrigzP5.js`** — deployed only after `npm run verify -- --ci --e2e` **14/14 in
+486.8 s** in the deploy tree, and verified live read-only: `/health` = the four status keys **plus a new
+`storage:{d1:"ok",kv:"ok"}` line** (shipped by the audited `9c07b44`, not an accident — the runbook line
+and ENV-FACTS row were corrected in the same commit rather than ignoring or rolling back the code),
+`/crypto/health` unchanged (`test_mode`, `ready:false` — closed beta, payments still deliberately off),
+unauth admin routes **401**, and the production smoke **3 passed / 2 skipped / 0 failed**. CI on the exact
+SHA (`39191010113`): **141 browser tests passed / 2 skipped / 0 failed**. The AI-provider keys are still
+empty in production, so **served turns ride the Workers AI fallback until the owner adds keys from the
+dashboard's AI Providers tab** (OWNER-CHECKLIST §8 — a KV setting, no redeploy needed). Content counts
+and the closed-beta posture are unchanged this run (nothing was loaded). Everything below is provenance.
+
 **Verification system (2026-10-15, committed 2026-10-19 — the only part of this brief refreshed in
 that run).** One command now decides whether a change is safe, and it **has triggers** instead of being a rule
 people remember: `.githooks/pre-commit` runs its fast profile in ~8 s on every commit, `pre-push` runs the
@@ -11,9 +25,11 @@ accepted silently), every source/test/spec/script file, and every tool and brows
 exist unreachable or undocumented). Cost is measured instead of argued: `npm run cost:report` reads a
 local, gitignored log of gate seconds per step (wall-clock and bytes — **not** tokens; the harness exposes
 no counter). Measured on this tree: whole gate **6/6 in 69 s**, CI profile **13/13 in 134.8 s**, unit suite
-**144 files / 1,862 tests**, browser suite **117/121** against the built bundle with **3 failures
-unclassified** and not attributable to this batch (they sit on screens another session left uncommitted —
-see `docs/AGENT-STATE.md` UNPROVEN). No app code, deploy, secret or production data was touched by it.
+**144 files / 1,862 tests**, browser suite **117/121** against the built bundle with **3 failures**, since
+**classified (2026-10-18) and closed at the contracts (2026-10-19)**: the two stale e2e specs were
+rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its screen — CI e2e on `2fa5acd`
+= **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
+production data was touched by that vetting run.
 
 ## Current snapshot — 2026-10-04
 

@@ -155,6 +155,29 @@ The working tree's browser suite (`E2E_TARGET=preview npx playwright test`) was 
 
 Base worktree and its junction were removed after the run; nothing was committed from it.
 
+## The four browser-suite reds — closed at the contracts, shipped green (2026-10-19)
+
+The classification above stayed causal while the fixes were prepared; the launch-candidate branch now
+carries them and CI proves it on the exact SHA (run `39191010113` for `2fa5acd`: **verify**, `launch-check`,
+`secret-scan`, `e2e` all green — **e2e = 141 passed / 2 skipped / 0 failed**, the local `--ci --e2e` gate
+over the same tree = **14/14**).
+
+- `ask.spec.ts` (`7b52230`) was a **stale contract, not an app bug**: the live curriculum re-order in
+  `0d01500` moved the translation-files row block, and the spec still expected the pre-reorder output.
+  The spec now asserts that the corrected translation files carry **no mistakes row** and the
+  wrong-reorder files carry one — the same contract `tests/askPractice.test.ts` pins — so the spec
+  matches what the app has shipped since `0d01500` and CI's e2e agrees with its own unit suite.
+- `simplicity.spec.ts` (`2fa5acd`) was also a **stale contract**: the pinned welcome CTA label
+  (`إنشاء حساب جديد وابدأ`) is the screen's current copy, and the second failure was CI's own build
+  difference: CI bundles without `VITE_GOOGLE_CLIENT_ID`, so the sign-in screen shows the honest
+  unavailable line («تسجيل الدخول غير متاح الأن») instead of the Google button a mock'd local id
+  produced. The spec now pins the current label and **accepts either rendering via `.or()`** — asserting
+  what a learner can see in each build, not what one build happened to show.
+- `deletionRequest.spec.ts` `:94`/`:112` are **green on `2fa5acd`** — the screen and its specs ship in
+  one committed tree, so the label/modality mismatch the classification describes no longer exists. The
+  2026-10-18 section above is kept unchanged as the causal record of how they were diagnosed; nothing
+  was skipped or weakened to get green.
+
 **Manual check on a real Android phone - NOT run by this session (no device on this machine, so every haptics claim stays `UNPROVEN` on hardware):**
 
 1. Settings (Profile) - haptics switch ON; answer a quiz question **wrong** -> one short sideways shake, once, no repeat.

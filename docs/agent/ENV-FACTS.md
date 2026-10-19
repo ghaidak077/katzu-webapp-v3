@@ -200,7 +200,7 @@ command below stops existing, so this index cannot rot silently.
 | `wrangler whoami` | FACT logged in via **OAuth Token**, email `ghaidakalosh008@gmail.com`, account `00df3d915626e0a681f4fef98c1c587c`; token scopes include `workers (write)`, `workers_kv (write)`, `workers_scripts (write)` → **this machine can deploy**. Credentials stored at `%APPDATA%/xdg.config/.wrangler/config/default.toml`. |
 | Git remote | FACT `origin` = `https://github.com/ghaidak077/katzu-webapp-v3.git`; `git ls-remote --heads origin` exit 0 |
 | Push permitted? | FACT yes: `git push --dry-run origin launch-hardening` → `22fe6aa..a74014a launch-hardening -> launch-hardening`, exit 0. (Nothing was pushed.) |
-| Live `/health` body | FACT now returns **only** `{status,service,ready,maintenance}` — the pre-hardening disclosure (`aiPool.entries:9`, `tiers`, `active` provider/model names, `strategy`, `cachedTranslationsCount`) is gone. Re-verified 2026-10-04 after worker deploy `4d34c8eb-6047-4b4a-a859-cea43d673e1f` (V38); `/crypto/health` unchanged (`ready:false`, `environment:test_mode`). |
+| Live `/health` body | FACT returns `{status,service,ready,maintenance,storage:{d1,kv}}` — the stored-key details are still absent. The pre-hardening disclosure (`aiPool.entries:9`, `tiers`, `active` provider/model names, `strategy`, `cachedTranslationsCount`) is gone. **Re-verified 2026-10-19 after deploy `66bd8b92-…` (V42)**: the `storage` object (`d1:"ok"`, `kv:"ok"`) ships since `9c07b44` (2026-10-16 launch-metrics commit, first deployed 2026-10-19) — health booleans only; `/crypto/health` unchanged (`ready:false`, `environment:test_mode`). |
 | `wrangler d1 execute … --remote` (read-only SELECT) | FACT works; used for the counts in §F/content state. |
 
 ---

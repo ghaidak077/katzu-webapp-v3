@@ -135,7 +135,7 @@ file is the digest that is short enough to always read.
   read/print `ADMIN_SECRET`.
 - **`sweepExpiredRows`** keeps `rate_limit_counters` (24h) and `error_reports` (30d); cron
   `17 4 * * *`.
-- Observability is honest: `/health` exposes status only (no pool/provider), `/client-error`
+- Observability is honest: `/health` exposes status **plus `storage:{d1,kv}` booleans since `9c07b44`** (no pool/provider), `/client-error`
   sanitizes (400-char cap, credential redaction).
 - **Mastery has exactly one definition: `MASTERED_REPS = 3` consecutive good recalls, owned by
   `gradeReviewItem`** (`src/lib/srs/store.ts`), which writes `mistakes.isMastered` itself and the
