@@ -10,9 +10,11 @@ import { bootSignedIn, mockBackend } from './harness';
  * be pointed at the live site with `E2E_TARGET=production npx playwright test
  * e2e/productionSmoke.spec.ts`.
  *
- * It writes NOTHING: no account, no order, no redemption, no analytics beyond
- * the page's own landing_viewed. Every request is a GET. That is deliberate —
- * it is the suite that is safe to run against the real thing.
+ * It creates no account, order or redemption, and every request is a GET — with
+ * one deliberate exception, the demo turn below: the public demo's promise
+ * ("value before signup") was only ever proven against a mocked worker, and a
+ * mocked worker cannot tell you the live one still answers. That test POSTs one
+ * sentence through the anonymous demo and is the only write in the file.
  *
  * In the default preview run it still executes, via the harness's mocked
  * backend, so the same assertions guard the bundle before a deploy. Three parts
@@ -132,6 +134,43 @@ test.describe('production smoke (read-only)', () => {
     await expect(page.getByTestId('landing-price')).not.toContainText(/\d/);
     await page.goto('/paywall');
     await expect(page.getByTestId('price-pass90')).toHaveCount(0);
+  });
+
+  test('the public demo completes one real turn on the live origin', async ({ page }) => {
+    // Production only: the preview run's demo is served by the mocked worker, and
+    // that is already covered by `demo.spec.ts`. What is only knowable here is
+    // whether the live worker still answers an anonymous visitor at all — keys,
+    // fallback model and rate limits included.
+    test.skip(!PRODUCTION, 'production-only: needs the live worker to answer the demo turn');
+
+    await page.goto('/demo');
+    const start = page.getByRole('button', { name: 'ابدأ الدرس التجريبي' });
+    await expect(start).toBeVisible({ timeout: 30_000 });
+    await start.click();
+
+    // Study: whatever the lesson's line count is, tap through what is on screen.
+    const understood = page.getByRole('button', { name: /فهمتها/ });
+    for (let step = 0; step < 4; step++) {
+      if (!(await understood.count())) break;
+      await understood.first().click();
+    }
+
+    // Quiz: any option advances; the last question leads to the writing step.
+    for (let question = 0; question < 3; question++) {
+      if (!(await page.getByText('ما معنى هذه الجملة بالألمانية؟').count())) break;
+      await page.locator('button[class*="p-3.5"]').first().click();
+      await page.getByRole('button', { name: /السؤال التالي|إلى التحدث/ }).click();
+    }
+
+    // The turn itself: the visitor's own German, answered by the live model.
+    const input = page.getByLabel('جملتك بالألمانية');
+    await expect(input).toBeVisible({ timeout: 30_000 });
+    await input.fill('Ich möchte ein Brot bitte');
+    await page.getByRole('button', { name: 'تحقّق من جملتي' }).click();
+
+    // Done means the worker answered: the corrected form comes from the AI reply.
+    await expect(page.getByText('أكملت درسك الأول')).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByText('الصيغة الصحيحة:')).toBeVisible();
   });
 
   test('the admin orders route refuses an unauthenticated caller', async ({ page, request }) => {

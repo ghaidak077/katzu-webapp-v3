@@ -114,6 +114,17 @@ export function useLiveConversation({
   // never run beside an error card and two sends can never overlap.
   const [conversation, dispatch] = useReducer(conversationReducer, undefined, initialConversationState);
   const isGenerating = isTurnInFlight(conversation);
+  // The opener effect below starts a conversation, so it must re-run when the
+  // PART changes and never merely because the parent re-rendered. Callers pass
+  // `mockPart` as an inline literal (the mock re-creates it every render, and
+  // its clock re-renders every second), so depending on the object identity
+  // wiped the learner's turns once a second: the examiner's opener came back and
+  // the part could never be finished. Depend on the fields that identify the
+  // part instead.
+  const mockGrant = mockPart?.grant;
+  const mockPartIndex = mockPart?.partIndex;
+  const mockOpenerDe = mockPart?.openerDe;
+  const mockTopicId = mockPart?.topicId;
   const [showArabicTranslation, setShowArabicTranslation] = useState<Record<string, boolean>>({});
   // Global switch: every Katzu message shows its Arabic translation at once.
   // A per-message toggle still wins because an explicit override beats the global.
@@ -566,7 +577,7 @@ export function useLiveConversation({
     // One level→opener rule, shared with the story screen's logic (tested in
     // openerForLevel): the same sentence the learner saw when the episode opened.
     // A mock part overrides it: the examiner opens the part, not the scenario.
-    const initialMsgText = mockPart?.openerDe || openerForLevel(scenario, effectiveLevel);
+    const initialMsgText = mockOpenerDe || openerForLevel(scenario, effectiveLevel);
 
     const welcomeMsg: ChatMessage = {
       id: 'msg_initial',
@@ -592,7 +603,18 @@ export function useLiveConversation({
     // refinement only when no gloss ships for this opener, with an honest
     // retry affordance on failure — see requestOpenerTranslation.
     requestOpenerTranslation(welcomeMsg.id, welcomeMsg.germanText);
-  }, [scenario, scenarioId, effectiveLevel, sessionMode, mockPart, loadStarterHints, requestOpenerTranslation]);
+  }, [
+    scenario,
+    scenarioId,
+    effectiveLevel,
+    sessionMode,
+    mockGrant,
+    mockPartIndex,
+    mockOpenerDe,
+    mockTopicId,
+    loadStarterHints,
+    requestOpenerTranslation,
+  ]);
 
   // Handle German word click for insight.
   //
