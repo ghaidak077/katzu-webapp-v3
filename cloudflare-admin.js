@@ -39,6 +39,15 @@ import {
 } from "./cloudflare-content-studio-ui.js";
 import { CONTENT_STUDIO_TOOLS_SCRIPT } from "./cloudflare-content-studio-tools.js";
 import { handleAnalyticsRoute } from "./cloudflare-analytics.js";
+// Owner-managed AI provider pool (admin dashboard → AI Providers). Keys are
+// written server-side only and every read is masked (counts + fingerprints).
+import {
+  deleteProviderEntry,
+  listProviderConfig,
+  setDefaultProviderState,
+  testProviderEntry,
+  upsertProviderEntry,
+} from "./cloudflare-ai-providers.js";
 
 // ============================================================================
 // 1. ADDITIVE D1 SCHEMA
@@ -1398,6 +1407,52 @@ export async function handleAdminRoutes(url, request, env, cors, deps = {}) {
         }), 200, cors);
       }
 
+      // ---------------- Owner-managed AI provider pool ----------------
+      // Every mutation is audited to the Activity tab. No response ever
+      // contains API key material — the module masks everything itself.
+      if (action === "ai-providers" && method === "GET") {
+        return json(await listProviderConfig(env), 200, cors);
+      }
+      if (action === "ai-provider-save" && method === "POST") {
+        const result = await upsertProviderEntry(env, body || {});
+        if (result.status < 300) {
+          try {
+            await recordActivity(env, null, "provider_config_updated", {
+              id: body?.id || null,
+              provider: result.body?.provider || null,
+              model: result.body?.model || null,
+              key_count: result.body?.keyCount ?? null,
+            });
+          } catch {}
+        }
+        return json(result.body, result.status, cors);
+      }
+      if (action === "ai-provider-delete" && method === "POST") {
+        const result = await deleteProviderEntry(env, String(body?.id || ""));
+        if (result.status === 200) {
+          try {
+            await recordActivity(env, null, "provider_config_deleted", { id: String(body?.id || "") });
+          } catch {}
+        }
+        return json(result.body, result.status, cors);
+      }
+      if (action === "ai-provider-default" && method === "POST") {
+        const result = await setDefaultProviderState(env, String(body?.id || ""), body?.enabled === true);
+        if (result.status === 200) {
+          try {
+            await recordActivity(env, null, "provider_default_toggled", {
+              id: String(body?.id || ""),
+              enabled: body?.enabled === true,
+            });
+          } catch {}
+        }
+        return json(result.body, result.status, cors);
+      }
+      if (action === "ai-provider-test" && method === "POST") {
+        const result = await testProviderEntry(env, String(body?.id || ""));
+        return json(result.body, result.status, cors);
+      }
+
       // ---------------- Content CRUD (all four curriculum tables) ----------
       // Delegated to cloudflare-content-studio.js. Extended from the original
       // vocabulary/starter_phrases-only pair to every table, plus create and
@@ -1750,6 +1805,7 @@ ${CONTENT_STUDIO_CSS}
     <button id="nav-activity" data-action="showTab" data-tab="activity">Activity</button>
     <button id="nav-errors" data-action="showTab" data-tab="errors">Errors</button>
     <button id="nav-licenses" data-action="showTab" data-tab="licenses">Licenses &amp; Plans</button>
+    <button id="nav-ai" data-action="showTab" data-tab="ai">AI Providers</button>
     <button id="nav-content" data-action="showTab" data-tab="content">Content Studio</button>
     <button id="nav-schema" data-action="showTab" data-tab="schema">Database Schema</button>
     <div class="muted mono" style="padding:14px 12px;font-size:11px">worker: ${escapeHtml(workerName)}</div>
@@ -1915,6 +1971,63 @@ ${CONTENT_STUDIO_CSS}
       </div>
     </section>
 
+    <!-- AI PROVIDERS (owner-managed pool) -->
+    <section id="view-ai" class="hidden">
+      <div class="grid two" style="margin-top:14px">
+        <div class="card">
+          <h2 style="margin-top:0">Add / edit a provider</h2>
+          <div class="row" style="margin-bottom:10px">
+            <select id="aip-preset" style="min-width:250px"></select>
+          </div>
+          <div class="row" style="margin-bottom:10px">
+            <input id="aip-id" placeholder="id (left blank = auto)" style="width:170px">
+            <input id="aip-provider" placeholder="provider name" style="width:170px">
+          </div>
+          <div class="row" style="margin-bottom:10px">
+            <input id="aip-baseurl" placeholder="gateway base URL (https://…)" style="flex:1;min-width:260px">
+          </div>
+          <div class="row" style="margin-bottom:10px">
+            <input id="aip-model" placeholder="model id" style="flex:1;min-width:200px">
+            <select id="aip-format">
+              <option value="openai">OpenAI chat format</option>
+              <option value="gemini">Gemini format</option>
+            </select>
+            <select id="aip-tier">
+              <option value="flagship">flagship tier</option>
+              <option value="mid">mid tier</option>
+              <option value="lite">lite tier</option>
+            </select>
+          </div>
+          <div class="row" style="margin-bottom:10px">
+            <textarea id="aip-keys" rows="2" placeholder="API key(s) — comma or newline separated" style="flex:1;font-family:ui-monospace,monospace"></textarea>
+          </div>
+          <div class="row">
+            <label class="muted" style="cursor:pointer"><input id="aip-enabled" type="checkbox" checked> enabled</label>
+            <label class="muted" style="cursor:pointer"><input id="aip-replace" type="checkbox"> replace stored keys (otherwise merge)</label>
+            <span class="spacer"></span>
+            <button class="btn" id="aip-test-btn" type="button">Test</button>
+            <button class="btn" id="aip-clear-keys-btn" type="button">Clear keys</button>
+            <button class="btn danger" id="aip-delete-btn" type="button">Delete</button>
+            <button class="btn primary" id="aip-save-btn" type="button">Save provider</button>
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:8px">Keys are stored server-side and never shown again — only a masked fingerprint and a count. Editing a built-in entry changes its keys (or enables/disables it); its gateway/model shape is the app's own.</div>
+          <div id="aip-form-msg" class="muted" style="font-size:12.5px;margin-top:8px"></div>
+        </div>
+        <div class="card">
+          <h2 style="margin-top:0">Pool status</h2>
+          <div id="aip-status" class="mono muted" style="font-size:12px;white-space:pre-wrap"></div>
+          <h2>Connectivity test</h2>
+          <div id="aip-test-out" class="mono" style="font-size:12px;white-space:pre-wrap"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 style="margin-top:0">Built-in entries</h2>
+        <div id="aip-defaults"></div>
+        <h2>Owner custom gateways</h2>
+        <div id="aip-custom"></div>
+      </div>
+    </section>
+
 ${CONTENT_STUDIO_SECTIONS}
   </main>
 </div>
@@ -2010,7 +2123,7 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
 
   function showTab(tab) {
     state.tab = tab;
-    var ids = ["overview", "users", "activity", "errors", "licenses", "content", "schema"];
+    var ids = ["overview", "users", "activity", "errors", "licenses", "ai", "content", "schema"];
     ids.forEach(function (id) {
       var view = document.getElementById("view-" + id);
       var navBtn = document.getElementById("nav-" + id);
@@ -2023,6 +2136,7 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
       activity: ["Activity", "What learners are actually doing, event by event."],
       errors: ["Errors", "Failures to fix, grouped by type and linked to a user when known."],
       licenses: ["Licenses & Plans", "Lookup, extend or revoke a plan; generate activation codes."],
+      ai: ["AI Providers", "The provider pool every AI call walks — built-ins, your own gateways, keys and connectivity."],
       content: ["Content Studio", "Inspect what is currently stored in D1."]
     };
     var t = titles[tab] || ["Overview", ""];
@@ -2038,7 +2152,262 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     else if (state.tab === "activity") loadActivity();
     else if (state.tab === "errors") loadErrors();
     else if (state.tab === "content") loadContent();
+    else if (state.tab === "ai") loadAiProviders();
   }
+
+  // ---------------------------------------------------------------------------
+  // AI Providers (owner-managed pool). Presets are prefill shortcuts — every
+  // field stays editable, so a "famous provider" that moved its endpoint or
+  // shipped a newer model is edited in place, never hard-coded here.
+  // ---------------------------------------------------------------------------
+  var AI_PRESETS = [
+    { id: "openrouter", label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", model: "thinkingmachines/inkling-small:free", format: "openai" },
+    { id: "nvidia", label: "NVIDIA NIM", baseUrl: "https://integrate.api.nvidia.com/v1", model: "openai/gpt-oss-20b", format: "openai" },
+    { id: "groq", label: "Groq", baseUrl: "https://api.groq.com/openai/v1", model: "openai/gpt-oss-120b", format: "openai" },
+    { id: "google", label: "Google AI Studio (Gemini)", baseUrl: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-3.5-flash-lite", format: "gemini" },
+    { id: "openai", label: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini", format: "openai" },
+    { id: "deepseek", label: "DeepSeek", baseUrl: "https://api.deepseek.com", model: "deepseek-chat", format: "openai" },
+    { id: "mistral", label: "Mistral", baseUrl: "https://api.mistral.ai/v1", model: "mistral-small-latest", format: "openai" },
+    { id: "together", label: "Together AI", baseUrl: "https://api.together.xyz/v1", model: "meta-llama/Llama-3.3-70B-Instruct-Turbo", format: "openai" },
+    { id: "fireworks", label: "Fireworks AI", baseUrl: "https://api.fireworks.ai/inference/v1", model: "accounts/fireworks/models/llama-v3p3-70b-instruct", format: "openai" },
+    { id: "cerebras", label: "Cerebras", baseUrl: "https://api.cerebras.ai/v1", model: "llama-3.3-70b", format: "openai" },
+    { id: "xai", label: "xAI (Grok)", baseUrl: "https://api.x.ai/v1", model: "grok-4-fast", format: "openai" },
+    { id: "custom", label: "Custom…", baseUrl: "", model: "", format: "openai" }
+  ];
+
+  function aipMsg(text, isError) {
+    var host = document.getElementById("aip-form-msg");
+    host.textContent = text || "";
+    host.style.color = isError ? "var(--err)" : "";
+  }
+
+  function aipSetFields(entry, editingDefault) {
+    // editingDefault: a built-in entry — shape inputs go read-only (the server
+    // refuses shape edits there anyway); keys and the enabled toggle stay live.
+    document.getElementById("aip-id").value = entry && entry.id !== undefined ? entry.id : "";
+    document.getElementById("aip-provider").value = entry?.provider || "";
+    document.getElementById("aip-baseurl").value = entry?.baseUrl || "";
+    document.getElementById("aip-model").value = entry?.model || "";
+    document.getElementById("aip-format").value = entry?.format || "openai";
+    document.getElementById("aip-tier").value = entry?.tier || "mid";
+    document.getElementById("aip-enabled").checked = !entry || entry.enabled !== false;
+    document.getElementById("aip-replace").checked = false;
+    ["aip-id", "aip-provider", "aip-baseurl", "aip-model", "aip-format", "aip-tier"].forEach(function (fid) {
+      document.getElementById(fid).disabled = !!editingDefault;
+    });
+    document.getElementById("aip-delete-btn").disabled = !!editingDefault;
+  }
+
+  function aipFillFromPreset(presetId) {
+    var preset = AI_PRESETS.find(function (p) { return p.id === presetId; });
+    if (!preset) return;
+    if (preset.id === "custom") { aipSetFields(null, false); aipMsg("Custom gateway: fill the fields yourself."); return; }
+    aipSetFields({ id: "", provider: preset.id, baseUrl: preset.baseUrl, model: preset.model, format: preset.format, tier: "mid" }, false);
+    aipMsg("Preset prefilled — edit anything, paste key(s), then Save.");
+  }
+
+  function aipTable(rows, defaults) {
+    var wrap = document.createElement("div");
+    if (!rows || !rows.length) {
+      var emptyNote = document.createElement("div");
+      emptyNote.className = "muted";
+      emptyNote.textContent = defaults ? "(nothing)" : "No custom gateways yet — pick a preset above and save one.";
+      wrap.appendChild(emptyNote);
+      return wrap;
+    }
+    var table = document.createElement("table");
+    var thead = document.createElement("tr");
+    ["Entry", "Model", "Tier", "Keys", "Enabled", ""].forEach(function (h) {
+      var th = document.createElement("th");
+      th.textContent = h;
+      thead.appendChild(th);
+    });
+    var head = document.createElement("thead");
+    head.appendChild(thead);
+    table.appendChild(head);
+    var body = document.createElement("tbody");
+    rows.forEach(function (entry) {
+      var tr = document.createElement("tr");
+      var nameTd = document.createElement("td");
+      var bold = document.createElement("strong");
+      bold.textContent = entry.provider;
+      nameTd.appendChild(bold);
+      nameTd.appendChild(document.createElement("br"));
+      var urlSpan = document.createElement("span");
+      urlSpan.className = "mono muted";
+      urlSpan.textContent = (entry.baseUrl || "(build-in URL)") + (entry.sharedAccountCap ? " · account-wide cap" : "");
+      nameTd.appendChild(urlSpan);
+      tr.appendChild(nameTd);
+      var modelTd = document.createElement("td");
+      modelTd.className = "mono";
+      modelTd.textContent = entry.model;
+      tr.appendChild(modelTd);
+      var tierTd = document.createElement("td");
+      tierTd.textContent = entry.tier + (entry.rpd ? " · ≤" + entry.rpd + "/day" : "");
+      tr.appendChild(tierTd);
+      var keyTd = document.createElement("td");
+      keyTd.textContent = entry.keyCount + " (" + (entry.keySource === "env" ? "env secret" : "dashboard") + ")" +
+        (entry.keyFingerprints && entry.keyFingerprints.length ? " · " + entry.keyFingerprints.join(", ") : "");
+      tr.appendChild(keyTd);
+      var stateTd = document.createElement("td");
+      if (entry.enabled) { var on = document.createElement("span"); on.className = "pill pro"; on.textContent = "on"; stateTd.appendChild(on); }
+      else { var off = document.createElement("span"); off.className = "pill expired"; off.textContent = "off"; stateTd.appendChild(off); }
+      tr.appendChild(stateTd);
+      var actTd = document.createElement("td");
+      var isDefault = entry.origin === "default";
+      var editBtn = document.createElement("button");
+      editBtn.className = "btn";
+      editBtn.type = "button";
+      editBtn.textContent = isDefault ? "Keys" : "Edit";
+      editBtn.addEventListener("click", function () {
+        state.aipEditing = { id: entry.id, origin: entry.origin };
+        aipSetFields(entry, isDefault);
+        aipMsg(isDefault ? "Built-in entry: paste its key(s) and Save to store them on the server." : "Editing " + entry.id + ".");
+      });
+      actTd.appendChild(editBtn);
+      if (isDefault) {
+        var toggleBtn = document.createElement("button");
+        toggleBtn.className = "btn";
+        toggleBtn.type = "button";
+        toggleBtn.textContent = entry.enabled ? "Disable" : "Enable";
+        toggleBtn.style.marginLeft = "6px";
+        toggleBtn.addEventListener("click", function () {
+          api("/admin/api/ai-provider-default", { method: "POST", body: JSON.stringify({ id: entry.id, enabled: !entry.enabled }) })
+            .then(function () { aipMsg("Built-in " + entry.id + " " + (!entry.enabled ? "enabled" : "disabled") + ". Changes reach serving within ~30s."); loadAiProviders(); })
+            .catch(aipCatchError);
+        });
+        actTd.appendChild(toggleBtn);
+      }
+      var testBtn = document.createElement("button");
+      testBtn.className = "btn";
+      testBtn.type = "button";
+      testBtn.textContent = "Test";
+      testBtn.style.marginLeft = "6px";
+      testBtn.addEventListener("click", function () { aipTest(entry.id); });
+      actTd.appendChild(testBtn);
+      if (!isDefault) {
+        var delBtn = document.createElement("button");
+        delBtn.className = "btn danger";
+        delBtn.type = "button";
+        delBtn.textContent = "Delete";
+        delBtn.style.marginLeft = "6px";
+        delBtn.addEventListener("click", function () {
+          if (!window.confirm("Delete the custom provider " + entry.id + "?")) return;
+          api("/admin/api/ai-provider-delete", { method: "POST", body: JSON.stringify({ id: entry.id }) })
+            .then(function () { aipMsg(entry.id + " deleted."); if (state.aipEditing?.id === entry.id) state.aipEditing = null; loadAiProviders(); })
+            .catch(aipCatchError);
+        });
+        actTd.appendChild(delBtn);
+      }
+      tr.appendChild(actTd);
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  function aipCatchError() { aipMsg("Request failed — see browser console.", true); }
+
+  function loadAiProviders() {
+    api("/admin/api/ai-providers").then(function (data) {
+      var preset = document.getElementById("aip-preset");
+      if (!preset.dataset.filled) {
+        AI_PRESETS.forEach(function (p) {
+          var opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = p.label;
+          preset.appendChild(opt);
+        });
+        preset.dataset.filled = "1";
+        preset.addEventListener("change", function () { aipFillFromPreset(preset.value); });
+      }
+      var d = document.getElementById("aip-defaults");
+      var c = document.getElementById("aip-custom");
+      d.innerHTML = "";
+      c.innerHTML = "";
+      d.appendChild(aipTable(data.defaults, true));
+      c.appendChild(aipTable(data.custom, false));
+      var status = document.getElementById("aip-status");
+      status.textContent = "Walk order (first = tried first):\n" + (data.pool_order || []).join("\n") +
+        "\n\nLast config update: " + (data.updated_at ? new Date(data.updated_at).toISOString() : "(never saved)");
+      document.getElementById("aip-test-out").textContent = "";
+    }).catch(aipCatchError);
+  }
+
+  function aipCollectBody() {
+    var body = {
+      id: document.getElementById("aip-id").value.trim() || undefined,
+      provider: document.getElementById("aip-provider").value.trim(),
+      baseUrl: document.getElementById("aip-baseurl").value.trim(),
+      model: document.getElementById("aip-model").value.trim(),
+      format: document.getElementById("aip-format").value,
+      tier: document.getElementById("aip-tier").value,
+      enabled: document.getElementById("aip-enabled").checked,
+    };
+    var keysRaw = document.getElementById("aip-keys").value;
+    if (document.getElementById("aip-replace").checked) body.replaceKeys = true;
+    if (keysRaw.trim()) body.keys = keysRaw.split(/[,;\n]+/).map(function (k) { return k.trim(); }).filter(Boolean);
+    return body;
+  }
+
+  function saveAiProvider() {
+    var editing = state.aipEditing;
+    if (editing && editing.origin === "default") {
+      // Built-in: keys (+ clear) only; enabled goes through its own toggle.
+      var bodyD = { id: editing.id };
+      if (document.getElementById("aip-clear-keys-btn").dataset.pending === "1") bodyD.keys = null;
+      else {
+        var keysRaw = document.getElementById("aip-keys").value;
+        if (!keysRaw.trim()) { aipMsg("Paste at least one key (or use Clear keys) before saving a built-in entry.", true); return; }
+        bodyD.keys = keysRaw.split(/[,;\n]+/).map(function (k) { return k.trim(); }).filter(Boolean);
+      }
+      api("/admin/api/ai-provider-save", { method: "POST", body: JSON.stringify(bodyD) })
+        .then(function (res) { state.aipEditing = null; aipSetFields(null, false); aipResetPending(); aipMsg("Stored keys for " + (res.id || editing.id) + " — serving picks them up within ~30s."); loadAiProviders(); })
+        .catch(function () { aipResetPending(); aipCatchError(); });
+      return;
+    }
+    var body = aipCollectBody();
+    if (!body.provider || !body.baseUrl || !body.model) {
+      aipMsg("Provider, base URL and model are required.", true);
+      return;
+    }
+    api("/admin/api/ai-provider-save", { method: "POST", body: JSON.stringify(body) })
+      .then(function (res) {
+        state.aipEditing = null;
+        aipSetFields(null, false);
+        aipMsg("Saved " + (res.id || res.provider) + (res.status === 201 ? " (created)" : "") + ". Serving picks it up within ~30s.");
+        loadAiProviders();
+      })
+      .catch(aipCatchError);
+  }
+
+  function aipClearKeys() {
+    document.getElementById("aip-keys").value = "";
+    document.getElementById("aip-clear-keys-btn").dataset.pending = "1";
+    aipMsg("Keys field cleared. Saving a built-in entry now removes its stored key list (falls back to the worker secret); a custom entry saves with no new keys.");
+  }
+
+  function aipResetPending() {
+    document.getElementById("aip-clear-keys-btn").dataset.pending = "";
+  }
+
+  function aipTest(id) {
+    var out = document.getElementById("aip-test-out");
+    out.textContent = "Testing " + id + "…";
+    api("/admin/api/ai-provider-test", { method: "POST", body: JSON.stringify({ id: id }) }).then(function (r) {
+      if (r.ok) {
+        out.textContent = (r.id || id) + " — OK in " + r.latency_ms + " ms via " + r.provider + "/" + r.model +
+          (r.testingKey ? " (key " + r.testingKey + ")" : "") + "\nsample: " + (r.sample || "(empty)");
+      } else if (r.reason === "no_keys") {
+        out.textContent = (r.id || id) + " — no keys configured. Save a key list first (dashboard or worker secret).";
+      } else {
+        out.textContent = (r.id || id) + " — FAILED: " + (r.message || r.kind || "unknown") +
+          (r.status ? " (HTTP " + r.status + ", kind=" + r.kind + ")" : "");
+      }
+    }).catch(aipCatchError);
+  }
+
 
   function statCard(label, value, detail) {
     var c = el("div", "card stat");
@@ -2565,6 +2934,24 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
   on("gen-codes-btn", genCodes);
   on("codes-report-btn", loadCodesReport);
   loadCodesReport(); // read-only view refreshes with the dashboard
+  on("aip-save-btn", saveAiProvider);
+  on("aip-test-btn", function () {
+    var id = state.aipEditing?.id || document.getElementById("aip-id").value.trim();
+    if (!id) { aipMsg("Type an id (or press Edit on a row) before testing.", true); return; }
+    aipTest(id);
+  });
+  on("aip-clear-keys-btn", aipClearKeys);
+  on("aip-delete-btn", function () {
+    var editing = state.aipEditing;
+    if (!editing || editing.origin === "default") {
+      aipMsg("Select a custom entry first (press Edit on it). Built-in entries are toggled off, never deleted.", true);
+      return;
+    }
+    if (!window.confirm("Delete the custom provider " + editing.id + "?")) return;
+    api("/admin/api/ai-provider-delete", { method: "POST", body: JSON.stringify({ id: editing.id }) })
+      .then(function () { state.aipEditing = null; aipSetFields(null, false); aipMsg(editing.id + " deleted."); loadAiProviders(); })
+      .catch(aipCatchError);
+  });
 
   // Enter in the key field connects without a click.
   var keyInput = document.getElementById("admin-key");

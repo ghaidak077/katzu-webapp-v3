@@ -364,7 +364,7 @@ export async function handleAskRoute(request, env, cors, deps) {
     }
   }
 
-  if (!hasUsableProvider(env)) {
+  if (!(await hasUsableProvider(env))) {
     return json({ error: "ai_unavailable", code: "AI_UNAVAILABLE", message: "مساعد كَاتْزُو غير متاح الآن. سؤالك محفوظ هنا — جرّب بعد قليل." }, 503, cors);
   }
 

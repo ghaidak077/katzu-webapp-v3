@@ -93,7 +93,11 @@ function makeEnv(overrides: Record<string, unknown> = {}) {
   return {
     TEST_MODE: true,
     GOOGLE_CLIENT_ID: 'client-id',
-    GEMINI_API_KEYS: 'test-key-aaaaaaaaaa',
+    // The pool's two defaults each get a key: easy turns walk the 'mid' tier
+    // (OpenRouter) and graded turns the 'flagship' (NVIDIA), so both cheap
+    // routing and tier order stay exercised by the route tests.
+    NVIDIA_API_KEYS: 'test-key-aaaaaaaaaa',
+    OPENROUTER_API_KEYS: 'test-key-openrouter-b',
     USER_PROGRESS: new MemoryKv(),
     REDEEMED_CODES: new MemoryKv(),
     DB: new SqlStub(),
@@ -108,8 +112,9 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
     body: JSON.stringify(body),
   });
 
-const geminiText = (text: string) =>
-  new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }), { status: 200 });
+/** A openai-compatible (NVIDIA/OpenRouter) 200: the route reads `choices[0].message.content`. */
+const providerText = (text: string) =>
+  new Response(JSON.stringify({ choices: [{ message: { content: text } }] }), { status: 200 });
 
 /** One fused answer: the reply and the evaluation come back from a single call. */
 const FUSED_REPLY = JSON.stringify({
@@ -217,7 +222,7 @@ describe('/ai/translate entitlement', () => {
       'fetch',
       (async (input: any) => {
         modelCalls.push(String(input));
-        return geminiText(JSON.stringify({ translation_ar: 'نهارك سعيد' }));
+        return providerText(JSON.stringify({ translation_ar: 'نهارك سعيد' }));
       }) as unknown as typeof fetch,
     );
 
@@ -249,8 +254,10 @@ describe('/ai/turn through the pool', () => {
     vi.stubGlobal('fetch', (async (_input: any, init: any) => {
       const body = JSON.parse(String(init.body));
       requested.push({ body, input: String(init.body) });
-      const corrected = body.user_message !== 'Hallo';
-      return geminiText(JSON.stringify({
+      // The openai-format wire body's last user turn says what the learner said.
+      const lastUser = (body.messages || []).filter((m: any) => m.role === 'user').map((m: any) => m.content ?? '').pop() || '';
+      const corrected = lastUser !== 'Hallo';
+      return providerText(JSON.stringify({
         reply_de: 'Guten Tag!',
         reply_ar: 'نهارك سعيد!',
         evaluation: {
@@ -317,7 +324,7 @@ describe('/ai/turn through the pool', () => {
       (async (input: any, init: any) => {
         requested.push(String(input));
         void init;
-        return geminiText(FUSED_REPLY);
+        return providerText(FUSED_REPLY);
       }) as unknown as typeof fetch,
     );
 
@@ -340,11 +347,11 @@ describe('/ai/turn through the pool', () => {
     const body = await res.json() as any;
     expect(body.reply_de).toContain('Guten Tag');
     expect(body.evaluation.is_correct).toBe(true);
-    expect(body.provider).toBe('gemini');
+    expect(body.provider).toBe('openrouter');
     // This turn is a short A1 non-graded utterance, so isEasyTurn() routes it to
     // the cheaper 'mid' tier first. Cheap-routing is the requested behaviour, so
     // the old flagship assertion is replaced rather than loosened.
-    expect(requested[0]).toContain('gemini-3.6-flash');
+    expect(requested[0]).toContain('openrouter.ai/api/v1/chat/completions');
     // The fusion: one learner message is ONE provider call, not two.
     expect(requested).toHaveLength(1);
 
@@ -366,7 +373,7 @@ describe('/ai/turn through the pool', () => {
       env as never,
     );
     expect(graded.status).toBe(200);
-    expect(requested[requested.length - 1]).toContain('gemini-3.8-flash');
+    expect(requested[requested.length - 1]).toContain('integrate.api.nvidia.com');
 
     // withAiTelemetry records the completed turn in activity_log, and the admin
     // stats now read it instead of reporting a hardcoded zero.
@@ -390,12 +397,12 @@ describe('/ai/turn through the pool', () => {
     const env = makeEnv();
     await seedSession(env, 'dup-learner', 'sess_dup_learner');
 
-    let contents: any[] = [];
+    let messages: any[] = [];
     vi.stubGlobal(
       'fetch',
       (async (_input: any, init: any) => {
-        contents = JSON.parse(String(init?.body)).contents;
-        return geminiText(FUSED_REPLY);
+        messages = JSON.parse(String(init?.body)).messages;
+        return providerText(FUSED_REPLY);
       }) as unknown as typeof fetch,
     );
 
@@ -421,16 +428,17 @@ describe('/ai/turn through the pool', () => {
     );
 
     expect(res.status).toBe(200);
-    expect(contents.map((c) => c.parts[0].text).filter((t) => t === sentence)).toHaveLength(1);
-    expect(contents.at(-1)).toEqual({ role: 'user', parts: [{ text: sentence }] });
-    const rolesSeen = contents.map((c) => c.role);
-    expect(rolesSeen.some((role, i) => i > 0 && role === rolesSeen[i - 1])).toBe(false);
+    // One user turn carries the sentence; the transcript's copy must not repeat it.
+    expect(messages.map((m) => m.content).filter((t: string) => t === sentence)).toHaveLength(1);
+    expect(messages.at(-1)).toEqual({ role: 'user', content: sentence });
+    const rolesSeen = messages.map((m) => m.role);
+    expect(rolesSeen.some((role: string, i: number) => i > 0 && role === rolesSeen[i - 1])).toBe(false);
   });
 
   it('asks for a short, low-reasoning answer because the learner is waiting on it', async () => {
-    // Gemini only, so the payload the route builds is the payload that goes out:
-    // the transport strips the OpenAI-only knobs before a Gemini request.
-    const env = makeEnv({ GEMINI_API_KEYS: undefined, GROQ_API_KEYS: 'groq-key-aaaaaaaaaa' });
+    // NVIDIA disabled, so the turn is served by the openai-compatible OpenRouter
+    // entry: the payload the route builds is the payload that goes on the wire.
+    const env = makeEnv({ NVIDIA_API_KEYS: undefined, OPENROUTER_API_KEYS: 'test-key-openrouter-b' });
     await seedSession(env, 'budget-learner', 'sess_budget_learner');
 
     let body: any = null;
@@ -468,7 +476,7 @@ describe('/ai/turn through the pool', () => {
       (async (input: any, init: any) => {
         promptSent = String(init?.body || '');
         void input;
-        return geminiText(FUSED_REPLY);
+        return providerText(FUSED_REPLY);
       }) as unknown as typeof fetch,
     );
 
@@ -513,7 +521,7 @@ describe('/ai/turn through the pool', () => {
   });
 
   it('counts an exhausted provider unit for the dashboard, once', async () => {
-    const env = makeEnv({ GEMINI_API_KEYS: 'test-key-aaaaaaaaaa' });
+    const env = makeEnv();
     await seedSession(env, 'park-learner', 'sess_park_learner');
 
     const attempted: string[] = [];
@@ -573,7 +581,7 @@ describe('/ai/turn refuses unusable model output', () => {
   async function runTurn(raw: string, sub: string) {
     const env = makeEnv();
     await seedSession(env, sub, `sess_${sub}`);
-    vi.stubGlobal('fetch', (async () => geminiText(raw)) as unknown as typeof fetch);
+    vi.stubGlobal('fetch', (async () => providerText(raw)) as unknown as typeof fetch);
     const res = await worker.fetch(
       post(
         '/ai/turn',
@@ -648,7 +656,7 @@ describe('safety instruction injection (P4)', () => {
       'fetch',
       (async (_input: any, init: any) => {
         requested.push({ input: String(init.body) });
-        return geminiText(FUSED_REPLY);
+        return providerText(FUSED_REPLY);
       }) as unknown as typeof fetch,
     );
     const res = await worker.fetch(
@@ -705,7 +713,7 @@ describe('AI persona rules (RC-3)', () => {
       'fetch',
       (async (_input: any, init: any) => {
         requested.push({ input: String(init.body) });
-        return geminiText(FUSED_REPLY);
+        return providerText(FUSED_REPLY);
       }) as unknown as typeof fetch,
     );
     const res = await worker.fetch(
@@ -787,8 +795,8 @@ describe('deterministic conversation beats (V28 Stage 1)', () => {
 
     let prompt = '';
     vi.stubGlobal('fetch', (async (_input: any, init: any) => {
-      prompt = JSON.stringify(JSON.parse(String(init.body)).systemInstruction);
-      return geminiText(FUSED_REPLY);
+      prompt = JSON.stringify(JSON.parse(String(init.body)).messages.filter((m: any) => m.role === 'system').map((m: any) => m.content).join('\n'));
+      return providerText(FUSED_REPLY);
     }) as unknown as typeof fetch);
 
     const res = await worker.fetch(
@@ -810,7 +818,7 @@ describe('deterministic conversation beats (V28 Stage 1)', () => {
     let prompt = '';
     vi.stubGlobal('fetch', (async (_input: any, init: any) => {
       prompt = String(init.body);
-      return geminiText(FUSED_REPLY);
+      return providerText(FUSED_REPLY);
     }) as unknown as typeof fetch);
 
     const res = await worker.fetch(
@@ -830,7 +838,7 @@ describe('live-conversation behaviour + level enforcement on /ai/turn (V21 Phase
     vi.stubGlobal('fetch', (async (input: any, init: any) => {
       void input;
       bodies.push(JSON.parse(init.body));
-      return geminiText(FUSED_REPLY);
+      return providerText(FUSED_REPLY);
     }) as unknown as typeof fetch);
 
     for (const turnIndex of [0, 1, 2, 3, 4]) {
@@ -852,7 +860,11 @@ describe('live-conversation behaviour + level enforcement on /ai/turn (V21 Phase
       expect(res.status).toBe(200);
     }
 
-    const prompts = bodies.map((b) => JSON.stringify(b.systemInstruction));
+    // The system prompt now rides as the openai-format messages[0]; the
+    // assertions read the text, not a provider's envelope.
+    const systemText = (b: any) =>
+      (b.messages || []).filter((m: any) => m.role === 'system').map((m: any) => m.content ?? '').join('\n');
+    const prompts = bodies.map((b) => JSON.stringify(systemText(b)));
     // V28 Stage 1C: no obstacle on the FIRST turn (the learner has not been heard
     // yet) — the instruction is the plain direct-answer one instead.
     expect(prompts[0]).not.toContain('ask exactly one natural follow-up question');
@@ -878,7 +890,7 @@ describe('level enforcement on /ai/turn (V21 Phase 1, e2e-pinned here)', () => {
     vi.stubGlobal('fetch', (async (input: any, init: any) => {
       void input;
       bodies.push(JSON.parse(init.body));
-      return geminiText(bodies.length === 1 ? OFF_LEVEL_REPLY : FUSED_REPLY);
+      return providerText(bodies.length === 1 ? OFF_LEVEL_REPLY : FUSED_REPLY);
     }) as unknown as typeof fetch);
 
     const res = await worker.fetch(
@@ -899,7 +911,9 @@ describe('level enforcement on /ai/turn (V21 Phase 1, e2e-pinned here)', () => {
 
     expect(res.status).toBe(200);
     const body = await res.json() as any;
-    const firstPrompt = JSON.stringify(bodies[0].systemInstruction);
+    const firstPrompt = JSON.stringify(
+      (bodies[0].messages || []).filter((m: any) => m.role === 'system').map((m: any) => m.content).join('\n'),
+    );
     expect(firstPrompt).toContain('LEVEL CAPS');
     expect(firstPrompt).toContain('CEFR A0');
     // The second call returned the schema-obeying FUSED_REPLY, which passes the A0
@@ -911,7 +925,7 @@ describe('level enforcement on /ai/turn (V21 Phase 1, e2e-pinned here)', () => {
   it('serves the deterministic fallback when the repair also breaks the caps', async () => {
     const env = makeEnv();
     await seedSession(env, 'fallback-learner', 'sess_fallback');
-    vi.stubGlobal('fetch', (async () => geminiText(OFF_LEVEL_REPLY)) as unknown as typeof fetch);
+    vi.stubGlobal('fetch', (async () => providerText(OFF_LEVEL_REPLY)) as unknown as typeof fetch);
 
     const res = await worker.fetch(
       post(

@@ -410,10 +410,13 @@ describe('transports', () => {
 
   it('never puts the OpenAI-only reasoning_effort in a Gemini request', async () => {
     // Gemini rejects generationConfig fields it does not know, so the shared
-    // payload's OpenAI-only knobs have to be stripped at the transport.
+    // payload's OpenAI-only knobs have to be stripped at the transport. The
+    // gemini-format entry is explicit here: the DEFAULT pool is OpenRouter +
+    // NVIDIA now, and this guard is about a format, not about one provider.
+    const geminiEntry = { id: 'gemini', origin: 'custom', provider: 'gemini', model: 'gemini-3.8-flash', format: 'gemini', tier: 'flagship', rpd: 20 };
     const stub = fetchStub(() => geminiOk('{}'));
     const asks = { ...geminiPayload, generationConfig: { ...geminiPayload.generationConfig, reasoningEffort: 'low' } };
-    await callAiRouter(asks, geminiEnv(), deps({ fetchImpl: stub.impl, pool: [PROVIDER_POOL[0]] }));
+    await callAiRouter(asks, geminiEnv(), deps({ fetchImpl: stub.impl, pool: [geminiEntry] }));
     expect(stub.bodies[0].generationConfig.reasoningEffort).toBeUndefined();
     expect(stub.bodies[0].generationConfig.maxOutputTokens).toBe(200);
   });
@@ -534,14 +537,16 @@ describe('key parsing', () => {
   });
 
   it('health shape reports what is callable, and never how many keys exist', () => {
-    const health = getPoolHealth({ env: { GROQ_API_KEYS: 'groq-key-aaaaaaaaaa' } as any, pool: PROVIDER_POOL });
-    expect([...new Set(health.active.map((e: any) => e.provider))]).toEqual(['groq']);
+    // The DEFAULT pool is OpenRouter + NVIDIA (owner direction 2026-10-18):
+    // with only an NVIDIA key set, nvidia serves and openrouter idles honestly.
+    const health = getPoolHealth({ env: { NVIDIA_API_KEYS: 'nv-key-aaaaaaaaa' } as any, pool: PROVIDER_POOL });
+    expect([...new Set(health.active.map((e: any) => e.provider))]).toEqual(['nvidia']);
     expect(health.idle.map((e: any) => e.reason)).toContain('no_keys');
-    // Every entry now resolves to a real model: a provider with no secret is idle
+    // Every entry resolves to a real model: a provider with no secret is idle
     // for the honest reason (`no_keys`), never because its model is a stub.
     expect(health.idle.some((e: any) => e.reason === 'model_unset')).toBe(false);
-    expect(health.idle.find((e: any) => e.provider === 'nvidia')).toMatchObject({ model: 'openai/gpt-oss-20b', reason: 'no_keys' });
-    expect(JSON.stringify(health)).not.toContain('groq-key-aaaaaaaaaa');
+    expect(health.idle.find((e: any) => e.provider === 'openrouter')).toMatchObject({ model: 'thinkingmachines/inkling-small:free', reason: 'no_keys' });
+    expect(JSON.stringify(health)).not.toContain('nv-key-aaaaaaaaa');
   });
 });
 

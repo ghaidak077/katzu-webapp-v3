@@ -201,7 +201,7 @@ export async function handleHintsRoute(request, env, cors, deps) {
 
   const reply = (last_ai_reply || "").trim();
   const recentHistory = boundedHistory(history, "hints");
-  if (!hasUsableProvider(env)) {
+  if (!(await hasUsableProvider(env))) {
     return json({ error: "ai_unavailable" }, 503, cors);
   }
 

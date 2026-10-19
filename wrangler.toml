@@ -7,14 +7,17 @@
 # dashboard (Workers & Pages → katzu-test → Settings → Variables and Secrets).
 # The deployed set, and what each name is for:
 #
-#   AI provider key lists — the pool in cloudflare-ai-router.js reads all four,
-#   same comma/semicolon/newline-separated list format. An unset or empty list is
-#   skipped and reported as `idle: {reason: "no_keys"}` in /health; it is never an
-#   error and never a failed learner request:
-#     GEMINI_API_KEYS      set — the pool's active provider
-#     GROQ_API_KEYS        created empty — paste the key list to switch it on
+#   AI provider key lists — same comma/semicolon/newline-separated list format.
+#   The DEFAULT pool in cloudflare-ai-router.js is OpenRouter + NVIDIA only
+#   (owner direction 2026-10-18); Gemini/Groq are preset-only. The owner can
+#   also manage the pool and its keys from the admin dashboard "AI Providers"
+#   tab (stored server-side in KV, no code change needed). An unset or empty
+#   list is skipped and reported as `idle: {reason: "no_keys"}` in /health; it
+#   is never an error and never a failed learner request:
 #     OPENROUTER_API_KEYS  created empty — paste the key list to switch it on
 #     NVIDIA_API_KEYS      created empty — paste the key list to switch it on
+#     GEMINI_API_KEYS      set — legacy; no default entry reads it any more
+#     GROQ_API_KEYS        created empty — legacy; no default entry reads it any more
 #   Auth: ADMIN_SECRET, HMAC_SECRET.
 #   Crypto sales (NOWPayments): NOWPAYMENTS_API_KEY, NOWPAYMENTS_IPN_SECRET.
 #   There is no card-billing provider — Dodo was closed for this account

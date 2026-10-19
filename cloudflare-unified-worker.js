@@ -40,7 +40,9 @@
 // AI surface: chat turn + translation (cloudflare-ai-chat.js), hints
 // (cloudflare-hints.js), writing (cloudflare-writing.js). Routing between
 // providers lives in cloudflare-ai-router.js — see its header for why the
-// Gemini-only walker below is no longer reached by any route.
+// Gemini-only walker below is no longer reached by any route. The pool a
+// request walks is owner-managed (admin dashboard): cloudflare-ai-providers.js
+// resolves the defaults (OpenRouter + NVIDIA) plus whatever the owner added.
 import { handleHintsRoute } from "./cloudflare-hints.js";
 import { handleWritingRoute } from "./cloudflare-writing.js";
 import { handleAskRoute } from "./cloudflare-ask.js";
@@ -50,6 +52,7 @@ import { handleTranscribeRoute } from "./cloudflare-stt.js";
 import { deriveConversationBeats } from "./cloudflare-conversation-beats.js";
 import {
   PROVIDER_POOL,
+  PROVIDER_ENV_VARS,
   callAiRouter,
   getPoolHealth,
   hasUsableProvider,
@@ -59,6 +62,30 @@ import {
   routerCountersSnapshot,
   writeAiCache,
 } from "./cloudflare-ai-router.js";
+// Provider pool config: the injected pool, the admin list store, reset for tests.
+import {
+  listProviderConfig,
+  resetProviderConfigState,
+  resolveProviderPool,
+  setDefaultProviderState,
+  deleteProviderEntry,
+  testProviderEntry,
+  upsertProviderEntry,
+} from "./cloudflare-ai-providers.js";
+export { resetProviderConfigState };
+// The availability guard must answer for the pool a request would actually
+// walk (defaults minus owner-disabled, plus owner custom entries), not just
+// the code's default list. It is async: resolving the owner config is a KV
+// read, and every AI route greets it with `await` before a 503 is honest.
+async function poolAwareHasProvider(env) {
+  try {
+    const pool = await resolveProviderPool(env);
+    if (hasUsableProvider(env, pool)) return true;
+    return hasUsableProvider(env); // fall back to the code defaults' own view
+  } catch {
+    return hasUsableProvider(env); // a config read failure must not fail the guard
+  }
+}
 import {
   ensureRegistryTables,
   upsertUserFromAccount,
@@ -103,10 +130,11 @@ import {
 // reads them, and nothing new may start to.
 //
 // `DEFAULT_MODEL_CHAIN` is a *projection* of PROVIDER_POOL, never a hand-written
-// list: the pool is the single source of truth, so a model removed from the pool
-// disappears from the chain with it. The pool no longer contains
-// gemini-flash-latest (not a published endpoint) or the access-restricted
-// gemini-2.5-* models, so no path can call them again.
+// list: the pool is the single source of truth. The default pool is
+// OpenRouter + NVIDIA now (owner direction 2026-10-18), so this Gemini-only
+// projection is empty and the legacy walker it fed can never fire — it stays
+// only because its body sits past the edit boundary this file's header
+// documents. No live path reads it, and nothing new may start to.
 const DEFAULT_MODEL_CHAIN = PROVIDER_POOL
   .filter((entry) => entry.provider === "gemini")
   .map((entry) => entry.model);
@@ -168,20 +196,6 @@ function setCache(map, key, val, maxSize = 1000) {
     map.delete(firstKey);
   }
   map.set(key, val);
-}
-
-/**
- * Gemini key inspection. The generalized parser lives in ./cloudflare-ai-router.js
- * and is shared by all four providers; this is its Gemini projection, kept so the
- * internal health report and the legacy admin dashboard keep working. The legacy
- * GEMINI_KEY_n aliases are the only Gemini-specific part.
- */
-function inspectGeminiKeys(env) {
-  return inspectProviderKeys(env, "GEMINI_API_KEYS", { extraPatterns: [/^GEMINI_KEY$/i, /^GEMINI_KEY_\d+$/i] });
-}
-
-function getGeminiApiKeys(env) {
-  return inspectGeminiKeys(env).uniqueKeys;
 }
 
 // ============================================================================
@@ -1346,7 +1360,14 @@ async function handlePublicHealth(env, cors) {
     internal = {};
   }
 
-  const poolHealth = getPoolHealth({ env });
+  let poolHealth = {};
+  try {
+    // The projection describes the pool a request would actually walk, owner
+    // config included; a config failure degrades to the code defaults.
+    poolHealth = getPoolHealth({ env, pool: await resolveProviderPool(env) });
+  } catch {
+    poolHealth = getPoolHealth({ env });
+  }
 
   // Storage liveness, which this endpoint never checked: it reported whether the
   // AI engine could serve, and said nothing about the two stores every other route
@@ -1436,7 +1457,10 @@ async function resolvePracticeGrammar(env, grammarId) {
 function aiRouteDeps() {
   return {
     json,
-    hasUsableProvider,
+    // Pool-aware, async: AI route handlers `if (!(await deps.hasUsableProvider(env)))`
+    // — a 503 must mean "nothing the owner configured can serve", not just "the
+    // code's default list is empty".
+    hasUsableProvider: poolAwareHasProvider,
     authenticateAiRequest,
     extractIdToken,
     verifyGoogleIdToken,
@@ -1469,8 +1493,17 @@ function aiRouteDeps() {
     // `opts` lets a handler ask for router behaviour it can justify for its own
     // route (the turn and translate routes set `preferFast`), without a second
     // router or a per-route copy of the deps object.
-    callAiRouter: (payload, callEnv, opts) =>
-      callAiRouter(payload, callEnv, opts ? { ...aiRouterDeps(), ...opts } : aiRouterDeps()),
+    callAiRouter: (payload, callEnv, opts) => {
+      // The pool a request walks is owner-managed (admin dashboard). resolveProviderPool
+      // hits the memoized KV config; an explicitly injected pool (tests) always wins.
+      const injectedPool = opts && opts.pool;
+      const resolved = injectedPool || resolveProviderPool(callEnv).catch(() => undefined);
+      const base = opts ? { ...aiRouterDeps(), ...opts } : aiRouterDeps();
+      if (injectedPool) return callAiRouter(payload, callEnv, base);
+      return Promise.resolve(resolved).then((pool) =>
+        callAiRouter(payload, callEnv, { ...base, pool: pool || undefined })
+      );
+    },
     routerCounters: routerCountersSnapshot,
     getProvider: () => lastAiProvider,
     // The model the pool served last (pinned by the router's onModel hook), read
@@ -1966,7 +1999,7 @@ const aiFallbackMetrics = {
   failures: 0,
   lastUsedAt: null,
 };
-let lastAiProvider = "gemini";
+let lastAiProvider = null;
 
 // Cumulative counters are persisted to KV because Workers isolate memory is
 // per-isolate: an in-memory counter on the isolate that served the fallback is
@@ -2318,10 +2351,26 @@ function sanitizeFieldLabel(value) {
 // ----------------------------------------------------------------------------
 
 async function handleAiHealth(env, cors) {
-  const inspection = inspectGeminiKeys(env);
-  const apiKeys = inspection.uniqueKeys;
-  const coolingDownCount = apiKeys.filter(k => isKeyCoolingDown(k)).length;
-  const healthyCount = apiKeys.length - coolingDownCount;
+  // The pool is owner-managed (admin dashboard): the report describes the walk
+  // a request would actually take — defaults (OpenRouter + NVIDIA) minus what
+  // the owner disabled, plus the owner's custom gateways — and the env key
+  // lists still set per provider name for dashboards of older presets.
+  let config;
+  try {
+    config = await listProviderConfig(env);
+  } catch {
+    config = null;
+  }
+  const envKeyCounts = {};
+  for (const provider of Object.keys(PROVIDER_ENV_VARS)) {
+    envKeyCounts[provider] = inspectProviderKeys(env, PROVIDER_ENV_VARS[provider]).uniqueCount;
+  }
+  let poolReport = null;
+  try {
+    poolReport = getPoolHealth({ env, pool: await resolveProviderPool(env), includeKeyIds: true });
+  } catch {
+    poolReport = getPoolHealth({ env, includeKeyIds: true });
+  }
 
   // Durable cumulative counters from KV take precedence over this isolate's
   // in-memory view (Workers isolate memory is per-isolate).
@@ -2332,21 +2381,18 @@ async function handleAiHealth(env, cors) {
 
   return json({
     status: "healthy",
-    service: "Katzu Unified Worker + Multi-Key AI Engine",
-    keysConfigured: inspection.uniqueCount,
-    rawKeysFound: inspection.rawCount,
-    hasDuplicateKeys: inspection.hasDuplicates,
-    duplicateWarning: inspection.hasDuplicates 
-      ? `One or more keys are duplicated: ${inspection.duplicates.join(", ")}`
-      : null,
-    healthyKeys: healthyCount,
-    coolingDownKeys: coolingDownCount,
-    primaryWorkingModel: primaryWorkingModel || "auto-pinning on first call",
-    cachedTranslationsCount: translationCache.size,
-    cachedHintsCount: hintsCache.size,
-    ready: apiKeys.length > 0 || !!env.AI,
-    strategy: "single-prompt fusion + round-robin 14-key load balancing + edge memory cache + Workers AI fallback",
-    registeredKeysMasked: inspection.previews,
+    service: "Katzu Unified Worker + Owner-Managed Provider Pool",
+    // Back-compat field for older dashboards/pollers: env key lists only.
+    keysConfigured: envKeyCounts,
+    providerConfig: {
+      updated_at: config?.updated_at || 0,
+      defaults: config?.defaults || [],
+      custom: config?.custom || [],
+      pool_order: config?.pool_order || [],
+    },
+    pool: poolReport,
+    ready: poolReport?.active?.length > 0 || !!env.AI,
+    strategy: "dashboard-managed provider pool (OpenRouter + NVIDIA defaults + owner custom gateways) + KV day-quota ledger + Workers AI fallback",
     aiFallback: {
       enabled: !isFallbackKillSwitchOff(env),
       bindingPresent: !!env.AI,

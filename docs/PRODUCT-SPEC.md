@@ -963,8 +963,14 @@ Client stores ONLY sessionToken in Dexie; uses `Authorization: Bearer sess_…` 
 ## 18. AI engine
 
 **Providers & failover**
-1. **Gemini** (primary) with **multiple API keys** (`GEMINI_API_KEYS`, comma-separated; 3 live),
-   round-robin + sticky model, per-key cooldown parking (an invalid key is parked ~1 h).
+1. **Owner-managed provider pool** (owner direction 2026-10-18): the DEFAULT pool is
+   **NVIDIA NIM** (`openai/gpt-oss-20b`, flagship — account-credit limits, no per-model daily
+   ceiling) and **OpenRouter** (`thinkingmachines/inkling-small:free`, mid — ~50 req/day
+   account-wide). Gemini and Groq are no longer default entries; the owner can re-add them
+   (or any custom gateway URL + key) from the admin dashboard "AI Providers" tab
+   (`cloudflare-ai-providers.js`, KV `ai-provider-config` — dashboard-stored keys win over
+   the env lists, and reads are masked to counts + fingerprints). Legacy env lists
+   (`GEMINI_API_KEYS` — 3 live, `GROQ_API_KEYS`) are no longer read by any default entry.
 2. **Workers AI** (`@cf/qwen/qwen3-30b-a3b-fp8`) via the `AI` binding, gated by
    `AI_FALLBACK_ENABLED`. Responses carry `provider: "workers-ai"`; `served` increments in
    `/health` (KV-backed counters; best-effort diagnostics, never used for billing).

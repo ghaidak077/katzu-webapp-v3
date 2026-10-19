@@ -279,7 +279,7 @@ export async function handleWritingRoute(request, env, cors, deps) {
     }, 400, cors);
   }
 
-  if (!hasUsableProvider(env)) {
+  if (!(await hasUsableProvider(env))) {
     return json({ error: "ai_unavailable" }, 503, cors);
   }
 

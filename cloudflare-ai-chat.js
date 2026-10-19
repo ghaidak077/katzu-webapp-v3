@@ -234,7 +234,7 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     correctionBudgetFor,
   } = deps;
 
-  if (!hasUsableProvider(env)) return json({ error: "ai_unavailable" }, 503, cors);
+  if (!(await hasUsableProvider(env))) return json({ error: "ai_unavailable" }, 503, cors);
 
   const body = await request.json().catch(() => null);
   if (!body || !body.user_message) return json({ error: "user_message required" }, 400, cors);
@@ -847,7 +847,7 @@ export async function handleTranslateRoute(request, env, cors, deps) {
 
   const text = String(body?.text || "").trim();
   if (!text) return json({ translation_ar: "" }, 200, cors);
-  if (!hasUsableProvider(env)) return json({ error: "ai_unavailable" }, 503, cors);
+  if (!(await hasUsableProvider(env))) return json({ error: "ai_unavailable" }, 503, cors);
 
   const cacheKey = await translateCacheKey(text, "ar");
   const cached = await readAiCache(env, "tr", cacheKey);

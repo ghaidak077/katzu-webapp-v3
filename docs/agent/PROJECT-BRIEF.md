@@ -71,7 +71,7 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 2. Client state: Dexie/IndexedDB (`src/lib/db/katzuDb.ts`) — offline queue and local fallback.
 3. Remote: one Cloudflare Worker `cloudflare-unified-worker.js` (+15 `cloudflare-*.js` modules) behind `src/lib/api/workerClient.ts`.
 4. Data: D1 `katzu-content` (scenarios, vocabulary, grammar, starter_phrases — remote wins) · KV `USER_PROGRESS` (progress + authoritative AI quota) · KV `REDEEMED_CODES`.
-5. AI path: `/ai/*` → `cloudflare-ai-router.js` multi-provider pool (Gemini active; Groq/OpenRouter/NVIDIA lists empty) → Workers AI `[ai]` fallback (`AI_FALLBACK_ENABLED=1`).
+5. AI path: `/ai/*` → owner-managed multi-provider pool — defaults **NVIDIA + OpenRouter** (Gemini/Groq preset-only), editable from the admin "AI Providers" tab (`cloudflare-ai-providers.js`, KV `ai-provider-config`; key lists still empty in production, so until the owner adds keys everything rides the fallback) → Workers AI `[ai]` fallback (`AI_FALLBACK_ENABLED=1`).
 6. Every AI response is validated and bounded server-side; AI is never authoritative for billing or account state (`docs/agent/QUALITY.md`).
 7. Auth: Google ID token → Worker verifies `aud` against `GOOGLE_CLIENT_ID`; `TEST_MODE` is ignored in production.
 8. Entitlements: server-side subscription/activation state in D1 + KV; client is never authoritative.

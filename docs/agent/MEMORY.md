@@ -31,6 +31,7 @@ file is the digest that is short enough to always read.
 | Search | `rg` is NOT installed → `grep -rn` / `git grep -n` |
 | App / worker / sales | `katzu-webapp-v3.pages.dev` · `katzu-test.ghaidakalosh008.workers.dev` · `katzu-sales.pages.dev` |
 | AI free quota | `MAX_FREE_AI_SESSIONS = 3` (`cloudflare-unified-worker.js`). Session-quota-exempt AI routes still need their OWN daily scope or they are an uncapped bill: `/ai/ask` = 8 free / 60 Pro, **`/ai/hints` = 30 free / 120 Pro** (`hintsQuotaFor`, `cloudflare-hints.js`), all via `checkGlobalRateLimit({ scope })`. |
+| AI provider pool (2026-10-18) | Defaults = **NVIDIA NIM** (`openai/gpt-oss-20b`, flagship, account-credit) + **OpenRouter** (`thinkingmachines/inkling-small:free`, mid, ~50/day account-wide). Gemini/Groq are preset-only — a request reaches them only if the owner adds the entry via the admin "AI Providers" tab. Pool + keys are owner-managed in KV `ai-provider-config` (`cloudflare-ai-providers.js`); stored keys WIN over env lists; `hasUsableProvider` is now **async** (`await deps.hasUsableProvider(env)`) and pool-aware. OpenRouter/NVIDIA key lists are still EMPTY in production — until the owner adds keys, turns ride the Workers AI fallback. |
 | Levels | A0–B2 (`src/lib/levels/levelSpec.ts`) |
 | Sign-in | Google-only |
 | Payments | NOWPayments **test mode**, `ready:false` |

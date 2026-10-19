@@ -42,7 +42,16 @@ const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
 
-/** Secret name per provider. Same comma/semicolon/newline list format for all. */
+/**
+ * Secret name per provider. Same comma/semicolon/newline list format for all.
+ *
+ * The DEFAULT pool below is OpenRouter + NVIDIA only (owner direction,
+ * 2026-10-18): a request is served by a provider outside those two only when
+ * the owner deliberately adds such an entry from the admin dashboard, either as
+ * a custom entry carrying its own keys or as a preset that reads one of the env
+ * names here. `gemini` / `groq` stay as convention names so a re-added preset
+ * needs no code change; nothing in the default pool reads them.
+ */
 export const PROVIDER_ENV_VARS = {
   gemini: "GEMINI_API_KEYS",
   groq: "GROQ_API_KEYS",
@@ -139,24 +148,30 @@ export function tierWalkFor(easyTurn) {
 }
 
 export const PROVIDER_POOL = [
-  // flagship
-  { provider: "gemini", model: "gemini-3.8-flash", format: "gemini", tier: "flagship", rpd: 20 },
-  { provider: "groq", model: "openai/gpt-oss-120b", format: "openai", baseUrl: GROQ_BASE_URL, tier: "flagship", rpd: 1000, tpm: 8000 },
-  { provider: "gemini", model: "gemini-3.7-flash", format: "gemini", tier: "flagship", rpd: 20 },
-  // mid
-  { provider: "gemini", model: "gemini-3.6-flash", format: "gemini", tier: "mid", rpd: 20 },
-  { provider: "groq", model: "qwen/qwen3.8-27b", format: "openai", baseUrl: GROQ_BASE_URL, tier: "mid", rpd: 1000, tpm: 8000 },
-  // lite / overflow
-  { provider: "gemini", model: "gemini-3.5-flash-lite", format: "gemini", tier: "lite", rpd: 15 },
-  { provider: "groq", model: "openai/gpt-oss-20b", format: "openai", baseUrl: GROQ_BASE_URL, tier: "lite", rpd: 1000, tpm: 8000 },
-  { provider: "openrouter", model: "thinkingmachines/inkling-small:free", format: "openai", baseUrl: OPENROUTER_BASE_URL, tier: "lite", rpd: 50, sharedAccountCap: true },
-  // No published per-model daily ceiling, so `rpd: null` is deliberate, not a gap:
-  // there is no number to pre-check against. Its limits are the account-wide NIM
-  // credit allowance, which the response body never names — hence the provider
-  // override in classifyFailure that parks this unit on a rate-limit answer
-  // instead of treating it as a 25s blip.
-  { provider: "nvidia", model: "openai/gpt-oss-20b", format: "openai", baseUrl: NVIDIA_BASE_URL, tier: "lite", rpd: null },
+  // flagship — NVIDIA has no published per-model daily ceiling, so `rpd: null`
+  // is deliberate, not a gap: there is no number to pre-check against. Its
+  // limits are the account-wide NIM credit allowance, which the response body
+  // never names — hence the provider override in classifyFailure that parks
+  // this unit on a rate-limit answer instead of treating it as a 25s blip.
+  { provider: "nvidia", model: "openai/gpt-oss-20b", format: "openai", baseUrl: NVIDIA_BASE_URL, tier: "flagship", rpd: null },
+  // mid / overflow — OpenRouter's free cap is account-wide (`sharedAccountCap`),
+  // so the ledger scopes it to the account, not to the key.
+  { provider: "openrouter", model: "thinkingmachines/inkling-small:free", format: "openai", baseUrl: OPENROUTER_BASE_URL, tier: "mid", rpd: 50, sharedAccountCap: true },
+  // The old Gemini/Groq defaults are gone (owner direction 2026-10-18): a
+  // request never reaches them unless the owner deliberately adds such an
+  // entry from the admin dashboard — custom base URL, own keys. The OpenAI-
+  // and Gemini-format transports below stay, because the owner's presets and
+  // custom gateways speak them.
 ];
+
+/**
+ * The pool a request actually walks: the defaults above, minus whatever the
+ * owner disabled, plus every owner-managed custom entry (admin dashboard).
+ * Lives in ./cloudflare-ai-providers.js — importing it here would create the
+ * cycle it exists to avoid (it needs callProvider for the owner's test
+ * button), so the router accepts a pool through deps.pool and the worker's
+ * single injection point (aiRouteDeps) supplies the resolved one.
+ */
 
 /** Longest a single pool attempt may take, and the ceiling for a whole walk. */
 const ATTEMPT_TIMEOUT_MS = 8000;
@@ -252,9 +267,24 @@ export function providerKeyList(env, provider) {
   }).uniqueKeys;
 }
 
+/**
+ * Keys for one pool entry. Owner-managed entries carry their key list on the
+ * entry itself (stored server-side by the admin module, never logged); default
+ * entries read their provider's env var list. A stored non-empty list takes
+ * precedence so the owner can override an env list from the dashboard without
+ * a redeploy.
+ */
+export function entryKeysFor(entry, env) {
+  const own = Array.isArray(entry?.keys)
+    ? entry.keys.filter((k) => typeof k === "string" && k.trim()).map((k) => k.trim())
+    : [];
+  if (own.length) return own;
+  return providerKeyList(env, entry?.provider);
+}
+
 /** True when at least one pool entry can actually be called right now. */
 export function hasUsableProvider(env, pool = PROVIDER_POOL) {
-  return pool.some((entry) => isEntryConfigured(entry) && providerKeyList(env, entry.provider).length > 0);
+  return pool.some((entry) => isEntryConfigured(entry) && entryKeysFor(entry, env).length > 0);
 }
 
 /** A pool entry with no model (or a placeholder) must never be called. */
@@ -816,25 +846,20 @@ export async function callAiRouter(payload, env, deps = {}) {
   const reserveMs = Number(deps.reserveMs ?? FALLBACK_RESERVE_MS);
   const deadline = Date.now() + budgetMs;
   const toMessages = deps.toOpenAiMessages;
-  const keysByProvider = new Map();
-  const keysFor = (provider) => {
-    if (!keysByProvider.has(provider)) keysByProvider.set(provider, providerKeyList(env, provider));
-    return keysByProvider.get(provider);
-  };
 
   await hydrateLedger(env);
 
   let lastError = null;
 
   poolWalk: for (const tier of tierWalkFor(deps.easyTurn === true)) {
-    const tierEntries = pool.filter((entry) => entry.tier === tier && isEntryConfigured(entry) && keysFor(entry.provider).length > 0);
+    const tierEntries = pool.filter((entry) => entry.tier === tier && isEntryConfigured(entry) && entryKeysFor(entry, env).length > 0);
     if (!tierEntries.length) continue;
     const start = nextRotation(tierRotations, `tier:${tier}`, tierEntries.length);
     const walk = orderTierEntries(tierEntries, start, deps.preferFast === true);
 
     for (const entry of walk) {
-      const keys = keysFor(entry.provider);
-      const keyStart = nextRotation(keyRotations, `keys:${entry.provider}`, keys.length);
+      const keys = entryKeysFor(entry, env);
+      const keyStart = nextRotation(keyRotations, `keys:${entry.provider}:${entry.model}`, keys.length);
 
       for (let k = 0; k < keys.length; k++) {
         const key = keys[(keyStart + k) % keys.length];

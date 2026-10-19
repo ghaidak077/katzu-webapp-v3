@@ -176,13 +176,13 @@ describe('Worker security controls', () => {
     const env = {
       TEST_MODE: true,
       GOOGLE_CLIENT_ID: 'client-id',
-      GEMINI_API_KEY: 'test-key',
+      NVIDIA_API_KEYS: 'test-key', // default-pool entry: guard must see a usable provider
       USER_PROGRESS: progress,
     };
-    const geminiJson = JSON.stringify({
-      candidates: [{ content: { parts: [{ text: '{"hints":[{"german":"Ich möchte einen Kaffee, bitte.","translation_ar":"أريد قهوة من فضلك."}]}' }] } }],
+    const providerJson = JSON.stringify({
+      choices: [{ message: { content: '{"hints":[{"german":"Ich möchte einen Kaffee, bitte.","translation_ar":"أريد قهوة من فضلك."}]}' } }],
     });
-    const fetchMock = vi.fn(async () => new Response(geminiJson, { status: 200 }));
+    const fetchMock = vi.fn(async () => new Response(providerJson, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     try {
       const response = await worker.fetch(new Request('https://worker.test/ai/hints', {
@@ -220,7 +220,7 @@ describe('Worker security controls', () => {
     const env = {
       TEST_MODE: true,
       GOOGLE_CLIENT_ID: 'client-id',
-      GEMINI_API_KEY: 'test-key',
+      NVIDIA_API_KEYS: 'test-key', // default-pool entry: quota layer must be reachable
       USER_PROGRESS: progress,
     };
     // Quota is consumed by conversation turns (/ai/turn); hints are
@@ -365,7 +365,7 @@ describe('Worker security controls', () => {
     const env = (overrides: Record<string, unknown> = {}) => ({
       TEST_MODE: true,
       GOOGLE_CLIENT_ID: 'client-id',
-      GEMINI_API_KEY: 'test-key',
+      NVIDIA_API_KEYS: 'test-key', // default-pool entry: validation runs after the guard
       USER_PROGRESS: new MemoryKv(),
       REDEEMED_CODES: new MemoryKv(),
       ...overrides,
