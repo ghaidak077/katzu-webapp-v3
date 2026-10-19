@@ -54,11 +54,22 @@ test('the Practice tab opens Ask Katzu, which explains, then checks understandin
   await checks.nth(1).click();
   await expect(page.getByText('صحيحة — فهمت الفكرة.')).toBeVisible();
 
-  // …and a wrong answer is corrected and recorded.
+  // A wrong free translation is corrected, but never recorded: a translation can
+  // be phrased many correct ways, so it is not proof of a knowledge gap — the
+  // filing rule is pinned in tests/askPractice.test.ts (only a clear wrong on a
+  // fill or reorder item is evidence of one).
   const mistakesBefore = await countTable(page, 'mistakes');
   await inputs.nth(0).fill('Ich kaufe Apfel falsch');
   await checks.nth(0).click();
   await expect(page.getByText('ليست الصيغة الصحيحة بعد')).toBeVisible();
+  expect(await countTable(page, 'mistakes')).toBe(mistakesBefore);
+
+  // A wrong word order on a reorder item is a clear miss: corrected and recorded.
+  // Both corrections are on screen at this point (the translation above and this
+  // one), so assert the count rather than a single element.
+  await inputs.nth(2).fill('den Kaffee Ich kaufe');
+  await checks.nth(2).click();
+  await expect(page.getByText('ليست الصيغة الصحيحة بعد')).toHaveCount(2);
   await expect.poll(() => countTable(page, 'mistakes')).toBeGreaterThan(mistakesBefore);
 
   // A language question carries no legal notice.

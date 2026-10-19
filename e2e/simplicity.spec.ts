@@ -113,14 +113,15 @@ test('Ask has a heading, and its example is something you can tap', async ({ pag
 test('a learner can reach sign-in from /welcome without typing anything', async ({ page }) => {
   await mockBackend(page);
   await page.goto('/welcome');
-  const start = page.getByRole('button', { name: /ابدأ رحلتك الآن/ });
+  // The front-door button carries its current plain-language label; tapping it
+  // with the optional name left empty still hands to sign-in (an empty field
+  // means the default learner name, not a blocked door).
+  const start = page.getByRole('button', { name: 'إنشاء حساب جديد وابدأ' });
   await expect(start).toBeVisible({ timeout: 20_000 });
-  // V32: the name used to be required, and the primary button stayed disabled
-  // until it was typed — a free-text gate at the front door of the app.
   await expect(start).toBeEnabled();
-  // A3: no goal sheet opens here any more — the name is optional and the front
-  // door hands straight to sign-in, so no sheet and no extra question stand
-  // between the learner and the account step.
+  // A3: no goal sheet opens here any more — the primary button opens sign-in in
+  // its sign-up tab, so no sheet or extra question stands between the learner
+  // and the account step.
   await start.click();
   await expect(page).toHaveURL(/\/signin/, { timeout: 10_000 });
   await expect(page.getByText('انضم إلى عائلة كَاتْزُو')).toBeVisible();
