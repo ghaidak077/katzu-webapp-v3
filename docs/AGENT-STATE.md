@@ -109,6 +109,8 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## CURRENT MISSION
 
+NEXT (V43.1): **The mock-exam reset fix is LIVE — `pages` only (no worker file in the diff; worker `66bd8b92-…` untouched).** V43 shipped a bug its old mock spec could not see: `useLiveConversation`'s opener effect depended on the `mockPart` object, and the mock passes a fresh literal every render (its clock ticks each second), so every tick reset the conversation to the examiner's line — the learner's sentence vanished, `canEndSession` stayed false and the three-part debrief was unreachable in production. Fixed by depending on the part's fields. Gate `npm run verify -- --ci --e2e` **14/14 in 773.1 s**, exit 0, in this tree; new `e2e/mockExam.spec.ts` drives all three parts to the debrief and `e2e/reflowZoom.spec.ts` asserts 320 px (200 % zoom) reflow on 9 routes; production smoke now sends one real demo turn. FF push `6841924..8ca290c`; Pages **`8fe6d07f-…`** serves `index-BfNVQ58w.js`; live smoke **4 passed / 2 skipped / 0 failed**. Rollback: Pages `5722462d-…` (source `6841924`).
+
 NEXT (V43): **The debrief/paywall/daily-loop batch is LIVE (2026-10-19) — `merge` + `pages`, no worker deploy (no worker file in the diff).** Gate in this tree: `verify -- --ci --e2e` **14/14 in 679.3 s**, exit 0; secret scan empty. FF merge `8669f82..92280ec`, pushed without force; Pages **`8fb96479-…`** serves `index-B5ReLSY0.js`; smoke **3 passed / 2 skipped / 0 failed**. Rollback: Pages `4fd7de37-…` (source `8669f82`); worker `66bd8b92-…` untouched. No secret, no production D1 write, no owner-only item touched.
 
 NEXT (V42): **The launch candidate is merged and LIVE (2026-10-19) — `merge`, `worker` and `pages` all deployed and production-verified; production waits on owner items only (AI keys, LEGAL/OAuth fields, launch copy).** The owner asked in plain words («merge and deply all all»), which `AGENTS.md` §3 accepts in place of the magic line, so all three targets were touched through `docs/agent/DEPLOY.md`. **Preconditions (all verified before the merge):** owner words for a deploy ✓; the branch gate `npm run verify -- --ci --e2e` **VERIFY OK — 14/14 steps in 486.8 s** run in this working tree on the exact commit going out (3 steps carry FLAKY relabels for noisy output, every step exit 0) ✓; tree clean (three owned untracked strays only: `valibjorn-brief.md`, `valibjorn-brief.pdf`, `website/`) ✓; `origin/main..2fa5acd` diff reviewed — CI `secret-scan` green and a direct `git diff grep` for AIza-/sk-/gsk_/nvapi-shaped added lines came back empty ✓; `npx wrangler whoami` scoped ✓; **no migration file changed** in the merge range (`git diff --stat origin/main..2fa5acd -- migrations` = empty → no schema addition to list) ✓. **Merge:** `release-candidate` was a strict descendant of `main` (`git merge-base --is-ancestor` exit 0), so `git merge --ff-only 2fa5acd` — **no merge commit, linear history preserved**; **pushed** `a73a95b..2fa5acd` on `branch main` (no force). A stale local `main` ref at `df9fee8` caused a confusing moment: it is an ancestor of `2fa5acd` (verified), so the FF merge through it published **exactly** the 64 known commits and nothing extra (`git log --oneline a73a95b..2fa5acd` = 64, all known titles; `git log origin/main ^release-candidate` = **0**). **Worker:** `npm run deploy:worker` — **live version `66bd8b92-8db6-452d-ad99-88685cab0956` at 100%** (was `56425f30-…`, kept as rollback; it served from 2026-10-12). **Pages built from git on the push (never a manual Pages deploy)** → production deployment **`f805663e-d81c-46fc-92f1-f16ad4b3dc73`** from `2fa5acd`, serving **`assets/index-DZrigzP5.js`** (snapshot's live bundle was `index-ANqcguFZ.js`). **Verified live, read-only:** `/health` = `{status,service,ready:true,maintenance:false,storage:{d1:"ok",kv:"ok"}}` — **shape changed by audited code, not by an accident**: the `storage` field was added by `9c07b44` (2026-10-16, launch-metrics commit) *after* the last deploy (source `git log -S 'storage:{d1:"ok"'`), so the runbook's "only four keys" wording was behind; it discloses only health booleans — none of the three things the rule actually protects (`aiPool`, `models`, `strategy`) — so the deploy is NOT rolled back and the runbook + ENV-FACTS lines were corrected this commit instead of asserting old facts; `/crypto/health` unchanged (`ready:false`, `test_mode`, `apiKeyConfigured:false`); unauth `/admin/api/ai-providers` **401**, unauth `/admin/api/me` **401** (the new AI-pool admin routes are bearer-gated); production `/` **200**. **Production smoke** (`E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts`): **3 passed / 2 skipped / 0 failed — exit 0** (the skipped two are the conditional sales-reachability probes); predates the merge, same origin, re-verified by the read-only checks above: pool, models and strategy stay off every public surface, `/crypto/health` matches the snapshot, and both admin probes accept auth → the automatic rollback did not trigger. **Merge-driven CI** on `main` = **run `39191010113`** (`verify`, `launch-check`, `secret-scan`, `e2e`) — **all green** for `2fa5acd` before the push was made. **Rollback (recorded, not needed):** worker `npx wrangler rollback 56425f30-c67f-45ea-ace7-a9c4e9b47dd7`; Pages `2182564c-c25e-4990-bb89-f73759779cbd` (source `a73a95b`). **One marketing decision stays open** (OWNER-OPEN): `9d672e4` committed 48 marketing phone captures etc. (~65 MB → ~45 MB in the pack) onto `release-candidate`; already pushed and now merged — dropping them now means history rewriting, so they stay. No secret, no production D1 write, no owner-only item touched.
@@ -117,9 +119,10 @@ NEXT (V41): **The FINAL LAUNCH PASS (change-log rows L12–L17) is complete and 
 
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 
-Recorded 2026-10-19, refreshed at the V43 pages-only deploy: these live ids are the rollback
-targets for the **next** deploy. Supersedes the 2026-10-06 snapshot below, whose worker target
-`315ec953-…` was replaced by `56425f30-…` (2026-10-12) and then by today's.
+Recorded 2026-10-19, refreshed at the V43.1 pages-only deploy: these live ids are the rollback
+targets for the **next** deploy. Supersedes the 2026-10-06 snapshot (now in
+`docs/agent/ARCHIVE-AGENT-STATE.md`), whose worker target `315ec953-…` was replaced by
+`56425f30-…` (2026-10-12) and then by today's.
 
 - Worker live version id (rollback target for the next deploy):
   **`66bd8b92-8db6-452d-ad99-88685cab0956`** (100%, created 2026-10-19T03:10:42Z, author
@@ -128,11 +131,11 @@ targets for the **next** deploy. Supersedes the 2026-10-06 snapshot below, whose
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (created 2026-10-12), then the ids recorded in the
   superseded snapshots below.
 - Pages live production deployment id (rollback target for the next deploy):
-  `8fb96479-c214-453c-9d6e-775af448e7de`, branch `main`, commit `92280ec` — a git-triggered
-  build, serving `assets/index-B5ReLSY0.js`. Older rollback targets:
-  `4fd7de37-a82d-427d-be47-d5ff004b4478` (source `8669f82`, the V42 build V43 replaced),
-  then `43f5985a-5c4e-4820-9efc-0cbcbfd5163b` and `67888b41-23ea-4585-a4d2-345b8281119f` as listed
-  in the superseded snapshot below.
+  `8fe6d07f-fe49-49c9-8369-985a82a9a8f1`, branch `main`, commit `8ca290c` — a git-triggered
+  build, serving `assets/index-BfNVQ58w.js`. Older rollback targets:
+  `5722462d-7782-40c4-91dd-de40e93851d2` (source `6841924`) and `8fb96479-c214-453c-9d6e-775af448e7de`
+  (source `92280ec`), then `4fd7de37-a82d-427d-be47-d5ff004b4478` (source `8669f82`) and the ids
+  in the archived snapshot.
 - `GET /health` body (worker, read 2026-10-19 after the deploy):
   `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false,"storage":{"d1":"ok","kv":"ok"}}`.
   The `storage` object is shipped by `9c07b44` (2026-10-16 launch-metrics commit, verified with
@@ -141,37 +144,21 @@ targets for the **next** deploy. Supersedes the 2026-10-06 snapshot below, whose
 - `GET /crypto/health` body (worker, read 2026-10-19 after the deploy):
   `{"ok":true,"provider":"nowpayments","environment":"test_mode",...,"priceUsd":5,"months":1,"plans":[...],"ready":false}`
   — unchanged from every previous ledger reading.
-- Unauthenticated `GET /admin/api/ai-providers` → **401** and `GET /admin/api/me` → **401**;
-  production `/` `/demo` `/sw.js` → **200** serving `assets/index-B5ReLSY0.js`.
-- `origin/main` at snapshot time: `2fa5acd` — the exact tree whose CI run (`39191010113`:
-  `verify`, `launch-check`, `secret-scan`, `e2e` = **141 passed / 2 skipped / 0 failed**) and whose
-  local `npm run verify -- --ci --e2e` (**14/14 in 486.8 s**) are both green.
+- Unauthenticated `GET /admin/api/orders` → **401** at the worker origin
+  (`katzu-test.ghaidakalosh008.workers.dev`) — note `katzuai.com` is the **Pages** host and answers
+  SPA HTML for every path, so worker routes must never be probed there.
+  `/` `/demo` `/sw.js` → **200** on `katzuai.com`, serving `assets/index-BfNVQ58w.js`.
+- `origin/main` at snapshot time: `8ca290c` — gate `npm run verify -- --ci --e2e`
+  (**14/14 in 773.1 s**) green in that tree; production smoke **4 passed / 2 skipped / 0 failed**.
 - **Rollback is PROVEN available** for both targets: `wrangler whoami` reports account
   `00df3d915626e0a681f4fef98c1c587c` with `workers (write)` (used for the pre-deploy snapshot),
   and `wrangler pages deployment list` lists the live production deployment and its predecessors
   (used for both snapshots this run).
 
-## SNAPSHOT — superseded pre-UI-polish record (kept for provenance)
+## SNAPSHOT — superseded pre-UI-polish record (2026-10-06)
 
-Recorded 2026-10-06 before the UI-polish deploy session touched anything:
-
-- Worker version id (rollback target): `476bac16-eb7c-4cb9-8ccb-72ac35faf208` (100%, created
-  2026-10-06T05:51:18.154Z, author ghaidakalosh008@gmail.com). Older rollback target available:
-  `aafcf3bf-8307-4e20-bca6-240a075c8dd3`.
-- Pages production deployment id (rollback target): `08f0082d-c041-41c8-b1e8-d9938c3188d3`,
-  branch `main`, commit `463e292`, Active → production hostname serves
-  `assets/index-bWgfrKSi.js`. Older rollback target available: `b2eeae7f-5f0f-45a0-85b8-2ff923f54478`
-  (commit `e55b654`).
-- `GET /health` body (worker, read 2026-10-06):
-  `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false}`.
-- `GET /crypto/health` body (worker, read 2026-10-06):
-  `{"ok":true,"provider":"nowpayments","environment":"test_mode",...,"priceUsd":5,"months":1,"plans":[...],"ready":false}`.
-- Local HEAD on `main`: `26d7f55` ("G3: reserve the nav gap outside the last child, and prove it
-  with a browser check"), 4 commits ahead of `463e292`; `main` is up to date with `origin/main`
-  (`0 0` in `git rev-list --left-right --count main...HEAD`), **not pushed since the polish batch**.
-- **Rollback is PROVEN available** for both targets: `wrangler whoami` reports account
-  `00df3d915626e0a681f4fef98c1c587c` with `workers (write)`; `wrangler pages deployment list`
-  lists the production deployment and its predecessors.
+Moved to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-10-19 to keep this file under its 80 KB cap.
+Nothing was deleted: search the archive for `pre-UI-polish`.
 
 ## OWNER LIST (deduplicated — no secrets, no values)
 

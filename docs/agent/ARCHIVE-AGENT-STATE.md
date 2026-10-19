@@ -251,3 +251,28 @@ ARCHIVED NEXT (V26): **audit executed end to end: all 10 plan items implemented 
 - **RESOLVED in V14-1 — "the content load has still never completed" and "the grammar write path has never once succeeded in production" are both false as of this run.** 219 rows were inserted across two runs (5+42+42+4 and 5+62+49+10), nothing was rolled back, and the preflight that V13-1 could only prove on paper refused nothing because the deployment finally matched the drafts. What stays open is the *permanence* of the supplement: the four original-scenario rules are still not in D1.
 
 - **RESOLVED in V15-1/V15-3 — the fixture/E2E title drift is aligned, and the class is now detectable.** `e2e/journey.spec.ts:56` used to assert the fixture's `في المطار: الأمتعة المفقودة` while production served the approved module2 title; the harness mocks off-origin calls, so no test could see it. The fixture now carries D1's value (`Am Flughafen: das Gepäck` / `في المطار: الأمتعة`), the assertion follows, and `scripts/check-content-drift.mjs` compares production against the drafts on demand. *(History, kept because the lesson is the point: the divergence was only visible by reading D1, which is why the script exists.)*
+
+
+## SNAPSHOT — superseded pre-UI-polish record (moved out of the ledger 2026-10-19 to stay under its 80 KB cap)
+
+
+Recorded 2026-10-06 before the UI-polish deploy session touched anything:
+
+- Worker version id (rollback target): `476bac16-eb7c-4cb9-8ccb-72ac35faf208` (100%, created
+  2026-10-06T05:51:18.154Z, author ghaidakalosh008@gmail.com). Older rollback target available:
+  `aafcf3bf-8307-4e20-bca6-240a075c8dd3`.
+- Pages production deployment id (rollback target): `08f0082d-c041-41c8-b1e8-d9938c3188d3`,
+  branch `main`, commit `463e292`, Active → production hostname serves
+  `assets/index-bWgfrKSi.js`. Older rollback target available: `b2eeae7f-5f0f-45a0-85b8-2ff923f54478`
+  (commit `e55b654`).
+- `GET /health` body (worker, read 2026-10-06):
+  `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false}`.
+- `GET /crypto/health` body (worker, read 2026-10-06):
+  `{"ok":true,"provider":"nowpayments","environment":"test_mode",...,"priceUsd":5,"months":1,"plans":[...],"ready":false}`.
+- Local HEAD on `main`: `26d7f55` ("G3: reserve the nav gap outside the last child, and prove it
+  with a browser check"), 4 commits ahead of `463e292`; `main` is up to date with `origin/main`
+  (`0 0` in `git rev-list --left-right --count main...HEAD`), **not pushed since the polish batch**.
+- **Rollback is PROVEN available** for both targets: `wrangler whoami` reports account
+  `00df3d915626e0a681f4fef98c1c587c` with `workers (write)`; `wrangler pages deployment list`
+  lists the production deployment and its predecessors.
+

@@ -1,6 +1,17 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
-**Deployed & merged (2026-10-19, V43 — read this first).** The launch candidate described below is now
+**Latest (2026-10-19, V43.1 — read this first).** A production bug is fixed and live: the B1 mock exam's
+conversation was re-initialised on every re-render (its opener effect depended on an inline `mockPart`
+object, and the part clock re-renders once a second), so a learner's sentence vanished after ~1 s, the
+end-of-part action never enabled, and the three-part debrief could never be reached. The effect now depends
+on the part's own fields. Gate `npm run verify -- --ci --e2e` **14/14 in 773.1 s** (exit 0); new browser
+tests drive all three parts to the debrief and assert 320 px / 200 % zoom reflow on nine routes; the
+production smoke now completes one real demo turn on the live origin. Pages production
+**`8fe6d07f-fe49-49c9-8369-985a82a9a8f1`** from `8ca290c`, serving `assets/index-BfNVQ58w.js`; worker
+untouched (`66bd8b92-…`). Live smoke **4 passed / 2 skipped / 0 failed**. Rollback: Pages `5722462d-…`
+(source `6841924`).
+
+**Deployed & merged (2026-10-19, V43).** The launch candidate described below is now
 the production product: **PR #18 merged to `main` (`2fa5acd`, fast-forward of the 64-commit branch),
 worker `66bd8b92-8db6-452d-ad99-88685cab0956` at 100%, Pages production `8fb96479-c214-453c-9d6e-775af448e7de`
 serving `assets/index-B5ReLSY0.js`** — deployed only after `npm run verify -- --ci --e2e` **14/14 in
