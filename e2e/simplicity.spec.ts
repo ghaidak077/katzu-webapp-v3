@@ -124,5 +124,11 @@ test('a learner can reach sign-in from /welcome without typing anything', async 
   // and the account step.
   await start.click();
   await expect(page).toHaveURL(/\/signin/, { timeout: 10_000 });
-  await expect(page.getByText('انضم إلى عائلة كَاتْزُو')).toBeVisible();
+  // The destination reads as the account step in every environment: a bundle
+  // with VITE_GOOGLE_CLIENT_ID shows the sign-up headline; a build without one
+  // (the CI bundle) keeps the same screen but honestly says Google sign-in is
+  // unavailable and offers the continue-without-account way back.
+  const familyHeadline = page.getByText('انضم إلى عائلة كَاتْزُو');
+  const unavailableNotice = page.getByText('تسجيل الدخول غير متاح الآن');
+  await expect(familyHeadline.or(unavailableNotice)).toBeVisible();
 });
