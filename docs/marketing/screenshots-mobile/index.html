@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KatZU — لوحة لقطات التسويق (موبايل)</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { background: #0a0a0c; color: #f4f1ea; font-family: system-ui, "Segoe UI", sans-serif; margin: 0; padding: 24px; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      p.note { color: #a9a49b; margin: 0 0 20px; font-size: 13px; }
+      h2 { font-size: 14px; color: #b9a6ff; margin: 24px 0 8px; letter-spacing: .04em; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+      figure { margin: 0; }
+      img { width: 100%; display: block; border-radius: 14px; border: 1px solid #262430; background: #000; }
+      figcaption { font-size: 11px; color: #a9a49b; margin-top: 6px; direction: ltr; text-align: left; }
+      code { direction: ltr; display: inline-block; }
+    </style>
+  </head>
+  <body>
+    <h1>KatZU — لقطات الموبايل</h1>
+    <p class="note">
+      ٤٨ لقطة · iPhone 15 Pro Max (1290×2796) و Android (1080×2400) · واجهة عربية، ثيم داكن، محتوى حقيقي.
+      كل لقطة موصوفة في <code>manifest.json</code> (المقاس، المسار، النص الظاهر). تُعاد بأمر واحد:
+      <code>npx playwright test -c e2e/marketingShots.playwright.config.ts</code>
+    </p>
+    <section>
+      <h2>iPhone 15 Pro Max · 1290×2796</h2>
+      <div class="grid" id="iphone"></div>
+    </section>
+    <section>
+      <h2>Android · 1080×2400</h2>
+      <div class="grid" id="android"></div>
+    </section>
+    <script>
+      // The six shots of docs/MARKETING-KIT.md §6 first, then the rest of the product.
+      const shots = [
+        'trail-journey', 'live-conversation', 'review', 'grammar', 'subscription', 'paywall',
+        'landing', 'welcome', 'signin', 'demo-conversation', 'onboarding', 'placement',
+        'library-paths', 'practice-hub', 'listening', 'writing', 'coach', 'ask',
+        'progress', 'profile', 'scenario-story', 'guided-practice', 'mock-exam', 'privacy',
+      ];
+      const fill = (id, size) => {
+        document.getElementById(id).innerHTML = shots
+          .map((name) => {
+            const file = `${name}-${size}.png`;
+            return `<figure><a href="${file}"><img src="${file}" alt="${name.replace(/-/g, ' ')}" loading="lazy" /></a>` +
+              `<figcaption>${file}</figcaption></figure>`;
+          })
+          .join('');
+      };
+      fill('iphone', '1290x2796');
+      fill('android', '1080x2400');
+    </script>
+  </body>
+</html>
