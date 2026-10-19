@@ -47,15 +47,20 @@ interface Box {
 const MORPH_MS = 320;
 
 /**
- * V19: the active pill's radius, by the inner-radius rule. The navbar container
- * is `.kz-surface` (radius 28px) and the pill fills it with zero inset, so the
- * concentric radius is 28 - 1 = 27px — the 1px is the optical edge the inset
- * ring paints. A pill of the container's own 28px reads as a corner clash
- * against the rounded corner; 18px (the old value) read as a different shape
- * altogether. This is a default, not a law: a container that insets the pill
- * differently should measure and pass its own.
+ * V19: the active pill no longer carries a hardcoded radius. The container's own
+ * border-radius is read off the host at paint time and the pill is set to that
+ * minus the 1px optical inset the highlight ring paints — so the shape stays
+ * concentric with whatever glass surface it sits in (today the nav `.kz-surface`
+ * at 28px → 27px pill), and with any future glass strip that uses this
+ * container.
+ *
+ * The inner-radius rule: a child inset by `inset` from a container of radius
+ * `R` looks concentric only when its own radius is `R - inset`. The tab bar
+ * insets the pill by nothing today (the pill IS the child box), so the correct
+ * radius is the container's own minus the 1px optical inset the highlight
+ * carries.
  */
-const PILL_RADIUS = 27;
+const PILL_OPTICAL_INSET = 1;
 
 /**
  * V19: the active pill is disabled. This run measured the FLIP travel as motion
@@ -253,12 +258,29 @@ export const GlassEffectContainer: React.FC<GlassEffectContainerProps> = ({
             top: activeBox.top,
             width: activeBox.width,
             height: activeBox.height,
-            borderRadius: PILL_RADIUS,
+            // Measured, not constant: the pill follows the container's own
+            // radius so the active shape stays concentric even if the
+            // container's radius changes, or if this container is reused in
+            // another glass strip. Fall back to 27 (the 28px-sheet minus the
+            // 1px optical inset) when the radius cannot be read.
+            borderRadius: Math.max(
+              0,
+              (() => {
+                const host = hostRef.current;
+                if (!host) return 27;
+                const computed = getComputedStyle(host).borderRadius;
+                if (!computed) return 27;
+                // Take the largest token so a mixed-radius host still yields a
+                // concentric pill rather than one that clamps to a smaller
+                // corner. Values like `28px`, `28px / 28px`, or
+                // `28px 28px 28px 28px` all collapse to 28 here.
+                const tokens = computed.split('/').map((t) => Number(t.replace(/px/g, '')));
+                const radius = Math.max(...tokens.filter((n) => Number.isFinite(n)));
+                return Number.isFinite(radius) ? radius - PILL_OPTICAL_INSET : 27;
+              })(),
+            ),
             background: 'rgb(180 160 255 / 0.12)',
             boxShadow: 'inset 0 0 0 1px rgb(255 255 255 / 0.07)',
-            // The concentric look lives in this constant, not in per-use CSS:
-            // every container that shows the pill gets a radius that honours the
-            // inner-radius rule, whatever its own radius is.
           }}
         />
       )}

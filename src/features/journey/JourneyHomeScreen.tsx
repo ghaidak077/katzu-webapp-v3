@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { refreshCurriculumCache } from '@/lib/api/workerClient';
 import { countDue } from '@/lib/srs/engine';
 import { isProEffective } from '@/lib/utils/subscription';
 import { expiryNoticeAr } from '@/lib/entitlement/expiry';
@@ -410,7 +411,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
                 // An honest empty state: one useful action, and a real explanation.
                 <PrimaryAction
                   hintAr="بعد أول اتصال يعمل كل شيء بدون إنترنت لاحقاً."
-                  onClick={() => window.location.reload()}
+                  onClick={() => void refreshCurriculumCache()}
                   icon={<RefreshCw className="h-4 w-4" />}
                 >
                   {mission.ctaAr}

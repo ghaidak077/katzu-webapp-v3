@@ -364,7 +364,8 @@ describe('the mock grant on /ai/turn', () => {
     return {
       TEST_MODE: true,
       GOOGLE_CLIENT_ID: 'client-id',
-      GEMINI_API_KEYS: 'test-key-aaaaaaaaaa',
+      // The pool's default entries take NVIDIA/OpenRouter keys now.
+      NVIDIA_API_KEYS: 'test-key-aaaaaaaaaa',
       HMAC_SECRET: 'test-hmac-secret-for-mock-grants',
       USER_PROGRESS: new MemoryKv(),
       REDEEMED_CODES: new MemoryKv(),
@@ -382,13 +383,14 @@ describe('the mock grant on /ai/turn', () => {
   function captureModelCalls(sent: string[]): void {
     vi.stubGlobal('fetch', (async (_input: any, init: any) => {
       sent.push(String(init.body));
-      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({
+      // The pool's default entries speak OpenAI's chat shape now.
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
         evaluation: { is_correct: true, explanation_ar: 'جملة صحيحة.', positive_note_ar: 'أحسنت!' },
         reply_de: 'Was möchten Sie gemeinsam planen?',
         reply_ar: 'ماذا تريد أن تخطّطا؟',
         next_hint: { german: 'Ich möchte einen Ausflug.', translation_ar: 'أريد رحلة.' },
         followup_question_ar: 'إلى أين؟',
-      }) }] } }] }), { status: 200 });
+      }) } }] }), { status: 200 });
     }) as unknown as typeof fetch);
   }
 

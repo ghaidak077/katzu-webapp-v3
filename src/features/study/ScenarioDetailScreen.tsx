@@ -191,7 +191,15 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
 
         {/* Step 1: Study */}
         <div
+          role="button"
+          tabIndex={0}
           onClick={onStartStudy}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onStartStudy();
+            }
+          }}
           className="p-4 rounded-3xl bg-surface-card border border-border-subtle pointer-hover:border-primary/50 cursor-pointer flex items-center justify-between transition-colors"
         >
           <div className="flex items-center gap-3">
@@ -208,7 +216,15 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
 
         {/* Step 2: Quiz */}
         <div
+          role="button"
+          tabIndex={0}
           onClick={onStartQuiz}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onStartQuiz();
+            }
+          }}
           className="p-4 rounded-3xl bg-surface-card border border-border-subtle pointer-hover:border-primary/50 cursor-pointer flex items-center justify-between transition-colors"
         >
           <div className="flex items-center gap-3">
@@ -225,7 +241,15 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
 
         {/* Step 3: Live Conversation (unlocks after the quiz, or after an explicit skip) */}
         <div
+          role="button"
+          tabIndex={0}
           onClick={handleConversationClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleConversationClick();
+            }
+          }}
           className={`p-4 rounded-3xl bg-surface-card border cursor-pointer flex items-center justify-between transition-colors ${
             isConversationUnlocked ? 'border-primary/40 pointer-hover:border-primary shadow-glow-purple' : 'border-border-subtle opacity-80'
           }`}

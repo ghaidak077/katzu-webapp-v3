@@ -33,6 +33,7 @@ const glassSurface = read('src/components/glass/GlassSurface.tsx');
 const journeyHome = read('src/features/journey/JourneyHomeScreen.tsx');
 const beamCss = read('src/components/effects/borderBeamCss.ts');
 const borderBeam = read('src/components/effects/BorderBeam.tsx');
+const glassEffectContainer = read('src/components/glass/GlassEffectContainer.tsx');
 const button = read('src/components/ui/Button.tsx');
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -176,6 +177,19 @@ describe('one corner ladder', () => {
     // And the secondary button really is that step.
     expect(button).toContain('rounded-control');
   });
+describe('the active tab pill is concentric by construction', () => {
+  it('derives the pill radius from the container, not a hardcoded constant', () => {
+    // The fix removed the hardcoded PILL_RADIUS = 27 in favour of a measured
+    // radius: the pill reads the host's computed border-radius and subtracts the
+    // 1px optical inset. If someone wires the constant back in, this catches it.
+    expect(glassEffectContainer).not.toContain('const PILL_RADIUS = 27');
+    // And the measured branch still exists in the pill style object.
+    expect(glassEffectContainer).toContain('getComputedStyle(host).borderRadius');
+    expect(glassEffectContainer).toContain('PILL_OPTICAL_INSET');
+  });
+});
+
+
 });
 
 describe('the material answers the accessibility switches', () => {

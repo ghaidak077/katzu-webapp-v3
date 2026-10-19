@@ -24,6 +24,7 @@ import {
 } from '@/lib/demo/demoFlow';
 import { loadDemoState, saveDemoState } from '@/lib/demo/migration';
 import { track } from '@/lib/analytics/client';
+import { refreshCurriculumCache } from '@/lib/api/workerClient';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -95,6 +96,7 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
   // permission refusal from a broken app. The typed path already works without
   // saying anything; this is the one line that keeps the button honest.
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   // The demo speaks through the same pipeline as the app: record with
   // MediaRecorder, recognise on the worker. A failed microphone leaves the typed
@@ -126,6 +128,15 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
     if (scenarios && phrases && vocabulary && !lesson) setContentUnavailable(true);
   }, [scenarios, phrases, vocabulary, lesson]);
 
+  // Re-fetches the curriculum into the local cache. The live queries above read
+  // from Dexie, so the lesson appears on its own once the cache fills — no page
+  // reload, which is what failed offline and dropped the visitor to a dead screen.
+  const retryContent = async () => {
+    setRetrying(true);
+    await refreshCurriculumCache();
+    setRetrying(false);
+  };
+
   if (!state) {
     return (
       <div className="min-h-screen bg-black text-text-primary max-w-md mx-auto p-6 flex flex-col">
@@ -139,9 +150,9 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
                 يحتاج الدرس التجريبي إلى تحميل المحتوى مرة واحدة. تحقق من اتصالك بالإنترنت ثم أعد المحاولة —
                 لن نعرض لك محتوى غير حقيقي.
               </p>
-              <Button size="lg" onClick={() => window.location.reload()}>
-                <RefreshCw className="w-4 h-4" />
-                إعادة المحاولة
+              <Button size="lg" onClick={() => void retryContent()} disabled={retrying}>
+                <RefreshCw className={`w-4 h-4 ${retrying ? 'animate-spin' : ''}`} />
+                {retrying ? 'جارٍ المحاولة…' : 'إعادة المحاولة'}
               </Button>
             </>
           ) : (

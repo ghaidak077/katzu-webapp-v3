@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
-import { enrolMistake, enrolSavedWord, gradeReviewItem } from '@/lib/srs/store';
+import { enrolMistake, enrolSavedWord, enrolStudiedVocabulary, gradeReviewItem } from '@/lib/srs/store';
 import { countDue, gradeCorrectionRetype, reviewRefId } from '@/lib/srs/engine';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
@@ -144,6 +144,26 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
   };
 
   const currentFlashcard = vocabulary[flashcardIndex];
+
+  // Self-rating is what the card is for: it schedules the word in the same review
+  // queue the rest of the app uses. Enrol first if this word has no review item yet.
+  const rateFlashcard = async (card: VocabularyEntity | undefined, grade: 'again' | 'good') => {
+    setIsFlipped(false);
+    setFlashcardIndex((i) => (i + 1) % vocabulary.length);
+    if (!card) return;
+    try {
+      const findItem = () =>
+        db.review_items.where('[kind+refId]').equals(['vocab', reviewRefId('vocab', card.id)]).first();
+      let item = await findItem();
+      if (!item) {
+        await enrolStudiedVocabulary([card]);
+        item = await findItem();
+      }
+      if (item) await gradeReviewItem(item, grade);
+    } catch (err) {
+      console.warn('Could not record the flashcard rating:', err);
+    }
+  };
 
   return (
     <div className="kz-tab-scroll min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto relative">
@@ -460,7 +480,17 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         {currentFlashcard ? (
           <div className="space-y-6 py-2">
             <div
+              role="button"
+              tabIndex={0}
+              aria-pressed={isFlipped}
+              aria-label={isFlipped ? 'المعنى العربي — اضغط للعودة للوجه الألماني' : 'الوجه الألماني — اضغط لكشف المعنى'}
               onClick={() => setIsFlipped(!isFlipped)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setIsFlipped(!isFlipped);
+                }
+              }}
               // `scale-[1.01]` on a 240px card is 1.2px of growth: perceptible, not
               // distracting. 1.02 was 4.8px, which reads as a misfire on the frame
               // before the tap lands. Tailwind 3.4 already gates `pointer-hover:` behind
@@ -512,19 +542,13 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
               <Button
                 variant="secondary"
                 className="flex-1"
-                onClick={() => {
-                  setIsFlipped(false);
-                  setFlashcardIndex((i) => (i + 1) % vocabulary.length);
-                }}
+                onClick={() => void rateFlashcard(currentFlashcard, 'again')}
               >
                 أحتاج مراجعتها 🔁
               </Button>
               <Button
                 className="flex-1"
-                onClick={() => {
-                  setIsFlipped(false);
-                  setFlashcardIndex((i) => (i + 1) % vocabulary.length);
-                }}
+                onClick={() => void rateFlashcard(currentFlashcard, 'good')}
               >
                 أعرفها تماماً ✓
               </Button>

@@ -49,6 +49,9 @@ export const MockExamScreen: React.FC = () => {
   const sessionId = useRef(`mock_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`).current;
   const [claim, setClaim] = useState<MockStartResponse | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
+  // Bumped by the learner's retry: re-runs the claim under the SAME session id,
+  // so a retry after a network drop cannot open a second mock.
+  const [claimAttempt, setClaimAttempt] = useState(0);
   const [partIndex, setPartIndex] = useState(0);
   const [summaries, setSummaries] = useState<PartSummary[]>([]);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
@@ -75,7 +78,7 @@ export const MockExamScreen: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, claimAttempt]);
 
   // The part clock. It warns and it counts; it never stops the learner talking,
   // because a mock that goes silent at zero teaches nothing.
@@ -137,6 +140,14 @@ export const MockExamScreen: React.FC = () => {
               <Sparkles className="h-5 w-5" />
               <span>اعرف الخيارات</span>
             </PrimaryAction>
+            <GlassButton
+              onClick={() => {
+                setClaimError(null);
+                setClaimAttempt((attempt) => attempt + 1);
+              }}
+            >
+              <span>حاول مرة أخرى</span>
+            </GlassButton>
             <GlassButton onClick={() => navigate('/app/trail')}>
               <span>العودة إلى المسار</span>
             </GlassButton>

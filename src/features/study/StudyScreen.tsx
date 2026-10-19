@@ -115,8 +115,10 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
       </p>
 
       {/* Tabs */}
-      <div className="flex bg-surface-card border border-border-subtle rounded-2xl p-1 mb-6">
+      <div role="tablist" aria-label="أقسام الدراسة" className="flex bg-surface-card border border-border-subtle rounded-2xl p-1 mb-6">
         <button
+          role="tab"
+          aria-selected={activeTab === 'phrases'}
           onClick={() => setActiveTab('phrases')}
           className={`flex-1 py-2 text-xs font-bold rounded-xl transition-colors ${
             activeTab === 'phrases' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
@@ -125,6 +127,8 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
           العبارات ({phrases.length})
         </button>
         <button
+          role="tab"
+          aria-selected={activeTab === 'vocab'}
           onClick={() => setActiveTab('vocab')}
           className={`flex-1 py-2 text-xs font-bold rounded-xl transition-colors ${
             activeTab === 'vocab' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
@@ -133,6 +137,8 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
           المفردات ({vocabulary.length})
         </button>
         <button
+          role="tab"
+          aria-selected={activeTab === 'grammar'}
           onClick={() => setActiveTab('grammar')}
           className={`flex-1 py-2 text-xs font-bold rounded-xl transition-colors ${
             activeTab === 'grammar' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
@@ -143,7 +149,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
       </div>
 
       {/* Content List */}
-      <div className="space-y-3 mb-8">
+      <div role="tabpanel" className="space-y-3 mb-8">
         {activeTab === 'phrases' && phrases.length === 0 && (
           <div className="p-6 rounded-3xl bg-surface-card border border-border-subtle text-center">
             <p className="text-xs font-arabic text-text-secondary">
@@ -262,7 +268,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
       </div>
 
       {/* Floating Bottom CTA */}
-      <div className="fixed bottom-0 start-0 end-0 p-4 bg-gradient-to-t from-black via-black to-transparent max-w-md mx-auto z-20">
+      <div className="fixed bottom-0 start-0 end-0 p-4 bg-black border-t border-border-subtle max-w-md mx-auto z-20">
         <Button size="lg" className="w-full" onClick={markStudiedAndProceed}>
           انتقل للاختبار السريع (كويز)
           <ArrowRight className="w-5 h-5 ms-2 rotate-180" />

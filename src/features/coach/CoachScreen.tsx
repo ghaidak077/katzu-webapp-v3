@@ -46,6 +46,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
   const reviewItems = useLiveQuery(() => db.review_items.toArray(), []);
   const sessions = useLiveQuery(() => db.sessions.toArray(), []);
   const [drilling, setDrilling] = useState<string | null>(null);
+  const [drillNotice, setDrillNotice] = useState<string | null>(null);
 
   useEffect(() => {
     track('coach_viewed');
@@ -78,12 +79,14 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
   const practise = async (stat: CategoryStat) => {
     if (drilling) return;
     setDrilling(stat.category);
+    setDrillNotice(null);
     triggerHaptic('light');
     try {
       const focused = await focusMistakesForReview(drillForCategory(mistakes, stat.category));
       // Nothing to drill means no queue was created; sending the learner to an
-      // empty review would look like a broken button, so stay put and re-enable.
+      // empty review would look like a broken button, so say why and stay put.
       if (focused > 0) onStartReview();
+      else setDrillNotice('لا توجد أخطاء مفتوحة في هذا النمط الآن. ستظهر هنا عندما تُسجَّل أخطاء جديدة، أو أكمل مراجعة قائمة.');
     } finally {
       setDrilling(null);
     }
@@ -100,6 +103,12 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
         </div>
         <KatzuMascot name="progress_mascot" className="w-12 h-12 object-contain" />
       </div>
+
+      {drillNotice && (
+        <p role="status" className="mb-4 rounded-2xl bg-surface-subtle p-3 text-micro font-arabic text-text-secondary leading-relaxed">
+          {drillNotice}
+        </p>
+      )}
 
       {profile.total === 0 ? (
         <Card variant="hero" glow className="text-center p-6">
