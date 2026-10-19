@@ -126,6 +126,8 @@ describe('the offer copy', () => {
       expect(copy.pitchAr).toMatch(/[؀-ۿ]/);
       expect(copy.includesAr.length).toBeGreaterThan(0);
     }
+    expect(OFFER_COPY.pass90.includesAr).toContain('كل المفردات والقواعد والمراجعة اليومية');
+    expect(JSON.stringify(OFFER_COPY)).not.toContain('المفردون');
   });
 });
 

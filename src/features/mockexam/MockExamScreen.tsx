@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock3, Lock, Sparkles } from 'lucide-react';
+import { Clock3, Lock, Sparkles, Volume2 } from 'lucide-react';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { GermanText } from '@/components/common/GermanText';
+import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { workerClient, type MockExamPart, type MockStartResponse } from '@/lib/api/workerClient';
 import { debriefView, estimatePracticeScore, formatPartClock, type MockPartResult } from '@/lib/mockexam/score';
 import { buildShareLink, buildShareText } from '@/lib/offers/share';
@@ -132,11 +133,11 @@ export const MockExamScreen: React.FC = () => {
 
   if (claimError) {
     return (
-      <MockShell titleAr="محاكاة B1" onExit={() => navigate('/subscription')}>
+      <MockShell titleAr="محاكاة B1" onExit={() => navigate('/paywall?from=mock')}>
         <GlassCard>
           <p className="kz-ar-body text-kz-ink">{claimError}</p>
           <div className="mt-4 flex flex-col gap-2">
-            <PrimaryAction onClick={() => navigate('/subscription')}>
+            <PrimaryAction onClick={() => navigate('/paywall?from=mock')}>
               <Sparkles className="h-5 w-5" />
               <span>اعرف الخيارات</span>
             </PrimaryAction>
@@ -172,7 +173,7 @@ export const MockExamScreen: React.FC = () => {
         summaries={summaries}
         estimate={estimate}
         onExit={() => navigate('/app/trail')}
-        onOpenSubscription={() => navigate('/subscription')}
+        onOpenSubscription={() => navigate('/paywall?from=mock')}
       />
     );
   }
@@ -256,6 +257,7 @@ const MockResultScreen: React.FC<{
   onOpenSubscription: () => void;
 }> = ({ claim, summaries, estimate, onExit, onOpenSubscription }) => {
   const [shareNote, setShareNote] = useState<string | null>(null);
+  const { speak } = useSpeechOutput();
 
   /**
    * Share the result, never a certificate.
@@ -286,7 +288,11 @@ const MockResultScreen: React.FC<{
     }
   }, [estimate.score]);
   const allMistakes = summaries.flatMap((row) =>
-    row.result.mistakes.map((mistake) => ({ original: mistake.original, corrected: mistake.corrected })),
+    row.result.mistakes.map((mistake) => ({
+      original: mistake.original,
+      corrected: mistake.corrected,
+      grammarRule: mistake.grammarRule,
+    })),
   );
   const view = debriefView(allMistakes, claim.debrief);
   const noticeAr = claim.brief?.noticeAr ?? '';
@@ -306,6 +312,33 @@ const MockResultScreen: React.FC<{
               <span className="kz-ar-caption ms-2 text-kz-inkDim">من 100</span>
             </p>
             <p className="kz-ar-caption mt-2 text-kz-ink">{estimate.headlineAr}</p>
+            <dl
+              data-testid="mock-pillars"
+              className="mt-3 grid grid-cols-2 gap-2 border-t border-white/[0.06] pt-3"
+            >
+              <div className="rounded-xl bg-white/[0.03] p-2.5">
+                <dt className="kz-ar-micro text-kz-inkFaint">الاستقلالية بلا تلميح</dt>
+                <dd className="kz-de-caption mt-0.5 font-bold text-kz-ink">
+                  {estimate.components.independence === null ? '—' : `${estimate.components.independence}%`}
+                </dd>
+              </div>
+              <div className="rounded-xl bg-white/[0.03] p-2.5">
+                <dt className="kz-ar-micro text-kz-inkFaint">دقة القواعد</dt>
+                <dd className="kz-de-caption mt-0.5 font-bold text-kz-ink">
+                  {estimate.components.accuracy === null ? '—' : `${estimate.components.accuracy}%`}
+                </dd>
+              </div>
+              <div className="rounded-xl bg-white/[0.03] p-2.5">
+                <dt className="kz-ar-micro text-kz-inkFaint">تغطية الأجزاء الثلاثة</dt>
+                <dd className="kz-de-caption mt-0.5 font-bold text-kz-ink">{estimate.components.coverage}%</dd>
+              </div>
+              <div className="rounded-xl bg-white/[0.03] p-2.5">
+                <dt className="kz-ar-micro text-kz-inkFaint">إجمالي الجمل المستقلة</dt>
+                <dd className="kz-ar-micro mt-0.5 font-bold text-kz-ink">
+                  {estimate.totals.independent} من {estimate.totals.sentences}
+                </dd>
+              </div>
+            </dl>
           </>
         ) : (
           <p className="kz-ar-caption mt-2 text-kz-inkDim">{estimate.headlineAr}</p>
@@ -313,6 +346,24 @@ const MockResultScreen: React.FC<{
         <p className="kz-ar-micro mt-3 text-kz-inkDim">{estimate.noticeAr}</p>
         {noticeAr ? <p className="kz-ar-micro mt-1 text-kz-inkFaint">{noticeAr}</p> : null}
       </GlassCard>
+
+      {summaries.length > 0 ? (
+        <GlassCard data-testid="mock-parts-summary">
+          <p className="kz-ar-caption font-bold">أجزاء المحاكاة</p>
+          <ul className="mt-2 space-y-1.5">
+            {summaries.map((row) => (
+              <li key={row.result.partIndex} className="kz-ar-micro flex items-center justify-between text-kz-inkDim">
+                <span>
+                  الجزء {row.result.partIndex}: {row.result.sentencesSpoken} جملة ({row.result.independentSentences} بلا تلميح)
+                </span>
+                {row.result.accuracyPercent !== null ? (
+                  <span className="font-german font-bold text-kz-ink">{row.result.accuracyPercent}%</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </GlassCard>
+      ) : null}
 
       <GlassCard>
         <p className="kz-ar-caption font-bold">أهم الأخطاء</p>
@@ -322,23 +373,41 @@ const MockResultScreen: React.FC<{
           <ul className="mt-2 space-y-2">
             {view.visible.map((mistake, index) => (
               <li key={`${index}-${mistake.original}`} className="rounded-2xl bg-white/[0.04] p-3">
-                <GermanText as="span" className="text-sm text-kz-inkDim line-through">
-                  {mistake.original}
-                </GermanText>
-                <GermanText as="span" className="mt-1 text-sm text-primary">
-                  {mistake.corrected}
-                </GermanText>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <GermanText as="span" className="block text-sm text-kz-inkDim line-through">
+                      {mistake.original}
+                    </GermanText>
+                    <GermanText as="span" className="mt-1 block text-sm font-semibold text-primary">
+                      {mistake.corrected}
+                    </GermanText>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => speak(mistake.corrected)}
+                    aria-label="استمع إلى الصيغة الصحيحة"
+                    className="flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-full text-kz-lavender transition-colors pointer-hover:bg-white/5"
+                  >
+                    <Volume2 className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+                {mistake.grammarRule ? (
+                  <p className="kz-ar-micro mt-1.5 text-kz-inkDim">{mistake.grammarRule}</p>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
         {!view.full && view.lockedCount > 0 ? (
-          <div className="mt-3 rounded-2xl border border-primary/30 bg-primary/10 p-3">
-            <p className="kz-ar-micro flex items-center gap-1 text-primary">
-              <Lock className="h-3.5 w-3.5" />
+          <div className="mt-3 rounded-2xl border border-primary/30 bg-primary/10 p-3.5">
+            <p className="kz-ar-micro flex items-center gap-1.5 font-semibold text-primary">
+              <Lock className="h-3.5 w-3.5 shrink-0" />
               <span>
                 {view.lockedCount} تصحيحاً آخر في التقرير الكامل — مع شرح كل خطأ وخطوات للتكرار.
               </span>
+            </p>
+            <p className="kz-ar-micro mt-1.5 text-kz-inkDim">
+              باقة الامتحان (90 يوماً) تفتح جميع تصحيحات المحاكاة، محاكاة B1 إضافية، ومحادثات B1 الكاملة.
             </p>
             <div className="mt-3">
               <PrimaryAction onClick={onOpenSubscription}>
@@ -347,28 +416,27 @@ const MockResultScreen: React.FC<{
               </PrimaryAction>
             </div>
           </div>
-        ) : null}
-      </GlassCard>
-
-      {view.full ? (
-        <GlassCard>
-          <p className="kz-ar-caption font-bold">أجزاء المحاكاة</p>
-          <ul className="mt-2 space-y-1">
-            {summaries.map((row) => (
-              <li key={row.result.partIndex} className="kz-ar-micro text-kz-inkDim">
-                الجزء {row.result.partIndex}: {row.result.sentencesSpoken} جملة،{' '}
-                {row.result.independentSentences} بلا تلميح
-              </li>
-            ))}
-          </ul>
+        ) : !view.full ? (
+          <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
+            <p className="kz-ar-micro text-kz-inkDim">
+              هل تريد خوض محاكاة B1 جديدة بموضوع مختلف مع التقرير الكامل ومحادثات B1؟
+            </p>
+            <div className="mt-3">
+              <PrimaryAction onClick={onOpenSubscription}>
+                <Sparkles className="h-5 w-5" />
+                <span>استكشف باقة الامتحان</span>
+              </PrimaryAction>
+            </div>
+          </div>
+        ) : (
           <div className="mt-3">
             <PrimaryAction onClick={onOpenSubscription}>
               <Sparkles className="h-5 w-5" />
               <span>احجز محاكاة أخرى</span>
             </PrimaryAction>
           </div>
-        </GlassCard>
-      ) : null}
+        )}
+      </GlassCard>
 
       <GlassButton onClick={() => void handleShare()}>
         <span>شارك تقديرك مع صديق</span>

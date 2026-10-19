@@ -26,6 +26,7 @@ import {
   ArrowLeft,
   Target,
   PenLine,
+  MessagesSquare,
 } from 'lucide-react';
 import { arCount } from '@/lib/i18n/arabicCount';
 import { CORRECTION_NOM } from '@/lib/i18n/countForms';
@@ -44,9 +45,11 @@ export interface PracticeScreenProps {
   onOpenAsk?: () => void;
   /** The review-due entry — the SAME helper the Journey hero uses. */
   onOpenReview?: () => void;
+  /** The free B1 speaking mock, completing the 3x2 practice hub grid. */
+  onOpenMock?: () => void;
 }
 
-export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenWriting, onOpenCoach, onOpenAsk, onOpenReview }) => {
+export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenWriting, onOpenCoach, onOpenAsk, onOpenReview, onOpenMock }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   /**
@@ -328,6 +331,22 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
               <PenLine className="w-6 h-6" />
             </div>
             <span className="text-xs font-bold font-arabic">الكتابة</span>
+          </button>
+        )}
+
+        {onOpenMock && (
+          <button
+            onClick={() => {
+              triggerHaptic('light');
+              onOpenMock();
+            }}
+            data-testid="practice-mock-tile"
+            className="p-3 rounded-2xl bg-surface-card border border-border-subtle pointer-hover:border-primary/40 flex flex-col items-center gap-1.5 transition-colors"
+          >
+            <div className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+              <MessagesSquare className="w-6 h-6" />
+            </div>
+            <span className="text-xs font-bold font-arabic">محاكاة B1</span>
           </button>
         )}
       </div>

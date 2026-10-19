@@ -618,7 +618,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         {/* Corrections: the one place where a mistake is worth something, because
             retyping it correctly is a real second retrieval. */}
         {summary.mistakes.length > 0 && (
-          <section className="mt-6">
+          <section id="session-corrections-drill" className="mt-6">
             <h2 className="kz-ar-caption text-kz-inkDim">
               أثبّت الصيغة الصحيحة — أعد كتابتها مرة واحدة الآن
             </h2>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
@@ -44,6 +44,11 @@ import { paymentInstructionsFor } from '@/lib/offers/paymentInstructions';
 
 export const PaywallScreen: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromMock = useMemo(
+    () => new URLSearchParams(location.search).get('from') === 'mock',
+    [location.search],
+  );
   const [overlay, setOverlay] = useState<'purchase' | 'redeem' | null>(null);
   // The panel opens under the card the learner tapped, not at the bottom of the
   // list where a tap on the top card would leave it off-screen.
@@ -103,6 +108,15 @@ export const PaywallScreen: React.FC = () => {
             إغلاق
           </button>
         </div>
+
+        {fromMock ? (
+          <GlassCard data-testid="paywall-from-mock">
+            <p className="kz-ar-caption font-bold text-primary">أكملت محاكاة B1 الشفوية</p>
+            <p className="kz-ar-micro mt-1 text-kz-inkDim">
+              باقة الامتحان تفتح لك التقرير الكامل بجميع التصحيحات، ومحادثات B1 الواقعية، ومحاكاة جديدة متى شئت لتقارن تقديرك التدريبي قبل موعدك.
+            </p>
+          </GlassCard>
+        ) : null}
 
         {!loaded ? (
           <p className="kz-ar-caption text-kz-inkDim">جارٍ تحميل الأسعار…</p>

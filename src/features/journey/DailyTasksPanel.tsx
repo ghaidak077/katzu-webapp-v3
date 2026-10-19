@@ -35,6 +35,7 @@ export interface DailyTasksPanelProps {
 export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAction }) => {
   if (!snapshot) return null;
   const { statuses, doneCount, streakDays, forgiving } = snapshot;
+  const allDone = statuses.length > 0 && doneCount >= statuses.length;
 
   return (
     <GlassWell className="mb-4 p-3.5" data-testid="daily-tasks">
@@ -66,6 +67,16 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAc
             }`
           : 'أكمل المهام الثلاث لتبدأ سلسلتك اليومية.'}
       </p>
+
+      {allDone ? (
+        <p
+          role="status"
+          data-testid="daily-tasks-complete"
+          className="kz-pop kz-ar-micro mt-2 rounded-xl border border-kz-neon/25 bg-kz-neon/10 px-2.5 py-1.5 text-kz-neon"
+        >
+          أتممت مهام اليوم الثلاث — غداً تتجدد خطوتك اليومية لتثبيت ما تدرّبت عليه.
+        </p>
+      ) : null}
 
       <ul className="mt-2.5 space-y-1">
         {statuses.map((status, index) => (

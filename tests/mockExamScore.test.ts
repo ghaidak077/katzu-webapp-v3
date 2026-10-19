@@ -142,6 +142,18 @@ describe('the debrief gate', () => {
     expect(view.visible).toHaveLength(1);
     expect(view.lockedCount).toBe(0);
   });
+
+  it('preserves grammarRule on visible mistakes so the debrief explains why', () => {
+    const withRules = [
+      { original: 'Ich habe 25 Jahre', corrected: 'Ich bin 25 Jahre alt.', grammarRule: 'العمر مع فعل sein' },
+      { original: 'Ich gehe nach Arzt', corrected: 'Ich gehe zum Arzt.', grammarRule: 'zu + Dativ' },
+      { original: 'Wohnung ist klein', corrected: 'Die Wohnung ist klein.', grammarRule: 'أداة التعريف' },
+    ];
+    const view = debriefView(withRules, { fullDebrief: false });
+    expect(view.visible[0].grammarRule).toBe('العمر مع فعل sein');
+    expect(view.visible[1].grammarRule).toBe('zu + Dativ');
+    expect(view.lockedCount).toBe(1);
+  });
 });
 
 describe('the part clock', () => {

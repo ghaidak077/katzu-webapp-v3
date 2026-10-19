@@ -150,10 +150,10 @@ export function estimatePracticeScore(
  * gate by re-reading a local flag; `visibleCorrections` is the number of
  * corrections to render, computed from the server's answer and the actual list.
  */
-export function debriefView(
-  allMistakes: Array<{ original: string; corrected: string }>,
+export function debriefView<T extends { original: string; corrected: string; grammarRule?: string }>(
+  allMistakes: T[],
   debrief: { fullDebrief?: boolean } | null | undefined,
-): { visible: Array<{ original: string; corrected: string }>; lockedCount: number; full: boolean } {
+): { visible: T[]; lockedCount: number; full: boolean } {
   const rows = Array.isArray(allMistakes) ? allMistakes : [];
   const full = debrief?.fullDebrief === true;
   if (full) return { visible: rows, lockedCount: 0, full: true };

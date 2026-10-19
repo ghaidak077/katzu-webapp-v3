@@ -411,7 +411,13 @@ export const DemoScreen: React.FC<DemoScreenProps> = ({ onHome, onSignUp, onStar
             {state.production && (
               <Card className="mb-3 text-start">
                 <p className="text-micro font-arabic text-text-muted mb-1">قلت:</p>
-                <GermanText className="text-sm block mb-2 line-through decoration-status-error/50">
+                <GermanText
+                  className={`text-sm block mb-2 ${
+                    state.production.verdict === 'correct'
+                      ? 'font-bold text-status-success'
+                      : 'line-through decoration-status-error/50'
+                  }`}
+                >
                   {state.production.actual}
                 </GermanText>
                 <p className="text-micro font-arabic text-text-muted mb-1">الصيغة الصحيحة:</p>
