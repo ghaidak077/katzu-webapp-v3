@@ -4,6 +4,7 @@ import { GoogleSignInButton } from '@/components/common/GoogleMark';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { db } from '@/lib/db/katzuDb';
+import { logError } from '@/lib/utils/diagnostics';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 
 /** V32: what Katzu calls you when you would rather not say. */
@@ -24,14 +25,20 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
   // collects, and it is optional — then it hands straight to sign-in.
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    await db.users.update('current_user', {
-      // V32: the name is optional. An empty field means "متعلم", not a blocked
-      // door — a required free-text box at the front of the app buys nothing the
-      // screen has not already promised (no email, no personal data), and it is
-      // editable later in Profile.
-      displayName: name.trim() || DEFAULT_DISPLAY_NAME,
-      updatedAt: Date.now(),
-    });
+    try {
+      await db.users.update('current_user', {
+        // V32: the name is optional. An empty field means "متعلم", not a blocked
+        // door — a required free-text box at the front of the app buys nothing the
+        // screen has not already promised (no email, no personal data), and it is
+        // editable later in Profile.
+        displayName: name.trim() || DEFAULT_DISPLAY_NAME,
+        updatedAt: Date.now(),
+      });
+    } catch (err) {
+      // A failed local write must not trap the learner on the front door: the
+      // name is optional, so log it and continue to sign-up with the default.
+      logError('welcome', `Could not save display name: ${err instanceof Error ? err.message : String(err)}`);
+    }
     onGoToSignIn('signup');
   };
 
@@ -76,7 +83,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
           </p>
 
           <Button type="submit" size="lg" className="w-full">
-            ابدأ رحلتك الآن
+            إنشاء حساب جديد وابدأ
             <ArrowLeft className="w-5 h-5 me-2" />
           </Button>
 
@@ -98,28 +105,25 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
             </Button>
           )}
 
-          <GoogleSignInButton onClick={() => onGoToSignIn('signin')} />
+          <GoogleSignInButton onClick={() => onGoToSignIn('signup')} />
         </form>
       </div>
 
       {/* Footer Sign-in / Sign-up link & Attribution */}
-      <div className="w-full flex flex-col items-center gap-2.5 pb-2">
-        <div className="flex items-center gap-3 text-xs font-semibold text-text-secondary font-arabic">
-          <button
+      <div className="w-full flex flex-col items-center gap-3 pb-2">
+        {/* Returning learners get one obvious door, separate from the new-account
+            button above. Tapping "ابدأ" always opens sign-up, so say so here. */}
+        <div className="w-full flex flex-col items-center gap-2">
+          <p className="text-xs font-arabic text-text-secondary">لديك حساب بالفعل؟</p>
+          <Button
             type="button"
+            size="md"
+            variant="outline"
+            className="w-full"
             onClick={() => onGoToSignIn('signin')}
-            className="min-h-touch -mx-2 px-2 flex items-center pointer-hover:text-primary transition-colors duration-fast ease-out"
           >
-            لديك حساب؟ <span className="text-primary underline font-bold">تسجيل الدخول</span>
-          </button>
-          <span className="text-border-subtle">•</span>
-          <button
-            type="button"
-            onClick={() => onGoToSignIn('signup')}
-            className="min-h-touch -mx-2 px-2 flex items-center pointer-hover:text-primary transition-colors duration-fast ease-out text-text-secondary"
-          >
-            <span className="text-primary underline font-bold">إنشاء حساب جديد</span>
-          </button>
+            تسجيل الدخول إلى حسابي
+          </Button>
         </div>
 
         <p className="text-micro text-text-muted font-arabic">

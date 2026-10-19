@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
@@ -12,8 +11,6 @@ import {
   AlertCircle,
   ShieldCheck,
   CheckCircle2,
-  Settings,
-  Lock,
 } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
 import { BackButton } from '@/components/common/BackButton';
@@ -45,8 +42,6 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
-
-  const currentUser = useLiveQuery(() => db.users.get('current_user'));
 
   const googleClientId: string | undefined = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
 
@@ -260,68 +255,55 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     triggerHaptic('light');
     setErrorMessage('');
     if (window.google?.accounts?.id) {
-      window.google.accounts.id.prompt();
+      // One Tap is silently skipped by some browsers (FedCM, dismissed prompts).
+      // Say so, so a tap never looks like it did nothing.
+      window.google.accounts.id.prompt((notification: any) => {
+        if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
+          setErrorMessage('لم تظهر نافذة Google. اسمح بالنوافذ المنبثقة لهذا الموقع أو حاول مرة أخرى.');
+        }
+      });
     } else {
       setErrorMessage('تعذر تحميل خدمة Google الآن. تحقق من الاتصال وحاول مجدداً.');
     }
   };
 
-  // If VITE_GOOGLE_CLIENT_ID is missing, render configuration error screen
+  // Without a client ID Google sign-in cannot work. The setup detail is a
+  // build-configuration fault for the developer, so it goes to the console; the
+  // learner gets a calm, honest state with a clear way forward.
   if (!googleClientId) {
+    console.error(
+      'VITE_GOOGLE_CLIENT_ID is not set: Google sign-in is unavailable in this build.',
+    );
     return (
       <div className="min-h-screen flex flex-col justify-between p-6 bg-black text-text-primary max-w-md mx-auto relative font-arabic">
         <div>
           <BackButton onBack={onBack} className="mb-6" />
         </div>
 
-        <div className="flex flex-col items-center text-center my-auto px-2 space-y-4">
-          <div className="w-16 h-16 rounded-3xl bg-status-error/15 border border-status-error/30 text-status-error flex items-center justify-center mb-2">
-            <Lock className="w-8 h-8" />
-          </div>
+        <div className="flex flex-col items-center text-center my-auto px-2 space-y-4" role="status">
+          <KatzuMascot name="avatar" className="w-20 h-20 mb-1 object-contain" />
 
           <h2 className="text-xl font-bold text-text-primary">
-            إعداد Google Sign-In مطلوب
+            تسجيل الدخول غير متاح الآن
           </h2>
 
           <p className="text-xs text-text-secondary leading-relaxed max-w-sm">
-            لضمان أمان حسابات المتعلمين ومزامنة التقدم السحابي، يتطلب Katzu استخدام مصادقة Google Identity Services.
+            لا يمكن إكمال تسجيل الدخول بحساب Google في هذه النسخة. يمكنك متابعة التعلم بدون حساب الآن، وسنعيد فتح تسجيل الدخول لاحقاً.
           </p>
-
-          <div className="w-full p-4 rounded-2xl bg-surface-card border border-border-subtle text-start text-xs space-y-2">
-            <div className="flex items-center gap-2 font-bold text-text-primary">
-              <Settings className="w-4 h-4 text-primary" />
-              <span>خطوة مطلوبة من مسؤول التطبيق:</span>
-            </div>
-            <p className="text-text-muted leading-relaxed">
-              يرجى ضبط متغير البيئة التالي في ملف <code className="text-primary font-mono">.env</code> أو لوحة Cloudflare Pages:
-            </p>
-            <div className="p-2.5 bg-black rounded-xl font-mono text-micro text-accent-light border border-border-subtle break-all">
-              VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-            </div>
-          </div>
 
           <Button
             size="md"
             variant="primary"
             className="w-full mt-4"
-            onClick={() => completeUserAuth('guest@katzu.app', currentUser?.displayName || 'مستكشف كَاتْزُو', 'preview_guest_token', 'A1')}
-          >
-            المتابعة كضيف للمعاينة التجريبية
-          </Button>
-
-          <Button
-            size="md"
-            variant="secondary"
-            className="w-full mt-2"
             onClick={onBack}
           >
-            العودة للرئيسية
+            العودة والمتابعة بدون حساب
           </Button>
         </div>
 
         <div className="text-center text-xs text-text-muted pt-4 flex items-center justify-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-          <span>نظام المصادقة الآمن عبر Google Identity Services</span>
+          <span>حسابك وبياناتك محمية عبر Google Identity Services.</span>
         </div>
       </div>
     );
@@ -348,7 +330,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
               setErrorMessage('');
               triggerHaptic('light');
             }}
-            className={`min-h-touch py-2 rounded-xl text-xs font-bold transition-colors duration-fast ease-out ${
+            className={`min-h-touch py-2 rounded-control text-xs font-bold transition-colors duration-fast ease-out ${
               mode === 'signin'
                 ? 'bg-fill text-on-fill shadow-glow-purple'
                 : 'text-text-secondary pointer-hover:text-text-primary'
@@ -364,7 +346,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
               setErrorMessage('');
               triggerHaptic('light');
             }}
-            className={`min-h-touch py-2 rounded-xl text-xs font-bold transition-colors duration-fast ease-out ${
+            className={`min-h-touch py-2 rounded-control text-xs font-bold transition-colors duration-fast ease-out ${
               mode === 'signup'
                 ? 'bg-fill text-on-fill shadow-glow-purple'
                 : 'text-text-secondary pointer-hover:text-text-primary'
@@ -393,14 +375,14 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
         </p>
 
         {errorMessage && (
-          <div className="w-full mb-4 p-3 rounded-2xl bg-status-error/15 border border-status-error/30 text-status-error text-xs font-semibold flex items-center gap-2 text-start">
+          <div role="alert" className="w-full mb-4 p-3 rounded-2xl bg-status-error/15 border border-status-error/30 text-status-error text-xs font-semibold flex items-center gap-2 text-start">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {successMessage && (
-          <div className="w-full mb-4 p-3 rounded-2xl bg-status-success/15 border border-status-success/30 text-status-success text-xs font-semibold flex items-center gap-2 text-start">
+          <div role="status" className="w-full mb-4 p-3 rounded-2xl bg-status-success/15 border border-status-success/30 text-status-success text-xs font-semibold flex items-center gap-2 text-start">
             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
             <span>{successMessage}</span>
           </div>
