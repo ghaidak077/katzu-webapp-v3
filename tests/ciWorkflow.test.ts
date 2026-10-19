@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { CI_ONLY_STEPS, E2E_STEP, STEPS } from '../scripts/verify.mjs';
 
 /**
  * "Local green" was not "CI green" for a week, and every local signal lied.
@@ -227,6 +228,48 @@ describe('CI Node version vs the repository declaration', () => {
   });
 });
 
+/**
+ * One job's YAML body: from `  <name>:` to the next line at the same indentation. Comments are kept,
+ * because the assertions below look at the parsed `run:` commands rather than the prose around them.
+ */
+export function jobBody(source: string, job: string): string {
+  const lines = source.split('\n');
+  const start = lines.findIndex((line) => new RegExp(`^ {2}${job}:\\s*$`).test(line));
+  if (start < 0) return '';
+  const body: string[] = [];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    if (/^ {2}[A-Za-z0-9_-]+:\s*$/.test(lines[i])) break;
+    body.push(lines[i]);
+  }
+  return body.join('\n');
+}
+
+/**
+ * Every line inside a `run:` — the inline command, or every line of a `run: |` block. This is what
+ * makes "no step exists in CI that the gate does not know about" a checkable claim instead of a hope.
+ */
+export function runCommands(job: string): string[] {
+  const lines = job.split('\n');
+  const commands: string[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const match = /^(\s*)(?:-\s+)?run:\s*(.*)$/.exec(lines[i]);
+    if (!match) continue;
+    const indent = lines[i].length - lines[i].trimStart().length;
+    const inline = match[2].trim();
+    if (inline !== '' && !/^[|>]-?$/.test(inline)) {
+      commands.push(inline);
+      continue;
+    }
+    for (let j = i + 1; j < lines.length; j += 1) {
+      const line = lines[j];
+      if (line.trim() === '') continue;
+      if (line.length - line.trimStart().length <= indent) break;
+      commands.push(line.trim());
+    }
+  }
+  return commands;
+}
+
 describe('the CI gates themselves stay in place', () => {
   it('keeps the three jobs, with e2e behind verify', () => {
     for (const job of ['verify', 'e2e', 'secret-scan']) {
@@ -235,22 +278,64 @@ describe('the CI gates themselves stay in place', () => {
     expect(ci).toMatch(/needs: verify/);
   });
 
-  it('runs every verify step that catches a real regression', () => {
-    const required = [
-      'npm ci',
-      'npm run lint',
-      'node --check cloudflare-unified-worker.js',
-      'npm test',
+  it('parses the jobs it asserts on — a parser that found nothing would pass everything below', () => {
+    for (const job of ['verify', 'e2e']) {
+      expect(jobBody(ci, job), `job ${job} could not be read out of ci.yml`).toContain('steps:');
+      expect(runCommands(jobBody(ci, job)).length, `job ${job} runs nothing`).toBeGreaterThan(1);
+    }
+  });
+
+  it('runs the gate as one step, so local and CI cannot drift apart', () => {
+    // The whole point. Every check that lived in both places eventually disagreed: CI syntax-checked
+    // 1 file where the gate checks 45, so a broken `scripts/*.mjs` reached a merge with CI green.
+    expect(runCommands(jobBody(ci, 'verify'))).toEqual(['npm ci', 'npm run verify -- --ci']);
+  });
+
+  it('teaches the gate every extra check CI needs, instead of listing it here too', () => {
+    // The `--ci` profile is STEPS + CI_ONLY_STEPS. If CI grows a step, this is the list it must join.
+    const expected = [
       'npm run build',
       'node scripts/audit-curriculum.mjs',
       'node scripts/audit-quiz-content.mjs',
+      'node scripts/eval-chat-quality.mjs',
+      'node scripts/measure-turn-cost.mjs',
+      'node scripts/simplicity-check.mjs',
       'npm audit --omit=dev --audit-level=high',
-      'npx tsc -p e2e --noEmit',
-      'npx playwright test --project=chromium',
     ];
-    for (const command of required) {
-      expect(ci, `the verify/e2e jobs no longer run: ${command}`).toContain(command);
+    const names = CI_ONLY_STEPS.map((step) => [step.cmd, ...step.args].join(' '));
+    expect(names).toEqual(expected);
+
+    // Every command is real: a step pointing at a deleted script would otherwise be a green no-op.
+    const pkgScripts = Object.keys(
+      (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { scripts?: Record<string, string> }).scripts ?? {},
+    );
+    for (const step of [...STEPS, ...CI_ONLY_STEPS, E2E_STEP]) {
+      const command = [step.cmd, ...step.args].join(' ');
+      if (step.cmd === 'npm' && step.args[0] === 'run') {
+        expect(pkgScripts, `${step.name} runs a missing npm script`).toContain(step.args[1]);
+      } else if (step.cmd === 'node') {
+        expect(existsSync(join(root, step.args[0])), `${step.name} runs a missing file`).toBe(true);
+      } else {
+        expect(command.length, `${step.name} has no command`).toBeGreaterThan(0);
+      }
     }
+
+    // No duplicate: the same check twice is a check that will disagree with itself (that is the drift).
+    const all = [...STEPS, ...CI_ONLY_STEPS].map((step) => [step.cmd, ...step.args].join(' '));
+    expect(new Set(all).size, `two steps run the same command: ${all.join(' · ')}`).toBe(all.length);
+  });
+
+  it('runs the browser suite only in the e2e job, against the built bundle', () => {
+    const commands = runCommands(jobBody(ci, 'e2e'));
+    expect(commands).toEqual([
+      'npm ci',
+      'npx playwright install --with-deps chromium',
+      'npm run build',
+      'npx playwright test --project=chromium',
+    ]);
+    expect(jobBody(ci, 'e2e'), 'the e2e job must test the bundle that ships').toMatch(/E2E_TARGET:\s*preview/);
+    expect(E2E_STEP.env?.E2E_TARGET, 'the gate and CI must point at the same target').toBe('preview');
+    expect(commands.some((line) => line.startsWith(E2E_STEP.cmd) || line.includes(E2E_STEP.args.join(' ')))).toBe(true);
   });
 
   it('never swallows a failure', () => {

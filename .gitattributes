@@ -6,6 +6,12 @@
 # Pin LF on checkout everywhere so the working tree matches the blobs on every machine.
 * text=auto eol=lf
 
+# Git hooks are pushed to the OS by their shebang line, and a CRLF shebang is a
+# "bad interpreter" on every POSIX hook runner. Pin them explicitly rather than relying
+# on the catch-all above: the failure is silent locally (Git for Windows tolerates CRLF)
+# and total on a Mac or Linux checkout.
+.githooks/* text eol=lf
+
 # Binary assets: never touch their bytes.
 *.png binary
 *.jpg binary

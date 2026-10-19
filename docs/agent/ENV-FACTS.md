@@ -53,7 +53,7 @@ Workspace root (where shell commands start): `/c/Users/Lenovo/Desktop/k1` (not a
 - `glob` / `list_directory` — find files by pattern / list a directory.
 - `write_todos` — maintain a step-by-step plan.
 - `web_search` / `read_url` — search the web / extract readable text from a URL.
-- `preview_*` — browser tab control (open, snapshot, click, type, screenshot, evaluate, logs) and `register_preview`.
+- `preview_*` — browser tab control (open, snapshot, click, type, screenshot, evaluate, logs) and `register_preview`. **`preview_screenshot` renders a frame for the model only: it takes no path and never writes a file into the workspace.** For an artifact on disk use the Playwright rigs (next section), not this.
 - `ask_questions` / `suggest_prompts` / `end_turn` — user interaction.
 - `search_mcp_tools` / `call_mcp_tool` — reach connected MCP servers (cloudflare, github).
 - `request_elevation` — request OS administrator rights for one exact command.
@@ -103,7 +103,61 @@ Parallelism: FACT: **batched tool calls run sequentially, not concurrently** —
 | **This machine is one patch below that floor** — Node 24.14.0, so `npm ci` reports `EBADENGINE Unsupported engine { package: 'katzu-web@1.1.0', required: { node: '^22.22.2 \|\| ^24.15.0 \|\| >=26.0.0' }, current: { node: 'v24.14.0' } }` | the suite is green on 24.14.0 anyway (74 files / 891 tests, V17), so this is a declaration-vs-machine gap, not a failure | `npm ci` in a fresh clone; fix is an owner action — install Node 24.15.0+ (or 22.22.2+) |
 | **TypeScript imports need default type stripping** | `scripts/audit-curriculum.mjs:13` and `scripts/load-curriculum.mjs` do `from '../src/lib/content/curriculumAudit.ts'` — Node **22.18+ / 23+**, or `ERR_UNKNOWN_FILE_EXTENSION` | `node --version`; enforced by `tests/ciWorkflow.test.ts` (`TYPE_STRIPPING_FLOOR`) |
 
-Playwright browsers installed in `%LOCALAPPDATA%/ms-playwright`: `chromium-1243`, `chromium_headless_shell-1243`, `ffmpeg-1011`, `winldd-1007`. **Chromium only** — no firefox, no webkit, and the Playwright config declares a single `chromium` project.
+Playwright browsers installed in `%LOCALAPPDATA%/ms-playwright`: `chromium-1243`, `chromium_headless_shell-1243`, `ffmpeg-1011`, `winldd-1007`. **Chromium only** — no firefox, no webkit, and the Playwright config declares a single `chromium` project. **Nothing to install: never run `playwright install *`.**
+
+### Task → the one command (index) — added 2026-10-15
+
+Every row is a job this repo **already has a tool for**. The failure this table exists to prevent: an
+agent that needs a screenshot searches for a *script*, finds none, and builds a new one while the rig
+sits unused in `e2e/shots/`. Look here first; if a job is genuinely missing, add it here with its real
+cost — never add a second tool for a job that already has one. `tests/agentDocs.test.ts` fails if any
+command below stops existing, so this index cannot rot silently.
+
+| You want to… | Run this (it already exists) | Measured / where it lands |
+|---|---|---|
+| Orient at session start | `npm run session:start` | 92 lines, exit 0; never load the orientation docs whole |
+| Search the repo | `git grep -n "x"` · `grep -rn "x" src/` | `rg` is not installed |
+| The unit gate | `npm test` | vitest, ~10 s, dot reporter |
+| Typecheck the app / the e2e specs | `npm run lint` · `npm run test:e2e:types` | `tsc --noEmit` and `tsc -p e2e --noEmit` |
+| The browser suite against the shipped bundle | `E2E_TARGET=preview npx playwright test --reporter=line` | 121 tests / 33 files; do not hand-start `vite preview` |
+| One browser spec | `npx playwright test e2e/demo.spec.ts --reporter=line` | ~8 s |
+| **Phone marketing screenshots** (24 screens × 2 devices) | `npx playwright test -c e2e/marketingShots.playwright.config.ts --reporter=line` | 48 PNGs in `docs/marketing/screenshots-mobile/` + `manifest.json`; `SCREENS=review,paywall` re-shoots one |
+| UI-polish before/after shots | `npx playwright test -c e2e/uiPolishShots.playwright.config.ts` | writes `docs/agent/ui-polish/*.png` |
+| Journey-polish before/after shots | `npx playwright test -c e2e/journeyPolishShots.playwright.config.ts` | writes `docs/agent/journey-polish/*.png` |
+| Admin dashboard screenshots | `node scripts/capture-admin-screenshots.mjs` | its own output folder; needs the admin session |
+| The offline/PWA contract | `npm run build` then `npx playwright test -c e2e/playReadiness.playwright.config.ts` | the only run with `serviceWorkers: 'allow'` |
+| OG / share image | `npm run make:share-image` | regenerates the social card |
+| Design audit + contrast | `npm run design` | `design:audit` then `design:contrast` |
+| Launch blockers | `npm run check:launch` · `npm run check:launch:strict` | strict adds the owner-only blockers |
+| Performance numbers | `npm run measure:perf` | lighthouse; needs a server running first |
+| Secret scan | `npm run scan:secrets` | the same patterns CI runs |
+| Build / serve the bundle locally | `npm run build` · `npm run preview` | `dist/` |
+| Curriculum audit on a module file | `node scripts/audit-curriculum.mjs --file=docs/content/<module>.json` | dry run, no writes |
+| Load curriculum into D1 | `node scripts/load-curriculum.mjs --file=… --commit` | **only** with `CONTENT-LOAD-AUTHORIZED` (AGENTS §3) |
+| What the deployed content tables actually have (schema drift) | `migrations/0001_content_tables.sql` §1–3 · then `node scripts/load-curriculum.mjs --file=… --dry-run` | §1 is production verbatim (`sqlite_master`), §2 names the gap, §3 the owner's pending `ALTER TABLE`s; the loader reads one real row per table and refuses to write when a draft needs a column the deployment lacks (V12-2) |
+| Archive ledger history | `npm run ledger:archive` | moves finished rows and closed owner/unproven items out; never deletes; keeps the ledger under its 80 KB cap |
+| Live worker health (read-only) | `curl -s -m 10 https://katzu-test.ghaidakalosh008.workers.dev/health` | no auth needed |
+| **The whole pre-report gate** | `npm run verify` | profiles: default (types app+e2e + unit suite + design/contrast + syntax over 47 files) · `--fast` (guards + syntax, ~8 s, what pre-commit runs) · `--ci` (adds build + content audits + dependency audit — literally what CI runs) · `--e2e` (adds the browser suite against `vite preview`); it prints what it did **not** run |
+| What the gate costs (no flags to remember) | `npm run verify:ci` | the `--ci` profile as its own script; the same command CI runs, for a local reproduction of a CI red |
+| What each gate run cost | `npm run cost:report` | reads the gitignored `.verify-runs.ndjson` written by `npm run verify -- --cost` (pre-push does): seconds per step + median. Wall-clock, **not** tokens — the harness has no counter (§A) |
+| Make the gate fire on this clone | `npm run hooks:install` | sets repo-local `core.hooksPath=.githooks`; `npm install`/`npm ci` do it via `prepare`, and it refuses to overwrite another tool's hooks path |
+| Performance probe (numbers, not assertions) | `npx playwright test -c e2e/perf/playwright.perf.config.ts` | a human run on purpose; the gate excludes `**/perf/**` so a machine-dependent number can never flake it |
+| Content drifting from production (read-only) | `node scripts/check-content-drift.mjs` | GETs the public endpoints only; exits non-zero when production disagrees with the drafts |
+| The simplicity budget (29 screens) | `node scripts/simplicity-check.mjs` | part of the design gate; fails when a screen exceeds its element budget |
+| The verification battery (12 checks) | `node scripts/verification-battery.cjs` | the battery whose output the ledger quotes |
+| Quiz content audit | `node scripts/audit-quiz-content.mjs` | CI runs it; fails on a malformed quiz row |
+| AI quality and cost probes | `node scripts/eval-chat-quality.mjs` · `node scripts/measure-turn-cost.mjs` | read-only; model quality and per-turn cost |
+| Deploy / tail the worker | `npm run deploy:worker` · `npm run tail:worker` | **only** when AGENTS §3 authorizes a deploy |
+
+### Producing a file (screenshot, image, export) — measured 2026-10-15
+
+| Fact | Proof |
+|---|---|
+| `preview_screenshot` produced 0 files in ~90 calls | The tool has no path parameter; the marketing folder stayed empty |
+| `preview_screenshot` currently fails outright here | `Could not capture the preview page: it produced no frames …`, two attempts, 2026-10-15 |
+| The file-producing path is a Playwright rig | `e2e/shots/*Shots.spec.ts` + its own `*.playwright.config.ts`; each starts its own server (`webServer`) and writes `page.screenshot({ path })`. Existing: `uiPolishShots`, `journeyPolishShots`, `marketingShots`, and the probe `journeyLayoutProbe` |
+| Phone marketing shots, 24 screens x 2 devices, **3.1 min, exit 0** | `npx playwright test -c e2e/marketingShots.playwright.config.ts --reporter=line` → 48 PNGs in `docs/marketing/screenshots-mobile/` (1290x2796 + 1080x2400) + `manifest.json` |
+| Each rig uses its own port so it can never reuse a server you did not start | `marketingShots` serves `npm run build && vite preview --port 3101 --strictPort` with `VITE_WORKER_URL` set; the gate suite keeps 3000 |
 
 ---
 

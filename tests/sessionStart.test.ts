@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  GATE_LINE,
   buildReadout,
   bulletLabel,
   clip,
@@ -19,6 +20,32 @@ import {
  * one of the three documents' shape fails as a test instead of quietly printing a
  * blank or wrong section — the same failure the readout exists to prevent.
  */
+
+/**
+ * Orientation has a budget, the way the documents do.
+ *
+ * WHY THIS EXISTS
+ * "The orientation is now 5.5 KB instead of ~780 KB" was true and unguarded, which means it was true
+ * until the next document got appended to the readout. A size that is not asserted drifts back, and
+ * the drift is invisible precisely because a bigger readout still prints fine. These two assertions
+ * turn the claim into a bound: the readout stays a glance, and it names the gate command, because a
+ * run that has to remember the gate starts from an instruction instead of from context.
+ */
+describe('the readout stays a glance, and names the gate', () => {
+  const readout = buildReadout(new Date('2026-10-15T12:00:00Z'));
+
+  it('stays within its budget in bytes and lines', () => {
+    const kb = Buffer.byteLength(readout, 'utf8') / 1024;
+    expect(kb, `the session-start readout is ${kb.toFixed(1)} KB; orientation is meant to be one screen`).toBeLessThanOrEqual(8);
+    expect(readout.split('\n').length, 'the readout grew into a document').toBeLessThanOrEqual(120);
+  });
+
+  it('names the gate and its profiles, so the command arrives with the context', () => {
+    expect(readout).toContain(GATE_LINE);
+    expect(readout).toMatch(/npm run verify/);
+    expect(readout, 'a run must learn that the browser suite is not in the default profile').toMatch(/--e2e/);
+  });
+});
 
 describe('plainText / clip / wrap', () => {
   it('strips markdown emphasis and collapses whitespace', () => {
@@ -44,6 +71,13 @@ describe('section / tableRows', () => {
     expect(section(doc, '## A.')).toContain('| a | 1 |');
     expect(section(doc, '## A.')).not.toContain('## B.');
     expect(section(doc, '## Missing')).toBe('');
+  });
+
+  it('does not stop at a sub-heading, which belongs to the section', () => {
+    const doc = ['## A. Facts', '| a | 1 |', '### Detail', '| b | 2 |', '## B. Next'].join('\n');
+    expect(section(doc, '## A.')).toContain('### Detail');
+    expect(section(doc, '## A.')).toContain('| b | 2 |');
+    expect(section(doc, '## A.')).not.toContain('## B.');
   });
 
   it('drops the header row and any row outside the section', () => {
@@ -96,6 +130,19 @@ describe('extractNext', () => {
     expect(next).toContain('the live plan');
     expect(next).not.toContain('the old plan');
     expect(next).not.toContain('shipped');
+  });
+
+  it('stops at the next heading or bullet, not only at an ARCHIVED NEXT', () => {
+    // The ledger keeps the live mission in its own `## CURRENT MISSION` section, so the block that
+    // follows it is a section boundary — not more mission text.
+    const ledger = [
+      'above',
+      'NEXT (V41): **the live plan.**',
+      '## OWNER-OPEN',
+      '',
+      '- **An owner item.** with detail',
+    ].join('\n');
+    expect(extractNext(ledger)).toBe('NEXT (V41): the live plan.');
   });
 
   it('handles a ledger with no NEXT block', () => {

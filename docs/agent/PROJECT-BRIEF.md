@@ -1,5 +1,20 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
+**Verification system (2026-10-15, committed 2026-10-19 — the only part of this brief refreshed in
+that run).** One command now decides whether a change is safe, and it **has triggers** instead of being a rule
+people remember: `.githooks/pre-commit` runs its fast profile in ~8 s on every commit, `pre-push` runs the
+whole gate and records what it cost, **CI runs that same command** (`npm run verify -- --ci`) where it used
+to run nine hand-written steps that syntax-checked one file against the gate's 47, and the deploy runbook
+requires `npm run verify -- --ci --e2e` before production. Budgets now cover every document under `docs/`
+(74 files; a 22 KB default cap — before this, 8 of 37 were covered and a new 300 KB guide would have been
+accepted silently), every source/test/spec/script file, and every tool and browser spec (nothing may
+exist unreachable or undocumented). Cost is measured instead of argued: `npm run cost:report` reads a
+local, gitignored log of gate seconds per step (wall-clock and bytes — **not** tokens; the harness exposes
+no counter). Measured on this tree: whole gate **6/6 in 69 s**, CI profile **13/13 in 134.8 s**, unit suite
+**144 files / 1,862 tests**, browser suite **117/121** against the built bundle with **3 failures
+unclassified** and not attributable to this batch (they sit on screens another session left uncommitted —
+see `docs/AGENT-STATE.md` UNPROVEN). No app code, deploy, secret or production data was touched by it.
+
 ## Current snapshot — 2026-10-04
 
 The owner approved autonomous local execution of the excellence roadmap. Current scope and

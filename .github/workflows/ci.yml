@@ -40,43 +40,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck (tsc --noEmit)
-        run: npm run lint
-
-      - name: Worker syntax check
-        run: node --check cloudflare-unified-worker.js
-
-      - name: Design-system gates (drift + contrast)
-        # `design:audit` fails when a screen hardcodes a colour or bypasses the
-        # type/radius scale; `design:contrast` fails when any token pairing drops
-        # below WCAG. Both read src/index.css directly, so they cannot drift away
-        # from what the app actually paints.
-        run: npm run design
-
-      - name: Unit tests (vitest)
-        run: npm test
-
-      - name: Production build (tsc + vite build)
-        run: npm run build
-
-      - name: Content audits (curriculum + quiz)
-        run: |
-          node scripts/audit-curriculum.mjs
-          node scripts/audit-quiz-content.mjs
-          node scripts/eval-chat-quality.mjs
-          node scripts/measure-turn-cost.mjs
-
-      - name: Simplicity + design gates
-        run: |
-          node scripts/simplicity-check.mjs
-          node scripts/design-audit.mjs
-          node scripts/contrast-check.mjs
-
-      - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
-
-      - name: E2E typecheck
-        run: npx tsc -p e2e --noEmit
+      # WHY THIS IS ONE STEP AND NOT NINE
+      #
+      # Until 2026-10-15 CI assembled its own list of nine hand-written steps, and so did the local gate,
+      # and the two lists disagreed in a way nothing could see: CI ran
+      # `node --check cloudflare-unified-worker.js` — ONE file — where `npm run verify` syntax-checks all
+      # 45 workers and `scripts/*.mjs`. A commit carrying a broken script passed CI. Every check that
+      # lives in two places is a check that will eventually contradict itself.
+      #
+      # So the shared checks are now one command, and CI runs *that command* with the `--ci` profile.
+      # `--ci` is defined in `scripts/verify.mjs` (STEPS + CI_ONLY_STEPS): typechecks (app + e2e), the
+      # unit suite including every doc/index/registration/budget guard, the syntax pass, the design audit,
+      # the contrast check, the production build, the curriculum/quiz/content audits, the simplicity budget
+      # and the dependency audit. Adding a check there adds it here automatically — no second list to keep
+      # in step, and `tests/ciWorkflow.test.ts` fails if this job grows a step the gate does not know about.
+      # It prints per-step PASS/FAIL with real exit statuses and says what it did not run.
+      - name: The gate — the same command as local (`npm run verify -- --ci`)
+        run: npm run verify -- --ci
 
   e2e:
     runs-on: ubuntu-latest

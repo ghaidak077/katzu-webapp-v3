@@ -2,7 +2,7 @@
 
 ## Preconditions (all must hold, else STOP, report, no partial deploy)
 1. The owner asked for a deploy — `deploy` in plain words is enough, as is `DEPLOY-AUTHORIZED` with or without targets (v7 §3). If they named targets, touch only those; if they did not, name the ones you will touch in the report **before** step 1 of the sequence, and stop if the change needs one they would not expect (a worker deploy for a frontend-only change).
-2. Full T2 green on the branch: tsc, `npm test`, `npm run build`, `node --check` worker, audit, and ALL Playwright specs against `vite preview` with service workers blocked (50/50).
+2. `npm run verify -- --ci --e2e` green on the branch — **the gate, not a list**. It is the same command CI runs (`--ci`; the browser suite with service workers blocked is the `--e2e` profile, run against `vite preview`). The step list lives in `scripts/verify.mjs` and is printed by the run itself; a copy of it here would be a fourth list to keep in step. Quote the run's `VERIFY OK` line in the ledger, and `npm run cost:report` shows whether the gate itself is getting slower.
 3. Tree clean, branch pushed, `git log main..HEAD` reviewed for stray probe files or secrets (`git grep -nEi "secret|token|api_key"` on the diff).
 4. `npx wrangler whoami` shows the expected account (OAuth login is acceptable; env tokens not required).
 5. Migrations: only additive SQL, listed in the ledger. Anything destructive → STOP (owner-only).
@@ -21,3 +21,4 @@ Any verify step fails → `npx wrangler rollback <recorded version id>` for the 
 
 ## After
 Ledger: deployed version ids, verification outputs, rollback refs. Add a `DEPLOYED:` line to ADVISOR SYNC. Do not touch owner-only items.
+The gate must have been green **in that same working tree**: a green run from an earlier tree is not evidence for this one, and the deploy is the one place where the difference is unrecoverable.

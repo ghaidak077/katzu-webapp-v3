@@ -35,14 +35,30 @@ export default defineConfig({
   // The performance probe reports numbers rather than asserting them, so it is
   // run on purpose from e2e/perf/playwright.perf.config.ts — never as part of
   // the suite, where a machine-dependent number would become a flaky gate.
-  // Two directories are excluded, for two different reasons. `**/perf/**` reports
+  // Three kinds of spec are excluded, for three different reasons. `**/perf/**` reports
   // numbers instead of asserting them, so it belongs to a human run. The
   // play-readiness spec cannot run HERE at all: this configuration blocks service
   // workers on purpose (see `use.serviceWorkers`), so the page never gets a
   // controller and the offline assertion it exists to make cannot pass. It runs
   // under e2e/playReadiness.playwright.config.ts, which flips exactly that one
   // setting back.
-  testIgnore: ['**/perf/**', '**/playReadiness.spec.ts'],
+  //
+  // `**/shots/**Shots.spec.ts` and `mascotSheet.spec.ts` are *evidence* rigs, not
+  // assertions: their product is a PNG on disk, and their product path is a
+  // tracked file under `docs/agent/` or `docs/marketing/`. Running them inside the
+  // gate rewrote those tracked images with renders of the tree under test on every
+  // `npx playwright test` — measured 2026-10-15: 12 `*-before.png` files differed
+  // from HEAD after an ordinary suite run, which is exactly the corruption the
+  // journey-polish session once had to repair by re-shooting from an old commit.
+  // Each rig has its own config and its own documented command; they are run on
+  // purpose, like the perf probe. The layout PROBE stays here — it asserts a
+  // contract rather than writing evidence.
+  testIgnore: [
+    '**/perf/**',
+    '**/playReadiness.spec.ts',
+    '**/shots/**Shots.spec.ts',
+    '**/shots/mascotSheet.spec.ts',
+  ],
   timeout: 90_000,
   expect: { timeout: 15_000 },
   // One worker: every spec drives the same shared local database through the same

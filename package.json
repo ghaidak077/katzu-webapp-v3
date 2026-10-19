@@ -22,10 +22,16 @@
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "measure:perf": "node scripts/measure-lighthouse.mjs",
     "check:launch:strict": "node scripts/check-launch.mjs --strict",
+    "verify": "node scripts/verify.mjs",
+    "verify:ci": "node scripts/verify.mjs --ci",
+    "cost:report": "node scripts/verify-cost.mjs",
+    "hooks:install": "node scripts/install-hooks.mjs",
+    "prepare": "node scripts/install-hooks.mjs",
     "session:start": "node scripts/session-start.mjs",
     "deploy:worker": "wrangler deploy",
     "tail:worker": "wrangler tail",
-    "test:smoke:token-hygiene": "node scripts/smoke-token-hygiene.cjs"
+    "test:smoke:token-hygiene": "node scripts/smoke-token-hygiene.cjs",
+    "ledger:archive": "node scripts/archive-ledger-rows.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.67.1",

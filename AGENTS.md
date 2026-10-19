@@ -48,9 +48,18 @@ System/developer instructions > current owner request > repository guidance > hi
 - Mission = ledger `docs/AGENT-STATE.md`. New prompt phases become ledger items (keep its ids).
 - Rules live here, status in the ledger, facts in code. `APP-MAP.md` is the map, `MEMORY.md` is the memory, `ENV-FACTS.md` is the environment. Only the owner edits §3 and the Content Gate.
 
-## 1. Session start (in this order)
-this file → ledger → `docs/agent/APP-MAP.md` → `docs/agent/MEMORY.md` → `docs/agent/ENV-FACTS.md` → `docs/agent/LESSONS.md` → `git status`, `git log -10`.
-Read `docs/agent/EXCELLENCE-STATUS.md` before following historical ledger NEXT entries. One command prints the historical working part in ~60 lines: **`npm run session:start`** (ledger `NEXT`, APP-MAP §9 targets + manifest counts, MEMORY §A facts, git state). Run it first; then go to the documents it points at.
+## 1. Session start
+**One command first: `npm run session:start`** (ledger `NEXT`, APP-MAP §9 targets + manifest counts, MEMORY §A facts, git state, and the measured size of every orientation document). It is the whole of what a run must load before it can work.
+
+**Then read sections, never documents.** The orientation docs total ~375 KB (the ledger alone was 444 KB ≈ 110k tokens until its history moved out on 2026-10-15; it is 66 KB now): loading them whole is not a discipline problem, it is impossible, and a run that tries arrives with no context left for the task. So:
+- Find the section with `grep -n "^## " <file>`, then read that range (or the one heading you need).
+- **Before choosing a tool, read the index**: `ENV-FACTS` §C "Task → the one command" names the command that already does the job (screenshots, share image, launch check, audits, content load, deploys). Searching for a path before using it is §2; *inventing* a second tool for a job that already has one is the most expensive mistake this repo has actually made.
+- Completed work is history, not orientation: it lives in `docs/agent/ARCHIVE-AGENT-STATE.md`, findable with one `grep -rn "<topic>" docs/`. The ledger holds current state plus open work only (`RESUME`, `CURRENT MISSION`, live `ITEMS` rows, open `UNPROVEN`/`OWNER-OPEN` items, DECISIONS), and `npm run ledger:archive` is what keeps history out of it.
+- **Owner-facing work has a plain-language list:** `docs/agent/OWNER-CHECKLIST.md` — what the owner must decide, with no jargon and a "done looks like" line each. Add to it in the same change that adds an open owner item; the docs guard fails otherwise.
+- Before choosing a tool: `ENV-FACTS` §C–D (toolchain + capabilities) and `MEMORY` §C (recurring mistakes). Before producing a file: §4 below. Before touching UI/AI/data: `QUALITY.md`. Before writing curriculum rows: `CONTENT-GATE.md`.
+- `AGENTS.md` itself (this file), `CLAUDE.md` and `docs/agent/MEMORY.md` §A–C are short enough to read in full; `APP-MAP`, `LESSONS`, `ENV-FACTS`, `AGENT-STATE` and `PROJECT-BRIEF` are not.
+- `git status` + `git log -10` before any edit. Read `docs/agent/EXCELLENCE-STATUS.md` before following historical ledger `NEXT` entries.
+- If a fact you need is missing, that is the finding: add it where the next run will see it (measured, with proof), and prefer a section over a paragraph.
 Resume the current owner mission/status, not a superseded historical NEXT. If documents and git disagree, actual code/git wins; label historical evidence rather than presenting it as current.
 Environment: trust ENV-FACTS. Re-probe only if a command fails in a way ENV-FACTS doesn't explain, then update the file. Never stall on the environment: use the documented working command, or log a LESSON and move on.
 
@@ -93,6 +102,19 @@ security. Git credentials are platform-managed; never ask for a token.
 
 ## 4. Speed and token discipline
 - Smallest complete change; reuse code; deterministic beats AI. One item ≤ ¼ of remaining time.
+- **Reuse the tool before writing one.** `ENV-FACTS` §C's index is one screen and names the command per job; if the job is there, run it and stop looking. A new script for an existing job is not thoroughness, it is the bug.
+- **A file deliverable comes from the repo's rig, never from the browser tool.** Screenshots,
+  images, PDFs, exports: `e2e/shots/*Shots.spec.ts` plus its `*.playwright.config.ts` already do
+  this — start the server, sign in through `e2e/harness.ts`, `page.screenshot({ path })` onto a
+  tracked folder. Today: `uiPolishShots`, `journeyPolishShots`, `marketingShots`
+  (`npx playwright test -c e2e/marketingShots.playwright.config.ts`) and
+  `scripts/capture-admin-screenshots.mjs`. Search before inventing (`grep -rl "screenshot({ path" e2e scripts`).
+  `preview_screenshot` renders for the eye and **never writes a file** — an hour and ~90 captures
+  produced zero files on 2026-10-15 (`docs/agent/AUDIT-AGENT-BLOAT-2026-10-15.md`). Never run
+  `playwright install *`: chromium is already cached (ENV-FACTS §C).
+- **A file task is finished only when the file is on disk and verified** — `ls -l`, format/pixel
+  size, `git status`, and the command's own exit status. "The browser showed me the screens" is
+  not evidence, and "partial progress" is not a report.
 - Cap output (≤500 lines; stdout above ~40KB is cut in the middle). Slow commands: `> $TMP/x.log 2>&1; tail -25`. Never re-run to see more output; grep the log.
 - Tool calls in one batch run SEQUENTIALLY. Batch only to save round-trips.
 - Same command fails 2× → change method. 3× → `blocked`, preserve safe work, next item.
@@ -101,24 +123,35 @@ security. Git credentials are platform-managed; never ask for a token.
 - Record material verification substitutions and their limits in the current execution status.
 - Probe or debug files: OS temp dir only, never in the repo. `git status` must show none before a commit.
 
-## 5. Verification tiers (exact commands in ENV-FACTS)
-- T0 after each edit: `npx tsc --noEmit` (`npm run lint` is the same command) + touched vitest files.
-- T1 after each item: `npm test`, related Playwright specs.
-- T2 final only: all specs, build, `node --check` on the worker, `npm audit --omit=dev --audit-level=high`.
+## 5. Verification — one command, with triggers
+**The gate has triggers, not just a name.** `npm run verify` is the command; these are what run it:
+`pre-commit` → `--fast` (structural guards + syntax, ~8 s), `pre-push` → the full gate with `--cost`
+(recorded; `npm run cost:report` prints the trend), CI → `--ci` (the same command; the extras CI needs
+are defined in `scripts/verify.mjs`, not in the workflow), and `docs/agent/DEPLOY.md` → `--ci --e2e`
+before any deploy. The hooks live in `.githooks/` and are installed by `npm install` (`prepare`) or
+`npm run hooks:install`; a clone with `git config core.hooksPath` unset is unwired, and
+`tests/hooks.test.ts` fails on it. Bypassing with `--no-verify` is a decision you state in the report.
+Before this existed the gate had **no trigger at all**, and CI kept its own list that syntax-checked
+1 file where the gate checks 45 (MEMORY §C row 48).
+
+**`npm run verify` is the gate.** It runs both typechecks, the unit suite (which includes the doc-size, index and registration guards), `node --check` on every worker and script, the design audit and the contrast check, and prints PASS/FAIL per step with real exit statuses. `npm run verify -- --e2e` adds the browser suite against the built bundle. Before you report anything as done, that command is green — a list you reconstruct by hand is a list you shorten when the clock is short.
+- While working: `npx tsc --noEmit` plus the vitest files you touched. Before reporting: the whole gate.
+- It prints what it did **not** run. Say so too, instead of implying the browser suite passed.
 - Vitest reporter: `dot`. Playwright reporter: `line`. Never mix them.
 - Red is red. Never start the next item on a red gate: fix in ~15 min, else revert that item's files only, mark `blocked`.
 - Timeout is neither pass nor fail: rerun narrower. Flaky = bug: fix the wait condition, never a sleep.
 - Every fixed bug gets a regression test; every new pure rule gets unit tests.
-- Built-bundle e2e runs with service workers blocked.
+- Built-bundle e2e runs with service workers blocked (`npm run verify -- --e2e` does it).
 
 ## 6. Editing
 Working tree may be CRLF while blobs are LF: re-read exact lines, copy match text from output. Edit fails once → re-read; twice → temp-dir `patch.mjs` that asserts a single match. Run `tsc`/`node --check` right after. An insertion must re-state its anchor: to add a block above line X, keep `oldString` to that single unique line and end `newString` with that same line — every line `oldString` holds must still appear in `newString`, or a neighbour is deleted silently (three times so far: the 2026-09-30 ledger rows, then `tests/designSystem.test.ts` and `tests/haptics.test.ts` on 2026-10-18). Re-read the edited region, or run the touched test, before moving on.
 
 ## 7. Git
-Inspect the actual branch and status before work; historical ledger branch names are not instructions to switch. Never commit, stage, push, open a PR, or merge unless the current user explicitly requests that operation. Preserve existing dirty work; do not auto-checkpoint it. If commits are requested, include only owned relevant hunks after passing checks. Never force-push, reset, or discard changes. Deploys and merges to main only per §3 + `docs/agent/DEPLOY.md`.
+`.githooks/` runs the gate on commit (`--fast`) and push (full); that is a feature you keep working, not a step to argue with mid-run. Inspect the actual branch and status before work; historical ledger branch names are not instructions to switch. Never commit, stage, push, open a PR, or merge unless the current user explicitly requests that operation. Preserve existing dirty work; do not auto-checkpoint it. If commits are requested, include only owned relevant hunks after passing checks. Never force-push, reset, or discard changes. Deploys and merges to main only per §3 + `docs/agent/DEPLOY.md`.
 
 ## 8. Ledger
-One line per item `todo|doing|done|blocked`; evidence for `done`, reason for `blocked`. Sections: ITEMS, DECISIONS, UNPROVEN, OWNER-OPEN. Every status update ends with a concrete next action. Never stop mid-edit; finish item → gate → evidence/status → next. Commit only when requested. Don't pause between items unless blocked.
+One line per item `todo|doing|done|blocked`; evidence for `done`, reason for `blocked`. Sections: ITEMS, DECISIONS, UNPROVEN, OWNER-OPEN.
+**The ledger holds live work only**: `## ITEMS` keeps `blocked`/`todo`/`doing` rows, and `## UNPROVEN`/`## OWNER-OPEN` keep open items. **An open owner item also gets a plain-language line in `docs/agent/OWNER-CHECKLIST.md`** — the same commit, or the docs guard reddens. A finished row, or an item marked resolved/superseded/DONE, belongs in `docs/agent/ARCHIVE-AGENT-STATE.md`: `npm run ledger:archive` moves them and deletes nothing. The 80 KB cap and the no-closed-bullet/no-oversized-bullet checks in `tests/agentDocs.test.ts` turn "the ledger is too big" into a one-command fix instead of a decision nobody makes. The current mission is its own short section (`## CURRENT MISSION`) so a run reads RESUME and that, and stops. Every status update ends with a concrete next action. Never stop mid-edit; finish item → gate → evidence/status → next. Commit only when requested. Don't pause between items unless blocked.
 
 ## 9. Self-improvement and cross-session memory
 Two layers, both read at session start:

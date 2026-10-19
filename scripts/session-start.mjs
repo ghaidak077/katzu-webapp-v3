@@ -25,6 +25,17 @@ export const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z
 const WIDTH = 100;
 const NEXT_MAX_CHARS = 1100;
 
+/**
+ * The gate, named where a run cannot miss it.
+ *
+ * `AGENTS.md` §5 states the command, and stating it was not enough: the gate existed from
+ * 2026-10-15 with no trigger at all. This line is in the readout every run opens first, so the
+ * command arrives with the context instead of being recalled from a manual — and it names what it
+ * does *not* cover, because that is the part a report gets wrong.
+ */
+export const GATE_LINE =
+  'npm run verify  (full) · --fast on commit · --ci what CI runs · --e2e before a deploy (docs/agent/DEPLOY.md)';
+
 /** Collapse markdown emphasis and whitespace so the terminal text is readable. */
 export function plainText(value) {
   return String(value ?? '')
@@ -65,8 +76,16 @@ export function section(text, headingPrefix) {
   const lines = String(text).split(/\r?\n/);
   const start = lines.findIndex((line) => line.startsWith('## ') && line.startsWith(headingPrefix));
   if (start === -1) return '';
+  // A section runs to the next heading of the SAME level — never to a sub-heading, which belongs to
+  // it. Stopping at `### ` too silently truncated the section: on 2026-10-15 the readout said
+  // "UNPROVEN: 14 open of 14" while the section held 19, because one `### ` sub-heading hid five.
+  const level = (/^#+/.exec(headingPrefix.trim())?.[0] ?? '##').length;
+  const endsHere = (line) => {
+    const heading = /^(#+)\s/.exec(line);
+    return heading !== null && heading[1].length <= level;
+  };
   const rest = lines.slice(start + 1);
-  const end = rest.findIndex((line) => line.startsWith('## ') || line.startsWith('### '));
+  const end = rest.findIndex(endsHere);
   return (end === -1 ? rest : rest.slice(0, end)).join('\n');
 }
 
@@ -143,9 +162,12 @@ export function extractNext(ledgerText) {
   const start = text.lastIndexOf('\nNEXT (');
   if (start === -1) return null;
   const from = start + 1;
-  const archived = text.indexOf('ARCHIVED NEXT (', from);
-  const block = text.slice(from, archived === -1 ? undefined : archived);
-  return plainText(block);
+  const rest = text.slice(from);
+  // The mission is one block: it ends at the next archived NEXT, at the next heading, or at the
+  // next bullet. Stopping only at `ARCHIVED NEXT (` meant that a ledger whose archived blocks had
+  // been moved out (2026-10-15) fed the whole tail of the file into the readout.
+  const stop = rest.search(/\n(?:ARCHIVED NEXT \(|#{1,3} |- )/);
+  return plainText(stop === -1 ? rest : rest.slice(0, stop));
 }
 
 /** `Last verified:` line from APP-MAP. */
@@ -192,6 +214,33 @@ function readDoc(...parts) {
   }
 }
 
+/**
+ * The orientation documents, with their real size on disk.
+ *
+ * This exists because the older readout ended with "READ NEXT: APP-MAP → MEMORY →
+ * ENV-FACTS → LESSONS", i.e. it told every run to load ~240 KB (~60k tokens) before
+ * starting, on top of a 450 KB ledger. That instruction cannot be followed by any
+ * model with a context window, so it was being skipped — and the facts it holds (a
+ * cached Chromium, a screenshot rig that already exists) are exactly the ones whose
+ * absence cost an hour on 2026-10-15. Printing the sizes turns the cost into a fact a
+ * run can act on: open a section, never a document.
+ */
+const ORIENTATION_DOCS = [
+  ['APP-MAP', ['docs', 'agent', 'APP-MAP.md']],
+  ['ledger', ['docs', 'AGENT-STATE.md']],
+  ['PROJECT-BRIEF', ['docs', 'agent', 'PROJECT-BRIEF.md']],
+  ['LESSONS', ['docs', 'agent', 'LESSONS.md']],
+  ['MEMORY', ['docs', 'agent', 'MEMORY.md']],
+  ['ENV-FACTS', ['docs', 'agent', 'ENV-FACTS.md']],
+];
+
+export function docSizes() {
+  return ORIENTATION_DOCS.map(([name, parts]) => ({
+    name,
+    kb: Math.round(Buffer.byteLength(readDoc(...parts), 'utf8') / 1024),
+  })).sort((a, b) => b.kb - a.kb || a.name.localeCompare(b.name));
+}
+
 export function buildReadout(now = new Date()) {
   const ledger = readDoc('docs', 'AGENT-STATE.md');
   const appMap = readDoc('docs', 'agent', 'APP-MAP.md');
@@ -202,6 +251,7 @@ export function buildReadout(now = new Date()) {
 
   out.push(`KATZU SESSION START — ${now.toISOString().slice(0, 10)}`);
   out.push('='.repeat(WIDTH));
+  out.push(`GATE  ${GATE_LINE}`);
 
   out.push('GIT');
   out.push(`  branch:  ${g.branch}`);
@@ -252,7 +302,9 @@ export function buildReadout(now = new Date()) {
   }
 
   out.push('');
-  out.push('READ NEXT: docs/agent/APP-MAP.md → docs/agent/MEMORY.md → docs/agent/ENV-FACTS.md → docs/agent/LESSONS.md');
+  out.push(`READ ON DEMAND — measured document cost: ${docSizes().map((d) => `${d.name} ${d.kb} KB`).join(' · ')}`);
+  out.push('  Never load one whole; find the section first: grep -n "^## " <file>, then read that range only.');
+  out.push('  Choosing a tool → ENV-FACTS §C-D + MEMORY §C · producing a file → AGENTS.md §4 (the rig, not the browser).');
   return out.join('\n');
 }
 

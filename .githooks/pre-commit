@@ -1,0 +1,20 @@
+#!/bin/sh
+# .githooks/pre-commit — the fast half of the gate, so a commit cannot carry a blown budget.
+#
+# WHY A HOOK
+# `npm run verify` existed from 2026-10-15 and nothing called it: no hook was installed (only the
+# sample files .git/hooks ships) and CI ran its own hand-written steps, which syntax-checked 1 file
+# where the gate checks 45. A gate with no trigger is a document, and documents are what this repo
+# kept replacing with tests. This is the trigger.
+#
+# WHAT IT RUNS: `npm run verify -- --fast`
+#   the structural guards (doc budgets, tool index, code budgets, gate/CI/hook wiring) and
+#   `node --check` over every worker and script. Seconds, not minutes, because a hook people skip
+#   out of habit is not a trigger either. Typechecks, the unit suite and the browser suite are not
+#   in this profile; pre-push runs the whole gate, and CI runs the browser suite.
+#
+# RED MEANS NO COMMIT. `git commit --no-verify` exists; using it is a decision, and AGENTS.md §5 says
+# a red gate is fixed, never stepped over.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+npm run --silent verify -- --fast

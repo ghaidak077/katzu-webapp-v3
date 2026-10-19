@@ -11,13 +11,21 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { CI_ONLY_STEPS } from '../scripts/verify.mjs';
 
 const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
 const gate = readFileSync('scripts/simplicity-check.mjs', 'utf8');
 
 describe('the simplicity gate', () => {
-  it('runs in CI, or it is decoration', () => {
-    expect(workflow).toContain('node scripts/simplicity-check.mjs');
+  it('runs automatically, or it is decoration', () => {
+    // The literal string used to be asserted *in ci.yml*. On 2026-10-15 CI stopped listing its checks
+    // and started running `npm run verify -- --ci`, so the honest form of "this is switched on" is: the
+    // gate's `--ci` profile runs it, and CI runs that profile. Asserting the string in the workflow
+    // would now be asserting that the check list is written down twice — the drift this repo keeps
+    // paying for.
+    const commands = CI_ONLY_STEPS.map((step) => [step.cmd, ...step.args].join(' '));
+    expect(commands, 'the simplicity check left the CI profile').toContain('node scripts/simplicity-check.mjs');
+    expect(workflow).toMatch(/run: npm run verify -- --ci/);
   });
 
   it('passes on the tree as it stands', () => {
