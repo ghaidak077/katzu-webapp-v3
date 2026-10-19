@@ -1,10 +1,10 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
-**Deployed & merged (2026-10-19, V42 — read this first).** The launch candidate described below is now
+**Deployed & merged (2026-10-19, V43 — read this first).** The launch candidate described below is now
 the production product: **PR #18 merged to `main` (`2fa5acd`, fast-forward of the 64-commit branch),
-worker `66bd8b92-8db6-452d-ad99-88685cab0956` at 100%, Pages production `f805663e-d81c-46fc-92f1-f16ad4b3dc73`
-serving `assets/index-DZrigzP5.js`** — deployed only after `npm run verify -- --ci --e2e` **14/14 in
-486.8 s** in the deploy tree, and verified live read-only: `/health` = the four status keys **plus a new
+worker `66bd8b92-8db6-452d-ad99-88685cab0956` at 100%, Pages production `8fb96479-c214-453c-9d6e-775af448e7de`
+serving `assets/index-B5ReLSY0.js`** — deployed only after `npm run verify -- --ci --e2e` **14/14 in
+679.3 s** in the deploy tree (V43 was a pages-only follow-up: `8669f82..92280ec`, no worker file in it), and verified live read-only: `/health` = the four status keys **plus a new
 `storage:{d1:"ok",kv:"ok"}` line** (shipped by the audited `9c07b44`, not an accident — the runbook line
 and ENV-FACTS row were corrected in the same commit rather than ignoring or rolling back the code),
 `/crypto/health` unchanged (`test_mode`, `ready:false` — closed beta, payments still deliberately off),
