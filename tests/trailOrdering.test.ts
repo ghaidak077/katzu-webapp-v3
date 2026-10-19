@@ -130,8 +130,12 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     expect(TRAIL).toMatch(/اعرض بقية المشاهد/);
   });
 
-  it('still renders the same list, not a filtered one', () => {
-    expect(TRAIL).toMatch(/scenarios\.slice\(0, showAllScenarios \? undefined : TRAIL_PREVIEW_COUNT\)/);
+  it('filters the path by the level pills, using the real content index', () => {
+    // The pills used to only set state; the path now lists a situation at a
+    // level only when its content exists there (or the index is not known yet).
+    expect(TRAIL).toMatch(/const pathScenarios = useMemo\(/);
+    expect(TRAIL).toMatch(/scenarioLevels\[s\.id\]\.includes\(selectedLevel\)/);
+    expect(TRAIL).toMatch(/pathScenarios\.slice\(0, showAllScenarios \? undefined : TRAIL_PREVIEW_COUNT\)/);
   });
 
   it('gives every card its banner, not only the cards that have artwork', () => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { refreshCurriculumCache } from '@/lib/api/workerClient';
 import { arCount } from '@/lib/i18n/arabicCount';
 import { GlassButton } from '@/components/glass/GlassButton';
 import { Button } from '@/components/ui/Button';
@@ -210,7 +211,9 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   // The pills start on the learner's measured level (never silently A1), and a
   // deliberate tap wins from then on.
   useEffect(() => {
-    if (!levelChosen && user?.cefrLevel) setSelectedLevel(user.cefrLevel);
+    // Default the filter to the level the mission is actually served at, so a free
+    // learner measured at B1 is not sent to a locked pill while the CTA is A1.
+    if (!levelChosen && user?.cefrLevel) setSelectedLevel(episodeLevel);
   }, [user?.cefrLevel, levelChosen]);
 
   /**
@@ -223,6 +226,14 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
    * the learner's trust in the whole app.
    */
   const levelLocked = (lvl: CEFRLevel) => !isLevelFree(lvl, isPro);
+
+  // The pills filter the path: a situation is listed at a level only when its
+  // real content exists there. A situation with no content index yet stays
+  // listed, so a catalog that is still loading never looks empty.
+  const pathScenarios = useMemo(
+    () => scenarios.filter((s) => !scenarioLevels[s.id] || scenarioLevels[s.id].includes(selectedLevel)),
+    [scenarios, scenarioLevels, selectedLevel],
+  );
 
   const handleLevelSelect = (lvl: CEFRLevel) => {
     setLevelChosen(true);
@@ -237,11 +248,11 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
     setSelectedLevel(lvl);
   };
 
-  const handleScenarioClick = (scenarioId: string) => {
+  const handleScenarioClick = (scenarioId: string, level: CEFRLevel = selectedLevel) => {
     track('scenario_started', { scenarioId, source: 'trail' });
-    if (levelLocked(selectedLevel)) {
+    if (levelLocked(level)) {
       setPaywallReason({
-        title: `مستوى ${selectedLevel} يُفتح مع Pro`,
+        title: `مستوى ${level} يُفتح مع Pro`,
         description: `في الخطة المجانية تتدرب على مستوى ${FREE_LEVEL}. Pro يفتح كل المستويات من A0 إلى B2 لمتابعة ما بعدها.`,
       });
       setShowPaywall(true);
@@ -263,7 +274,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
     }
     if (mission.kind === 'no_content') {
       return (
-        <Button variant="primary" size="sm" onClick={() => window.location.reload()} className="shrink-0">
+        <Button variant="primary" size="sm" onClick={() => void refreshCurriculumCache()} className="shrink-0">
           <span className="whitespace-nowrap">{mission.ctaAr}</span>
         </Button>
       );
@@ -273,7 +284,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         <Button
           variant="primary"
           size="sm"
-          onClick={() => handleScenarioClick(missionScenarioId)}
+          onClick={() => handleScenarioClick(missionScenarioId, episodeLevel)}
           className="shrink-0"
         >
           <span className="whitespace-nowrap">{mission.ctaAr}</span>
@@ -496,6 +507,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             <button
               key={lvl}
               onClick={() => handleLevelSelect(lvl)}
+              aria-pressed={selectedLevel === lvl}
               className={`flex min-h-touch flex-1 items-center justify-center gap-1 rounded-chip py-2 font-german text-xs font-bold transition-colors ${
                 selectedLevel === lvl
                   ? 'bg-fill text-on-fill'
@@ -520,7 +532,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           className="absolute bottom-3 top-3 w-[2px] bg-border-subtle start-[19px]"
         />
 
-        {scenarios.slice(0, showAllScenarios ? undefined : TRAIL_PREVIEW_COUNT).map((scenario: ScenarioEntity, index) => {
+        {pathScenarios.slice(0, showAllScenarios ? undefined : TRAIL_PREVIEW_COUNT).map((scenario: ScenarioEntity, index) => {
           const state = capabilityFor(scenario.id);
           const done = isDone(scenario.id);
           const current = !done && scenario.id === missionScenarioId;
@@ -587,7 +599,11 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                     <Badge variant={done ? 'success' : 'subtle'} size="sm">
                       {PATH_CHIP_LABEL_AR[state]}
                     </Badge>
-                    <Play className="h-3.5 w-3.5 text-text-muted" aria-hidden />
+                    {levelLocked(selectedLevel) ? (
+                      <Lock className="h-3.5 w-3.5 text-text-muted" aria-label="مقفل مع Pro" role="img" />
+                    ) : (
+                      <Play className="h-3.5 w-3.5 text-text-muted" aria-hidden />
+                    )}
                   </div>
                   {/* The headline is the Arabic title, and the German is the
                       label underneath.
@@ -616,8 +632,14 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         })}
       </ol>
 
+      {pathScenarios.length === 0 && (
+        <p className="mt-4 text-center font-arabic text-sm text-text-secondary" role="status">
+          لا توجد مشاهد على مستوى {selectedLevel} بعد.
+        </p>
+      )}
+
       {/* The one obvious thing left to do on a wall of cards. */}
-      {!showAllScenarios && scenarios.length > TRAIL_PREVIEW_COUNT && (
+      {!showAllScenarios && pathScenarios.length > TRAIL_PREVIEW_COUNT && (
         <GlassButton
           variant="secondary"
           fullWidth
@@ -626,7 +648,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         >
           <span className="font-arabic">اعرض بقية المشاهد</span>
           <span className="kz-ar-micro font-german text-kz-inkFaint">
-            ({arCount(scenarios.length - TRAIL_PREVIEW_COUNT, MORE_FORMS)})
+            ({arCount(pathScenarios.length - TRAIL_PREVIEW_COUNT, MORE_FORMS)})
           </span>
         </GlassButton>
       )}

@@ -41,6 +41,8 @@ interface PracticeRow {
   feedbackAr: string;
 }
 
+const NO_RETRY_CODES = new Set(['RATE_LIMIT_EXCEEDED', 'UNAUTHENTICATED']);
+
 const INTENT_ICON: Record<string, React.ReactNode> = {
   translate: <Languages className="h-4 w-4" />,
   grammar: <BookOpen className="h-4 w-4" />,
@@ -63,6 +65,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
   const [isAsking, setIsAsking] = useState(false);
   const [answer, setAnswer] = useState<AskAnswer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [quota, setQuota] = useState<{ dailyLimit: number; isPro: boolean } | null>(null);
   const [practice, setPractice] = useState<Record<number, PracticeRow>>({});
 
@@ -73,6 +76,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
     if (!text || isAsking) return;
     setIsAsking(true);
     setError(null);
+    setErrorCode(null);
     setAnswer(null);
     setPractice({});
     triggerHaptic('light');
@@ -82,6 +86,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
 
     if (!result.ok) {
       setError(result.error);
+      setErrorCode(result.code);
       return;
     }
     setAnswer(result.answer);
@@ -229,9 +234,19 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
           <Card role="alert" className="border-status-error/40 p-3.5">
             <p className="kz-ar-caption font-bold text-status-error">تعذّر الحصول على شرح</p>
             <p className="kz-ar-micro mt-1 text-kz-inkDim">{error}</p>
-            <Button size="sm" variant="secondary" className="mt-2 rounded-xl" onClick={() => void ask()}>
-              أعد المحاولة
-            </Button>
+            {/* A daily limit or expired session will not clear on retry, so offer no retry. */}
+            {!NO_RETRY_CODES.has(errorCode ?? '') && (
+              <Button size="sm" variant="secondary" className="mt-2 rounded-xl" onClick={() => void ask()}>
+                أعد المحاولة
+              </Button>
+            )}
+            {/* The daily limit is the moment Pro is the clear next step; the free
+                parts of the app stay available either way. */}
+            {errorCode === 'RATE_LIMIT_EXCEEDED' && onOpenSubscription && (
+              <button type="button" onClick={onOpenSubscription} className="kz-ar-micro mt-2 block font-semibold text-primary">
+                تفاصيل Pro — أسئلة أكثر كل يوم
+              </button>
+            )}
           </Card>
         )}
 

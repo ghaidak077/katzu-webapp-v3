@@ -1569,7 +1569,10 @@ export class WorkerClient {
           isPro: data?.quota?.is_pro === true,
         };
       }
-      return { ok: false, code: data?.code || 'ASK_FAILED', error: this.askErrorMessage(res.status, data) };
+      // 429 is a quota or rate limit: retrying immediately cannot succeed, so it
+      // gets a stable code the screen uses to hide the retry button.
+      const code = res.status === 429 ? 'RATE_LIMIT_EXCEEDED' : data?.code || 'ASK_FAILED';
+      return { ok: false, code, error: this.askErrorMessage(res.status, data) };
     } catch (e) {
       logNetwork('ai/ask', `Ask failed: ${e instanceof Error ? e.message : String(e)}`);
       return {
@@ -1791,3 +1794,21 @@ export class WorkerClient {
 }
 
 export const workerClient = new WorkerClient();
+
+/**
+ * Re-fetches the curriculum into the local cache. Screens that show a
+ * "content unavailable" state retry through this instead of reloading the page:
+ * their live queries read Dexie, so the screen fills in once the cache does.
+ * Never throws — a failed refresh leaves the screen's own empty state in place.
+ */
+export async function refreshCurriculumCache(): Promise<void> {
+  try {
+    const scenarios = await workerClient.fetchScenarios();
+    await Promise.allSettled([
+      workerClient.fetchVocabulary(),
+      ...scenarios.slice(0, 5).map((scenario) => workerClient.fetchScenarioDetail(scenario.id)),
+    ]);
+  } catch (error) {
+    console.error('Curriculum refresh failed:', error);
+  }
+}
