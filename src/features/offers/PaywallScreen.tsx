@@ -45,6 +45,9 @@ import { paymentInstructionsFor } from '@/lib/offers/paymentInstructions';
 export const PaywallScreen: React.FC = () => {
   const navigate = useNavigate();
   const [overlay, setOverlay] = useState<'purchase' | 'redeem' | null>(null);
+  // The panel opens under the card the learner tapped, not at the bottom of the
+  // list where a tap on the top card would leave it off-screen.
+  const [activeProduct, setActiveProduct] = useState<OfferProduct | null>(null);
 
   // The same one-call source the modal, the landing page and the redemption
   // screen read, so four surfaces cannot quote four different amounts.
@@ -66,10 +69,16 @@ export const PaywallScreen: React.FC = () => {
         cell: String(cell ?? 'none'),
       });
       track('purchase_clicked', { kind: product, state: group || 'standard' });
+      setActiveProduct(product);
       setOverlay('purchase');
     },
     [group, cell],
   );
+
+  useEffect(() => {
+    if (overlay === null) return;
+    document.getElementById('paywall-panel')?.scrollIntoView({ block: 'nearest' });
+  }, [overlay, activeProduct]);
 
   useEffect(() => {
     if (loaded && pricing) {
@@ -119,7 +128,8 @@ export const PaywallScreen: React.FC = () => {
           const label = priceFor(product);
           const lead = !copy.isLink;
           return (
-            <GlassCard key={product}>
+            <React.Fragment key={product}>
+            <GlassCard>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="kz-ar-caption font-bold">{copy.nameAr}</p>
@@ -166,6 +176,52 @@ export const PaywallScreen: React.FC = () => {
                 )
               ) : null}
             </GlassCard>
+
+            {activeProduct === product && overlay ? (
+              <div id="paywall-panel" className="space-y-3">
+                {overlay === 'purchase' ? (
+                  <GlassCard>
+                    {/* C3: the steps are written for the region the SERVER resolved, and
+                        say up front which part is outside the app's control. */}
+                    <p className="kz-ar-caption font-bold text-kz-ink">{instructions.headingAr}</p>
+                    <ol className="mt-2 space-y-1">
+                      {instructions.stepsAr.map((step, i) => (
+                        <li key={step} className="kz-ar-micro text-kz-inkDim">
+                          {`${i + 1}. ${step}`}
+                        </li>
+                      ))}
+                    </ol>
+                    {instructions.timingAr ? (
+                      <p className="kz-ar-micro mt-3 text-kz-inkFaint">
+                        وقت التفعيل: {instructions.timingAr}
+                      </p>
+                    ) : null}
+                    <p className="kz-ar-micro mt-2 text-kz-inkFaint">{instructions.caveatAr}</p>
+                    <p className="kz-ar-micro mt-3 text-kz-ink">اشترِ الكود من صفحة البيع الرسمية، ثم فعّله هنا.</p>
+                    <div className="mt-3 flex flex-col gap-2">
+                      <PrimaryAction onClick={() => setOverlay('redeem')}>
+                        <span>لديّ كود — فعّله الآن</span>
+                      </PrimaryAction>
+                      <GlassButton onClick={() => setOverlay(null)}>
+                        <span>لاحقاً</span>
+                      </GlassButton>
+                    </div>
+                  </GlassCard>
+                ) : null}
+
+                {/* Redemption is the existing code path, untouched: the offer screen only
+                    decides whether to show it. */}
+                {overlay === 'redeem' ? (
+                  <SubscriptionRedemptionScreen
+                    onBack={() => setOverlay(null)}
+                    onSuccess={() => navigate('/app/trail')}
+                    onGoToSignIn={() => navigate('/signin')}
+                    onOpenMock={() => navigate('/mock')}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+            </React.Fragment>
           );
         })}
 
@@ -189,47 +245,6 @@ export const PaywallScreen: React.FC = () => {
             التفعيل يتم عبر كود مرتبط بحسابك الموثّق — لا تُدخل أي بيانات بطاقة داخل التطبيق.
           </p>
         </GlassCard>
-
-        {overlay === 'purchase' ? (
-          <GlassCard>
-            {/* C3: the steps are written for the region the SERVER resolved, and
-                say up front which part is outside the app's control. */}
-            <p className="kz-ar-caption font-bold text-kz-ink">{instructions.headingAr}</p>
-            <ol className="mt-2 space-y-1">
-              {instructions.stepsAr.map((step, i) => (
-                <li key={step} className="kz-ar-micro text-kz-inkDim">
-                  {`${i + 1}. ${step}`}
-                </li>
-              ))}
-            </ol>
-            {instructions.timingAr ? (
-              <p className="kz-ar-micro mt-3 text-kz-inkFaint">
-                وقت التفعيل: {instructions.timingAr}
-              </p>
-            ) : null}
-            <p className="kz-ar-micro mt-2 text-kz-inkFaint">{instructions.caveatAr}</p>
-            <p className="kz-ar-micro mt-3 text-kz-ink">اشترِ الكود من صفحة البيع الرسمية، ثم فعّله هنا.</p>
-            <div className="mt-3 flex flex-col gap-2">
-              <PrimaryAction onClick={() => setOverlay('redeem')}>
-                <span>لديّ كود — فعّله الآن</span>
-              </PrimaryAction>
-              <GlassButton onClick={() => setOverlay(null)}>
-                <span>لاحقاً</span>
-              </GlassButton>
-            </div>
-          </GlassCard>
-        ) : null}
-
-        {/* Redemption is the existing code path, untouched: the offer screen only
-            decides whether to show it. */}
-        {overlay === 'redeem' ? (
-          <SubscriptionRedemptionScreen
-            onBack={() => setOverlay(null)}
-            onSuccess={() => navigate('/app/trail')}
-            onGoToSignIn={() => navigate('/signin')}
-            onOpenMock={() => navigate('/mock')}
-          />
-        ) : null}
 
         <div className="flex flex-col gap-2 pt-1">
           <GlassButton onClick={() => navigate('/mock')}>
