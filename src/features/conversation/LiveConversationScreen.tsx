@@ -468,6 +468,23 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
               </span>
             </button>
           )}
+          <div className="mt-2 border-t border-white/10 pt-2">
+            <button
+              onClick={() => {
+                setOptionsOpen(false);
+                live.endSessionNow();
+              }}
+              disabled={!live.canEndSession}
+              className="flex min-h-control w-full items-center justify-center rounded-control px-3 kz-ar-caption font-bold text-primary transition-colors pointer-hover:bg-white/5 disabled:opacity-40"
+            >
+              إنهاء الجلسة وعرض الملخص
+            </button>
+            {!live.canEndSession && (
+              <p className="mt-1 px-3 kz-ar-micro text-kz-inkFaint">
+                ابدأ بجملة واحدة على الأقل لتنهي الجلسة وتحصل على الملخص.
+              </p>
+            )}
+          </div>
         </div>
       </BottomSheet>
 

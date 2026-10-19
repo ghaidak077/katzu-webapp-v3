@@ -1161,6 +1161,17 @@ export function useLiveConversation({
     triggerHaptic('light');
   };
 
+  // Explicit "end and see summary": the learner can stop before the round target.
+  // It runs the same finish path as the last turn, so the report and XP stay honest.
+  // Refused while a turn is in flight, after the session already finished, or with
+  // no spoken sentence yet (there is nothing to debrief).
+  const canEndSession = !isSessionCompleted && !isGenerating && userTurnsCount > 0;
+  const endSessionNow = () => {
+    if (!canEndSession) return;
+    dispatch({ type: 'complete' });
+    void finishSession(messages);
+  };
+
   return {
     // data
     scenario,
@@ -1226,5 +1237,7 @@ export function useLiveConversation({
     handleUseHint,
     refreshHints,
     handleNudgeDifficulty,
+    canEndSession,
+    endSessionNow,
   };
 }

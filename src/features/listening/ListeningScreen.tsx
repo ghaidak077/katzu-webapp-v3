@@ -28,9 +28,6 @@ export interface ListeningScreenProps {
   onBack: () => void;
 }
 
-/** How long the sentence stays visible in the no-audio fallback. */
-const PEEK_MS = 3000;
-
 /**
  * The three moves of a dictation, in order.
  *
@@ -126,9 +123,9 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
       speak(current.german);
       return;
     }
+    // Without speech the sentence stays on screen until the learner hides it, so
+    // the drill can always be finished. Hiding it is an explicit memory challenge.
     setPeekVisible(true);
-    const timer = setTimeout(() => setPeekVisible(false), PEEK_MS);
-    return () => clearTimeout(timer);
   }, [current, audioAvailable, speak]);
 
   const check = (e: React.FormEvent) => {
@@ -229,7 +226,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
 
       {!audioAvailable && (
         <p className="mb-3 rounded-2xl border border-status-learning/40 bg-status-learning/10 p-3 text-micro font-arabic text-text-secondary">
-          متصفحك لا يدعم النطق، لذلك ستظهر الجملة {PEEK_MS / 1000} ثوانٍ ثم تختفي — اكتبها بعد ذلك.
+          متصفحك لا يدعم النطق، لذلك ستبقى الجملة ظاهرة أمامك. يمكنك إخفاءها متى أردت لتختبر ذاكرتك.
         </p>
       )}
 
@@ -272,17 +269,23 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
             ) : (
               <div className="min-h-[96px] flex flex-col items-center justify-center">
                 {peekVisible && !result ? (
-                  <GermanText className="text-xl font-bold text-text-primary">{current.german}</GermanText>
-                ) : (
                   <>
-                    <p className="text-xs font-arabic text-text-muted mb-3">اختفت الجملة — اكتبها الآن</p>
+                    <GermanText className="text-xl font-bold text-text-primary">{current.german}</GermanText>
                     <button
                       type="button"
-                      onClick={() => {
-                        setPeekVisible(true);
-                        setTimeout(() => setPeekVisible(false), PEEK_MS);
-                      }}
-                      className="text-micro font-arabic text-primary pointer-hover:underline"
+                      onClick={() => setPeekVisible(false)}
+                      className="mt-3 inline-flex min-h-touch items-center px-3 text-micro font-arabic text-primary pointer-hover:underline"
+                    >
+                      أخفِها وحاول من الذاكرة
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-arabic text-text-muted mb-3">الجملة مخفية — اكتبها من الذاكرة</p>
+                    <button
+                      type="button"
+                      onClick={() => setPeekVisible(true)}
+                      className="inline-flex min-h-touch items-center px-3 text-micro font-arabic text-primary pointer-hover:underline"
                     >
                       اعرضها مرة أخرى
                     </button>
