@@ -1797,6 +1797,38 @@ ${CONTENT_STUDIO_CSS}
 </style>
 </head>
 <body>
+<!--
+  BOOT WATCHDOG. Its own script block, so it survives a parse error further
+  down the page. If the dashboard script never reaches its last line, every
+  button on this page is dead and the page just sits there — which reads as
+  "frozen" with no clue why. This turns that silence into a visible message.
+  The shell script calls window.__katzuAdminBooted() when it finishes wiring.
+-->
+<script>
+  (function () {
+    var booted = false;
+    // __katzuAdminBoot is public so tests/adminDashboardBoot.test.ts can assert the
+    // shell reached its last line in a real DOM, not merely that it parses.
+    window.__katzuAdminBoot = false;
+    window.__katzuAdminBooted = function () { booted = true; window.__katzuAdminBoot = true; };
+    setTimeout(function () {
+      if (booted) return;
+      var banner = document.createElement("div");
+      banner.setAttribute("role", "alert");
+      banner.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:9999;" +
+        "padding:12px 16px;background:#3a1414;color:#ffd7d7;cursor:pointer;" +
+        "font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;" +
+        "border-bottom:1px solid #7a2b2b";
+      banner.textContent = "The dashboard script did not start, so nothing on this page can respond. " +
+        "Open the browser console for the parse error and reload. " +
+        "If it comes back, the served page has a syntax error — tests/adminDashboardRendered.test.ts " +
+        "renders the real page and parses every script to catch this before deploy. " +
+        "(Click to dismiss.)";
+      banner.addEventListener("click", function () { banner.remove(); });
+      document.body.appendChild(banner);
+    }, 3000);
+  })();
+</script>
 <div class="shell">
   <nav class="nav">
     <div class="brand">Katzu <span>Control Plane</span></div>
@@ -1819,7 +1851,7 @@ ${CONTENT_STUDIO_CSS}
       <div class="kbar">
         <input id="admin-key" type="password" placeholder="ADMIN_SECRET (Bearer token)" autocomplete="off">
         <button class="btn primary" id="save-key-btn" type="button">Connect</button>
-        <span id="key-state" class="muted" style="font-size:12px"></span>
+        <span id="key-state" class="muted" style="font-size:12px">not connected — paste ADMIN_SECRET and press Connect</span>
       </div>
     </div>
 
@@ -2153,6 +2185,7 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     else if (state.tab === "errors") loadErrors();
     else if (state.tab === "content") loadContent();
     else if (state.tab === "ai") loadAiProviders();
+    else if (state.tab === "licenses") loadCodesReport();
   }
 
   // ---------------------------------------------------------------------------
@@ -2196,6 +2229,8 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
       document.getElementById(fid).disabled = !!editingDefault;
     });
     document.getElementById("aip-delete-btn").disabled = !!editingDefault;
+    // A fresh form (Edit, preset fill, new entry) has no pending clear.
+    aipResetPending();
   }
 
   function aipFillFromPreset(presetId) {
@@ -2309,6 +2344,16 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
 
   function aipCatchError() { aipMsg("Request failed — see browser console.", true); }
 
+  // Splits a pasted key list on commas, semicolons and line breaks.
+  // This code lives inside the dashboard's template literal, so the regex
+  // below is written with DOUBLED backslashes: the browser must receive a
+  // pattern with escaped line breaks, never a real newline inside it (a real
+  // newline is a parse error that kills the whole inline script, and the
+  // dashboard goes static). Keep this comment free of backslashes too.
+  function aipParseKeys(raw) {
+    return String(raw || "").split(/[,;\\r\\n]+/).map(function (k) { return k.trim(); }).filter(Boolean);
+  }
+
   function loadAiProviders() {
     api("/admin/api/ai-providers").then(function (data) {
       var preset = document.getElementById("aip-preset");
@@ -2329,8 +2374,8 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
       d.appendChild(aipTable(data.defaults, true));
       c.appendChild(aipTable(data.custom, false));
       var status = document.getElementById("aip-status");
-      status.textContent = "Walk order (first = tried first):\n" + (data.pool_order || []).join("\n") +
-        "\n\nLast config update: " + (data.updated_at ? new Date(data.updated_at).toISOString() : "(never saved)");
+      status.textContent = "Walk order (first = tried first):\\n" + (data.pool_order || []).join("\\n") +
+        "\\n\\nLast config update: " + (data.updated_at ? new Date(data.updated_at).toISOString() : "(never saved)");
       document.getElementById("aip-test-out").textContent = "";
     }).catch(aipCatchError);
   }
@@ -2347,7 +2392,7 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     };
     var keysRaw = document.getElementById("aip-keys").value;
     if (document.getElementById("aip-replace").checked) body.replaceKeys = true;
-    if (keysRaw.trim()) body.keys = keysRaw.split(/[,;\n]+/).map(function (k) { return k.trim(); }).filter(Boolean);
+    if (keysRaw.trim()) body.keys = aipParseKeys(keysRaw);
     return body;
   }
 
@@ -2360,7 +2405,7 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
       else {
         var keysRaw = document.getElementById("aip-keys").value;
         if (!keysRaw.trim()) { aipMsg("Paste at least one key (or use Clear keys) before saving a built-in entry.", true); return; }
-        bodyD.keys = keysRaw.split(/[,;\n]+/).map(function (k) { return k.trim(); }).filter(Boolean);
+        bodyD.keys = aipParseKeys(keysRaw);
       }
       api("/admin/api/ai-provider-save", { method: "POST", body: JSON.stringify(bodyD) })
         .then(function (res) { state.aipEditing = null; aipSetFields(null, false); aipResetPending(); aipMsg("Stored keys for " + (res.id || editing.id) + " — serving picks them up within ~30s."); loadAiProviders(); })
@@ -2368,6 +2413,13 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
       return;
     }
     var body = aipCollectBody();
+    // "Clear keys" has to reach the server for a custom entry too, otherwise
+    // the saved gateway keeps its old key list. The worker reads clearKeys as
+    // "store an empty list"; keys is dropped so it cannot be sent along.
+    if (document.getElementById("aip-clear-keys-btn").dataset.pending === "1") {
+      body.clearKeys = true;
+      delete body.keys;
+    }
     if (!body.provider || !body.baseUrl || !body.model) {
       aipMsg("Provider, base URL and model are required.", true);
       return;
@@ -2376,6 +2428,7 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
       .then(function (res) {
         state.aipEditing = null;
         aipSetFields(null, false);
+        aipResetPending();
         aipMsg("Saved " + (res.id || res.provider) + (res.status === 201 ? " (created)" : "") + ". Serving picks it up within ~30s.");
         loadAiProviders();
       })
@@ -2398,7 +2451,7 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     api("/admin/api/ai-provider-test", { method: "POST", body: JSON.stringify({ id: id }) }).then(function (r) {
       if (r.ok) {
         out.textContent = (r.id || id) + " — OK in " + r.latency_ms + " ms via " + r.provider + "/" + r.model +
-          (r.testingKey ? " (key " + r.testingKey + ")" : "") + "\nsample: " + (r.sample || "(empty)");
+          (r.testedKey ? " (key " + r.testedKey + ")" : "") + "\\nsample: " + (r.sample || "(empty)");
       } else if (r.reason === "no_keys") {
         out.textContent = (r.id || id) + " — no keys configured. Save a key list first (dashboard or worker secret).";
       } else {
@@ -2865,25 +2918,45 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     api("/admin/codes/report")
       .then(function (data) {
         var labels = (data && data.labels) || [];
-        if (!labels.length) { out.textContent = "No codes recorded yet."; return; }
-        // NOTE: this function lives inside the dashboard's template literal —
-        // a literal double quote here must NOT be escaped with backslashes
-        // (the browser would receive the backslash-escaped form and the whole
-        // inline script would fail to parse). Single-quote the attributes.
-        var html = '<table class="mono" style="border-collapse:collapse"><tr>' +
-          '<th style="text-align:left;padding:4px 12px 4px 0">Label</th>' +
-          '<th style="padding:4px 12px">Created</th>' +
-          '<th style="padding:4px 12px">Activated</th></tr>';
-        for (var i = 0; i < labels.length; i++) {
-          html += '<tr><td style="padding:4px 12px 4px 0">' + escapeHtml(labels[i].label || "(unlabelled)") + '</td>' +
-            '<td style="text-align:center;padding:4px 12px">' + labels[i].created + '</td>' +
-            '<td style="text-align:center;padding:4px 12px">' + labels[i].activated + '</td></tr>';
-        }
-        html += '</table>';
+        out.textContent = "";
+        if (!labels.length) { out.appendChild(el("div", "muted", "No codes recorded yet.")); return; }
+        // Built with DOM nodes, not innerHTML. The old string-building version
+        // called a server-only HTML escaper, so the browser threw a
+        // ReferenceError and the panel always read "Report unavailable."
+        // Building nodes also keeps a DB-sourced label out of an HTML parser.
+        var table = el("table", "mono");
+        table.style.borderCollapse = "collapse";
+        var head = el("tr");
+        var thLabel = el("th", "", "Label");
+        thLabel.style.textAlign = "left";
+        var thCreated = el("th", "", "Created");
+        var thActivated = el("th", "", "Activated");
+        [thLabel, thCreated, thActivated].forEach(function (th) { th.style.padding = "4px 12px"; });
+        head.appendChild(thLabel);
+        head.appendChild(thCreated);
+        head.appendChild(thActivated);
+        table.appendChild(head);
+        labels.forEach(function (l) {
+          var tr = el("tr");
+          var tdLabel = el("td", "", l.label || "(unlabelled)");
+          var tdCreated = el("td", "", l.created);
+          var tdActivated = el("td", "", l.activated);
+          tdLabel.style.padding = "4px 12px 4px 0";
+          [tdCreated, tdActivated].forEach(function (td) {
+            td.style.textAlign = "center";
+            td.style.padding = "4px 12px";
+          });
+          tr.appendChild(tdLabel);
+          tr.appendChild(tdCreated);
+          tr.appendChild(tdActivated);
+          table.appendChild(tr);
+        });
+        out.appendChild(table);
         if (data.totals) {
-          html += '<div class="muted" style="margin-top:8px">Total: ' + data.totals.created + ' created &middot; ' + data.totals.activated + ' activated</div>';
+          var total = el("div", "muted", "Total: " + data.totals.created + " created · " + data.totals.activated + " activated");
+          total.style.marginTop = "8px";
+          out.appendChild(total);
         }
-        out.innerHTML = html;
       })
       .catch(function () { out.textContent = "Report unavailable."; });
   }
@@ -2933,7 +3006,9 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
   on("lic-lookup-btn", licLookup);
   on("gen-codes-btn", genCodes);
   on("codes-report-btn", loadCodesReport);
-  loadCodesReport(); // read-only view refreshes with the dashboard
+  // No eager load here: on page load no admin key exists yet, so the request
+  // would come back 401 and raise a bogus "Unauthorized" toast. The report
+  // loads when the Licenses tab is opened (see refreshTab) or via its button.
   on("aip-save-btn", saveAiProvider);
   on("aip-test-btn", function () {
     var id = state.aipEditing?.id || document.getElementById("aip-id").value.trim();
@@ -2941,6 +3016,10 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     aipTest(id);
   });
   on("aip-clear-keys-btn", aipClearKeys);
+  // Typing a key after "Clear keys" cancels the pending clear — otherwise the
+  // next save would wipe the list the owner just pasted.
+  var aipKeysInput = document.getElementById("aip-keys");
+  if (aipKeysInput) aipKeysInput.addEventListener("input", function () { aipResetPending(); });
   on("aip-delete-btn", function () {
     var editing = state.aipEditing;
     if (!editing || editing.origin === "default") {
@@ -2960,6 +3039,10 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
   });
 
   showTab("overview");
+
+  // Everything above wired. Tell the boot watchdog in the page's first script
+  // block that this page is alive, so it does not raise its banner.
+  if (typeof window.__katzuAdminBooted === "function") window.__katzuAdminBooted();
 </script>
 </body>
 </html>`;

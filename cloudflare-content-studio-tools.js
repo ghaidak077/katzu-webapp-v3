@@ -815,7 +815,10 @@ export const CONTENT_STUDIO_TOOLS_SCRIPT = `<script>
 
   // ---------- registering with the dashboard shell ----------
 
-  var TABS = ["overview", "users", "activity", "errors", "licenses", "content", "schema"];
+  // "ai" belongs in this list: activateView() hides every tab that is not the
+  // active one, and the AI Providers view is owned by the shell. Without it,
+  // opening Content Studio or the schema left the AI panel visible underneath.
+  var TABS = ["overview", "users", "activity", "errors", "licenses", "ai", "content", "schema"];
   var TITLES = {
     content: ["Content Studio", "Add, edit, bulk-upload and export the curriculum stored in D1."],
     schema: ["Database Schema", "The D1 column contract every upload is validated against."]
