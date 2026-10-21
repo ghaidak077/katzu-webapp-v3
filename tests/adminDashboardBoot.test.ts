@@ -14,6 +14,11 @@ import { handleAdminRoutes } from '../cloudflare-admin';
  *
  * jsdom, not the vitest jsdom environment: a full page with four inline scripts
  * has to be constructed as its own document so the scripts execute in order.
+ *
+ * Every click happens AFTER `DOMContentLoaded`, because that is when the studio
+ * installs its shell hooks (`window.showTab` / `window.refreshTab` wrappers).
+ * Clicking earlier would test the shell's own functions and miss the studio
+ * path — which is the path that has the tab-list and no-key bugs.
  */
 
 async function renderDashboard(): Promise<string> {
@@ -32,11 +37,13 @@ async function renderDashboard(): Promise<string> {
 interface Booted {
   dom: JSDOM;
   scriptErrors: string[];
+  fetches: string[];
   window: Window & { __katzuAdminBoot?: boolean; showTab?: (tab: string) => void };
 }
 
-function boot(html: string): Booted {
+async function boot(html: string): Promise<Booted> {
   const scriptErrors: string[] = [];
+  const fetches: string[] = [];
   const virtualConsole = new VirtualConsole();
   // Anything the page throws while its scripts run lands here.
   virtualConsole.on('jsdomError', (err: Error) => scriptErrors.push(String(err?.message || err)));
@@ -46,10 +53,17 @@ function boot(html: string): Booted {
     pretendToBeVisual: true,
     virtualConsole,
   });
-  // jsdom ships no fetch. 401 keeps the studio on its error path: this test has
+  // jsdom ships no fetch. 401 keeps callers on their error path: this test has
   // no D1 behind it, only the question "did the buttons get wired up?".
-  (dom.window as unknown as { fetch: unknown }).fetch = async () => ({ status: 401, json: async () => ({}) });
-  return { dom, scriptErrors, window: dom.window as Booted['window'] };
+  (dom.window as unknown as { fetch: unknown }).fetch = async (url: string) => {
+    fetches.push(String(url));
+    return { status: 401, json: async () => ({}) };
+  };
+  await new Promise<void>((resolve) => {
+    if (dom.window.document.readyState === 'complete') resolve();
+    else dom.window.addEventListener('load', () => resolve());
+  });
+  return { dom, scriptErrors, fetches, window: dom.window as Booted['window'] };
 }
 
 const click = (win: Window, id: string) => {
@@ -60,10 +74,11 @@ const click = (win: Window, id: string) => {
 
 const cls = (win: Window, id: string) => win.document.getElementById(id)?.className ?? '';
 
+const tick = () => new Promise((resolve) => setTimeout(resolve, 30));
+
 describe('the served admin dashboard boots in a DOM', () => {
   it('runs every inline script to the last line, without throwing', async () => {
-    const html = await renderDashboard();
-    const { dom, scriptErrors, window } = boot(html);
+    const { dom, scriptErrors, window } = await boot(await renderDashboard());
     expect(scriptErrors).toEqual([]);
     // Set by the shell script's final statement — proof it reached the bottom,
     // i.e. every handler below the failure point was wired.
@@ -72,7 +87,7 @@ describe('the served admin dashboard boots in a DOM', () => {
   });
 
   it('switches views when a nav button is clicked', async () => {
-    const { dom, window } = boot(await renderDashboard());
+    const { dom, window } = await boot(await renderDashboard());
     click(window, 'nav-ai');
     expect(cls(window, 'view-ai')).toBe('');
     expect(cls(window, 'view-overview')).toBe('hidden');
@@ -85,32 +100,58 @@ describe('the served admin dashboard boots in a DOM', () => {
   });
 
   it('hides the AI panel when Content Studio is opened', async () => {
-    const { dom, window } = boot(await renderDashboard());
+    const { dom, window } = await boot(await renderDashboard());
     click(window, 'nav-ai');
     expect(cls(window, 'view-ai')).toBe('');
+    // This click goes through the studio's showTab wrapper, which is the path
+    // that used to leave the AI panel visible: the wrapper hides every tab in
+    // its own TABS list, and "ai" was not in it.
     click(window, 'nav-content');
-    // The studio's tab list did not include "ai", so its own view became active
-    // while the AI panel stayed visible underneath it.
     expect(cls(window, 'view-ai')).toBe('hidden');
     expect(cls(window, 'view-content')).toBe('');
+    expect(window.document.getElementById('page-title')?.textContent).toBe('Content Studio');
+    dom.window.close();
+  });
+
+  it('sends no request when a studio tab is opened before a key exists', async () => {
+    const { dom, window, fetches } = await boot(await renderDashboard());
+    click(window, 'nav-content');
+    click(window, 'nav-schema');
+    await tick();
+    // A request here can only 401, and the shell turns 401 into its
+    // "Unauthorized — check ADMIN_SECRET" toast on top of the pane's own banner.
+    expect(fetches).toEqual([]);
+    const banner = window.document.getElementById('cs-banner')?.textContent ?? '';
+    expect(banner).toContain('Connect with the admin secret');
+    expect(window.document.getElementById('cs-schema-note')?.textContent).toContain(
+      'Connect with the admin secret',
+    );
+    // Not a dead end: the guard keys off state.adminKey, so Connect re-runs the
+    // open tab. This is what makes the guard safe rather than a wall.
+    (window.document.getElementById('admin-key') as HTMLInputElement).value = 'k';
+    click(window, 'save-key-btn');
+    await tick();
+    expect(fetches.length).toBeGreaterThan(0);
     dom.window.close();
   });
 
   it('renders the codes report, and keeps a code label out of the HTML', async () => {
-    const { dom, window } = boot(await renderDashboard());
+    const { dom, window, fetches } = await boot(await renderDashboard());
     const hostile = '<img src=x onerror=alert(1)>';
-    (window as unknown as { fetch: unknown }).fetch = async (url: string) => ({
-      status: 200,
-      json: async () =>
-        String(url).includes('/admin/codes/report')
-          ? { labels: [{ label: hostile, created: 3, activated: 1 }], totals: { created: 3, activated: 1 } }
-          : {},
-    });
-    window.document.getElementById('admin-key')!.setAttribute('value', 'k');
+    (window as unknown as { fetch: unknown }).fetch = async (url: string) => {
+      fetches.push(String(url));
+      return {
+        status: 200,
+        json: async () =>
+          String(url).includes('/admin/codes/report')
+            ? { labels: [{ label: hostile, created: 3, activated: 1 }], totals: { created: 3, activated: 1 } }
+            : {},
+      };
+    };
     (window.document.getElementById('admin-key') as HTMLInputElement).value = 'k';
     click(window, 'save-key-btn');
     click(window, 'nav-licenses');
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await tick();
 
     const out = window.document.getElementById('codes-report')!;
     // It used to call a server-only escapeHtml(), throw a ReferenceError inside
@@ -130,7 +171,7 @@ describe('the served admin dashboard boots in a DOM', () => {
     // which is what the template literal used to emit.
     const broken = html.replace('"Walk order (first = tried first):\\n"', '"Walk order (first = tried first):\n"');
     expect(broken).not.toBe(html);
-    const { dom, window } = boot(broken);
+    const { dom, window } = await boot(broken);
     expect(window.__katzuAdminBoot).toBe(false);
     // The watchdog lives in its own, earlier script block, so it still runs.
     await new Promise((resolve) => setTimeout(resolve, 3300));

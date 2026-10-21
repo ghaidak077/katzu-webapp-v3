@@ -805,6 +805,16 @@ export const CONTENT_STUDIO_TOOLS_SCRIPT = `<script>
   }
 
   function refreshFor(tab) {
+    // Without a key every studio request can only come back 401: the shell's
+    // rawApi() then raises its "Unauthorized — check ADMIN_SECRET" toast on top
+    // of the in-pane banner that already says the same thing. So send nothing and
+    // explain once. This is not a dead end: saveKey() ends with refreshTab(),
+    // which re-runs this for the tab that is open, so Connect fixes the pane.
+    if (!window.state || !window.state.adminKey) {
+      if (tab === "content") CS.banner("Connect with the admin secret to load the studio.", false, null);
+      else $("cs-schema-note").textContent = "Connect with the admin secret to load the schema.";
+      return;
+    }
     if (tab === "content") studioShowContent();
     else if (tab === "schema") loadSchemaTab();
   }
