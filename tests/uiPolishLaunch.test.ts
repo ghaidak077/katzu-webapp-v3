@@ -82,7 +82,13 @@ describe('Screen 1.4 — the achievement card cannot fake a capability', () => {
     // `capability.byScenario` filtered to INDEPENDENT/RETAINED — the same
     // evidence ladder tests/capability.test.ts pins. No other path to the
     // string may exist.
-    const earnedBranch = journey.slice(journey.indexOf('{latestCapability ? ('));
+    //
+    // The anchor lost its leading `{` when the guided home (`guidedHome`) wrapped
+    // this card in its own condition: the assertion is about the evidence gate,
+    // not about how the block is switched on, so it now starts at the ternary and
+    // additionally requires the card to still be behind a condition.
+    const earnedBranch = journey.slice(journey.indexOf('latestCapability ? ('));
+    expect(journey).toMatch(/\{!guided && \(latestCapability \? \(/);
     expect(earnedBranch).toMatch(/latestCapability\.labelAr/);
     expect(journey).toMatch(/state === 'INDEPENDENT' \|\| value\.state === 'RETAINED'/);
   });

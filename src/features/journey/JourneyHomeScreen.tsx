@@ -28,6 +28,7 @@ import { KatzuPresence } from '@/components/v2/KatzuPresence';
 import { useOnlineStatus } from '@/lib/utils/onlineStatus';
 import { arCount, arNoun } from '@/lib/i18n/arabicCount';
 import { buildWeeklyRecap } from '@/lib/journey/weeklyRecap';
+import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 
 /** V31: counts that reach a learner's eye agree with their noun. See `arabicCount`. */
 const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
@@ -75,6 +76,24 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   // became one transactional live query whose result is projected to exactly the
   // fields the derivations read. Identity-preserving — see journeyHomeData.ts.
   const data = useLiveQuery(readJourneyHomeData);
+  /**
+   * The guided home (`guidedHome`, owner decision 2026-10-22).
+   *
+   * On, this screen answers one question — what do I do now? — with the hero,
+   * the chapter's path and the three daily tasks. The six blocks that describe
+   * something *later* (the preferences nag, Katzu's line, the chapter-goal card,
+   * the weekly recap, the footer links, and the Pro chip in the header) are not
+   * rendered at all rather than pushed below the fold: a block a learner has to
+   * scroll past still competes, and this screen's whole problem was that it
+   * competed with itself. Nothing is deleted — the same JSX renders with the
+   * flag off, which is what keeps "off" honest.
+   *
+   * `firstSessionDone` gates one more thing: the review row. Review is the one
+   * secondary surface that is an obligation rather than a tour, so it appears as
+   * soon as the learner has finished something real — and never on day 0.
+   */
+  const guided = isGuidedHomeEnabled();
+  const firstSessionDone = (data?.allSessions.length ?? 0) > 0;
   const scenarios = data?.scenarios ?? [];
   const training = data?.training ?? [];
   const reviewItems = data?.reviewItems ?? [];
@@ -299,7 +318,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <StatusIndicator state={isOnline ? 'online' : 'offline'} compact />
-            {!isPro && (
+            {!guided && !isPro && (
               <GlassButton variant="quiet" onClick={onOpenSubscription} className="min-h-[44px] px-3 text-micro">
                 <Sparkles className="h-3 w-3" />
                 Katzu Pro
@@ -311,7 +330,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         {/* Learners whose profile predates onboarding answer once, here, and are
             never redirected mid-task. */}
         {/* Same shared dismissal as the Trail: one X here hides it everywhere. */}
-        {user?.isLoggedIn && !user.onboardingCompletedAt && !user.onboardingPromptDismissedAt && onOpenOnboarding && (
+        {!guided && user?.isLoggedIn && !user.onboardingCompletedAt && !user.onboardingPromptDismissedAt && onOpenOnboarding && (
           <div className="relative mb-4">
             <GlassButton variant="secondary" fullWidth onClick={onOpenOnboarding} className="justify-between">
               <span className="flex flex-col items-start text-start">
@@ -435,7 +454,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         <DailyTasksPanel snapshot={dailyTasks} onAction={handleDailyTaskAction} />
 
         {/* Katzu's one line. Only rendered when a real state produced it. */}
-        {katzuLineAr && (
+        {!guided && katzuLineAr && (
           <FloatingControl className="mb-4 flex items-start gap-3 p-3.5">
             <KatzuPresence state={katzuState} size="sm" className="shrink-0" />
             <p className="kz-ar-caption min-w-0 flex-1 pt-1 text-kz-inkDim">{katzuLineAr}</p>
@@ -445,7 +464,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         {/* Review-due row: quiet, secondary, and only when something is due.
             When review IS today's mission it is not repeated here — two prominent
             CTAs is how a learner does neither. */}
-        {dueCount > 0 && mission.kind !== 'review' && (
+        {dueCount > 0 && mission.kind !== 'review' && (!guided || firstSessionDone) && (
           <GlassButton variant="secondary" fullWidth onClick={onOpenReview} className="mb-4 justify-between">
             <span className="flex items-center gap-2">
               <Brain className="h-4 w-4 text-kz-lavender" />
@@ -461,7 +480,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             from recorded sessions alone, so an unearned card cannot render
             here by construction. When nothing is earned yet the card shows the
             chapter's goal instead, so the slot motivates rather than lies. */}
-        {latestCapability ? (
+        {!guided && (latestCapability ? (
           <GlassCard tier="canvas" className="mb-4">
             <p className="kz-ar-micro kz-earned-text mb-1">قدرة مكتسبة · {latestCapability.labelAr}</p>
             <p className="kz-ar-caption text-kz-ink">
@@ -475,7 +494,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
               أنهِ مشاهد هذا الفصل لتتقن التعامل مع موقفه بالألمانية بدون مساعدة.
             </p>
           </GlassCard>
-        )}
+        ))}
 
         {/* Chapter progress: segments, never a percentage. */}
         <GlassWell className="mb-4 p-3.5">
@@ -517,7 +536,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         {/* A4: the week in one honest line. Rendered only when the week actually
             has something in it — the home screen is where the learner is told
             what to do next, not where they are told off for last week. */}
-        {weeklyRecap.episodes > 0 && (
+        {!guided && weeklyRecap.episodes > 0 && (
           <GlassCard tier="canvas" className="mb-4" data-testid="weekly-recap-card">
             <p className="kz-ar-micro mb-1 text-kz-inkDim">أسبوعك في كَاتْزُو</p>
             <p className="kz-ar-caption text-kz-ink">{weeklyRecap.headlineAr}</p>
@@ -533,7 +552,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         {/* Grammar + library + level: three clear secondary chips (44px) — the
             footer row used to read as unstyled links, and the level was a stray
             label instead of the chip it is. */}
-        <div className="flex flex-wrap items-center gap-2">
+        {!guided && (<div className="flex flex-wrap items-center gap-2">
           {onOpenGrammar && (
             <GlassButton variant="secondary" className="min-h-[44px] rounded-chip px-4 text-micro" onClick={onOpenGrammar}>
               القواعد
@@ -549,6 +568,8 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             المستوى {learnerLevel}
           </span>
         </div>
+        )}
+
       </div>
 
     </div>
