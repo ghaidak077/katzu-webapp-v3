@@ -372,9 +372,17 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   const sheetReviewCount = dueCount > 0 && firstSessionDone ? dueCount : 0;
   /** The Pro offer, on the one rule every surface shares (`trial.shouldOfferPro`). */
   const proOfferVisible = shouldOfferPro({ isPro, completedEpisodes });
-  /** Never answered the two preferences questions — the row says so instead of
-   *  dressing a first-run edit as a settings page. */
-  const preferencesIncomplete = !user?.onboardingCompletedAt;
+  /**
+   * Never answered the two preferences questions — the row says so instead of
+   * dressing a first-run edit as a settings page.
+   *
+   * `primaryGoal` is part of the test because «تخطَّ الأسئلة» writes the default
+   * minutes and the completion stamp while deliberately leaving the goal
+   * unanswered. A stamp alone would let the sheet say «تفضيلاتي» to a learner who
+   * never told the app why they are here; the mission still works (it falls back
+   * to the general order), but the row should offer to finish the question.
+   */
+  const preferencesIncomplete = !user?.onboardingCompletedAt || !user?.primaryGoal;
 
   return (
     <div className="kz-tab-scroll min-h-screen bg-black px-4 pt-5">

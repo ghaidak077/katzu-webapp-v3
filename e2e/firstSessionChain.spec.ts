@@ -55,6 +55,82 @@ test('the skip link ends the questions on the default minutes and still opens th
   expect(typeof stored?.onboardingCompletedAt).toBe('number');
 });
 
+test('the first question is not an exit: it offers no back control', async ({ page }) => {
+  await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
+  await page.goto('/onboarding');
+
+  // The header's back calls `/welcome` for a first run, so on the first question
+  // it was a door back out of the account. The dots stay centred: the spacer is
+  // what replaced the control.
+  await expect(page.getByText('لماذا تتعلّم الألمانية؟')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'رجوع' })).toHaveCount(0);
+  await expect(page.getByRole('progressbar', { name: 'تقدم الأسئلة' })).toBeVisible();
+});
+
+test('the second question’s back link returns to the goal, not to a question first run never asks', async ({ page }) => {
+  await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
+  await page.goto('/onboarding');
+  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
+  await expect(page.getByText('وكم دقيقة تستطيع أن تعطيني يومياً؟')).toBeVisible();
+
+  await page.getByRole('button', { name: 'رجوع للسؤال السابق' }).click();
+  await expect(page.getByText('لماذا تتعلّم الألمانية؟')).toBeVisible();
+  await expect(page.getByText('هل جرّبت الألمانية قبل اليوم؟')).toHaveCount(0);
+});
+
+test('back from the first story lands on the home screen', async ({ page }) => {
+  await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
+  await page.goto('/onboarding');
+  await answerPreferences(page);
+  await expect(page).toHaveURL(/\/scenario\/[a-z_]+\/story$/);
+
+  // Sign-in replaced the entry with /onboarding, so a story pushed on top of a
+  // REPLACED onboarding entry would send the system back gesture to /signin — or
+  // out of the app. The hop replaces that entry with home first, then pushes.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/app\/trail$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
+});
+
+test('the skip leaves the minutes at the default and the goal at what was answered', async ({ page }) => {
+  await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
+  await page.goto('/onboarding');
+  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
+  await page.getByRole('button', { name: 'تخطَّ الأسئلة وابدأ الآن' }).click();
+  await expect(page).toHaveURL(/\/scenario\/[a-z_]+\/story$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/app\/trail$/);
+
+  // The skip is on the SECOND question, so the goal has already been answered —
+  // it skips the minutes, and writes the default rather than a guess.
+  const stored = await readStoredUser(page);
+  expect(stored?.dailyGoalMinutes).toBe(10);
+  expect(stored?.primaryGoal).toBe('daily_life');
+});
+
+test('a learner with no goal recorded still gets a mission and an honest sheet', async ({ page }) => {
+  // The state a Skip cannot produce (it comes after the goal question) but a
+  // restored or legacy profile can: a completion stamp with no goal. Nothing may
+  // render a template value or an empty card for it.
+  await bootSignedIn(page, {
+    user: { onboardingCompletedAt: Date.now(), primaryGoal: undefined },
+  });
+
+  // The hero is a real mission, not an empty card: one enabled primary action.
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
+  const primary = page.getByRole('button', { name: /ابدأ|أكمل/ }).first();
+  await expect(primary).toBeEnabled();
+
+  // The sheet's goal surface still says something true with no goal to name.
+  await page.getByTestId('journey-more').click();
+  await expect(page.getByTestId('chapter-goal-card')).toBeVisible();
+  await expect(page.getByTestId('chapter-goal-card')).toContainText('هدفك في هذا الفصل');
+  // A missing goal is not "preferences done": the row offers to finish it.
+  await expect(page.getByTestId('more-preferences')).toContainText('أكمل تفضيلاتك');
+  // No template value leaks into the screen.
+  await expect(page.getByText(/undefined|null/)).toHaveCount(0);
+});
+
 test('with the flag off the questions still end on the home screen', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('kz.guidedHome', '0');
@@ -65,6 +141,17 @@ test('with the flag off the questions still end on the home screen', async ({ pa
 
   await expect(page).toHaveURL(/\/app\/trail$/);
   await expect(page.getByRole('heading', { level: 1 })).not.toBeEmpty();
+});
+
+test('with the flag off the first question keeps its back control', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('kz.guidedHome', '0');
+  });
+  await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
+  await page.goto('/onboarding');
+
+  await expect(page.getByText('لماذا تتعلّم الألمانية؟')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'رجوع' })).toBeVisible();
 });
 
 test('quitting after guided practice resumes on the home hero', async ({ page }) => {

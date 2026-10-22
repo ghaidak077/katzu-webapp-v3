@@ -486,7 +486,22 @@ function OnboardingRoute() {
           try {
             const openingId = resolveOpeningScenarioId(await db.scenarios.toArray());
             if (openingId) {
-              navigate(`/scenario/${encodeURIComponent(openingId)}/story`, { replace: true });
+              /*
+               * Two navigations, on purpose — and the second one PUSHES.
+               *
+               * Sign-in already replaced the history entry with /onboarding, so a
+               * replace-to-story would leave the episode with no in-app screen
+               * under it: the system back gesture would return to /signin (or out
+               * of the app, on a cold open), which is the worst place to send a
+               * learner mid-episode. Replacing the onboarding entry with the home
+               * route and pushing the episode on top gives back exactly one
+               * sensible answer: the home screen.
+               *
+               * Both calls land in one tick, so React paints the story, not a
+               * flash of home in between.
+               */
+              navigate('/app/trail', { replace: true });
+              navigate(`/scenario/${encodeURIComponent(openingId)}/story`);
               return;
             }
           } catch {

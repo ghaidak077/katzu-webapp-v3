@@ -161,8 +161,25 @@ describe('the first-run chain', () => {
   });
 
   it('the skip link is first-run only, flag-gated, and invents no goal', () => {
-    expect(onboarding).toContain("mode === 'first_run' && isGuidedHomeEnabled() && (");
+    expect(onboarding).toContain('mode === \'first_run\' && isGuidedHomeEnabled() && (');
     expect(onboarding).toContain('تخطَّ الأسئلة وابدأ الآن');
     expect(onboarding).toContain("onClick={() => void save('skip')}");
+  });
+
+  it('the first question offers no way back out of the flow', () => {
+    // The route's onBack is `/welcome` for a first run, so the header control
+    // walked a signed-in learner out to the sign-up screen; and there is no first
+    // step to return to. Gated, so OFF is the shipped header.
+    expect(onboarding).toContain('hideBackOnFirstQuestion = guided && mode === \'first_run\'');
+    expect(onboarding).toContain('{hideBackOnFirstQuestion ? (');
+    // And the second question's back link returns to the question actually asked.
+    expect(onboarding).toContain("setStep(guided && mode === 'first_run' ? 'goal' : 'previous')");
+  });
+
+  it('the episode is pushed on top of the home route, so back has somewhere to go', () => {
+    const exit = shell.slice(shell.indexOf('resolveOpeningScenarioId(await db.scenarios.toArray())'));
+    expect(exit).toContain("navigate('/app/trail', { replace: true });");
+    // The story call must NOT replace: it is the entry the back gesture returns from.
+    expect(exit).toMatch(/navigate\(`\/scenario\/\$\{encodeURIComponent\(openingId\)\}\/story`\);/);
   });
 });

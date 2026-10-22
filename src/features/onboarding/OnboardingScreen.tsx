@@ -74,6 +74,17 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
   const questionSteps = mode === 'edit' ? EDIT_STEPS : FIRST_RUN_STEPS;
   const questionIndex = useMemo(() => questionSteps.indexOf(step), [questionSteps, step]);
   const isPlacement = step === 'placement';
+  /**
+   * The first question of a first run has nothing behind it.
+   *
+   * The header's back control calls the route's `onBack`, which for a first run
+   * is `/welcome` — the signed-up learner would be walked back out of their own
+   * account to the screen that asks them to create one. There is no earlier step
+   * to return to either, so on this one screen the control is simply absent (the
+   * spacer keeps the progress dots centred). Guide-only: flag off is untouched.
+   */
+  const guided = isGuidedHomeEnabled();
+  const hideBackOnFirstQuestion = guided && mode === 'first_run' && !isPlacement && questionIndex === 0;
   const placement = useMemo(() => placementOffer(answers.previousGerman), [answers.previousGerman]);
 
   const advance = (next: Step) => {
@@ -110,15 +121,19 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
     <div className="min-h-screen bg-kz-black pb-10 text-kz-ink">
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 pt-6">
         <div className="mb-6 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="رجوع"
-            className="kz-surface flex h-11 w-11 items-center justify-center rounded-2xl"
-            data-tier="canvas"
-          >
-            <ArrowRight className="h-5 w-5 text-kz-inkDim" />
-          </button>
+          {hideBackOnFirstQuestion ? (
+            <div className="h-11 w-11" aria-hidden />
+          ) : (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="رجوع"
+              className="kz-surface flex h-11 w-11 items-center justify-center rounded-2xl"
+              data-tier="canvas"
+            >
+              <ArrowRight className="h-5 w-5 text-kz-inkDim" />
+            </button>
+          )}
 
           {/* Dots, not a fraction: five questions is a short conversation, and a
               counter makes it feel like a form to be completed. */}
@@ -309,7 +324,11 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                 تخطَّ الأسئلة وابدأ الآن
               </GlassButton>
             )}
-            <BackLink onClick={() => setStep('previous')} />
+            {/* First run has two questions, and «previous» is the edit flow's
+                third one — offering it here opened the previous-German screen the
+                first run never asks, and then came back to the same grid. Back
+                now returns to the question that was actually asked. */}
+            <BackLink onClick={() => setStep(guided && mode === 'first_run' ? 'goal' : 'previous')} />
           </GlassCard>
         )}
 
