@@ -29,11 +29,13 @@ import { useOnlineStatus } from '@/lib/utils/onlineStatus';
 import { arCount, arNoun } from '@/lib/i18n/arabicCount';
 import { buildWeeklyRecap } from '@/lib/journey/weeklyRecap';
 import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
+import { shouldOfferPro } from '@/lib/entitlement/trial';
+import { JourneyMoreSheet } from '@/features/journey/JourneyMoreSheet';
 
 /** V31: counts that reach a learner's eye agree with their noun. See `arabicCount`. */
 const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
 const MINUTE_FORMS = { one: 'دقيقة', two: 'دقيقتان', few: 'دقائق', many: 'دقيقة' } as const;
-import { ArrowLeft, Brain, RefreshCw, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Brain, ChevronDown, RefreshCw, Sparkles, X } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
 
 export interface JourneyHomeScreenProps {
@@ -46,6 +48,16 @@ export interface JourneyHomeScreenProps {
   onOpenOnboarding?: () => void;
   /** The القواعد section (V21 Phase 4) — browse every rule by level and practise it. */
   onOpenGrammar?: () => void;
+  /**
+   * The Practice tab's three skills. They were never footer chips on this screen
+   * (they live one tap away on the tab bar), but the guided home's «المزيد»
+   * gathers the whole "somewhere else" surface in one place, and a learner who
+   * opens it looking for listening practice should find it there rather than
+   * being sent back to the tab bar.
+   */
+  onOpenListening?: () => void;
+  onOpenWriting?: () => void;
+  onOpenCoach?: () => void;
 }
 
 /**
@@ -64,8 +76,13 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   onOpenSubscription,
   onOpenLibrary,
   onOpenOnboarding,
+  onOpenListening,
+  onOpenWriting,
+  onOpenCoach,
 }) => {
   const isOnline = useOnlineStatus();
+  /** The «المزيد» sheet. Never auto-opens: a sheet that opens itself is a wall. */
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const user = useLiveQuery(() => db.users.get('current_user'));
   // The three daily tasks (V28 Stage 3). One read for the card and the streak;
@@ -88,12 +105,27 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
    * competed with itself. Nothing is deleted — the same JSX renders with the
    * flag off, which is what keeps "off" honest.
    *
-   * `firstSessionDone` gates one more thing: the review row. Review is the one
-   * secondary surface that is an obligation rather than a tour, so it appears as
-   * soon as the learner has finished something real — and never on day 0.
+   * `firstSessionDone` gates two more things: the review row, and the Pro offer.
+   * Review is the one secondary surface that is an obligation rather than a
+   * tour, so it appears as soon as the learner has finished something real — and
+   * never on day 0. Pro is the same rule `lib/entitlement/trial` already states
+   * for every surface ("after a real episode, never before it"), which the header
+   * chip used to break on this screen: a brand-new learner was shown it before
+   * their first conversation. It now lives in the sheet, behind that gate.
+   *
+   * Nothing is lost by the trim: the six blocks are in «المزيد» (one quiet entry
+   * point under the tasks), not deleted, and the flag-off branch below still
+   * renders the screen that shipped before this one.
    */
   const guided = isGuidedHomeEnabled();
-  const firstSessionDone = (data?.allSessions.length ?? 0) > 0;
+  /**
+   * A session row is only written by a conversation that actually finished (see
+   * `useLiveConversation`), so one row IS one completed episode — which is the
+   * rule `shouldOfferPro` and the review row both need, without a second table
+   * or a client-side counter that could disagree with the Worker's ledger.
+   */
+  const completedEpisodes = data?.allSessions.length ?? 0;
+  const firstSessionDone = completedEpisodes > 0;
   const scenarios = data?.scenarios ?? [];
   const training = data?.training ?? [];
   const reviewItems = data?.reviewItems ?? [];
@@ -301,6 +333,25 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
     onOpenReview();
   };
 
+  /**
+   * What «المزيد» lists under «المراجعة»: due items, once a session is done.
+   *
+   * This is a *different question* from the inline row below, and the difference
+   * is deliberate. The inline row is a second CTA on a screen that already has
+   * one, so it stands down when review IS today's mission (`mission.kind`), which
+   * the selector picks for any due item. A sheet is a list of destinations, not a
+   * CTA: hiding «المراجعة» from it because the hero happens to be review would
+   * leave a menu with a hole in it, and the learner looking for the review queue
+   * in «المزيد» would not find it. `firstSessionDone` is what keeps it off day 0,
+   * where due cards can exist for a demo visitor who has finished nothing.
+   */
+  const sheetReviewCount = dueCount > 0 && firstSessionDone ? dueCount : 0;
+  /** The Pro offer, on the one rule every surface shares (`trial.shouldOfferPro`). */
+  const proOfferVisible = shouldOfferPro({ isPro, completedEpisodes });
+  /** Never answered the two preferences questions — the row says so instead of
+   *  dressing a first-run edit as a settings page. */
+  const preferencesIncomplete = !user?.onboardingCompletedAt;
+
   return (
     <div className="kz-tab-scroll min-h-screen bg-black px-4 pt-5">
       <div className="mx-auto max-w-md">
@@ -453,6 +504,24 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             prominent action; this is the habit underneath it. */}
         <DailyTasksPanel snapshot={dailyTasks} onAction={handleDailyTaskAction} />
 
+        {/* The guided home's one secondary entry point. Quiet on purpose: it sits
+            under the tasks as a 44px text row, so it is reachable without
+            competing with the hero's action (the mistake the old home made six
+            times over). It never auto-opens, and it exists only while the flag
+            is on — off, this screen still carries its own footer. */}
+        {guided && (
+          <button
+            type="button"
+            data-testid="journey-more"
+            aria-haspopup="dialog"
+            onClick={() => setMoreOpen(true)}
+            className="mb-4 flex min-h-touch w-full items-center justify-center gap-1 rounded-chip text-kz-inkFaint transition-colors pointer-hover:bg-white/[0.04]"
+          >
+            <span className="kz-ar-micro">المزيد</span>
+            <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        )}
+
         {/* Katzu's one line. Only rendered when a real state produced it. */}
         {!guided && katzuLineAr && (
           <FloatingControl className="mb-4 flex items-start gap-3 p-3.5">
@@ -464,7 +533,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         {/* Review-due row: quiet, secondary, and only when something is due.
             When review IS today's mission it is not repeated here — two prominent
             CTAs is how a learner does neither. */}
-        {dueCount > 0 && mission.kind !== 'review' && (!guided || firstSessionDone) && (
+        {dueCount > 0 && mission.kind !== 'review' && !guided && (
           <GlassButton variant="secondary" fullWidth onClick={onOpenReview} className="mb-4 justify-between">
             <span className="flex items-center gap-2">
               <Brain className="h-4 w-4 text-kz-lavender" />
@@ -570,6 +639,39 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         </div>
         )}
 
+        {/* Everything this screen keeps out of the way, one tap away. Rendered
+            inside the scrolling container (`fixed` scrim, so it still covers the
+            viewport) rather than as a sibling of it: `.kz-tab-scroll` reserves
+            its bottom padding on the last child, and a sibling would take that
+            space away from the chips above. */}
+        {guided && (
+          <JourneyMoreSheet
+            isOpen={moreOpen}
+            onClose={() => setMoreOpen(false)}
+            onOpenLibrary={onOpenLibrary}
+            onOpenReview={onOpenReview}
+            onOpenSubscription={onOpenSubscription}
+            onOpenGrammar={onOpenGrammar}
+            onOpenListening={onOpenListening}
+            onOpenWriting={onOpenWriting}
+            onOpenCoach={onOpenCoach}
+            onOpenPreferences={onOpenOnboarding}
+            reviewDueCount={sheetReviewCount}
+            katzuLineAr={katzuLineAr ?? undefined}
+            katzuState={katzuState}
+            capability={latestCapability}
+            recap={
+              weeklyRecap.episodes > 0
+                ? { headlineAr: weeklyRecap.headlineAr, topScenarioTitle: weeklyRecap.topScenarioTitle ?? undefined }
+                : null
+            }
+            learnerLevel={learnerLevel}
+            isPro={isPro}
+            freeSessionsRemaining={user?.freeSessionsRemaining}
+            proOfferVisible={proOfferVisible}
+            preferencesIncomplete={preferencesIncomplete}
+          />
+        )}
       </div>
 
     </div>

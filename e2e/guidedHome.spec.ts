@@ -93,6 +93,9 @@ test('with the switch off, the same learner gets the screen that shipped before 
   await expect(page.getByTestId('weekly-recap-card')).toBeVisible();
   await expect(page.getByTestId('journey-level-chip')).toBeVisible();
   await expect(page.getByRole('button', { name: 'كل المشاهد والمستويات' })).toBeVisible();
+  // And no «المزيد»: the sheet only exists on the guided home, because off there
+  // is nothing it would need to hold. That is what "off is today's screen" means.
+  await expect(page.getByTestId('journey-more')).toHaveCount(0);
   // Still exactly one mission action: the flag changes what else is on screen.
   await expect(page.getByRole('button', { name: PRIMARY_ACTION })).toHaveCount(1);
 });

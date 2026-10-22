@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { bootSignedIn, seedRows } from './harness';
+import { bootSignedIn, openLibraryFromHome, seedRows } from './harness';
 
 /**
  * A scenario's 16:9 banner, from the content column to the card.
@@ -88,9 +88,11 @@ test('a scenario’s own banner reaches every screen that lists it', async ({ pa
     expectSixteenByNine(box);
   }
 
-  // The scenario library, where every scenario is browsable.
-  await page.getByRole('button', { name: 'كل المشاهد والمستويات' }).click();
-  await expect(page).toHaveURL(/\/app\/library$/);
+  // The scenario library, where every scenario is browsable — reached the way a
+  // learner reaches it: the home's own control (the footer chip with the flag
+  // off, «المزيد» → كل المشاهد with it on). Tapping home is also what makes the
+  // lazy Trail chunk load in this sequence, which the geometry below reads.
+  await openLibraryFromHome(page);
   // The route changes before React's lazy-loaded Trail screen is mounted. Wait
   // on the exact card and its banner, not the URL, so a cold chunk cannot make
   // the geometry read race the render.

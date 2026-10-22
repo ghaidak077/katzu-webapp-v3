@@ -21,21 +21,33 @@ test.use({ viewport: { width: 360, height: 740 } });
  * element has no testid the test waits on `name` first and resolves the CSS
  * after, so Playwright-only pseudo-selectors are never needed.
  */
-const LAST_ELEMENTS: Array<{ tab: string; css: string; name?: string }> = [
-  { tab: '/app/trail', css: '[data-testid="journey-level-chip"]' },
+const LAST_ELEMENTS: Array<{ tab: string; css: string; name?: string; last?: boolean }> = [
+  // The bottom-most control on the home screen, whichever one it is: with
+  // `guidedHome` on that is the «المزيد» row under the tasks, with it off it is
+  // the library chip in the footer. Naming a testid here made this spec wrong
+  // every time the screen changed shape (it named the level chip, then the task
+  // row); asking the page for the last button in the scrolling root is what the
+  // test actually means. `button` only — the fixed tab bar is outside
+  // `.kz-tab-scroll`, so it can never be mistaken for content.
+  { tab: '/app/trail', css: '.kz-tab-scroll button', last: true },
   // The vocabulary bank's browse button is the last control on the Practice tab.
   { tab: '/app/practice', css: 'div.rounded-2xl > button', name: 'تصفّح الكلمات' },
 ];
 
-async function bottomGap(page: Page, selector: string): Promise<{ gap: number; tappable: boolean }> {
+async function bottomGap(
+  page: Page,
+  selector: string,
+  last = false,
+): Promise<{ gap: number; tappable: boolean }> {
   // Scroll the page itself to the very bottom, then ask the browser whether a
   // tap at the element's centre would hit THE ELEMENT (not the glass nav).
   // Scroll to the DOCUMENT's maximum scroll first — scrollIntoView({block:'end'})
   // aligns the element with the VIEWPORT bottom, which is exactly under the
   // fixed nav and would measure the middle of the screen, not the worst case
   // a scrolling learner reaches. The frame settles before the rects are read.
-  return page.evaluate(async (sel) => {
-    const el = document.querySelector(sel);
+  return page.evaluate(async ({ sel, last }) => {
+    const matches = document.querySelectorAll(sel);
+    const el = matches[last ? matches.length - 1 : 0];
     if (!el) return { gap: -1, tappable: false };
     // Scroll until the page has actually reached its own bottom: screens that
     // hydrate content lazily (task panel, progress strip) grow the document
@@ -70,16 +82,20 @@ async function bottomGap(page: Page, selector: string): Promise<{ gap: number; t
     const hit = document.elementFromPoint(cx, cy);
     const tappable = !!hit && (el === hit || el.contains(hit) || (hit instanceof Node && hit.contains(el)));
     return { gap, tappable };
-  }, selector);
+  }, { sel: selector, last });
 }
 
-for (const { tab, css, name } of LAST_ELEMENTS) {
+for (const { tab, css, name, last } of LAST_ELEMENTS) {
   test(`last element on ${tab} is fully visible and tappable at 360x740`, async ({ page }) => {
     await bootSignedIn(page);
     await page.goto(tab);
     // Resolve through Playwright first (name-based when there is no testid),
     // then measure the resolved element's own CSS inside the page.
-    const target = name ? page.getByRole('button', { name }).first() : page.locator(css).first();
+    const target = name
+      ? page.getByRole('button', { name }).first()
+      : last
+        ? page.locator(css).last()
+        : page.locator(css).first();
     await expect(target).toBeVisible({ timeout: 30_000 });
     const resolvedCss = name
       ? await target.evaluate((el) => {
@@ -98,7 +114,7 @@ for (const { tab, css, name } of LAST_ELEMENTS) {
         })
       : css;
 
-    const { gap, tappable } = await bottomGap(page, resolvedCss);
+    const { gap, tappable } = await bottomGap(page, resolvedCss, last);
     // 4px tolerance: a hairline border may graze the nav's top edge without
     // the content being covered in any meaningful way.
     expect(

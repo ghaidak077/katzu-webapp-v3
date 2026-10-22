@@ -77,12 +77,32 @@ describe('JourneyHomeScreen consults the flag', () => {
   });
 
   it('keeps the review-due row for a learner with a completed session', () => {
-    // Two conditions, both required: something due, and the first session done.
-    // `mission.kind !== 'review'` stays because when review IS the mission the
-    // row would be a second CTA for the same thing.
-    expect(source).toContain(
-      "{dueCount > 0 && mission.kind !== 'review' && (!guided || firstSessionDone) && (",
-    );
-    expect(source).toContain('const firstSessionDone');
+    // Two different questions, both required to be the ones written down:
+    //  - the sheet lists what is due once a session is finished (a menu entry,
+    //    not a CTA), so it can coexist with a review hero;
+    //  - the inline row is a competing CTA, so it still stands down when review
+    //    IS today's mission — the rule it shipped with, untouched.
+    expect(source).toContain('const sheetReviewCount = dueCount > 0 && firstSessionDone ? dueCount : 0');
+    expect(source).toContain('const firstSessionDone = completedEpisodes > 0');
+    expect(source).toContain("reviewDueCount={sheetReviewCount}");
+    expect(source).toContain("{dueCount > 0 && mission.kind !== 'review' && !guided && (");
+  });
+
+  it('hides the Pro chip until the first completed session, then offers it in «المزيد»', () => {
+    // The 1a deviation: the header chip was dropped outright, so the offer never
+    // came back. It is back on the documented rule (`shouldOfferPro`: after a
+    // real episode, never before it) and lives in the sheet, because the guided
+    // header is orientation only.
+    expect(source).toContain('const proOfferVisible = shouldOfferPro({ isPro, completedEpisodes });');
+    expect(source).toContain('proOfferVisible={proOfferVisible}');
+    expect(source).toContain('{!guided && !isPro && (');
+  });
+
+  it('moves the six blocks into one sheet instead of deleting them', () => {
+    expect(source).toContain("import { JourneyMoreSheet } from '@/features/journey/JourneyMoreSheet'");
+    expect(source).toContain('data-testid="journey-more"');
+    expect(source).toContain('aria-haspopup="dialog"');
+    // The entry point is a control, never an automatic open.
+    expect(source).not.toMatch(/useEffect\(\(\) => \{\s*setMoreOpen\(true\)/);
   });
 });

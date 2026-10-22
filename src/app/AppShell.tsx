@@ -561,6 +561,11 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
           onOpenLibrary={() => navigate('/app/library')}
           onOpenOnboarding={() => navigate('/onboarding?mode=edit')}
           onOpenGrammar={() => navigate('/app/grammar')}
+          /* The guided home's «المزيد» gathers the Practice tab's three skills, so
+             the same routes the tab's screen owns are reachable from the sheet. */
+          onOpenListening={() => navigate('/app/listen')}
+          onOpenWriting={() => navigate('/app/write')}
+          onOpenCoach={() => navigate('/app/coach')}
         />
       )}
       {activeTab === 'Practice' && (

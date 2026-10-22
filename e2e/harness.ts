@@ -1109,6 +1109,29 @@ export async function bootSignedIn(page: Page, options: BootOptions = {}): Promi
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 }
 
+/**
+ * Reach the scenario library from Journey Home, whatever shape the home has.
+ *
+ * Two shapes exist on purpose: with `guidedHome` on the footer chips are not on
+ * the screen and «المزيد» (under the tasks) carries them, with it off they are
+ * the footer. Every spec that used to click the footer chip should come through
+ * here — the destination is the point, and the route it takes is exactly what a
+ * learner taps.
+ */
+export async function openLibraryFromHome(page: Page): Promise<void> {
+  const more = page.getByTestId('journey-more');
+  await expect(more.or(page.getByRole('button', { name: 'كل المشاهد والمستويات' }))).toBeVisible({
+    timeout: 30_000,
+  });
+  if (await more.isVisible()) {
+    await more.click();
+    await page.getByTestId('more-library').click();
+  } else {
+    await page.getByRole('button', { name: 'كل المشاهد والمستويات' }).click();
+  }
+  await expect(page).toHaveURL(/\/app\/library$/);
+}
+
 /** The orb, addressed by the accessible name that carries its live state. */
 export function orb(page: Page) {
   return page.getByRole('button', { name: /ابدأ التحدث|إيقاف التسجيل|جارٍ التعرف|كَاتْزُو يعمل|لا يوجد اتصال|انتهت الجلسات/ });
