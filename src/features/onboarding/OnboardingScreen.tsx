@@ -4,6 +4,7 @@ import { GlassCard } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { track } from '@/lib/analytics/client';
 import {
   ARRIVAL_COPY,
@@ -149,6 +150,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
           <div className="w-11" />
         </div>
 
+        {/* One line of orientation on the first run, not a second question: the
+            dots already say "two", these words say what the two are for. */}
+        {mode === 'first_run' && isGuidedHomeEnabled() && (
+          <p className="mb-4 kz-ar-micro text-kz-inkFaint">سؤالان فقط — ثم أفتح لك أول موقف.</p>
+        )}
+
         {step === 'goal' && (
           <GlassCard emphasis="primary" className="flex flex-1 flex-col">
             <KatzuPresence state="story" size="md" className="self-start" />
@@ -287,6 +294,21 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                 </button>
               ))}
             </div>
+            {mode === 'first_run' && isGuidedHomeEnabled() && (
+              /* An exit that is not an answer. It saves the default minutes and
+                 the completion stamp, so the app never asks again, and leaves the
+                 goal unanswered rather than inventing one — the mission then falls
+                 back to the general order, which is what "no preference" means. */
+              <GlassButton
+                variant="quiet"
+                fullWidth
+                className="mt-4"
+                disabled={isSaving}
+                onClick={() => void save('skip')}
+              >
+                تخطَّ الأسئلة وابدأ الآن
+              </GlassButton>
+            )}
             <BackLink onClick={() => setStep('previous')} />
           </GlassCard>
         )}

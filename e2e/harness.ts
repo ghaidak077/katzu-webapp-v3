@@ -570,6 +570,87 @@ export async function readStoredUser(page: Page): Promise<Record<string, unknown
   });
 }
 
+/**
+ * Seed one row into a store the app itself created.
+ *
+ * Two facts the suite needs are not in the offline seed: the arrival episode's
+ * catalogue row (it ships in D1) and a finished conversation. Writing them
+ * through the app's own schema is what keeps the assertions honest — the code
+ * under test reads them exactly as it reads real ones, so a spec can prove the
+ * chain lands on the arrival scene *and* what happens when that row is absent.
+ */
+export async function seedStoreRow(
+  page: Page,
+  store: string,
+  row: Record<string, unknown>,
+): Promise<void> {
+  const ok = await page.evaluate(
+    async ({ store, row }) => {
+      try {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('KatzuWebDB');
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+          request.onblocked = () => reject(new Error('blocked'));
+        });
+        if (!db.objectStoreNames.contains(store)) {
+          db.close();
+          return false;
+        }
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction(store, 'readwrite');
+          tx.objectStore(store).put(row);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { store, row },
+  );
+  if (!ok) throw new Error(`Could not seed ${store}: the local database never settled.`);
+}
+
+/**
+ * A finished conversation, and the training row the V2 chain leaves behind.
+ *
+ * `quizAttempted: false` is deliberate: the episode ends at the debrief, never at
+ * a quiz, so this is exactly the state a learner is in the moment they tap «العودة
+ * إلى الرحلة». The session row is what the app writes on completion
+ * (`useLiveConversation`), so both facts are the ones the product produces.
+ */
+export async function seedFinishedEpisode(page: Page, scenarioId = 'train_station'): Promise<void> {
+  const now = Date.now();
+  await seedStoreRow(page, 'scenario_training', {
+    scenarioId,
+    userId: 'current_user',
+    studiedAt: now - 3_600_000,
+    quizAttempted: false,
+    lastScore: 0,
+    effectiveLevel: 'A1',
+    updatedAt: now - 3_600_000,
+  });
+  await seedStoreRow(page, 'sessions', {
+    id: `e2e-${scenarioId}-${now}`,
+    scenarioId,
+    scenarioTitle: 'في محطة القطار',
+    cefrLevel: 'A1',
+    sentencesSpoken: 4,
+    wordsLearned: 16,
+    accuracyPercent: 80,
+    durationSeconds: 240,
+    timestamp: now,
+    wasIndependentOnly: true,
+    independentSentences: 4,
+    hintAssistedSentences: 0,
+    mode: 'practice',
+    mistakesCount: 1,
+  });
+}
+
 /** Reads the stored row back, so a clobbered sign-in fails loudly instead of silently. */
 async function readUserIsSignedIn(page: Page): Promise<boolean> {
   return page.evaluate(async () => {

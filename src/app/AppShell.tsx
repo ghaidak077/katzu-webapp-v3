@@ -6,6 +6,8 @@ import { suppressInvalidReviewItems } from '@/lib/srs/store';
 import { applyRendererTier, useRendererTier } from '@/lib/design/rendererTier';
 import { workerClient } from '@/lib/api/workerClient';
 import { needsOnboarding } from '@/lib/onboarding/preferences';
+import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
+import { resolveOpeningScenarioId } from '@/lib/journey/opening';
 import { reconcileEntitlement } from '@/lib/entitlement/reconcile';
 import { useOnlineStatus } from '@/lib/utils/onlineStatus';
 import { setHapticsEnabled } from '@/lib/utils/haptics';
@@ -455,7 +457,44 @@ function OnboardingRoute() {
         // A3: never auto-route to /placement. `choice` stays in the signature for
         // the shared screen API, but first-run always lands on the mission.
         void choice;
-        navigate('/app/trail', { replace: true });
+        if (!isGuidedHomeEnabled()) {
+          navigate('/app/trail', { replace: true });
+          return;
+        }
+        /*
+         * The first-session chain (step 2): preferences → the first episode's
+         * Story screen, not the home screen.
+         *
+         * Home was an honest destination and a poor one: a learner who has just
+         * answered two questions is shown a card and asked to tap it, which is
+         * the decision they came to the app to avoid. The hop removes that tap
+         * and nothing else — the same three screens, in the same order.
+         *
+         * Which scene, resolved rather than assumed. The arrival episode is seeded on
+         * every launch, but an install whose cache predates that fixture — or one
+         * whose seed was interrupted — has no `scenarios` row for it, and
+         * navigating to a missing id would open Story Setup on «لم نجد هذا
+         * المشهد» for the exact learner this hop exists for. `resolveOpeningScenarioId`
+         * holds that decision: the arrival when present, else the first scene in
+         * the journey order, else nothing (and home, as today).
+         *
+         * Everything read here is local: the shell has already finished seeding
+         * before any route renders, so this works offline and cannot hang on a
+         * request. A failed read is not a broken chain — it is today's route.
+         */
+        void (async () => {
+          try {
+            const openingId = resolveOpeningScenarioId(await db.scenarios.toArray());
+            if (openingId) {
+              navigate(`/scenario/${encodeURIComponent(openingId)}/story`, { replace: true });
+              return;
+            }
+          } catch {
+            // An unreadable cache is a reason to keep today's destination, never
+            // to strand the learner between two screens.
+          }
+          navigate('/app/trail', { replace: true });
+        })();
       }}
     />
   );

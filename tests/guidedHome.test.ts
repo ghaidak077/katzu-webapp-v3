@@ -125,3 +125,44 @@ describe('JourneyHomeScreen consults the flag', () => {
     expect(source).not.toMatch(/useEffect\(\(\) => \{\s*setMoreOpen\(true\)/);
   });
 });
+
+/**
+ * The first-session chain (step 2), as source contracts.
+ *
+ * The behaviour is proven in `e2e/firstSessionChain.spec.ts`. These assertions
+ * guard the three properties a later edit could quietly break: the hop is
+ * flag-gated (so OFF is still today's exit), it *resolves* the opening scene
+ * rather than assuming its row is on the device, and the day-0 screens do not
+ * claim evidence the learner has not produced.
+ */
+describe('the first-run chain', () => {
+  const shell = readFileSync('src/app/AppShell.tsx', 'utf8');
+  const home = readFileSync('src/features/journey/JourneyHomeScreen.tsx', 'utf8');
+  const onboarding = readFileSync('src/features/onboarding/OnboardingScreen.tsx', 'utf8');
+
+  it('leaves the exit alone when the flag is off', () => {
+    expect(shell).toContain('if (!isGuidedHomeEnabled()) {');
+    expect(shell).toContain("navigate('/app/trail', { replace: true });");
+  });
+
+  it('resolves the opening scene instead of assuming its row exists', () => {
+    expect(shell).toContain('resolveOpeningScenarioId(await db.scenarios.toArray())');
+    expect(shell).toContain("from '@/lib/journey/opening'");
+    // A failed read ends on today's route — never between two screens.
+    expect(shell).toMatch(/catch \{[\s\S]{0,400}navigate\('\/app\/trail'/);
+  });
+
+  it('defers the review mission on day 0 and reports finished scenes to the selector', () => {
+    expect(home).toContain('const completedScenarioIds = useMemo(');
+    expect(home).toContain('Object.keys(data?.sessionsByScenario ?? {})');
+    // Both corrections ride the flag: OFF keeps the shipped mission logic.
+    expect(home).toContain('guided && !firstSessionDone');
+    expect(home).toContain('completedScenarioIds: guided ? completedScenarioIds : []');
+  });
+
+  it('the skip link is first-run only, flag-gated, and invents no goal', () => {
+    expect(onboarding).toContain("mode === 'first_run' && isGuidedHomeEnabled() && (");
+    expect(onboarding).toContain('تخطَّ الأسئلة وابدأ الآن');
+    expect(onboarding).toContain("onClick={() => void save('skip')}");
+  });
+});

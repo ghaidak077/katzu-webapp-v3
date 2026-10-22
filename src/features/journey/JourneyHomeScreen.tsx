@@ -183,6 +183,21 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
     [capability],
   );
 
+  /**
+   * The scenes with a finished conversation.
+   *
+   * This is the fact that says an episode is *done*, as opposed to begun — and
+   * it is needed because the V2 chain ends at the debrief, not at a quiz, so
+   * `scenario_training` for a completed scene still reads `quizAttempted: false`.
+   * Without passing this, the day-1 hero kept saying «أكمل من حيث توقفت» about the
+   * conversation the learner had just finished. Derived from the recorded
+   * sessions only; nothing here can claim a session that did not happen.
+   */
+  const completedScenarioIds = useMemo(
+    () => Object.keys(data?.sessionsByScenario ?? {}),
+    [data],
+  );
+
   const mission = useMemo(
     () =>
       selectDailyMission({
@@ -201,7 +216,16 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           lastScore: record.lastScore,
           updatedAt: record.updatedAt,
         })),
-        reviewItems: reviewItems.map((item) => ({ dueAt: item.dueAt, kind: item.kind, scenarioId: item.scenarioId })),
+        // Both corrections are part of the guided home and are gated with it:
+        // the flag's promise is that OFF is the screen that shipped, and a
+        // learner on the old home keeps its exact mission logic (including the
+        // «أكمل» loop, which is only fixed here until the guided shape is
+        // validated).
+        reviewItems:
+          guided && !firstSessionDone
+            ? []
+            : reviewItems.map((item) => ({ dueAt: item.dueAt, kind: item.kind, scenarioId: item.scenarioId })),
+        completedScenarioIds: guided ? completedScenarioIds : [],
         scenarioLevels,
         weakestSkill: weakestMeasuredSkill({
           sessions: data ? Object.values(data.sessionsByScenario).flat() : [],
@@ -213,7 +237,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         targetDate: user?.targetDate,
         targetDateKind: user?.targetDateKind,
       }),
-    [level, user?.primaryGoal, user?.dailyGoalMinutes, user?.targetDate, user?.targetDateKind, data, scenarios, training, reviewItems, scenarioLevels, skillPractice],
+    [level, user?.primaryGoal, user?.dailyGoalMinutes, user?.targetDate, user?.targetDateKind, data, scenarios, training, reviewItems, scenarioLevels, skillPractice, firstSessionDone, completedScenarioIds, guided],
   );
 
   const missionScenario = useMemo(
