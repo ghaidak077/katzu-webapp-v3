@@ -333,6 +333,61 @@ describe('Step 2: additive user registry schema', () => {
     }
   });
 
+  it('creates its tables on a database where `users` does not exist yet', async () => {
+    // A fresh database has no `users` table, so the ALTER that runs before the
+    // CREATE batch fails with "no such table" — not "duplicate column name".
+    // Rethrowing that (the behaviour until 2026-10-22) skipped the CREATEs
+    // entirely: every admin tab read "D1 is not bound — registry unavailable"
+    // and no user row could ever be written. Found by booting the worker against
+    // an empty local D1, which is also what a new environment looks like.
+    const statements: string[] = [];
+    const db = {
+      prepare(sql: string) {
+        const norm = sql.replace(/\s+/g, ' ').trim();
+        return {
+          _batch: async () => {
+            statements.push(norm);
+            return { success: true };
+          },
+          run: async () => {
+            statements.push(norm);
+            if (/^ALTER TABLE users ADD COLUMN/i.test(norm)) {
+              throw new Error('D1_ERROR: no such table: users: SQLITE_ERROR');
+            }
+            return { success: true };
+          },
+          bind: () => ({ run: async () => ({ success: true }), first: async () => null, all: async () => ({ results: [] }) }),
+        };
+      },
+      batch: async (stmts: Array<{ _batch?: () => Promise<unknown> }>) =>
+        Promise.all(stmts.map((s) => (s._batch ? s._batch() : s))),
+    };
+
+    const ok = await ensureRegistryTables({ DB: db } as never);
+    expect(ok).toBe(true);
+    expect(statements.some((s) => /^CREATE TABLE IF NOT EXISTS users/i.test(s))).toBe(true);
+    expect(statements.some((s) => /^CREATE TABLE IF NOT EXISTS activity_log/i.test(s))).toBe(true);
+  });
+
+  it('still refuses to report success when the ALTER fails for a real reason', async () => {
+    // The tolerance added for "no such table" must not become "ignore every
+    // error": a database this worker genuinely cannot prepare has to say so.
+    const db = {
+      prepare(sql: string) {
+        const norm = sql.replace(/\s+/g, ' ').trim();
+        return {
+          run: async () => {
+            if (/^ALTER TABLE/i.test(norm)) throw new Error('D1_ERROR: database is locked: SQLITE_BUSY');
+            return { success: true };
+          },
+          bind: () => ({ run: async () => ({ success: true }) }),
+        };
+      },
+      batch: async () => [{ success: true }],
+    };
+    await expect(ensureRegistryTables({ DB: db } as never)).resolves.toBe(false);
+  });
+
   it('is wired into ensureLedgerTables so redemption creates ledger AND registry tables', async () => {
     const env = makeEnv();
     // Must be a validly signed code — handleVerify rejects malformed codes

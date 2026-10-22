@@ -60,14 +60,24 @@ export async function ensureRegistryTables(env) {
   try {
     // L3: the channel tag (`?src=`) is an ADDITIVE column. It is added outside
     // the batch because a D1 batch is transactional: on a fresh database the
-    // CREATE below already carries `source`, so an ALTER in the same batch would
+    // CREATE below already carries `src`, so an ALTER in the same batch would
     // fail with "duplicate column name" and roll the whole thing back. Here the
     // failure is isolated, and "already exists" is the expected steady state
     // rather than an error (the same rule `ensureContentColumns` follows).
+    //
+    // It has to run BEFORE the batch, because the batch indexes `users(src)` and
+    // an index on a missing column aborts the whole batch on an older database.
+    // That ordering is why "no such table" must be tolerated too: on a fresh
+    // database this ALTER is the FIRST statement ever run against D1, so it fails
+    // on a table that does not exist yet. Rethrowing that (as this did until
+    // 2026-10-22) skipped the CREATEs entirely — every admin tab then read
+    // "D1 is not bound — registry unavailable" and no user row could ever be
+    // written. Found by booting the worker against an empty local database.
     try {
       await env.DB.prepare(`ALTER TABLE users ADD COLUMN src TEXT`).run();
     } catch (error) {
-      if (!/duplicate column name/i.test(String(error?.message || error))) {
+      const message = String(error?.message || error);
+      if (!/duplicate column name|no such table/i.test(message)) {
         throw error;
       }
     }
@@ -2132,9 +2142,34 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     refreshTab();
   }
 
-  // Every existing caller only wants the parsed body.
+  // Every existing caller only wants the parsed body — and only on success.
+  // rawApi resolves for ANY response, so a refused write used to arrive looking
+  // like data: the user drawer toasted "Plan extended" for a request the worker
+  // had answered 403. Every one of the 23 call sites already ends in .catch, so
+  // rejecting here routes a rejection to the caller's failure path, and this is
+  // the one place that can say why to the owner.
   function api(path, opts) {
-    return rawApi(path, opts).then(function (result) { return result.body; });
+    return rawApi(path, opts).then(function (result) {
+      if (result.status < 400) return result.body;
+      var body = result.body || {};
+      var error = new Error(adminErrorMessage(result.status, body));
+      error.status = result.status;
+      error.body = body;
+      toast(error.message, true);
+      throw error;
+    });
+  }
+
+  function adminErrorMessage(status, body) {
+    if (status === 403) {
+      return "Rejected (403) — this page's origin is not in ALLOWED_ORIGINS, so the worker refuses to change anything.";
+    }
+    var said = body.message || body.error;
+    if (typeof said === "string" && said !== "server_error" && said !== "admin_route_failed" && said !== "unauthorized") {
+      return said;
+    }
+    if (status >= 500) return "The worker failed (" + status + ") — check its logs for the cause.";
+    return "Request failed (" + status + ").";
   }
 
   // The Content Studio also needs the HTTP status (a 400 carries the per-row
@@ -2281,8 +2316,14 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
       tierTd.textContent = entry.tier + (entry.rpd ? " · ≤" + entry.rpd + "/day" : "");
       tr.appendChild(tierTd);
       var keyTd = document.createElement("td");
-      keyTd.textContent = entry.keyCount + " (" + (entry.keySource === "env" ? "env secret" : "dashboard") + ")" +
-        (entry.keyFingerprints && entry.keyFingerprints.length ? " · " + entry.keyFingerprints.join(", ") : "");
+      // A custom entry has no env secret to fall back to, so "0 (env secret)"
+      // after Clear keys described a fallback that does not exist — and a custom
+      // entry with no keys is dropped from the pool, which is what the row should
+      // say instead.
+      var keySourceLabel = entry.keySource === "dashboard" ? "dashboard" : (entry.origin === "custom" ? "none" : "env secret");
+      keyTd.textContent = entry.keyCount + " (" + keySourceLabel + ")" +
+        (entry.keyFingerprints && entry.keyFingerprints.length ? " · " + entry.keyFingerprints.join(", ") : "") +
+        (entry.origin === "custom" && !entry.keyCount ? " — not in the pool" : "");
       tr.appendChild(keyTd);
       var stateTd = document.createElement("td");
       if (entry.enabled) { var on = document.createElement("span"); on.className = "pill pro"; on.textContent = "on"; stateTd.appendChild(on); }
@@ -2342,7 +2383,9 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
     return wrap;
   }
 
-  function aipCatchError() { aipMsg("Request failed — see browser console.", true); }
+  function aipCatchError(err) {
+    aipMsg(err && err.message ? err.message : "Request failed — see browser console.", true);
+  }
 
   // Splits a pasted key list on commas, semicolons and line breaks.
   // This code lives inside the dashboard's template literal, so the regex
@@ -2840,7 +2883,7 @@ ${CONTENT_STUDIO_TOOLS_SCRIPT}
           out.appendChild(codeRow(codes[i]));
         }
       })
-      .catch(function () { out.textContent = "Generation failed."; });
+      .catch(function (err) { out.textContent = err && err.message ? err.message : "Generation failed."; });
   }
 
   /**

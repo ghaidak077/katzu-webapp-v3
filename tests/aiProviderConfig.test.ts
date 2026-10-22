@@ -187,6 +187,35 @@ describe('upsert via the owner op', () => {
     expect(env.USER_PROGRESS.store.get('ai-provider-config')).toContain(key);
   });
 
+  it('shows keys stored on a DEFAULT entry, and the list agrees with the save', async () => {
+    const env = makeEnv();
+    // The dashboard's own path for a built-in provider: paste keys, press Save.
+    const saved = await upsertProviderEntry(env, {
+      id: 'nvidia',
+      keys: ['stored-key-aaaaaaaaaa', 'stored-key-bbbbbbbbbb'],
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.body.keyCount).toBe(2);
+
+    // The table reloads from listProviderConfig, and it used to rebuild every
+    // default from PROVIDER_POOL without config.defaultsKeys — so the response
+    // said "Stored keys for nvidia" and the row immediately read "0 keys · env".
+    // The pool serves the stored keys either way (routing reads
+    // resolveProviderPool); only the display disagreed, which is the version of
+    // this bug an owner actually sees.
+    const data = await listProviderConfig(env);
+    const nvidia = data.defaults.find((entry) => entry.provider === 'nvidia');
+    expect(nvidia.keySource).toBe('dashboard');
+    expect(nvidia.keyCount).toBe(2);
+    expect(nvidia.keyFingerprints).toHaveLength(2);
+    // Still masked: the list never carries key material.
+    expect(JSON.stringify(data)).not.toContain('stored-key-aaaaaaaaaa');
+    // A provider with no override keeps reporting its env keys.
+    const openrouter = data.defaults.find((entry) => entry.provider === 'openrouter');
+    expect(openrouter.keySource).toBe('env');
+    expect(openrouter.keyCount).toBe(2);
+  });
+
   it('maskProviderEntry exposes env keys as fingerprints only', () => {
     const entry = { id: 'openrouter', origin: 'default', provider: 'openrouter', model: 'x', format: 'openai', tier: 'mid' };
     const env = { OPENROUTER_API_KEYS: 'env-key-aaaaaaaaaaaaaaaaaa' };

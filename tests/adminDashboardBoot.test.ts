@@ -165,6 +165,33 @@ describe('the served admin dashboard boots in a DOM', () => {
     dom.window.close();
   });
 
+  it('says why a refused write failed instead of reporting success', async () => {
+    const { dom, window } = await boot(await renderDashboard());
+    const w = window as unknown as { licAdjust: (email: string, months: number) => void };
+    (window.document.getElementById('admin-key') as HTMLInputElement).value = 'k';
+    // 403 is what the worker answers for a write from an origin it does not
+    // allow. Before this, api() only threw on 401, so the error body came back
+    // looking like data and the drawer toasted "Plan extended" for a request the
+    // worker had refused.
+    (window as unknown as { fetch: unknown }).fetch = async () => ({
+      status: 403,
+      json: async () => ({ error: 'origin_not_allowed' }),
+    });
+    w.licAdjust('someone@test.dev', 1);
+    await tick();
+    const toastHost = window.document.getElementById('toast-host')!;
+    expect(toastHost.textContent).toContain('Rejected (403)');
+    expect(toastHost.textContent).not.toContain('Plan extended');
+
+    // ...and a real success still says so, so the check did not simply hide
+    // every outcome.
+    (window as unknown as { fetch: unknown }).fetch = async () => ({ status: 200, json: async () => ({ success: true }) });
+    w.licAdjust('someone@test.dev', 1);
+    await tick();
+    expect(toastHost.textContent).toContain('Plan extended');
+    dom.window.close();
+  });
+
   it('raises a visible banner when the script cannot start', async () => {
     const html = await renderDashboard();
     // Reintroduce the original defect: a real newline inside a string literal,

@@ -346,7 +346,19 @@ export async function listProviderConfig(env) {
   const defaultsMasked = [];
   const customMasked = [];
   for (const entry of PROVIDER_POOL) {
-    defaultsMasked.push(maskProviderEntry({ ...entry, id: entry.provider, origin: "default", __disabled: config.disabledDefaults.includes(entry.provider) }, env));
+    // Attach the owner's stored override, exactly as resolveProviderPool does.
+    // Without it maskProviderEntry only saw the env keys, so a saved key list
+    // read back as "0 keys · env" the moment the table reloaded — the save said
+    // "Stored keys for nvidia", the row said nothing had been stored, and the
+    // pool really was serving the keys (routing reads resolveProviderPool).
+    const override = Array.isArray(config.defaultsKeys[entry.provider]) ? config.defaultsKeys[entry.provider] : null;
+    defaultsMasked.push(maskProviderEntry({
+      ...entry,
+      ...(override && override.length ? { keys: override } : {}),
+      id: entry.provider,
+      origin: "default",
+      __disabled: config.disabledDefaults.includes(entry.provider),
+    }, env));
   }
   for (const entry of config.custom) {
     customMasked.push(maskProviderEntry({ ...entry, origin: "custom" }, env));
