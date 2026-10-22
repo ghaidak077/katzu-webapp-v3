@@ -87,7 +87,8 @@ async function bottomGap(
 
 for (const { tab, css, name, last } of LAST_ELEMENTS) {
   test(`last element on ${tab} is fully visible and tappable at 360x740`, async ({ page }) => {
-    await bootSignedIn(page);
+    const options = tab === '/app/practice' ? { history: true } : {};
+    await bootSignedIn(page, options);
     await page.goto(tab);
     // Resolve through Playwright first (name-based when there is no testid),
     // then measure the resolved element's own CSS inside the page.

@@ -21,7 +21,7 @@ import { bootSignedIn, seedRows } from './harness';
 const DUE = 1;
 
 test('Review shows only answerable cards, grades one, and reaches its summary', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
 
   await seedRows(page, 'review_items', [
     {
@@ -96,7 +96,7 @@ test('Review shows only answerable cards, grades one, and reaches its summary', 
 });
 
 test('Review hands the learner the words, and an honest way out', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
 
   // A production card the learner may not have the vocabulary for: the Arabic
   // prompt is clear, but building `der Termin` needs the words.
@@ -245,7 +245,7 @@ test('Writing offers the scenario words to build the paragraph', async ({ page }
 });
 
 test('the vocabulary bridge reports its bank taps and its reveals', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
 
   // Collect every analytics batch the app posts (the client flushes ~2 s after a
   // tracked event). This proves the two new events actually leave the device, not

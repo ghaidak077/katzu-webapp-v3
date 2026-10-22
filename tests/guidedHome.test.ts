@@ -83,7 +83,10 @@ describe('JourneyHomeScreen consults the flag', () => {
     //  - the inline row is a competing CTA, so it still stands down when review
     //    IS today's mission — the rule it shipped with, untouched.
     expect(source).toContain('const sheetReviewCount = dueCount > 0 && firstSessionDone ? dueCount : 0');
-    expect(source).toContain('const firstSessionDone = completedEpisodes > 0');
+    // The shared first-session fact (Decision A): the home hands the sheet the
+    // same boolean the tab lock reads, so the two surfaces cannot disagree.
+    expect(source).toContain('const firstSessionDone = isFirstSessionDone({');
+    expect(source).toContain('sessionCount: completedEpisodes,');
     expect(source).toContain("reviewDueCount={sheetReviewCount}");
     expect(source).toContain("{dueCount > 0 && mission.kind !== 'review' && !guided && (");
   });
@@ -161,7 +164,14 @@ describe('the first-run chain', () => {
   });
 
   it('the skip link is first-run only, flag-gated, and invents no goal', () => {
-    expect(onboarding).toContain('mode === \'first_run\' && isGuidedHomeEnabled() && (');
+    // The skip on the FIRST question (Decision G): a quiet GlassButton, gated on
+    // the flag and the first-run mode, that walks past the goal question without
+    // writing a goal for it. The funnel is told this learner walked past it
+    // (`source: 'skip_first'`) rather than that they declined the placement check.
+    expect(onboarding).toContain('mode === \'first_run\' && guided && (');
+    expect(onboarding).toContain('تخطَّ الآن وابدأ');
+    expect(onboarding).toContain("onClick={() => void save('skip', {}, 'skip_first')}");
+    // The second question keeps its own (plain) skip, source 'skip'.
     expect(onboarding).toContain('تخطَّ الأسئلة وابدأ الآن');
     expect(onboarding).toContain("onClick={() => void save('skip')}");
   });
@@ -181,5 +191,69 @@ describe('the first-run chain', () => {
     expect(exit).toContain("navigate('/app/trail', { replace: true });");
     // The story call must NOT replace: it is the entry the back gesture returns from.
     expect(exit).toMatch(/navigate\(`\/scenario\/\$\{encodeURIComponent\(openingId\)\}\/story`\);/);
+  });
+});
+
+/**
+ * The Practice/Progress lock (step 3), as source contracts.
+ *
+ * The behaviour is proven in `e2e/tabLock.spec.ts`. These assertions guard the
+ * properties a later edit could quietly break: the ONE shared first-session fact
+ * behind both the «المزيد» sheet and the tab bar (Decision A), the sheet's place
+ * OUTSIDE the glass container so it is never a fifth measured tab (Decision C),
+ * the exact agreed copy (Decision E), the locked-tab look (Decision F), and that
+ * the flag-off branch still renders today's DOM (no extra clauses are consulted).
+ */
+describe('the Practice/Progress lock (step 3)', () => {
+  const shell = readFileSync('src/app/AppShell.tsx', 'utf8');
+  const home = readFileSync('src/features/journey/JourneyHomeScreen.tsx', 'utf8');
+  const nav = readFileSync('src/features/journey/usePracticeLock.ts', 'utf8');
+  const sheet = readFileSync('src/features/journey/PracticeLockSheet.tsx', 'utf8');
+  const rule = readFileSync('src/lib/journey/firstSession.ts', 'utf8');
+
+  it('the shared first-session rule drives both the sheet and the tab lock', () => {
+    expect(home).toContain("import { isFirstSessionDone } from '@/lib/journey/firstSession'");
+    expect(nav).toContain("import { isFirstSessionDone } from '@/lib/journey/firstSession'");
+    expect(shell).toContain(
+      "import { usePracticeLock, type PracticeLock } from '@/features/journey/usePracticeLock'",
+    );
+    expect(shell).toContain("import { PracticeLockSheet } from '@/features/journey/PracticeLockSheet'");
+  });
+
+  it('the lock sheet is a sibling of the nav, never a child of the glass container', () => {
+    const afterContainer = shell.slice(shell.indexOf('</GlassEffectContainer>'));
+    // The glass container closes, the nav closes, and ONLY then the sheet mounts.
+    expect(afterContainer).toMatch(/<\/GlassEffectContainer>[\s\S]*?<\/nav>[\s\S]*?<PracticeLockSheet/);
+    expect(shell.indexOf('</nav>')).toBeGreaterThan(shell.indexOf('</GlassEffectContainer>'));
+  });
+
+  it('the lock copy is the exact agreed text, with no bypass', () => {
+    expect(sheet).toContain('هذا القسم يفتح بعد أول محادثة');
+    expect(sheet).toContain('محادثة واحدة قصيرة تكفي — وبعدها كل ما هنا مفتوح.');
+    expect(sheet).toContain('ابدأ أول محادثة');
+    expect(sheet).toContain('لاحقاً');
+    // The primary resolves the SAME opening episode the onboarding hop uses.
+    expect(sheet).toContain('resolveOpeningScenarioId(await db.scenarios.toArray())');
+    expect(sheet).toContain("navigate(`/scenario/${encodeURIComponent(openingId)}/story`)");
+    // No "open anyway": the tabs stay closed until the conversation is finished.
+    expect(sheet).not.toContain('افتحه');
+    expect(sheet).not.toContain('أي حال');
+  });
+
+  it('a locked tab keeps its ink and adds only a badge, never opacity or disabled', () => {
+    expect(shell).toContain("aria-disabled={locked ? 'true' : undefined}");
+    expect(shell).toContain("aria-label={locked ? `${label} — مقفل حتى أول محادثة` : undefined}");
+    expect(shell).toContain('aria-hidden="true"');
+    expect(shell).toContain('data-testid={`tab-lock-${glassKey}`}');
+    expect(shell).toContain("active ? 'text-kz-lavender' : 'text-kz-inkFaint'");
+    expect(shell).not.toContain('opacity-');
+  });
+
+  it('the flag-off branch is untouched: the extra clauses are gated on guided', () => {
+    expect(rule).toContain('if (!input.guided) return false;');
+    expect(nav).toContain('guided &&');
+    // With the flag off `locked` is always false, so the tab is never marked.
+    expect(nav).toContain('const locked =');
+    expect(nav).toContain('guided &&');
   });
 });

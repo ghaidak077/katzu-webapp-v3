@@ -65,14 +65,14 @@ test('Guided Practice has no critical or serious violations', async ({ page }) =
 });
 
 test('Review has no critical or serious violations', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
   await page.goto('/app/review');
   await page.waitForLoadState('networkidle');
   assertClean(await scan(page), 'review');
 });
 
 test('Progress has no critical or serious violations', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
   await page.goto('/app/progress');
   await expect(page.getByText(/مسجَّل|قِسناه/).first()).toBeVisible();
   assertClean(await scan(page), 'progress');

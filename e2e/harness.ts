@@ -1094,6 +1094,16 @@ export async function silence(page: Page): Promise<void> {
 
 export interface BootOptions extends MockOptions {
   user?: Record<string, unknown>;
+  /**
+   * Seed one FINISHED conversation before the suite starts.
+   *
+   * The Practice and Progress tabs stay closed until the learner has finished
+   * their first conversation, so every spec that REACHES those tabs needs the
+   * fact that opens them — the same way a real learner has it. The day-0 specs
+   * keep the default fixture, because "before the first conversation" is the
+   * state they are about.
+   */
+  history?: boolean;
   /** `false` measures the platform's real (silent) capture device instead. */
   installVoice?: boolean;
   denyMicrophone?: boolean;
@@ -1188,6 +1198,15 @@ export async function bootSignedIn(page: Page, options: BootOptions = {}): Promi
 
   await page.goto('/app/trail');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+  if (options.history) {
+    // The finished conversation is written AFTER the app has created its own
+    // database, and the page is reloaded so the screens read it as part of
+    // their state rather than as a row that appeared under them.
+    await seedFinishedEpisode(page);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
+  }
 }
 
 /**

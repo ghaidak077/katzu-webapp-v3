@@ -46,7 +46,7 @@ async function expectTapTarget(locator: Locator, label: string) {
 }
 
 test('an empty mistake bank says what to do next instead of only congratulating', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
   await page.goto('/app/practice');
 
   // Launch polish: the drill tile was RENAMED «تدريب الأخطاء» so it says what
@@ -64,7 +64,7 @@ test('an empty mistake bank says what to do next instead of only congratulating'
 });
 
 test('a saved-word list with nothing in it offers the way out', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
   await page.goto('/app/practice');
 
   await page.getByRole('button', { name: /^المحفوظة/ }).click();

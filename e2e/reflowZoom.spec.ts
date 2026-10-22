@@ -50,7 +50,9 @@ test.describe('200 % zoom (320 px reflow)', () => {
   });
 
   test('the signed-in screens reflow without sideways scrolling', async ({ page }) => {
-    await bootSignedIn(page, { user: { cefrLevel: 'B1' } });
+    // /app/practice and /app/progress are locked until the first conversation,
+    // so this screen-by-screen reflow needs the finished episode that opens them.
+    await bootSignedIn(page, { user: { cefrLevel: 'B1' }, history: true });
     for (const route of ['/app/trail', '/app/practice', '/app/progress', '/app/profile', '/mock']) {
       await page.goto(route);
       await expect(page.locator('#root')).not.toBeEmpty({ timeout: 30_000 });

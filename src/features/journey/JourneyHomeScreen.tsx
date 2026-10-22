@@ -30,6 +30,7 @@ import { arCount, arNoun } from '@/lib/i18n/arabicCount';
 import { buildWeeklyRecap } from '@/lib/journey/weeklyRecap';
 import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { shouldOfferPro } from '@/lib/entitlement/trial';
+import { isFirstSessionDone } from '@/lib/journey/firstSession';
 import { JourneyMoreSheet } from '@/features/journey/JourneyMoreSheet';
 
 /** V31: counts that reach a learner's eye agree with their noun. See `arabicCount`. */
@@ -125,7 +126,19 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
    * or a client-side counter that could disagree with the Worker's ledger.
    */
   const completedEpisodes = data?.allSessions.length ?? 0;
-  const firstSessionDone = completedEpisodes > 0;
+  /**
+   * The shared first-session fact.
+   *
+   * The same function the Practice tab's lock reads (`lib/journey/firstSession`),
+   * because the two must not be able to disagree: if this screen said "done"
+   * while the tab said "locked", the learner would meet a sheet that explains
+   * a lock on a screen that says there is none.
+   */
+  const firstSessionDone = isFirstSessionDone({
+    guided,
+    sessionCount: completedEpisodes,
+    user,
+  });
   const scenarios = data?.scenarios ?? [];
   const training = data?.training ?? [];
   const reviewItems = data?.reviewItems ?? [];

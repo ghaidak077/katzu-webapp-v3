@@ -17,6 +17,8 @@ import { DAILY_MINUTE_CHOICES, type DailyMinuteChoice } from '@/types/models';
 import { RouteFallback } from '@/components/common/RouteFallback';
 import { WelcomeScreen } from '@/features/auth/WelcomeScreen';
 import { SignInScreen } from '@/features/auth/SignInScreen';
+import { PracticeLockSheet } from '@/features/journey/PracticeLockSheet';
+import { usePracticeLock, type PracticeLock } from '@/features/journey/usePracticeLock';
 
 /**
  * The app shell: every route except the landing page.
@@ -123,7 +125,7 @@ const DesignSystemScreen = isDevBuild
   : null;
 
 // Navigation & Icons
-import { Map, Dumbbell, BarChart3, User, ClipboardList, ArrowLeft } from 'lucide-react';
+import { Map, Dumbbell, BarChart3, User, ClipboardList, ArrowLeft, Lock } from 'lucide-react';
 import { GlassEffectContainer } from '@/components/glass/GlassEffectContainer';
 import { GlassButton } from '@/components/glass/GlassButton';
 
@@ -152,6 +154,16 @@ export function AppShell() {
   const user = useLiveQuery(() => db.users.get('current_user'));
   const isOnline = useOnlineStatus();
   const reconciledRef = React.useRef(false);
+
+  /**
+   * The Practice/Progress lock.
+   *
+   * It lives HERE, above the routes, and not inside one of them: a locked route
+   * replaces its own URL with the home screen, and a sheet mounted inside that
+   * route would be unmounted by the very navigation it triggered. One state, one
+   * sheet, whichever route asked for it.
+   */
+  const lock = usePracticeLock();
 
   // B4c: resolve the renderer tier once and publish it as a root class, so the
   // glass material can drop blur/saturation/grain on constrained devices.
@@ -314,15 +326,15 @@ export function AppShell() {
               <Route path="/dev/system" element={<DesignSystemScreen />} />
             )}
             <Route path="/app/grammar" element={<GrammarRoute />} />
-            <Route path="/app/review" element={<ReviewRoute />} />
+            <Route path="/app/review" element={<ReviewRoute lock={lock} />} />
             <Route path="/app/listen" element={<ListeningRoute />} />
             <Route path="/app/write" element={<WritingRoute />} />
             <Route path="/app/coach" element={<CoachRoute />} />
             <Route path="/app/ask" element={<AskRoute />} />
             <Route path="/app" element={<Navigate to="/app/trail" replace />} />
-            <Route path="/app/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
+            <Route path="/app/:tab" element={<MainTabsRoute onSignOut={handleSignOut} lock={lock} />} />
             <Route path="/main" element={<Navigate to="/app/trail" replace />} />
-            <Route path="/main/:tab" element={<MainTabsRoute onSignOut={handleSignOut} />} />
+            <Route path="/main/:tab" element={<MainTabsRoute onSignOut={handleSignOut} lock={lock} />} />
             <Route path="/scenario/:scenarioId" element={<ScenarioRoute />} />
             <Route path="/scenario/:scenarioId/study" element={<StudyRoute />} />
             <Route path="/scenario/:scenarioId/quiz" element={<QuizRoute />} />
@@ -540,8 +552,24 @@ function PaywallRoute() {
   return <PaywallScreen />;
 }
 
-function ReviewRoute() {
+/**
+ * The review queue opens with the same first conversation the tabs wait for.
+ *
+ * A typed `/app/review` on day 0 lands on the home screen with the sheet open:
+ * the route is replaced (not pushed), so the Back gesture answers with the
+ * screen the learner came from instead of bouncing between the review and the
+ * home screen forever.
+ */
+function ReviewRoute({ lock }: { lock: PracticeLock }) {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (lock.locked) lock.show();
+  }, [lock.locked, lock.show]);
+
+  if (lock.locked) {
+    return <Navigate to="/app/trail" replace />;
+  }
   return <ReviewScreen onBack={() => navigate('/app/trail')} />;
 }
 
@@ -597,14 +625,37 @@ function GrammarRoute() {
   );
 }
 
-function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
+function MainTabsRoute({ onSignOut, lock }: { onSignOut: () => Promise<void>; lock: PracticeLock }) {
   const navigate = useNavigate();
   const { tab = 'trail' } = useParams();
   const activeTab = toNavigationTab(tab);
-  const setTab = (nextTab: NavigationTab) => navigate(`/app/${nextTab.toLowerCase()}`);
+
+  /**
+   * Practice and Progress stay closed until the first conversation is finished.
+   *
+   * One fact (`lock.locked`), read in three places: the tap, the URL and the
+   * tab's own look. A learner who types the route must land on the same screen
+   * as a learner who taps the tab — otherwise the lock is a suggestion.
+   */
+  const tabLocked = lock.locked && (activeTab === 'Practice' || activeTab === 'Progress');
+
+  const setTab = (nextTab: NavigationTab) => {
+    if (lock.locked && (nextTab === 'Practice' || nextTab === 'Progress')) {
+      lock.show();
+      return;
+    }
+    navigate(`/app/${nextTab.toLowerCase()}`);
+  };
+
+  // A typed `/app/practice` (or `/app/progress`) on day 0: the URL is replaced
+  // by the home screen and the sheet says why.
+  useEffect(() => {
+    if (tabLocked) lock.show();
+  }, [tabLocked, lock.show]);
 
   return (
     <>
+      {tabLocked && <Navigate to="/app/trail" replace />}
       {activeTab === 'Trail' && (
         <JourneyHomeScreen
           onStartMission={(scenarioId) =>
@@ -622,7 +673,7 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
           onOpenCoach={() => navigate('/app/coach')}
         />
       )}
-      {activeTab === 'Practice' && (
+      {activeTab === 'Practice' && !tabLocked && (
         <PracticeScreen
           onOpenListening={() => navigate('/app/listen')}
           onOpenWriting={() => navigate('/app/write')}
@@ -632,7 +683,7 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
           onOpenMock={() => navigate('/mock')}
         />
       )}
-      {activeTab === 'Progress' && (
+      {activeTab === 'Progress' && !tabLocked && (
         <ProgressScreen
           onOpenScenario={(scenarioId) =>
             navigate(`/scenario/${encodeURIComponent(scenarioId)}/study`)
@@ -664,16 +715,30 @@ function MainTabsRoute({ onSignOut }: { onSignOut: () => Promise<void> }) {
           className="kz-surface overflow-hidden flex items-center justify-around"
         >
           <TabButton glassKey="Trail" active={activeTab === 'Trail'} onClick={() => setTab('Trail')} icon={<Map />} label="الرحلة" />
-          <TabButton glassKey="Practice" active={activeTab === 'Practice'} onClick={() => setTab('Practice')} icon={<Dumbbell />} label="التدريب" />
-          <TabButton glassKey="Progress" active={activeTab === 'Progress'} onClick={() => setTab('Progress')} icon={<BarChart3 />} label="التقدم" />
+          <TabButton glassKey="Practice" active={activeTab === 'Practice'} onClick={() => setTab('Practice')} icon={<Dumbbell />} label="التدريب" locked={lock.locked} />
+          <TabButton glassKey="Progress" active={activeTab === 'Progress'} onClick={() => setTab('Progress')} icon={<BarChart3 />} label="التقدم" locked={lock.locked} />
           <TabButton glassKey="Profile" active={activeTab === 'Profile'} onClick={() => setTab('Profile')} icon={<User />} label="الملف" />
         </GlassEffectContainer>
       </nav>
+      {/* The lock sheet is a SIBLING of the nav, never a child of the glass
+          container: a child would be measured as a fifth tab and would move
+          the pill. It is also outside the nav's own box, so it can never be
+          clipped by the tab bar's safe-area padding. */}
+      <PracticeLockSheet isOpen={lock.open} onClose={lock.hide} />
     </>
   );
 }
 
-function TabButton({ glassKey, active, onClick, icon, label }: { glassKey?: string; active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+/**
+ * One tab.
+ *
+ * A locked tab keeps the SAME icon and the SAME inactive ink — it is not
+ * dimmed, because a dimmed control reads as "broken" and this one is not: it
+ * opens an explanation. The lock is a small badge in the corner, `aria-hidden`
+ * (the name says it in words), and the button is `aria-disabled` rather than
+ * `disabled`, because it is still operable — it opens the sheet.
+ */
+function TabButton({ glassKey, active, onClick, icon, label, locked = false }: { glassKey?: string; active: boolean; onClick: () => void; icon: React.ReactNode; label: string; locked?: boolean }) {
   return (
     // V19: the active-tab highlight is the container's own concentric pill
     // (rendered by GlassEffectContainer from the activeBox); the button itself
@@ -684,7 +749,9 @@ function TabButton({ glassKey, active, onClick, icon, label }: { glassKey?: stri
       <button
         onClick={onClick}
         aria-current={active ? 'page' : undefined}
-        className={`flex min-h-[48px] w-full flex-col items-center justify-center gap-1 rounded-control px-2 ${
+        aria-disabled={locked ? 'true' : undefined}
+        aria-label={locked ? `${label} — مقفل حتى أول محادثة` : undefined}
+        className={`relative flex min-h-[48px] w-full flex-col items-center justify-center gap-1 rounded-control px-2 ${
           active ? 'text-kz-lavender' : 'text-kz-inkFaint'
         }`}
       >
@@ -693,6 +760,15 @@ function TabButton({ glassKey, active, onClick, icon, label }: { glassKey?: stri
         })
         }
         <span className="font-arabic text-micro">{label}</span>
+        {locked && (
+          <span
+            aria-hidden="true"
+            data-testid={`tab-lock-${glassKey}`}
+            className="absolute end-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-kz-black/60 text-kz-inkFaint"
+          >
+            <Lock className="h-2.5 w-2.5" />
+          </span>
+        )}
       </button>
     </div>
   );

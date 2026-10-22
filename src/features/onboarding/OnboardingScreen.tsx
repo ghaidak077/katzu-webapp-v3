@@ -92,7 +92,20 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
     setStep(next);
   };
 
-  const save = async (choice: PlacementChoice, overrides: Partial<OnboardingAnswers> = {}) => {
+  /**
+   * Writes the answers and ends the flow.
+   *
+   * `source` is what the funnel sees, and it is NOT always the placement
+   * choice: skipping the FIRST question is a different act from skipping the
+   * placement check, and the funnel has to be able to tell them apart — a
+   * learner who walked past the goal question is a different cohort from one
+   * who answered it and then declined the test.
+   */
+  const save = async (
+    choice: PlacementChoice,
+    overrides: Partial<OnboardingAnswers> = {},
+    source: string = choice,
+  ) => {
     if (isSaving) return;
     setIsSaving(true);
     try {
@@ -106,7 +119,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
       if (choice === 'skip' && mode === 'edit') {
         await db.users.update('current_user', placementSkipPatch());
       }
-      track('onboarding_completed', { source: choice });
+      track('onboarding_completed', { source });
     } catch (error) {
       // A failed local write must not trap the learner: the app continues and
       // the prompt card in the Trail will ask again next time.
@@ -211,6 +224,26 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                 </button>
               ))}
             </div>
+
+            {/* The way past the first question.
+                One question stands between a new learner and their first
+                conversation, and a question nobody is obliged to answer is a
+                wall. The guided home opens that conversation, so the goal
+                question may be skipped — nothing is written for it, the level
+                stays unmeasured, and the funnel is told this learner walked
+                past it (`source: 'skip_first'`) rather than that they declined
+                the placement check. */}
+            {mode === 'first_run' && guided && (
+              <GlassButton
+                variant="quiet"
+                fullWidth
+                className="mt-4"
+                disabled={isSaving}
+                onClick={() => void save('skip', {}, 'skip_first')}
+              >
+                تخطَّ الآن وابدأ
+              </GlassButton>
+            )}
           </GlassCard>
         )}
 

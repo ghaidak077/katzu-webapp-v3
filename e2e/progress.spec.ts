@@ -12,7 +12,9 @@ const NOW = 1_800_000_000_000;
  * pointing at anything ("إجمالي الجمل") are gone.
  */
 test('Progress leads with capability and tags every row with its state and origin', async ({ page }) => {
-  await bootSignedIn(page, { user: { cefrLevel: 'A1' } });
+  // Reaches /app/progress, which is locked until the first conversation — the
+  // finished episode opens it deterministically before the screen's own seeds.
+  await bootSignedIn(page, { user: { cefrLevel: 'A1' }, history: true });
 
   await seedRows(page, 'sessions', [
     {
@@ -139,7 +141,7 @@ test('Progress leads with capability and tags every row with its state and origi
 });
 
 test('Progress states an unmeasured skill instead of showing a zero, and never promises Reading', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
   await page.goto('/app/progress');
 
   // The three trainable skills are genuinely unmeasured on a fresh account;
