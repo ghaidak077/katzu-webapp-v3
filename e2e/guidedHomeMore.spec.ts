@@ -90,9 +90,13 @@ test('day 0: the sheet carries the destinations and nothing about later', async 
   await expect(entry).toHaveAttribute('aria-haspopup', 'dialog');
   await openMore(page);
 
-  // Continue learning: the scenarios plus the skills that used to be a tab away.
-  for (const row of ['more-library', 'more-grammar', 'more-listening', 'more-writing', 'more-coach']) {
-    await expect(page.getByTestId(row)).toBeVisible();
+  // Continue learning on day 0 is the library and nothing else: grammar,
+  // listening, writing and coach are the Practice tab's screens, and that tab is
+  // locked until the first finished conversation. Listing them here would be a
+  // side door around the lock the next step adds.
+  await expect(page.getByTestId('more-library')).toBeVisible();
+  for (const row of ['more-grammar', 'more-listening', 'more-writing', 'more-coach']) {
+    await expect(page.getByTestId(row)).toHaveCount(0);
   }
   await expect(page.getByTestId('more-preferences')).toBeVisible();
 
@@ -113,6 +117,12 @@ test('day 0: the sheet carries the destinations and nothing about later', async 
 test('each destination in the sheet is one tap from the home screen', async ({ page }) => {
   await setSwitch(page, '1');
   await bootSignedIn(page);
+  // One finished session, because four of these rows are the Practice tab's and
+  // stay hidden until it unlocks (step 1c). Day-0 navigation to the library is
+  // covered where it naturally happens: `openLibraryFromHome` in banner/firstRun.
+  await seedRows(page, 'sessions', [aSession()]);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
 
   const destinations = [
     ['more-library', /\/app\/library$/],
@@ -149,6 +159,8 @@ test('a due card on day 0 is not enough: review needs a finished session', async
   await expect(page.getByTestId('more-review')).toHaveCount(0);
   await expect(page.getByTestId('weekly-recap-card')).toHaveCount(0);
   await expect(page.getByTestId('more-pro')).toHaveCount(0);
+  // A due card does not unlock the skills either: the tab lock follows sessions.
+  await expect(page.getByTestId('more-writing')).toHaveCount(0);
 });
 
 test('after the first session the sheet gains review, the recap and the Pro offer', async ({ page }) => {
@@ -164,6 +176,11 @@ test('after the first session the sheet gains review, the recap and the Pro offe
   // Review is due AND something has been finished — the two conditions, both now
   // real. The sheet lists it even though the hero is the review CTA today: a
   // menu that hides the queue it offers is how a learner concludes it is gone.
+  // The four skill rows arrive with the same fact that unlocks the Practice tab.
+  for (const row of ['more-grammar', 'more-listening', 'more-writing', 'more-coach']) {
+    await expect(page.getByTestId(row)).toBeVisible();
+  }
+
   const reviewRow = page.getByTestId('more-review');
   await expect(reviewRow).toBeVisible();
   await expect(reviewRow).toContainText('مراجعة مستحقة: 1');

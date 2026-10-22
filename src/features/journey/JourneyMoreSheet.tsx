@@ -21,9 +21,10 @@ import type { CEFRLevel } from '@/types/models';
  *     may the Pro offer be shown, is there a recap) is computed on the home
  *     screen from recorded evidence and passed in already answered. A sheet that
  *     re-derived them could disagree with the screen behind it.
- *  2. It renders no empty row. A learner on day 0 sees «تابع التعلّم», the goal
- *     card and «تفضيلاتك» — not a review row for cards they have never made and
- *     not a recap of a week they have not started.
+ *  2. It renders no empty row. A learner on day 0 sees «تابع التعلّم» with the
+ *     library ALONE, the goal card and «تفضيلاتك» — not a review row for cards
+ *     they have never made, not a recap of a week they have not started, and not
+ *     the four skill surfaces the Practice tab still holds behind its day-0 lock.
  *  3. Every row is one tap, 44px tall, and closes the sheet before it navigates,
  *     so a learner never lands on a new screen with a sheet still over it.
  */
@@ -57,6 +58,17 @@ export interface JourneyMoreSheetProps {
    * finished yet, so a review list would be an empty promise.
    */
   reviewDueCount: number;
+  /**
+   * Has the learner finished a conversation yet (`db.sessions.count() > 0`)?
+   *
+   * On day 0 this sheet offers exactly ONE destination — كل المشاهد — because the
+   * four skill surfaces (grammar, listening, writing, coach) are the Practice
+   * tab's, and the guided refinement locks that tab until the first session is
+   * done. Leaving them here would be a side door around the lock: the tab would
+   * say "finish your first conversation" while «المزيد» quietly opened Writing.
+   * The lock and this gate therefore read the same fact and cannot disagree.
+   */
+  firstSessionDone: boolean;
   /** Katzu's one line, when a real state produced it. */
   katzuLineAr?: string;
   katzuState?: KatzuState;
@@ -118,6 +130,7 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
   onOpenCoach,
   onOpenPreferences,
   reviewDueCount,
+  firstSessionDone,
   katzuLineAr,
   katzuState = 'journey',
   capability,
@@ -150,16 +163,20 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
 
         <Section title="تابع التعلّم">
           <Row label="كل المشاهد والمستويات" hint="كل المواقف، مرتّبة بالمستوى" testId="more-library" onClick={go(onOpenLibrary)} />
-          {onOpenGrammar && (
+          {/* Day 0: the scenarios only. The four skills below belong to the
+              Practice tab, which is locked until the first conversation is
+              finished — so listing them here would be the side door around that
+              lock. They appear the moment the tab does, on the same fact. */}
+          {firstSessionDone && onOpenGrammar && (
             <Row label="القواعد" hint="قاعدة واحدة في كل مرة، مع تمرين قصير" testId="more-grammar" onClick={go(onOpenGrammar)} />
           )}
-          {onOpenListening && (
+          {firstSessionDone && onOpenListening && (
             <Row label="الاستماع" hint="تدرّب على فهم الألمانية المنطوقة" testId="more-listening" onClick={go(onOpenListening)} />
           )}
-          {onOpenWriting && (
+          {firstSessionDone && onOpenWriting && (
             <Row label="الكتابة" hint="اكتب سطوراً قصيرة وتُصحَّح" testId="more-writing" onClick={go(onOpenWriting)} />
           )}
-          {onOpenCoach && (
+          {firstSessionDone && onOpenCoach && (
             <Row label="المدرّب" hint="اسأل عن أي شيء في الألمانية" testId="more-coach" onClick={go(onOpenCoach)} />
           )}
         </Section>

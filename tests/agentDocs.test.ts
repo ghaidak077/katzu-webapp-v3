@@ -70,6 +70,8 @@ const DEFAULT_DOC_KB = 22;
 const DOC_EXEMPT: Record<string, string> = {
   'docs/agent/ARCHIVE-AGENT-STATE.md':
     'append-only history moved out of the ledger; never read whole, only grepped — capping it would mean deleting history, which this repo does not do',
+  'docs/agent/APP-MAP-ARCHIVE.md':
+    'the older half of APP-MAP\'s change log, moved verbatim when the map reached its 135 KB budget; append-only history, grepped, never read whole',
 };
 
 const docFiles = (): string[] => walk('docs').filter((file) => file.endsWith('.md')).sort();
@@ -149,11 +151,14 @@ describe('agent orientation documents stay readable', () => {
 
   it('no document is exempt for being merely large', () => {
     // The exemption is "nothing reads this whole", not "this one got big". A file that a run reads
-    // must be budgeted, however awkward the number is.
+    // must be budgeted, however awkward the number is. Exactly two documents qualify, and both are
+    // append-only history that a run greps: the ledger's archive and the map's. A third filed here
+    // is a decision to change this list, never a side effect of hitting a cap.
+    const archives = ['docs/agent/ARCHIVE-AGENT-STATE.md', 'docs/agent/APP-MAP-ARCHIVE.md'];
     for (const file of Object.keys(DOC_EXEMPT)) {
-      expect(file, 'only the ledger archive is exempt from a size cap').toBe('docs/agent/ARCHIVE-AGENT-STATE.md');
+      expect(archives, 'only append-only history archives may skip a size cap').toContain(file);
     }
-    expect(Object.keys(DOC_EXEMPT).length).toBeLessThanOrEqual(2);
+    expect(Object.keys(DOC_EXEMPT).length).toBeLessThanOrEqual(archives.length);
   });
 
   for (const [file, budgetKb] of Object.entries(BUDGETS_KB)) {

@@ -98,6 +98,25 @@ describe('JourneyHomeScreen consults the flag', () => {
     expect(source).toContain('{!guided && !isPro && (');
   });
 
+  it('day 0 in the sheet: the library alone, because the skills are behind the tab lock', () => {
+    // Step 1c. The Practice tab is locked until the first finished conversation,
+    // and grammar/listening/writing/coach are that tab's screens — a sheet that
+    // listed them on day 0 would be a side door around the lock. Same fact, one
+    // gate: `firstSessionDone`, which the home screen computes from recorded
+    // sessions only.
+    const sheet = readFileSync('src/features/journey/JourneyMoreSheet.tsx', 'utf8');
+    for (const surface of ['Grammar', 'Listening', 'Writing', 'Coach']) {
+      expect(sheet, `${surface} must be gated on firstSessionDone`).toContain(
+        `{firstSessionDone && onOpen${surface} && (`,
+      );
+    }
+    // The library is the one destination day 0 keeps, and it is not gated.
+    const libraryRow = sheet.slice(sheet.indexOf('testId="more-library"') - 220, sheet.indexOf('testId="more-library"'));
+    expect(libraryRow).not.toContain('firstSessionDone');
+    // The home screen hands the sheet the same boolean it uses for the review row.
+    expect(source).toContain('firstSessionDone={firstSessionDone}');
+  });
+
   it('moves the six blocks into one sheet instead of deleting them', () => {
     expect(source).toContain("import { JourneyMoreSheet } from '@/features/journey/JourneyMoreSheet'");
     expect(source).toContain('data-testid="journey-more"');

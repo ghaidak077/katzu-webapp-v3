@@ -657,6 +657,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             onOpenCoach={onOpenCoach}
             onOpenPreferences={onOpenOnboarding}
             reviewDueCount={sheetReviewCount}
+            firstSessionDone={firstSessionDone}
             katzuLineAr={katzuLineAr ?? undefined}
             katzuState={katzuState}
             capability={latestCapability}
