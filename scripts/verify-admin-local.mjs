@@ -2,31 +2,20 @@
 /**
  * The admin dashboard, exercised with a key against a seeded local database.
  *
- * WHY THIS EXISTS
- * `/admin` lives inside a template literal, served by a worker whose data paths need
- * `ADMIN_SECRET`, which AGENTS.md §3 forbids an agent reading — so the checks
- * possible were "the page parses" and "unauth returns 401", both true of a
- * dashboard whose panels are all empty and whose writes all fail silently. The
- * 2026-10-22 run found three defects no curl had seen (registry bootstrap that
- * could never run on a fresh D1, `api()` reporting success for a 403, saved provider
- * keys reading "0 keys · env"). This script is that run, kept.
+ * `/admin` is served by a worker whose data paths all need `ADMIN_SECRET`, which
+ * AGENTS.md §3 forbids an agent reading — so the checks possible were "the page parses"
+ * and "unauth returns 401", both true of a dashboard whose panels are empty and whose
+ * writes fail silently. The 2026-10-22 run of this harness found four defects no curl had
+ * seen; it is that run, kept. It never reads the production secret: throwaway key + HMAC
+ * secret, a fresh `--persist-to` dir (every run IS a fresh database), `migrations/0001`,
+ * the registry created through the real route, three seeded users, then every endpoint
+ * with the key and the served page in Chromium — eight tabs, drawer, plan extend, codes,
+ * providers — failing on any console error or a page that misses its last line.
  *
- * It never reads the production secret or touches production: it boots the real
- * worker under `wrangler dev` with a throwaway key and HMAC secret, a fresh
- * `--persist-to` directory (every run IS a fresh database, which is what caught
- * defect 1), applies `migrations/0001_content_tables.sql`, creates the registry
- * through the real route, seeds three users with activity and an error, then:
- *
- *   1. sweeps every admin endpoint with the throwaway key,
- *   2. drives the served page in Chromium — eight tabs, the user drawer, plan
- *      extend, code generation, the codes report, provider save/clear — and
- *   3. fails on any console error or a page that never reaches its last line.
- *   npm run verify:admin:local
- *   npm run verify:admin:local -- --no-browser   # API only, no Chromium needed
- *   npm run verify:admin:local -- --keep         # leave the server up; prints URL + key
- *
- * Exit 0 = all passed. Exit 1 = something failed. Exit 2 = the harness could not
- * start (wrangler missing, port taken, worker never answered).
+ *   npm run verify:admin:local                   # 37 checks, ~2 min
+ *   npm run verify:admin:local -- --no-browser    # API only, no Chromium
+ *   npm run verify:admin:local -- --keep          # leave it up; prints URL + key
+ * Exit 0 = passed. Exit 1 = a check failed. Exit 2 = the harness could not start.
  */
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -95,6 +84,19 @@ async function main() {
       }
     }
   };
+  /** Stops the worker and waits for the port to stop answering, so the next boot owns it. */
+  const stopAndWait = async () => {
+    stopServer();
+    const until = Date.now() + 15_000;
+    while (Date.now() < until) {
+      try {
+        await fetch(`${base}/health`, { signal: AbortSignal.timeout(1500) });
+      } catch {
+        return;
+      }
+      await sleep(250);
+    }
+  };
   const cleanup = () => {
     try {
       browser?.close();
@@ -141,27 +143,6 @@ async function main() {
     process.exit(2);
   }
 
-  // ---- 1. Boot the worker --------------------------------------------------
-  const logFd = openSync(logPath, 'a');
-  // Never inherit a real ADMIN_SECRET/HMAC_SECRET from the caller's shell (§3).
-  const childEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(ADMIN|HMAC)_SECRET$/.test(k)));
-  child = spawn(
-    process.execPath,
-    [
-      WRANGLER, 'dev', entryPath,
-      '--config', 'wrangler.toml',
-      '--ip', '127.0.0.1',
-      '--port', String(port),
-      '--persist-to', stateDir,
-      // ENVIRONMENT=local makes ALLOW_OPEN_CORS meaningful; production ignores it and refuses these writes.
-      '--var', 'ENVIRONMENT:local',
-      '--var', 'ALLOW_OPEN_CORS:1',
-      '--var', `ADMIN_SECRET:${ADMIN_KEY}`,
-      '--var', `HMAC_SECRET:${HMAC_KEY}`,
-    ],
-    { cwd: ROOT, env: childEnv, detached: process.platform !== 'win32', stdio: ['ignore', logFd, logFd] },
-  );
-
   const logTail = (lines = 25) => {
     try {
       return readFileSync(logPath, 'utf8').trim().split('\n').slice(-lines).join('\n');
@@ -169,26 +150,58 @@ async function main() {
       return '(no log)';
     }
   };
-  const deadline = Date.now() + 90_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) break;
-    try {
-      const res = await fetch(`${base}/health`);
-      if (res.ok) {
-        ready = true;
-        break;
-      }
-    } catch {}
-    await sleep(400);
-  }
-  if (!ready) {
-    console.error(`\nThe worker never answered /health on ${base}.\n\n${logTail()}`);
-    cleanup();
-    process.exit(2);
-  }
-  closeSync(logFd);
-  info(`worker up (pid ${child.pid}), log: ${logPath}`);
+
+  // ---- 1. Boot the worker --------------------------------------------------
+  // Called twice: once to create the registry (the state under test), then — after the
+  // seeding below — again for everything that reads it. `wrangler dev` watches its
+  // persist directory, so writing seed rows into it while live both reloads the worker
+  // mid-request (`TypeError: fetch failed` on 2026-10-22, twice in a row, after the
+  // server had answered eight requests) and makes a second `d1 execute` compete with
+  // the running Miniflare for the same SQLite file, which on Windows can hang instead
+  // of failing. Seeding with the server stopped removes both.
+  const boot = async () => {
+    const logFd = openSync(logPath, 'a');
+    // Never inherit a real ADMIN_SECRET/HMAC_SECRET from the caller's shell (§3).
+    const childEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(ADMIN|HMAC)_SECRET$/.test(k)));
+    child = spawn(
+      process.execPath,
+      [
+        WRANGLER, 'dev', entryPath,
+        '--config', 'wrangler.toml',
+        '--ip', '127.0.0.1',
+        '--port', String(port),
+        '--persist-to', stateDir,
+        // ENVIRONMENT=local makes ALLOW_OPEN_CORS meaningful; production ignores it and refuses these writes.
+        '--var', 'ENVIRONMENT:local',
+        '--var', 'ALLOW_OPEN_CORS:1',
+        '--var', `ADMIN_SECRET:${ADMIN_KEY}`,
+        '--var', `HMAC_SECRET:${HMAC_KEY}`,
+      ],
+      { cwd: ROOT, env: childEnv, detached: process.platform !== 'win32', stdio: ['ignore', logFd, logFd] },
+    );
+    const deadline = Date.now() + 90_000;
+    let ready = false;
+    while (Date.now() < deadline) {
+      if (child.exitCode !== null) break;
+      try {
+        const res = await fetch(`${base}/health`);
+        if (res.ok) {
+          ready = true;
+          break;
+        }
+      } catch {}
+      await sleep(400);
+    }
+    closeSync(logFd);
+    if (!ready) {
+      console.error(`\nThe worker never answered /health on ${base}.\n\n${logTail()}`);
+      cleanup();
+      process.exit(2);
+    }
+    info(`worker up (pid ${child.pid}), log: ${logPath}`);
+  };
+
+  await boot();
   console.log();
 
   // ---- 2. The endpoints, with the throwaway key ----------------------------
@@ -206,6 +219,7 @@ async function main() {
     const json = await res.json().catch(() => null);
     return { status: res.status, json };
   };
+  const post = (path, payload) => body(path, { method: 'POST', body: JSON.stringify(payload) });
 
   const health = await fetch(`${base}/health`).then((r) => r.json());
   check('/health answers', health?.status === 'healthy', `ready=${health?.ready}`);
@@ -227,6 +241,9 @@ async function main() {
   );
 
   // ---- 3. Seed it, the way real traffic would have -------------------------
+  // Server down: see the note on `boot` above. The registry the previous request just
+  // created is on disk, so these rows land in the real schema, not a hand-written one.
+  await stopAndWait();
   const now = Date.now();
   const day = 86_400_000;
   const expires = now + 20 * day;
@@ -253,6 +270,8 @@ INSERT INTO error_reports (user_id, error_type, endpoint, message, created_at) V
     cleanup();
     process.exit(2);
   }
+  await boot();
+  console.log();
 
   const users = await body('/admin/api/users');
   const userRows = users.json?.users || [];
@@ -284,10 +303,7 @@ INSERT INTO error_reports (user_id, error_type, endpoint, message, created_at) V
     `${(providers.json?.defaults || []).length} defaults · ${(providers.json?.pool_order || []).length} in order`,
   );
 
-  const saved = await body('/admin/api/ai-provider-save', {
-    method: 'POST',
-    body: JSON.stringify({ id: 'nvidia', keys: ['local-key-one', 'local-key-two'] }),
-  });
+  const saved = await post('/admin/api/ai-provider-save', { id: 'nvidia', keys: ['local-key-one', 'local-key-two'] });
   check('POST /admin/api/ai-provider-save stores keys on a built-in entry', saved.json?.keyCount === 2, `keyCount=${saved.json?.keyCount}`);
 
   const afterSave = await body('/admin/api/ai-providers');
@@ -300,10 +316,7 @@ INSERT INTO error_reports (user_id, error_type, endpoint, message, created_at) V
     `${nvidia?.keyCount} · ${nvidia?.keySource}`,
   );
 
-  const generated = await body('/admin/generate', {
-    method: 'POST',
-    body: JSON.stringify({ months: 3, count: 3, label: 'local-harness' }),
-  });
+  const generated = await post('/admin/generate', { months: 3, count: 3, label: 'local-harness' });
   const minted = generated.json?.codes || [];
   check('POST /admin/generate mints a labelled batch', generated.status === 200 && minted.length === 3, `${minted.length} codes`);
 
@@ -316,14 +329,8 @@ INSERT INTO error_reports (user_id, error_type, endpoint, message, created_at) V
   );
 
   // alpha already carries an expiry, so this proves a real month step (day preserved).
-  const before = await body('/admin/lookup', {
-    method: 'POST',
-    body: JSON.stringify({ email: 'alpha@harness.test' }),
-  });
-  const extended = await body('/admin/edit', {
-    method: 'POST',
-    body: JSON.stringify({ email: 'alpha@harness.test', add_months: 1 }),
-  });
+  const before = await post('/admin/lookup', { email: 'alpha@harness.test' });
+  const extended = await post('/admin/edit', { email: 'alpha@harness.test', add_months: 1 });
   const from = before.json?.expiresAt ? new Date(before.json.expiresAt) : null;
   const to = extended.json?.new_expires_at ? new Date(extended.json.new_expires_at) : null;
   const monthStep = from && to ? (to.getUTCMonth() - from.getUTCMonth() + 12) % 12 : null;
@@ -333,14 +340,8 @@ INSERT INTO error_reports (user_id, error_type, endpoint, message, created_at) V
     `${before.json?.expiresAt || 'no expiry'} → ${extended.json?.new_expires_at || 'none'}`,
   );
 
-  const revoked = await body('/admin/revoke', {
-    method: 'POST',
-    body: JSON.stringify({ email: 'beta@harness.test' }),
-  });
-  const afterRevoke = await body('/admin/lookup', {
-    method: 'POST',
-    body: JSON.stringify({ email: 'beta@harness.test' }),
-  });
+  const revoked = await post('/admin/revoke', { email: 'beta@harness.test' });
+  const afterRevoke = await post('/admin/lookup', { email: 'beta@harness.test' });
   check(
     'POST /admin/revoke clears the plan and the lookup agrees',
     revoked.status === 200 && afterRevoke.json?.active !== true,
@@ -352,10 +353,7 @@ INSERT INTO error_reports (user_id, error_type, endpoint, message, created_at) V
 
   // A refused write must be refused, not silently accepted: the server half of the
   // false-success defect, where `api()` only threw on 401 and a 404 read as data.
-  const refused = await body('/admin/edit', {
-    method: 'POST',
-    body: JSON.stringify({ email: 'nobody@harness.test', add_months: 1 }),
-  });
+  const refused = await post('/admin/edit', { email: 'nobody@harness.test', add_months: 1 });
   check('a write for an unknown user is refused', refused.status === 404, `status=${refused.status}`);
 
   // ---- 4. The real page, in Chromium --------------------------------------
