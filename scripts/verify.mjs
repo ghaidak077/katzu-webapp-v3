@@ -196,6 +196,29 @@ export function isFlaky(status, output) {
   return false;
 }
 
+/**
+ * The lines that name what actually failed, pulled out of a large step output.
+ *
+ * A non-zero exit with a lot of output is classified flaky (`isFlaky`), and the runner used to print
+ * only "may pass on re-run" — no test name, no assertion, no reason. On 2026-10-22 that cost a full
+ * 156-second re-run to learn that one IndexedDB test had timed out; a red gate nobody can read is the
+ * same failure mode as the invented `ENOBUFS` failure `MAX_OUTPUT_BYTES` exists to prevent. Prints
+ * failure headings, error lines and timeout notices first, then the tail, capped.
+ */
+export function failureEvidence(output, limit = 24) {
+  const lines = (output || '').split(/\r?\n/).filter((line) => line.trim() !== '');
+  const signals = lines.filter((line) =>
+    /^\s*(FAIL|×|✗)|Failed Tests|Unhandled (Rejection|Error)|^\s*Error: |AssertionError|Test timed out|Exceeded timeout|ELIFECYCLE|npm ERR!/.test(
+      line,
+    ),
+  );
+  const picked = [...new Set(signals)].slice(0, limit);
+  if (picked.length === 0) return lines.slice(-limit);
+  // Keep the last few lines too: a stack's final frame usually names the file.
+  const tailLines = lines.slice(-6).filter((line) => !picked.includes(line));
+  return [...picked, ...tailLines].slice(0, limit + tailLines.length);
+}
+
 export function main(argv = process.argv.slice(2)) {
   const planned = plan(argv);
   const { steps } = planned;
@@ -230,8 +253,10 @@ export function main(argv = process.argv.slice(2)) {
         // Exit 0 is a pass. Noisy output alone must not fail the gate, so flag it and move on.
         console.log(`  → noisy output (${lineCount} lines) with exit 0: not a failure`);
       } else {
-        // A non-zero exit that looks intermittent is still a failed step; say so, and say it may pass on re-run.
-        console.log(`  → flaky output (${lineCount} lines) may pass on re-run`);
+        // A non-zero exit that looks intermittent is still a failed step; say so, say it may pass on
+        // re-run, and print what failed — otherwise the only way to find out is to run it again.
+        console.log(`  → flaky output (${lineCount} lines) may pass on re-run; what failed:`);
+        console.log(failureEvidence(result.output).map((line) => `      ${line}`).join('\n'));
         failures.push(`${step.name} (flaky)`);
       }
     }

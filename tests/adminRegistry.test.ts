@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import worker from '../cloudflare-unified-worker';
 import {
   ensureRegistryTables,
+  planExtensionBase,
   publicAppOrigin,
   redeemMessageAr,
   sanitizeLogMessage,
@@ -307,6 +308,34 @@ async function makeCode(months: number, secret: string): Promise<string> {
 }
 
 // ============================================================================
+
+/**
+ * "+1 month" has to mean one month after the date the drawer shows.
+ *
+ * `/admin/edit` based the step on the KV account record alone and fell back to
+ * *today* when it was absent, while the registry column still held a plan — so a
+ * registry-only user (KV expired away, or a grant applied through D1) saw
+ * "Expires 2026-11-11" and got "2026-11-22" back. `npm run verify:admin:local`
+ * seeds that shape, which is how the gap was found.
+ */
+describe('Step 3e: the plan extension counts from the recorded expiry', () => {
+  it('uses the expiry the dashboard displays', () => {
+    const recorded = Date.UTC(2026, 10, 11);
+    expect(planExtensionBase('2026-11-11T00:00:00.000Z', Date.UTC(2026, 9, 22))).toBe(recorded);
+  });
+
+  it('falls back to now only when no record carries an expiry', () => {
+    const now = Date.UTC(2026, 9, 22);
+    expect(planExtensionBase(null, now)).toBe(now);
+    expect(planExtensionBase(undefined, now)).toBe(now);
+    expect(planExtensionBase('not a date', now)).toBe(now);
+  });
+
+  it('revives a lapsed plan for a month from today, not from its old expiry', () => {
+    const now = Date.UTC(2026, 9, 22);
+    expect(planExtensionBase('2026-03-01T00:00:00.000Z', now)).toBe(now);
+  });
+});
 
 describe('Step 2: additive user registry schema', () => {
   it('creates users/activity_log/error_reports and issues no destructive DDL', async () => {

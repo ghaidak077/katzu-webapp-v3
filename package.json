@@ -24,6 +24,7 @@
     "check:launch:strict": "node scripts/check-launch.mjs --strict",
     "verify": "node scripts/verify.mjs",
     "verify:ci": "node scripts/verify.mjs --ci",
+    "verify:admin:local": "node scripts/verify-admin-local.mjs",
     "cost:report": "node scripts/verify-cost.mjs",
     "hooks:install": "node scripts/install-hooks.mjs",
     "prepare": "node scripts/install-hooks.mjs",

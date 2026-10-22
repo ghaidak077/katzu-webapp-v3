@@ -430,6 +430,28 @@ export async function resolveUserRecord(env, { email, id } = {}) {
 }
 
 /**
+ * The date an `add_months` extension counts from, in ms.
+ *
+ * It has to be the expiry the drawer shows, because that is what the owner is
+ * extending. `/admin/edit` used to base the step on the KV account record alone
+ * and fall back to *today* when it was absent — while the registry column still
+ * held a plan (KV entries expire away; `setUserPlanBySub` writes D1 only). The
+ * drawer then read "Expires 2026-11-11", the owner clicked "+1 month", and got
+ * 2026-11-22: a month counted from today, not from the plan. Found by
+ * `npm run verify:admin:local`, which seeds exactly that registry-only shape.
+ * `resolveUserRecord().expiresAt` is already KV-preferred, so this is the merged
+ * subscription truth and the UI's own number. A date already in the past is not a
+ * base — "+1 month" on a lapsed plan revives it for a month from today, which is
+ * what the button says; extending a March expiry by a month in October would
+ * produce an expiry in April.
+ */
+export function planExtensionBase(expiresAt, now = Date.now()) {
+  if (!expiresAt) return now;
+  const at = new Date(expiresAt).getTime();
+  return Number.isNaN(at) ? now : Math.max(at, now);
+}
+
+/**
  * The delivery promise, in hours.
  *
  * D8 in the playbook: a paid code reaches the buyer within 12 hours, and the
@@ -1526,13 +1548,7 @@ export async function handleAdminRoutes(url, request, env, cors, deps = {}) {
       } else if (body.add_months !== undefined) {
         const months = Number(body.add_months);
         if (isNaN(months)) return json({ error: "invalid_add_months" }, 400, cors);
-        const now = new Date();
-        let base = now;
-        if (kvRecord.expiresAt) {
-          const existing = new Date(kvRecord.expiresAt);
-          if (!isNaN(existing.getTime())) base = existing;
-        }
-        const target = new Date(base);
+        const target = new Date(planExtensionBase(record.expiresAt));
         target.setUTCMonth(target.getUTCMonth() + months);
         newExpiresAt = target.toISOString();
       } else {

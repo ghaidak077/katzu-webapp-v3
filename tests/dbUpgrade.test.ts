@@ -118,6 +118,16 @@ beforeEach(async () => {
   });
 });
 
+/**
+ * A real IndexedDB open + schema upgrade, on a runner that also runs 154 other
+ * files in parallel — one of which walks git history for ~100 s
+ * (`tests/secretScan.test.ts`). Measured alone this file finishes in 1.5–2 s, but
+ * in the full suite it timed out against vitest's 5 s default on 2026-10-22 and
+ * turned `npm run verify` red on a tree where all 2,050 tests pass. The assertions
+ * are unchanged; only the budget reflects the load.
+ */
+const DB_UPGRADE_TIMEOUT = 30_000;
+
 describe('v5 → v6 upgrade (long memory, additive)', () => {
   it('keeps every existing row and adds the empty memory table', async () => {
     await createLegacyV5Database();
@@ -149,7 +159,7 @@ describe('v5 → v6 upgrade (long memory, additive)', () => {
 
     // A v6-era preference is optional: old rows lack it and keep working.
     expect(user?.profession).toBeUndefined();
-  });
+  }, DB_UPGRADE_TIMEOUT);
 
   it('lets the derived memory rebuild from the preserved sources after the upgrade', async () => {
     await createLegacyV5Database();
@@ -166,5 +176,5 @@ describe('v5 → v6 upgrade (long memory, additive)', () => {
     const akkusativ = patterns.find((pattern) => pattern.german === 'Ich möchte einen Kaffee');
     expect(akkusativ?.count).toBe(1);
     expect(akkusativ?.lastSeenAt).toBe(1_700_000_000_000);
-  });
+  }, DB_UPGRADE_TIMEOUT);
 });

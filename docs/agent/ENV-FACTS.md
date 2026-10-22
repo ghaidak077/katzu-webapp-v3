@@ -125,6 +125,7 @@ command below stops existing, so this index cannot rot silently.
 | UI-polish before/after shots | `npx playwright test -c e2e/uiPolishShots.playwright.config.ts` | writes `docs/agent/ui-polish/*.png` |
 | Journey-polish before/after shots | `npx playwright test -c e2e/journeyPolishShots.playwright.config.ts` | writes `docs/agent/journey-polish/*.png` |
 | Admin dashboard screenshots | `node scripts/capture-admin-screenshots.mjs` | its own output folder; needs the admin session |
+| **Admin dashboard with a key** (all 8 tabs, real data) | `npm run verify:admin:local` | boots the worker with a throwaway key on a fresh `.wrangler` D1, seeds 3 users, 37 checks + Chromium; `--no-browser` for API only, `--keep` leaves it up (~2 min) |
 | The offline/PWA contract | `npm run build` then `npx playwright test -c e2e/playReadiness.playwright.config.ts` | the only run with `serviceWorkers: 'allow'` |
 | OG / share image | `npm run make:share-image` | regenerates the social card |
 | Design audit + contrast | `npm run design` | `design:audit` then `design:contrast` |

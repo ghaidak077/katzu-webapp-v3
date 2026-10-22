@@ -2,7 +2,17 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CI_ONLY_STEPS, E2E_STEP, MAX_OUTPUT_BYTES, STEPS, plan, runStep, syntaxTargets, isFlaky } from '../scripts/verify.mjs';
+import {
+  CI_ONLY_STEPS,
+  E2E_STEP,
+  MAX_OUTPUT_BYTES,
+  STEPS,
+  plan,
+  runStep,
+  syntaxTargets,
+  isFlaky,
+  failureEvidence,
+} from '../scripts/verify.mjs';
 import { LOG_FILE, median, parseRuns, recordRun, reportLines, summarise } from '../scripts/verify-cost.mjs';
 
 /**
@@ -174,6 +184,33 @@ describe('the cost log round-trips, and stays out of git', () => {
     it('flags output with known non-determinism patterns as flaky', () => {
       const output = 'element not found at line 42\nretry? y/n\n';
       expect(isFlaky(0, output)).toBe(true);
+    });
+  });
+
+  describe('what failed, from a noisy step', () => {
+    it('names the failing test instead of leaving the reader to re-run', () => {
+      const output = [
+        ' ✓ tests/a.test.ts (3 tests) 12ms',
+        ' FAIL  tests/dbUpgrade.test.ts > v5 → v6 upgrade > keeps every row',
+        'Error: Test timed out in 5000ms.',
+        ' Test Files  1 failed | 154 passed (155)',
+      ].join('\n');
+      const evidence = failureEvidence(output);
+      expect(evidence.join('\n')).toContain('FAIL  tests/dbUpgrade.test.ts');
+      expect(evidence.join('\n')).toContain('Test timed out');
+    });
+
+    it('falls back to the tail when nothing looks like a failure', () => {
+      const output = Array.from({ length: 40 }, (_, i) => `line ${i}`).join('\n');
+      const evidence = failureEvidence(output);
+      expect(evidence.at(-1)).toBe('line 39');
+      expect(evidence.length).toBeLessThanOrEqual(24);
+    });
+
+    it('does not repeat a line that is both a signal and the tail', () => {
+      const output = 'FAIL tests/x.test.ts\nError: boom\n';
+      const evidence = failureEvidence(output);
+      expect(evidence.filter((line) => line === 'Error: boom')).toHaveLength(1);
     });
   });
 
