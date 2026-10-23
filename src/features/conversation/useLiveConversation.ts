@@ -74,6 +74,8 @@ export interface UseLiveConversationOptions {
     independentSentences: number;
     assistedSentences: number;
     mistakes: Array<{ original: string; corrected: string; grammarRule: string }>;
+    /** Step 5: whether the session hit its full turn target (vs ended early). */
+    completedNaturally: boolean;
     debrief: SessionDebrief;
   }) => void;
 }
@@ -850,7 +852,7 @@ export function useLiveConversation({
         dispatch({ type: 'complete' });
         triggerHaptic('success');
         setTimeout(() => {
-          void finishSession(updatedHistory);
+          void finishSession(updatedHistory, true);
         }, 3200);
       }
     } catch (e: unknown) {
@@ -1000,7 +1002,7 @@ export function useLiveConversation({
     }
   };
 
-  const finishSession = async (finalMessages: ChatMessage[]) => {
+  const finishSession = async (finalMessages: ChatMessage[], completedNaturally = false) => {
     // A failed send is not a spoken sentence: the debrief counts only turns the
     // server accepted (the retry path re-sends them anyway).
     const userMsgs = finalMessages.filter((m) => m.sender === 'USER' && !m.sendFailed);
@@ -1066,7 +1068,21 @@ export function useLiveConversation({
       mode: sessionMode || 'practice',
       mistakesCount: mistakesList.length,
     };
-    db.sessions.put(sessionRecord);
+    // Await the write before handing off to the report: the report decides
+    // "first conversation" from this table, and an unawaited put lets it render
+    // the returning-learner screen (and delay the Pro offer it earns) for a
+    // frame before this row lands. This is the one deliberate exception to
+    // flag-off identity: a successful write is visible on the first render.
+    //
+    // A failed write must never cost the learner the finish. XP, the streak, the
+    // user row and the summary are independent of this row and keep running
+    // exactly as they did before the await existed; the failure is logged like
+    // the background sync failure below, and never rethrown.
+    try {
+      await db.sessions.put(sessionRecord);
+    } catch (error) {
+      console.warn('Session record save failed:', error);
+    }
     track('conversation_completed', {
       scenarioId,
       count: independentMsgs.length,
@@ -1140,6 +1156,7 @@ export function useLiveConversation({
       independentSentences: independentMsgs.length,
       assistedSentences: assistedMsgs.length,
       mistakes: mistakesList,
+      completedNaturally,
       // Deterministic Phase-2 debrief, built from the same numbers this
       // function just computed — no extra AI call anywhere.
       debrief: buildSessionDebrief({
@@ -1191,7 +1208,7 @@ export function useLiveConversation({
   const endSessionNow = () => {
     if (!canEndSession) return;
     dispatch({ type: 'complete' });
-    void finishSession(messages);
+    void finishSession(messages, false);
   };
 
   return {

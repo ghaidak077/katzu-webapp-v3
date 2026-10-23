@@ -11,7 +11,20 @@ import { bootSignedIn, mockBackend, readStoredUser, seedSignedInUser } from './h
  * adjectives — a question whose answer goes nowhere is data collection dressed up
  * as personalisation.
  */
-test('first run asks two questions and lands on the mission', async ({ page }) => {
+
+/** Force the guided home on before the app's first load — the flag is cached per load. */
+async function setSwitch(page: import('@playwright/test').Page, value: '1' | '0') {
+  await page.addInitScript((flag) => {
+    try {
+      localStorage.setItem('kz.guidedHome', flag);
+    } catch {
+      /* storage disabled: the build default applies */
+    }
+  }, value);
+}
+
+test('first run asks two questions and opens the opening episode', async ({ page }) => {
+  await setSwitch(page, '1');
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
 
@@ -34,8 +47,10 @@ test('first run asks two questions and lands on the mission', async ({ page }) =
 
   await page.getByRole('button', { name: /20\s*دقائق/ }).click();
 
-  // Straight to the mission — never the placement check.
-  await expect(page).toHaveURL(/\/app\/trail$/);
+  // Step 2: straight into the first episode's Story screen — never the placement
+  // check, and no home-screen card to decode first.
+  await expect(page).toHaveURL(/\/scenario\/airport_arrival\/story$/);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('في المطار');
 
   const stored = await readStoredUser(page);
   expect(stored?.primaryGoal).toBe('daily_life');
@@ -51,6 +66,7 @@ test('first run asks two questions and lands on the mission', async ({ page }) =
 });
 
 test('a stranger walks from the landing page to the first mission', async ({ page }) => {
+  await setSwitch(page, '1');
   // The launch path end to end, with the one seam the suite cannot cross made
   // explicit: Google's own sign-in cannot be driven from a test, so the harness
   // seeds exactly the session that button would have created, and everything
@@ -68,10 +84,14 @@ test('a stranger walks from the landing page to the first mission', async ({ pag
   await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
   await page.getByRole('button', { name: /20\s*دقائق/ }).click();
 
-  // The mission, not the placement check, and nothing asked twice on the way.
-  await expect(page).toHaveURL(/\/app\/trail$/);
+  // The first episode, not the placement check, and nothing asked twice on the
+  // way. Then one step further: the story's own action opens the practice.
+  await expect(page).toHaveURL(/\/scenario\/airport_arrival\/story$/);
   await expect(page.getByRole('heading', { level: 1 })).not.toBeEmpty();
   await expect(page.getByText('وكم دقيقة تستطيع أن تعطيني يومياً؟')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'ابدأ التدريب' }).click();
+  await expect(page).toHaveURL(/\/scenario\/airport_arrival\/practice$/);
 });
 
 test('the edit flow keeps the full question set and stores every answer', async ({ page }) => {

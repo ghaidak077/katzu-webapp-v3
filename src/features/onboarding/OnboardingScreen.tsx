@@ -4,7 +4,9 @@ import { GlassCard } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
 import { triggerHaptic } from '@/lib/utils/haptics';
+import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { track } from '@/lib/analytics/client';
+import { ONBOARDING_SKIP_SOURCE } from '@/lib/analytics/events';
 import {
   ARRIVAL_COPY,
   GOAL_COPY,
@@ -73,6 +75,17 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
   const questionSteps = mode === 'edit' ? EDIT_STEPS : FIRST_RUN_STEPS;
   const questionIndex = useMemo(() => questionSteps.indexOf(step), [questionSteps, step]);
   const isPlacement = step === 'placement';
+  /**
+   * The first question of a first run has nothing behind it.
+   *
+   * The header's back control calls the route's `onBack`, which for a first run
+   * is `/welcome` — the signed-up learner would be walked back out of their own
+   * account to the screen that asks them to create one. There is no earlier step
+   * to return to either, so on this one screen the control is simply absent (the
+   * spacer keeps the progress dots centred). Guide-only: flag off is untouched.
+   */
+  const guided = isGuidedHomeEnabled();
+  const hideBackOnFirstQuestion = guided && mode === 'first_run' && !isPlacement && questionIndex === 0;
   const placement = useMemo(() => placementOffer(answers.previousGerman), [answers.previousGerman]);
 
   const advance = (next: Step) => {
@@ -80,7 +93,20 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
     setStep(next);
   };
 
-  const save = async (choice: PlacementChoice, overrides: Partial<OnboardingAnswers> = {}) => {
+  /**
+   * Writes the answers and ends the flow.
+   *
+   * `source` is what the funnel sees, and it is NOT always the placement
+   * choice: skipping the FIRST question is a different act from skipping the
+   * placement check, and the funnel has to be able to tell them apart — a
+   * learner who walked past the goal question is a different cohort from one
+   * who answered it and then declined the test.
+   */
+  const save = async (
+    choice: PlacementChoice,
+    overrides: Partial<OnboardingAnswers> = {},
+    source: string = choice,
+  ) => {
     if (isSaving) return;
     setIsSaving(true);
     try {
@@ -94,7 +120,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
       if (choice === 'skip' && mode === 'edit') {
         await db.users.update('current_user', placementSkipPatch());
       }
-      track('onboarding_completed', { source: choice });
+      track('onboarding_completed', { source });
     } catch (error) {
       // A failed local write must not trap the learner: the app continues and
       // the prompt card in the Trail will ask again next time.
@@ -109,15 +135,19 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
     <div className="min-h-screen bg-kz-black pb-10 text-kz-ink">
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 pt-6">
         <div className="mb-6 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="رجوع"
-            className="kz-surface flex h-11 w-11 items-center justify-center rounded-2xl"
-            data-tier="canvas"
-          >
-            <ArrowRight className="h-5 w-5 text-kz-inkDim" />
-          </button>
+          {hideBackOnFirstQuestion ? (
+            <div className="h-11 w-11" aria-hidden />
+          ) : (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="رجوع"
+              className="kz-surface flex h-11 w-11 items-center justify-center rounded-2xl"
+              data-tier="canvas"
+            >
+              <ArrowRight className="h-5 w-5 text-kz-inkDim" />
+            </button>
+          )}
 
           {/* Dots, not a fraction: five questions is a short conversation, and a
               counter makes it feel like a form to be completed. */}
@@ -148,6 +178,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
           </div>
           <div className="w-11" />
         </div>
+
+        {/* One line of orientation on the first run, not a second question: the
+            dots already say "two", these words say what the two are for. */}
+        {mode === 'first_run' && isGuidedHomeEnabled() && (
+          <p className="mb-4 kz-ar-micro text-kz-inkFaint">سؤالان فقط — ثم أفتح لك أول موقف.</p>
+        )}
 
         {step === 'goal' && (
           <GlassCard emphasis="primary" className="flex flex-1 flex-col">
@@ -189,6 +225,26 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                 </button>
               ))}
             </div>
+
+            {/* The way past the first question.
+                One question stands between a new learner and their first
+                conversation, and a question nobody is obliged to answer is a
+                wall. The guided home opens that conversation, so the goal
+                question may be skipped — nothing is written for it, the level
+                stays unmeasured, and the funnel is told this learner walked
+                past it (`source: 'skip_first'`) rather than that they declined
+                the placement check. */}
+            {mode === 'first_run' && guided && (
+              <GlassButton
+                variant="quiet"
+                fullWidth
+                className="mt-4"
+                disabled={isSaving}
+                onClick={() => void save('skip', {}, ONBOARDING_SKIP_SOURCE)}
+              >
+                تخطَّ الآن وابدأ
+              </GlassButton>
+            )}
           </GlassCard>
         )}
 
@@ -287,7 +343,26 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                 </button>
               ))}
             </div>
-            <BackLink onClick={() => setStep('previous')} />
+            {mode === 'first_run' && isGuidedHomeEnabled() && (
+              /* An exit that is not an answer. It saves the default minutes and
+                 the completion stamp, so the app never asks again, and leaves the
+                 goal unanswered rather than inventing one — the mission then falls
+                 back to the general order, which is what "no preference" means. */
+              <GlassButton
+                variant="quiet"
+                fullWidth
+                className="mt-4"
+                disabled={isSaving}
+                onClick={() => void save('skip')}
+              >
+                تخطَّ الأسئلة وابدأ الآن
+              </GlassButton>
+            )}
+            {/* First run has two questions, and «previous» is the edit flow's
+                third one — offering it here opened the previous-German screen the
+                first run never asks, and then came back to the same grid. Back
+                now returns to the question that was actually asked. */}
+            <BackLink onClick={() => setStep(guided && mode === 'first_run' ? 'goal' : 'previous')} />
           </GlassCard>
         )}
 

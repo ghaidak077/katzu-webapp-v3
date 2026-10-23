@@ -129,6 +129,15 @@ export interface AnalyticsEvent {
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2'];
 const GOALS = ['daily_life', 'work', 'university', 'exam'];
+
+/**
+ * Why an onboarding flow was walked past instead of finished. The first-run goal
+ * question has a quiet skip (guarded by the guided home) that writes no goal and
+ * tells the funnel this learner skipped the first question — not that they
+ * declined the later placement offer. A free-string dimension: the `source` key
+ * is allowlisted, the value is not enum-validated.
+ */
+export const ONBOARDING_SKIP_SOURCE = 'skip_first';
 export const MAX_BATCH_SIZE = 20;
 export const MAX_QUEUE_SIZE = 200;
 export const MAX_ATTEMPTS = 3;

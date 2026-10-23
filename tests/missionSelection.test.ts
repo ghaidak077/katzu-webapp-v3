@@ -203,6 +203,44 @@ describe('daily mission selection', () => {
     expect(plan.scenarioId).not.toBe(INTRO_SCENARIO_ID);
   });
 
+  it('a finished conversation ends "continue", whatever the quiz fields still say', () => {
+    // The V2 episode stops at the debrief, so `quizAttempted` stays false forever
+    // on a scene the learner has actually completed. Read alone, that is the
+    // shape of "started and abandoned" — which is how the home screen ended up
+    // telling a learner who had just finished «أكمل من حيث توقفت». A recorded
+    // session is the evidence that wins.
+    const training = [
+      { scenarioId: 'bakery_shopping', studiedAt: 1_700_000_000_000, quizAttempted: false, lastScore: 0 },
+    ];
+    const started = selectDailyMission(base({ training }));
+    expect(started.kind).toBe('continue');
+    expect(started.ctaAr).toBe('أكمل من حيث توقفت');
+
+    const finished = selectDailyMission(base({ training, completedScenarioIds: ['bakery_shopping'] }));
+    expect(finished.kind).toBe('daily');
+    expect(finished.ctaAr).not.toBe('أكمل من حيث توقفت');
+    // Returning to the same scene as *today's mission* is legitimate; being told
+    // it is half-finished is not.
+    expect(finished.subtitleAr).not.toContain('بدأت هذا المشهد');
+    expect(finished.subtitleAr).not.toContain('لم تصل بعد');
+  });
+
+  it('does not re-open the arrival story for a learner who has finished it', () => {
+    // No training row at all — the learner went straight into the episode from a
+    // deep link. The session is still proof that the opening was met.
+    const plan = selectDailyMission(
+      base({
+        scenarios: withOpening,
+        scenarioLevels: levelsWithOpening,
+        goal: 'work',
+        completedScenarioIds: [INTRO_SCENARIO_ID],
+      }),
+    );
+    expect(plan.kind).toBe('daily');
+    expect(plan.scenarioId).not.toBe(INTRO_SCENARIO_ID);
+    expect(plan.ctaAr).not.toContain('الوصول');
+  });
+
   it('falls through to the normal rotation when the opening is not in the content', () => {
     // Offline, or a deployment whose D1 does not carry the scene yet.
     const plan = selectDailyMission(base({}));

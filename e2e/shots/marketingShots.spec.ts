@@ -243,7 +243,10 @@ test('signed-in app screens', async ({ page }, testInfo) => {
   // this the mocked `/pricing` fails on purpose and the paywall honestly says «تعذّر تحميل
   // الأسعار الآن» — a correct behaviour and a useless marketing shot. Same catalogue as
   // `e2e/paywallPricing.spec.ts`.
+  // `history` opens the Practice, Review and Progress screens, which are locked
+  // until the first conversation — these are marketing shots of the full product.
   await bootSignedIn(page, {
+    history: true,
     pricing: {
       prices: [
         { product: 'pass90', amountCents: 2900, currency: 'EUR', group: 'standard', cell: null },

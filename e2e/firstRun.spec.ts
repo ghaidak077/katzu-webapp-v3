@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test';
-import { bootSignedIn } from './harness';
+import { bootSignedIn, openLibraryFromHome } from './harness';
 
 /**
  * Stage 2 — the first three minutes, on the phone the learner actually holds.
@@ -46,7 +46,7 @@ async function expectTapTarget(locator: Locator, label: string) {
 }
 
 test('an empty mistake bank says what to do next instead of only congratulating', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
   await page.goto('/app/practice');
 
   // Launch polish: the drill tile was RENAMED «تدريب الأخطاء» so it says what
@@ -64,7 +64,7 @@ test('an empty mistake bank says what to do next instead of only congratulating'
 });
 
 test('a saved-word list with nothing in it offers the way out', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
   await page.goto('/app/practice');
 
   await page.getByRole('button', { name: /^المحفوظة/ }).click();
@@ -96,8 +96,9 @@ test('the Pro offer names the price, the free tier, the terms and who sells it',
     },
   });
 
-  // The level pills live in the scenario library, one tap from the mission.
-  await page.getByRole('button', { name: 'كل المشاهد والمستويات' }).click();
+  // The level pills live in the scenario library, reached the way a learner
+  // reaches it from home (footer chip with the flag off, «المزيد» with it on).
+  await openLibraryFromHome(page);
 
   // A2 is locked on the free plan, so the pill is the honest path to the offer.
   const lockedPill = page.getByRole('button', { name: 'A2', exact: true });

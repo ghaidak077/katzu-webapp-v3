@@ -142,7 +142,8 @@ test('listening keeps its playback controls and its exit reachable by thumb', as
 });
 
 test('every field the learner types into is at least 16px, or iOS zooms the page', async ({ page }) => {
-  await bootSignedIn(page);
+  // This checks /app/practice, which is locked until the first conversation.
+  await bootSignedIn(page, { history: true });
   for (const path of ['/app/ask', '/app/practice', '/app/write']) {
     await page.goto(path);
     await page.waitForTimeout(900);

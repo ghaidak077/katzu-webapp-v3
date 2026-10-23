@@ -6,6 +6,8 @@ import { workerClient } from '@/lib/api/workerClient';
 import { sceneFor } from '@/lib/design/scenes';
 import { buildStorySetup } from '@/lib/journey/story';
 import { loadMissionBrief } from '@/lib/journey/brief';
+import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
+import { isDayZeroOpening } from '@/lib/journey/firstSession';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { useOnlineStatus } from '@/lib/utils/onlineStatus';
 import { isProEffective } from '@/lib/utils/subscription';
@@ -44,6 +46,16 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
   const scenario = scenarioRow.row;
   const training = useLiveQuery(() => db.scenario_training.get(scenarioId));
   const isOnline = useOnlineStatus();
+
+  // The SAME shared first-session fact the home hero and the Practice/Progress
+  // locks read (`lib/journey/firstSession`), so no surface can call this learner
+  // new while another calls them a returning one. `isDayZeroOpening` also refuses
+  // to call it day 0 with the flag off or while the count is still loading, so the
+  // old hint can never flash on a production build. The badge below still tracks
+  // the per-scene question (`studiedAt`) on top; these answer different things.
+  const guided = isGuidedHomeEnabled();
+  const sessionCount = useLiveQuery(() => db.sessions.count(), []);
+  const dayZero = isDayZeroOpening({ guided, sessionCount, user });
 
   const [translationAr, setTranslationAr] = useState<string | null>(null);
   const [translationState, setTranslationState] = useState<'idle' | 'pending' | 'unavailable'>('idle');
@@ -111,7 +123,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
   if (!scenario) {
     const stalled = scenarioRow.kind === 'reading' && scenarioRow.stalled;
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-kz-black px-6">
         <p className="kz-ar-body text-center text-kz-inkDim">
           {scenarioRow.kind === 'missing'
             ? 'لم نجد هذا المشهد على هذا الجهاز بعد.'
@@ -138,7 +150,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-black">
+    <div className="relative flex min-h-screen flex-col bg-kz-black">
       {/* Scene: full floating panel with the episode's own light. */}
       <SceneBackdrop
         scene={scene}
@@ -153,11 +165,11 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
             type="button"
             onClick={onBack}
             aria-label="العودة"
-            className="flex h-11 w-11 items-center justify-center rounded-control border border-white/10 bg-black/35 backdrop-blur-md"
+            className="flex h-11 w-11 items-center justify-center rounded-control border border-kz-line bg-kz-black/35 backdrop-blur-md"
           >
             <ArrowRight className="h-5 w-5 text-kz-inkDim" />
           </button>
-          <span className="kz-ar-micro rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-kz-inkDim backdrop-blur-md">
+          <span className="kz-ar-micro rounded-full border border-kz-line bg-kz-black/35 px-3 py-1.5 text-kz-inkDim backdrop-blur-md">
             {scene.locationAr}
           </span>
         </header>
@@ -166,7 +178,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
           <div className="w-full space-y-3">
             {/* Who the learner is about to meet, stated before the first sentence. */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="kz-ar-micro rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-kz-inkDim backdrop-blur-md">
+              <span className="kz-ar-micro rounded-full border border-kz-line bg-kz-black/35 px-3 py-1.5 text-kz-inkDim backdrop-blur-md">
                 {story?.whoAr}
               </span>
               {/* You are the main character: the learner's own name sits beside the
@@ -178,7 +190,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                 </span>
               )}
               {training?.studiedAt && (
-                <span className="kz-ar-micro rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-kz-inkFaint backdrop-blur-md">
+                <span className="kz-ar-micro rounded-full border border-kz-line bg-kz-black/35 px-3 py-1.5 text-kz-inkFaint backdrop-blur-md">
                   عدت إلى هذا المشهد
                 </span>
               )}
@@ -186,7 +198,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
 
             <GlassCard tier="glass">
               <h1 className="kz-ar-title text-kz-ink">{scenario.title_ar}</h1>
-              <GermanText className="mt-1 block text-caption text-kz-inkDim">{scenario.title_de}</GermanText>
+              <GermanText className="mt-1 block kz-de-caption text-kz-inkDim">{scenario.title_de}</GermanText>
 
               <p className="kz-ar-body mt-3 text-kz-ink">{story?.situationAr}</p>
 
@@ -210,10 +222,10 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                     type="button"
                     onClick={() => speak(story.openingDe)}
                     aria-label="استمع للجملة الأولى"
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-colors ${
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control border transition-colors duration-fast ease-out ${
                       isPlaying
                         ? 'border-kz-lavender/50 bg-kz-lavender/15 text-kz-lavender'
-                        : 'border-white/10 bg-black/30 text-kz-inkDim'
+                        : 'border-kz-line bg-kz-black/30 text-kz-inkDim'
                     }`}
                   >
                     <Volume2 className="h-5 w-5" />
@@ -233,7 +245,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                       <button
                         type="button"
                         onClick={() => requestTranslation(story.openingDe)}
-                        className="kz-ar-micro mt-1.5 flex min-h-[36px] items-center gap-1.5 text-kz-amber"
+                        className="kz-ar-micro mt-1.5 flex min-h-touch items-center gap-1.5 text-kz-amber"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
                         تعذرت الترجمة — إعادة المحاولة
@@ -249,7 +261,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
             {/* The conversation itself needs the worker; saying so here is honest,
                 and it is not a dead end — the phrases are all local. */}
             {!isOnline && (
-              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-md">
+              <div className="flex items-center gap-2 rounded-panel border border-kz-line bg-kz-black/40 px-3 py-2 backdrop-blur-md">
                 <StatusIndicator state="offline" detailAr="المحادثة الحيّة تحتاج اتصالاً — يمكنك التدريب الآن" />
               </div>
             )}
@@ -257,7 +269,14 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
             {/* V32: the button said "بدء" — start WHAT? On a first run, with
                 everything else new, that one word asks the learner to guess the
                 app's own vocabulary. It now names the step it opens. */}
-            <PrimaryAction hintAr="خطوتان قصيرتان ثم تبدأ المحادثة." onClick={onStart}>
+            <PrimaryAction
+              hintAr={
+                dayZero
+                  ? 'ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم.'
+                  : 'خطوتان قصيرتان ثم تبدأ المحادثة.'
+              }
+              onClick={onStart}
+            >
               ابدأ التدريب
             </PrimaryAction>
 

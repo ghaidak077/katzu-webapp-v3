@@ -570,6 +570,87 @@ export async function readStoredUser(page: Page): Promise<Record<string, unknown
   });
 }
 
+/**
+ * Seed one row into a store the app itself created.
+ *
+ * Two facts the suite needs are not in the offline seed: the arrival episode's
+ * catalogue row (it ships in D1) and a finished conversation. Writing them
+ * through the app's own schema is what keeps the assertions honest — the code
+ * under test reads them exactly as it reads real ones, so a spec can prove the
+ * chain lands on the arrival scene *and* what happens when that row is absent.
+ */
+export async function seedStoreRow(
+  page: Page,
+  store: string,
+  row: Record<string, unknown>,
+): Promise<void> {
+  const ok = await page.evaluate(
+    async ({ store, row }) => {
+      try {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('KatzuWebDB');
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+          request.onblocked = () => reject(new Error('blocked'));
+        });
+        if (!db.objectStoreNames.contains(store)) {
+          db.close();
+          return false;
+        }
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction(store, 'readwrite');
+          tx.objectStore(store).put(row);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { store, row },
+  );
+  if (!ok) throw new Error(`Could not seed ${store}: the local database never settled.`);
+}
+
+/**
+ * A finished conversation, and the training row the V2 chain leaves behind.
+ *
+ * `quizAttempted: false` is deliberate: the episode ends at the debrief, never at
+ * a quiz, so this is exactly the state a learner is in the moment they tap «العودة
+ * إلى الرحلة». The session row is what the app writes on completion
+ * (`useLiveConversation`), so both facts are the ones the product produces.
+ */
+export async function seedFinishedEpisode(page: Page, scenarioId = 'train_station'): Promise<void> {
+  const now = Date.now();
+  await seedStoreRow(page, 'scenario_training', {
+    scenarioId,
+    userId: 'current_user',
+    studiedAt: now - 3_600_000,
+    quizAttempted: false,
+    lastScore: 0,
+    effectiveLevel: 'A1',
+    updatedAt: now - 3_600_000,
+  });
+  await seedStoreRow(page, 'sessions', {
+    id: `e2e-${scenarioId}-${now}`,
+    scenarioId,
+    scenarioTitle: 'في محطة القطار',
+    cefrLevel: 'A1',
+    sentencesSpoken: 4,
+    wordsLearned: 16,
+    accuracyPercent: 80,
+    durationSeconds: 240,
+    timestamp: now,
+    wasIndependentOnly: true,
+    independentSentences: 4,
+    hintAssistedSentences: 0,
+    mode: 'practice',
+    mistakesCount: 1,
+  });
+}
+
 /** Reads the stored row back, so a clobbered sign-in fails loudly instead of silently. */
 async function readUserIsSignedIn(page: Page): Promise<boolean> {
   return page.evaluate(async () => {
@@ -1011,8 +1092,43 @@ export async function silence(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Opens the day-0 «تفاصيل الجلسة» disclosure when the guided finish line is on
+ * screen, and does nothing on the full report.
+ *
+ * A spec whose subject is the debrief's evidence (the correction drill, the Pro
+ * offer) must keep the same assertions under either `guidedHome` default. On day 0
+ * that evidence is behind the one quiet control the learner would open, so the
+ * spec opens it instead of pinning the switch off — which would leave the guided
+ * path untested by every spec that touches the report.
+ */
+export async function openSessionDetailsIfPresent(page: Page): Promise<void> {
+  const details = page.getByRole('button', { name: 'تفاصيل الجلسة' });
+  // The report resolves the session table live: on day 0 the finish line replaces
+  // the full report a tick after mount. Wait for that decision rather than reading
+  // the transient first frame. A returning learner's report never shows this
+  // button, so the wait is bounded and then becomes a no-op.
+  await expect
+    .poll(() => details.count(), { timeout: 2_000, intervals: [100, 200, 400] })
+    .toBeGreaterThan(0)
+    .catch(() => undefined);
+  if ((await details.count()) === 0) return;
+  if ((await details.getAttribute('aria-expanded')) !== 'true') await details.click();
+  await expect(page.locator('#day-zero-details')).toBeVisible();
+}
+
 export interface BootOptions extends MockOptions {
   user?: Record<string, unknown>;
+  /**
+   * Seed one FINISHED conversation before the suite starts.
+   *
+   * The Practice and Progress tabs stay closed until the learner has finished
+   * their first conversation, so every spec that REACHES those tabs needs the
+   * fact that opens them — the same way a real learner has it. The day-0 specs
+   * keep the default fixture, because "before the first conversation" is the
+   * state they are about.
+   */
+  history?: boolean;
   /** `false` measures the platform's real (silent) capture device instead. */
   installVoice?: boolean;
   denyMicrophone?: boolean;
@@ -1107,6 +1223,38 @@ export async function bootSignedIn(page: Page, options: BootOptions = {}): Promi
 
   await page.goto('/app/trail');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+  if (options.history) {
+    // The finished conversation is written AFTER the app has created its own
+    // database, and the page is reloaded so the screens read it as part of
+    // their state rather than as a row that appeared under them.
+    await seedFinishedEpisode(page);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
+  }
+}
+
+/**
+ * Reach the scenario library from Journey Home, whatever shape the home has.
+ *
+ * Two shapes exist on purpose: with `guidedHome` on the footer chips are not on
+ * the screen and «المزيد» (under the tasks) carries them, with it off they are
+ * the footer. Every spec that used to click the footer chip should come through
+ * here — the destination is the point, and the route it takes is exactly what a
+ * learner taps.
+ */
+export async function openLibraryFromHome(page: Page): Promise<void> {
+  const more = page.getByTestId('journey-more');
+  await expect(more.or(page.getByRole('button', { name: 'كل المشاهد والمستويات' }))).toBeVisible({
+    timeout: 30_000,
+  });
+  if (await more.isVisible()) {
+    await more.click();
+    await page.getByTestId('more-library').click();
+  } else {
+    await page.getByRole('button', { name: 'كل المشاهد والمستويات' }).click();
+  }
+  await expect(page).toHaveURL(/\/app\/library$/);
 }
 
 /** The orb, addressed by the accessible name that carries its live state. */

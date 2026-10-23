@@ -36,8 +36,9 @@ const referencedSet = [...new Set(referenced)];
 
 /**
  * Resolves a token to RGB. The palette declares triplets (`180 160 255`) so
- * that alpha compositing needs only one declaration, but the three foundation
- * blacks are plain hex — both forms are legal, and both must resolve.
+ * that alpha compositing needs only one declaration. Hex is still accepted for
+ * tolerance, but a token read through Tailwind's `/opacity` modifier must be a
+ * triplet — see the foundation-black test below.
  */
 function triplet(name: string): [number, number, number] {
   const raw = tokens.get(name);
@@ -83,6 +84,16 @@ describe('design tokens', () => {
     expect(missing, `Tailwind references tokens missing from src/index.css: ${missing.join(', ')}`).toEqual(
       [],
     );
+  });
+
+  it('declares the foundation blacks as triplets so alpha compositing works', () => {
+    // `bg-kz-black/45` compiles to `rgb(var(--kz-black) / .45)`. A hex value
+    // there is invalid CSS and silently removes the background.
+    for (const name of ['kz-black', 'kz-near-black', 'kz-soft-black']) {
+      expect(tokens.get(name), `--${name} must be declared`).toMatch(
+        /^\d{1,3}\s+\d{1,3}\s+\d{1,3}$/,
+      );
+    }
   });
 
   it('references tokens from the config rather than re-declaring hex values', () => {

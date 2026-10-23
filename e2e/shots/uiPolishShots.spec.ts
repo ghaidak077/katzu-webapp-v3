@@ -78,7 +78,7 @@ for (const { w, h } of VIEWPORTS) {
 
   test(`review ${w}x${h} [${TAG}]`, async ({ page }) => {
     await setViewport(page, w, h);
-    await bootSignedIn(page);
+    await bootSignedIn(page, { history: true });
     // Three due cards so the counter reads "1 / 3" (before) / "1 من 3" (after),
     // and so the three verdict states can be shot on separate cards after.
     await seedRows(page, 'review_items', [
@@ -94,7 +94,7 @@ for (const { w, h } of VIEWPORTS) {
 
   test(`practice-hub ${w}x${h} [${TAG}]`, async ({ page }) => {
     await setViewport(page, w, h);
-    await bootSignedIn(page);
+    await bootSignedIn(page, { history: true });
     await page.goto('/app/practice');
     await expect(page.getByRole('heading', { name: 'مركز التدريب والمراجعة' })).toBeVisible({ timeout: 30_000 });
     await page.waitForTimeout(600);
@@ -108,7 +108,7 @@ for (const { w, h } of VIEWPORTS) {
 test('review verdict states [after]', async ({ page }) => {
   if (TAG !== 'after') return;
   await setViewport(page, 390, 844);
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
   await seedRows(page, 'review_items', [
     reviewRow('موعد', 'der Termin'),
     reviewRow('فاتورة', 'die Rechnung'),

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { bootSignedIn, orb, say, silence, turn } from './harness';
+import { bootSignedIn, openSessionDetailsIfPresent, orb, say, silence, turn } from './harness';
 
 /**
  * The daily episode, end to end, in a real browser.
@@ -22,6 +22,17 @@ import { bootSignedIn, orb, say, silence, turn } from './harness';
 // `ابدأ تدريب` and not `تدريب`: the bottom navigation tab is labelled "التدريب",
 // and a looser pattern matched the tab as well as the mission's action.
 const PRIMARY_ACTION = /ابدأ مهمة اليوم|ابدأ من لحظة الوصول|أكمل من حيث توقفت|ابدأ مشهداً جديداً|ابدأ تدريب|راجع \d+ الآن/;
+
+/** Force the guided home on/off before the app's first load — the flag is cached per load. */
+async function setSwitch(page: import('@playwright/test').Page, value: '1' | '0') {
+  await page.addInitScript((flag) => {
+    try {
+      localStorage.setItem('kz.guidedHome', flag);
+    } catch {
+      /* storage disabled: the build default applies */
+    }
+  }, value);
+}
 
 test('Journey Home shows one mission, one action, and a real day count', async ({ page }) => {
   await bootSignedIn(page);
@@ -71,6 +82,9 @@ test('the first episode is the arrival, not a random day', async ({ page }) => {
 const EPISODE_READY_MS = 45_000;
 
 test('Story Setup introduces a situation, not a settings screen', async ({ page }) => {
+  // Day 0 is the guided first-run copy, so pin the flag ON (the flag is cached per
+  // load) — otherwise this assertion silently depends on the build's default.
+  await setSwitch(page, '1');
   await bootSignedIn(page);
 
   await page.getByRole('button', { name: PRIMARY_ACTION }).click();
@@ -81,6 +95,11 @@ test('Story Setup introduces a situation, not a settings screen', async ({ page 
   await expect(start).toBeVisible({ timeout: EPISODE_READY_MS });
   await expect(page.getByRole('button', { name: 'ليس الآن' })).toBeVisible();
 
+  // Day 0 (a fresh learner with no finished conversation yet): the primary's hint
+  // is the reassuring first-run line — "no test, no judgement" — not the generic
+  // "two short steps" one a returning learner would see.
+  await expect(page.getByText('ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم.')).toBeVisible();
+
   // A real German opener from the scenario content, isolated LTR. Asserted after
   // the screen's own control, so this can only match the opener card.
   const opener = page.locator('[dir="ltr"]').first();
@@ -89,6 +108,41 @@ test('Story Setup introduces a situation, not a settings screen', async ({ page 
 
   await start.click();
   await expect(page).toHaveURL(/\/scenario\/.+\/practice$/);
+});
+
+/**
+ * The day-0 copy is gated on the flag (step 4b).
+ *
+ * With the switch OFF a brand-new learner must see the pre-guided hint
+ * byte-for-byte — that is the contract the switch exists to honour — and with the
+ * switch ON a learner who has already finished an episode is not "new" either, so
+ * they too get the returning hint. Both reach the story screen directly: the
+ * decision lives in the screen, not in the routing, so a direct load is the least
+ * ambiguous way to ask "what does this screen claim about this learner?".
+ */
+const DAY_ZERO_HINT = 'ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم.';
+const OLD_HINT = 'خطوتان قصيرتان ثم تبدأ المحادثة.';
+
+test('with the flag off, a fresh learner sees the old hint, never day 0', async ({ page }) => {
+  await setSwitch(page, '0');
+  await bootSignedIn(page);
+  await page.goto('/scenario/airport_arrival/story');
+
+  const start = page.getByRole('button', { name: 'ابدأ التدريب' });
+  await expect(start).toBeVisible({ timeout: EPISODE_READY_MS });
+  await expect(page.getByText(OLD_HINT)).toBeVisible();
+  await expect(page.getByText(DAY_ZERO_HINT)).toHaveCount(0);
+});
+
+test('with a finished episode, a learner keeps the old hint even with the flag on', async ({ page }) => {
+  await setSwitch(page, '1');
+  await bootSignedIn(page, { history: true });
+  await page.goto('/scenario/airport_arrival/story');
+
+  const start = page.getByRole('button', { name: 'ابدأ التدريب' });
+  await expect(start).toBeVisible({ timeout: EPISODE_READY_MS });
+  await expect(page.getByText(OLD_HINT)).toBeVisible();
+  await expect(page.getByText(DAY_ZERO_HINT)).toHaveCount(0);
 });
 
 /**
@@ -303,6 +357,10 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
   // The hand-off is delayed on purpose (the learner reads the last reply first),
   // so this waits rather than asserting instantly.
   await expect(page).toHaveURL(/\/session-report$/, { timeout: 30_000 });
+
+  // On day 0 the same evidence sits behind the finish line's quiet disclosure;
+  // on the full report this is a no-op.
+  await openSessionDetailsIfPresent(page);
 
   await expect(page.getByText('ملخّص الجلسة')).toBeVisible();
   // Evidence, not celebration: both numbers trace back to the three turns sent.

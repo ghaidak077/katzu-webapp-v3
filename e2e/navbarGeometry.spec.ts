@@ -23,6 +23,17 @@ const TABS = [
   { label: 'الملف', name: 'Profile' },
 ] as const;
 
+/** Force the guided home on before the app's first load — the flag is cached per load. */
+async function setSwitch(page: Page, value: '1' | '0') {
+  await page.addInitScript((flag) => {
+    try {
+      localStorage.setItem('kz.guidedHome', flag);
+    } catch {
+      /* storage disabled: the build default applies */
+    }
+  }, value);
+}
+
 interface Geometry {
   container: { width: number; height: number; overflow: string; radius: number };
   pill: { width: number; height: number; radius: number; gaps: { left: number; right: number; top: number; bottom: number } } | null;
@@ -76,7 +87,11 @@ test.describe('navbar indicator geometry', () => {
   for (const width of [390, 360]) {
     test(`the active pill is concentric with the container at ${width}px (every tab, RTL)`, async ({ page }) => {
       await page.setViewportSize({ width, height: 780 });
-      await bootSignedIn(page);
+      // This measures all four tabs switching, so it needs the finished
+      // conversation that opens Practice and Progress — otherwise tapping them
+      // opens the lock sheet and the pill never leaves Trail, and the loop
+      // would "pass" while measuring nothing (every tab aligned to Trail).
+      await bootSignedIn(page, { history: true });
       await page.goto('/app/trail');
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
@@ -130,7 +145,9 @@ test.describe('navbar indicator geometry', () => {
 
   test('switching tabs does not animate the pill (instant switch)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 780 });
-    await bootSignedIn(page);
+    // This test taps التدريب and expects the pill to travel to it, so it needs
+    // the finished conversation that opens the Practice tab.
+    await bootSignedIn(page, { history: true });
     await page.goto('/app/trail');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
@@ -159,5 +176,37 @@ test.describe('navbar indicator geometry', () => {
     const a = await readNavbar(page);
     const b = await readNavbar(page);
     expect(b.pill!.gaps).toEqual(a.pill!.gaps);
+  });
+
+  test('day 0: tapping a locked tab opens the sheet and the pill never moves', async ({ page }) => {
+    // No history: this is the "before the first conversation" state the lock is
+    // about. Tapping التدريب must neither navigate nor move the indicator.
+    await setSwitch(page, '1');
+    await page.setViewportSize({ width: 390, height: 780 });
+    await bootSignedIn(page);
+    await page.goto('/app/trail');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+    // Exactly one highlight, and it is on Trail before the tap.
+    await expect(page.locator('nav.fixed [aria-current="page"]')).toHaveCount(1);
+
+    const before = await readNavbar(page);
+
+    // The locked tab is `aria-disabled` (never the native disabled attribute, so
+    // a tap still opens the sheet), which blocks Playwright's actionability wait
+    // — force the click so the app's own guard is the one that answers it.
+    await page.getByRole('button', { name: 'التدريب' }).first().click({ force: true });
+
+    // The lock sheet explains why, instead of navigating.
+    await expect(page.getByRole('heading', { name: 'هذا القسم يفتح بعد أول محادثة' })).toBeVisible();
+    // The highlight is still exactly one, still on Trail — the pill never left.
+    await expect(page.locator('nav.fixed [aria-current="page"]')).toHaveCount(1);
+
+    const after = await readNavbar(page);
+    // Identical geometry before and after: the lock is a peek, not a navigation.
+    expect(after.pill).not.toBeNull();
+    expect(before.pill).not.toBeNull();
+    expect(after.pill!.gaps).toEqual(before.pill!.gaps);
+    expect(after.container).toEqual(before.container);
   });
 });

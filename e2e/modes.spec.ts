@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { bootSignedIn, turn } from './harness';
+import { bootSignedIn, openSessionDetailsIfPresent, turn } from './harness';
 
 /**
  * The two modes of the same conversation (V28 Stage 1D).
@@ -106,6 +106,11 @@ test('REAL mode hides every aid, still reports the mistake, and its correction i
   // The A1 cap (4) ended the episode; the report names the mistake that was
   // hidden live.
   await expect(page).toHaveURL(/\/session-report$/, { timeout: 30_000 });
+
+  // The hidden mistake is named in the report's evidence; on day 0 that evidence
+  // is behind «تفاصيل الجلسة».
+  await openSessionDetailsIfPresent(page);
+
   await expect(page.getByText('تصحيحات هذه الجلسة', { exact: true })).toBeVisible();
   await expect(page.getByText('Akkusativ: einen Kaffee')).toBeVisible();
   await expect(page.getByText('Ich möchte einen Kaffee')).toBeVisible();

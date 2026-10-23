@@ -32,7 +32,7 @@ async function askQuestion(page: Page, question: string): Promise<void> {
 }
 
 test('the Practice tab opens Ask Katzu, which explains, then checks understanding', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
   await page.goto('/app/practice');
 
   // The entry is a real, keyboard-reachable control on the Practice tab.

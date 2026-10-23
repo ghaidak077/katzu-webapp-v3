@@ -12,7 +12,9 @@ const NOW = 1_800_000_000_000;
  * pointing at anything ("إجمالي الجمل") are gone.
  */
 test('Progress leads with capability and tags every row with its state and origin', async ({ page }) => {
-  await bootSignedIn(page, { user: { cefrLevel: 'A1' } });
+  // Reaches /app/progress, which is locked until the first conversation — the
+  // finished episode opens it deterministically before the screen's own seeds.
+  await bootSignedIn(page, { user: { cefrLevel: 'A1' }, history: true });
 
   await seedRows(page, 'sessions', [
     {
@@ -139,12 +141,12 @@ test('Progress leads with capability and tags every row with its state and origi
 });
 
 test('Progress states an unmeasured skill instead of showing a zero, and never promises Reading', async ({ page }) => {
-  await bootSignedIn(page);
+  await bootSignedIn(page, { history: true });
   await page.goto('/app/progress');
 
-  // The three trainable skills are genuinely unmeasured on a fresh account;
-  // each one says so instead of rendering a zero.
-  await expect(page.getByText('لم تُقس بعد')).toHaveCount(3);
+  // The finished episode measures the one skill it exercised, so only the skills
+  // it never touched stay unmeasured; each one says so instead of rendering a zero.
+  await expect(page.getByText('لم تُقس بعد')).toHaveCount(2);
   // Reading has no practice surface, so it must not be advertised as coming
   // soon (S1.2). This assertion is the inverse of the one it replaces: the old
   // test *required* the «قريباً» promise to be visible, which is exactly the

@@ -75,20 +75,37 @@ describe('Screen 1.1 — no placeholder sentence in the journey hero', () => {
 });
 
 describe('Screen 1.4 — the achievement card cannot fake a capability', () => {
+  // The card lives in one of two places and never both: the home screen itself
+  // while `guidedHome` is off, and «المزيد» while it is on. The evidence gate is
+  // the same either way, so this reads the pair.
   const journey = readFileSync('src/features/journey/JourneyHomeScreen.tsx', 'utf8');
+  const more = readFileSync('src/features/journey/JourneyMoreSheet.tsx', 'utf8');
 
   it('renders «قدرة مكتسبة» only from a recorded INDEPENDENT/RETAINED state', () => {
     // The earned card is gated on `latestCapability`, which is built from
     // `capability.byScenario` filtered to INDEPENDENT/RETAINED — the same
     // evidence ladder tests/capability.test.ts pins. No other path to the
     // string may exist.
-    const earnedBranch = journey.slice(journey.indexOf('{latestCapability ? ('));
+    //
+    // The card earns its place twice over: the home screen builds it from the
+    // filtered ladder (so an unearned card cannot exist), and the sheet renders
+    // that value as the label rather than a string of its own (so the sheet
+    // cannot invent one). The second assertion is the reason the file list is a
+    // pair instead of just the home screen.
+    const earnedBranch = journey.slice(journey.indexOf('latestCapability ? ('));
+    expect(journey).toMatch(/\{!guided && \(latestCapability \? \(/);
     expect(earnedBranch).toMatch(/latestCapability\.labelAr/);
     expect(journey).toMatch(/state === 'INDEPENDENT' \|\| value\.state === 'RETAINED'/);
+    expect(more).toMatch(/قدرة مكتسبة · \{capability\.labelAr\}/);
+    // One evidence source: the sheet receives the card already decided and has
+    // no scenario/capability model of its own to compute a second one.
+    expect(more).not.toMatch(/buildCapabilityModel|from '@\/lib\/capability/);
   });
 
   it('shows an honest goal line while nothing is earned yet', () => {
     expect(journey).toMatch(/هدفك في هذا الفصل/);
+    // …and it moved with the card, so the guided home keeps it too.
+    expect(more).toMatch(/هدفك في هذا الفصل/);
   });
 });
 

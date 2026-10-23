@@ -70,6 +70,21 @@ export interface MissionInput {
   scenarioLevels?: ScenarioLevelIndex;
   /** Present only when a skill has actually been measured and is the weakest. */
   weakestSkill?: WeakSkillHint | null;
+  /**
+   * Scenarios with a finished conversation (`db.sessions`), when the caller knows
+   * them.
+   *
+   * Why a second fact is needed: the V2 episode ends at the debrief, never at the
+   * quiz, so a scenario that has been completed still carries `studiedAt` and
+   * `quizAttempted: false` — exactly the shape `isUnfinished` reads as "started
+   * and abandoned". Without this, the home screen offered «أكمل من حيث توقفت» for
+   * the episode the learner had just finished, every day, forever.
+   *
+   * A session is the evidence that a scene is finished, so it wins over the
+   * training row. Kept as an input rather than a database read so this module
+   * stays pure and testable, and so the screen stays the only reader of storage.
+   */
+  completedScenarioIds?: string[];
   dailyMinutes?: number;
   /**
    * The learner's own date and what kind of day it is.
@@ -117,8 +132,11 @@ export interface DailyMissionPlan {
 const READY_SCORE = 80;
 
 /** A scenario is "unfinished" while its quiz never passed. */
-function isUnfinished(record: MissionTrainingRecord | undefined): boolean {
+function isUnfinished(record: MissionTrainingRecord | undefined, completed: ReadonlySet<string>): boolean {
   if (!record) return false;
+  // A finished conversation outranks the training row: this scenario is done,
+  // whatever the quiz fields still say.
+  if (completed.has(record.scenarioId)) return false;
   if (record.studiedAt && !record.quizAttempted) return true;
   return record.quizAttempted && (record.lastScore || 0) < READY_SCORE;
 }
@@ -206,9 +224,12 @@ function selectMissionAction(input: MissionInput): DailyMissionPlan {
     reviewItems = [],
     scenarioLevels,
     weakestSkill = null,
+    completedScenarioIds = [],
     dailyMinutes,
     now = Date.now(),
   } = input || ({} as MissionInput);
+
+  const completed = new Set(Array.isArray(completedScenarioIds) ? completedScenarioIds : []);
 
   const safeScenarios = Array.isArray(scenarios) ? scenarios : [];
   const safeTraining = Array.isArray(training) ? training : [];
@@ -238,7 +259,7 @@ function selectMissionAction(input: MissionInput): DailyMissionPlan {
   // 2. Continue what is already open: abandoning a half-finished scenario for a
   //    new one is how a trail becomes a museum of started lessons.
   const unfinished = safeScenarios
-    .filter((scenario) => isUnfinished(trainingByScenario.get(scenario.id)))
+    .filter((scenario) => isUnfinished(trainingByScenario.get(scenario.id), completed))
     .map((scenario) => ({
       scenario,
       goalScore: goalMatchScore(scenario.category, goal),
@@ -277,9 +298,10 @@ function selectMissionAction(input: MissionInput): DailyMissionPlan {
   // 4. The story opening. A learner who has never started the arrival scene is
   //    given it before the rotating daily pool, so the first thing they ever
   //    practise is walking into Germany rather than a random day's café. It is
-  //    offered once: as soon as the scene has a training record, this branch
-  //    stops matching and the normal rotation takes over.
-  if (!trainingByScenario.has(INTRO_SCENARIO_ID)) {
+  //    offered once: as soon as the scene has a training record — or a finished
+  //    conversation, for a learner who went straight into the episode — this
+  //    branch stops matching and the normal rotation takes over.
+  if (!trainingByScenario.has(INTRO_SCENARIO_ID) && !completed.has(INTRO_SCENARIO_ID)) {
     const opening = safeScenarios.find(
       (scenario) => scenario.id === INTRO_SCENARIO_ID && hasContent(scenario.id, scenarioLevels),
     );
