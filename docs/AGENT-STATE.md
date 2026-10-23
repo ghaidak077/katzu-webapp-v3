@@ -28,6 +28,12 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **Deployed 2026-10-23 (guided home):** `main` = **`1e9d09f`** (`--no-ff`; tip `4b581d0`). Production Pages **`c89828af-…`** serves `assets/index-DkRAI1BL.js` with
+  `VITE_GUIDED_HOME:"1"` (`.env.production` pins it ON; `localStorage['kz.guidedHome']='0'` is the
+  per-device switch). Gate **14/14 in 723 s**; staging preview `fedcd115-…` (shell only); prod smoke
+  **4 passed / 2 skipped**, `/demo` 4/4. Rollback: dashboard redeploy of `50f30132-…` or
+  `git revert -m 1 1e9d09f` + push. Worker `e1a9a2ca-…` and D1 untouched. **Signed-in guided home /
+  report / paywall on production remain UNPROVEN** (needs an account).
 - **Current tree (2026-10-19, this deploy run):** `main` **= `origin/main` = `release-candidate` = `2fa5acd`** — no
   uncommitted repo work. The launch candidate (the owner-approved 5-commit + 3-UX batch + 2 stale-contract
   e2e fixes, 64 commits total) was **merged to `main` and deployed today**; see `## CURRENT MISSION`
@@ -115,8 +121,8 @@ NEXT (V43.3): **Every admin tab, clicked with a real key against a local D1 — 
 
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 
-Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-harness fix):
-these live ids are the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
+Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-harness fix) and the
+2026-10-23 guided-home Pages deploy: these live ids are the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
 (now in `docs/agent/ARCHIVE-AGENT-STATE.md`), whose worker target `315ec953-…` was replaced by
 `56425f30-…` (2026-10-12), then `66bd8b92-…`, then the secret-only `31149c92-…`, and then today's.
 
@@ -129,27 +135,29 @@ these live ids are the rollback targets for the **next** deploy. Supersedes the 
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
 - Pages live production deployment id (rollback target for the next deploy):
-  `8ec7ea54-ef85-4333-bcb0-bc5618adc74e`, branch `main`, commit `3358165` — a git-triggered
-  build, serving `assets/index-BfNVQ58w.js` (unchanged: no frontend source was touched). Older
-  rollback targets: `5f115c46-807d-43f7-9fe1-9523dd5eb57c` (source `95f21f7`),
-  `8fe6d07f-fe49-49c9-8369-985a82a9a8f1` (source `8ca290c`), `5722462d-7782-40c4-91dd-de40e93851d2`
-  (source `6841924`) and `8fb96479-c214-453c-9d6e-775af448e7de` (source `92280ec`), then the ids in
-  the archived snapshot.
-- `GET /health` body (worker, read 2026-10-19 after the deploy):
+  `c89828af-acba-41bd-8514-8eba166d6c0e`, branch `main`, commit `1e9d09f` (the guided-home merge) —
+  a git-triggered build serving `assets/index-DkRAI1BL.js` with `VITE_GUIDED_HOME:"1"` and the
+  worker origin. Previous target (rollback for the guided-home deploy): `50f30132-0412-417f-95de-8cc0dc545d7b`
+  (source `d216ae8`, serving `assets/index-BfNVQ58w.js`, flag absent). Rollback is either the
+  dashboard "Redeploy" of `50f30132-…` or `git revert -m 1 1e9d09f` + push (agent-executable;
+  a manual Pages deploy is forbidden by `DEPLOY.md`). Older targets: `8ec7ea54-…` (source `3358165`),
+  `5f115c46-…` (source `95f21f7`), `8fe6d07f-…` (source `8ca290c`), `5722462d-…` (source `6841924`),
+  `8fb96479-…` (source `92280ec`), then the ids in the archived snapshot.
+- `GET /health` body (worker, re-read 2026-10-23 after the Pages deploy — unchanged):
   `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false,"storage":{"d1":"ok","kv":"ok"}}`.
   The `storage` object is shipped by `9c07b44` (2026-10-16 launch-metrics commit, verified with
   `git log -S 'storage:{d1:"ok"' -- cloudflare-unified-worker.js`) and tells a learner only that the
   data stores answer — no pool, no models, no strategy. KEEP it when editing that handler.
-- `GET /crypto/health` body (worker, read 2026-10-19 after the deploy):
+- `GET /crypto/health` body (worker, read 2026-10-23 after the Pages deploy):
   `{"ok":true,"provider":"nowpayments","environment":"test_mode",...,"priceUsd":5,"months":1,"plans":[...],"ready":false}`
   — unchanged from every previous ledger reading.
 - Unauthenticated `GET /admin/api/orders` → **401** at the worker origin
   (`katzu-test.ghaidakalosh008.workers.dev`) — note `katzuai.com` is the **Pages** host and answers
   SPA HTML for every path, so worker routes must never be probed there.
-  `/` `/demo` `/sw.js` → **200** on `katzuai.com`, serving `assets/index-BfNVQ58w.js`.
-- `origin/main` at snapshot time: `3358165` — gate `npm run verify -- --ci --e2e`
-  (**14/14 in 679.7 s**) green in the `95f21f7` tree (the `3358165` delta was re-gated locally,
-  **6/6 in 78.7 s**); production smoke **4 passed / 2 skipped / 0 failed**.
+  `/` `/demo` `/sw.js` → **200** on `katzuai.com`, serving `assets/index-DkRAI1BL.js`.
+- `origin/main` at snapshot time: `1e9d09f` — gate `npm run verify -- --ci --e2e`
+  (**14/14 in 723 s**) green in that tree; production smoke **4 passed / 2 skipped / 0 failed**,
+  plus the `/demo` four-step walk on the live origin.
 - **Rollback is PROVEN available** for both targets: `wrangler whoami` reports account
   `00df3d915626e0a681f4fef98c1c587c` with `workers (write)` (used for the pre-deploy snapshot),
   and `wrangler pages deployment list` lists the live production deployment and its predecessors
@@ -267,7 +275,6 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | V10-6. Content load (Phase D.2) | blocked | Owner line `CONTENT-LOAD-AUTHORIZED: curriculum-arrival-module2.json, curriculum-30day-module1.json (module1 only if approved by the Content Gate in this run)`. **Nothing was loaded; no D1 export was taken; no production write occurred, not even a test one.** The runbook's precondition 4 fails on this machine: the sanctioned check `[ -n "$ADMIN_SECRET" ] && echo set` prints **NOT SET**, and `docs/agent/CONTENT-LOAD.md` says an unmet precondition → STOP, no partial load. The agent did not read, store, print or pass the value, and must not (§3). **The secret was published in a chat prompt earlier in this session, so it must be treated as compromised and rotated before any load.** Everything else the runbook requires is true and was verified read-only this run: both files `review.status="approved"` with review files; both audits PASSED; both dry-runs PASSED (module2 → 5/49/42/4; module1 → 5/74/49/10); production collision checks **clean for both modules** (module1: 15 ids, zero rows; module2: 9 ids, zero rows); live counts re-read **5 / 114 / 20 / 4**, unchanged. Owner commands, expected post-load counts and the rollback id list are in `docs/agent/CONTENT-LOAD.md`. |
 | V11-2. Load module2 → refused with 401; value shape diagnosed; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v11-load-module2.log 2>&1`: the draft validated locally (5 scenarios / 49 vocabulary / 42 phrases / 4 grammar, review approved), then **the first authenticated read failed — `✘ could not list vocabulary (HTTP 401): {"error":"unauthorized"}`** at `scripts/load-curriculum.mjs:70`. The log carries **zero** `Bearer`/`Authorization` occurrences (the credential was never echoed), the log never reaches a write phase (`Writing …` / `to write` are absent), and **nothing was written to production D1**. **Root cause, established structurally without ever printing the value:** the environment variable is **66 characters** of which exactly **64 are lowercase hex** — chars 2–65 match `^[0-9a-f]{64}$` — with first char `U+003C` (`<`) and last `U+003E` (`>`); i.e. the placeholder form `<secret>` was pasted *with its angle brackets*, so the loader sent `Authorization: Bearer <hex>`. **Nothing was re-encoded, trimmed or re-derived:** §3 reserves secret handling to the owner, so this is an owner-side fix. **Post-attempt state re-verified unchanged:** counts still **5 / 114 / 20 / 4**, the new scenario ids still absent, and `/scenarios`, `/vocabulary`, `/grammar` all **200**. The backup from V11-1 is still valid and still unused; no rollback was needed because no write was attempted. |
 | V12-2. Load module2 → grammar batch `HTTP 500` on a live schema gap; 89 inserted rows rolled back; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v12-load-module2.log 2>&1` → **exit 0**, 29 log lines, **`grep -c -E 'Bearer\|Authorization'` = 0** (run before anything was shown; the credential never reached the log). **Three of the four batches wrote, the fourth could not:** `scenarios ✔ HTTP 200 count 5`, `vocabulary ✔ 200 count 42` (7 of 49 rows skipped as already present), `starter_phrases ✔ 200 count 42`, and **`✘ grammar batch 1 failed (HTTP 500): {"error":"admin_route_failed","message":"D1_ERROR: table grammar has no column named rule_de: SQLITE_ERROR"}`** — **0 grammar rows written**. The loader then printed `DONE — 89 row(s) written.` and **exited 0**, because its verification loop covers scenarios and vocabulary topics only and never consults the per-batch statuses, so a failed batch is invisible in its exit code (recorded in `LESSONS.md`). **Rollback, exact, driven by the backup rather than by arithmetic on counts:** the pre-load export contains the two tables' `sqlite_sequence` rows (`vocabulary = 135`, `starter_phrases = 20`) and both are `INTEGER PRIMARY KEY AUTOINCREMENT`, so the new rows are provably `vocabulary id > 135` (42 rows, 136–177) and `starter_phrases id > 20` (42 rows, 21–62) — an id above the pre-load sequence cannot be a pre-existing row. `DELETE FROM starter_phrases WHERE id > 20; DELETE FROM vocabulary WHERE id > 135; DELETE FROM scenarios WHERE id IN ('airport_arrival','train_station','bakery_shopping','landlord_followup','friend_catchup');` → `changes` **42 / 42 / 5 = 89**, exactly the 89 the loader reported. **Both states measured:** post-attempt **10 scenarios / 156 vocabulary / 62 starter_phrases / 4 grammar**; post-rollback **5 / 114 / 20 / 4** with `MAX(vocabulary.id) = 135`, `MAX(starter_phrases.id) = 20`, 0 rows for the 5 new scenario ids and 0 `g_%` grammar ids; live scenario ids back to `apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview` and live grammar to `akkusativ_articles, dativ_prepositions, konjunktiv_ii, perfekt_tense`. **Three sampled old rows match the backup exactly:** vocabulary 22 `Reisepass`/`documents`/`جواز سفر`, 77 `Allergie`/`food`/`حساسية`, 135 `Wohnungsamt`/`housing`/`مكتب الإسكان`, and starter_phrase 1 = `embassy_appointment` "Ich habe einen Termin.". **Public endpoints back to normal:** `/scenarios` 5 rows containing **none** of the new ids, `/vocabulary` 114, `/grammar` 4, `/health` unchanged (`{status, service, ready, maintenance:false}`). **Root cause (read-only, proven twice):** the live `grammar` table is `id, level, title_ar, title_en, explanation_ar, explanation_en, example_de` (`SELECT GROUP_CONCAT(name) FROM pragma_table_info('grammar')`), while the draft row keys, `src/lib/content/curriculumAudit.ts:49`, `src/types/models.ts:89`, the Worker's own `resolvePracticeGrammar` (`cloudflare-unified-worker.js:1211`) and `docs/PRODUCT-SPEC.md:1021` all assume `id, title_ar, rule_de, rule_ar, level, explanation_ar, example_de, example_ar`. `handleAdminUpload` (`cloudflare-unified-worker.js:3053`) builds `INSERT INTO grammar (…)` from **the row's own keys**, so `rule_de` is sent to a table that has no such column; `SELECT id, rule_de FROM grammar LIMIT 1` fails with D1 error **7500** as the independent proof. **Deeper cause:** none of the four content tables' DDL exists anywhere in the repo (`git grep -n "CREATE TABLE.*grammar\|CREATE TABLE.*vocabulary\|CREATE TABLE.*scenarios\|CREATE TABLE.*starter_phrases"` → 0 hits; only the ledger tables are created by the Worker), so the live content schema is unversioned and has drifted — and the local dry-run cannot see it because it never touches the network, while the audit validates the draft against the *documented* field list. **Two production consequences beyond this load:** (a) `resolvePracticeGrammar` selects three columns the live table lacks and swallows the error in a `try/catch` that returns `null`, so the B2 grammar-reference link can never resolve in production; (b) the live grammar ids are `akkusativ_articles`-style while `SCENARIO_GRAMMAR_IDS` and the offline seed use `g_*`, so even with the columns added the five original scenarios would still have no matching D1 row. **Stopped:** module1's ten grammar rows carry the same `rule_de` field, so it was deliberately **not attempted** (rollback → mark blocked → stop). Owner fix is one additive DDL with no data loss, written into OWNER-OPEN; no deploy, no push, no further write. |
-| DEPLOY-8. Ship guided refinement to `main` + Pages (`merge`, `pages`) | doing | **Scope: `merge` + `pages` only** — `main..HEAD` touches no worker, `wrangler.toml`, `migrations/` or `sales/` file, so the worker stays `b2119bfb-68cb-49bb-8639-82d4583eda28` and no D1 statement runs. `.env.production` pins `VITE_GUIDED_HOME=1` for the git build (documented Vite mode file, not a secret); `localStorage['kz.guidedHome']='0'` stays the per-device kill switch. A local production build carries `VITE_GUIDED_HOME:"1"`; focused preview e2e 15/15. **Snapshot:** Pages production `50f30132-0412-417f-95de-8cc0dc545d7b` (source `d216ae8`, `assets/index-BfNVQ58w.js`). **Staging** = the branch's Pages Preview build; its Preview env has no `VITE_WORKER_URL` (proven on an existing preview bundle), so it proves the shell; the day-0 session is proven by the preview e2e. **Next:** gate, push, merge, verify the built flag, smoke, record ids + rollback. |
 
 ## DECISIONS
 

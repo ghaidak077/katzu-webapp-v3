@@ -42,7 +42,18 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-04
+## Current snapshot — 2026-10-23 (guided home live)
+
+**Deployed 2026-10-23 (`merge` + `pages`; no worker, no D1):** `main` = `1e9d09f` (`--no-ff` merge
+of `guided-home`, tip `4b581d0`). Pages production `c89828af-acba-41bd-8514-8eba166d6c0e` serves
+`assets/index-DkRAI1BL.js` with `VITE_GUIDED_HOME:"1"`, pinned by `.env.production`; rollback is a
+dashboard redeploy of `50f30132-0412-417f-95de-8cc0dc545d7b` or `git revert -m 1 1e9d09f` + push.
+Gate `npm run verify -- --ci --e2e` **14/14 in 723 s**; production smoke **4 passed / 2 skipped**;
+the public `/demo` completed 4/4 on the live origin; worker `e1a9a2ca-…` unchanged. Signed-in
+guided home, session report and paywall are **UNPROVEN on production** (they need a Google
+account). The 2026-10-04 snapshot below is historical provenance.
+
+## Current snapshot — 2026-10-04 (historical)
 
 The owner approved autonomous local execution of the excellence roadmap. Current scope and
 verification are in [EXCELLENCE-STATUS](EXCELLENCE-STATUS.md). Batch 1 repairs account-owned
