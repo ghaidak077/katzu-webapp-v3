@@ -51,7 +51,7 @@ export const PracticeLockSheet: React.FC<PracticeLockSheetProps> = ({ isOpen, on
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title="هذا القسم يفتح بعد أول محادثة">
       <div className="pb-2">
-        <p className="kz-ar-body leading-relaxed text-kz-inkDim">
+        <p className="kz-ar-body text-kz-inkDim">
           محادثة واحدة قصيرة تكفي — وبعدها كل ما هنا مفتوح.
         </p>
         <div className="mt-5">

@@ -398,7 +398,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   const preferencesIncomplete = !user?.onboardingCompletedAt || !user?.primaryGoal;
 
   return (
-    <div className="kz-tab-scroll min-h-screen bg-black px-4 pt-5">
+    <div className="kz-tab-scroll min-h-screen bg-kz-black px-4 pt-5">
       <div className="mx-auto max-w-md">
         {/* Status line: where am I? Day, chapter, and the situation it belongs to. */}
         <header className="mb-5 flex items-start justify-between gap-3">
@@ -415,7 +415,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <StatusIndicator state={isOnline ? 'online' : 'offline'} compact />
             {!guided && !isPro && (
-              <GlassButton variant="quiet" onClick={onOpenSubscription} className="min-h-[44px] px-3 text-micro">
+              <GlassButton variant="quiet" onClick={onOpenSubscription} className="min-h-touch px-3 text-micro">
                 <Sparkles className="h-3 w-3" />
                 Katzu Pro
               </GlassButton>
@@ -443,7 +443,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
               // 44px, not the 26px the icon asked for: an icon-only control is
               // still a control, and `e2e/accessibility.spec.ts` measures the box.
               // Same idiom as Modal's and BottomSheet's close buttons.
-              className="absolute top-1.5 end-1.5 flex min-h-touch min-w-touch items-center justify-center rounded-full text-kz-inkFaint pointer-hover:bg-black/10"
+              className="absolute top-1.5 end-1.5 flex min-h-touch min-w-touch items-center justify-center rounded-full text-kz-inkFaint pointer-hover:bg-kz-black/10"
             >
               <X className="h-3.5 w-3.5" aria-hidden />
             </button>
@@ -467,7 +467,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
               only what it is called. */}
           <ScenarioBanner scene={scene} drift loading="eager">
             <div className="flex h-full flex-col justify-between p-4">
-              <span className="kz-ar-micro self-start rounded-full bg-black/45 px-2.5 py-1 text-kz-inkDim backdrop-blur-sm">
+              <span className="kz-ar-micro self-start rounded-full bg-kz-black/45 px-2.5 py-1 text-kz-inkDim backdrop-blur-sm">
                 {scene.locationAr}
               </span>
               {/* G5: the mascot is already on this screen (the Katzu line card
@@ -510,7 +510,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
               {/* B6: the days-left line, only inside the last month of an exam and
                   only beside the mission \u2014 never as a reason to replace it. */}
               {mission.countdownAr ? (
-                <p data-testid="exam-countdown" className="mb-3 text-xs font-arabic text-status-warning">
+                <p data-testid="exam-countdown" className="kz-ar-micro mb-3 text-kz-warm">
                   {mission.countdownAr}
                 </p>
               ) : null}
@@ -560,7 +560,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             data-testid="journey-more"
             aria-haspopup="dialog"
             onClick={() => setMoreOpen(true)}
-            className="mb-4 flex min-h-touch w-full items-center justify-center gap-1 rounded-chip text-kz-inkFaint transition-colors pointer-hover:bg-white/[0.04]"
+            className="mb-4 flex min-h-touch w-full items-center justify-center gap-1 rounded-chip text-kz-inkFaint transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
           >
             <span className="kz-ar-micro">المزيد</span>
             <ChevronDown className="h-3.5 w-3.5" aria-hidden />
@@ -638,7 +638,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             {onOpenSubscription && (
               <GlassButton
                 variant="secondary"
-                className="mt-2 min-h-[44px] rounded-chip px-4 text-micro"
+                className="mt-2 min-h-touch rounded-chip px-4 text-micro"
                 onClick={onOpenSubscription}
               >
                 تجديد الاشتراك
@@ -668,15 +668,15 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             label instead of the chip it is. */}
         {!guided && (<div className="flex flex-wrap items-center gap-2">
           {onOpenGrammar && (
-            <GlassButton variant="secondary" className="min-h-[44px] rounded-chip px-4 text-micro" onClick={onOpenGrammar}>
+            <GlassButton variant="secondary" className="min-h-touch rounded-chip px-4 text-micro" onClick={onOpenGrammar}>
               القواعد
             </GlassButton>
           )}
-          <GlassButton variant="secondary" className="min-h-[44px] rounded-chip px-4 text-micro" onClick={onOpenLibrary}>
+          <GlassButton variant="secondary" className="min-h-touch rounded-chip px-4 text-micro" onClick={onOpenLibrary}>
             كل المشاهد والمستويات
           </GlassButton>
           <span
-            className="kz-ar-micro inline-flex min-h-[44px] items-center rounded-chip border border-white/10 bg-white/[0.03] px-4 text-kz-inkDim"
+            className="kz-ar-micro inline-flex min-h-touch items-center rounded-chip border border-kz-line bg-kz-ink/5 px-4 text-kz-inkDim"
             data-testid="journey-level-chip"
           >
             المستوى {learnerLevel}

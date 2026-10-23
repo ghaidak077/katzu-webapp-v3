@@ -101,7 +101,7 @@ const Row: React.FC<{
     type="button"
     onClick={onClick}
     data-testid={testId}
-    className="flex min-h-touch w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-start transition-colors pointer-hover:bg-white/[0.04]"
+    className="flex min-h-touch w-full items-center justify-between gap-3 rounded-chip px-3 py-2 text-start transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
   >
     <span className="min-w-0">
       <span className="kz-ar-caption block text-kz-ink">{label}</span>
@@ -114,7 +114,7 @@ const Row: React.FC<{
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <section className="mt-4 first:mt-0">
     <p className="kz-ar-micro mb-1 px-3 text-kz-inkFaint">{title}</p>
-    <div className="divide-y divide-white/[0.06]">{children}</div>
+    <div className="divide-y divide-kz-line">{children}</div>
   </section>
 );
 
@@ -155,7 +155,7 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
             it is moved here rather than dropped — the mascot is what makes it
             read as a line about *this* learner, not a system notice. */}
         {katzuLineAr ? (
-          <div className="mb-4 flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="mb-4 flex items-start gap-3 rounded-chip border border-kz-line bg-kz-ink/5 p-3">
             <KatzuPresence state={katzuState} size="sm" className="shrink-0" />
             <p className="kz-ar-caption min-w-0 flex-1 pt-1 text-kz-inkDim">{katzuLineAr}</p>
           </div>
@@ -204,14 +204,14 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
               cannot reach this slot. With nothing earned the slot shows the
               chapter's goal instead — motivation, not a claim. */}
           {capability ? (
-            <div className="rounded-xl p-3" data-testid="capability-card">
+            <div className="rounded-chip p-3" data-testid="capability-card">
               <p className="kz-ar-micro kz-earned-text mb-1">قدرة مكتسبة · {capability.labelAr}</p>
               <p className="kz-ar-caption text-kz-ink">
                 تستطيع التعامل مع «{capability.titleAr}» بالألمانية بدون مساعدة.
               </p>
             </div>
           ) : (
-            <div className="rounded-xl p-3" data-testid="chapter-goal-card">
+            <div className="rounded-chip p-3" data-testid="chapter-goal-card">
               <p className="kz-ar-micro mb-1 text-kz-inkDim">هدفك في هذا الفصل</p>
               <p className="kz-ar-caption text-kz-ink">
                 أنهِ مشاهد هذا الفصل لتتقن التعامل مع موقفه بالألمانية بدون مساعدة.
@@ -219,7 +219,7 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
             </div>
           )}
           {recap && (
-            <div className="rounded-xl p-3" data-testid="weekly-recap-card">
+            <div className="rounded-chip p-3" data-testid="weekly-recap-card">
               <p className="kz-ar-micro mb-1 text-kz-inkDim">أسبوعك في كَاتْزُو</p>
               <p className="kz-ar-caption text-kz-ink">{recap.headlineAr}</p>
               {recap.topScenarioTitle ? (
