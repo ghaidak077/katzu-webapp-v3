@@ -60,3 +60,35 @@ export function isFirstSessionDone(input: FirstSessionInput): boolean {
   if (!input.guided) return false;
   return isProEffective(input.user) || input.user?.freeSessionsRemaining === 0;
 }
+
+export interface DayZeroOpeningInput {
+  /** Is the guided refinement on? */
+  guided: boolean;
+  /** `db.sessions.count()` — `undefined` while the count is still loading. */
+  sessionCount: number | null | undefined;
+  /** The learner's stored row, when it is known. */
+  user?: FirstSessionLearner | null;
+}
+
+/**
+ * Is this a learner's very first episode-opening (day 0), for the Story Setup
+ * CTA? Only a GUIDED leaner with a KNOWN, still-zero count and a free allowance
+ * left is "new":
+ *
+ *  - flag off → always false. The guided refinement introduced this copy; with
+ *    the switch off the episode opening must render byte-for-byte the old hint.
+ *  - count still loading (`undefined`/`null`) → always false. A returning learner
+ *    must never flash the day-0 line just because the read has not settled, so
+ *    the screen must pass the raw value and let THIS decide, never coerce to 0.
+ *  - otherwise it is the inverse of `isFirstSessionDone`, so the episode opening
+ *    and the home hero / Practice / Progress locks can never disagree.
+ */
+export function isDayZeroOpening(input: DayZeroOpeningInput): boolean {
+  if (!input.guided) return false;
+  if (input.sessionCount == null) return false; // count not loaded yet
+  return !isFirstSessionDone({
+    guided: input.guided,
+    sessionCount: input.sessionCount,
+    user: input.user,
+  });
+}

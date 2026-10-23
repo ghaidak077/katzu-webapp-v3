@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolveGuidedHome } from '../src/lib/flags/guidedHome';
 import { ONBOARDING_SKIP_SOURCE } from '../src/lib/analytics/events';
+import { isDayZeroOpening } from '../src/lib/journey/firstSession';
 
 /**
  * `guidedHome` decides whether a brand-new learner sees the guided home or the
@@ -263,30 +264,73 @@ describe('the Practice/Progress lock (step 3)', () => {
 });
 
 /**
- * Story Setup (step 4 Phase A): the episode opening's first-run copy.
+ * Story Setup (step 4b): the episode opening's day-0 copy, and the rule behind it.
  *
  * The behaviour is proven in e2e. These assertions guard what a later edit could
- * quietly break: the day-0 hint reads the SAME shared first-session fact the home
- * hero and the locks use (Decision: gate on the shared rule), with the same
- * finished-conversation count from the sessions table — and the two agreed copy
- * strings stay: day-0 (reassuring: no test, no judgement) vs returning (the
- * "continue" framing). The label itself is asserted in the e2e suite.
+ * quietly break. The day-0 decision is a pure function that reads the SAME shared
+ * first-session fact the home hero and the locks use, but refuses day 0 with the
+ * flag off or while the count is still loading — so a flag-off build stays
+ * byte-for-byte the old hint and a returning learner never flashes the day-0 line.
+ * The two agreed copy strings (day-0: no test, no judgement; returning: continue
+ * framing) stay in the screen, and the label is asserted in the e2e suite.
  */
-describe('Story Setup: the day-0 opening copy (step 4 Phase A)', () => {
+describe('Story Setup: the day-0 opening copy (step 4b)', () => {
   const story = readFileSync('src/features/journey/StorySetupScreen.tsx', 'utf8');
 
-  it('reads the SAME shared first-session rule the home hero and the locks use', () => {
-    expect(story).toContain("import { isFirstSessionDone } from '@/lib/journey/firstSession'");
+  it('gates the day-0 copy on the shared rule the home hero and locks use', () => {
+    expect(story).toContain("import { isDayZeroOpening } from '@/lib/journey/firstSession'");
     expect(story).toContain("import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome'");
-    // Same evidence: the finished-conversation count from the same sessions table.
-    expect(story).toContain('const dayZero = !isFirstSessionDone({ guided, sessionCount, user });');
-    expect(story).toContain('db.sessions.count()');
+    expect(story).toContain('const dayZero = isDayZeroOpening({ guided, sessionCount, user });');
   });
 
-  it('shows the agreed day-0 copy on a first session, and the continuing copy otherwise', () => {
-    // True-branch (day 0) → reassuring; false-branch (returning) → the continue framing.
-    expect(story).toMatch(
-      /\? 'ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم\.'\s*:\s*'خطوتان قصيرتان ثم تبدأ المحادثة\.'/,
-    );
+  it('passes the count RAW — a still-loading count must never be decided as day 0', () => {
+    // The screen hands the unresolved query result to the rule as-is. A `?? 0` here
+    // would turn a still-loading returning learner into day 0 on first paint and
+    // silently defeat the loading guard inside `isDayZeroOpening`.
+    expect(story).toContain('const sessionCount = useLiveQuery(() => db.sessions.count(), []);');
+    expect(story).not.toContain('?? 0');
+    expect(story).not.toContain('??0');
+  });
+
+  it('still carries the two agreed copy strings', () => {
+    expect(story).toContain('ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم.');
+    expect(story).toContain('خطوتان قصيرتان ثم تبدأ المحادثة.');
+  });
+});
+
+describe('isDayZeroOpening (step 4b): the day-0 decision', () => {
+  it('guided off is never day 0, even with a zero count', () => {
+    expect(isDayZeroOpening({ guided: false, sessionCount: 0, user: { freeSessionsRemaining: 3 } }))
+      .toBe(false);
+    expect(isDayZeroOpening({ guided: false, sessionCount: 4, user: undefined })).toBe(false);
+  });
+
+  it('a still-loading count is never day 0', () => {
+    expect(isDayZeroOpening({ guided: true, sessionCount: undefined, user: undefined })).toBe(false);
+    expect(isDayZeroOpening({ guided: true, sessionCount: null, user: { freeSessionsRemaining: 3 } }))
+      .toBe(false);
+  });
+
+  it('day 0: guided, known zero count, not Pro, free allowance left', () => {
+    expect(isDayZeroOpening({ guided: true, sessionCount: 0, user: { freeSessionsRemaining: 3 } }))
+      .toBe(true);
+    expect(isDayZeroOpening({ guided: true, sessionCount: 0, user: { freeSessionsRemaining: 1 } }))
+      .toBe(true);
+  });
+
+  it('after one finished conversation it is not day 0', () => {
+    expect(isDayZeroOpening({ guided: true, sessionCount: 1, user: { freeSessionsRemaining: 3 } }))
+      .toBe(false);
+    expect(isDayZeroOpening({ guided: true, sessionCount: 6, user: undefined })).toBe(false);
+  });
+
+  it('a Pro learner is not day 0 even with no finished conversation', () => {
+    expect(isDayZeroOpening({ guided: true, sessionCount: 0, user: { isSubscriptionActive: true } }))
+      .toBe(false);
+  });
+
+  it('a learner whose free allowance is spent is not day 0', () => {
+    expect(isDayZeroOpening({ guided: true, sessionCount: 0, user: { freeSessionsRemaining: 0 } }))
+      .toBe(false);
   });
 });

@@ -23,6 +23,17 @@ import { bootSignedIn, orb, say, silence, turn } from './harness';
 // and a looser pattern matched the tab as well as the mission's action.
 const PRIMARY_ACTION = /ابدأ مهمة اليوم|ابدأ من لحظة الوصول|أكمل من حيث توقفت|ابدأ مشهداً جديداً|ابدأ تدريب|راجع \d+ الآن/;
 
+/** Force the guided home on/off before the app's first load — the flag is cached per load. */
+async function setSwitch(page: import('@playwright/test').Page, value: '1' | '0') {
+  await page.addInitScript((flag) => {
+    try {
+      localStorage.setItem('kz.guidedHome', flag);
+    } catch {
+      /* storage disabled: the build default applies */
+    }
+  }, value);
+}
+
 test('Journey Home shows one mission, one action, and a real day count', async ({ page }) => {
   await bootSignedIn(page);
 
@@ -71,6 +82,9 @@ test('the first episode is the arrival, not a random day', async ({ page }) => {
 const EPISODE_READY_MS = 45_000;
 
 test('Story Setup introduces a situation, not a settings screen', async ({ page }) => {
+  // Day 0 is the guided first-run copy, so pin the flag ON (the flag is cached per
+  // load) — otherwise this assertion silently depends on the build's default.
+  await setSwitch(page, '1');
   await bootSignedIn(page);
 
   await page.getByRole('button', { name: PRIMARY_ACTION }).click();
@@ -94,6 +108,41 @@ test('Story Setup introduces a situation, not a settings screen', async ({ page 
 
   await start.click();
   await expect(page).toHaveURL(/\/scenario\/.+\/practice$/);
+});
+
+/**
+ * The day-0 copy is gated on the flag (step 4b).
+ *
+ * With the switch OFF a brand-new learner must see the pre-guided hint
+ * byte-for-byte — that is the contract the switch exists to honour — and with the
+ * switch ON a learner who has already finished an episode is not "new" either, so
+ * they too get the returning hint. Both reach the story screen directly: the
+ * decision lives in the screen, not in the routing, so a direct load is the least
+ * ambiguous way to ask "what does this screen claim about this learner?".
+ */
+const DAY_ZERO_HINT = 'ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم.';
+const OLD_HINT = 'خطوتان قصيرتان ثم تبدأ المحادثة.';
+
+test('with the flag off, a fresh learner sees the old hint, never day 0', async ({ page }) => {
+  await setSwitch(page, '0');
+  await bootSignedIn(page);
+  await page.goto('/scenario/airport_arrival/story');
+
+  const start = page.getByRole('button', { name: 'ابدأ التدريب' });
+  await expect(start).toBeVisible({ timeout: EPISODE_READY_MS });
+  await expect(page.getByText(OLD_HINT)).toBeVisible();
+  await expect(page.getByText(DAY_ZERO_HINT)).toHaveCount(0);
+});
+
+test('with a finished episode, a learner keeps the old hint even with the flag on', async ({ page }) => {
+  await setSwitch(page, '1');
+  await bootSignedIn(page, { history: true });
+  await page.goto('/scenario/airport_arrival/story');
+
+  const start = page.getByRole('button', { name: 'ابدأ التدريب' });
+  await expect(start).toBeVisible({ timeout: EPISODE_READY_MS });
+  await expect(page.getByText(OLD_HINT)).toBeVisible();
+  await expect(page.getByText(DAY_ZERO_HINT)).toHaveCount(0);
 });
 
 /**

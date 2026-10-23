@@ -190,6 +190,9 @@ test('quitting after guided practice resumes on the home hero', async ({ page })
 });
 
 test('a finished conversation is not offered again as “continue”', async ({ page }) => {
+  // The «أكمل» suppression is part of the guided home (OFF keeps the old mission
+  // logic on purpose), so pin the flag on like this file's other guided tests.
+  await setSwitch(page, '1');
   await bootSignedIn(page);
   // The exact post-report state: a session row (the app writes one when the
   // conversation completes) plus the training row that still reads unquizzed.
