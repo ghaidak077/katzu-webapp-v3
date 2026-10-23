@@ -28,7 +28,19 @@ async function answerPreferences(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: /20\s*دقائق/ }).click();
 }
 
+/** Force the guided home on before the app's first load — the flag is cached per load. */
+async function setSwitch(page: import('@playwright/test').Page, value: '1' | '0') {
+  await page.addInitScript((flag) => {
+    try {
+      localStorage.setItem('kz.guidedHome', flag);
+    } catch {
+      /* storage disabled: the build default applies */
+    }
+  }, value);
+}
+
 test('the questions end inside «لحظة الوصول», not on the home screen', async ({ page }) => {
+  await setSwitch(page, '1');
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
   await answerPreferences(page);
@@ -41,6 +53,7 @@ test('the questions end inside «لحظة الوصول», not on the home screen
 });
 
 test('the skip link ends the questions on the default minutes and still opens the episode', async ({ page }) => {
+  await setSwitch(page, '1');
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
   await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
@@ -56,6 +69,7 @@ test('the skip link ends the questions on the default minutes and still opens th
 });
 
 test('the first question is not an exit: it offers no back control', async ({ page }) => {
+  await setSwitch(page, '1');
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
 
@@ -68,6 +82,7 @@ test('the first question is not an exit: it offers no back control', async ({ pa
 });
 
 test('the second question’s back link returns to the goal, not to a question first run never asks', async ({ page }) => {
+  await setSwitch(page, '1');
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
   await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
@@ -79,6 +94,7 @@ test('the second question’s back link returns to the goal, not to a question f
 });
 
 test('back from the first story lands on the home screen', async ({ page }) => {
+  await setSwitch(page, '1');
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
   await answerPreferences(page);
@@ -93,6 +109,7 @@ test('back from the first story lands on the home screen', async ({ page }) => {
 });
 
 test('the skip leaves the minutes at the default and the goal at what was answered', async ({ page }) => {
+  await setSwitch(page, '1');
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
   await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
@@ -112,6 +129,7 @@ test('a learner with no goal recorded still gets a mission and an honest sheet',
   // The state a Skip cannot produce (it comes after the goal question) but a
   // restored or legacy profile can: a completion stamp with no goal. Nothing may
   // render a template value or an empty card for it.
+  await setSwitch(page, '1');
   await bootSignedIn(page, {
     user: { onboardingCompletedAt: Date.now(), primaryGoal: undefined },
   });

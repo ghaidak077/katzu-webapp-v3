@@ -6,6 +6,7 @@ import { KatzuPresence } from '@/components/v2/KatzuPresence';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { track } from '@/lib/analytics/client';
+import { ONBOARDING_SKIP_SOURCE } from '@/lib/analytics/events';
 import {
   ARRIVAL_COPY,
   GOAL_COPY,
@@ -239,7 +240,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                 fullWidth
                 className="mt-4"
                 disabled={isSaving}
-                onClick={() => void save('skip', {}, 'skip_first')}
+                onClick={() => void save('skip', {}, ONBOARDING_SKIP_SOURCE)}
               >
                 تخطَّ الآن وابدأ
               </GlassButton>

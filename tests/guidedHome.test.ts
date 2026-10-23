@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolveGuidedHome } from '../src/lib/flags/guidedHome';
+import { ONBOARDING_SKIP_SOURCE } from '../src/lib/analytics/events';
 
 /**
  * `guidedHome` decides whether a brand-new learner sees the guided home or the
@@ -170,7 +171,10 @@ describe('the first-run chain', () => {
     // (`source: 'skip_first'`) rather than that they declined the placement check.
     expect(onboarding).toContain('mode === \'first_run\' && guided && (');
     expect(onboarding).toContain('تخطَّ الآن وابدأ');
-    expect(onboarding).toContain("onClick={() => void save('skip', {}, 'skip_first')}");
+    // One shared constant for the first-run skip source, used by the screen and
+    // asserted here; its value stays the free-string 'skip_first'.
+    expect(onboarding).toContain("onClick={() => void save('skip', {}, ONBOARDING_SKIP_SOURCE)}");
+    expect(ONBOARDING_SKIP_SOURCE).toBe('skip_first');
     // The second question keeps its own (plain) skip, source 'skip'.
     expect(onboarding).toContain('تخطَّ الأسئلة وابدأ الآن');
     expect(onboarding).toContain("onClick={() => void save('skip')}");

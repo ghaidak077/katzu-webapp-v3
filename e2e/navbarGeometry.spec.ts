@@ -23,6 +23,17 @@ const TABS = [
   { label: 'الملف', name: 'Profile' },
 ] as const;
 
+/** Force the guided home on before the app's first load — the flag is cached per load. */
+async function setSwitch(page: Page, value: '1' | '0') {
+  await page.addInitScript((flag) => {
+    try {
+      localStorage.setItem('kz.guidedHome', flag);
+    } catch {
+      /* storage disabled: the build default applies */
+    }
+  }, value);
+}
+
 interface Geometry {
   container: { width: number; height: number; overflow: string; radius: number };
   pill: { width: number; height: number; radius: number; gaps: { left: number; right: number; top: number; bottom: number } } | null;
@@ -170,6 +181,7 @@ test.describe('navbar indicator geometry', () => {
   test('day 0: tapping a locked tab opens the sheet and the pill never moves', async ({ page }) => {
     // No history: this is the "before the first conversation" state the lock is
     // about. Tapping التدريب must neither navigate nor move the indicator.
+    await setSwitch(page, '1');
     await page.setViewportSize({ width: 390, height: 780 });
     await bootSignedIn(page);
     await page.goto('/app/trail');

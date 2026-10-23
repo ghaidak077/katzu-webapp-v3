@@ -11,7 +11,20 @@ import { bootSignedIn, mockBackend, readStoredUser, seedSignedInUser } from './h
  * adjectives — a question whose answer goes nowhere is data collection dressed up
  * as personalisation.
  */
+
+/** Force the guided home on before the app's first load — the flag is cached per load. */
+async function setSwitch(page: import('@playwright/test').Page, value: '1' | '0') {
+  await page.addInitScript((flag) => {
+    try {
+      localStorage.setItem('kz.guidedHome', flag);
+    } catch {
+      /* storage disabled: the build default applies */
+    }
+  }, value);
+}
+
 test('first run asks two questions and opens the opening episode', async ({ page }) => {
+  await setSwitch(page, '1');
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
 
@@ -53,6 +66,7 @@ test('first run asks two questions and opens the opening episode', async ({ page
 });
 
 test('a stranger walks from the landing page to the first mission', async ({ page }) => {
+  await setSwitch(page, '1');
   // The launch path end to end, with the one seam the suite cannot cross made
   // explicit: Google's own sign-in cannot be driven from a test, so the harness
   // seeds exactly the session that button would have created, and everything
