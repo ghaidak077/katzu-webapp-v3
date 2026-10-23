@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { bootSignedIn, orb, say, silence, turn } from './harness';
+import { bootSignedIn, openSessionDetailsIfPresent, orb, say, silence, turn } from './harness';
 
 /**
  * The daily episode, end to end, in a real browser.
@@ -357,6 +357,10 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
   // The hand-off is delayed on purpose (the learner reads the last reply first),
   // so this waits rather than asserting instantly.
   await expect(page).toHaveURL(/\/session-report$/, { timeout: 30_000 });
+
+  // On day 0 the same evidence sits behind the finish line's quiet disclosure;
+  // on the full report this is a no-op.
+  await openSessionDetailsIfPresent(page);
 
   await expect(page.getByText('ملخّص الجلسة')).toBeVisible();
   // Evidence, not celebration: both numbers trace back to the three turns sent.

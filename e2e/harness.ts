@@ -1092,6 +1092,31 @@ export async function silence(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Opens the day-0 «تفاصيل الجلسة» disclosure when the guided finish line is on
+ * screen, and does nothing on the full report.
+ *
+ * A spec whose subject is the debrief's evidence (the correction drill, the Pro
+ * offer) must keep the same assertions under either `guidedHome` default. On day 0
+ * that evidence is behind the one quiet control the learner would open, so the
+ * spec opens it instead of pinning the switch off — which would leave the guided
+ * path untested by every spec that touches the report.
+ */
+export async function openSessionDetailsIfPresent(page: Page): Promise<void> {
+  const details = page.getByRole('button', { name: 'تفاصيل الجلسة' });
+  // The report resolves the session table live: on day 0 the finish line replaces
+  // the full report a tick after mount. Wait for that decision rather than reading
+  // the transient first frame. A returning learner's report never shows this
+  // button, so the wait is bounded and then becomes a no-op.
+  await expect
+    .poll(() => details.count(), { timeout: 2_000, intervals: [100, 200, 400] })
+    .toBeGreaterThan(0)
+    .catch(() => undefined);
+  if ((await details.count()) === 0) return;
+  if ((await details.getAttribute('aria-expanded')) !== 'true') await details.click();
+  await expect(page.locator('#day-zero-details')).toBeVisible();
+}
+
 export interface BootOptions extends MockOptions {
   user?: Record<string, unknown>;
   /**

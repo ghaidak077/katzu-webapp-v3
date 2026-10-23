@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { bootSignedIn, turn } from './harness';
+import { bootSignedIn, openSessionDetailsIfPresent, turn } from './harness';
 
 const PRO_OFFER_TITLE = 'ما يفتحه Pro — وما يبقى مجانياً';
 
@@ -251,6 +251,10 @@ test('the Pro offer appears on the Debrief, after the episode is finished', asyn
   }
 
   await expect(page).toHaveURL(/\/session-report$/, { timeout: 30_000 });
+
+  // The offer lives behind the day-0 finish line's disclosure; on the full report
+  // this is a no-op.
+  await openSessionDetailsIfPresent(page);
 
   // The offer is a card, not a wall: the learner's own next step is still the
   // primary action, and nothing here blocks a return to the journey.

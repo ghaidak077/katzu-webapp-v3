@@ -927,6 +927,7 @@ function ReportRoute({ summary, onLoadSummary }: { summary: any; onLoadSummary: 
     return (
       <SessionReportScreen
         summary={recovered}
+        fromRecovered
         onReturnToTrail={() => navigate('/app/trail')}
         onOpenReview={() => navigate('/app/review')}
         onOpenSubscription={() => navigate('/subscription')}

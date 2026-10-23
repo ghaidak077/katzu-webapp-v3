@@ -23,6 +23,13 @@ import { buildTomorrowTeaser, nextScenarioAfter } from '@/lib/debrief/tomorrow';
 import { buildFollowUpCard, type FollowUpCard } from '@/lib/debrief/followUpCard';
 import { buildExamCard, firstNameOf, MOCK_NOTICE_AR, type ExamCard } from '@/lib/debrief/examCard';
 import { useExamShareImage } from '@/lib/debrief/examShareImage';
+import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
+import {
+  DAY_ZERO_STREAK_LINE_AR,
+  dayZeroCelebration,
+  dayZeroCorrectionsLine,
+  isDayZeroFinish,
+} from '@/features/report/dayZeroFinish';
 import { Volume2, Check, TrendingUp, CalendarClock, Sparkles } from 'lucide-react';
 import type { CapabilityState, CEFRLevel, MistakeEntity } from '@/types/models';
 import {
@@ -43,8 +50,12 @@ export interface SessionReportScreenProps {
     assistedSentences: number;
     mistakes: Array<{ original: string; corrected: string; grammarRule: string }>;
     debrief: SessionDebrief;
+    /** Step 5: the live completion sets whether it hit its full turn target. */
+    completedNaturally?: boolean;
   };
   onReturnToTrail: () => void;
+  /** Step 5: true when this summary was rebuilt by recover.ts, not a live finish. */
+  fromRecovered?: boolean;
   /** The review screen — offered when this session produced real corrections. */
   onOpenReview?: () => void;
   /** The subscription screen, where the Pro offer (after a win) leads. */
@@ -153,16 +164,24 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   onOpenSubscription,
   onOpenScenario,
   onOpenPlacement,
+  fromRecovered = false,
 }) => {
   const user = useLiveQuery(() => db.users.get('current_user'));
   const scenario = useLiveQuery(() => db.scenarios.get(summary.scenarioId));
-  const sessions = useLiveQuery(() => db.sessions.toArray()) || [];
+  // Step 5: keep the RAW session rows so a still-loading count stays `undefined`
+  // (never 0). A day-0 finish must not flash while the count settles — the gate
+  // treats `undefined` as "no", so a returning learner keeps today's full screen.
+  const sessionsRaw = useLiveQuery(() => db.sessions.toArray());
+  const sessions = sessionsRaw ?? [];
+  const sessionsCount = sessionsRaw === undefined ? undefined : sessionsRaw.length;
   // A4: the teaser needs the path (for tomorrow's scene) and the review queue
   // (for what is genuinely due) — both already on disk, no extra AI call.
   const scenarios = useLiveQuery(() => db.scenarios.toArray()) || [];
   const reviewItems = useLiveQuery(() => db.review_items.toArray()) || [];
   const [drill, setDrill] = useState<Record<number, { text: string; result: DrillState | null }>>({});
   const [isLevelPromoted, setIsLevelPromoted] = useState(false);
+  // Step 5: the quiet «تفاصيل الجلسة» disclosure on the day-0 first view.
+  const [disclosureOpen, setDisclosureOpen] = useState(false);
 
   // V24 Phase 5: the mock-exam result card — exam scenarios only, built from
   // the same numbers this screen already shows. No AI call behind it.
@@ -352,9 +371,424 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
     completedEpisodes: completedEpisodeCount(sessions),
   });
 
+  // Step 5 — the day-0 finish line. One primary action, one honest celebration,
+  // and everything else behind the quiet «تفاصيل الجلسة» disclosure. The gate is
+  // pure: guided refinement on, a live completion (never a recover.ts rebuild),
+  // and exactly one saved session, decided only once the count has loaded. While
+  // the count is still loading (`sessionsCount === undefined`) it is "no", so a
+  // returning learner can never see a celebration flash.
+  const guidedHome = isGuidedHomeEnabled();
+  const isDayZero = isDayZeroFinish({
+    guided: guidedHome,
+    sessionsCount,
+    fromRecovered,
+  });
+  const celebration = isDayZero
+    ? dayZeroCelebration({
+        completedNaturally: Boolean(summary.completedNaturally),
+        sentencesSpoken: summary.sentencesSpoken,
+        independentSentences: summary.independentSentences,
+      })
+    : null;
+  // The streak line claims only that a streak STARTED, and only when the learner
+  // row agrees (streakDays === 1) — the gate's single-session check implies it,
+  // but belt-and-suspenders: never claim more than both sources prove.
+  const showStreakLine = isDayZero && celebration?.sentenceAr != null && user?.streakDays === 1;
+  const correctionsTeaser = isDayZero ? dayZeroCorrectionsLine(summary.mistakes.length) : '';
+
+  // Step 5 — the report's cards, extracted into shared elements so the day-0
+  // first view (disclosure) and today's full screen render the SAME content,
+  // byte-for-byte, in different arrangements. Nothing here was rewritten: each
+  // element is the exact card from the return below, moved verbatim.
+  const capabilityCardEl = (
+    <GlassCard
+      emphasis={capabilityState === 'INDEPENDENT' || capabilityState === 'RETAINED' ? 'earned' : 'primary'}
+      className="mt-5"
+    >
+      <p
+        className={
+          capabilityState === 'INDEPENDENT' || capabilityState === 'RETAINED'
+            ? 'kz-ar-caption kz-earned-text'
+            : 'kz-ar-caption text-kz-lavender'
+        }
+      >
+        {CAPABILITY_LABEL_AR[capabilityState]}
+      </p>
+      <ul className="mt-3 space-y-3">
+        <li className="kz-message-in">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="kz-ar-caption text-kz-inkDim">جُمل نطقتها بلا مساعدة</span>
+            <span className="font-german text-sm font-bold text-kz-ink">
+              {independentCount}
+              <span className="text-kz-inkFaint"> / {Math.max(totalTurns, summary.independentSentences)}</span>
+            </span>
+          </div>
+          <ProgressRail
+            value={independentCount}
+            max={Math.max(totalTurns, summary.independentSentences)}
+            earned={capabilityState === 'INDEPENDENT' || capabilityState === 'RETAINED'}
+            className="mt-2"
+          />
+        </li>
+        <li
+          className="kz-message-in flex items-baseline justify-between gap-3"
+          style={{ animationDelay: '60ms' }}
+        >
+          <span className="kz-ar-caption text-kz-inkDim">دقة الجُمل المستقلة</span>
+          <span className="text-end">
+            <span className="font-german text-sm font-bold text-kz-ink">
+              {summary.accuracyPercent === null ? '—' : `${summary.accuracyPercent}%`}
+            </span>
+            {summary.accuracyPercent === null && (
+              <span className="mt-0.5 block kz-ar-micro text-kz-inkFaint">
+                لا توجد جُمل مستقلة كافية للحكم بعد
+              </span>
+            )}
+          </span>
+        </li>
+        <li
+          className="kz-message-in flex items-baseline justify-between gap-3"
+          style={{ animationDelay: '120ms' }}
+        >
+          <span className="kz-ar-caption text-kz-inkDim">تصحيحات هذه الجلسة</span>
+          <span className="font-german text-sm font-bold text-kz-ink">
+            {summary.mistakes.length === 0 ? 'لا شيء' : summary.mistakes.length}
+          </span>
+        </li>
+        {mainWeakness && (
+          <li
+            className="kz-message-in flex items-baseline justify-between gap-3"
+            style={{ animationDelay: '180ms' }}
+          >
+            <span className="kz-ar-caption text-kz-inkDim">أبرز ما يحتاج تثبيتاً</span>
+            <span className="kz-ar-caption text-kz-ink">
+              {CATEGORY_COPY[mainWeakness[0]].labelAr} ({mainWeakness[1]})
+            </span>
+          </li>
+        )}
+        <li
+          className="kz-message-in flex items-start gap-2 border-t border-white/[0.06] pt-3"
+          style={{ animationDelay: '240ms' }}
+        >
+          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-kz-neon" aria-hidden />
+          <span className="kz-ar-micro leading-relaxed text-kz-inkDim">
+            {summary.mistakes.length > 0
+              ? 'أضفنا ما أخطأت فيه إلى مراجعتك المجدولة — أول موعد غداً، ثم تتباعد المواعيد كلما تذكّرتها بنجاح.'
+              : 'لم تدخل جمل جديدة إلى المراجعة من هذه الجلسة — لا تصحيحات.'}
+          </span>
+        </li>
+      </ul>
+    </GlassCard>
+  );
+
+  // The «غداً» teaser is shared: it sits inside the debrief card on today's full
+  // screen, and on the day-0 first view it is shown alone, non-tappable.
+  const tomorrowTeaserLineEl = (
+    <div className="mt-1 flex items-start gap-1.5">
+      <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-lavender" aria-hidden />
+      <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
+        {tomorrowTeaser.missionAr}، {tomorrowTeaser.reviewAr}
+      </p>
+    </div>
+  );
+
+  const nextScenarioButtonEl = onOpenScenario && nextScenario?.id ? (
+    <GlassButton
+      variant="quiet"
+      className="mt-2"
+      onClick={() => onOpenScenario(nextScenario.id)}
+    >
+      مشهد آخر الآن
+    </GlassButton>
+  ) : null;
+
+  const debriefDetailsEl = (
+    <>
+      <p className="mt-1.5 kz-ar-body font-bold leading-relaxed text-kz-ink">{summary.debrief.headlineAr}</p>
+      {summary.debrief.didWellAr.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {summary.debrief.didWellAr.map((line, index) => (
+            <li key={index} className="flex items-start gap-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">
+              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-neon" aria-hidden />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {summary.mistakes.length === 0 && summary.debrief.topMistakesAr.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {summary.debrief.topMistakesAr.map((mistake, index) => (
+            <div key={index} className="border-t border-white/[0.06] pt-2">
+              <p className="font-german text-[0.78rem] leading-relaxed text-kz-inkFaint line-through">
+                <GermanText>{mistake.original}</GermanText>
+              </p>
+              <p className="font-german text-caption font-medium leading-relaxed text-kz-ink">
+                <GermanText>{mistake.corrected}</GermanText>
+              </p>
+              <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{mistake.grammarRule} — {mistake.noteAr}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {summary.debrief.keepPhrases.length > 0 && (
+        <div className="mt-3 border-t border-white/[0.06] pt-2">
+          <p className="kz-ar-micro text-kz-inkDim">عبارات تحتفظ بها من هذه الجلسة:</p>
+          <ul className="mt-1.5 space-y-1">
+            {summary.debrief.keepPhrases.map((phrase, index) => (
+              <li key={index} className="flex items-center justify-between gap-2">
+                <span className="font-german text-xs text-kz-ink">
+                  <GermanText>{phrase.german}</GermanText>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => speak(phrase.german)}
+                  className="shrink-0 rounded-full p-1 text-kz-lavender transition-colors pointer-hover:bg-white/5"
+                  aria-label="استمع إلى العبارة"
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="mt-3 flex items-start gap-1.5 border-t border-white/[0.06] pt-3 kz-ar-micro leading-relaxed text-kz-neon">
+        <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span>{summary.debrief.canNowAr}</span>
+      </p>
+      {summary.debrief.compareToLastAr && (
+        <p className="mt-2 flex items-start gap-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">
+          <TrendingUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-lavender" aria-hidden />
+          <span>{summary.debrief.compareToLastAr}</span>
+        </p>
+      )}
+    </>
+  );
+
+  const followUpCardEl = followUpCard ? (
+    <GlassCard className="mt-4" data-testid="follow-up-card">
+      <p className="kz-ar-body font-bold text-kz-ink">{followUpCard.titleAr}</p>
+      <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">{followUpCard.bodyAr}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <GlassButton variant="secondary" onClick={() => handleFollowUpAction(followUpCard)}>
+          {followUpCard.actionAr}
+        </GlassButton>
+        <GlassButton variant="quiet" onClick={handleFollowUpSkip}>
+          {followUpCard.skipAr}
+        </GlassButton>
+      </div>
+    </GlassCard>
+  ) : null;
+
+  const examCardEl = examCard ? (
+    <ExamResultCard
+      card={examCard}
+      firstName={firstNameOf(user?.displayName)}
+      scenarioTitle={summary.scenarioTitle}
+      sentencesSpoken={summary.sentencesSpoken}
+      independentSentences={summary.independentSentences}
+    />
+  ) : null;
+
+  const promotionCardEl = canPromote && targetPromotionLevel ? (
+    <GlassCard emphasis="primary" className="mt-4">
+      <div className="flex items-start gap-2.5">
+        <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-kz-lavender" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="kz-ar-body font-bold text-kz-ink">أصبحت جاهزاً لمستوى {targetPromotionLevel}</p>
+          <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
+            وصلت إلى دقة {summary.accuracyPercent}% في جلسة مستقلة كاملة. الترقية اختيارك — يمكنك البقاء في
+            {' '}
+            {summary.cefrLevel} إن أردت تثبيتاً أكثر.
+          </p>
+          <GlassButton
+            variant="secondary"
+            className="mt-3"
+            disabled={isLevelPromoted}
+            onClick={handlePromoteLevel}
+          >
+            {isLevelPromoted ? 'تمت الترقية' : `الترقية إلى ${targetPromotionLevel}`}
+          </GlassButton>
+        </div>
+      </div>
+    </GlassCard>
+  ) : null;
+
+  const proCardEl = offerPro && onOpenSubscription ? (
+    <GlassCard className="mt-4">
+      <p className="kz-ar-caption text-kz-inkDim">ما يفتحه Pro — وما يبقى مجانياً</p>
+      <ul className="mt-3 space-y-2">
+        <li className="flex items-start gap-2">
+          <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-lavender" aria-hidden />
+          <span className="kz-ar-micro leading-relaxed text-kz-ink">
+            محادثات صوتية بلا حدّ جلسات، وكل المستويات من A0 إلى B2
+          </span>
+        </li>
+        <li className="flex items-start gap-2">
+          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-neon" aria-hidden />
+          <span className="kz-ar-micro leading-relaxed text-kz-inkDim">
+            ويبقى مجانياً دائماً: مهمة اليوم، ومراجعة كل ما تعلّمته، وبنك أخطائك
+          </span>
+        </li>
+      </ul>
+      <GlassButton variant="secondary" className="mt-3" onClick={onOpenSubscription}>
+        تفاصيل Pro
+      </GlassButton>
+    </GlassCard>
+  ) : null;
+
+  const correctionsDrillEl = summary.mistakes.length > 0 ? (
+    <section id="session-corrections-drill" className="mt-6">
+      <h2 className="kz-ar-caption text-kz-inkDim">
+        أثبّت الصيغة الصحيحة — أعد كتابتها مرة واحدة الآن
+      </h2>
+      <div className="mt-3 space-y-3">
+        {summary.mistakes.map((mistake, index) => {
+          const row = drill[index];
+          const result = row?.result || null;
+          const debriefNote = summary.debrief.topMistakesAr.find(
+            (named) => named.corrected === mistake.corrected,
+          )?.noteAr;
+          return (
+            <GlassWell key={index} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 flex-1 font-german text-[0.78rem] leading-relaxed text-kz-inkFaint line-through">
+                  <GermanText>{mistake.original}</GermanText>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => speak(mistake.corrected)}
+                  className="shrink-0 rounded-full p-1.5 text-kz-lavender transition-colors pointer-hover:bg-white/5"
+                  aria-label="استمع إلى النطق الصحيح"
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <p className="mt-1.5 font-german text-[0.86rem] font-medium leading-relaxed text-kz-ink">
+                <GermanText>{mistake.corrected}</GermanText>
+              </p>
+              <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">{mistake.grammarRule}</p>
+              {debriefNote && (
+                <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{debriefNote}</p>
+              )}
+
+              {result?.status === 'correct' ? (
+                <p className="mt-3 flex items-start gap-1.5 kz-ar-micro leading-relaxed text-kz-neon">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>{result.messageAr}</span>
+                </p>
+              ) : (
+                <div className="mt-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      dir="ltr"
+                      inputMode="text"
+                      aria-label="اكتب الجملة الصحيحة"
+                      placeholder="اكتب الجملة الصحيحة"
+                      value={row?.text || ''}
+                      onChange={(event) =>
+                        setDrill((prev) => ({
+                          ...prev,
+                          [index]: { text: event.target.value, result: prev[index]?.result || null },
+                        }))
+                      }
+                      className="h-11 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/40 px-3 font-german text-xs text-kz-ink placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                    />
+                    <GlassButton
+                      variant="secondary"
+                      disabled={!(row?.text || '').trim()}
+                      onClick={() => handleValidateRetype(index, mistake)}
+                    >
+                      تحقّق
+                    </GlassButton>
+                  </div>
+                  {result?.status === 'wrong' && (
+                    <p className="mt-2 kz-ar-micro leading-relaxed text-kz-warm">{result.messageAr}</p>
+                  )}
+                </div>
+              )}
+            </GlassWell>
+          );
+        })}
+      </div>
+    </section>
+  ) : null;
+
   // `conversation_completed` is already emitted once by the conversation when
   // it finishes (with the same scenario id), so this screen must not send it
   // again — two events for one session would inflate the funnel it feeds.
+
+  if (isDayZero && celebration) {
+    return (
+      <div className="relative min-h-screen bg-kz-black text-kz-ink">
+        <SceneBackdrop scene={scene} className="pointer-events-none absolute inset-x-0 top-0 h-[300px]" />
+
+        <div className="relative z-10 mx-auto max-w-md px-5 pb-40 pt-8">
+          {/* Header: the finish line replaces the old headline — ONE h1. */}
+          <KatzuPresence state={outcome.pose} lineAr={outcome.lineAr} size="lg" />
+
+          <div className="mt-5 text-center">
+            <p className="kz-ar-micro text-kz-inkFaint">
+              ملخّص الجلسة · <GermanText className="text-kz-inkDim">{summary.scenarioTitle}</GermanText>
+            </p>
+            <h1 className="mt-2 kz-ar-title leading-relaxed text-kz-ink kz-pop">{celebration.headlineAr}</h1>
+          </div>
+
+          {celebration.sentenceAr ? (
+            <p className="mt-3 text-center kz-ar-body leading-relaxed text-kz-ink">{celebration.sentenceAr}</p>
+          ) : (
+            <p className="mt-3 text-center kz-ar-body leading-relaxed text-kz-inkDim">{celebration.zeroLineAr}</p>
+          )}
+          {showStreakLine && (
+            <p className="mt-1 text-center kz-ar-micro leading-relaxed text-kz-inkDim">{DAY_ZERO_STREAK_LINE_AR}</p>
+          )}
+          {correctionsTeaser !== '' && (
+            <p className="mt-1 text-center kz-ar-micro leading-relaxed text-kz-inkDim">{correctionsTeaser}</p>
+          )}
+          {/* The «غداً» teaser, non-tappable on the first view. */}
+          {tomorrowTeaserLineEl}
+
+          <GlassButton
+            variant="quiet"
+            className="mt-4"
+            aria-expanded={disclosureOpen}
+            aria-controls={disclosureOpen ? 'day-zero-details' : undefined}
+            onClick={() => setDisclosureOpen((v) => !v)}
+          >
+            تفاصيل الجلسة
+          </GlassButton>
+
+          {disclosureOpen && (
+            <div id="day-zero-details" className="mt-2">
+              {capabilityCardEl}
+              <GlassCard className="mt-4">
+                <p className="kz-ar-caption text-kz-lavender">خلاصة الجلسة</p>
+                {nextScenarioButtonEl}
+                {debriefDetailsEl}
+              </GlassCard>
+              {correctionsDrillEl}
+              {promotionCardEl}
+              {followUpCardEl}
+              {examCardEl}
+              {proCardEl}
+            </div>
+          )}
+        </div>
+
+        {/* Day 0: one primary, no review in the dock. */}
+        <FloatingControl className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md rounded-t-[26px] border-t border-white/[0.06] p-4 pb-6">
+          <PrimaryAction
+            hintAr="خطوتك الأولى تمت — العودة إلى الرحلة هي الخطوة التالية."
+            onClick={onReturnToTrail}
+          >
+            العودة إلى الرحلة
+          </PrimaryAction>
+        </FloatingControl>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-kz-black text-kz-ink">
