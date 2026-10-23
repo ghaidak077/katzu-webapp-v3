@@ -68,10 +68,12 @@
    * every text pair here clears 4.5:1 on both the app background and a well.
    * ===================================================================== */
 
-  /* Foundation: true AMOLED black, then two near-blacks that only glass uses. */
-  --kz-black: #000000;
-  --kz-near-black: #050508;
-  --kz-soft-black: #0a0a0d;
+  /* Foundation: true AMOLED black, then two near-blacks that only glass uses.
+     Triplets, not hex: `bg-kz-black/45` compiles to
+     `rgb(var(--kz-black) / .45)`, and a hex value there is invalid CSS. */
+  --kz-black: 0 0 0;
+  --kz-near-black: 5 5 8;
+  --kz-soft-black: 10 10 13;
 
   /* Katzu's eyes. */
   --kz-lavender: 180 160 255;
