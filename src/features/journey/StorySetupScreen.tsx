@@ -6,6 +6,8 @@ import { workerClient } from '@/lib/api/workerClient';
 import { sceneFor } from '@/lib/design/scenes';
 import { buildStorySetup } from '@/lib/journey/story';
 import { loadMissionBrief } from '@/lib/journey/brief';
+import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
+import { isFirstSessionDone } from '@/lib/journey/firstSession';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { useOnlineStatus } from '@/lib/utils/onlineStatus';
 import { isProEffective } from '@/lib/utils/subscription';
@@ -44,6 +46,14 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
   const scenario = scenarioRow.row;
   const training = useLiveQuery(() => db.scenario_training.get(scenarioId));
   const isOnline = useOnlineStatus();
+
+  // The SAME shared first-session fact the home hero and the Practice/Progress
+  // locks read (`lib/journey/firstSession`), so no surface can call this learner
+  // new while another calls them a returning one. The badge below still tracks
+  // the per-scene question (`studiedAt`) on top; these answer different things.
+  const guided = isGuidedHomeEnabled();
+  const sessionCount = useLiveQuery(() => db.sessions.count(), []) ?? 0;
+  const dayZero = !isFirstSessionDone({ guided, sessionCount, user });
 
   const [translationAr, setTranslationAr] = useState<string | null>(null);
   const [translationState, setTranslationState] = useState<'idle' | 'pending' | 'unavailable'>('idle');
@@ -257,7 +267,14 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
             {/* V32: the button said "بدء" — start WHAT? On a first run, with
                 everything else new, that one word asks the learner to guess the
                 app's own vocabulary. It now names the step it opens. */}
-            <PrimaryAction hintAr="خطوتان قصيرتان ثم تبدأ المحادثة." onClick={onStart}>
+            <PrimaryAction
+              hintAr={
+                dayZero
+                  ? 'ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم.'
+                  : 'خطوتان قصيرتان ثم تبدأ المحادثة.'
+              }
+              onClick={onStart}
+            >
               ابدأ التدريب
             </PrimaryAction>
 

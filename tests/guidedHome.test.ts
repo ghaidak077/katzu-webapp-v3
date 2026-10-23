@@ -261,3 +261,32 @@ describe('the Practice/Progress lock (step 3)', () => {
     expect(nav).toContain('guided &&');
   });
 });
+
+/**
+ * Story Setup (step 4 Phase A): the episode opening's first-run copy.
+ *
+ * The behaviour is proven in e2e. These assertions guard what a later edit could
+ * quietly break: the day-0 hint reads the SAME shared first-session fact the home
+ * hero and the locks use (Decision: gate on the shared rule), with the same
+ * finished-conversation count from the sessions table — and the two agreed copy
+ * strings stay: day-0 (reassuring: no test, no judgement) vs returning (the
+ * "continue" framing). The label itself is asserted in the e2e suite.
+ */
+describe('Story Setup: the day-0 opening copy (step 4 Phase A)', () => {
+  const story = readFileSync('src/features/journey/StorySetupScreen.tsx', 'utf8');
+
+  it('reads the SAME shared first-session rule the home hero and the locks use', () => {
+    expect(story).toContain("import { isFirstSessionDone } from '@/lib/journey/firstSession'");
+    expect(story).toContain("import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome'");
+    // Same evidence: the finished-conversation count from the same sessions table.
+    expect(story).toContain('const dayZero = !isFirstSessionDone({ guided, sessionCount, user });');
+    expect(story).toContain('db.sessions.count()');
+  });
+
+  it('shows the agreed day-0 copy on a first session, and the continuing copy otherwise', () => {
+    // True-branch (day 0) → reassuring; false-branch (returning) → the continue framing.
+    expect(story).toMatch(
+      /\? 'ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم\.'\s*:\s*'خطوتان قصيرتان ثم تبدأ المحادثة\.'/,
+    );
+  });
+});

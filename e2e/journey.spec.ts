@@ -81,6 +81,11 @@ test('Story Setup introduces a situation, not a settings screen', async ({ page 
   await expect(start).toBeVisible({ timeout: EPISODE_READY_MS });
   await expect(page.getByRole('button', { name: 'ليس الآن' })).toBeVisible();
 
+  // Day 0 (a fresh learner with no finished conversation yet): the primary's hint
+  // is the reassuring first-run line — "no test, no judgement" — not the generic
+  // "two short steps" one a returning learner would see.
+  await expect(page.getByText('ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم.')).toBeVisible();
+
   // A real German opener from the scenario content, isolated LTR. Asserted after
   // the screen's own control, so this can only match the opener card.
   const opener = page.locator('[dir="ltr"]').first();
