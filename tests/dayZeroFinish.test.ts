@@ -87,6 +87,12 @@ describe('dayZeroCelebration — the sentence selection', () => {
     expect(out.headlineAr).toBe('بدأتَ رحلتك — هذه أول محادثة لك.');
   });
 
+  it('unknown completion (older summary with no flag) takes the honest early headline, never «أنجزت»', () => {
+    const out = dayZeroCelebration({ completedNaturally: undefined, sentencesSpoken: 4, independentSentences: 4 });
+    expect(out.headlineAr).toBe('بدأتَ رحلتك — هذه أول محادثة لك.');
+    expect(out.sentenceAr).toBe('أنجزتَ 4 جمل بنفسك — وهذه بدايتك.');
+  });
+
   it('N=1 → the word form', () => {
     const out = dayZeroCelebration({ completedNaturally: true, sentencesSpoken: 1, independentSentences: 1 });
     expect(out.sentenceAr).toBe('أنجزتَ جملة واحدة بنفسك — وهذه بدايتك.');

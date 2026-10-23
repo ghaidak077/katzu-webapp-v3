@@ -385,7 +385,10 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   });
   const celebration = isDayZero
     ? dayZeroCelebration({
-        completedNaturally: Boolean(summary.completedNaturally),
+        // Passed through, not coerced: an older stored summary has no
+        // `completedNaturally`, and the pure rule treats that as unknown →
+        // the honest early line, never «أنجزت».
+        completedNaturally: summary.completedNaturally,
         sentencesSpoken: summary.sentencesSpoken,
         independentSentences: summary.independentSentences,
       })

@@ -1070,8 +1070,19 @@ export function useLiveConversation({
     };
     // Await the write before handing off to the report: the report decides
     // "first conversation" from this table, and an unawaited put lets it render
-    // the returning-learner screen for a frame before this row lands.
-    await db.sessions.put(sessionRecord);
+    // the returning-learner screen (and delay the Pro offer it earns) for a
+    // frame before this row lands. This is the one deliberate exception to
+    // flag-off identity: a successful write is visible on the first render.
+    //
+    // A failed write must never cost the learner the finish. XP, the streak, the
+    // user row and the summary are independent of this row and keep running
+    // exactly as they did before the await existed; the failure is logged like
+    // the background sync failure below, and never rethrown.
+    try {
+      await db.sessions.put(sessionRecord);
+    } catch (error) {
+      console.warn('Session record save failed:', error);
+    }
     track('conversation_completed', {
       scenarioId,
       count: independentMsgs.length,

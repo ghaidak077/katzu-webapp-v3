@@ -59,8 +59,13 @@ export function arSentenceCount(count: number): string {
 }
 
 export interface DayZeroCelebrationInput {
-  /** The conversation hit its full turn target (vs the learner ending it early). */
-  completedNaturally: boolean;
+  /**
+   * The conversation hit its full turn target (vs the learner ending it early).
+   * Omitted/`undefined` means the completion is UNKNOWN — an older stored
+   * summary written before this field existed — and must read as "not
+   * completed", never as a natural finish.
+   */
+  completedNaturally?: boolean;
   /** Accepted spoken sentences this session — `M` in the copy. */
   sentencesSpoken: number;
   /** Of those, the ones produced without help — `N` in the copy. */
@@ -83,10 +88,15 @@ export interface DayZeroCelebrationOutput {
  *  - spoken ≥1, N≥1  → «أنجزتَ … بنفسك — وهذه بدايتك.»
  *
  * The headline (completed vs ended early) is chosen first and never overclaim:
- * both are unfinished-of-moment milestones, never "mastered".
+ * both are unfinished-of-moment milestones, never "mastered". An ABSENT flag is
+ * unknown completion, so it takes the early line — the only one that is true
+ * whether the learner stopped early or the summary predates the field.
  */
 export function dayZeroCelebration(input: DayZeroCelebrationInput): DayZeroCelebrationOutput {
-  const headlineAr = input.completedNaturally ? DAY_ZERO_COMPLETED_LINE_AR : DAY_ZERO_EARLY_LINE_AR;
+  // `=== true` on purpose: an old stored summary has no `completedNaturally`,
+  // and unknown completion must show the honest «بدأتَ رحلتك» line rather than
+  // claim the learner finished the conversation.
+  const headlineAr = input.completedNaturally === true ? DAY_ZERO_COMPLETED_LINE_AR : DAY_ZERO_EARLY_LINE_AR;
   const spoken = Math.max(0, Math.trunc(Number.isFinite(input.sentencesSpoken) ? input.sentencesSpoken : 0));
   if (spoken <= 0) {
     return { headlineAr, sentenceAr: null, zeroLineAr: DAY_ZERO_ZERO_SENTENCES_LINE_AR };

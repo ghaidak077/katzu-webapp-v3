@@ -209,3 +209,85 @@ test('a recovered report never celebrates — only a live completion does', asyn
   await expect(page.getByRole('button', { name: DETAILS })).toHaveCount(0);
   await expect(page.getByText(OLD_CELEBRATION)).toHaveCount(0);
 });
+
+/**
+ * Makes `IDBObjectStore.put` reject for the `sessions` store only, before any
+ * app code runs. This is the one failure a learner can hit at the finish (a full
+ * disk / private-mode quota) and the one the awaited write newly exposes: after
+ * step 5 the report waits for that write, so a rejection must not turn a
+ * finished conversation into an error screen or swallow the XP that follows it.
+ */
+async function failSessionWrites(page: Page) {
+  await page.addInitScript(() => {
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (
+      this: IDBObjectStore,
+      ...args: Parameters<IDBObjectStore['put']>
+    ) {
+      if (this.name === 'sessions') {
+        throw new DOMException('Quota exceeded (test)', 'QuotaExceededError');
+      }
+      return original.apply(this, args);
+    } as typeof IDBObjectStore.prototype.put;
+  });
+}
+
+/** Reads the signed-in learner's XP straight from the app's own database. */
+async function readTotalXp(page: Page): Promise<number> {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('KatzuWebDB');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      const row = await new Promise<Record<string, unknown> | undefined>((resolve, reject) => {
+        const request = db.transaction('users').objectStore('users').get('current_user');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return typeof row?.totalXp === 'number' ? row.totalXp : -1;
+    } finally {
+      db.close();
+    }
+  });
+}
+
+/** Reads the session rows the finish would normally have written. */
+async function readSessionCount(page: Page): Promise<number> {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('KatzuWebDB');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      return await new Promise<number>((resolve, reject) => {
+        const request = db.transaction('sessions').objectStore('sessions').count();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    } finally {
+      db.close();
+    }
+  });
+}
+
+test('a rejected session write still produces the report and credits the XP', async ({ page }) => {
+  await setSwitch(page, '1');
+  await failSessionWrites(page);
+  await bootSignedIn(page, { turns: episodeTurns() });
+  await finishCafeEpisode(page);
+
+  // The rejection really happened: no row landed. Without this the test could
+  // pass on a build where the patch never applied.
+  await expect.poll(() => readSessionCount(page), { timeout: 10_000 }).toBe(0);
+
+  // No session row landed, so the honest gate cannot call this a first *finished*
+  // conversation — but the learner still gets the full debrief, not an error.
+  await expect(page.getByText('جُمل نطقتها بلا مساعدة')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: DAY_ZERO_H1 })).toHaveCount(0);
+
+  // The rows that never depended on the session write still ran.
+  await expect.poll(() => readTotalXp(page), { timeout: 10_000 }).toBeGreaterThan(0);
+});
