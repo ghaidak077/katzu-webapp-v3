@@ -61,11 +61,13 @@ test('the guided home shows one action, the path and the tasks — and nothing a
   await setSwitch(page, '1');
   await bootSignedIn(page);
 
-  // The three things it keeps.
+  // The two things it keeps on day 0: the one action and the chapter's path.
+  // (Step 7: the habit panel arrives with the first finished conversation, so
+  // day 0 does not carry three checkboxes for work not yet started.)
   const primary = page.getByRole('button', { name: PRIMARY_ACTION });
   await expect(primary).toBeVisible();
   await expect(primary).toHaveCount(1);
-  await expect(page.getByTestId('daily-tasks')).toBeVisible();
+  await expect(page.getByTestId('daily-tasks')).toHaveCount(0);
   // The chapter's path: the strip's accessible name is the chapter title, so
   // asserting the role (not a pixel) proves the path is on the screen.
   await expect(page.getByRole('progressbar').first()).toBeVisible();

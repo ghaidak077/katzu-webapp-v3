@@ -71,25 +71,30 @@ describe('JourneyHomeScreen consults the flag', () => {
     ]) {
       expect(source, gated).toContain(gated);
     }
-    // The hero's one action, the chapter path and the daily tasks are never
-    // conditioned on the flag: they are what the guided home keeps.
+    // The hero's one action and the chapter path are never conditioned on the
+    // flag: they are what the guided home keeps. The daily-task panel is the
+    // habit underneath the hero and appears with the first finished session
+    // (step 7) — with the flag off it is unconditional, as shipped.
     expect(source).toMatch(/<PrimaryAction[\s\S]{0,200}\{mission\.ctaAr\}/);
     expect(source).toContain('<ProgressStrip');
+    expect(source).toContain('{(!guided || firstSessionDone) && (');
     expect(source).toMatch(/<DailyTasksPanel snapshot=\{dailyTasks\}/);
   });
 
-  it('keeps the review-due row for a learner with a completed session', () => {
-    // Two different questions, both required to be the ones written down:
-    //  - the sheet lists what is due once a session is finished (a menu entry,
-    //    not a CTA), so it can coexist with a review hero;
-    //  - the inline row is a competing CTA, so it still stands down when review
-    //    IS today's mission — the rule it shipped with, untouched.
-    expect(source).toContain('const sheetReviewCount = dueCount > 0 && firstSessionDone ? dueCount : 0');
+  it('keeps exactly one review entry point, and never before day 2', () => {
+    // Step 7 replaced "the sheet repeats the hero's review" with the plan's
+    // done-when: review is offered once. The inline row below keeps its shipped
+    // rule (`mission.kind !== 'review'`) and is flag-off only.
+    expect(source).toContain('const reviewRevealed = isReviewRevealed({');
+    expect(source).toContain('dayNumber: context.dayNumber,');
+    expect(source).toContain('const sheetReviewEntryCount = sheetReviewCount({');
+    expect(source).toContain('missionIsReview: mission.kind === \'review\',');
+    expect(source).toContain('guided && !reviewRevealed');
     // The shared first-session fact (Decision A): the home hands the sheet the
     // same boolean the tab lock reads, so the two surfaces cannot disagree.
     expect(source).toContain('const firstSessionDone = isFirstSessionDone({');
     expect(source).toContain('sessionCount: completedEpisodes,');
-    expect(source).toContain("reviewDueCount={sheetReviewCount}");
+    expect(source).toContain("reviewDueCount={sheetReviewEntryCount}");
     expect(source).toContain("{dueCount > 0 && mission.kind !== 'review' && !guided && (");
   });
 
@@ -161,7 +166,7 @@ describe('the first-run chain', () => {
     expect(home).toContain('const completedScenarioIds = useMemo(');
     expect(home).toContain('Object.keys(data?.sessionsByScenario ?? {})');
     // Both corrections ride the flag: OFF keeps the shipped mission logic.
-    expect(home).toContain('guided && !firstSessionDone');
+    expect(home).toContain('guided && !reviewRevealed');
     expect(home).toContain('completedScenarioIds: guided ? completedScenarioIds : []');
   });
 

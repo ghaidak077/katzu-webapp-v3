@@ -76,6 +76,16 @@ export interface JourneyMoreSheetProps {
   capability: JourneyMoreCapability | null;
   /** This week, when it actually has something in it. */
   recap: JourneyMoreRecap | null;
+  /**
+   * Show «تقدّمك» — the capability/goal card, the weekly recap and the level.
+   *
+   * Step 7's reveal lives on the home screen (`lib/journey/reveal`) and arrives
+   * here already answered, like every other gate in this sheet. It is false until
+   * three conversations have finished, because a learner with one episode has a
+   * result, not a history. Default true so a caller that has no history to judge
+   * keeps the shipped sheet.
+   */
+  progressVisible?: boolean;
   learnerLevel: CEFRLevel;
   isPro: boolean;
   /**
@@ -135,6 +145,7 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
   katzuState = 'journey',
   capability,
   recap,
+  progressVisible = true,
   learnerLevel,
   isPro,
   freeSessionsRemaining,
@@ -198,40 +209,45 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
           </Section>
         )}
 
-        <Section title="تقدّمك">
-          {/* The evidence gate lives here, not in the wording: `capability` is
-              built from INDEPENDENT/RETAINED states only, so an unearned card
-              cannot reach this slot. With nothing earned the slot shows the
-              chapter's goal instead — motivation, not a claim. */}
-          {capability ? (
-            <div className="rounded-chip p-3" data-testid="capability-card">
-              <p className="kz-ar-micro kz-earned-text mb-1">قدرة مكتسبة · {capability.labelAr}</p>
-              <p className="kz-ar-caption text-kz-ink">
-                تستطيع التعامل مع «{capability.titleAr}» بالألمانية بدون مساعدة.
-              </p>
+        {/* Step 7: the progress facts wait for a small history (three finished
+            conversations), or for a fact that is already actionable. Until then
+            the sheet does not describe a learner it has not seen yet. */}
+        {progressVisible && (
+          <Section title="تقدّمك">
+            {/* The evidence gate lives here, not in the wording: `capability` is
+                built from INDEPENDENT/RETAINED states only, so an unearned card
+                cannot reach this slot. With nothing earned the slot shows the
+                chapter's goal instead — motivation, not a claim. */}
+            {capability ? (
+              <div className="rounded-chip p-3" data-testid="capability-card">
+                <p className="kz-ar-micro kz-earned-text mb-1">قدرة مكتسبة · {capability.labelAr}</p>
+                <p className="kz-ar-caption text-kz-ink">
+                  تستطيع التعامل مع «{capability.titleAr}» بالألمانية بدون مساعدة.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-chip p-3" data-testid="chapter-goal-card">
+                <p className="kz-ar-micro mb-1 text-kz-inkDim">هدفك في هذا الفصل</p>
+                <p className="kz-ar-caption text-kz-ink">
+                  أنهِ مشاهد هذا الفصل لتتقن التعامل مع موقفه بالألمانية بدون مساعدة.
+                </p>
+              </div>
+            )}
+            {recap && (
+              <div className="rounded-chip p-3" data-testid="weekly-recap-card">
+                <p className="kz-ar-micro mb-1 text-kz-inkDim">أسبوعك في كَاتْزُو</p>
+                <p className="kz-ar-caption text-kz-ink">{recap.headlineAr}</p>
+                {recap.topScenarioTitle ? (
+                  <p className="kz-ar-micro mt-1 text-kz-inkFaint">أكثر مشهد زرته: {recap.topScenarioTitle}</p>
+                ) : null}
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3 px-3 py-2" data-testid="journey-level-line">
+              <span className="kz-ar-micro text-kz-inkDim">مستواك الحالي</span>
+              <span className="kz-ar-micro text-kz-ink">{learnerLevel}</span>
             </div>
-          ) : (
-            <div className="rounded-chip p-3" data-testid="chapter-goal-card">
-              <p className="kz-ar-micro mb-1 text-kz-inkDim">هدفك في هذا الفصل</p>
-              <p className="kz-ar-caption text-kz-ink">
-                أنهِ مشاهد هذا الفصل لتتقن التعامل مع موقفه بالألمانية بدون مساعدة.
-              </p>
-            </div>
-          )}
-          {recap && (
-            <div className="rounded-chip p-3" data-testid="weekly-recap-card">
-              <p className="kz-ar-micro mb-1 text-kz-inkDim">أسبوعك في كَاتْزُو</p>
-              <p className="kz-ar-caption text-kz-ink">{recap.headlineAr}</p>
-              {recap.topScenarioTitle ? (
-                <p className="kz-ar-micro mt-1 text-kz-inkFaint">أكثر مشهد زرته: {recap.topScenarioTitle}</p>
-              ) : null}
-            </div>
-          )}
-          <div className="flex items-center justify-between gap-3 px-3 py-2" data-testid="journey-level-line">
-            <span className="kz-ar-micro text-kz-inkDim">مستواك الحالي</span>
-            <span className="kz-ar-micro text-kz-ink">{learnerLevel}</span>
-          </div>
-        </Section>
+          </Section>
+        )}
 
         <Section title="حسابك وخطتك">
           {/* Always visible, and only ever the Worker's own number: the free

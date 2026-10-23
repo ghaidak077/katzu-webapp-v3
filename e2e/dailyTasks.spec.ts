@@ -8,6 +8,10 @@ import { bootSignedIn, seedRows } from './harness';
  * none is done, and the same panel turning to done + a started streak once the
  * day's own record says the work happened. The rule itself is unit-tested; this
  * is the rendering contract.
+ *
+ * Step 7: the panel is a habit surface, not a first-run one — it appears with
+ * the first finished conversation. Both tests therefore record one session,
+ * dated yesterday so today's tasks still start at 0/3.
  */
 
 function localDayKey(date: Date): string {
@@ -16,8 +20,30 @@ function localDayKey(date: Date): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
+/** One finished session, dated yesterday so it does not complete today's task. */
+function aSession(): Record<string, unknown> {
+  return {
+    id: 'sess_daily_1',
+    scenarioId: 'airport_arrival',
+    scenarioTitle: 'في المطار: الأمتعة',
+    cefrLevel: 'A1',
+    sentencesSpoken: 4,
+    wordsLearned: 16,
+    accuracyPercent: 90,
+    durationSeconds: 200,
+    timestamp: Date.now() - 86_400_000,
+    wasIndependentOnly: true,
+    independentSentences: 4,
+    hintAssistedSentences: 0,
+    mode: 'practice',
+    mistakesCount: 0,
+  };
+}
+
 test('Journey Home names the three daily tasks with one action each', async ({ page }) => {
   await bootSignedIn(page);
+  await seedRows(page, 'sessions', [aSession()]);
+  await page.reload();
 
   const panel = page.getByTestId('daily-tasks');
   await expect(panel).toBeVisible();
@@ -36,6 +62,7 @@ test('Journey Home names the three daily tasks with one action each', async ({ p
 
 test('a completed day renders as done and starts the daily streak', async ({ page }) => {
   await bootSignedIn(page);
+  await seedRows(page, 'sessions', [aSession()]);
 
   const now = Date.now();
   await seedRows(page, 'daily_tasks', [

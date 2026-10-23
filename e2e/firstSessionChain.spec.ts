@@ -139,10 +139,11 @@ test('a learner with no goal recorded still gets a mission and an honest sheet',
   const primary = page.getByRole('button', { name: /ابدأ|أكمل/ }).first();
   await expect(primary).toBeEnabled();
 
-  // The sheet's goal surface still says something true with no goal to name.
+  // The sheet says something true with no goal to name — and on day 0 it does
+  // not describe progress at all (step 7: the progress facts need a history).
   await page.getByTestId('journey-more').click();
-  await expect(page.getByTestId('chapter-goal-card')).toBeVisible();
-  await expect(page.getByTestId('chapter-goal-card')).toContainText('هدفك في هذا الفصل');
+  await expect(page.getByTestId('chapter-goal-card')).toHaveCount(0);
+  await expect(page.getByTestId('journey-level-line')).toHaveCount(0);
   // A missing goal is not "preferences done": the row offers to finish it.
   await expect(page.getByTestId('more-preferences')).toContainText('أكمل تفضيلاتك');
   // No template value leaks into the screen.

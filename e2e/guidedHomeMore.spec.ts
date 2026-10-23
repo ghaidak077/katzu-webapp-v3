@@ -42,17 +42,21 @@ async function openMore(page: Page) {
 }
 
 /** One completed session — the thing that makes review and Pro mean something. */
-function aSession(): Record<string, unknown> {
+function aSession(
+  id = 'sess_more_1',
+  scenarioId = 'airport_arrival',
+  timestamp = Date.now(),
+): Record<string, unknown> {
   return {
-    id: 'sess_more_1',
-    scenarioId: 'airport_arrival',
+    id,
+    scenarioId,
     scenarioTitle: 'في المطار: الأمتعة',
     cefrLevel: 'A1',
     sentencesSpoken: 4,
     wordsLearned: 16,
     accuracyPercent: 90,
     durationSeconds: 200,
-    timestamp: Date.now(),
+    timestamp,
     wasIndependentOnly: true,
     independentSentences: 4,
     hintAssistedSentences: 0,
@@ -105,13 +109,16 @@ test('day 0: the sheet carries the destinations and nothing about later', async 
   await expect(page.getByTestId('weekly-recap-card')).toHaveCount(0);
   await expect(page.getByTestId('more-pro')).toHaveCount(0);
   await expect(page.getByTestId('capability-card')).toHaveCount(0);
-  // The goal card is the one «تقدّمك» line a new learner can honestly be shown.
-  await expect(page.getByTestId('chapter-goal-card')).toBeVisible();
+  // Step 7: day 0 has no «تقدّمك» section at all — no capability, no goal card,
+  // no recap and no level line before there is a history to describe.
+  await expect(page.getByTestId('chapter-goal-card')).toHaveCount(0);
+  await expect(page.getByTestId('journey-level-line')).toHaveCount(0);
 
-  // Closing returns to the screen, not to a blank one.
+  // Closing returns to the screen, not to a blank one. (The habit panel arrives
+  // with the first finished session, so day 0 has no tasks to return to.)
   await page.keyboard.press('Escape');
   await expect(sheet(page)).toHaveCount(0);
-  await expect(page.getByTestId('daily-tasks')).toBeVisible();
+  await expect(page.getByTestId('daily-tasks')).toHaveCount(0);
 });
 
 test('each destination in the sheet is one tap from the home screen', async ({ page }) => {
@@ -163,7 +170,7 @@ test('a due card on day 0 is not enough: review needs a finished session', async
   await expect(page.getByTestId('more-writing')).toHaveCount(0);
 });
 
-test('after the first session the sheet gains review, the recap and the Pro offer', async ({ page }) => {
+test('day 1 with a due card: the skills unlock, but review and the progress facts still wait', async ({ page }) => {
   await setSwitch(page, '1');
   await bootSignedIn(page);
   await seedRows(page, 'sessions', [aSession()]);
@@ -173,33 +180,55 @@ test('after the first session the sheet gains review, the recap and the Pro offe
 
   await openMore(page);
 
-  // Review is due AND something has been finished — the two conditions, both now
-  // real. The sheet lists it even though the hero is the review CTA today: a
-  // menu that hides the queue it offers is how a learner concludes it is gone.
-  // The four skill rows arrive with the same fact that unlocks the Practice tab.
+  // The first session is a real episode, so the Practice tab's rows and the Pro
+  // offer arrive on the same fact the tab lock reads.
   for (const row of ['more-grammar', 'more-listening', 'more-writing', 'more-coach']) {
     await expect(page.getByTestId(row)).toBeVisible();
   }
-
-  const reviewRow = page.getByTestId('more-review');
-  await expect(reviewRow).toBeVisible();
-  await expect(reviewRow).toContainText('مراجعة مستحقة: 1');
-  await reviewRow.click();
-  await expect(page).toHaveURL(/\/app\/review$/);
-
-  // Back on home, the same sheet now holds the week and the offer.
-  await page.goto('/app/trail');
-  await openMore(page);
-  await expect(page.getByTestId('weekly-recap-card')).toBeVisible();
   await expect(page.getByTestId('more-pro')).toBeVisible();
-  // A learner who has finished a session has earned *something* to show here.
-  expect(
-    (await page.getByTestId('capability-card').count()) + (await page.getByTestId('chapter-goal-card').count()),
-  ).toBe(1);
+
+  // Review is returning work: it waits for day 2, even with a card due — and the
+  // progress facts wait for three sessions, so «تقدّمك» is not there yet.
+  await expect(page.getByTestId('more-review')).toHaveCount(0);
+  await expect(page.getByTestId('weekly-recap-card')).toHaveCount(0);
+  await expect(page.getByTestId('chapter-goal-card')).toHaveCount(0);
+  await expect(page.getByTestId('journey-level-line')).toHaveCount(0);
 
   // The offer itself still respects the one rule: it opens the real paywall.
   await page.getByTestId('more-pro').click();
   await expect(page).toHaveURL(/\/subscription$/);
+});
+
+test('day 2 with three sessions: exactly one review entry point, and the progress facts', async ({ page }) => {
+  await setSwitch(page, '1');
+  await bootSignedIn(page);
+  // Three finished conversations, yesterday: a small history (progress) and a
+  // second day (review), while today's daily tasks stay open.
+  const yesterday = Date.now() - 86_400_000;
+  await seedRows(page, 'sessions', [
+    aSession('sess_day2_1', 'airport_arrival', yesterday),
+    aSession('sess_day2_2', 'cafe_order', yesterday),
+    aSession('sess_day2_3', 'supermarket', yesterday),
+  ]);
+  await seedRows(page, 'review_items', [aDueCard()]);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
+
+  // The hero is today's review — and it is the ONE review entry point. (The
+  // agreed CTA spells a single item out: «راجع عنصراً واحداً الآن».)
+  const hero = page.getByRole('button', { name: /^راجع / });
+  await expect(hero).toBeVisible();
+  await expect(hero).toHaveCount(1);
+
+  await openMore(page);
+  // The sheet does not repeat the hero's review, and the progress facts are here
+  // because this learner has a history now.
+  await expect(page.getByTestId('more-review')).toHaveCount(0);
+  await expect(page.getByTestId('weekly-recap-card')).toBeVisible();
+  await expect(page.getByTestId('journey-level-line')).toBeVisible();
+  expect(
+    (await page.getByTestId('capability-card').count()) + (await page.getByTestId('chapter-goal-card').count()),
+  ).toBe(1);
 });
 
 test('the sheet fits a 320px phone without horizontal overflow', async ({ page }) => {

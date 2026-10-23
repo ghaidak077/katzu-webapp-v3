@@ -31,6 +31,7 @@ import { buildWeeklyRecap } from '@/lib/journey/weeklyRecap';
 import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { shouldOfferPro } from '@/lib/entitlement/trial';
 import { isFirstSessionDone } from '@/lib/journey/firstSession';
+import { isProgressRevealed, isReviewRevealed, sheetReviewCount } from '@/lib/journey/reveal';
 import { JourneyMoreSheet } from '@/features/journey/JourneyMoreSheet';
 
 /** V31: counts that reach a learner's eye agree with their noun. See `arabicCount`. */
@@ -98,7 +99,12 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
    * The guided home (`guidedHome`, owner decision 2026-10-22).
    *
    * On, this screen answers one question — what do I do now? — with the hero,
-   * the chapter's path and the three daily tasks. The six blocks that describe
+   * the chapter's path and, once one conversation has finished, the three daily
+   * tasks. Step 7 sets the order (`lib/journey/reveal`): the habit panel appears
+   * with the first finished session, the review obligation on day 2, and the
+   * progress facts after three sessions — so day 0 holds one action and nothing
+   * that describes a history the learner has not made yet. The six blocks that
+   * describe
    * something *later* (the preferences nag, Katzu's line, the chapter-goal card,
    * the weekly recap, the footer links, and the Pro chip in the header) are not
    * rendered at all rather than pushed below the fold: a block a learner has to
@@ -196,6 +202,50 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
     [capability],
   );
 
+  const context = useMemo(
+    () =>
+      buildJourneyContext({
+        scenarios: scenarios.map((scenario) => ({
+          id: scenario.id,
+          title_de: scenario.title_de,
+          title_ar: scenario.title_ar,
+          category: scenario.category,
+        })),
+        training: training.map((record) => ({
+          scenarioId: record.scenarioId,
+          studiedAt: record.studiedAt,
+          quizAttempted: record.quizAttempted,
+          lastScore: record.lastScore,
+          updatedAt: record.updatedAt,
+        })),
+        sessions: data ? data.allSessions : [],
+        reviewDueCount: dueCount,
+        independentScenarioIds,
+        goal: user?.primaryGoal,
+        arrivalStatus: user?.arrivalStatus,
+        level,
+      }),
+    [scenarios, training, data, dueCount, independentScenarioIds, user?.primaryGoal, user?.arrivalStatus, level],
+  );
+
+  /**
+   * Step 7: progressive reveal — the guided home's own order of disclosure.
+   *
+   * Two facts, both recorded rather than assumed: `context.dayNumber` comes from
+   * the first finished session, and the session count is the same ledger the
+   * hero and the review row already read. With the flag off both predicates
+   * answer "revealed", so the shipped screen is untouched.
+   */
+  const reviewRevealed = isReviewRevealed({
+    guided,
+    firstSessionDone,
+    dayNumber: context.dayNumber,
+  });
+  const progressRevealed = isProgressRevealed({
+    guided,
+    sessionCount: completedEpisodes,
+  });
+
   /**
    * The scenes with a finished conversation.
    *
@@ -234,8 +284,11 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         // learner on the old home keeps its exact mission logic (including the
         // «أكمل» loop, which is only fixed here until the guided shape is
         // validated).
+        // Step 7: review is deferred until it is *returning* work — a finished
+        // session and a day between it and today (`isReviewRevealed`). With the
+        // flag off the predicate is true, so this is the shipped reviewer.
         reviewItems:
-          guided && !firstSessionDone
+          guided && !reviewRevealed
             ? []
             : reviewItems.map((item) => ({ dueAt: item.dueAt, kind: item.kind, scenarioId: item.scenarioId })),
         completedScenarioIds: guided ? completedScenarioIds : [],
@@ -250,7 +303,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         targetDate: user?.targetDate,
         targetDateKind: user?.targetDateKind,
       }),
-    [level, user?.primaryGoal, user?.dailyGoalMinutes, user?.targetDate, user?.targetDateKind, data, scenarios, training, reviewItems, scenarioLevels, skillPractice, firstSessionDone, completedScenarioIds, guided],
+    [level, user?.primaryGoal, user?.dailyGoalMinutes, user?.targetDate, user?.targetDateKind, data, scenarios, training, reviewItems, scenarioLevels, skillPractice, reviewRevealed, completedScenarioIds, guided],
   );
 
   const missionScenario = useMemo(
@@ -270,32 +323,6 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           : undefined,
       ),
     [missionScenario],
-  );
-
-  const context = useMemo(
-    () =>
-      buildJourneyContext({
-        scenarios: scenarios.map((scenario) => ({
-          id: scenario.id,
-          title_de: scenario.title_de,
-          title_ar: scenario.title_ar,
-          category: scenario.category,
-        })),
-        training: training.map((record) => ({
-          scenarioId: record.scenarioId,
-          studiedAt: record.studiedAt,
-          quizAttempted: record.quizAttempted,
-          lastScore: record.lastScore,
-          updatedAt: record.updatedAt,
-        })),
-        sessions: data ? data.allSessions : [],
-        reviewDueCount: dueCount,
-        independentScenarioIds,
-        goal: user?.primaryGoal,
-        arrivalStatus: user?.arrivalStatus,
-        level,
-      }),
-    [scenarios, training, data, dueCount, independentScenarioIds, user?.primaryGoal, user?.arrivalStatus, level],
   );
 
   const reasonAr = missionReasonAr(mission, { goal: user?.primaryGoal, arrivalStatus: user?.arrivalStatus }, missionScenario);
@@ -371,18 +398,22 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   };
 
   /**
-   * What «المزيد» lists under «المراجعة»: due items, once a session is done.
+   * What «المزيد» lists under «المراجعة»: due items, once review has been
+   * revealed — and never while the hero already offers it.
    *
-   * This is a *different question* from the inline row below, and the difference
-   * is deliberate. The inline row is a second CTA on a screen that already has
-   * one, so it stands down when review IS today's mission (`mission.kind`), which
-   * the selector picks for any due item. A sheet is a list of destinations, not a
-   * CTA: hiding «المراجعة» from it because the hero happens to be review would
-   * leave a menu with a hole in it, and the learner looking for the review queue
-   * in «المزيد» would not find it. `firstSessionDone` is what keeps it off day 0,
-   * where due cards can exist for a demo visitor who has finished nothing.
+   * Step 7 changed the second half of this rule. The sheet used to repeat the
+   * review even when the hero *was* the review, on the theory that a menu should
+   * not have a hole. The plan's done-when says the opposite and is right for a
+   * learner: two review entry points on one screen is a choice, and a choice is
+   * how neither gets done. The inline row below keeps its shipped rule
+   * (`mission.kind !== 'review'`) and is flag-off only; the sheet is the guided
+   * home's one secondary entry point, so it yields to the hero.
    */
-  const sheetReviewCount = dueCount > 0 && firstSessionDone ? dueCount : 0;
+  const sheetReviewEntryCount = sheetReviewCount({
+    dueCount,
+    missionIsReview: mission.kind === 'review',
+    reviewRevealed,
+  });
   /** The Pro offer, on the one rule every surface shares (`trial.shouldOfferPro`). */
   const proOfferVisible = shouldOfferPro({ isPro, completedEpisodes });
   /**
@@ -546,8 +577,14 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
 
         {/* The three daily tasks: one scenario session, one grammar step, one
             review batch. Quiet on purpose — the mission above is still the one
-            prominent action; this is the habit underneath it. */}
-        <DailyTasksPanel snapshot={dailyTasks} onAction={handleDailyTaskAction} />
+            prominent action; this is the habit underneath it.
+            Step 7: the panel is a habit surface, not a first-run one — a
+            learner on day 0 is shown the one thing to start, and the three
+            checkboxes arrive with their first finished conversation. Flag off
+            keeps the shipped screen, where the panel is unconditional. */}
+        {(!guided || firstSessionDone) && (
+          <DailyTasksPanel snapshot={dailyTasks} onAction={handleDailyTaskAction} />
+        )}
 
         {/* The guided home's one secondary entry point. Quiet on purpose: it sits
             under the tasks as a 44px text row, so it is reachable without
@@ -631,7 +668,10 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             is every day. Nothing said it before: the first news that a
             subscription had ended was the level chip dropping to A1 mid-episode.
             It reads the date the row already holds (refreshed on every open by
-            B2), so it works offline and costs no request. */}
+            B2), so it works offline and costs no request.
+            Step 7 leaves it out of the three-session reveal on purpose: the
+            notice exists only when the date itself is actionable, which is the
+            plan's own exception ("or when the underlying fact is actionable"). */}
         {expiryNotice && (
           <GlassCard tier="canvas" className="mb-4" data-testid="pro-expiry-card">
             <p className="kz-ar-caption text-kz-ink">{expiryNotice}</p>
@@ -701,11 +741,12 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             onOpenWriting={onOpenWriting}
             onOpenCoach={onOpenCoach}
             onOpenPreferences={onOpenOnboarding}
-            reviewDueCount={sheetReviewCount}
+            reviewDueCount={sheetReviewEntryCount}
             firstSessionDone={firstSessionDone}
             katzuLineAr={katzuLineAr ?? undefined}
             katzuState={katzuState}
             capability={latestCapability}
+            progressVisible={progressRevealed}
             recap={
               weeklyRecap.episodes > 0
                 ? { headlineAr: weeklyRecap.headlineAr, topScenarioTitle: weeklyRecap.topScenarioTitle ?? undefined }
