@@ -180,7 +180,10 @@ test.describe('navbar indicator geometry', () => {
 
     const before = await readNavbar(page);
 
-    await page.getByRole('button', { name: 'التدريب' }).first().click();
+    // The locked tab is `aria-disabled` (never the native disabled attribute, so
+    // a tap still opens the sheet), which blocks Playwright's actionability wait
+    // — force the click so the app's own guard is the one that answers it.
+    await page.getByRole('button', { name: 'التدريب' }).first().click({ force: true });
 
     // The lock sheet explains why, instead of navigating.
     await expect(page.getByRole('heading', { name: 'هذا القسم يفتح بعد أول محادثة' })).toBeVisible();
