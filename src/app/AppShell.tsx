@@ -751,7 +751,7 @@ function TabButton({ glassKey, active, onClick, icon, label, locked = false }: {
         aria-current={active ? 'page' : undefined}
         aria-disabled={locked ? 'true' : undefined}
         aria-label={locked ? `${label} — مقفل حتى أول محادثة` : undefined}
-        className={`relative flex min-h-[48px] w-full flex-col items-center justify-center gap-1 rounded-control px-2 ${
+        className={`${locked ? 'relative ' : ''}flex min-h-[48px] w-full flex-col items-center justify-center gap-1 rounded-control px-2 ${
           active ? 'text-kz-lavender' : 'text-kz-inkFaint'
         }`}
       >
