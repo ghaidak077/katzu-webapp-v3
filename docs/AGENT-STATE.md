@@ -28,7 +28,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **Deployed 2026-10-23 (guided home):** `main` = **`2f5f536`** (`--no-ff`; tip `4b581d0`). Production Pages **`c89828af-…`** serves `assets/index-DkRAI1BL.js` with
+- **Deployed 2026-10-23 (guided home):** `main` = **`1e9d09f`** (`--no-ff`; tip `4b581d0`) + docs-only commits. Production Pages **`c89828af-…`** serves `assets/index-DkRAI1BL.js` with
   `VITE_GUIDED_HOME:"1"` (`.env.production` pins it ON; `localStorage['kz.guidedHome']='0'` is the
   per-device switch). Gate **14/14 in 723 s**; staging preview `fedcd115-…` (shell only); prod smoke
   **4 passed / 2 skipped**, `/demo` 4/4. Rollback: dashboard redeploy of `50f30132-…` or
@@ -134,12 +134,11 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- Pages live production deployment id (rollback target for the next deploy):
-  `97c5cf5b-fe08-4344-a49f-648555153262`, branch `main`, commit `2f5f536` (docs-only on top of the
-  guided-home merge `1e9d09f`) — the code deploy was `c89828af-…`, and both serve the same
-  `assets/index-DkRAI1BL.js` with `VITE_GUIDED_HOME:"1"` and the worker origin. **Docs-only pushes
-  mint a new Pages id but rebuild the identical bundle; the entry hash is the stable identity.**
-  Previous target (rollback): `50f30132-0412-417f-95de-8cc0dc545d7b` (source `d216ae8`,
+- Pages production: the app bundle `assets/index-DkRAI1BL.js` (`VITE_GUIDED_HOME:"1"` + worker
+  origin) came from deployment `c89828af-acba-41bd-8514-8eba166d6c0e`, branch `main`, commit
+  `1e9d09f` (the guided-home merge). **Docs-only commits after it mint their own Pages ids but
+  rebuild the identical bundle; the entry hash is the stable identity.** Previous target
+  (rollback): `50f30132-0412-417f-95de-8cc0dc545d7b` (source `d216ae8`,
   `assets/index-BfNVQ58w.js`, flag absent) — dashboard "Redeploy" or `git revert -m 1 1e9d09f` +
   push (a manual Pages deploy is forbidden). Older targets: `8ec7ea54-…` (`3358165`),
   `5f115c46-…` (`95f21f7`), `8fe6d07f-…` (`8ca290c`), then the ids in the archived snapshot.

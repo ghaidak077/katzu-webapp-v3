@@ -44,8 +44,8 @@ production data was touched by that vetting run.
 
 ## Current snapshot — 2026-10-23 (guided home live)
 
-**Deployed 2026-10-23 (`merge` + `pages`; no worker, no D1):** `main` = `2f5f536` (`--no-ff` merge
-of `guided-home` at `1e9d09f`, tip `4b581d0`; later commits are docs-only and rebuild the same bundle). Pages production `c89828af-acba-41bd-8514-8eba166d6c0e` serves
+**Deployed 2026-10-23 (`merge` + `pages`; no worker, no D1):** `main` = `1e9d09f` (`--no-ff` merge
+of `guided-home`, tip `4b581d0`) plus docs-only commits that rebuild the same bundle. Pages production `c89828af-acba-41bd-8514-8eba166d6c0e` serves
 `assets/index-DkRAI1BL.js` with `VITE_GUIDED_HOME:"1"`, pinned by `.env.production`; rollback is a
 dashboard redeploy of `50f30132-0412-417f-95de-8cc0dc545d7b` or `git revert -m 1 1e9d09f` + push.
 Gate `npm run verify -- --ci --e2e` **14/14 in 723 s**; production smoke **4 passed / 2 skipped**;

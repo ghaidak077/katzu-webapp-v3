@@ -26,8 +26,8 @@ gotcha/limitation ⇒ update the matching row here **in the same commit**. Add a
 
 *Last verified: 2026-10-23 (guided-home deploy). Verified against `src/App.tsx`, `package.json`, `wrangler.toml`,
 `cloudflare-unified-worker.js`, `tests/`, `e2e/`, and the live deploy targets below (worker
-`e1a9a2ca-e919-43e2-baba-28a52bddd1cd`, Pages `assets/index-DkRAI1BL.js` on production deployments
-`c89828af-…` (code) / `97c5cf5b-…` (docs-only rebuild), `main` = `2f5f536`).
+`e1a9a2ca-e919-43e2-baba-28a52bddd1cd`, Pages `assets/index-DkRAI1BL.js` from production deployment
+`c89828af-…`; docs-only commits rebuild the same entry under new ids, `main` = `1e9d09f` + docs).
 Re-check the four "volatile" sections — routes, endpoints, tables, deploy ids — on first touch of any of them.*
 
 ---
