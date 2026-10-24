@@ -189,7 +189,7 @@ are the product's design contract:
 | Celebration | **canvas-confetti** | 1.9 | redemption success + session report |
 | PWA | **vite-plugin-pwa** | 0.21 | `generateSW` (Workbox), manifest, runtime caching |
 | Tests | **Vitest** | 5.0 | node environment; 39 files / 403 tests |
-| Declared but unused today | `@tanstack/react-query`, `zod`, `workbox-window` | — | present in `package.json`; **no imports in `src/`** — do not assume they are wired up |
+| Declared but unused today | `@tanstack/react-query`, `workbox-window` | — | present in `package.json`; **no imports in `src/`** — do not assume they are wired up. `zod` is **not a dependency** (removed 2026-10-24: no imports; GHSA-mrhx-c7xc-m3w5 has no 3.x patch) |
 
 ### 4.2 Backend (the Worker)
 
