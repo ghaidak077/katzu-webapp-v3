@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { MAX_FREE_AI_SESSIONS } from '../src/lib/entitlement/trialCopy';
 import {
@@ -250,6 +252,38 @@ describe('build artefacts', () => {
     expect(full).toContain('No ratings, reviews, testimonials, user counts or awards');
     expect(full).not.toContain('5 USD');
     expect(full).not.toContain('unproven planning price');
+  });
+});
+
+describe('Pages routing', () => {
+  it('keeps every SPA deep link out of the generated 404 page', () => {
+    const redirects = readFileSync(resolve(process.cwd(), 'public/_redirects'), 'utf8');
+    for (const route of [
+      '/app',
+      '/app/*',
+      '/main',
+      '/main/*',
+      '/scenario/*',
+      '/welcome',
+      '/signin',
+      '/demo',
+      '/onboarding',
+      '/subscription',
+      '/paywall',
+      '/mock',
+      '/placement',
+      '/session-report',
+      '/delete-account',
+    ]) {
+      expect(redirects, route).toContain(`${route} /index.html 200`);
+    }
+    // A catch-all rewrite would turn every unknown public path back into a
+    // soft 404, which is the defect 404.html exists to remove.
+    expect(redirects).not.toMatch(/^\/\* \/index\.html 200$/m);
+    // Public pages are static files; a rewrite here would shadow them.
+    for (const path of ['/faq', '/pricing', '/trust/privacy', '/en']) {
+      expect(redirects).not.toContain(`${path} /index.html 200`);
+    }
   });
 });
 

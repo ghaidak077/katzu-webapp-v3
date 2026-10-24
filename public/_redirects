@@ -3,3 +3,24 @@
 /privacy/ /trust/privacy 301
 /terms /trust/terms 301
 /terms/ /trust/terms 301
+
+# SPA routes. Generating 404.html makes Cloudflare Pages serve it for every
+# unmatched path, which would break React Router deep links. Rewrite the real
+# client-side routes to the shell first; the generated public pages above are
+# static files and are deliberately not listed here, so an unknown public path
+# still reaches 404.html.
+/app /index.html 200
+/app/* /index.html 200
+/main /index.html 200
+/main/* /index.html 200
+/scenario/* /index.html 200
+/welcome /index.html 200
+/signin /index.html 200
+/demo /index.html 200
+/onboarding /index.html 200
+/subscription /index.html 200
+/paywall /index.html 200
+/mock /index.html 200
+/placement /index.html 200
+/session-report /index.html 200
+/delete-account /index.html 200
