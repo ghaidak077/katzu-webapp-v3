@@ -16,6 +16,10 @@ import { mockBackend } from './harness';
  * page must never show an unfinished token (so a reader is not shown scaffolding),
  * and it must never pretend to be complete (so the missing sections are still
  * counted out loud). A page that satisfies only the first would be a lie.
+ *
+ * Since the AI-visibility batch these five paths are prerendered static files,
+ * not SPA routes. They deliberately have no `#root`; the assertions therefore
+ * read the visible `main` document a crawler and a visitor both receive.
  */
 const SUPPORT = 'support@ghaidak.com';
 
@@ -26,7 +30,9 @@ for (const page of ['privacy', 'terms', 'refund', 'imprint', 'contact'] as const
     const visitor = await context.newPage();
     await mockBackend(visitor);
     await visitor.goto(`/trust/${page}`);
-    await expect(visitor.locator('#root')).not.toBeEmpty({ timeout: 20_000 });
+    // These pages are prerendered static HTML now: they do not mount the SPA,
+    // so `#root` is absent by design. Assert the visible document instead.
+    await expect(visitor.locator('main h1')).toBeVisible();
 
     const body = await visitor.locator('body').innerText();
     expect(body, 'a visitor must never read the raw placeholder token').not.toContain('{{');
@@ -45,8 +51,10 @@ test('the privacy policy names the address the app actually answers on', async (
   await expect(visitor.getByText('لأي سؤال عن الخصوصية')).toBeVisible();
   // The address is not an owner decision — the contact button below it and the
   // public deletion page both use this one, so asking the owner for it made the
-  // policy say "write to <unfinished>" while the app knew the answer.
-  await expect(visitor.getByText(new RegExp(SUPPORT))).toBeVisible();
+  // policy say "write to <unfinished>" while the app knew the answer. The static
+  // page prints it in the body, the contact notice and the footer, so match the
+  // document once rather than requiring a single strict-mode element.
+  await expect(visitor.locator('body')).toContainText(SUPPORT);
   await context.close();
 });
 
@@ -55,7 +63,7 @@ test('an unfinished policy still says so out loud', async ({ browser }) => {
   const visitor = await context.newPage();
   await mockBackend(visitor);
   await visitor.goto('/trust/imprint');
-  await expect(visitor.locator('#root')).not.toBeEmpty({ timeout: 20_000 });
+  await expect(visitor.locator('main h1')).toBeVisible();
   // The imprint is the page with the most open owner fields, so the warning must
   // be here. If the owner ever fills them, this assertion is meant to be updated
   // with the count — not deleted, which would remove the honesty check.

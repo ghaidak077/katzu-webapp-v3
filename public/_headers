@@ -10,3 +10,20 @@
   # renders ~30 dynamic CSS-custom-property style attributes (React style={{}})
   # — removing those is a tracked follow-up, not a loss of script protection.
   Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://*.workers.dev; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self';
+
+# Private app surfaces. The SPA shell is shared, so this HTTP header is the
+# reliable signal; the static public pages carry their own index,follow meta.
+/app/*
+  X-Robots-Tag: noindex, nofollow
+
+/onboarding
+  X-Robots-Tag: noindex, nofollow
+
+/signin
+  X-Robots-Tag: noindex, nofollow
+
+/paywall
+  X-Robots-Tag: noindex, nofollow
+
+/subscription
+  X-Robots-Tag: noindex, nofollow

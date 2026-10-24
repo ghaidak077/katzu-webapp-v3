@@ -1,4 +1,6 @@
-import { ANALYTICS_EVENTS, ALLOWED_PROP_KEYS } from '@/lib/analytics/events';
+// Relative on purpose: the public-page generator is loaded by `vite.config.ts`
+// before Vite resolves the `@/` alias, and this module is its trust-page source.
+import { ANALYTICS_EVENTS, ALLOWED_PROP_KEYS } from '../analytics/events';
 
 /**
  * The trust pages, as fields rather than prose.

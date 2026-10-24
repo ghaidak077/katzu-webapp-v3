@@ -2,6 +2,12 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
+import {
+  buildPublicArtifacts,
+  renderLandingRoot,
+  withEntityStructuredData,
+  withHreflang,
+} from './src/lib/seo/publicPages';
 
 /**
  * Exported so a test can pin the offline contract: the generated sw.js must
@@ -275,6 +281,26 @@ export function withStructuredData(html: string, origin: string): string {
 }
 
 /**
+ * Put the Arabic landing page inside `#root` at build time.
+ *
+ * The React app still mounts over it (`createRoot(...).render` replaces the
+ * children), so this is not an SSR island or a second router. It exists because
+ * a crawler that does not execute JavaScript must still see one real h1, the
+ * product's audience, levels, languages, platform and price model. Exported so
+ * the prerender contract can be tested without running a build.
+ */
+export function withLandingRoot(html: string, origin: string): string {
+  if (!/<div id="root">/.test(html)) return html;
+  const landing = renderLandingRoot(origin);
+  // Anchor on the body close, not on a module script: Vite can move the entry
+  // into <head>, and an earlier regex silently matched nothing when it did.
+  return html.replace(
+    /<div id="root">[\s\S]*?<\/div>\s*(?=<\/body>)/,
+    `<div id="root">${landing}</div>\n    `,
+  );
+}
+
+/**
  * A8: the variables a Play build must have, as a pure function of the env.
  *
  * A Play/TWA build that ships without any one of these is worse than a build that
@@ -300,25 +326,34 @@ function publicOriginFiles(env: Record<string, string | undefined>): Plugin {
     );
   }
   const origin = normalizeOrigin(String(env.VITE_PUBLIC_APP_URL || ''));
-  const abs = (p: string) => (origin ? `${origin}${p}` : p);
-  const routes = ['/', '/trust/privacy', '/trust/terms', '/demo', '/welcome'];
   const packageName = String(env.VITE_ANDROID_PACKAGE_NAME || '').trim();
   const sha256 = String(env.VITE_ANDROID_CERT_SHA256 || '').trim();
   return {
     name: 'katzu-public-origin-files',
     transformIndexHtml(html) {
       // Same origin as robots/sitemap: one env var decides every public URL.
-      return withStructuredData(
-        withCanonicalUrl(withAbsoluteOgUrl(absoluteOgImages(html, origin), origin), origin),
+      // The order matters: `withStructuredData` adds the first JSON-LD block,
+      // and `withEntityStructuredData` must run after it so the two do not
+      // compete for the same guard. The landing is written into `#root` last.
+      const withHead = withEntityStructuredData(
+        withHreflang(
+          withStructuredData(
+            withCanonicalUrl(withAbsoluteOgUrl(absoluteOgImages(html, origin), origin), origin),
+            origin,
+          ),
+          origin,
+        ),
         origin,
       );
+      return withLandingRoot(withHead, origin);
     },
     generateBundle() {
-      this.emitFile({
-        type: 'asset',
-        fileName: 'robots.txt',
-        source: ['User-agent: *', 'Allow: /', '', `Sitemap: ${abs('/sitemap.xml')}`, ''].join('\n'),
-      });
+      // Public pages, sitemap, robots, llms.txt/llms-full.txt and 404.html are
+      // generated from the same content module, so their titles, canonicals and
+      // lastmod dates cannot drift from the copy the reader sees.
+      for (const [fileName, source] of Object.entries(buildPublicArtifacts(origin))) {
+        this.emitFile({ type: 'asset', fileName, source });
+      }
 
       // C4: Digital Asset Links. Android refuses to hand a web app's real
       // identity (and any Play-distributed build) to the browser until this file
@@ -329,15 +364,6 @@ function publicOriginFiles(env: Record<string, string | undefined>): Plugin {
         type: 'asset',
         fileName: '.well-known/assetlinks.json',
         source: assetLinksContent({ packageName, certSha256: sha256 }),
-      });
-      this.emitFile({
-        type: 'asset',
-        fileName: 'sitemap.xml',
-        source:
-          '<?xml version="1.0" encoding="UTF-8"?>\n' +
-          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-          routes.map((r) => `  <url>\n    <loc>${abs(r)}</loc>\n  </url>`).join('\n') +
-          '\n</urlset>\n',
       });
     },
   };

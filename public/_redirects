@@ -1,0 +1,5 @@
+# Legacy legal URLs. The canonical trust pages are the generated /trust/* pages.
+/privacy /trust/privacy 301
+/privacy/ /trust/privacy 301
+/terms /trust/terms 301
+/terms/ /trust/terms 301

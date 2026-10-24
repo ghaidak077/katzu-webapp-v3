@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { sitemapXml } from '../src/lib/seo/publicPages';
 
 /**
  * APP-MAP.md is load-bearing (`AGENTS.md` §12): the next run — possibly a weaker
@@ -241,7 +242,8 @@ describe('no hardcoded production hostname ships', () => {
     const config = readFileSync(join(root, 'vite.config.ts'), 'utf8');
     expect(config).toContain('katzu-public-origin-files');
     // The routes the sitemap advertises must actually exist as /trust/* routes.
-    expect(config).toContain('/trust/privacy');
-    expect(config).not.toMatch(/'\/privacy'/);
+    const sitemap = sitemapXml('https://katzu.example');
+    expect(sitemap).toContain('<loc>https://katzu.example/trust/privacy</loc>');
+    expect(sitemap).not.toContain('<loc>https://katzu.example/privacy</loc>');
   });
 });
