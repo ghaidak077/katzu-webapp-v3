@@ -335,6 +335,12 @@ export interface MistakeEntity {
   original: string;
   corrected: string;
   grammarRule: string;
+  /**
+   * The Arabic meaning of the corrected sentence. Optional and additive: old
+   * rows never stored it, so a correction without one is not shown in Review
+   * (an Arabic rule label is not a meaning and cannot form a question).
+   */
+  meaningAr?: string;
   /** Optional link to the exact Guided Practice grammar row for this correction. */
   grammarId?: string;
   grammarReference?: {
@@ -381,12 +387,20 @@ export interface ReviewItemEntity {
   sourceId?: number;
   /** The Arabic side — what the learner is asked to produce German for. */
   promptAr: string;
+  /**
+   * The Arabic meaning of the sentence, kept separately from the visible prompt
+   * for corrections (where the prompt is an instruction). Additive: rows written
+   * before this field fall back to `promptAr`.
+   */
+  meaningAr?: string;
   /** What the learner must produce in German. */
   answerDe: string;
   /** Optional German context (example sentence, or the learner's own earlier wording). */
   contextDe?: string;
   /** Arabic explanation revealed with the answer. */
   explanationAr?: string;
+  /** Optional plural form, revealed with a vocabulary answer. */
+  pluralDe?: string;
   /** Optional identity of the Guided Practice grammar row behind a correction. */
   grammarId?: string;
   grammarReference?: {

@@ -291,7 +291,7 @@ export function buildReviewQueue<T extends Pick<ReviewItemEntity, 'dueAt' | 'kin
 /** A brand-new item is due immediately: the first retrieval should be soon. */
 function newReviewItem(
   base: Pick<ReviewItemEntity, 'kind' | 'refId' | 'promptAr' | 'answerDe'> &
-    Partial<Pick<ReviewItemEntity, 'sourceId' | 'contextDe' | 'explanationAr' | 'grammarId' | 'grammarReference' | 'scenarioId' | 'level'>>,
+    Partial<Pick<ReviewItemEntity, 'sourceId' | 'meaningAr' | 'contextDe' | 'explanationAr' | 'pluralDe' | 'grammarId' | 'grammarReference' | 'scenarioId' | 'level'>>,
   now: number,
   userId: string,
 ): ReviewItemEntity {
@@ -301,9 +301,11 @@ function newReviewItem(
     refId: base.refId,
     sourceId: base.sourceId,
     promptAr: base.promptAr,
+    meaningAr: base.meaningAr,
     answerDe: base.answerDe,
     contextDe: base.contextDe,
     explanationAr: base.explanationAr,
+    pluralDe: base.pluralDe,
     grammarId: base.grammarId,
     grammarReference: base.grammarReference,
     scenarioId: base.scenarioId,
@@ -333,6 +335,7 @@ export function newReviewItemFromVocabulary(
       // through the shared helper so a row that already stores the article in
       // `german` is never doubled into "der der …".
       answerDe: germanNounPhrase(vocabulary.article, vocabulary.german),
+      pluralDe: vocabulary.plural || undefined,
       contextDe: vocabulary.example_de || undefined,
       explanationAr: vocabulary.example_ar || undefined,
       scenarioId: vocabulary.topic || undefined,
@@ -384,9 +387,12 @@ export function newReviewItemFromMistake(
       // A clear Arabic instruction, never the bare rule label (V28 Stage 1B): a
       // label is not a question, and the old `صيغة صحيحة` fallback said nothing.
       // The rule, when it carries Arabic, rides along as the explanation hint.
-      promptAr: /[\u0600-\u06FF]/.test(mistake.grammarRule || '')
+      // A row with a stored Arabic meaning uses that as the prompt instead (V41):
+      // the meaning is the cue; the rule label is not.
+      promptAr: mistake.meaningAr?.trim() || (/[\u0600-\u06FF]/.test(mistake.grammarRule || '')
         ? `${mistake.grammarRule} — اكتب الجملة الصحيحة بالألمانية`
-        : 'اكتب الجملة الصحيحة بالألمانية',
+        : 'اكتب الجملة الصحيحة بالألمانية'),
+      meaningAr: mistake.meaningAr?.trim() || undefined,
       answerDe: mistake.corrected,
       contextDe: mistake.original,
       explanationAr: mistake.roastComment,

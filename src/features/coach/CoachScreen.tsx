@@ -85,8 +85,10 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
       const focused = await focusMistakesForReview(drillForCategory(mistakes, stat.category));
       // Nothing to drill means no queue was created; sending the learner to an
       // empty review would look like a broken button, so say why and stay put.
+      // A correction needs a stored Arabic meaning to be a real task (V41), so
+      // the notice must not claim there are no mistakes at all.
       if (focused > 0) onStartReview();
-      else setDrillNotice('لا توجد أخطاء مفتوحة في هذا النمط الآن. ستظهر هنا عندما تُسجَّل أخطاء جديدة، أو أكمل مراجعة قائمة.');
+      else setDrillNotice('لا توجد جمل مصححة قابلة للمراجعة في هذا النمط الآن. تحتاج المراجعة إلى معنى عربي محفوظ مع التصحيح.');
     } finally {
       setDrilling(null);
     }

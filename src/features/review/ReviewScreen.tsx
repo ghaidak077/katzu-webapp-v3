@@ -3,8 +3,16 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { workerClient } from '@/lib/api/workerClient';
 import { gradeReviewItem } from '@/lib/srs/store';
-import { SESSION_LIMIT, buildReviewQueue, countDue, gradeAnswer, gradeCorrectionRetype, type AnswerVerdict } from '@/lib/srs/engine';
-import { buildWordBank, clozeContext, dedupeReviewItems, gradeArabicAnswer, isServableReviewItem } from '@/lib/review/validate';
+import { SESSION_LIMIT, buildReviewQueue, countDue, type AnswerVerdict } from '@/lib/srs/engine';
+import {
+  buildReviewTask,
+  buildWordBank,
+  dedupeReviewItems,
+  diffGermanTokens,
+  gradeTaskAnswer,
+  isServableReviewItem,
+  type ReviewTask,
+} from '@/lib/review/validate';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { GermanText } from '@/components/common/GermanText';
 import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
@@ -15,10 +23,9 @@ import { KatzuPresence } from '@/components/v2/KatzuPresence';
 import { ProgressRail } from '@/components/v2/ProgressStrip';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { track } from '@/lib/analytics/client';
-import { ArrowLeft, CheckCircle2, RotateCcw, Sparkles, Volume2, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Lightbulb, RotateCcw, Sparkles, Volume2 } from 'lucide-react';
 import type { ReviewGrade, ReviewItemEntity } from '@/types/models';
 import { arCount } from '@/lib/i18n/arabicCount';
-import { LtrCounter } from '@/components/common/LtrCounter';
 
 /** V31: agreement for the sentence under the tally. See `arabicCount`. */
 const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصرين', few: 'عناصر', many: 'عنصراً' } as const;
@@ -27,18 +34,10 @@ export interface ReviewScreenProps {
   onBack: () => void;
 }
 
-const KIND_LABELS: Record<ReviewItemEntity['kind'], string> = {
-  vocab: 'مفردة',
-  phrase: 'جملة جاهزة',
-  mistake: 'خطأ سابق',
-};
-
-/** Chip tint per kind: the type of memory being tested, not a severity. */
-const KIND_TONE: Record<ReviewItemEntity['kind'], string> = {
-  vocab: 'text-kz-lavender',
-  phrase: 'text-kz-neon',
-  mistake: 'text-kz-warm',
-};
+/** Both filters: a row must be valid AND produce a task the screen can show. */
+function isShowableReviewItem(item: ReviewItemEntity): boolean {
+  return isServableReviewItem(item) && buildReviewTask(item) !== null;
+}
 
 function formatGap(from: number, to: number): string {
   const minutes = Math.max(1, Math.round((to - from) / 60000));
@@ -49,16 +48,22 @@ function formatGap(from: number, to: number): string {
   return days === 1 ? 'غداً' : `${days} أيام`;
 }
 
+/** `die` + plural, unless the stored plural already carries its article. */
+function pluralPhrase(task: ReviewTask): string | undefined {
+  const plural = task.pluralDe?.trim();
+  if (!plural) return undefined;
+  return /^(der|die|das)\s/i.test(plural) ? plural : `die ${plural}`;
+}
+
 /**
- * Review — the memory loop, in the same language as the rest of V2.
+ * Review — one explicit task per card.
  *
- * Retrieval practice, not recognition: the learner produces the German from the
- * Arabic prompt. Multiple choice would feel smoother and teach less, because
- * recognising an answer never requires retrieving it.
- *
- * The self-grading controls carry equal weight on purpose. Making "سهل" the
- * highlighted button would teach the learner to press it, and the interval it
- * buys would be unearned — the schedule is only as honest as the answer here.
+ * The owner's report from real use was "many questions are illogical, with no
+ * clear question or no clear answer." A card used to mix a topic label, a
+ * fragment and an answer, and changed the task underneath the learner. V41
+ * decides the task first (`buildReviewTask`) and then renders exactly that task:
+ * a German word from an Arabic word, a German sentence from an Arabic meaning,
+ * a read-and-reveal meaning, or a correction with the learner's own sentence.
  */
 export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   const items = useLiveQuery(() => db.review_items.where('userId').equals('current_user').toArray());
@@ -72,36 +77,83 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [verdict, setVerdict] = useState<AnswerVerdict | null>(null);
-  // "I could not recall it" — the explicit way out the screen used to lack. Before
-  // this, a learner who simply did not know a word had no move except to type a
-  // guess and be graded, which made the honest answer impossible to give.
-  const [revealed, setRevealed] = useState(false);
-  const [tally, setTally] = useState({ correct: 0, close: 0, wrong: 0, again: 0 });
+  // `null` = still answering. `giveup` = the learner asked for the answer on a
+  // typed card (one block, one action). `self` = read-and-reveal meaning.
+  const [revealed, setRevealed] = useState<'giveup' | 'self' | null>(null);
+  // The hint is a second attempt aid, never a default: it unlocks only after the
+  // learner has actually missed this item once in this session.
+  const [hintOpen, setHintOpen] = useState(false);
+  const [missed, setMissed] = useState<Record<string, boolean>>({});
+  // One immediate retry per item, so a wrong attempt can use the hint without
+  // turning the session into an endless loop for someone who keeps revealing.
+  const [retried, setRetried] = useState<Record<string, boolean>>({});
+  const [tally, setTally] = useState({ correct: 0, close: 0, wrong: 0 });
+  const [saving, setSaving] = useState(false);
+  // Guards the one immediate 'again' write per queue position (a reveal followed
+  // by a click must never grade the same attempt twice).
+  const recordedRef = useRef<number | null>(null);
   const { speak } = useSpeechOutput();
 
   useEffect(() => {
     if (startedRef.current || !items) return;
     startedRef.current = true;
-    // Suppressed and duplicate items never reach the learner (V28 Stage 1B).
-    const due = buildReviewQueue(dedupeReviewItems(items.filter(isServableReviewItem)), Date.now(), SESSION_LIMIT);
+    // Suppressed, duplicate, or unanswerable items never reach the learner.
+    const due = buildReviewQueue(dedupeReviewItems(items.filter(isShowableReviewItem)), Date.now(), SESSION_LIMIT);
     setQueue(due);
     if (due.length > 0) track('review_started', { count: due.length });
   }, [items]);
 
-  const remainingDue = useMemo(() => (items ? countDue(items, Date.now()) : 0), [items]);
+  const remainingDue = useMemo(
+    () => (items ? countDue(items.filter(isShowableReviewItem), Date.now()) : 0),
+    [items],
+  );
   const current = queue && index < queue.length ? queue[index] : null;
   const isFinished = queue !== null && index >= queue.length;
+  const task = useMemo(() => (current ? buildReviewTask(current) : null), [current]);
 
-  // The word bank helps only where the learner must PRODUCE German they may not
-  // own. For `de_to_ar` the prompt is the German, and for a mistake correction the
-  // words ARE the answer — handing either over would erase the task.
+  // The hint is the words of the answer. It is only useful where the learner
+  // must PRODUCE German; for a correction those words are the answer, and for a
+  // read-and-reveal card the answer is already on screen.
   const wordBank = useMemo(
-    () =>
-      current && current.kind !== 'mistake' && current.direction !== 'de_to_ar'
-        ? buildWordBank(current.answerDe)
-        : [],
-    [current],
+    () => (task && task.typed && task.kind !== 'correction' && task.answerDe ? buildWordBank(task.answerDe) : []),
+    [task],
   );
+  const canHint = Boolean(current && task?.typed && wordBank.length > 0 && missed[current.refId]);
+  const canSubmit = Boolean(task?.typed && answer.trim());
+
+  const resetCard = () => {
+    setAnswer('');
+    setVerdict(null);
+    setRevealed(null);
+    setHintOpen(false);
+    recordedRef.current = null;
+  };
+
+  const advance = (requeue: boolean) => {
+    if (!current) return;
+    const alreadyRetried = Boolean(retried[current.refId]);
+    if (requeue && !alreadyRetried) {
+      setRetried((prev) => ({ ...prev, [current.refId]: true }));
+      setQueue((prev) => {
+        if (!prev) return prev;
+        // A forgotten item comes straight back once — the point of a failed
+        // retrieval is to retrieve it again with the hint available, not never.
+        return prev.length < SESSION_LIMIT * 2 ? [...prev, current] : prev;
+      });
+    }
+    resetCard();
+    setIndex((i) => i + 1);
+  };
+
+  const recordAgain = (item: ReviewItemEntity) => {
+    if (recordedRef.current === index) return;
+    recordedRef.current = index;
+    setMissed((prev) => (prev[item.refId] ? prev : { ...prev, [item.refId]: true }));
+    setTally((prev) => ({ ...prev, wrong: prev.wrong + 1 }));
+    void gradeReviewItem(item, 'again').catch(() => {
+      // Offline storage hiccup: the card stays local and is re-offered.
+    });
+  };
 
   // A finished session is when the schedule has changed most, and it is the only
   // moment the learner cannot notice the upload: the next device they open Katzu
@@ -116,60 +168,68 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
         // Offline: the queue stays local and is re-offered on the next sync.
       });
     }
-  }, [isFinished, user?.sessionToken]);
+  }, [isFinished, items, user?.sessionToken]);
 
-  const handleReveal = () => {
-    if (!current) return;
-    // The give-up signal the word bank is meant to reduce: an explicit reveal,
-    // recorded with the card's kind so it can be compared against bank use.
-    track('review_revealed', { skill: 'review', kind: current.kind });
-    setRevealed(true);
-    // A reveal is a miss. It is tallied through `handleGrade` (`verdict: 'wrong'`
-    // is exactly the miss bucket) so the item is counted once, not twice.
-    setVerdict('wrong');
-    triggerHaptic('light');
-    speak(current.answerDe);
+  const speakAnswer = () => {
+    if (task?.answerDe) speak(task.answerDe);
   };
 
   const handleCheck = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!current || !answer.trim()) return;
-    const result =
-      current.direction === 'de_to_ar'
-        ? gradeArabicAnswer(current.promptAr, answer)
-        : current.kind === 'mistake'
-          ? gradeCorrectionRetype(current.answerDe, answer)
-          : gradeAnswer(current.answerDe, answer);
-    setRevealed(false);
+    if (!current || !task?.typed || !answer.trim()) return;
+    const result = gradeTaskAnswer(task, answer);
     setVerdict(result);
+    setRevealed(null);
     triggerHaptic(result === 'correct' ? 'success' : result === 'close' ? 'light' : 'error');
-    speak(current.answerDe);
+    speakAnswer();
+    // The article is part of the answer: a wrong/missing article is a miss, not
+    // a clean recall. It is recorded now so the schedule is honest even if the
+    // learner closes the app on the feedback.
+    if (result !== 'correct') recordAgain(current);
   };
 
-  const handleGrade = async (grade: ReviewGrade) => {
-    if (!current) return;
-    await gradeReviewItem(current, grade);
+  const handleReveal = () => {
+    if (!current || !task) return;
+    track('review_revealed', { skill: 'review', kind: current.kind });
+    triggerHaptic('light');
+    if (task.typed) {
+      recordedRef.current = index;
+      setMissed((prev) => (prev[current.refId] ? prev : { ...prev, [current.refId]: true }));
+      setTally((prev) => ({ ...prev, wrong: prev.wrong + 1 }));
+      void gradeReviewItem(current, 'again').catch(() => {});
+      setRevealed('giveup');
+      speakAnswer();
+      return;
+    }
+    setRevealed('self');
+    speakAnswer();
+  };
 
-    setTally((prev) => ({
-      ...prev,
-      correct: prev.correct + (verdict === 'correct' ? 1 : 0),
-      close: prev.close + (verdict === 'close' ? 1 : 0),
-      wrong: prev.wrong + (verdict === 'wrong' ? 1 : 0),
-      again: prev.again + (grade === 'again' ? 1 : 0),
-    }));
+  const handleRating = async (grade: ReviewGrade) => {
+    if (!current || saving) return;
+    setSaving(true);
+    const assisted = revealed === 'self';
+    try {
+      await gradeReviewItem(current, grade);
+      setTally((prev) =>
+        grade === 'again'
+          ? { ...prev, wrong: prev.wrong + 1 }
+          : assisted || grade === 'hard'
+            ? { ...prev, close: prev.close + 1 }
+            : { ...prev, correct: prev.correct + 1 },
+      );
+      // The answer is on screen; repeating it immediately is copying, not
+      // retrieval. The scheduler brings a forgotten item back soon.
+      advance(false);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    setQueue((prev) => {
-      if (!prev) return prev;
-      // A forgotten item comes straight back, at the end of this same session —
-      // the point of a failed retrieval is to retrieve it again soon, not never.
-      const reinstate = grade === 'again' && prev.length < SESSION_LIMIT * 2 ? [...prev, current] : prev;
-      return reinstate;
-    });
-
-    setAnswer('');
-    setVerdict(null);
-    setRevealed(false);
-    setIndex((i) => i + 1);
+  const handleNext = () => {
+    // A wrong answer gets one immediate retry (so the hint is usable); a reveal
+    // means the learner has seen the answer and must move on.
+    advance(verdict !== null);
   };
 
   if (queue === null) {
@@ -182,6 +242,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
 
   if (!queue.length) {
     const nextDueAt = (items || [])
+      .filter(isShowableReviewItem)
       .map((i) => i.dueAt)
       .filter((dueAt) => dueAt > Date.now())
       .sort((a, b) => a - b)[0];
@@ -229,7 +290,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
               </GlassWell>
               <GlassWell className="p-3 text-center">
                 <div className="font-german text-lg font-bold text-kz-lavender">{tally.close}</div>
-                <span className="kz-ar-micro text-kz-inkDim">أداة مختلفة</span>
+                <span className="kz-ar-micro text-kz-inkDim">بمساعدة</span>
               </GlassWell>
               <GlassWell className="p-3 text-center">
                 <div className="font-german text-lg font-bold text-kz-warm">{tally.wrong}</div>
@@ -257,6 +318,21 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
     );
   }
 
+  if (!current || !task) {
+    // A stale queue entry is not a dead end: skip it without inventing a task.
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-kz-black">
+        <button type="button" className="kz-ar-body text-kz-inkDim" onClick={() => advance(false)}>
+          متابعة
+        </button>
+      </div>
+    );
+  }
+
+  const plural = pluralPhrase(task);
+  const correctionDiff = task.wrongDe ? diffGermanTokens(task.wrongDe, task.answerDe ?? '') : null;
+  const answerDiff = task.answerDe ? diffGermanTokens(task.answerDe, answer) : null;
+
   return (
     <div className="flex min-h-screen flex-col bg-kz-black text-kz-ink">
       <div className="mx-auto w-full max-w-md px-5 pt-6">
@@ -264,12 +340,9 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
           <div>
             <h1 className="kz-ar-title text-kz-ink">مراجعة الذاكرة</h1>
             <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
-              اكتب الألمانية من معناها العربي، أو المعنى من الألمانية — الاسترجاع هو ما يثبّت.
+              كل بطاقة تسألك سؤالاً واحداً واضحاً. الاسترجاع هو ما يثبّت.
             </p>
           </div>
-          {/* Screen 3.6: «إنهاء المراجعة والعودة للرحلة» became this close
-              button — a whole text button at the page bottom read as a second
-              task. 44px, named. */}
           <button
             type="button"
             onClick={onBack}
@@ -280,11 +353,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
             <ArrowLeft className="h-5 w-5 rotate-180 text-kz-inkDim" aria-hidden />
           </button>
         </div>
-        {/* Screen 3.1: the counter is Arabic prose («1 من 8») under a segmented
-            rail. The old «1 / 8» flipped to "8 / 1" under the bidi algorithm
-            because "/" is direction-neutral; «من» is a strong RTL word, so the
-            sentence reads correctly with no isolation needed. The rail sits
-            directly under the header so progress is visible without scrolling. */}
+
         <div className="mt-2 flex items-center justify-between">
           <span className="kz-ar-micro text-kz-inkDim" data-testid="review-counter">
             {index + 1} من {queue.length}
@@ -293,212 +362,330 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
         </div>
         <ProgressRail value={index} max={queue.length} className="mt-1.5" />
 
-        {/* Screen 3.6: the card sits in the upper third and the actions are
-            anchored at the bottom (flex column + mt-auto), so the keyboard
-            never pushes the input out of reach — and on tall screens the
-            actions stay where the thumb is. */}
-        {current && (
-          <GlassCard className="mt-4">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {/* Screen 3.2: the KIND is a small chip, not the headline. */}
-              <span className={`kz-ar-micro rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 ${KIND_TONE[current.kind]}`}>
-                {KIND_LABELS[current.kind] === 'خطأ سابق' ? 'للتثبيت' : KIND_LABELS[current.kind]}
+        <GlassCard className="mt-4">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* Screen 3.2: ONE type chip, and it names the task type only. */}
+            <span className="kz-ar-micro rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-kz-lavender">
+              {task.chipAr}
+            </span>
+            {current.level && (
+              <span className="font-german text-micro rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-kz-inkFaint">
+                {current.level}
               </span>
-              {current.level && (
-                <span className="font-german text-micro rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-kz-inkFaint">
-                  {current.level}
-                </span>
-              )}
-            </div>
+            )}
+          </div>
 
-            {/* Screen 3.2: the MEANING is the headline — the thing to express,
-                not the topic. For mistake cards the prompt IS the cue, so it
-                leads here exactly like a vocab card's Arabic does. */}
-            {current.direction === 'de_to_ar' ? (
-              <>
-                <p className="mt-3.5 kz-ar-micro text-kz-inkFaint">
-                  اكتب المعنى بالعربية
-                </p>
-                <GermanText className="mt-1 block text-2xl font-bold leading-relaxed text-kz-ink">
-                  {current.answerDe}
+          <h2 className="mt-3.5 kz-ar-caption font-bold text-kz-ink">{task.headerAr}</h2>
+
+          {task.kind === 'sentence_de_to_ar' ? (
+            <>
+              <p className="mt-1.5 kz-ar-micro text-kz-inkFaint">ماذا تعني هذه الجملة؟</p>
+              <div className="mt-1 flex items-start gap-2">
+                <GermanText className="block text-2xl font-bold leading-relaxed text-kz-ink">
+                  {task.sourceDe}
                 </GermanText>
-              </>
-            ) : (
-              <>
-                <p className="mt-3.5 kz-ar-micro text-kz-inkFaint">
-                  {current.kind === 'mistake'
-                    ? 'صحّح الجملة التي كتبتها سابقاً'
-                    : 'اكتب بالألمانية ما تعنيه:'}
-                </p>
-                <p className="mt-1 kz-ar-title leading-relaxed text-kz-ink">{current.promptAr}</p>
-              </>
-            )}
-
-            {current.kind === 'mistake' && current.grammarId && current.grammarReference?.id === current.grammarId && (
-              <GlassWell className="mt-3 p-3">
-                <span className="kz-ar-micro block text-kz-inkFaint">قاعدة من التدريب الموجّه</span>
-                <p className="mt-1 kz-ar-caption font-semibold text-kz-lavender">{current.grammarReference.titleAr}</p>
-                <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{current.grammarReference.ruleAr}</p>
-                <GermanText className="mt-1 block font-german text-xs text-kz-inkDim">
-                  {current.grammarReference.exampleDe}
-                </GermanText>
-              </GlassWell>
-            )}
-
-            {/* Screen 3.3: the learner's earlier attempt in a quiet line —
-                no strikethrough (it is THEIR text, not a wrong answer to
-                cross out) and no red. */}
-            {current.kind === 'mistake' && current.contextDe && (
-              <p className="kz-ar-micro mt-3 leading-relaxed text-kz-inkDim">
-                ما كتبته سابقاً:{' '}
-                <GermanText className="font-german text-kz-inkDim">{current.contextDe}</GermanText>
-              </p>
-            )}
-
-            {current.direction !== 'de_to_ar' &&
-              current.kind !== 'mistake' &&
-              (() => {
-                const cloze = clozeContext(current.contextDe, current.answerDe);
-                return cloze ? (
-                  <GlassWell className="mt-3 p-3">
-                    <span className="kz-ar-micro block text-kz-inkFaint">في السياق</span>
-                    <GermanText className="mt-1 block font-german text-sm text-kz-inkDim">{cloze}</GermanText>
-                  </GlassWell>
-                ) : null;
-              })()}
-
-            {verdict === null ? (
-              <form onSubmit={handleCheck} className="mt-4 space-y-3">
-                {/* The words of the sentence, tappable: the learner who knows the
-                    meaning but not the vocabulary can still build the answer. */}
-                {wordBank.length > 0 && (
-                  <div data-testid="word-bank">
-                    <span className="kz-ar-micro block text-kz-inkFaint">بنك الكلمات — اضغط لتضيف الكلمة</span>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5" dir="ltr">
-                      {wordBank.map((word, wordIndex) => (
-                        <button
-                          type="button"
-                          key={`${word}-${wordIndex}`}
-                          onClick={() => {
-                            track('word_bank_tapped', { skill: 'review', kind: current.kind });
-                            setAnswer((prev) => (prev ? `${prev} ${word}` : word));
-                          }}
-                          className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors pointer-hover:border-kz-lavender/50"
-                        >
-                          {word}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <input
-                  type="text"
-                  dir={current.direction === 'de_to_ar' ? 'rtl' : 'ltr'}
-                  autoFocus
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  placeholder={current.direction === 'de_to_ar' ? 'اكتب المعنى بالعربية…' : 'اكتب بالألمانية…'}
-                  aria-label={current.direction === 'de_to_ar' ? 'إجابتك بالعربية' : 'إجابتك بالألمانية'}
-                  className={`h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-base text-kz-ink placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50 ${current.direction === 'de_to_ar' ? 'font-arabic' : 'font-german'}`}
-                />
-                {/* Screen 3.4: the disabled state keeps ≥4.5:1 label contrast
-                    (text-kz-inkDim on the glass, NOT the old 45%-opacity fade)
-                    and reads clearly inactive; the enabled state is the strong
-                    primary. Full width, ≥48px (size lg). */}
-                <Button
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  type="submit"
-                  disabled={!answer.trim()}
-                  className={answer.trim() ? '' : 'kz-primary-disabled'}
-                >
-                  تحقّق من إجابتي
-                </Button>
-                {/* Screen 3.5: the honest way out is a visible OUTLINE button
-                    (≥44px), not a small underlined link a learner could miss. */}
-                <GlassButton
+                <button
                   type="button"
-                  variant="outline"
-                  fullWidth
-                  className="min-h-[44px]"
-                  onClick={handleReveal}
+                  onClick={speakAnswer}
+                  className="mt-1 rounded-full p-1.5 text-kz-lavender transition-colors pointer-hover:bg-white/5"
+                  aria-label="استمع للنطق الألماني"
                 >
-                  لا أتذكّر — أرني الإجابة
-                </GlassButton>
-              </form>
-            ) : (
-              <div className="kz-flip-in mt-4 space-y-3">
-                <GlassWell
-                  className={`p-3 ${
-                    verdict === 'correct' ? 'kz-pop' : verdict === 'close' ? '' : 'kz-shake'
-                  }`}
-                  role="status"
-                  aria-live="polite"
-                >
-                  <div className="flex items-start gap-2">
-                    {verdict === 'correct' ? (
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-kz-neon" aria-hidden />
-                    ) : verdict === 'close' ? (
-                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-kz-lavender" aria-hidden />
-                    ) : (
-                      <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-kz-warm" aria-hidden />
-                    )}
-                    <div className="min-w-0">
-                      <p className="kz-ar-caption font-bold text-kz-ink">
-                        {verdict === 'correct'
-                          ? 'إجابة صحيحة'
-                          : verdict === 'close'
-                            ? 'المعنى صحيح — لكن الأداة (der / die / das) ليست هي'
-                            : 'ليس بعد — هذه هي الصيغة الصحيحة'}
-                      </p>
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <GermanText className="font-german text-sm font-bold text-kz-ink">
-                          {current.direction === 'de_to_ar' ? current.promptAr : current.answerDe}
-                        </GermanText>
-                        <button
-                          type="button"
-                          onClick={() => speak(current.answerDe)}
-                          className="rounded-full p-1.5 text-kz-lavender transition-colors pointer-hover:bg-white/5"
-                          aria-label="استمع للنطق الصحيح"
-                        >
-                          <Volume2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      {current.explanationAr && (
-                        <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">
-                          {current.explanationAr}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </GlassWell>
+                  <Volume2 className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-1.5 kz-ar-title leading-relaxed text-kz-ink">{task.meaningAr}</p>
+              {task.kind === 'vocab' && task.glossAr && (
+                <p className="mt-1 kz-ar-caption leading-relaxed text-kz-inkDim">{task.glossAr}</p>
+              )}
+            </>
+          )}
 
-                {revealed && (
-                  <p className="text-center kz-ar-micro text-kz-inkDim">
-                    كشفت الإجابة — الأصدق أن تختار «لم أتذكّر» فتعود قريباً.
-                  </p>
-                )}
-                <p className="text-center kz-ar-micro text-kz-inkFaint">
-                  كيف كان استرجاعك؟ هذا ما يحدّد موعد عودتها.
-                </p>
-                {/* Equal weight on purpose: no option is nudged. */}
-                <div className="flex gap-2">
-                  <GlassButton variant="secondary" className="flex-1" onClick={() => handleGrade('again')}>
-                    <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-                    لم أتذكّر
+          {task.kind === 'correction' && task.wrongDe && correctionDiff && (
+            <GlassWell className="mt-3 p-3">
+              <span className="kz-ar-micro block text-kz-inkFaint">إجابتك السابقة</span>
+              <p className="mt-1 font-german text-sm leading-relaxed text-kz-inkDim" dir="ltr" lang="de">
+                <bdi dir="ltr" lang="de">
+                  {correctionDiff.map((token, tokenIndex) => (
+                    <React.Fragment key={`${token.text}-${tokenIndex}`}>
+                      <span
+                        className={
+                          token.changed
+                            ? 'rounded-sm bg-kz-warm/15 text-kz-warm underline decoration-kz-warm/50'
+                            : ''
+                        }
+                      >
+                        {token.text}
+                      </span>
+                      {tokenIndex < correctionDiff.length - 1 ? ' ' : ''}
+                    </React.Fragment>
+                  ))}
+                </bdi>
+              </p>
+            </GlassWell>
+          )}
+
+          {task.kind === 'sentence_ar_to_de' && task.glossAr && (
+            <p className="mt-2 kz-ar-micro leading-relaxed text-kz-inkDim">{task.glossAr}</p>
+          )}
+
+          {verdict === null && revealed === null && (
+            <>
+              {task.typed ? (
+                <form onSubmit={handleCheck} className="mt-4 space-y-3">
+                  {task.kind === 'correction' && (
+                    <p className="kz-ar-micro font-semibold text-kz-ink">أعد كتابتها صحيحة</p>
+                  )}
+
+                  {canHint && !hintOpen && (
+                    <GlassButton
+                      type="button"
+                      variant="outline"
+                      fullWidth
+                      className="min-h-[44px]"
+                      onClick={() => {
+                        setHintOpen(true);
+                      }}
+                    >
+                      <Lightbulb className="h-4 w-4" aria-hidden />
+                      تلميح: أول كلمات الإجابة
+                    </GlassButton>
+                  )}
+
+                  {hintOpen && wordBank.length > 0 && (
+                    <div data-testid="word-bank">
+                      <span className="kz-ar-micro block text-kz-inkFaint">اضغط الكلمة لتضيفها</span>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5" dir="ltr">
+                        {wordBank.map((word, wordIndex) => (
+                          <button
+                            type="button"
+                            key={`${word}-${wordIndex}`}
+                            onClick={() => {
+                              track('word_bank_tapped', { skill: 'review', kind: current.kind });
+                              setAnswer((prev) => (prev ? `${prev} ${word}` : word));
+                            }}
+                            className="rounded-xl kz-chip border border-white/10 bg-white/5 px-2.5 py-1 font-german text-sm text-kz-ink transition-colors pointer-hover:border-kz-lavender/50"
+                          >
+                            {word}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <input
+                    type="text"
+                    aria-label="إجابتك بالألمانية"
+                    dir="ltr"
+                    lang="de"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    autoFocus
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    placeholder={
+                      task.kind === 'vocab'
+                        ? 'اكتب الكلمة الألمانية…'
+                        : task.kind === 'correction'
+                          ? 'أعد كتابتها صحيحة…'
+                          : 'اكتب الجملة بالألمانية…'
+                    }
+                    data-testid="review-input"
+                    className="h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-left font-german text-base text-kz-ink placeholder:font-arabic placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
+                  />
+
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    type="submit"
+                    disabled={!canSubmit}
+                    style={canSubmit ? undefined : { opacity: 1 }}
+                    className={canSubmit ? '' : 'kz-primary-disabled'}
+                  >
+                    تحقّق من إجابتي
+                  </Button>
+
+                  <GlassButton
+                    type="button"
+                    variant="outline"
+                    fullWidth
+                    className="min-h-[44px]"
+                    onClick={handleReveal}
+                  >
+                    لا أتذكّر — أرني الإجابة
                   </GlassButton>
-                  <GlassButton variant="secondary" className="flex-1" onClick={() => handleGrade('hard')}>
-                    بصعوبة
-                  </GlassButton>
-                  <GlassButton variant="secondary" className="flex-1" onClick={() => handleGrade('good')}>
-                    بسهولة
+                </form>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  <Button variant="primary" size="lg" fullWidth onClick={handleReveal}>
+                    اكشف المعنى
+                  </Button>
+                  <GlassButton
+                    type="button"
+                    variant="outline"
+                    fullWidth
+                    className="min-h-[44px]"
+                    onClick={() => {
+                      track('review_revealed', { skill: 'review', kind: current.kind });
+                      setRevealed('self');
+                      speakAnswer();
+                    }}
+                  >
+                    لا أتذكّر — أرني المعنى
                   </GlassButton>
                 </div>
+              )}
+            </>
+          )}
+
+          {verdict !== null && (
+            <div className="kz-flip-in mt-4 space-y-3">
+              <GlassWell
+                className={`p-3 ${verdict === 'correct' ? 'kz-pop' : verdict === 'close' ? '' : 'kz-shake'}`}
+                role="status"
+                aria-live="polite"
+              >
+                <div className="flex items-start gap-2">
+                  {verdict === 'correct' ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-kz-neon" aria-hidden />
+                  ) : verdict === 'close' ? (
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-kz-lavender" aria-hidden />
+                  ) : null}
+                  <div className="min-w-0">
+                    <p className="kz-ar-caption font-bold text-kz-ink">
+                      {verdict === 'correct'
+                        ? 'إجابة صحيحة'
+                        : verdict === 'close'
+                          ? 'المعنى صحيح — راجع الأداة'
+                          : 'الصيغة الصحيحة'}
+                    </p>
+                    <div className="mt-1.5 flex items-start gap-2">
+                      <bdi dir="ltr" lang="de" className="font-german text-sm font-bold leading-relaxed text-kz-ink">
+                        {(answerDiff ?? []).map((token, tokenIndex) => (
+                          <React.Fragment key={`${token.text}-${tokenIndex}`}>
+                            <span
+                              className={
+                                verdict === 'correct'
+                                  ? ''
+                                  : token.changed
+                                    ? 'rounded-sm bg-kz-warm/15 text-kz-warm underline decoration-kz-warm/50'
+                                    : ''
+                              }
+                            >
+                              {token.text}
+                            </span>
+                            {tokenIndex < (answerDiff?.length ?? 0) - 1 ? ' ' : ''}
+                          </React.Fragment>
+                        ))}
+                      </bdi>
+                      <button
+                        type="button"
+                        onClick={speakAnswer}
+                        className="rounded-full p-1 text-kz-lavender transition-colors pointer-hover:bg-white/5"
+                        aria-label="استمع للنطق الصحيح"
+                      >
+                        <Volume2 className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                    </div>
+                    <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">{task.meaningAr}</p>
+                    {plural && (
+                      <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
+                        الجمع: <GermanText className="font-german text-kz-ink">{plural}</GermanText>
+                      </p>
+                    )}
+                    {task.reasonAr && (
+                      <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">{task.reasonAr}</p>
+                    )}
+                  </div>
+                </div>
+              </GlassWell>
+
+              {verdict === 'correct' ? (
+                <>
+                  <p className="text-center kz-ar-micro text-kz-inkFaint">
+                    كيف كان استرجاعك؟ هذا ما يحدّد موعد عودتها.
+                  </p>
+                  <div className="flex gap-2">
+                    <GlassButton variant="secondary" className="flex-1" disabled={saving} onClick={() => handleRating('hard')}>
+                      صعبة
+                    </GlassButton>
+                    <GlassButton variant="secondary" className="flex-1" disabled={saving} onClick={() => handleRating('good')}>
+                      سهلة
+                    </GlassButton>
+                  </div>
+                </>
+              ) : (
+                <Button variant="primary" size="lg" fullWidth onClick={handleNext}>
+                  التالي
+                </Button>
+              )}
+            </div>
+          )}
+
+          {revealed === 'giveup' && (
+            <div className="kz-flip-in mt-4 space-y-3">
+              <GlassWell className="p-3" role="status" aria-live="polite">
+                <p className="kz-ar-caption font-bold text-kz-ink">الصيغة الصحيحة</p>
+                <div className="mt-1.5 flex items-start gap-2">
+                  <GermanText className="font-german text-sm font-bold leading-relaxed text-kz-ink">
+                    {task.answerDe}
+                  </GermanText>
+                  <button
+                    type="button"
+                    onClick={speakAnswer}
+                    className="rounded-full p-1 text-kz-lavender transition-colors pointer-hover:bg-white/5"
+                    aria-label="استمع للنطق الصحيح"
+                  >
+                    <Volume2 className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+                <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">{task.meaningAr}</p>
+                {plural && (
+                  <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
+                    الجمع: <GermanText className="font-german text-kz-ink">{plural}</GermanText>
+                  </p>
+                )}
+                {task.reasonAr && (
+                  <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">{task.reasonAr}</p>
+                )}
+              </GlassWell>
+              <Button variant="primary" size="lg" fullWidth onClick={handleNext}>
+                فهمت، التالي
+              </Button>
+            </div>
+          )}
+
+          {revealed === 'self' && (
+            <div className="kz-flip-in mt-4 space-y-3">
+              <GlassWell className="p-3" role="status" aria-live="polite">
+                <p className="kz-ar-caption font-bold text-kz-ink">المعنى</p>
+                <p className="mt-1.5 kz-ar-title leading-relaxed text-kz-ink">{task.meaningAr}</p>
+                {task.glossAr && (
+                  <p className="mt-1.5 kz-ar-micro leading-relaxed text-kz-inkDim">{task.glossAr}</p>
+                )}
+              </GlassWell>
+              <p className="text-center kz-ar-micro text-kz-inkFaint">
+                كيف كان فهمك؟ هذا ما يحدّد موعد عودتها.
+              </p>
+              <div className="flex gap-2">
+                <GlassButton variant="secondary" className="flex-1" disabled={saving} onClick={() => handleRating('again')}>
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                  لم أتذكّر
+                </GlassButton>
+                <GlassButton variant="secondary" className="flex-1" disabled={saving} onClick={() => handleRating('hard')}>
+                  بصعوبة
+                </GlassButton>
+                <GlassButton variant="secondary" className="flex-1" disabled={saving} onClick={() => handleRating('good')}>
+                  بسهولة
+                </GlassButton>
               </div>
-            )}
-          </GlassCard>
-        )}
+            </div>
+          )}
+        </GlassCard>
       </div>
     </div>
   );

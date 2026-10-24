@@ -128,7 +128,7 @@ describe('V33 — the chat word bank teaches that you can build a sentence', () 
 
   it('the other production surfaces keep their plain bank wording', () => {
     // Only the chat got the new lesson; changing the others would be churn.
-    expect(read('src/features/review/ReviewScreen.tsx')).toContain('بنك الكلمات — اضغط لتضيف الكلمة');
+    expect(read('src/features/review/ReviewScreen.tsx')).toContain('تلميح: أول كلمات الإجابة');
     expect(read('src/features/writing/WritingScreen.tsx')).toContain('بنك الكلمات — اضغط لتضيف الكلمة');
   });
 });

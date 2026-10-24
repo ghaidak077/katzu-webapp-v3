@@ -30,9 +30,12 @@ function mistake(): MistakeEntity {
   return {
     userId: 'current_user',
     scenarioId: 'cafe_order',
-    original: 'Ich habe den Bericht fertig',
-    corrected: 'ist jetzt fertiggestellt',
-    grammarRule: 'Perfekt',
+    // A servable correction: full original, full corrected sentence, and the
+    // Arabic meaning the review card needs to ask anything at all.
+    original: 'Ich möchte ein Kaffee',
+    corrected: 'Ich möchte einen Kaffee',
+    grammarRule: 'Akkusativ',
+    meaningAr: 'أريد قهوة',
     timestamp: 1_700_000_000_000,
     wasHintUsed: false,
   };
