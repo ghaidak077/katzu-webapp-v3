@@ -1,5 +1,15 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
+**Latest (2026-10-24, AI visibility — read this first).** Public marketing and trust pages are now
+static, crawlable HTML: 21 indexable pages (13 Arabic, 8 English) plus a real 404, with unique
+titles/canonicals, `lang`/`dir`/`hreflang`, JSON-LD, `robots.txt`, `sitemap.xml` with `lastmod`,
+`llms.txt` and `llms-full.txt`; `/app/*` remains the SPA and the Worker is unchanged. Production
+code deployment `fa12556e-924c-4930-878c-1d0f968a5500` (source `072b1c9`) verified all 21 public
+pages `200`, unknown paths `404`, SPA deep links `200`, and Lighthouse **99 performance / 100 SEO**.
+Docs-only commits rebuild the same bundle under new ids. The remaining blocker is Cloudflare:
+`PerplexityBot`, `GPTBot` and `ClaudeBot` receive `403`, and the managed `robots.txt` prepends
+training disallows. The 12-prompt tracking sheet is `docs/ai-visibility.md` §9.
+
 **Latest (2026-10-19, V43.1 — read this first).** A production bug is fixed and live: the B1 mock exam's
 conversation was re-initialised on every re-render (its opener effect depended on an inline `mockPart`
 object, and the part clock re-renders once a second), so a learner's sentence vanished after ~1 s, the
