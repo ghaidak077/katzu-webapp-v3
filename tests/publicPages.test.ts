@@ -275,14 +275,14 @@ describe('Pages routing', () => {
       '/session-report',
       '/delete-account',
     ]) {
-      expect(redirects, route).toContain(`${route} /index.html 200`);
+      expect(redirects, route).toContain(`${route} / 200`);
     }
     // A catch-all rewrite would turn every unknown public path back into a
     // soft 404, which is the defect 404.html exists to remove.
-    expect(redirects).not.toMatch(/^\/\* \/index\.html 200$/m);
+    expect(redirects).not.toMatch(/^\/\* \/ 200$/m);
     // Public pages are static files; a rewrite here would shadow them.
     for (const path of ['/faq', '/pricing', '/trust/privacy', '/en']) {
-      expect(redirects).not.toContain(`${path} /index.html 200`);
+      expect(redirects).not.toContain(`${path} / 200`);
     }
   });
 });
