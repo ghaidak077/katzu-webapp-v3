@@ -1,10 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { bootSignedIn, seedRows } from './harness';
 
+/** A due timestamp in the past, so the review engine treats the row as due now. */
+const DUE = 1;
+
 /**
- * The four skill surfaces, walked in a real browser.
+ * The skill surfaces, walked in a real browser. Review has its own spec
+ * (`review.spec.ts`) because each task type needs its own cue and schedule check.
  *
- * WHY THIS FILE EXISTS: review, listen, write and coach each had unit coverage
+ * WHY THIS FILE EXISTS: listen, write and coach each had unit coverage
  * (`tests/reviewValidation.test.ts`, `tests/listeningDrill.test.ts`,
  * `tests/writing.test.ts`, `tests/coachProfile.test.ts`) and an offline-route
  * audit, but no browser spec — so nothing proved the screens actually render,
@@ -16,129 +20,6 @@ import { bootSignedIn, seedRows } from './harness';
  * the history each screen needs is seeded into the app's own tables exactly the
  * way the app would have written it (`seedRows`).
  */
-
-/** A due timestamp in the past, so the review engine treats the row as due now. */
-const DUE = 1;
-
-test('Review shows only answerable cards, grades one, and reaches its summary', async ({ page }) => {
-  await bootSignedIn(page, { history: true });
-
-  await seedRows(page, 'review_items', [
-    {
-      userId: 'current_user',
-      kind: 'vocab',
-      refId: 'vocab:999',
-      sourceId: 999,
-      promptAr: 'موعد',
-      answerDe: 'der Termin',
-      contextDe: 'Ich habe morgen einen Termin.',
-      direction: 'ar_to_de',
-      dueAt: DUE,
-      intervalDays: 1,
-      ease: 2.5,
-      reps: 0,
-      lapses: 0,
-      reviews: 0,
-      createdAt: 1,
-    },
-    // Explicitly suppressed (the old bad row the V28 migration flags): hidden.
-    {
-      userId: 'current_user',
-      kind: 'vocab',
-      refId: 'vocab:777',
-      promptAr: 'صيغة صحيحة',
-      answerDe: 'irgendwas',
-      suppressed: true,
-      dueAt: DUE,
-      intervalDays: 1,
-      ease: 2.5,
-      reps: 0,
-      lapses: 0,
-      reviews: 0,
-      createdAt: 1,
-    },
-    // Not suppressed, but fails the contract (placeholder prompt): also hidden.
-    {
-      userId: 'current_user',
-      kind: 'vocab',
-      refId: 'vocab:888',
-      promptAr: 'صيغة صحيحة',
-      answerDe: 'etwas anderes',
-      dueAt: DUE,
-      intervalDays: 1,
-      ease: 2.5,
-      reps: 0,
-      lapses: 0,
-      reviews: 0,
-      createdAt: 1,
-    },
-  ]);
-
-  await page.goto('/app/review');
-
-  // The session opens on the one servable card — the other two never reach it.
-  await expect(page.getByRole('heading', { name: 'مراجعة الذاكرة' })).toBeVisible();
-  await expect(page.getByText('موعد')).toBeVisible();
-  await expect(page.getByText('صيغة صحيحة')).toHaveCount(0);
-  // Screen 3.1: the counter is Arabic prose now («1 من 1»); the old «1 / 1"
-  // bidi-flipped to "1 / 1"'s mirror on RTL layouts.
-  await expect(page.getByTestId('review-counter')).toHaveText('1 من 1');
-
-  // The learner produces German from the Arabic meaning and it grades correctly.
-  await page.getByLabel('إجابتك بالألمانية').fill('der Termin');
-  await page.getByRole('button', { name: 'تحقّق من إجابتي' }).click();
-  await expect(page.getByText('إجابة صحيحة')).toBeVisible();
-
-  // Self-grade, which advances the schedule and finishes the one-item session.
-  await page.getByRole('button', { name: 'بسهولة' }).click();
-  await expect(page.getByRole('heading', { name: 'مراجعة اليوم' })).toBeVisible();
-  await expect(page.getByText('من أول محاولة')).toBeVisible();
-});
-
-test('Review hands the learner the words, and an honest way out', async ({ page }) => {
-  await bootSignedIn(page, { history: true });
-
-  // A production card the learner may not have the vocabulary for: the Arabic
-  // prompt is clear, but building `der Termin` needs the words.
-  await seedRows(page, 'review_items', [
-    {
-      userId: 'current_user',
-      kind: 'vocab',
-      refId: 'vocab:999',
-      sourceId: 999,
-      promptAr: 'موعد',
-      answerDe: 'der Termin',
-      direction: 'ar_to_de',
-      dueAt: DUE,
-      intervalDays: 1,
-      ease: 2.5,
-      reps: 0,
-      lapses: 0,
-      reviews: 0,
-      createdAt: 1,
-    },
-  ]);
-
-  await page.goto('/app/review');
-  await expect(page.getByText('موعد')).toBeVisible();
-
-  // The word bank is offered and its chips assemble the answer.
-  await expect(page.getByText('بنك الكلمات — اضغط لتضيف الكلمة')).toBeVisible();
-  await page.getByRole('button', { name: 'der', exact: true }).click();
-  await page.getByRole('button', { name: 'Termin', exact: true }).click();
-  await expect(page.getByLabel('إجابتك بالألمانية')).toHaveValue(/der.*Termin|Termin.*der/);
-
-  // The honest way out: reveal the answer without guessing, and it is recorded
-  // as a miss, not a clean recall.
-  await page.getByRole('button', { name: 'لا أتذكّر — أرني الإجابة' }).click();
-  await expect(page.getByText('ليس بعد — هذه هي الصيغة الصحيحة')).toBeVisible();
-  await expect(page.getByText('كشفت الإجابة')).toBeVisible();
-  // Graded (not "again", which would requeue the single card) and the reveal is
-  // counted once as a miss, not as a clean recall.
-  await page.getByRole('button', { name: 'بصعوبة' }).click();
-  await expect(page.getByRole('heading', { name: 'مراجعة اليوم' })).toBeVisible();
-  await expect(page.getByText('يحتاج تثبيتاً')).toBeVisible();
-});
 
 test('Listening dictation grades what was heard and reveals the sentence', async ({ page }) => {
   await bootSignedIn(page);
@@ -286,15 +167,24 @@ test('the vocabulary bridge reports its bank taps and its reveals', async ({ pag
   ]);
 
   await page.goto('/app/review');
-  await expect(page.getByTestId('word-bank')).toBeVisible();
+  await expect(page.getByText('موعد')).toBeVisible();
 
-  // First card: build from the bank, then grade it and move on.
-  await page.getByTestId('word-bank').getByRole('button').first().click();
+  // First card: miss once so the hint unlocks when it comes back for its retry.
+  await page.getByLabel('إجابتك بالألمانية').fill('Tee');
   await page.getByRole('button', { name: 'تحقّق من إجابتي' }).click();
-  await page.getByRole('button', { name: 'بسهولة' }).click();
+  await page.getByRole('button', { name: 'التالي' }).click();
 
-  // Second card: the honest way out.
+  // Second card: the honest way out. The missed first card is requeued at the
+  // end, which is where the hint becomes available.
   await page.getByRole('button', { name: 'لا أتذكّر — أرني الإجابة' }).click();
+  await page.getByRole('button', { name: 'فهمت، التالي' }).click();
+
+  await expect(page.getByText('موعد')).toBeVisible();
+  await page.getByRole('button', { name: /تلميح: أول كلمات الإجابة/ }).click();
+  await expect(page.getByTestId('word-bank')).toBeVisible();
+  await page.getByTestId('word-bank').getByRole('button').first().click();
+  await page.getByRole('button', { name: 'لا أتذكّر — أرني الإجابة' }).click();
+  await page.getByRole('button', { name: 'فهمت، التالي' }).click();
 
   await expect
     .poll(() => names, { timeout: 15_000 })

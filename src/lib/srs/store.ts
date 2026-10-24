@@ -167,6 +167,10 @@ export async function focusMistakesForReview(
   for (const mistake of mistakes) {
     if (!mistake?.corrected) continue;
     const candidate = newReviewItemFromMistake(mistake, mistake.id, now, USER_ID);
+    const stamped = stampReviewItem(candidate);
+    // A correction that cannot form a clear task is not a drill. Counting it
+    // would send the learner to an empty Review screen (V41).
+    if (!isServableReviewItem(stamped)) continue;
     const existing = await db.review_items
       .where('[kind+refId]')
       .equals([candidate.kind, candidate.refId])
@@ -174,8 +178,6 @@ export async function focusMistakesForReview(
     if (existing?.id != null) {
       await db.review_items.update(existing.id, { dueAt: now });
     } else {
-      const stamped = stampReviewItem(candidate);
-      if (!isServableReviewItem(stamped)) continue;
       await db.review_items.add(stamped);
     }
     due += 1;
@@ -213,9 +215,11 @@ export async function adoptRemoteReviewItems(remote: ReviewItemEntity[]): Promis
       refId: item.refId,
       sourceId: item.sourceId,
       promptAr: item.promptAr,
+      meaningAr: item.meaningAr,
       answerDe: item.answerDe,
       contextDe: item.contextDe,
       explanationAr: item.explanationAr,
+      pluralDe: item.pluralDe,
       grammarId: validGrammarId,
       grammarReference: item.grammarReference?.id === validGrammarId ? item.grammarReference : undefined,
       scenarioId: item.scenarioId,

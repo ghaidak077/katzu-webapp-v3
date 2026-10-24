@@ -110,10 +110,25 @@ describe('validateReviewItem', () => {
     expect(validateReviewItem(baseItem({ answerDe: '' })).reasons).toContain('answer_missing');
   });
 
-  it('requires a correction to carry the learner original and a meaningful change', () => {
-    const correction = { kind: 'mistake' as const, promptAr: 'اكتب الجملة الصحيحة بالألمانية', answerDe: 'Ich möchte einen Kaffee' };
-    expect(validateReviewItem(correction).reasons).toContain('mistake_original_missing');
+  it('accepts a correction with a meaning and a meaningful change', () => {
+    const correction = {
+      kind: 'mistake' as const,
+      promptAr: 'أريد قهوة',
+      meaningAr: 'أريد قهوة',
+      answerDe: 'Ich möchte einen Kaffee',
+    };
+    // A full target with a clear Arabic meaning is still a valid sentence task
+    // when the old row lost its original; a correction needs all three parts.
+    expect(validateReviewItem(correction).ok).toBe(true);
     expect(validateReviewItem({ ...correction, contextDe: 'Ich möchte ein Kaffee' }).ok).toBe(true);
+    // A fragment is never a question.
+    expect(
+      validateReviewItem({ ...correction, answerDe: 'ist jetzt fertiggestellt' }).reasons,
+    ).toContain('correction_target_fragment');
+    // The old rule label is not an Arabic meaning.
+    expect(
+      validateReviewItem({ ...correction, promptAr: 'اكتب الجملة الصحيحة بالألمانية', meaningAr: undefined }).reasons,
+    ).toContain('mistake_meaning_missing');
     // A stylistic-only "correction" is not a mistake the learner made.
     const stylistic = validateReviewItem({ ...correction, contextDe: 'Ich möchte einen Kaffee', answerDe: 'ich möchte einen kaffee.' });
     expect(stylistic.reasons).toContain('correction_not_meaningful');
@@ -158,8 +173,8 @@ describe('every generated item passes the contract (property)', () => {
       { id: 1, scenario_id: 'cafe_order', level: 'A1', german: 'Ich möchte einen Kaffee, bitte.', translation_ar: 'أريد قهوة من فضلك.', sort_order: 1 } as StarterPhraseEntity,
     ];
     const mistakes: MistakeEntity[] = [
-      { userId: 'current_user', scenarioId: 'cafe_order', original: 'Ich möchte ein Kaffee', corrected: 'Ich möchte einen Kaffee', grammarRule: 'أدوات النكرة في حالة النصب', timestamp: NOW, wasHintUsed: false },
-      { userId: 'current_user', scenarioId: 'cafe_order', original: 'Ich habe gegangen', corrected: 'Ich bin gegangen', grammarRule: 'Perfekt mit sein', timestamp: NOW, wasHintUsed: false },
+      { userId: 'current_user', scenarioId: 'cafe_order', original: 'Ich möchte ein Kaffee', corrected: 'Ich möchte einen Kaffee', grammarRule: 'أدوات النكرة في حالة النصب', meaningAr: 'أريد قهوة', timestamp: NOW, wasHintUsed: false },
+      { userId: 'current_user', scenarioId: 'cafe_order', original: 'Ich habe gegangen', corrected: 'Ich bin gegangen', grammarRule: 'Perfekt mit sein', meaningAr: 'أنا ذهبت', timestamp: NOW, wasHintUsed: false },
     ];
 
     const items: ReviewItemEntity[] = [

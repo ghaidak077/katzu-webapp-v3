@@ -125,7 +125,7 @@ test('review verdict states [after]', async ({ page }) => {
   await shoot(page, 'review-verdict-correct');
 
   // Advance: good → next card
-  await page.getByRole('button', { name: 'بسهولة' }).click();
+  await page.getByRole('button', { name: 'سهلة' }).click();
   await page.waitForTimeout(300);
 
   // Card 2 (die Rechnung): wrong article → close (almost)
@@ -135,14 +135,158 @@ test('review verdict states [after]', async ({ page }) => {
   await page.waitForTimeout(400);
   await shoot(page, 'review-verdict-almost');
 
-  // Advance: good → next card
-  await page.getByRole('button', { name: 'بسهولة' }).click();
+  // A near miss is recorded as 'again': the correct form and one way forward.
+  await page.getByRole('button', { name: 'التالي' }).click();
   await page.waitForTimeout(300);
 
   // Card 3 (der Kaffee): different noun → wrong (incorrect)
   await page.getByLabel('إجابتك بالألمانية').fill('der Tee');
   await page.getByRole('button', { name: 'تحقّق من إجابتي' }).click();
-  await expect(page.getByText('ليس بعد')).toBeVisible();
+  await expect(page.getByText('الصيغة الصحيحة')).toBeVisible();
   await page.waitForTimeout(400);
   await shoot(page, 'review-verdict-incorrect');
 });
+
+// ---------------------------------------------------------------------------
+// Review V41 evidence: one card per task type, five states, flag OFF and ON.
+//
+// The owner asked to see the cue before and after the contract change. These
+// tests are deliberately selector-tolerant so the *same* file runs against the
+// old bundle (TAG=before) and the new one (TAG=after): old review had an Arabic
+// input for de_to_ar and no retry, new review is read-and-reveal for that type.
+// The screenshot set is evidence, not an assertion suite — the gate assertions
+// live in e2e/review.spec.ts.
+//
+//   TAG=after  FLAG=off E2E_TARGET=preview npx playwright test -c e2e/uiPolishShots.playwright.config.ts -g "review task"
+//   TAG=before FLAG=off E2E_TARGET=preview npx playwright test -c e2e/uiPolishShots.playwright.config.ts -g "review task"
+// ---------------------------------------------------------------------------
+
+type ReviewShotType = 'vocab' | 'sentence-ar-to-de' | 'sentence-de-to-ar' | 'correction';
+type ReviewShotState = 'initial' | 'typed' | 'correct' | 'wrong' | 'reveal';
+
+const REVIEW_SHOTS = join(process.cwd(), 'docs', 'agent', 'review-v41');
+const REVIEW_FLAG = process.env.FLAG === 'on' ? 'on' : 'off';
+
+async function shootReview(
+  page: Page,
+  type: ReviewShotType,
+  state: ReviewShotState,
+): Promise<void> {
+  const dir = join(REVIEW_SHOTS, TAG);
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, `review-task-${type}-${state}-${REVIEW_FLAG}.png`);
+  await page.screenshot({ path: file });
+  console.log(`saved ${file}`);
+}
+
+function reviewTaskRow(type: ReviewShotType): Record<string, unknown> {
+  const base = {
+    userId: 'current_user',
+    dueAt: 1,
+    intervalDays: 1,
+    ease: 2.5,
+    reps: 0,
+    lapses: 0,
+    reviews: 0,
+    createdAt: 1,
+  };
+  if (type === 'vocab') {
+    return {
+      ...base,
+      kind: 'vocab',
+      refId: 'vocab:9701',
+      sourceId: 9701,
+      promptAr: 'موعد',
+      answerDe: 'der Termin',
+      contextDe: 'Ich habe morgen einen Termin.',
+      direction: 'ar_to_de',
+    };
+  }
+  if (type === 'sentence-ar-to-de') {
+    return {
+      ...base,
+      kind: 'phrase',
+      refId: 'phrase:9702',
+      promptAr: 'أريد قهوة من فضلك.',
+      answerDe: 'Ich möchte einen Kaffee, bitte.',
+      explanationAr: 'طلب مهذب في المقهى.',
+      direction: 'ar_to_de',
+    };
+  }
+  if (type === 'sentence-de-to-ar') {
+    return {
+      ...base,
+      kind: 'phrase',
+      refId: 'phrase:9703',
+      promptAr: 'أريد قهوة من فضلك.',
+      answerDe: 'Ich möchte einen Kaffee, bitte.',
+      explanationAr: 'جملة طلب مهذبة.',
+      direction: 'de_to_ar',
+    };
+  }
+  return {
+    ...base,
+    kind: 'mistake',
+    refId: 'mistake:9704',
+    sourceId: 9704,
+    promptAr: 'Akkusativ — اكتب الجملة الصحيحة بالألمانية',
+    meaningAr: 'أريد قهوة',
+    contextDe: 'Ich möchte ein Kaffee',
+    answerDe: 'Ich möchte einen Kaffee',
+    explanationAr: 'بعد möchte نستخدم einen.',
+    direction: 'ar_to_de',
+  };
+}
+
+const REVIEW_TYPES: ReviewShotType[] = [
+  'vocab',
+  'sentence-ar-to-de',
+  'sentence-de-to-ar',
+  'correction',
+];
+const REVIEW_STATES: ReviewShotState[] = ['initial', 'typed', 'correct', 'wrong', 'reveal'];
+
+for (const type of REVIEW_TYPES) {
+  for (const state of REVIEW_STATES) {
+    test(`review task ${type} ${state} [${TAG}] [flag ${REVIEW_FLAG}]`, async ({ page }) => {
+      // New de_to_ar is read-and-reveal by design: there is no input to type
+      // into and therefore no correct/wrong typed state to photograph.
+      if (TAG === 'after' && type === 'sentence-de-to-ar' && !['initial', 'reveal'].includes(state)) {
+        test.skip(true, 'read-and-reveal type has no typed states');
+      }
+
+      await setViewport(page, 390, 844);
+      await page.addInitScript(
+        (value: string) => localStorage.setItem('kz.guidedHome', value),
+        REVIEW_FLAG === 'on' ? '1' : '0',
+      );
+      await bootSignedIn(page, { history: true });
+      const row = reviewTaskRow(type);
+      await seedRows(page, 'review_items', [row]);
+      await page.goto('/app/review');
+      await expect(page.getByRole('heading', { name: 'مراجعة الذاكرة' })).toBeVisible({ timeout: 30_000 });
+      await page.waitForTimeout(500);
+
+      const input = page.locator('input[type="text"]').first();
+      const typedAnswer = type === 'sentence-de-to-ar' ? String(row.promptAr) : String(row.answerDe);
+
+      if (state === 'typed') {
+        await input.fill(typedAnswer.slice(0, Math.max(4, Math.ceil(typedAnswer.length / 2))));
+      } else if (state === 'correct') {
+        await input.fill(typedAnswer);
+        await page.getByRole('button', { name: 'تحقّق من إجابتي' }).click();
+        await expect(page.getByRole('status').first()).toBeVisible();
+      } else if (state === 'wrong') {
+        await input.fill(type === 'sentence-de-to-ar' ? 'شيء آخر' : 'Ich trinke Tee.');
+        await page.getByRole('button', { name: 'تحقّق من إجابتي' }).click();
+        await expect(page.getByRole('status').first()).toBeVisible();
+      } else if (state === 'reveal') {
+        await page.getByRole('button', { name: /أرني|اكشف/ }).first().click();
+        await expect(page.getByRole('status').first()).toBeVisible();
+      }
+
+      await page.waitForTimeout(500);
+      await shootReview(page, type, state);
+    });
+  }
+}

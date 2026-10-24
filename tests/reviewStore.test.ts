@@ -43,6 +43,7 @@ function mistake(syncId: string): MistakeEntity & { id?: number } {
     original: 'Ich möchte ein Kaffee',
     corrected: 'Ich möchte einen Kaffee',
     grammarRule: 'Akkusativ',
+    meaningAr: 'أريد قهوة',
     timestamp: 1_700_000_000_000,
     wasHintUsed: false,
     syncId,
@@ -247,9 +248,12 @@ describe('worker queue adoption', () => {
   it('restores the optional Guided Practice reference and leaves legacy items unlinked', async () => {
     const linked = remoteItem({
       kind: 'mistake',
+      promptAr: 'أريد قهوة',
+      answerDe: 'Ich möchte einen Kaffee',
       // A real correction always carries the learner's original (V28 Stage 1B);
       // without it the item is not answerable and adoption would skip it.
       contextDe: 'Ich möchte ein Kaffee',
+      meaningAr: 'أريد قهوة',
       grammarId: 'g_articles_a1',
       grammarReference: {
         id: 'g_articles_a1',
