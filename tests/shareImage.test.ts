@@ -1,7 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { absoluteOgImages, withAbsoluteOgUrl } from '../vite.config';
+import {
+  absoluteOgImages,
+  withAbsoluteOgUrl,
+  withCanonicalUrl,
+  withStructuredData,
+} from '../vite.config';
 
 /**
  * The link preview, held to its two halves: the pixels and the tags.
@@ -111,6 +116,29 @@ describe('the Open Graph tags point at it', () => {
     expect(withAbsoluteOgUrl(withOrigin, 'https://katzu.example')).toBe(withOrigin);
     // No origin → byte-for-byte unchanged, and no host is ever hardcoded.
     expect(withAbsoluteOgUrl(html, '')).toBe(html);
+  });
+
+  it('injects the canonical link and WebSite data only when it knows the origin', () => {
+    const html = '<html><head><title>t</title></head><body></body></html>';
+    const canonical = withCanonicalUrl(html, 'https://katzu.example/');
+    expect(canonical).toContain('<link rel="canonical" href="https://katzu.example/" />');
+    expect(withCanonicalUrl(canonical, 'https://katzu.example')).toBe(canonical);
+    expect(withCanonicalUrl(html, '')).toBe(html);
+    // A bare host is a typo, not an origin; never emit an invalid canonical URL.
+    expect(withCanonicalUrl(html, 'katzu.example')).toBe(html);
+
+    const structured = withStructuredData(html, 'https://katzu.example/');
+    const match = structured.match(/<script type="application\/ld\+json">(.*?)<\/script>/);
+    expect(match).not.toBeNull();
+    expect(JSON.parse(match![1])).toMatchObject({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'Katzu',
+      url: 'https://katzu.example/',
+      inLanguage: 'ar',
+    });
+    expect(withStructuredData(structured, 'https://katzu.example')).toBe(structured);
+    expect(withStructuredData(html, '')).toBe(html);
   });
 
   it('names the share card on both og:image and twitter:image', () => {

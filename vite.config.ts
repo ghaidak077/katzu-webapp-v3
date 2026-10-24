@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
@@ -182,6 +182,24 @@ export function assetLinksContent({
 }
 
 /**
+ * Normalise a configured origin to scheme + host, or return ''.
+ *
+ * A build-time env file is operator data, not learner input, but a typo
+ * (`katzuai.com`, a trailing path) must not emit an invalid canonical URL.
+ */
+export function normalizeOrigin(origin: string): string {
+  const raw = String(origin || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
+    return url.origin;
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Make the share image absolute when the build knows its origin.
  *
  * `index.html` deliberately holds a root-relative `og:image`, because this repo
@@ -194,7 +212,7 @@ export function assetLinksContent({
  * is decided. Exported so the transform is tested without running a build.
  */
 export function absoluteOgImages(html: string, origin: string): string {
-  const base = String(origin || '').trim().replace(/\/+$/, '');
+  const base = normalizeOrigin(origin);
   if (!base) return html;
   return html.replace(
     /(<meta\s+(?:property="og:image"|name="twitter:image")\s+content=")(\/[^"]*)(")/g,
@@ -214,10 +232,46 @@ export function absoluteOgImages(html: string, origin: string): string {
  * because no HTML ever contained one.)
  */
 export function withAbsoluteOgUrl(html: string, origin: string): string {
-  const base = String(origin || '').trim().replace(/\/+$/, '');
+  const base = normalizeOrigin(origin);
   if (!base) return html;
   if (/property="og:url"/.test(html)) return html;
   return html.replace('</head>', `  <meta property="og:url" content="${base}/" />\n</head>`);
+}
+
+/**
+ * Add the canonical link when the build knows its origin.
+ *
+ * The landing screen creates this at runtime, which is too late for a crawler
+ * that does not execute JavaScript. The build writes the static tag; the
+ * runtime effect then updates the same link instead of creating a second one.
+ */
+export function withCanonicalUrl(html: string, origin: string): string {
+  const base = normalizeOrigin(origin);
+  if (!base) return html;
+  if (/rel="canonical"/.test(html)) return html;
+  return html.replace('</head>', `  <link rel="canonical" href="${base}/" />\n</head>`);
+}
+
+/**
+ * Add a minimal WebSite JSON-LD block when the build knows its origin.
+ *
+ * The page is a single public product site; `WebSite` with a canonical `url`
+ * and language is the honest machine-readable description of it. The value is
+ * JSON-stringified (and `<` escaped) so the origin can never terminate the
+ * script element.
+ */
+export function withStructuredData(html: string, origin: string): string {
+  const base = normalizeOrigin(origin);
+  if (!base) return html;
+  if (/application\/ld\+json/.test(html)) return html;
+  const json = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Katzu',
+    url: `${base}/`,
+    inLanguage: 'ar',
+  }).replace(/</g, '\\u003c');
+  return html.replace('</head>', `  <script type="application/ld+json">${json}</script>\n</head>`);
 }
 
 /**
@@ -236,25 +290,28 @@ export function missingPlayBuildVars(env: Record<string, string | undefined> = {
     .filter((name) => !String(env[name] || '').trim());
 }
 
-function publicOriginFiles(): Plugin {
+function publicOriginFiles(env: Record<string, string | undefined>): Plugin {
   // Fail the build before anything is emitted: a Play build with an unfilled
   // value is a configuration error, not a deployment to discover in the store.
-  const missingPlayVars = missingPlayBuildVars(process.env as Record<string, string | undefined>);
+  const missingPlayVars = missingPlayBuildVars(env);
   if (missingPlayVars.length) {
     throw new Error(
       `VITE_PLAY_BUILD=1 requires ${missingPlayVars.join(', ')} — refusing to build a Play bundle with an unfilled value.`,
     );
   }
-  const origin = String(process.env.VITE_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+  const origin = normalizeOrigin(String(env.VITE_PUBLIC_APP_URL || ''));
   const abs = (p: string) => (origin ? `${origin}${p}` : p);
   const routes = ['/', '/trust/privacy', '/trust/terms', '/demo', '/welcome'];
-  const packageName = String(process.env.VITE_ANDROID_PACKAGE_NAME || '').trim();
-  const sha256 = String(process.env.VITE_ANDROID_CERT_SHA256 || '').trim();
+  const packageName = String(env.VITE_ANDROID_PACKAGE_NAME || '').trim();
+  const sha256 = String(env.VITE_ANDROID_CERT_SHA256 || '').trim();
   return {
     name: 'katzu-public-origin-files',
     transformIndexHtml(html) {
       // Same origin as robots/sitemap: one env var decides every public URL.
-      return withAbsoluteOgUrl(absoluteOgImages(html, origin), origin);
+      return withStructuredData(
+        withCanonicalUrl(withAbsoluteOgUrl(absoluteOgImages(html, origin), origin), origin),
+        origin,
+      );
     },
     generateBundle() {
       this.emitFile({
@@ -286,20 +343,26 @@ function publicOriginFiles(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [
-    react(),
-    publicOriginFiles(),
-    VitePWA(pwaOptions)
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src')
+export default defineConfig(({ mode }) => {
+  // Vite does not copy `.env.production` into `process.env` for the config
+  // file. Load it explicitly (with an empty prefix so the build-only Android
+  // values are visible too) and hand the result to the public-file plugin.
+  const env = loadEnv(mode, process.cwd(), '');
+  return {
+    plugins: [
+      react(),
+      publicOriginFiles(env),
+      VitePWA(pwaOptions)
+    ],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src')
+      }
+    },
+    server: {
+      port: 3000,
+      host: '0.0.0.0',
+      allowedHosts: true
     }
-  },
-  server: {
-    port: 3000,
-    host: '0.0.0.0',
-    allowedHosts: true
-  }
+  };
 });

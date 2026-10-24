@@ -11,7 +11,7 @@
 
 const CONFIG = {
   workerUrl: 'https://katzu-test.ghaidakalosh008.workers.dev',
-  appOrigin: 'https://katzu-webapp-v3.pages.dev',
+  appOrigin: 'https://katzuai.com',
   telegram: 'https://t.me/FILL_TELEGRAM_HANDLE',
 };
 
