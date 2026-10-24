@@ -145,6 +145,34 @@ Latest Preview: `c2b9a5de-f2fa-4aeb-bf19-47cc4e8a7894` (branch `ai-visibility`, 
   the private routes carry the repository’s `noindex, nofollow`. The preview header is not a
   page defect, but it must not appear on production.
 
+### Production deployment checks
+
+Production: `fa12556e-924c-4930-878c-1d0f968a5500` (Production, branch `main`, source `072b1c9`),
+served on `https://katzuai.com`.
+
+- All 21 indexable public paths returned `200 text/html`; `/llms.txt` and `/llms-full.txt`
+  returned `200 text/plain`; `/sitemap.xml` returned `200 application/xml`; `/robots.txt`
+  returned `200 text/plain`.
+- An unknown path returned `404 text/html` with `Cache-Control: no-store`, so the soft-404 is
+  fixed in production as well as Preview. The real SPA paths stayed `200`: `/app/trail`,
+  `/app/library`, `/main/trail`, `/scenario/airport_arrival/practice`, `/welcome`, `/signin`,
+  `/demo`, `/onboarding`, `/subscription`, `/paywall`, `/mock`, `/placement`,
+  `/session-report`, `/delete-account`.
+- `/faq.html` `308` to `/faq`; `/trust/privacy.html` `308` to `/trust/privacy`; `/privacy`
+  and `/terms` `301` to `/trust/*`.
+- Public pages (`/faq`, `/en/faq`) had no `x-robots-tag` in production; `/app/trail`,
+  `/onboarding`, `/signin`, `/paywall` and `/subscription` had `noindex, nofollow`.
+- The full 22-document check (21 indexable pages plus the 404) found one `h1` per page, a unique
+  title, a self-canonical on every indexable page, correct `lang`/`dir`, and parseable JSON-LD;
+  0 failures. The 404 is `noindex, nofollow` with no canonical or JSON-LD.
+- The sitemap had 21 URLs, 21 `lastmod` values and 58 `hreflang` references, with no `/welcome`,
+  `/demo`, `/404.html` or legacy `/privacy`/`/terms` entries.
+- Eight of 11 tested AI user agents received `200` on production: `OAI-SearchBot`,
+  `ChatGPT-User`, `Claude-SearchBot`, `Claude-User`, `Googlebot`, `Bingbot`,
+  `Google-Extended`, `Applebot-Extended`. **`PerplexityBot`, `GPTBot` and `ClaudeBot` received
+  `403 text/plain` with `Your request was blocked.` from Cloudflare**, before the repository
+  response. This is the remaining blocker in §8; the repo files cannot change it.
+
 Generated crawler-visible word counts (nav, body and footer, excluding scripts and styles):
 
 | Path | Words |
@@ -165,11 +193,11 @@ Generated crawler-visible word counts (nav, body and footer, excluding scripts a
 | `/en/pricing` | 249 |
 | `/about` | 155 |
 | `/en/about` | 189 |
-| `/trust/privacy` | 448 |
+| `/trust/privacy` | 449 |
 | `/trust/terms` | 219 |
 | `/trust/refund` | 160 |
 | `/trust/imprint` | 185 |
-| `/trust/contact` | 101 |
+| `/trust/contact` | 102 |
 | `/404.html` | 90 |
 
 The landing’s first paragraph and meta description state the product, audience, levels, main
@@ -187,7 +215,7 @@ injection script on this machine).
 |---|---:|---:|---:|---:|---:|---:|
 | Production before | 95 | 100 | 2.3 s | 2.3 s | 40 ms | 0 |
 | Preview after | 100 | 69* | 1.0 s | 1.0 s | 50 ms | 0.008 |
-| Production after | pending | pending | pending | pending | pending | pending |
+| Production after | 99 | 100 | 1.6 s | 1.6 s | 30 ms | 0.008 |
 
 \* The Preview SEO score is pulled down by Cloudflare’s preview-only `x-robots-tag: noindex`
 (`is-crawlable` scores 0). The production run is the authoritative SEO measurement.
@@ -200,7 +228,7 @@ injection script on this machine).
 | Rollback target | `db80fa5c-fbd8-4e75-9805-3a5a3a0c6601` |
 | Preview deployment | `c2b9a5de-f2fa-4aeb-bf19-47cc4e8a7894` (source `4e21034`) |
 | Earlier Preview deployments | `ec4ee4be-56c9-486a-9d82-9c338c925e16` (first static build) and `bba22105-7bc9-405c-96f9-fb93d8062a36` (caught the SPA-404 regression) |
-| New production deployment | pending |
+| New production deployment | `fa12556e-924c-4930-878c-1d0f968a5500` (source `072b1c9`) |
 | Worker | unchanged at `e1a9a2ca-e919-43e2-baba-28a52bddd1cd` |
 | Sales site | unchanged at `0de6a626-a242-421f-aca0-faa0ef218722` |
 
@@ -209,21 +237,19 @@ Pages upload. Rollback is the Cloudflare Pages deployment above, not a git force
 
 ## 8. Known blockers (owner/Cloudflare action, not repo code)
 
-These were true before this change and cannot be fixed by editing `public/robots.txt`:
+Items 1–2 cannot be fixed by editing `public/robots.txt`; item 3 is fixed by repository code.
 
-1. **On the live `katzuai.com` zone, ClaudeBot and PerplexityBot received `403`** before this
-   change, from Cloudflare bot management, before the repository response. The Preview host
-   (`*.pages.dev`) returned `200` for both, which proves the repository response is correct but
-   not that the zone rule has been relaxed. Production must be re-measured after deploy; until
-   then, this remains an owner/Cloudflare action.
+1. **`PerplexityBot`, `GPTBot` and `ClaudeBot` receive `403` on live `katzuai.com`** from
+   Cloudflare bot management, before the repository response. The Preview host (`*.pages.dev`)
+   returns `200`, which proves the repository response is correct but not that the zone rule has
+   been relaxed. This remains an owner/Cloudflare action. `PerplexityBot` is a search/answer
+   agent; `GPTBot` and `ClaudeBot` are training agents.
 2. **Cloudflare-managed `robots.txt` prepends training disallows.** The repository file cannot
    remove the managed block. If training bots should be allowed, the owner must change the
    Cloudflare setting, not the repo.
-3. **Soft 404s are fixed on Preview, pending production confirmation.** Generating `404.html`
-   made Cloudflare Pages serve it for SPA deep links, so `public/_redirects` now proxies the
-   real client routes to `/` with `200` before the 404 handler. Preview returns `404` for an
-   unknown path and `200` for every SPA path; production must show the same pair before this
-   is called resolved.
+3. **Soft 404s are fixed.** Generating `404.html` made Cloudflare Pages serve it for SPA deep
+   links, so `public/_redirects` now proxies the real client routes to `/` with `200` before the
+   404 handler. Production returns `404` for an unknown path and `200` for every SPA path.
 4. **No external citations yet.** `llms.txt` and structured data help a crawler that already
    reaches the site. They do not create third-party mentions. The manual prompt sheet in §9
    is how we find out whether assistants actually know the product.
