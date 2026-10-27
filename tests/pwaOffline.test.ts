@@ -146,10 +146,35 @@ describe('Pages _headers security policy (P3)', () => {
     expect(connectSrc).toContain("'self'");
   });
 
-  it('app _headers carries HSTS and COOP', async () => {
+  it('app _headers carries HSTS and a COOP that keeps the Google popup', async () => {
     const csp = await readHeaders('_headers');
     expect(csp).toContain('Strict-Transport-Security: max-age=31536000; includeSubDomains');
-    expect(csp).toContain('Cross-Origin-Opener-Policy: same-origin');
+    // `same-origin` severs the window.opener a GIS popup needs to hand its
+    // credential back: the popup closes, no token arrives, sign-in dead-ends.
+    expect(csp).toMatch(/Cross-Origin-Opener-Policy: same-origin-allow-popups\r?\n/);
+    expect(csp).not.toMatch(/Cross-Origin-Opener-Policy: same-origin\r?\n/);
+  });
+
+  it('app _headers allows exactly the Google Identity endpoints sign-in needs', async () => {
+    const headers = await readHeaders('_headers');
+    // Read the directive from the policy line only: the file's comments mention
+    // "style-src" too, and a regex over the whole file happily matched them.
+    const cspLine = headers.split(/\r?\n/).find((line) => line.includes('Content-Security-Policy:')) ?? '';
+    const directive = (name: string) => cspLine.match(new RegExp(`(?:^|; )${name} ([^;]+)`))?.[1] ?? '';
+    const scriptSrc = directive('script-src');
+
+    // GIS's own script, its injected iframe, its stylesheet and its XHRs.
+    expect(scriptSrc).toContain('https://accounts.google.com/gsi/client');
+    // The script stays path-scoped: the bare host would allow any Google script.
+    expect(scriptSrc).not.toMatch(/https:\/\/accounts\.google\.com(?![\/\w-])/);
+    // No scheme-only source ("https:") — that is the real wildcard.
+    expect(scriptSrc).not.toMatch(/https:(?!\/\/)/);
+    expect(directive('connect-src')).toContain('https://accounts.google.com');
+    expect(directive('frame-src')).toContain('https://accounts.google.com');
+    expect(directive('style-src')).toContain('https://accounts.google.com/gsi/style');
+    // The button's font and the One Tap avatar are cross-origin hosts.
+    expect(directive('font-src')).toContain('https://fonts.gstatic.com');
+    expect(directive('img-src')).toContain('https://*.googleusercontent.com');
   });
 
   it('sales site _headers carries the equivalent strict CSP', async () => {

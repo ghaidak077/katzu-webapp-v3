@@ -35,11 +35,18 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [isLoading, setIsLoading] = useState(false);
-  // True once Google has actually drawn its own button. Until then (and on
+  // Where Google's own button is in its lifecycle. Until it is `ready` (and on
   // origins Google refuses, such as localhost) Katzu renders a single fallback
   // of its own — exactly one sign-in choice is on screen at any moment.
-  const [googleButtonRendered, setGoogleButtonRendered] = useState(false);
+  // `loading` is a real state, not a failure: Google's script and iframe arrive
+  // asynchronously and can take seconds on a cold connection.
+  const [gsiStatus, setGsiStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+  // Bumping this re-runs the loader after a genuine load failure. Without it a
+  // failed script stayed failed for the life of the screen and the fallback
+  // answered every tap with the same "check your connection" line.
+  const [gsiAttempt, setGsiAttempt] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
+  const [noticeMessage, setNoticeMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
@@ -48,13 +55,19 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   // Initialize Google Identity Services if client ID is configured
   useEffect(() => {
     if (!googleClientId) return;
+    // Every run of this effect is a fresh attempt: say so, so a retry never
+    // leaves the stale "unavailable" label on screen while it is in flight.
+    setGsiStatus('loading');
 
     let isMounted = true;
+    let observer: MutationObserver | undefined;
     const scriptId = 'google-gsi-script';
     let script = document.getElementById(scriptId) as HTMLScriptElement | null;
 
     const setupGsi = () => {
-      if (!window.google?.accounts?.id) return;
+      if (!isMounted || !window.google?.accounts?.id) return;
+      const container = googleBtnContainerRef.current;
+      if (!container) return;
       try {
         window.google.accounts.id.initialize({
           client_id: googleClientId,
@@ -62,40 +75,48 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           auto_select: false,
         });
 
-        if (googleBtnContainerRef.current) {
-          googleBtnContainerRef.current.innerHTML = '';
-          // The container is emptied and refilled on every mode switch. Reset the
-          // gate with it, otherwise for the ~700ms before Google's button comes
-          // back the screen would show neither button: Google's is gone from the
-          // DOM and Katzu's is hidden because the flag still says "rendered".
-          setGoogleButtonRendered(false);
-          // Google renders its button inside an iframe titled in Indonesian by
-          // default — label the container in Arabic so a screen-reader user
-          // hears what the button actually does.
-          googleBtnContainerRef.current.setAttribute('role', 'group');
-          googleBtnContainerRef.current.setAttribute('aria-label', mode === 'signup' ? 'التسجيل السريع باستخدام Google' : 'المتابعة باستخدام Google');
-          window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
-            theme: 'filled_black',
-            size: 'large',
-            shape: 'pill',
-            width: 280,
-            text: mode === 'signup' ? 'signup_with' : 'signin_with',
-            locale: 'ar',
-          });
+        container.innerHTML = '';
+        // The container is emptied and refilled on every mode switch. Reset the
+        // gate with it, otherwise for the moment before Google's button comes
+        // back the screen would show neither button: Google's is gone from the
+        // DOM and Katzu's is hidden because the flag still says "ready".
+        setGsiStatus('loading');
+        // Google renders its button inside an iframe titled in Indonesian by
+        // default — label the container in Arabic so a screen-reader user
+        // hears what the button actually does.
+        container.setAttribute('role', 'group');
+        container.setAttribute('aria-label', mode === 'signup' ? 'التسجيل السريع باستخدام Google' : 'المتابعة باستخدام Google');
+        window.google.accounts.id.renderButton(container, {
+          theme: 'filled_black',
+          size: 'large',
+          shape: 'pill',
+          width: 280,
+          text: mode === 'signup' ? 'signup_with' : 'signin_with',
+          locale: 'ar',
+        });
 
-          // Google refuses to draw its button on an origin that is not in the
-          // console's Authorized JavaScript origins list — which is exactly the
-          // case on `http://localhost`. GSI injects asynchronously, so the only
-          // honest check is whether anything actually appeared.
-          window.setTimeout(() => {
-            if (isMounted) {
-              setGoogleButtonRendered(googleBtnContainerRef.current!.childElementCount > 0);
-            }
-          }, 700);
-        }
+        // GSI injects its iframe asynchronously — a fixed 700ms guess was the
+        // bug: on a cold or slow connection the guess fired first, the flag
+        // stayed false, and Katzu's fallback sat on top of a working (or
+        // still-loading) Google button for the rest of the visit. Watch the
+        // container instead of guessing, and flip as soon as the button is real.
+        observer?.disconnect();
+        observer = new MutationObserver(() => {
+          if (container.childElementCount > 0) setGsiStatus('ready');
+        });
+        observer.observe(container, { childList: true });
+        if (container.childElementCount > 0) setGsiStatus('ready');
       } catch (err) {
         console.warn('GIS initialization error:', err);
       }
+    };
+
+    const onScriptError = () => {
+      if (!isMounted) return;
+      // Offline, a blocked network or an extension: retrying re-injects the
+      // script instead of dead-ending the screen on a single failure.
+      console.warn('Google Identity Services failed to load.');
+      setGsiStatus('unavailable');
     };
 
     if (!script) {
@@ -104,18 +125,30 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
-      script.onload = () => {
-        if (isMounted) setupGsi();
-      };
+      script.addEventListener('load', setupGsi);
+      script.addEventListener('error', onScriptError);
       document.body.appendChild(script);
-    } else {
+    } else if (window.google?.accounts?.id) {
       setupGsi();
+    } else {
+      // A previous attempt is still in flight (or failed): never call setupGsi
+      // into a half-loaded SDK, and never leave the screen without a listener.
+      script.addEventListener('load', setupGsi);
+      script.addEventListener('error', onScriptError);
     }
 
     return () => {
       isMounted = false;
+      observer?.disconnect();
+      script?.removeEventListener('load', setupGsi);
+      script?.removeEventListener('error', onScriptError);
     };
-  }, [googleClientId, mode]);
+  }, [googleClientId, mode, gsiAttempt]);
+
+  // Once Google's own button is on screen, the "still loading" note is stale.
+  useEffect(() => {
+    if (gsiStatus === 'ready') setNoticeMessage('');
+  }, [gsiStatus]);
 
   // Decode JWT payload helper
   const decodeJwt = (token: string) => {
@@ -254,6 +287,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   const handleTriggerGooglePrompt = () => {
     triggerHaptic('light');
     setErrorMessage('');
+    setNoticeMessage('');
     if (window.google?.accounts?.id) {
       // One Tap is silently skipped by some browsers (FedCM, dismissed prompts).
       // Say so, so a tap never looks like it did nothing.
@@ -262,8 +296,17 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           setErrorMessage('لم تظهر نافذة Google. اسمح بالنوافذ المنبثقة لهذا الموقع أو حاول مرة أخرى.');
         }
       });
+    } else if (gsiStatus === 'loading') {
+      // Still arriving. Saying "Google is broken" here was the regression's
+      // visible symptom: the tap happened a moment too early and the screen
+      // never recovered. Say what is actually true and keep waiting.
+      setNoticeMessage('جارٍ تجهيز خدمة Google… انتظر لحظة ثم اضغط مرة أخرى.');
     } else {
       setErrorMessage('تعذر تحميل خدمة Google الآن. تحقق من الاتصال وحاول مجدداً.');
+      // Load the script again, so "try again" can actually succeed. The failed
+      // element must go first: re-listening to it would never fire again.
+      document.getElementById('google-gsi-script')?.remove();
+      setGsiAttempt((attempt) => attempt + 1);
     }
   };
 
@@ -388,6 +431,13 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           </div>
         )}
 
+        {noticeMessage && (
+          <div role="status" className="w-full mb-4 p-3 rounded-2xl bg-surface-card border border-border-subtle text-text-secondary text-xs font-semibold flex items-center gap-2 text-start">
+            <ShieldCheck className="w-4 h-4 flex-shrink-0 text-primary" />
+            <span>{noticeMessage}</span>
+          </div>
+        )}
+
         {/* A3: no level picker on the sign-in tab. The level is a measurement, not
             a sign-up field: it is set by the optional placement check (offered on the
             debrief) and stays A1 until measured. Profile still lets anyone change it. */}
@@ -404,10 +454,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             ref={googleBtnContainerRef}
             className={cn(
               'w-full flex items-center justify-center',
-              googleButtonRendered && 'min-h-[44px]',
+              gsiStatus === 'ready' && 'min-h-[44px]',
             )}
           />
-          {!googleButtonRendered && (
+          {gsiStatus !== 'ready' && (
             <GoogleSignInButton
               onClick={handleTriggerGooglePrompt}
               isLoading={isLoading}
