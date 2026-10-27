@@ -65,18 +65,21 @@ test('first run asks two questions and opens the opening episode', async ({ page
   expect(stored?.placementSkippedAt || 0).toBe(0);
 });
 
-test('a stranger walks from the landing page to the first mission', async ({ page }) => {
+test('a stranger lands on the app and walks to the first mission', async ({ page }) => {
   await setSwitch(page, '1');
   // The launch path end to end, with the one seam the suite cannot cross made
   // explicit: Google's own sign-in cannot be driven from a test, so the harness
   // seeds exactly the session that button would have created, and everything
   // before and after that point is the real app. Without this, every other spec
   // starts inside the app and nothing checks that a stranger can get in.
+  //
+  // The marketing landing page lives on the separate site now, so the app's own
+  // front door is `/welcome`. `/` still has to land there rather than showing a
+  // dead end: old links and bookmarks reach the app, not a blank route.
   await mockBackend(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('تحدّث الألمانية');
-  await page.getByRole('button', { name: 'ابدأ مجاناً الآن' }).click();
   await expect(page).toHaveURL(/\/welcome$/);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('تحدث الألمانية');
   await expect(page.getByRole('button', { name: /Google/ })).toBeVisible();
 
   await seedSignedInUser(page, { onboardingCompletedAt: 0 });

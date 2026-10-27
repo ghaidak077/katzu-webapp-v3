@@ -95,27 +95,6 @@ test('profile offers far fewer controls than it used to', async ({ page }) => {
   expect(count).toBeLessThanOrEqual(12);
 });
 
-test('the landing footer links are thumb-sized, not 20px slivers', async ({ page }) => {
-  await page.goto('/');
-  const links = page.getByRole('button', { name: /الخصوصية|الشروط|تواصل معنا/ });
-  await expect(links.first()).toBeVisible({ timeout: 30_000 });
-
-  // The cross-discipline review measured 55x20, 38x20 and 60x20 here — under
-  // WCAG 2.5.8's 24px floor, let alone the project's 44px thumb target.
-  const boxes = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('footer button'))
-      .map((node) => {
-        const rect = node.getBoundingClientRect();
-        return { name: (node.textContent ?? '').trim(), height: Math.round(rect.height) };
-      })
-      .filter((entry) => entry.height > 0),
-  );
-  expect(boxes.length).toBeGreaterThanOrEqual(3);
-  for (const box of boxes) {
-    expect(box.height, `footer link "${box.name}" is ${box.height}px tall`).toBeGreaterThanOrEqual(44);
-  }
-});
-
 test('listening keeps its playback controls and its exit reachable by thumb', async ({ page }) => {
   await bootSignedIn(page);
   await seedRows(page, 'starter_phrases', [

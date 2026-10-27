@@ -5,10 +5,13 @@ import { bootSignedIn, mockBackend } from './harness';
  * Read-only production smoke.
  *
  * The checks a human would do by hand after a deploy — the page loads, the price
- * is the same everywhere, the free-session promise is the right one, the admin
- * surface is closed, the share tags are on the document — as one spec that can
- * be pointed at the live site with `E2E_TARGET=production npx playwright test
- * e2e/productionSmoke.spec.ts`.
+ * is the same everywhere, the admin surface is closed, the share tags are on the
+ * document — as one spec that can be pointed at the live site with
+ * `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts`.
+ *
+ * The marketing pages (landing, pricing, the free-session promise) are served by
+ * website.katzuai.com now, so this spec covers the product app only: its front
+ * door, its paywall, and the worker it calls.
  *
  * It creates no account, order or redemption, and every request is a GET — with
  * one deliberate exception, the demo turn below: the public demo's promise
@@ -17,11 +20,9 @@ import { bootSignedIn, mockBackend } from './harness';
  * sentence through the anonymous demo and is the only write in the file.
  *
  * In the default preview run it still executes, via the harness's mocked
- * backend, so the same assertions guard the bundle before a deploy. Three parts
+ * backend, so the same assertions guard the bundle before a deploy. Two parts
  * declare themselves and skip where they are meaningless: the failure-mode price
- * (needs the mock), the live admin 401 (needs the real worker), and the paywall
- * half of the price parity (an anonymous visitor cannot reach `/paywall`, and
- * this suite does not sign in).
+ * (needs the mock), and the live admin 401 (needs the real worker).
  */
 
 const PRODUCTION = process.env.E2E_TARGET === 'production';
@@ -41,19 +42,24 @@ function amountOf(text: string): string {
 
 /** Set a waiter for the app's own `/pricing` call, so no host is hardcoded. */
 async function workerOriginFromPricing(page: Page): Promise<string> {
-  const priced = page.waitForRequest((request) => {
-    try {
-      return new URL(request.url()).pathname === '/pricing';
-    } catch {
-      return false;
-    }
-  });
-  await page.goto('/');
+  const priced = page.waitForRequest(
+    (request) => {
+      try {
+        return new URL(request.url()).pathname === '/pricing';
+      } catch {
+        return false;
+      }
+    },
+    { timeout: 20_000 },
+  );
+  // `/paywall` is the app's only price surface now; it asks `/pricing` on mount,
+  // before the auth guard has decided where an anonymous visitor goes.
+  await page.goto('/paywall');
   return new URL((await priced).url()).origin;
 }
 
 test.describe('production smoke (read-only)', () => {
-  test('a tagged landing loads, carries the share tags, and stays quiet in the console', async ({ page }) => {
+  test('a tagged front door loads, carries the share tags, and stays quiet in the console', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (message) => {
       if (message.type() === 'error') errors.push(message.text());
@@ -71,6 +77,7 @@ test.describe('production smoke (read-only)', () => {
 
     await expect(page.locator('h1').first()).toBeVisible();
     // The share tags the unfurl depends on, read from the live document head.
+    // They describe the app, while the marketing site carries its own set.
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /.+/);
     await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute('content', '1200');
     await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', /.+/);
@@ -81,47 +88,21 @@ test.describe('production smoke (read-only)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the landing and the paywall quote the same amount', async ({ page }) => {
-    if (!PRODUCTION) await bootSignedIn(page, { pricing: { prices: PRICES, group: 'standard' } });
-
-    await page.goto('/');
-    const landing = page.getByTestId('landing-price');
-    await expect(landing).toBeVisible();
-    // The badge wears the brand name alone until `/pricing` answers, so reading
-    // it the instant it appears compares a blank against a number. Wait for the
-    // server's amount to land (measured: it can take a moment against production).
-    await expect(landing).toContainText('€');
-    const amount = amountOf(await landing.innerText());
+  test('the paywall quotes the server amount', async ({ page }) => {
+    // The smoke never signs in, and `/paywall` is session-gated: against
+    // production an anonymous visitor is sent to `/welcome`, so there is no
+    // price surface left for this read-only check to read.
+    test.skip(PRODUCTION, 'the paywall is session-gated; this smoke does not sign in');
+    await bootSignedIn(page, { pricing: { prices: PRICES, group: 'standard' } });
 
     await page.goto('/paywall');
-    // The auth guard resolves asynchronously, so for a moment the paywall route
-    // is mounted and then an anonymous visitor is sent away. Wait for whichever
-    // ending is real before deciding — the price card, or the redirect.
-    await page.waitForFunction(
-      () =>
-        Boolean(document.querySelector('[data-testid="price-pass90"]')) ||
-        /^\/(welcome|signin)/.test(window.location.pathname),
-      undefined,
-      { timeout: 20_000 },
-    );
-    if (!/^\/paywall/.test(new URL(page.url()).pathname)) {
-      // `/paywall` is session-gated (`isPublicPath` in App.tsx does not list it).
-      // This smoke is read-only and does not sign in, so the cross-surface half
-      // is preview-only; the landing half above still ran against production.
-      test.skip(true, `anonymous /paywall redirected to ${new URL(page.url()).pathname}; the smoke does not sign in`);
-    }
-    // The same number, from the same `/pricing` call, on the other surface.
-    await expect(page.getByTestId('price-pass90')).toContainText(amount);
-  });
-
-  test('the free-session promise says three, in Western digits', async ({ page }) => {
-    if (!PRODUCTION) await bootSignedIn(page, { pricing: { prices: PRICES, group: 'standard' } });
-
-    await page.goto('/');
-    // The always-visible free column states it; the FAQ states it again.
-    await expect(page.getByText(/3 جلسات محادثة مجانية/).first()).toBeVisible();
-    // And the Arabic-Indic shape is gone from the product (L12).
-    await expect(page.getByText(/٣ جلسات/)).toHaveCount(0);
+    const pass = page.getByTestId('price-pass90');
+    await expect(pass).toBeVisible();
+    // The badge wears the brand name alone until `/pricing` answers, so reading
+    // it the instant it appears compares a blank against a number. Wait for the
+    // server's amount to land.
+    await expect(pass).toContainText('€');
+    expect(amountOf(await pass.innerText())).toBe('29');
   });
 
   test('shows no price when /pricing is unreachable', async ({ page }) => {

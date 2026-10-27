@@ -90,37 +90,25 @@ test.describe('the paywall', () => {
 });
 
 /**
- * One price, everywhere.
+ * One price, everywhere it appears.
  *
- * These two are the regression that mattered: the landing page, the modal and
- * the paywall used to read three different things — a USD figure mirrored from
- * crypto check-out, a hardcoded «5 دولار / شهر» behind it, and `/pricing` in
- * euros — so a learner could be quoted 5 dollars on one screen and 29 euros on
- * the next. All four surfaces now read `GET /pricing`, and a failure shows no
- * amount anywhere rather than a stale one.
+ * The public price now lives on the marketing site, built from the same
+ * server-owned catalogue, so the app's own surfaces must still agree with each
+ * other: the paywall page and the paywall sheet both read `GET /pricing`, and a
+ * failure shows no amount anywhere rather than a stale one. The regression that
+ * mattered — three different hardcoded figures across screens — cannot come
+ * back through a landing page because there is no landing page here any more.
  */
 test.describe('the price is the same everywhere it appears', () => {
-  test('landing and paywall quote the same amount, in the server\'s currency', async ({ page }) => {
+  test('the paywall quotes the server amount, in the server\'s currency', async ({ page }) => {
     await bootSignedIn(page, { pricing: { prices: PRICES, group: 'standard' } });
-    await page.goto('/');
-    const landing = page.getByTestId('landing-price');
-    await expect(landing).toContainText('29 €');
-
     await page.goto('/paywall');
     await expect(page.getByTestId('price-pass90')).toHaveText('29 €');
     await expect(page.getByTestId('price-monthly')).toHaveText('12,99 €');
   });
 
-  test('no surface shows an amount when the server cannot be reached', async ({ page }) => {
+  test('the paywall shows no amount when the server cannot be reached', async ({ page }) => {
     await bootSignedIn(page, { pricing: null });
-    await page.goto('/');
-    const landing = page.getByTestId('landing-price');
-    await expect(landing).toBeVisible();
-    // It must not read a number at all — not 29, not 5, not a dash beside a
-    // buy control. It says where the price lives and stops there.
-    await expect(landing).not.toContainText(/\d/);
-    await expect(landing).toContainText('السعر عند صفحة الشراء');
-
     await page.goto('/paywall');
     await expect(page.getByText(/تعذّر تحميل الأسعار الآن/)).toBeVisible();
     await expect(page.getByTestId('price-pass90')).toHaveCount(0);
