@@ -92,7 +92,11 @@ npm run build && npx wrangler pages deploy dist --project-name=katzu-webapp-v3 -
 node scripts/build-website.mjs && npx wrangler pages deploy website --project-name=katzu-landing --branch=main   # marketing site (website.katzuai.com)
 ```
 
-Run `npm run verify -- --ci --e2e` before either command. After deploying the app, confirm `https://katzuai.com/auth/session` returns JSON from the Worker (a `400` is correct for an empty body; a `405` means the bundle was built without `VITE_WORKER_URL`).
+Run `npm run verify -- --ci --e2e` before either command. The app calls the Worker by absolute URL, so `https://katzuai.com/auth/session` is always a `405` answered by Pages — that is not a failure and proves nothing about the bundle. After deploying the app, verify the real path instead:
+
+- the built bundle carries the Worker origin: `grep -o 'https://[a-z0-9.-]*\.workers\.dev' dist/assets/*.js | head -1` (manual `wrangler pages deploy` reads `.env.production`; a Pages git build supplies its own `VITE_WORKER_URL`);
+- the Worker itself answers `POST /auth/session` with `400 {"error":"missing_id_token"}`;
+- a CORS preflight for `Origin: https://katzuai.com` returns `200` with that origin echoed in `access-control-allow-origin`.
 
 
 ## 3b. Card billing: none, by decision
