@@ -80,10 +80,20 @@ Create a production Google OAuth Web client and add the exact HTTPS Pages/custom
 
 1. Set the Pages build command to `npm run build`.
 2. Set the output directory to `dist`.
-3. Configure `VITE_GOOGLE_CLIENT_ID`, `VITE_WORKER_URL`, and optional `VITE_SENTRY_DSN`/`VITE_CONTACT_URL`.
-4. Ensure `public/_headers`, `public/robots.txt`, and `public/sitemap.xml` are included in the deployment.
+3. Configure `VITE_GOOGLE_CLIENT_ID`, `VITE_WORKER_URL`, and optional `VITE_SENTRY_DSN`/`VITE_CONTACT_URL`. `VITE_WORKER_URL` is checked in at `.env.production` so a manual `wrangler pages deploy dist` carries it too; the Pages dashboard may override it.
+4. Ensure `public/_headers` and `public/_redirects` are included in the deployment. The app ships no `robots.txt`/`sitemap.xml`; the marketing pages are on the separate site (section 3d).
 5. Attach the production custom domain and update `ALLOWED_ORIGINS` to the exact origin.
-6. Store submission needs a public policy URL: `public/privacy.html` and `public/terms.html` deploy automatically as `/privacy` and `/terms` (Cloudflare Pages strips the `.html` extension with a 308). Confirm both return `200` on the live domain before submitting to Google Play or a payment provider, and use the extensionless URLs in the store listing.
+6. Store submission needs a public policy URL: the privacy and terms pages now live on `https://website.katzuai.com/trust/privacy` and `/trust/terms`, and the app's old `/privacy` and `/terms` redirect there. Use those URLs in the store listing.
+
+### Republish
+
+```bash
+npm run build && npx wrangler pages deploy dist --project-name=katzu-webapp-v3 --branch=main          # app (katzuai.com)
+node scripts/build-website.mjs && npx wrangler pages deploy website --project-name=katzu-landing --branch=main   # marketing site (website.katzuai.com)
+```
+
+Run `npm run verify -- --ci --e2e` before either command. After deploying the app, confirm `https://katzuai.com/auth/session` returns JSON from the Worker (a `400` is correct for an empty body; a `405` means the bundle was built without `VITE_WORKER_URL`).
+
 
 ## 3b. Card billing: none, by decision
 

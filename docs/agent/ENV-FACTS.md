@@ -120,8 +120,7 @@ command below stops existing, so this index cannot rot silently.
 | The unit gate | `npm test` | vitest, ~10 s, dot reporter |
 | Typecheck the app / the e2e specs | `npm run lint` · `npm run test:e2e:types` | `tsc --noEmit` and `tsc -p e2e --noEmit` |
 | The browser suite against the shipped bundle | `E2E_TARGET=preview npx playwright test --reporter=line` | 121 tests / 33 files; do not hand-start `vite preview` |
-| One browser spec | `npx playwright test e2e/demo.spec.ts --reporter=line` | ~8 s |
-| **Phone marketing screenshots** (24 screens × 2 devices) | `npx playwright test -c e2e/marketingShots.playwright.config.ts --reporter=line` | 48 PNGs in `docs/marketing/screenshots-mobile/` + `manifest.json`; `SCREENS=review,paywall` re-shoots one |
+| One browser spec | `npx playwright test e2e/screenNames.spec.ts --reporter=line` | one spec, a few seconds |
 | UI-polish before/after shots | `npx playwright test -c e2e/uiPolishShots.playwright.config.ts` | writes `docs/agent/ui-polish/*.png` |
 | Journey-polish before/after shots | `npx playwright test -c e2e/journeyPolishShots.playwright.config.ts` | writes `docs/agent/journey-polish/*.png` |
 | Admin dashboard screenshots | `node scripts/capture-admin-screenshots.mjs` | its own output folder; needs the admin session |
@@ -133,6 +132,7 @@ command below stops existing, so this index cannot rot silently.
 | Performance numbers | `npm run measure:perf` | lighthouse; needs a server running first |
 | Secret scan | `npm run scan:secrets` | the same patterns CI runs |
 | Build / serve the bundle locally | `npm run build` · `npm run preview` | `dist/` |
+| Rebuild the marketing site's pages | `node scripts/build-website.mjs` | writes `website/*.html` (topics, `/en/*`, `/trust/*`, robots, sitemap, 404) from `scripts/site-content.mjs` (AR) + `scripts/site-content.en.mjs` (EN) + `src/lib/trust/content.ts`; never touches `website/index.html` |
 | Curriculum audit on a module file | `node scripts/audit-curriculum.mjs --file=docs/content/<module>.json` | dry run, no writes |
 | Load curriculum into D1 | `node scripts/load-curriculum.mjs --file=… --commit` | **only** with `CONTENT-LOAD-AUTHORIZED` (AGENTS §3) |
 | What the deployed content tables actually have (schema drift) | `migrations/0001_content_tables.sql` §1–3 · then `node scripts/load-curriculum.mjs --file=… --dry-run` | §1 is production verbatim (`sqlite_master`), §2 names the gap, §3 the owner's pending `ALTER TABLE`s; the loader reads one real row per table and refuses to write when a draft needs a column the deployment lacks (V12-2) |
@@ -156,10 +156,9 @@ command below stops existing, so this index cannot rot silently.
 |---|---|
 | `preview_screenshot` produced 0 files in ~90 calls | The tool has no path parameter; the marketing folder stayed empty |
 | `preview_screenshot` currently fails outright here | `Could not capture the preview page: it produced no frames …`, two attempts, 2026-10-15 |
-| The file-producing path is a Playwright rig | `e2e/shots/*Shots.spec.ts` + its own `*.playwright.config.ts`; each starts its own server (`webServer`) and writes `page.screenshot({ path })`. Existing: `uiPolishShots`, `journeyPolishShots`, `marketingShots`, and the probe `journeyLayoutProbe` |
-| Phone marketing shots, 24 screens x 2 devices, **3.1 min, exit 0** | `npx playwright test -c e2e/marketingShots.playwright.config.ts --reporter=line` → 48 PNGs in `docs/marketing/screenshots-mobile/` (1290x2796 + 1080x2400) + `manifest.json` |
-| Each rig uses its own port so it can never reuse a server you did not start | `marketingShots` serves `npm run build && vite preview --port 3101 --strictPort` with `VITE_WORKER_URL` set; the gate suite keeps 3000 |
-
+| The file-producing path is a Playwright rig | `e2e/shots/*Shots.spec.ts` + its own `*.playwright.config.ts`; each starts its own server (`webServer`) and writes `page.screenshot({ path })`. Existing: `uiPolishShots`, `journeyPolishShots`, and the probe `journeyLayoutProbe` (the `marketingShots` rig was removed with the in-app marketing pages on 2026-10-27 — the marketing site is the static `website/` folder now) |
+| Phone marketing shots (48 PNGs, 24 screens x 2 devices) | **Rig removed 2026-10-27** with the in-app marketing pages; the outputs stay in `docs/marketing/screenshots-mobile/` |
+| Each rig uses its own port so it can never reuse a server you did not start | `uiPolishShots` serves its own preview on a fixed port with `VITE_WORKER_URL` set; the gate suite keeps 3000 |
 ---
 
 ## D. Capabilities (probed in the OS temp dir, probes deleted)
@@ -311,7 +310,7 @@ PID=$(netstat -ano | grep LISTENING | grep ":3000" | awk '{print $NF}' | sort -u
 taskkill //F //PID "$PID"
 
 # --- one spec against the dev server --------------------------------------------------
-npx playwright test e2e/demo.spec.ts --reporter=line      # 8 s, 1 test
+npx playwright test e2e/screenNames.spec.ts --reporter=line   # one spec
 
 # --- the WHOLE suite against the PRODUCTION bundle (the artifact that ships) ---------
 # `E2E_TARGET=preview` makes playwright.config.ts build with the e2e placeholder worker
@@ -323,7 +322,7 @@ E2E_TARGET=preview npx playwright test --reporter=line    # 37/37, ~4.3 min
 
 # --- one spec against the dev server --------------------------------------------------
 # Also let Playwright start the server (it injects VITE_WORKER_URL for the dev server too).
-npx playwright test e2e/demo.spec.ts --reporter=line      # 8 s, 1 test
+npx playwright test e2e/screenNames.spec.ts --reporter=line   # one spec
 
 # --- manual preview (only if you must); the build MUST carry the origin ---------------
 VITE_WORKER_URL=https://e2e-worker.test npm run build
