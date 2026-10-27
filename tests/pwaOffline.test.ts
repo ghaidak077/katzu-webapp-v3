@@ -29,6 +29,28 @@ describe('offline app shell', () => {
     expect(pwaOptions.workbox.globPatterns.join(',')).toContain('html');
   });
 
+  it('lets the legacy page redirects run instead of answering them from the shell', () => {
+    // The landing, topic and trust pages now live on website.katzuai.com and
+    // `public/_redirects` answers the old paths with a 301. Workbox's
+    // navigation fallback would otherwise serve the cached app shell for those
+    // navigations first, so a returning learner would never reach the redirect.
+    // Both halves matter: every migrated path must be denied, and no app route
+    // may be, or the offline app breaks for that screen.
+    const denylist = pwaOptions.workbox.navigateFallbackDenylist as unknown as RegExp[];
+    const denied = (pathname: string) => denylist.some((rule) => rule.test(pathname));
+    for (const path of [
+      '/faq', '/pricing', '/compare', '/about', '/how-it-works', '/who-its-for',
+      '/demo', '/privacy', '/terms', '/en', '/en/pricing',
+      '/trust', '/trust/privacy', '/use-cases', '/use-cases/students'
+    ]) {
+      expect(denied(path), path).toBe(true);
+    }
+    for (const path of ['/', '/app', '/app/trail', '/main', '/welcome', '/signin',
+      '/onboarding', '/subscription', '/mock', '/scenario/airport-arrival', '/english']) {
+      expect(denied(path), path).toBe(false);
+    }
+  });
+
   it('activates a new service worker immediately so a deploy cannot strand a stale bundle', () => {
     // An old bundle against a newer database raises VersionError; autoUpdate is
     // what stops a learner's open tab from keeping the old one alive.
@@ -112,6 +134,24 @@ describe('Pages _headers security policy (P3)', () => {
     expect(scriptSrc).toContain('https://accounts.google.com/gsi/client');
   });
 
+  it('app _headers names the one Worker origin instead of any workers.dev host', async () => {
+    // `connect-src https://*.workers.dev` let an injected script exfiltrate a
+    // session token to any Workers subdomain. The app talks to exactly one
+    // Worker, so the policy names it; .env.production builds the bundle that
+    // calls it.
+    const csp = await readHeaders('_headers');
+    const connectSrc = csp.match(/connect-src ([^;]+);/)?.[1] ?? '';
+    expect(connectSrc).toContain('https://katzu-test.ghaidakalosh008.workers.dev');
+    expect(connectSrc).not.toContain('*.workers.dev');
+    expect(connectSrc).toContain("'self'");
+  });
+
+  it('app _headers carries HSTS and COOP', async () => {
+    const csp = await readHeaders('_headers');
+    expect(csp).toContain('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    expect(csp).toContain('Cross-Origin-Opener-Policy: same-origin');
+  });
+
   it('sales site _headers carries the equivalent strict CSP', async () => {
     // The sales _headers lives in ../sales/, outside public/.
     const sales = await (await import('node:fs/promises')).readFile(new URL('../sales/_headers', import.meta.url), 'utf8');
@@ -120,5 +160,30 @@ describe('Pages _headers security policy (P3)', () => {
     expect(sales).toContain("frame-ancestors 'none'");
     expect(sales).toContain("form-action 'self'");
     expect(sales).not.toMatch(/img-src[^;]*https:\s*(;|$)/);
+  });
+});
+
+describe('production build environment', () => {
+  const read = async (file: string) =>
+    (await import('node:fs/promises')).readFile(new URL(`../${file}`, import.meta.url), 'utf8');
+
+  it('bakes the Worker origin into the bundle, so the app can reach its API', async () => {
+    // 2026-10-27: a manual `wrangler pages deploy dist` shipped a bundle whose
+    // `VITE_WORKER_URL` was empty — the dashboard build env does not apply to a
+    // local build — so every API call answered WORKER_URL_MISSING and a direct
+    // POST to katzuai.com/auth/session hit the static host (405). The value is
+    // public and belongs in the tracked production env for exactly that reason.
+    const env = await read('.env.production');
+    const match = env.match(/^VITE_WORKER_URL=(\S+)$/m);
+    expect(match, 'VITE_WORKER_URL is missing from .env.production').not.toBeNull();
+    expect(match![1]).toMatch(/^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev$/);
+  });
+
+  it('uses the same Worker origin the Worker allows in CORS', async () => {
+    const env = await read('.env.production');
+    const worker = env.match(/^VITE_WORKER_URL=(\S+)$/m)![1];
+    const toml = await read('wrangler.toml');
+    const allowed = toml.match(/^ALLOWED_ORIGINS\s*=\s*"([^"]+)"/m)?.[1] ?? '';
+    expect(allowed.split(',').map((origin) => origin.trim())).toContain(worker);
   });
 });

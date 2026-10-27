@@ -2,6 +2,8 @@
   X-Content-Type-Options: nosniff
   X-Frame-Options: SAMEORIGIN
   Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: microphone=(self), camera=(), geolocation=()
   # script-src: the built entry and the PWA registerSW are both external files,
   # and the Google Identity script is injected via a src= script element
@@ -9,7 +11,7 @@
   # execute. style-src keeps inline styles because the glass design system
   # renders ~30 dynamic CSS-custom-property style attributes (React style={{}})
   # — removing those is a tracked follow-up, not a loss of script protection.
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://*.workers.dev; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self';
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://katzu-test.ghaidakalosh008.workers.dev; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self';
 
 # Private app surfaces. The SPA shell is shared, so this HTTP header is the
 # reliable signal; the static public pages carry their own index,follow meta.
