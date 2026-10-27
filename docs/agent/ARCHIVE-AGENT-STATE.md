@@ -299,3 +299,93 @@ NEXT (V43.2): **The admin dashboard is fixed and LIVE (2026-10-22) — `merge` +
 NEXT (V43.1): **The mock-exam reset fix is LIVE — `pages` only (no worker file in the diff; worker `66bd8b92-…` untouched).** V43 shipped a bug its old mock spec could not see: `useLiveConversation`'s opener effect depended on the `mockPart` object, and the mock passes a fresh literal every render (its clock ticks each second), so every tick reset the conversation to the examiner's line — the learner's sentence vanished, `canEndSession` stayed false and the three-part debrief was unreachable in production. Fixed by depending on the part's fields. Gate `npm run verify -- --ci --e2e` **14/14 in 773.1 s**, exit 0, in this tree; new `e2e/mockExam.spec.ts` drives all three parts to the debrief and `e2e/reflowZoom.spec.ts` asserts 320 px (200 % zoom) reflow on 9 routes; production smoke now sends one real demo turn. FF push `6841924..8ca290c`; Pages **`8fe6d07f-…`** serves `index-BfNVQ58w.js`; live smoke **4 passed / 2 skipped / 0 failed**. Rollback: Pages `5722462d-…` (source `6841924`).
 
 NEXT (V43): **The debrief/paywall/daily-loop batch is LIVE (2026-10-19) — `merge` + `pages`, no worker deploy (no worker file in the diff).** Gate in this tree: `verify -- --ci --e2e` **14/14 in 679.3 s**, exit 0; secret scan empty. FF merge `8669f82..92280ec`, pushed without force; Pages **`8fb96479-…`** serves `index-B5ReLSY0.js`; smoke **3 passed / 2 skipped / 0 failed**. Rollback: Pages `4fd7de37-…` (source `8669f82`); worker `66bd8b92-…` untouched. No secret, no production D1 write, no owner-only item touched.
+
+
+## RESUME history moved 2026-10-27
+
+Moved verbatim out of `docs/AGENT-STATE.md` (its RESUME section was at the 80 KB cap). Nothing edited; these are superseded run records, provenance only.
+
+- **Deployed 2026-10-23 (guided home):** `main` = **`1e9d09f`** (`--no-ff`; tip `4b581d0`) + docs-only commits. Production Pages **`c89828af-…`** serves `assets/index-DkRAI1BL.js` with
+  `VITE_GUIDED_HOME:"1"` (`.env.production` pins it ON; `localStorage['kz.guidedHome']='0'` is the
+  per-device switch). Gate **14/14 in 723 s**; staging preview `fedcd115-…` (shell only); prod smoke
+  **4 passed / 2 skipped**, `/demo` 4/4. Rollback: dashboard redeploy of `50f30132-…` or
+  `git revert -m 1 1e9d09f` + push. Worker `e1a9a2ca-…` and D1 untouched. **Signed-in guided home /
+  report / paywall on production remain UNPROVEN** (needs an account).
+- **Current tree (2026-10-19, this deploy run):** `main` **= `origin/main` = `release-candidate` = `2fa5acd`** — no
+  uncommitted repo work. The launch candidate (the owner-approved 5-commit + 3-UX batch + 2 stale-contract
+  e2e fixes, 64 commits total) was **merged to `main` and deployed today**; see `## CURRENT MISSION`
+  (NEXT V42) and the rollback snapshot below. The two 2026-10-18 browser-suite reds are fixed at the
+  contract (`7b52230`, `2fa5acd`): CI **`39191010113`** = **141 passed / 2 skipped / 0 failed** for
+  `2fa5acd`. Local gate on the same tree: `npm run verify -- --ci --e2e` **14/14 in 486.8 s** (3 noisy-output
+  steps relabelled FLAKY, exit 0). Working tree clean except owned strays, unstaged and never committed:
+  `valibjorn-brief.md`, `valibjorn-brief.pdf`, `website/`. Nothing mid-flight.
+- **Superseded tree record (2026-10-15 — read as provenance only; the batch it describes is now part of `2fa5acd`):** `main`
+  as **uncommitted** — the agentic-system hardening
+  batch. The gate finally has triggers: `.githooks/pre-commit` → `npm run verify -- --fast` (structural
+  guards + syntax, ~8 s), `.githooks/pre-push` → the full gate with `--cost`, installed by
+  `scripts/install-hooks.mjs` (`prepare` + `npm run hooks:install`, repo-local `core.hooksPath`).
+  `scripts/verify.mjs` gained profiles (`--fast`/`--ci`/`--e2e`/`--cost`) and `CI_ONLY_STEPS`, and
+  **`ci.yml` now runs one step — `npm run verify -- --ci` — where it had nine hand-written ones that
+  syntax-checked 1 file against the gate's 47**. Cost is measured now (`scripts/verify-cost.mjs` →
+  gitignored `.verify-runs.ndjson`, read back by `npm run cost:report`); wall-clock and bytes, **not**
+  tokens. Every `docs/**/*.md` is budgeted (74 files: 15 named, **22 KB default cap**, only the ledger
+  archive exempt — before this, 8 of 37 were covered). `DEPLOY.md` requires `npm run verify -- --ci --e2e`
+  instead of spelling out T2. **Verified this session:** `git hook run pre-commit` exit 0 (9.2 s);
+  `npm run verify` **6/6 in 69 s**; `npm run verify -- --ci` **13/13 in 134.8 s** (the exact set CI runs,
+  so CI's command is proven green locally); `npm test` **144 files / 1,862 tests**; and the browser
+  suite against the built bundle **121 tests on :3100 → 117 passed / 3 failed / 1 skipped in 12.1 min**
+  (port 3000 is held by a dev server another session started, which was deliberately not killed; the run
+  used a throwaway config in the OS temp dir differing from `playwright.config.ts` only in the port —
+  the three failures are unclassified and are tracked in UNPROVEN below). **One real defect
+  found and fixed inside the gate itself:** `spawnSync`'s 1 MB default buffer killed
+  `audit-quiz-content.mjs` (1,270,067 bytes of output) with `ENOBUFS`, so a step that exited 0 was
+  reported FAIL — now `MAX_OUTPUT_BYTES` (64 MB) and a named runner error (MEMORY §C 48, LESSONS
+  2026-10-15). Every new guard was proven red → green and restored byte-exact (CI drift, unwired clone,
+  over-budget document, failure-swallowing hook, orphan + broken script). Nothing committed, nothing
+  deployed, no secret read, no production write.
+
+- **Last sha:** `6621c53` **pushed and deployed** (journey polish, L18). CI run `37494923231` —
+  **success** (`secret-scan`, `launch-check`, `verify`, `e2e` all green). The journey path/library
+  screen polish (`1c82059`) + follow-up (`ce533f2`: one-line Katzu greeting back above the review
+  strip, «لم تستقل فيه بعد» folded into the PRACTISING chip) + genuine before-shot recapture
+  (`db9bb2e`) + pre-deploy snapshot (`6621c53`) are shipped.
+- **Next (pre-V41):** the owner-only launch items still gate public launch — the 10 `{{OWNER_FILL}}`
+  legal fields and `VITE_PUBLIC_APP_URL` (11 blockers under `npm run check:launch:strict`). Nothing
+  else is deployable without an owner decision.
+- **C5 gates on `f82ebe5`:** `npm test` **128 files / 1643 tests**, `npm run lint` 0, `npx tsc -p e2e`
+  0, `npm audit --omit=dev` **0 vulnerabilities**, design-audit **within budget**, contrast **all
+  pass** (tightest 4.52:1), simplicity **within budget** (29 screens), verification battery **12/12**,
+  Lighthouse performance **0.87** at 360x640, play-readiness e2e **3/3**.
+- **Deferred notes:** `docs/agent/DEFERRED-NOTES.md` (email OTP, web push, Play Billing, domain
+  switch, Play wrapper — one paragraph each, nothing built).
+- **Live now (pre-V41):** worker `315ec953-d234-481a-93c3-8c493818df5e` (the UI-polish deploy, untouched by
+  the journey session — no `cloudflare-*.js`/`wrangler.toml`/`migrations/` file changed in
+  `349faf0..6621c53`; rollback target `476bac16-eb7c-4cb9-8ccb-72ac35faf208`, older
+  `0a653eca-2224-4114-b1fa-749bb2cb1251`), Pages production `d3165772-4adc-4118-9895-b7e53188b407`
+  from `6621c53`, serving `assets/index-B0IutCpH.js` with the journey polish proven in the shipped
+  lazy chunk `assets/TrailScreen-DtGnRxP-.js` (the new chip label present, 1 occurrence; rollback
+  `43f5985a-5c4e-4820-9efc-0cbcbfd5163b` from `a821b18`, older `67888b41-23ea-4585-a4d2-345b8281119f`).
+  The worker still carries `fe1d504` + `4d05905` and the armed `AI_DAILY_SPEND_CAP="292"`.
+
+- **Current tree (2026-10-07, this session):** `main` at `d082e49`, with V41 (Trail journey order +
+  banner card) modified + `src/lib/content/scenarioOrder.ts` untracked, **committed and undeployed**.
+  **Pages is already live from this tree:** `wrangler pages deployment list` shows the current production
+  deployment as `dbe443f7-e3ff-4e7f-a010-229c994d9d8c` from `d082e49` (git-triggered, 16 h old) — so
+  the V41 UI is already served by Pages; the only remaining production move in this authorization is the
+  **worker deploy**, which DEPLOY.md scopes to "only if worker code changed" and no worker file changed in
+  `d082e49..HEAD`. **Live before this session's deploy touch:** worker `/health` status-only healthy,
+  `/crypto/health` test_mode unchanged, unauth `/admin/api/users` 401, Pages `/` 200.
+
+- **Deployed this session (owner authorized: merge, worker, pages):** `git push origin main` → `46d8de6`
+  on `main` (`origin/main` now == HEAD, `0 0`); git-triggered Pages build became the new production
+  deployment **`5b7eae6e-3214-4cd1-a5fe-a11a2fb4cba2`** from `46d8de6` (Active; previous production
+  deployment `dbe443f7-...` from `d082e49`); worker **`daa9101f-da5a-4f4c-a798-4fd92e28d6f8`**
+  (bindings unchanged: KV ×2, D1, AI, 17 env vars incl. `AI_DAILY_SPEND_CAP="292"` and
+  `MAINTENANCE_MODE="off"`; cron `17 4 * * *` intact). **Live verify after deploy:** worker
+  `/health` `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false}`
+  (shape unchanged), `/crypto/health` unchanged (`test_mode`, `ready:false`, no NOWPayments config),
+  unauth `/admin/api/users` → **401**, Pages `/` → **200**. **Live render (this session, this thread): the
+  production Trail path was opened in a fresh browser and rendered the V41 journey-ordered cards with
+  banners as intended.** `valibjorn-brief.md` + `valibjorn-brief.pdf` left untracked (external read, not
+  part of this deploy). **CI:** run **`37601819662`** for pushed sha `46d8de6` — **success** (9 m 27 s).
+  No production D1 write, no secret read, no owner-only item touched.
