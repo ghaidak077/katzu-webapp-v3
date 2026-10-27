@@ -1,12 +1,13 @@
 import React, { Suspense, useEffect } from 'react';
-import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { LandingScreen } from '@/features/marketing/LandingScreen';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { captureSourceFromSearch, readShareMarkerFromSearch } from '@/lib/attribution/source';
 import { track } from '@/lib/analytics/client';
 import { RouteFallback } from '@/components/common/RouteFallback';
 
 /**
- * The entry: the landing page, and nothing else.
+ * The entry. The marketing landing lives on its own site (website.katzuai.com),
+ * so `/` goes straight into the app: the shell decides between the signed-in
+ * app and the welcome/sign-in front door.
  *
  * A7 split the app shell out of this file. Before the split this module held the
  * whole router, which meant a stranger arriving at `/` paid for the signed-in
@@ -20,12 +21,9 @@ import { RouteFallback } from '@/components/common/RouteFallback';
  * rules are unchanged — only the moment they load is.
  *
  * What stays in the entry on purpose:
- *   - `LandingScreen`: this IS the first paint. Lazily loading it would trade a
- *     smaller bundle for a blank screen and a second round trip on the one page a
- *     visitor has not decided to wait for.
  *   - the two effects below: the channel tag and the share marker are captured
- *     for every route (the landing is where a shared link usually lands), so they
- *     must run from a component that is always mounted.
+ *     for every route (a shared link can land on any path), so they must run
+ *     from a component that is always mounted.
  *   - `titleForPath`: the tab title, pinned by `tests/screenNames.test.ts`.
  */
 const AppShell = React.lazy(() =>
@@ -48,7 +46,7 @@ function AppFrame() {
   const location = useLocation();
 
   // The channel tag is captured on EVERY route change, not once at boot: the
-  // link that brought someone in is often the demo link or the signup link, and
+  // link that brought someone in is often a shared link or the signup link, and
   // a tag that only lives in the address bar is gone by the time they would pay.
   // Pure and total — an invalid or absent tag is simply not stored.
   useEffect(() => {
@@ -76,25 +74,11 @@ function AppFrame() {
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
-        <Route path="/" element={<LandingRoute />} />
-        {/* Everything else — the welcome/sign-in front door, the whole signed-in
-            app and the public trust pages — arrives with the shell chunk. */}
+        {/* `/` included: the welcome/sign-in front door, the whole signed-in app
+            and every other route arrive with the shell chunk. */}
         <Route path="*" element={<AppShell />} />
       </Routes>
     </Suspense>
-  );
-}
-
-function LandingRoute() {
-  const navigate = useNavigate();
-  return (
-    <LandingScreen
-      onStart={() => navigate('/welcome')}
-      onSignIn={() => navigate('/signin')}
-      onContinue={() => navigate('/app/trail')}
-      onOpenTrustPage={(page) => navigate(`/trust/${page}`)}
-      onTryDemo={() => navigate('/demo')}
-    />
   );
 }
 
@@ -109,7 +93,6 @@ export function titleForPath(pathname: string): string {
     '/': 'تعلم الألمانية',
     '/welcome': 'ابدأ رحلتك',
     '/signin': 'تسجيل الدخول',
-    '/demo': 'درس تجريبي',
     '/onboarding': 'التهيئة',
     '/placement': 'اختبار المستوى',
     '/subscription': 'تفعيل الاشتراك',
@@ -130,7 +113,6 @@ export function titleForPath(pathname: string): string {
     '/app/profile': 'بياناتك',
   };
   if (exact[path]) return exact[path];
-  if (path.startsWith('/trust/')) return 'الخصوصية والثقة';
   if (/^\/scenario\/[^/]+\/story$/.test(path)) return 'الموقف';
   if (/^\/scenario\/[^/]+\/practice$/.test(path)) return 'تدريب موجّه';
   if (/^\/scenario\/[^/]+\/study$/.test(path)) return 'جلسة الدراسة';

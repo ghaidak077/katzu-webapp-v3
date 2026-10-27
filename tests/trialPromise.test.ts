@@ -101,7 +101,6 @@ describe('what the learner is told, once the allowance runs out', () => {
 describe('no surface contradicts the Worker', () => {
   /** Every app file that can put a promise in front of a learner. */
   const surfaces = [
-    'src/features/marketing/LandingScreen.tsx',
     'src/features/conversation/useLiveConversation.ts',
     'src/components/sheets/PaywallModal.tsx',
     'src/lib/entitlement/trialCopy.ts',
@@ -122,11 +121,12 @@ describe('no surface contradicts the Worker', () => {
   });
 
   it('takes the allowance from the one constant wherever it is stated', () => {
-    // The landing page states it twice; both must read the constant.
-    const landing = readFileSync('src/features/marketing/LandingScreen.tsx', 'utf8');
-    const stated = (landing.match(/MAX_FREE_SESSIONS_AR/g) || []).length;
-    expect(stated).toBeGreaterThanOrEqual(3); // 1 import + 2 uses
-    expect(code('src/features/marketing/LandingScreen.tsx')).not.toMatch(/[\u0660-\u0669\u06F0-\u06F9]\s*جلسة/);
-    expect(code('src/features/marketing/LandingScreen.tsx')).not.toMatch(/[0-9]+\s*جلسة/);
+    // The landing page that used to state it twice is gone (it lives on
+    // website.katzuai.com now); every remaining surface must still read the
+    // constant rather than hand-typing a numeral.
+    for (const file of surfaces) {
+      expect(code(file), file).not.toMatch(/[\u0660-\u0669\u06F0-\u06F9]\s*جلسة/);
+      expect(code(file), file).not.toMatch(/[0-9]+\s*جلسة/);
+    }
   });
 });

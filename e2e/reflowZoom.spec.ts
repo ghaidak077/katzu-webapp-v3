@@ -42,15 +42,9 @@ test.describe('200 % zoom (320 px reflow)', () => {
 
   test('the public pages reflow without sideways scrolling', async ({ page }) => {
     await mockBackend(page);
-    for (const route of ['/', '/demo', '/welcome', '/trust/privacy']) {
+    for (const route of ['/', '/welcome']) {
       await page.goto(route);
-      if (route === '/trust/privacy') {
-        // The trust pages are static HTML and never mount the SPA, so there is
-        // no `#root` to poll. Assert the document a crawler actually receives.
-        await expect(page.locator('main h1')).toBeVisible();
-      } else {
-        await expect(page.locator('#root')).not.toBeEmpty({ timeout: 30_000 });
-      }
+      await expect(page.locator('#root')).not.toBeEmpty({ timeout: 30_000 });
       await expectNoSidewaysScroll(page, route);
     }
   });

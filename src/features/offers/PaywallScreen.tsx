@@ -4,6 +4,7 @@ import { ShieldCheck } from 'lucide-react';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { track } from '@/lib/analytics/client';
+import { legalPageUrl } from '@/lib/utils/links';
 import { haptic } from '@/lib/utils/haptics';
 import { SubscriptionRedemptionScreen } from '@/features/auth/SubscriptionRedemptionScreen';
 import {
@@ -249,7 +250,7 @@ export const PaywallScreen: React.FC = () => {
           {isOwnerFilled(REFUND_TEXT) ? null : (
             <button
               type="button"
-              onClick={() => navigate('/trust/contact')}
+              onClick={() => window.open(legalPageUrl('contact'), '_blank', 'noopener,noreferrer')}
               className="mt-2 flex min-h-touch items-center font-arabic text-micro text-kz-lavender underline underline-offset-4"
             >
               اسألنا عن سياسة الاسترداد قبل أن تدفع

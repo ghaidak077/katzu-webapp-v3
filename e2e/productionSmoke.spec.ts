@@ -130,47 +130,10 @@ test.describe('production smoke (read-only)', () => {
     test.skip(PRODUCTION, 'preview-only: the live /pricing cannot be made to fail from here');
     await bootSignedIn(page, { pricing: null });
 
-    await page.goto('/');
-    await expect(page.getByTestId('landing-price')).not.toContainText(/\d/);
+    // The landing page that used to show the price is gone (the marketing site
+    // is separate now); the paywall must still refuse to invent one.
     await page.goto('/paywall');
     await expect(page.getByTestId('price-pass90')).toHaveCount(0);
-  });
-
-  test('the public demo completes one real turn on the live origin', async ({ page }) => {
-    // Production only: the preview run's demo is served by the mocked worker, and
-    // that is already covered by `demo.spec.ts`. What is only knowable here is
-    // whether the live worker still answers an anonymous visitor at all — keys,
-    // fallback model and rate limits included.
-    test.skip(!PRODUCTION, 'production-only: needs the live worker to answer the demo turn');
-
-    await page.goto('/demo');
-    const start = page.getByRole('button', { name: 'ابدأ الدرس التجريبي' });
-    await expect(start).toBeVisible({ timeout: 30_000 });
-    await start.click();
-
-    // Study: whatever the lesson's line count is, tap through what is on screen.
-    const understood = page.getByRole('button', { name: /فهمتها/ });
-    for (let step = 0; step < 4; step++) {
-      if (!(await understood.count())) break;
-      await understood.first().click();
-    }
-
-    // Quiz: any option advances; the last question leads to the writing step.
-    for (let question = 0; question < 3; question++) {
-      if (!(await page.getByText('ما معنى هذه الجملة بالألمانية؟').count())) break;
-      await page.locator('button[class*="p-3.5"]').first().click();
-      await page.getByRole('button', { name: /السؤال التالي|إلى التحدث/ }).click();
-    }
-
-    // The turn itself: the visitor's own German, answered by the live model.
-    const input = page.getByLabel('جملتك بالألمانية');
-    await expect(input).toBeVisible({ timeout: 30_000 });
-    await input.fill('Ich möchte ein Brot bitte');
-    await page.getByRole('button', { name: 'تحقّق من جملتي' }).click();
-
-    // Done means the worker answered: the corrected form comes from the AI reply.
-    await expect(page.getByText('أكملت درسك الأول')).toBeVisible({ timeout: 45_000 });
-    await expect(page.getByText('الصيغة الصحيحة:')).toBeVisible();
   });
 
   test('the admin orders route refuses an unauthenticated caller', async ({ page, request }) => {

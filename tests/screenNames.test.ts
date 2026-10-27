@@ -15,7 +15,6 @@ const DECLARED_ROUTES = [
   '/',
   '/welcome',
   '/signin',
-  '/demo',
   '/onboarding',
   '/subscription',
   '/paywall',

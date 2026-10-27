@@ -44,7 +44,6 @@ Re-check the four "volatile" sections — routes, endpoints, tables, deploy ids 
   entitlements, quotas, identity and sync; never claim mastery from a hint or one answer; every
   failure is visible, in Arabic, keeps the learner's input, and offers a next action.
 - **Language of the product:** UI Arabic, target language German, code/docs English.
-- **Demo:** `/demo` needs no account and makes **no AI call**.
 - **Monetization:** free tier (3 AI sessions), Pro via activation codes (server-verified) and a
   separate payments site; **payments are in test mode** and carry no real money.
 - **Priority order for every decision** (from `docs/agent/QUALITY.md`):
@@ -172,15 +171,13 @@ The canonical, machine-checked route list is §14 (`appmap-routes`); this sectio
 ### Public / pre-auth
 | Route | Screen (file) | What it is |
 |---|---|---|
-| `/` | LandingRoute → `marketing/LandingScreen.tsx` | Arabic landing/pitch; states the free quota «٣ جلسات محادثة مجانية» |
+| `/` | `App.tsx` entry → `AppShell.tsx` | The shell decides: signed-in → `/app/trail`, returning visitor → `/signin`, first visit → `/welcome`. The marketing landing moved to the separate site (website.katzuai.com) |
 | `/welcome` | `auth/WelcomeScreen.tsx` | First-run greeting; name field carries privacy microcopy |
 | `/signin` | `auth/SignInRoute` → `auth/SignInScreen.tsx` | **Google-only** sign-in; level picker A0–B2 (A0 = «تقدير أولي، سنضبطه بالمحادثة») |
-| `/demo` | `demo/DemoScreen.tsx` | 4-step public demo, **no account, no AI call**; completion names the real scenario and shows the next-day line |
 | `/onboarding` | `onboarding/OnboardingScreen.tsx` | Intent/goal capture after signup |
 | `/subscription` | `auth/SubscriptionRedemptionScreen.tsx` | Pro offer + activation-code redemption |
 | `/placement` | `placement/PlacementScreen.tsx` | Placement test → level |
-| `/trust/:page` | `settings/TrustInfoScreen.tsx` | Trust pages: `privacy`, `terms`, `imprint`, `refund` (own lazy chunk) |
-| Public static pages | `src/lib/seo/publicPages.ts` generator | Prerendered `/how-it-works`, `/who-its-for`, `/compare`, `/use-cases/moving-to-germany`, `/faq`, `/pricing`, `/about`, their `/en/*` twins and `/trust/*`; `/app/*` stays the SPA |
+| Marketing & trust pages | (removed from the app) | Landing, topic pages, `/en/*` and `/trust/*` live on https://website.katzuai.com; old URLs `301` there via `public/_redirects`. `/demo` (removed) `301`s to `/welcome`. A static `public/404.html` answers unknown paths |
 
 ### Learner loop (`/app/*` and `/scenario/*`)
 | Route | Screen | What it is |
@@ -218,7 +215,7 @@ The canonical, machine-checked route list is §14 (`appmap-routes`); this sectio
 | Feature | Entry | Logic |
 |---|---|---|
 | Auth (Google ID token) | `/signin` | `features/auth`, verified server-side against `GOOGLE_CLIENT_ID` |
-| Public demo | `/demo` | `lib/demo/demoFlow.ts` (+ `migration.ts`) |
+| Legacy demo migration | `/signin` | `lib/demo/migration.ts` folds pre-signup demo state into the account (`demoFlow.ts` only supplies the legacy state shape; the demo lesson itself was removed) |
 | Daily mission selection | Trail | `lib/mission/selectMission.ts`, `lib/utils/dailyMission.ts`, `checkIn.ts` |
 | Journey/story context | Story→Live | `lib/journey/{story,practice,context,brief}.ts` |
 | Live AI conversation | `/scenario/:id/live` | `useLiveConversation.ts`, `ConversationTranscript.tsx`, `ConversationDock.tsx`, `lib/conversation/*` |
@@ -240,7 +237,7 @@ The canonical, machine-checked route list is §14 (`appmap-routes`); this sectio
 | Diagnostics / crash capture | global | `lib/utils/diagnostics.ts` → `/client-error` → `error_reports` |
 | Payments (codes only in app) | `/subscription` | `lib/entitlement/trial.ts`, `lib/utils/subscription.ts`; server `/verify` |
 | Crypto sales site | `sales/` | `cloudflare-crypto.js` (NOWPayments, **test mode**) |
-| Trust/legal pages | `/trust/:page` | `settings/TrustInfoScreen.tsx`, `public/*.html` |
+| Trust/legal pages | external | Content source `src/lib/trust/content.ts` (the `check:launch` gate); rendered on https://website.katzuai.com/trust/* |
 | Renderer tier (perf) | global | `lib/design/rendererTier.ts` → `.kz-lite`; detects saveData/reduced-motion/cores |
 | Haptics + feedback motion | global | `lib/utils/haptics.ts` — one semantic API (`tap`/`select`/`success`/`warning`/`error`; Capacitor bridge → `navigator.vibrate` → silent); Settings switch `hapticsEnabled` (absent = ON) + `prefers-reduced-motion` both gate it. `.kz-pop` / `.kz-shake` / `.kz-flip-in` / `.kz-orb-listening` in `src/index.css`, every one neutralised under reduced motion with the state still visible. Silent on iPhone — see §10 |
 | Page title per route | global | `titleForPath()` in `src/App.tsx` — sets `document.title` on every navigation (V36); 19 declared routes named, no two collide |
@@ -493,7 +490,6 @@ the same thing. **Update the block in the same commit as any route/screen/endpoi
 `:name`); endpoint rows ending in `/*` are the `startsWith` branches.
 
 ```appmap-routes
-/
 *
 /app
 /app/:tab
@@ -504,7 +500,6 @@ the same thing. **Update the block in the same commit as any route/screen/endpoi
 /app/listen
 /app/review
 /app/write
-/demo
 /dev/system
 /main
 /main/:tab
@@ -522,7 +517,6 @@ the same thing. **Update the block in the same commit as any route/screen/endpoi
 /paywall
 /signin
 /subscription
-/trust/:page
 /welcome
 ```
 
@@ -533,14 +527,12 @@ src/features/auth/SubscriptionRedemptionScreen.tsx
 src/features/auth/WelcomeScreen.tsx
 src/features/coach/CoachScreen.tsx
 src/features/conversation/LiveConversationScreen.tsx
-src/features/demo/DemoScreen.tsx
 src/features/dev/DesignSystemScreen.tsx
 src/features/grammar/GrammarSectionScreen.tsx
 src/features/journey/GuidedPracticeScreen.tsx
 src/features/journey/JourneyHomeScreen.tsx
 src/features/journey/StorySetupScreen.tsx
 src/features/listening/ListeningScreen.tsx
-src/features/marketing/LandingScreen.tsx
 src/features/mockexam/MockExamScreen.tsx
 src/features/onboarding/OnboardingScreen.tsx
 src/features/offers/PaywallScreen.tsx
@@ -552,7 +544,6 @@ src/features/report/SessionReportScreen.tsx
 src/features/review/ReviewScreen.tsx
 src/features/settings/DeletionRequestScreen.tsx
 src/features/settings/ProfileSettingsScreen.tsx
-src/features/settings/TrustInfoScreen.tsx
 src/features/study/ScenarioDetailScreen.tsx
 src/features/study/StudyScreen.tsx
 src/features/trail/TrailScreen.tsx

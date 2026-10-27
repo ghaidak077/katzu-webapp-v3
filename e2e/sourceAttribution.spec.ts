@@ -10,15 +10,16 @@ import { bootSignedIn } from './harness';
  * the tag again.
  */
 test.describe('where the learner came from', () => {
-  test('a tagged link survives demo → signup → the sales page', async ({ page }) => {
-    // The demo is the link an owner actually shares, and it needs no account.
-    await page.goto('/demo?src=reel');
+  test('a tagged link survives welcome → signup → the sales page', async ({ page }) => {
+    // The welcome screen is the link an owner actually shares now that the demo
+    // lesson is gone, and it needs no account.
+    await page.goto('/welcome?src=reel');
 
     // Sign-up is a real navigation: the address bar loses `?src=` on the way.
     await page.goto('/signin');
     expect(page.url()).not.toContain('src=');
 
-    // The tag was captured at the demo and is still held.
+    // The tag was captured on the welcome screen and is still held.
     const held = await page.evaluate(() => window.localStorage.getItem('katzu_source_v1'));
     expect(held).toBe('reel');
 

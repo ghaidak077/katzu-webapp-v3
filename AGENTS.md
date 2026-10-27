@@ -106,9 +106,10 @@ security. Git credentials are platform-managed; never ask for a token.
 - **A file deliverable comes from the repo's rig, never from the browser tool.** Screenshots,
   images, PDFs, exports: `e2e/shots/*Shots.spec.ts` plus its `*.playwright.config.ts` already do
   this — start the server, sign in through `e2e/harness.ts`, `page.screenshot({ path })` onto a
-  tracked folder. Today: `uiPolishShots`, `journeyPolishShots`, `marketingShots`
-  (`npx playwright test -c e2e/marketingShots.playwright.config.ts`) and
-  `scripts/capture-admin-screenshots.mjs`. Search before inventing (`grep -rl "screenshot({ path" e2e scripts`).
+  tracked folder. Today: `uiPolishShots`, `journeyPolishShots`,
+  and `scripts/capture-admin-screenshots.mjs` (the `marketingShots` rig left with the in-app
+  marketing pages on 2026-10-27; the marketing site is the static `website/` folder now). Search
+  before inventing (`grep -rl "screenshot({ path" e2e scripts`).
   `preview_screenshot` renders for the eye and **never writes a file** — an hour and ~90 captures
   produced zero files on 2026-10-15 (`docs/agent/AUDIT-AGENT-BLOAT-2026-10-15.md`). Never run
   `playwright install *`: chromium is already cached (ENV-FACTS §C).

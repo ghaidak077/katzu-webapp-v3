@@ -34,15 +34,16 @@ export function publicAppUrl(): string {
   return '';
 }
 
-/** Absolute URL of a public route, for shares, canonical tags and sitemaps. */
-export function publicAppUrlFor(path = '/'): string {
-  const origin = publicAppUrl();
-  const normalized = path.startsWith('/') ? path : `/${path}`;
-  return origin ? `${origin}${normalized}` : normalized;
-}
+/**
+ * The marketing/trust site: a separate Cloudflare Pages property of its own.
+ * The app no longer renders any public page — the landing, the topic pages and
+ * the trust pages all live here, so legal links point at this origin.
+ */
+export const SITE_URL = 'https://website.katzuai.com';
 
+/** Absolute URL of a trust (legal) page on the site — they moved off the app. */
 export function legalPageUrl(page: 'privacy' | 'terms' | 'contact'): string {
-  return publicAppUrlFor(`/trust/${page}`);
+  return `${SITE_URL}/trust/${page}`;
 }
 
 /**

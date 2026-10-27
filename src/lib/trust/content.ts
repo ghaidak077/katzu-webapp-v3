@@ -99,7 +99,7 @@ export interface TrustContent {
 }
 
 /** The published version label, so a change is visible without a git log. */
-export const TRUST_VERSION = '2026-10-05';
+export const TRUST_VERSION = '2026-10-27';
 
 export const TRUST_CONTENT: Record<TrustPage, TrustContent> = {
   privacy: {
@@ -126,7 +126,7 @@ export const TRUST_CONTENT: Record<TrustPage, TrustContent> = {
       { id: 'mock', headingAr: 'المحاكاة', bodyAr: 'محاكاة تدريب على نمط امتحان B1: تقدير تدريبي تحسبه من جُلك أنت، وليس درجة رسمية ولا وعداً بالنجاح.' },
       { id: 'fairuse', headingAr: 'الاستخدام العادل', bodyAr: 'الحدود الظاهرة داخل التطبيق سارية، ويسري على الحصة المجانية والمدفوعة على حدٍّ سواء. لا نبيع خدمة بلا حدود، ونوضّح أي حد قبل أن تصل إليه.' },
       { id: 'payments', headingAr: 'الدفع والتفعيل', bodyAr: 'الشراء يتم عبر أكواد تفعيل تُشترى من صفحة البيع الرسمية، والتفعيل يتم داخل التطبيق فقط. لا تُدخل بيانات بطاقتك داخل التطبيق.' },
-      { id: 'refund', headingAr: 'الاسترداد', bodyAr: `${OWNER_FILL}` },
+      { id: 'refund', headingAr: 'الاسترداد', bodyAr: 'يُرجع المبلغ كاملاً خلال أول 7 أيام من الاشتراك؛ وبعد ذلك لا تُسترد المبالغ المدفوعة. التفاصيل في صفحة الاسترداد.' },
       { id: 'law', headingAr: 'القانون المعمول به', bodyAr: `${OWNER_FILL}` },
     ],
   },
@@ -134,9 +134,16 @@ export const TRUST_CONTENT: Record<TrustPage, TrustContent> = {
     titleAr: 'سياسة الاسترداد',
     updatedAr: `آخر تحديث: ${TRUST_VERSION}`,
     sections: [
-      { id: 'what', headingAr: 'ماذا يمكن استرداده', bodyAr: `${OWNER_FILL}` },
+      // The refund policy itself is the OWNER's own published wording — it is
+      // live on the marketing site (website.katzuai.com/pricing and its FAQ):
+      // «استرداد كامل خلال أول 7 أيام من الاشتراك» and «بعد ذلك لا تُسترد
+      // المبالغ المدفوعة». These two fields transcribe that published statement
+      // verbatim-ish (2026-10-27); they are NOT invented here. The HOW and the
+      // channel stay: how is still the owner's to write, the channel is provable
+      // from the code (the purchase happens on the official sales page).
+      { id: 'what', headingAr: 'ماذا يمكن استرداده', bodyAr: 'مبلغ اشتراكك كاملاً، إن لم يناسبك كاتزو.' },
       { id: 'how', headingAr: 'كيف تطلب الاسترداد', bodyAr: `${OWNER_FILL}` },
-      { id: 'window', headingAr: 'المدة', bodyAr: `${OWNER_FILL}` },
+      { id: 'window', headingAr: 'المدة', bodyAr: 'خلال أول 7 أيام من تاريخ اشتراكك — استرداد كامل. بعد أول 7 أيام لا تُسترد المبالغ المدفوعة.' },
       { id: 'channel', headingAr: 'القناة', bodyAr: 'الشراء من صفحة البيع الرسمية، والطلب يتم بالبريد الذي اشتريت منه مع رقم الكود.' },
     ],
   },

@@ -132,35 +132,6 @@ describe('the Trail placeholder line is gone', () => {
   });
 });
 
-describe('the reading skill is honest and has no dead tap target', () => {
-  const LANDING = readFileSync('src/features/marketing/LandingScreen.tsx', 'utf8');
-
-  it('labels an unfinished skill «قريباً» rather than shipping it', () => {
-    expect(LANDING).toMatch(/'متاح الآن' : 'قريباً'/);
-  });
-
-  it('does not make the coming-soon card look tappable', () => {
-    // The card is a `<div>`, not a `<button>`: a control that looks pressable
-    // and does nothing is worse than an honest static label. The section that
-    // follows it is a plain section for the same reason.
-    const section = LANDING.slice(
-      LANDING.indexOf('function SkillsSection'),
-      LANDING.indexOf('</section>', LANDING.indexOf('function SkillsSection')),
-    );
-    const card = section.slice(section.indexOf('{SKILLS.map'));
-    expect(card).toMatch(/<div key=\{label\}/);
-    expect(card).not.toMatch(/<button/);
-    expect(card).not.toMatch(/onClick/);
-    expect(card).not.toMatch(/cursor-pointer/);
-  });
-
-  it('explains the coming-soon work instead of teasing it', () => {
-    // «نُطلقها فقط عندما تكون جاهزة وقابلة للقياس» — the promise is a condition,
-    // not a date, which is the only honest shape for this one.
-    expect(LANDING).toMatch(/نُطلقها فقط عندما تكون جاهزة وقابلة للقياس/);
-  });
-});
-
 describe('the operator cap is configured, and a free session counts against it', () => {
   const CONFIG = readFileSync('wrangler.toml', 'utf8');
   const WORKER = readFileSync('cloudflare-unified-worker.js', 'utf8');

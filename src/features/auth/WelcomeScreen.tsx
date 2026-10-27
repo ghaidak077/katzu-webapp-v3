@@ -12,11 +12,9 @@ const DEFAULT_DISPLAY_NAME = 'متعلم';
 
 export interface WelcomeScreenProps {
   onGoToSignIn: (mode?: 'signin' | 'signup') => void;
-  /** Public demo: a real lesson without creating an account. */
-  onTryDemo?: () => void;
 }
 
-export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTryDemo }) => {
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn }) => {
   const [name, setName] = useState('');
 
   // A3: the front door asks once. The minutes/days/level sheet that used to open
@@ -92,18 +90,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn, onTr
             <span className="text-micro font-arabic text-text-muted">أو المتابعة السريعة</span>
             <div className="h-[1px] bg-border-subtle flex-1" />
           </div>
-
-          {onTryDemo && (
-            <Button
-              type="button"
-              size="lg"
-              variant="outline"
-              className="w-full min-h-[44px]"
-              onClick={onTryDemo}
-            >
-              جرّب درساً كاملاً بدون حساب
-            </Button>
-          )}
 
           <GoogleSignInButton onClick={() => onGoToSignIn('signup')} />
         </form>

@@ -112,7 +112,7 @@ describe('install icons are opaque and self-consistent', () => {
   );
 
   it('ships an opaque 180x180 apple-touch-icon for iOS', () => {
-    const png = decodePng(new URL('assets/mascot/katzu_apple_180.png', PUBLIC));
+    const png = decodePng(new URL('assets/logo/apple-touch-icon.png', PUBLIC));
     expect(png.width).toBe(180);
     expect(png.height).toBe(180);
     expect(minAlpha(png)).toBe(255);

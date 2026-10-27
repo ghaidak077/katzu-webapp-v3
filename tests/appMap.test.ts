@@ -2,7 +2,6 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { sitemapXml } from '../src/lib/seo/publicPages';
 
 /**
  * APP-MAP.md is load-bearing (`AGENTS.md` §12): the next run — possibly a weaker
@@ -200,10 +199,11 @@ describe('the guard itself is real (not a vacuous pass)', () => {
  *
  * `robots.txt` and `sitemap.xml` used to be checked-in files holding
  * `https://katzu.app`, a host that does not resolve, and the sitemap listed
- * `/privacy` and `/terms` — routes the app does not have. Both are now generated
- * from `VITE_PUBLIC_APP_URL` by a build plugin. This test is the gate that stops
- * a literal creeping back into the bundle, where it would advertise a dead
- * domain to every crawler and share card.
+ * `/privacy` and `/terms` — routes the app does not have. The marketing pages
+ * they advertised have moved to the separate site entirely, so the app ships
+ * neither a static copy nor a generator for them. This test is the gate that
+ * stops a literal creeping back into the bundle, where it would advertise a
+ * dead domain to every crawler and share card.
  *
  * Comments and doc prose are excluded: naming the domain in a comment is how this
  * bug gets *explained*, and `guest@katzu.app` is an email, not a URL.
@@ -234,16 +234,15 @@ describe('no hardcoded production hostname ships', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('generates robots.txt and sitemap.xml instead of shipping static copies', () => {
-    // A checked-in copy is what drifted; if one reappears the generator is bypassed.
+  it('ships no static robots.txt or sitemap.xml, and old URLs redirect instead', () => {
+    // A checked-in copy is what drifted; neither file exists in any form now.
     for (const name of ['robots.txt', 'sitemap.xml']) {
       expect(() => readFileSync(join(root, 'public', name), 'utf8')).toThrow();
     }
-    const config = readFileSync(join(root, 'vite.config.ts'), 'utf8');
-    expect(config).toContain('katzu-public-origin-files');
-    // The routes the sitemap advertises must actually exist as /trust/* routes.
-    const sitemap = sitemapXml('https://katzu.example');
-    expect(sitemap).toContain('<loc>https://katzu.example/trust/privacy</loc>');
-    expect(sitemap).not.toContain('<loc>https://katzu.example/privacy</loc>');
+    // The topic and trust pages the old sitemap advertised live on the separate
+    // site; the app answers those URLs with redirects, not with content.
+    const redirects = readFileSync(join(root, 'public', '_redirects'), 'utf8');
+    expect(redirects).toContain('https://website.katzuai.com/trust/privacy');
+    expect(redirects).toContain('https://website.katzuai.com/faq');
   });
 });

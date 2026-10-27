@@ -1,14 +1,28 @@
-﻿# Legacy legal URLs. The canonical trust pages are the generated /trust/* pages.
-/privacy /trust/privacy 301
-/privacy/ /trust/privacy 301
-/terms /trust/terms 301
-/terms/ /trust/terms 301
+# The website moved. The landing page, the topic pages, the trust pages and the
+# English pages all live on the separate site now, so every old URL is answered
+# with a redirect there instead of a dead end.
+/trust/* https://website.katzuai.com/trust/:splat 301
+/privacy https://website.katzuai.com/trust/privacy 301
+/privacy/ https://website.katzuai.com/trust/privacy 301
+/terms https://website.katzuai.com/trust/terms 301
+/terms/ https://website.katzuai.com/trust/terms 301
+/how-it-works https://website.katzuai.com/how-it-works 301
+/who-its-for https://website.katzuai.com/who-its-for 301
+/compare https://website.katzuai.com/compare 301
+/use-cases/* https://website.katzuai.com/use-cases/:splat 301
+/faq https://website.katzuai.com/faq 301
+/pricing https://website.katzuai.com/pricing 301
+/about https://website.katzuai.com/about 301
+/en/* https://website.katzuai.com/en/:splat 301
+/en https://website.katzuai.com/en 301
 
-# SPA routes. Generating 404.html makes Cloudflare Pages serve it for every
-# unmatched path, which would break React Router deep links. Rewrite the real
-# client-side routes to the shell first; the generated public pages above are
-# static files and are deliberately not listed here, so an unknown public path
-# still reaches 404.html.
+# The demo lesson was removed from the app: the free front door is /welcome.
+/demo /welcome 301
+
+# SPA routes. A static 404.html makes Cloudflare Pages answer every unmatched
+# path with it, which would break React Router deep links — so the real
+# client-side routes are rewritten to the shell first. The redirects above are
+# deliberately listed before these, so an old public URL never reaches the SPA.
 /app / 200
 /app/* / 200
 /main / 200
@@ -16,7 +30,6 @@
 /scenario/* / 200
 /welcome / 200
 /signin / 200
-/demo / 200
 /onboarding / 200
 /subscription / 200
 /paywall / 200

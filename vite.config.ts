@@ -2,12 +2,6 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
-import {
-  buildPublicArtifacts,
-  renderLandingRoot,
-  withEntityStructuredData,
-  withHreflang,
-} from './src/lib/seo/publicPages';
 
 /**
  * Exported so a test can pin the offline contract: the generated sw.js must
@@ -60,19 +54,19 @@ export const pwaOptions = {
     // 40%-radius safe zone so a squircle mask never clips it.
     icons: [
       {
-        src: 'assets/mascot/katzu_icon_192.png',
+        src: 'assets/logo/logo-192.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any'
       },
       {
-        src: 'assets/mascot/katzu_icon_512.png',
+        src: 'assets/logo/logo-512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any'
       },
       {
-        src: 'assets/mascot/katzu_icon_maskable_512.png',
+        src: 'assets/logo/logo-maskable-512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable'
@@ -86,13 +80,13 @@ export const pwaOptions = {
         name: 'محاكاة B1 مجانية',
         short_name: 'محاكاة',
         url: '/mock',
-        icons: [{ src: 'assets/mascot/katzu_icon_192.png', sizes: '192x192', type: 'image/png' }]
+        icons: [{ src: 'assets/logo/logo-192.png', sizes: '192x192', type: 'image/png' }]
       },
       {
         name: 'المهمة اليومية',
         short_name: 'المهمة',
         url: '/app/trail',
-        icons: [{ src: 'assets/mascot/katzu_icon_192.png', sizes: '192x192', type: 'image/png' }]
+        icons: [{ src: 'assets/logo/logo-192.png', sizes: '192x192', type: 'image/png' }]
       }
     ]
   },
@@ -124,6 +118,22 @@ export const pwaOptions = {
     // moment a learner on a train needs it. The worker API is a different origin
     // and is never a navigation, so it is unaffected by this rule.
     navigateFallback: 'index.html',
+    // The public pages moved to the marketing site and `public/_redirects`
+    // answers each old URL with a 301. A navigation fallback would win first —
+    // the worker answers every in-scope navigation from the precached shell —
+    // so an installed PWA would keep showing the app on a URL that no longer
+    // exists and the redirect would never run. These pathnames are the exact
+    // set of the redirect rules; every real app route stays served offline.
+    navigateFallbackDenylist: [
+      /^\/(?:faq|pricing|compare|about|how-it-works|who-its-for|demo|privacy|terms)(?:\/|$)/,
+      /^\/trust(?:\/|$)/,
+      /^\/en(?:\/|$)/,
+      /^\/use-cases(?:\/|$)/
+    ],
+    // The cache generation. Bumping it is what retires the store written by the
+    // previous policy; `cleanupOutdatedCaches` then deletes the old
+    // `*-precache-*` caches instead of leaving them on the device.
+    cacheId: 'katzu-app-v2',
     runtimeCaching: [
       {
         urlPattern: /^https:\/\/.*\.workers\.dev\/(scenarios|vocabulary|grammar)/,
@@ -281,26 +291,6 @@ export function withStructuredData(html: string, origin: string): string {
 }
 
 /**
- * Put the Arabic landing page inside `#root` at build time.
- *
- * The React app still mounts over it (`createRoot(...).render` replaces the
- * children), so this is not an SSR island or a second router. It exists because
- * a crawler that does not execute JavaScript must still see one real h1, the
- * product's audience, levels, languages, platform and price model. Exported so
- * the prerender contract can be tested without running a build.
- */
-export function withLandingRoot(html: string, origin: string): string {
-  if (!/<div id="root">/.test(html)) return html;
-  const landing = renderLandingRoot(origin);
-  // Anchor on the body close, not on a module script: Vite can move the entry
-  // into <head>, and an earlier regex silently matched nothing when it did.
-  return html.replace(
-    /<div id="root">[\s\S]*?<\/div>\s*(?=<\/body>)/,
-    `<div id="root">${landing}</div>\n    `,
-  );
-}
-
-/**
  * A8: the variables a Play build must have, as a pure function of the env.
  *
  * A Play/TWA build that ships without any one of these is worse than a build that
@@ -331,30 +321,16 @@ function publicOriginFiles(env: Record<string, string | undefined>): Plugin {
   return {
     name: 'katzu-public-origin-files',
     transformIndexHtml(html) {
-      // Same origin as robots/sitemap: one env var decides every public URL.
-      // The order matters: `withStructuredData` adds the first JSON-LD block,
-      // and `withEntityStructuredData` must run after it so the two do not
-      // compete for the same guard. The landing is written into `#root` last.
-      const withHead = withEntityStructuredData(
-        withHreflang(
-          withStructuredData(
-            withCanonicalUrl(withAbsoluteOgUrl(absoluteOgImages(html, origin), origin), origin),
-            origin,
-          ),
-          origin,
-        ),
+      // The marketing landing, the topic pages and the trust pages no longer
+      // live on this origin (they moved to website.katzuai.com), so the shell
+      // only gets the app's own canonical/og URLs and its WebSite JSON-LD —
+      // no landing body in `#root`, no hreflang to pages that are gone.
+      return withStructuredData(
+        withCanonicalUrl(withAbsoluteOgUrl(absoluteOgImages(html, origin), origin), origin),
         origin,
       );
-      return withLandingRoot(withHead, origin);
     },
     generateBundle() {
-      // Public pages, sitemap, robots, llms.txt/llms-full.txt and 404.html are
-      // generated from the same content module, so their titles, canonicals and
-      // lastmod dates cannot drift from the copy the reader sees.
-      for (const [fileName, source] of Object.entries(buildPublicArtifacts(origin))) {
-        this.emitFile({ type: 'asset', fileName, source });
-      }
-
       // C4: Digital Asset Links. Android refuses to hand a web app's real
       // identity (and any Play-distributed build) to the browser until this file
       // proves the signing certificate is the one Play signs with — so a TWA or a

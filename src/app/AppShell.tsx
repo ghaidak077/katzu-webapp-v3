@@ -98,9 +98,6 @@ const CoachScreen = React.lazy(() =>
 const AskKatzuScreen = React.lazy(() =>
   import('@/features/ask/AskKatzuScreen').then((m) => ({ default: m.AskKatzuScreen })),
 );
-const DemoScreen = React.lazy(() =>
-  import('@/features/demo/DemoScreen').then((m) => ({ default: m.DemoScreen })),
-);
 const OnboardingScreen = React.lazy(() =>
   import('@/features/onboarding/OnboardingScreen').then((m) => ({ default: m.OnboardingScreen })),
 );
@@ -113,11 +110,6 @@ const StorySetupScreen = React.lazy(() =>
 );
 const GuidedPracticeScreen = React.lazy(() =>
   import('@/features/journey/GuidedPracticeScreen').then((m) => ({ default: m.GuidedPracticeScreen })),
-);
-// The privacy policy / terms pages are public but are not part of any first
-// paint: a visitor reads them from the footer, not from the landing hero.
-const TrustInfoScreen = React.lazy(() =>
-  import('@/features/settings/TrustInfoScreen').then((m) => ({ default: m.TrustInfoScreen })),
 );
 // Development-only design-system page; never registered in a production build.
 const DesignSystemScreen = isDevBuild
@@ -288,22 +280,10 @@ export function AppShell() {
               element={
                 <WelcomeScreen
                   onGoToSignIn={(mode) => navigate(`/signin${mode === 'signup' ? '?mode=signup' : ''}`)}
-                  onTryDemo={() => navigate('/demo')}
                 />
               }
             />
             <Route path="/signin" element={<SignInRoute />} />
-            {/* Public demo: one real learning turn before any account exists. */}
-            <Route
-              path="/demo"
-              element={
-                <DemoScreen
-                  onHome={() => navigate('/')}
-                  onSignUp={() => navigate('/signin?mode=signup')}
-                  onStartPlacement={() => navigate('/signin?mode=signup&returnTo=%2Fplacement')}
-                />
-              }
-            />
             <Route path="/onboarding" element={<OnboardingRoute />} />
             <Route path="/subscription" element={<SubscriptionRoute />} />
             {/* B4: the priced offer. Every number comes from `/pricing`. */}
@@ -346,10 +326,26 @@ export function AppShell() {
               navigate('/session-report');
             }} />} />
             <Route path="/session-report" element={<ReportRoute summary={sessionSummary} onLoadSummary={setSessionSummary} />} />
-            <Route path="/trust/:page" element={<TrustRoute />} />
             {/* C1: erasure that does not depend on still holding a session. */}
             <Route path="/delete-account" element={<DeletionRequestScreen />} />
-            <Route path="*" element={<Navigate to={isAuthenticated ? '/app/trail' : '/'} replace />} />
+            {/* `/` used to be the marketing landing page; that now lives on the
+                separate site, so an unknown route (including `/`) goes straight
+                into the app, or to the front door when signed out. */}
+            <Route
+              path="*"
+              element={
+                <Navigate
+                  to={
+                    isAuthenticated
+                      ? '/app/trail'
+                      : localStorage.getItem('katzu_onboarding_completed')
+                        ? '/signin'
+                        : '/welcome'
+                  }
+                  replace
+                />
+              }
+            />
           </Routes>
         </Suspense>
       </main>
@@ -358,10 +354,11 @@ export function AppShell() {
 }
 
 export function isPublicPath(pathname: string) {
-  // `/` is the public landing page (rendered by the entry, not here), `/trust/*`
-  // holds the privacy policy and terms — a visitor must be able to read those
-  // before creating an account — and `/demo` is the value-before-signup lesson,
-  // which by definition cannot require an account.
+  // `/` is the entry and is public so the shell itself decides where a visitor
+  // goes (app, sign-in or welcome) instead of bouncing them back to `/`. The
+  // marketing/trust pages and the demo lesson used to be listed here; they now
+  // live on website.katzuai.com and old URLs are redirected there by
+  // `public/_redirects`, so the SPA never sees them.
   //
   // `/delete-account` is here for the same reason the page exists: the seed gives
   // EVERY first-time visitor a `current_user` row with `isLoggedIn: false`, so the
@@ -374,24 +371,8 @@ export function isPublicPath(pathname: string) {
     pathname === '/' ||
     pathname === '/welcome' ||
     pathname === '/signin' ||
-    pathname === '/demo' ||
-    pathname === '/delete-account' ||
-    pathname.startsWith('/trust')
+    pathname === '/delete-account'
   );
-}
-
-function TrustRoute() {
-  const navigate = useNavigate();
-  const { page } = useParams();
-  const user = useLiveQuery(() => db.users.get('current_user'));
-  const selected =
-    page === 'terms' || page === 'contact' || page === 'imprint' || page === 'refund'
-      ? page
-      : 'privacy';
-  // These pages are public, so "back" must not send a signed-out visitor into a
-  // protected route — that would bounce them straight to the sign-in screen.
-  const backTo = user?.isLoggedIn ? '/app/profile' : '/';
-  return <TrustInfoScreen page={selected} onBack={() => navigate(backTo)} />;
 }
 
 function SignInRoute() {

@@ -69,12 +69,6 @@ describe('reduced motion covers overlays and decoration', () => {
     expect(css).toMatch(/\.kz-primary,[\s\S]{0,240}?\.kz-scrim \{/);
   });
 
-  it('the FAQ disclosure glyph no longer animates its transform', () => {
-    const landing = read('src/features/marketing/LandingScreen.tsx');
-    expect(landing).toContain('group-open:rotate-45');
-    expect(landing).not.toContain('group-open:rotate-45 transition-transform');
-  });
-
   it('SiriWave reads the preference live instead of once at mount', () => {
     const siri = read('src/components/effects/SiriWave.tsx');
     expect(siri).toContain('useReducedMotion');
@@ -143,11 +137,14 @@ describe('layout and resource honesty', () => {
     expect(read('src/App.tsx')).not.toContain('overflow-x-clip');
   });
 
-  it('the hero-video slot only activates for a real video, not the SPA fallback', () => {
-    // A dev/preview server answers an unknown asset path with index.html and 200,
-    // so `res.ok` alone would treat a missing video as present.
-    const landing = read('src/features/marketing/LandingScreen.tsx');
-    expect(landing).toContain("startsWith('video/')");
-    expect(landing).not.toMatch(/alive && res\.ok\) setSrc/);
+  it('the entry ships no screen of its own, only the lazy shell', () => {
+    // The marketing landing used to live here, and the whole signed-in app
+    // before that. Both moved out, so the first paint must stay a router plus
+    // the dynamic shell import — a static screen import here would put the
+    // Dexie seed and the content fetches back in front of a stranger.
+    const entry = read('src/App.tsx');
+    expect(entry).toContain("import('@/app/AppShell')");
+    expect(entry).not.toMatch(/^import .*@\/features\//m);
+    expect(entry).not.toMatch(/^import .*@\/app\/AppShell/m);
   });
 });

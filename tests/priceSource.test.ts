@@ -223,7 +223,6 @@ describe('no second price source survives in the app', () => {
 
   it('every surface that shows money reads the one shared source', () => {
     const surfaces = [
-      'src/features/marketing/LandingScreen.tsx',
       'src/features/offers/PaywallScreen.tsx',
       'src/components/sheets/PaywallModal.tsx',
       'src/features/auth/SubscriptionRedemptionScreen.tsx',
