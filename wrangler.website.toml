@@ -1,0 +1,10 @@
+# Serves the standalone landing page (Cloudflare Pages project `katzu-landing`)
+# on https://website.katzuai.com. Custom domain = Workers provisions the DNS
+# record and certificate, so the app's zone config is untouched.
+name = "katzu-website"
+main = "cloudflare-website-proxy.js"
+compatibility_date = "2025-01-01"
+
+[[routes]]
+pattern = "website.katzuai.com"
+custom_domain = true

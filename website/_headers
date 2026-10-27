@@ -1,0 +1,15 @@
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Cross-Origin-Opener-Policy: same-origin
+  # Marketing page only: no accounts, no cookies, no API calls. The inline
+  # script is the page's own animation controller, so 'unsafe-inline' is
+  # required for script-src; no external host can be loaded beyond the pinned
+  # GSAP/Lenis CDNs, and every one of those tags also carries an SRI hash.
+  # Cloudflare injects its own Web Analytics beacon into Pages responses; it is
+  # allowed explicitly rather than silently blocked (which only produced a
+  # console error and lost the landing's pageviews).
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'; connect-src 'self' https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
