@@ -26,10 +26,12 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **Production 2026-10-27 — the split is live and Google Sign-In is fixed.** `main` = `da7656c` plus the
-  `fix(auth)` batch; **app** `katzuai.com` = Pages deployment **`3c5fcfef-24ea-406c-b3b4-d725a4838b4b`**
-  (bundle `assets/index-DtOhy65S.js`, deployment source `da7656c`, built from the reviewed tree that
-  carries the uncommitted `fix(auth)` change) and **site**
+- **Production 2026-10-27 — the split is live and Google Sign-In is fixed.** `main` = **`95d3f04`**
+  (pushed; the `fix(auth)` batch is commits `d9a863e`, `d6345dc`, `3d46101`, `99f45f4`, `95d3f04`);
+  **app** `katzuai.com` = Pages deployment **`3c5fcfef-24ea-406c-b3b4-d725a4838b4b`**
+  (bundle `assets/index-DtOhy65S.js`, Pages source listing `da7656c` because it was uploaded by hand at
+  deploy time; the served `AppShell-C7UVbAY_.js` is byte-identical to the `dist/` built from the fixed
+  tree, sha256 `113d4e46…`, and contains the new notice copy) and **site**
   `website.katzuai.com` = **`de591b4e-364e-4779-8d87-57ea5adb2dd8`** (source `da7656c`). Worker version
   **unchanged**: `e1a9a2ca-e919-43e2-baba-28a52bddd1cd`. Rollback targets: app
   `f5030887-d21b-44f7-83a8-b43f81085e51` (source `8dab741`, pre-split-serve) and site
