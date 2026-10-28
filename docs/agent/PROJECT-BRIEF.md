@@ -52,10 +52,10 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-28 (three-page site + founding prices; local, deploy pending)
+## Current snapshot — 2026-10-28 (three-page site + founding prices; deployed)
 
-**Verified locally, gate green; nothing deployed yet.** Marketing is now exactly three Arabic pages and the
-price lives in one place.
+**Deployed 2026-10-28 (`merge` + `worker` + `pages`); `main` = `f334f6d`.** Marketing is exactly three Arabic
+pages and the price lives in one place.
 - **Site** `website.katzuai.com` = `/`, `/pricing`, `/help` from one template and one `site.css`. Home sells the
   free start (one CTA → `https://katzuai.com/welcome`, no price); `/pricing` owns the four founding plans, the
   rules once and the `#pay` steps; `/help` owns FAQ + privacy/terms/refund + contact. `scripts/site-pricing.mjs`
@@ -65,6 +65,9 @@ price lives in one place.
 - **App** pays the same prices (server `GET /pricing`), legal links open `/help#…`, in-app copy matches the site.
 - **Proof:** unit suite **2135/2135**, `tsc` clean, local crawl 4 pages / 9 links OK, Lighthouse mobile a11y
   **100** + SEO **100** + perf **95–99** on all three pages (best-practices 81 is this host’s antivirus).
+  Gate `verify -- --ci --e2e` **14/14**. Live: worker `f0b5fa01-…` (rollback `6f5ba883-…`), app `a11c874e-…`
+  (`assets/index-D4avOAYK.js`; rollback `4fc1306f-…`), site `1359fb18-…` (rollback `de591b4e-…`), sales
+  `d3811619-…` (redirect-only; rollback `0de6a626-…`).
 - **Owner:** payment details to connect a real order path (**V44-1**) and four legal fields (**V44-2**).
 
 ## Previous snapshot — 2026-10-28 (audit #7 limiter + beacon CSP live)
@@ -147,7 +150,7 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 8. Entitlements: server-side subscription/activation state in D1 + KV; client is never authoritative.
 9. Sync: rev-guarded merge in D1 `sync_revisions` (P2), client queues offline and retries.
 10. Quota: per-account AI limits `AI_RATE_LIMIT_PER_MINUTE=10`, `AI_RATE_LIMIT_PER_DAY=200` + trial ledger.
-11. Crypto sales live on a **separate** Pages site (`sales/` → `katzu-sales.pages.dev`) using NOWPayments sandbox; the app only redeems codes.
+11. Marketing is three static pages on `website.katzuai.com` (`/`, `/pricing`, `/help`, built by `node scripts/build-website.mjs`); `katzu-sales` is redirect-only and the app only redeems codes. Crypto checkout exists in the worker but is hidden until the owner connects a gateway.
 12. Ops: `MAINTENANCE_MODE` kill switch (shipped as `"off"`) and the `scheduled` retention handler, now activated by a deployed cron (`17 4 * * *`); `POST /admin/sweep` does the same job on demand.
 13. Static: Cloudflare Pages `katzu-webapp-v3.pages.dev`.
 14. Tests: Vitest (node/jsdom, **158 files / 2135 tests**) + Playwright (chromium, **52 tests**). Screens are code-split; the marketing site is a separate static build, not a route.
@@ -232,28 +235,23 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 
 ## 7. Recent changes
 
+- **Three-page site + founding prices (2026-10-28, deployed)** — `website.katzuai.com` is `/`, `/pricing`,
+  `/help` from one template, one `site.css` and `pricing.config.json`; the four founding plans (`$14.99 /
+  $29.99 / $49.99 / $99.99`, struck `$29.99 / $59.99 / $99.99 / $199.99`), the offer rules and `#pay` exist
+  once, on `/pricing`. `KATZU26`, `$60` and `$42` are retired; a code carries the plan's own `months`; the app
+  fetches the same prices from `GET /pricing`. Every legacy URL answers one 301 to its final anchor (site, app
+  and `sales/`). Also fixed: `flushAnalytics` no longer erases events tracked during an open POST. Evidence:
+  `npm test` 2135/2135, `verify -- --ci --e2e` 14/14, Lighthouse mobile a11y/SEO 100. **Owner:** payment
+  method (**V44-1**) and four legal fields (**V44-2**) remain open.
 - **Haptics + purposeful motion (2026-10-18, local only — not committed, not deployed)** — one semantic haptic API (`tap`/`select`/`success`/`warning`/`error` in `src/lib/utils/haptics.ts`, with the older `triggerHaptic` kept as an alias so ~48 shipped call sites kept their exact feel) that prefers a Capacitor bridge, then `navigator.vibrate`, then silence; a Settings switch (`hapticsEnabled`, absent = ON) plus `prefers-reduced-motion` both override the caller. Two haptics were genuinely missing and added (paywall CTA `select`, destructive delete `warning`/`error`). Motion added with the existing tokens only — `.kz-pop`, `.kz-shake`, `.kz-flip-in`, `.kz-orb-listening` (the mic halo now stays while listening), a 420 ms rAF count-up on the report's unaided-sentence count, a staggered arrival for the daily tasks and the report rows, and `ProgressRail` moved from animating `width` to `transform: scaleX`. Every new class is neutralised under reduced motion with the state still visible. Evidence: `tests/haptics.test.ts` (18) and a new `feedback motion` block in `tests/designSystem.test.ts`; `npm run verify` **6/6**. **UNPROVEN:** real vibration on hardware (no phone here) and therefore the whole iOS story — iOS Safari has no `navigator.vibrate`, so an iPhone is silent by design.
 - **V32 (2026-10-04)** — measured before touching anything (25 screens at 360px): `/app/practice` had **110 controls** and no starting point, `/app/library` 12 competing primaries, `/app/study` 6 listen buttons all reading «استمع إلى النطق», Guided Practice two inputs sharing one placeholder — while `/demo` needs 2 controls. Fixed: the quiz no longer forces a guess («لا أعرف — أرني الإجابة» reveals it and counts it missed), the practice hub opens on six skill cards with the 48 words behind «تصفّح الكلمات», the Trail previews 5 scenarios, every input has its own visible label, every Study button is named by its phrase, the Welcome name is optional, Ask has a heading and a tappable example, «بدء» reads «ابدأ التدريب», chat preselects «تدريب» as «موصى به», and the level picker appears only at signup. A new standing gate, `scripts/simplicity-check.mjs`, runs in CI; its `primary-budget` rule was written, measured against 12 healthy screens, and **deleted** rather than left crying wolf. Gates: `npm test` **1363**, tsc clean ×2, e2e green, design-audit 0, simplicity-check 0, contrast all pass, `npm audit` 0.
 - **V31 (2026-10-04)** — the app failed at exactly the moments a learner is asked to trust it. The free wall was a dead end (only `PAYWALL_REQUIRED` opened the paywall, so `FREE_QUOTA_EXHAUSTED` produced an un-clearable "try again"); one shared entitlement module now classifies by set, and an unreadable ledger is a retryable glitch rather than a payment. The debrief can no longer vanish: `ReportRoute` rebuilds from the Dexie `sessions` + `mistakes` rows, or says plainly that there is nothing to rebuild. `/check-status` reports the real trial ledger («يُحسب على خوادمنا» when unknown, never a fake 0), the hint panel admits when the day's budget is spent, and **13 Arabic count sites now agree with their noun** — one and the dual as words, 3–10 plural, 11+ singular. Gates: `npm test` **1358**, e2e **62 passed**, tsc clean ×2, contrast 4.52:1 tightest, `npm audit` 0.
 - **V30 (2026-10-04)** — the app read as two products stitched together. Five palette values sat in the rose band (OKLCH h 339–344, ~50° off the lavender); earned progress is now h 299, `tertiary` moved to a periwinkle shoulder, `article.die` to pale lilac, and both glass tiers pick up the brand hue. The declared motion ladder had **zero readers**, so every transition silently used Tailwind's undeclared 150ms — it is now a real Tailwind scale and the over-budget 560ms step is retired. Confetti (the one animated subsystem ignoring `prefers-reduced-motion`) is gated; the sheet and modal got an entrance they actually had states for; six progress bars moved from animating `width` to `scaleX`; 61 `transition-all` sites now name the property they animate. Accessibility: 19 unnamed form controls named, the global focus ring restored (a utilities-layer `outline-none` had been deleting it on 20 fields), 4 icon-only buttons labelled. Cost: `/ai/hints` was quota-exempt **and** uncapped — only the global 200/day — so it now has its own free 30 / Pro 120 ceiling. Measured: 16 routes clean at 320px and at 200% zoom. Gates: `npm test` **1323**, tsc clean, design-audit 0, contrast 20/20, build OK, `npm audit` 0.
 - **V29 design system (2026-10-03)** — the palette was unified onto `src/index.css` as its only owner, `tailwind.config.js` became a token *reader*, and `Button`/`Card` were unified into 7 variants / 4 sizes with glass compat wrappers. The duplicate sign-in button (Google's iframe *plus* Katzu's own) was fixed. `VITE_GOOGLE_CLIENT_ID` is set in the untracked `.env`.
 
-`git log -15 --oneline`, grouped:
+Older stage history (RC/V7-V16 deploys and commit hashes) moved verbatim to
+`docs/agent/ARCHIVE-PROJECT-BRIEF.md` - append-only, grepped, never read whole.
 
-- **Release-candidate stage**: `a74014a` RC-6 aborted deploy · `9539923` RC-5 1.1.0 + runbook · `2254dc3` RC-4 ledger · `c3ee78d` RC-4 kill switch/retention/`/health` · `8626f34`+`5b6d20a` RC-3 content · `8a5f4e1`+`c1ceeec` RC-2 first run · `4279759`+`7ff4bce` RC-0 adopt v5 manual.
-- **Environment/docs**: `570f08a` pin LF on checkout · `5153157` e2e suite self-contained.
-- **Product**: `c208f01` paywall price from the worker · `74bbddd` CI gates · `ea90517` Arabic safety disclaimers.
-
-- **V7 stage**: `1b07f82` manual v7 + deploy runbook · `e82221f` block SW in e2e; built bundle 37/37 · `6bfe4fd` deploy snapshot + the merge that carried all 22 hardening/V7 commits to `main` · `48582ea` ledger + brief after the deploy.
-- **V8 stage**: `8313808` fix the `journey.spec.ts:320` flake at its cause · `36802ae` the V8 ledger (real-D1 results and the `main` hash correction).
-- **V9 stage**: `4d4e40e` every ledger route creates the tables it touches (V8-F0 + the admin throttle) · `ed038f4`/`6e7d7c0` ledger + the round-1 merge and worker deploy (`6aedfd50-…`) · `5f51093` §3 content-load amendment + runbook · `b11e66e` kill-switch config + retention cron · `eff72ae` content-load block + Lighthouse baseline · `09fb166` owner-steps runbook.
-- **V9 round-2 deploy**: `main` fast-forwarded `6e7d7c0 → b11e66e` (no force); the live worker is now `255dbeef-…` and prints `schedule: 17 4 * * *`.
-- **V10–V14 stage** (all on `launch-hardening`, unpushed unless noted): `ecbcb41`/`6c05947` the content-load amendment removed then re-added in the env-secret form · `7301686` module1 through the Content Gate · `e487654` lazy trust pages (**the last Pages deploy: `2c245106-…` serving `index-CWWIxWb7.js`**) · `5c3cf9f` V10 ledger/brief · `b84f3ec` V11 — backup taken, credential malformed, nothing written · `f73b291` V12 — the load ran, hit the production schema gap, rolled back its own 89 rows · `050499b` V13 — the loader can no longer half-write, and the content schema is documented plus self-healing · **`V14:` — the content load itself (module2 + module1), the grammar supplement, the reachability gate**.
-- **V16 stage** (`fa3a0d2`): the loader learns the supplement shape · module1's three duplicated keys removed and its housing pool refilled · the hero converted to a 20 KB WebP with measured medians · then **merge + Pages** — `main` fast-forwarded `3f3c98b → fa3a0d2` (no force), Pages production `bbef47aa-…`, the worker deliberately untouched because no worker file changed.
-- **V15 stage** (`5433566`): the fixture title aligned to D1 · grammar supplements accepted by the gate · `scripts/check-content-drift.mjs` added and run against production · then **merge + worker + Pages** — `main` fast-forwarded `5c3cf9f → 5433566` (no force), worker `03007d6e-…`, Pages production `35762f02-…` serving `assets/index-DCIM0lrE.js`.
-- **V14 state:** the two loads and every check above ran with **no deploy** — at the time `main` was `e487654`, the Pages deployment `2c245106-…` and the live worker `255dbeef-…`. D1 changed (that is the point of the run); nothing else did.
-
-`main` reached `b11e66e` at the round-2 merge with `git rev-list --left-right --count main...launch-hardening` → `0 0`, and the branch was pushed both times. The live worker is `255dbeef-faae-476a-b3f5-6d4666099b70`. The V7 deploy was also a fast-forward: `22fe6aa → 6bfe4fd`.
 
 ## 8. Live vs local drift (read-only only)
 
@@ -270,7 +268,7 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 | D1 content | **49 scenarios / 531 vocab / 426 phrases / 73 grammar** (V28 re-measure; the grammar screen renders 77 = 73 D1 + 4 offline fixtures) | same, and `node scripts/check-content-drift.mjs` classifies every difference (§2) |
 | **Content schema** | `grammar` now carries all ten columns (`rule_de`, `rule_ar`, `example_ar` added by the owner in V14) — the D1 and the repo shapes agree | `migrations/0001_content_tables.sql` records both shapes and the `ADDITIVE_COLUMNS` entries that make a deployment self-heal (V13-1, undeployed) |
 | Kill switch / retention | `MAINTENANCE_MODE="off"` **live** and the cron `17 4 * * *` **deployed** | same (V9-7/V9-8) |
-| Sales site | `katzu-sales.pages.dev` 200, NOWPayments sandbox `ready:false` | unchanged |
+| Sales site | `katzu-sales.pages.dev` **301s every path** to `https://website.katzuai.com/pricing#pay` (retired 2026-10-28) | unchanged (`sales/_redirects`) |
 
 The V9 worker was deployed twice; no D1 migration, no manual D1 write and no content load was made, and no secret was read.
 

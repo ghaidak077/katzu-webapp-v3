@@ -1,4 +1,4 @@
-# Katzu Agent State Ledger
+﻿# Katzu Agent State Ledger
 
 ## How to read this file (2026-10-15: a live board, not an archive)
 
@@ -26,7 +26,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-10-28 — the site is three pages and the price lives once (local, gate green).**
+- **2026-10-28 — the site is three pages and the price lives once (deployed).**
   `website.katzuai.com` is `/`, `/pricing`, `/help` from one template and one `site.css`: the home page sells
   the free start (one CTA to `https://katzuai.com/welcome`, no price), `/pricing` owns the four founding plans
   and the offer rules, `/help` owns the FAQ, the legal text and the contact address. Prices and every number
@@ -36,9 +36,13 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   chose (redemption adds the plan `months`). `/pricing#pay` ships three steps plus one `mailto:` CTA because
   no local payment method is configured; crypto stays hidden until its gateway is live. `en/`, `trust/` and
   the topic pages are deleted and every legacy URL (site and app) answers **one** 301 to its final anchor;
-  `sales/*` 301s to `/pricing#pay`. Proof: unit suite **2135/2135**, `tsc` clean, local link crawl 4 pages /
-  9 links OK, Lighthouse mobile a11y **100** + SEO **100** on all three pages. Next: `npm run verify --
-  --ci --e2e`, commit + push, then deploy `pages` (site + app) and `worker` if the gate is green.
+  `sales/*` 301s to `/pricing#pay`. Proof: unit suite **2135/2135**, `tsc` clean, Lighthouse mobile a11y
+  **100** + SEO **100** on all three pages. Gate `verify -- --ci --e2e`
+  **14/14 in 849 s**, pushed `8edd0a5..f334f6d`. **Deployed:** worker `f0b5fa01-b4a2-449c-b470-e770721487eb`,
+  app `a11c874e-…` (bundle from `f334f6d`), site
+  `1359fb18-e862-4774-b9fb-939a45c20159` (direct upload, three pages **200**), sales
+  `d3811619-6ce1-4c96-82e7-d11e6004c7ae` (every path 301 to `/pricing#pay`). Also fixed:
+  `flushAnalytics` no longer erases events tracked during an open POST (reconciled by key, 3 queue tests).
 
 - **2026-10-28 final pass — audit #7 closed; `merge` + `worker` + `pages` deployed.** `main` =
   **`29f6aec`** + docs (pushed; `726a710` rate limit, `29f6aec` beacon CSP). **Worker**
@@ -70,44 +74,53 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
 `56425f30-…` (2026-10-12), then `66bd8b92-…`, then the secret-only `31149c92-…`, and then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`6f5ba883-6730-43d2-b8cd-9c275b298fee`** (100%, 2026-10-28) — the audit #7 auth limiter (`726a710`).
-  Previous live version, still available: **`e1a9a2ca-e919-43e2-baba-28a52bddd1cd`** (V43.4, `4b33d70`),
-  then `b2119bfb-68cb-49bb-8639-82d4583eda28` (V43.3, `1ba9abd`),
+  **`f0b5fa01-b4a2-449c-b470-e770721487eb`** (100%, 2026-10-28) — the founding-price table (`80c6b9a`);
+  `/pricing` now serves `monthly/quarterly/halfyear/yearly` at 1499/2999/4999/9999 with future
+  2999/5999/9999/19999 cents, and `/crypto/health` reads the same table. **Rollback target:
+  `6f5ba883-6730-43d2-b8cd-9c275b298fee`** (2026-10-28, the audit #7 auth limiter), then
+  `e1a9a2ca-e919-43e2-baba-28a52bddd1cd` (V43.4, `4b33d70`),
+  `b2119bfb-68cb-49bb-8639-82d4583eda28` (V43.3, `1ba9abd`),
   `5193b4e9-9653-46b1-9d3d-164e92d0da5a` (V43.2, `3358165`),
   `d07b8701-2176-45b4-9807-fa490f469e29` (the same fix at `95f21f7`),
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- **App Pages production (2026-10-28, git-connected build of `29f6aec`):** deployment
-  **`4fc1306f-bc9e-4ad6-ba85-050fe5a15b17`** serves the CSP that now names
-  `static.cloudflareinsights.com` (script) and `https://cloudflareinsights.com` (connect), with the same
-  pinned Worker origin and `same-origin-allow-popups` COOP. **Rollback target:
-  `00d42544-53b3-435a-b59d-bc2cbe64bd56`** (source `726a710`, identical minus the two beacon hosts) —
-  dashboard "Redeploy". Older target: `3c5fcfef-24ea-406c-b3b4-d725a4838b4b` (source `da7656c`). A docs-only
-  push rebuilds the same bundle under a new id — read the id for the current `main` before rolling back.
-- **Site Pages production (2026-10-27):** `katzu-landing` deployment
-  **`de591b4e-364e-4779-8d87-57ea5adb2dd8`** (branch `main`, source `da7656c`, built by
-  `node scripts/build-website.mjs`) — byte-identical to `website/index.html`, SRI on all 3 scripts,
-  the landing CSP live, all 21 sitemap URLs **200**. Rollback target: `ea420d13-5691-4e2c-9ee7-9c84c45975d8`
-  (source `8dab741`; identical except the homepage `hreflang` alternates).
+- **App Pages production (2026-10-28, git-connected build of `f334f6d`):** deployment
+  **`a11c874e-0eb5-4a80-96ab-630321664e03`** serves `assets/index-D4avOAYK.js` +
+  `assets/AppShell-4uecVXUN.js`; the `AppShell` chunk carries `SITE_URL/help#` and
+  `https://website.katzuai.com/pricing#pay`, with no `katzu-sales`, no `/trust/` and no `KATZU26`.
+  **Rollback target: `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17`** (source `29f6aec`, the previous
+  production bundle). A docs-only push rebuilds the same bundle under a new id — read the id for the
+  current `main` before rolling back.
+- **Site Pages production (2026-10-28, direct upload of `website/`):** `katzu-landing` deployment
+  **`1359fb18-e862-4774-b9fb-939a45c20159`** (branch `main`, built by `node scripts/build-website.mjs`) — `/`, `/pricing`,
+  `/help` all **200**; `/help` carries `id="privacy|terms|refund"`; `/pricing` renders
+  14.99/29.99/49.99/99.99 and only `mailto:support@ghaidak.com` CTAs; ten legacy URLs **301** in one
+  hop. **Rollback target: `de591b4e-364e-4779-8d87-57ea5adb2dd8`** (the 21-page English/topic site).
+  Note: this project does **not** build from git — a push is not a deploy.
+- **Sales Pages production (2026-10-28, direct upload of `sales/`):** `katzu-sales` deployment
+  **`d3811619-6ce1-4c96-82e7-d11e6004c7ae`** — `_redirects` answers every path with one 301 to
+  `https://website.katzuai.com/pricing#pay`. **Rollback target: `0de6a626-a242-421f-aca0-faa0ef218722`**
+  (the last real sales page). Retired on purpose: a second sales page would be a second price.
 - Older app targets: `c89828af-acba-41bd-8514-8eba166d6c0e` (`1e9d09f`, `assets/index-DkRAI1BL.js`),
   `50f30132-0412-417f-95de-8cc0dc545d7b` (`d216ae8`, `assets/index-BfNVQ58w.js`), `8ec7ea54-…`
   (`3358165`), `5f115c46-…` (`95f21f7`), `8fe6d07f-…` (`8ca290c`), then the archived snapshot.
-- `GET /health` body (worker, re-read 2026-10-23 after the Pages deploy — unchanged):
+- `GET /health` body (worker, re-read 2026-10-28 after the founding-price deploy — unchanged):
   `{"status":"healthy","service":"Katzu Unified Worker","ready":true,"maintenance":false,"storage":{"d1":"ok","kv":"ok"}}`.
   The `storage` object is shipped by `9c07b44` (2026-10-16 launch-metrics commit, verified with
   `git log -S 'storage:{d1:"ok"' -- cloudflare-unified-worker.js`) and tells a learner only that the
   data stores answer — no pool, no models, no strategy. KEEP it when editing that handler.
-- `GET /crypto/health` body (worker, read 2026-10-23 after the Pages deploy):
-  `{"ok":true,"provider":"nowpayments","environment":"test_mode",...,"priceUsd":5,"months":1,"plans":[...],"ready":false}`
-  — unchanged from every previous ledger reading.
+- `GET /crypto/health` body (worker, re-read 2026-10-28): `priceUsd:14.99` + four plans (`monthly`
+  14.99/29.99, `quarterly` 29.99/59.99, `halfyear` 49.99/99.99 `recommended`, `yearly` 99.99/199.99) read
+  from `pricing.config.json`; `ready:false` is fine in closed beta.
 - Unauthenticated `GET /admin/api/orders` → **401** at the worker origin
   (`katzu-test.ghaidakalosh008.workers.dev`) — note `katzuai.com` is the **Pages** host and answers
   SPA HTML for every path, so worker routes must never be probed there.
-  `/` `/demo` `/sw.js` → **200** on `katzuai.com`, serving `assets/index-DkRAI1BL.js`.
-- `origin/main` at snapshot time: `1e9d09f` — gate `npm run verify -- --ci --e2e`
-  (**14/14 in 723 s**) green in that tree; production smoke **4 passed / 2 skipped / 0 failed**,
-  plus the `/demo` four-step walk on the live origin.
+  `/` `/signin` `/sw.js` → **200** on `katzuai.com`, serving `assets/index-D4avOAYK.js` (+ the
+  `AppShell-4uecVXUN.js` chunk).
+- `origin/main` at snapshot time: `f334f6d` — gate `npm run verify -- --ci --e2e`
+  (**14/14 in 849 s**) green in that tree. The production smoke spec was **not** re-run this pass;
+  live checks were HTTP-level (status, redirect, body greps) plus the app-chunk string evidence above.
 - **Rollback is PROVEN available** for both targets: `wrangler whoami` reports account
   `00df3d915626e0a681f4fef98c1c587c` with `workers (write)` (used for the pre-deploy snapshot),
   and `wrangler pages deployment list` lists the live production deployment and its predecessors

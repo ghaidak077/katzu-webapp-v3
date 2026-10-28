@@ -11,14 +11,15 @@
 Record in ledger: current worker version id (`wrangler deployments list`), current Pages deployment id, `/health` and `/crypto/health` bodies. These are the rollback targets. If rollback cannot be confirmed available, record `UNPROVEN` and tell the owner in the report.
 
 ## Sequence
-1. `merge`: fast-forward or merge commit of the branch into `main`, push (no force). Pages builds from git on push: do NOT run a manual Pages deploy; wait for that build and verify it.
+1. `merge`: fast-forward or merge commit of the branch into `main`, push (no force). Only the app project (`katzu-webapp-v3`) builds from git on push — wait for that build and verify it. The two static projects are direct-upload and are republished in step 3.
 2. `worker`: `npm run deploy:worker`. Verify with `curl -m 10`: `/health` returns its four status
    keys **plus `storage:{d1:"ok",kv:"ok"}`** (shipped by `9c07b44`, 2026-10-16 — health booleans only;
    still **no aiPool, models, strategy** — those leak provider config); `/crypto/health` unchanged (`ready:false` is fine in closed beta); an admin route without auth returns 401/403.
    The `/auth/session` limit (20/min + 600/day per IP, scope `auth-session`) is a **shared budget behind
    a NAT**; if a cohort reports `429`, raise the numbers in `cloudflare-unified-worker.js` and keep
    `tests/workerSecurity.test.ts` green rather than removing the check.
-3. `pages`: verify the production URL returns 200, the built bundle loads the demo with no AI call and no account, and the service worker registers. Three Pages projects build from git and must **not** be uploaded by hand: app `katzu-webapp-v3` → `katzuai.com`, site `katzu-landing` → `website.katzuai.com` (three pages: `/`, `/pricing`, `/help`; Cloudflare serves `pricing.html` at `/pricing`), sales `katzu-sales` → `sales/`, which is now redirect-only (`_redirects` → `/pricing#pay`). After the site build, check `/`, `/pricing`, `/help` return 200 and one old URL (e.g. `/trust/privacy`) answers a single 301 to its final anchor.
+3. `pages`: verify the production URL returns 200, the built bundle loads the demo with no AI call and no account, and the service worker registers. App `katzu-webapp-v3` → `katzuai.com` builds from git on push; site `katzu-landing` → `website.katzuai.com` and sales `katzu-sales` are **direct-upload** projects — a push does not update either (confirmed 2026-10-28). Republish them:
+   `node scripts/build-website.mjs` then `npx wrangler pages deploy website --project-name=katzu-landing --branch=main`, and `npx wrangler pages deploy sales --project-name=katzu-sales --branch=main`. The site is three pages: `/`, `/pricing`, `/help` (Cloudflare serves `pricing.html` at `/pricing`); sales is redirect-only (`_redirects` → `/pricing#pay`). After the site build, check `/`, `/pricing`, `/help` return 200, every old URL answers a single 301 straight to its final anchor, and no page still prints `KATZU26` or the retired `$60`/`$42` prices.
 4. Smoke: run the demo e2e spec against the production URL (read-only, no login).
 
 ## Rollback (automatic, no asking)
