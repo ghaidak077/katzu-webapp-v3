@@ -34,19 +34,17 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   card 06 = the real café scenario; `/help` links `/#rail` as «49 موقفاً في التطبيق». Proof: gate green, 390 + 1440
   one H1 / no overflow, strings read back live; ids in SNAPSHOT. Remaining «كل شهر» = OWNER-OPEN FREE-1.
 
-- **2026-10-28 — `/partners` was a 404, not a broken button (app rebuilt from git).** The route was in the router
-  but not in `public/_redirects`, and the static `404.html` stops Pages falling back to the shell, so that one
-  deep link died while its siblings answered 200. `/partners / 200` is listed now and `tests/appMap.test.ts`
-  fails when a code route has no exact-or-wildcard 200 rewrite (proved by deleting the line: the test named
-  `/partners`). The worker half is still undeployed (AFF-1).
+- **2026-10-28 — `/partners` was a 404, not a broken button (app rebuilt from git).** The route was in the
+  router but not in `public/_redirects`; with `404.html` present Pages does not fall back to the shell, so that
+  deep link died while its siblings answered 200. `/partners / 200` is listed and `tests/appMap.test.ts` fails
+  when a code route has no 200 rewrite (proved by deleting the line). Anonymous live proof: 200 → shell →
+  `/welcome`, 1 H1, 0 page errors. The screen's worker half is still undeployed (AFF-1), so it shows its Arabic
+  retry state once signed in.
 
-- **2026-10-28 — the partner link is a screen now (site + app deployed; the worker half is NOT).** `/affiliate`
-  carries the owner's win-win-win copy, three win cards and a calculator (6-month → `$10` per subscriber, `$30`
-  for three); its CTA opens `https://katzuai.com/partners`, where `PartnersScreen.tsx` calls `POST /affiliate/me`
-  — finds-or-creates one `affiliates` row per account email, returning only code/status/rate/terms. Proof: 32
-  affiliate tests, Lighthouse a11y **100** / SEO **100**, 390 + 1440 one H1 / no overflow, gate green; ids in
-  SNAPSHOT. **The worker was not deployed**, so `/partners` shows its Arabic retry state live until it is — the
-  one action left for the owner (OWNER-OPEN AFF-1).
+- **2026-10-28 — CI red on `3980b39` was a socket reset, not the tree.** Run `40701347617` failed only
+  `quiz content audit` with `fetch failed [ECONNRESET]` while `GET /scenarios` answered 3/3 200 here and the
+  same step passed in the pre-push gate. That step now retries a *thrown* network error 3× (an HTTP status still
+  fails; proven: exit 1 after 3 attempts against a closed port), so a runner's TLS reset no longer reddens CI.
 
 - **2026-10-28 — the partner program is live and has no partners yet (AFF-1).** `/affiliate` states 20% of the
   first paid order, a 14-day hold, a $20 minimum and four payout methods (from `AFFILIATE_CONFIG`);

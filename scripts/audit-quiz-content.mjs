@@ -34,15 +34,29 @@ function mulberry32(seed) {
 }
 
 async function get(path) {
-  const res = await fetch(`${BASE}${path}`);
-  const text = await res.text();
-  let body;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    body = text;
+  // CI run 40701347617 reset the TLS connection on the first hop and the whole
+  // gate went red over content that was reachable seconds later (3 × 200 from the
+  // owner's machine). Retry a *thrown* network error twice; an HTTP status is
+  // still reported as-is, so a real outage fails this audit instead of hiding.
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const res = await fetch(`${BASE}${path}`);
+      const text = await res.text();
+      let body;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text;
+      }
+      return { status: res.status, body };
+    } catch (error) {
+      lastError = error;
+      if (attempt === 3) break;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 750));
+    }
   }
-  return { status: res.status, body };
+  throw lastError;
 }
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2'];
