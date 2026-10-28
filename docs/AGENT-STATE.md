@@ -95,16 +95,25 @@ not sign in as them or use the admin key. If the owner reports the referred test
 
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 
-Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-harness fix) and the
-2026-10-23 guided-home Pages deploy: these live ids are the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
+Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-harness fix), the
+2026-10-23 guided-home Pages deploy and the 2026-10-28 worker + site + app deploys: these live ids are
+the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
 (now in `docs/agent/ARCHIVE-AGENT-STATE.md`), whose worker target `315ec953-…` was replaced by
 `56425f30-…` (2026-10-12), then `66bd8b92-…`, then the secret-only `31149c92-…`, and then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`998873c6-d773-4bb5-9ec5-2c548e550b0f`** (100%, 2026-10-28) — the partner ledger (`4870d39`):
-  `cloudflare-affiliate.js`, six owner-only `/admin/api/affiliates` routes, cron `17 4 * * *`;
-  `/health` unchanged and `POST /affiliate/ref` answers 200/404. **Rollback target:
-  `f0b5fa01-b4a2-449c-b470-e770721487eb`** (the founding-price table, `80c6b9a`), then the audit #7 limiter
+  **`6860fa2f-bfca-44d7-8fc3-870a87aec926`** (100%, deployed 2026-10-28T15:49:00Z) — `e9aa028`'s worker bundle:
+  `POST /affiliate/me` (401 signed out; it answered **404 `{"error":"not_found"}`** on the previous
+  version), `/affiliate/ref`, the six owner-only `/admin/api/affiliates` routes and cron `17 4 * * *`
+  (the deploy printed `Deployed katzu-test triggers … schedule: 17 4 * * *`). Live after the deploy:
+  `/health` 200 `storage:{d1,kv}` ok; `POST /affiliate/me` **401**; `POST /affiliate/ref`
+  **404 `unknown_code`** on `ZZTEST01` and **400 `malformed_code`** on `!!!`; `GET
+  /admin/api/affiliates` and `/commissions` **401**. The `unknown_code` (never `503`) proves the
+  `SELECT status FROM affiliates …` ran, so the three AFFILIATE_TABLES exist in production D1 —
+  `migrations/0003_affiliate_tables.sql` needs no runner because `ensureLedgerTables` applies it
+  idempotently on the first request.
+  **Rollback target: `998873c6-d773-4bb5-9ec5-2c548e550b0f`** (the partner ledger, `4870d39`), then
+  `f0b5fa01-b4a2-449c-b470-e770721487eb` (the founding-price table, `80c6b9a`), then the audit #7 limiter
   `6f5ba883-6730-43d2-b8cd-9c275b298fee` (2026-10-28), then
   `e1a9a2ca-e919-43e2-baba-28a52bddd1cd` (V43.4, `4b33d70`),
   `b2119bfb-68cb-49bb-8639-82d4583eda28` (V43.3, `1ba9abd`),
@@ -113,26 +122,31 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- **App Pages production (2026-10-28):** the project builds from git, so **every** push to `main` mints
-  a new deployment id (the docs push `3980b39` produced `0faa836d-…`) — never quote an id as "current"
-  without reading
-  `wrangler pages deployment list --project-name=katzu-webapp-v3` first. Stable facts: the entry bundle is
-  now `assets/index-Cuij_wHz.js` — it carries `katzu_ref` and the signup call that sends it, which the
-  earlier `assets/index-D4avOAYK.js` did not — and the `AppShell` chunk is now `AppShell-CQdweU62.js`
-  (verified live: it carries `SITE_URL/help#` and `https://website.katzuai.com/pricing#pay`, with no
-  `katzu-sales`, no `/trust/` and no `KATZU26`).
-  **Rollback target: `fbfa7a7a-ce1c-42ac-a9a3-6b17edcf139f`** (source `8c3bf10`), then
-  `1332afeb-e2d3-43b8-b995-17dd800cf11d` (source `c7f508b`), then `bf9dc9c4-dffd-452f-8113-8daa23db63f8`.
+- **App Pages production (2026-10-28, source `691a4a9`):** deployment
+  **`8c6a1c59-123b-4fca-9e89-b1ef2c7865c2`** — built from git on the push that ships the free-tier
+  copy and the removed soft-prompt timer. Live entry bundle `assets/index-CZBi4VYc.js`, shell
+  `AppShell-D0v5tmUb.js`; the lazy paywall chunk `PaywallScreen-CvUPam8k.js` carries **one**
+  «في المجموع» and **zero** «كل شهر» across the 81 chunks reachable from `/`; `katzu_ref` is still in
+  the entry. (`assets/index-Cuij_wHz.js` was the previous entry.) The project builds from git, so
+  **every** push to `main` mints a new id — never quote one without reading
+  `wrangler pages deployment list --project-name=katzu-webapp-v3` first.
+  **Rollback target: `b0be8a57-e9af-4cb6-9c4f-1d38e37e1a2c`** (source `d786bd0`), then
+  `7ed3d479-8d38-4f6e-a999-3e60d296746d` (`c359095`), then `bf9dc9c4-dffd-452f-8113-8daa23db63f8`.
 - **Site Pages production (2026-10-28, direct upload of `website/`):** `katzu-landing` deployment
-  **`1107f7b3-8c11-459c-886a-c4c4ad5d711b`** (branch `main`, source `e9aa028`) — the home truth fixes
-  (honest trust line, voice FAQ, free-lessons FAQ, stat 49, café card 06) and `/help`'s 49-situation link.
-  Verified live: the new strings on `/` and `/help`, `data-to="6"` gone; `/`, `/pricing`, `/affiliate`,
-  `/help` and `/assets/ref.js` all **200**; `/help` carries `id="privacy|terms|refund"`; `/pricing` renders
-  14.99/29.99/49.99/99.99 and only `mailto:support@ghaidak.com` CTAs; 33 legacy URLs **301** in one hop.
-  **Rollback target: `4dbf4a05-3cb3-411c-a408-a168fe3f6cc9`** (the partner page + old home copy), then
+  **`323db0ac-2d20-4416-97b0-4e16483c8a7a`** (branch `main`, source `691a4a9`) — the free-tier copy fix
+  («في المجموع» on `/` and `/pricing`, no «كل شهر» anywhere). Republishing was a no-op content-wise
+  for the other eight files: `node scripts/build-website.mjs` wrote the same bytes (clean `git status`
+  under `website/`), and the upload moved 2 files. **Rollback target:
+  `1107f7b3-8c11-459c-886a-c4c4ad5d711b`** (source `e9aa028`, the home truth fixes), then
+  `4dbf4a05-3cb3-411c-a408-a168fe3f6cc9` (the partner page + old home copy), then
   `90880c38-5f90-4378-844c-5f1ef1fb055e` (the three-page design home), then
   `1359fb18-e862-4774-b9fb-939a45c20159` (the rebuilt three pages).
   Note: this project does **not** build from git — a push is not a deploy.
+  Live after the republish (read-only checker, **`LIVE OK`**): `/` `/pricing` `/help` `/affiliate` all
+  **200**; «في المجموع» on `/` + `/pricing`; **0** «كل شهر» on all four and in the app shell; **0**
+  `katzu.com` (wrong domain) on all four plus `katzuai.com/`; no Arabic-Indic digits; exactly one `<h1>`
+  per page; stat 49 and the café card present; `app /partners` **200** through the `_redirects` shell
+  rewrite.
 - **Sales Pages production (2026-10-28, direct upload of `sales/`):** `katzu-sales` deployment
   **`d3811619-6ce1-4c96-82e7-d11e6004c7ae`** — `_redirects` answers every path with one 301 to
   `https://website.katzuai.com/pricing#pay`. **Rollback target: `0de6a626-a242-421f-aca0-faa0ef218722`**
@@ -151,12 +165,13 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
 - Unauthenticated `GET /admin/api/orders` → **401** at the worker origin
   (`katzu-test.ghaidakalosh008.workers.dev`) — note `katzuai.com` is the **Pages** host and answers
   SPA HTML for every path, so worker routes must never be probed there.
-  `/` `/signin` `/sw.js` → **200** on `katzuai.com`, serving `assets/index-D4avOAYK.js` (+ the
-  `AppShell-4uecVXUN.js` chunk).
-- `origin/main` at snapshot time: `06b2c04` — gate `npm run verify -- --ci --e2e` **13/14** in that tree
-  (browser step flaky on two app specs that pass on re-run; a full `npx playwright test` then finished
-  **170 passed / 2 skipped, exit 0**). The production smoke spec was **not** re-run this pass;
-  live checks were HTTP-level (status, redirect, body greps) plus the app-chunk string evidence above.
+  `/` `/signin` `/sw.js` → **200** on `katzuai.com`, serving `assets/index-CZBi4VYc.js` (+ the
+  `AppShell-D0v5tmUb.js` chunk; re-read 2026-10-28 after the `691a4a9` app deploy).
+- `origin/main` at snapshot time: `691a4a9` (the deployed code SHA; the docs commit recording this
+  deploy follows it and changes no runtime file) — gate `npm run verify -- --ci --e2e`
+  **VERIFY OK 14/14 in 790.1s** on that tree, `dayZeroReport` 5/5. CI for `691a4a9` is confirmed
+  separately with the run id. Live checks were HTTP-level (status codes, body greps, one bundle crawl
+  over the 81 chunks reachable from `/`); the production smoke spec was not re-run this pass.
 - **Rollback is PROVEN available** for both targets: `wrangler whoami` reports account
   `00df3d915626e0a681f4fef98c1c587c` with `workers (write)` (used for the pre-deploy snapshot),
   and `wrangler pages deployment list` lists the live production deployment and its predecessors

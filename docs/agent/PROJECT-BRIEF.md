@@ -295,6 +295,8 @@ Older stage history (RC/V7-V16 deploys and commit hashes) moved verbatim to
 
 ## 8. Live vs local drift (read-only only)
 
+**Drift as of 2026-10-28 (AFF-1 deploy):** none in code. All three targets run `691a4a9` — worker version `6860fa2f-…`, site `323db0ac-…` (direct upload of the same `website/` bytes the build writes), app `8c6a1c59-…` (built from the push). The only commit after it is the docs one that records these ids, which touches no runtime file. Live probes that back this: `/health` 200, `/affiliate/me` 401, `/affiliate/ref` 400/404, `/admin/api/affiliates*` 401, and `LIVE OK` from the site string checker.
+
 **Drift as of 2026-09-29 (V18):** the tree and production are the same commit apart from the V18 documentation commit itself, and the **worker is deliberately identical** — no `cloudflare-*.js`, `wrangler.toml`, `migrations/` or `sales/` file changed in V18, so the live version is still **#111 `03007d6e-…`** and nothing was deployed to it. **The content is the one thing that moved, on purpose:** production D1 now holds **15 / 221 / 111 / 22** (module1's three missing `housing` words + the four supplement rules) and `node scripts/check-content-drift.mjs` exits **0**.
 
 **Drift as of 2026-09-29 (V17-3):** none at the commit level — production serves **`616e273`**, the same commit as the tree, and the worker and the content were **not** touched this run (no worker file changed, no D1 statement run). **CI drift, resolved the same day:** from 2026-09-28 the *runs* on `main` were red while the tree was green — a drift the local checkout could not show. It is closed: run `36568057274` on `616e273` is green in `verify`, `e2e` and `secret-scan`.
