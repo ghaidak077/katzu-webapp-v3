@@ -35,11 +35,14 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   one H1 / no overflow, strings read back live; ids in SNAPSHOT. Remaining «كل شهر» = OWNER-OPEN FREE-1.
 
 - **2026-10-28 — `/partners` was a 404, not a broken button (app rebuilt from git).** The route was in the
-  router but not in `public/_redirects`; with `404.html` present Pages does not fall back to the shell, so that
-  deep link died while its siblings answered 200. `/partners / 200` is listed and `tests/appMap.test.ts` fails
-  when a code route has no 200 rewrite (proved by deleting the line). Anonymous live proof: 200 → shell →
-  `/welcome`, 1 H1, 0 page errors. The screen's worker half is still undeployed (AFF-1), so it shows its Arabic
-  retry state once signed in.
+  router but not in `public/_redirects`, so that deep link died while its siblings answered 200 (`404.html`
+  stops the shell fallback; gotcha 11). `/partners / 200` is listed and `tests/appMap.test.ts` fails when a code
+  route has no 200 rewrite (proved by deleting the line). Live: 200 → shell → `/welcome`, no page errors.
+
+- **CI on `c359095` is green.** Run `40703219152` rerun: **170 passed / 2 skipped**, verify green; attempt 1
+  failed only `dayZeroReport.spec.ts:179`, where the `PaywallModal` scrim covered «أرسل جملتك» for all 90 s.
+  It passes locally (17.2 s) and the suite was green on `e453e1c`: trigger UNPROVEN — never dismiss the
+  paywall in the test to make it green.
 
 - **2026-10-28 — CI red on `3980b39` was a socket reset, not the tree.** Run `40701347617` failed only
   `quiz content audit` with `fetch failed [ECONNRESET]` while `GET /scenarios` answered 3/3 200 here and the
