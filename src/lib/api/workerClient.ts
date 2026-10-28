@@ -1,7 +1,7 @@
 import { db } from '../db/katzuDb';
 import { WORKER_BASE_URL } from './workerUrl';
 import { adoptRemoteReviewItems, loadReviewItems } from '@/lib/srs/store';
-import { currentSource } from '@/lib/attribution/source';
+import { currentSource, currentAffiliateRef } from '@/lib/attribution/source';
 import { adoptDailyAuthority, buildDailyPayload, clearDailyEvents, readDailyEventQueue } from '@/lib/progress/dailyAuthority';
 import type { DailyAuthority, DailyPayload } from '@/lib/progress/dailyAuthority';
 import { logError, logEvent, logNetwork } from '../utils/diagnostics';
@@ -240,10 +240,19 @@ export class WorkerClient {
       // The channel tag rides along so the account records where it came from.
       // It is a short slug the owner chose (`[a-z0-9_-]{1,32}`), never identity:
       // the Worker sanitises it again before it writes anything.
+      //
+      // The affiliate code rides along too, read from the 30-day cookie the site
+      // sets on `.katzuai.com`. The Worker validates it against the partner list
+      // and ignores an unknown one, so a stale cookie cannot invent a commission.
+      const ref = currentAffiliateRef();
       const res = await fetchWithTimeout(`${this.baseUrl}/auth/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken, source: currentSource() }),
+        body: JSON.stringify({
+          id_token: idToken,
+          source: currentSource(),
+          ...(ref ? { ref } : {}),
+        }),
       });
       if (res.ok) {
         const data = await res.json();

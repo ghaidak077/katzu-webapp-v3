@@ -100,6 +100,63 @@ export function clearSource(): void {
 }
 
 /**
+ * `?ref=` — a PARTNER's code, not the `REF-` invite of a learner.
+ *
+ * The marketing site sets the same cookie on `.katzuai.com`; this module owns the
+ * app side of it so a learner who lands directly on `katzuai.com/?ref=CODE` is
+ * attributed exactly like one who came through `/affiliate`. The value is a
+ * partner handle, public by design, and it never identifies the learner.
+ *
+ * WHY A COOKIE AND NOT localStorage
+ * The app lives on `katzuai.com` and the marketing site on `website.katzuai.com`.
+ * Only a cookie on the parent domain crosses that boundary, and the server reads
+ * it back at signup. 30 days, SameSite=Lax, never HttpOnly (the client must be
+ * able to read it to send it in the signup body).
+ */
+export const AFFILIATE_REF_COOKIE = 'katzu_ref';
+export const AFFILIATE_REF_PATTERN = /^[A-Z0-9]{3,20}$/;
+export const AFFILIATE_REF_MAX_AGE_SECONDS = 30 * 86400;
+
+/** The one grammar, shared by the site, the app and the test. */
+export function sanitizeAffiliateRef(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim().toUpperCase();
+  return AFFILIATE_REF_PATTERN.test(value) ? value : null;
+}
+
+/** The cookie value, if any. Never throws. */
+export function currentAffiliateRef(): string | null {
+  try {
+    const cookie = typeof document === 'undefined' ? '' : document.cookie || '';
+    const match = cookie.match(new RegExp(`(?:^|;\\s*)${AFFILIATE_REF_COOKIE}=([^;]+)`));
+    return match ? sanitizeAffiliateRef(decodeURIComponent(match[1])) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Stores `?ref=CODE` for 30 days on `.katzuai.com`.
+ *
+ * An invalid or absent value changes nothing: a stray query string must never
+ * erase an attribution that is already working.
+ */
+export function captureAffiliateRefFromSearch(search: string): string | null {
+  try {
+    const code = sanitizeAffiliateRef(new URLSearchParams(search || '').get('ref'));
+    if (!code) return currentAffiliateRef();
+    if (typeof document === 'undefined' || typeof location === 'undefined') return code;
+    const host = location.hostname;
+    const domain = host === 'katzuai.com' || host.endsWith('.katzuai.com') ? '; domain=.katzuai.com' : '';
+    const secure = location.protocol === 'https:' ? '; secure' : '';
+    document.cookie = `${AFFILIATE_REF_COOKIE}=${encodeURIComponent(code)}; path=/; max-age=${AFFILIATE_REF_MAX_AGE_SECONDS}; samesite=lax${domain}${secure}`;
+    return code;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Whether this visit arrived on a link somebody SHARED, and which kind.
  *
  * The share link a learner sends carries their referral code in `ref`, so a

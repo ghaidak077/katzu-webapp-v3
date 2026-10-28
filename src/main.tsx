@@ -7,11 +7,17 @@ import { installDiagnosticsCapture } from './lib/utils/diagnostics';
 import { installPreloadRecovery } from './lib/utils/preloadRecovery';
 import { installAnalyticsLifecycle } from './lib/analytics/client';
 import { trackRetentionReturns } from './lib/analytics/retention';
+import { captureAffiliateRefFromSearch } from './lib/attribution/source';
 import './index.css';
 
 // Capture console.error/warn, window.onerror and unhandledrejection into the
 // timestamped diagnostics buffer BEFORE any app code can fail.
 installDiagnosticsCapture();
+
+// A partner link can land directly on the app (`katzuai.com/?ref=CODE`), not only
+// on the marketing site. Read it once at boot, on the same 30-day cookie the site
+// uses, so signup can attach it server-side.
+captureAffiliateRefFromSearch(window.location.search);
 
 // A deploy swaps the route chunks out from under a running session. One guarded
 // reload recovers it instead of leaving the learner on a dead route.
