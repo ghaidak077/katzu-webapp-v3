@@ -27,7 +27,8 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 ## RESUME
 
 - **Production 2026-10-27 — the split is live and Google Sign-In is fixed.** `main` = **`95d3f04`**
-  (pushed; the `fix(auth)` batch is commits `d9a863e`, `d6345dc`, `3d46101`, `99f45f4`, `95d3f04`);
+  (pushed; the `fix(auth)` batch is commits `d9a863e`, `d6345dc`, `3d46101`, `99f45f4`, `95d3f04`,
+  then the docs ledger commits ending **`16a04f2`**);
   **app** `katzuai.com` = Pages deployment **`3c5fcfef-24ea-406c-b3b4-d725a4838b4b`**
   (bundle `assets/index-DtOhy65S.js`, Pages source listing `da7656c` because it was uploaded by hand at
   deploy time; the served `AppShell-C7UVbAY_.js` is byte-identical to the `dist/` built from the fixed
@@ -41,6 +42,16 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   301, the site byte-identical to `website/` with SRI + CSP and all 21 sitemap URLs **200**.
   Gate: `npm run verify` **6/6**, browser suite **exit 0**, targeted auth-adjacent specs **14 passed**.
   **UNPROVEN:** an actual Google credential exchange (needs a real account). Details in `## UNPROVEN`.
+- **2026-10-28 launch-claim re-check — four PASS, no code change.** (1) `website/` has no
+  `PLACEHOLDER`; the Pro offer keeps a real end date («حتى 31 يناير 2027») and `KATZU26` is its named
+  coupon. (2) 19 legacy app URLs (`/pricing`, `/faq`, `/about`, `/how-it-works`, `/who-its-for`,
+  `/compare`, `/en`, `/en/*`, `/use-cases/*`, `/trust/*`, `/privacy`, `/terms`) answer `301` with the
+  exact `https://website.katzuai.com…` target (final 200); `/demo` answers `301 Location: /welcome`,
+  which resolves to `https://katzuai.com/welcome` (app route, 200) — correct, not a website page.
+  (3) Live `canonical`/`og:url`/`hreflang` on 10 pages plus `sitemap.xml` (5,398 B) and `robots.txt`
+  (2,748 B) name `website.katzuai.com` only; no `pages.dev` in built pages, site scripts or artifacts.
+  (4) No Critical/High open: #7/#8 Low, #9/#10/#11 Informational. Probes: `redirects-check.mjs`,
+  `seo-check.mjs` in the OS temp dir, run this session.
 - **Older run records moved out on 2026-10-27** (2026-10-23 guided home back to 2026-10-07) to keep this
   file inside its 80 KB cap: `docs/agent/ARCHIVE-AGENT-STATE.md`, search `RESUME history moved 2026-10-27`.
 ## CURRENT MISSION
