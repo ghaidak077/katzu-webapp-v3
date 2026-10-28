@@ -239,10 +239,17 @@ describe('no hardcoded production hostname ships', () => {
     for (const name of ['robots.txt', 'sitemap.xml']) {
       expect(() => readFileSync(join(root, 'public', name), 'utf8')).toThrow();
     }
-    // The topic and trust pages the old sitemap advertised live on the separate
-    // site; the app answers those URLs with redirects, not with content.
+    // The topic and legal pages the old sitemap advertised live on the separate
+    // site, which is three pages now; the app answers those URLs with a single
+    // 301 straight to the final anchor, never to another redirect.
     const redirects = readFileSync(join(root, 'public', '_redirects'), 'utf8');
-    expect(redirects).toContain('https://website.katzuai.com/trust/privacy');
-    expect(redirects).toContain('https://website.katzuai.com/faq');
+    expect(redirects).toContain('/trust/privacy https://website.katzuai.com/help#privacy 301');
+    expect(redirects).toContain('/faq https://website.katzuai.com/help#faq 301');
+    expect(redirects).toContain('/how-it-works https://website.katzuai.com/#how 301');
+    expect(redirects).toContain('/pricing https://website.katzuai.com/pricing 301');
+    // No redirect points at another redirect on this site.
+    for (const [, target] of redirects.matchAll(/https:\/\/website\.katzuai\.com(\S*) 301/g)) {
+      expect(target, 'must land on a final target').not.toMatch(/\/(trust|faq|about|compare|how-it-works|who-its-for|en)\b/);
+    }
   });
 });

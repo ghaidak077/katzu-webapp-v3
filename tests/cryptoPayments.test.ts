@@ -224,7 +224,8 @@ const IPN_SECRET = 'katzu-nowpayments-ipn-test-secret';
 const API_KEY = 'nowpayments_test_api_key_do_not_leak';
 const HMAC_SECRET = 'katzu-hmac-secret';
 const ADMIN_SECRET = 'katzu-admin-secret-0123456789';
-const PRICE_USD = 5;
+/** The 1-month founding price, read from the config by the module under test. */
+const PRICE_USD = 14.99;
 
 function makeEnv(extra: Record<string, unknown> = {}) {
   return {
@@ -241,8 +242,6 @@ function makeEnv(extra: Record<string, unknown> = {}) {
     NOWPAYMENTS_API_KEY: API_KEY,
     NOWPAYMENTS_IPN_SECRET: IPN_SECRET,
     NOWPAYMENTS_ENVIRONMENT: 'test_mode',
-    CRYPTO_PRICE_USD: String(PRICE_USD),
-    CRYPTO_MONTHS: '1',
     USER_PROGRESS: new MemoryKv(),
     REDEEMED_CODES: new MemoryKv(),
     DB: new MemoryD1(),
@@ -320,44 +319,47 @@ function signDiscount(unsigned: string, secret = HMAC_SECRET): string {
   return createHmac('sha256', secret).update(unsigned).digest('hex').toUpperCase().slice(0, 16);
 }
 
-describe('Plan tiers and student discount codes (V21 Phase 7)', () => {
-  it('derives tiers from per-tier env vars, with the base var as fallback', () => {
-    // Explicit per-tier configuration (the owner's real shape):
-    // monthly 20, student 6.
-    const explicit = getCryptoPlans({ CRYPTO_PRICE_USD: '20', CRYPTO_PRICE_STUDENT_USD: '6' });
-    expect(explicit.map((p) => p.id)).toEqual(['monthly', 'quarterly', 'yearly', 'student']);
-    expect(explicit[0].priceUsd).toBe(20);
-    expect(explicit[3].priceUsd).toBe(6);
-    expect(explicit[3].requires_discount_code).toBe(true);
-    expect(explicit[0].requires_discount_code).toBeUndefined();
-
-    // A tier var left unset falls back to the base derivation.
-    const fallback = getCryptoPlans({ CRYPTO_PRICE_USD: '10' });
-    expect(fallback[1].priceUsd).toBe(26.1); // 10 × 3 × 0.87
-    expect(fallback[2].priceUsd).toBe(84); // 10 × 12 × 0.70
-    expect(fallback[3].priceUsd).toBe(3.5); // 10 × 0.35
+describe('The four founding-price plans (one table, no env overrides)', () => {
+  it('sells the four plans from pricing.config.json, in config order', () => {
+    const plans = getCryptoPlans({});
+    expect(plans.map((p) => p.id)).toEqual(['monthly', 'quarterly', 'halfyear', 'yearly']);
+    expect(plans.map((p) => p.months)).toEqual([1, 3, 6, 12]);
   });
 
-  it('marks exactly the quarterly tier as recommended (V24 Phase 4)', () => {
-    const plans = getCryptoPlans({ CRYPTO_PRICE_USD: '5' });
-    const recommended = plans.filter((p) => p.recommended);
-    expect(recommended.map((p) => p.id)).toEqual(['quarterly']);
-    // Only a boolean the server set — never a client guess.
-    expect(plans.find((p) => p.id === 'monthly')?.recommended).toBeUndefined();
-    expect(plans.find((p) => p.id === 'yearly')?.recommended).toBeUndefined();
-    expect(plans.find((p) => p.id === 'student')?.recommended).toBeUndefined();
+  it('charges the founding price and publishes the future price beside it', () => {
+    const plans = getCryptoPlans({});
+    expect(plans.map((p) => p.priceUsd)).toEqual([14.99, 29.99, 49.99, 99.99]);
+    expect(plans.map((p) => p.futureUsd)).toEqual([29.99, 59.99, 99.99, 199.99]);
+    // A struck price that is not higher would be a fake discount.
+    for (const plan of plans) expect(plan.futureUsd).toBeGreaterThan(plan.priceUsd);
   });
 
-  it('reads all three per-tier price vars the owner sets (V24 Phase 4)', () => {
-    const plans = getCryptoPlans({
-      CRYPTO_PRICE_USD: '5',
-      CRYPTO_PRICE_QUARTERLY_USD: '14',
-      CRYPTO_PRICE_YEARLY_USD: '44',
+  it('cannot be moved by an env var — the old per-tier overrides are gone', () => {
+    // This is the whole point of the JSON: a price var left behind in a deploy
+    // would silently charge the old amount.
+    const overridden = getCryptoPlans({
+      CRYPTO_PRICE_USD: '1',
+      CRYPTO_PRICE_STUDENT_USD: '1',
+      CRYPTO_PRICE_QUARTERLY_USD: '1',
+      CRYPTO_PRICE_YEARLY_USD: '1',
+      CRYPTO_MONTHS: '12',
     });
-    expect(plans.find((p) => p.id === 'quarterly')?.priceUsd).toBe(14);
-    expect(plans.find((p) => p.id === 'yearly')?.priceUsd).toBe(44);
-    // The 1-month pass is still served from the base var.
-    expect(plans.find((p) => p.id === 'monthly')?.priceUsd).toBe(5);
+    expect(overridden).toEqual(getCryptoPlans({}));
+  });
+
+  it('marks exactly the 6-month plan as recommended', () => {
+    const plans = getCryptoPlans({});
+    const recommended = plans.filter((p) => p.recommended);
+    expect(recommended.map((p) => p.id)).toEqual(['halfyear']);
+    // Only a boolean the server set — never a client guess.
+    expect(plans.find((p) => p.id === 'monthly')?.recommended).toBe(false);
+    expect(plans.find((p) => p.id === 'yearly')?.recommended).toBe(false);
+  });
+
+  it('has no student tier and no per-plan discount flag left over', () => {
+    const plans = getCryptoPlans({});
+    expect(plans.map((p) => p.id)).not.toContain('student');
+    for (const plan of plans) expect(plan.requires_discount_code).toBeUndefined();
   });
 
   it('validates a signed discount code and rejects tampering', async () => {
@@ -380,43 +382,63 @@ describe('Plan tiers and student discount codes (V21 Phase 7)', () => {
   it('checkout honors a plan and re-prices server-side with the discount', async () => {
     const env = makeEnv();
 
-    // Yearly plan: 5.00 × 12 × 0.70 = 42.00, 12 months.
+    // Yearly plan: 99.99 for 12 months, straight from the config.
     const yearly = await startOrder(env, { plan: 'yearly' });
     expect(yearly.res.status).toBe(200);
-    expect(yearly.body.price_usd).toBe(42);
+    expect(yearly.body.price_usd).toBe(99.99);
     expect(yearly.body.months).toBe(12);
     expect(yearly.body.plan).toBe('yearly');
 
-    // Student tier WITH a valid 50% code: the code must not double-discount
-    // the tier's own price — the cheaper of (tier price, base × (1−pct)) wins.
-    // Base 5.00, student tier 1.75 (5 × 0.35): 50% code → min(1.75, 2.50) = 1.75.
-    const unsigned = 'STD-50-STUDENT';
+    // A signed 50% code REPLACES the price of any plan — it never stacks on the
+    // founding price, which is already the discount. 49.99 × 0.5 → 25.00.
+    const unsigned = 'STD-50-HALFYEAR';
     const discount = `${unsigned}-${signDiscount(unsigned)}`;
-    const student = await startOrder(env, { plan: 'student', discount_code: discount });
-    expect(student.res.status).toBe(200);
-    expect(student.body.price_usd).toBe(1.75);
-    expect(student.body.months).toBe(1);
-    expect(student.body.discount_percent).toBe(50);
+    const half = await startOrder(env, { plan: 'halfyear', discount_code: discount });
+    expect(half.res.status).toBe(200);
+    expect(half.body.price_usd).toBe(25);
+    expect(half.body.months).toBe(6);
+    expect(half.body.discount_percent).toBe(50);
+
+    // 20% on the monthly plan: 14.99 × 0.8 = 11.992 → 11.99, never 0.
+    const fifth = 'STD-20-MONTHLY';
+    const monthly = await startOrder(env, {
+      plan: 'monthly',
+      discount_code: `${fifth}-${signDiscount(fifth)}`,
+    });
+    expect(monthly.body.price_usd).toBe(11.99);
+    expect(monthly.body.months).toBe(1);
+  });
+
+  it('rejects an unknown plan id instead of selling the cheapest one', async () => {
+    const env = makeEnv();
+    // `planById` returns null, and checkout then falls back to the monthly
+    // default — never to an unpriced or free plan.
+    const res = await startOrder(env, { plan: 'lifetime' });
+    expect(res.res.status).toBe(200);
+    expect(res.body.plan).toBe('default');
+    expect(res.body.price_usd).toBe(PRICE_USD);
+    expect(res.body.months).toBe(1);
   });
 
   it('rejects a tampered or invalid discount code without creating an order', async () => {
     const env = makeEnv();
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const res = await worker.fetch(
-      json('/crypto/checkout', { plan: 'student', discount_code: 'STD-50-HACKED-0000000000000000' }),
+      json('/crypto/checkout', { plan: 'yearly', discount_code: 'STD-50-HACKED-0000000000000000' }),
       env as never
     );
     fetchSpy.mockRestore();
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('invalid_discount_code');
+    expect(env.DB.table('crypto_orders')).toHaveLength(0);
   });
 
-  it('falls back to the base plan when no plan is named', async () => {
+  it('falls back to the monthly plan when no plan is named', async () => {
     const env = makeEnv();
     const fallback = await startOrder(env);
     expect(fallback.body.plan).toBe('default');
-    expect(fallback.body.price_usd).toBe(5);
+    expect(fallback.body.price_usd).toBe(PRICE_USD);
     expect(fallback.body.months).toBe(1);
   });
 });
@@ -475,11 +497,13 @@ describe('crypto configuration', () => {
     expect(getCryptoBaseUrl({ NOWPAYMENTS_ENVIRONMENT: 'live_mode', NOWPAYMENTS_BASE_URL: 'https://proxy.example/' })).toBe('https://proxy.example');
   });
 
-  it('clamps price and duration to sane values', () => {
-    expect(getCryptoPlan({})).toEqual({ priceUsd: 5, months: 1 });
-    expect(getCryptoPlan({ CRYPTO_PRICE_USD: '4.5', CRYPTO_MONTHS: '3' })).toEqual({ priceUsd: 4.5, months: 3 });
-    expect(getCryptoPlan({ CRYPTO_PRICE_USD: '0', CRYPTO_MONTHS: '99' }).months).toBe(12);
-    expect(getCryptoPlan({ CRYPTO_PRICE_USD: 'abc', CRYPTO_MONTHS: '0' })).toEqual({ priceUsd: 5, months: 1 });
+  it('reads the price and duration from the config, with no env override', () => {
+    expect(getCryptoPlan({})).toEqual({ priceUsd: 14.99, months: 1 });
+    // The retired env vars cannot move either number.
+    expect(getCryptoPlan({ CRYPTO_PRICE_USD: '4.5', CRYPTO_MONTHS: '3' })).toEqual({
+      priceUsd: 14.99,
+      months: 1,
+    });
   });
 
   it('returns the customer to the sales site, never to the worker that hosts the API', () => {

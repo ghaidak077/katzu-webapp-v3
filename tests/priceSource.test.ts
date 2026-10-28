@@ -6,11 +6,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * One price, one source — and the absence of a second.
  *
  * What this defends is a launch-week property, not a refactor: a learner who
- * sees the pass on the landing page, opens the paywall and then the redemption
- * screen must be quoted the SAME amount, in the server's currency, or no amount
- * at all. The old path broke both halves of that — `/crypto/health` in USD next
- * to `/pricing` in EUR, with a hardcoded «5 دولار / شهر» behind it for the case
- * where the network failed.
+ * sees the founding price on the landing page, opens the paywall and then the
+ * redemption screen must be quoted the SAME amount, in the server's currency, or
+ * no amount at all. The old path broke both halves of that — `/crypto/health` in
+ * USD next to `/pricing` in EUR, with a hardcoded «5 دولار / شهر» behind it for
+ * the case where the network failed.
+ *
+ * The offer is now four plans with a founding price and a published future
+ * price, so the table has more to carry. None of it is allowed to live here: the
+ * figures below are the server's answer, read back.
  */
 
 const getPricing = vi.fn();
@@ -52,11 +56,50 @@ describe('the two reasons a price can be missing', () => {
 /** The catalogue `GET /pricing` answers with, standard group. */
 const ANSWER = {
   prices: [
-    { product: 'pass90', amountCents: 2900, currency: 'EUR', group: 'standard', cell: null },
-    { product: 'monthly', amountCents: 1299, currency: 'EUR', group: 'standard', cell: null },
-    { product: 'mock', amountCents: 900, currency: 'EUR', group: 'standard', cell: null },
+    {
+      product: 'monthly',
+      amountCents: 1499,
+      futureCents: 2999,
+      months: 1,
+      recommended: false,
+      currency: 'USD',
+      group: 'standard',
+    },
+    {
+      product: 'quarterly',
+      amountCents: 2999,
+      futureCents: 5999,
+      months: 3,
+      recommended: false,
+      currency: 'USD',
+      group: 'standard',
+    },
+    {
+      product: 'halfyear',
+      amountCents: 4999,
+      futureCents: 9999,
+      months: 6,
+      recommended: true,
+      currency: 'USD',
+      group: 'standard',
+    },
+    {
+      product: 'yearly',
+      amountCents: 9999,
+      futureCents: 19999,
+      months: 12,
+      recommended: false,
+      currency: 'USD',
+      group: 'standard',
+    },
   ],
   group: 'standard',
+  foundingCap: 1000,
+  foundingEndsOn: '2027-01-31',
+  refundDays: 7,
+  refundPlanIds: ['quarterly', 'halfyear', 'yearly'],
+  activationHours: 12,
+  freeLessonsPerMonth: 3,
 } as never;
 
 beforeEach(() => {
@@ -84,49 +127,76 @@ describe('the price table every surface reads', () => {
     expect(getPricing).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the same amount for every product, in the server\'s own currency', async () => {
+  it("renders all four plans at the server's own amount, cents and all", async () => {
     getPricing.mockResolvedValue(ANSWER);
     const pricing = await loadPricing();
-    // Whole euros print without cents, and 12.99 never rounds to 13 €.
-    expect(priceFor(pricing, 'pass90')).toBe('29 €');
-    expect(priceFor(pricing, 'monthly')).toBe('12,99 €');
-    expect(priceFor(pricing, 'mock')).toBe('9 €');
+    // 14.99 must never round to $15, and a whole-dollar amount keeps no ".00".
+    expect(priceFor(pricing, 'monthly')).toBe('$14.99');
+    expect(priceFor(pricing, 'quarterly')).toBe('$29.99');
+    expect(priceFor(pricing, 'halfyear')).toBe('$49.99');
+    expect(priceFor(pricing, 'yearly')).toBe('$99.99');
   });
 
-  it('leads the headline with the exam pass, and falls back to the subscription', async () => {
+  it('carries the future price and the month count beside the founding price', async () => {
     getPricing.mockResolvedValue(ANSWER);
-    expect(headlinePrice(await loadPricing())).toBe('29 €');
-
-    getPricing.mockResolvedValue({
-      ...ANSWER,
-      prices: [{ product: 'monthly', amountCents: 1299, currency: 'EUR', group: 'standard', cell: null }],
-    } as never);
-    resetPriceCache();
-    expect(headlinePrice(await loadPricing())).toBe('12,99 €');
+    const pricing = await loadPricing();
+    const yearly = priceRowFor(pricing, 'yearly');
+    expect(yearly?.futureCents).toBe(19999);
+    expect(yearly?.months).toBe(12);
+    // The struck price is a real published price, never a made-up anchor.
+    for (const product of ['monthly', 'quarterly', 'halfyear', 'yearly']) {
+      const row = priceRowFor(pricing, product);
+      expect(row!.futureCents).toBeGreaterThan(row!.amountCents);
+    }
   });
 
-  it('prices a non-euro region in the currency the server chose, with no local conversion', async () => {
+  it('pre-selects exactly one plan, and the server says which', async () => {
+    getPricing.mockResolvedValue(ANSWER);
+    const pricing = await loadPricing();
+    const recommended = pricing!.prices.filter((row) => row.recommended);
+    expect(recommended).toHaveLength(1);
+    expect(recommended[0].product).toBe('halfyear');
+  });
+
+  it('leads the headline with the entry price, the smallest commitment', async () => {
+    getPricing.mockResolvedValue(ANSWER);
+    expect(headlinePrice(await loadPricing())).toBe('$14.99');
+  });
+
+  it('serves the rules the page and the FAQ both state', async () => {
+    getPricing.mockResolvedValue(ANSWER);
+    const pricing = await loadPricing();
+    expect(pricing!.foundingCap).toBe(1000);
+    expect(pricing!.foundingEndsOn).toBe('2027-01-31');
+    expect(pricing!.refundDays).toBe(7);
+    expect(pricing!.refundPlanIds).toEqual(['quarterly', 'halfyear', 'yearly']);
+    expect(pricing!.activationHours).toBe(12);
+  });
+
+  it('keeps the region for instructions and analytics, but not for the price', async () => {
     getPricing.mockResolvedValue({
-      prices: [{ product: 'pass90', amountCents: 1200, currency: 'EUR', group: 'special', cell: 1 }],
+      ...(ANSWER as Record<string, unknown>),
       group: 'special',
-      cell: 1,
+      prices: (ANSWER as any).prices,
     } as never);
     const pricing = await loadPricing();
-    expect(priceFor(pricing, 'pass90')).toBe('12 €');
     expect(pricing!.group).toBe('special');
-    expect(pricing!.cell).toBe(1);
+    expect(priceFor(pricing, 'yearly')).toBe('$99.99');
   });
 
   it('shows no price for a product the server did not price', async () => {
     getPricing.mockResolvedValue({
-      prices: [{ product: 'pass90', amountCents: 2900, currency: 'EUR', group: 'standard', cell: null }],
+      prices: [
+        { product: 'monthly', amountCents: 1499, months: 1, currency: 'USD', group: 'standard' },
+      ],
       group: 'standard',
     } as never);
     const pricing = await loadPricing();
-    expect(priceFor(pricing, 'pass90')).toBe('29 €');
-    expect(priceFor(pricing, 'monthly')).toBeNull();
+    expect(priceFor(pricing, 'monthly')).toBe('$14.99');
     expect(priceFor(pricing, 'yearly')).toBeNull();
     expect(priceRowFor(pricing, 'yearly')).toBeUndefined();
+    // A plan id we no longer sell stays unpriced rather than free.
+    expect(priceFor(pricing, 'pass90')).toBeNull();
   });
 
   it('shows no price at all when the server cannot be reached', async () => {
@@ -134,7 +204,7 @@ describe('the price table every surface reads', () => {
     const pricing = await loadPricing();
     expect(pricing).toBeNull();
     expect(headlinePrice(pricing)).toBeNull();
-    expect(priceFor(pricing, 'pass90')).toBeNull();
+    expect(priceFor(pricing, 'monthly')).toBeNull();
   });
 
   it('shows no price when the call throws', async () => {
@@ -148,40 +218,42 @@ describe('the price table every surface reads', () => {
     expect(getPricing).toHaveBeenCalledTimes(1);
     // A blank paywall for the rest of the session would be a worse defect than
     // a brief one: the second visit is allowed to ask again.
-    expect(headlinePrice(await loadPricing())).toBe('29 €');
+    expect(headlinePrice(await loadPricing())).toBe('$14.99');
     expect(getPricing).toHaveBeenCalledTimes(2);
   });
 
   it('treats a malformed amount as no price rather than as zero', async () => {
     getPricing.mockResolvedValue({
-      prices: [{ product: 'pass90', amountCents: 'free', currency: 'EUR', group: 'standard', cell: null }],
+      prices: [
+        { product: 'monthly', amountCents: 'free', currency: 'USD', group: 'standard' },
+      ],
       group: 'standard',
     } as never);
-    expect(priceFor(await loadPricing(), 'pass90')).toBeNull();
+    expect(priceFor(await loadPricing(), 'monthly')).toBeNull();
   });
 });
 
-describe('the two offers the modal shows', () => {
-  it('offers the 3-month pass as recommended, and the month after it — nothing else', async () => {
+describe('the four plans the modal shows', () => {
+  it('reads the plan list from the one table instead of restating it', async () => {
     getPricing.mockResolvedValue(ANSWER);
     const pricing = await loadPricing();
     const modal = readFileSync('src/components/sheets/PaywallModal.tsx', 'utf8');
-    // Read the declared list rather than restating it here, so the test fails
-    // if a third tier is added to the modal.
-    const products = [...modal.matchAll(/product: '([a-z0-9]+)'/g)].map((m) => m[1]);
-    expect(products).toEqual(['pass90', 'monthly']);
-    // And the recommended one is the pass, not the subscription.
-    expect(modal).toMatch(/product: 'pass90',[\s\S]*recommended: true/);
-    // Both are priced by the server, so both must be present in its answer.
-    for (const product of products) expect(priceFor(pricing, product)).toMatch(/^\d/);
+    // The declaration maps PLANS; a second hand-written tier list inside the
+    // modal is exactly the drift this change removes.
+    const declared = modal.slice(modal.indexOf('const OFFERED_TIERS'));
+    const block = declared.slice(0, declared.indexOf('}));'));
+    expect(block).toContain('PLANS.map');
+    expect(block).not.toMatch(/pass90|student|سنوي|طلاب/);
+    // Every product the modal offers is priced by the server.
+    for (const product of ['monthly', 'quarterly', 'halfyear', 'yearly']) {
+      expect(priceFor(pricing, product)).toMatch(/^\$/);
+    }
   });
 
-  it('has no yearly or student tier anywhere in the modal', () => {
-    // The declaration only — the file's own note about *why* there is no annual
-    // tier must keep naming them, or the next run cannot see the decision.
+  it('badges the 6-month plan, not the cheapest or the longest', () => {
     const modal = readFileSync('src/components/sheets/PaywallModal.tsx', 'utf8');
-    const declared = modal.slice(modal.indexOf('const OFFERED_TIERS'));
-    expect(declared.slice(0, declared.indexOf(']'))).not.toMatch(/yearly|student|سنوي|طلاب/);
+    expect(modal).toContain('recommended');
+    expect(modal).toMatch(/BEST_VALUE_AR/);
   });
 });
 
@@ -239,10 +311,18 @@ describe('no second price source survives in the app', () => {
   it('hardcodes no currency amount in app code', () => {
     // A literal amount in code is the thing this change exists to remove. Only
     // money shapes are matched, and only where the currency sits against the
-    // number — `formatEuro(cents, 'EUR')` passes a code, not a price, and the
-    // old «5 دولار / شهر» fallback matched the currency-then-number shape.
+    // number — `formatUsd(cents)` passes a value, not a price, and the old
+    // «5 دولار / شهر» fallback matched the currency-then-number shape.
     const money = /[€$]\s*\d|\d\s*(?:€|\$|دولار|يورو)\b|\b(?:EUR|USD)\s*\d|\b(?:EUR|USD)\s*=\s*\d/;
     const offenders = appFiles().filter((f) => money.test(code(f)));
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps every price surface free of the retired offer', () => {
+    // $60 a year, $42, the KATZU26 coupon and the "limited time" label are gone
+    // from shipped copy, not just from the pages the owner happens to open.
+    const retired = /\$60\b|\$42\b|KATZU26|limited[- ]time|لفترة محدودة|24 ساعة|60 دولار/;
+    const offenders = appFiles().filter((f) => retired.test(code(f)));
     expect(offenders).toEqual([]);
   });
 });

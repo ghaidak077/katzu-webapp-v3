@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import pricingConfig from '../pricing.config.json';
 import {
-  PASS_CELLS,
-  PRICES,
+  ACTIVATION_HOURS,
+  FREE_LESSONS_PER_MONTH,
+  FOUNDING_CAP,
+  PLANS,
+  PLAN_BY_ID,
   PRODUCTS,
+  PRODUCT_DURATION_DAYS,
+  RECOMMENDED_PRODUCT,
+  REFUND_DAYS,
+  REFUND_PLAN_IDS,
   SPECIAL_COUNTRIES,
   catalogueFor,
   daysUntilExpiry,
@@ -10,7 +18,6 @@ import {
   isEntitlementActive,
   mockCreditsRemaining,
   shouldRemindAboutExpiry,
-  experimentBucket,
   isRegionMismatch,
   priceFor,
   regionGroupFromCountry,
@@ -19,11 +26,11 @@ import {
 
 /**
  * Prices are a server decision. These tests exist so the two failure modes that
- * would cost money are impossible to ship silently: a learner reaching the
- * cheaper region table, and a price drifting away from the table.
+ * would cost money are impossible to ship silently: a price drifting away from
+ * the config, and a plan that is sold without a duration or a refund rule.
  */
 describe('regionGroupFromCountry', () => {
-  it('prices each special country as special', () => {
+  it('labels each special country as special', () => {
     for (const code of SPECIAL_COUNTRIES) {
       expect(regionGroupFromCountry(code)).toBe('special');
     }
@@ -35,7 +42,8 @@ describe('regionGroupFromCountry', () => {
   });
 
   it('treats an unknown country as standard, never as special', () => {
-    // The dangerous direction is a spoofed or unmapped code reaching cheap prices.
+    // The dangerous direction is a spoofed or unmapped code reaching the wrong
+    // payment instructions.
     for (const code of ['DE', 'US', 'ZZ', 'XX', 'NLD']) {
       expect(regionGroupFromCountry(code)).toBe('standard');
     }
@@ -67,93 +75,82 @@ describe('regionGroupFromRequest', () => {
   });
 });
 
-describe('experimentBucket', () => {
-  it('is stable for the same account, which is the whole point of a bucket', () => {
-    for (const id of ['sub-abc', 'google-oauth2|12345', '', 'a']) {
-      expect(experimentBucket(id)).toBe(experimentBucket(id));
+describe('the plan table', () => {
+  it('sells exactly the four config plans, in config order', () => {
+    expect(PRODUCTS).toEqual(['monthly', 'quarterly', 'halfyear', 'yearly']);
+    expect(PRODUCTS).toEqual(pricingConfig.plans.map((p) => p.id));
+  });
+
+  it('reads every amount from pricing.config.json, in integer cents', () => {
+    for (const plan of pricingConfig.plans) {
+      const row = priceFor({ product: plan.id });
+      expect(row.amountCents).toBe(Math.round(plan.foundingUsd * 100));
+      expect(row.futureCents).toBe(Math.round(plan.futureUsd * 100));
+      expect(Number.isInteger(row.amountCents)).toBe(true);
+      expect(row.currency).toBe('USD');
     }
   });
 
-  it('lands inside the cell range', () => {
-    for (let i = 0; i < 50; i++) {
-      const bucket = experimentBucket(`learner-${i}`);
-      expect(bucket).toBeGreaterThanOrEqual(0);
-      expect(bucket).toBeLessThan(3);
+  it('publishes a future price above every founding price', () => {
+    // A struck-through price that is not higher would be a fake discount.
+    for (const plan of PLANS) {
+      expect(plan.futureCents).toBeGreaterThan(plan.amountCents);
     }
   });
 
-  it('spreads different accounts across more than one cell', () => {
-    // A bucket that never varies would silently report a flat experiment.
-    const buckets = new Set(Array.from({ length: 40 }, (_, i) => experimentBucket(`learner-${i}`)));
-    expect(buckets.size).toBeGreaterThan(1);
+  it('prices each longer plan below the cost of stacking the shorter one', () => {
+    const monthly = PLAN_BY_ID.monthly.amountCents;
+    expect(PLAN_BY_ID.quarterly.amountCents).toBeLessThan(monthly * 3);
+    expect(PLAN_BY_ID.halfyear.amountCents).toBeLessThan(monthly * 6);
+    expect(PLAN_BY_ID.yearly.amountCents).toBeLessThan(monthly * 12);
   });
 
-  it('handles a degenerate cell count without dividing by zero', () => {
-    expect(experimentBucket('x', 0)).toBe(0);
-    expect(experimentBucket('x', -1)).toBe(0);
-  });
-});
-
-describe('priceFor', () => {
-  it('reads standard and special from the one table', () => {
-    expect(priceFor({ group: 'standard', product: 'pass90' }).amountCents).toBe(PRICES.standard.pass90);
-    expect(priceFor({ group: 'special', product: 'pass90' }).amountCents).toBe(PRICES.special.pass90);
-    expect(priceFor({ group: 'special', product: 'mock' }).amountCents).toBe(PRICES.special.mock);
+  it('pre-selects exactly one plan, and it is the 6-month one', () => {
+    expect(RECOMMENDED_PRODUCT).toBe('halfyear');
+    expect(PLANS.filter((plan) => plan.recommended)).toHaveLength(1);
   });
 
-  it('defaults to standard when no group is supplied', () => {
-    expect(priceFor({ product: 'monthly' }).amountCents).toBe(PRICES.standard.monthly);
-  });
-
-  it('uses the experiment cell for pass90 only', () => {
-    expect(priceFor({ group: 'standard', product: 'pass90', cell: 0 }).amountCents).toBe(1900);
-    expect(priceFor({ group: 'special', product: 'pass90', cell: 2 }).amountCents).toBe(1900);
-    // Monthly and Mock are not in the experiment.
-    expect(priceFor({ group: 'standard', product: 'monthly', cell: 0 }).cell).toBeNull();
-  });
-
-  it('falls back to the plain price when the experiment is off', () => {
-    expect(priceFor({ group: 'standard', product: 'pass90', cell: null }).amountCents).toBe(2900);
-    // An out-of-range cell must not read past the end of the table.
-    expect(priceFor({ group: 'standard', product: 'pass90', cell: 9 }).amountCents).toBe(2900);
-  });
-
-  it('returns null for a product we do not sell, rather than a price of 0', () => {
-    // A free "annual" plan by accident is exactly the dark pattern to avoid.
+  it('returns null for an id we do not sell, rather than a price of 0', () => {
+    // A free plan by accident is exactly the dark pattern to avoid.
     expect(priceFor({ product: 'annual' })).toBeNull();
+    expect(priceFor({ product: 'pass90' })).toBeNull();
+    expect(priceFor({ product: 'mock' })).toBeNull();
     expect(priceFor({ product: 'lifetime' })).toBeNull();
   });
 
   it('marks every price unproven, because none of them has been sold at', () => {
-    expect(priceFor({ product: 'pass90' }).unproven).toBe(true);
-  });
-
-  it('keeps the cell tables and the base table consistent', () => {
-    // The middle cell of each group is the control price; if they drift apart the
-    // experiment silently stops measuring what it claims to.
-    expect(PASS_CELLS.standard[1]).toBe(PRICES.standard.pass90);
-    expect(PASS_CELLS.special[1]).toBe(PRICES.special.pass90);
+    expect(priceFor({ product: 'yearly' }).unproven).toBe(true);
   });
 });
 
 describe('catalogueFor', () => {
-  it('sells exactly the three decided products — no annual, no lifetime', () => {
-    expect(PRODUCTS).toEqual(['pass90', 'monthly', 'mock']);
-    expect(catalogueFor({ group: 'standard' }).prices.map((p) => p.product)).toEqual(PRODUCTS);
-  });
-
-  it('prices special below standard for every product', () => {
-    for (const product of PRODUCTS) {
-      expect(priceFor({ group: 'special', product }).amountCents).toBeLessThan(
-        priceFor({ group: 'standard', product }).amountCents,
-      );
-    }
-  });
-
-  it('carries the group and cell so the client never has to decide them', () => {
-    const cat = catalogueFor({ group: 'special', cell: 1 });
+  it('carries the four plans and the published rules', () => {
+    const cat = catalogueFor({ group: 'special' });
+    expect(cat.prices.map((p) => p.product)).toEqual(PRODUCTS);
     expect(cat.group).toBe('special');
-    expect(cat.cell).toBe(1);
+    expect(cat.foundingCap).toBe(FOUNDING_CAP);
+    expect(cat.foundingEndsOn).toBe('2027-01-31');
+    expect(cat.refundDays).toBe(REFUND_DAYS);
+    expect(cat.refundPlanIds).toEqual(REFUND_PLAN_IDS);
+    expect(cat.activationHours).toBe(ACTIVATION_HOURS);
+    expect(cat.freeLessonsPerMonth).toBe(FREE_LESSONS_PER_MONTH);
+  });
+
+  it('does not move the price by region — one table for everyone', () => {
+    const standard = catalogueFor({ group: 'standard' });
+    const special = catalogueFor({ group: 'special' });
+    expect(special.prices).toEqual(standard.prices);
+  });
+
+  it('refunds the 3-, 6- and 12-month plans and never the 1-month one', () => {
+    expect(REFUND_PLAN_IDS).toEqual(['quarterly', 'halfyear', 'yearly']);
+    expect(REFUND_PLAN_IDS).not.toContain('monthly');
+    for (const id of REFUND_PLAN_IDS) expect(PRODUCTS).toContain(id);
+  });
+
+  it('promises activation within 12 hours, not a day', () => {
+    expect(ACTIVATION_HOURS).toBe(12);
+    expect(FREE_LESSONS_PER_MONTH).toBe(3);
   });
 });
 
@@ -174,26 +171,36 @@ describe('isRegionMismatch', () => {
     expect(isRegionMismatch(undefined, 'standard')).toBe(false);
   });
 });
+
 /**
- * Expiry is the boundary that quietly costs someone 90 paid days, so it is
+ * Expiry is the boundary that quietly costs someone paid months, so it is
  * pinned at the exact millisecond rather than approximated.
  */
 describe('entitlement duration and expiry', () => {
   const T0 = Date.parse('2026-10-05T00:00:00.000Z');
   const DAY = 86400000;
 
-  it('pass90 lasts 90 days and monthly 30', () => {
-    expect(entitlementExpiryFor('pass90', T0)).toBe('2027-01-03T00:00:00.000Z');
+  it('maps each plan to its nominal days', () => {
+    expect(PRODUCT_DURATION_DAYS).toEqual({
+      monthly: 30,
+      quarterly: 90,
+      halfyear: 180,
+      yearly: 365,
+    });
+  });
+
+  it('gives a quarterly plan 90 days and a monthly one 30', () => {
+    expect(entitlementExpiryFor('quarterly', T0)).toBe('2027-01-03T00:00:00.000Z');
     expect(entitlementExpiryFor('monthly', T0)).toBe('2026-11-04T00:00:00.000Z');
   });
 
-  it('gives a mock no expiry, because it is a count not a clock', () => {
+  it('gives an unknown id no expiry rather than a sentinel date', () => {
     expect(entitlementExpiryFor('mock', T0)).toBeNull();
     expect(entitlementExpiryFor('not_a_product', T0)).toBeNull();
   });
 
   it('is live right up to the expiry and over at the exact millisecond', () => {
-    const record = { expiresAt: entitlementExpiryFor('pass90', T0) };
+    const record = { expiresAt: entitlementExpiryFor('quarterly', T0) };
     const expiry = Date.parse(record.expiresAt);
     expect(isEntitlementActive(record, expiry - 1)).toBe(true);
     expect(isEntitlementActive(record, expiry)).toBe(false);
@@ -207,7 +214,7 @@ describe('entitlement duration and expiry', () => {
   });
 
   it('counts whole days left and never goes negative', () => {
-    const expiresAt = entitlementExpiryFor('pass90', T0);
+    const expiresAt = entitlementExpiryFor('quarterly', T0);
     expect(daysUntilExpiry(expiresAt, T0)).toBe(90);
     expect(daysUntilExpiry(expiresAt, T0 + 89 * DAY)).toBe(1);
     expect(daysUntilExpiry(expiresAt, T0 + 200 * DAY)).toBe(0);
@@ -215,7 +222,7 @@ describe('entitlement duration and expiry', () => {
   });
 
   it('warns only inside the 7-day window', () => {
-    const record = { expiresAt: entitlementExpiryFor('pass90', T0) };
+    const record = { expiresAt: entitlementExpiryFor('quarterly', T0) };
     expect(shouldRemindAboutExpiry(record, T0)).toBe(false);
     // 8 whole days left is outside the window; 7 is the first day inside it.
     expect(shouldRemindAboutExpiry(record, T0 + 82 * DAY)).toBe(false);

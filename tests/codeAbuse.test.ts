@@ -245,7 +245,10 @@ describe('C3: Arabic per-region payment instructions', () => {
     const standard = paymentInstructionsFor('standard');
     expect(special.caveatAr).not.toBe(standard.caveatAr);
     expect(special.caveatAr).toMatch(/وسيط/);
-    expect(ACTIVATION_TIMING_AR.special).toMatch(/يوم عمل/);
+    expect(ACTIVATION_TIMING_AR.special).toMatch(/12 ساعة/);
+    // The 24-hour wording is gone; the bound is the published 12 hours in both
+    // regions, so a learner comparing two screens cannot read two deadlines.
+    expect(ACTIVATION_TIMING_AR.special).not.toContain('24');
   });
 
   it('is Arabic, numbered, honest about what it cannot promise, and never sells an estimate', () => {

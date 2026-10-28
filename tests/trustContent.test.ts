@@ -1,108 +1,104 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { ANALYTICS_EVENTS, ALLOWED_PROP_KEYS } from '../src/lib/analytics/events';
+import { ANALYTICS_EVENTS } from '../src/lib/analytics/events';
+import {
+  ACTIVATION_HOURS,
+  REFUND_DAYS,
+  REFUND_PLAN_IDS,
+  PLAN_BY_ID,
+} from '../src/lib/offers/foundingPlans';
 import {
   OWNER_FILL,
+  SUPPORT_ADDRESS_AR,
   TRUST_CONTENT,
-  claimedEventNames,
   outstandingOwnerFields,
-  processedDataListAr,
   type TrustPage,
 } from '../src/lib/trust/content';
 
 /**
- * The trust pages, pinned.
+ * The legal text, pinned.
  *
- * The privacy page's processed-data list is the sentence that must not be wrong,
- * so it is derived and tested against the same constants the worker enforces. The
- * legal fields must stay placeholders until the owner fills them, and the strict
- * launch check must fail exactly while one is open.
+ * Three pages, one source: `/help#privacy`, `/help#terms`, `/help#refund` are
+ * rendered inline from this module, and the app links to the same anchors. The
+ * sentences that must not be wrong are the ones about what leaves the device and
+ * what the refund promise is — so those are checked against the same constants
+ * the pricing config and the plan table use, not against typed Arabic.
  */
 
-const PAGES: TrustPage[] = ['privacy', 'terms', 'refund', 'imprint', 'contact'];
+const PAGES: TrustPage[] = ['privacy', 'terms', 'refund'];
 
-describe('the trust pages', () => {
-  it('exist for every route the app serves', () => {
+const body = (page: TrustPage) => TRUST_CONTENT[page].sections.map((s) => s.bodyAr).join('\n');
+const section = (page: TrustPage, id: string) =>
+  TRUST_CONTENT[page].sections.find((s) => s.id === id);
+
+describe('the legal pages', () => {
+  it('cover every anchor the help page publishes', () => {
     for (const page of PAGES) {
       expect(TRUST_CONTENT[page]).toBeTruthy();
       expect(TRUST_CONTENT[page].sections.length).toBeGreaterThan(0);
       expect(TRUST_CONTENT[page].titleAr).toMatch(/[؀-ۿ]/);
+      expect(TRUST_CONTENT[page].updatedAr).toMatch(/\d{4}-\d{2}-\d{2}/);
     }
   });
 
-  it('publishes an updated date, because an undated policy is not one', () => {
-    for (const page of PAGES) expect(TRUST_CONTENT[page].updatedAr).toMatch(/\d{4}-\d{2}-\d{2}/);
+  it('are complete: no owner placeholder is printed anywhere', () => {
+    expect(outstandingOwnerFields()).toEqual([]);
+    expect(JSON.stringify(TRUST_CONTENT)).not.toContain(OWNER_FILL);
+  });
+
+  it('answer privacy by category, not by event name', () => {
+    for (const id of ['device', 'server', 'ai', 'analytics', 'rights']) {
+      expect(section('privacy', id), `privacy#${id}`).toBeTruthy();
+    }
+    const all = body('privacy');
+    // One sentence per category: where the data lives, not which handler fired.
+    expect(all).toMatch(/IndexedDB/);
+    expect(all).toMatch(/الذكاء الاصطناعي/);
+    for (const name of ANALYTICS_EVENTS) expect(all).not.toContain(name);
   });
 
   it('states both rights the GDPR and the app actually offer', () => {
-    const privacy = TRUST_CONTENT.privacy.sections.map((s) => s.bodyAr).join('\n');
+    const privacy = body('privacy');
     expect(privacy).toMatch(/تصدير/);
     expect(privacy).toMatch(/حذف/);
   });
 
   it('never promises an official certificate, which the product cannot give', () => {
-    // The pages may STATE the absence of certification; they may never claim it.
-    // So the test looks for a claim, not for the word.
     const all = JSON.stringify(TRUST_CONTENT);
     expect(all).not.toMatch(/يمنح(ك|كَ)? (شهادة|درجة) رسمية/);
     expect(all).toMatch(/لا تمنح أي شهادة أو درجة رسمية معتمدة/);
-    expect(TRUST_CONTENT.terms.sections.find((s) => s.id === 'mock')!.bodyAr).toMatch(/ليس درجة رسمية/);
   });
 
   it('never claims unlimited AI, which the fair-use cap contradicts', () => {
-    // The repo-wide copy test bans the word "unlimited" outright, so the fair-use
-    // clause denies a boundless service without ever using the banned adjective.
     const all = JSON.stringify(TRUST_CONTENT);
     for (const banned of ['غير محدود', 'غير محدودة']) {
       expect(all, banned).not.toContain(banned);
     }
-    expect(TRUST_CONTENT.terms.sections.find((s) => s.id === 'fairuse')!.bodyAr).toMatch(/نوضّح أي حد قبل أن تصل إليه/);
-  });
-});
-
-describe('the processed-data list', () => {
-  it('is derived from the event allowlist, not typed by hand', () => {
-    const claimed = claimedEventNames();
-    expect(claimed.sort()).toEqual([...ANALYTICS_EVENTS].sort());
-    const list = processedDataListAr();
-    for (const name of ANALYTICS_EVENTS) expect(list.length + claimed.length).toBeGreaterThan(0);
+    expect(section('terms', 'fairuse')!.bodyAr).toMatch(/نوضّح أي حد قبل أن تصل إليه/);
   });
 
-  it('names every property the worker is willing to store', () => {
-    const privacy = TRUST_CONTENT.privacy.sections.find((s) => s.id === 'events')!.bodyAr;
-    for (const key of ALLOWED_PROP_KEYS) expect(privacy).toContain(key);
+  it('builds the refund promise from the same numbers as the pricelist', () => {
+    const refund = body('refund');
+    expect(refund).toContain(String(REFUND_DAYS));
+    expect(refund).toContain(String(ACTIVATION_HOURS));
+    expect(refund).toContain(SUPPORT_ADDRESS_AR);
+    for (const id of REFUND_PLAN_IDS) {
+      expect(refund, `refund must name ${id}`).toContain(PLAN_BY_ID[id].nameAr);
+    }
+    // The one plan with no refund is named, so the limit is not a surprise.
+    expect(refund).toContain(PLAN_BY_ID.monthly.nameAr);
   });
 
-  it('says plainly what leaves the device, and that transcripts stay out of analytics', () => {
-    const ai = TRUST_CONTENT.privacy.sections.find((s) => s.id === 'ai')!.bodyAr;
-    expect(ai).toMatch(/الذكاء الاصطناعي/);
-    const events = TRUST_CONTENT.privacy.sections.find((s) => s.id === 'events')!.bodyAr;
-    expect(events).toMatch(/لا نجمع النصوص ولا الصوت/);
-  });
-});
-
-describe('the owner fields', () => {
-  it('stands as a placeholder in every legal section the owner must write', () => {
-    const open = outstandingOwnerFields();
-    expect(open.length).toBeGreaterThan(0);
-    for (const entry of open) expect(entry.section).toMatch(/[a-z-]/);
-  });
-
-  it('never writes a legal claim of its own where a placeholder belongs', () => {
-    const imprint = TRUST_CONTENT.imprint.sections.map((s) => s.bodyAr).join('\n');
-    expect(imprint).toContain(OWNER_FILL);
-    const refund = TRUST_CONTENT.refund.sections.map((s) => s.bodyAr).join('\n');
-    expect(refund).toContain(OWNER_FILL);
-    // The one channel fact the app CAN prove: where the purchase happened.
-    expect(refund).toMatch(/صفحة البيع الرسمية/);
+  it('says one activation code carries the duration of the plan bought', () => {
+    expect(section('terms', 'codes')!.bodyAr).toMatch(/يضيف مدة الباقة/);
   });
 });
 
 describe('the strict launch check', () => {
-  const run = (strict: boolean) => {
+  const run = (env: Record<string, string>) => {
     try {
       const out = execFileSync(process.execPath, ['scripts/check-launch.mjs'], {
-        env: { ...process.env, LAUNCH_STRICT: strict ? '1' : '0' },
+        env: { ...process.env, ...env },
         encoding: 'utf8',
       });
       return { code: 0, out };
@@ -112,14 +108,16 @@ describe('the strict launch check', () => {
   };
 
   it('reports without failing by default', () => {
-    const result = run(false);
+    const result = run({ LAUNCH_STRICT: '0' });
     expect(result.code).toBe(0);
-    expect(result.out).toMatch(/outstanding/);
+    expect(result.out).toMatch(/outstanding \{\{OWNER_FILL\}\} fields: 0/);
   });
 
-  it('fails while any legal field is open — and that is today, not a bug', () => {
-    const result = run(true);
-    expect(result.code).toBe(1);
-    expect(result.out).toMatch(/publisher/);
+  it('proves its own gate: the strict run fails exactly while a blocker is open', () => {
+    // What the gate promises — "exit 1 iff something is still open" — is what is
+    // tested, so it stays true whether or not the owner has filled the fields.
+    const result = run({ LAUNCH_VERIFY: '1' });
+    expect(result.code).toBe(0);
+    expect(result.out).toMatch(/gate verified/);
   });
 });

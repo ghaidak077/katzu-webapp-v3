@@ -1,27 +1,44 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import worker from '../cloudflare-unified-worker';
+import pricingConfig from '../pricing.config.json';
 import {
-  FORBIDDEN_CLAIMS_AR,
+  ACTIVATION_HOURS,
+  BEST_VALUE_AR,
+  CONTINUE_FREE_AR,
+  CONTINUE_FREE_EN,
   FAIR_USE_AI_PER_DAY,
-  OFFER_COPY,
-  OFFER_ORDER,
+  FORBIDDEN_CLAIMS_AR,
+  FOUNDING_CAP,
+  FREE_LESSONS_PER_MONTH,
+  PLANS,
+  PRICING_FOOTNOTE_AR,
+  PRICING_HEADLINE_AR,
+  PRICING_HEADLINE_EN,
+  PRICING_RULES_AR,
+  PRICING_RULES_EN,
+  RECOMMENDED_PLAN,
+  REFUND_DAYS,
   REFUND_TEXT,
-  REFUND_UNPUBLISHED_AR,
-  formatEuro,
+  SOFT_PROMPT_BODY_AR,
+  SOFT_PROMPT_TITLE_AR,
+  SOFT_PROMPT_TITLE_EN,
+  formatUsd,
+  foundingLabel,
+  futureLabel,
   isOwnerFilled,
+  perMonthLabel,
   priceLabel,
 } from '../src/lib/offers/pricing';
-import { PRICES } from '../cloudflare-pricing.js';
 
 /**
  * The offer, as a browser test.
  *
  * Four things must be true of a screen that asks for money: the price comes
  * from the server, the promises are ones the product keeps, the limit is stated
- * rather than discovered, and the legal line is a placeholder until the owner
- * writes it.
+ * rather than discovered, and every rule the page states is the same rule the
+ * ledger and checkout use.
  */
 
 const request = (country?: string) =>
@@ -29,125 +46,248 @@ const request = (country?: string) =>
     headers: country ? { 'CF-IPCountry': country } : {},
   });
 
+const catalogue = async (country?: string) =>
+  (await (await worker.fetch(request(country), {} as never)).json()) as any;
+
 describe('GET /pricing', () => {
-  it('prices an anonymous visitor in the standard group, with no experiment cell', async () => {
-    const res = await worker.fetch(request('DE'), {} as never);
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
+  it('prices an anonymous visitor in the standard group', async () => {
+    const body = await catalogue('DE');
     expect(body.group).toBe('standard');
-    expect(body.experimentEnabled).toBe(false);
-    const pass = body.prices.find((row: any) => row.product === 'pass90');
-    expect(pass.amountCents).toBe(PRICES.standard.pass90);
+    expect(body.prices).toHaveLength(4);
     expect(body.unproven).toBe(true);
   });
 
-  it('prices a special region in the special table', async () => {
-    for (const country of ['SY', 'EG', 'IQ', 'PS']) {
-      const body = (await (await worker.fetch(request(country), {} as never)).json()) as any;
-      expect(body.group).toBe('special');
-      const pass = body.prices.find((row: any) => row.product === 'pass90');
-      expect(pass.amountCents).toBe(PRICES.special.pass90);
+  it('serves the same four plans everywhere — region no longer moves the price', async () => {
+    const standard = await catalogue('DE');
+    const special = await catalogue('EG');
+    expect(special.group).toBe('special');
+    expect(special.prices).toEqual(standard.prices);
+    expect(standard.prices.map((row: any) => row.product)).toEqual([
+      'monthly',
+      'quarterly',
+      'halfyear',
+      'yearly',
+    ]);
+  });
+
+  it('serves founding and future cents from the config, not from a page', async () => {
+    const body = await catalogue('SY');
+    for (const plan of pricingConfig.plans) {
+      const row = body.prices.find((r: any) => r.product === plan.id);
+      expect(row.amountCents).toBe(Math.round(plan.foundingUsd * 100));
+      expect(row.futureCents).toBe(Math.round(plan.futureUsd * 100));
     }
   });
 
-  it('prices a missing or unknown country as standard, never as special', async () => {
-    for (const country of [undefined, 'ZZ', '']) {
-      const body = (await (await worker.fetch(request(country), {} as never)).json()) as any;
-      expect(body.group).toBe('standard');
-    }
+  it('serves the rules the paywall and the site both print', async () => {
+    const body = await catalogue('IQ');
+    expect(body.foundingCap).toBe(FOUNDING_CAP);
+    expect(body.foundingEndsOn).toBe(pricingConfig.foundingEndsOn);
+    expect(body.refundDays).toBe(REFUND_DAYS);
+    expect(body.refundPlanIds).toEqual(pricingConfig.refundPlanIds);
+    expect(body.activationHours).toBe(ACTIVATION_HOURS);
+    expect(body.freeLessonsPerMonth).toBe(FREE_LESSONS_PER_MONTH);
   });
 
-  it('offers exactly the three products, pass first', async () => {
-    const body = (await (await worker.fetch(request('DE'), {} as never)).json()) as any;
-    expect(body.prices.map((row: any) => row.product)).toEqual(['pass90', 'monthly', 'mock']);
-  });
-
-  it('never leaks a price in dollars, a secret or an unproven claim', async () => {
-    const body = JSON.stringify(await (await worker.fetch(request('EG'), {} as never)).json());
+  it('never leaks a secret or an unkeepable claim', async () => {
+    const body = JSON.stringify(await catalogue('EG'));
     expect(body).not.toMatch(/HMAC|ADMIN_SECRET|api[_-]?key/i);
     expect(body).not.toMatch(/unlimited|lifetime|guaranteed/i);
   });
 });
 
 describe('the offer copy', () => {
-  it('leads with the pass, offers monthly second and the mock only as a link', () => {
-    expect(OFFER_ORDER).toEqual(['pass90', 'monthly', 'mock']);
-    expect(OFFER_COPY.pass90.isLink).toBe(false);
-    expect(OFFER_COPY.monthly.isLink).toBe(false);
-    expect(OFFER_COPY.mock.isLink).toBe(true);
+  it('states the four rules in Arabic first, and mirrors them in English', () => {
+    expect(PRICING_RULES_AR).toHaveLength(4);
+    expect(PRICING_RULES_EN).toHaveLength(4);
+    for (const rule of PRICING_RULES_AR) expect(rule).toMatch(/[؀-ۿ]/);
+    expect(PRICING_HEADLINE_AR).toMatch(/[؀-ۿ]/);
+    expect(PRICING_HEADLINE_EN).toContain('Founding price');
+  });
+
+  it('derives every number in the rules from the config', () => {
+    // Rule 1: the cap and the date, not a copied sentence.
+    expect(PRICING_RULES_AR[0]).toContain(FOUNDING_CAP.toLocaleString('en-US'));
+    expect(PRICING_RULES_AR[0]).toContain('2027');
+    expect(PRICING_RULES_EN[0]).toContain('2027');
+    // Rule 2 is the renewal promise, with no condition invented.
+    expect(PRICING_RULES_AR[1]).toContain('تجديد');
+    // Rule 3: the day count and the refundable plans.
+    expect(PRICING_RULES_AR[2]).toContain(String(REFUND_DAYS));
+    expect(PRICING_RULES_EN[2]).toContain(String(REFUND_DAYS));
+    expect(PRICING_RULES_AR[2]).toContain('شهر واحد');
+    // Rule 4: hours, never "within a day".
+    expect(PRICING_RULES_AR[3]).toContain(String(ACTIVATION_HOURS));
+    expect(PRICING_RULES_AR.join(' ')).not.toContain('24 ساعة');
+  });
+
+  it('puts the payment facts under the cards', () => {
+    expect(PRICING_FOOTNOTE_AR).toContain('بطاقة');
+    expect(PRICING_FOOTNOTE_AR).toContain(String(ACTIVATION_HOURS));
+    expect(PRICING_FOOTNOTE_AR).toContain(String(REFUND_DAYS));
   });
 
   it('claims nothing it cannot keep', () => {
-    const everything = JSON.stringify(OFFER_COPY);
+    const everything = JSON.stringify({
+      PRICING_RULES_AR,
+      PRICING_RULES_EN,
+      PRICING_FOOTNOTE_AR,
+      PRICING_HEADLINE_AR,
+      REFUND_TEXT,
+    });
     for (const claim of FORBIDDEN_CLAIMS_AR) expect(everything).not.toContain(claim);
     expect(everything).not.toMatch(/unlimited|lifetime|guaranteed|ضمان النجاح/i);
   });
 
-  it('states a fair-use limit in plain words, and the same number everywhere', () => {
-    expect(OFFER_COPY.pass90.fairUseAr).toContain(String(FAIR_USE_AI_PER_DAY));
-    expect(OFFER_COPY.monthly.fairUseAr).toContain(String(FAIR_USE_AI_PER_DAY));
-    // The number is derived from measured cost, so it is a stated cap, not a
-    // measured abuse rate — and it is documented as UNPROVEN next to it.
+  it('states a fair-use cap rather than discovering it', () => {
     expect(FAIR_USE_AI_PER_DAY).toBeGreaterThan(0);
   });
 
-  it('leaves the refund policy as a placeholder rather than inventing one', () => {
-    expect(REFUND_TEXT).toBe('{{OWNER_FILL}}');
-    expect(REFUND_TEXT).not.toMatch(/استرداد|ضمان|refund/i);
-  });
-
-  it('never prints that placeholder on the money page (B1)', () => {
-    // The constant above is deliberately unusable, and the paywall used to render
-    // it verbatim — «سياسة الاسترداد: {{OWNER_FILL}}» next to the price. Two
-    // different claims, so two different assertions: the placeholder still exists
-    // for the owner to fill, and the app never SHOWS a value it was not given.
-    const screen = readFileSync(join(__dirname, '..', 'src', 'features', 'offers', 'PaywallScreen.tsx'), 'utf8');
-    expect(screen).toContain('isOwnerFilled(REFUND_TEXT)');
-    // The old form was the JSX interpolation — the one that rendered the braces
-    // literally. (The new form still mentions REFUND_TEXT, inside the template
-    // that only runs once the line is filled, so the assertion names the shape it
-    // is banning rather than the variable.)
-    expect(screen).not.toContain('سياسة الاسترداد: {REFUND_TEXT}');
-    // The stand-in states the gap and promises nothing about money: no period, no
-    // percentage, no guarantee — the words a refund policy would need.
-    expect(REFUND_UNPUBLISHED_AR).toMatch(/[؀-ۿ]/);
-    expect(REFUND_UNPUBLISHED_AR).not.toMatch(/[0-9٠-٩]|يوماً|أيام|نضمن|ضمان/);
-
-    expect(isOwnerFilled(REFUND_TEXT)).toBe(false);
+  it('has a real refund line now, not the owner placeholder', () => {
+    expect(REFUND_TEXT).toContain(String(REFUND_DAYS));
+    expect(REFUND_TEXT).toContain('شهر واحد');
+    expect(isOwnerFilled(REFUND_TEXT)).toBe(true);
     expect(isOwnerFilled('')).toBe(false);
     expect(isOwnerFilled(null)).toBe(false);
     expect(isOwnerFilled('   ')).toBe(false);
-    expect(isOwnerFilled('خلال 30 يوماً من الشراء')).toBe(true);
+    expect(isOwnerFilled('{{OWNER_FILL}}')).toBe(false);
   });
 
-  it('speaks Arabic first in every learner-facing line', () => {
-    for (const copy of Object.values(OFFER_COPY)) {
-      expect(copy.nameAr).toMatch(/[؀-ۿ]/);
-      expect(copy.pitchAr).toMatch(/[؀-ۿ]/);
-      expect(copy.includesAr.length).toBeGreaterThan(0);
-    }
-    expect(OFFER_COPY.pass90.includesAr).toContain('كل المفردات والقواعد والمراجعة اليومية');
-    expect(JSON.stringify(OFFER_COPY)).not.toContain('المفردون');
+  it('invites with a soft prompt that always offers "continue free"', () => {
+    expect(SOFT_PROMPT_TITLE_AR).toMatch(/[؀-ۿ]/);
+    expect(SOFT_PROMPT_TITLE_EN).toBe('Open every level and situation');
+    // The title is an invitation; the body names the free tier that stays.
+    expect(SOFT_PROMPT_BODY_AR).toContain(String(FREE_LESSONS_PER_MONTH));
+    expect(SOFT_PROMPT_BODY_AR).toContain(foundingLabel(PLANS[0]));
+    expect(CONTINUE_FREE_AR).toMatch(/[؀-ۿ]/);
+    expect(CONTINUE_FREE_EN).toBe('Continue free');
+  });
+
+  it('prices the recommended plan under the best-value badge', () => {
+    expect(RECOMMENDED_PLAN.id).toBe('halfyear');
+    expect(BEST_VALUE_AR).toMatch(/[؀-ۿ]/);
+    expect(PLANS.filter((plan) => plan.recommended)).toHaveLength(1);
   });
 });
 
 describe('price formatting', () => {
-  it('shows whole euros without a fake cents tail', () => {
-    expect(formatEuro(2900)).toBe('29 €');
-    expect(formatEuro(1200)).toBe('12 €');
-    expect(formatEuro(0)).toBe('0 €');
+  it('shows whole dollars without a fake cents tail', () => {
+    expect(formatUsd(2900)).toBe('$29');
+    expect(formatUsd(1200)).toBe('$12');
+    expect(formatUsd(0)).toBe('$0');
   });
 
   it('shows cents only when there are any, never rounding a price away', () => {
-    expect(formatEuro(1299)).toBe('12,99 €');
-    expect(formatEuro(500)).toBe('5 €');
-    expect(formatEuro(1900)).toBe('19 €');
+    expect(formatUsd(1499)).toBe('$14.99');
+    expect(formatUsd(2999)).toBe('$29.99');
+    expect(formatUsd(9999)).toBe('$99.99');
+  });
+
+  it('labels founding, future and per-month from the table', () => {
+    const monthly = PLANS[0];
+    expect(foundingLabel(monthly)).toBe('$14.99');
+    expect(futureLabel(monthly)).toBe('$29.99');
+    expect(perMonthLabel(PLANS[3])).toBe('$8.33');
   });
 
   it('shows nothing rather than a free-looking offer when the amount is missing', () => {
     expect(priceLabel(null)).toBeNull();
     expect(priceLabel({})).toBeNull();
     expect(priceLabel({ amountCents: undefined as never })).toBeNull();
-    expect(priceLabel({ amountCents: 900 })).toBe('9 €');
+    expect(priceLabel({ amountCents: 2999 })).toBe('$29.99');
+  });
+});
+
+/**
+ * The shipped pages, not just the strings this module builds.
+ *
+ * The site is three pages — `/`, `/pricing`, `/help` — generated from one
+ * template, and every fact is published once. So the check is on the built HTML
+ * itself: the old offer is gone everywhere, a price exists only on `/pricing`,
+ * the home page sells the free start instead, and no retired page or property
+ * survives in a link, a canonical or the sitemap.
+ */
+describe('the built marketing site', () => {
+  function htmlFiles(dir = 'website'): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir)) {
+      if (entry === 'assets' || entry === 'media' || entry === 'fonts') continue;
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) out.push(...htmlFiles(path));
+      else if (entry.endsWith('.html')) out.push(path);
+    }
+    return out;
+  }
+
+  const files = htmlFiles().map((file) => file.replace(/\\/g, '/'));
+
+  it('ships exactly the three pages and the 404', () => {
+    expect([...files].sort()).toEqual([
+      'website/404.html',
+      'website/help.html',
+      'website/index.html',
+      'website/pricing.html',
+    ]);
+  });
+
+  it('carries none of the retired offer anywhere', () => {
+    const retired = /\$60\b|\$42\b|KATZU26|limited[- ]time|لفترة محدودة|24 ساعة|60 دولار/;
+    const offenders = files.filter((file) => retired.test(readFileSync(file, 'utf8')));
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps every price on the pricing page and nowhere else', () => {
+    const pricing = readFileSync('website/pricing.html', 'utf8');
+    for (const price of ['$14.99', '$29.99', '$49.99', '$99.99']) {
+      expect(pricing, `pricing must show ${price}`).toContain(price);
+    }
+    // The struck price is a real published price from the same config.
+    expect(pricing).toContain('$199.99');
+
+    for (const file of ['website/index.html', 'website/help.html']) {
+      const html = readFileSync(file, 'utf8');
+      expect(html, `${file} must not quote a price`).not.toMatch(/\$\d/);
+    }
+  });
+
+  it('links only to pages that exist, on the site or the app', () => {
+    const allowedSite = new Set(['/', '/pricing', '/help', '/help#faq', '/help#about', '/help#privacy', '/help#terms', '/help#refund', '/help#contact', '/pricing#pay', '/#how', '/#for', '/#moving', '/#situations']);
+    const offenders: string[] = [];
+    for (const file of files) {
+      const html = readFileSync(file, 'utf8');
+      for (const [, href] of html.matchAll(/href="([^"]+)"/g)) {
+        // Fragments on the page itself are fine, and so are static assets.
+        if (href.startsWith('#') || href.startsWith('/assets/')) continue;
+        if (!href.startsWith('/') || href.startsWith('//')) continue;
+        if (!allowedSite.has(href)) offenders.push(`${file} -> ${href}`);
+      }
+    }
+    expect([...new Set(offenders)]).toEqual([]);
+  });
+
+  it('publishes three URLs in the sitemap and no English or trust page', () => {
+    const sitemap = readFileSync('website/sitemap.xml', 'utf8');
+    const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    expect(locs).toHaveLength(3);
+    for (const loc of locs) expect(loc).toMatch(/^https:\/\/website\.katzuai\.com\/(pricing|help)?$/);
+    const redirects = readFileSync('website/_redirects', 'utf8');
+    expect(redirects).toMatch(/^\/en\/\* \/ {2}301$/m);
+  });
+
+  it('rides on one shared stylesheet and one shared background', () => {
+    const css = readFileSync('website/assets/site.css', 'utf8');
+    expect(css, 'one background image for every page').toContain('/assets/bg-poster.jpg');
+    for (const file of ['website/index.html', 'website/pricing.html', 'website/help.html']) {
+      const html = readFileSync(file, 'utf8');
+      expect(html, `${file} stylesheet`).toContain('/assets/site.css');
+      expect(html, `${file} background layer`).toContain('class="bgimg"');
+      // One H1 per page: the page has one job.
+      expect([...html.matchAll(/<h1[\s>]/g)], `${file} h1 count`).toHaveLength(1);
+    }
+    // The video is a home-page-only flourish.
+    expect(readFileSync('website/index.html', 'utf8')).toContain('/assets/bg.mp4');
+    for (const file of ['website/pricing.html', 'website/help.html']) {
+      expect(readFileSync(file, 'utf8')).not.toContain('bg.mp4');
+    }
   });
 });
