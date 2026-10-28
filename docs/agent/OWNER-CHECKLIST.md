@@ -5,77 +5,72 @@ Every item here is an open item in `docs/AGENT-STATE.md` § OWNER-OPEN (the deta
 
 ---
 
-## 1. Decide the app's public address — V18-3
+## 1. How a learner pays you — the details only you have (V44-1, 2026-10-28)
 
-**What it is.** The app is at `https://katzu-webapp-v3.pages.dev`, but `robots.txt`/`sitemap.xml` advertise
-`https://katzu.app/`, which does not resolve, and a store or payment listing will want a host you control.
+**What it is.** The pricing page is finished and honest, but no payment method is connected yet, so a buyer's
+only route is one email button. Nothing is invented on the page: no fake numbers, no "coming soon".
 
-**What you do.** Pick one:
+**What you send.** The Telegram handle orders should go to; the Syriatel Cash number and the MTN Cash number
+(and the name on each); the bank name, account holder and IBAN; and which currencies you want to collect.
 
-- **Keep `pages.dev` for the closed beta** — nothing to do now, revisit before a public launch; or
-- **Attach `katzu.app`** — point the domain at the Pages project in the Cloudflare dashboard, then tell the
-  agent to update `robots.txt`, `sitemap.xml`, `ALLOWED_ORIGINS` and `VITE_PUBLIC_APP_URL`.
-
-**Done looks like:** the address in `robots.txt` opens the real app, or you have decided to wait.
+**Done looks like:** the order section of the pricing page shows the real numbers to pay, not just an email.
 
 ---
 
-## 2. Rotate the admin secret, then load the content — V11
+## 2. Four legal sentences only you can write (V44-2, 2026-10-28)
 
-**What it is.** The secret used by the content-loading tool was pasted into a chat once, so it must be
-treated as compromised. Right now the tool stops with `HTTP 401` and writes nothing.
+**What it is.** Privacy, terms and refund are complete, except four facts the law expects and an agent must not
+invent: which country's law governs the agreement, your legal name and address as publisher, any commercial
+register or supervisory number, and where a dispute is settled.
 
-**What you do**, in this order:
+**What you do.** Say each one in a sentence (your lawyer or tax adviser has the register details). The agent
+adds them to the terms page.
 
-1. Generate a new admin secret in Cloudflare (Worker → Settings → Variables) and save it;
-2. Put the **bare value** in your environment (not wrapped in `< >` — that was the earlier mistake);
-3. Run the two load commands in `docs/agent/CONTENT-LOAD.md` (module 2 first, then module 1).
-
-**Done looks like:** both commands finish without writing an error, and `node scripts/check-content-drift.mjs`
-prints identical counts.
+**Done looks like:** the terms page names your law, your identity and where a complaint goes.
 
 ---
 
-## 3. Three missing columns in the content database — V12, V12-1
+## 3. The admin secret, then the content load — V11, V12, V12-1, V18-2
 
-**What it is.** The last real load stopped because the `grammar` table is missing three columns; it cleaned
-up after itself, so nothing is half-loaded. The credential half is fixed (V12-1), so the schema is all that
-stands between the drafts and a full load.
+**What it is.** The content is already fully loaded and verified (15 scenarios / 221 vocabulary / 111 phrases /
+22 grammar, drift check exit 0). Two leftovers: the admin secret was once pasted into a chat, so rotate it when
+you next open Cloudflare, and the `grammar` table still lacks three columns (`rule_de`, `rule_ar`,
+`example_ar`) — a plain additive `ALTER TABLE`, nothing is deleted, and it revives grammar on five scenarios.
 
-**What you do.** Add the three columns (this is additive and deletes nothing):
+**What you do.** Worker → Settings → Variables: set a new `ADMIN_SECRET`; then tell the agent to run the three
+`ALTER TABLE` lines and re-run `node scripts/check-content-drift.mjs`.
 
-```sql
-ALTER TABLE grammar ADD COLUMN rule_de TEXT;
-ALTER TABLE grammar ADD COLUMN rule_ar TEXT;
-ALTER TABLE grammar ADD COLUMN example_ar TEXT;
-```
-
-Then re-run the load from item 2.
-
-**Decide at the same time:** whether the four older grammar rows (`akkusativ_articles`, `dativ_prepositions`,
-`konjunktiv_ii`, `perfekt_tense`) should be renamed to the `g_*` ids the app now uses — until they are, five
-of the original scenarios have no grammar row in the database.
-
-**Done looks like:** the loader's fourth batch succeeds and the app shows grammar on those scenarios.
+**Done looks like:** the drift check exits 0 and grammar shows on those five scenarios.
 
 ---
 
-## 4. One title decision before that load — no id
+## 4. Give the AI pool real keys — AI-POOL (2026-10-18)
 
-**What it is.** The module-2 draft names the opening episode "Am Flughafen: das Gepäck" / «في المطار: الأمتعة»;
-the live app calls it "Am Flughafen: fehlendes Gepäck" / «في المطار: الأمتعة المفقودة». Loading the draft will
-soften that title.
+**What it is.** The default pool is NVIDIA + OpenRouter and both key lists are empty, so every AI turn rides the
+free built-in fallback (works, but capped and weaker).
 
-**What you do.** Either accept the change (do nothing), or ask the agent to align the draft and re-approve it.
+**What you do.** Admin dashboard → **AI Providers** → pick a preset or Custom, paste key(s), **Save provider**,
+**Test**. Or `npx wrangler secret put OPENROUTER_API_KEYS` / `NVIDIA_API_KEYS` with comma-separated lists.
 
-**Done looks like:** you know which title a learner will see.
+**Done looks like:** Test answers "OK in a few hundred ms", and a live turn stops naming the fallback model.
 
 ---
 
-## 5. Real-device voice — the last big unknown — V18-3
+## 5. One address decision — V18-3
 
-**What it is.** Every voice check so far ran against a simulated microphone. Whether speaking works on real
-phones is still unproven, and it is the app's headline feature.
+**What it is.** The app is reachable at `katzuai.com`, but the Pages project has no `VITE_PUBLIC_APP_URL`, so the
+app's generated `robots.txt`, `sitemap.xml` and share image stay relative — crawlers want absolute URLs.
+
+**What you do.** Say "use katzuai.com" and the agent sets `VITE_PUBLIC_APP_URL` at build time — or leave it and
+revisit before a public launch.
+
+**Done looks like:** the app's sitemap lists absolute `https://katzuai.com/...` URLs.
+
+---
+
+## 6. Real-device voice — the last big unknown — V18-3
+
+**What it is.** Every voice check so far ran against a simulated microphone, and speaking is the headline feature.
 
 **What you do.** Follow the 14-row checklist in `docs/agent/OWNER-STEPS.md` § 2 on two real phones (one iPhone,
 one Android).
@@ -84,58 +79,25 @@ one Android).
 
 ---
 
-## 6. Update this machine's Node — V17-1 (not blocking)
+## 7. Update this machine's Node — V17-1 (not blocking)
 
-**What it is.** This computer runs Node 24.14.0; CI and the project declare 24.15.0 or newer. The whole test
-suite passes anyway — this is a declaration gap, not a failure.
+**What it is.** This computer runs Node 24.14.0; the project declares 24.15.0 or newer. Everything passes — it is
+a declaration gap, not a failure.
 
-**What you do.** `nvm install 24.15.0 && nvm use 24.15.0` (or `winget upgrade OpenJS.NodeJS.LTS`), then confirm
-`node -v` and that `npm ci` prints no `EBADENGINE` line.
+**What you do.** `nvm install 24.15.0 && nvm use 24.15.0` (or `winget upgrade OpenJS.NodeJS.LTS`).
 
-**Done looks like:** `npm ci` is quiet about engines.
-
----
-
-## 7. After any content change: the drift check — V15-3
-
-**What it is.** A read-only check that compares the content files in the repo with what is live.
-
-**What you do.** Run `node scripts/check-content-drift.mjs` (or ask the agent to).
-
-## 8. Give the AI pool real keys — AI-POOL (2026-10-18)
-
-**What it is.** The app now talks to NVIDIA and OpenRouter (Gemini and Groq are out of the default
-set, at your direction). Both key lists are still empty, so every AI conversation runs on the free
-built-in fallback (weaker, token-capped).
-
-**What you do.** Either open the admin dashboard's **AI Providers** tab and, for a preset or
-"Custom…", paste your key(s), press **Save provider**, then **Test** — you can also disable a
-built-in or delete your own, no code change or redeploy needed; keys are stored server-side and
-never shown again (only a masked fingerprint). Or run `npx wrangler secret put
-OPENROUTER_API_KEYS` and `npx wrangler secret put NVIDIA_API_KEYS` and paste comma-separated key
-lists.
-
-**Done looks like:** the Test button answers "OK in a few hundred ms" for at least one entry, and a
-live conversation turn no longer shows the fallback model.
-
----
-
-## 9. The coupon and the price — one decision (2026-10-28)
-
-**What it is.** The site says **$60/year** with coupon `KATZU26`, but no code reads that coupon and the live
-yearly tier charges **$42**.
-
-**What you do.** Either keep `$60` as a hand-applied promo, or tell the agent to show `$42`.
-
-**Done looks like:** the price on the site is the price checkout charges.
+**Done looks like:** `node -v` says 24.15.0 and `npm ci` prints no `EBADENGINE` line.
 
 ---
 
 ## Nothing to do — recorded so nobody re-opens them
 
-- **Content is fully loaded and verified — V18-2.** 15 scenarios / 221 vocabulary / 111 phrases / 22 grammar,
-  drift check exit 0.
-- **Payments stay off for the beta.** The health endpoint reading "not ready" is the correct state.
+- **Content load drift check — V15-3.** Run `node scripts/check-content-drift.mjs` after any content change; it
+  is read-only and exits non-zero when production disagrees with the drafts.
+- **Payments stay off for the beta — V18.** `/crypto/health` reading `ready:false` is the correct state, and the
+  site hides the crypto block until the gateway is live.
 - **`docs/LAUNCH-CHECKLIST.md` § 2 stays untouched.** Those are your items, unchanged.
-- **The two Worker settings are already applied.** The emergency stop is `MAINTENANCE_MODE = "on"` on the
-  running Worker, and retention runs automatically at 04:17 UTC.
+- **The two Worker settings are already applied.** The emergency stop is `MAINTENANCE_MODE = "on"` on the running
+  Worker, and retention runs automatically at 04:17 UTC.
+- **The `$60` / `KATZU26` price question is closed.** The site sells the four founding prices from one config, and
+  no coupon code is advertised where nothing can redeem it.

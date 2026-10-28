@@ -389,3 +389,42 @@ Moved verbatim out of `docs/AGENT-STATE.md` (its RESUME section was at the 80 KB
   banners as intended.** `valibjorn-brief.md` + `valibjorn-brief.pdf` left untracked (external read, not
   part of this deploy). **CI:** run **`37601819662`** for pushed sha `46d8de6` — **success** (9 m 27 s).
   No production D1 write, no secret read, no owner-only item touched.
+
+## Moved from the live board 2026-10-28 (site consolidation)
+
+- **Production 2026-10-27 — the split is live and Google Sign-In is fixed.** `main` = **`95d3f04`**
+  (pushed; the `fix(auth)` batch is commits `d9a863e`, `d6345dc`, `3d46101`, `99f45f4`, `95d3f04`,
+  then the docs ledger commits ending **`16a04f2`**);
+  **app** `katzuai.com` = Pages deployment **`3c5fcfef-24ea-406c-b3b4-d725a4838b4b`**
+  (bundle `assets/index-DtOhy65S.js`, Pages source listing `da7656c` because it was uploaded by hand at
+  deploy time; the served `AppShell-C7UVbAY_.js` is byte-identical to the `dist/` built from the fixed
+  tree, sha256 `113d4e46…`, and contains the new notice copy) and **site**
+  `website.katzuai.com` = **`de591b4e-364e-4779-8d87-57ea5adb2dd8`** (source `da7656c`). Worker version
+  **unchanged**: `e1a9a2ca-e919-43e2-baba-28a52bddd1cd`. Rollback targets: app
+  `f5030887-d21b-44f7-83a8-b43f81085e51` (source `8dab741`, pre-split-serve) and site
+  `ea420d13-5691-4e2c-9ee7-9c84c45975d8`. Verified live: `/signin` HSTS + COOP
+  `same-origin-allow-popups` + the narrowed CSP, GIS script/style/button **200**, Google button rendered
+  in a clean profile and in a service-worker-controlled one, `/pricing|/faq|/en|/trust/*|/demo` redirect
+  301, the site byte-identical to `website/` with SRI + CSP and all 21 sitemap URLs **200**.
+  Gate: `npm run verify` **6/6**, browser suite **exit 0**, targeted auth-adjacent specs **14 passed**.
+  **UNPROVEN:** an actual Google credential exchange (needs a real account). Details in `## UNPROVEN`.
+
+- **2026-10-28 launch-claim re-check — four PASS, no code change.** (1) `website/` has no
+  `PLACEHOLDER`; the Pro offer keeps a real end date («حتى 31 يناير 2027») and `KATZU26` is its named
+  coupon. (2) 19 legacy app URLs (`/pricing`, `/faq`, `/about`, `/how-it-works`, `/who-its-for`,
+  `/compare`, `/en`, `/en/*`, `/use-cases/*`, `/trust/*`, `/privacy`, `/terms`) answer `301` with the
+  exact `https://website.katzuai.com…` target (final 200); `/demo` answers `301 Location: /welcome`,
+  which resolves to `https://katzuai.com/welcome` (app route, 200) — correct, not a website page.
+  (3) Live `canonical`/`og:url`/`hreflang` on 10 pages plus `sitemap.xml` (5,398 B) and `robots.txt`
+  (2,748 B) name `website.katzuai.com` only; no `pages.dev` in built pages, site scripts or artifacts.
+  (4) No Critical/High open: #7/#8 Low, #9/#10/#11 Informational. Probes: `redirects-check.mjs`,
+  `seo-check.mjs` in the OS temp dir, run this session.
+
+- **The advertised offer is not the charged price — one owner decision (COUPON-60, 2026-10-28).** The site
+  advertises **$60/year** with coupon `KATZU26` through 31 Jan 2027, but no coupon validator exists:
+  `parseDiscountCode` (`cloudflare-crypto.js`) accepts only `STD-\d{2}-[A-Z0-9]{6,12}-[A-F0-9]{16}`, and the
+  live crypto yearly tier charges **$42** (`/crypto/health`). Nothing was changed — both are owner money
+  decisions (§3). Choose: keep `$60` as a promo you apply by hand (and say so to buyers), make the site show
+  `$42`, or commission real coupon support. Done looks like: the price a learner reads is the one charged.
+
+

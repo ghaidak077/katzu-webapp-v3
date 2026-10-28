@@ -18,7 +18,7 @@ Record in ledger: current worker version id (`wrangler deployments list`), curre
    The `/auth/session` limit (20/min + 600/day per IP, scope `auth-session`) is a **shared budget behind
    a NAT**; if a cohort reports `429`, raise the numbers in `cloudflare-unified-worker.js` and keep
    `tests/workerSecurity.test.ts` green rather than removing the check.
-3. `pages`: verify the production URL returns 200, the built bundle loads the demo with no AI call and no account, and the service worker registers.
+3. `pages`: verify the production URL returns 200, the built bundle loads the demo with no AI call and no account, and the service worker registers. Three Pages projects build from git and must **not** be uploaded by hand: app `katzu-webapp-v3` → `katzuai.com`, site `katzu-landing` → `website.katzuai.com` (three pages: `/`, `/pricing`, `/help`; Cloudflare serves `pricing.html` at `/pricing`), sales `katzu-sales` → `sales/`, which is now redirect-only (`_redirects` → `/pricing#pay`). After the site build, check `/`, `/pricing`, `/help` return 200 and one old URL (e.g. `/trust/privacy`) answers a single 301 to its final anchor.
 4. Smoke: run the demo e2e spec against the production URL (read-only, no login).
 
 ## Rollback (automatic, no asking)

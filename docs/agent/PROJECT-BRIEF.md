@@ -52,31 +52,27 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-28 (audit #7 limiter + beacon CSP live)
+## Current snapshot — 2026-10-28 (three-page site + founding prices; local, deploy pending)
 
-**Deployed 2026-10-28 (`worker` + `pages`):** `/auth/session` is limited before the Google tokeninfo call,
-and the CSP no longer blocks the Pages beacon.
-- **Worker** `katzu-test` ← **`6f5ba883-6730-43d2-b8cd-9c275b298fee`** (`726a710`; 20/min + 600/day per IP,
-  scope `auth-session`). Rollback **`e1a9a2ca-e919-43e2-baba-28a52bddd1cd`**.
-- **App** `katzuai.com` ← **`4fc1306f-bc9e-4ad6-ba85-050fe5a15b17`** (`29f6aec`,
-  `assets/index-CKzmjiNb.js`). Rollback **`00d42544-53b3-435a-b59d-bc2cbe64bd56`** (`726a710`).
-- **Site** unchanged since 2026-10-27: `de591b4e-364e-4779-8d87-57ea5adb2dd8`, 21/21 sitemap URLs **200**.
-  Rollback **`ea420d13-5691-4e2c-9ee7-9c84c45975d8`**.
-- **Verified:** `npm run verify -- --ci --e2e` **14/14 in 967 s**, browser suite **exit 0**; live `/`
-  `/welcome` `/signin` **200**, GIS button renders under a service worker, console **0 errors**, 19 legacy
-  URLs **301**; Lighthouse mobile a11y/SEO/BP **100**, perf **80**.
-- **UNPROVEN:** a real Google credential exchange. **Owner:** the `$60` + `KATZU26` offer is a manual promo
-  — nothing reads it, and the yearly tier charges `$42` (`COUPON-60`).
+**Verified locally, gate green; nothing deployed yet.** Marketing is now exactly three Arabic pages and the
+price lives in one place.
+- **Site** `website.katzuai.com` = `/`, `/pricing`, `/help` from one template and one `site.css`. Home sells the
+  free start (one CTA → `https://katzuai.com/welcome`, no price); `/pricing` owns the four founding plans, the
+  rules once and the `#pay` steps; `/help` owns FAQ + privacy/terms/refund + contact. `scripts/site-pricing.mjs`
+  reads every amount from `pricing.config.json`. `KATZU26`, `$60` and `$42` are retired; one activation code
+  carries the plan duration. Every legacy URL answers **one** 301 to its final anchor; `sales/*` 301s to
+  `/pricing#pay`. `en/`, `trust/` and the topic pages are deleted.
+- **App** pays the same prices (server `GET /pricing`), legal links open `/help#…`, in-app copy matches the site.
+- **Proof:** unit suite **2135/2135**, `tsc` clean, local crawl 4 pages / 9 links OK, Lighthouse mobile a11y
+  **100** + SEO **100** + perf **95–99** on all three pages (best-practices 81 is this host’s antivirus).
+- **Owner:** payment details to connect a real order path (**V44-1**) and four legal fields (**V44-2**).
 
-## Previous snapshot — 2026-10-27 (split site live)
+## Previous snapshot — 2026-10-28 (audit #7 limiter + beacon CSP live)
 
-**Deployed 2026-10-27 (`pages` ×2):** marketing moved to its own Pages project.
-- **App** `katzuai.com` ← **`3c5fcfef-24ea-406c-b3b4-d725a4838b4b`** (source `da7656c`, bundle
-  `assets/index-DtOhy65S.js`). Rollback **`f5030887-d21b-44f7-83a8-b43f81085e51`**.
-- **Site** `website.katzuai.com` ← `katzu-landing` **`de591b4e-364e-4779-8d87-57ea5adb2dd8`**
-  (source `da7656c`), 21/21 sitemap URLs **200**. Rollback
-  **`ea420d13-5691-4e2c-9ee7-9c84c45975d8`**.
-- **UNPROVEN:** the Google credential exchange and a SW upgrade from the pre-fix cache.
+Worker `6f5ba883-6730-43d2-b8cd-9c275b298fee` (rollback `e1a9a2ca-…`) limits `/auth/session` before the Google
+round-trip (20/min + 600/day per IP); app `4fc1306f-…` (source `29f6aec`, rollback `00d42544-…`) unblocks the
+Pages beacon; site `de591b4e-…` (rollback `ea420d13-…`). `npm run verify -- --ci --e2e` 14/14, browser suite
+exit 0. `UNPROVEN`: a real Google credential exchange.
 
 ## Previous snapshot — 2026-10-23 (guided home live)
 
@@ -123,7 +119,7 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 | Story Setup → Guided Practice → Live Conversation → Debrief | **works** | `e2e/journey.spec.ts`, `e2e/conversationLayout.spec.ts`, `e2e/microphone.spec.ts`; ledger RC-0 rerun |
 | `/app/review`, `/app/listen`, `/app/write`, `/app/coach` | **works** | `e2e/skillSurfaces.spec.ts` (6, incl. the V29 word bank + «لا أتذكّر» path) + the unit suites; offline behaviour audited in `tests/offlineRouteAudit.test.ts` |
 | `/onboarding`, `/placement`, `/app/library`, `/scenario/:id/*` | **partial** | `e2e/onboarding.spec.ts` 2/2, `e2e/quizStability.spec.ts` 1/1 (V29); library/placement have unit coverage only |
-| `/subscription`, `/trust/:page` | **partial** | `e2e/paywall.spec.ts` 4/4; legal links wired in RC-2; real payments are owner-only; V10 moved `/trust/:page` into its own lazy chunk and verified it 200 on production |
+| `/subscription` | **partial** | `e2e/paywall.spec.ts` 4/4; legal links point at `https://website.katzuai.com/help#…` (they left the app on 2026-10-27); real payments are owner-only |
 | `/app/progress` | **works** | `e2e/progress.spec.ts` (ROUTES covered), ledger RC-0 |
 | iOS/Android real-device voice | **unverified** | owner-open item; tested only with Chromium's fake capture device |
 
@@ -154,7 +150,7 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 11. Crypto sales live on a **separate** Pages site (`sales/` → `katzu-sales.pages.dev`) using NOWPayments sandbox; the app only redeems codes.
 12. Ops: `MAINTENANCE_MODE` kill switch (shipped as `"off"`) and the `scheduled` retention handler, now activated by a deployed cron (`17 4 * * *`); `POST /admin/sweep` does the same job on demand.
 13. Static: Cloudflare Pages `katzu-webapp-v3.pages.dev`.
-14. Tests: Vitest (node/jsdom, **102 files / 1215 tests**) + Playwright (chromium, **52 tests**). Screens are code-split; V10 moved the last eagerly-imported non-first-paint route (`/trust/:page`) into its own chunk.
+14. Tests: Vitest (node/jsdom, **158 files / 2135 tests**) + Playwright (chromium, **52 tests**). Screens are code-split; the marketing site is a separate static build, not a route.
 15. CI: `.github/workflows/ci.yml` (content audits, prod audit, Playwright job, secret scan).
 
 ## 4. Quality metrics (measured this session unless noted)

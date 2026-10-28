@@ -26,6 +26,20 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-28 — the site is three pages and the price lives once (local, gate green).**
+  `website.katzuai.com` is `/`, `/pricing`, `/help` from one template and one `site.css`: the home page sells
+  the free start (one CTA to `https://katzuai.com/welcome`, no price), `/pricing` owns the four founding plans
+  and the offer rules, `/help` owns the FAQ, the legal text and the contact address. Prices and every number
+  (`1,000` members / `31 Jan 2027` / `7`-day refund / `12`-hour code) are read from `pricing.config.json`
+  through the new `scripts/site-pricing.mjs`, so a typed-in price cannot survive a build. `KATZU26`, `$60`
+  and `$42` are retired from site, tests and copy; one activation code carries the plan duration the buyer
+  chose (redemption adds the plan `months`). `/pricing#pay` ships three steps plus one `mailto:` CTA because
+  no local payment method is configured; crypto stays hidden until its gateway is live. `en/`, `trust/` and
+  the topic pages are deleted and every legacy URL (site and app) answers **one** 301 to its final anchor;
+  `sales/*` 301s to `/pricing#pay`. Proof: unit suite **2135/2135**, `tsc` clean, local link crawl 4 pages /
+  9 links OK, Lighthouse mobile a11y **100** + SEO **100** on all three pages. Next: `npm run verify --
+  --ci --e2e`, commit + push, then deploy `pages` (site + app) and `worker` if the gate is green.
+
 - **2026-10-28 final pass — audit #7 closed; `merge` + `worker` + `pages` deployed.** `main` =
   **`29f6aec`** + docs (pushed; `726a710` rate limit, `29f6aec` beacon CSP). **Worker**
   `6f5ba883-6730-43d2-b8cd-9c275b298fee`: `/auth/session` is limited per `CF-Connecting-IP` before the
@@ -40,32 +54,6 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   antivirus injects a 147 KB render-blocking script; not a site defect, and reaching 90 needs design work).
   **Owner:** `KATZU26` is marketing-only — no validator exists (`parseDiscountCode` accepts only
   `STD-…`); the site says **$60/yr** while the crypto yearly tier charges **$42**.
-- **Production 2026-10-27 — the split is live and Google Sign-In is fixed.** `main` = **`95d3f04`**
-  (pushed; the `fix(auth)` batch is commits `d9a863e`, `d6345dc`, `3d46101`, `99f45f4`, `95d3f04`,
-  then the docs ledger commits ending **`16a04f2`**);
-  **app** `katzuai.com` = Pages deployment **`3c5fcfef-24ea-406c-b3b4-d725a4838b4b`**
-  (bundle `assets/index-DtOhy65S.js`, Pages source listing `da7656c` because it was uploaded by hand at
-  deploy time; the served `AppShell-C7UVbAY_.js` is byte-identical to the `dist/` built from the fixed
-  tree, sha256 `113d4e46…`, and contains the new notice copy) and **site**
-  `website.katzuai.com` = **`de591b4e-364e-4779-8d87-57ea5adb2dd8`** (source `da7656c`). Worker version
-  **unchanged**: `e1a9a2ca-e919-43e2-baba-28a52bddd1cd`. Rollback targets: app
-  `f5030887-d21b-44f7-83a8-b43f81085e51` (source `8dab741`, pre-split-serve) and site
-  `ea420d13-5691-4e2c-9ee7-9c84c45975d8`. Verified live: `/signin` HSTS + COOP
-  `same-origin-allow-popups` + the narrowed CSP, GIS script/style/button **200**, Google button rendered
-  in a clean profile and in a service-worker-controlled one, `/pricing|/faq|/en|/trust/*|/demo` redirect
-  301, the site byte-identical to `website/` with SRI + CSP and all 21 sitemap URLs **200**.
-  Gate: `npm run verify` **6/6**, browser suite **exit 0**, targeted auth-adjacent specs **14 passed**.
-  **UNPROVEN:** an actual Google credential exchange (needs a real account). Details in `## UNPROVEN`.
-- **2026-10-28 launch-claim re-check — four PASS, no code change.** (1) `website/` has no
-  `PLACEHOLDER`; the Pro offer keeps a real end date («حتى 31 يناير 2027») and `KATZU26` is its named
-  coupon. (2) 19 legacy app URLs (`/pricing`, `/faq`, `/about`, `/how-it-works`, `/who-its-for`,
-  `/compare`, `/en`, `/en/*`, `/use-cases/*`, `/trust/*`, `/privacy`, `/terms`) answer `301` with the
-  exact `https://website.katzuai.com…` target (final 200); `/demo` answers `301 Location: /welcome`,
-  which resolves to `https://katzuai.com/welcome` (app route, 200) — correct, not a website page.
-  (3) Live `canonical`/`og:url`/`hreflang` on 10 pages plus `sitemap.xml` (5,398 B) and `robots.txt`
-  (2,748 B) name `website.katzuai.com` only; no `pages.dev` in built pages, site scripts or artifacts.
-  (4) No Critical/High open: #7/#8 Low, #9/#10/#11 Informational. Probes: `redirects-check.mjs`,
-  `seo-check.mjs` in the OS temp dir, run this session.
 - **Older run records moved out on 2026-10-27** (2026-10-23 guided home back to 2026-10-07) to keep this
   file inside its 80 KB cap: `docs/agent/ARCHIVE-AGENT-STATE.md`, search `RESUME history moved 2026-10-27`.
 ## CURRENT MISSION
@@ -355,6 +343,10 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
 
+- **The order path needs your payment details before a learner can pay (V44-1, 2026-10-28).** No local payment method is configured, so `/pricing#pay` ships the three honest steps and a single `mailto:support@ghaidak.com` button — never a `FILL`, never "unavailable", never a crypto block that cannot take money. To turn that into a real checkout, send: the **Telegram handle** orders may go to, the **Syriatel Cash** and **MTN Cash** numbers (and whose name is on them), the **bank** name, account holder and IBAN, and which currencies you want to collect in. Done looks like: the owner sends those details and the agent adds them to `pricing.config.json` + `src/lib/offers/paymentInstructions.ts` and the `/pricing#pay` block, then proves the page renders them.
+
+- **Four legal fields are still open, and they are yours to state — not the agent's to invent (V44-2, 2026-10-28).** `src/lib/trust/content.ts` publishes privacy, terms and refund in full, but deliberately leaves out: the **governing law**, the **publisher's legal identity and address**, any **commercial-register / supervisory authority** number, and the **dispute-resolution forum**. They are not printed as placeholders either — the sentence is simply absent, which is honest but incomplete. Done looks like: the owner states each in one sentence and the agent adds it to the terms section, `OWNER-CHECKLIST.md` and the ledger.
+
 - **The AI pool needs your keys before OpenRouter/NVIDIA serve anything (AI-POOL, 2026-10-18).** The default provider pool is now NVIDIA + OpenRouter only and you edit it from the admin dashboard's new **AI Providers** tab — add custom gateways (base URL + model + format + tier + key), disable a default, or pick a preset (OpenRouter, NVIDIA, Groq, Google AI Studio, OpenAI, DeepSeek, Mistral, Together, Fireworks, Cerebras, xAI, Custom). Keys pasted there are stored server-side and never shown again (only a masked fingerprint). Today both key lists are still EMPTY, so until you paste keys in the dashboard or run `npx wrangler secret put OPENROUTER_API_KEYS` / `NVIDIA_API_KEYS`, every AI turn rides the free Workers AI fallback (works, but capped at 700 tokens and lower quality). Done looks like: the AI Providers tab shows a green "OK in N ms" next to the Test button for at least one entry.
 
 - **Nothing is left to load — the content set is complete and verified (V18-2).** `docs/content/supplements/grammar-basics.json` and both modules are in D1: **15 scenarios / 221 vocabulary / 111 phrases / 22 grammar**, `node scripts/check-content-drift.mjs` exits **0** with 0 absent, 0 pending and 0 duplicate keys, and every module/supplement grammar row is reachable from `SCENARIO_GRAMMAR_IDS` (18 of 22; the other 4 are the legacy rows below). The two loader bullets further down are kept only as history. Remaining content work is *authoring volume*, not loading.
@@ -383,13 +375,6 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   node scripts/load-curriculum.mjs --file=docs/content/curriculum-30day-module1.json --commit
   ```
   **Collision check RE-VERIFIED read-only in V9-9 (Phase 4) against live production D1:** all five of module2's scenario ids and all four of its grammar ids are absent (live scenarios: `apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview`; live grammar: `akkusativ_articles, dativ_prepositions, konjunktiv_ii, perfekt_tense`), and the same holds for all 15 of module1's ids — so neither load can overwrite an existing row. V9-9 also confirmed the block is the *secret*, not the content: both `--commit` runs exit **2** with "ADMIN_SECRET is not set", and §3 forbids an agent from using it. **module1 must be approved first** (`review.status` is `pending` and no `docs/content/review-<module1>.md` exists) or `scripts/load-curriculum.mjs:131` refuses it. Never paste the secret into chat.
-
-- **The advertised offer is not the charged price — one owner decision (COUPON-60, 2026-10-28).** The site
-  advertises **$60/year** with coupon `KATZU26` through 31 Jan 2027, but no coupon validator exists:
-  `parseDiscountCode` (`cloudflare-crypto.js`) accepts only `STD-\d{2}-[A-Z0-9]{6,12}-[A-F0-9]{16}`, and the
-  live crypto yearly tier charges **$42** (`/crypto/health`). Nothing was changed — both are owner money
-  decisions (§3). Choose: keep `$60` as a promo you apply by hand (and say so to buyers), make the site show
-  `$42`, or commission real coupon support. Done looks like: the price a learner reads is the one charged.
 
 - Existing `docs/LAUNCH-CHECKLIST.md` §2 owner-only actions remain untouched.
 
