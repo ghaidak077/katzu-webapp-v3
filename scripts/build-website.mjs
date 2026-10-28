@@ -5,26 +5,36 @@
  *   node scripts/build-website.mjs
  *
  * THE SITE IS THREE PAGES
- *   /         HOME      what the app is for, one real correction, how it works,
- *                       the six situations, who it fits, moving to Germany
+ *   /         HOME      the supplied design, page for page: hero, the two
+ *                       pinned scenes, the app conversation, the situations
+ *                       rail, the error timeline, the results, the price line,
+ *                       the FAQ, the closing scene.
  *   /pricing  PRICING   free card + four founding plans, the rules once, #pay
  *   /help     HELP      short FAQ answers that link, then privacy/terms/refund
  *                       and one contact address
  *
- * One template, one stylesheet, one nav and footer, one background image. The
- * video plays on the home page only; every other page shows the same background
- * still. Nothing else is generated — the old topic pages, the English twins and
- * the five trust pages are deleted by this build and answered with a 301 from
+ * ONE SOURCE OF TRUTH PER PAGE
+ *   /               scripts/templates/home.html — the design file with only the
+ *                   allowed edits (nav/footer links, CTA target, the retired
+ *                   coupon block, prices, facts). Tokens are filled here.
+ *   /pricing /help  scripts/site-content.mjs (copy) + scripts/site-pricing.mjs
+ *                   (prices from pricing.config.json).
+ *   all pages       website/assets/site.css — Part 1 is the design's own CSS.
+ *
+ * Nothing else is generated: the old topic pages, the English twins and the
+ * five trust pages are deleted by this build and answered with a 301 from
  * `website/_redirects`.
- *
- * SOURCES OF TRUTH
- *   - copy + prices:  scripts/site-content.mjs (prices from pricing.config.json)
- *   - legal text:     src/lib/trust/content.ts (bundled here with esbuild)
- *   - design:         website/assets/site.css
- *
- * A page that shows a raw `{{OWNER_FILL}}` is not a page: the build stops.
  */
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, statSync, unlinkSync, rmdirSync } from 'node:fs';
+
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmdirSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
@@ -34,10 +44,12 @@ import {
   START,
   SUPPORT,
   UPDATED,
+  CTA_LABEL,
   NAV_LINKS,
   FOOTER_LINKS,
-  CTA_LABEL,
-  HOME,
+  REFUND_DAYS,
+  ACTIVATION_HOURS,
+  FREE_LESSONS_PER_MONTH,
   PRICING,
   PLAN_ORDER_MAILTO,
   helpPage,
@@ -45,6 +57,7 @@ import {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'website');
+const homeTemplate = join(root, 'scripts', 'templates', 'home.html');
 
 /* ------------------------------------------------------------------ */
 /* Legal text: bundle the TS module once and import the result.        */
@@ -72,44 +85,31 @@ const esc = (v) =>
 const attr = (v) => esc(v).replace(/'/g, '&#39;');
 
 /* ------------------------------------------------------------------ */
-/* Shell                                                              */
+/* Shell — the design's nav, footer and cursor, shared by all pages    */
 /* ------------------------------------------------------------------ */
 
 function navHtml(current) {
   const links = NAV_LINKS.map(
     ([href, label]) =>
-      `<a href="${href}"${href === current ? ' aria-current="page"' : ''}>${label}</a>`,
+      `<a href="${href}"${href === current ? ' class="act" aria-current="page"' : ''}>${label}</a>`,
   ).join('');
-  return `<nav id="nav" aria-label="التنقل الرئيسي">
-  <a class="brand" href="/"><img src="/assets/logo/logo-64.png" alt="" width="28" height="28">كاتزو</a>
-  <div class="nl">${links}</div>
-  <a class="btn sm mag" href="${START}">${CTA_LABEL}</a>
-</nav>`;
+  return `<nav id="nav" aria-label="التنقل الرئيسي"><a class="brand" href="/"><img src="/assets/logo/logo-64.png" alt="" width="30" height="30">كاتزو</a><div class="nl">${links}</div><a class="btn sm" href="${START}" data-cur="ابدأ">${CTA_LABEL}</a><i class="pg"></i></nav>`;
 }
 
+/** Exactly the footer printed in scripts/templates/home.html. */
 function footerHtml() {
-  const links = FOOTER_LINKS.map(([href, label]) => `<a href="${href}">${label}</a>`).join('');
+  const links = FOOTER_LINKS.map(([href, label]) => `<a href="${href}">${label}</a>`).join('\n  ');
   return `<footer>
-  <div class="wrap fin">
-    <nav class="fnav" aria-label="روابط الموقع">${links}</nav>
-    <div class="fmeta">
-      <a href="mailto:${SUPPORT}">${SUPPORT}</a>
-      <span>© 2026 كاتزو</span>
-    </div>
-  </div>
+  ${links}
+  <a href="mailto:${SUPPORT}">تواصل معنا</a>
+  <span>© 2026 كاتزو</span>
 </footer>`;
 }
 
-/** The fixed background. One image everywhere; the video is home-only. */
-function backgroundHtml(isHome) {
-  const video = isHome
-    ? `<video id="veil" autoplay muted loop playsinline poster="/assets/bg-poster.jpg" aria-hidden="true">
-  <source src="/assets/bg.mp4" type="video/mp4">
-</video>`
-    : '';
+/** Subpage background: the same still the home video opens on. */
+function backgroundHtml() {
   return `<div class="bgimg" aria-hidden="true"></div>
-${video}
-<div class="shade" aria-hidden="true"></div>`;
+<div class="grain"></div>`;
 }
 
 /**
@@ -145,10 +145,33 @@ function pricingPickerScript() {
 </script>`;
 }
 
+/* ------------------------------------------------------------------ */
+/* / — the design template, with its numbers filled from config        */
+/* ------------------------------------------------------------------ */
+
+function renderHome() {
+  let html = readFileSync(homeTemplate, 'utf8');
+  const tokens = {
+    SITE,
+    START,
+    REFUND_DAYS,
+    ACTIVATION_HOURS,
+    FREE_LESSONS: FREE_LESSONS_PER_MONTH,
+  };
+  for (const [name, value] of Object.entries(tokens)) {
+    html = html.split(`{{${name}}}`).join(String(value));
+  }
+  if (/\{\{[A-Z_]+\}\}/.test(html)) throw new Error('home: a template token was not filled');
+  return html;
+}
+
+/* ------------------------------------------------------------------ */
+/* /pricing and /help — the same shell, a page head, then the body     */
+/* ------------------------------------------------------------------ */
+
 function renderPage(page) {
-  const { path, title, description, h1, lead, body, jsonld = [], anchorNav } = page;
-  const isHome = path === '/';
-  const slug = path === '/' ? 'home' : path.replace(/^\//, '');
+  const { path, title, description, h1, lead, eye, body, jsonld = [], anchorNav } = page;
+  const slug = path.replace(/^\//, '');
   const extraScript = path === '/pricing' ? pricingPickerScript() : '';
   const anchors = anchorNav
     ? `<nav class="anchors" aria-label="أقسام المساعدة">${anchorNav
@@ -181,7 +204,7 @@ function renderPage(page) {
 <meta property="og:url" content="${SITE}${path}">
 <meta property="og:image" content="${SITE}/assets/logo/logo-512.png">
 <meta property="og:locale" content="ar">
-<meta name="theme-color" content="#05030C">
+<meta name="theme-color" content="#000">
 <link rel="canonical" href="${SITE}${path}">
 <link rel="icon" href="/assets/logo/favicon.ico" sizes="any">
 <link rel="icon" href="/assets/logo/favicon-32.png" type="image/png" sizes="32x32">
@@ -193,11 +216,12 @@ function renderPage(page) {
 ${ld}
 </head>
 <body class="page-${slug}">
-${backgroundHtml(isHome)}
+${backgroundHtml()}
 <a class="skip" href="#main">تخطَّ إلى المحتوى</a>
 ${navHtml(path)}
 <main id="main">
-  <header class="hero wrap">
+  <header class="phead">
+    ${eye ? `<span class="eye reveal">${eye}</span>` : ''}
     <h1 class="reveal">${h1}</h1>
     <p class="lead reveal">${lead}</p>
   </header>
@@ -242,19 +266,19 @@ ${urls}
 /**
  * Old site URLs, one 301 each, straight to the final section. No rule points at
  * another redirect: a chain costs a round trip and hides the real target from a
- * crawler. `/en/*` mirrors its Arabic page instead of dumping everything on `/`.
+ * crawler. Every fragment below exists on its target page.
  */
 function redirectsTxt() {
   return `# The site is three pages now: /, /pricing, /help. Every old URL answers
 # with ONE 301 to its final target — no chain, no second hop.
-/how-it-works /#how 301
-/how-it-works/ /#how 301
-/who-its-for /#for 301
-/who-its-for/ /#for 301
-/compare /#for 301
-/compare/ /#for 301
-/use-cases/moving-to-germany /#moving 301
-/use-cases/* /#for 301
+/how-it-works /#app 301
+/how-it-works/ /#app 301
+/who-its-for /#faq 301
+/who-its-for/ /#faq 301
+/compare /#faq 301
+/compare/ /#faq 301
+/use-cases/moving-to-germany /#rail 301
+/use-cases/* /#rail 301
 /faq /help#faq 301
 /faq/ /help#faq 301
 /about /help#about 301
@@ -272,10 +296,10 @@ function redirectsTxt() {
 /en/pricing /pricing 301
 /en/faq /help#faq 301
 /en/about /help#about 301
-/en/how-it-works /#how 301
-/en/who-its-for /#for 301
-/en/compare /#for 301
-/en/use-cases/moving-to-germany /#moving 301
+/en/how-it-works /#app 301
+/en/who-its-for /#faq 301
+/en/compare /#faq 301
+/en/use-cases/moving-to-germany /#rail 301
 /en/trust/privacy /help#privacy 301
 /en/trust/terms /help#terms 301
 /en/trust/refund /help#refund 301
@@ -291,14 +315,17 @@ function notFoundHtml() {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>الصفحة غير موجودة · كاتزو</title>
+<meta name="theme-color" content="#000">
 <link rel="icon" href="/assets/logo/favicon.ico" sizes="any">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;900&family=Syne:wght@700;800&display=swap">
 <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body class="page-404">
-${backgroundHtml(false)}
+${backgroundHtml()}
+<a class="skip" href="#main">تخطَّ إلى المحتوى</a>
+${navHtml('/')}
 <main id="main">
-  <header class="hero wrap">
+  <header class="phead">
     <h1>الصفحة غير موجودة</h1>
     <p class="lead">ربما تغيّر الرابط. عد إلى الصفحة الرئيسية، أو اقرأ ما يفعله كاتزو أولاً.</p>
     <p class="lost-links"><a class="btn gh" href="/">الرئيسية</a> <a class="btn gh" href="/pricing">الأسعار</a></p>
@@ -386,18 +413,18 @@ async function main() {
     refund: legalHtml('refund', TRUST_CONTENT.refund),
   };
 
-  const pages = [HOME, PRICING, helpPage(legal)];
+  const pages = [PRICING, helpPage(legal)];
   for (const page of pages) {
     if (/\{\{[A-Z_]/.test(page.body)) throw new Error(`${page.path} still contains a placeholder`);
-    if (page.path !== '/pricing' && /\$\d/.test(page.body)) {
-      throw new Error(`${page.path} shows a price; prices belong on /pricing only`);
-    }
   }
 
+  const home = renderHome();
+  if (/\$\d/.test(home)) throw new Error('/ shows a price; prices belong on /pricing only');
+
   const written = [];
+  written.push(emit('index.html', home));
   for (const page of pages) {
-    const file = page.path === '/' ? 'index.html' : `${page.path.slice(1)}.html`;
-    written.push(emit(file, renderPage(page)));
+    written.push(emit(`${page.path.slice(1)}.html`, renderPage(page)));
   }
   written.push(emit('robots.txt', robotsTxt()));
   written.push(emit('sitemap.xml', sitemapXml()));
@@ -421,6 +448,19 @@ async function main() {
     }
     if (/\{\{[A-Z_]/.test(text)) throw new Error(`${rel} ships a raw placeholder`);
     if (/[\u0660-\u0669]/.test(text)) throw new Error(`${rel} uses Arabic-Indic digits`);
+    if (/\$\d/.test(text) && rel !== 'pricing.html') throw new Error(`${rel} shows a price`);
+  }
+
+  // The home page is the design: its video, its loader, its rail. The other two
+  // pages carry the same still and the same grain instead.
+  const homeHtml = readFileSync(join(outDir, 'index.html'), 'utf8');
+  for (const marker of ['/assets/bg.mp4', 'id="rail"', 'id="ld"', '/assets/vendor/gsap.min.js']) {
+    if (!homeHtml.includes(marker)) throw new Error(`index.html is missing ${marker}`);
+  }
+  for (const rel of ['pricing.html', 'help.html', '404.html']) {
+    const text = readFileSync(join(outDir, rel), 'utf8');
+    if (!text.includes('class="bgimg"')) throw new Error(`${rel} is missing the background still`);
+    if (text.includes('bg.mp4')) throw new Error(`${rel} must not load the home video`);
   }
 
   console.log(`site: wrote ${written.length} files into website/`);

@@ -88,112 +88,12 @@ export const NAV_LINKS = [
 ];
 
 export const FOOTER_LINKS = [
-  ...NAV_LINKS,
+  ['/pricing', 'الأسعار'],
+  ['/help', 'المساعدة'],
   ['/help#privacy', 'الخصوصية'],
   ['/help#terms', 'الشروط'],
   ['/help#refund', 'الاسترداد'],
 ];
-
-/* ------------------------------------------------------------------ */
-/* /                                                                   */
-/* ------------------------------------------------------------------ */
-
-const SITUATIONS = [
-  ['السفارة', 'موعد التأشيرة، والأسئلة التي تتكرر في كل نافذة.'],
-  ['عند الطبيب', 'وصف الأعراض، وفهم ما يقوله الطبيب قبل أن تخرج.'],
-  ['مقابلة العمل', 'تقديم نفسك، والإجابة عن الأسئلة المعتادة.'],
-  ['معاينة شقة', 'السؤال عن الإيجار والكفالة والموعد، بلا تلعثم.'],
-  ['المطار', 'تسجيل الوصول، والأسئلة عند الحدود.'],
-  ['دائرة المواطنين', 'الموعد، والأوراق، وطلب ما جئت من أجله.'],
-];
-
-const homeBody = () => `
-<section class="wrap demo reveal" aria-label="مثال على تصحيح كاتزو">
-  <div class="bubble learner">
-    <span class="who">أنت</span>
-    <p class="de">Ich habe ein Gift für dich gekauft.</p>
-  </div>
-  <div class="bubble katzu">
-    <span class="who">كاتزو</span>
-    <p><span class="de">Gift</span> تعني «سُمّ». الهدية هي <span class="de">Geschenk</span>.</p>
-    <p class="fix de">Ich habe ein Geschenk für dich gekauft.</p>
-    <p class="why">كلمة واحدة تقلب المعنى. لهذا نصحّح في السياق، بالعربية.</p>
-  </div>
-</section>
-
-<section class="wrap hero-cta">
-  <a class="btn mag big" href="${START}">${CTA_LABEL}</a>
-  <p class="micro">الميكروفون اختياري — اكتب إن أردت.</p>
-</section>
-
-<section id="how" class="wrap sec">
-  <h2>ثلاث خطوات، ثم تتكلّم</h2>
-  <ol class="steps three">
-    <li><span class="num">1</span><h3>اختر موقفاً</h3><p>من حياتك في ألمانيا: موعد، سؤال، أو مشكلة تحتاج حلاً.</p></li>
-    <li><span class="num">2</span><h3>قل جملتك أو اكتبها</h3><p>بصوتك أو بلوحة المفاتيح، بلا أحد يصحّح لك أمام الناس.</p></li>
-    <li><span class="num">3</span><h3>اقرأ التصحيح بالعربية</h3><p>ما الذي كان خطأ، وما الصياغة الأصحّ، ثم أعد الجملة نفسها.</p></li>
-  </ol>
-</section>
-
-<section id="situations" class="wrap sec">
-  <h2>ستة مواقف تبدأ بها</h2>
-  <p class="sub">كل موقف محادثة كاملة، بمفردات المستوى نفسه.</p>
-  <div class="grid6">
-${SITUATIONS.map(
-  ([title, line]) => `    <article class="card"><h3>${title}</h3><p>${line}</p></article>`,
-).join('\n')}
-  </div>
-</section>
-
-<section id="for" class="wrap sec">
-  <h2>لمن يناسب كاتزو</h2>
-  <div class="two">
-    <div class="card yes">
-      <h3>يناسبك إن</h3>
-      <ul>
-        <li>تستعدّ لموعد أو مقابلة في ألمانيا، وتريد التدرّب على الكلام لا على القواعد وحدها.</li>
-        <li>تعرف كلمات كثيرة وتتجمّد عندما يأتي دورك في الكلام.</li>
-      </ul>
-    </div>
-    <div class="card no">
-      <h3>لا يناسبك إن</h3>
-      <ul>
-        <li>تبحث عن دورة كاملة تمنحك شهادة رسمية — هذه ليست هنا.</li>
-        <li>تريد ترجمة نصوص طويلة، أو جلسات بلا حدّ.</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<section id="moving" class="wrap sec">
-  <div class="callout">
-    <h2>الانتقال إلى ألمانيا يبدأ قبل الحقيبة</h2>
-    <p>اللغة التي تحتاجها في الأسبوع الأول ليست لغة الكتب: موعد في البلدية، عقد سكن، موظف في البنك. تدرّب على هذه المحادثات قبل أن تدخلها، لا بعد أن تفشل فيها.</p>
-    <ul class="inline-list">
-      <li>تسجيل السكن <span class="de">Anmeldung</span></li>
-      <li>فتح حساب بنكي</li>
-      <li>عقد سكن ومكالمة مع المالك</li>
-    </ul>
-  </div>
-</section>
-
-<section class="wrap sec end">
-  <p class="endline">جملتك الأولى تبدأ بموقف واحد.</p>
-  <a class="link-cta" href="${START}">${CTA_LABEL} ←</a>
-</section>
-`;
-
-export const HOME = {
-  path: '/',
-  title: 'كاتزو — قل جملة السفارة قبل أن تحتاجها',
-  description:
-    'تطبيق عربي لتعلّم الألمانية بالتحدّث: اختر موقفاً من حياتك في ألمانيا، تكلّم أو اكتب، واحصل على تصحيح بالعربية. ابدأ مجاناً.',
-  h1: 'قل جملة السفارة قبل أن تحتاجها',
-  lead:
-    'كاتزو يدرّبك على الجمل التي ستقولها فعلاً في ألمانيا — من A0 إلى B2، ومع تصحيح بالعربية بعد كل محاولة.',
-  body: homeBody(),
-  jsonld: [],
-};
 
 /* ------------------------------------------------------------------ */
 /* /pricing                                                            */
@@ -252,7 +152,7 @@ export const PRICING = {
 export const FAQ_AR = [
   {
     q: 'ما هو كاتزو؟',
-    a: 'تطبيق تدريب على الألمانية المنطوقة: يضعك في موقف ويصحّح جملتك بالعربية. <a class="inline" href="/#situations">المواقف الستة</a>.',
+    a: 'تطبيق تدريب على الألمانية المنطوقة: يضعك في موقف ويصحّح جملتك بالعربية. <a class="inline" href="/#rail">المواقف الستة</a>.',
   },
   {
     q: 'هل أحتاج بطاقة بنكية؟',
