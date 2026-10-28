@@ -1,20 +1,63 @@
-# The website moved. The landing page, the topic pages, the trust pages and the
-# English pages all live on the separate site now, so every old URL is answered
-# with a redirect there instead of a dead end.
-/trust/* https://website.katzuai.com/trust/:splat 301
-/privacy https://website.katzuai.com/trust/privacy 301
-/privacy/ https://website.katzuai.com/trust/privacy 301
-/terms https://website.katzuai.com/trust/terms 301
-/terms/ https://website.katzuai.com/trust/terms 301
-/how-it-works https://website.katzuai.com/how-it-works 301
-/who-its-for https://website.katzuai.com/who-its-for 301
-/compare https://website.katzuai.com/compare 301
-/use-cases/* https://website.katzuai.com/use-cases/:splat 301
-/faq https://website.katzuai.com/faq 301
+# The website moved. Every public page now lives on website.katzuai.com, which
+# is three pages only: / , /pricing , /help . Each old URL below answers with ONE
+# 301 straight to its final destination — never to another redirect, so a visitor
+# and a crawler each make exactly one hop.
+#
+# The app (this Pages project) keeps: /welcome and the other SPA routes listed at
+# the bottom, plus /demo which now lands on the free front door.
+
+# --- topic pages -> the home page section that replaced them -----------------
+/how-it-works https://website.katzuai.com/#how 301
+/how-it-works/ https://website.katzuai.com/#how 301
+/who-its-for https://website.katzuai.com/#for 301
+/who-its-for/ https://website.katzuai.com/#for 301
+/compare https://website.katzuai.com/#for 301
+/compare/ https://website.katzuai.com/#for 301
+/use-cases/moving-to-germany https://website.katzuai.com/#moving 301
+/use-cases/moving-to-germany/ https://website.katzuai.com/#moving 301
+/use-cases/* https://website.katzuai.com/#for 301
+
+# --- trust + legal pages -> the help page anchors ---------------------------
+/trust/privacy https://website.katzuai.com/help#privacy 301
+/trust/privacy/ https://website.katzuai.com/help#privacy 301
+/trust/terms https://website.katzuai.com/help#terms 301
+/trust/terms/ https://website.katzuai.com/help#terms 301
+/trust/refund https://website.katzuai.com/help#refund 301
+/trust/refund/ https://website.katzuai.com/help#refund 301
+/trust/contact https://website.katzuai.com/help#contact 301
+/trust/contact/ https://website.katzuai.com/help#contact 301
+/trust/imprint https://website.katzuai.com/help#about 301
+/trust/* https://website.katzuai.com/help 301
+/privacy https://website.katzuai.com/help#privacy 301
+/privacy/ https://website.katzuai.com/help#privacy 301
+/terms https://website.katzuai.com/help#terms 301
+/terms/ https://website.katzuai.com/help#terms 301
+/refund https://website.katzuai.com/help#refund 301
+/refund/ https://website.katzuai.com/help#refund 301
+/faq https://website.katzuai.com/help#faq 301
+/faq/ https://website.katzuai.com/help#faq 301
+/about https://website.katzuai.com/help#about 301
+/about/ https://website.katzuai.com/help#about 301
+
+# --- prices live on one page only -------------------------------------------
 /pricing https://website.katzuai.com/pricing 301
-/about https://website.katzuai.com/about 301
-/en/* https://website.katzuai.com/en/:splat 301
-/en https://website.katzuai.com/en 301
+/pricing/ https://website.katzuai.com/pricing 301
+
+# --- English was retired at launch: /en/* -> the Arabic page ---------------
+/en https://website.katzuai.com/ 301
+/en/ https://website.katzuai.com/ 301
+/en/pricing https://website.katzuai.com/pricing 301
+/en/faq https://website.katzuai.com/help#faq 301
+/en/about https://website.katzuai.com/help#about 301
+/en/how-it-works https://website.katzuai.com/#how 301
+/en/who-its-for https://website.katzuai.com/#for 301
+/en/compare https://website.katzuai.com/#for 301
+/en/use-cases/moving-to-germany https://website.katzuai.com/#moving 301
+/en/trust/privacy https://website.katzuai.com/help#privacy 301
+/en/trust/terms https://website.katzuai.com/help#terms 301
+/en/trust/refund https://website.katzuai.com/help#refund 301
+/en/trust/contact https://website.katzuai.com/help#contact 301
+/en/* https://website.katzuai.com/ 301
 
 # The demo lesson was removed from the app: the free front door is /welcome.
 /demo /welcome 301

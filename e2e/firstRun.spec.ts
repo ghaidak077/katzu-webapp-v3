@@ -82,17 +82,61 @@ test('a saved-word list with nothing in it offers the way out', async ({ page })
 });
 
 test('the Pro offer names the price, the free tier, the terms and who sells it', async ({ page }) => {
-  // L1: the price the modal shows now comes from `GET /pricing`, in euros. This
+  // L1: the price the modal shows now comes from `GET /pricing`, in dollars. This
   // assertion used to look for «دولار / شهر» — the hardcoded crypto fallback,
   // which is the defect this change removed, so the expected value moves to the
   // server's own number and the "never a placeholder" check becomes explicit.
   await bootSignedIn(page, {
     pricing: {
       prices: [
-        { product: 'pass90', amountCents: 2900, currency: 'EUR', group: 'standard', cell: null },
-        { product: 'monthly', amountCents: 1299, currency: 'EUR', group: 'standard', cell: null },
+        {
+          product: 'monthly',
+          amountCents: 1499,
+          futureCents: 2999,
+          months: 1,
+          recommended: false,
+          currency: 'USD',
+          group: 'standard',
+          cell: null,
+        },
+        {
+          product: 'quarterly',
+          amountCents: 2999,
+          futureCents: 5999,
+          months: 3,
+          recommended: false,
+          currency: 'USD',
+          group: 'standard',
+          cell: null,
+        },
+        {
+          product: 'halfyear',
+          amountCents: 4999,
+          futureCents: 9999,
+          months: 6,
+          recommended: true,
+          currency: 'USD',
+          group: 'standard',
+          cell: null,
+        },
+        {
+          product: 'yearly',
+          amountCents: 9999,
+          futureCents: 19999,
+          months: 12,
+          recommended: false,
+          currency: 'USD',
+          group: 'standard',
+          cell: null,
+        },
       ],
       group: 'standard',
+      foundingCap: 1000,
+      foundingEndsOn: '2027-01-31',
+      refundDays: 7,
+      refundPlanIds: ['quarterly', 'halfyear', 'yearly'],
+      activationHours: 12,
+      freeLessonsPerMonth: 3,
     },
   });
 
@@ -109,9 +153,11 @@ test('the Pro offer names the price, the free tier, the terms and who sells it',
 
   // The price is the server's, in its currency, never absent and never a
   // placeholder — and never the retired hardcoded dollar fallback.
-  await expect(page.getByTestId('modal-price-pass90')).toHaveText('29 €');
-  await expect(page.getByText(/دولار \/ شهر/)).toHaveCount(0);
-  await expect(page.getByText(/€0|— €|غير متاح/)).toHaveCount(0);
+  await expect(page.getByTestId('modal-price-halfyear')).toHaveText('$49.99');
+  await expect(page.getByTestId('modal-future-halfyear')).toHaveText('$99.99');
+  await expect(page.getByTestId('modal-price-monthly')).toHaveText('$14.99');
+  await expect(page.getByTestId('modal-price-yearly')).toHaveText('$99.99');
+  await expect(page.getByText(/\$0|— \$|غير متاح/)).toHaveCount(0);
 
   // What Pro unlocks, and — just as importantly — what stays free forever.
   await expect(page.getByText('ما يفتحه Pro:')).toBeVisible();
@@ -124,19 +170,21 @@ test('the Pro offer names the price, the free tier, the terms and who sells it',
     'redeem CTA',
   );
   await expectTapTarget(
-    page.getByRole('button', { name: /ليس الآن/ }),
+    page.getByRole('button', { name: /تابع مجاناً/ }),
     'dismiss CTA',
   );
 
-  // The legal pages a payment implies, linked to the real public routes.
+  // The legal pages a payment implies, linked to the real public routes. They
+  // moved off the app on 2026-10-28: the marketing site renders every legal
+  // section inline on `/help`, and the old `/trust/*` URLs are single-hop 301s.
   await expectTapTarget(page.getByRole('link', { name: 'سياسة الخصوصية' }), 'privacy link');
   await expect(page.getByRole('link', { name: 'سياسة الخصوصية' })).toHaveAttribute(
     'href',
-    /\/trust\/privacy$/,
+    'https://website.katzuai.com/help#privacy',
   );
   await expect(page.getByRole('link', { name: 'شروط الاستخدام' })).toHaveAttribute(
     'href',
-    /\/trust\/terms$/,
+    'https://website.katzuai.com/help#terms',
   );
 
   // No manufactured pressure and no invented social proof.

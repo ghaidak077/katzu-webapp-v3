@@ -1,407 +1,378 @@
-/**
- * The copy for website.katzuai.com's generated pages.
+﻿/**
+ * The copy for website.katzuai.com — three pages, one design, one set of facts.
  *
- * This is the successor of the deleted `src/lib/seo/publicContent.ts`: the app
- * no longer renders any public page, so the topic pages, the English pages and
- * their facts live here and are written out by `scripts/build-website.mjs`.
+ * THE THREE PAGES
+ *   /         what Katzu is for: the situation you are preparing for, one real
+ *             correction, how it works, the six situations, who it fits, moving.
+ *   /pricing  the free card, the four founding plans, the offer rules once, and
+ *             the purchase flow (#pay) with the lost-code path (#restore).
+ *   /help     short FAQ answers that LINK instead of restating, then the full
+ *             legal text (privacy, terms, refund) and one contact address.
  *
- * FACTS (single source, matching the live landing page `website/index.html`):
- *   - free tier: 3 AI lessons per month after a free Google sign-up, no card
- *   - Pro: one year for 60 dollars with coupon KATZU26, all levels A0–B2
- *   - refund: full within the first 7 days, none afterwards
- *   - activation code arrives within 12 hours, activated inside the app
- *   - voice is processed, never stored; export/delete from inside the app
- *   - fair daily AI ceiling, stated inside the app before it is reached
- * Nothing here may claim ratings, testimonials, user counts, awards, an
- * official certificate, or an end date for the limited offer (none published).
+ * WHY IT IS ONE FILE
+ * The three pages share a nav, a footer and a background, and a fact written on
+ * two pages is a fact that can disagree with itself. Every number below is read
+ * from `pricing.config.json` — the same file the app and the Worker read — so a
+ * price typed into a page cannot survive the next build.
+ *
+ * WHAT THIS FILE MAY NOT SAY
+ * No ratings, testimonials, user counts, awards or official certificates; no
+ * "unlimited"; no price on the home page. Those are product claims the repository
+ * cannot prove, and `tests/offer.test.ts` scans the built pages for them.
  */
 
-export const SITE = 'https://website.katzuai.com';
-export const APP = 'https://katzuai.com';
-/** Where every "ابدأ مجاناً" CTA goes: the demo lesson was removed. */
-export const START = `${APP}/welcome`;
-export const SUBSCRIBE = `${APP}/subscription`;
-export const UPDATED = '2026-10-27';
-export const COUPON = 'KATZU26';
-export const SUPPORT = 'support@ghaidak.com';
+import {
+  SITE,
+  APP,
+  START,
+  SUPPORT,
+  UPDATED,
+  CTA_LABEL,
+  PLANS,
+  FOUNDING_CAP,
+  REFUND_DAYS,
+  ACTIVATION_HOURS,
+  FREE_LESSONS_PER_MONTH,
+  PRICING_RULES_AR,
+  PRICING_HEADLINE_AR,
+  BEST_VALUE_AR,
+  PAID_FEATURES,
+  RESTORE_MAILTO,
+  PLAN_ORDER_MAILTO,
+  DEFAULT_PLAN_MAILTO,
+  escAttr,
+  formatUsd,
+  planBadge,
+  pricingCardsHtml,
+  pricingRulesHtml,
+  pricingOffersJsonLd,
+} from './site-pricing.mjs';
 
-export const NAV_AR = [
-  ['/how-it-works', 'كيف يعمل'],
-  ['/who-its-for', 'لمن يناسب'],
-  ['/compare', 'المقارنة'],
-  ['/use-cases/moving-to-germany', 'الانتقال'],
-  ['/pricing', 'الأسعار'],
-  ['/faq', 'الأسئلة'],
-  ['/about', 'عن كاتزو'],
-];
-
-export const NAV_EN = [
-  ['/en/how-it-works', 'How it works'],
-  ['/en/who-its-for', 'Who it is for'],
-  ['/en/compare', 'Compare'],
-  ['/en/use-cases/moving-to-germany', 'Moving'],
-  ['/en/pricing', 'Pricing'],
-  ['/en/faq', 'FAQ'],
-  ['/en/about', 'About'],
-];
-
-/** The footer link row, shared by every page (the landing uses the same list). */
-export const FOOTER_AR = [
-  ...NAV_AR,
-  ['/trust/privacy', 'الخصوصية'],
-  ['/trust/terms', 'الشروط'],
-  ['/trust/refund', 'الاسترداد'],
-  ['/trust/contact', 'تواصل معنا'],
-  ['/en', 'English'],
-];
-
-export const FOOTER_EN = [
-  ...NAV_EN,
-  ['/en', 'Home'],
-  ['/trust/privacy', 'Privacy (Arabic)'],
-  ['/trust/terms', 'Terms (Arabic)'],
-  ['/trust/refund', 'Refunds (Arabic)'],
-  ['/', 'العربية'],
-];
-
-/** Trust pages: meta descriptions (the body comes from src/lib/trust/content.ts). */
-export const TRUST_META = {
-  privacy: {
-    ar: {
-      title: 'الخصوصية والبيانات — كاتزو',
-      description: 'كيف يتعامل كاتزو مع البيانات: ما يُحفظ على جهازك، ما يُرسل للخادم، وما يذهب إلى مزوّد الذكاء الاصطناعي، وحقوقك في التصدير والحذف.',
-    },
-  },
-  terms: {
-    ar: {
-      title: 'شروط الاستخدام — كاتزو',
-      description: 'شروط استخدام كاتزو: طبيعة الأداة، حدود الاستخدام العادل، الدفع والتفعيل، والاسترداد.',
-    },
-  },
-  refund: {
-    ar: {
-      title: 'سياسة الاسترداد — كاتزو',
-      description: 'سياسة الاسترداد في كاتزو: استرداد كامل خلال أول 7 أيام من الاشتراك، وكيف تطلب الاسترداد.',
-    },
-  },
-  imprint: {
-    ar: {
-      title: 'بيانات الناشر — كاتزو',
-      description: 'بيانات ناشر كاتزو ومعلومات التواصل والمسؤولية.',
-    },
-  },
-  contact: {
-    ar: {
-      title: 'تواصل معنا — كاتزو',
-      description: 'كيف تتواصل مع دعم كاتزو بخصوص الحساب أو الخصوصية أو الدفع، وما لا نطلبه أبداً.',
-    },
-  },
+// One import for the builder: the money vocabulary lives in site-pricing.mjs,
+// the copy lives here, and nothing in between has to know the difference.
+export {
+  SITE,
+  APP,
+  START,
+  SUPPORT,
+  UPDATED,
+  CTA_LABEL,
+  PLANS,
+  FOUNDING_CAP,
+  REFUND_DAYS,
+  ACTIVATION_HOURS,
+  FREE_LESSONS_PER_MONTH,
+  PRICING_RULES_AR,
+  PRICING_HEADLINE_AR,
+  BEST_VALUE_AR,
+  PAID_FEATURES,
+  RESTORE_MAILTO,
+  PLAN_ORDER_MAILTO,
+  DEFAULT_PLAN_MAILTO,
+  escAttr,
+  formatUsd,
+  planBadge,
+  pricingCardsHtml,
+  pricingRulesHtml,
+  pricingOffersJsonLd,
 };
 
 /* ------------------------------------------------------------------ */
-/* Arabic FAQ — the landing's six items, plus what visitors actually ask */
+/* Nav + footer — one list, printed on every page                      */
+/* ------------------------------------------------------------------ */
+
+export const NAV_LINKS = [
+  ['/', 'الرئيسية'],
+  ['/pricing', 'الأسعار'],
+  ['/help', 'المساعدة'],
+];
+
+export const FOOTER_LINKS = [
+  ...NAV_LINKS,
+  ['/help#privacy', 'الخصوصية'],
+  ['/help#terms', 'الشروط'],
+  ['/help#refund', 'الاسترداد'],
+];
+
+/* ------------------------------------------------------------------ */
+/* /                                                                   */
+/* ------------------------------------------------------------------ */
+
+const SITUATIONS = [
+  ['السفارة', 'موعد التأشيرة، والأسئلة التي تتكرر في كل نافذة.'],
+  ['عند الطبيب', 'وصف الأعراض، وفهم ما يقوله الطبيب قبل أن تخرج.'],
+  ['مقابلة العمل', 'تقديم نفسك، والإجابة عن الأسئلة المعتادة.'],
+  ['معاينة شقة', 'السؤال عن الإيجار والكفالة والموعد، بلا تلعثم.'],
+  ['المطار', 'تسجيل الوصول، والأسئلة عند الحدود.'],
+  ['دائرة المواطنين', 'الموعد، والأوراق، وطلب ما جئت من أجله.'],
+];
+
+const homeBody = () => `
+<section class="wrap demo reveal" aria-label="مثال على تصحيح كاتزو">
+  <div class="bubble learner">
+    <span class="who">أنت</span>
+    <p class="de">Ich habe ein Gift für dich gekauft.</p>
+  </div>
+  <div class="bubble katzu">
+    <span class="who">كاتزو</span>
+    <p><span class="de">Gift</span> تعني «سُمّ». الهدية هي <span class="de">Geschenk</span>.</p>
+    <p class="fix de">Ich habe ein Geschenk für dich gekauft.</p>
+    <p class="why">كلمة واحدة تقلب المعنى. لهذا نصحّح في السياق، بالعربية.</p>
+  </div>
+</section>
+
+<section class="wrap hero-cta">
+  <a class="btn mag big" href="${START}">${CTA_LABEL}</a>
+  <p class="micro">الميكروفون اختياري — اكتب إن أردت.</p>
+</section>
+
+<section id="how" class="wrap sec">
+  <h2>ثلاث خطوات، ثم تتكلّم</h2>
+  <ol class="steps three">
+    <li><span class="num">1</span><h3>اختر موقفاً</h3><p>من حياتك في ألمانيا: موعد، سؤال، أو مشكلة تحتاج حلاً.</p></li>
+    <li><span class="num">2</span><h3>قل جملتك أو اكتبها</h3><p>بصوتك أو بلوحة المفاتيح، بلا أحد يصحّح لك أمام الناس.</p></li>
+    <li><span class="num">3</span><h3>اقرأ التصحيح بالعربية</h3><p>ما الذي كان خطأ، وما الصياغة الأصحّ، ثم أعد الجملة نفسها.</p></li>
+  </ol>
+</section>
+
+<section id="situations" class="wrap sec">
+  <h2>ستة مواقف تبدأ بها</h2>
+  <p class="sub">كل موقف محادثة كاملة، بمفردات المستوى نفسه.</p>
+  <div class="grid6">
+${SITUATIONS.map(
+  ([title, line]) => `    <article class="card"><h3>${title}</h3><p>${line}</p></article>`,
+).join('\n')}
+  </div>
+</section>
+
+<section id="for" class="wrap sec">
+  <h2>لمن يناسب كاتزو</h2>
+  <div class="two">
+    <div class="card yes">
+      <h3>يناسبك إن</h3>
+      <ul>
+        <li>تستعدّ لموعد أو مقابلة في ألمانيا، وتريد التدرّب على الكلام لا على القواعد وحدها.</li>
+        <li>تعرف كلمات كثيرة وتتجمّد عندما يأتي دورك في الكلام.</li>
+      </ul>
+    </div>
+    <div class="card no">
+      <h3>لا يناسبك إن</h3>
+      <ul>
+        <li>تبحث عن دورة كاملة تمنحك شهادة رسمية — هذه ليست هنا.</li>
+        <li>تريد ترجمة نصوص طويلة، أو جلسات بلا حدّ.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="moving" class="wrap sec">
+  <div class="callout">
+    <h2>الانتقال إلى ألمانيا يبدأ قبل الحقيبة</h2>
+    <p>اللغة التي تحتاجها في الأسبوع الأول ليست لغة الكتب: موعد في البلدية، عقد سكن، موظف في البنك. تدرّب على هذه المحادثات قبل أن تدخلها، لا بعد أن تفشل فيها.</p>
+    <ul class="inline-list">
+      <li>تسجيل السكن <span class="de">Anmeldung</span></li>
+      <li>فتح حساب بنكي</li>
+      <li>عقد سكن ومكالمة مع المالك</li>
+    </ul>
+  </div>
+</section>
+
+<section class="wrap sec end">
+  <p class="endline">جملتك الأولى تبدأ بموقف واحد.</p>
+  <a class="link-cta" href="${START}">${CTA_LABEL} ←</a>
+</section>
+`;
+
+export const HOME = {
+  path: '/',
+  title: 'كاتزو — قل جملة السفارة قبل أن تحتاجها',
+  description:
+    'تطبيق عربي لتعلّم الألمانية بالتحدّث: اختر موقفاً من حياتك في ألمانيا، تكلّم أو اكتب، واحصل على تصحيح بالعربية. ابدأ مجاناً.',
+  h1: 'قل جملة السفارة قبل أن تحتاجها',
+  lead:
+    'كاتزو يدرّبك على الجمل التي ستقولها فعلاً في ألمانيا — من A0 إلى B2، ومع تصحيح بالعربية بعد كل محاولة.',
+  body: homeBody(),
+  jsonld: [],
+};
+
+/* ------------------------------------------------------------------ */
+/* /pricing                                                            */
+/* ------------------------------------------------------------------ */
+
+const pricingBody = () => `
+<section class="wrap sec included">
+  <h2>ما تحصل عليه في كل باقة مدفوعة</h2>
+  <ul class="checks">
+${PAID_FEATURES.map((line) => `    <li>${line}</li>`).join('\n')}
+  </ul>
+</section>
+
+<section class="wrap sec plans-sec">
+  <div class="plans">
+${pricingCardsHtml()}
+  </div>
+</section>
+
+${pricingRulesHtml()}
+
+<section id="pay" class="wrap sec pay">
+  <h2>كيف تحصل على الكود</h2>
+  <ol class="steps three">
+    <li><span class="num">1</span><h3>اختر باقة</h3><p>اضغط «اختر هذه الباقة» على المدة المناسبة أعلاه.</p></li>
+    <li><span class="num">2</span><h3>راسلنا</h3><p>يفتح الزر رسالة جاهزة بالباقة والمبلغ. أرسلها، ونرسل لك تفاصيل الدفع المتاحة في بلدك.</p></li>
+    <li><span class="num">3</span><h3>فعّل الكود</h3><p>يصلك كود التفعيل على بريدك خلال ${ACTIVATION_HOURS} ساعة كحد أقصى، وتُدخله داخل التطبيق.</p></li>
+  </ol>
+  <p class="codefact">كود واحد يحمل مدة الباقة التي اخترتها، وتُضاف المدة كاملة إلى اشتراكك عند التفعيل.</p>
+  <p class="pay-cta"><a class="btn mag big" data-pay-cta href="${escAttr(DEFAULT_PLAN_MAILTO)}">راسلنا لترتيب الدفع</a></p>
+  <p class="note">لا نطلب بيانات بطاقتك داخل التطبيق. شروط الاسترداد كاملة في <a class="inline" href="/help#refund">سياسة الاسترداد</a>.</p>
+
+  <div id="restore" class="restore">
+    <h3>فقدت كودك؟</h3>
+    <p>أرسل من بريد الشراء نفسه، واذكر تاريخ الدفع إن كان لديك. نبحث عن الطلب ونعيد إرسال الكود.</p>
+    <p><a class="inline" data-restore-cta href="${escAttr(RESTORE_MAILTO)}">استعادة كود التفعيل</a></p>
+  </div>
+</section>
+`;
+
+export const PRICING = {
+  path: '/pricing',
+  title: 'الأسعار — كاتزو',
+  description:
+    'باقة مجانية دائمة وأربع باقات مدفوعة بسعر المؤسسين، من شهر واحد إلى 12 شهراً. الدفع دون بطاقة بنكية، والتفعيل خلال 12 ساعة.',
+  h1: 'أسعار المؤسسين',
+  lead: 'اختر المدة التي تناسبك. كل ما تحتاجه لتبدأ مذكور هنا، بلا شروط مخفية.',
+  body: pricingBody(),
+  jsonld: [pricingOffersJsonLd()],
+};
+
+/* ------------------------------------------------------------------ */
+/* /help                                                               */
 /* ------------------------------------------------------------------ */
 
 export const FAQ_AR = [
   {
     q: 'ما هو كاتزو؟',
-    a: 'كاتزو تطبيق ذكاء اصطناعي لتعلّم الألمانية بالتحدّث، مبني للناطقين بالعربية من A0 إلى B2. تختار موقفاً من حياتك في ألمانيا، وتتحدث أو تكتب جملك، ويصحّح لك كاتزو بالعربية.',
+    a: 'تطبيق تدريب على الألمانية المنطوقة: يضعك في موقف ويصحّح جملتك بالعربية. <a class="inline" href="/#situations">المواقف الستة</a>.',
   },
   {
-    q: 'كيف أبدأ؟ وهل أحتاج بطاقة بنكية؟',
-    a: `ابدأ مجاناً من <a class="inline" href="${START}">صفحة الترحيب</a>: تسجيل بحساب Google فقط، بلا بطاقة بنكية، وتحصل على 3 دروس بالذكاء الاصطناعي كل شهر تتجدد.`,
+    q: 'هل أحتاج بطاقة بنكية؟',
+    a: `لا. ابدأ من <a class="inline" href="${START}">صفحة الترحيب</a>، وتفاصيل ما تحصل عليه مجاناً في <a class="inline" href="/pricing">صفحة الأسعار</a>.`,
   },
   {
-    q: 'ماذا يحدث بعد الدروس الثلاثة المجانية؟',
-    a: 'تتجدد دروسك المجانية كل شهر، ويمكنك الاشتراك متى أردت.',
+    q: 'كم يكلّف؟',
+    a: 'لكل باقة سعرها، والسعر المستقبلي مشطوب بجانبها. <a class="inline" href="/pricing">كل الباقات</a>.',
   },
   {
-    q: 'ما المجاني، وما الذي يضيفه Pro؟',
-    a: `المجاني يعطيك 3 دروس بالذكاء الاصطناعي كل شهر بعد التسجيل، مع المهمة اليومية والمراجعة المتباعدة واختبار المستوى وبنك الأخطاء. و<span class="de">Pro</span> — بسعر سنة كاملة <b>60 دولاراً</b> بوكوبون <span class="de">${COUPON}</span> — يفتح كل المستويات من A0 إلى B2 وكل المواقف، مع بنك المفردات والقواعد ومحادثة يومية بحدّ عادل للاستخدام.`,
+    q: 'كيف أدفع، وكيف يصلني الكود؟',
+    a: `بالتنسيق المباشر معنا، ثم كود تفعيل على بريدك. <a class="inline" href="/pricing#pay">خطوات الشراء</a>.`,
   },
   {
-    q: 'كيف أدفع؟ وهل أدخل بطاقتي داخل التطبيق؟',
-    a: 'الشراء من صفحة الاشتراك الرسمية داخل التطبيق، والدفع يعمل دون بطاقة بنكية. يصلك كود التفعيل خلال 12 ساعة كحد أقصى، وتُفعّله داخل التطبيق — لا نطلب بيانات بطاقتك داخل التطبيق أبداً.',
+    q: 'هل يمكنني استرداد مالي؟',
+    a: 'على باقات 3 و6 و12 شهراً فقط، خلال المدة المعلنة. <a class="inline" href="#refund">سياسة الاسترداد</a>.',
   },
   {
-    q: 'هل يمكنني الإلغاء واسترداد مالي؟',
-    a: 'نعم. خلال أول 7 أيام من اشتراكك تستردّ مبلغك كاملاً إن لم يناسبك كاتزو. بعد ذلك لا تُسترد المبالغ المدفوعة. التفاصيل في <a class="inline" href="/trust/refund">صفحة الاسترداد</a>.',
-  },
-  {
-    q: 'ما المستويات المتاحة؟',
-    a: 'من الصفر (<span class="de">A0</span>) حتى <span class="de">B2</span>. وإن كنت مبتدئاً تماماً فلا بأس: كاتزو يشرح لك كل تصحيح بالعربية.',
-  },
-  {
-    q: 'هل أستطيع الكتابة بدل الكلام؟',
-    a: 'نعم. تجيب كتابةً أو بصوتك، والميكروفون اختياري. التحدث أنفع للطفلاقة، لكنه ليس شرطاً للبدء.',
+    q: 'هل يغني عن الكورس؟',
+    a: 'لا. الكورس يشرح القواعد بالترتيب، وكاتزو يدرّبك على استخدامها في موقف. لا يمنح شهادة رسمية، ولا يستبدل معلّماً بشرياً، ولا يكفي وحده للتحضير لامتحان معتمد.',
   },
   {
     q: 'هل يُحفظ صوتي؟',
-    a: 'لا. يُعالَج لفهم كلامك فقط ولا يُخزَّن، وأخطاؤك ومحادثاتك تبقى على جهازك.',
+    a: 'الجواب في فقرة «عند مزوّد الذكاء الاصطناعي» أدناه. <a class="inline" href="#privacy">الخصوصية</a>.',
   },
   {
-    q: 'ماذا يحدث لبياناتي؟',
-    a: 'تقدّمك وأخطاؤك محفوظة لحسابك، ويمكنك تصدير بياناتك أو حذف حسابك من داخل التطبيق في أي وقت. التفاصيل في <a class="inline" href="/trust/privacy">صفحة الخصوصية</a>.',
+    q: 'هل هناك حدّ للاستخدام؟',
+    a: 'نعم، والحدّ نفسه ينطبق على الحصة المجانية والمدفوعة. <a class="inline" href="#terms">الشروط</a>.',
   },
   {
-    q: 'هل هناك حد للاستخدام العادل؟',
-    a: 'نعم، سقف استخدام عادل يومي يحمي الخدمة من الإساءة. هو حدّ معلن تراه داخل التطبيق قبل أن تصل إليه، وليس قفلاً مفاجئاً.',
-  },
-  {
-    q: 'هل يعمل بدون إنترنت؟',
-    a: 'باترويب قابل للتثبيت (PWA) يخزّن محتواه للاستخدام دون اتصال بعد أول زيارة. المحادثة الحية تحتاج اتصالاً بالإنترنت لأن الرد يأتي من الخادم.',
-  },
-  {
-    q: 'هل يُغني كاتزو عن الكورس؟',
-    a: 'لا. تتعلّم القواعد في كورسك، وتتدرّب عليها هنا.',
-  },
-  {
-    q: 'هل يحضّرني لامتحان Goethe أو telc؟',
-    a: 'كاتزو أداة تدريب مستقلة، ليست منتجاً رسمياً لـGoethe أو telc ولا تمنح شهادة أو درجة رسمية. نعمل حالياً على تدريب صيغة الامتحانات (Goethe · telc · DTZ من A1 إلى B2)، ونُطلقها فقط عندما تكون جاهزة وقابلة للقياس.',
+    q: 'هل يعمل دون إنترنت؟',
+    a: 'المحتوى المحفوظ يعمل دون اتصال؛ المحادثة الحية تحتاج اتصالاً بالإنترنت.',
   },
   {
     q: 'هل يوجد تطبيق Android أصلي؟',
-    a: 'المنتج الحي هو تطبيق الويب/PWA في المتصفح، ويمكن تثبيته على شاشتك الرئيسية. لا يوجد تطبيق Android أصلي منشور من هذا المستودع.',
+    a: 'لا. المنتج تطبيق ويب قابل للتثبيت على شاشتك الرئيسية.',
   },
 ];
 
-export const FAQ_EN = [
-  {
-    q: 'What is Katzu?',
-    a: 'Katzu is an AI German-learning app built around speaking, for Arabic speakers from A0 to B2. You pick a real situation from life in Germany, speak or type your sentences, and Katzu corrects you in Arabic.',
-  },
-  {
-    q: 'How do I start? Do I need a card?',
-    a: `Start free from the <a class="inline" href="${START}">welcome page</a>: sign-in with a Google account only, no bank card, and you get 3 AI lessons per month that refresh monthly.`,
-  },
-  {
-    q: 'What happens after the three free lessons?',
-    a: 'Your free lessons refresh every month, and you can subscribe whenever you want.',
-  },
-  {
-    q: 'What is free, and what does Pro add?',
-    a: `Free gives you 3 AI lessons per month after sign-up, plus the daily mission, spaced review, placement test and mistake bank. <span class="de">Pro</span> — a full year for <b>60 dollars</b> with coupon <span class="de">${COUPON}</span> — opens every level from A0 to B2 and every situation, with the vocabulary and grammar banks and a daily conversation under a fair-use ceiling.`,
-  },
-  {
-    q: 'How do I pay? Is my card stored in the app?',
-    a: 'You buy through the official subscription page, and payment works without a bank card. Your activation code arrives within 12 hours at the latest and is redeemed inside the app — we never ask for card details inside the app.',
-  },
-  {
-    q: 'Can I cancel and get my money back?',
-    a: `Yes. Within the first 7 days of your subscription you get a full refund if Katzu does not suit you. After that, paid amounts are not refunded. Details on the <a class="inline" href="/trust/refund">refund page</a>.`,
-  },
-  {
-    q: 'Which levels are available?',
-    a: 'From zero (<span class="de">A0</span>) to <span class="de">B2</span>. If you are a complete beginner that is fine: Katzu explains every correction in Arabic.',
-  },
-  {
-    q: 'Can I type instead of speaking?',
-    a: 'Yes. Answer by text or by voice; the microphone is optional. Speaking builds fluency faster, but it is not required to start.',
-  },
-  {
-    q: 'Is my voice stored?',
-    a: 'No. It is processed only to understand what you said and is never stored; your mistakes and conversations stay on your device.',
-  },
-  {
-    q: 'What happens to my data?',
-    a: `Your progress and mistakes belong to your account, and you can export your data or delete your account from inside the app at any time. Details on the <a class="inline" href="/trust/privacy">privacy page</a>.`,
-  },
-  {
-    q: 'Is there a fair-use limit?',
-    a: 'Yes, a fair daily ceiling that protects the service from abuse. It is announced inside the app before you reach it — not a hidden lock.',
-  },
-  {
-    q: 'Does it work offline?',
-    a: 'It is an installable web app (PWA) that stores its content for offline use after the first visit. A live conversation needs an internet connection because the reply comes from the server.',
-  },
-  {
-    q: 'Does Katzu replace a course?',
-    a: 'No. You learn the rules in your course, and practise them here.',
-  },
-  {
-    q: 'Does it prepare me for a Goethe or telc exam?',
-    a: 'Katzu is an independent training tool, not an official Goethe or telc product, and it issues no certificate or official result. We are currently building exam-format practice (Goethe · telc · DTZ from A1 to B2) and will launch it only when it is ready and measurable.',
-  },
-  {
-    q: 'Is there a native Android app?',
-    a: 'The live product is the installable web app (PWA) in your browser — it can be added to your home screen. There is no native Android build published from this repository.',
-  },
-];
+export const FAQ_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQ_AR.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: item.a.replace(/<[^>]+>/g, ''),
+    },
+  })),
+};
 
-/* ------------------------------------------------------------------ */
-/* The seven Arabic topic pages                                        */
-/* ------------------------------------------------------------------ */
-
-export const AR_PAGES = [
-  {
-    path: '/how-it-works',
-    title: 'كيف يعمل كاتزو — تدريب محادثة الألمانية خطوة بخطوة',
+/**
+ * The help page. `legal` is the rendered markup of the three legal pages, which
+ * come from `src/lib/trust/content.ts` — the single source for those sentences.
+ */
+export function helpPage(legal) {
+  return {
+    path: '/help',
+    title: 'المساعدة — كاتزو',
     description:
-      'كيف يعمل كاتزو: اختر مواقفاً من حياتك في ألمانيا، ادرس العبارات، تحدّث أو اكتب، ثم راجع تصحيحاً بالعربية وبنك أخطاء. من A0 إلى B2.',
-    h1: 'كيف يعمل كاتزو',
-    lead:
-      'من موقف حقيقي إلى جملة تقولها بنفسك: تدرس العبارات، تتأكد من فهمك، تتحدّث أو تكتب، ثم تراجع ما يحتاج إصلاحاً. لا تحفظ قائمة كلمات بلا سياق.',
-    body: `
-<div class="wrap prose">
-  <ol class="co">
-    <li class="reveal"><b>اختر موقفاً</b><p>ستة مواقف من حياتك في ألمانيا: السفارة، الطبيب، مقابلة العمل، معاينة الشقة، المطار، والمقهى. كل موقف يبدأ من مستواك.</p></li>
-    <li class="reveal"><b>اسمع الجملة وترجمها عند الحاجة</b><p>اضغط السماعة لتسمع النطق الصحيح، والترجمة العربية تحت الجملة ولا تحتاجها إلا إن علقت.</p></li>
-    <li class="reveal"><b>تحدّث أو اكتب</b><p>سجل جملتك بالألمانية بصوتك أو اكتبها. الميكروفون اختياري، والتصحيح يعود بالعربية فوراً — الخطأ يُشرح لا يُسخر منه.</p></li>
-    <li class="reveal"><b>خذ تصحيحاً لا تخميناً</b><p>كاتزو يعطيك الصيغة الصحيحة مع سببه: لماذا <span lang="de" class="de">zum Arzt</span> لا <span lang="de" class="de">nach Arzt</span>، ولماذا العمر بفعل <span lang="de" class="de">sein</span> لا <span lang="de" class="de">haben</span>.</p></li>
-    <li class="reveal"><b>كل خطأ يعود إليك</b><p>خطأ واحد أربعة محطات مراجعة: اليوم، بعد أيام، بعد أسبوع، وبعد شهر. إن قلتها صحيحة عند المحطة الأخيرة فقد أتقنتها.</p></li>
-    <li class="reveal"><b>حافظ على العادة</b><p>مهمة يومية قصيرة تبقى مفتوحة لك مجاناً — المراجعة وبنك الأخطاء لا تُقفل حتى وإن لم تشترك.</p></li>
-  </ol>
+      'أسئلة قصيرة، وعن كاتزو، والخصوصية والشروط والاسترداد والتواصل — كل النصوص الكاملة في صفحة واحدة.',
+    h1: 'المساعدة',
+    lead: 'إجابات قصيرة مع روابط للنص الكامل، ونصوص قانونية كاملة، وبريد واحد للتواصل.',
+    body: helpBody(legal),
+    jsonld: [FAQ_JSONLD],
+    anchorNav: [
+      ['#faq', 'الأسئلة'],
+      ['#about', 'عن كاتزو'],
+      ['#privacy', 'الخصوصية'],
+      ['#terms', 'الشروط'],
+      ['#refund', 'الاسترداد'],
+      ['#contact', 'التواصل'],
+    ],
+    noEndCta: true,
+  };
+}
 
-  <div class="callout reveal"><h2>ابدأ مجاناً بلا بطاقة</h2><p>المجاني يعطيك 3 دروس بالذكاء الاصطناعي كل شهر بعد التسجيل، مع المهمة اليومية والمراجعة المتباعدة واختبار المستوى وبنك الأخطاء. و<span class="de">Pro</span> يفتح كل المستويات من A0 إلى B2 بسعر سنة كاملة <b>60 دولاراً</b> بوكوبون <span class="de">${COUPON}</span>.</p></div>
-
-  <div class="callout reveal"><h2>ما لا يفعله كاتزو</h2><p>ليس دورة امتحان رسمية، ولا يمنح شهادة أو درجة رسمية، وليس بديلاً عن محامٍ أو طبيب أو مستشار هجرة. نعمل حالياً على تدريب صيغة الامتحانات (Goethe · telc · DTZ من A1 إلى B2) ونُطلقها فقط عندما تكون جاهزة وقابلة للقياس.</p></div>
-
-  <p class="reveal" style="margin-top:30px"><a class="btn" href="${START}">ابدأ مجاناً</a> <a class="btn gh" href="/pricing">شاهد المجاني وPro</a></p>
-</div>`,
-  },
-  {
-    path: '/who-its-for',
-    title: 'لمن يناسب كاتزو — ولمن لا يناسب',
-    description:
-      'كاتزو مناسب للناطقين بالعربية الذين يستعدون للحياة في ألمانيا ويحتاجون تدريب محادثة من A0 إلى B2. تعرّف بصراحة على من يناسبه ومن لا يناسبه.',
-    h1: 'لمن يناسب كاتزو — ولمن لا يناسب',
-    lead: 'لا نبيعه للجميع. هذه المقارنة الصادقة: إن أنت في القائمة الأولى، سيفيدك. وإن كنت في الثانية، لن نقول لك غير ذلك.',
-    body: `
-<div class="wrap prose">
-  <div class="cols2">
-    <section class="pane reveal"><h2>مناسب لك إذا…</h2><ul>
-      <li>أنت ناطق بالعربية وتستعد للانتقال إلى ألمانيا للعمل أو الدراسة أو الحياة، وتحتاج أن تتكلّم لا أن تحفظ فقط.</li>
-      <li>وصلت حديثاً وتواجه مواقف مثل السفارة والطبيب والعمل والشقة، وتريد تدريباً قبل الموقف الحقيقي.</li>
-      <li>مستواك بين A0 وB2، وتفضّل شرحاً بالعربية بدل دورة كاملة بالألمانية.</li>
-      <li>تريد محادثة قصيرة يومية بالصوت أو الكتابة، مع تصحيح صريح وأربع محطات مراجعة لكل خطأ.</li>
-      <li>تريد أن تعرف ما تحصل عليه قبل الدفع: 3 دروس شهرياً مجاناً، وسنة Pro بسعر معلن، والاسترداد خلال 7 أيام.</li>
-    </ul></section>
-    <section class="pane reveal"><h2>قد لا يناسبك إذا…</h2><ul>
-      <li>تبحث عن كتاب قواعد شامل أو منهج أكاديمي طويل؛ كاتزو يبدأ من المواقف لا من فصول النحو.</li>
-      <li>تريد شهادة رسمية أو ضمان نجاح في Goethe أو telc أو DTZ؛ لا تمنح أي شهادة أو درجة رسمية.</li>
-      <li>تحتاج استشارة قانونية أو طبية أو هجرة؛ استخدم مختصاً مرخصاً.</li>
-      <li>تريد مدرّساً بشرياً أو شبكة اجتماعية؛ كاتزو أداة تدريب فردية.</li>
-      <li>تريد فقط بطاقات حفظ بلا محادثة؛ المراجعة موجودة، لكن جوهر المنتج هو إنتاجك أنت.</li>
-    </ul></section>
+function helpBody(legal) {
+  return `
+<section id="faq" class="wrap sec">
+  <h2>الأسئلة</h2>
+  <div class="faq">
+${FAQ_AR.map(
+  (item) => `    <div class="qa"><h3>${item.q}</h3><p>${item.a}</p></div>`,
+).join('\n')}
   </div>
-  <div class="callout reveal"><h2>ما هو مدعوم الآن فعلاً</h2><p>ستة مواقف من حياتك في ألمانيا — السفارة، الطبيب، مقابلة العمل، معاينة الشقة، المطار، والمقهى — بمستويات من A0 إلى B2، ومحادثة بالصوت أو الكتابة. ما عدا ذلك من الخطط غير منشور، ولا نعد به هنا.</p></div>
-  <p class="reveal" style="margin-top:30px"><a class="btn" href="${START}">ابدأ مجاناً</a> <a class="btn gh" href="/how-it-works">كيف يعمل؟</a></p>
-</div>`,
-  },
-  {
-    path: '/compare',
-    title: 'كاتزو مقارنةً بتطبيقات البطاقات والدورات والمدرّس',
-    description:
-      'مقارنة صادقة بين كاتزو وتطبيقات البطاقات والدورات العامة والمدرّس البشري ودورات الامتحانات: ما يفعله كاتزو، وما لا يدّعيه.',
-    h1: 'كاتزو مقارنةً بالبدائل',
-    lead: 'لا نقول إن كاتزو أفضل من كل شيء. لكل أداة وظيفة مختلفة، وهذه مقارنة بما نعرفه فعلاً عن منتجنا.',
-    body: `
-<div class="wrap prose">
-  <div class="compare-grid">
-    <section class="pane reveal"><h2>مقابل تطبيقات البطاقات</h2><p>البطاقات ممتازة للتذكّر السريع، لكنها غالباً تختبر إن كنت تتعرّف على الكلمة. كاتزو يطلب منك أن تنتج الألمانية في موقف، بالصوت أو الكتابة، ثم يصحح لك ويحول الخطأ إلى تمرين مراجعة.</p></section>
-    <section class="pane reveal"><h2>مقابل دورة عامة</h2><p>الدورة العامة تبني تقدماً منهجياً واسعاً. كاتزو يبدأ من المواقف التي تلي الانتقال إلى ألمانيا، ويشرح بالعربية. إذا كنت تريد نحوًا شاملاً أو منهجاً أكاديمياً طويلاً، فالدورة العامة أنسب.</p></section>
-    <section class="pane reveal"><h2>مقابل مدرّس بشري</h2><p>المدرّس البشري يقدّم علاقة وملاحظة إنسانية لا يستطيعها تطبيق. كاتزو يقدّم تدريباً متاحاً في أي وقت بسعر اشتراك سنوي واحد، لكنه ليس بديلاً عن مدرّس ولا يمنح شهادة.</p></section>
-    <section class="pane reveal"><h2>مقابل دورات الامتحانات</h2><p>دورات الامتحانات تتدرّب على الصيغة والشروط الرسمية. كاتزو يبني الأساس من A0 إلى B2 بالمحادثة، وتدريب صيغة الامتحانات قيد العمل — وحين يُنشر سيكون قابلاً للقياس، لا وعوداً.</p></section>
-  </div>
-  <div class="callout reveal"><h2>ما لا ندّعيه</h2><p>لا نعرض تقييمات أو شهادات مستخدمين أو أعداداً أو جوائز. لا نضمن لك النجاح في امتحان أو القبول في وظيفة. نعرض فقط ما يمكن التحقق منه في التطبيق وسياساته.</p></div>
-  <p class="reveal" style="margin-top:30px"><a class="btn" href="/pricing">شاهد ما تحصل عليه</a> <a class="btn gh" href="/who-its-for">لمن يناسب؟</a></p>
-</div>`,
-  },
-  {
-    path: '/use-cases/moving-to-germany',
-    title: 'الألمانية للانتقال إلى ألمانيا — مواقف حقيقية',
-    description:
-      'تدرّب على الألمانية للمواقف التي تلي الانتقال إلى ألمانيا: السفارة، الطبيب، مقابلة العمل، معاينة الشقة، المطار، والمقهى. من A0 إلى B2 بواجهة عربية.',
-    h1: 'الألمانية للانتقال إلى ألمانيا',
-    lead:
-      'الانتقال إلى ألمانيا يضعك في مواقف تحتاج فيها ألمانية واضحة وسريعة، لا ألمانية الامتحان فقط. كاتزو يتدرّب على هذه المواقف بالصوت أو الكتابة، مع شرح عربي لما يقوله الطرف الآخر.',
-    body: `
-<div class="wrap prose">
-  <div class="callout reveal"><h2>المواقف الستة المنشورة الآن</h2><ul>
-    <li><b>السفارة:</b> موعد السفارة مع موظف الاستقبال — <span lang="de" class="de">Warum möchten Sie nach Deutschland?</span></li>
-    <li><b>عند الطبيب:</b> حوار في عيادة ألمانية — <span lang="de" class="de">Wo genau tut es weh?</span></li>
-    <li><b>مقابلة العمل:</b> مقابلة مع مدير توظيف ألماني — <span lang="de" class="de">Erzählen Sie etwas über sich.</span></li>
-    <li><b>معاينة الشقة:</b> حوار مع المالك أثناء المعاينة — <span lang="de" class="de">Wann können Sie einziehen?</span></li>
-    <li><b>المطار:</b> الوصول وإجراءات الدخول — <span lang="de" class="de">Was ist der Zweck Ihrer Reise?</span></li>
-    <li><b>المقهى:</b> الطلب في مقهى ألماني — <span lang="de" class="de">Ich möchte bitte einen Kaffee.</span></li>
-  </ul></div>
+</section>
 
-  <div class="callout reveal"><h2>كيف تستخدمه للانتقال؟</h2><p>اختر الموقف الأقرب لموعدك القادم، اسمع الجملة، ثم تحدّث. بعد الجلسة يعود كل خطأ إليك في أربع محطات مراجعة: اليوم، بعد أيام، بعد أسبوع، وبعد الشهر — حتى تقلّها صحيحة دون تفكير.</p></div>
+<section id="about" class="wrap sec">
+  <h2>عن كاتزو</h2>
+  <p>كاتزو أداة تدريب لغوي عربية، بُنيت للناطقين بالعربية الذين يعيشون في ألمانيا أو يستعدّون للانتقال إليها.</p>
+  <p>لا نبيع شهادات ولا نَعِد بالطلاقة: نضعك في موقف، ونصحّح جملتك حتى تصبح قابلة للاستخدام.</p>
+  <p>فريق صغير، ومنتج واحد يعمل على الويب كتطبيق قابل للتثبيت.</p>
+  <p><a class="inline" href="#contact">تواصل معنا</a>.</p>
+</section>
 
-  <div class="callout reveal"><h2>حدود واضحة</h2><p>كاتزو ليس مكتب هجرة ولا محامياً ولا مستشاراً قانونياً، ولا يتعامل معك بدلاً من الجهات الرسمية. لا يمنح شهادة أو تأشيرة أو عقد عمل. للقرارات الرسمية استخدم الجهة المختصة.</p></div>
+<section id="privacy" class="wrap sec legal">
+  <h2>الخصوصية والبيانات</h2>
+  <p class="stamp">آخر تحديث: ${UPDATED} · النسخة العربية هي المرجع.</p>
+${legal.privacy}
+</section>
 
-  <p class="reveal" style="margin-top:30px"><a class="btn" href="${START}">ابدأ مجاناً</a> <a class="btn gh" href="/faq">اقرأ الأسئلة الشائعة</a></p>
-</div>`,
-  },
-  {
-    path: '/pricing',
-    title: 'أسعار كاتزو — المجاني وPro',
-    description:
-      'ما يفتحه المجاني في كاتزو (3 دروس كل شهر)، وما يضيفه Pro (سنة كاملة بسعر 60 دولاراً بوكوبون)، وكيف يعمل الكود. استرداد كامل خلال أول 7 أيام.',
-    h1: 'ابدأ مجاناً. واشترك حين تريد أكثر.',
-    lead: 'المجاني ليس عرضاً تجريبياً ينتهي بعد يومين: تجدد دروسك كل شهر. والإتقان يحتاج حديثاً كل يوم.',
-    body: `
-<div class="wrap prose" style="max-width:860px">
-  <div class="tiers reveal" style="text-align:start">
-    <article class="tier glass"><h3>مجاناً دائماً</h3><p style="font:900 1.8rem Cairo">0 دولار</p><ul>
-      <li>3 دروس بالذكاء الاصطناعي كل شهر بعد التسجيل.</li>
-      <li>المهمة اليومية والمراجعة المتباعدة.</li>
-      <li>اختبار المستوى وبنك الأخطاء.</li>
-      <li>بلا بطاقة بنكية.</li>
-    </ul><a class="btn gh" href="${START}">ابدأ مجاناً</a></article>
-    <article class="tier f glass"><span class="save">عرض لفترة محدودة — ينتهي 31 يناير 2027</span><h3>سنة كاملة</h3><p style="font:900 1.8rem Cairo">60 دولاراً</p><ul>
-      <li>أقل من 17 سنتاً في اليوم.</li>
-      <li>كل المواقف والمستويات من A0 إلى B2.</li>
-      <li>بنك المفردات والقواعد.</li>
-      <li>محادثة يومية بحدّ عادل للاستخدام، دون قفل مفاجئ.</li>
-      <li>استرداد كامل خلال أول 7 أيام.</li>
-    </ul><button class="cp" type="button" data-copy="${COUPON}">الكوبون <span class="de">${COUPON}</span> · انسخه</button><a class="btn mag" href="${SUBSCRIBE}">اشترك سنوياً</a></article>
-  </div>
+<section id="terms" class="wrap sec legal">
+  <h2>شروط الاستخدام</h2>
+  <p class="stamp">آخر تحديث: ${UPDATED} · النسخة العربية هي المرجع.</p>
+${legal.terms}
+</section>
 
-  <div class="callout reveal"><h2>الدفع والكود</h2><p>الدفع يعمل دون بطاقة بنكية، ويصلك كود التفعيل خلال 12 ساعة كحد أقصى، وتُفعّله داخل التطبيق. لا نطلب بيانات بطاقتك داخل التطبيق أبداً، ولا يوجد تجديد تلقائي مفاجئ.</p></div>
+<section id="refund" class="wrap sec legal">
+  <h2>سياسة الاسترداد</h2>
+  <p class="stamp">آخر تحديث: ${UPDATED} · النسخة العربية هي المرجع.</p>
+${legal.refund}
+</section>
 
-  <div class="callout reveal"><h2>الاسترداد</h2><p>خلال أول 7 أيام من اشتراكك تستردّ مبلغك كاملاً إن لم يناسبك كاتزو؛ بعد ذلك لا تُسترد المبالغ المدفوعة. <a class="inline" href="/trust/refund">اقرأ صفحة الاسترداد</a> كاملة.</p></div>
-
-  <div class="callout reveal"><h2>حدّ الاستخدام العادل</h2><p>سقف استخدام يومي يحمي الخدمة من الإساءة ولا يمسّ استخدامك المعتاد؛ تراه داخل التطبيق قبل أن تصل إليه — حدّ معلن، لا قفلاً مخفياً.</p></div>
-
-  <p class="reveal" style="margin-top:30px"><a class="btn" href="${START}">ابدأ مجاناً</a> <a class="btn gh" href="/faq">أسئلة قبل أن تدفع</a></p>
-</div>`,
-  },
-  {
-    path: '/faq',
-    title: 'أسئلة شائعة عن كاتزو',
-    description:
-      'أسئلة شائعة عن كاتزو: البدء المجاني، المجاني وPro، الصوت والكتابة، الخصوصية، الدفع والاسترداد، والامتحانات.',
-    h1: 'أسئلة قبل أن تبدأ',
-    lead: 'أسئلة نُسأل عنها فعلاً، بإجابات قصيرة وصادقة. إن لم تجد سؤالك، راسل الدعم.',
-    faq: 'ar',
-    body: `<div class="wrap faq-block reveal"><p class="notice">سؤالك غير موجود؟ <a href="mailto:${SUPPORT}">${SUPPORT}</a></p></div>`,
-  },
-  {
-    path: '/about',
-    title: 'عن كاتزو — من نحن وكيف تتواصل معنا',
-    description:
-      'عن كاتزو: تطبيق عربي لتعلم الألمانية بالتحدّث، من تطوير Ghaidak Alloush. الدعم والخصوصية والشروط وروابط التواصل.',
-    h1: 'عن كاتزو',
-    lead:
-      'كاتزو تطبيق عربي لتعلّم الألمانية بالتحدّث، مبني للناطقين بالعربية الذين يحتاجون اللغة في الحياة اليومية في ألمانيا. المنتج مستقل، والواجهة عربية أولاً، والألمانية هي لغة التدريب.',
-    body: `
-<div class="wrap prose">
-  <div class="cols2">
-    <section class="pane reveal"><h2>من يبني كاتزو؟</h2><p>كاتزو من تطوير <b>Ghaidak Alloush</b> (<a class="inline" href="https://ghaidak.com" rel="noopener">ghaidak.com</a>). لا نعرض تقييمات أو شهادات مستخدمين أو أعداداً أو جوائز، لأننا لم نجمعها ولا نستطيع إثباتها.</p></section>
-    <section class="pane reveal"><h2>كيف تتواصل؟</h2><p>للدعم والأسئلة: <a class="inline" href="mailto:${SUPPORT}">${SUPPORT}</a>. لا نطلب كلمة مرور ولا رمز دخول ولا رقم بطاقة عبر البريد أبداً.</p></section>
-  </div>
-  <div class="callout reveal"><h2>روابط مهمة</h2><ul class="link-list">
-    <li><a class="inline" href="/how-it-works">كيف يعمل التطبيق</a></li>
-    <li><a class="inline" href="/who-its-for">لمن يناسب كاتزو</a></li>
-    <li><a class="inline" href="/compare">مقارنة صادقة</a></li>
-    <li><a class="inline" href="/pricing">المجاني وPro</a></li>
-    <li><a class="inline" href="/faq">الأسئلة الشائعة</a></li>
-    <li><a class="inline" href="/trust/privacy">الخصوصية والبيانات</a></li>
-    <li><a class="inline" href="/trust/terms">شروط الاستخدام</a></li>
-    <li><a class="inline" href="/trust/contact">تواصل معنا</a></li>
-  </ul></div>
-  <p class="notice reveal">آخر تحديث للصفحة: ${UPDATED}.</p>
-</div>`,
-  },
-];
+<section id="contact" class="wrap sec">
+  <h2>التواصل</h2>
+  <p>البريد: <a class="inline" href="mailto:${SUPPORT}">${SUPPORT}</a>. نردّ بأنفسنا على كل رسالة.</p>
+  <p>إن كان سؤالك عن الدفع، اذكر بريد الشراء أو كود التفعيل.</p>
+  <p class="warn">لا نطلب كلمة مرور ولا رمز دخول. لا ترسلهما إلى أي بريد أو محادثة.</p>
+</section>
+`;
+}

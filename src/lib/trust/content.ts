@@ -1,96 +1,46 @@
-// Relative on purpose: the public-page generator is loaded by `vite.config.ts`
-// before Vite resolves the `@/` alias, and this module is its trust-page source.
-import { ANALYTICS_EVENTS, ALLOWED_PROP_KEYS } from '../analytics/events';
+// Relative on purpose: the public-page generator bundles this module with
+// esbuild before Vite resolves the `@/` alias, and this module is its only
+// legal-text source.
+import {
+  ACTIVATION_HOURS,
+  PLAN_BY_ID,
+  REFUND_DAYS,
+  REFUND_PLAN_IDS,
+  type PlanId,
+} from '../offers/foundingPlans';
 
 /**
- * The trust pages, as fields rather than prose.
+ * The legal text of the public site, as fields rather than prose.
  *
  * WHY STRUCTURED
- * A legal page written as one paragraph is one paragraph nobody can check. These
- * are fields with owners: the app fills the parts it can prove from its own code,
- * and every part that only the owner can state is a `{{OWNER_FILL}}` placeholder.
- * `scripts/check-launch.mjs` fails the strict launch check when a placeholder is
- * still standing — so "the legal text is unfinished" becomes a build signal
- * instead of a quiet detail nobody notices after the app is on the store.
+ * A legal page written as one paragraph is one paragraph nobody can check. Every
+ * section below has an id, a heading and one body, and the build renders them
+ * inline in `/help#privacy`, `/help#terms` and `/help#refund`. That keeps one
+ * source for the sentences the site publishes and the app links to.
  *
- * WHY THE DATA LIST IS DERIVED, NOT WRITTEN
- * The one sentence in a privacy policy that must not be a lie is the list of what
- * is processed. Writing it by hand means it starts drifting the moment a column is
- * added, so the facts below are computed from the same constants the app enforces:
- * the analytics event allowlist, the property allowlist, the local tables and the
- * two things that leave the device. A test fails if the rendered page names an
- * event the worker would refuse, or omits one it accepts.
+ * WHAT IS NOT HERE
+ * The owner's legal choices — governing law, publisher identity and address,
+ * registry numbers, a dispute-resolution forum — are NOT invented here. They are
+ * open owner items in `docs/AGENT-STATE.md`, not sentences this file makes up.
+ * `OWNER_FILL` stays exported so `scripts/check-launch.mjs` can still turn a
+ * future placeholder into a release blocker.
+ *
+ * WHY THE PRIVACY PAGE IS BY CATEGORY
+ * "A list of every event we track" was a maintenance tax and a reader could not
+ * use it. A privacy page answers four questions — what stays on the device, what
+ * reaches the server, what reaches the AI provider, what analytics collects — and
+ * one sentence per category is what a person can actually check.
  */
 
-export type TrustPage = 'privacy' | 'terms' | 'contact' | 'imprint' | 'refund';
+export type TrustPage = 'privacy' | 'terms' | 'refund';
 
 export interface TrustSection {
   id: string;
   /** Arabic heading. */
   headingAr: string;
-  /** Either a real sentence, or a `{{OWNER_FILL}}` the owner must replace. */
+  /** A real sentence (or several, newline-separated). */
   bodyAr: string;
 }
-
-/** The fields only the owner can answer. Never invented, never guessed. */
-export const OWNER_FILL = '{{OWNER_FILL}}';
-
-/**
- * The support address, as the app already prints it in three other places.
- *
- * It is NOT an owner field: the contact page's own button and the public
- * deletion page both use it, so a privacy section that asked the owner for it
- * was asking for a fact the code already had — and showing the raw
- * `{{OWNER_FILL}}` token to a visitor in the meantime.
- */
-export const SUPPORT_ADDRESS_AR = 'support@ghaidak.com';
-
-const EVENT_GLOSS: Record<string, string> = {
-  landing_viewed: 'زيارة الصفحة الرئيسية',
-  demo_started: 'بدء العرض التوضيحي',
-  demo_completed: 'إتمام العرض التوضيحي',
-  signup_started: 'بدء التسجيل',
-  signup_completed: 'إتمام التسجيل',
-  onboarding_started: 'بدء أسئلة التهيئة',
-  onboarding_completed: 'إتمام أسئلة التهيئة',
-  placement_started: 'بدء اختبار المستوى',
-  placement_completed: 'إتمام اختبار المستوى',
-  scenario_started: 'بدء موقف',
-  scenario_studied: 'دراسة موقف',
-  scenario_completed: 'إتمام موقف',
-  quiz_completed: 'إتمام تمرين',
-  conversation_started: 'بدء محادثة',
-  first_independent_turn: 'أول جملة مستقلة',
-  conversation_completed: 'إتمام محادثة',
-  return_day1: 'العودة في اليوم الأول',
-  return_day7: 'العودة في اليوم السابع',
-  review_started: 'بدء مراجعة',
-  review_completed: 'إتمام مراجعة',
-  word_bank_tapped: 'استخدام بنك الكلمات',
-  review_revealed: 'كشف الإجابة',
-  coach_viewed: 'فتح المدرّب',
-  writing_completed: 'إتمام كتابة',
-  listening_completed: 'إتمام استماع',
-  paywall_viewed: 'عرض صفحة الاشتراك',
-  onboarding_goal: 'تحديد الهدف',
-  share_click: 'مشاركة',
-  mock_start: 'بدء محاكاة',
-  mock_finish: 'إنهاء جزء من محاكاة',
-  debrief_view: 'عرض التقرير',
-  paywall_view: 'عرض الأسعار',
-  upgrade_click: 'الضغط على الشراء',
-  purchase_clicked: 'اختيار عرض',
-  code_redeemed: 'تفعيل كود',
-  app_error: 'خطأ في التطبيق',
-};
-
-/** Everything the app holds on the device, in Arabic. */
-const LOCAL_TABLES_AR = [
-  'بيانات حسابك (البريد، الاسم المعروض، مستواك، تاريخ الامتحان إن أضفته)',
-  'تقدّمك: الجلسات، الجُمل التي قلتها، أخطاؤك المصحّحة، المفردات التي حفظتها',
-  'محتوى التعلم: المواقف، المفردات، القواعد، العبارات الجاهزة',
-  'سجلات الجلسات المراد مزامنتها، ونتائج التمارين اليومية',
-];
 
 export interface TrustContent {
   titleAr: string;
@@ -98,73 +48,121 @@ export interface TrustContent {
   sections: TrustSection[];
 }
 
+/**
+ * The fields only the owner can answer. Never invented, never guessed.
+ * No section currently uses it; the constant is the token the launch check scans
+ * for, so adding an owner-only sentence later fails the strict gate immediately.
+ */
+export const OWNER_FILL = '{{OWNER_FILL}}';
+
+/** The support address the app already prints; not an owner field. */
+export const SUPPORT_ADDRESS_AR = 'support@ghaidak.com';
+
 /** The published version label, so a change is visible without a git log. */
-export const TRUST_VERSION = '2026-10-27';
+export const TRUST_VERSION = '2026-10-28';
+
+/** "3 أشهر و6 أشهر و12 شهراً" — the refundable plans, from the config's id list. */
+const REFUND_PLANS_AR = REFUND_PLAN_IDS.map((id) => PLAN_BY_ID[id as PlanId]?.nameAr)
+  .filter(Boolean)
+  .join(' و');
 
 export const TRUST_CONTENT: Record<TrustPage, TrustContent> = {
   privacy: {
     titleAr: 'الخصوصية والبيانات',
     updatedAr: `آخر تحديث: ${TRUST_VERSION}`,
     sections: [
-      { id: 'account', headingAr: 'ما نحتاجه للدخول', bodyAr: 'حساب Google فقط: بريدك الإلكتروني ومعرّف الحساب. لا نطلب كلمة مرور ولا نخزّنها، ولا تُحفظ رموز الدخول على الجهاز.' },
-      { id: 'local', headingAr: 'ما يُحفظ على جهازك', bodyAr: LOCAL_TABLES_AR.map((line) => `• ${line}`).join('\n') },
-      { id: 'processed', headingAr: 'قائمة المعالجة (مستخرجة من الكود)', bodyAr: processedDataListAr() },
-      { id: 'ai', headingAr: 'ما يُرسل إلى مزوّد الذكاء الاصطناعي', bodyAr: 'رسائل المحادثة والترجمة فقط، عند استخدامك المحادثة. تُرسل هذه النصوص إلى مزوّد الذكاء الاصطناعي لتوليد الرد، ولا نستخدمها للتسويق أو الإعلانات.' },
-      { id: 'events', headingAr: 'أحداث القياس', bodyAr: eventsListAr() },
-      { id: 'rights', headingAr: 'حقوقك', bodyAr: 'يمكنك تصدير كل بياناتك أو حذف حسابك من الإعدادات في أي وقت. الحذف يشمل بيانات الجهاز والخادم ويلغي جلسات الدخول، ولا يُترك أثر قابل للاسترجاع.' },
-      // Not an owner field: the address is the app's own, the same one the contact
-      // button below this text opens and the deletion page names. Leaving it as a
-      // placeholder told a visitor that the app did not know where to write.
-      { id: 'contact-privacy', headingAr: 'لأي سؤال عن الخصوصية', bodyAr: `راسلنا على ${SUPPORT_ADDRESS_AR}.` },
+      {
+        id: 'device',
+        headingAr: 'على جهازك',
+        bodyAr:
+          'حسابك، وتقدّمك، والجُمل التي قلتها، وأخطاؤك المصحّحة، ومفرداتك، ومحتوى التعلّم — تُحفظ في متصفحك (IndexedDB) ليعمل التطبيق دون اتصال، وتبقى بعد إغلاقه على الجهاز نفسه.',
+      },
+      {
+        id: 'server',
+        headingAr: 'على الخادم',
+        bodyAr:
+          'معرّف حسابك، وتقدّمك، وأخطاؤك، وسجلات المزامنة — لحفظ تقدّمك عبر أجهزتك واستعادة جلستك. لا نخزّن كلمة مرور، لأن الدخول عبر حساب Google.',
+      },
+      {
+        id: 'ai',
+        headingAr: 'عند مزوّد الذكاء الاصطناعي',
+        bodyAr:
+          'نص رسالتك، أو الجملة التي تطلب تصحيحها أو ترجمتها — وقت الطلب فقط، ويُرسل إلى مزوّد الذكاء الاصطناعي لتوليد الرد. الصوت يُعالَج لفهم كلامك ولا يُخزَّن، والنصوص لا تُستخدم للتسويق.',
+      },
+      {
+        id: 'analytics',
+        headingAr: 'القياس',
+        bodyAr: 'أسماء أحداث محدودة، ووقتها، ومعرّف تثبيت مجهول — بلا نصوص ولا صوت ولا بريد.',
+      },
+      {
+        id: 'rights',
+        headingAr: 'حقوقك',
+        bodyAr:
+          'تصدير كل بياناتك أو حذف حسابك من الإعدادات في أي وقت. الحذف يشمل بيانات الجهاز والخادم ويلغي جلسات الدخول.',
+      },
     ],
   },
   terms: {
     titleAr: 'شروط الاستخدام',
     updatedAr: `آخر تحديث: ${TRUST_VERSION}`,
     sections: [
-      { id: 'nature', headingAr: 'ما هو Katzu', bodyAr: 'أداة تدريب لغوي. ليست بديلاً عن محامٍ أو طبيب أو جهة حكومية أو مستشار هجرة، ولا تمنح أي شهادة أو درجة رسمية معتمدة.' },
-      { id: 'mock', headingAr: 'المحاكاة', bodyAr: 'محاكاة تدريب على نمط امتحان B1: تقدير تدريبي تحسبه من جُلك أنت، وليس درجة رسمية ولا وعداً بالنجاح.' },
-      { id: 'fairuse', headingAr: 'الاستخدام العادل', bodyAr: 'الحدود الظاهرة داخل التطبيق سارية، ويسري على الحصة المجانية والمدفوعة على حدٍّ سواء. لا نبيع خدمة بلا حدود، ونوضّح أي حد قبل أن تصل إليه.' },
-      { id: 'payments', headingAr: 'الدفع والتفعيل', bodyAr: 'الشراء يتم عبر أكواد تفعيل تُشترى من صفحة البيع الرسمية، والتفعيل يتم داخل التطبيق فقط. لا تُدخل بيانات بطاقتك داخل التطبيق.' },
-      { id: 'refund', headingAr: 'الاسترداد', bodyAr: 'يُرجع المبلغ كاملاً خلال أول 7 أيام من الاشتراك؛ وبعد ذلك لا تُسترد المبالغ المدفوعة. التفاصيل في صفحة الاسترداد.' },
-      { id: 'law', headingAr: 'القانون المعمول به', bodyAr: `${OWNER_FILL}` },
+      {
+        id: 'nature',
+        headingAr: 'طبيعة الخدمة',
+        bodyAr:
+          'كاتزو أداة تدريب لغوي. ليست بديلاً عن محامٍ أو طبيب أو جهة حكومية أو مستشار هجرة، ولا تمنح أي شهادة أو درجة رسمية معتمدة.',
+      },
+      {
+        id: 'account',
+        headingAr: 'حسابك',
+        bodyAr:
+          'حسابك شخصي، والدخول عبر Google. أنت مسؤول عن الجهاز الذي تستخدمه وعن حماية حسابك، وعن كل نشاط يحدث من خلاله.',
+      },
+      {
+        id: 'fairuse',
+        headingAr: 'الاستخدام العادل',
+        bodyAr:
+          'الحدود الظاهرة داخل التطبيق سارية على الحصة المجانية والمدفوعة معاً. لا نبيع خدمة بلا سقف، ونوضّح أي حد قبل أن تصل إليه.',
+      },
+      {
+        id: 'codes',
+        headingAr: 'أكواد التفعيل',
+        bodyAr:
+          'كود التفعيل شخصي وغير قابل للتحويل أو إعادة البيع، ويُفعَّل داخل التطبيق فقط، ويضيف مدة الباقة التي اخترتها إلى اشتراكك. الكود الذي حصلت عليه من جهة أخرى ليس مسؤوليتنا.',
+      },
+      {
+        id: 'changes',
+        headingAr: 'تغيير الخدمة',
+        bodyAr:
+          'قد نضيف ميزة أو نوقفها، وقد نحدّث هذه الشروط. إن أوقفنا الخدمة كلياً، نعيد المبلغ المتبقي من اشتراكك.',
+      },
+      {
+        id: 'liability',
+        headingAr: 'المسؤولية',
+        bodyAr:
+          'الخدمة مقدَّمة كما هي. لا نضمن نتيجة امتحان ولا موافقة جهة رسمية، والقرارات التي تتخذها تبقى مسؤوليتك.',
+      },
     ],
   },
   refund: {
     titleAr: 'سياسة الاسترداد',
     updatedAr: `آخر تحديث: ${TRUST_VERSION}`,
     sections: [
-      // The refund policy itself is the OWNER's own published wording — it is
-      // live on the marketing site (website.katzuai.com/pricing and its FAQ):
-      // «استرداد كامل خلال أول 7 أيام من الاشتراك» and «بعد ذلك لا تُسترد
-      // المبالغ المدفوعة». These two fields transcribe that published statement
-      // verbatim-ish (2026-10-27); they are NOT invented here. The HOW and the
-      // channel stay: how is still the owner's to write, the channel is provable
-      // from the code (the purchase happens on the official sales page).
-      { id: 'what', headingAr: 'ماذا يمكن استرداده', bodyAr: 'مبلغ اشتراكك كاملاً، إن لم يناسبك كاتزو.' },
-      { id: 'how', headingAr: 'كيف تطلب الاسترداد', bodyAr: `${OWNER_FILL}` },
-      { id: 'window', headingAr: 'المدة', bodyAr: 'خلال أول 7 أيام من تاريخ اشتراكك — استرداد كامل. بعد أول 7 أيام لا تُسترد المبالغ المدفوعة.' },
-      { id: 'channel', headingAr: 'القناة', bodyAr: 'الشراء من صفحة البيع الرسمية، والطلب يتم بالبريد الذي اشتريت منه مع رقم الكود.' },
-    ],
-  },
-  imprint: {
-    titleAr: 'بيانات الناشر',
-    updatedAr: `آخر تحديث: ${TRUST_VERSION}`,
-    sections: [
-      { id: 'publisher', headingAr: 'اسم الناشر وعنوانه', bodyAr: `${OWNER_FILL}` },
-      { id: 'representative', headingAr: 'الممثل القانوني', bodyAr: `${OWNER_FILL}` },
-      { id: 'registry', headingAr: 'السجل التجاري', bodyAr: `${OWNER_FILL}` },
-      { id: 'supervision', headingAr: 'جهة الرقابة', bodyAr: `${OWNER_FILL}` },
-      { id: 'dispute', headingAr: 'تسوية النزاعات', bodyAr: `${OWNER_FILL}` },
-    ],
-  },
-  contact: {
-    titleAr: 'تواصل معنا',
-    updatedAr: `آخر تحديث: ${TRUST_VERSION}`,
-    sections: [
-      { id: 'how', headingAr: 'كيف نصل إليه', bodyAr: `${OWNER_FILL}` },
-      { id: 'never', headingAr: 'ما لا نطلبه أبداً', bodyAr: 'لا نطلب كلمة مرور ولا رمز دخول ولا رقم بطاقتك. لا ترسلها إلى أي بريد أو محادثة.' },
-      { id: 'response', headingAr: 'زمن الرد', bodyAr: 'نردّ بأنفسنا على رسائل الدعم.' },
+      {
+        id: 'window',
+        headingAr: 'المدة والباقات',
+        bodyAr: `استرداد كامل خلال أول ${REFUND_DAYS} أيام من تاريخ التفعيل، على باقات ${REFUND_PLANS_AR}. باقة ${PLAN_BY_ID.monthly.nameAr} بلا استرداد.`,
+      },
+      {
+        id: 'how',
+        headingAr: 'كيف تطلب الاسترداد',
+        bodyAr: `أرسل بريداً إلى ${SUPPORT_ADDRESS_AR} من بريد الشراء نفسه، واذكر كود التفعيل. نعيد المبلغ إلى وسيلة الدفع التي استخدمتها.`,
+      },
+      {
+        id: 'after',
+        headingAr: 'بعد انتهاء المدة',
+        bodyAr: `بعد أول ${REFUND_DAYS} أيام من التفعيل لا تُسترد المبالغ المدفوعة، ويبقى اشتراكك عاملاً حتى نهايته. إن لم يصل الكود خلال ${ACTIVATION_HOURS} ساعة، راسلنا على العنوان نفسه.`,
+      },
     ],
   },
 };
@@ -178,41 +176,4 @@ export function outstandingOwnerFields(pages: TrustContent[] = Object.values(TRU
     }
   }
   return out;
-}
-
-/**
- * The processed-data list, computed from what the code actually allows.
- *
- * This is the sentence that must never be wrong, so it cannot be typed by hand:
- * every event named here is an event the worker accepts, and every prop named
- * here is a prop the worker will store.
- */
-export function processedDataListAr(): string {
-  return [
-    '• ما نخزّنه على جهازك:',
-    ...LOCAL_TABLES_AR.map((line) => `  - ${line}`),
-    '• ما نرسله إلى الخادم:',
-    '  - معرّف الحساب وتقدّمك (الجلسات، الأخطاء، المراجعات، وأنماط التعلم)',
-    '  - أحداث القياس: الاسم والوقت ومعرّف تثبيت مجهول وسمات محدودة',
-    '• ما يذهب إلى مزوّد الذكاء الاصطناعي:',
-    '  - نص المحادثة أو الجملة المراد تصحيحها أو ترجمتها، فقط أثناء طلبك ذلك',
-  ].join('\n');
-}
-
-/**
- * The events list, from the same constant the worker enforces.
- *
- * Arabic glosses are attached to the event names themselves so the page cannot
- * claim an event the app does not collect — a test compares the two lists.
- */
-
-/** Arabic glosses for every allowed event; missing ones fall back to the name. */
-export function eventsListAr(): string {
-  return `نجمع أحداثاً محدودة فقط: ${ANALYTICS_EVENTS.map((name) => `${EVENT_GLOSS[name] ?? name} (${name})`).join('، ')}. ولا نجمع النصوص ولا الصوت ولا البريد ولا غير معرّف الحساب. الخصائص المسموح بها: ${ALLOWED_PROP_KEYS.join('، ')}.`;
-}
-
-/** The event names the page claims, for the drift test to compare. */
-export function claimedEventNames(): string[] {
-  const text = eventsListAr();
-  return ANALYTICS_EVENTS.filter((name) => text.includes(`(${name})`));
 }

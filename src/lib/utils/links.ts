@@ -1,11 +1,12 @@
 /**
  * External links the app hands to the learner.
  *
- * The sales site is a separate property (a Cloudflare Pages project of its own)
- * that sells activation codes — the app itself only ever redeems a code through
- * `/verify` and never takes a payment. Overridable at build time with
- * `VITE_SALES_URL`; the production value is the default so nothing has to be
- * configured for the link to work.
+ * The order page is the marketing site's `/pricing#pay` section — the app itself
+ * only ever redeems an activation code through `/verify` and never takes a
+ * payment. The separate `katzu-sales` property is retired and 301s here, so the
+ * price the learner is quoted exists in exactly one place. Overridable at build
+ * time with `VITE_SALES_URL`; the production value is the default so nothing has
+ * to be configured for the link to work.
  *
  * NO PRICE LIVES HERE. It used to: `getProPriceLabel()` mirrored the crypto
  * check-out's `/crypto/health` and fell back to a hardcoded «5 دولار / شهر», so
@@ -17,7 +18,9 @@ import { withSource } from '@/lib/attribution/source';
 
 const env = (import.meta as any).env || {};
 
-export const SALES_URL: string = String(env.VITE_SALES_URL || 'https://katzu-sales.pages.dev').replace(/\/+$/, '');
+export const SALES_URL: string = String(
+  env.VITE_SALES_URL || 'https://website.katzuai.com/pricing#pay',
+).replace(/\/+$/, '');
 
 /**
  * The app's own public origin. `katzu.app` does not resolve yet, so nothing may
@@ -41,9 +44,9 @@ export function publicAppUrl(): string {
  */
 export const SITE_URL = 'https://website.katzuai.com';
 
-/** Absolute URL of a trust (legal) page on the site — they moved off the app. */
+/** Absolute URL of a legal section on the site — they moved off the app. */
 export function legalPageUrl(page: 'privacy' | 'terms' | 'contact'): string {
-  return `${SITE_URL}/trust/${page}`;
+  return `${SITE_URL}/help#${page}`;
 }
 
 /**

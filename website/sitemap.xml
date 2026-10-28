@@ -1,119 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://website.katzuai.com/</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/how-it-works</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/how-it-works"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/how-it-works"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/who-its-for</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/who-its-for"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/who-its-for"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/compare</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/compare"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/compare"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/use-cases/moving-to-germany</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/use-cases/moving-to-germany"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/use-cases/moving-to-germany"/>
+    <lastmod>2026-10-28</lastmod>
   </url>
   <url>
     <loc>https://website.katzuai.com/pricing</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/pricing"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/pricing"/>
+    <lastmod>2026-10-28</lastmod>
   </url>
   <url>
-    <loc>https://website.katzuai.com/faq</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/faq"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/faq"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/about</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/about"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/about"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/trust/privacy</loc>
-    <lastmod>2026-10-27</lastmod>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/trust/terms</loc>
-    <lastmod>2026-10-27</lastmod>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/trust/refund</loc>
-    <lastmod>2026-10-27</lastmod>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/trust/imprint</loc>
-    <lastmod>2026-10-27</lastmod>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/trust/contact</loc>
-    <lastmod>2026-10-27</lastmod>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/en</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/en/how-it-works</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/how-it-works"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/how-it-works"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/en/who-its-for</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/who-its-for"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/who-its-for"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/en/compare</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/compare"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/compare"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/en/use-cases/moving-to-germany</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/use-cases/moving-to-germany"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/use-cases/moving-to-germany"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/en/pricing</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/pricing"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/pricing"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/en/faq</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/faq"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/faq"/>
-  </url>
-  <url>
-    <loc>https://website.katzuai.com/en/about</loc>
-    <lastmod>2026-10-27</lastmod>
-    <xhtml:link rel="alternate" hreflang="en" href="https://website.katzuai.com/en/about"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://website.katzuai.com/about"/>
+    <loc>https://website.katzuai.com/help</loc>
+    <lastmod>2026-10-28</lastmod>
   </url>
 </urlset>

@@ -10,6 +10,7 @@ import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { resolveOpeningScenarioId } from '@/lib/journey/opening';
 import { reconcileEntitlement } from '@/lib/entitlement/reconcile';
 import { useOnlineStatus } from '@/lib/utils/onlineStatus';
+import { legalPageUrl } from '@/lib/utils/links';
 import { setHapticsEnabled } from '@/lib/utils/haptics';
 import { latestRecoverableSession, summaryFromSession, type RecoveredSummary } from '@/features/report/recover';
 import { isDevBuild } from '@/lib/utils/env';
@@ -677,7 +678,7 @@ function MainTabsRoute({ onSignOut, lock }: { onSignOut: () => Promise<void>; lo
           onOpenSubscription={() => navigate('/subscription')}
           onSignOut={onSignOut}
           onGoToSignIn={() => navigate('/signin')}
-          onOpenTrustPage={(page) => navigate(`/trust/${page}`)}
+          onOpenTrustPage={(page) => window.location.assign(legalPageUrl(page))}
           onOpenPlacement={() => navigate('/placement')}
           onOpenPreferences={() => navigate('/onboarding?mode=edit')}
         />

@@ -1,0 +1,10 @@
+# katzu-sales is retired as a public page.
+#
+# Every price, every plan and the whole order flow (three steps, the "restore my
+# code" path) now live on ONE page: https://website.katzuai.com/pricing#pay .
+# A second, differently-worded sales page would be a second source of truth for
+# the price the learner pays — the one thing this project does not allow.
+#
+# One rule, no chains: every path, query string included, answers with a single
+# 301 to the pricing page's order section.
+/* https://website.katzuai.com/pricing#pay 301
