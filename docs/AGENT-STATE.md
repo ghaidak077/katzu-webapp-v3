@@ -76,14 +76,15 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- **App Pages production (2026-10-28, git-connected build of `06b2c04`):** deployment
-  **`45c24f5f-4532-4142-89cc-f06b75f77272`** serves the same bundle as before
-  (`assets/index-D4avOAYK.js` +
-  `assets/AppShell-4uecVXUN.js`; the `AppShell` chunk carries `SITE_URL/help#` and
-  `https://website.katzuai.com/pricing#pay`, with no `katzu-sales`, no `/trust/` and no `KATZU26`.
+- **App Pages production (2026-10-28):** the project builds from git, so **every** push to `main` mints
+  a new deployment id (the docs push `1770972` produced `80993de2-…` with the same bundle) — never quote
+  an id as "current" without reading
+  `wrangler pages deployment list --project-name=katzu-webapp-v3` first. Stable facts: the bundle is
+  `assets/index-D4avOAYK.js` + `assets/AppShell-4uecVXUN.js` (unchanged since `f334f6d`; the `AppShell`
+  chunk carries `SITE_URL/help#` and `https://website.katzuai.com/pricing#pay`, with no `katzu-sales`,
+  no `/trust/` and no `KATZU26`).
   **Rollback target: `a11c874e-0eb5-4a80-96ab-630321664e03`** (source `f334f6d`), then
-  `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17` (`29f6aec`). A docs-only push rebuilds the same bundle under a
-  new id — read the id for the current `main` before rolling back.
+  `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17` (`29f6aec`).
 - **Site Pages production (2026-10-28, direct upload of `website/`):** `katzu-landing` deployment
   **`90880c38-5f90-4378-844c-5f1ef1fb055e`** (branch `main`, source `06b2c04`, built by
   `node scripts/build-website.mjs`) — `/`, `/pricing`, `/help` all **200**; `/` is the owner's design
