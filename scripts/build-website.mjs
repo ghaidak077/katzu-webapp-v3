@@ -182,7 +182,7 @@ function renderHome() {
 function renderPage(page) {
   const { path, title, description, h1, lead, eye, body, jsonld = [], anchorNav } = page;
   const slug = path.replace(/^\//, '');
-  const extraScript = path === '/pricing' ? pricingPickerScript() : '';
+  const extraScript = page.script || (path === '/pricing' ? pricingPickerScript() : '');
   const anchors = anchorNav
     ? `<nav class="anchors" aria-label="أقسام المساعدة">${anchorNav
         .map(([href, label]) => `<a href="${href}">${label}</a>`)

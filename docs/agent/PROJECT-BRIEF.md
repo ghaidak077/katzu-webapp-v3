@@ -52,41 +52,50 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-28 (partner program live: fourth page + partner ledger; deployed)
+## Current snapshot — 2026-10-28 (home truth fixes: 49 situations, honest free-lessons answer)
 
-**Deployed 2026-10-28 (`merge` + `worker` + `pages`); `main` = `4870d39`.** Marketing is exactly four Arabic
-pages and the price lives in one place. `/` is the owner's own design, rendered from
+**Site deployed; no route, screen, endpoint or table changed.** Four copy fixes on `/` and `/help`: the trust line
+dropped «أخطاؤك ومحادثاتك تبقى على جهازك» (mistakes and session summaries do sync to `/progress/sync`) and now
+states the voice promise («يُعالَج لفهم كلامك فقط، ولا نستخدم محادثاتك للإعلانات»); the free-lessons FAQ dropped
+«تتجدد دروسك المجانية كل شهر» (three free conversations, ever — `MAX_FREE_AI_SESSIONS = 3` in
+`trial_quota_ledger`) and says what a subscription opens; the voice FAQ answers instead of pointing at a paragraph,
+on `/` and `/help` (`#privacy` link kept); the stat is **49** — the live `GET /scenarios` row count — and rail card
+06 is the real café scenario («المقهى / Was möchten Sie trinken?») instead of the «والآن» teaser. **Owner decision
+left:** «كل شهر» still appears in the home meta/CTA, `/pricing` and the paywall (FREE-1). Ids in
+`docs/AGENT-STATE.md` SNAPSHOT.
+
+## Previous snapshot — 2026-10-28 (partner link is a screen: win-win-win copy, calculator, `/partners`)
+
+**Deployed 2026-10-28 (`merge` + site + app); the worker half is written, tested and NOT live.** Marketing is four
+Arabic pages and the price lives in one place. `/` is the owner's own design, rendered from
 `scripts/templates/home.html`.
 - **Site** `website.katzuai.com` = `/`, `/pricing`, `/affiliate`, `/help` on one `site.css` (the design stylesheet is its
   base layer). Home is the owner's design page for page: nav/footer → `/`, `/pricing`, `/help`, every CTA →
   `https://katzuai.com/welcome`, one price line → `/pricing`, refund on 3/6/12 months — no price, no coupon;
-  `/pricing` owns the four founding plans, the
-  rules once and the `#pay` steps; `/help` owns FAQ + privacy/terms/refund + contact. `scripts/site-pricing.mjs`
-  reads every amount from `pricing.config.json`. `KATZU26`, `$60` and `$42` are retired; one activation code
-  carries the plan duration. Every legacy URL answers **one** 301 to its final anchor; `sales/*` 301s to
-  `/pricing#pay`. `en/`, `trust/` and the topic pages are deleted.
+  `/pricing` owns the four founding plans, the rules once and the `#pay` steps; `/help` owns FAQ +
+  privacy/terms/refund + contact. `scripts/site-pricing.mjs` reads every amount from `pricing.config.json`.
+  `KATZU26`, `$60` and `$42` are retired; one activation code carries the plan duration. Every legacy URL answers
+  **one** 301 to its final anchor; `sales/*` 301s to `/pricing#pay`. `en/`, `trust/` and the topic pages are deleted.
 - **App** pays the same prices (server `GET /pricing`), legal links open `/help#…`, in-app copy matches the site.
-- **Partner program (AFF-1):** `/affiliate` states 20% of the net first paid order, pending at activation,
-  approved on day 14 unless refunded, weekly payout with a $20 minimum and carry-over, paid by USDT /
-  Syriatel-MTN Cash / bank transfer / Wise. Applications are emailed; the owner creates each code.
-  `cloudflare-affiliate.js` owns `AFFILIATE_CONFIG`, the three tables, `POST /affiliate/ref` and six
-  owner-only admin routes, and the page's numbers come from it at build time. Every page loads `ref.js`
-  (30-day `.katzuai.com` cookie) and the app sends it with the Google call, so attribution is decided
-  server-side per account. The in-app `REF-` rewards are untouched.
-- **Proof:** unit suite **2135/2135**, `tsc` clean, local crawl 4 pages / 9 links OK, Lighthouse mobile a11y
-  **100** + SEO **100** + perf **95–99** on all three pages (best-practices 81 is this host’s antivirus).
-  Gate `verify -- --ci --e2e` **14/14** (26 affiliate tests included). Live: worker `998873c6-…` (rollback
-  `f0b5fa01-…`), app `408cf69c-…` (`assets/index-Cuij_wHz.js`); rollback `bf9dc9c4-…`), site `4dbf4a05-…`
-  (rollback `90880c38-…`), sales `d3811619-…` (redirect-only; rollback `0de6a626-…`). `/affiliate` mobile
-  a11y **100** / SEO **100**; a temporary test code proved ref 200 / 404 after deletion, the cookie read by
-  the app, and admin **401** without a key.
-- **Owner:** payment details to connect a real order path (**V44-1**), four legal fields (**V44-2**), and
-  the payout day + $20 minimum before the first partner (**AFF-1**).
+- **Partner program (AFF-1):** `/affiliate` now carries the owner's win-win-win copy — 20% of the first paid order,
+  a 14-day hold, $20 minimum, USDT / Syriatel-MTN Cash / bank / Wise — three win cards, a commission calculator
+  (6-month plan → `$10` per subscriber, `$30` for three) and a CTA to `https://katzuai.com/partners`. That route is
+  `PartnersScreen.tsx`: `POST /affiliate/me` finds-or-creates one code per account from a session or Google token
+  and answers only code/status/rate/terms, never contact or payout details; the code is deterministic from the
+  email local part, so racing requests merge. `cloudflare-affiliate.js` owns the tables, `POST /affiliate/ref`,
+  signup attach, day-14 approval, refund voiding and six owner-only admin routes. The in-app `REF-` rewards are
+  untouched.
+- **Proof:** 32 affiliate tests, Lighthouse mobile a11y **100** / SEO **100** / 0 failing audits on `/affiliate`,
+  390 + 1440 renders with one H1 and no horizontal overflow, gate `verify -- --ci --e2e` green. Live ids and
+  rollback refs live in `docs/AGENT-STATE.md` SNAPSHOT. **Live gap:** until the worker deploys, `/partners` shows
+  «تعذّر إنشاء رابطك الآن… أعد المحاولة» — the CTA is honest, not broken.
+- **Owner:** payment details (V44-1), four legal fields (V44-2), payout day + $20 minimum (AFF-1), and one word
+  to deploy the worker.
 
-## Previous snapshot — 2026-10-28 (audit #7 limiter + beacon CSP live)
+## Previous snapshot — 2026-10-28 (audit #7 limiter + beacon CSP; its worker is still the live one)
 
-Worker `6f5ba883-…` limits `/auth/session` (20/min + 600/day per IP, rollback `e1a9a2ca-…`); app
-`4fc1306f-…` (`29f6aec`) unblocks the Pages beacon; site `de591b4e-…`. `UNPROVEN`: a real Google exchange.
+Worker `6f5ba883-…` limits `/auth/session` (20/min + 600/day per IP, rollback `e1a9a2ca-…`); app `4fc1306f-…`
+(`29f6aec`) unblocks the Pages beacon; site `de591b4e-…`. `UNPROVEN`: a real Google exchange.
 
 ## Previous snapshot — 2026-10-23 (guided home live)
 
@@ -97,26 +106,15 @@ plus docs-only commits that rebuild the same bundle. Pages production `c89828af-
 Gate `npm run verify -- --ci --e2e` **14/14 in 723 s**; production smoke **4 passed / 2 skipped**;
 the public `/demo` completed 4/4 on the live origin; worker `e1a9a2ca-…` unchanged. Signed-in
 guided home, session report and paywall are **UNPROVEN on production** (they need a Google
-account). The 2026-10-04 snapshot below is historical provenance.
+account). The 2026-10-04 snapshot is historical provenance — see
+[PROJECT-BRIEF-HISTORY](PROJECT-BRIEF-HISTORY.md).
 
-## Current snapshot — 2026-10-04 (historical)
+## History — moved 2026-10-28
 
-The owner approved autonomous local execution of the excellence roadmap. Current scope and
-verification are in [EXCELLENCE-STATUS](EXCELLENCE-STATUS.md). Batch 1 repairs account-owned
-queued progress, active sign-out/report cleanup, delayed progress/review response adoption,
-A0/order scenario caching, offline topic filtering, and failed schema-bootstrap recovery.
-Shared agent guidance now delegates through AGENTS.md + CLAUDE.md instead of conflicting
-commit rules; Node guidance and unused-dependency claims are corrected. No deployment,
-commit, or production write is made. **Deployed 2026-10-04 under `DEPLOY-AUTHORIZED: merge, worker, pages`:** `main` = `93653dc`, worker **`4d34c8eb-6047-4b4a-a859-cea43d673e1f`**, Pages production **`ef91fad7-f5d9-4764-8e7f-f93952808bdb`** serving `assets/index-DHO4J2Da.js`; live content **49 scenarios / 531 vocabulary / 73 grammar**. The batch added real dialog semantics + a keyboard/focus trap, reduced-motion coverage, honest level/limit copy, one `<main>` per page, and fixed three measured defects (the ambient beam halo widened the page at 320px, a relative `/referral/info` logged four 404s on Profile, and the hero-video slot accepted the SPA fallback). No secret change, no production D1 write, and no claim of public-launch readiness is made. The three intermittent CI e2e failures (V40-4) were then fixed at the cause — a `Modal`-entrance measurement taken mid-transform, a quiz loop waiting on an always-mounted container, and a sign-out redirect race the harness caused by omitting `katzu_onboarding_completed`, and a live-caption test whose `interimHoldMs` equalled the harness's speaking ceiling — and CI's e2e step now runs the preview bundle its name always claimed (`E2E_TARGET: preview`), with no assertion weakened.
-All narrative below is historical provenance; old counts, branch names, and release assertions
-must not be read as current facts. The complete master plan remains incomplete.
+The 2026-10-04 snapshot, the V29/V28/V24/V25 appendix and the 2026-09-29 recon narrative are historical
+provenance and now live in [PROJECT-BRIEF-HISTORY](PROJECT-BRIEF-HISTORY.md), so this brief stays inside its
+80 KB budget. Nothing was deleted.
 
-> **V29 (2026-10-03, committed to `launch-hardening`, CI green — NOT DEPLOYED):** the product-experience audit ran (Phase 0–3, a live walk plus a code trace) and the owner approved the plan once; Batches 1–3 are implemented and locally green. **Quiz stability:** the first quiz of a scenario no longer reshuffles its options — the deck is seeded per scenario (`quizRngForScenario`) and frozen after the first build, so the mount-time content heal (which re-emits the scenario/phrases/vocabulary live queries) cannot move an option or `correctIndex`; `e2e/quizStability.spec.ts` reproduces the real trigger and is proven to fail on the pre-fix code. **Chat layout:** the dock is split into a compact control bar under the header (orb 84–120px, status, hints) and a one-row thumb-reachable composer at the bottom; the transcript now keeps ≥50% of a 360×640 viewport and the composer ≤20% (the old dock was ~45%). **Vocabulary bridge:** a shared `buildWordBank` gives Review's production cards and both Guided Practice beats tappable word chips; Review adds an explicit «لا أتذكّر — أرني الإجابة» (counted once as a miss); any tapped chat word opens the insight sheet (an unknown word gets an honest, no-AI card instead of a silent tap); `selectGrammarRule` no longer serves an off-scenario rule while one reusing the episode's vocabulary exists. **Gates:** `tsc` clean (src + e2e); `npm test` **102 files / 1225 tests**; `E2E_TARGET=preview npx playwright test` **59 passed**; `node --check` clean. **Committed to `launch-hardening`** (`6d234c0` + the `0cc205e` audit-alias fix + the ledger commits `b872fe3`/`40671dc`); CI green on every pushed sha (latest `37101298453`). **No merge or deploy** (no `DEPLOY-AUTHORIZED` line). **V29-2 (on disk, uncommitted):** the word bank now also covers the chat's hint chips (the offered reply's words append into the composer), the Listening dictation (the sentence's words into the input) and Writing (a bank built from the scenario's vocabulary + phrases via the new `buildWordBankFrom`); `npm test` **1229**, e2e **61 passed**. **V29-3 (on disk, uncommitted):** the bridge is now measured — two allow-listed events, `word_bank_tapped` (every chip tap, prop `skill` = the surface) and `review_revealed` (the explicit way out), mirrored in `events.ts` + `cloudflare-analytics.js`, so the reveal rate can be compared with and without bank use; `npm test` **1230**, e2e **62 passed**. **V29-4 (on disk, uncommitted):** daily XP and the streak are now **server-authoritative**, closing the accepted limit of the V28 audit — a device clock or timezone change can no longer grant a fresh day. A new worker module (`cloudflare-daily.js`) derives the day from the **server's** clock shifted by a UTC offset that is **locked at first sync**, so a later timezone change cannot move the boundary; it seeds once from the client's total + completed-day history (bounded) so no existing learner is reset, dedupes events by id (a retried offline batch credits once), caps XP at 600/day and owns the streak. `/progress/sync` processes the ledger once before the D1 merge and overlays XP/streak; the client keeps a durable event queue and adopts the server's answer. A stats-only legacy client never creates a ledger (so the plain merge is preserved) but still adopts an existing one. `npm test` **105 files / 1265 tests** (+16 core + 19 adversarial), e2e **62 passed**, build OK. An adversarial probe (`tests/dailyLedgerAdversarial.test.ts`, 19 cases) measured the limit honestly, and a follow-up (V29-5) closed all four landed attacks: the ledger is now created on **every** sync so a client cannot opt out by omitting `daily`; a client total rises only by 600 × elapsed days; the first-sync seed is clamped; a per-account lock removes the concurrent lost-update; and the dedupe window rose 400→2000. Two data-lifecycle bugs from V29-4 were also fixed — account deletion and export now cover `daily:<sub>`, and sign-out clears the queued daily events. The only residual is a cross-isolate KV race (a loss, never inflation). Certification this pass: `npm test` **105 files / 1266 tests**, e2e **62 passed** (production bundle), build OK, four content audits exit 0, `npm audit` **0 vulnerabilities**, secret-scan clean. Committed to `launch-hardening` (`e0ecd81`, plus `3f392aa` for a CI-only analytics-flag fix), merged ff to `main` (`559aa81`) and **DEPLOYED** on 2026-10-03 (`DEPLOY-AUTHORIZED: merge, worker, pages`): worker **`a510e25c-ed78-470e-92a6-810d38794cc1`** now carries `cloudflare-daily.js`, production serves **`assets/index-CfZ6VaJV.js`**, the two new analytics events are accepted live, unauth admin is 401, and the battery is 12/12. CI green on the branch (`37109392007`) and on the merged `main` push (`37110867672`). The **public** launch remains gated by owner-only items (attach a domain, payments provider + secrets, counsel-reviewed legal pages, real-device voice). *(This status line predates the owner's 2026-10-05 decision closing `ADMIN_SECRET` rotation; that item is no longer outstanding.)*
-> **V28 (2026-10-02):** the owner-feedback mission shipped in three deployed stages. **Stage 1** — review cards are answerable again (new `src/lib/review/validate.ts`: a clear Arabic prompt, a meaningful correction, both directions, dedupe, suppression of old bad rows via additive Dexie **v7**); the AI's own turn output is validated server-side (`cloudflare-turn-quality.js`: hints must answer the last question, a correction must change something, the persona obstacle is withheld on turn 0 / after a repeat request) with the offline 30-fixture harness measuring **hints 58%→100%, corrections 58%→100%, obstacles 50%→100%**; the 3/8 round picker became **two modes of one conversation** — «تدريب (مع مساعدة)» vs «محادثة حقيقية (بدون مساعدة)», where session length is a level property (`levelSpec.maxSessionTurns`) and REAL mode hides help, not the conversation (weighted progress `REAL_XP_MULTIPLIER = 1.5`). **Stage 2** — **Ask Katzu** (`/app/ask` + `/ai/ask`, own quota 8/day free · 60/day Pro, deterministic not-legal-advice notice) and **grammar as a locked path** (`src/lib/grammar/path.ts`: level-ordered chain, lesson N+1 unlocks after N passes at 2/3 across ≥2 distinct sessions, test-out, placement makes earlier lessons optional; additive Dexie **v8** `grammar_lessons`). **Stage 3** — **daily tasks + Arabic ranks**: three daily tasks (one scenario session, one grammar step, one review batch) reset at local midnight with a one-forgiven-day streak, an Arabic rank ladder built on the single existing `XP_MILESTONES` (Trail shows «الرتبة N من M»), and anti-farming XP (`creditXp` is the only `totalXp` writer, `DAILY_XP_CAP = 600`); additive Dexie **v9** `daily_tasks`, rendered by `DailyTasksPanel` on Journey Home. Live D1 is **49 scenarios / 531 vocabulary / 426 starter_phrases / 73 grammar** (the grammar screen renders 77 lessons: 73 from D1 + the 4 offline `g_*` fixture rows the additive `bulkPut` keeps). Deployed: worker `0ab4658d` (Stage 1F; Stage 2A's worker was `ed14beae`, unchanged by Stages 2B/3), Pages production `058eeacb` on main `333e204`; battery 12/12. CI green on every pushed sha (`333e204` → run `37003561899`; `main` `37004205066`; docs `87834de` → `37005211142`). **Honest limits:** the chat rates are from the offline fixture harness, not live sessions; the AFTER turn-latency sample is UNPROVEN; real-device voice is still unverified.
-> **Marketing (V25):** all GTM/marketing content is consolidated in [`docs/marketing/KATZU-LAUNCH-PLAYBOOK.md`](../marketing/KATZU-LAUNCH-PLAYBOOK.md) (single source of truth; the 24-file GTM pack + gtm-copy.md moved to `docs/marketing/archive/`).
-> **V24 (2026-10-01):** the four authorized content files are **loaded** — live D1 is **49 scenarios / 531 vocabulary / 426 starter_phrases / 73 grammar**, including the A0 foundations module, the exam-speaking module (5 `exam_*` scenarios with stored openers) and the D4 legacy-grammar patch (all 4 legacy rows now carry rule_de/rule_ar/example_ar). A0–B2 content complete; drift check exit 0. Code: 3-month pass is the server-flagged recommended tier (paywall + sales page), the mock-exam result card + canvas share image render on exam scenarios, teacher/cohort codes support label + batch count with a read-only per-label created-vs-activated admin report (`/admin/codes/report`), and day-1/day-7 anonymous retention markers joined the analytics allow-list. Teacher kit: `docs/agent/TEACHER-KIT.md`. Deployed: worker `561ad04b`, Pages production `87173d4d` on main `6544a0c` (CI green both shas); battery 12/12, token-hygiene 11/11. Payments remain in **test_mode**; all new content is **AI self-reviewed**.
-
-Recon date 2026-09-29; **deployed three times the same day** (owner-authorized), then **V15**, **V16**, **V17** and **V18** (merge + Pages; worker only in V15), then **V19** (merge + Pages; **worker still deliberately undeployed since V15 — no worker file changed**). **Closed-beta readiness is written down in `docs/agent/LAUNCH-STATUS.md` (READY 12 · OWNER-ONLY 11 · BLOCKED 0) and the beta's operations kit in `docs/agent/BETA-KIT.md`.** `main` = **`22369bd`**, live worker **`03007d6e-a379-4e60-9350-1319cc087954`** (unchanged since V9-8), Pages production **`84dc0c77-8ee6-4310-bf89-2dde5ef1cbb1`** serving `assets/index-ZFuxptAA.js`. V19's stillness pass: the navbar's active pill is concentric with its container by construction, the conversation opener's Arabic is stored data (zero `/ai/*` before the first message), the hint floor answers the last AI message, and the motion budget is down to meaning-bearing states — measured on 6x CPU + Slow-4G: open → interactive 2,180 → 1,562 ms, TBT 118 → 80 ms. History: V7–V9 shipped the hardened worker (`255dbeef-…`, from `b11e66e`); V10 deployed Pages (`main` = `e487654`, deployment `2c245106-…` serving `index-CWWIxWb7.js`) with the worker deliberately unchanged. **The content is loaded and complete (V14 + V18, 2026-09-29): live D1 is 15 scenarios / 221 vocabulary / 111 phrases / 22 grammar** — the two approved modules went in over two clean `--commit` runs (V14, 219 rows) and V18 landed the four `g_*` supplement rules plus module1's three missing `housing` words, nothing rolled back, and the loader's schema preflight passed against production on its first real use. The 218 is not a shortfall: 19 of the drafts' 123 vocabulary rows already existed and were skipped by design, and all 123 resolve live. What remains is owner work, not loading: **nothing is left to load** — `node scripts/check-content-drift.mjs` exits **0** with 0 absent, 0 pending and 0 duplicate keys (V18-2). The three keys the two modules had declared with different wording were resolved in V16-2. The title drift (5d) and the pending deploy (5e) are closed as of V15. Superseded history: **no content was loaded by any earlier run.** The authorized load has now been attempted twice and left the database exactly as it was both times: V11 stopped on a malformed `ADMIN_SECRET` (V11-2), and V12 — with the credential shape verified clean — got three of four batches through and then hit a **production schema gap**, so it rolled back the 89 rows it had inserted and stopped (V12-2). That secret was also pasted into a chat prompt and must still be **rotated**. Also true as of V10: **module1 passed the Content Gate** (31 isolated words and ten unreachable grammar rows fixed, then approved) and a performance pass measured three LCP variants, kept one and reverted two. Sections marked *(live)* reflect the V10 deploy.
 Every claim cites a path, a command result, or a ledger line. Unverified claims sit under **UNKNOWN**.
 Environment facts: `docs/agent/ENV-FACTS.md`. Status: `docs/AGENT-STATE.md`.
 

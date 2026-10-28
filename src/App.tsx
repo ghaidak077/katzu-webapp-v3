@@ -111,6 +111,7 @@ export function titleForPath(pathname: string): string {
     '/app/ask': 'اسأل كَاتْزُو',
     '/app/progress': 'تقدمك',
     '/app/profile': 'بياناتك',
+    '/partners': 'الشركاء',
   };
   if (exact[path]) return exact[path];
   if (/^\/scenario\/[^/]+\/story$/.test(path)) return 'الموقف';

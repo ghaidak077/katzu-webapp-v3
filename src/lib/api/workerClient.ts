@@ -1081,6 +1081,53 @@ export class WorkerClient {
     return null;
   }
 
+  /**
+   * The signed-in learner's own partner link (`POST /affiliate/me`).
+   *
+   * The server creates the row on the first call and returns the same one after
+   * that, so this is safe to call every time the screen opens. It answers with
+   * the code and the programme's public terms only — never contact or payout
+   * details, which stay in the admin surface.
+   */
+  async getPartnerInfo(idToken?: string): Promise<{
+    code: string;
+    status: 'active' | 'paused';
+    rate: number;
+    approvalDays: number;
+    minPayoutCents: number;
+    payoutMethods: string[];
+  } | null> {
+    // Same reason as `getReferralInfo`: with no worker origin this would POST to
+    // the app's own static host and log a guaranteed 404 on every visit.
+    if (!this.baseUrl) return null;
+    const token = await this.getEffectiveAuthToken(idToken);
+    if (!token) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/affiliate/me`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) return null;
+      const data = await res.json().catch(() => null);
+      if (!data || data.ok !== true || typeof data.code !== 'string') return null;
+      return {
+        code: data.code,
+        status: data.status === 'paused' ? 'paused' : 'active',
+        rate: typeof data.rate === 'number' ? data.rate : 0.2,
+        approvalDays: typeof data.approvalDays === 'number' ? data.approvalDays : 14,
+        minPayoutCents: typeof data.minPayoutCents === 'number' ? data.minPayoutCents : 2000,
+        payoutMethods: Array.isArray(data.payoutMethods) ? data.payoutMethods : [],
+      };
+    } catch (e) {
+      console.warn('Partner info fetch failed:', e);
+      return null;
+    }
+  }
+
   async claimReferral(code: string, idToken?: string): Promise<{
     success: boolean;
     status?: 'pending' | 'verified';

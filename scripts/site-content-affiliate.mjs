@@ -16,7 +16,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 
-import { PLANS, SUPPORT, WORKER, escAttr, formatUsd } from './site-pricing.mjs';
+import { PLANS, WORKER, formatUsd } from './site-pricing.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -102,76 +102,135 @@ export function affiliateCaptureScript() {
 export const REF_SCRIPT = '<script src="/assets/ref.js" defer></script>';
 
 /**
+ * The calculator on `/affiliate`.
+ *
+ * Every number it prints is a whole-dollar-or-cents figure derived in the
+ * browser from the selected plan's own price and the same rate the Worker pays
+ * (`AFFILIATE_CONFIG.rate`, baked in at build time). It multiplies the rounded
+ * per-order commission by the number of subscribers, which is exactly how the
+ * ledger books them: one commission row per first order.
+ */
+function affiliateCalculatorScript(config) {
+  return `<script>
+(() => {
+  const box = document.querySelector('[data-calc]');
+  if (!box) return;
+  const plan = box.querySelector('[data-calc-plan]');
+  const count = box.querySelector('[data-calc-count]');
+  const countOut = box.querySelector('[data-calc-count-out]');
+  const result = box.querySelector('[data-calc-result]');
+  if (!plan || !count || !countOut || !result) return;
+  const rate = ${Number(config.rate)};
+  const usd = (cents) => {
+    const whole = Math.floor(cents / 100);
+    const rest = Math.round(cents % 100);
+    return '$' + whole + (rest === 0 ? '' : '.' + String(rest).padStart(2, '0'));
+  };
+  const paint = () => {
+    const people = Math.max(1, Math.trunc(Number(count.value) || 1));
+    const cents = Math.max(0, Math.trunc(Number(plan.value) || 0));
+    countOut.textContent = String(people);
+    result.textContent = usd(Math.round(cents * rate) * people);
+  };
+  plan.addEventListener('change', paint);
+  count.addEventListener('input', paint);
+  paint();
+})();
+</script>`;
+}
+
+/**
  * The partner page. Its numbers come from `AFFILIATE_CONFIG` in
  * `cloudflare-affiliate.js` — the same object the Worker pays from — so the page
  * cannot promise a rate or a minimum the ledger does not honour. The build passes
  * that config in; nothing below is a second copy of a rule.
+ *
+ * One audience only: someone who knows a person learning German. No teacher, no
+ * "bring your students", no application form — a signed-in account opens
+ * `/partners` and the link is there.
  */
 export function affiliatePage(config) {
   const example = PLANS.find((plan) => plan.months === 6) || PLANS[0];
   const exampleCommission = Math.round(example.cents * config.rate);
   const minimum = formatUsd(config.minPayoutCents);
-  const methods = config.payoutMethods.join('، ');
-
-  const subject = 'طلب انضمام إلى برنامج شركاء كاتزو';
-  const body = ['الاسم:', 'رابط القناة:', 'حجم الجمهور:', 'طريقة الدفع:'].join('\r\n');
-  const mailto = `mailto:${SUPPORT}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const ratePct = Math.round(config.rate * 100);
+  const options = PLANS.map(
+    (plan) =>
+      `<option value="${plan.cents}"${plan.months === example.months ? ' selected' : ''}>${plan.nameAr} — ${formatUsd(plan.cents)}</option>`,
+  ).join('\n        ');
 
   return {
     path: '/affiliate',
     title: 'برنامج الشركاء — كاتزو',
     description:
-      'شارك كاتزو مع جمهورك واحصل على عمولة على أول عملية دفع لكل مشترك يأتي من رابطك.',
-    h1: `${Math.round(config.rate * 100)}% من أول عملية دفع`,
-    lead: 'تعرّف جمهورك على كاتزو، وتحصل على عمولة على أول اشتراك يدفع ثمنه كل مشترك يأتي من رابطك — لا على التجديدات.',
+      'ساعد صديقاً على تحقيق هدفه في الألمانية، واربح 20% من أول اشتراك له. رابط جاهز خلال ثوانٍ من داخل التطبيق.',
+    h1: 'ساعد صديقاً على تحقيق هدفه، واربح معه',
+    lead: `شارك كاتزو مع من يتعلّم الألمانية أو يستعد للسفر. حين يشترك، يخطو هو نحو هدفه، وتحصل أنت على ${ratePct}% من أول اشتراك له.`,
     body: `
 <section class="wrap sec">
-  <h2>كيف يعمل</h2>
+  <div class="wins">
+    <article class="win">
+      <div class="win-h">تربح أنت</div>
+      <p><b class="win-amt">${ratePct}%</b> من أول اشتراك يدفعه صديقك، تُضاف إلى رصيدك بعد ${config.approvalDays} يوماً من التفعيل.</p>
+    </article>
+    <article class="win">
+      <div class="win-h">يربح صديقك</div>
+      <p>يتعلّم الألمانية بخطة واضحة ودروس قصيرة وتدريب على الكلام، ويقترب من هدفه خطوة كل يوم.</p>
+    </article>
+    <article class="win">
+      <div class="win-h">يربح كاتزو</div>
+      <p>يصل التطبيق إلى من يحتاجه فعلاً، فنستمر في بناء الدروس والتصحيح والتدريب.</p>
+    </article>
+  </div>
+
+  <div class="calc" data-calc>
+    <h2>كم يمكن أن تربح؟</h2>
+    <p class="calc-hint">اختر الباقة وعدد المشتركين لترى العمولة التقريبية.</p>
+    <div class="calc-controls">
+      <label class="calc-field">
+        <span>الباقة</span>
+        <select data-calc-plan>
+        ${options}
+        </select>
+      </label>
+      <label class="calc-field">
+        <span>عدد المشتركين</span>
+        <span class="calc-count">
+          <input type="range" min="1" max="20" step="1" value="1" data-calc-count aria-label="عدد المشتركين">
+          <output data-calc-count-out>1</output>
+        </span>
+      </label>
+    </div>
+    <p class="calc-out" aria-live="polite">ربحك التقريبي: <strong data-calc-result>${formatUsd(exampleCommission)}</strong></p>
+    <p class="note">تقدير قبل الاسترداد؛ العمولة على أول اشتراك فقط.</p>
+  </div>
+</section>
+
+<section class="wrap sec">
+  <h2>ثلاث خطوات</h2>
   <ol class="steps three">
-    <li><span class="num">1</span><h3>قدّم طلبك</h3><p>أرسل اسمك ورابط قناتك وحجم جمهورك وطريقة الدفع التي تفضّلها. نراجع الطلب ونرسل لك كودك إن وافقنا عليه.</p></li>
-    <li><span class="num">2</span><h3>شارك رابطك</h3><p>تضع كودك في رابط إلى كاتزو. يُحفظ الكود على جهاز الزائر، ويُربط بحسابه عند التسجيل؛ وأول كود صالح هو صاحب العمولة.</p></li>
-    <li><span class="num">3</span><h3>تابع عمولتك</h3><p>عند تفعيل كود الاشتراك تُسجَّل عمولتك على حساب الشريك، ونرسل لك ملخّص الدفعة.</p></li>
-  </ol>
-  <p class="codefact">مثال: باقة 6 أشهر بـ ${formatUsd(example.cents)} تعني عمولة ${formatUsd(exampleCommission)}.</p>
-</section>
-
-<section class="wrap sec rules">
-  <h2>القواعد باختصار</h2>
-  <ol>
-    <li>على أول عملية دفع فقط، لا على التجديدات.</li>
-    <li>العمولة تُسجَّل معلّقة عند التفعيل، وتُعتمد بعد ${config.approvalDays} يوماً إذا لم يُسترد المبلغ.</li>
-    <li>الحد الأدنى للدفع ${minimum}؛ ما دونه يبقى رصيداً ويُضاف إلى الدورة التالية.</li>
-    <li>الدورة أسبوعية ثابتة، وطرق الدفع: ${methods}.</li>
-    <li>الاسترداد قبل الاعتماد يلغي العمولة، وبعد الدفع يُخصم من الدفعة التالية.</li>
-    <li>الإحالة الذاتية بالحساب أو البريد أو مرسل الدفع تُلغي العمولة، وأي تلاعب يلغي العمولات القادمة.</li>
+    <li><span class="num">1</span><h3>افتح التطبيق</h3><p>ادخل إلى «الشركاء» ويظهر رابطك فوراً.</p></li>
+    <li><span class="num">2</span><h3>شارك مع من يهمّه الأمر</h3><p>أصدقاء وأقارب ومجموعات على واتساب وتلغرام وفيسبوك.</p></li>
+    <li><span class="num">3</span><h3>اربح معه</h3><p>يدخل رصيدك بعد ${config.approvalDays} يوماً من تفعيل اشتراكه، وندفع أسبوعياً عند بلوغه ${minimum}.</p></li>
   </ol>
 </section>
 
 <section class="wrap sec">
-  <h2>لمن هذا البرنامج</h2>
-  <ul class="checks">
-    <li>معلّمو الألمانية الذين لديهم طلاب يريدون التدريب بين الدروس.</li>
-    <li>صنّاع محتوى على يوتيوب عن الدراسة والعمل والحياة في ألمانيا.</li>
-    <li>مشرفو مجموعات تلغرام وفيسبوك للعرب المقيمين في ألمانيا أو القادمين إليها.</li>
-  </ul>
+  <h2>لمن هذا؟</h2>
+  <p class="body">لكل من يعرف شخصاً يريد أن يتكلم الألمانية: صديق، قريب، زميل، أو مجموعة تهتم بالسفر إلى ألمانيا.</p>
+</section>
+
+<section class="wrap sec pay">
+  <h2>رابطك جاهز</h2>
+  <p class="pay-cta"><a class="btn mag big" href="https://katzuai.com/partners" data-cur="احصل على رابطك الآن">احصل على رابطك الآن</a></p>
+  <p class="note">بلا طلب ولا موافقة. رابطك جاهز خلال ثوانٍ.</p>
 </section>
 
 <section class="wrap sec">
-  <h2>ما نتوقعه منك</h2>
-  <ul class="checks">
-    <li>اذكر أنك شريك كاتزو حيث تنشر.</li>
-    <li>لا شهادات ملفّقة ولا نتائج مخترعة.</li>
-    <li>لا وعود بتأشيرة أو نتيجة امتحان أو وظيفة.</li>
-    <li>لا رسائل مزعجة ولا إعلانات مضلّلة.</li>
-  </ul>
-</section>
-
-<section id="apply" class="wrap sec pay">
-  <h2>التقديم</h2>
-  <p>نفتح رسالة جاهزة إلى بريد الدعم تحمل الحقول الأربعة؛ أكملها وأرسلها.</p>
-  <p class="pay-cta"><a class="btn mag big" href="${escAttr(mailto)}" data-cur="قدّم طلبك">قدّم طلبك</a></p>
-  <p class="note">الانضمام بموافقة مسبقة، ولا يوجد تسجيل تلقائي. نردّ على كل طلب.</p>
+  <h2>التفاصيل</h2>
+  <p class="legal">العمولة على أول اشتراك فقط، وتُلغى عند الاسترداد أو الإحالة الذاتية. الدفع عبر USDT أو Syriatel/MTN Cash أو تحويل بنكي أو Wise. وصِّ بكاتزو بصدق، دون وعود بتأشيرة أو نتيجة امتحان.</p>
 </section>
 `,
+    script: affiliateCalculatorScript(config),
   };
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { isProEffective } from '@/lib/utils/subscription';
@@ -62,6 +63,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   onOpenPlacement,
   onOpenPreferences,
 }) => {
+  const navigate = useNavigate();
   const user = useLiveQuery(() => db.users.get('current_user'));
   const [showEditName, setShowEditName] = useState(false);
   const [newName, setNewName] = useState(user?.displayName || '');
@@ -120,7 +122,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
 
   const handleCopyReferral = async () => {
     if (!referralInfo?.referral_code) return;
-    const shareText = `تعلّم الألمانية مع كَاتْزُو 🐱\nاستخدم كود الإحالة ${referralInfo.referral_code}، وأكمل أول درس: تحصل أنت وصديقك معاً على 3 أيام وصول مجاناً!`;
+    const shareText = `تعلّم الألمانية مع كَاتْزُو 🐱\nجرّب أول درس، وإن أعجبك استخدم كود الإحالة ${referralInfo.referral_code}: تحصلان معاً على 3 أيام وصول.`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Katzu — تعلّم الألمانية', text: shareText });
@@ -414,6 +416,23 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
             )}
           </div>
         )}
+      </Card>
+
+      {/* The partner programme, separate from the referral card above: that one
+          rewards a friend's first lesson, this one pays a commission on a friend's
+          first subscription. Two different ledgers, so two different entries. */}
+      <Card className="p-4 mb-6 space-y-3">
+        <div className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-primary" />
+          <div className="text-sm font-bold font-arabic">برنامج الشركاء</div>
+        </div>
+        <p className="text-micro text-text-muted leading-relaxed">
+          لمن يعرف شخصاً يريد أن يتكلم الألمانية: شارك رابطك، وتحصل على 20% من أول اشتراك له بعد
+          14 يوماً من التفعيل.
+        </p>
+        <Button variant="secondary" size="sm" className="w-full" onClick={() => navigate('/partners')}>
+          افتح صفحة الشركاء
+        </Button>
       </Card>
 
       {/* Diagnostics Log (bug reporting aid) */}

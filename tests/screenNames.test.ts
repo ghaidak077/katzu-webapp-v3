@@ -20,6 +20,7 @@ const DECLARED_ROUTES = [
   '/paywall',
   '/mock',
   '/delete-account',
+  '/partners',
   '/placement',
   '/app/library',
   '/app/grammar',

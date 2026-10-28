@@ -26,6 +26,22 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-28 — the home page stopped saying two things the app does not do (site deployed).** Three copy fixes,
+  text only: the trust line dropped «أخطاؤك ومحادثاتك تبقى على جهازك» (`syncProgress` uploads mistakes + session
+  summaries to `/progress/sync`); the free-lessons FAQ dropped «تتجدد دروسك المجانية كل شهر» (`MAX_FREE_AI_SESSIONS
+  = 3`, all-time in `trial_quota_ledger`); the voice FAQ answers instead of pointing at a paragraph
+  (`cloudflare-stt.js`: audio → Workers AI Whisper, never stored). Stat `6` → **49** (live `GET /scenarios`), rail
+  card 06 = the real café scenario; `/help` links `/#rail` as «49 موقفاً في التطبيق». Proof: gate green, 390 + 1440
+  one H1 / no overflow, strings read back live. Site id + rollback in SNAPSHOT; remaining «كل شهر» = OWNER-OPEN FREE-1.
+
+- **2026-10-28 — the partner link is a screen now (site + app deployed; the worker half is NOT).** `/affiliate`
+  carries the owner's win-win-win copy, three win cards and a calculator (6-month → `$10` per subscriber, `$30`
+  for three); its CTA opens `https://katzuai.com/partners`, where `PartnersScreen.tsx` calls `POST /affiliate/me`
+  — finds-or-creates one `affiliates` row per account email, returning only code/status/rate/terms. Proof: 32
+  affiliate tests, Lighthouse a11y **100** / SEO **100**, 390 + 1440 one H1 / no overflow, gate green; ids in
+  SNAPSHOT. **The worker was not deployed**, so `/partners` shows its Arabic retry state live until it is — the
+  one action left for the owner (OWNER-OPEN AFF-1).
+
 - **2026-10-28 — the partner program is live and has no partners yet (AFF-1).** `/affiliate` (7.7 KB) states
   20% of the first paid order, a 14-day hold, a $20 minimum and four payout methods, all read from
   `AFFILIATE_CONFIG` at build time; `cloudflare-affiliate.js` owns the tables, `POST /affiliate/ref`, signup
@@ -37,14 +53,9 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   deletion with 0 rows left, a 30.0-day `.katzuai.com` cookie the app could read, admin 401. Next: the owner
   creates the first code (OWNER-OPEN AFF-1).
 
-- **2026-10-28 — `/` is the owner's design again (deployed).** The full record (design-parity
-  measurements, Lighthouse 97/100/100, 33 redirects, byte-identical live home, deploy `90880c38-…`)
-  moved verbatim to `docs/agent/ARCHIVE-AGENT-STATE.md`, search `RESUME 2026-10-28 home moved`;
-  `docs/agent/APP-MAP.md` change log keeps the same facts.
-
-- **Older 2026-10-28 entries moved out on 2026-10-28** (the three-page site + price-once record and the
-  audit #7 final pass) to keep this file inside its 80 KB cap: `docs/agent/ARCHIVE-AGENT-STATE.md`, search
-  `RESUME 2026-10-28 moved`.
+- **2026-10-28 — `/` is the owner's design again (deployed).** Full record (design parity, Lighthouse
+  97/100/100, 33 redirects, deploy `90880c38-…`) and the three-page site + audit #7 entries are in
+  `docs/agent/ARCHIVE-AGENT-STATE.md` (search `RESUME 2026-10-28`).
 
 ## CURRENT MISSION
 
@@ -165,6 +176,28 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 ## DECISIONS
 
+- **FREE-1 (2026-10-28) — the situation count is the server's list, not the marketing rail.** Live
+  `GET /scenarios` returns **49** rows (five are `exam_*`), so the home stat reads 49 and `/help` says
+  «49 موقفاً في التطبيق»; the rail keeps six cards as a sampler and card 06 is the real `cafe_order`
+  («المقهى / Was möchten Sie trinken?»). Cutting the number to 6 would have been the false fix.
+- **FREE-1 (2026-10-28) — the voice answer is what the code does.** `cloudflare-stt.js` sends the recording to
+  Workers AI Whisper and stores nothing; `/ai/turn` logs no learner text; `/progress/sync` does store mistakes and
+  session summaries — which is why the old «تبقى على جهازك» clause was deleted, not reworded. `/help` keeps the
+  `#privacy` link.
+- **AFF-1 (2026-10-28) — the code creates itself, and the site points at the screen that does it.** `/affiliate`
+  no longer asks anyone to email an application: its CTA is `https://katzuai.com/partners`, and
+  `POST /affiliate/me` finds-or-creates one `affiliates` row keyed by the account email — code derived from the
+  local part, suffix attempts only on collision, `ON CONFLICT(code) DO NOTHING` so two racing requests merge
+  instead of duplicating. The answer carries only code/status/rate/approval/minimum/methods: contact and payout
+  details never leave the worker. Self-serve rows are `status:'active'`, `payout_method:'Wise'`,
+  `payout_details:<email>` and `name` = the local part, so the owner can still reconcile a payout to a person.
+- **AFF-1 (2026-10-28) — the three win labels are divs, not headings.** Under the page's single `<h1>` they read
+  as a skipped level and Lighthouse dinged heading order; they are card labels, not document sections, so the
+  type stayed (`font: 900 1.08rem Cairo`) and the semantics went (`.win .win-h`). a11y went 0.98 → 1.00.
+- **Deploy scope (2026-10-28) — site + app only; the worker stays exactly as deployed.** `/partners` needs
+  `POST /affiliate/me`, so until the owner authorises a worker deploy the screen is live and its one call is not;
+  the Arabic retry state («تعذّر إنشاء رابطك الآن… أعد المحاولة») is the honest interim, not a hidden failure.
+
 - **AFF-1 (2026-10-28) — the partner program is a separate system with one config source.** The in-app `REF-`
   rewards (`referral_payouts`, `awardVerifiedReferral`) are untouched; partner money lives in three new tables
   managed by `cloudflare-affiliate.js`, whose `AFFILIATE_CONFIG` is the only place the 20%, 14 days and $20
@@ -251,7 +284,7 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical claims are in `docs/agent/ARCHIVE-AGENT-STATE.md` under the same heading.
 
-- **AFF-1 (2026-10-28) — the partner money path is unit-proven, not live-proven.** Live covers: `POST /affiliate/ref` accepting a real code (ok) and rejecting an unknown one, the `katzu_ref` cookie on `.katzuai.com` from `?ref=CODE`, an unauthenticated admin call answered 401, and the page serving 200. **Not live-proven:** the Google sign-in attach (Google-only sign-in; an agent must not use a real account), the commission row created by a real activation-code redemption inside the app, the day-14 cron on real data, and a real refund after payout. All four are covered by the 26 tests in `tests/affiliate.test.ts` against a D1 double, which proves the rules, not D1's atomicity.
+- **AFF-1 (2026-10-28) — the partner money path is unit-proven, not live-proven.** Live covers: `POST /affiliate/ref` accepting a real code (ok) and rejecting an unknown one, the `katzu_ref` cookie on `.katzuai.com` from `?ref=CODE`, an unauthenticated admin call answered 401, and the page serving 200. **Not live-proven:** the Google sign-in attach (Google-only sign-in; an agent must not use a real account), the commission row created by a real activation-code redemption inside the app, the day-14 cron on real data, and a real refund after payout. All four are covered by the 32 tests in `tests/affiliate.test.ts` against a D1 double, which proves the rules, not D1's atomicity. **Also unproven until the worker deploys: `POST /affiliate/me` and the `/partners` screen on real KV/D1** — the screen's own states are exercised against a stubbed client only.
 
 - **Google Sign-In: the popup → credential → session path is UNPROVEN end-to-end (2026-10-27).** Live, the GIS script, its stylesheet, its button iframe and its font all return **200** under the production CSP, and Google's button renders in both a clean profile and a service-worker-controlled one — but nothing closed the loop, because that needs a real Google account an agent must not touch. Proven instead: delaying `/gsi/client` by 2.5 s on the local build shows the neutral "preparing" notice (no false "could not load"), and after the script arrives the real button replaces the fallback; a hard `ERR_FAILED` on the first request is followed by a tap that re-injects the script and lands on Google's button (`gsi-local.json`, `gsi-retry.mjs`). What remains unproven is only Google's own credential response through `exchangeGoogleToken` → session → sync.
 
@@ -309,7 +342,9 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
 
-- **The partner program is live and waiting for its first partner — approve applications yourself (AFF-1, 2026-10-28).** `/affiliate` promises 20% of the first paid order, a 14-day hold, a $20 minimum and payouts by USDT / Syriatel-MTN Cash / bank transfer / Wise. Nothing signs up automatically: an application arrives at `support@ghaidak.com` and the code is created only when you say yes — `POST /admin/api/affiliates/create` with `code`, `name`, `contact`, `payout_method`, `payout_details`; the batch is `GET /admin/api/affiliates/commissions` (`payout.batches`) and a payment is recorded with `POST /admin/api/affiliates/payout` (`affiliate_id`, `payout_ref`), which the CSV at `/admin/api/affiliates/payout.csv` reconciles. **Two decisions are yours before the first partner:** the weekly payout day (the config prepares batches on **Monday**, UTC) and whether **$20** stays the minimum. Also say if you want the program page to name different payout methods. Done looks like: one partner has a code, one referred learner pays, the commission shows `pending`, and you mark the first payout paid with its reference.
+- **One free-lessons sentence still says «كل شهر», and the app does not do that — pick one promise (FREE-1, 2026-10-28).** `MAX_FREE_AI_SESSIONS = 3` is counted **once per account, ever**, in `trial_quota_ledger`; nothing in the worker resets it monthly. The home trust line, the free-lessons FAQ and `/help` now say what is true, but «ثلاثة دروس كل شهر» is still in `scripts/templates/home.html` (meta description, `og:description`, JSON-LD), the end-of-page CTA (`{{FREE_LESSONS}} دروس مجانية كل شهر`), `scripts/site-pricing.mjs:155` on `/pricing`, and the in-app paywall (`FREE_LESSONS_PER_MONTH` in `PaywallScreen.tsx`). **Two honest endings:** build a real monthly reset in the worker (new ledger period + copy that can then stay), or retire the word «شهر» from all five surfaces. Done looks like: a new learner reads the same allowance on the home page, the pricing page and the paywall, and it is the number the server enforces.
+
+- **The partner program is live, and its self-serve link needs one word from you — deploy the worker (AFF-1, 2026-10-28).** `/affiliate` promises 20% of the first paid order, a 14-day hold, a $20 minimum and payouts by USDT / Syriatel-MTN Cash / bank transfer / Wise; its button sends the learner to `/partners`, where a signed-in account gets its own code on first visit — no application email, no approval step. **The one blocker:** this run was authorised for the site and the app only, so `POST /affiliate/me` is not live and `/partners` shows «تعذّر إنشاء رابطك الآن» with a retry button. Say "deploy the worker" and it ships. **Then the payout desk is yours:** `GET /admin/api/affiliates/commissions` lists who is owed at least $20 in `payout.batches`, and a payment is recorded with `POST /admin/api/affiliates/payout` (`affiliate_id`, `payout_ref`), reconciled by the CSV at `/admin/api/affiliates/payout.csv`; codes can still be created by hand with `POST /admin/api/affiliates/create` if you ever need one. **Two decisions stay yours:** the weekly payout day (batches are prepared **Monday**, UTC) and whether **$20** stays the minimum. Done looks like: `/partners` shows a link on a real account, one referred learner pays, the commission shows `pending`, and you mark the first payout paid with its reference.
 
 - **The order path needs your payment details before a learner can pay (V44-1, 2026-10-28).** No local payment method is configured, so `/pricing#pay` ships the three honest steps and a single `mailto:support@ghaidak.com` button — never a `FILL`, never "unavailable", never a crypto block that cannot take money. To turn that into a real checkout, send: the **Telegram handle** orders may go to, the **Syriatel Cash** and **MTN Cash** numbers (and whose name is on them), the **bank** name, account holder and IBAN, and which currencies you want to collect in. Done looks like: the owner sends those details and the agent adds them to `pricing.config.json` + `src/lib/offers/paymentInstructions.ts` and the `/pricing#pay` block, then proves the page renders them.
 
@@ -317,7 +352,7 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 - **The AI pool needs your keys before OpenRouter/NVIDIA serve anything (AI-POOL, 2026-10-18).** The default provider pool is now NVIDIA + OpenRouter only and you edit it from the admin dashboard's new **AI Providers** tab — add custom gateways (base URL + model + format + tier + key), disable a default, or pick a preset (OpenRouter, NVIDIA, Groq, Google AI Studio, OpenAI, DeepSeek, Mistral, Together, Fireworks, Cerebras, xAI, Custom). Keys pasted there are stored server-side and never shown again (only a masked fingerprint). Today both key lists are still EMPTY, so until you paste keys in the dashboard or run `npx wrangler secret put OPENROUTER_API_KEYS` / `NVIDIA_API_KEYS`, every AI turn rides the free Workers AI fallback (works, but capped at 700 tokens and lower quality). Done looks like: the AI Providers tab shows a green "OK in N ms" next to the Test button for at least one entry.
 
-- **Nothing is left to load — the content set is complete and verified (V18-2).** `docs/content/supplements/grammar-basics.json` and both modules are in D1: **15 scenarios / 221 vocabulary / 111 phrases / 22 grammar**, `node scripts/check-content-drift.mjs` exits **0** with 0 absent, 0 pending and 0 duplicate keys, and every module/supplement grammar row is reachable from `SCENARIO_GRAMMAR_IDS` (18 of 22; the other 4 are the legacy rows below). The two loader bullets further down are kept only as history. Remaining content work is *authoring volume*, not loading.
+- **Nothing is left to load — the content set is complete and verified (V18-2).** `docs/content/supplements/grammar-basics.json` and both modules are in D1: **15 scenarios / 221 vocabulary / 111 phrases / 22 grammar**, `node scripts/check-content-drift.mjs` exits **0** with 0 absent, 0 pending and 0 duplicate keys, and every module/supplement grammar row is reachable from `SCENARIO_GRAMMAR_IDS` (18 of 22; the other 4 are the legacy rows below). Remaining content work is *authoring volume*, not loading.
 
 - **A cohort needs a URL before it needs anything else (V18-3).** `https://katzu-webapp-v3.pages.dev` works today and is what a closed beta can be handed, but `public/robots.txt` and `public/sitemap.xml` advertise `https://katzu.app/`, which does not resolve, and any store or payment-provider listing will want a host you control. Decide: attach `katzu.app` (then update `ALLOWED_ORIGINS` + `VITE_PUBLIC_APP_URL` + the two static files), or accept the `pages.dev` host for the beta and revisit before a public launch.
 
@@ -329,20 +364,9 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 - **Content-load drift check — run `node scripts/check-content-drift.mjs` after any content change (V15-3).** Read-only (`GET`s on the four public endpoints, never the admin ones), exits non-zero when production disagrees with the drafts, and classifies each difference so a by-design skip is not read as a failed load. Current state: scenarios 10/10 and phrases 91/91 identical, grammar 14 identical + 4 pending, vocabulary 104 identical + 19 diverged (all 19 rows the loader skipped by its own rule), 3 duplicate keys across the two modules.
 
-- **Content load (owner-only) — the blocker changed in V12: it is a production schema, not the credential.** The credential is now correct (V12-1: a bare 64-hex value, every shape boolean true) and the loader got through three of its four batches — but `grammar` answered **`HTTP 500 D1_ERROR: table grammar has no column named rule_de`**, so the run deleted its own 89 rows and stopped (V12-2). **The fix is one additive DDL and it loses nothing** (`ALTER TABLE` adds columns only; the two legacy columns `title_en` / `explanation_en` stay, unused):
-  ```sql
-  ALTER TABLE grammar ADD COLUMN rule_de TEXT;
-  ALTER TABLE grammar ADD COLUMN rule_ar TEXT;
-  ALTER TABLE grammar ADD COLUMN example_ar TEXT;
-  ```
-  That matches the schema the app, the audit and the Worker already assume (`docs/PRODUCT-SPEC.md:1021`), and it also revives `resolvePracticeGrammar`, which silently returns `null` today. After it, re-run `docs/agent/CONTENT-LOAD.md` (module2, then module1) with the same environment; the backup is still valid and unused and the collision check is still clean. **Decide at the same time:** whether the four legacy grammar rows (`akkusativ_articles`, `dativ_prepositions`, `konjunktiv_ii`, `perfekt_tense`) should be re-id'd to the `g_*` ids `SCENARIO_GRAMMAR_IDS` and the offline seed use — until then even a successful load leaves the five original scenarios without a D1 grammar row. **Also worth a repo-side fix:** nothing in the repo declares the content tables' DDL, which is why the drift was invisible; a `docs/agent/CONTENT-SCHEMA.md` (or the checks in LESSONS) would make the next load fail loudly *before* it writes.
-
-- **Content load (owner-only; runbook `docs/agent/CONTENT-LOAD.md`).** V11 got as far as the credential: the backup is taken and every other precondition passes for both modules, but `ADMIN_SECRET` in the environment is the 64-hex secret **wrapped in literal angle brackets** (`<secret>`, 66 characters), so the loader answers `HTTP 401` on its first read and **nothing was written** (V11-2). **Two owner actions, in this order:** (1) **rotate the secret** — it was pasted into a chat prompt in this session and must be treated as compromised; (2) put the **bare 64-hex** value in the environment and re-run the loader. If you would rather not touch the variable, the alternative is to authorize the one-command in-shell form explicitly: `ADMIN_SECRET="${ADMIN_SECRET:1:64}" node scripts/load-curriculum.mjs --file=… --commit` (the value stays out of the transcript and out of every file). This run did **not** do that: re-encoding a secret for a tool is exactly what §3 reserves to the owner, so it needs your explicit word. Everything else is verified: both files approved with review files, both audits PASSED, both dry-runs PASSED (module2 → 5 / 49 / 42 / 4; module1 → 5 / 74 / **49** / 10), production collision checks clean for both modules, live counts **5 / 114 / 20 / 4**, backup `/tmp/pre-load-katzu-20260929.sql` (76,327 B, uncommitted). Approval changed in V10-3: **module1 is `approved`**. The exact owner commands:
-  ```
-  node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit
-  node scripts/load-curriculum.mjs --file=docs/content/curriculum-30day-module1.json --commit
-  ```
-  **Collision check RE-VERIFIED read-only in V9-9 (Phase 4) against live production D1:** all five of module2's scenario ids and all four of its grammar ids are absent (live scenarios: `apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview`; live grammar: `akkusativ_articles, dativ_prepositions, konjunktiv_ii, perfekt_tense`), and the same holds for all 15 of module1's ids — so neither load can overwrite an existing row. V9-9 also confirmed the block is the *secret*, not the content: both `--commit` runs exit **2** with "ADMIN_SECRET is not set", and §3 forbids an agent from using it. **module1 must be approved first** (`review.status` is `pending` and no `docs/content/review-<module1>.md` exists) or `scripts/load-curriculum.mjs:131` refuses it. Never paste the secret into chat.
+- **Content-load history (V11/V12) moved out on 2026-10-28** to `docs/agent/ARCHIVE-AGENT-STATE.md`
+  (search `CONTENT-LOAD V11/V12 moved`): the wrapped-secret 401 and the missing `grammar` columns are
+  superseded by V18-2 — the set is complete and `check-content-drift.mjs` exits 0.
 
 - Existing `docs/LAUNCH-CHECKLIST.md` §2 owner-only actions remain untouched.
 

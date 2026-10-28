@@ -15,6 +15,7 @@ import {
   netAmountForMonths,
   nextPayoutDate,
   normalizeAffiliateCode,
+  partnerCodeFromEmail,
   payoutCsv,
   recordAffiliateCommission,
   voidCommission,
@@ -91,6 +92,16 @@ describe('a partner code', () => {
     expect(normalizeAffiliateCode('  sara10 ')).toBe('SARA10');
     expect(normalizeAffiliateCode('Omar-2026')).toBeNull();
     expect(normalizeAffiliateCode('سارة')).toBeNull();
+  });
+
+  it('can be derived from the account, stably and within the pattern', () => {
+    expect(partnerCodeFromEmail('new@example.com')).toBe('NEW');
+    expect(partnerCodeFromEmail('  New@Example.com ')).toBe('NEW');
+    expect(partnerCodeFromEmail('new@example.com', 1)).toBe('NEW1');
+    expect(partnerCodeFromEmail('a@example.com')).toBe('AKZ');
+    expect(partnerCodeFromEmail('', 0, 'sub')).toBe('SUB');
+    expect(partnerCodeFromEmail('a'.repeat(30) + '@x.com')).toBe('A'.repeat(12));
+    expect(partnerCodeFromEmail('سارة@example.com')).toBe('KATZU');
   });
 
   it('must be 3–20 upper-case letters or digits', () => {
@@ -230,6 +241,112 @@ describe('GET /affiliate/ref', () => {
       CORS,
     );
     expect(res?.status).toBe(503);
+  });
+});
+
+describe('POST /affiliate/me', () => {
+  const meRequest = (token?: string, method = 'POST') =>
+    new Request('https://worker.test/affiliate/me', {
+      method,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  const meUrl = new URL('https://worker.test/affiliate/me');
+  const signedIn = (email: string) => async () => ({ sub: 'sub-1', email });
+
+  it('refuses a caller with no session, and any method but POST', async () => {
+    const db = freshDb();
+    const anonymous = await handleAffiliateRoutes(meUrl, meRequest(), { DB: db } as never, CORS);
+    expect(anonymous?.status).toBe(401);
+    expect(db.rows('affiliates')).toHaveLength(0);
+
+    const get = await handleAffiliateRoutes(meUrl, meRequest(undefined, 'GET'), { DB: db } as never, CORS, {
+      authenticate: signedIn('new@example.com'),
+    });
+    expect(get?.status).toBe(405);
+  });
+
+  it('issues one partner link for a signed-in learner and returns no private data', async () => {
+    const db = freshDb();
+    const deps = { authenticate: signedIn('new@example.com') };
+
+    const first = await handleAffiliateRoutes(meUrl, meRequest(), { DB: db } as never, CORS, deps);
+    expect(first?.status).toBe(201);
+    const body = await first?.json();
+    expect(body).toMatchObject({
+      ok: true,
+      code: 'NEW',
+      status: 'active',
+      rate: 0.2,
+      approvalDays: 14,
+      minPayoutCents: 2000,
+    });
+    expect(body.payoutMethods).toContain('Wise');
+    expect(body).not.toHaveProperty('contact');
+    expect(body).not.toHaveProperty('payout_details');
+    expect(body).not.toHaveProperty('payout_method');
+    expect(db.rows('affiliates')).toHaveLength(1);
+    expect(db.rows('affiliates')[0]).toMatchObject({
+      contact: 'new@example.com',
+      payout_method: 'Wise',
+      payout_details: 'new@example.com',
+    });
+
+    const again = await handleAffiliateRoutes(meUrl, meRequest(), { DB: db } as never, CORS, deps);
+    expect(again?.status).toBe(200);
+    expect(await again?.json()).toMatchObject({ ok: true, code: 'NEW' });
+    expect(db.rows('affiliates')).toHaveLength(1);
+  });
+
+  it('returns the existing partner row, matching the email case-insensitively', async () => {
+    const db = freshDb();
+    seedAffiliate(db);
+    const res = await handleAffiliateRoutes(meUrl, meRequest(), { DB: db } as never, CORS, {
+      authenticate: signedIn('Sara@Example.com'),
+    });
+    expect(res?.status).toBe(200);
+    expect(await res?.json()).toMatchObject({ code: 'SARA10' });
+    expect(db.rows('affiliates')).toHaveLength(1);
+  });
+
+  it('steps the code aside when the plain one belongs to someone else', async () => {
+    const db = freshDb();
+    seedAffiliate(db, { code: 'NEW', contact: 'someone@else.com' });
+    const res = await handleAffiliateRoutes(meUrl, meRequest(), { DB: db } as never, CORS, {
+      authenticate: signedIn('new@example.com'),
+    });
+    expect(res?.status).toBe(201);
+    expect(await res?.json()).toMatchObject({ code: 'NEW1' });
+    expect(db.rows('affiliates')).toHaveLength(2);
+  });
+
+  it('works through the worker with a session token, without leaking the email', async () => {
+    const db = freshDb();
+    const token = 'sess_abc123';
+    const store = new Map<string, string>([
+      [
+        `session:${token}`,
+        JSON.stringify({ sub: 'sub-9', email: 'learner@example.com', expires_at: Date.now() + 60000 }),
+      ],
+    ]);
+    const env = {
+      ADMIN_SECRET: SECRET,
+      GOOGLE_CLIENT_ID: 'client',
+      DB: db,
+      USER_PROGRESS: {
+        get: async (key: string) => store.get(key) ?? null,
+        put: async () => {},
+        delete: async () => {},
+      },
+    } as never;
+
+    const res = await worker.fetch(meRequest(token), env);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body).toMatchObject({ ok: true, code: 'LEARNER' });
+    expect(JSON.stringify(body)).not.toContain('@');
+
+    const anonymous = await worker.fetch(meRequest(), env);
+    expect(anonymous.status).toBe(401);
   });
 });
 

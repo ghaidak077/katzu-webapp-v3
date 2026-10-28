@@ -112,6 +112,11 @@ const StorySetupScreen = React.lazy(() =>
 const GuidedPracticeScreen = React.lazy(() =>
   import('@/features/journey/GuidedPracticeScreen').then((m) => ({ default: m.GuidedPracticeScreen })),
 );
+// The partner programme's signed-in half: the learner's own link, created on
+// first visit. The marketing half stays on the site at `/affiliate`.
+const PartnersScreen = React.lazy(() =>
+  import('@/features/partners/PartnersScreen').then((m) => ({ default: m.PartnersScreen })),
+);
 // Development-only design-system page; never registered in a production build.
 const DesignSystemScreen = isDevBuild
   ? React.lazy(() => import('@/features/dev/DesignSystemScreen').then((m) => ({ default: m.DesignSystemScreen })))
@@ -329,6 +334,12 @@ export function AppShell() {
             <Route path="/session-report" element={<ReportRoute summary={sessionSummary} onLoadSummary={setSessionSummary} />} />
             {/* C1: erasure that does not depend on still holding a session. */}
             <Route path="/delete-account" element={<DeletionRequestScreen />} />
+            {/* The partner link needs the account, so it requires a session — unlike
+                `/delete-account`, whose whole point is to work without one. */}
+            <Route
+              path="/partners"
+              element={isAuthenticated ? <PartnersScreen /> : <Navigate to="/signin" replace />}
+            />
             {/* `/` used to be the marketing landing page; that now lives on the
                 separate site, so an unknown route (including `/`) goes straight
                 into the app, or to the front door when signed out. */}

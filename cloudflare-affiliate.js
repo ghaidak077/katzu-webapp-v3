@@ -84,6 +84,25 @@ export function isValidAffiliateCode(raw) {
   return normalizeAffiliateCode(raw) !== null;
 }
 
+/**
+ * A partner code a learner can get by themselves, derived from their account.
+ *
+ * Deterministic on purpose: two requests racing for the same email produce the
+ * same code, so `ON CONFLICT(code) DO NOTHING` merges them into one partner
+ * instead of opening two rows for one person. `attempt` exists only for the
+ * rare case where the first code already belongs to someone else, and every
+ * result still satisfies `AFFILIATE_CONFIG.codePattern`.
+ */
+export function partnerCodeFromEmail(email, attempt = 0, seed = "") {
+  const clean = (value) => String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const local = clean(String(email || "").split("@")[0]).slice(0, 12);
+  const fallback = clean(seed).slice(0, 12);
+  const base = local || fallback || "KATZU";
+  const padded = base.length >= 3 ? base : `${base}KZ`.slice(0, 3);
+  const suffix = attempt > 0 ? String(attempt) : "";
+  return normalizeAffiliateCode(`${padded}${suffix}`.slice(0, 20));
+}
+
 /** 20% of net, rounded once. Negative nets clamp to zero for a new commission. */
 export function commissionCents(netCents, rate = AFFILIATE_CONFIG.rate) {
   const net = Math.max(0, Math.trunc(Number(netCents) || 0));
@@ -271,6 +290,93 @@ export const AFFILIATE_TABLES = [
 ];
 
 /* ------------------------------------------------------------------ */
+/* Self-serve — POST /affiliate/me                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The one view of a partner row a partner may see about themselves.
+ *
+ * Deliberately narrow: no contact, no payout method, no payout details, no
+ * ledger. A learner who signs in can read what the programme offers, which is
+ * already printed on `/affiliate`; the private fields stay in the admin surface.
+ */
+function publicPartnerView(row) {
+  return {
+    code: row.code,
+    status: row.status,
+    rate: AFFILIATE_CONFIG.rate,
+    approvalDays: AFFILIATE_CONFIG.approvalDays,
+    minPayoutCents: AFFILIATE_CONFIG.minPayoutCents,
+    payoutMethods: AFFILIATE_CONFIG.payoutMethods,
+  };
+}
+
+/**
+ * Finds the partner row belonging to an account email. Case-insensitive in JS
+ * because the D1 double used by the tests cannot evaluate `lower()` in SQL.
+ */
+async function findAffiliateByContact(env, email) {
+  const wanted = String(email || "").trim().toLowerCase();
+  if (!wanted) return null;
+  const rows = await allRows(env, "SELECT * FROM affiliates");
+  return rows.find((row) => String(row.contact || "").trim().toLowerCase() === wanted) || null;
+}
+
+/**
+ * Creates the partner row for a signed-in learner.
+ *
+ * Defaults are the ones the owner can actually pay with: `Wise` to the account
+ * email, which is known from the session. A partner who wants USDT or cash asks
+ * through support and the row is edited in the admin surface — the page says so.
+ * The deterministic code plus `ON CONFLICT(code) DO NOTHING` makes a double tap
+ * or two racing devices land on one row instead of two.
+ */
+async function createSelfServeAffiliate(env, email) {
+  const contact = String(email).trim();
+  const name = contact.split("@")[0].slice(0, 60) || "Katzu partner";
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const code = partnerCodeFromEmail(contact, attempt, contact.split("@")[0]);
+    if (!code) continue;
+    await env.DB.prepare(
+      `INSERT INTO affiliates (code, name, contact, payout_method, payout_details, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(code) DO NOTHING`,
+    )
+      .bind(code, name, contact, "Wise", contact, "active", new Date().toISOString())
+      .run();
+    const row = await env.DB.prepare("SELECT * FROM affiliates WHERE code = ?").bind(code).first();
+    if (row && String(row.contact || "").trim().toLowerCase() === contact.toLowerCase()) return row;
+  }
+  return null;
+}
+
+/** `POST /affiliate/me` — a signed-in learner's own partner link. */
+async function handleAffiliateMe(request, env, cors, deps) {
+  if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, cors);
+  const authenticate = typeof deps.authenticate === "function" ? deps.authenticate : null;
+  const account = authenticate ? await authenticate(request) : null;
+  if (!account || typeof account.sub !== "string" || !account.sub) {
+    return json({ ok: false, error: "unauthorized" }, 401, cors);
+  }
+  const email = typeof account.email === "string" ? account.email.trim() : "";
+  if (!email || !email.includes("@")) return json({ ok: false, error: "no_email" }, 400, cors);
+  if (!env?.DB) return json({ ok: false, error: "unavailable" }, 503, cors);
+
+  try {
+    let row = await findAffiliateByContact(env, email);
+    let created = false;
+    if (!row) {
+      row = await createSelfServeAffiliate(env, email);
+      created = Boolean(row);
+    }
+    if (!row) return json({ ok: false, error: "unavailable" }, 503, cors);
+    return json({ ok: true, ...publicPartnerView(row) }, created ? 201 : 200, cors);
+  } catch (e) {
+    console.error("[affiliate] self-serve failed:", String(e?.message || e).slice(0, 120));
+    return json({ ok: false, error: "unavailable" }, 503, cors);
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Capture — POST /affiliate/ref                                       */
 /* ------------------------------------------------------------------ */
 
@@ -281,6 +387,7 @@ export const AFFILIATE_TABLES = [
  * cannot lose an attribution (an unknown code is dropped at signup instead).
  */
 export async function handleAffiliateRoutes(url, request, env, cors, deps = {}) {
+  if (url.pathname === "/affiliate/me") return handleAffiliateMe(request, env, cors, deps);
   if (url.pathname !== "/affiliate/ref") return null;
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, cors);
 

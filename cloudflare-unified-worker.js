@@ -1804,6 +1804,13 @@ export default {
       // becomes a 30-day attribution. The response carries no partner data.
       const affiliateResponse = await handleAffiliateRoutes(url, request, env, cors, {
         checkGlobalRateLimit,
+        // `POST /affiliate/me` (a signed-in learner's own partner link) needs the
+        // same identity as every other account route: a Google ID token or a
+        // worker session token, resolved to `{ sub, email }`.
+        authenticate: async (req) => {
+          const token = extractIdToken(req);
+          return token ? await verifyGoogleIdToken(token, env.GOOGLE_CLIENT_ID, env) : null;
+        },
       });
       if (affiliateResponse) return affiliateResponse;
 
