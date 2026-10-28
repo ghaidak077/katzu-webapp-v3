@@ -852,6 +852,81 @@ describe('daily AI spend cap', () => {
     expect(rows.get('global-ai-spend')?.count).toBe(3);
   });
 
+  it('rate-limits /auth/session per IP before the Google round-trip (audit #7)', async () => {
+    /** D1 double for the durable rate-limit counters only. */
+    class AuthCounterD1 {
+      counters = new Map<string, { window_start: number; count: number }>();
+      prepare(sql: string) {
+        const norm = sql.replace(/\s+/g, ' ').trim();
+        const self = this;
+        return {
+          bind(...args: unknown[]) {
+            return {
+              async run() {
+                if (norm.startsWith('INSERT INTO rate_limit_counters')) {
+                  const id = String(args[0]);
+                  if (self.counters.has(id)) {
+                    throw new Error('UNIQUE constraint failed: rate_limit_counters.counter_id');
+                  }
+                  self.counters.set(id, { window_start: Number(args[1]), count: 1 });
+                  return { success: true, meta: { changes: 1 } };
+                }
+                if (norm.startsWith('UPDATE rate_limit_counters SET window_start')) {
+                  self.counters.set(String(args[1]), { window_start: Number(args[0]), count: 1 });
+                  return { success: true, meta: { changes: 1 } };
+                }
+                if (norm.startsWith('UPDATE rate_limit_counters SET count')) {
+                  const row = self.counters.get(String(args[1]));
+                  if (row) row.count = Number(args[0]);
+                  return { success: true, meta: { changes: 1 } };
+                }
+                return { success: true, meta: { changes: 0 } };
+              },
+              async first() {
+                if (norm.startsWith('SELECT window_start, count FROM rate_limit_counters')) {
+                  return self.counters.get(String(args[0])) ?? null;
+                }
+                return null;
+              },
+            };
+          },
+          async run() { return { success: true, meta: { changes: 0 } }; },
+          async first() { return null; },
+        };
+      }
+      async batch(statements: Array<{ run(): Promise<unknown> }>) {
+        return Promise.all(statements.map((statement) => statement.run()));
+      }
+    }
+
+    const env = {
+      ENVIRONMENT: 'test',
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      DB: new AuthCounterD1(),
+    };
+    const idToken = token(validPayload());
+    const send = (ip: string) =>
+      worker.fetch(new Request('https://worker.test/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': ip },
+        body: JSON.stringify({ id_token: idToken }),
+      }), env as never);
+
+    // No USER_PROGRESS here, so an accepted attempt stops at 503 before a session
+    // is issued — enough to prove the limiter runs before token verification.
+    for (let i = 0; i < 20; i += 1) {
+      expect((await send('203.0.113.9')).status).toBe(503);
+    }
+    const limited = await send('203.0.113.9');
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('Retry-After'))).toBeGreaterThan(0);
+    expect(await limited.json()).toMatchObject({ error: 'rate_limited' });
+
+    // The budget is per IP: a second address is unaffected.
+    expect((await send('203.0.113.10')).status).toBe(503);
+  });
+
   it('answers in Arabic, so the pause is a sentence and not a stack trace', () => {
     expect(DAILY_SPEND_CAP_MESSAGE).toMatch(/[؀-ۿ]/);
     expect(DAILY_SPEND_CAP_MESSAGE).toContain('تقدّمك محفوظ');

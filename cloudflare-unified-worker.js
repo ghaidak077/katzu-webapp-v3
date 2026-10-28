@@ -364,6 +364,24 @@ async function handleAuthSession(request, env, cors) {
   if (!idToken || typeof idToken !== "string") {
     return json({ error: "missing_id_token" }, 400, cors);
   }
+  // Audit #7: bound the Google `tokeninfo` round-trip this route performs for
+  // anyone on the internet. Same durable counter the AI routes use, keyed on the
+  // edge IP, with a budget a real learner cannot reach (a sign-in attempt is one
+  // request; retries and a shared NAT stay far below 20/min, 600/day).
+  const authIp = (request.headers.get("CF-Connecting-IP") || "unknown")
+    .replace(/[^a-fA-F0-9:.]/g, "")
+    .slice(0, 45) || "unknown";
+  const authLimit = await checkGlobalRateLimit(`ip:${authIp}`, env, {
+    scope: "auth-session",
+    perMinute: 20,
+    perDay: 600,
+  });
+  if (!authLimit.allowed) {
+    return json({ error: "rate_limited", retry_after: authLimit.retryAfter }, 429, {
+      ...cors,
+      "Retry-After": String(authLimit.retryAfter),
+    });
+  }
   const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
   if (!account) {
     return json({ error: "invalid_id_token" }, 401, cors);
