@@ -1,13 +1,13 @@
 # The site is three pages now: /, /pricing, /help. Every old URL answers
 # with ONE 301 to its final target — no chain, no second hop.
-/how-it-works /#how 301
-/how-it-works/ /#how 301
-/who-its-for /#for 301
-/who-its-for/ /#for 301
-/compare /#for 301
-/compare/ /#for 301
-/use-cases/moving-to-germany /#moving 301
-/use-cases/* /#for 301
+/how-it-works /#app 301
+/how-it-works/ /#app 301
+/who-its-for /#faq 301
+/who-its-for/ /#faq 301
+/compare /#faq 301
+/compare/ /#faq 301
+/use-cases/moving-to-germany /#rail 301
+/use-cases/* /#rail 301
 /faq /help#faq 301
 /faq/ /help#faq 301
 /about /help#about 301
@@ -25,10 +25,10 @@
 /en/pricing /pricing 301
 /en/faq /help#faq 301
 /en/about /help#about 301
-/en/how-it-works /#how 301
-/en/who-its-for /#for 301
-/en/compare /#for 301
-/en/use-cases/moving-to-germany /#moving 301
+/en/how-it-works /#app 301
+/en/who-its-for /#faq 301
+/en/compare /#faq 301
+/en/use-cases/moving-to-germany /#rail 301
 /en/trust/privacy /help#privacy 301
 /en/trust/terms /help#terms 301
 /en/trust/refund /help#refund 301
