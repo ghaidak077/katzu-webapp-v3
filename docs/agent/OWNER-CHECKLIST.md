@@ -97,9 +97,11 @@ payouts by USDT, Syriatel/MTN Cash, bank transfer or Wise. Applications arrive a
 `support@ghaidak.com`; nobody is signed up automatically, so every partner is a decision you make.
 
 **What you do.** When an application arrives, decide yes/no, then create the code (3–20 letters/digits) with the
-admin endpoint `POST /admin/api/affiliates` and send it back. Each week, run the payout batch
-`GET /admin/api/affiliates/payouts` and mark paid with `POST /admin/api/affiliates/payouts/:ref/paid` after you
-send the money. Tell the agent if you want a different payout day or minimum before the first partner joins.
+admin endpoint `POST /admin/api/affiliates/create` and send it back. Each week (the batch day is Monday, UTC),
+read `GET /admin/api/affiliates/commissions` — its `payout.batches` lists who is owed at least $20 — send the
+money, then record it with `POST /admin/api/affiliates/payout` (`affiliate_id` + `payout_ref`); smaller
+balances stay in `carried`. Tell the agent if you want a different payout day or minimum before the first
+partner joins.
 
 **Done looks like:** one real partner has a code, one referred learner has a pending commission, and the first
 payout is marked paid with its reference.
