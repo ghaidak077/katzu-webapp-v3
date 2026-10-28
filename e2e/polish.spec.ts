@@ -125,7 +125,18 @@ test('every field the learner types into is at least 16px, or iOS zooms the page
   await bootSignedIn(page, { history: true });
   for (const path of ['/app/ask', '/app/practice', '/app/write']) {
     await page.goto(path);
-    await page.waitForTimeout(900);
+    // Wait for the field itself, not for a guessed 900 ms: a lazy route chunk on a
+    // loaded CI runner renders after that, and the test then failed with "has no
+    // field to check" (run 40674031456) — a harness sleep, not a font-size defect.
+    await page.waitForFunction(
+      () =>
+        Array.from(document.querySelectorAll('input, textarea, select')).some((node) => {
+          const rect = node.getBoundingClientRect();
+          return rect.width >= 1 && rect.height >= 1;
+        }),
+      null,
+      { timeout: 15_000 },
+    );
     const typed = await page.evaluate(() =>
       Array.from(document.querySelectorAll('input, textarea, select'))
         .map((node) => {

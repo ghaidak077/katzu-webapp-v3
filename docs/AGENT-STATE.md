@@ -85,7 +85,7 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
 - **App Pages production (2026-10-28):** the project builds from git, so **every** push to `main` mints
-  a new deployment id (the docs push `8c3bf10` produced `fbfa7a7a-…`) — never quote an id as "current"
+  a new deployment id (the docs push `3980b39` produced `0faa836d-…`) — never quote an id as "current"
   without reading
   `wrangler pages deployment list --project-name=katzu-webapp-v3` first. Stable facts: the entry bundle is
   now `assets/index-Cuij_wHz.js` — it carries `katzu_ref` and the signup call that sends it, which the
