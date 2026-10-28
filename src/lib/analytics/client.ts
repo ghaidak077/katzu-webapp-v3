@@ -2,6 +2,7 @@ import { db } from '@/lib/db/katzuDb';
 import { WORKER_BASE_URL } from '@/lib/api/workerUrl';
 import {
   ALLOWED_PROP_KEYS,
+  analyticsEventKey,
   dedupeEvents,
   isRetryDue,
   MAX_ATTEMPTS,
@@ -222,11 +223,15 @@ export async function flushAnalytics(now = Date.now()): Promise<boolean> {
   if (queue.events.length === 0) return false;
   if (!isRetryDue({ nextRetryAt: queue.nextRetryAt, attempts: queue.attempts }, now)) return false;
 
-  const { batch, rest } = planAnalyticsBatch(queue.events, MAX_BATCH_SIZE);
-  const enriched = await enrichEvents(batch);
+  const { batch } = planAnalyticsBatch(queue.events, MAX_BATCH_SIZE);
 
+  // `inFlight` is set before the first await. The batch is read once, but a tap
+  // can enqueue another event while the request is open, so every write after
+  // it must reconcile against the queue as it is THEN — never against the
+  // remainder computed from the queue this batch was read from.
   inFlight = true;
   try {
+    const enriched = await enrichEvents(batch);
     const response = await fetch(`${WORKER_BASE_URL}/analytics/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -234,21 +239,50 @@ export async function flushAnalytics(now = Date.now()): Promise<boolean> {
       body: JSON.stringify({ events: enriched }),
     });
     if (!response.ok) throw new Error(`analytics_${response.status}`);
-    writeQueue({ events: rest, attempts: 0, nextRetryAt: 0 });
+    settleBatch(batch, { attempts: 0, nextRetryAt: 0 }, now, true);
     return true;
   } catch {
     // Re-queue the same events with backoff. After MAX_ATTEMPTS they are
     // dropped — an undeliverable event is not worth retrying forever.
     const attempts = queue.attempts + 1;
     if (attempts > MAX_ATTEMPTS) {
-      writeQueue({ events: rest, attempts: 0, nextRetryAt: 0 });
+      settleBatch(batch, { attempts: 0, nextRetryAt: 0 }, now, true);
       return false;
     }
-    writeQueue({ events: [...batch, ...rest], attempts, nextRetryAt: now + Math.min(30_000 * 2 ** (attempts - 1), 15 * 60_000) });
+    settleBatch(batch, { attempts, nextRetryAt: now + Math.min(30_000 * 2 ** (attempts - 1), 15 * 60_000) }, now, false);
     return false;
   } finally {
     inFlight = false;
   }
+}
+
+/**
+ * Reconciles the queue after one attempt, against the queue as it is now.
+ * A delivered batch is dropped by event key; a failed one is put back only if a
+ * concurrent `enqueueEvent` has not already restored it. Writing the remainder
+ * that was computed before the request would silently delete every event
+ * tracked while it was in flight (the word-bank tap lost in e2e).
+ *
+ * Exported for the queue tests: it is the write half of `flushAnalytics`.
+ */
+export function settleBatch(
+  batch: AnalyticsEvent[],
+  meta: { attempts: number; nextRetryAt: number },
+  now: number,
+  delivered: boolean,
+): void {
+  // Opt-out deletes the queue: an open request must not write it back.
+  if (isAnalyticsOptedOut()) {
+    safeRemove(QUEUE_KEY);
+    return;
+  }
+  const current = readQueue();
+  const batchKeys = new Set(batch.map(analyticsEventKey));
+  const currentKeys = new Set(current.events.map(analyticsEventKey));
+  const events = delivered
+    ? current.events.filter((event) => !batchKeys.has(analyticsEventKey(event)))
+    : [...current.events, ...batch.filter((event) => !currentKeys.has(analyticsEventKey(event)))];
+  writeQueue({ events: purgeExpiredEvents(events, now).slice(-MAX_QUEUE_SIZE), ...meta });
 }
 
 async function enrichEvents(events: AnalyticsEvent[]): Promise<AnalyticsEvent[]> {

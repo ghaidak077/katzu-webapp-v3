@@ -20,6 +20,7 @@ import {
   isAnalyticsOptedOut,
   queueSnapshot,
   setAnalyticsOptOut,
+  settleBatch,
 } from '../src/lib/analytics/client';
 
 const now = 1_800_000_000_000;
@@ -132,19 +133,22 @@ describe('analytics offline retry', () => {
   });
 });
 
+// Vitest runs in a node environment here (the app's own storage access is
+// guarded); a tiny in-memory stand-in lets the queue rules be exercised
+// exactly as they run in a browser.
+function installMemoryStorage(): void {
+  const store = new Map<string, string>();
+  (globalThis as any).localStorage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => void store.set(key, String(value)),
+    removeItem: (key: string) => void store.delete(key),
+    clear: () => store.clear(),
+  };
+}
+
 describe('analytics opt-out and privacy', () => {
-  // Vitest runs in a node environment here (the app's own storage access is
-  // guarded); a tiny in-memory stand-in lets the queue rules be exercised
-  // exactly as they run in a browser.
-  beforeEach(() => {
-    const store = new Map<string, string>();
-    (globalThis as any).localStorage = {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => void store.set(key, String(value)),
-      removeItem: (key: string) => void store.delete(key),
-      clear: () => store.clear(),
-    };
-  });
+  // Storage rules only: the queue must be deletable, not merely muted.
+  beforeEach(installMemoryStorage);
 
   it('is off by default and can be turned on and back off', () => {
     expect(isAnalyticsOptedOut()).toBe(false);
@@ -180,5 +184,43 @@ describe('analytics opt-out and privacy', () => {
     expect(shouldTrackAnalytics({ optedOut: false, isDev: false })).toBe(true);
     expect(shouldTrackAnalytics({ optedOut: true, isDev: false })).toBe(false);
     expect(shouldTrackAnalytics({ optedOut: false, isDev: true, forceInDev: true })).toBe(true);
+  });
+});
+
+describe('analytics queue reconciliation', () => {
+  beforeEach(installMemoryStorage);
+
+  // The queue is localStorage and the flush is asynchronous: a learner taps
+  // faster than a POST takes. Reconciling against the queue as it is *now* is
+  // what keeps that tap — computing the remainder before the request drops it
+  // (the word-bank tap that went missing in e2e).
+  it('drops only the delivered batch and keeps an event queued meanwhile', () => {
+    const batch = [event()];
+    enqueueEvent(batch[0], now);
+    enqueueEvent(event({ name: 'review_revealed', ts: now + 1 }), now + 1);
+
+    settleBatch(batch, { attempts: 0, nextRetryAt: 0 }, now + 2, true);
+
+    expect(queueSnapshot().map((queued) => queued.name)).toEqual(['review_revealed']);
+  });
+
+  it('restores a failed batch without duplicating it or dropping newer events', () => {
+    const batch = [event()];
+    enqueueEvent(batch[0], now);
+    enqueueEvent(event({ name: 'review_revealed', ts: now + 1 }), now + 1);
+
+    settleBatch(batch, { attempts: 1, nextRetryAt: now + 30_000 }, now + 2, false);
+
+    expect(queueSnapshot().map((queued) => queued.name)).toEqual(['demo_started', 'review_revealed']);
+  });
+
+  it('does not write the queue back after the learner opted out mid-request', () => {
+    const batch = [event()];
+    enqueueEvent(batch[0], now);
+    setAnalyticsOptOut(true);
+
+    settleBatch(batch, { attempts: 0, nextRetryAt: 0 }, now + 2, true);
+
+    expect(queueSnapshot()).toEqual([]);
   });
 });
