@@ -94,15 +94,14 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
   **Rollback target: `bf9dc9c4-dffd-452f-8113-8daa23db63f8`** (source `ccbbacb`), then
   `a11c874e-0eb5-4a80-96ab-630321664e03` (source `f334f6d`).
 - **Site Pages production (2026-10-28, direct upload of `website/`):** `katzu-landing` deployment
-  **`4dbf4a05-3cb3-411c-a408-a168fe3f6cc9`** (branch `main`, source `4870d39`, built by
-  `node scripts/build-website.mjs`) — `/`, `/pricing`, `/affiliate`, `/help`, `/assets/ref.js` and
-  `/sitemap.xml` all **200**; `/` is the owner's design
-  rendered from `scripts/templates/home.html` and differs by the footer `الشركاء` link + one `ref.js` tag;
-  `/affiliate` is the partner program; `/help` carries `id="privacy|terms|refund"`; `/pricing`
-  renders 14.99/29.99/49.99/99.99 and only `mailto:support@ghaidak.com` CTAs; 33 legacy URLs **301** in
-  one hop each. **Rollback target: `90880c38-5f90-4378-844c-5f1ef1fb055e`** (the three-page design home),
-  then `1359fb18-e862-4774-b9fb-939a45c20159` (the rebuilt three pages), then
-  `de591b4e-364e-4779-8d87-57ea5adb2dd8` (the 21-page English/topic site).
+  **`1107f7b3-8c11-459c-886a-c4c4ad5d711b`** (branch `main`, source `e9aa028`) — the home truth fixes
+  (honest trust line, voice FAQ, free-lessons FAQ, stat 49, café card 06) and `/help`'s 49-situation link.
+  Verified live: the new strings on `/` and `/help`, `data-to="6"` gone; `/`, `/pricing`, `/affiliate`,
+  `/help` and `/assets/ref.js` all **200**; `/help` carries `id="privacy|terms|refund"`; `/pricing` renders
+  14.99/29.99/49.99/99.99 and only `mailto:support@ghaidak.com` CTAs; 33 legacy URLs **301** in one hop.
+  **Rollback target: `4dbf4a05-3cb3-411c-a408-a168fe3f6cc9`** (the partner page + old home copy), then
+  `90880c38-5f90-4378-844c-5f1ef1fb055e` (the three-page design home), then
+  `1359fb18-e862-4774-b9fb-939a45c20159` (the rebuilt three pages).
   Note: this project does **not** build from git — a push is not a deploy.
 - **Sales Pages production (2026-10-28, direct upload of `sales/`):** `katzu-sales` deployment
   **`d3811619-6ce1-4c96-82e7-d11e6004c7ae`** — `_redirects` answers every path with one 301 to
