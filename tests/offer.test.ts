@@ -251,7 +251,7 @@ describe('the built marketing site', () => {
   });
 
   it('links only to pages that exist, on the site or the app', () => {
-    const allowedSite = new Set(['/', '/pricing', '/help', '/help#faq', '/help#about', '/help#privacy', '/help#terms', '/help#refund', '/help#contact', '/pricing#pay', '/#how', '/#for', '/#moving', '/#situations']);
+    const allowedSite = new Set(['/', '/pricing', '/help', '/help#faq', '/help#about', '/help#privacy', '/help#terms', '/help#refund', '/help#contact', '/pricing#pay', '/#app', '/#rail', '/#faq']);
     const offenders: string[] = [];
     for (const file of files) {
       const html = readFileSync(file, 'utf8');
@@ -280,10 +280,15 @@ describe('the built marketing site', () => {
     for (const file of ['website/index.html', 'website/pricing.html', 'website/help.html']) {
       const html = readFileSync(file, 'utf8');
       expect(html, `${file} stylesheet`).toContain('/assets/site.css');
-      expect(html, `${file} background layer`).toContain('class="bgimg"');
       // One H1 per page: the page has one job.
       expect([...html.matchAll(/<h1[\s>]/g)], `${file} h1 count`).toHaveLength(1);
     }
+    // The home page is the design: a video background. The text pages carry the
+    // same still and the same grain instead, through one shared .bgimg layer.
+    for (const file of ['website/pricing.html', 'website/help.html', 'website/404.html']) {
+      expect(readFileSync(file, 'utf8'), `${file} background layer`).toContain('class="bgimg"');
+    }
+    expect(readFileSync('website/index.html', 'utf8')).not.toContain('class="bgimg"');
     // The video is a home-page-only flourish.
     expect(readFileSync('website/index.html', 'utf8')).toContain('/assets/bg.mp4');
     for (const file of ['website/pricing.html', 'website/help.html']) {
