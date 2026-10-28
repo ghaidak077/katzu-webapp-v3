@@ -132,6 +132,10 @@ describe('Pages _headers security policy (P3)', () => {
     expect(scriptSrc).not.toContain("'unsafe-inline'");
     // The Google Identity script stays loadable, by host — not by scheme-relaxed wildcard.
     expect(scriptSrc).toContain('https://accounts.google.com/gsi/client');
+    // Cloudflare Pages injects its analytics beacon into every HTML response;
+    // the exact host keeps the console free of CSP errors without opening
+    // script-src to a wildcard.
+    expect(scriptSrc).toContain('https://static.cloudflareinsights.com');
   });
 
   it('app _headers names the one Worker origin instead of any workers.dev host', async () => {

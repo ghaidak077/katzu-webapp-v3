@@ -18,7 +18,11 @@
   # Google's own button reads its font from fonts.gstatic.com and, in One Tap,
   # the account avatar from *.googleusercontent.com; both are exact hosts, so no
   # scheme-wide wildcard is introduced.
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://katzu-test.ghaidakalosh008.workers.dev; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self';
+  # The Cloudflare Web Analytics beacon is injected by Pages into every HTML
+  # response; without its host the browser blocks it and logs a CSP error on
+  # each load. It is consent-free aggregate analytics, not app code, so it gets
+  # its exact hosts (script + its RUM POST) and nothing wider.
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://katzu-test.ghaidakalosh008.workers.dev https://cloudflareinsights.com; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self';
 
 # Private app surfaces. The SPA shell is shared, so this HTTP header is the
 # reliable signal; the static public pages carry their own index,follow meta.
