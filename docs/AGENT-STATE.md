@@ -127,84 +127,11 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
 Moved to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-10-19 to keep this file under its 80 KB cap.
 Nothing was deleted: search the archive for `pre-UI-polish`.
 
-## OWNER LIST (deduplicated — no secrets, no values)
+## OWNER LIST — older deduplicated list (moved 2026-10-28)
 
-0. **No throwaway account can be created for the live authenticated proof.** Sign-in is
-   Google-only, so the closing check (repeated `/ai/translate` showing a cache hit, an easy A1
-   turn reaching the `mid` tier, a code redemption granting its entitlement) cannot be run
-   without a real Google account an agent must not touch. Either sign in once yourself and
-   paste back the three responses, **or** mint a test code from your own shell with
-   `POST /admin/generate` and redeem it through `/verify`. Until one of those happens these
-   three remain **UNPROVEN in production**; they are covered only by route tests against the
-   real handlers.
-
-Both of these are safe to leave unset: the spend cap is unlimited when absent, and the origin
-falls back to the host the app is served from.
-
-1. ~~**Set the daily AI spend cap.**~~ **RESOLVED (L14/L17).** `wrangler.toml` now sets
-   `AI_DAILY_SPEND_CAP = "292"` as a plain `[vars]` entry and the deployed worker
-   (`476bac16-…`) confirms it as a live Environment Variable. The **value** stays **UNPROVEN**:
-   `292` is derived from `node scripts/measure-turn-cost.mjs` ($1/day ÷ 5 active users ÷ $0.0007
-   per flagship turn), and both the $1 ceiling and the price table are assumptions — confirm
-   against a real invoice. Setting `"0"` still stops all AI traffic immediately, no app redeploy.
-
-2. **Set the public app origin** so the sitemap emits absolute URLs (it currently emits
-   relative paths, which the sitemap spec disallows). In the Cloudflare Pages project
-   `katzu-webapp-v3` → Settings → Environment variables → Production:
-   ```
-   VITE_PUBLIC_APP_URL = "https://katzu-webapp-v3.pages.dev"
-   ```
-   Use this value until a real domain is bought; `robots.txt` and `sitemap.xml` are generated
-   from it at build time, so no code change is needed.
-
-3. **Answer the B1 mock rubric question before the mock is sold as exam preparation.**
-   The mock now runs the real three-part shape with its own briefs and timings
-   (five minutes a part), and reports a **practice estimate** computed from the
-   learner's own sentences. Three things are the owner's call and are currently
-   marked UNPROVEN in the code:
-   - the **part timings** in `MOCK_EXAM_PARTS` (five minutes each) follow the common
-     shape of a B1 Sprechen but have not been checked against any real exam specification;
-   - the **weighting** of the estimate (`estimatePracticeScore`: independence 35%,
-     accuracy 35%, coverage 15%, pacing 15%) is a judgement, not a rubric from an exam body;
-   - whether the app may name the level it prepares for in marketing copy. Right now the
-     notice says only that this is not the official exam, and no exam-body name appears
-     anywhere in the learner-facing strings or the model prompts.
-   Edit `MOCK_EXAM_PARTS` / the weights and the notice follows; nothing else has to change.
-
-4. **Decide how a mock credit is delivered.** The entitlement is live and enforced
-   (`decideMockAccess`, `/mock/start`), but no code currently *grants* a credit: the code
-   format is `DE-<months>M-<nonce>.<sig>`, so a mock-only code needs either a new signed
-   format (`DE-MOCK-<nonce>.<sig>`) or an owner-side balance change. Until that is chosen,
-   a second mock is reachable only through an active subscription. Mint one yourself with
-   `POST /admin/generate` to test the credit path end to end.
-
-5. **Android app identity (only if a Play build is planned).** `/.well-known/assetlinks.json`
-   is generated but currently an empty list `[]`, which fails Android verification on purpose.
-   Two build variables fill it, and neither is a secret:
-
-   ```bash
-   # Cloudflare Pages → katzu-webapp-v3 → Settings → Environment variables → Production
-   VITE_ANDROID_PACKAGE_NAME   = app.ghaidakalosh008.katzu
-   VITE_ANDROID_CERT_SHA256    = AA:BB:CC:...   # keytool -list -v -keystore upload.jks | grep SHA256
-   ```
-
-   Until both are set, the file stays `[]`; that is the honest state, not a bug. The
-   fingerprint must be the one Play signs with (the **upload** key, not the Play App Signing
-   key, if App Signing is on). Confirm with
-   `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://katzu-webapp-v3.pages.dev`.
-
-6. **Replace the Data Safety draft with the real answers.** `src/lib/trust/dataSafety.ts`
-   holds the answers this repo can derive (from the analytics allowlist and `package.json`);
-   the ones that are operational rather than code are marked UNCONFIRMED in that file's
-   `unconfirmed` array — retention periods in particular. Submit at Play Console → App content
-   → Data safety. Nothing there may be asserted from memory; `npm test` re-derives the derivable
-   half and fails if the code moves under an answer.
-
-7. **Confirm the activation timing claim.** `activationDelayMs` now logs the real
-   transfer-start → code-activated gap on every crypto delivery, but the copy in
-   `src/lib/offers/paymentInstructions.ts` is an estimate and is marked UNPROVEN. After a
-   handful of real orders, replace both ranges with what was measured. Crypto is in test mode,
-   so today it logs nothing.
+The 2026-10 owner list that used to sit here was a second copy of items now kept, with their
+current status, in `## UNPROVEN` / `## OWNER-OPEN` below. It moved verbatim to
+`docs/agent/ARCHIVE-AGENT-STATE.md` (search `OWNER LIST 2026-10 moved`).
 
 ## Current mission overlay — 2026-10-04
 
@@ -237,6 +164,34 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
 
 ## DECISIONS
+
+- **AFF-1 (2026-10-28) — the partner program is a separate system with one config source.** The in-app `REF-`
+  rewards (`referral_payouts`, `awardVerifiedReferral`) are untouched; partner money lives in three new tables
+  managed by `cloudflare-affiliate.js`, whose `AFFILIATE_CONFIG` is the only place the 20%, 14 days and $20
+  live — the page's numbers are read from it at build time through esbuild, so copy and code cannot drift.
+  Commission is `Math.round(netCents × 0.20)` (a $49.99 order → $10.00) and a refund after payout is a
+  **negative `approved` row** with `order_ref` `refund:<original>`, so the next batch nets it without editing
+  history. Approval runs on the daily `17 4 * * *` cron and lazily on admin reads; either way day 14 is the
+  earliest date, never before.
+- **AFF-1 (2026-10-28) — the affiliate tables are created by the Worker, with a documentation-only migration.**
+  `ensureLedgerTables` executes idempotent `CREATE TABLE IF NOT EXISTS` + the partial unique index
+  (`… WHERE order_ref NOT LIKE 'refund:%'`), so a fresh environment works without a manual step; the SQL file
+  exists so a human can read the schema, not because a run must apply it. `tests/freshDatabase.test.ts`'s
+  strict D1 double now models `CREATE UNIQUE INDEX`, which it previously ignored.
+- **AFF-1 (2026-10-28) — attribution is one shared script and one cookie on the parent domain.** `ref.js`
+  (generated, no dependency) writes `katzu_ref` for 30 days on `.katzuai.com`, pings the Worker once to reject
+  unknown codes, and clears only on `unknown_code`/`malformed_code`; the site's `connect-src` names that same
+  Worker origin and a guard test reads the origin out of the script. The app sends its cookie value with the
+  Google sign-in call, so the server decides the attribution — a second browser cannot re-attribute an account.
+- **AFF-1 (2026-10-28) — a new `scripts/site-content-affiliate.mjs` module instead of a bigger build file.**
+  `build-website.mjs` was at the 500-line budget; the page copy, config bundling and capture script moved to a
+  `site-content*.mjs` module (the owner's stated edit scope) and the build reads them as before. The page uses
+  the existing inner-page shell (`.phead` + `.reveal`) exactly like `/pricing` and `/help`; no new color, font,
+  card style or animation was added, and the home-only GSAP loader/pin-scroll was deliberately not copied.
+- **AFF-1 (2026-10-28) — the home diff is exactly two lines, and that is the reviewable fact.** `website/index.html`
+  differs from the shipped design only by the footer `الشركاء` link and one `<script src="/assets/ref.js" defer>`
+  tag; `git diff website/index.html` is the proof. `/pricing` and `/help` gained the same footer link, the FAQ
+  row and two privacy sentences only. The owner's home design is otherwise untouched.
 
 - **V42 (2026-10-19) — three interpretive calls in one deploy, each the conservative option:** The owner's
   words («merge and deply all all») named no targets → all three (`merge`, `worker`, `pages`) were
@@ -296,6 +251,8 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical claims are in `docs/agent/ARCHIVE-AGENT-STATE.md` under the same heading.
 
+- **AFF-1 (2026-10-28) — the partner money path is unit-proven, not live-proven.** Live covers: `POST /affiliate/ref` accepting a real code (ok) and rejecting an unknown one, the `katzu_ref` cookie on `.katzuai.com` from `?ref=CODE`, an unauthenticated admin call answered 401, and the page serving 200. **Not live-proven:** the Google sign-in attach (Google-only sign-in; an agent must not use a real account), the commission row created by a real activation-code redemption inside the app, the day-14 cron on real data, and a real refund after payout. All four are covered by the 26 tests in `tests/affiliate.test.ts` against a D1 double, which proves the rules, not D1's atomicity.
+
 - **Google Sign-In: the popup → credential → session path is UNPROVEN end-to-end (2026-10-27).** Live, the GIS script, its stylesheet, its button iframe and its font all return **200** under the production CSP, and Google's button renders in both a clean profile and a service-worker-controlled one — but nothing closed the loop, because that needs a real Google account an agent must not touch. Proven instead: delaying `/gsi/client` by 2.5 s on the local build shows the neutral "preparing" notice (no false "could not load"), and after the script arrives the real button replaces the fallback; a hard `ERR_FAILED` on the first request is followed by a tap that re-injects the script and lands on Google's button (`gsi-local.json`, `gsi-retry.mjs`). What remains unproven is only Google's own credential response through `exchangeGoogleToken` → session → sync.
 
 - **PWA upgrade across the deployed fix is UNPROVEN as a cross-version path (2026-10-27).** The population that had the pre-fix worker was not reproducible after deploy (the old precache belonged to an unreachable tree). Verified instead in a persistent profile against `https://katzuai.com`: the new SW installs and activates (**~70 s**, 122 precache entries ≈ 4.9 MB — a real first-visit cost), `navigator.serviceWorker.ready` resolves, a reload takes control, and `/signin` then boots under that controller with Google's button rendered and no alert. A browser that already holds the old SW is covered by the same `navigateFallbackDenylist` + `skipWaiting`/`clientsClaim` in the shipped `sw.js`, but that transition was not observed from an old cache.
@@ -351,6 +308,8 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 ## OWNER-OPEN
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
+
+- **The partner program is live and waiting for its first partner — approve applications yourself (AFF-1, 2026-10-28).** `/affiliate` promises 20% of the first paid order, a 14-day hold, a $20 minimum and payouts by USDT / Syriatel-MTN Cash / bank transfer / Wise. Nothing signs up automatically: an application arrives at `support@ghaidak.com` and the agent creates the code (`POST /admin/api/affiliates`) only when you say yes. **Two decisions are yours before the first partner:** the weekly payout day (the config prepares batches on **Monday**, UTC) and whether **$20** stays the minimum. Also say if you want the program page to name different payout methods. Done looks like: one partner has a code, one referred learner pays, the commission shows `pending`, and you mark the first payout paid with its reference.
 
 - **The order path needs your payment details before a learner can pay (V44-1, 2026-10-28).** No local payment method is configured, so `/pricing#pay` ships the three honest steps and a single `mailto:support@ghaidak.com` button — never a `FILL`, never "unavailable", never a crypto block that cannot take money. To turn that into a real checkout, send: the **Telegram handle** orders may go to, the **Syriatel Cash** and **MTN Cash** numbers (and whose name is on them), the **bank** name, account holder and IBAN, and which currencies you want to collect in. Done looks like: the owner sends those details and the agent adds them to `pricing.config.json` + `src/lib/offers/paymentInstructions.ts` and the `/pricing#pay` block, then proves the page renders them.
 

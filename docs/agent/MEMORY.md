@@ -35,6 +35,7 @@ file is the digest that is short enough to always read.
 | Levels | A0–B2 (`src/lib/levels/levelSpec.ts`) |
 | Sign-in | Google-only |
 | Payments | NOWPayments **test mode**, `ready:false` |
+| Partner program (2026-10-28) | `/affiliate` on the site; logic + DDL in `cloudflare-affiliate.js` (tables `affiliates`, `referrals`, `commissions`), admin under `/admin/api/affiliates*`. Cookie `katzu_ref` (30 days, `.katzuai.com`) set by `website/assets/ref.js` from `?ref=CODE`; attached at Google signup, first valid code wins. Commission = `Math.round(net × 0.20)` of the **first paid** order: `pending` on redemption, `approved` on day 14, refund before = `void`, refund after payout = negative row `refund:<ref>`. Weekly batch, $20 minimum, balances carry over. **No self-serve signup** — applications go to `support@ghaidak.com` and the owner creates each code. Separate from the in-app `REF-` rewards, which are untouched. |
 | Deploy / content gates | **Deploy:** the owner's word is enough — `deploy`, `ship it`, or `DEPLOY-AUTHORIZED` with or without targets (V40-3 relaxed §3; targets `merge`/`worker`/`pages`, chosen and stated before production is touched). **Content load:** still the exact `CONTENT-LOAD-AUTHORIZED: <files>` line. See `docs/agent/DEPLOY.md`, `CONTENT-LOAD.md` |
 | Working tree | CRLF (despite `.gitattributes` pinning LF) |
 | Ledger of record | `docs/AGENT-STATE.md` |

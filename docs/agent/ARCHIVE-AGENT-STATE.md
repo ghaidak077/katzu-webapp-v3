@@ -463,3 +463,84 @@ Moved verbatim out of `docs/AGENT-STATE.md` (its RESUME section was at the 80 KB
   `STD-…`); the site says **$60/yr** while the crypto yearly tier charges **$42**.
 - **Older run records moved out on 2026-10-27** (2026-10-23 guided home back to 2026-10-07) to keep this
   file inside its 80 KB cap: `docs/agent/ARCHIVE-AGENT-STATE.md`, search `RESUME history moved 2026-10-27`.
+
+## OWNER LIST — 2026-10 moved
+
+## OWNER LIST (deduplicated — no secrets, no values)
+
+0. **No throwaway account can be created for the live authenticated proof.** Sign-in is
+   Google-only, so the closing check (repeated `/ai/translate` showing a cache hit, an easy A1
+   turn reaching the `mid` tier, a code redemption granting its entitlement) cannot be run
+   without a real Google account an agent must not touch. Either sign in once yourself and
+   paste back the three responses, **or** mint a test code from your own shell with
+   `POST /admin/generate` and redeem it through `/verify`. Until one of those happens these
+   three remain **UNPROVEN in production**; they are covered only by route tests against the
+   real handlers.
+
+Both of these are safe to leave unset: the spend cap is unlimited when absent, and the origin
+falls back to the host the app is served from.
+
+1. ~~**Set the daily AI spend cap.**~~ **RESOLVED (L14/L17).** `wrangler.toml` now sets
+   `AI_DAILY_SPEND_CAP = "292"` as a plain `[vars]` entry and the deployed worker
+   (`476bac16-…`) confirms it as a live Environment Variable. The **value** stays **UNPROVEN**:
+   `292` is derived from `node scripts/measure-turn-cost.mjs` ($1/day ÷ 5 active users ÷ $0.0007
+   per flagship turn), and both the $1 ceiling and the price table are assumptions — confirm
+   against a real invoice. Setting `"0"` still stops all AI traffic immediately, no app redeploy.
+
+2. **Set the public app origin** so the sitemap emits absolute URLs (it currently emits
+   relative paths, which the sitemap spec disallows). In the Cloudflare Pages project
+   `katzu-webapp-v3` → Settings → Environment variables → Production:
+   ```
+   VITE_PUBLIC_APP_URL = "https://katzu-webapp-v3.pages.dev"
+   ```
+   Use this value until a real domain is bought; `robots.txt` and `sitemap.xml` are generated
+   from it at build time, so no code change is needed.
+
+3. **Answer the B1 mock rubric question before the mock is sold as exam preparation.**
+   The mock now runs the real three-part shape with its own briefs and timings
+   (five minutes a part), and reports a **practice estimate** computed from the
+   learner's own sentences. Three things are the owner's call and are currently
+   marked UNPROVEN in the code:
+   - the **part timings** in `MOCK_EXAM_PARTS` (five minutes each) follow the common
+     shape of a B1 Sprechen but have not been checked against any real exam specification;
+   - the **weighting** of the estimate (`estimatePracticeScore`: independence 35%,
+     accuracy 35%, coverage 15%, pacing 15%) is a judgement, not a rubric from an exam body;
+   - whether the app may name the level it prepares for in marketing copy. Right now the
+     notice says only that this is not the official exam, and no exam-body name appears
+     anywhere in the learner-facing strings or the model prompts.
+   Edit `MOCK_EXAM_PARTS` / the weights and the notice follows; nothing else has to change.
+
+4. **Decide how a mock credit is delivered.** The entitlement is live and enforced
+   (`decideMockAccess`, `/mock/start`), but no code currently *grants* a credit: the code
+   format is `DE-<months>M-<nonce>.<sig>`, so a mock-only code needs either a new signed
+   format (`DE-MOCK-<nonce>.<sig>`) or an owner-side balance change. Until that is chosen,
+   a second mock is reachable only through an active subscription. Mint one yourself with
+   `POST /admin/generate` to test the credit path end to end.
+
+5. **Android app identity (only if a Play build is planned).** `/.well-known/assetlinks.json`
+   is generated but currently an empty list `[]`, which fails Android verification on purpose.
+   Two build variables fill it, and neither is a secret:
+
+   ```bash
+   # Cloudflare Pages → katzu-webapp-v3 → Settings → Environment variables → Production
+   VITE_ANDROID_PACKAGE_NAME   = app.ghaidakalosh008.katzu
+   VITE_ANDROID_CERT_SHA256    = AA:BB:CC:...   # keytool -list -v -keystore upload.jks | grep SHA256
+   ```
+
+   Until both are set, the file stays `[]`; that is the honest state, not a bug. The
+   fingerprint must be the one Play signs with (the **upload** key, not the Play App Signing
+   key, if App Signing is on). Confirm with
+   `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://katzu-webapp-v3.pages.dev`.
+
+6. **Replace the Data Safety draft with the real answers.** `src/lib/trust/dataSafety.ts`
+   holds the answers this repo can derive (from the analytics allowlist and `package.json`);
+   the ones that are operational rather than code are marked UNCONFIRMED in that file's
+   `unconfirmed` array — retention periods in particular. Submit at Play Console → App content
+   → Data safety. Nothing there may be asserted from memory; `npm test` re-derives the derivable
+   half and fails if the code moves under an answer.
+
+7. **Confirm the activation timing claim.** `activationDelayMs` now logs the real
+   transfer-start → code-activated gap on every crypto delivery, but the copy in
+   `src/lib/offers/paymentInstructions.ts` is an estimate and is marked UNPROVEN. After a
+   handful of real orders, replace both ranges with what was measured. Crypto is in test mode,
+   so today it logs nothing.

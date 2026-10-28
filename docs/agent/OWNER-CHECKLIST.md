@@ -90,6 +90,22 @@ a declaration gap, not a failure.
 
 ---
 
+## 8. The partner program needs your approval and payout desk — AFF-1 (2026-10-28)
+
+**What it is.** `/affiliate` is live: it promises 20% of the first paid order, a 14-day hold, a $20 minimum and
+payouts by USDT, Syriatel/MTN Cash, bank transfer or Wise. Applications arrive as email to
+`support@ghaidak.com`; nobody is signed up automatically, so every partner is a decision you make.
+
+**What you do.** When an application arrives, decide yes/no, then create the code (3–20 letters/digits) with the
+admin endpoint `POST /admin/api/affiliates` and send it back. Each week, run the payout batch
+`GET /admin/api/affiliates/payouts` and mark paid with `POST /admin/api/affiliates/payouts/:ref/paid` after you
+send the money. Tell the agent if you want a different payout day or minimum before the first partner joins.
+
+**Done looks like:** one real partner has a code, one referred learner has a pending commission, and the first
+payout is marked paid with its reference.
+
+---
+
 ## Nothing to do — recorded so nobody re-opens them
 
 - **Content load drift check — V15-3.** Run `node scripts/check-content-drift.mjs` after any content change; it
