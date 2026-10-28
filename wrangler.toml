@@ -75,7 +75,7 @@ ENVIRONMENT = "production"
 # are stripped automatically by the worker. The sales site must be listed: the
 # crypto checkout is posted from a browser on that origin, and CORS is strict in
 # production. Keep in sync with the Pages custom domain when one is attached.
-ALLOWED_ORIGINS = "https://katzu-test.ghaidakalosh008.workers.dev,https://katzu-webapp-v3.pages.dev,https://katzu-sales.pages.dev,https://katzuai.com,https://www.katzuai.com"
+ALLOWED_ORIGINS = "https://katzu-test.ghaidakalosh008.workers.dev,https://katzu-webapp-v3.pages.dev,https://katzu-sales.pages.dev,https://katzuai.com,https://www.katzuai.com,https://website.katzuai.com"
 # Public by design (shipped to every browser in the client bundle). Setting it here
 # lets the worker enforce the `aud` claim on Google ID tokens — without it that
 # check is skipped and a token minted for any other OAuth client would be accepted.

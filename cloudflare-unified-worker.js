@@ -106,7 +106,7 @@ import { handleCryptoRoutes, timingSafeEqualHex } from "./cloudflare-crypto.js";
 import { ensureContentColumns } from "./cloudflare-content-schema.js";
 import { analyticsAccountHandle } from "./cloudflare-analytics.js";
 import { mockExamBrief, mockExamInstructionForPart } from "./cloudflare-mock-exam.js";
-import { decideMockAccess, mockDebriefAccess, catalogueFor, isRegionMismatch, regionGroupFromRequest } from "./cloudflare-pricing.js";
+import { PLANS, decideMockAccess, mockDebriefAccess, catalogueFor, isRegionMismatch, regionGroupFromRequest } from "./cloudflare-pricing.js";
 import { dailyKey, processDailySync, readAuthoritativeDaily, overlayStatsWithDaily } from "./cloudflare-daily.js";
 import {
   decideCodeAttempt,
@@ -117,6 +117,17 @@ import {
   CODE_LEDGER_UNAVAILABLE_MESSAGE,
   CODE_LOCKOUT_MESSAGE,
 } from "./cloudflare-code-abuse.js";
+// Affiliate programme (external partners, 20% of the first paid order). Its own
+// module, its own tables, and deliberately separate from the in-app `REF-`
+// referral rewards above — a partner is not a learner inviting a friend.
+import {
+  AFFILIATE_TABLES,
+  attachReferral,
+  approveDueCommissions,
+  handleAffiliateRoutes,
+  netAmountForMonths,
+  recordAffiliateCommission,
+} from "./cloudflare-affiliate.js";
 
 // ============================================================================
 // AI ROUTER CONFIGURATION & STATE (HIGH-PERFORMANCE & RELIABILITY ENGINE)
@@ -401,6 +412,18 @@ async function handleAuthSession(request, env, cors) {
   // lost silently on a fresh database.
   await ensureLedgerTablesOnce(env);
   await upsertUserFromAccount(account, request, env, { src: body?.source });
+  // Partner attribution, at the moment the account exists. The value arrives in
+  // the body (the client reads the 30-day `.katzuai.com` cookie), is validated
+  // and normalised here, and is written once — an account keeps its first valid
+  // partner. A bad or unknown code is dropped, never guessed at, and a failure
+  // in this path must not cost the learner their sign-in.
+  if (body?.ref) {
+    await attachReferral(env, {
+      accountId: account.sub,
+      email: account.email,
+      code: body.ref,
+    }).catch(() => null);
+  }
   await recordActivity(env, account.sub, "session_created", { via: "auth_session" });
 
   return json({ session_token: sessionToken, expires_in: SESSION_TOKEN_TTL_MS / 1000 }, 200, cors);
@@ -577,6 +600,10 @@ async function ensureLedgerTables(env) {
         started_at INTEGER NOT NULL,
         PRIMARY KEY (account_id, session_id)
       )`),
+      // Affiliate ledger: partners, who they brought, and what each activation
+      // owes them. Additive only; the DDL lives in cloudflare-affiliate.js so the
+      // programme's rules and its storage are read together.
+      ...AFFILIATE_TABLES.map((sql) => env.DB.prepare(sql)),
     ]);
     // Additive user registry + activity/error telemetry tables (SaaS admin).
     await ensureRegistryTables(env);
@@ -1772,6 +1799,14 @@ export default {
         return await handleReferralClaim(request, env, cors);
       }
 
+      // --- Affiliate programme: capture a partner code (rate-limited) ---
+      // The site calls this before setting its cookie, so an unknown code never
+      // becomes a 30-day attribution. The response carries no partner data.
+      const affiliateResponse = await handleAffiliateRoutes(url, request, env, cors, {
+        checkGlobalRateLimit,
+      });
+      if (affiliateResponse) return affiliateResponse;
+
       // --- Admin Control Plane (registry, telemetry, SaaS dashboard) ---
       // Delegates /admin, /admin/api/* and the admin lookup/edit/revoke/progress
       // actions. Returns null for routes it does not own (content CRUD, upload,
@@ -1995,6 +2030,11 @@ export default {
   async scheduled(_event, env) {
     const swept = await sweepExpiredRows(env);
     console.log("[sweep]", JSON.stringify(swept));
+    // Day 14 of a pending affiliate commission is approval day. The daily cron is
+    // what makes that true without the owner opening the dashboard; the admin
+    // read repeats it lazily so a missed cron never shows a payable row as pending.
+    const approved = await approveDueCommissions(env).catch(() => 0);
+    console.log("[affiliate]", JSON.stringify({ approved }));
   },
 };
 
@@ -2838,6 +2878,21 @@ async function handleVerify(request, env, cors) {
 
   if (isFirstRedemption) {
     await awardVerifiedReferral(account, env);
+    // The partner's commission, booked from the same redemption that makes the
+    // learner paid. `order_ref` is the activation code itself (UNIQUE), and the
+    // module refuses a second original commission for the same account — so a
+    // retried /verify or a second code on the same account earns nothing extra.
+    // Failure here must never tell a paying learner their code did not work.
+    if (ledgerReady) {
+      await recordAffiliateCommission(env, {
+        accountId: account.sub,
+        netAmountCents: netAmountForMonths(months, PLANS),
+        orderRef: code,
+      }).catch((e) => {
+        console.error("[affiliate] commission write failed:", String(e?.message || e).slice(0, 120));
+        return null;
+      });
+    }
   }
 
   // B5: a durable funnel row for what was redeemed, carrying the learner's price

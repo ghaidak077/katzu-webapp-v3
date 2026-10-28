@@ -39,6 +39,7 @@ import {
 } from "./cloudflare-content-studio-ui.js";
 import { CONTENT_STUDIO_TOOLS_SCRIPT } from "./cloudflare-content-studio-tools.js";
 import { handleAnalyticsRoute } from "./cloudflare-analytics.js";
+import { handleAffiliateAdminRoutes } from "./cloudflare-affiliate.js";
 // Owner-managed AI provider pool (admin dashboard → AI Providers). Keys are
 // written server-side only and every read is masked (counts + fingerprints).
 import {
@@ -1347,6 +1348,18 @@ export async function handleAdminRoutes(url, request, env, cors, deps = {}) {
 
   // Same guarantee for direct API/legacy calls that skip the dashboard shell.
   await ensureTables(env);
+
+  // Affiliate programme: create a partner, read the ledger, void a commission,
+  // mark a payout paid, export its CSV. Those paths are `/admin/api/affiliates*`,
+  // deliberately under `/admin/api/` so they pass the same throttle, the same
+  // bearer check and the same `no-store` as every other admin endpoint — no
+  // second door into partner data.
+  //
+  // Dispatched BEFORE the shared `body` read below: reading the JSON here and
+  // leaving the body consumed for the handler turned every create/void/payout
+  // into `invalid_code` (400) — a bug this placement is the fix for.
+  const affiliateResponse = await handleAffiliateAdminRoutes(url, request, env, cors, { json });
+  if (affiliateResponse) return affiliateResponse;
 
   const body = method === "POST" ? await request.json().catch(() => null) : null;
   // Content mutations are logged so an edit shows up in the Activity tab.

@@ -16,6 +16,8 @@ curriculum audit and the Worker's `resolvePracticeGrammar` all assume
 | File | What it records |
 |---|---|
 | [`0001_content_tables.sql`](0001_content_tables.sql) | The four content tables' DDL: section 1 is what production actually has today (verbatim from `sqlite_master`), section 2 the gap, section 3 the three additive `ALTER TABLE` statements still pending on the deployed `grammar` table. |
+| [`0002_a0_level_check_rebuild.sql`](0002_a0_level_check_rebuild.sql) | The A0 checkpoint rebuild of the level `CHECK` constraints, with the verification queries. |
+| [`0003_affiliate_tables.sql`](0003_affiliate_tables.sql) | The affiliate programme's three tables and its partial unique index, copied verbatim from `AFFILIATE_TABLES` (`cloudflare-affiliate.js`), which the Worker applies idempotently on first request. |
 
 The executable half of the same facts lives in `ADDITIVE_COLUMNS`
 (`cloudflare-content-schema.js`), which `ensureContentColumns` applies on the

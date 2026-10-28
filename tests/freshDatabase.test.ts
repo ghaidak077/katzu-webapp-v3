@@ -96,7 +96,7 @@ class FreshD1 {
       this.created.add(created[1]);
       return { results: [], changes: 0 };
     }
-    if (/^CREATE INDEX/i.test(sql) || /^(PRAGMA|ALTER|DROP|BEGIN|COMMIT)/i.test(sql)) {
+    if (/^CREATE (UNIQUE )?INDEX/i.test(sql) || /^(PRAGMA|ALTER|DROP|BEGIN|COMMIT)/i.test(sql)) {
       return { results: [], changes: 0 };
     }
 
@@ -352,12 +352,12 @@ describe('a route must create the tables it uses (fresh database)', () => {
     expect(response.status).toBe(200);
 
     const norm = issued.map((sql) => sql.replace(/\s+/g, ' ').trim());
-    const creates = norm.filter((sql) => /^CREATE (TABLE|INDEX)/i.test(sql));
+    const creates = norm.filter((sql) => /^CREATE (UNIQUE )?(TABLE|INDEX)/i.test(sql));
     const alters = norm.filter((sql) => /^ALTER TABLE/i.test(sql));
 
     expect(creates.length).toBeGreaterThan(6);
     // Idempotent on their own — `IF NOT EXISTS` is what makes a second run safe.
-    for (const sql of creates) expect(sql).toMatch(/^CREATE (TABLE|INDEX) IF NOT EXISTS/i);
+    for (const sql of creates) expect(sql).toMatch(/^CREATE (UNIQUE )?(TABLE|INDEX) IF NOT EXISTS/i);
     // Additive only: the one ALTER that runs is a column addition, and no
     // statement in a normal request drops or empties anything.
     for (const sql of alters) expect(sql).toMatch(/^ALTER TABLE \w+ ADD COLUMN/i);
