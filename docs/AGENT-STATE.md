@@ -30,10 +30,10 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   **`29f6aec`** + docs (pushed; `726a710` rate limit, `29f6aec` beacon CSP). **Worker**
   `6f5ba883-6730-43d2-b8cd-9c275b298fee`: `/auth/session` is limited per `CF-Connecting-IP` before the
   Google round-trip (20/min + 600/day, `checkGlobalRateLimit` scope `auth-session`, 429 + `Retry-After`;
-  live proof 11×401 then 19×429 with `Retry-After: 13`). **App** Pages
-  `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17` (source `29f6aec`; `_headers` now names
-  `static.cloudflareinsights.com` + `https://cloudflareinsights.com`, so the Pages beacon stops logging a
-  CSP error). **Site unchanged** (`de591b4e-…`). Gate `verify -- --ci --e2e` **14/14 in 967 s**, browser
+  live proof 11×401 then 19×429 with `Retry-After: 13`). **App** `_headers` at `29f6aec`, first served as
+  Pages `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17` (docs-only pushes rebuild the same bundle under new ids),
+  now names `static.cloudflareinsights.com` + `https://cloudflareinsights.com`, so the Pages beacon stops
+  logging a CSP error. **Site unchanged** (`de591b4e-…`). Gate `verify -- --ci --e2e` **14/14 in 967 s**, browser
   suite exit 0. Live: `/` `/welcome` `/signin` **200**, a service-worker-controlled page renders the GIS
   button, console **0 errors**, COOP `same-origin-allow-popups` + GIS CSP correct; 19 legacy URLs **301**;
   sitemap 21/21 **200**. Lighthouse mobile on the site: a11y **100**, SEO **100**, perf **80** (a local
@@ -95,7 +95,8 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
   `static.cloudflareinsights.com` (script) and `https://cloudflareinsights.com` (connect), with the same
   pinned Worker origin and `same-origin-allow-popups` COOP. **Rollback target:
   `00d42544-53b3-435a-b59d-bc2cbe64bd56`** (source `726a710`, identical minus the two beacon hosts) —
-  dashboard "Redeploy". Older target: `3c5fcfef-24ea-406c-b3b4-d725a4838b4b` (source `da7656c`).
+  dashboard "Redeploy". Older target: `3c5fcfef-24ea-406c-b3b4-d725a4838b4b` (source `da7656c`). A docs-only
+  push rebuilds the same bundle under a new id — read the id for the current `main` before rolling back.
 - **Site Pages production (2026-10-27):** `katzu-landing` deployment
   **`de591b4e-364e-4779-8d87-57ea5adb2dd8`** (branch `main`, source `da7656c`, built by
   `node scripts/build-website.mjs`) — byte-identical to `website/index.html`, SRI on all 3 scripts,
