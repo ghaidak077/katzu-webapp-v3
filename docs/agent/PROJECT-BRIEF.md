@@ -87,8 +87,11 @@ Arabic pages and the price lives in one place. `/` is the owner's own design, re
   untouched.
 - **Proof:** 32 affiliate tests, Lighthouse mobile a11y **100** / SEO **100** / 0 failing audits on `/affiliate`,
   390 + 1440 renders with one H1 and no horizontal overflow, gate `verify -- --ci --e2e` green. Live ids and
-  rollback refs live in `docs/AGENT-STATE.md` SNAPSHOT. **Live gap:** until the worker deploys, `/partners` shows
-  «تعذّر إنشاء رابطك الآن… أعد المحاولة» — the CTA is honest, not broken.
+  rollback refs live in `docs/AGENT-STATE.md` SNAPSHOT. **The deep link itself was the first live defect:** the
+  route shipped without a `public/_redirects` rewrite, so `https://katzuai.com/partners` answered 404 while its
+  siblings answered 200; `/partners / 200` is listed now and `tests/appMap.test.ts` fails when a code route has
+  no 200 rewrite. **Remaining live gap:** until the worker deploys, the screen shows «تعذّر إنشاء رابطك الآن…
+  أعد المحاولة» — the CTA is honest, not broken.
 - **Owner:** payment details (V44-1), four legal fields (V44-2), payout day + $20 minimum (AFF-1), and one word
   to deploy the worker.
 

@@ -32,7 +32,13 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   = 3`, all-time in `trial_quota_ledger`); the voice FAQ answers instead of pointing at a paragraph
   (`cloudflare-stt.js`: audio → Workers AI Whisper, never stored). Stat `6` → **49** (live `GET /scenarios`), rail
   card 06 = the real café scenario; `/help` links `/#rail` as «49 موقفاً في التطبيق». Proof: gate green, 390 + 1440
-  one H1 / no overflow, strings read back live. Site id + rollback in SNAPSHOT; remaining «كل شهر» = OWNER-OPEN FREE-1.
+  one H1 / no overflow, strings read back live; ids in SNAPSHOT. Remaining «كل شهر» = OWNER-OPEN FREE-1.
+
+- **2026-10-28 — `/partners` was a 404, not a broken button (app rebuilt from git).** The route was in the router
+  but not in `public/_redirects`, and the static `404.html` stops Pages falling back to the shell, so that one
+  deep link died while its siblings answered 200. `/partners / 200` is listed now and `tests/appMap.test.ts`
+  fails when a code route has no exact-or-wildcard 200 rewrite (proved by deleting the line: the test named
+  `/partners`). The worker half is still undeployed (AFF-1).
 
 - **2026-10-28 — the partner link is a screen now (site + app deployed; the worker half is NOT).** `/affiliate`
   carries the owner's win-win-win copy, three win cards and a calculator (6-month → `$10` per subscriber, `$30`
@@ -42,16 +48,11 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   SNAPSHOT. **The worker was not deployed**, so `/partners` shows its Arabic retry state live until it is — the
   one action left for the owner (OWNER-OPEN AFF-1).
 
-- **2026-10-28 — the partner program is live and has no partners yet (AFF-1).** `/affiliate` (7.7 KB) states
-  20% of the first paid order, a 14-day hold, a $20 minimum and four payout methods, all read from
-  `AFFILIATE_CONFIG` at build time; `cloudflare-affiliate.js` owns the tables, `POST /affiliate/ref`, signup
-  attach, day-14 approval, refund voiding and six owner-only admin routes, and the app sends `katzu_ref` with
-  the Google call. Home changed by the footer `الشركاء` link + one `ref.js` tag. **Deployed** worker
-  `998873c6-d773-4bb5-9ec5-2c548e550b0f` (rollback `f0b5fa01-…`), site `4dbf4a05-3cb3-411c-a408-a168fe3f6cc9`
-  (rollback `90880c38-…`), app `408cf69c-…` (rollback `bf9dc9c4-…`), push `ccbbacb..4870d39`. Proof: gate
-  **14/14** (757 s); six live URLs 200; `ZZTEST01` proved ref 200 / lowercase 200 / 404 `unknown_code` after
-  deletion with 0 rows left, a 30.0-day `.katzuai.com` cookie the app could read, admin 401. Next: the owner
-  creates the first code (OWNER-OPEN AFF-1).
+- **2026-10-28 — the partner program is live and has no partners yet (AFF-1).** `/affiliate` states 20% of the
+  first paid order, a 14-day hold, a $20 minimum and four payout methods (from `AFFILIATE_CONFIG`);
+  `cloudflare-affiliate.js` owns the tables, signup attach, day-14 approval and refund voiding. Deployed worker
+  `998873c6-…`, site `4dbf4a05-…`, app `408cf69c-…`, push `ccbbacb..4870d39`; live proof (`ZZTEST01`, 30-day
+  cookie, admin 401) in SNAPSHOT. Next: the owner creates the first code.
 
 - **2026-10-28 — `/` is the owner's design again (deployed).** Full record (design parity, Lighthouse
   97/100/100, 33 redirects, deploy `90880c38-…`) and the three-page site + audit #7 entries are in
@@ -84,15 +85,15 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
 - **App Pages production (2026-10-28):** the project builds from git, so **every** push to `main` mints
-  a new deployment id (the docs push `4870d39` produced `408cf69c-…`) — never quote an id as "current"
+  a new deployment id (the docs push `8c3bf10` produced `fbfa7a7a-…`) — never quote an id as "current"
   without reading
   `wrangler pages deployment list --project-name=katzu-webapp-v3` first. Stable facts: the entry bundle is
   now `assets/index-Cuij_wHz.js` — it carries `katzu_ref` and the signup call that sends it, which the
   earlier `assets/index-D4avOAYK.js` did not — and the `AppShell` chunk is now `AppShell-CQdweU62.js`
   (verified live: it carries `SITE_URL/help#` and `https://website.katzuai.com/pricing#pay`, with no
   `katzu-sales`, no `/trust/` and no `KATZU26`).
-  **Rollback target: `bf9dc9c4-dffd-452f-8113-8daa23db63f8`** (source `ccbbacb`), then
-  `a11c874e-0eb5-4a80-96ab-630321664e03` (source `f334f6d`).
+  **Rollback target: `fbfa7a7a-ce1c-42ac-a9a3-6b17edcf139f`** (source `8c3bf10`), then
+  `1332afeb-e2d3-43b8-b995-17dd800cf11d` (source `c7f508b`), then `bf9dc9c4-dffd-452f-8113-8daa23db63f8`.
 - **Site Pages production (2026-10-28, direct upload of `website/`):** `katzu-landing` deployment
   **`1107f7b3-8c11-459c-886a-c4c4ad5d711b`** (branch `main`, source `e9aa028`) — the home truth fixes
   (honest trust line, voice FAQ, free-lessons FAQ, stat 49, café card 06) and `/help`'s 49-situation link.

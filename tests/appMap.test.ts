@@ -252,4 +252,28 @@ describe('no hardcoded production hostname ships', () => {
       expect(target, 'must land on a final target').not.toMatch(/\/(trust|faq|about|compare|how-it-works|who-its-for|en)\b/);
     }
   });
+
+  it('every SPA route has a `_redirects` 200 rewrite, or its deep link is a live 404', () => {
+    // `/partners` shipped as a route in 2026-10-28 but was never added to this
+    // list, so `https://katzuai.com/partners` answered 404 while every other
+    // route loaded. A static 404.html means Cloudflare Pages does not fall back
+    // to the shell on its own: a route without a rewrite is an outage.
+    const rewrites = readFileSync(join(root, 'public', '_redirects'), 'utf8')
+      .split('\n')
+      .map((line) => line.trim().split(/\s+/))
+      .filter(([, , status]) => status === '200')
+      .map(([from]) => from);
+    const covered = (route: string) =>
+      rewrites.some((from) =>
+        from.endsWith('/*')
+          ? route === from.slice(0, -2) || route.startsWith(from.slice(0, -1))
+          : route === from,
+      );
+    // `/dev/system` exists only when `isDevBuild` is true (AppShell), so it has
+    // no production deep link to protect.
+    const routes = codeRoutes(appSource).filter(
+      (route) => route !== '/' && route !== '*' && !route.startsWith('/dev/'),
+    );
+    expect(routes.filter((route) => !covered(route))).toEqual([]);
+  });
 });
