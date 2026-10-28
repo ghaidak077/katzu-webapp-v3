@@ -26,40 +26,31 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-10-28 — the site is three pages and the price lives once (deployed).**
-  `website.katzuai.com` is `/`, `/pricing`, `/help` from one template and one `site.css`: the home page sells
-  the free start (one CTA to `https://katzuai.com/welcome`, no price), `/pricing` owns the four founding plans
-  and the offer rules, `/help` owns the FAQ, the legal text and the contact address. Prices and every number
-  (`1,000` members / `31 Jan 2027` / `7`-day refund / `12`-hour code) are read from `pricing.config.json`
-  through the new `scripts/site-pricing.mjs`, so a typed-in price cannot survive a build. `KATZU26`, `$60`
-  and `$42` are retired from site, tests and copy; one activation code carries the plan duration the buyer
-  chose (redemption adds the plan `months`). `/pricing#pay` ships three steps plus one `mailto:` CTA because
-  no local payment method is configured; crypto stays hidden until its gateway is live. `en/`, `trust/` and
-  the topic pages are deleted and every legacy URL (site and app) answers **one** 301 to its final anchor;
-  `sales/*` 301s to `/pricing#pay`. Proof: unit suite **2135/2135**, `tsc` clean, Lighthouse mobile a11y
-  **100** + SEO **100** on all three pages. Gate `verify -- --ci --e2e`
-  **14/14 in 849 s**, pushed `8edd0a5..f334f6d`. **Deployed:** worker `f0b5fa01-b4a2-449c-b470-e770721487eb`,
-  app `a11c874e-…` (bundle from `f334f6d`), site
-  `1359fb18-e862-4774-b9fb-939a45c20159` (direct upload, three pages **200**), sales
-  `d3811619-6ce1-4c96-82e7-d11e6004c7ae` (every path 301 to `/pricing#pay`). Also fixed:
-  `flushAnalytics` no longer erases events tracked during an open POST (reconciled by key, 3 queue tests).
+- **2026-10-28 — `/` is the owner's design again (deployed).** `website.katzuai.com/` renders
+  `scripts/templates/home.html`, a copy of the owner's `index (62).html` page for page: the same hero,
+  glass cards, two pinned scenes, situations rail, timeline, loader, cursor and background video, Syne on
+  the German lines. `website/assets/site.css` carries that design stylesheet verbatim as its base layer, so
+  `/pricing` and `/help` sit on the same tokens without being rebuilt. Only four kinds of change exist on
+  `/`: nav/footer → `/`, `/pricing`, `/help` (+ `#privacy` `#terms` `#refund`), every CTA →
+  `https://katzuai.com/welcome`, the coupon/`$60` tier block → one line + `الأسعار والباقات` → `/pricing`,
+  and the refund copy → 3/6/12 months. GSAP 3.12.5 + ScrollTrigger + Lenis 1.1.14 are vendored under
+  `website/assets/vendor/`, so the CSP stays `script-src 'self'`. The three "known defects" were measured
+  on the design as well — `.glass` computes identically, the hero `.ml` overflow is the pre-reveal
+  translate, and the zero-padding elements are the `.pin` scenes — so nothing was redesigned to "fix"
+  them. Proof: `tsc` clean, unit suite + guards green, static crawl **4 pages / 33 redirects / 0 problems**,
+  Lighthouse mobile **97/100/100**, **100/100/100**, **98/100/100** (perf/a11y/SEO on `/`, `/pricing`,
+  `/help`); `verify -- --ci --e2e` was **13/14** with the browser step flaky on two specs that pass on
+  re-run, and a full `npx playwright test` then finished **170 passed / 2 skipped, exit 0** (12.5 min).
+  Pushed `f7b582a..06b2c04`. **Deployed:** site `90880c38-5f90-4378-844c-5f1ef1fb055e` (direct upload of
+  `06b2c04`; rollback `1359fb18-…`), app rebuilt by the same push as `45c24f5f-…` (same bundle; rollback
+  `a11c874e-…`), worker + sales untouched. Live: three pages **200**, 13 assets + 15 CTAs **200**, 33
+  redirects one hop each, and the live home is **byte-identical** to the built `website/index.html`
+  (Cloudflare beacon excluded) — the remaining differences to the design are listed in the run report.
 
-- **2026-10-28 final pass — audit #7 closed; `merge` + `worker` + `pages` deployed.** `main` =
-  **`29f6aec`** + docs (pushed; `726a710` rate limit, `29f6aec` beacon CSP). **Worker**
-  `6f5ba883-6730-43d2-b8cd-9c275b298fee`: `/auth/session` is limited per `CF-Connecting-IP` before the
-  Google round-trip (20/min + 600/day, `checkGlobalRateLimit` scope `auth-session`, 429 + `Retry-After`;
-  live proof 11×401 then 19×429 with `Retry-After: 13`). **App** `_headers` at `29f6aec`, first served as
-  Pages `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17` (docs-only pushes rebuild the same bundle under new ids),
-  now names `static.cloudflareinsights.com` + `https://cloudflareinsights.com`, so the Pages beacon stops
-  logging a CSP error. **Site unchanged** (`de591b4e-…`). Gate `verify -- --ci --e2e` **14/14 in 967 s**, browser
-  suite exit 0. Live: `/` `/welcome` `/signin` **200**, a service-worker-controlled page renders the GIS
-  button, console **0 errors**, COOP `same-origin-allow-popups` + GIS CSP correct; 19 legacy URLs **301**;
-  sitemap 21/21 **200**. Lighthouse mobile on the site: a11y **100**, SEO **100**, perf **80** (a local
-  antivirus injects a 147 KB render-blocking script; not a site defect, and reaching 90 needs design work).
-  **Owner:** `KATZU26` is marketing-only — no validator exists (`parseDiscountCode` accepts only
-  `STD-…`); the site says **$60/yr** while the crypto yearly tier charges **$42**.
-- **Older run records moved out on 2026-10-27** (2026-10-23 guided home back to 2026-10-07) to keep this
-  file inside its 80 KB cap: `docs/agent/ARCHIVE-AGENT-STATE.md`, search `RESUME history moved 2026-10-27`.
+- **Older 2026-10-28 entries moved out on 2026-10-28** (the three-page site + price-once record and the
+  audit #7 final pass) to keep this file inside its 80 KB cap: `docs/agent/ARCHIVE-AGENT-STATE.md`, search
+  `RESUME 2026-10-28 moved`.
+
 ## CURRENT MISSION
 
 NEXT (V43.4): **The key-in-hand admin run is a repo command, and the gate now names what failed — `merge` + `worker` (2026-10-22).** `npm run verify:admin:local` is the V43.3 ad-hoc run made repeatable: it strips any inherited `ADMIN_SECRET`/`HMAC_SECRET`, boots the real worker under `wrangler dev` with a throwaway key on a fresh `--persist-to` dir, applies `migrations/0001`, creates the registry through the real route, seeds 3 users + activity + an error, sweeps 13 endpoints, then drives the served page in Chromium through all eight tabs, the drawer, plan extend, code generation, the codes report and the provider form — 37 checks, failing on any console error or a page that never reaches its last line (`--no-browser` ≈25 s, `--keep` leaves it up). **Two things its first version got wrong, fixed here:** it seeded while `wrangler dev` was live, which reloads the worker mid-run (`TypeError: fetch failed` after eight good requests, twice) and makes a second `d1 execute` compete for the same SQLite file — on Windows that can hang rather than fail — so the run now stops the worker, seeds, and boots again, and its own registry-bootstrap check still runs on the *first* boot. **Its first full run found a fourth defect:** `/admin/edit`'s `add_months` counted from the KV record alone and fell back to *today* when that record was absent while the registry column still held the plan — the drawer said "Expires 2026-11-11", the owner clicked "+1 month", and got 2026-11-22. `planExtensionBase()` extends the date the drawer shows; a lapsed plan still counts from today. Two unit tests + the harness's exact-month assertion. **The gate also stopped hiding reds:** a non-zero step with noisy output printed only "may pass on re-run", so two green-but-red runs each cost a 156 s re-run to learn one IndexedDB test had timed out; `failureEvidence()` now prints the failing test/assertion, and it immediately identified a concurrent agent's orphaned `e2e/shots/*.tmp.spec.ts` as the true cause of the *other* red. The timeout was load, not logic — `dbUpgrade` opens a real v5 IndexedDB in 1.5–2 s alone while `secretScan` walks git history for up to 100 s in the same runner — so it has an explicit 30 s budget with its assertions untouched. **Gates, on a clean worktree of `4b33d70` (node_modules junctioned, i.e. exactly what CI checks out):** `verify -- --ci` **13/13** (unit **155 files / 2,052 tests**, build, content audits, dependency audit) and the browser suite **145 passed / 3 skipped / 0 failed in 6.5 min**. The gate's own browser step could not run as configured: **`metatester64.exe` (MetaTrader 5) owns 127.0.0.1:3000**, so `--strictPort` cannot bind and `webServer` times out after 120 s with zero tests run; the suite ran against the same bundle on **:3400** via a throwaway config differing only in the port (**3101–3200 is an OS-excluded range** — a first attempt on 3123 died with `EACCES`). **Shipped:** `4b33d70` pushed without force; worker **`e1a9a2ca-e919-43e2-baba-28a52bddd1cd`** at 100%, bindings and cron `17 4 * * *` unchanged; Pages rebuilt from git (no frontend source in the diff). **Live, read-only:** `/health` and `/crypto/health` unchanged; unauth `/admin/api/{users,overview,ai-providers,content-list}` and `/admin/codes/report` **401**; `/admin` **200, 133,363 bytes, 4 inline scripts all parsing**, boot flag true, no watchdog banner, all eight tabs switch views with **zero console output**. **Hazard found while verifying it:** five unauthenticated probes trip the durable per-IP admin throttle, which gates the shell too — `/admin` then answers **429 `too_many_attempts`, `Retry-After: 140`**, indistinguishable from a broken deploy; load the page *before* the 401 sweep, or wait it out. **Rollback:** `npx wrangler rollback b2119bfb-68cb-49bb-8639-82d4583eda28`. Not verified: any production *data* path (needs `ADMIN_SECRET`, never read) — the seeded local run is its substitute.
@@ -85,18 +76,21 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- **App Pages production (2026-10-28, git-connected build of `f334f6d`):** deployment
-  **`a11c874e-0eb5-4a80-96ab-630321664e03`** serves `assets/index-D4avOAYK.js` +
+- **App Pages production (2026-10-28, git-connected build of `06b2c04`):** deployment
+  **`45c24f5f-4532-4142-89cc-f06b75f77272`** serves the same bundle as before
+  (`assets/index-D4avOAYK.js` +
   `assets/AppShell-4uecVXUN.js`; the `AppShell` chunk carries `SITE_URL/help#` and
   `https://website.katzuai.com/pricing#pay`, with no `katzu-sales`, no `/trust/` and no `KATZU26`.
-  **Rollback target: `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17`** (source `29f6aec`, the previous
-  production bundle). A docs-only push rebuilds the same bundle under a new id — read the id for the
-  current `main` before rolling back.
+  **Rollback target: `a11c874e-0eb5-4a80-96ab-630321664e03`** (source `f334f6d`), then
+  `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17` (`29f6aec`). A docs-only push rebuilds the same bundle under a
+  new id — read the id for the current `main` before rolling back.
 - **Site Pages production (2026-10-28, direct upload of `website/`):** `katzu-landing` deployment
-  **`1359fb18-e862-4774-b9fb-939a45c20159`** (branch `main`, built by `node scripts/build-website.mjs`) — `/`, `/pricing`,
-  `/help` all **200**; `/help` carries `id="privacy|terms|refund"`; `/pricing` renders
-  14.99/29.99/49.99/99.99 and only `mailto:support@ghaidak.com` CTAs; ten legacy URLs **301** in one
-  hop. **Rollback target: `de591b4e-364e-4779-8d87-57ea5adb2dd8`** (the 21-page English/topic site).
+  **`90880c38-5f90-4378-844c-5f1ef1fb055e`** (branch `main`, source `06b2c04`, built by
+  `node scripts/build-website.mjs`) — `/`, `/pricing`, `/help` all **200**; `/` is the owner's design
+  rendered from `scripts/templates/home.html`; `/help` carries `id="privacy|terms|refund"`; `/pricing`
+  renders 14.99/29.99/49.99/99.99 and only `mailto:support@ghaidak.com` CTAs; 33 legacy URLs **301** in
+  one hop each. **Rollback target: `1359fb18-e862-4774-b9fb-939a45c20159`** (the rebuilt three pages),
+  then `de591b4e-364e-4779-8d87-57ea5adb2dd8` (the 21-page English/topic site).
   Note: this project does **not** build from git — a push is not a deploy.
 - **Sales Pages production (2026-10-28, direct upload of `sales/`):** `katzu-sales` deployment
   **`d3811619-6ce1-4c96-82e7-d11e6004c7ae`** — `_redirects` answers every path with one 301 to
@@ -118,8 +112,9 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
   SPA HTML for every path, so worker routes must never be probed there.
   `/` `/signin` `/sw.js` → **200** on `katzuai.com`, serving `assets/index-D4avOAYK.js` (+ the
   `AppShell-4uecVXUN.js` chunk).
-- `origin/main` at snapshot time: `f334f6d` — gate `npm run verify -- --ci --e2e`
-  (**14/14 in 849 s**) green in that tree. The production smoke spec was **not** re-run this pass;
+- `origin/main` at snapshot time: `06b2c04` — gate `npm run verify -- --ci --e2e` **13/14** in that tree
+  (browser step flaky on two app specs that pass on re-run; a full `npx playwright test` then finished
+  **170 passed / 2 skipped, exit 0**). The production smoke spec was **not** re-run this pass;
   live checks were HTTP-level (status, redirect, body greps) plus the app-chunk string evidence above.
 - **Rollback is PROVEN available** for both targets: `wrangler whoami` reports account
   `00df3d915626e0a681f4fef98c1c587c` with `workers (write)` (used for the pre-deploy snapshot),

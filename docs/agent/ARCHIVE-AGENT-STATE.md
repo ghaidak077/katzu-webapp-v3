@@ -427,4 +427,39 @@ Moved verbatim out of `docs/AGENT-STATE.md` (its RESUME section was at the 80 KB
   decisions (§3). Choose: keep `$60` as a promo you apply by hand (and say so to buyers), make the site show
   `$42`, or commission real coupon support. Done looks like: the price a learner reads is the one charged.
 
+## RESUME 2026-10-28 moved (moved verbatim out of `docs/AGENT-STATE.md` on 2026-10-28, nothing rewritten)
 
+- **2026-10-28 — the site is three pages and the price lives once (deployed).**
+  `website.katzuai.com` is `/`, `/pricing`, `/help` from one `site.css` (the home page is the design, above): the home page sells
+  the free start (one CTA to `https://katzuai.com/welcome`, no price), `/pricing` owns the four founding plans
+  and the offer rules, `/help` owns the FAQ, the legal text and the contact address. Prices and every number
+  (`1,000` members / `31 Jan 2027` / `7`-day refund / `12`-hour code) are read from `pricing.config.json`
+  through the new `scripts/site-pricing.mjs`, so a typed-in price cannot survive a build. `KATZU26`, `$60`
+  and `$42` are retired from site, tests and copy; one activation code carries the plan duration the buyer
+  chose (redemption adds the plan `months`). `/pricing#pay` ships three steps plus one `mailto:` CTA because
+  no local payment method is configured; crypto stays hidden until its gateway is live. `en/`, `trust/` and
+  the topic pages are deleted and every legacy URL (site and app) answers **one** 301 to its final anchor;
+  `sales/*` 301s to `/pricing#pay`. Proof: unit suite **2135/2135**, `tsc` clean, Lighthouse mobile a11y
+  **100** + SEO **100** on all three pages. Gate `verify -- --ci --e2e`
+  **14/14 in 849 s**, pushed `8edd0a5..f334f6d`. **Deployed:** worker `f0b5fa01-b4a2-449c-b470-e770721487eb`,
+  app `a11c874e-…` (bundle from `f334f6d`), site
+  `1359fb18-e862-4774-b9fb-939a45c20159` (direct upload, three pages **200**), sales
+  `d3811619-6ce1-4c96-82e7-d11e6004c7ae` (every path 301 to `/pricing#pay`). Also fixed:
+  `flushAnalytics` no longer erases events tracked during an open POST (reconciled by key, 3 queue tests).
+
+- **2026-10-28 final pass — audit #7 closed; `merge` + `worker` + `pages` deployed.** `main` =
+  **`29f6aec`** + docs (pushed; `726a710` rate limit, `29f6aec` beacon CSP). **Worker**
+  `6f5ba883-6730-43d2-b8cd-9c275b298fee`: `/auth/session` is limited per `CF-Connecting-IP` before the
+  Google round-trip (20/min + 600/day, `checkGlobalRateLimit` scope `auth-session`, 429 + `Retry-After`;
+  live proof 11×401 then 19×429 with `Retry-After: 13`). **App** `_headers` at `29f6aec`, first served as
+  Pages `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17` (docs-only pushes rebuild the same bundle under new ids),
+  now names `static.cloudflareinsights.com` + `https://cloudflareinsights.com`, so the Pages beacon stops
+  logging a CSP error. **Site unchanged** (`de591b4e-…`). Gate `verify -- --ci --e2e` **14/14 in 967 s**, browser
+  suite exit 0. Live: `/` `/welcome` `/signin` **200**, a service-worker-controlled page renders the GIS
+  button, console **0 errors**, COOP `same-origin-allow-popups` + GIS CSP correct; 19 legacy URLs **301**;
+  sitemap 21/21 **200**. Lighthouse mobile on the site: a11y **100**, SEO **100**, perf **80** (a local
+  antivirus injects a 147 KB render-blocking script; not a site defect, and reaching 90 needs design work).
+  **Owner:** `KATZU26` is marketing-only — no validator exists (`parseDiscountCode` accepts only
+  `STD-…`); the site says **$60/yr** while the crypto yearly tier charges **$42**.
+- **Older run records moved out on 2026-10-27** (2026-10-23 guided home back to 2026-10-07) to keep this
+  file inside its 80 KB cap: `docs/agent/ARCHIVE-AGENT-STATE.md`, search `RESUME history moved 2026-10-27`.

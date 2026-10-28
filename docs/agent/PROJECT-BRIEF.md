@@ -54,10 +54,13 @@ production data was touched by that vetting run.
 
 ## Current snapshot — 2026-10-28 (three-page site + founding prices; deployed)
 
-**Deployed 2026-10-28 (`merge` + `worker` + `pages`); `main` = `f334f6d`.** Marketing is exactly three Arabic
-pages and the price lives in one place.
-- **Site** `website.katzuai.com` = `/`, `/pricing`, `/help` from one template and one `site.css`. Home sells the
-  free start (one CTA → `https://katzuai.com/welcome`, no price); `/pricing` owns the four founding plans, the
+**Deployed 2026-10-28 (`merge` + `worker` + `pages`); `main` = `06b2c04`.** Marketing is exactly three Arabic
+pages and the price lives in one place. `/` is the owner's own design, rendered from
+`scripts/templates/home.html`.
+- **Site** `website.katzuai.com` = `/`, `/pricing`, `/help` on one `site.css` (the design stylesheet is its
+  base layer). Home is the owner's design page for page: nav/footer → `/`, `/pricing`, `/help`, every CTA →
+  `https://katzuai.com/welcome`, one price line → `/pricing`, refund on 3/6/12 months — no price, no coupon;
+  `/pricing` owns the four founding plans, the
   rules once and the `#pay` steps; `/help` owns FAQ + privacy/terms/refund + contact. `scripts/site-pricing.mjs`
   reads every amount from `pricing.config.json`. `KATZU26`, `$60` and `$42` are retired; one activation code
   carries the plan duration. Every legacy URL answers **one** 301 to its final anchor; `sales/*` 301s to
@@ -65,9 +68,11 @@ pages and the price lives in one place.
 - **App** pays the same prices (server `GET /pricing`), legal links open `/help#…`, in-app copy matches the site.
 - **Proof:** unit suite **2135/2135**, `tsc` clean, local crawl 4 pages / 9 links OK, Lighthouse mobile a11y
   **100** + SEO **100** + perf **95–99** on all three pages (best-practices 81 is this host’s antivirus).
-  Gate `verify -- --ci --e2e` **14/14**. Live: worker `f0b5fa01-…` (rollback `6f5ba883-…`), app `a11c874e-…`
-  (`assets/index-D4avOAYK.js`; rollback `4fc1306f-…`), site `1359fb18-…` (rollback `de591b4e-…`), sales
-  `d3811619-…` (redirect-only; rollback `0de6a626-…`).
+  Gate `verify -- --ci --e2e` **14/14**. Live: worker `f0b5fa01-…` (rollback `6f5ba883-…`), app `45c24f5f-…`
+  (`assets/index-D4avOAYK.js`; rollback `a11c874e-…`), site `90880c38-…` (rollback `1359fb18-…`), sales
+  `d3811619-…` (redirect-only; rollback `0de6a626-…`). Home restore evidence: crawl **4 pages / 33 redirects /
+  0 problems**, Lighthouse mobile **97/100/100 · 100/100/100 · 98/100/100**, full `npx playwright test`
+  **170 passed / 2 skipped**, live home byte-identical to the build.
 - **Owner:** payment details to connect a real order path (**V44-1**) and four legal fields (**V44-2**).
 
 ## Previous snapshot — 2026-10-28 (audit #7 limiter + beacon CSP live)
@@ -234,6 +239,14 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 - **`UNPROVEN`** (V10 additions marked): the real content load · human content review (AI self-review only) · sync/crypto atomicity on the *deployed* database · the counter's insert-then-increment branch at unit level · the Trail's own Lighthouse numbers (it redirects to `/welcome` without an account) · a clean-machine Lighthouse run (this one shared the page with an anti-virus script) · visual 360/390 px and offline-recording checks · real-device voice. Now **covered** and so removed from this list: built-bundle e2e, local-D1 sync/crypto atomicity, and the Lighthouse baseline itself.
 
 ## 7. Recent changes
+
+- **Home page is the owner's design again (2026-10-28, deployed)** — `website.katzuai.com/` renders
+  `scripts/templates/home.html`, a copy of the owner's `index (62).html`: same hero, glass cards, pinned
+  scenes, situations rail, timeline, loader, cursor, `bg.mp4`. Only nav/footer links, the CTAs, the price
+  line and the refund/coupon corrections differ; GSAP/ScrollTrigger/Lenis are vendored (CSP `script-src
+  'self'`). Home copy is no longer generated from `scripts/site-content.mjs`. Evidence: crawl 4 pages / 33
+  redirects / 0 problems, Lighthouse mobile 97-100 a11y/SEO 100, full Playwright 170 passed / 2 skipped.
+  Site deployment `90880c38-…` (rollback `1359fb18-…`).
 
 - **Three-page site + founding prices (2026-10-28, deployed)** — `website.katzuai.com` is `/`, `/pricing`,
   `/help` from one template, one `site.css` and `pricing.config.json`; the four founding plans (`$14.99 /
