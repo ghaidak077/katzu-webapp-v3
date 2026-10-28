@@ -63,6 +63,11 @@ export const ANALYTICS_EVENTS = [
   'debrief_view',
   'paywall_view',
   'upgrade_click',
+  // The soft invitation after the first correction: shown once per device, never
+  // for a paying learner, and never a gate (the modal always offers "continue
+  // free"). Counting it separately from `paywall_view` is what makes it possible
+  // to tell an invite from a wall.
+  'soft_prompt_shown',
   'purchase_clicked',
   'code_redeemed',
   // The moments the launch funnel could not previously see.

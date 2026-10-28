@@ -5,25 +5,26 @@
  * WHY THIS IS SEPARATE FROM THE PRICE
  * A price says what it costs. This says what happens next — and the next step is
  * different in Cairo from Berlin in a way the app must not guess at: which
- * transfer routes are reachable, whether an intermediary bank may hold the money,
- * and how long activation can take. Getting that wrong costs a paying learner
- * their money and their trust.
+ * transfer routes are reachable, whether an intermediary bank may hold the money.
  *
- * WHAT THIS DELIBERATELY DOES NOT DO
- * It does not name a payment provider, quote an exchange rate, or promise an
- * activation time. The sale happens on the owner's sales site; what this file
- * guarantees is only that the learner is told, in advance, the sequence of steps
- * and which of them are outside the app's control. Times are marked UNPROVEN
- * where they are estimates, because an activation estimate presented as a fact is
- * the same class of lie as an invented refund policy.
+ * WHAT THIS DOES NOT DO
+ * It does not name a payment provider or quote an exchange rate. The sale happens
+ * on the owner's sales site; what this file guarantees is the sequence of steps
+ * and which of them are outside the app's control.
  *
- * The region group is the SAME string the price table uses (`standard` or
- * `special`), resolved from the request the app already made. If it is missing or
- * unknown, the standard instructions are used — the same direction the prices
- * fail, toward the more expensive and the more explicit.
+ * THE ONE PROMISE
+ * Activation is within `ACTIVATION_HOURS` (12 hours), read from
+ * `pricing.config.json` so the card, the instructions and the FAQ cannot state
+ * three different numbers. There is no "24 hours" wording anywhere: the promise
+ * is the exact upper bound, in both regions.
+ *
+ * The region group is resolved from the request the app already made. If it is
+ * missing or unknown, the standard instructions are used.
  */
 
-/** Matches `cloudflare-pricing.js`: the two price groups. */
+import { ACTIVATION_HOURS } from './pricing';
+
+/** Region groups the payment instructions differ by (price no longer does). */
 export type RegionGroup = 'standard' | 'special';
 
 export interface PaymentInstruction {
@@ -46,27 +47,25 @@ export interface PaymentInstruction {
 }
 
 /**
- * UNPROVEN timings.
- *
- * These are the order of magnitude a payment can take through a banking chain,
- * not a measured figure from this product: an owner who has real delivery data
- * should replace them. They are written as ranges with the caveat attached so
- * that reading them wrong does not read as a broken promise.
+ * The published activation promise. One number, in both regions, because a
+ * learner comparing two screens must not read two deadlines.
  */
+export const ACTIVATION_PROMISE_AR = `خلال ${ACTIVATION_HOURS} ساعة كحد أقصى`;
+
 export const ACTIVATION_TIMING_AR: Record<RegionGroup, string | null> = {
-  standard: 'أقل من بضع دقائق غالباً، وقد يصل إلى 24 ساعة عبر التحويل المصرفي.',
-  special: 'من بضع ساعات إلى يوم عمل واحد، لأن التحويل غالباً يمرّ عبر مصرف وسيط.',
+  standard: ACTIVATION_PROMISE_AR,
+  special: ACTIVATION_PROMISE_AR,
 };
 
 export const PAYMENT_INSTRUCTIONS: Record<RegionGroup, PaymentInstruction> = {
   standard: {
     headingAr: 'كيف تدفع',
     stepsAr: [
-      'اختر الباقة من هذه الشاشة؛ سيظهر السعر الذي رآه جهازك.',
+      'اختر الباقة من هذه الشاشة.',
       'افتح صفحة الدفع على موقع البيع، وأكمل بياناتك.',
       'حوّل المبلغ بالطريقة التي يعرضها لك موقع البيع.',
       'سيصلك كود التفعيل على وسائل التواصل التي تُدخلها عند الدفع.',
-      'أدخل الكود في شاشة التفعيل؛ يُضاف المدة إلى حسابك فوراً.',
+      'أدخل الكود في شاشة التفعيل؛ تُضاف المدة إلى حسابك فور وصول الكود.',
     ],
     timingAr: ACTIVATION_TIMING_AR.standard,
     caveatAr: 'التحويل يمرّ عبر مصرفك، وقد يحتجز البنك المبلغ أياماً قبل وصوله.',
@@ -75,14 +74,14 @@ export const PAYMENT_INSTRUCTIONS: Record<RegionGroup, PaymentInstruction> = {
   special: {
     headingAr: 'كيف تدفع من هذه المنطقة',
     stepsAr: [
-      'اختر الباقة؛ السعر المعروض هنا هو سعر منطقتك.',
+      'اختر الباقة.',
       'افتح صفحة الدفع على موقع البيع.',
       'حوّل المبلغ عبر الطريقة التي يعرضها الموقع لك.',
       'سيصلك كود التفعيل بعد تأكيد التحويل.',
-      'أدخل الكود في شاشة التفعيل؛ يُضاف المدة إلى حسابك فوراً.',
+      'أدخل الكود في شاشة التفعيل؛ تُضاف المدة إلى حسابك فور وصول الكود.',
     ],
     timingAr: ACTIVATION_TIMING_AR.special,
-    caveatAr: 'معظم التحويلات تمرّ عبر مصرف وسيط، وقد يتأخر التأكيد ساعات.',
+    caveatAr: 'معظم التحويلات تمرّ عبر مصرف وسيط، وقد يتأخر التأكيد ساعات قبل وصول الكود.',
     unproven: true,
   },
 };

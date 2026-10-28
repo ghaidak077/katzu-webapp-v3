@@ -142,9 +142,9 @@ SALES_ORIGIN = "https://katzu-sales.pages.dev"
 # host from it (A6). The app build calls the same value VITE_PUBLIC_APP_URL and
 # either name is read here.
 PUBLIC_APP_URL = ""
-# Price of one activation code and how many months of Pro it grants.
-CRYPTO_PRICE_USD = "5"
-CRYPTO_MONTHS = "1"
+# Prices are NOT set here. Every amount — including the crypto checkout — reads
+# `pricing.config.json`, so an env var can never outlive a price change. See
+# the comment at the top of `cloudflare-crypto.js`.
 
 # ---------------------------------------------------------------------------
 # Scheduled retention (RC-4)

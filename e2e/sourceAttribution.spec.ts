@@ -40,7 +40,7 @@ test.describe('where the learner came from', () => {
 
   test('a referral code and a channel travel together', async ({ page }) => {
     await page.goto('/paywall?ref=REF-ABCD1234&src=reel');
-    await bootSignedIn(page, { pricing: { prices: [{ product: 'pass90', amountCents: 2900, currency: 'EUR', group: 'standard', cell: null }], group: 'standard' } });
+    await bootSignedIn(page, { pricing: { prices: [{ product: 'monthly', amountCents: 1499, currency: 'USD', group: 'standard', cell: null }], group: 'standard' } });
     await page.goto('/paywall?ref=REF-ABCD1234&src=reel');
     // Both land on the purchase screen's outbound link, neither replacing the other.
     const held = await page.evaluate(() => window.localStorage.getItem('katzu_source_v1'));

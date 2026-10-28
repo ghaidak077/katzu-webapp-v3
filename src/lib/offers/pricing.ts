@@ -1,116 +1,66 @@
 /**
- * The offer, as copy — and the only numbers that may appear next to it.
+ * What the offer SAYS — the promises, the limits and the refund rule.
  *
- * WHY THE PRICES ARE NOT IN HERE
- * They come from `GET /pricing`, which resolves the region from the Cloudflare
- * country header and the experiment cell from a hash of the account. A price
- * written into the app would be a price the app decided, which is exactly the
- * thing this offer is meant not to do: a learner in Cairo must never be shown
- * the standard price and then charged the special one.
+ * WHY THE NUMBERS ARE NOT IN HERE
+ * They live in `pricing.config.json` (repo root) and are typed by
+ * `./foundingPlans.ts`, which the site build and the Worker read too. A price
+ * written into a component would be a second source of truth, and a learner in
+ * Cairo must never be shown one number and charged another.
  *
  * WHAT IS IN HERE
- * The promises, the limits and the legal placeholders. Every claim here is one
- * the app can keep: no "unlimited", no "lifetime", no "guaranteed pass". The
- * refund text is a `{{OWNER_FILL}}` placeholder — the app refuses to invent a
- * refund policy, and a placeholder that ships is louder than a sentence nobody
- * has checked.
+ * The claims the app can keep: no "unlimited", no "lifetime", no "guaranteed
+ * pass" (`FORBIDDEN_CLAIMS_AR`). The refund rule is now real — 7 days on the 3-,
+ * 6- and 12-month plans, none on the 1-month plan — so the old
+ * `{{OWNER_FILL}}` placeholder is gone.
  */
 
-/** Products in the order they are offered: the pass leads, the mock is a link. */
-export const OFFER_ORDER = ['pass90', 'monthly', 'mock'] as const;
-export type OfferProduct = (typeof OFFER_ORDER)[number];
+export {
+  PLANS,
+  PLAN_BY_ID,
+  RECOMMENDED_PLAN,
+  FOUNDING_CAP,
+  FOUNDING_ENDS_ON,
+  REFUND_DAYS,
+  REFUND_PLAN_IDS,
+  ACTIVATION_HOURS,
+  FREE_LESSONS_PER_MONTH,
+  PRICING_RULES_AR,
+  PRICING_RULES_EN,
+  PRICING_HEADLINE_AR,
+  PRICING_HEADLINE_EN,
+  PRICING_FOOTNOTE_AR,
+  PRICING_FOOTNOTE_EN,
+  BEST_VALUE_AR,
+  BEST_VALUE_EN,
+  SOFT_PROMPT_TITLE_AR,
+  SOFT_PROMPT_TITLE_EN,
+  SOFT_PROMPT_BODY_AR,
+  SOFT_PROMPT_BODY_EN,
+  CONTINUE_FREE_AR,
+  CONTINUE_FREE_EN,
+  REFUND_TEXT,
+  formatUsd,
+  foundingLabel,
+  futureLabel,
+  perMonthLabel,
+  type Plan,
+  type PlanId,
+} from './foundingPlans';
 
-export interface OfferCopy {
-  product: OfferProduct;
-  /** Arabic product name. */
-  nameAr: string;
-  /** One sentence, and the only promise about what it does. */
-  pitchAr: string;
-  /** What the learner gets, as short honest lines. */
-  includesAr: string[];
-  /** The one limit, stated plainly. `null` where there is none. */
-  fairUseAr: string | null;
-  /** Whether this row is a link out rather than the lead card. */
-  isLink: boolean;
-}
-
-/**
- * The plain-language fair-use cap.
- *
- * UNPROVEN as a number: it is derived from the measured AI cost per learner-day
- * and the spend cap, not from observed abuse. It is stated anyway, because an
- * unstated limit discovered later reads as a bait-and-switch, and a stated one
- * read in advance does not.
- */
-export const FAIR_USE_AI_PER_DAY = 120;
+import { formatUsd } from './foundingPlans';
 
 /** What is deliberately NOT promised. Exported so a test can pin the absence. */
 export const FORBIDDEN_CLAIMS_AR = ['غير محدود', 'مدى الحياة', 'ضمان النجاح'];
 
-export const OFFER_COPY: Record<OfferProduct, OfferCopy> = {
-  pass90: {
-    product: 'pass90',
-    nameAr: 'باقة الامتحان — 90 يوماً',
-    pitchAr: 'محادثة B1 كاملة مع تقرير، حتى تاريخ الامتحان.',
-    includesAr: [
-      'محادثات كاملة بمستوى B1 مع تصحيح مباشر',
-      'محاكاة B1 بثلاثة أجزاء، وتقرير مفصّل بعد كل محاكاة',
-      'كل المفردات والقواعد والمراجعة اليومية',
-    ],
-    fairUseAr: `الحد العادل للاستخدام: حتى ${FAIR_USE_AI_PER_DAY} طلب ذكاء اصطناعي يومياً. يكفي لثلاث جلسات؛ لن يُقفل حسابك فجأة.`,
-    isLink: false,
-  },
-  monthly: {
-    product: 'monthly',
-    nameAr: 'الاشتراك الشهري',
-    pitchAr: 'نفس كل شيء، يُجدَّد كل 30 يوماً.',
-    includesAr: ['كل ما في باقة الامتحان', 'تحديثات المحتوى مع كل إصدار'],
-    fairUseAr: `الحد العادل للاستخدام: حتى ${FAIR_USE_AI_PER_DAY} طلب ذكاء اصطناعي يومياً.`,
-    isLink: false,
-  },
-  mock: {
-    product: 'mock',
-    nameAr: 'محاكاة واحدة',
-    pitchAr: 'محاكاة B1 واحدة بتقريرها الكامل — بدون اشتراك.',
-    includesAr: ['محاكاة B1 بثلاثة أجزاء', 'التقرير الكامل بعد المحاكاة'],
-    fairUseAr: 'محاكاة واحدة، ثم تُشترى أخرى.',
-    isLink: true,
-  },
-};
-
-/**
- * A price in the right words.
- *
- * The units are whole euros and the cents are shown only when there are any, so a
- * €29 price never appears as "29.00 €" (which reads as a placeholder) and a €12.99
- * price never appears as "13 €" (which would be a lie).
- */
-export function formatEuro(amountCents: number, currency = 'EUR'): string {
-  if (!Number.isInteger(amountCents) || amountCents < 0) return '—';
-  const euros = Math.floor(amountCents / 100);
-  const cents = amountCents % 100;
-  const symbol = currency === 'EUR' ? '€' : currency;
-  return cents === 0 ? `${euros} ${symbol}` : `${euros},${String(cents).padStart(2, '0')} ${symbol}`;
-}
-
-/**
- * The refund line, exactly as the owner must fill it in.
- *
- * Shipped as a placeholder on purpose: an invented refund promise is a legal
- * statement this product must not make on its own, and a visible gap is easier
- * to notice than a plausible sentence nobody checked.
- */
-export const REFUND_TEXT = '{{OWNER_FILL}}';
+/** The plain-language fair-use cap, stated on the plan that carries a price. */
+export const FAIR_USE_AI_PER_DAY = 120;
 
 /**
  * Whether a value is really copy, or still the owner's placeholder.
  *
- * B1: the placeholder existed so nobody would invent a policy, and the paywall
- * rendered it anyway — a buyer reaching the price read «سياسة الاسترداد:
- * {{OWNER_FILL}}». The constant stays a placeholder (the tests and
- * `check:launch` depend on that being visible to the owner); what changes is that
- * the app no longer PRINTS a value it has not been given. An empty string counts
- * as unfilled for the same reason.
+ * Kept because `check-launch` still scans shipped strings for `{{...}}` and
+ * because the trust pages use the same rule. An empty string counts as unfilled:
+ * a blank sentence under a price reads as a promise the app forgot to make.
  */
 export function isOwnerFilled(text: string | null | undefined): boolean {
   const value = String(text ?? '').trim();
@@ -119,26 +69,14 @@ export function isOwnerFilled(text: string | null | undefined): boolean {
 }
 
 /**
- * What the money page says while the refund line is unfilled.
- *
- * Hiding the row was the alternative and is worse: a buyer who looks for the
- * policy and finds nothing learns the app omits things. This states what is true
- * — the policy is not published yet, no invented one is shown — and offers the
- * one action that resolves it. It promises nothing about money, which is the
- * whole reason the owner has to write the real line.
- */
-export const REFUND_UNPUBLISHED_AR =
-  'سياسة الاسترداد: لم تُنشر بعد — ولن نعرض لك سياسة مُخترعة. اسألنا قبل الدفع وسنجيبك بوضوح.';
-
-/**
  * Whether a price may be shown.
  *
- * A missing or malformed amount shows nothing rather than "€0" or a dash next to
+ * A missing or malformed amount shows nothing rather than "$0" or a dash next to
  * a buy button: a free-looking offer is worse than an absent one.
  */
 export function priceLabel(
-  row: { amountCents?: number; currency?: string } | null | undefined,
+  row: { amountCents?: number } | null | undefined,
 ): string | null {
   if (!row || !Number.isInteger(row.amountCents)) return null;
-  return formatEuro(row.amountCents as number, row.currency || 'EUR');
+  return formatUsd(row.amountCents as number);
 }

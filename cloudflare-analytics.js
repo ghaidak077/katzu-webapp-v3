@@ -73,6 +73,7 @@ export const EVENT_NAMES = [
   "paywall_view",
   "upgrade_click",
   "purchase_clicked",
+  "soft_prompt_shown",
   "code_redeemed",
   "free_session_exhausted",
   "share_landed",

@@ -1,0 +1,15 @@
+{
+  "currency": "USD",
+  "foundingCap": 1000,
+  "foundingEndsOn": "2027-01-31",
+  "refundDays": 7,
+  "refundPlanIds": ["quarterly", "halfyear", "yearly"],
+  "activationHours": 12,
+  "freeLessonsPerMonth": 3,
+  "plans": [
+    { "id": "monthly", "months": 1, "foundingUsd": 14.99, "futureUsd": 29.99 },
+    { "id": "quarterly", "months": 3, "foundingUsd": 29.99, "futureUsd": 59.99 },
+    { "id": "halfyear", "months": 6, "foundingUsd": 49.99, "futureUsd": 99.99, "recommended": true },
+    { "id": "yearly", "months": 12, "foundingUsd": 99.99, "futureUsd": 199.99 }
+  ]
+}

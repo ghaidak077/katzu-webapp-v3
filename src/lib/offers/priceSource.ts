@@ -44,8 +44,15 @@ export interface PriceRow {
   product: string;
   amountCents: number;
   currency: string;
-  group: string;
-  cell: number | null;
+  /** The region the server resolved — used for payment instructions, not price. */
+  group?: string;
+  cell?: number | null;
+  /** The published price after the founding window, in cents. */
+  futureCents?: number;
+  /** How many months this plan covers. */
+  months?: number;
+  /** True for the pre-selected "Best value" plan. */
+  recommended?: boolean;
 }
 
 export interface PricingAnswer {
@@ -55,6 +62,13 @@ export interface PricingAnswer {
   cell?: number | null;
   unproven?: boolean;
   experimentEnabled?: boolean;
+  /** Founding-price rules, mirrored from `pricing.config.json`. */
+  foundingCap?: number;
+  foundingEndsOn?: string;
+  refundDays?: number;
+  refundPlanIds?: string[];
+  activationHours?: number;
+  freeLessonsPerMonth?: number;
 }
 
 /** Only a success is remembered; see the module note on failure. */
@@ -106,12 +120,12 @@ export function priceFor(answer: PricingAnswer | null, product: string): string 
 }
 
 /**
- * The one number a headline may carry: the exam pass, because that is the offer.
- * `null` when the server priced neither the pass nor the subscription — the
+ * The one number a headline may carry: the entry price, because that is the
+ * offer's smallest commitment. `null` when the server priced nothing — the
  * caller must then show the offer with no amount rather than reach for another.
  */
 export function headlinePrice(answer: PricingAnswer | null): string | null {
-  return priceFor(answer, 'pass90') ?? priceFor(answer, 'monthly');
+  return priceFor(answer, 'monthly');
 }
 
 /**

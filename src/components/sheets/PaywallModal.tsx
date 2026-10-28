@@ -5,27 +5,36 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Sparkles, Check, KeyRound, ExternalLink } from 'lucide-react';
 import { buildSalesUrl, legalPageUrl } from '@/lib/utils/links';
-import { OFFER_COPY } from '@/lib/offers/pricing';
+import {
+  BEST_VALUE_AR,
+  CONTINUE_FREE_AR,
+  PLANS,
+  PRICING_FOOTNOTE_AR,
+  RECOMMENDED_PLAN,
+  formatUsd,
+} from '@/lib/offers/pricing';
 import {
   PRICING_NOT_CONFIGURED_AR,
   PRICING_UNAVAILABLE_AR,
+  priceRowFor,
   usePricing,
 } from '@/lib/offers/priceSource';
 import { track } from '@/lib/analytics/client';
 
 /**
- * The two offers the server actually sells, in the order they are worth reading.
+ * The four plans the server actually sells.
  *
- * `pass90` is the 3-month pass and leads: it is the product the free B1 mock is
- * a sample of. `monthly` is the comparison that makes the pass look considered.
- * There is no annual and no student tier here, and there is no env toggle to
- * reveal one: `/pricing` has never priced them, so there is nothing to reveal.
- * Inventing a third card would be inventing an offer.
+ * There is no coupon, no "limited-time" label and no annual/student tier that a
+ * code reveals: `/pricing` prices exactly these four rows from
+ * `pricing.config.json`, and the recommended one is the 6-month plan the badge
+ * points at. The recommendation is display only — it never changes a price.
  */
-const OFFERED_TIERS = [
-  { product: 'pass90', nameAr: OFFER_COPY.pass90.nameAr, recommended: true },
-  { product: 'monthly', nameAr: OFFER_COPY.monthly.nameAr, recommended: false },
-] as const;
+const OFFERED_TIERS = PLANS.map((plan) => ({
+  product: plan.id,
+  nameAr: plan.nameAr,
+  months: plan.months,
+  recommended: plan.id === RECOMMENDED_PLAN.id,
+}));
 
 export interface PaywallModalProps {
   isOpen: boolean;
@@ -67,7 +76,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   // The one price table. No amount is rendered from anything else, and no buy
   // control appears without one: if the server cannot be reached the learner is
   // told so, which is better than a price the app made up.
-  const { loaded, headline, priceFor, configured } = usePricing();
+  const { loaded, headline, priceFor, configured, pricing } = usePricing();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -100,13 +109,18 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                 : 'جارٍ تحميل السعر…')}
         </Badge>
 
-        {/* Two tiers, both priced by the server, 3-month pass recommended. Each
-            card is a link out to the official sales page — the app never takes a
+        {/* Four tiers, all priced by the server, 6-month recommended. Each card
+            is a link out to the official sales page — the app never takes a
             payment itself. */}
         {loaded && headline ? (
           <div className="w-full grid grid-cols-2 gap-2 mb-4">
             {OFFERED_TIERS.map((tier) => {
               const amount = priceFor(tier.product);
+              const row = priceRowFor(pricing, tier.product);
+              const perMonth =
+                tier.months > 1 && row?.amountCents
+                  ? formatUsd(Math.round(row.amountCents / Math.max(1, row.months ?? tier.months)))
+                  : null;
               return (
                 <a
                   key={tier.product}
@@ -118,7 +132,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                 >
                   {tier.recommended && (
                     <span className="absolute -top-2 end-2 px-1.5 py-0.5 rounded-full bg-fill text-on-fill text-micro font-bold font-arabic">
-                      موصى به
+                      {BEST_VALUE_AR}
                     </span>
                   )}
                   <span className="text-micro font-bold font-arabic text-center">{tier.nameAr}</span>
@@ -126,6 +140,17 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                     <span className="text-sm font-bold text-primary" data-testid={`modal-price-${tier.product}`}>
                       {amount}
                     </span>
+                  ) : null}
+                  {row?.futureCents ? (
+                    <span
+                      className="text-micro font-arabic text-text-muted line-through"
+                      data-testid={`modal-future-${tier.product}`}
+                    >
+                      {formatUsd(row.futureCents)}
+                    </span>
+                  ) : null}
+                  {perMonth ? (
+                    <span className="text-micro font-arabic text-text-muted">{perMonth} شهرياً</span>
                   ) : null}
                 </a>
               );
@@ -205,8 +230,10 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
             onClick={onClose}
             className="w-full py-3 text-xs font-semibold font-arabic text-text-muted pointer-hover:text-text-secondary min-h-[44px]"
           >
-            ليس الآن — تابع بالمجاني
+            {CONTINUE_FREE_AR}
           </button>
+
+          <p className="text-micro font-arabic text-text-muted leading-relaxed">{PRICING_FOOTNOTE_AR}</p>
 
           {/* Who is selling to you, and on what terms. These are public routes,
               so a new tab keeps the offer on screen while the learner reads. */}

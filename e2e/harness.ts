@@ -155,10 +155,28 @@ export interface MockOptions {
   deleteAccountOk?: boolean;
   /** What `/pricing` answers. `null` (the default) makes the call fail. */
   pricing?: {
-    prices: Array<{ product: string; amountCents: number; currency: string; group: string; cell: number | null }>;
+    prices: Array<{
+      product: string;
+      amountCents: number;
+      /** Published price after the founding window; optional for a bare row. */
+      futureCents?: number;
+      /** Plan length in months. */
+      months?: number;
+      /** True for the pre-selected plan. */
+      recommended?: boolean;
+      currency: string;
+      group: string;
+      cell: number | null;
+    }>;
     group: string;
-    /** The experiment bucket the account was assigned, or null when none runs. */
+    /** The retired pricing-experiment bucket; kept shape-compatible and ignored. */
     cell?: number | null;
+    foundingCap?: number;
+    foundingEndsOn?: string;
+    refundDays?: number;
+    refundPlanIds?: string[];
+    activationHours?: number;
+    freeLessonsPerMonth?: number;
   } | null;
 }
 
@@ -438,7 +456,7 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
         if (!options.pricing) {
           return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
         }
-        return json({ ...options.pricing, currency: 'EUR', unproven: true });
+        return json({ ...options.pricing, currency: 'USD', unproven: true });
       }
       case url.pathname === '/review/sync':
         return json({ items: [] });

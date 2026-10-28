@@ -106,7 +106,7 @@ import { handleCryptoRoutes, timingSafeEqualHex } from "./cloudflare-crypto.js";
 import { ensureContentColumns } from "./cloudflare-content-schema.js";
 import { analyticsAccountHandle } from "./cloudflare-analytics.js";
 import { mockExamBrief, mockExamInstructionForPart } from "./cloudflare-mock-exam.js";
-import { decideMockAccess, mockDebriefAccess, catalogueFor, experimentBucket, isRegionMismatch, regionGroupFromRequest, PASS_CELLS } from "./cloudflare-pricing.js";
+import { decideMockAccess, mockDebriefAccess, catalogueFor, isRegionMismatch, regionGroupFromRequest } from "./cloudflare-pricing.js";
 import { dailyKey, processDailySync, readAuthoritativeDaily, overlayStatsWithDaily } from "./cloudflare-daily.js";
 import {
   decideCodeAttempt,
@@ -2594,29 +2594,23 @@ async function handleMockStart(request, env, cors) {
 }
 
 /**
- * `GET /pricing` — what this learner pays, decided server-side.
+ * `GET /pricing` — the founding-price table, decided server-side.
  *
- * Region is read from `CF-IPCountry` and the Exam Pass cell from a stable hash of
- * the account id, so the same learner sees the same price on every device and no
- * client can pick the cheaper group. Unauthenticated callers get the standard
- * group and no cell: showing a price is public information, and inventing a bucket
- * for an anonymous visitor would make the first price they see a different one
- * from the price they are asked to pay.
+ * Region no longer moves the price: the founding offer is one table for every
+ * learner. Region is still resolved and returned because the payment
+ * instructions differ by region, and a client must not pick that itself.
  *
- * The payload carries `unproven: true` because the table is a planning guess; the
- * client is expected to render the numbers as they are, not to soften them.
+ * Every amount, the founding cap and end date, the refund window and the
+ * activation promise come from `pricing.config.json`, so the number on the card
+ * and the number the checkout charges cannot drift.
+ *
+ * The payload carries `unproven: true` because no founding price has actually
+ * been sold at yet; the client renders the numbers as they are, not softened.
  */
 async function handlePricing(request, env, cors) {
   const group = regionGroupFromRequest(request);
-  const idToken = extractIdToken(request, null);
-  let accountId = "";
-  if (idToken) {
-    const account = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID, env);
-    if (account?.sub) accountId = account.sub;
-  }
-  const cell = accountId ? experimentBucket(accountId, PASS_CELLS[group].length) : null;
-  const catalogue = catalogueFor({ group, cell });
-  return json({ ...catalogue, experimentEnabled: cell !== null, unproven: true }, 200, cors);
+  const catalogue = catalogueFor({ group });
+  return json({ ...catalogue, unproven: true }, 200, cors);
 }
 
 /**

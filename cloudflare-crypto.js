@@ -45,6 +45,7 @@
  */
 
 import { recordActivity, recordError } from "./cloudflare-admin.js";
+import pricingConfig from "./pricing.config.json";
 
 // ============================================================================
 // 1. SCHEMA (additive only — mirrors ensureLedgerTables/ensureRegistryTables)
@@ -110,64 +111,46 @@ export function getCryptoBaseUrl(env = {}) {
   return NOWPAYMENTS_HOSTS[getCryptoEnvironment(env)];
 }
 
-/** Price and code duration are vars so they can change without touching code. */
-export function getCryptoPlan(env = {}) {
-  const price = Number(env?.CRYPTO_PRICE_USD ?? 5);
-  const months = Number(env?.CRYPTO_MONTHS ?? 1);
+// One source of truth: the same `pricing.config.json` the app and the static
+// site read. Nothing here may hardcode a price — the number on the card and the
+// number checkout charges must come from the same object. The old per-tier env
+// overrides (CRYPTO_PRICE_USD, CRYPTO_PRICE_QUARTERLY_USD, …) are gone: an env
+// var that silently outlives a price change is exactly how a learner gets
+// charged the old price.
+const round2 = (x) => Math.round(x * 100) / 100;
+
+const CONFIG_PLANS = Array.isArray(pricingConfig.plans) ? pricingConfig.plans : [];
+
+/** The monthly plan, used as the checkout default and the health headline. */
+export function getCryptoPlan() {
+  const monthly = CONFIG_PLANS.find((plan) => plan.id === "monthly") || CONFIG_PLANS[0];
   return {
-    priceUsd: Number.isFinite(price) && price > 0 ? Math.round(price * 100) / 100 : 5,
-    months: Number.isFinite(months) ? Math.min(12, Math.max(1, Math.trunc(months))) : 1,
+    priceUsd: round2(Number(monthly?.foundingUsd) || 0),
+    months: Math.max(1, Math.trunc(Number(monthly?.months) || 1)),
   };
 }
 
-// V21 Phase 7: plan tiers with explicit per-tier prices. Every tier reads its
-// own env var (falling back to the single CRYPTO_PRICE_USD base so one var
-// still moves everything); the owner sets CRYPTO_PRICE_QUARTERLY_USD,
-// CRYPTO_PRICE_YEARLY_USD and CRYPTO_PRICE_STUDENT_USD directly — no
-// percentages of a hidden base. The student tier additionally requires a
-// valid signed discount code (see validateDiscountCode) — the server checks
-// both, so no client can buy it without the code.
-const round2 = (x) => Math.round(x * 100) / 100;
-const priceFromEnv = (raw, fallback) => {
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? round2(n) : fallback;
+const PLAN_LABELS_AR = {
+  monthly: "شهر واحد",
+  quarterly: "3 أشهر",
+  halfyear: "6 أشهر",
+  yearly: "12 شهراً",
 };
 
-export function getCryptoPlans(env = {}) {
-  const base = getCryptoPlan(env);
-  const m = base.priceUsd;
-  return [
-    { id: "monthly", months: 1, priceUsd: base.priceUsd, label_ar: "شهري" },
-    {
-      id: "quarterly",
-      months: 3,
-      priceUsd: priceFromEnv(env.CRYPTO_PRICE_QUARTERLY_USD, round2(m * 3 * 0.87)),
-      label_ar: "٣ أشهر — وفّر ١٣٪",
-      // V24 Phase 4: the 3-month pass is the default and recommended tier on
-      // the paywall and the sales page. The server owns the flag — the client
-      // only ever reads it, so the recommendation cannot drift from the price
-      // checkout actually charges.
-      recommended: true,
-    },
-    {
-      id: "yearly",
-      months: 12,
-      priceUsd: priceFromEnv(env.CRYPTO_PRICE_YEARLY_USD, round2(m * 12 * 0.7)),
-      label_ar: "سنة — وفّر ٣٠٪",
-    },
-    // The student tier carries its own explicit price (CRYPTO_PRICE_STUDENT_USD,
-    // default half the monthly rate). The checkout still demands a valid signed
-    // discount code for this tier; a code's percent, when present on any plan,
-    // re-prices the order server-side at checkout.
-    {
-      id: "student",
-      months: 1,
-      priceUsd: priceFromEnv(env.CRYPTO_PRICE_STUDENT_USD, round2(m * 0.35)),
-      label_ar: "طلابي — بكود خصم",
-      requires_discount_code: true,
-      expected_discount_percent: null,
-    },
-  ];
+/**
+ * The four plans checkout may sell, priced from the config. `recommended` marks
+ * the pre-selected plan; the server owns the flag so the recommendation cannot
+ * drift from the price actually charged.
+ */
+export function getCryptoPlans() {
+  return CONFIG_PLANS.map((plan) => ({
+    id: String(plan.id),
+    months: Math.max(1, Math.trunc(Number(plan.months) || 1)),
+    priceUsd: round2(Number(plan.foundingUsd) || 0),
+    futureUsd: round2(Number(plan.futureUsd) || 0),
+    label_ar: PLAN_LABELS_AR[plan.id] || `${plan.months} أشهر`,
+    recommended: plan.recommended === true,
+  }));
 }
 
 export function planById(env, planId) {
@@ -510,32 +493,16 @@ export async function handleCryptoCheckout(request, env, cors) {
     return json({ error: "storage_unavailable", message: "تعذر تجهيز الطلب حالياً. حاول لاحقاً." }, 503, cors);
   }
 
-  // V21 Phase 7: the body may name a plan (monthly | quarterly | yearly | student).
-  // Prices come from getCryptoPlans (explicit per-tier env vars, with the base
-  // var as fallback), never from the client. The student tier additionally
-  // requires a valid HMAC-signed discount code; a code's percent, when given
-  // for any tier, re-prices the order here on the server.
+  // The body may name a plan (monthly | quarterly | halfyear | yearly). Prices
+  // come from `getCryptoPlans`, which reads `pricing.config.json` — never from
+  // the client. A signed discount code, when given, replaces the price for any
+  // plan; it never stacks on the founding price, which is already the discount.
   const body = await request.json().catch(() => ({}));
-  const plan = planById(env, body?.plan) || getCryptoPlan(env);
+  const plan = planById(env, body?.plan) || getCryptoPlan();
   let priceUsd = plan.priceUsd;
   let months = plan.months;
   let discount = null;
-  if (plan.requires_discount_code) {
-    // Discount-only tiers cannot be bought without a valid code. The code's
-    // percent does NOT stack on top of the tier's own explicit price: the
-    // signed percent is what the owner minted, and the tier price is what the
-    // owner configured — the cheaper of the two wins (measured: a 50% code on
-    // the student tier must not double-discount).
-    discount = await validateDiscountCode(body?.discount_code, env);
-    if (!discount) {
-      return json({ error: "invalid_discount_code", message: "هذه الباقة تتطلب كود خصم صالح." }, 400, cors);
-    }
-    if (plan.expected_discount_percent && discount.percent !== plan.expected_discount_percent) {
-      return json({ error: "discount_percent_mismatch", message: "نسبة كود الخصم لا تطابق هذه الباقة." }, 400, cors);
-    }
-    priceUsd = round2(Math.min(priceUsd, round2(getCryptoPlan(env).priceUsd * (1 - discount.percent / 100))));
-  } else if (body?.discount_code) {
-    // A code on a non-discount tier is honored too (owner's choice to allow).
+  if (body?.discount_code) {
     discount = await validateDiscountCode(body.discount_code, env);
     if (!discount) {
       return json({ error: "invalid_discount_code", message: "كود الخصم غير صالح." }, 400, cors);

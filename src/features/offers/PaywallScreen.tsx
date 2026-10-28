@@ -4,45 +4,43 @@ import { ShieldCheck } from 'lucide-react';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { track } from '@/lib/analytics/client';
-import { legalPageUrl } from '@/lib/utils/links';
 import { haptic } from '@/lib/utils/haptics';
 import { SubscriptionRedemptionScreen } from '@/features/auth/SubscriptionRedemptionScreen';
 import {
-  isOwnerFilled,
-  OFFER_COPY,
-  OFFER_ORDER,
+  BEST_VALUE_AR,
+  FREE_LESSONS_PER_MONTH,
+  PLANS,
+  PRICING_FOOTNOTE_AR,
+  PRICING_HEADLINE_AR,
+  PRICING_RULES_AR,
+  RECOMMENDED_PLAN,
   REFUND_TEXT,
-  REFUND_UNPUBLISHED_AR,
-  type OfferProduct,
+  formatUsd,
+  type PlanId,
 } from '@/lib/offers/pricing';
-import { usePricing } from '@/lib/offers/priceSource';
+import { priceRowFor, usePricing } from '@/lib/offers/priceSource';
 import { paymentInstructionsFor } from '@/lib/offers/paymentInstructions';
 
 /**
- * The paywall: Exam Pass first, Monthly second, a single mock as a link.
+ * The paywall: four founding-price plans, one offer.
  *
  * WHAT THIS SCREEN REFUSES TO DO
- * It does not decide a price. Every amount comes from `GET /pricing`, which read
- * the learner's country from the request the app already made; if that call fails
- * the screen shows no price and no buy button rather than a guess, because a
- * wrong price is worse than an absent one.
+ * It does not decide a price. Every amount comes from `GET /pricing`, which
+ * reads `pricing.config.json`; if that call fails the screen shows no price and
+ * no buy button rather than a guess, because a wrong price is worse than an
+ * absent one.
  *
- * It does not make a promise the product cannot keep: no "unlimited", no
- * "lifetime", no guaranteed pass. Where there is a limit it is stated in the
- * card that carries the price, and the refund line is the `{{OWNER_FILL}}`
- * placeholder the owner has to replace before launch (C1 makes that the only
- * thing standing between this screen and a strict launch pass).
+ * WHAT IT MUST SHOW, ONCE
+ * The founding price, the published future price struck through beside it, and
+ * the per-month figure. Under the cards, the three facts a buyer needs before
+ * paying: the payment route, the activation promise, and the refund rule. The
+ * four rules themselves are printed once, in order, instead of being repeated
+ * on every card.
  *
- * B1: it also does not PRINT the placeholder. Until the owner fills the line the
- * screen says the policy is unpublished and offers to answer the question, which
- * is the honest version of the same fact — the placeholder's whole job was to stop
- * the app inventing a policy, and printing it did the opposite of that.
- *
- * Ordering is a decision, not a coincidence: the pass is what the free mock is
- * for, the subscription is the comparison that makes the pass look considered,
- * and the one-off mock is the honest entry for someone who only wants one test.
+ * The 6-month plan is pre-selected (the panel opens under it) and wears the
+ * "Best value" badge — the recommendation is a display decision, never a
+ * different price.
  */
-
 export const PaywallScreen: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -51,34 +49,30 @@ export const PaywallScreen: React.FC = () => {
     [location.search],
   );
   const [overlay, setOverlay] = useState<'purchase' | 'redeem' | null>(null);
-  // The panel opens under the card the learner tapped, not at the bottom of the
-  // list where a tap on the top card would leave it off-screen.
-  const [activeProduct, setActiveProduct] = useState<OfferProduct | null>(null);
+  // Pre-selected: the plan the badge points at. The panel opens under the card
+  // the learner tapped, not at the bottom of the list.
+  const [activeProduct, setActiveProduct] = useState<PlanId | null>(null);
 
   // The same one-call source the modal, the landing page and the redemption
   // screen read, so four surfaces cannot quote four different amounts.
-  const { pricing, loaded, group, cell, priceFor } = usePricing();
+  const { pricing, loaded, group, priceFor } = usePricing();
 
   const instructions = useMemo(() => paymentInstructionsFor(group), [group]);
 
   const handleUpgradeClick = useCallback(
-    (product: OfferProduct) => {
+    (product: PlanId) => {
       // A plain acknowledgement that the tap landed — `select`, never `success`:
-      // nothing has been bought yet, and a purchase-shaped buzz before the panel
-      // opens would be a lie the learner can feel.
+      // nothing has been bought yet.
       haptic('select');
-      // The funnel needs the group and the cell this learner was actually SHOWN,
-      // never a guess — B5 reads both off this event.
       track('upgrade_click', {
         kind: product,
         region: group || 'standard',
-        cell: String(cell ?? 'none'),
       });
       track('purchase_clicked', { kind: product, state: group || 'standard' });
       setActiveProduct(product);
       setOverlay('purchase');
     },
-    [group, cell],
+    [group],
   );
 
   useEffect(() => {
@@ -91,7 +85,6 @@ export const PaywallScreen: React.FC = () => {
       track('paywall_view', {
         kind: pricing.group || 'standard',
         region: pricing.group || 'standard',
-        cell: String(pricing.cell ?? 'none'),
       });
     }
   }, [loaded, pricing]);
@@ -110,11 +103,13 @@ export const PaywallScreen: React.FC = () => {
           </button>
         </div>
 
+        <p className="kz-ar-caption font-bold text-primary">{PRICING_HEADLINE_AR}</p>
+
         {fromMock ? (
           <GlassCard data-testid="paywall-from-mock">
             <p className="kz-ar-caption font-bold text-primary">أكملت محاكاة B1 الشفوية</p>
             <p className="kz-ar-micro mt-1 text-kz-inkDim">
-              باقة الامتحان تفتح لك التقرير الكامل بجميع التصحيحات، ومحادثات B1 الواقعية، ومحاكاة جديدة متى شئت لتقارن تقديرك التدريبي قبل موعدك.
+              الاشتراك يفتح لك التقرير الكامل بجميع التصحيحات، ومحادثات B1 الواقعية، ومحاكاة جديدة متى شئت لتقارن تقديرك التدريبي قبل موعدك.
             </p>
           </GlassCard>
         ) : null}
@@ -138,124 +133,132 @@ export const PaywallScreen: React.FC = () => {
           </GlassCard>
         ) : null}
 
-        {OFFER_ORDER.map((product) => {
-          const copy = OFFER_COPY[product];
-          const label = priceFor(product);
-          const lead = !copy.isLink;
+        {PLANS.map((plan) => {
+          const row = priceRowFor(pricing, plan.id);
+          const label = priceFor(plan.id);
+          const future = row?.futureCents ?? plan.futureCents;
+          const perMonth = row?.amountCents
+            ? Math.round(row.amountCents / Math.max(1, row.months ?? plan.months))
+            : plan.perMonthCents;
+          const recommended = row?.recommended ?? plan.recommended;
+          const selected = activeProduct === plan.id;
           return (
-            <React.Fragment key={product}>
-            <GlassCard>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="kz-ar-caption font-bold">{copy.nameAr}</p>
-                  <p className="kz-ar-micro mt-1 text-kz-inkDim">{copy.pitchAr}</p>
+            <React.Fragment key={plan.id}>
+              <GlassCard
+                className={
+                  recommended
+                    ? 'border-primary/50 ring-1 ring-primary/30'
+                    : selected
+                      ? 'border-white/20'
+                      : undefined
+                }
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="kz-ar-caption font-bold">{plan.nameAr}</p>
+                    {recommended ? (
+                      <span className="kz-ar-micro mt-1 inline-block rounded-full bg-primary/15 px-2 py-0.5 font-bold text-primary">
+                        {BEST_VALUE_AR}
+                      </span>
+                    ) : null}
+                  </div>
+                  {label ? (
+                    <div className="shrink-0 text-end">
+                      <p
+                        data-testid={`price-${plan.id}`}
+                        className="kz-de-title font-bold text-primary"
+                      >
+                        {label}
+                      </p>
+                      <p className="kz-ar-micro text-kz-inkFaint">
+                        <span className="line-through">{formatUsd(future)}</span> بعد انتهاء العرض
+                      </p>
+                      {plan.months > 1 ? (
+                        <p className="kz-ar-micro text-kz-inkDim">
+                          {formatUsd(perMonth)} شهرياً
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
+
                 {label ? (
-                  <p
-                    data-testid={`price-${product}`}
-                    className={`kz-de-title shrink-0 font-bold ${lead ? 'text-primary' : 'text-kz-lavender'}`}
-                  >
-                    {label}
-                  </p>
-                ) : null}
-              </div>
-
-              <ul className="mt-3 space-y-1">
-                {copy.includesAr.map((line) => (
-                  <li key={line} className="kz-ar-micro text-kz-inkDim">
-                    — {line}
-                  </li>
-                ))}
-              </ul>
-
-              {copy.fairUseAr ? (
-                <p className="kz-ar-micro mt-3 flex items-start gap-1 text-kz-inkFaint">
-                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                  <span>{copy.fairUseAr}</span>
-                </p>
-              ) : null}
-
-              {label ? (
-                lead ? (
                   <div className="mt-3">
-                    <PrimaryAction onClick={() => handleUpgradeClick(product)}>
-                      <span>فعّل بكود</span>
+                    <PrimaryAction onClick={() => handleUpgradeClick(plan.id)}>
+                      <span>اختر هذه الباقة</span>
                     </PrimaryAction>
                   </div>
-                ) : (
-                  <div className="mt-3">
-                    <GlassButton onClick={() => handleUpgradeClick(product)}>
-                      <span>خذ هذه المحاكاة</span>
-                    </GlassButton>
-                  </div>
-                )
+                ) : null}
+              </GlassCard>
+
+              {activeProduct === plan.id && overlay ? (
+                <div id="paywall-panel" className="space-y-3">
+                  {overlay === 'purchase' ? (
+                    <GlassCard>
+                      {/* The steps are written for the region the SERVER resolved, and
+                          say up front which part is outside the app's control. */}
+                      <p className="kz-ar-caption font-bold text-kz-ink">{instructions.headingAr}</p>
+                      <ol className="mt-2 space-y-1">
+                        {instructions.stepsAr.map((step, i) => (
+                          <li key={step} className="kz-ar-micro text-kz-inkDim">
+                            {`${i + 1}. ${step}`}
+                          </li>
+                        ))}
+                      </ol>
+                      {instructions.timingAr ? (
+                        <p className="kz-ar-micro mt-3 text-kz-inkFaint">
+                          وقت التفعيل: {instructions.timingAr}
+                        </p>
+                      ) : null}
+                      <p className="kz-ar-micro mt-2 text-kz-inkFaint">{instructions.caveatAr}</p>
+                      <p className="kz-ar-micro mt-3 text-kz-ink">اشترِ الكود من صفحة البيع الرسمية، ثم فعّله هنا.</p>
+                      <div className="mt-3 flex flex-col gap-2">
+                        <PrimaryAction onClick={() => setOverlay('redeem')}>
+                          <span>لديّ كود — فعّله الآن</span>
+                        </PrimaryAction>
+                        <GlassButton onClick={() => setOverlay(null)}>
+                          <span>لاحقاً</span>
+                        </GlassButton>
+                      </div>
+                    </GlassCard>
+                  ) : null}
+
+                  {/* Redemption is the existing code path, untouched: the offer screen only
+                      decides whether to show it. */}
+                  {overlay === 'redeem' ? (
+                    <SubscriptionRedemptionScreen
+                      onBack={() => setOverlay(null)}
+                      onSuccess={() => navigate('/app/trail')}
+                      onGoToSignIn={() => navigate('/signin')}
+                      onOpenMock={() => navigate('/mock')}
+                    />
+                  ) : null}
+                </div>
               ) : null}
-            </GlassCard>
-
-            {activeProduct === product && overlay ? (
-              <div id="paywall-panel" className="space-y-3">
-                {overlay === 'purchase' ? (
-                  <GlassCard>
-                    {/* C3: the steps are written for the region the SERVER resolved, and
-                        say up front which part is outside the app's control. */}
-                    <p className="kz-ar-caption font-bold text-kz-ink">{instructions.headingAr}</p>
-                    <ol className="mt-2 space-y-1">
-                      {instructions.stepsAr.map((step, i) => (
-                        <li key={step} className="kz-ar-micro text-kz-inkDim">
-                          {`${i + 1}. ${step}`}
-                        </li>
-                      ))}
-                    </ol>
-                    {instructions.timingAr ? (
-                      <p className="kz-ar-micro mt-3 text-kz-inkFaint">
-                        وقت التفعيل: {instructions.timingAr}
-                      </p>
-                    ) : null}
-                    <p className="kz-ar-micro mt-2 text-kz-inkFaint">{instructions.caveatAr}</p>
-                    <p className="kz-ar-micro mt-3 text-kz-ink">اشترِ الكود من صفحة البيع الرسمية، ثم فعّله هنا.</p>
-                    <div className="mt-3 flex flex-col gap-2">
-                      <PrimaryAction onClick={() => setOverlay('redeem')}>
-                        <span>لديّ كود — فعّله الآن</span>
-                      </PrimaryAction>
-                      <GlassButton onClick={() => setOverlay(null)}>
-                        <span>لاحقاً</span>
-                      </GlassButton>
-                    </div>
-                  </GlassCard>
-                ) : null}
-
-                {/* Redemption is the existing code path, untouched: the offer screen only
-                    decides whether to show it. */}
-                {overlay === 'redeem' ? (
-                  <SubscriptionRedemptionScreen
-                    onBack={() => setOverlay(null)}
-                    onSuccess={() => navigate('/app/trail')}
-                    onGoToSignIn={() => navigate('/signin')}
-                    onOpenMock={() => navigate('/mock')}
-                  />
-                ) : null}
-              </div>
-            ) : null}
             </React.Fragment>
           );
         })}
 
         <GlassCard>
-          {/* Placeholder on purpose: the app must not invent a refund promise.
-              And B1: it must not show the placeholder either — `isOwnerFilled` is
-              the one place that decides which of the two sentences a buyer reads. */}
-          <p className="kz-ar-micro text-kz-inkFaint">
-            {isOwnerFilled(REFUND_TEXT) ? `سياسة الاسترداد: ${REFUND_TEXT}` : REFUND_UNPUBLISHED_AR}
+          <p className="kz-ar-caption font-bold text-kz-ink">قواعد العرض</p>
+          <ol className="mt-2 space-y-1">
+            {PRICING_RULES_AR.map((rule, i) => (
+              <li key={rule} className="kz-ar-micro text-kz-inkDim">
+                {`${i + 1}. ${rule}`}
+              </li>
+            ))}
+          </ol>
+        </GlassCard>
+
+        <GlassCard>
+          <p className="kz-ar-micro text-kz-inkDim">{PRICING_FOOTNOTE_AR}</p>
+          <p className="kz-ar-micro mt-2 flex items-start gap-1 text-kz-inkFaint">
+            <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+            <span>{REFUND_TEXT}</span>
           </p>
-          {isOwnerFilled(REFUND_TEXT) ? null : (
-            <button
-              type="button"
-              onClick={() => window.open(legalPageUrl('contact'), '_blank', 'noopener,noreferrer')}
-              className="mt-2 flex min-h-touch items-center font-arabic text-micro text-kz-lavender underline underline-offset-4"
-            >
-              اسألنا عن سياسة الاسترداد قبل أن تدفع
-            </button>
-          )}
+          <p className="kz-ar-micro mt-2 text-kz-inkFaint">
+            {`المجاني يبقى: ${FREE_LESSONS_PER_MONTH} دروس بالذكاء الاصطناعي كل شهر، والمهمة اليومية، ومراجعة أخطائك.`}
+          </p>
           <p className="kz-ar-micro mt-2 text-kz-inkFaint">
             التفعيل يتم عبر كود مرتبط بحسابك الموثّق — لا تُدخل أي بيانات بطاقة داخل التطبيق.
           </p>

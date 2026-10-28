@@ -1,58 +1,66 @@
 /**
- * Katzu pricing — one table, one resolver, no secrets.
+ * Katzu pricing — one table, no secrets, one source of truth.
  *
- * Everything a learner is charged is read from `PRICES` below and nowhere else,
- * so the owner edits prices in one place without touching code. Region is
- * resolved SERVER-SIDE from the Cloudflare country header: a learner controls
- * the headers they send, so the client never picks a group and never displays a
- * price it decided itself — it renders whatever `/pricing` returns.
+ * Every amount a learner is shown or charged is read from `pricing.config.json`
+ * (repo root) and nowhere else. This module shapes that config for the Worker
+ * and the app; the static site's build reads the same file. A price written into
+ * a page or a component would be a second source of truth, and a learner shown
+ * one number while being charged another is the defect this file prevents.
  *
- * **PRICES ARE UNPROVEN.** They are a planning guess by the owner, not a
- * validated price list. Nothing here has been tested against a real purchase.
+ * The offer is a FOUNDING price with a real, published FUTURE price beside it.
+ * The founding window ends on a member cap or a date (whichever comes first),
+ * and founding members keep their price on renewal — both facts live in the JSON
+ * and are rendered from it, not copied by hand.
+ *
+ * Region no longer moves the price (one table for everyone); it is still resolved
+ * server-side because the payment instructions differ by region.
  */
 
-/** Countries priced as `special`. Everything else, including unknown and missing, is `standard`. */
+import pricingConfig from './pricing.config.json';
+
+const toCents = (usd) => Math.round(Number(usd) * 100);
+
+/** Countries whose payment instructions differ. Everything else is `standard`. */
 export const SPECIAL_COUNTRIES = ['SY', 'EG', 'IQ', 'PS'];
 
 /**
- * Price per product per region group, in euro cents so no float arithmetic can
- * ever move a price by a cent. `passByCell` overrides `pass90` when an
- * experiment bucket is assigned.
+ * The four plans, in the order they are offered. `product` is the plan id the
+ * rest of the system already uses (`monthly`, `quarterly`, `halfyear`, `yearly`).
+ * Amounts are integer cents so no float arithmetic can move a price by a cent.
  */
-export const PRICES = {
-  standard: { pass90: 2900, monthly: 1299, mock: 900 },
-  special: { pass90: 1200, monthly: 500, mock: 300 },
-};
+export const PLANS = (pricingConfig.plans || []).map((plan) => ({
+  product: String(plan.id),
+  amountCents: toCents(plan.foundingUsd),
+  futureCents: toCents(plan.futureUsd),
+  months: Math.max(1, Math.trunc(Number(plan.months) || 1)),
+  recommended: plan.recommended === true,
+  currency: 'USD',
+}));
+
+/** Plan ids the app is allowed to sell, in display order. */
+export const PRODUCTS = PLANS.map((plan) => plan.product);
+
+/** One plan by id, or undefined when the id is not in the table. */
+export const PLAN_BY_ID = Object.fromEntries(PLANS.map((plan) => [plan.product, plan]));
+
+/** The pre-selected plan (the "Best value" plan), or the first row. */
+export const RECOMMENDED_PRODUCT =
+  (PLANS.find((plan) => plan.recommended) || PLANS[0] || {}).product || null;
+
+export const CURRENCY = 'USD';
+export const FOUNDING_CAP = Number(pricingConfig.foundingCap) || 1000;
+export const FOUNDING_ENDS_ON = String(pricingConfig.foundingEndsOn || '');
+export const REFUND_DAYS = Number(pricingConfig.refundDays) || 7;
+export const REFUND_PLAN_IDS = Array.isArray(pricingConfig.refundPlanIds)
+  ? pricingConfig.refundPlanIds.map(String)
+  : [];
+export const ACTIVATION_HOURS = Number(pricingConfig.activationHours) || 12;
+export const FREE_LESSONS_PER_MONTH = Number(pricingConfig.freeLessonsPerMonth) || 3;
 
 /**
- * Experiment cells for the Exam Pass price, by index. The owner sets these to
- * compare 19 / 29 / 39 (standard) and 9 / 12 / 19 (special). Kept separate from
- * `PRICES` so turning the experiment off is deleting one row, not editing three.
- */
-export const PASS_CELLS = {
-  standard: [1900, 2900, 3900],
-  special: [900, 1200, 1900],
-};
-
-/** Products the app is allowed to sell. No annual, no lifetime — deliberately. */
-export const PRODUCTS = ['pass90', 'monthly', 'mock'];
-
-/** A stable, cheap hash. FNV-1a over the user id; not for security, only for bucketing. */
-function stableHash(value) {
-  let hash = 0x811c9dc5;
-  const text = String(value ?? '');
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    // Math.imul keeps the multiply in 32-bit space on every engine.
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash >>> 0;
-}
-
-/**
- * Which group a country belongs to. UNKNOWN MEANS STANDARD, never special: the
- * safe direction is the one where we might under-charge, and an unrecognised or
- * spoofed header must not be able to reach the cheaper group.
+ * Which group a country belongs to. UNKNOWN MEANS STANDARD, never special: an
+ * unrecognised or spoofed header must not be able to reach a cheaper set of
+ * payment instructions than the one it is entitled to.
  */
 export function regionGroupFromCountry(country) {
   const code = String(country ?? '').trim().toUpperCase();
@@ -69,36 +77,28 @@ export function regionGroupFromRequest(request) {
   return regionGroupFromCountry(header);
 }
 
-/**
- * Which price cell a learner sees. Deterministic on the account id, so the same
- * learner always gets the same price across sessions and devices — a bucket that
- * moved between page loads would make an A/B result meaningless.
- */
-export function experimentBucket(accountId, cellCount = 3) {
-  if (!Number.isInteger(cellCount) || cellCount < 1) return 0;
-  return stableHash(`pass:${accountId ?? ''}`) % cellCount;
-}
-
-/**
- * The price one learner pays. `cell` of null (or a disabled experiment) falls
- * back to the plain `pass90` price, so the experiment can be switched off without
- * changing any other number.
- */
-export function priceFor({ group = 'standard', product = 'pass90', cell = null } = {}) {
-  const table = PRICES[group] || PRICES.standard;
-  const cells = PASS_CELLS[group] || PASS_CELLS.standard;
-  if (product === 'pass90' && Number.isInteger(cell) && cell >= 0 && cell < cells.length) {
-    return { product, amountCents: cells[cell], currency: 'EUR', group, cell, unproven: true };
-  }
-  const amountCents = table[product];
-  if (!Number.isInteger(amountCents)) return null;
-  return { product, amountCents, currency: 'EUR', group, cell: null, unproven: true };
+/** One plan's row for the learner, or null when the id is not sold. */
+export function priceFor({ product = RECOMMENDED_PRODUCT } = {}) {
+  const plan = PLAN_BY_ID[product];
+  if (!plan) return null;
+  return { ...plan, unproven: true };
 }
 
 /** The whole catalogue for one learner, so the paywall renders in one call. */
-export function catalogueFor({ group = 'standard', cell = null } = {}) {
-  const rows = PRODUCTS.map((product) => priceFor({ group, product, cell })).filter(Boolean);
-  return { group, cell, currency: 'EUR', unproven: true, prices: rows };
+export function catalogueFor({ group = 'standard' } = {}) {
+  const rows = PRODUCTS.map((product) => priceFor({ product })).filter(Boolean);
+  return {
+    group,
+    currency: CURRENCY,
+    foundingCap: FOUNDING_CAP,
+    foundingEndsOn: FOUNDING_ENDS_ON,
+    refundDays: REFUND_DAYS,
+    refundPlanIds: REFUND_PLAN_IDS,
+    activationHours: ACTIVATION_HOURS,
+    freeLessonsPerMonth: FREE_LESSONS_PER_MONTH,
+    unproven: true,
+    prices: rows,
+  };
 }
 
 /**
@@ -114,13 +114,22 @@ export function isRegionMismatch(codeGroup, learnerGroup) {
 
 const DAY_MS = 86400000;
 
-/** How long each product lasts, in days. `mock` lasts no time — it is a count. */
-export const PRODUCT_DURATION_DAYS = { pass90: 90, monthly: 30, mock: 0 };
+/**
+ * How long each plan lasts, in days. A nominal duration — redemption itself is
+ * server-authoritative — kept here so a client-side preview can never disagree
+ * with the plan table about what "3 months" means.
+ */
+export const PRODUCT_DURATION_DAYS = Object.fromEntries(
+  PLANS.map((plan) => [
+    plan.product,
+    plan.months === 12 ? 365 : plan.months === 6 ? 180 : plan.months * 30,
+  ]),
+);
 
 /**
- * When an entitlement redeemed at `from` runs out. Returns null for products
- * that are not time-boxed (a mock credit), which is the honest answer rather
- * than a sentinel date nobody should ever see.
+ * When an entitlement redeemed at `from` runs out. Returns null for an unknown
+ * product, which is the honest answer rather than a sentinel date nobody should
+ * ever see.
  */
 export function entitlementExpiryFor(product, from = Date.now()) {
   const days = PRODUCT_DURATION_DAYS[product];
@@ -163,9 +172,9 @@ export function mockCreditsRemaining(record) {
 // ----------------------------------------------------------------------------
 //
 // One free B1 mock per account, then a paid entry: a `mock` credit, or any live
-// Exam Pass / Monthly subscription. The free mock is what the whole funnel is
-// built on — it is why the learner stays long enough to see the debrief — so it
-// is deliberately generous and deliberately countable.
+// subscription. The free mock is what the whole funnel is built on — it is why
+// the learner stays long enough to see the debrief — so it is deliberately
+// generous and deliberately countable.
 //
 // DECIDED HERE, NOT IN THE HANDLER: `decideMockAccess` is pure and the worker
 // only reads its answer, which is what makes "one free mock" a rule that can be

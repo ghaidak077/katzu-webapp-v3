@@ -28,15 +28,64 @@ import { bootSignedIn, mockBackend } from './harness';
 const PRODUCTION = process.env.E2E_TARGET === 'production';
 
 const PRICES = [
-  { product: 'pass90', amountCents: 2900, currency: 'EUR', group: 'standard', cell: null },
-  { product: 'monthly', amountCents: 1299, currency: 'EUR', group: 'standard', cell: null },
-  { product: 'mock', amountCents: 900, currency: 'EUR', group: 'standard', cell: null },
+  {
+    product: 'monthly',
+    amountCents: 1499,
+    futureCents: 2999,
+    months: 1,
+    recommended: false,
+    currency: 'USD',
+    group: 'standard',
+    cell: null,
+  },
+  {
+    product: 'quarterly',
+    amountCents: 2999,
+    futureCents: 5999,
+    months: 3,
+    recommended: false,
+    currency: 'USD',
+    group: 'standard',
+    cell: null,
+  },
+  {
+    product: 'halfyear',
+    amountCents: 4999,
+    futureCents: 9999,
+    months: 6,
+    recommended: true,
+    currency: 'USD',
+    group: 'standard',
+    cell: null,
+  },
+  {
+    product: 'yearly',
+    amountCents: 9999,
+    futureCents: 19999,
+    months: 12,
+    recommended: false,
+    currency: 'USD',
+    group: 'standard',
+    cell: null,
+  },
 ];
 
-/** The amount in a price string, group-agnostic: `Katzu Pro — 29 €` → `29`. */
+/** The four founding prices the server publishes, one row each. */
+const ANSWER = {
+  prices: PRICES,
+  group: 'standard',
+  foundingCap: 1000,
+  foundingEndsOn: '2027-01-31',
+  refundDays: 7,
+  refundPlanIds: ['quarterly', 'halfyear', 'yearly'],
+  activationHours: 12,
+  freeLessonsPerMonth: 3,
+};
+
+/** The amount in a price string, currency-agnostic: `$14.99` → `14.99`. */
 function amountOf(text: string): string {
-  const match = text.match(/(\d[\d.,]*)\s*€/);
-  expect(match, `no euro amount in "${text}"`).toBeTruthy();
+  const match = text.match(/(\d[\d.,]*)/);
+  expect(match, `no dollar amount in "${text}"`).toBeTruthy();
   return match![1];
 }
 
@@ -71,7 +120,7 @@ test.describe('production smoke (read-only)', () => {
     // console fills with failed fetches the real site would never make — and the
     // console assertion below would fail on the harness, not the app. Against
     // production there is nothing to mock and nothing to fake.
-    if (!PRODUCTION) await mockBackend(page, { pricing: { prices: PRICES, group: 'standard' } });
+    if (!PRODUCTION) await mockBackend(page, { pricing: ANSWER });
 
     await page.goto('/?src=test');
 
@@ -93,16 +142,19 @@ test.describe('production smoke (read-only)', () => {
     // production an anonymous visitor is sent to `/welcome`, so there is no
     // price surface left for this read-only check to read.
     test.skip(PRODUCTION, 'the paywall is session-gated; this smoke does not sign in');
-    await bootSignedIn(page, { pricing: { prices: PRICES, group: 'standard' } });
+    await bootSignedIn(page, { pricing: ANSWER });
 
     await page.goto('/paywall');
-    const pass = page.getByTestId('price-pass90');
-    await expect(pass).toBeVisible();
+    const monthly = page.getByTestId('price-monthly');
+    await expect(monthly).toBeVisible();
     // The badge wears the brand name alone until `/pricing` answers, so reading
     // it the instant it appears compares a blank against a number. Wait for the
     // server's amount to land.
-    await expect(pass).toContainText('€');
-    expect(amountOf(await pass.innerText())).toBe('29');
+    await expect(monthly).toContainText('$');
+    expect(amountOf(await monthly.innerText())).toBe('14.99');
+
+    // The four plans the founder price covers, up to the 12-month one.
+    await expect(page.getByTestId('price-yearly')).toHaveText('$99.99');
   });
 
   test('shows no price when /pricing is unreachable', async ({ page }) => {
@@ -114,7 +166,7 @@ test.describe('production smoke (read-only)', () => {
     // The landing page that used to show the price is gone (the marketing site
     // is separate now); the paywall must still refuse to invent one.
     await page.goto('/paywall');
-    await expect(page.getByTestId('price-pass90')).toHaveCount(0);
+    await expect(page.getByTestId('price-monthly')).toHaveCount(0);
   });
 
   test('the admin orders route refuses an unauthenticated caller', async ({ page, request }) => {
