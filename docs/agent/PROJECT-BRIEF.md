@@ -52,33 +52,38 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-27 (split site live, Google Sign-In fixed)
+## Current snapshot — 2026-10-28 (audit #7 limiter + beacon CSP live)
 
-**Deployed 2026-10-27 (`pages` ×2; worker untouched, no D1 write):** marketing now lives on its own
-Pages project and the app serves the product only.
+**Deployed 2026-10-28 (`worker` + `pages`):** `/auth/session` is limited before the Google tokeninfo call,
+and the CSP no longer blocks the Pages beacon.
+- **Worker** `katzu-test` ← **`6f5ba883-6730-43d2-b8cd-9c275b298fee`** (`726a710`; 20/min + 600/day per IP,
+  scope `auth-session`). Rollback **`e1a9a2ca-e919-43e2-baba-28a52bddd1cd`**.
+- **App** `katzuai.com` ← **`4fc1306f-bc9e-4ad6-ba85-050fe5a15b17`** (`29f6aec`,
+  `assets/index-CKzmjiNb.js`). Rollback **`00d42544-53b3-435a-b59d-bc2cbe64bd56`** (`726a710`).
+- **Site** unchanged since 2026-10-27: `de591b4e-364e-4779-8d87-57ea5adb2dd8`, 21/21 sitemap URLs **200**.
+  Rollback **`ea420d13-5691-4e2c-9ee7-9c84c45975d8`**.
+- **Verified:** `npm run verify -- --ci --e2e` **14/14 in 967 s**, browser suite **exit 0**; live `/`
+  `/welcome` `/signin` **200**, GIS button renders under a service worker, console **0 errors**, 19 legacy
+  URLs **301**; Lighthouse mobile a11y/SEO/BP **100**, perf **80**.
+- **UNPROVEN:** a real Google credential exchange. **Owner:** the `$60` + `KATZU26` offer is a manual promo
+  — nothing reads it, and the yearly tier charges `$42` (`COUPON-60`).
+
+## Previous snapshot — 2026-10-27 (split site live)
+
+**Deployed 2026-10-27 (`pages` ×2):** marketing moved to its own Pages project.
 - **App** `katzuai.com` ← **`3c5fcfef-24ea-406c-b3b4-d725a4838b4b`** (source `da7656c`, bundle
-  `assets/index-DtOhy65S.js`, the tree carrying the uncommitted `fix(auth)`). Rollback
-  **`f5030887-d21b-44f7-83a8-b43f81085e51`**.
+  `assets/index-DtOhy65S.js`). Rollback **`f5030887-d21b-44f7-83a8-b43f81085e51`**.
 - **Site** `website.katzuai.com` ← `katzu-landing` **`de591b4e-364e-4779-8d87-57ea5adb2dd8`**
-  (source `da7656c`), byte-identical to `website/index.html`, SRI on all 3 scripts, 21/21 sitemap
-  URLs **200**. Rollback **`ea420d13-5691-4e2c-9ee7-9c84c45975d8`**.
-- **The auth defect:** `/signin` guessed GIS readiness with a one-shot 700 ms timer while its
-  fallback stayed tappable, and a failed script was never retried. It now observes the button
-  container, keeps `loading` as its own state and re-injects the script on retry; COOP ships
-  `same-origin-allow-popups` (plain `same-origin` severs the GIS popup) and the CSP names GIS hosts.
-- **Verified:** `npm run verify` **6/6 in 84.6 s**, browser suite **exit 0**, targeted specs **14**;
-  live `/signin` GIS script/style/button/font **200** with the button rendered in a clean and a
-  service-worker-controlled profile; app `/pricing|/faq|/en|/trust/*` **301** to the site.
-- **UNPROVEN:** a real Google credential exchange, and a SW upgrade from the pre-fix cache. Recorded
-  cost: 122 precache entries ≈ 4.9 MB, cold install ~70 s.
+  (source `da7656c`), 21/21 sitemap URLs **200**. Rollback
+  **`ea420d13-5691-4e2c-9ee7-9c84c45975d8`**.
+- **UNPROVEN:** the Google credential exchange and a SW upgrade from the pre-fix cache.
 
-The 2026-10-23 snapshot below is the previous release; 2026-10-04 is historical provenance.
 ## Previous snapshot — 2026-10-23 (guided home live)
 
-**Deployed 2026-10-23 (`merge` + `pages`; no worker, no D1):** `main` = `1e9d09f` (`--no-ff` merge
-of `guided-home`, tip `4b581d0`) plus docs-only commits that rebuild the same bundle. Pages production `c89828af-acba-41bd-8514-8eba166d6c0e` serves
-`assets/index-DkRAI1BL.js` with `VITE_GUIDED_HOME:"1"`, pinned by `.env.production`; rollback is a
-dashboard redeploy of `50f30132-0412-417f-95de-8cc0dc545d7b` or `git revert -m 1 1e9d09f` + push.
+**Deployed 2026-10-23 (`merge` + `pages`):** `main` = `1e9d09f` (merge of `guided-home`, tip `4b581d0`)
+plus docs-only commits that rebuild the same bundle. Pages production `c89828af-…` serves
+`assets/index-DkRAI1BL.js` with `VITE_GUIDED_HOME:"1"`; rollback is a redeploy of `50f30132-…` or
+`git revert -m 1 1e9d09f` + push.
 Gate `npm run verify -- --ci --e2e` **14/14 in 723 s**; production smoke **4 passed / 2 skipped**;
 the public `/demo` completed 4/4 on the live origin; worker `e1a9a2ca-…` unchanged. Signed-in
 guided home, session report and paywall are **UNPROVEN on production** (they need a Google

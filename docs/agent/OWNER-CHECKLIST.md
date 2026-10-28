@@ -1,18 +1,14 @@
 # Owner checklist — what needs you, in plain language
 
-Everything here comes from `docs/AGENT-STATE.md` § OWNER-OPEN, which is the detailed record. This file is
-the short version: no developer knowledge needed, and every item says what "done" looks like. If an open
-owner item is missing here, `tests/agentDocs.test.ts` fails — so this list cannot quietly go stale.
-
-Order matters: 1 and 2 unblock the most.
+Every item here is an open item in `docs/AGENT-STATE.md` § OWNER-OPEN (the detailed record); each says what
+"done" looks like. `tests/agentDocs.test.ts` keeps the two lists in step. Order matters: 1 and 2 unblock most.
 
 ---
 
 ## 1. Decide the app's public address — V18-3
 
-**What it is.** The app is reachable today at `https://katzu-webapp-v3.pages.dev`. That works, but the
-files `public/robots.txt` and `public/sitemap.xml` advertise `https://katzu.app/`, which does not exist.
-Any store listing or payment provider will also expect a web address you control.
+**What it is.** The app is at `https://katzu-webapp-v3.pages.dev`, but `robots.txt`/`sitemap.xml` advertise
+`https://katzu.app/`, which does not resolve, and a store or payment listing will want a host you control.
 
 **What you do.** Pick one:
 
@@ -42,10 +38,9 @@ prints identical counts.
 
 ## 3. Three missing columns in the content database — V12, V12-1
 
-**What it is.** The last real load attempt got through three of four batches and then stopped because the
-database table `grammar` is missing three columns. It cleaned up after itself, so nothing is half-loaded.
-The credential half of this problem is already fixed (V12-1: the secret is a plain 64-character value and
-passes every shape check), so the schema is the only thing standing between the drafts and a full load.
+**What it is.** The last real load stopped because the `grammar` table is missing three columns; it cleaned
+up after itself, so nothing is half-loaded. The credential half is fixed (V12-1), so the schema is all that
+stands between the drafts and a full load.
 
 **What you do.** Add the three columns (this is additive and deletes nothing):
 
@@ -122,6 +117,17 @@ lists.
 
 **Done looks like:** the Test button answers "OK in a few hundred ms" for at least one entry, and a
 live conversation turn no longer shows the fallback model.
+
+---
+
+## 9. The coupon and the price — one decision (2026-10-28)
+
+**What it is.** The site says **$60/year** with coupon `KATZU26`, but no code reads that coupon and the live
+yearly tier charges **$42**.
+
+**What you do.** Either keep `$60` as a hand-applied promo, or tell the agent to show `$42`.
+
+**Done looks like:** the price on the site is the price checkout charges.
 
 ---
 

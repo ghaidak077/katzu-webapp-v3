@@ -15,6 +15,9 @@ Record in ledger: current worker version id (`wrangler deployments list`), curre
 2. `worker`: `npm run deploy:worker`. Verify with `curl -m 10`: `/health` returns its four status
    keys **plus `storage:{d1:"ok",kv:"ok"}`** (shipped by `9c07b44`, 2026-10-16 — health booleans only;
    still **no aiPool, models, strategy** — those leak provider config); `/crypto/health` unchanged (`ready:false` is fine in closed beta); an admin route without auth returns 401/403.
+   The `/auth/session` limit (20/min + 600/day per IP, scope `auth-session`) is a **shared budget behind
+   a NAT**; if a cohort reports `429`, raise the numbers in `cloudflare-unified-worker.js` and keep
+   `tests/workerSecurity.test.ts` green rather than removing the check.
 3. `pages`: verify the production URL returns 200, the built bundle loads the demo with no AI call and no account, and the service worker registers.
 4. Smoke: run the demo e2e spec against the production URL (read-only, no login).
 

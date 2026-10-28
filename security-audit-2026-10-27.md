@@ -90,7 +90,7 @@ page renders with GSAP/Lenis and **zero console errors**.
 - Commit `website/`, `website/_headers`, `cloudflare-website-proxy.js` and
   `wrangler.website.toml` so the hardened configuration is reproducible.
 
-## Addendum — 2026-10-27, later the same day (findings 5–6 closed, checked on production)
+## Addendum — 2026-10-27, later the same day (findings 5–7 closed, checked on production)
 
 Deployed after this audit and re-checked live: app `katzuai.com` ← Pages
 **`3c5fcfef-24ea-406c-b3b4-d725a4838b4b`** (bundle `assets/index-DtOhy65S.js`); site
@@ -100,7 +100,7 @@ Deployed after this audit and re-checked live: app `katzuai.com` ← Pages
 |---|--------|--------------|---------------|
 | 5 | **Closed** | `connect-src` names only `'self'`, `accounts.google.com`, `oauth2.googleapis.com` and the exact Worker origin `https://katzu-test.ghaidakalosh008.workers.dev` — no `*.workers.dev`. A unit test fails if a scheme-wide or bare-host source returns. | `curl -sI https://katzuai.com/signin` shows the narrowed policy; `tests/pwaOffline.test.ts` pins it. |
 | 6 | **Closed, with one correction** | HSTS shipped as asked. **COOP shipped as `same-origin-allow-popups`, not `same-origin`.** `same-origin` is the wrong value for this app: it severs the `window.opener` Google Identity Services' popup needs to return the credential, so the popup would close with no token and sign-in would look broken — the audit's suggested fix would have caused an outage. | Live header reads `cross-origin-opener-policy: same-origin-allow-popups`; the COOP assertion in `tests/pwaOffline.test.ts` fails on plain `same-origin`. |
-| 7 | Open | — | `/auth/session` still has no per-IP limit before the Google `tokeninfo` round-trip. |
+| 7 | **Closed (2026-10-28)** | `handleAuthSession` now calls `checkGlobalRateLimit` **before** `verifyGoogleIdToken` — scope `auth-session`, 20/min + 600/day per `CF-Connecting-IP`, durable `rate_limit_counters` rows, `429` with `Retry-After` and `retry_after` in the body. Deployed as worker **`6f5ba883-6730-43d2-b8cd-9c275b298fee`** (source `726a710`; rollback `e1a9a2ca-e919-43e2-baba-28a52bddd1cd`). | Live: 30 rapid opaque-session posts to `/auth/session` → 11×`401` then 19×`429`, `Retry-After: 13`; D1 shows `auth-session:m:ip:…` and `:d:ip:…`. `tests/workerSecurity.test.ts` pins the 429 + header. |
 | 8 | Open | — | `/client-error` still uses the in-isolate counter. |
 | 9 | Open | — | `.env.production` still tracked; read it as public. |
 | 10 | Open | — | `/health` still reports the storage lanes. |

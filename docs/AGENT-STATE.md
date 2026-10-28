@@ -26,6 +26,20 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-28 final pass — audit #7 closed; `merge` + `worker` + `pages` deployed.** `main` =
+  **`29f6aec`** + docs (pushed; `726a710` rate limit, `29f6aec` beacon CSP). **Worker**
+  `6f5ba883-6730-43d2-b8cd-9c275b298fee`: `/auth/session` is limited per `CF-Connecting-IP` before the
+  Google round-trip (20/min + 600/day, `checkGlobalRateLimit` scope `auth-session`, 429 + `Retry-After`;
+  live proof 11×401 then 19×429 with `Retry-After: 13`). **App** Pages
+  `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17` (source `29f6aec`; `_headers` now names
+  `static.cloudflareinsights.com` + `https://cloudflareinsights.com`, so the Pages beacon stops logging a
+  CSP error). **Site unchanged** (`de591b4e-…`). Gate `verify -- --ci --e2e` **14/14 in 967 s**, browser
+  suite exit 0. Live: `/` `/welcome` `/signin` **200**, a service-worker-controlled page renders the GIS
+  button, console **0 errors**, COOP `same-origin-allow-popups` + GIS CSP correct; 19 legacy URLs **301**;
+  sitemap 21/21 **200**. Lighthouse mobile on the site: a11y **100**, SEO **100**, perf **80** (a local
+  antivirus injects a 147 KB render-blocking script; not a site defect, and reaching 90 needs design work).
+  **Owner:** `KATZU26` is marketing-only — no validator exists (`parseDiscountCode` accepts only
+  `STD-…`); the site says **$60/yr** while the crypto yearly tier charges **$42**.
 - **Production 2026-10-27 — the split is live and Google Sign-In is fixed.** `main` = **`95d3f04`**
   (pushed; the `fix(auth)` batch is commits `d9a863e`, `d6345dc`, `3d46101`, `99f45f4`, `95d3f04`,
   then the docs ledger commits ending **`16a04f2`**);
@@ -68,20 +82,20 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
 `56425f30-…` (2026-10-12), then `66bd8b92-…`, then the secret-only `31149c92-…`, and then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`e1a9a2ca-e919-43e2-baba-28a52bddd1cd`** (100%, 2026-10-22) — the V43.4 fixes (`4b33d70`).
-  Still available: `b2119bfb-68cb-49bb-8639-82d4583eda28` (V43.3, `1ba9abd`),
+  **`6f5ba883-6730-43d2-b8cd-9c275b298fee`** (100%, 2026-10-28) — the audit #7 auth limiter (`726a710`).
+  Previous live version, still available: **`e1a9a2ca-e919-43e2-baba-28a52bddd1cd`** (V43.4, `4b33d70`),
+  then `b2119bfb-68cb-49bb-8639-82d4583eda28` (V43.3, `1ba9abd`),
   `5193b4e9-9653-46b1-9d3d-164e92d0da5a` (V43.2, `3358165`),
   `d07b8701-2176-45b4-9807-fa490f469e29` (the same fix at `95f21f7`),
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- **App Pages production (2026-10-27, the split-serve + Google Sign-In fix):** deployment
-  **`3c5fcfef-24ea-406c-b3b4-d725a4838b4b`** (branch `main`, source `da7656c`, uploaded by hand from a
-  reviewed `dist/`) serves `assets/index-DtOhy65S.js` with the pinned Worker origin and the
-  `same-origin-allow-popups` COOP. **Rollback target: `f5030887-d21b-44f7-83a8-b43f81085e51`**
-  (source `8dab741`, the guided-home bundle served before today, COOP `same-origin`) — dashboard
-  "Redeploy" (that page list shows the entry hash). The entry hash is the stable identity; docs-only
-  commits mint new ids over the same bundle.
+- **App Pages production (2026-10-28, git-connected build of `29f6aec`):** deployment
+  **`4fc1306f-bc9e-4ad6-ba85-050fe5a15b17`** serves the CSP that now names
+  `static.cloudflareinsights.com` (script) and `https://cloudflareinsights.com` (connect), with the same
+  pinned Worker origin and `same-origin-allow-popups` COOP. **Rollback target:
+  `00d42544-53b3-435a-b59d-bc2cbe64bd56`** (source `726a710`, identical minus the two beacon hosts) —
+  dashboard "Redeploy". Older target: `3c5fcfef-24ea-406c-b3b4-d725a4838b4b` (source `da7656c`).
 - **Site Pages production (2026-10-27):** `katzu-landing` deployment
   **`de591b4e-364e-4779-8d87-57ea5adb2dd8`** (branch `main`, source `da7656c`, built by
   `node scripts/build-website.mjs`) — byte-identical to `website/index.html`, SRI on all 3 scripts,
@@ -368,6 +382,13 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   node scripts/load-curriculum.mjs --file=docs/content/curriculum-30day-module1.json --commit
   ```
   **Collision check RE-VERIFIED read-only in V9-9 (Phase 4) against live production D1:** all five of module2's scenario ids and all four of its grammar ids are absent (live scenarios: `apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview`; live grammar: `akkusativ_articles, dativ_prepositions, konjunktiv_ii, perfekt_tense`), and the same holds for all 15 of module1's ids — so neither load can overwrite an existing row. V9-9 also confirmed the block is the *secret*, not the content: both `--commit` runs exit **2** with "ADMIN_SECRET is not set", and §3 forbids an agent from using it. **module1 must be approved first** (`review.status` is `pending` and no `docs/content/review-<module1>.md` exists) or `scripts/load-curriculum.mjs:131` refuses it. Never paste the secret into chat.
+
+- **The advertised offer is not the charged price — one owner decision (COUPON-60, 2026-10-28).** The site
+  advertises **$60/year** with coupon `KATZU26` through 31 Jan 2027, but no coupon validator exists:
+  `parseDiscountCode` (`cloudflare-crypto.js`) accepts only `STD-\d{2}-[A-Z0-9]{6,12}-[A-F0-9]{16}`, and the
+  live crypto yearly tier charges **$42** (`/crypto/health`). Nothing was changed — both are owner money
+  decisions (§3). Choose: keep `$60` as a promo you apply by hand (and say so to buyers), make the site show
+  `$42`, or commission real coupon support. Done looks like: the price a learner reads is the one charged.
 
 - Existing `docs/LAUNCH-CHECKLIST.md` §2 owner-only actions remain untouched.
 
