@@ -1,16 +1,18 @@
 ﻿/**
- * The copy for website.katzuai.com — three pages, one design, one set of facts.
+ * The copy for website.katzuai.com — four pages, one design, one set of facts.
  *
- * THE THREE PAGES
- *   /         what Katzu is for: the situation you are preparing for, one real
- *             correction, how it works, the six situations, who it fits, moving.
- *   /pricing  the free card, the four founding plans, the offer rules once, and
- *             the purchase flow (#pay) with the lost-code path (#restore).
- *   /help     short FAQ answers that LINK instead of restating, then the full
- *             legal text (privacy, terms, refund) and one contact address.
+ * THE FOUR PAGES
+ *   /           what Katzu is for: the situation you are preparing for, one real
+ *               correction, how it works, the six situations, who it fits, moving.
+ *   /pricing    the free card, the four founding plans, the offer rules once, and
+ *               the purchase flow (#pay) with the lost-code path (#restore).
+ *   /help       short FAQ answers that LINK instead of restating, then the full
+ *               legal text (privacy, terms, refund) and one contact address.
+ *   /affiliate  the partner programme; it lives in `site-content-affiliate.mjs`
+ *               because its rules are read from `cloudflare-affiliate.js`.
  *
  * WHY IT IS ONE FILE
- * The three pages share a nav, a footer and a background, and a fact written on
+ * The pages share a nav, a footer and a background, and a fact written on
  * two pages is a fact that can disagree with itself. Every number below is read
  * from `pricing.config.json` — the same file the app and the Worker read — so a
  * price typed into a page cannot survive the next build.
@@ -24,6 +26,7 @@
 import {
   SITE,
   APP,
+  WORKER,
   START,
   SUPPORT,
   UPDATED,
@@ -53,6 +56,7 @@ import {
 export {
   SITE,
   APP,
+  WORKER,
   START,
   SUPPORT,
   UPDATED,
@@ -90,6 +94,7 @@ export const NAV_LINKS = [
 export const FOOTER_LINKS = [
   ['/pricing', 'الأسعار'],
   ['/help', 'المساعدة'],
+  ['/affiliate', 'الشركاء'],
   ['/help#privacy', 'الخصوصية'],
   ['/help#terms', 'الشروط'],
   ['/help#refund', 'الاسترداد'],
@@ -190,6 +195,10 @@ export const FAQ_AR = [
     q: 'هل يوجد تطبيق Android أصلي؟',
     a: 'لا. المنتج تطبيق ويب قابل للتثبيت على شاشتك الرئيسية.',
   },
+  {
+    q: 'هل يوجد برنامج شركاء؟',
+    a: 'نعم، لمن يعرّف جمهوره بكاتزو. <a class="inline" href="/affiliate">تفاصيل برنامج الشركاء</a>.',
+  },
 ];
 
 export const FAQ_JSONLD = {
@@ -254,6 +263,7 @@ ${FAQ_AR.map(
   <h2>الخصوصية والبيانات</h2>
   <p class="stamp">آخر تحديث: ${UPDATED} · النسخة العربية هي المرجع.</p>
 ${legal.privacy}
+  <p>عند وصولك من رابط شريك نضع ملفاً تعريفياً (كوكي) على نطاق katzuai.com لمدة 30 يوماً يحمل كود الشريك فقط، ونربط الكود بحسابك عند التسجيل. لا يحتوي الملف على اسمك أو بريدك، ولا يُستخدم لغير نسبة العمولة.</p>
 </section>
 
 <section id="terms" class="wrap sec legal">

@@ -221,9 +221,10 @@ describe('the built marketing site', () => {
 
   const files = htmlFiles().map((file) => file.replace(/\\/g, '/'));
 
-  it('ships exactly the three pages and the 404', () => {
+  it('ships exactly the four pages and the 404', () => {
     expect([...files].sort()).toEqual([
       'website/404.html',
+      'website/affiliate.html',
       'website/help.html',
       'website/index.html',
       'website/pricing.html',
@@ -248,10 +249,18 @@ describe('the built marketing site', () => {
       const html = readFileSync(file, 'utf8');
       expect(html, `${file} must not quote a price`).not.toMatch(/\$\d/);
     }
+
+    // /affiliate is the one other page with a figure in it: the worked example
+    // ("$49.99 → $10") and the $20 minimum. Both come from the config the
+    // Worker pays from, and the build refuses a price on any other page.
+    const affiliate = readFileSync('website/affiliate.html', 'utf8');
+    expect(affiliate).toContain('$49.99');
+    expect(affiliate).toContain('$10');
+    expect(affiliate).toContain('$20');
   });
 
   it('links only to pages that exist, on the site or the app', () => {
-    const allowedSite = new Set(['/', '/pricing', '/help', '/help#faq', '/help#about', '/help#privacy', '/help#terms', '/help#refund', '/help#contact', '/pricing#pay', '/#app', '/#rail', '/#faq']);
+    const allowedSite = new Set(['/', '/pricing', '/help', '/affiliate', '/help#faq', '/help#about', '/help#privacy', '/help#terms', '/help#refund', '/help#contact', '/pricing#pay', '/affiliate#apply', '/#app', '/#rail', '/#faq']);
     const offenders: string[] = [];
     for (const file of files) {
       const html = readFileSync(file, 'utf8');
@@ -265,11 +274,11 @@ describe('the built marketing site', () => {
     expect([...new Set(offenders)]).toEqual([]);
   });
 
-  it('publishes three URLs in the sitemap and no English or trust page', () => {
+  it('publishes four URLs in the sitemap and no English or trust page', () => {
     const sitemap = readFileSync('website/sitemap.xml', 'utf8');
     const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-    expect(locs).toHaveLength(3);
-    for (const loc of locs) expect(loc).toMatch(/^https:\/\/website\.katzuai\.com\/(pricing|help)?$/);
+    expect(locs).toHaveLength(4);
+    for (const loc of locs) expect(loc).toMatch(/^https:\/\/website\.katzuai\.com\/(pricing|help|affiliate)?$/);
     const redirects = readFileSync('website/_redirects', 'utf8');
     expect(redirects).toMatch(/^\/en\/\* \/ {2}301$/m);
   });
@@ -277,7 +286,7 @@ describe('the built marketing site', () => {
   it('rides on one shared stylesheet and one shared background', () => {
     const css = readFileSync('website/assets/site.css', 'utf8');
     expect(css, 'one background image for every page').toContain('/assets/bg-poster.jpg');
-    for (const file of ['website/index.html', 'website/pricing.html', 'website/help.html']) {
+    for (const file of ['website/index.html', 'website/pricing.html', 'website/help.html', 'website/affiliate.html']) {
       const html = readFileSync(file, 'utf8');
       expect(html, `${file} stylesheet`).toContain('/assets/site.css');
       // One H1 per page: the page has one job.
@@ -285,14 +294,51 @@ describe('the built marketing site', () => {
     }
     // The home page is the design: a video background. The text pages carry the
     // same still and the same grain instead, through one shared .bgimg layer.
-    for (const file of ['website/pricing.html', 'website/help.html', 'website/404.html']) {
+    for (const file of ['website/pricing.html', 'website/help.html', 'website/affiliate.html', 'website/404.html']) {
       expect(readFileSync(file, 'utf8'), `${file} background layer`).toContain('class="bgimg"');
     }
     expect(readFileSync('website/index.html', 'utf8')).not.toContain('class="bgimg"');
     // The video is a home-page-only flourish.
     expect(readFileSync('website/index.html', 'utf8')).toContain('/assets/bg.mp4');
-    for (const file of ['website/pricing.html', 'website/help.html']) {
+    for (const file of ['website/pricing.html', 'website/help.html', 'website/affiliate.html']) {
       expect(readFileSync(file, 'utf8')).not.toContain('bg.mp4');
     }
+  });
+
+  it('carries the partner link and the partner reader on every page', () => {
+    // The link is a footer link, never a nav item: the main nav keeps its three
+    // destinations. The reader is one generated file, loaded by all five pages.
+    for (const file of files) {
+      const html = readFileSync(file, 'utf8');
+      expect(html, `${file} footer partner link`).toContain('href="/affiliate"');
+      expect(html, `${file} partner reader`).toContain('/assets/ref.js');
+      const nav = html.match(/<nav id="nav"[\s\S]*?<\/nav>/)?.[0] || '';
+      expect(nav, `${file} nav must not carry the partner link`).not.toContain('/affiliate');
+    }
+    const ref = readFileSync('website/assets/ref.js', 'utf8');
+    // Syntax is checked by `node --check` in the gate; these are the guarantees
+    // the file must keep: 30 days, the parent domain, the code grammar.
+    expect(ref).toContain('max-age=2592000');
+    expect(ref).toContain('domain=.katzuai.com');
+    expect(ref).toContain('[A-Z0-9]{3,20}');
+  });
+
+  it('lets the partner reader reach the Worker its CSP names', () => {
+    // A cookie that is written but whose code is never checked is half a feature:
+    // the site's CSP decides whether `/assets/ref.js` may ask the Worker whether
+    // the code exists. Pin the same origin in both files, so moving the Worker
+    // cannot leave the check silently blocked — which would show up as a console
+    // error on every page and as a dead link that still attributes for 30 days.
+    const csp =
+      readFileSync('website/_headers', 'utf8')
+        .split(/\r?\n/)
+        .find((line) => line.includes('Content-Security-Policy:')) ?? '';
+    const connect = csp.match(/connect-src ([^;]+);/)?.[1] ?? '';
+    const worker = readFileSync('website/assets/ref.js', 'utf8').match(/fetch\("([^"]+)"/)?.[1] ?? '';
+    expect(worker, 'the reader must name one absolute Worker origin').toMatch(
+      /^https:\/\/[a-z0-9.-]+\.workers\.dev$/,
+    );
+    expect(connect, 'connect-src must reach the Worker the reader calls').toContain(worker);
+    expect(connect, 'a wildcard workers.dev host is never allowed').not.toContain('*.workers.dev');
   });
 });

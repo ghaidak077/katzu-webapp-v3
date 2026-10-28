@@ -4,21 +4,25 @@
  *
  *   node scripts/build-website.mjs
  *
- * THE SITE IS THREE PAGES
- *   /         HOME      the supplied design, page for page: hero, the two
- *                       pinned scenes, the app conversation, the situations
- *                       rail, the error timeline, the results, the price line,
- *                       the FAQ, the closing scene.
- *   /pricing  PRICING   free card + four founding plans, the rules once, #pay
- *   /help     HELP      short FAQ answers that link, then privacy/terms/refund
- *                       and one contact address
+ * THE SITE IS FOUR PAGES
+ *   /          HOME      the supplied design, page for page: hero, the two
+ *                        pinned scenes, the app conversation, the situations
+ *                        rail, the error timeline, the results, the price line,
+ *                        the FAQ, the closing scene.
+ *   /pricing   PRICING   free card + four founding plans, the rules once, #pay
+ *   /help      HELP      short FAQ answers that link, then privacy/terms/refund
+ *                        and one contact address
+ *   /affiliate PARTNERS  rate, three steps with one worked example, the rules
+ *                        once, who it is for, and one mailto application
  *
  * ONE SOURCE OF TRUTH PER PAGE
  *   /               scripts/templates/home.html — the design file with only the
  *                   allowed edits (nav/footer links, CTA target, the retired
  *                   coupon block, prices, facts). Tokens are filled here.
- *   /pricing /help  scripts/site-content.mjs (copy) + scripts/site-pricing.mjs
- *                   (prices from pricing.config.json).
+ *   /pricing /help /affiliate
+ *                   scripts/site-content.mjs (copy) + scripts/site-pricing.mjs
+ *                   (prices from pricing.config.json); the partner numbers are
+ *                   read from cloudflare-affiliate.js, the module that pays them.
  *   all pages       website/assets/site.css — Part 1 is the design's own CSS.
  *
  * Nothing else is generated: the old topic pages, the English twins and the
@@ -54,6 +58,12 @@ import {
   PLAN_ORDER_MAILTO,
   helpPage,
 } from './site-content.mjs';
+import {
+  REF_SCRIPT,
+  affiliateCaptureScript,
+  affiliatePage,
+  loadAffiliateConfig,
+} from './site-content-affiliate.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'website');
@@ -229,6 +239,7 @@ ${navHtml(path)}
   ${body}
 </main>
 ${footerHtml()}
+${REF_SCRIPT}
 <script>
 document.documentElement.classList.add('js');
 addEventListener('DOMContentLoaded',()=>{
@@ -246,7 +257,7 @@ ${extraScript}
 /* robots / sitemap / redirects / 404                                 */
 /* ------------------------------------------------------------------ */
 
-const PAGES = ['/', '/pricing', '/help'];
+const PAGES = ['/', '/pricing', '/help', '/affiliate'];
 
 function robotsTxt() {
   return ['User-agent: *', 'Allow: /', '', `Sitemap: ${SITE}/sitemap.xml`, ''].join('\n');
@@ -332,6 +343,7 @@ ${navHtml('/')}
   </header>
 </main>
 ${footerHtml()}
+${REF_SCRIPT}
 </body>
 </html>
 `;
@@ -413,7 +425,7 @@ async function main() {
     refund: legalHtml('refund', TRUST_CONTENT.refund),
   };
 
-  const pages = [PRICING, helpPage(legal)];
+  const pages = [PRICING, affiliatePage(await loadAffiliateConfig()), helpPage(legal)];
   for (const page of pages) {
     if (/\{\{[A-Z_]/.test(page.body)) throw new Error(`${page.path} still contains a placeholder`);
   }
@@ -430,17 +442,19 @@ async function main() {
   written.push(emit('sitemap.xml', sitemapXml()));
   written.push(emit('_redirects', redirectsTxt()));
   written.push(emit('404.html', notFoundHtml()));
+  // One partner-link reader for all five pages (home, three text pages, 404).
+  written.push(emit('assets/ref.js', affiliateCaptureScript()));
 
   const keep = new Set(written.filter((rel) => rel.endsWith('.html')));
   const removed = pruneStaleHtml(keep);
 
-  // Sanity: the three pages must agree on the nav, the footer and the CTA.
-  for (const rel of ['index.html', 'pricing.html', 'help.html']) {
+  // Sanity: every page must agree on the nav, the footer and the CTA.
+  for (const rel of ['index.html', 'pricing.html', 'help.html', 'affiliate.html']) {
     const text = readFileSync(join(outDir, rel), 'utf8');
     for (const label of ['الرئيسية', 'الأسعار', 'المساعدة', CTA_LABEL]) {
       if (!text.includes(label)) throw new Error(`${rel} is missing "${label}"`);
     }
-    for (const href of ['/help#privacy', '/help#terms', '/help#refund']) {
+    for (const href of ['/help#privacy', '/help#terms', '/help#refund', '/affiliate']) {
       if (!text.includes(href)) throw new Error(`${rel} is missing the footer link ${href}`);
     }
     if (text.includes('katzu-sales.pages.dev') || text.includes('KATZU26')) {
@@ -448,7 +462,11 @@ async function main() {
     }
     if (/\{\{[A-Z_]/.test(text)) throw new Error(`${rel} ships a raw placeholder`);
     if (/[\u0660-\u0669]/.test(text)) throw new Error(`${rel} uses Arabic-Indic digits`);
-    if (/\$\d/.test(text) && rel !== 'pricing.html') throw new Error(`${rel} shows a price`);
+    // /affiliate is the one other page allowed a price: its worked example is the
+    // offer ("$49.99 → $10"), and it is filled from the same pricing table.
+    if (/\$\d/.test(text) && rel !== 'pricing.html' && rel !== 'affiliate.html') {
+      throw new Error(`${rel} shows a price`);
+    }
   }
 
   // The home page is the design: its video, its loader, its rail. The other two
@@ -457,7 +475,7 @@ async function main() {
   for (const marker of ['/assets/bg.mp4', 'id="rail"', 'id="ld"', '/assets/vendor/gsap.min.js']) {
     if (!homeHtml.includes(marker)) throw new Error(`index.html is missing ${marker}`);
   }
-  for (const rel of ['pricing.html', 'help.html', '404.html']) {
+  for (const rel of ['pricing.html', 'help.html', 'affiliate.html', '404.html']) {
     const text = readFileSync(join(outDir, rel), 'utf8');
     if (!text.includes('class="bgimg"')) throw new Error(`${rel} is missing the background still`);
     if (text.includes('bg.mp4')) throw new Error(`${rel} must not load the home video`);

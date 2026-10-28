@@ -5,9 +5,12 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
   Cross-Origin-Opener-Policy: same-origin
-  # Static marketing site: three pages, no accounts, no cookies, no API calls.
-  # The inline scripts are the page's own reveal observer and plan picker, so
-  # 'unsafe-inline' is required; no third-party script host is loaded. Cloudflare
-  # injects its Web Analytics beacon into Pages responses, so it is allowed
-  # explicitly rather than silently blocked.
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'; connect-src 'self' https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  # Static marketing site: four pages, no accounts. One cookie and one API call
+  # exist, both from /assets/ref.js: it stores ?ref= as `katzu_ref` on
+  # .katzuai.com and asks the Worker whether the code exists, so connect-src has
+  # to name the Worker origin or that check is silently blocked. The inline
+  # scripts are the page's own reveal observer and plan picker, so 'unsafe-inline'
+  # is required; no third-party script host is loaded. Cloudflare injects its Web
+  # Analytics beacon into Pages responses, so it is allowed explicitly rather than
+  # silently blocked.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'; connect-src 'self' https://cloudflareinsights.com https://katzu-test.ghaidakalosh008.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'

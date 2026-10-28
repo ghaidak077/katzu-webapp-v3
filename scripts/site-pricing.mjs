@@ -16,6 +16,11 @@ import { readFileSync } from 'node:fs';
 
 export const SITE = 'https://website.katzuai.com';
 export const APP = 'https://katzuai.com';
+/**
+ * The Worker the app calls, and the only host the site may ask "is this partner
+ * code real?" — the same deploy the app and the checkout use, one origin.
+ */
+export const WORKER = 'https://katzu-test.ghaidakalosh008.workers.dev';
 /** Where every "ابدأ مجاناً" CTA goes: the demo lesson was removed. */
 export const START = `${APP}/welcome`;
 export const SUPPORT = 'support@ghaidak.com';

@@ -147,6 +147,7 @@ footer{padding:36px 36px 48px;text-align:center;color:var(--ink3);font-size:.9re
 
 body.page-pricing main,
 body.page-help main,
+body.page-affiliate main,
 body.page-404 main {
   position: relative;
   z-index: 1;
@@ -182,18 +183,21 @@ body.page-404 main {
 }
 
 body.page-pricing h2,
-body.page-help h2 {
+body.page-help h2,
+body.page-affiliate h2 {
   font: 900 clamp(1.5rem, 4.2vw, 2.2rem) / 1.25 Cairo;
 }
 
 body.page-pricing h3,
-body.page-help h3 {
+body.page-help h3,
+body.page-affiliate h3 {
   font: 900 1.08rem Cairo;
 }
 
 /* the fixed pill nav must never cover a heading an anchor jumps to */
 body.page-pricing [id],
-body.page-help [id] {
+body.page-help [id],
+body.page-affiliate [id] {
   scroll-margin-top: 100px;
 }
 
