@@ -26,26 +26,21 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-10-28 — `/` is the owner's design again (deployed).** `website.katzuai.com/` renders
-  `scripts/templates/home.html`, a copy of the owner's `index (62).html` page for page: the same hero,
-  glass cards, two pinned scenes, situations rail, timeline, loader, cursor and background video, Syne on
-  the German lines. `website/assets/site.css` carries that design stylesheet verbatim as its base layer, so
-  `/pricing` and `/help` sit on the same tokens without being rebuilt. Only four kinds of change exist on
-  `/`: nav/footer → `/`, `/pricing`, `/help` (+ `#privacy` `#terms` `#refund`), every CTA →
-  `https://katzuai.com/welcome`, the coupon/`$60` tier block → one line + `الأسعار والباقات` → `/pricing`,
-  and the refund copy → 3/6/12 months. GSAP 3.12.5 + ScrollTrigger + Lenis 1.1.14 are vendored under
-  `website/assets/vendor/`, so the CSP stays `script-src 'self'`. The three "known defects" were measured
-  on the design as well — `.glass` computes identically, the hero `.ml` overflow is the pre-reveal
-  translate, and the zero-padding elements are the `.pin` scenes — so nothing was redesigned to "fix"
-  them. Proof: `tsc` clean, unit suite + guards green, static crawl **4 pages / 33 redirects / 0 problems**,
-  Lighthouse mobile **97/100/100**, **100/100/100**, **98/100/100** (perf/a11y/SEO on `/`, `/pricing`,
-  `/help`); `verify -- --ci --e2e` was **13/14** with the browser step flaky on two specs that pass on
-  re-run, and a full `npx playwright test` then finished **170 passed / 2 skipped, exit 0** (12.5 min).
-  Pushed `f7b582a..06b2c04`. **Deployed:** site `90880c38-5f90-4378-844c-5f1ef1fb055e` (direct upload of
-  `06b2c04`; rollback `1359fb18-…`), app rebuilt by the same push as `45c24f5f-…` (same bundle; rollback
-  `a11c874e-…`), worker + sales untouched. Live: three pages **200**, 13 assets + 15 CTAs **200**, 33
-  redirects one hop each, and the live home is **byte-identical** to the built `website/index.html`
-  (Cloudflare beacon excluded) — the remaining differences to the design are listed in the run report.
+- **2026-10-28 — the partner program is live and has no partners yet (AFF-1).** `/affiliate` (7.7 KB) states
+  20% of the first paid order, a 14-day hold, a $20 minimum and four payout methods, all read from
+  `AFFILIATE_CONFIG` at build time; `cloudflare-affiliate.js` owns the tables, `POST /affiliate/ref`, signup
+  attach, day-14 approval, refund voiding and six owner-only admin routes, and the app sends `katzu_ref` with
+  the Google call. Home changed by the footer `الشركاء` link + one `ref.js` tag. **Deployed** worker
+  `998873c6-d773-4bb5-9ec5-2c548e550b0f` (rollback `f0b5fa01-…`), site `4dbf4a05-3cb3-411c-a408-a168fe3f6cc9`
+  (rollback `90880c38-…`), app `408cf69c-…` (rollback `bf9dc9c4-…`), push `ccbbacb..4870d39`. Proof: gate
+  **14/14** (757 s); six live URLs 200; `ZZTEST01` proved ref 200 / lowercase 200 / 404 `unknown_code` after
+  deletion with 0 rows left, a 30.0-day `.katzuai.com` cookie the app could read, admin 401. Next: the owner
+  creates the first code (OWNER-OPEN AFF-1).
+
+- **2026-10-28 — `/` is the owner's design again (deployed).** The full record (design-parity
+  measurements, Lighthouse 97/100/100, 33 redirects, byte-identical live home, deploy `90880c38-…`)
+  moved verbatim to `docs/agent/ARCHIVE-AGENT-STATE.md`, search `RESUME 2026-10-28 home moved`;
+  `docs/agent/APP-MAP.md` change log keeps the same facts.
 
 - **Older 2026-10-28 entries moved out on 2026-10-28** (the three-page site + price-once record and the
   audit #7 final pass) to keep this file inside its 80 KB cap: `docs/agent/ARCHIVE-AGENT-STATE.md`, search
@@ -65,10 +60,11 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
 `56425f30-…` (2026-10-12), then `66bd8b92-…`, then the secret-only `31149c92-…`, and then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`f0b5fa01-b4a2-449c-b470-e770721487eb`** (100%, 2026-10-28) — the founding-price table (`80c6b9a`);
-  `/pricing` now serves `monthly/quarterly/halfyear/yearly` at 1499/2999/4999/9999 with future
-  2999/5999/9999/19999 cents, and `/crypto/health` reads the same table. **Rollback target:
-  `6f5ba883-6730-43d2-b8cd-9c275b298fee`** (2026-10-28, the audit #7 auth limiter), then
+  **`998873c6-d773-4bb5-9ec5-2c548e550b0f`** (100%, 2026-10-28) — the partner ledger (`4870d39`):
+  `cloudflare-affiliate.js`, six owner-only `/admin/api/affiliates` routes, cron `17 4 * * *`;
+  `/health` unchanged and `POST /affiliate/ref` answers 200/404. **Rollback target:
+  `f0b5fa01-b4a2-449c-b470-e770721487eb`** (the founding-price table, `80c6b9a`), then the audit #7 limiter
+  `6f5ba883-6730-43d2-b8cd-9c275b298fee` (2026-10-28), then
   `e1a9a2ca-e919-43e2-baba-28a52bddd1cd` (V43.4, `4b33d70`),
   `b2119bfb-68cb-49bb-8639-82d4583eda28` (V43.3, `1ba9abd`),
   `5193b4e9-9653-46b1-9d3d-164e92d0da5a` (V43.2, `3358165`),
@@ -77,21 +73,25 @@ Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
 - **App Pages production (2026-10-28):** the project builds from git, so **every** push to `main` mints
-  a new deployment id (the docs push `1770972` produced `80993de2-…` with the same bundle) — never quote
-  an id as "current" without reading
-  `wrangler pages deployment list --project-name=katzu-webapp-v3` first. Stable facts: the bundle is
-  `assets/index-D4avOAYK.js` + `assets/AppShell-4uecVXUN.js` (unchanged since `f334f6d`; the `AppShell`
-  chunk carries `SITE_URL/help#` and `https://website.katzuai.com/pricing#pay`, with no `katzu-sales`,
-  no `/trust/` and no `KATZU26`).
-  **Rollback target: `a11c874e-0eb5-4a80-96ab-630321664e03`** (source `f334f6d`), then
-  `4fc1306f-bc9e-4ad6-ba85-050fe5a15b17` (`29f6aec`).
+  a new deployment id (the docs push `4870d39` produced `408cf69c-…`) — never quote an id as "current"
+  without reading
+  `wrangler pages deployment list --project-name=katzu-webapp-v3` first. Stable facts: the entry bundle is
+  now `assets/index-Cuij_wHz.js` — it carries `katzu_ref` and the signup call that sends it, which the
+  earlier `assets/index-D4avOAYK.js` did not — and the `AppShell` chunk is now `AppShell-CQdweU62.js`
+  (verified live: it carries `SITE_URL/help#` and `https://website.katzuai.com/pricing#pay`, with no
+  `katzu-sales`, no `/trust/` and no `KATZU26`).
+  **Rollback target: `bf9dc9c4-dffd-452f-8113-8daa23db63f8`** (source `ccbbacb`), then
+  `a11c874e-0eb5-4a80-96ab-630321664e03` (source `f334f6d`).
 - **Site Pages production (2026-10-28, direct upload of `website/`):** `katzu-landing` deployment
-  **`90880c38-5f90-4378-844c-5f1ef1fb055e`** (branch `main`, source `06b2c04`, built by
-  `node scripts/build-website.mjs`) — `/`, `/pricing`, `/help` all **200**; `/` is the owner's design
-  rendered from `scripts/templates/home.html`; `/help` carries `id="privacy|terms|refund"`; `/pricing`
+  **`4dbf4a05-3cb3-411c-a408-a168fe3f6cc9`** (branch `main`, source `4870d39`, built by
+  `node scripts/build-website.mjs`) — `/`, `/pricing`, `/affiliate`, `/help`, `/assets/ref.js` and
+  `/sitemap.xml` all **200**; `/` is the owner's design
+  rendered from `scripts/templates/home.html` and differs by the footer `الشركاء` link + one `ref.js` tag;
+  `/affiliate` is the partner program; `/help` carries `id="privacy|terms|refund"`; `/pricing`
   renders 14.99/29.99/49.99/99.99 and only `mailto:support@ghaidak.com` CTAs; 33 legacy URLs **301** in
-  one hop each. **Rollback target: `1359fb18-e862-4774-b9fb-939a45c20159`** (the rebuilt three pages),
-  then `de591b4e-364e-4779-8d87-57ea5adb2dd8` (the 21-page English/topic site).
+  one hop each. **Rollback target: `90880c38-5f90-4378-844c-5f1ef1fb055e`** (the three-page design home),
+  then `1359fb18-e862-4774-b9fb-939a45c20159` (the rebuilt three pages), then
+  `de591b4e-364e-4779-8d87-57ea5adb2dd8` (the 21-page English/topic site).
   Note: this project does **not** build from git — a push is not a deploy.
 - **Sales Pages production (2026-10-28, direct upload of `sales/`):** `katzu-sales` deployment
   **`d3811619-6ce1-4c96-82e7-d11e6004c7ae`** — `_redirects` answers every path with one 301 to

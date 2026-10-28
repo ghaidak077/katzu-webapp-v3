@@ -544,3 +544,27 @@ falls back to the host the app is served from.
    `src/lib/offers/paymentInstructions.ts` is an estimate and is marked UNPROVEN. After a
    handful of real orders, replace both ranges with what was measured. Crypto is in test mode,
    so today it logs nothing.
+
+## RESUME — 2026-10-28 home moved
+
+- **2026-10-28 — `/` is the owner's design again (deployed).** `website.katzuai.com/` renders
+  `scripts/templates/home.html`, a copy of the owner's `index (62).html` page for page: the same hero,
+  glass cards, two pinned scenes, situations rail, timeline, loader, cursor and background video, Syne on
+  the German lines. `website/assets/site.css` carries that design stylesheet verbatim as its base layer, so
+  `/pricing` and `/help` sit on the same tokens without being rebuilt. Only four kinds of change exist on
+  `/`: nav/footer → `/`, `/pricing`, `/help` (+ `#privacy` `#terms` `#refund`), every CTA →
+  `https://katzuai.com/welcome`, the coupon/`$60` tier block → one line + `الأسعار والباقات` → `/pricing`,
+  and the refund copy → 3/6/12 months. GSAP 3.12.5 + ScrollTrigger + Lenis 1.1.14 are vendored under
+  `website/assets/vendor/`, so the CSP stays `script-src 'self'`. The three "known defects" were measured
+  on the design as well — `.glass` computes identically, the hero `.ml` overflow is the pre-reveal
+  translate, and the zero-padding elements are the `.pin` scenes — so nothing was redesigned to "fix"
+  them. Proof: `tsc` clean, unit suite + guards green, static crawl **4 pages / 33 redirects / 0 problems**,
+  Lighthouse mobile **97/100/100**, **100/100/100**, **98/100/100** (perf/a11y/SEO on `/`, `/pricing`,
+  `/help`); `verify -- --ci --e2e` was **13/14** with the browser step flaky on two specs that pass on
+  re-run, and a full `npx playwright test` then finished **170 passed / 2 skipped, exit 0** (12.5 min).
+  Pushed `f7b582a..06b2c04`. **Deployed:** site `90880c38-5f90-4378-844c-5f1ef1fb055e` (direct upload of
+  `06b2c04`; rollback `1359fb18-…`), app rebuilt by the same push as `45c24f5f-…` (same bundle; rollback
+  `a11c874e-…`), worker + sales untouched. Live: three pages **200**, 13 assets + 15 CTAs **200**, 33
+  redirects one hop each, and the live home is **byte-identical** to the built `website/index.html`
+  (Cloudflare beacon excluded) — the remaining differences to the design are listed in the run report.
+

@@ -52,12 +52,12 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-28 (three-page site + founding prices; deployed)
+## Current snapshot — 2026-10-28 (partner program live: fourth page + partner ledger; deployed)
 
-**Deployed 2026-10-28 (`merge` + `worker` + `pages`); `main` = `06b2c04`.** Marketing is exactly three Arabic
+**Deployed 2026-10-28 (`merge` + `worker` + `pages`); `main` = `4870d39`.** Marketing is exactly four Arabic
 pages and the price lives in one place. `/` is the owner's own design, rendered from
 `scripts/templates/home.html`.
-- **Site** `website.katzuai.com` = `/`, `/pricing`, `/help` on one `site.css` (the design stylesheet is its
+- **Site** `website.katzuai.com` = `/`, `/pricing`, `/affiliate`, `/help` on one `site.css` (the design stylesheet is its
   base layer). Home is the owner's design page for page: nav/footer → `/`, `/pricing`, `/help`, every CTA →
   `https://katzuai.com/welcome`, one price line → `/pricing`, refund on 3/6/12 months — no price, no coupon;
   `/pricing` owns the four founding plans, the
@@ -66,21 +66,27 @@ pages and the price lives in one place. `/` is the owner's own design, rendered 
   carries the plan duration. Every legacy URL answers **one** 301 to its final anchor; `sales/*` 301s to
   `/pricing#pay`. `en/`, `trust/` and the topic pages are deleted.
 - **App** pays the same prices (server `GET /pricing`), legal links open `/help#…`, in-app copy matches the site.
+- **Partner program (AFF-1):** `/affiliate` states 20% of the net first paid order, pending at activation,
+  approved on day 14 unless refunded, weekly payout with a $20 minimum and carry-over, paid by USDT /
+  Syriatel-MTN Cash / bank transfer / Wise. Applications are emailed; the owner creates each code.
+  `cloudflare-affiliate.js` owns `AFFILIATE_CONFIG`, the three tables, `POST /affiliate/ref` and six
+  owner-only admin routes, and the page's numbers come from it at build time. Every page loads `ref.js`
+  (30-day `.katzuai.com` cookie) and the app sends it with the Google call, so attribution is decided
+  server-side per account. The in-app `REF-` rewards are untouched.
 - **Proof:** unit suite **2135/2135**, `tsc` clean, local crawl 4 pages / 9 links OK, Lighthouse mobile a11y
   **100** + SEO **100** + perf **95–99** on all three pages (best-practices 81 is this host’s antivirus).
-  Gate `verify -- --ci --e2e` **14/14**. Live: worker `f0b5fa01-…` (rollback `6f5ba883-…`), app `45c24f5f-…`
-  (`assets/index-D4avOAYK.js`; rollback `a11c874e-…`), site `90880c38-…` (rollback `1359fb18-…`), sales
-  `d3811619-…` (redirect-only; rollback `0de6a626-…`). Home restore evidence: crawl **4 pages / 33 redirects /
-  0 problems**, Lighthouse mobile **97/100/100 · 100/100/100 · 98/100/100**, full `npx playwright test`
-  **170 passed / 2 skipped**, live home byte-identical to the build.
-- **Owner:** payment details to connect a real order path (**V44-1**) and four legal fields (**V44-2**).
+  Gate `verify -- --ci --e2e` **14/14** (26 affiliate tests included). Live: worker `998873c6-…` (rollback
+  `f0b5fa01-…`), app `408cf69c-…` (`assets/index-Cuij_wHz.js`); rollback `bf9dc9c4-…`), site `4dbf4a05-…`
+  (rollback `90880c38-…`), sales `d3811619-…` (redirect-only; rollback `0de6a626-…`). `/affiliate` mobile
+  a11y **100** / SEO **100**; a temporary test code proved ref 200 / 404 after deletion, the cookie read by
+  the app, and admin **401** without a key.
+- **Owner:** payment details to connect a real order path (**V44-1**), four legal fields (**V44-2**), and
+  the payout day + $20 minimum before the first partner (**AFF-1**).
 
 ## Previous snapshot — 2026-10-28 (audit #7 limiter + beacon CSP live)
 
-Worker `6f5ba883-6730-43d2-b8cd-9c275b298fee` (rollback `e1a9a2ca-…`) limits `/auth/session` before the Google
-round-trip (20/min + 600/day per IP); app `4fc1306f-…` (source `29f6aec`, rollback `00d42544-…`) unblocks the
-Pages beacon; site `de591b4e-…` (rollback `ea420d13-…`). `npm run verify -- --ci --e2e` 14/14, browser suite
-exit 0. `UNPROVEN`: a real Google credential exchange.
+Worker `6f5ba883-…` limits `/auth/session` (20/min + 600/day per IP, rollback `e1a9a2ca-…`); app
+`4fc1306f-…` (`29f6aec`) unblocks the Pages beacon; site `de591b4e-…`. `UNPROVEN`: a real Google exchange.
 
 ## Previous snapshot — 2026-10-23 (guided home live)
 
