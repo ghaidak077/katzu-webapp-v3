@@ -52,7 +52,28 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-28 (home truth fixes: 49 situations, honest free-lessons answer)
+## Current snapshot — 2026-10-28 (the partner worker is live; the free-tier promise now matches the app)
+
+**Deployed 2026-10-28: worker + site; the app rebuilds from git on the same push.** No route, screen, endpoint,
+table or dependency was added — the partner code already existed and the deploy was the missing step. Live:
+`/health` 200 with `storage:{d1,kv}` ok, `POST /affiliate/me` 401 signed out, `POST /affiliate/ref` 400 on a
+malformed code, `/admin/api/affiliates*` 401 without the key, and `affiliates` / `referrals` / `commissions`
+present in D1 `katzu-content` (`sqlite_master` read; the worker applies `AFFILIATE_TABLES` idempotently on its
+first request, so `migrations/0003_affiliate_tables.sql` needs no runner). **`/affiliate/enroll` and
+`/affiliate/me/payout` do not exist in this codebase and never did** — the surface is `/affiliate/me` (self-serve)
+plus the owner-only `/admin/api/affiliates/{create,void,payout}` behind the bearer key.
+- **Free tier:** `MAX_FREE_AI_SESSIONS = 3` counts `trial_quota_ledger` rows for the account with no period filter
+  and nothing resets it, so «كل شهر» is gone from the home meta/OG/JSON-LD/last CTA, `/pricing`, the paywall and
+  the `SOFT_PROMPT_*` copy — all now say «في المجموع». FREE-1 is closed: the owner's OR resolved to its
+  *once* branch, and the copy follows the code, not the other way round.
+- **Motion:** the soft Pro modal that opened 1.2 s after the first correction is removed — its scrim covered
+  «أرسل جملتك» until dismissed, the real cause of the `dayZeroReport` CI flake; the spec now watches that 1.6 s
+  window instead of re-running the suite.
+- **Proof:** gate `VERIFY OK 14/14`, `dayZeroReport` 5/5, 0 wrong-domain (`katzu.com`) hits on five live pages.
+  **Owner:** the two-account referred-learner test (an agent must not sign in as you) plus payout day / $20
+  minimum (AFF-1); V44-1 payment details and V44-2 legal fields still open.
+
+## Previous snapshot — 2026-10-28 (home truth fixes: 49 situations, honest free-lessons answer)
 
 **Site deployed; no route, screen, endpoint or table changed.** Four copy fixes on `/` and `/help`: the trust line
 dropped «أخطاؤك ومحادثاتك تبقى على جهازك» (mistakes and session summaries do sync to `/progress/sync`) and now
@@ -60,9 +81,8 @@ states the voice promise («يُعالَج لفهم كلامك فقط، ولا �
 «تتجدد دروسك المجانية كل شهر» (three free conversations, ever — `MAX_FREE_AI_SESSIONS = 3` in
 `trial_quota_ledger`) and says what a subscription opens; the voice FAQ answers instead of pointing at a paragraph,
 on `/` and `/help` (`#privacy` link kept); the stat is **49** — the live `GET /scenarios` row count — and rail card
-06 is the real café scenario («المقهى / Was möchten Sie trinken?») instead of the «والآن» teaser. **Owner decision
-left:** «كل شهر» still appears in the home meta/CTA, `/pricing` and the paywall (FREE-1). Ids in
-`docs/AGENT-STATE.md` SNAPSHOT.
+06 is the real café scenario («المقهى / Was möchten Sie trinken?») instead of the «والآن» teaser. **Its «كل شهر»
+residue was closed the same day** (FREE-1, see the snapshot above). Ids in `docs/AGENT-STATE.md` SNAPSHOT.
 
 ## Previous snapshot — 2026-10-28 (partner link is a screen: win-win-win copy, calculator, `/partners`)
 

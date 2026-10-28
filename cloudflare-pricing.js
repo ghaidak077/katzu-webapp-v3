@@ -55,6 +55,10 @@ export const REFUND_PLAN_IDS = Array.isArray(pricingConfig.refundPlanIds)
   ? pricingConfig.refundPlanIds.map(String)
   : [];
 export const ACTIVATION_HOURS = Number(pricingConfig.activationHours) || 12;
+// The name is historical: the allowance is paid ONCE per account, never monthly.
+// `MAX_FREE_AI_SESSIONS` in cloudflare-unified-worker.js counts every row in
+// `trial_quota_ledger` for the account with no period filter, and nothing in the
+// worker resets it — so every public page says «في المجموع», never «كل شهر».
 export const FREE_LESSONS_PER_MONTH = Number(pricingConfig.freeLessonsPerMonth) || 3;
 
 /**

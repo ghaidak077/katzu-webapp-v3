@@ -257,7 +257,7 @@ export const PaywallScreen: React.FC = () => {
             <span>{REFUND_TEXT}</span>
           </p>
           <p className="kz-ar-micro mt-2 text-kz-inkFaint">
-            {`المجاني يبقى: ${FREE_LESSONS_PER_MONTH} دروس بالذكاء الاصطناعي كل شهر، والمهمة اليومية، ومراجعة أخطائك.`}
+            {`المجاني يبقى: ${FREE_LESSONS_PER_MONTH} دروس بالذكاء الاصطناعي في المجموع، والمهمة اليومية، ومراجعة أخطائك.`}
           </p>
           <p className="kz-ar-micro mt-2 text-kz-inkFaint">
             التفعيل يتم عبر كود مرتبط بحسابك الموثّق — لا تُدخل أي بيانات بطاقة داخل التطبيق.

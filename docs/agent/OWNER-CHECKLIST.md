@@ -89,38 +89,30 @@ a declaration gap, not a failure.
 
 ---
 
-## 8. The partner program needs your payout desk and one deploy — AFF-1 (2026-10-28)
+## 8. The partner program works; the first real referred learner is your test — AFF-1 (2026-10-28)
 
-**What it is.** `/affiliate` is live: 20% of the first paid order, a 14-day hold, $20 minimum, payouts by USDT,
-Syriatel/MTN Cash, bank or Wise. Its button opens `/partners` for the learner's own link.
+**What it is.** The worker is live: the partner ledger, the self-serve link and the day-14 approval all run in
+production. `/affiliate` promises 20% of the first paid order, a 14-day hold, $20 minimum, payouts by USDT,
+Syriatel/MTN Cash, bank or Wise.
 
 **What you do.**
-1. **Say yes to deploying the worker.** The page that creates those links is written and tested but not live:
-   this run covered the site and the app only. Until it ships, `/partners` shows «تعذّر إنشاء رابطك الآن» and a
-   retry button. One word — "deploy the worker" — ships it.
-2. **Pay on Mondays (UTC).** `GET /admin/api/affiliates/commissions` lists who is owed at least $20 in
-   `payout.batches`; send the money, then record it with `POST /admin/api/affiliates/payout` (`affiliate_id`,
-   `payout_ref`). Smaller balances stay in `carried`. Tell the agent if you want another payout day or minimum.
+1. **Run the two-account test** — an agent must not sign in as you. Account A opens `/partners` and copies its
+   link; account B signs up through that link, pays and redeems the code; A's `/partners` and the admin
+   commissions list must show one `pending` commission. Then tell the agent to delete the test rows.
+2. **Pay on Mondays (UTC)** — or tell the agent you want another day or minimum. `GET
+   /admin/api/affiliates/commissions` lists who is owed at least $20 in `payout.batches`; send the money, then
+   record it with `POST /admin/api/affiliates/payout` (`affiliate_id`, `payout_ref`).
 
-**Done looks like:** `/partners` shows a link on your own account, one referred learner has a pending commission,
-and the first payout is marked paid with its reference.
-
----
-
-## 9. Three free lessons a month, or three in total? — FREE-1
-
-**What it is.** The app gives every account three free AI conversations **in total**, not three a month.
-
-**What you decide.** The home page and help page now say the true thing, but the page summary, the last button,
-the pricing page and the paywall still say «كل شهر». Either we build the monthly reset, or the word «شهر» goes
-from those four places.
-
-**Done looks like:** one sentence about the free allowance everywhere — and it is the number the server enforces.
+**Done looks like:** a real referred learner shows `pending`, and the first payout is marked paid with its
+reference.
 
 ---
 
 ## Nothing to do — recorded so nobody re-opens them
 
+- **Free lessons are three, once, not three a month — FREE-1, closed 2026-10-28.** `MAX_FREE_AI_SESSIONS = 3`
+  is counted once per account, ever, so every surface now says «في المجموع»: the home page (meta, share text,
+  structured data, last button), `/pricing`, the paywall and the soft-prompt copy. The monthly reset was not built.
 - **Content load drift check — V15-3.** Run `node scripts/check-content-drift.mjs` after any content change.
 - **Payments stay off for the beta — V18.** `/crypto/health` reading `ready:false` is the correct state, and the
   site hides the crypto block until the gateway is live.

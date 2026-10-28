@@ -70,11 +70,27 @@ async function finishCafeEpisode(page: Page) {
     'Perfekt. Auf Wiedersehen!',
   ];
 
-  for (const reply of replies) {
+  for (const [index, reply] of replies.entries()) {
     const input = page.getByPlaceholder(/Schreib deinen Satz/);
     await input.fill('Ich möchte einen Kaffee bitte');
     await page.getByRole('button', { name: 'أرسل جملتك' }).click();
     await expect(page.getByText(reply)).toBeVisible();
+
+    // Regression guard for the CI flake of 2026-10-28: a soft Pro prompt used to
+    // arm a 1.2 s timer on the first correction and open a modal whose scrim
+    // covered «أرسل جملتك» for the rest of the episode, so the next click timed
+    // out at 90 s. The window is the point — the timer must be watched for the
+    // time it used to fire, not sampled once after it.
+    if (index === 0) {
+      const deadline = Date.now() + 1_600;
+      do {
+        await expect(
+          page.locator('.kz-scrim'),
+          'no modal may cover the composer after the first correction',
+        ).toHaveCount(0);
+        await page.waitForTimeout(150);
+      } while (Date.now() < deadline);
+    }
   }
 
   await expect(page).toHaveURL(/\/session-report$/, { timeout: 30_000 });

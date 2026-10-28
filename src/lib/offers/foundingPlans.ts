@@ -168,13 +168,16 @@ export const BEST_VALUE_EN = 'Best value';
 export const REFUND_TEXT = `استرداد كامل خلال ${REFUND_DAYS} أيام على باقات ${REFUND_PLANS_AR}؛ لا استرداد على باقة ${PLAN_BY_ID.monthly.nameAr}.`;
 
 /**
- * The soft prompt shown after the first Arabic correction. It is an invitation,
- * not a wall: the free tier keeps its 3 AI lessons a month, and the modal always
- * offers a plain "continue free".
+ * The invitation language for a Pro offer shown after a first Arabic correction.
+ * It is copy, not a trigger: the mid-episode sheet that used to open 1.2 s after
+ * that correction is gone (its scrim covered the sentence field for the rest of
+ * the episode — the day-0 browser suite caught it as an unclickable composer).
+ * The finish line owns the offer now; these strings stay for a surface that can
+ * show them without covering the learner's next sentence.
  */
 export const SOFT_PROMPT_TITLE_AR = 'افتح كل المستويات والمواقف';
-export const SOFT_PROMPT_BODY_AR = `جرّبت أول تصحيح بالعربية — هذا ما يفعله كاتزو. Pro يفتح كل المستويات والمواقف، ومحادثة يومية ضمن حدّ عادل معلن، من ${foundingLabel(PLANS[0])} شهرياً. ويبقى مجانياً: ${FREE_LESSONS_PER_MONTH} دروس بالذكاء الاصطناعي كل شهر، والمهمة اليومية، ومراجعة أخطائك.`;
+export const SOFT_PROMPT_BODY_AR = `جرّبت أول تصحيح بالعربية — هذا ما يفعله كاتزو. Pro يفتح كل المستويات والمواقف، ومحادثة يومية ضمن حدّ عادل معلن، من ${foundingLabel(PLANS[0])} شهرياً. ويبقى مجانياً: ${FREE_LESSONS_PER_MONTH} دروس بالذكاء الاصطناعي في المجموع، والمهمة اليومية، ومراجعة أخطائك.`;
 export const SOFT_PROMPT_TITLE_EN = 'Open every level and situation';
-export const SOFT_PROMPT_BODY_EN = `You just got your first correction in Arabic — that is what Katzu does. Pro opens every level and situation, with daily conversation on a published fair-use limit, from ${foundingLabel(PLANS[0])} a month. Free stays: ${FREE_LESSONS_PER_MONTH} AI lessons a month, the daily mission and your review.`;
+export const SOFT_PROMPT_BODY_EN = `You just got your first correction in Arabic — that is what Katzu does. Pro opens every level and situation, with daily conversation on a published fair-use limit, from ${foundingLabel(PLANS[0])} a month. Free stays: ${FREE_LESSONS_PER_MONTH} AI lessons in total, the daily mission and your review.`;
 export const CONTINUE_FREE_AR = 'تابع مجاناً';
 export const CONTINUE_FREE_EN = 'Continue free';

@@ -26,7 +26,6 @@ import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/convers
 import { sessionTurnCap } from '@/lib/conversation/turnPlan';
 import { MOCK_EXAM_LEVEL } from '@/lib/mockexam/constants';
 import { MAX_FREE_SESSIONS_AR } from '@/lib/entitlement/trialCopy';
-import { SOFT_PROMPT_BODY_AR, SOFT_PROMPT_TITLE_AR } from '@/lib/offers/pricing';
 import type { OrbState } from '@/components/voice/KatzuOrb';
 import type {
   ChatMessage,
@@ -49,33 +48,6 @@ import type {
  * can be read as a layout. Every value the JSX needs is on the returned object;
  * no state was renamed, re-timed or re-derived.
  */
-
-/**
- * The first-correction invitation is shown ONCE per device, ever.
- *
- * It is a prompt, not a gate: the free tier keeps its lessons, and the modal it
- * opens always carries a plain "continue free". The flag is stored locally so a
- * learner who declined is never asked again; a private-mode browser that cannot
- * write the flag falls back to the in-memory ref and is still asked at most once
- * per session.
- */
-const SOFT_PROMPT_SEEN_KEY = 'katzu.soft_prompt.first_correction.v1';
-
-function softPromptAlreadySeen(): boolean {
-  try {
-    return window.localStorage.getItem(SOFT_PROMPT_SEEN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function markSoftPromptSeen(): void {
-  try {
-    window.localStorage.setItem(SOFT_PROMPT_SEEN_KEY, '1');
-  } catch {
-    /* Storage unavailable: the ref below still prevents a second prompt. */
-  }
-}
 
 export interface UseLiveConversationOptions {
   scenarioId: string;
@@ -230,8 +202,6 @@ export function useLiveConversation({
   // or a wall — a screen can be "opened" and still produce nothing.
   const sessionOpenedAtRef = useRef(0);
   const firstTurnTrackedRef = useRef(false);
-  // At most one invitation per mounted session; localStorage guards the rest.
-  const softPromptShownRef = useRef(false);
   const inFlightRef = useRef(false);
 
   // Sync the episode's level once the learner row is loaded, and again if they
@@ -860,23 +830,6 @@ export function useLiveConversation({
         // Every correction earns a scheduled retrieval: the app remembers what
         // this learner keeps getting wrong, instead of only archiving it.
         await enrolMistake({ ...mistake, id: mistakeId });
-
-        // The first correction is the product's "this is what Katzu does" moment.
-        // Invite, never block: once per device, never for a paying learner, and
-        // the modal keeps "continue free" visible. The short delay lets the
-        // correction card land and Katzu's reply start before the sheet opens.
-        if (!isProUser && !softPromptShownRef.current && !softPromptAlreadySeen()) {
-          softPromptShownRef.current = true;
-          markSoftPromptSeen();
-          window.setTimeout(() => {
-            setPaywall({
-              isOpen: true,
-              title: SOFT_PROMPT_TITLE_AR,
-              description: SOFT_PROMPT_BODY_AR,
-            });
-            track('soft_prompt_shown', { source: 'first_correction' });
-          }, 1200);
-        }
       }
 
       // The turn response already carries ONE context-aware hint (same AI
