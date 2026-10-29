@@ -69,7 +69,11 @@ export function emit(outDir, rel, content) {
   return rel;
 }
 
-/** Delete every generated .html this build no longer writes. */
+/**
+ * Delete every generated page this build no longer writes, in both flavours:
+ * the `.html` and its markdown twin under `md/`. A removed guide must not leave
+ * a markdown file behind that the negotiated URL would still serve.
+ */
 export function pruneStaleHtml(outDir, keep) {
   const removed = [];
   const walk = (dir) => {
@@ -79,7 +83,7 @@ export function pruneStaleHtml(outDir, keep) {
         walk(full);
         continue;
       }
-      if (!entry.endsWith('.html')) continue;
+      if (!entry.endsWith('.html') && !(entry.endsWith('.md') && dir.startsWith(join(outDir, 'md')))) continue;
       const rel = relative(outDir, full).replace(/\\/g, '/');
       if (keep.has(rel)) continue;
       unlinkSync(full);

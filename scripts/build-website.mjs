@@ -58,6 +58,7 @@ import {
 } from './site-content-affiliate.mjs';
 import { AI_REF_SCRIPT, aiReferrerScript } from './site-referrer.mjs';
 import { emit as emitFile, pruneStaleHtml, redirectsTxt } from './site-files.mjs';
+import { pageMarkdown } from './site-markdown.mjs';
 import { WORKER } from './site-pricing.mjs';
 import {
   INDEXNOW_KEY_FILE,
@@ -394,9 +395,20 @@ async function main() {
   const fileFor = (path) => (path === '/' ? 'index.html' : `${path.replace(/^\//, '')}.html`);
 
   const written = [];
-  written.push(emit('index.html', home));
+  // One page, two flavours: the HTML a browser asks for and the markdown an
+  // assistant asks for, both written here so neither can be newer than the
+  // other. `md/` is not a second set of indexable URLs — the Function that
+  // serves it marks it `noindex` and the canonical stays on the HTML page.
+  const emitPage = (rel, html) => {
+    written.push(emit(rel, html));
+    const markdown = pageMarkdown(html);
+    if (!markdown) throw new Error(`${rel} produced no markdown twin`);
+    written.push(emit(`md/${rel.replace(/\.html$/, '.md')}`, markdown));
+  };
+
+  emitPage('index.html', home);
   for (const page of pages) {
-    written.push(emit(fileFor(page.path), renderPage(page)));
+    emitPage(fileFor(page.path), renderPage(page));
   }
   written.push(emit('robots.txt', siteRobotsTxt()));
   written.push(emit('sitemap.xml', siteSitemapXml()));
@@ -410,7 +422,7 @@ async function main() {
   // guides are being cited, and it stores nothing on the visitor's device.
   written.push(emit('assets/ai-ref.js', aiReferrerScript(WORKER)));
 
-  const keep = new Set(written.filter((rel) => rel.endsWith('.html')));
+  const keep = new Set(written.filter((rel) => rel.endsWith('.html') || rel.endsWith('.md')));
   const removed = prune(keep);
 
   // Sanity: every page must agree on the nav, the footer and the CTA.

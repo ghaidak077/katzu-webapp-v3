@@ -14,3 +14,8 @@
   # Analytics beacon into Pages responses, so it is allowed explicitly rather than
   # silently blocked.
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'; connect-src 'self' https://cloudflareinsights.com https://katzu-test.ghaidakalosh008.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
+# The markdown twins share their page's canonical URL; they are a representation,
+# not a second URL to index. The Function that serves them says the same thing.
+/md/*
+  X-Robots-Tag: noindex
