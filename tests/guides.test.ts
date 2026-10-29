@@ -240,7 +240,13 @@ describe('the crawler files', () => {
     ]) {
       expect(robots, `${agent} group`).toContain(`User-agent: ${agent}\nAllow: /`);
     }
-    expect(robots).toContain('User-agent: *\nAllow: /');
+    expect(robots).toContain(
+      'User-agent: *\nContent-Signal: search=yes, ai-input=yes, ai-train=yes\nAllow: /',
+    );
+    // Exactly once, inside the wildcard group: the named groups already carry the
+    // same policy in robots syntax, and a second copy would state it twice.
+    expect(robots.match(/^Content-Signal:/gm)).toHaveLength(1);
+    expect(robots).not.toContain('ai-train=no');
     for (const path of ['/admin/', '/api/', '/private/']) {
       expect(robots, `${path} disallowed`).toContain(`Disallow: ${path}`);
     }

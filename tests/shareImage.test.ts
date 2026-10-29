@@ -212,7 +212,10 @@ describe('the crawler files the app build emits', () => {
     ]) {
       expect(robots).toContain(`User-agent: ${agent}\nAllow: /`);
     }
-    expect(robots).toContain('User-agent: *\nAllow: /');
+    expect(robots).toContain(
+      'User-agent: *\nContent-Signal: search=yes, ai-input=yes, ai-train=yes\nAllow: /',
+    );
+    expect(robots.match(/^Content-Signal:/gm)).toHaveLength(1);
     for (const path of ['/admin/', '/api/', '/private/']) {
       expect(robots).toContain(`Disallow: ${path}`);
     }
