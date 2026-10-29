@@ -68,6 +68,7 @@ import {
 } from './site-seo.mjs';
 import { GUIDES, guideArticlePage, guideIndexPage } from './guides/index.mjs';
 import {
+  breadcrumbJsonLd,
   organizationJsonLd,
   softwareApplicationJsonLd,
   webSiteJsonLd,
@@ -235,7 +236,14 @@ function renderPage(page) {
     url: `${SITE}${path}`,
     inLanguage: 'ar',
   };
-  const ld = jsonLdScripts([webPageJsonld, ...jsonld]);
+  // Every page carries one BreadcrumbList: a guide builds its own (Home > Guides >
+  // article), every other page gets Home > itself here. The home page is one
+  // level, so it is the path, not a trail — a single-item list says nothing.
+  const hasBreadcrumb = jsonld.some((item) => item && item['@type'] === 'BreadcrumbList');
+  const crumbs = hasBreadcrumb
+    ? []
+    : [breadcrumbJsonLd([['/', 'الرئيسية'], [path, title]])];
+  const ld = jsonLdScripts([webPageJsonld, ...crumbs, ...jsonld]);
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
