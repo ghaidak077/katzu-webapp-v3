@@ -6,6 +6,7 @@ import { NetworkStatusBanner } from './components/common/NetworkStatusBanner';
 import { installDiagnosticsCapture } from './lib/utils/diagnostics';
 import { installPreloadRecovery } from './lib/utils/preloadRecovery';
 import { installAnalyticsLifecycle } from './lib/analytics/client';
+import { trackAiReferralLanding } from './lib/analytics/referrer';
 import { trackRetentionReturns } from './lib/analytics/retention';
 import { captureAffiliateRefFromSearch } from './lib/attribution/source';
 import './index.css';
@@ -26,6 +27,11 @@ installPreloadRecovery();
 // Flushes the queued product-analytics batch when connectivity returns and when
 // the app is backgrounded. Best-effort by design; never blocks a screen.
 installAnalyticsLifecycle();
+
+// GEO measurement: if this visit was opened from a ChatGPT / Perplexity / Gemini /
+// Copilot / Claude answer, count it once with the existing `landing_viewed`
+// event. Hostname only, no storage, nothing stored on the device.
+trackAiReferralLanding();
 
 // V24 Phase 7: day-1 / day-7 return markers — anonymous, allow-listed, one-shot
 // per marker. Also seeds the first-seen anchor on a brand-new install.

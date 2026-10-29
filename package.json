@@ -29,7 +29,7 @@
     "hooks:install": "node scripts/install-hooks.mjs",
     "prepare": "node scripts/install-hooks.mjs",
     "session:start": "node scripts/session-start.mjs",
-    "deploy:worker": "wrangler deploy",
+  "seo:indexnow": "node scripts/indexnow-submit.mjs",    "deploy:worker": "wrangler deploy",
     "tail:worker": "wrangler tail",
     "test:smoke:token-hygiene": "node scripts/smoke-token-hygiene.cjs",
     "ledger:archive": "node scripts/archive-ledger-rows.mjs"

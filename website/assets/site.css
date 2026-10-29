@@ -746,6 +746,284 @@ body.page-affiliate [id] {
   max-width: 66ch;
 }
 
+/* ---------- guides: the index and twelve articles ---------- */
+
+body.page-guides main,
+body.page-guide main {
+  position: relative;
+  z-index: 1;
+}
+
+body.page-guides h2,
+body.page-guide h2 {
+  font: 900 clamp(1.5rem, 4.2vw, 2.2rem) / 1.25 Cairo;
+}
+
+body.page-guides h3,
+body.page-guide h3 {
+  font: 900 1.08rem Cairo;
+}
+
+body.page-guides [id],
+body.page-guide [id] {
+  scroll-margin-top: 100px;
+}
+
+/* breadcrumbs sit between the page head and the first section, so they read as
+   a location rather than as another heading */
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-block: 0 clamp(6px, 1.5vw, 14px);
+  color: var(--ink3);
+  font: 700 0.82rem Cairo;
+}
+
+.crumbs a {
+  color: var(--ink2);
+  text-decoration: underline;
+  text-decoration-color: rgba(213, 186, 255, 0.45);
+  text-underline-offset: 3px;
+}
+
+.crumbs a:hover {
+  color: var(--s);
+}
+
+.crumbs span[aria-current] {
+  color: var(--ink);
+}
+
+/* the byline: one line, three facts, no card around it */
+.gmeta {
+  display: flex;
+  flex-wrap: wrap;
+  margin-block-end: 20px;
+  color: var(--ink3);
+  font: 700 0.82rem Cairo;
+}
+
+.gmeta span + span::before {
+  content: "·";
+  padding-inline: 10px;
+}
+
+.gmeta-s {
+  display: block;
+  margin-block-start: 6px;
+  color: var(--ink3);
+  font: 700 0.78rem Cairo;
+}
+
+/* the article itself: one reading column, generous but not a wall */
+.guide-body > section {
+  padding-inline: 0;
+  padding-block: clamp(24px, 3.4vw, 40px);
+}
+
+.guide-body > section:first-of-type {
+  padding-block-start: 0;
+}
+
+.guide-body h2 {
+  margin-block-end: 12px;
+}
+
+.guide-body p,
+.guide-body li {
+  max-width: 68ch;
+  color: var(--ink2);
+}
+
+.guide-body p + p {
+  margin-block-start: 12px;
+}
+
+.guide-body p + ul,
+.guide-body p + ol,
+.guide-body p + table {
+  margin-block-start: 14px;
+}
+
+.guide-body ul:not(.checks),
+.guide-body ol {
+  margin-block-start: 14px;
+  padding-inline-start: 22px;
+  max-width: 66ch;
+  color: var(--ink2);
+}
+
+.guide-body li + li {
+  margin-block-start: 6px;
+}
+
+.guide-body b {
+  color: var(--ink);
+}
+
+.gtable {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.94rem;
+  color: var(--ink2);
+}
+
+.gtable caption {
+  text-align: start;
+  color: var(--ink3);
+  font: 700 0.8rem Cairo;
+  padding-block-end: 8px;
+}
+
+.gtable th,
+.gtable td {
+  padding: 11px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  vertical-align: top;
+  text-align: start;
+}
+
+.gtable th {
+  background: rgba(139, 111, 232, 0.16);
+  color: var(--ink);
+  font: 900 0.88rem Cairo;
+}
+
+.gtable tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* a table on a phone scrolls, it never widens the page */
+@media (max-width: 720px) {
+  .guide-body .gtable {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* ---------- guides: the index ---------- */
+
+.gintro {
+  max-width: 1100px;
+}
+
+.gcat {
+  color: var(--ink2);
+  max-width: 60ch;
+  margin-block: 8px 20px;
+}
+
+.gcards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.gcard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  padding: 20px 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(160deg, rgba(30, 23, 54, 0.8), rgba(11, 8, 22, 0.76));
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  transition: border-color 0.25s, transform 0.25s;
+}
+
+.gcard:hover,
+.gcard:focus-visible {
+  border-color: rgba(213, 186, 255, 0.5);
+  transform: translateY(-3px);
+}
+
+.gcard h3 {
+  font: 900 1.04rem / 1.45 Cairo;
+  color: var(--ink);
+}
+
+.gcard p {
+  color: var(--ink2);
+  font-size: 0.92rem;
+  line-height: 1.7;
+  flex: 1;
+}
+
+/* ---------- guides: sources, related, closing CTA ---------- */
+
+.gsources,
+.grel {
+  list-style: none;
+  padding: 0;
+  margin-block-start: 16px;
+  display: grid;
+  gap: 10px;
+  max-width: 72ch;
+}
+
+.gsources li,
+.grel li {
+  padding-inline-start: 22px;
+  position: relative;
+  color: var(--ink2);
+}
+
+.gsources li::before,
+.grel li::before {
+  content: "↗";
+  position: absolute;
+  inset-inline-start: 0;
+  color: var(--s);
+  font-weight: 900;
+}
+
+.grel li::before {
+  content: "↓";
+}
+
+.gsources a,
+.grel a {
+  color: var(--s);
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: rgba(213, 186, 255, 0.4);
+  text-underline-offset: 3px;
+}
+
+.gsources a:hover,
+.grel a:hover {
+  text-decoration-color: currentColor;
+}
+
+.gcta {
+  border-block-start: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gcta p {
+  color: var(--ink2);
+  max-width: 60ch;
+}
+
+.gcta p + p {
+  margin-block-start: 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gcard,
+  .gcard:hover {
+    transition: none;
+    transform: none;
+  }
+}
+
 /* ---------- 404 ---------- */
 
 .page-404 main {

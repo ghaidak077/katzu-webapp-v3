@@ -201,11 +201,12 @@ describe('price formatting', () => {
 /**
  * The shipped pages, not just the strings this module builds.
  *
- * The site is three pages — `/`, `/pricing`, `/help` — generated from one
- * template, and every fact is published once. So the check is on the built HTML
- * itself: the old offer is gone everywhere, a price exists only on `/pricing`,
- * the home page sells the free start instead, and no retired page or property
- * survives in a link, a canonical or the sitemap.
+ * The site is five hub pages — `/`, `/pricing`, `/help`, `/affiliate`,
+ * `/guides` — plus twelve guides, generated from one shell, and every fact is
+ * published once. So the check is on the built HTML itself: the old offer is
+ * gone everywhere, a price exists only on `/pricing` and `/affiliate`, the home
+ * page sells the free start instead, and no retired page or property survives in
+ * a link, a canonical or the sitemap.
  */
 describe('the built marketing site', () => {
   function htmlFiles(dir = 'website'): string[] {
@@ -221,10 +222,23 @@ describe('the built marketing site', () => {
 
   const files = htmlFiles().map((file) => file.replace(/\\/g, '/'));
 
-  it('ships exactly the four pages and the 404', () => {
+  it('ships the five hub pages, the twelve guides and the 404', () => {
     expect([...files].sort()).toEqual([
       'website/404.html',
       'website/affiliate.html',
+      'website/guides.html',
+      'website/guides/a1-b1.html',
+      'website/guides/a1-visa.html',
+      'website/guides/anerkennung.html',
+      'website/guides/arbeit.html',
+      'website/guides/artikel.html',
+      'website/guides/arzt.html',
+      'website/guides/aussprache.html',
+      'website/guides/buergeramt.html',
+      'website/guides/integrationskurs.html',
+      'website/guides/telefon.html',
+      'website/guides/wohnung.html',
+      'website/guides/wortschatz.html',
       'website/help.html',
       'website/index.html',
       'website/pricing.html',
@@ -245,7 +259,7 @@ describe('the built marketing site', () => {
     // The struck price is a real published price from the same config.
     expect(pricing).toContain('$199.99');
 
-    for (const file of ['website/index.html', 'website/help.html']) {
+    for (const file of files.filter((f) => f !== 'website/pricing.html' && f !== 'website/affiliate.html')) {
       const html = readFileSync(file, 'utf8');
       expect(html, `${file} must not quote a price`).not.toMatch(/\$\d/);
     }
@@ -259,55 +273,86 @@ describe('the built marketing site', () => {
     expect(affiliate).toContain('$20');
   });
 
-  it('links only to pages that exist, on the site or the app', () => {
-    const allowedSite = new Set(['/', '/pricing', '/help', '/affiliate', '/help#faq', '/help#about', '/help#privacy', '/help#terms', '/help#refund', '/help#contact', '/pricing#pay', '/affiliate#apply', '/#app', '/#rail', '/#faq']);
+  it('links only to pages that exist, and only to anchors those pages carry', () => {
+    // Every public path is derived from the emitted file, so a missing page
+    // fails here as a dead link rather than as a 404 in production. Anchors are
+    // checked against the target page's own `id` list, which catches the
+    // "renamed the section, forgot the link" case the old allowlist could not.
+    const pages = new Map<string, Set<string>>();
+    for (const file of files) {
+      const rel = file.replace(/^website\//, '').replace(/\.html$/, '');
+      const path = rel === 'index' ? '/' : `/${rel}`;
+      pages.set(path, new Set([...readFileSync(file, 'utf8').matchAll(/\sid="([^"]+)"/g)].map((m) => m[1])));
+    }
+
     const offenders: string[] = [];
     for (const file of files) {
       const html = readFileSync(file, 'utf8');
       for (const [, href] of html.matchAll(/href="([^"]+)"/g)) {
-        // Fragments on the page itself are fine, and so are static assets.
-        if (href.startsWith('#') || href.startsWith('/assets/')) continue;
-        if (!href.startsWith('/') || href.startsWith('//')) continue;
-        if (!allowedSite.has(href)) offenders.push(`${file} -> ${href}`);
+        // Fragments on the page itself are fine, and so are static assets and
+        // absolute app/external URLs.
+        if (!href.startsWith('/') || href.startsWith('//') || href.startsWith('/assets/')) continue;
+        const [path, fragment] = href.split('#');
+        const ids = pages.get(path);
+        if (!ids) offenders.push(`${file} -> ${href}`);
+        else if (fragment && !ids.has(fragment)) offenders.push(`${file} -> ${href} (no #${fragment})`);
       }
     }
     expect([...new Set(offenders)]).toEqual([]);
   });
 
-  it('publishes four URLs in the sitemap and no English or trust page', () => {
+  it('publishes seventeen URLs in the sitemap, each of them a built page', () => {
     const sitemap = readFileSync('website/sitemap.xml', 'utf8');
     const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-    expect(locs).toHaveLength(4);
-    for (const loc of locs) expect(loc).toMatch(/^https:\/\/website\.katzuai\.com\/(pricing|help|affiliate)?$/);
+    expect(locs).toHaveLength(17);
+    expect(new Set(locs).size, 'a URL appears twice').toBe(17);
+
+    const built = new Set(
+      files
+        .filter((file) => !file.endsWith('/404.html'))
+        .map((file) => {
+          const rel = file.replace(/^website\//, '').replace(/\.html$/, '');
+          return rel === 'index' ? '/' : `/${rel}`;
+        }),
+    );
+    for (const loc of locs) {
+      expect(loc).toMatch(/^https:\/\/website\.katzuai\.com\//);
+      expect(built.has(new URL(loc).pathname), `${loc} has no page`).toBe(true);
+    }
+    expect(sitemap).toContain('https://website.katzuai.com/guides');
+    expect(sitemap).toContain('https://website.katzuai.com/guides/a1-visa');
+
+    // No redirect target and no retired English page is advertised.
     const redirects = readFileSync('website/_redirects', 'utf8');
     expect(redirects).toMatch(/^\/en\/\* \/ {2}301$/m);
+    for (const loc of locs) expect(loc).not.toMatch(/\/(en|trust)(\/|$)/);
   });
 
   it('rides on one shared stylesheet and one shared background', () => {
     const css = readFileSync('website/assets/site.css', 'utf8');
     expect(css, 'one background image for every page').toContain('/assets/bg-poster.jpg');
-    for (const file of ['website/index.html', 'website/pricing.html', 'website/help.html', 'website/affiliate.html']) {
+    for (const file of files) {
       const html = readFileSync(file, 'utf8');
       expect(html, `${file} stylesheet`).toContain('/assets/site.css');
       // One H1 per page: the page has one job.
       expect([...html.matchAll(/<h1[\s>]/g)], `${file} h1 count`).toHaveLength(1);
     }
-    // The home page is the design: a video background. The text pages carry the
-    // same still and the same grain instead, through one shared .bgimg layer.
-    for (const file of ['website/pricing.html', 'website/help.html', 'website/affiliate.html', 'website/404.html']) {
+    // The home page is the design: a video background. Every other page carries
+    // the same still and the same grain instead, through one shared .bgimg layer.
+    for (const file of files.filter((f) => f !== 'website/index.html')) {
       expect(readFileSync(file, 'utf8'), `${file} background layer`).toContain('class="bgimg"');
     }
     expect(readFileSync('website/index.html', 'utf8')).not.toContain('class="bgimg"');
     // The video is a home-page-only flourish.
     expect(readFileSync('website/index.html', 'utf8')).toContain('/assets/bg.mp4');
-    for (const file of ['website/pricing.html', 'website/help.html', 'website/affiliate.html']) {
+    for (const file of files.filter((f) => f !== 'website/index.html')) {
       expect(readFileSync(file, 'utf8')).not.toContain('bg.mp4');
     }
   });
 
   it('carries the partner link and the partner reader on every page', () => {
     // The link is a footer link, never a nav item: the main nav keeps its three
-    // destinations. The reader is one generated file, loaded by all five pages.
+    // destinations. The reader is one generated file, loaded by all eighteen pages.
     for (const file of files) {
       const html = readFileSync(file, 'utf8');
       expect(html, `${file} footer partner link`).toContain('href="/affiliate"');

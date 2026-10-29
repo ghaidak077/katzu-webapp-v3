@@ -147,8 +147,15 @@ katzu/
 │
 ├─ tests/                          # 88 Vitest spec files (+ helpers/ for fakes)
 ├─ e2e/                            # 18 Playwright specs + harness.ts
-├─ scripts/                        # audit-*, load-curriculum, verify-*-live, batteries
+├─ scripts/                        # verify/audit/load-curriculum + the static-site rig:
+│                                  #   build-website.mjs (18 pages), guides/ (12 articles),
+│                                  #   site-seo.mjs (sitemap/robots/llms), site-schema.mjs (JSON-LD),
+│                                  #   seo-agents.mjs (the 10 crawlers), site-referrer.mjs,
+│                                  #   indexnow-submit.mjs
 ├─ public/                         # _headers (CSP), legal, scenes/, robots, sitemap
+├─ website/                        # ★ the marketing site (direct upload to katzu-landing):
+│                                  #   index/pricing/affiliate/help/guides + guides/<slug>.html,
+│                                  #   sitemap.xml, robots.txt, llms.txt, IndexNow key, assets/
 ├─ sales/                          # separate Pages site for payments
 └─ docs/                           # AGENT-STATE.md (ledger), agent/ (this dir), content/,
                                    #   marketing/ (KATZU-LAUNCH-PLAYBOOK.md is SoT)
@@ -376,9 +383,17 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
 
 ---
 
-## 10. Limitations & open items (as of 2026-10-28)
+## 10. Limitations & open items (as of 2026-10-29)
 
 - **Payments not live** — crypto stays in `test_mode`; `ready:false`.
+- **GEO batch (2026-10-29): the site is crawlable, the effect is unmeasured.** Both hosts serve a `robots.txt`
+  allowing the ten crawlers (Googlebot, bingbot, GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot,
+  Claude-SearchBot, PerplexityBot, Applebot, Google-Extended) and disallowing only `/admin/ /api/ /private/`;
+  the site sitemap lists **17** URLs with real `lastmod`, the app sitemap **only** the origin root,
+  `/llms.txt` is generated, and `npm run seo:indexnow` submits the 17. **`/llms.txt` is a non-standard
+  convention with no published effect on ranking or citation** — kept because it is one generated file.
+  **GEO-1:** the 12 guides need an owner read (`docs/agent/GEO-VISIBILITY.md` §7), the 30-prompt panel has
+  not been run, and Organization `sameAs` stays absent until real profile URLs exist.
 - **The partner programme is deployed; its money path is open with the owner (AFF-1, 2026-10-28).** The worker
   that owns the ledger is live, `POST /affiliate/me` mints a code for a signed-in account, and the three tables
   exist in production D1. **Unproven with real accounts:** the Google-signup attribution, the commission row from
@@ -395,7 +410,10 @@ Scripts: `dev` (vite :3000) · `build` · `preview` · `test` · `test:e2e` · `
   90 s timeout. The timer is removed and `e2e/dayZeroReport.spec.ts` watches that 1.6 s window.
 - **Signup is Google-only.**
 - **Canonical origin is `https://katzuai.com`** (`.env.production`, `VITE_PUBLIC_APP_URL`); the legacy `katzu.app` name does not resolve and is no longer advertised.
-- **Cloudflare edge can still block AI crawlers:** ClaudeBot and PerplexityBot receive `403` before the repository `robots.txt`, and the managed robots block prepends training-bot disallows. The repo files cannot override this; it needs the Cloudflare dashboard (owner action).
+- **Cloudflare edge can still block AI crawlers.**
+  ClaudeBot and PerplexityBot were answered `403` before any repository `robots.txt` (2026-10-24); the repo
+  allowlist cannot override an edge challenge — that is Security → Bots / WAF in the dashboard (owner action).
+  The live ten-agent crawl result is in the ledger (GEO-1).
 - ~~**`ADMIN_SECRET` must be rotated**~~ — **closed by owner decision, 2026-10-05.** The owner reviewed the earlier-prompt exposure and accepts the secret as it stands; it is no longer an open item. Recorded, not verified: a Worker secret cannot be read back.
 - **Real-device voice input** never verified on iOS/Android; only Chromium fake capture.
 - **Haptics are silent on iPhone (PWA, no native wrapper).** `src/lib/utils/haptics.ts` owns every buzz:

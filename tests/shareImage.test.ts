@@ -3,8 +3,11 @@ import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import {
   absoluteOgImages,
+  appRobotsTxt,
+  appSitemapXml,
   withAbsoluteOgUrl,
   withCanonicalUrl,
+  withHreflang,
   withStructuredData,
 } from '../vite.config';
 
@@ -183,5 +186,65 @@ describe('absoluteOgImages', () => {
     // The replacement is idempotent because it only matches a root-relative path.
     const once = absoluteOgImages(sample, 'https://app.example');
     expect(absoluteOgImages(once, 'https://app.example')).toBe(once);
+  });
+});
+
+describe('the crawler files the app build emits', () => {
+  /**
+   * These were never emitted before: the app shipped no robots.txt and no
+   * sitemap.xml, so the only host a crawler could read files from was the
+   * marketing site. The builders are pure so this contract is testable without
+   * running a build.
+   */
+  it('names the ten crawlers and closes only the private paths', () => {
+    const robots = appRobotsTxt('https://katzuai.example/');
+    for (const agent of [
+      'Googlebot',
+      'bingbot',
+      'GPTBot',
+      'OAI-SearchBot',
+      'ChatGPT-User',
+      'ClaudeBot',
+      'Claude-SearchBot',
+      'PerplexityBot',
+      'Applebot',
+      'Google-Extended',
+    ]) {
+      expect(robots).toContain(`User-agent: ${agent}\nAllow: /`);
+    }
+    expect(robots).toContain('User-agent: *\nAllow: /');
+    for (const path of ['/admin/', '/api/', '/private/']) {
+      expect(robots).toContain(`Disallow: ${path}`);
+    }
+    expect(robots).toContain('Sitemap: https://katzuai.example/sitemap.xml');
+    // No dead host may survive in a generated file.
+    expect(robots).not.toContain('katzu.app');
+  });
+
+  it('omits a sitemap line and a sitemap when the origin is unknown', () => {
+    expect(appRobotsTxt('')).not.toContain('Sitemap:');
+    expect(appRobotsTxt('katzu.app')).not.toContain('Sitemap:');
+    expect(appSitemapXml('')).toBeNull();
+    expect(appSitemapXml('katzu.example')).toBeNull();
+  });
+
+  it('lists the shell root, once, and nothing that is not a page', () => {
+    const sitemap = appSitemapXml('https://katzuai.example/');
+    expect(sitemap).not.toBeNull();
+    const locs = [...sitemap!.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+    expect(locs).toEqual(['https://katzuai.example/']);
+    // A lastmod on every deploy would claim a change that did not happen.
+    expect(sitemap).not.toContain('<lastmod>');
+  });
+
+  it('declares one language pair on the shell, and only when it knows the origin', () => {
+    const html = '<html><head><title>t</title></head><body></body></html>';
+    const out = withHreflang(html, 'https://katzuai.example/');
+    expect(out).toContain('<link rel="alternate" hreflang="ar" href="https://katzuai.example/" />');
+    expect(out).toContain('<link rel="alternate" hreflang="x-default" href="https://katzuai.example/" />');
+    // Never a second pair, and never a pair pointing at a host it cannot resolve.
+    expect(withHreflang(out, 'https://katzuai.example')).toBe(out);
+    expect(withHreflang(html, '')).toBe(html);
+    expect(withHreflang(html, 'katzu.app')).toBe(html);
   });
 });

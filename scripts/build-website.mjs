@@ -30,16 +30,8 @@
  * `website/_redirects`.
  */
 
-import {
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmdirSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 
@@ -64,6 +56,22 @@ import {
   affiliatePage,
   loadAffiliateConfig,
 } from './site-content-affiliate.mjs';
+import { AI_REF_SCRIPT, aiReferrerScript } from './site-referrer.mjs';
+import { emit as emitFile, pruneStaleHtml, redirectsTxt } from './site-files.mjs';
+import { WORKER } from './site-pricing.mjs';
+import {
+  INDEXNOW_KEY_FILE,
+  indexNowKeyFile,
+  llmsTxt,
+  robotsTxt as siteRobotsTxt,
+  sitemapXml as siteSitemapXml,
+} from './site-seo.mjs';
+import { GUIDES, guideArticlePage, guideIndexPage } from './guides/index.mjs';
+import {
+  organizationJsonLd,
+  softwareApplicationJsonLd,
+  webSiteJsonLd,
+} from './site-schema.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'website');
@@ -159,6 +167,25 @@ function pricingPickerScript() {
 /* / — the design template, with its numbers filled from config        */
 /* ------------------------------------------------------------------ */
 
+/** One `<script type="application/ld+json">` per object, `<` escaped. */
+function jsonLdScripts(items) {
+  return items
+    .map((j) => `  <script type="application/ld+json">${JSON.stringify(j).replace(/</g, '\\u003c')}</script>`)
+    .join('\n');
+}
+
+/**
+ * `hreflang` for an Arabic-only site: it points at itself in Arabic and is the
+ * default for every other language. The pages are not translated, so claiming a
+ * German alternate would be a lie; this pair is the honest statement.
+ */
+function hreflangLinks(path) {
+  return [
+    `  <link rel="alternate" hreflang="ar" href="${SITE}${path}">`,
+    `  <link rel="alternate" hreflang="x-default" href="${SITE}${path}">`,
+  ].join('\n');
+}
+
 function renderHome() {
   let html = readFileSync(homeTemplate, 'utf8');
   const tokens = {
@@ -172,6 +199,16 @@ function renderHome() {
     html = html.split(`{{${name}}}`).join(String(value));
   }
   if (/\{\{[A-Z_]+\}\}/.test(html)) throw new Error('home: a template token was not filled');
+
+  // The design file is untouched; the head gains the site's structured data and
+  // its language declaration, which no crawler can infer from the text alone.
+  const head = `${jsonLdScripts([
+    organizationJsonLd(),
+    webSiteJsonLd(),
+    softwareApplicationJsonLd(),
+  ])}\n${hreflangLinks('/')}\n</head>`;
+  if (!html.includes('</head>')) throw new Error('home: the template has no </head>');
+  html = html.replace('</head>', head);
   return html;
 }
 
@@ -182,6 +219,7 @@ function renderHome() {
 function renderPage(page) {
   const { path, title, description, h1, lead, eye, body, jsonld = [], anchorNav } = page;
   const slug = path.replace(/^\//, '');
+  const bodyClass = page.bodyClass || `page-${slug}`;
   const extraScript = page.script || (path === '/pricing' ? pricingPickerScript() : '');
   const anchors = anchorNav
     ? `<nav class="anchors" aria-label="أقسام المساعدة">${anchorNav
@@ -197,9 +235,7 @@ function renderPage(page) {
     url: `${SITE}${path}`,
     inLanguage: 'ar',
   };
-  const ld = [webPageJsonld, ...jsonld]
-    .map((j) => `  <script type="application/ld+json">${JSON.stringify(j).replace(/</g, '\\u003c')}</script>`)
-    .join('\n');
+  const ld = jsonLdScripts([webPageJsonld, ...jsonld]);
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -216,6 +252,7 @@ function renderPage(page) {
 <meta property="og:locale" content="ar">
 <meta name="theme-color" content="#000">
 <link rel="canonical" href="${SITE}${path}">
+${hreflangLinks(path)}
 <link rel="icon" href="/assets/logo/favicon.ico" sizes="any">
 <link rel="icon" href="/assets/logo/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/assets/logo/apple-touch-icon.png">
@@ -225,7 +262,7 @@ function renderPage(page) {
 <link rel="stylesheet" href="/assets/site.css">
 ${ld}
 </head>
-<body class="page-${slug}">
+<body class="${bodyClass}">
 ${backgroundHtml()}
 <a class="skip" href="#main">تخطَّ إلى المحتوى</a>
 ${navHtml(path)}
@@ -240,6 +277,7 @@ ${navHtml(path)}
 </main>
 ${footerHtml()}
 ${REF_SCRIPT}
+${AI_REF_SCRIPT}
 <script>
 document.documentElement.classList.add('js');
 addEventListener('DOMContentLoaded',()=>{
@@ -253,70 +291,6 @@ ${extraScript}
 `;
 }
 
-/* ------------------------------------------------------------------ */
-/* robots / sitemap / redirects / 404                                 */
-/* ------------------------------------------------------------------ */
-
-const PAGES = ['/', '/pricing', '/help', '/affiliate'];
-
-function robotsTxt() {
-  return ['User-agent: *', 'Allow: /', '', `Sitemap: ${SITE}/sitemap.xml`, ''].join('\n');
-}
-
-function sitemapXml() {
-  const urls = PAGES.map(
-    (path) => `  <url>\n    <loc>${SITE}${path}</loc>\n    <lastmod>${UPDATED}</lastmod>\n  </url>`,
-  ).join('\n');
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls}
-</urlset>
-`;
-}
-
-/**
- * Old site URLs, one 301 each, straight to the final section. No rule points at
- * another redirect: a chain costs a round trip and hides the real target from a
- * crawler. Every fragment below exists on its target page.
- */
-function redirectsTxt() {
-  return `# The site is three pages now: /, /pricing, /help. Every old URL answers
-# with ONE 301 to its final target — no chain, no second hop.
-/how-it-works /#app 301
-/how-it-works/ /#app 301
-/who-its-for /#faq 301
-/who-its-for/ /#faq 301
-/compare /#faq 301
-/compare/ /#faq 301
-/use-cases/moving-to-germany /#rail 301
-/use-cases/* /#rail 301
-/faq /help#faq 301
-/faq/ /help#faq 301
-/about /help#about 301
-/about/ /help#about 301
-/privacy /help#privacy 301
-/terms /help#terms 301
-/refund /help#refund 301
-/trust/privacy /help#privacy 301
-/trust/terms /help#terms 301
-/trust/refund /help#refund 301
-/trust/contact /help#contact 301
-/trust/imprint /help#about 301
-/trust/* /help 301
-/en / 301
-/en/pricing /pricing 301
-/en/faq /help#faq 301
-/en/about /help#about 301
-/en/how-it-works /#app 301
-/en/who-its-for /#faq 301
-/en/compare /#faq 301
-/en/use-cases/moving-to-germany /#rail 301
-/en/trust/privacy /help#privacy 301
-/en/trust/terms /help#terms 301
-/en/trust/refund /help#refund 301
-/en/* /  301
-`;
-}
 
 function notFoundHtml() {
   return `<!DOCTYPE html>
@@ -344,52 +318,20 @@ ${navHtml('/')}
 </main>
 ${footerHtml()}
 ${REF_SCRIPT}
+${AI_REF_SCRIPT}
 </body>
 </html>
 `;
 }
 
-/* ------------------------------------------------------------------ */
-/* Emit                                                               */
-/* ------------------------------------------------------------------ */
+
 
 function emit(rel, content) {
-  const file = join(outDir, rel);
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, content);
-  return rel;
+  return emitFile(outDir, rel, content);
 }
 
-/** Delete every generated .html this build no longer writes. */
-function pruneStaleHtml(keep) {
-  const removed = [];
-  const walk = (dir) => {
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry);
-      if (statSync(full).isDirectory()) {
-        walk(full);
-        continue;
-      }
-      if (!entry.endsWith('.html')) continue;
-      const rel = relative(outDir, full).replace(/\\/g, '/');
-      if (keep.has(rel)) continue;
-      unlinkSync(full);
-      removed.push(rel);
-    }
-  };
-  walk(outDir);
-  // Empty directories are stale too: `use-cases/` and `trust/` must not linger.
-  const dropEmpty = (dir) => {
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry);
-      if (!statSync(full).isDirectory()) continue;
-      if (full === join(outDir, 'assets')) continue;
-      dropEmpty(full);
-      if (readdirSync(full).length === 0) rmdirSync(full);
-    }
-  };
-  dropEmpty(outDir);
-  return removed;
+function prune(keep) {
+  return pruneStaleHtml(outDir, keep);
 }
 
 function legalHtml(pageId, content) {
@@ -425,7 +367,13 @@ async function main() {
     refund: legalHtml('refund', TRUST_CONTENT.refund),
   };
 
-  const pages = [PRICING, affiliatePage(await loadAffiliateConfig()), helpPage(legal)];
+  const pages = [
+    PRICING,
+    affiliatePage(await loadAffiliateConfig()),
+    helpPage(legal),
+    guideIndexPage(),
+    ...GUIDES.map(guideArticlePage),
+  ];
   for (const page of pages) {
     if (/\{\{[A-Z_]/.test(page.body)) throw new Error(`${page.path} still contains a placeholder`);
   }
@@ -433,23 +381,32 @@ async function main() {
   const home = renderHome();
   if (/\$\d/.test(home)) throw new Error('/ shows a price; prices belong on /pricing only');
 
+  // `/guides` is `guides.html`; `/guides/<slug>` is a flat file inside `guides/`.
+  // No directory index, so `/guides/a1-visa` never redirects to a trailing slash.
+  const fileFor = (path) => (path === '/' ? 'index.html' : `${path.replace(/^\//, '')}.html`);
+
   const written = [];
   written.push(emit('index.html', home));
   for (const page of pages) {
-    written.push(emit(`${page.path.slice(1)}.html`, renderPage(page)));
+    written.push(emit(fileFor(page.path), renderPage(page)));
   }
-  written.push(emit('robots.txt', robotsTxt()));
-  written.push(emit('sitemap.xml', sitemapXml()));
+  written.push(emit('robots.txt', siteRobotsTxt()));
+  written.push(emit('sitemap.xml', siteSitemapXml()));
+  written.push(emit('llms.txt', llmsTxt()));
+  written.push(emit(INDEXNOW_KEY_FILE, indexNowKeyFile()));
   written.push(emit('_redirects', redirectsTxt()));
   written.push(emit('404.html', notFoundHtml()));
-  // One partner-link reader for all five pages (home, three text pages, 404).
+  // One partner-link reader for every page (home, text pages, guides, 404).
   written.push(emit('assets/ref.js', affiliateCaptureScript()));
+  // One AI-referrer reader for every page: the only measurement of whether the
+  // guides are being cited, and it stores nothing on the visitor's device.
+  written.push(emit('assets/ai-ref.js', aiReferrerScript(WORKER)));
 
   const keep = new Set(written.filter((rel) => rel.endsWith('.html')));
-  const removed = pruneStaleHtml(keep);
+  const removed = prune(keep);
 
   // Sanity: every page must agree on the nav, the footer and the CTA.
-  for (const rel of ['index.html', 'pricing.html', 'help.html', 'affiliate.html']) {
+  for (const rel of written.filter((file) => file.endsWith('.html'))) {
     const text = readFileSync(join(outDir, rel), 'utf8');
     for (const label of ['الرئيسية', 'الأسعار', 'المساعدة', CTA_LABEL]) {
       if (!text.includes(label)) throw new Error(`${rel} is missing "${label}"`);
@@ -469,13 +426,13 @@ async function main() {
     }
   }
 
-  // The home page is the design: its video, its loader, its rail. The other two
-  // pages carry the same still and the same grain instead.
+  // The home page is the design: its video, its loader, its rail. Every other
+  // page carries the same still and the same grain instead.
   const homeHtml = readFileSync(join(outDir, 'index.html'), 'utf8');
   for (const marker of ['/assets/bg.mp4', 'id="rail"', 'id="ld"', '/assets/vendor/gsap.min.js']) {
     if (!homeHtml.includes(marker)) throw new Error(`index.html is missing ${marker}`);
   }
-  for (const rel of ['pricing.html', 'help.html', 'affiliate.html', '404.html']) {
+  for (const rel of written.filter((file) => file.endsWith('.html') && file !== 'index.html')) {
     const text = readFileSync(join(outDir, rel), 'utf8');
     if (!text.includes('class="bgimg"')) throw new Error(`${rel} is missing the background still`);
     if (text.includes('bg.mp4')) throw new Error(`${rel} must not load the home video`);

@@ -93,6 +93,7 @@ export const NAV_LINKS = [
 
 export const FOOTER_LINKS = [
   ['/pricing', 'الأسعار'],
+  ['/guides', 'الأدلة'],
   ['/help', 'المساعدة'],
   ['/affiliate', 'الشركاء'],
   ['/help#privacy', 'الخصوصية'],

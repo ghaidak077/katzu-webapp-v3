@@ -26,6 +26,17 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-29 — the site is now built to be crawled and cited: 12 Arabic guides, one sitemap, a crawler
+  policy that welcomes the AI assistants.** The marketing site is 18 pages (`/guides` + 12 articles under
+  `website/guides/`), each with one H1, an answer-first lead, a table or checklist, FAQs, «آخر تحديث», an author
+  and official sources; the build refuses a guide outside 900–1500 words, a dead related link, a quoted price or
+  a promise. Both hosts' `robots.txt` allow the ten named crawlers and disallow only `/admin/ /api/ /private/`;
+  the site sitemap carries **17** URLs with real `lastmod`; `/llms.txt` and an IndexNow key are generated and
+  `npm run seo:indexnow` submits the 17. The app emits a root-only `sitemap.xml`, and both hosts count an
+  assistant referral as `landing_viewed`/`source` (hostname only, no cookie). Docs:
+  `docs/agent/GEO-VISIBILITY.md` (30-prompt panel, Search Console/Bing steps, guides to review). Open with the
+  owner: SEO-1 / GEO-1; citation evidence stays UNPROVEN until the panel is run.
+
 - **2026-10-28 — AFF-1 went live on the Worker, and the free tier stopped promising a month.** The worker that
   owns the partner ledger is deployed and answers `/affiliate/me` (401 signed out), `/affiliate/ref` (400 on a
   malformed code) and the owner-only `/admin/api/affiliates*` (401); the three tables exist in production D1.
@@ -71,6 +82,12 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## CURRENT MISSION
 
+**GEO + `/guides` — the site is built to be crawled and cited (2026-10-29).** Twelve Arabic guides answer real
+questions (A1 visa, Integrationskurs, doctor, flat, Anmeldung, work, recognition, phone), each with one H1, an
+answer-first lead, a table or checklist, FAQs, «آخر تحديث» and official sources. `site-seo.mjs` owns
+sitemap/robots/llms/IndexNow, `site-schema.mjs` the JSON-LD, `seo-agents.mjs` the ten crawlers; the app emits a
+root-only sitemap so one canonical cannot be indexed thirty times.
+
 **AFF-1 — the affiliate programme ships, and the free-tier promise now matches the app (2026-10-28).**
 The Worker that owns the partner ledger is deployed and its three tables exist in production D1
 (`affiliates`, `referrals`, `commissions`, created idempotently by `ensureLedgerTables` on the first
@@ -85,13 +102,12 @@ paywall and the soft-prompt copy (FREE-1 resolved). **Motion:** the soft Pro pro
 after the first correction is removed — its scrim covered «أرسل جملتك» until dismissed, which is the
 `dayZeroReport` CI flake; `e2e/dayZeroReport.spec.ts` now watches that window.
 
-NEXT (V44): **the owner's answers unblock the last two money/legal surfaces, and nothing else is startable.**
-When V44-1 (payment details) and V44-2 (four legal fields) arrive, put each in its one source —
-`pricing.config.json` for the money lines, `src/lib/trust/content.ts` for the legal text — rebuild the site with
-`node scripts/build-website.mjs`, republish `katzu-landing`, and re-run the live string checker. AFF-1's
-two-account referral test and the payout day / $20 minimum stay with the owner (OWNER-OPEN AFF-1); an agent must
-not sign in as them or use the admin key. If the owner reports the referred test failing, start from `POST
-/affiliate/ref` (400 malformed / 404 unknown) before touching `attachReferral`.
+NEXT (V44): **SEO-1 and GEO-1 are the owner's two steps, and nothing in this batch is startable without them.**
+Search Console (one TXT record) + Bing + `npm run seo:indexnow` (SEO-1); a native read of the 12 guides, the
+30-prompt panel and real profile URLs for `sameAs` (GEO-1) — all in `docs/agent/GEO-VISIBILITY.md`. V44-1 and
+V44-2 (money and legal fields) still block the paying surfaces. AFF-1's referral test and payout day stay with
+the owner; an agent must not sign in as them or use the admin key. A live 403 or challenge from Cloudflare is a
+dashboard setting (Security → Bots / WAF), never repo code.
 
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 
@@ -217,9 +233,14 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | V11-2. Load module2 → refused with 401; value shape diagnosed; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v11-load-module2.log 2>&1`: the draft validated locally (5 scenarios / 49 vocabulary / 42 phrases / 4 grammar, review approved), then **the first authenticated read failed — `✘ could not list vocabulary (HTTP 401): {"error":"unauthorized"}`** at `scripts/load-curriculum.mjs:70`. The log carries **zero** `Bearer`/`Authorization` occurrences (the credential was never echoed), the log never reaches a write phase (`Writing …` / `to write` are absent), and **nothing was written to production D1**. **Root cause, established structurally without ever printing the value:** the environment variable is **66 characters** of which exactly **64 are lowercase hex** — chars 2–65 match `^[0-9a-f]{64}$` — with first char `U+003C` (`<`) and last `U+003E` (`>`); i.e. the placeholder form `<secret>` was pasted *with its angle brackets*, so the loader sent `Authorization: Bearer <hex>`. **Nothing was re-encoded, trimmed or re-derived:** §3 reserves secret handling to the owner, so this is an owner-side fix. **Post-attempt state re-verified unchanged:** counts still **5 / 114 / 20 / 4**, the new scenario ids still absent, and `/scenarios`, `/vocabulary`, `/grammar` all **200**. The backup from V11-1 is still valid and still unused; no rollback was needed because no write was attempted. |
 | V12-2. Load module2 → grammar batch `HTTP 500` on a live schema gap; 89 inserted rows rolled back; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v12-load-module2.log 2>&1` → **exit 0**, 29 log lines, **`grep -c -E 'Bearer\|Authorization'` = 0** (run before anything was shown; the credential never reached the log). **Three of the four batches wrote, the fourth could not:** `scenarios ✔ HTTP 200 count 5`, `vocabulary ✔ 200 count 42` (7 of 49 rows skipped as already present), `starter_phrases ✔ 200 count 42`, and **`✘ grammar batch 1 failed (HTTP 500): {"error":"admin_route_failed","message":"D1_ERROR: table grammar has no column named rule_de: SQLITE_ERROR"}`** — **0 grammar rows written**. The loader then printed `DONE — 89 row(s) written.` and **exited 0**, because its verification loop covers scenarios and vocabulary topics only and never consults the per-batch statuses, so a failed batch is invisible in its exit code (recorded in `LESSONS.md`). **Rollback, exact, driven by the backup rather than by arithmetic on counts:** the pre-load export contains the two tables' `sqlite_sequence` rows (`vocabulary = 135`, `starter_phrases = 20`) and both are `INTEGER PRIMARY KEY AUTOINCREMENT`, so the new rows are provably `vocabulary id > 135` (42 rows, 136–177) and `starter_phrases id > 20` (42 rows, 21–62) — an id above the pre-load sequence cannot be a pre-existing row. `DELETE FROM starter_phrases WHERE id > 20; DELETE FROM vocabulary WHERE id > 135; DELETE FROM scenarios WHERE id IN ('airport_arrival','train_station','bakery_shopping','landlord_followup','friend_catchup');` → `changes` **42 / 42 / 5 = 89**, exactly the 89 the loader reported. **Both states measured:** post-attempt **10 scenarios / 156 vocabulary / 62 starter_phrases / 4 grammar**; post-rollback **5 / 114 / 20 / 4** with `MAX(vocabulary.id) = 135`, `MAX(starter_phrases.id) = 20`, 0 rows for the 5 new scenario ids and 0 `g_%` grammar ids; live scenario ids back to `apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview` and live grammar to `akkusativ_articles, dativ_prepositions, konjunktiv_ii, perfekt_tense`. **Three sampled old rows match the backup exactly:** vocabulary 22 `Reisepass`/`documents`/`جواز سفر`, 77 `Allergie`/`food`/`حساسية`, 135 `Wohnungsamt`/`housing`/`مكتب الإسكان`, and starter_phrase 1 = `embassy_appointment` "Ich habe einen Termin.". **Public endpoints back to normal:** `/scenarios` 5 rows containing **none** of the new ids, `/vocabulary` 114, `/grammar` 4, `/health` unchanged (`{status, service, ready, maintenance:false}`). **Root cause (read-only, proven twice):** the live `grammar` table is `id, level, title_ar, title_en, explanation_ar, explanation_en, example_de` (`SELECT GROUP_CONCAT(name) FROM pragma_table_info('grammar')`), while the draft row keys, `src/lib/content/curriculumAudit.ts:49`, `src/types/models.ts:89`, the Worker's own `resolvePracticeGrammar` (`cloudflare-unified-worker.js:1211`) and `docs/PRODUCT-SPEC.md:1021` all assume `id, title_ar, rule_de, rule_ar, level, explanation_ar, example_de, example_ar`. `handleAdminUpload` (`cloudflare-unified-worker.js:3053`) builds `INSERT INTO grammar (…)` from **the row's own keys**, so `rule_de` is sent to a table that has no such column; `SELECT id, rule_de FROM grammar LIMIT 1` fails with D1 error **7500** as the independent proof. **Deeper cause:** none of the four content tables' DDL exists anywhere in the repo (`git grep -n "CREATE TABLE.*grammar\|CREATE TABLE.*vocabulary\|CREATE TABLE.*scenarios\|CREATE TABLE.*starter_phrases"` → 0 hits; only the ledger tables are created by the Worker), so the live content schema is unversioned and has drifted — and the local dry-run cannot see it because it never touches the network, while the audit validates the draft against the *documented* field list. **Two production consequences beyond this load:** (a) `resolvePracticeGrammar` selects three columns the live table lacks and swallows the error in a `try/catch` that returns `null`, so the B2 grammar-reference link can never resolve in production; (b) the live grammar ids are `akkusativ_articles`-style while `SCENARIO_GRAMMAR_IDS` and the offline seed use `g_*`, so even with the columns added the five original scenarios would still have no matching D1 row. **Stopped:** module1's ten grammar rows carry the same `rule_de` field, so it was deliberately **not attempted** (rollback → mark blocked → stop). Owner fix is one additive DDL with no data loss, written into OWNER-OPEN; no deploy, no push, no further write. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
+| GEO-1. SEO + AI discoverability | doing | Built 18 pages (17 sitemap URLs, real `lastmod`), 12 guides, ten-crawler `robots.txt`, `/llms.txt`, IndexNow key + `npm run seo:indexnow`, app root-only sitemap, referral capture. Pending: full gate, live crawl, deploy. |
 
 ## DECISIONS
 
+- **GEO-1 (2026-10-29) — three small honest choices instead of three larger ones.** Guides are flat files
+  (`guides/<slug>.html`, canonical extensionless): no directory index, one URL per article. The app sitemap
+  lists the origin root only — one canonical per route beats thirty near-duplicates. `/llms.txt` states in its
+  own text that it is a non-standard convention. Assistant referrals reuse `landing_viewed` + `source`.
 - **FREE-1 (2026-10-28) — the situation count is the server's list, not the marketing rail.** Live
   `GET /scenarios` returns **49** rows (five are `exam_*`), so the home stat reads 49 and `/help` says
   «49 موقفاً في التطبيق»; the rail keeps six cards as a sampler and card 06 is the real `cafe_order`
@@ -328,6 +349,10 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical claims are in `docs/agent/ARCHIVE-AGENT-STATE.md` under the same heading.
 
+- **GEO-1 (2026-10-29) — crawlability is verifiable today; being cited is not.** `robots.txt`, sitemap and
+  JSON-LD are machine-checked, but nobody has asked the 30 Arabic panel yet, so there is **zero** evidence that
+  any assistant mentions or cites Katzu, and `/llms.txt` has no published effect. Also unproven: whether the
+  Cloudflare edge still answers ClaudeBot/PerplexityBot `403` (2026-10-24) regardless of the allowlist.
 - **AFF-1 (2026-10-28) — the partner money path is unit-proven and now deployed, not live-proven.** Live, after the deploy: `/health` 200 with `storage:{d1,kv}` ok, `POST /affiliate/me` **401** signed out, `POST /affiliate/ref` **400** on a malformed code, `/admin/api/affiliates[/commissions]` **401** without the key, and the three tables present in production D1 (`sqlite_master` read). **Not live-proven:** the Google sign-in attach (Google-only sign-in; an agent must not use a real account), a real `/affiliate/me` code for a real account, the commission row created by a real activation-code redemption inside the app, the day-14 cron on real data, and a real refund after payout. All the rules are covered by the 32 tests in `tests/affiliate.test.ts` against a D1 double, which proves the rules, not D1's atomicity.
 
 - **Google Sign-In: the popup → credential → session path is UNPROVEN end-to-end (2026-10-27).** Live, the GIS script, its stylesheet, its button iframe and its font all return **200** under the production CSP, and Google's button renders in both a clean profile and a service-worker-controlled one — but nothing closed the loop, because that needs a real Google account an agent must not touch. Proven instead: delaying `/gsi/client` by 2.5 s on the local build shows the neutral "preparing" notice (no false "could not load"), and after the script arrives the real button replaces the fallback; a hard `ERR_FAILED` on the first request is followed by a tap that re-injects the script and lands on Google's button (`gsi-local.json`, `gsi-retry.mjs`). What remains unproven is only Google's own credential response through `exchangeGoogleToken` → session → sync.
@@ -385,6 +410,13 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 ## OWNER-OPEN
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
+
+- **Being findable needs two owner steps, and neither is code (SEO-1, GEO-1, 2026-10-29).** (1) Verify
+  `katzuai.com` in Google Search Console (one TXT record in Cloudflare), submit both sitemaps, import into Bing,
+  run `npm run seo:indexnow` — `docs/agent/GEO-VISIBILITY.md` §5. (2) Read the twelve guides once and reply
+  "fine" or the lines to change (§7), run the 30-prompt panel monthly (§2–§4), and send real LinkedIn / GitHub /
+  X URLs for Organization `sameAs` (§8). A live `403`/`429`/challenge for any crawler is Cloudflare
+  **Security → Bots / WAF**, not this repository. Done looks like: both sitemaps "Success", one panel table.
 
 
 - **The partner program is live end to end except the two things only you can do — the two-account test and the payout day (AFF-1, 2026-10-28).** The Worker is deployed: the three tables exist in production D1, `POST /affiliate/me` mints a code for a signed-in account (so `/partners` no longer shows «تعذّر إنشاء رابطك الآن»), `POST /affiliate/ref` validates a code, and the owner-only `/admin/api/affiliates*` routes answer 401 without the key. **What is still unproven is the money path with real accounts**, because it needs two interactive Google sign-ins and an authorised admin read: learner A opens `/partners`, copies the link; learner B signs up through it, pays, redeems the code; A's `/partners` and the commissions report must show one `pending` commission, then the test rows get deleted. **Also:** the endpoints you named — `/affiliate/enroll` and `/affiliate/me/payout` — do not exist in this codebase and never did; the working surface is `/affiliate/me` (self-serve, no application) plus `/admin/api/affiliates/{create,void,payout}` behind your key, so nothing was invented to match the names. **Two decisions stay yours:** the weekly payout day (batches are prepared **Monday**, UTC) and whether **$20** stays the minimum. Done looks like: a real referred learner shows `pending`, and the first payout is marked paid with its reference.
