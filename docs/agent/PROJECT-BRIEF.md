@@ -52,7 +52,31 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-28 (the partner worker is live; the free-tier promise now matches the app)
+## Current snapshot — 2026-10-29 (the site is crawlable and citable: 12 Arabic guides, one sitemap, honest JSON-LD)
+
+**Deployed 2026-10-29: site `03ec8a29-…` (17 pages) and app `58455d0e-…`; the worker is untouched (no
+analytics contract change).** No app route, screen, endpoint, table or dependency was added.
+- **Content:** a `/guides` hub plus twelve Arabic articles (A1 visa, A1→B1 hours, Integrationskurs/DTZ,
+  pronunciation, vocabulary, articles, doctor, flat, Anmeldung, work, recognition, phone call), each 900–1500
+  words with an answer-first lead, a table or checklist, 3–5 FAQs, «آخر تحديث», an author and official sources.
+  Every legal/exam fact kept names the official page it was checked against; nothing unverifiable was invented.
+- **Discoverability:** `sitemap.xml` (17 URLs, real `lastmod`), `robots.txt` for the ten named crawlers that
+  disallows only `/admin/ /api/ /private/`, `llms.txt` (labelled a non-standard convention in its own text), the
+  IndexNow key, and `npm run seo:indexnow` (17 URLs, **202 Accepted**). JSON-LD: Organization / WebSite /
+  SoftwareApplication on `/`, BreadcrumbList on every non-home page, FAQPage on `/help` and each guide matching
+  the visible text, Article with author + dates, OfferCatalog on `/pricing`; no ratings, reviews or user counts.
+- **App:** `vite build` emits a root-only `sitemap.xml` and a matching `robots.txt` from `VITE_PUBLIC_APP_URL`;
+  the shell carries `lang="ar"`, one canonical and `hreflang` ar + x-default. Assistant referrals are one
+  existing `landing_viewed` event with an allowlisted `source` (hostname only, no cookie, no new user data).
+- **Proof:** `npm run verify -- --ci --e2e` **VERIFY OK 14/14**; 17/17 sitemap URLs 200 and 47 links/assets with
+  0 dead on the live host; Lighthouse mobile SEO **100** and accessibility **100** on `/`, `/pricing`, `/help`,
+  `/guides`, `/guides/a1-visa`; `/` byte-identical to the live page except head tags, the footer «الأدلة» link
+  and `ai-ref.js`.
+- **Not fixed here:** Cloudflare answers `GPTBot`, `ClaudeBot` and `PerplexityBot` a **403** on HTML and the
+  sitemap, and its managed `robots.txt` block disallows them before ours — Security → Bots / WAF, owner-only.
+  Citation evidence is `UNPROVEN` until the 30-prompt panel in `docs/agent/GEO-VISIBILITY.md` is run.
+
+## Previous snapshot — 2026-10-28 (the partner worker is live; the free-tier promise now matches the app)
 
 **Deployed 2026-10-28: worker + site; the app rebuilds from git on the same push.** No route, screen, endpoint,
 table or dependency was added — the partner code already existed and the deploy was the missing step. Live:
