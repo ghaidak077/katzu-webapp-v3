@@ -140,12 +140,12 @@ the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- **App Pages production (2026-10-29, source `ee86640`):** deployment
-  **`58455d0e-7643-4c6e-aafc-4e4d9f112c82`** — the GEO batch: `vite build` now emits `robots.txt`
-  (ten crawlers, only `/admin/ /api/ /private/` disallowed, `Sitemap:` from the same origin) and a
-  **root-only** `sitemap.xml`, and the shell carries `lang="ar"`, one canonical and `hreflang` ar +
-  x-default. Live: `/sitemap.xml` 200 (one `<loc>`), `/robots.txt` 200 with our groups after the Cloudflare
-  block, `/` 200 with the head links. The project builds from git, so **every** push
+- **App Pages production (2026-10-29, source `9032c46`):** deployment
+  **`f1bccd5f-0da7-4049-ac7a-b990e38e9edb`** — same bundle as `ee86640`, rebuilt by a docs-only push.
+  `vite build` emits `robots.txt` (ten crawlers, only `/admin/ /api/ /private/` disallowed, `Sitemap:` from the
+  same origin) and a **root-only** `sitemap.xml`, and the shell carries `lang="ar"`, one canonical and
+  `hreflang` ar + x-default. Live: `/sitemap.xml` 200 (one `<loc>`), `/robots.txt` 200 with our groups, `/` 200
+  with the head links. The project builds from git, so **every** push
   to `main` mints a new id — never quote one without reading
   `wrangler pages deployment list --project-name=katzu-webapp-v3` first.
   **Rollback target: `6b97992e-1d16-4198-82fd-98917a824829`** (source `945e7fd`, pre-batch), then
