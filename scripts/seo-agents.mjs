@@ -56,3 +56,72 @@ export function robotsTxt(sitemapUrl) {
     '',
   ].join('\n');
 }
+
+/**
+ * Probe a host the way each crawler would: same URL, same identity, no cookies.
+ *
+ * WHY THIS IS A COMMAND AND NOT A ONE-OFF
+ * The robots file says "welcome"; only a request proves the edge agrees. The
+ * 2026-10-29 run found Cloudflare answering `403` to GPTBot, ClaudeBot and
+ * PerplexityBot while `robots.txt` was 200 for all ten — a dashboard rule the
+ * repository cannot see. `node scripts/seo-agents.mjs --check` re-runs that panel
+ * after any Cloudflare change, so the answer stays measured instead of assumed.
+ */
+const CRAWLER_USER_AGENTS = {
+  Googlebot: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+  bingbot: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+  GPTBot: 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.2; +https://openai.com/gptbot',
+  'OAI-SearchBot':
+    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot',
+  'ChatGPT-User':
+    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot',
+  ClaudeBot:
+    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ClaudeBot/1.0; +claudebot@anthropic.com',
+  'Claude-SearchBot':
+    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; Claude-SearchBot/1.0; +claudebot@anthropic.com',
+  PerplexityBot:
+    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot',
+  Applebot:
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15 (Applebot/0.1; +http://www.apple.com/go/applebot)',
+  'Google-Extended': 'Mozilla/5.0 (compatible; Google-Extended/1.0; +http://www.google.com/bot.html)',
+};
+
+/** The default panel: both hosts' home, the site's robots file and the app's sitemap. */
+export const CRAWL_TARGETS = [
+  'https://website.katzuai.com/',
+  'https://website.katzuai.com/robots.txt',
+  'https://katzuai.com/',
+  'https://katzuai.com/sitemap.xml',
+];
+
+/** Ask one URL as one crawler. Never throws: a timeout is a result, not a crash. */
+export async function probe(url, agent) {
+  try {
+    const res = await fetch(url, {
+      headers: { 'user-agent': CRAWLER_USER_AGENTS[agent] ?? agent, accept: '*/*' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(20000),
+    });
+    return { agent, status: res.status, location: res.headers.get('location') || '' };
+  } catch (error) {
+    return { agent, status: 0, location: error.name };
+  }
+}
+
+if (process.argv.includes('--check')) {
+  const urls = CRAWL_TARGETS;
+  let blocked = 0;
+  for (const url of urls) {
+    console.log(`\n# ${url}`);
+    for (const agent of CRAWLER_AGENTS) {
+      const result = await probe(url, agent);
+      const ok = result.status === 200;
+      if (!ok) blocked++;
+      console.log(
+        `${agent.padEnd(18)} ${String(result.status).padEnd(4)} ${ok ? 'ok' : 'BLOCKED'} ${result.location}`.trimEnd(),
+      );
+    }
+  }
+  console.log(`\n${blocked} non-200 answer(s). A block here is Cloudflare Security → Bots, not this repo.`);
+  process.exitCode = 0;
+}

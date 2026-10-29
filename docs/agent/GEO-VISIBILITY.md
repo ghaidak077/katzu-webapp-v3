@@ -133,6 +133,16 @@ Perplexity and Copilot cite; the others often paraphrase.
 The IndexNow key file `01b620d0b185bc05ba94023366c02b06.txt` sits at the site root **on purpose**:
 the protocol requires the key to be publicly readable at that URL. It is not a secret.
 
+**One thing only you can turn off (measured 2026-10-29).** Cloudflare answers `GPTBot`, `ClaudeBot` and
+`PerplexityBot` with **403 "Your request was blocked"** on every HTML page and on `sitemap.xml`, while
+`robots.txt` is 200 for all ten crawlers — so the block happens in front of the site, not in the site.
+Cloudflare also prepends its own managed `robots.txt` block, which disallows `GPTBot`, `ClaudeBot` and
+`Google-Extended` *before* our groups that allow them. In the dashboard: **Security → Bots** — turn off
+"Block AI bots" / the AI-crawler blocking rule, and **Bots → Manage robots.txt / Content Signals** — disable
+the managed block or set it to allow these crawlers. Then re-run the panel — `node scripts/seo-agents.mjs
+--check` asks both hosts the same question as each of the ten crawlers and prints one line per agent — and
+expect ten `200`s.
+
 ---
 
 ## 6. Off-site checklist (only what is real)
