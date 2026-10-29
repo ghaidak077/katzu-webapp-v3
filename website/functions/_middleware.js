@@ -18,6 +18,18 @@
  * `/llms.txt`) and `404.html` have no twin. A request for one of them falls
  * through to the static asset exactly as before, so a bad `Accept` header can
  * never turn a working URL into a 404.
+ *
+ * WHY `_routes.json` NAMES THE PAGES
+ * Without it Pages routes EVERY request through this Function, so a stylesheet,
+ * the sitemap and each `md/` twin would spend a Functions invocation to be
+ * handed back unchanged. `_routes.json` lists only the six page shapes (plus
+ * `/functions/*` so the source directory keeps answering 404 instead of being
+ * served); everything else is a static asset and never reaches this file.
+ *
+ * WHY IT IS FAIL-OPEN
+ * This sits in front of a working site. Any error — a missing binding, a
+ * malformed header, the twin store being unreachable — must degrade to the HTML
+ * the visitor asked for, never to a 500 on the marketing site.
  */
 
 /** Only paths with a generated twin are negotiable. */
@@ -68,6 +80,15 @@ async function readTwin(context, request, url, mdPath) {
 }
 
 export async function onRequest(context) {
+  try {
+    return await negotiate(context);
+  } catch {
+    // Fail open: the static response is always the correct one.
+    return context.next();
+  }
+}
+
+async function negotiate(context) {
   const { request } = context;
   const url = new URL(request.url);
 

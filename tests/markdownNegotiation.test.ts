@@ -177,6 +177,57 @@ describe('the middleware picks the representation', () => {
     const res = await onRequest(context('/functions/_middleware.js', 'text/markdown') as never);
     expect(res.status).toBe(404);
   });
+
+  it('fails open: a broken twin store still answers the page', async () => {
+    const ctx = context('/pricing', 'text/markdown');
+    ctx.env.ASSETS.fetch = async () => {
+      throw new Error('binding unavailable');
+    };
+    const res = await onRequest(ctx as never);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8');
+    expect(await res.text()).toContain('<main>');
+  });
+});
+
+/**
+ * `_routes.json` is what keeps the Function off the static assets. Without it
+ * Pages sends every request through the Function, which spends an invocation to
+ * hand back a stylesheet.
+ */
+describe('the Functions routing table', () => {
+  const routes = JSON.parse(read(`website/_routes.json`)) as { include: string[] };
+  const matches = (pattern: string, path: string) =>
+    new RegExp(`^${pattern.replace(/\*/g, '.*')}$`).test(path);
+
+  it('routes every page through the Function', () => {
+    for (const page of PAGES) {
+      expect(
+        routes.include.some((pattern) => matches(pattern, page.path)),
+        `${page.path} would skip the Function`,
+      ).toBe(true);
+    }
+  });
+
+  it('keeps assets, crawler files and the twins out of it', () => {
+    for (const path of [
+      '/assets/site.css',
+      '/assets/ref.js',
+      '/md/pricing.md',
+      '/md/index.md',
+      '/md/guides/a1-visa.md',
+      '/robots.txt',
+      '/sitemap.xml',
+      '/llms.txt',
+      '/404.html',
+      '/01b620d0b185bc05ba94023366c02b06.txt',
+    ]) {
+      expect(
+        routes.include.some((pattern) => matches(pattern, path)),
+        `${path} would spend a Function invocation`,
+      ).toBe(false);
+    }
+  });
 });
 
 describe('the markdown converter', () => {

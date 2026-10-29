@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "include": ["/", "/pricing", "/help", "/affiliate", "/guides", "/guides/*", "/functions/*"],
+  "exclude": []
+}
