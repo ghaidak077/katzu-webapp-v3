@@ -24,6 +24,7 @@ import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
 import { lookupWord } from '@/lib/vocabulary/wordGloss';
+import { logAiCallTotals, resetAiCallMeter } from '@/lib/ai/aiCallMeter';
 import { sessionTurnCap } from '@/lib/conversation/turnPlan';
 import { MOCK_EXAM_LEVEL } from '@/lib/mockexam/constants';
 import { MAX_FREE_SESSIONS_AR } from '@/lib/entitlement/trialCopy';
@@ -166,6 +167,8 @@ export function useLiveConversation({
   // honestly and offers a retry, instead of the old "not in your scene" dead end.
   const [insightUnresolved, setInsightUnresolved] = useState(false);
   const lastClickedWordRef = useRef<string>('');
+  /** The word a server lookup is in flight for, so a stale answer cannot land. */
+  const pendingWordRef = useRef<string>('');
   const [startTime] = useState<number>(Date.now());
   const [sessionMode, setSessionMode] = useState<SessionMode | null>(null);
   const [sessionId] = useState<string>(() => `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
@@ -588,6 +591,7 @@ export function useLiveConversation({
     dispatch({ type: 'reset' });
     sessionOpenedAtRef.current = Date.now();
     firstTurnTrackedRef.current = false;
+    resetAiCallMeter();
     track('conversation_started', { scenarioId, kind: sessionMode });
 
     // Load cached starter phrases as initial hints (never in REAL mode).
@@ -647,6 +651,43 @@ export function useLiveConversation({
     [vocabulary],
   );
 
+  /**
+   * The card's last resort: ONE server-side lookup per lemma (cached fleet-wide and
+   * on this device). Fired only when the shipped glossary has nothing, so the
+   * common tap never touches the network and never spends a model call.
+   */
+  const lookUpRemotely = useCallback(
+    (cleaned: string) => {
+      pendingWordRef.current = cleaned;
+      void workerClient
+        .lookupLexeme(cleaned, effectiveLevel)
+        .then((res) => {
+          // A slower answer for a word the learner has already moved past must not
+          // overwrite the card they are reading now.
+          if (pendingWordRef.current !== cleaned || !res.ok) return;
+          pendingWordRef.current = '';
+          setSelectedWordForInsight({
+            id: 0,
+            german: res.lemma || cleaned,
+            article: '',
+            plural: '',
+            translation_ar: res.ar,
+            translation_en: '',
+            example_de: '',
+            example_ar: '',
+            part_of_speech: res.pos,
+            level: (res.level as CEFRLevel) || effectiveLevel,
+            topic: '',
+          });
+          setInsightUnresolved(false);
+        })
+        .catch(() => {
+          /* the honest retry card stays — nothing was invented */
+        });
+    },
+    [effectiveLevel],
+  );
+
   const handleWordClick = useCallback(
     (wordRaw: string) => {
       const cleaned = wordRaw.replace(/[^a-zA-ZäöüÄÖÜß]/g, '');
@@ -669,11 +710,14 @@ export function useLiveConversation({
           topic: '',
         },
       );
+      // Not in the shipped data: ask the server once per lemma (it caches), and
+      // keep the honest retry card visible until an answer actually arrives.
+      if (!insight) lookUpRemotely(cleaned);
     },
-    [insightForWord, effectiveLevel],
+    [insightForWord, effectiveLevel, lookUpRemotely],
   );
 
-  /** The card's retry: re-runs the same resolution. Never a dead end, never a call. */
+  /** The card's retry: re-runs the same resolution, then the server lookup again. */
   const retryWordLookup = useCallback(() => {
     const cleaned = lastClickedWordRef.current;
     if (!cleaned) return;
@@ -682,7 +726,8 @@ export function useLiveConversation({
     setSelectedWordForInsight((prev) =>
       insight ?? (prev ? { ...prev } : prev),
     );
-  }, [insightForWord]);
+    if (!insight) lookUpRemotely(cleaned);
+  }, [insightForWord, lookUpRemotely]);
 
   // Toggle saving word in insight sheet
   const handleToggleSaveWord = async (wordId: number) => {
@@ -1037,6 +1082,9 @@ export function useLiveConversation({
   };
 
   const finishSession = async (finalMessages: ChatMessage[], completedNaturally = false) => {
+    // Counts only — how many AI calls this session actually made, so the claim
+    // "the opener and the word card cost zero" stays measurable after shipping.
+    logAiCallTotals(completedNaturally ? 'session_completed' : 'session_ended_early');
     // A failed send is not a spoken sentence: the debrief counts only turns the
     // server accepted (the retry path re-sends them anyway).
     const userMsgs = finalMessages.filter((m) => m.sender === 'USER' && !m.sendFailed);

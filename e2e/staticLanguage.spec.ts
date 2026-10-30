@@ -63,3 +63,21 @@ test('tapping a word the scene uses shows its meaning, not a dead end', async ({
   expect(aiCalls, 'a word card is answered from the bundle, never from the model').toEqual([]);
   console.log(`[ai-calls] opening a conversation + one word card: ${aiCalls.length}`);
 });
+/**
+ * The same claim, counted by the app rather than by the route mock.
+ *
+ * `window.__kzAiCalls` is the client's own counts-only meter (no text, no ids).
+ * It proves the opener and the word card add ZERO calls on top of whatever the
+ * session already spends — the number a before/after comparison is about.
+ */
+test('the opener and a word card add no AI calls, counted by the app itself', async ({ page }) => {
+  const opener = await openScenario(page);
+  await opener.getByText('Fehlt', { exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('ينقص');
+
+  const totals = await page.evaluate(() => (window as any).__kzAiCalls || null);
+  console.log(`[ai-calls] after opener + word card: ${JSON.stringify(totals)}`);
+  expect(totals?.turn || 0, 'no turn was sent, so no turn call').toBe(0);
+  expect(totals?.translate || 0, 'the opener never asks for a translation').toBe(0);
+  expect(totals?.lexeme || 0, 'a word in the shipped glossary needs no lookup').toBe(0);
+});

@@ -5,6 +5,8 @@ import { currentSource, currentAffiliateRef } from '@/lib/attribution/source';
 import { adoptDailyAuthority, buildDailyPayload, clearDailyEvents, readDailyEventQueue } from '@/lib/progress/dailyAuthority';
 import type { DailyAuthority, DailyPayload } from '@/lib/progress/dailyAuthority';
 import { logError, logEvent, logNetwork } from '../utils/diagnostics';
+import { recordAiCall } from '@/lib/ai/aiCallMeter';
+import { lookupLexeme, type LexemeLookupResult } from './lexemeLookup';
 import type {
   ScenarioEntity,
   StarterPhraseEntity,
@@ -559,6 +561,7 @@ export class WorkerClient {
     }
 
     logNetwork('ai/turn', `POST ${this.baseUrl}/ai/turn (${formattedHistory.length} history msgs, final=${!!params.isFinalTurn})`);
+    recordAiCall('turn');
     const res = await fetchWithTimeout(`${this.baseUrl}/ai/turn`, {
       method: 'POST',
       headers,
@@ -703,6 +706,7 @@ export class WorkerClient {
         mode: 'hints',
       };
 
+      recordAiCall('hints');
       const res = await fetchWithTimeout(`${this.baseUrl}/ai/hints`, {
         method: 'POST',
         headers,
@@ -798,6 +802,7 @@ export class WorkerClient {
       if (token) {
         headers['Authorization'] = 'Bearer ' + token;
       }
+      recordAiCall('translate');
       const res = await fetchWithTimeout(
         `${this.baseUrl}/ai/translate`,
         {
@@ -1569,6 +1574,29 @@ export class WorkerClient {
         error: 'تعذر الوصول إلى الخادم. نصّك محفوظ هنا — أعد المحاولة عند عودة الاتصال.',
       };
     }
+  }
+
+  /**
+   * The dictionary answer for a word the shipped glossary does not know (V30).
+   *
+   * Cache and folding live in `lexemeLookup.ts` (the file budget); this method is
+   * only the transport, so its timeout and auth behave like every other endpoint.
+   */
+  async lookupLexeme(word: string, cefrLevel: string): Promise<LexemeLookupResult> {
+    const token = await this.getEffectiveAuthToken();
+    if (!token) {
+      return { ok: false, code: 'UNAUTHENTICATED', error: 'سجّل الدخول من جديد ليُبحث عن الكلمة.' };
+    }
+    return lookupLexeme(word, cefrLevel, async (clean, level) => {
+      recordAiCall('lexeme');
+      const res = await fetchWithTimeout(`${this.baseUrl}/ai/lexeme`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ word: clean, cefr_level: level }),
+      });
+      logNetwork('ai/lexeme', `HTTP ${res.status}`);
+      return { status: res.status, body: await res.json().catch(() => ({})) };
+    });
   }
 
   /** Server messages are Arabic and specific (too short, wrong task); use them when present. */
