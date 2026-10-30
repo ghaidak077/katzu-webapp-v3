@@ -151,22 +151,21 @@ the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
   **Rollback target: `6b97992e-1d16-4198-82fd-98917a824829`** (source `945e7fd`, pre-batch), then
   `8c6a1c59-123b-4fca-9e89-b1ef2c7865c2` (`691a4a9`), then
   `b0be8a57-e9af-4cb6-9c4f-1d38e37e1a2c` (`d786bd0`).
-- **Site Pages production (2026-10-29, direct upload of `website/`):** `katzu-landing` deployment
-  **`03ec8a29-250d-4517-bf18-3df1049b9106`** (branch `main`, source `ee86640`) — 17 pages plus
-  `404.html`, a 17-URL sitemap, `robots.txt` for the ten crawlers, `llms.txt`, the IndexNow key and
-  `/assets/ai-ref.js`; the live crawl read 17/17 sitemap URLs 200 and 47 links/assets with 0 dead. The batch's
-  first deploy was `099924cc-7269-4b48-86d9-f970dafac255` (`92f60a4`, before breadcrumbs). **Rollback target:
-  `099924cc-7269-4b48-86d9-f970dafac255`**, then `1107f7b3-8c11-459c-886a-c4c4ad5d711b` (source `e9aa028`, the
-  four-page site), then
-  `4dbf4a05-3cb3-411c-a408-a168fe3f6cc9` (the partner page + old home copy), then
-  `90880c38-5f90-4378-844c-5f1ef1fb055e` (the three-page design home), then
-  `1359fb18-e862-4774-b9fb-939a45c20159` (the rebuilt three pages).
-  Note: this project does **not** build from git — a push is not a deploy.
-  Live after the republish (read-only checker, **`LIVE OK`**): `/` `/pricing` `/help` `/affiliate` all
-  **200**; «في المجموع» on `/` + `/pricing`; **0** «كل شهر» on all four and in the app shell; **0**
-  `katzu.com` (wrong domain) on all four plus `katzuai.com/`; no Arabic-Indic digits; exactly one `<h1>`
-  per page; stat 49 and the café card present; `app /partners` **200** through the `_redirects` shell
-  rewrite.
+- **Site Pages production (2026-10-30, direct upload of `website/`):** `katzu-landing` deployment
+  **`7d547d60-9b67-4e51-b601-01227087df90`** (branch `main`, source `3bacf75`, uploaded from inside
+  `website/` so the Functions bundle shipped) — the home film's phone cut: `bg-mobile.mp4` 1.44 MB
+  (H.264 720×1280, no audio, faststart) at ≤700px, `bg.mp4` above it. Live: five main pages **200**,
+  `/assets/bg-mobile.mp4` **200 at 1,436,774 B**, markdown negotiation on `/pricing` → `text/markdown`
+  + `Vary` + `X-Robots-Tag` (browsers get HTML), production Chromium fetched **only** the portrait cut
+  at 390×844 and only the landscape one at 1366×800. **Rollback target:
+  `39639c5c-b610-4575-bee5-5520bde0c4d2`** (`eda9a7f`), then `3e859def-277f-46e7-a107-a45bb09ef5d0`
+  (`f3980be`), `44566671-7ab3-43e0-91f2-b487d4a9990a` (`7595c37`),
+  `03ec8a29-250d-4517-bf18-3df1049b9106` (`ee86640`), `099924cc-7269-4b48-86d9-f970dafac255`
+  (`92f60a4`), `1107f7b3-8c11-459c-886a-c4c4ad5d711b` (`e9aa028`, four pages),
+  `4dbf4a05-3cb3-411c-a408-a168fe3f6cc9` (partner page),
+  `90880c38-5f90-4378-844c-5f1ef1fb055e` (three-page design home),
+  `1359fb18-e862-4774-b9fb-939a45c20159` (rebuilt three pages). The 2026-10-29 copy, stat and `h1`
+  checks still held at the crawl. Note: this project does **not** build from git — a push is not a deploy.
 - **Sales Pages production (2026-10-28, direct upload of `sales/`):** `katzu-sales` deployment
   **`d3811619-6ce1-4c96-82e7-d11e6004c7ae`** — `_redirects` answers every path with one 301 to
   `https://website.katzuai.com/pricing#pay`. **Rollback target: `0de6a626-a242-421f-aca0-faa0ef218722`**
