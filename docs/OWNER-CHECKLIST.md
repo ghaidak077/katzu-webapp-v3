@@ -51,3 +51,33 @@ ships fixed lines per level, German and Arabic side by side, in
 `cloudflare-turn-guard.js` (`RE_ASK`, `ACK`). They are short and generic («كيف
 حالك؟»), so a two-minute read is enough — change the strings there if you want
 different wording; the tests assert shape and level caps, not exact words.
+## 4. The open-dictionary decision (decided, recorded here so it is not re-litigated)
+
+**What was asked:** for a word outside the generated data, check an open dictionary
+before spending a model call. **What was checked (2026-10-30):**
+
+| Source | Licence | Size | German → Arabic? |
+| --- | --- | --- | --- |
+| Kaikki German-edition extract (Wiktextract) | Wiktionary's dual licence: **CC BY-SA** + GFDL — attribution **and share-alike** | 2.9 GB JSONL (295.8 MB gz) | **No** — German-language definitions, not Arabic |
+| Kaikki English-edition (de→en senses) | same dual licence | hundreds of MB | No — English, not Arabic |
+| FreeDict deu-eng | **GPL** | ~10 MB | No — English |
+
+**Decision: do not bundle any of them.** Two independent reasons, either of which
+is enough: (1) none of them is German→Arabic, so the Arabic would have to be
+generated anyway — the dictionary buys nothing on the axis that matters; (2)
+CC BY-SA's share-alike and FreeDict's GPL both reach the derived data we would
+ship inside a commercial PWA, and the 5 MB precache budget cannot hold 296 MB
+compressed in any case. The path that was built instead: shipped generated data
+for everything the app itself says (zero network), then **one** server-side model
+lookup per lemma, cached fleet-wide and on the device (`/ai/lexeme`).
+
+If you ever want a real dictionary, the only clean shape is a server-side index
+queried behind the Worker — never a shipped bundle — and it needs a German→Arabic
+lexicon whose licence permits commercial use. That is a purchase, not a download.
+
+## 5. `/ai/lexeme` needs the same provider key as `/ai/turn`
+
+The last-resort word lookup (a word the shipped glossary does not know) makes one
+model call per lemma. With the pool still keyless it returns 503 and the card
+shows its honest retry — never an invented meaning. Same fix as item 2: paste a
+key in Worker secrets. Cached lemmas keep answering without one.
