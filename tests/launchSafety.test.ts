@@ -107,7 +107,7 @@ describe('translation failure is visible and bounded', () => {
     const live = readFileSync('src/features/conversation/useLiveConversation.ts', 'utf8');
     const story = readFileSync('src/features/journey/StorySetupScreen.tsx', 'utf8');
     expect(live).toMatch(/translationState: 'unavailable' as const/);
-    expect(story).toMatch(/setTranslationState\('unavailable'\)/);
+    expect(story).toMatch(/setTranslationState\(stored \? 'idle' : 'unavailable'\)/);
     // And the state is actually rendered, not just stored.
     const message = readFileSync('src/features/conversation/ConversationMessage.tsx', 'utf8');
     expect(message).toMatch(/translationState === 'unavailable'/);

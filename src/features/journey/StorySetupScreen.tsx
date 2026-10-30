@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { useLiveRow } from '@/lib/db/useLiveRow';
-import { workerClient } from '@/lib/api/workerClient';
 import { sceneFor } from '@/lib/design/scenes';
 import { buildStorySetup } from '@/lib/journey/story';
+import { storedOpenerArabic } from '@/lib/conversation/opener';
 import { loadMissionBrief } from '@/lib/journey/brief';
 import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { isDayZeroOpening } from '@/lib/journey/firstSession';
@@ -19,8 +19,7 @@ import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { SceneBackdrop } from '@/components/glass/SceneBackdrop';
 import { StatusIndicator } from '@/components/v2/StatusIndicator';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
-import { ArrowRight, Volume2, Languages, RefreshCw } from 'lucide-react';
-import { KatzuThinking } from '@/components/effects/KatzuThinking';
+import { ArrowRight, Volume2, RefreshCw } from 'lucide-react';
 
 export interface StorySetupScreenProps {
   scenarioId: string;
@@ -58,7 +57,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
   const dayZero = isDayZeroOpening({ guided, sessionCount, user });
 
   const [translationAr, setTranslationAr] = useState<string | null>(null);
-  const [translationState, setTranslationState] = useState<'idle' | 'pending' | 'unavailable'>('idle');
+  const [translationState, setTranslationState] = useState<'idle' | 'unavailable'>('idle');
 
   // The opener is the character's own line at the level this episode runs at,
   // which is the level the conversation will actually be served at — a learner
@@ -91,33 +90,24 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
   const { speak, isPlaying } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
 
   /**
-   * The Arabic gloss of the opener. It comes from the same edge-cached translate
-   * route the live conversation uses, and a failure is shown as a retry rather
-   * than an empty line — the learner must never face an untranslatable first
-   * sentence with no way to ask again.
+   * The Arabic gloss of the opener, from the data the app ships (V30).
+   *
+   * It used to come from `/ai/translate` — one call per screen open, and a 503
+   * card («تعذرت الترجمة») whenever no provider key is configured. Every opener
+   * of every scenario now carries its Arabic in the bundle, so this is a map
+   * read: instant, free, offline, and the retry button re-reads the same data
+   * instead of asking a model.
    */
-  const requestTranslation = useCallback(
-    async (germanText: string) => {
-      if (!germanText.trim()) return;
-      setTranslationState('pending');
-      try {
-        const arabic = await workerClient.translateTextReliable(germanText);
-        if (arabic && arabic.trim()) {
-          setTranslationAr(arabic.trim());
-          setTranslationState('idle');
-          return;
-        }
-        setTranslationState('unavailable');
-      } catch {
-        logError('story/translate', 'Opener translation unavailable after one retry');
-        setTranslationState('unavailable');
-      }
-    },
-    [],
-  );
+  const requestTranslation = useCallback((germanText: string) => {
+    if (!germanText.trim()) return;
+    const stored = storedOpenerArabic(germanText);
+    setTranslationAr(stored || '');
+    setTranslationState(stored ? 'idle' : 'unavailable');
+    if (!stored) logError('story/gloss', 'No shipped Arabic for this opener text');
+  }, []);
 
   useEffect(() => {
-    if (story?.openingDe) void requestTranslation(story.openingDe);
+    if (story?.openingDe) requestTranslation(story.openingDe);
   }, [story?.openingDe, requestTranslation]);
 
   if (!scenario) {
@@ -234,12 +224,6 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                     <GermanText className="kz-de-body block text-kz-ink">{story.openingDe}</GermanText>
                     {translationAr && (
                       <p className="kz-ar-caption mt-1.5 text-kz-inkDim">{translationAr}</p>
-                    )}
-                    {translationState === 'pending' && !translationAr && (
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <Languages className="h-3.5 w-3.5 text-kz-inkFaint" />
-                        <KatzuThinking size={18} layout="inline" labelAr="جارٍ الترجمة…" className="gap-1.5" />
-                      </div>
                     )}
                     {translationState === 'unavailable' && !translationAr && (
                       <button

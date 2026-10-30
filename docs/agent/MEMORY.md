@@ -128,6 +128,8 @@ file is the digest that is short enough to always read.
 | 52 | A browser spec clicked a composer that stayed covered for the whole episode — only the full suite saw it | A 1.2 s `setTimeout` opened the soft Pro modal after the first correction; the modal's full-screen `.kz-scrim` intercepted every later click on «أرسل جملتك», so the next step waited out the 90 s timeout | A timer that opens an overlay is action at a distance over the control the learner is using — never arm one mid-episode. When a click times out with no error of its own, look for a full-screen layer first; a flake that reproduces only in the full suite is usually an earlier step's side effect, not a slow assertion. |
 ---
 
+- **Static content was living behind the model (V30).** The first bubble showed «تعذرت الترجمة — أعد المحاولة» and most word cards said «هذه الكلمة ليست في محتوى مشهدك بعد» with the part of speech «—» → **proven cause:** only 10 openers had a stored Arabic gloss (223 distinct openers exist) so the rest called `/ai/translate`, which fails with no provider key (both key lists are empty), and a word's meaning had *no* local source at all — the card knew exact vocabulary rows only → **rule:** content the app ships (an opener's Arabic, a word's meaning/POS/level) is generated at authoring time into the bundle (`scripts/build-language-data.mjs`), never requested at runtime. `tests/openersStatic.test.ts` + `e2e/staticLanguage.spec.ts` fail if coverage, size, or the zero-call rule regresses.
+
 ## D. Important details worth not rediscovering
 
 - The **public demo makes no AI call** by design — a regression here is a real bug.
@@ -170,6 +172,15 @@ file is the digest that is short enough to always read.
   The whole `/ai/turn` system instruction lives in the exported pure `buildTurnSystemInstruction`, and
   `scripts/measure-turn-cost.mjs` (in CI) fails if the beats add more than `BEATS_PROMPT_TOKEN_CAP`
   (220) estimated tokens; measured ~103–110/turn.
+- **Language data is generated, not fetched (V30).** `scripts/language-data/` (authored corpus +
+  `content-snapshot.json`) → `src/lib/conversation/openerGlosses.generated.ts` (223 openers, Arabic) and
+  `src/lib/vocabulary/wordGlossary.generated.ts` (892 tokens: lemma, Arabic, part of speech, level, compound
+  parts; 192 filled from the existing vocabulary rows). Regenerate with `node scripts/build-language-data.mjs`
+  (`--offline` uses the snapshot, `--list` prints the owner review list). `lookupWord`
+  (`src/lib/vocabulary/wordGloss.ts`) resolves exact → declared compound → unknown compound split → inflection,
+  and returns null otherwise (honest retry card, never the old dead end, never an AI call). A bare greeting or
+  an off-topic single word is answered by `cloudflare-turn-guard.js` (fixed per-level greeting + re-ask with its
+  own Arabic, inside the level caps) instead of an invented answer.
 - **There are exactly two conversation modes of the SAME conversation (V28): `practice` (hints,
   translation, a live correction) and `real` (none of those; the turn call is unchanged and still
   returns the evaluation, so the report is built from the stored turns; REAL XP is weighted 1.5×).

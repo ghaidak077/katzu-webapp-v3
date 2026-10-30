@@ -495,6 +495,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         onClose={() => setSelectedWordForInsight(null)}
         isSaved={live.savedWords.some((sw) => sw.wordId === selectedWordForInsight?.id)}
         onToggleSave={handleToggleSaveWord}
+        unresolved={live.insightUnresolved}
+        onRetry={live.retryWordLookup}
       />
 
       {/* Pro Paywall (level lock, quota exhaustion) */}

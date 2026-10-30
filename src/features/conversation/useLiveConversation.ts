@@ -23,6 +23,7 @@ import { enqueueDailyEvent, sessionEventId } from '@/lib/progress/dailyAuthority
 import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
+import { lookupWord } from '@/lib/vocabulary/wordGloss';
 import { sessionTurnCap } from '@/lib/conversation/turnPlan';
 import { MOCK_EXAM_LEVEL } from '@/lib/mockexam/constants';
 import { MAX_FREE_SESSIONS_AR } from '@/lib/entitlement/trialCopy';
@@ -161,6 +162,10 @@ export function useLiveConversation({
     description: '',
   });
   const [selectedWordForInsight, setSelectedWordForInsight] = useState<VocabularyEntity | null>(null);
+  // True when the tapped word is outside the shipped content: the card says so
+  // honestly and offers a retry, instead of the old "not in your scene" dead end.
+  const [insightUnresolved, setInsightUnresolved] = useState(false);
+  const lastClickedWordRef = useRef<string>('');
   const [startTime] = useState<number>(Date.now());
   const [sessionMode, setSessionMode] = useState<SessionMode | null>(null);
   const [sessionId] = useState<string>(() => `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
@@ -536,41 +541,28 @@ export function useLiveConversation({
    * back, instead of a bubble that silently cannot be translated.
    */
   /**
-   * V19 Phase 2: the opener's Arabic is stored data first, AI refinement second.
+   * V30: the opener's Arabic is static data, full stop.
    *
-   * The measured Phase-0 behaviour — an automatic `/ai/translate` on every open,
-   * before the learner says anything — is gone. `storedOpenerArabic` answers
-   * from content the app already ships; when it has no gloss (and only then) the
-   * translate route is asked once, as a *refinement*, and its failure is shown
-   * honestly with a retry. An opener with a stored gloss never spends quota.
+   * Root cause of the «تعذرت الترجمة» card (V30 diagnosis): the gloss lived
+   * behind `/ai/translate`, which answers 503 with no provider key configured —
+   * and even with keys it was one AI call per conversation opened, before the
+   * learner had said anything. Every opener of every scenario now ships with its
+   * Arabic (`openerGlosses.generated.ts`), so this is a synchronous map read: no
+   * request, no spinner, no quota, and it works offline through the service
+   * worker. A text with no shipped gloss (an old retired string) reports its own
+   * honest state; it never calls the model.
    */
-  const requestOpenerTranslation = useCallback(async (messageId: string, germanText: string) => {
+  const requestOpenerTranslation = useCallback((messageId: string, germanText: string) => {
     const stored = storedOpenerArabic(germanText);
-    if (stored) {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId ? { ...m, arabicTranslation: stored, translationState: undefined } : m,
-        ),
-      );
-      return;
-    }
-    // No stored gloss: try the refinement once, then say so with a way back.
     setMessages((prev) =>
-      prev.map((m) => (m.id === messageId ? { ...m, translationState: 'pending' as const } : m)),
+      prev.map((m) => {
+        if (m.id !== messageId) return m;
+        return stored
+          ? { ...m, arabicTranslation: stored, translationState: undefined }
+          : { ...m, translationState: 'unavailable' as const };
+      }),
     );
-    const arabic = await workerClient.translateTextReliable(germanText).catch(() => '');
-    if (!arabic) {
-      logError('ai/translate', 'Opener translation unavailable after one retry');
-    }
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === messageId
-          ? arabic
-            ? { ...m, arabicTranslation: arabic, translationState: undefined }
-            : { ...m, translationState: 'unavailable' as const }
-          : m,
-      ),
-    );
+    if (!stored) logError('opener/gloss', 'No shipped Arabic for this opener text');
   }, []);
 
   useEffect(() => {
@@ -626,29 +618,71 @@ export function useLiveConversation({
   // app. An unmatched word now gets an honest, non-AI card (no quota spent): the
   // word itself, its pronunciation, and where to take it next. Saving is disabled
   // for it, because it has no content row to remember.
+  const insightForWord = useCallback(
+    (cleaned: string): VocabularyEntity | null => {
+      // A content row wins: it is the word the scenario teaches, and it can be
+      // saved to the vocabulary.
+      const found = vocabulary.find(
+        (v) => v.german.toLowerCase() === cleaned.toLowerCase() || (v.article && `${v.article} ${v.german}`.toLowerCase() === cleaned.toLowerCase()),
+      );
+      if (found) return found;
+      // Otherwise the shipped glossary answers — lemma, Arabic meaning, part of
+      // speech and level for every word in every opener, resolved offline.
+      const gloss = lookupWord(cleaned);
+      if (!gloss) return null;
+      return {
+        id: 0,
+        german: gloss.german,
+        article: '',
+        plural: '',
+        translation_ar: gloss.ar,
+        translation_en: '',
+        example_de: '',
+        example_ar: '',
+        part_of_speech: gloss.pos,
+        level: gloss.level as CEFRLevel,
+        topic: '',
+      };
+    },
+    [vocabulary],
+  );
+
   const handleWordClick = useCallback(
     (wordRaw: string) => {
       const cleaned = wordRaw.replace(/[^a-zA-ZäöüÄÖÜß]/g, '');
       if (!cleaned) return;
-      const found = vocabulary.find((v) => v.german.toLowerCase() === cleaned.toLowerCase());
+      const insight = insightForWord(cleaned);
+      lastClickedWordRef.current = cleaned;
+      setInsightUnresolved(!insight);
       setSelectedWordForInsight(
-        found ?? {
+        insight ?? {
           id: 0,
           german: cleaned,
           article: '',
           plural: '',
-          translation_ar: 'هذه الكلمة ليست في محتوى مشهدك بعد. يمكنك سماعها الآن، وستُضاف إلى مفرداتك عند دراستها.',
+          translation_ar: '',
           translation_en: '',
           example_de: '',
           example_ar: '',
-          part_of_speech: '—',
+          part_of_speech: '',
           level: effectiveLevel,
           topic: '',
         },
       );
     },
-    [vocabulary, effectiveLevel],
+    [insightForWord, effectiveLevel],
   );
+
+  /** The card's retry: re-runs the same resolution. Never a dead end, never a call. */
+  const retryWordLookup = useCallback(() => {
+    const cleaned = lastClickedWordRef.current;
+    if (!cleaned) return;
+    const insight = insightForWord(cleaned);
+    setInsightUnresolved(!insight);
+    setSelectedWordForInsight((prev) =>
+      insight ?? (prev ? { ...prev } : prev),
+    );
+  }, [insightForWord]);
 
   // Toggle saving word in insight sheet
   const handleToggleSaveWord = async (wordId: number) => {
@@ -1256,6 +1290,8 @@ export function useLiveConversation({
     setPaywall,
     selectedWordForInsight,
     setSelectedWordForInsight,
+    insightUnresolved,
+    retryWordLookup,
     knownWords,
     // refs
     scrollRef,

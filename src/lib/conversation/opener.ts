@@ -42,16 +42,21 @@ export function openerForLevel(scenario: ScenarioOpener | null | undefined, leve
   }
 }
 
+import { OPENER_GLOSSES as GENERATED_OPENER_GLOSSES } from './openerGlosses.generated';
+
 /**
  * The stored Arabic gloss for an opener, keyed on the German text itself.
  *
  * WHY KEYED ON TEXT, NOT ON (scenario, level): the row the scenario is served
  * from can be the D1 copy or the offline fixture, and they can drift; the
  * learner sees one specific German sentence, and it is that sentence the gloss
- * must match. A gloss entry only ships when a content author (or a reviewed
- * draft) supplied the Arabic, so an unmapped opener stays honest rather than
- * guessing — it shows the retry affordance, which is the pre-V19 failure state,
- * minus the AI call that used to paper over it.
+ * must match.
+ *
+ * V30: every opener of every scenario ships with its Arabic, generated once by
+ * `scripts/build-language-data.mjs` and reviewed by the owner — so the lookup is
+ * a pure map hit with no network call and no AI. The handful of hand-written
+ * glosses below are kept as overrides for content that predates the generator
+ * (a retired opener string still served by an old D1 row must not regress).
  */
 const OPENER_GLOSSES: Record<string, string> = {
   // airport_arrival — the five openers from the fixture + module2's approved
@@ -83,7 +88,14 @@ const OPENER_GLOSSES: Record<string, string> = {
  */
 export function storedOpenerArabic(german: string): string | null {
   const key = german.trim().replace(/\s+/g, ' ');
-  return Object.prototype.hasOwnProperty.call(OPENER_GLOSSES, key) ? OPENER_GLOSSES[key] : null;
+  if (Object.prototype.hasOwnProperty.call(OPENER_GLOSSES, key)) return OPENER_GLOSSES[key];
+  const generated = GENERATED_OPENER_GLOSSES[key];
+  return typeof generated === 'string' && generated.trim() ? generated : null;
+}
+
+/** Every opener text that ships with an Arabic gloss (for coverage tests). */
+export function shippedOpenerGlosses(): Record<string, string> {
+  return { ...GENERATED_OPENER_GLOSSES, ...OPENER_GLOSSES };
 }
 
 /**

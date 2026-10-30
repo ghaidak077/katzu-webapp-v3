@@ -28,6 +28,7 @@ import {
   normaliseMockPartIndex,
 } from "./cloudflare-mock-exam.js";
 import { beatsInstruction } from "./cloudflare-conversation-beats.js";
+import { guardGreetingReply } from "./cloudflare-turn-guard.js";
 import { isEasyTurn, PROVIDER_POOL, estimateTurnCostUsd } from "./cloudflare-ai-router.js";
 
 /** char/4 token estimate — the same estimator `scripts/measure-turn-cost.mjs` uses. */
@@ -457,6 +458,34 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       }),
     });
     let parsed = parseTurnJson(raw);
+    // V30 FIX 3: never answer a question nobody asked. A bare greeting ("hallo")
+    // or a single word that is nowhere in the scene used to be read as an answer
+    // — "Hallo! Mir geht es gut." answered a wellbeing question the opener never
+    // asked. The guard swaps in a short greeting plus a fixed, level-safe re-ask
+    // whose Arabic travels with it. It runs before the level gate so the fixed
+    // line is validated like any other reply, and it never fires when the message
+    // carries content of its own.
+    if (parsed?.reply_de) {
+      const sceneGerman = (Array.isArray(v.history) ? v.history : [])
+        .filter((m) => m && m.sender === "model")
+        .map((m) => m.text)
+        .join(" ");
+      const guarded = guardGreetingReply({
+        learnerText: v.user_message,
+        replyDe: parsed.reply_de,
+        replyAr: parsed.reply_ar,
+        sceneGerman,
+        level,
+      });
+      if (guarded.guarded) {
+        parsed = { ...parsed, reply_de: guarded.replyDe, reply_ar: guarded.replyAr };
+        try {
+          console.log(JSON.stringify({ event: "ai_turn_guard", reason: guarded.reason, level }));
+        } catch {
+          /* logging must never fail a turn */
+        }
+      }
+    }
     // LEVEL-SPEC gate (V21 Phase 1): the reply's German must obey the level's
     // caps. One violation -> ONE repair call; still violating -> the
     // deterministic per-level fallback line (its Arabic travels with it, so the

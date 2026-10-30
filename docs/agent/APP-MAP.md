@@ -319,6 +319,8 @@ Pro status or AI allowance. AI never governs billing/account state.
 | a screen's UI/Copy | matching `src/features/<area>/*Screen.tsx` |
 | any Worker/API call | `src/lib/api/workerClient.ts` |
 | an AI endpoint or prompt | `cloudflare-unified-worker.js` + `cloudflare-ai-chat.js` |
+| an opener's Arabic, or a word's meaning/POS/level | `scripts/language-data/` corpus → `node scripts/build-language-data.mjs` → `src/lib/conversation/openerGlosses.generated.ts` + `src/lib/vocabulary/wordGlossary.generated.ts`; lookup in `src/lib/vocabulary/wordGloss.ts` |
+| how the partner answers a bare greeting | `cloudflare-turn-guard.js` (`guardGreetingReply`, called early in `/ai/turn`) |
 | AI provider pool | `cloudflare-ai-router.js` (defaults) + `cloudflare-ai-providers.js` (owner edits: disable defaults, custom gateways, keys) |
 | offline/DB behaviour | `src/lib/db/katzuDb.ts` |
 | domain types/shapes | `src/types/models.ts` |

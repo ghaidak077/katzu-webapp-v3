@@ -162,34 +162,15 @@ test('with a finished episode, a learner keeps the old hint even with the flag o
  * would be a test of the machine. The measurements live in
  * `KATZU_V2_IMPLEMENTATION_LOG.md` instead.
  */
-test('the thinking indicator survives the episode opening', async ({ page }) => {
-  const failedSetups: string[] = [];
-  page.on('console', (message) => {
-    if (message.text().includes('[SiriWave] shader setup failed')) failedSetups.push(message.text());
-  });
-
-  // The indicator exists only while the opener's translation is in flight, so the
-  // mock has to hold it there. Without this the window can open and close between
-  // Playwright's polls (far more likely on CI's faster machine than on a loaded
-  // sandbox), and the test waits its full budget for an element that already
-  // unmounted — a red gate that says nothing about the app. Observed on CI at
-  // run 36574132405 (`element(s) not found` after 45 s) with every other spec green.
-  // The *assertions* below are unchanged: this only makes the trigger deterministic.
-  await bootSignedIn(page, { translateDelayMs: 1_200 });
+test('the episode opening shows its gloss at once, with no AI call', async ({ page }) => {
+  // V30: the opener's Arabic ships in the bundle, so the story screen no longer
+  // waits for `/ai/translate` — the gloss is painted with the opener and the
+  // failure card it used to show is gone.
+  await bootSignedIn(page);
   await page.getByRole('button', { name: PRIMARY_ACTION }).click();
 
-  // The indicator is on screen while the opener's translation is in flight, and the
-  // gloss arriving is what unmounts it — the transition the regression lived in.
-  await expect(page.locator('canvas.kz-animated').first()).toBeVisible({ timeout: EPISODE_READY_MS });
-  await expect(page.getByText('ترجمة الاختبار')).toBeVisible();
-
-  // And the other half of that transition: the indicator is *replaced* by the gloss,
-  // never left behind it. Without the delay above this half was untestable too — an
-  // indicator that lingered forever looked identical to one that was never painted.
-  await expect(page.locator('canvas.kz-animated')).toHaveCount(0, { timeout: EPISODE_READY_MS });
-  await page.waitForTimeout(500);
-
-  expect(failedSetups).toHaveLength(0);
+  await expect(page.locator('p.kz-ar-caption').first()).toBeVisible({ timeout: EPISODE_READY_MS });
+  await expect(page.getByText('تعذرت الترجمة — إعادة المحاولة')).toHaveCount(0);
 });
 
 test('the scenario library exposes named, keyboard-reachable cards', async ({ page }) => {

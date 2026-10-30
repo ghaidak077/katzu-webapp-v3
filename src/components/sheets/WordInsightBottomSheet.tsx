@@ -7,12 +7,42 @@ import { Volume2, Bookmark, Check } from 'lucide-react';
 import type { VocabularyEntity } from '@/types/models';
 import { normalizedPartOfSpeech } from '@/lib/utils/scenarioVocab';
 
+/**
+ * The card speaks Arabic; the data stores German/Latin parts of speech. Before
+ * this map the card printed «Verb» next to «نوع الكلمة» (or «—» when the word
+ * was unknown), which read as a bug in the Arabic UI.
+ */
+const POS_AR: Record<string, string> = {
+  noun: 'اسم',
+  verb: 'فعل',
+  adjective: 'صفة',
+  adverb: 'ظرف',
+  pronoun: 'ضمير',
+  article: 'أداة تعريف',
+  preposition: 'حرف جر',
+  conjunction: 'حرف ربط',
+  numeral: 'عدد',
+  interjection: 'تعجّب',
+  particle: 'أداة',
+  'proper noun': 'علم',
+  phrase: 'تعبير',
+};
+
+const posArabic = (raw: string | null | undefined): string =>
+  POS_AR[String(raw || '').trim().toLowerCase()] || normalizedPartOfSpeech(raw);
+
 export interface WordInsightBottomSheetProps {
   word: VocabularyEntity | null;
   isOpen: boolean;
   onClose: () => void;
   isSaved: boolean;
   onToggleSave: (wordId: number) => void;
+  /**
+   * The word is outside the shipped content. The card then shows an honest retry
+   * state — never the old «هذه الكلمة ليست في محتوى مشهدك بعد» dead end.
+   */
+  unresolved?: boolean;
+  onRetry?: () => void;
 }
 
 export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
@@ -21,6 +51,8 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
   onClose,
   isSaved,
   onToggleSave,
+  unresolved = false,
+  onRetry,
 }) => {
   const { speak } = useSpeechOutput();
 
@@ -52,7 +84,9 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
               </GermanText>
             </div>
             <div className="text-sm font-arabic font-semibold text-text-secondary">
-              {word.translation_ar}
+              {unresolved
+                ? 'لم نجد معنى هذه الكلمة في بيانات التطبيق بعد.'
+                : word.translation_ar}
             </div>
           </div>
 
@@ -76,6 +110,22 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
           </div>
         </div>
 
+        {unresolved && (
+          <div className="p-4 rounded-3xl bg-surface-card border border-border-subtle space-y-2">
+            <p className="text-xs font-arabic text-text-secondary leading-relaxed">
+              اكتبها في جملة داخل المشهد ثم اضغط إعادة المحاولة، أو استخدمها كما هي — يمكنك سماعها الآن.
+            </p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="w-full py-2 rounded-2xl bg-primary/20 text-primary font-arabic text-sm font-bold pointer-hover:bg-primary/30 transition-colors"
+              >
+                إعادة المحاولة
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Example Sentence */}
         {word.example_de && (
           <div className="p-4 rounded-3xl bg-surface-subtle border border-border-subtle space-y-1.5">
@@ -93,7 +143,9 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="p-3 rounded-2xl bg-surface-card border border-border-subtle">
             <span className="text-text-muted block mb-0.5">نوع الكلمة</span>
-            <span className="font-semibold text-text-primary">{normalizedPartOfSpeech(word.part_of_speech) || 'اسم'}</span>
+            <span className="font-semibold text-text-primary">
+              {unresolved ? 'غير معروفة' : posArabic(word.part_of_speech) || 'اسم'}
+            </span>
           </div>
           <div className="p-3 rounded-2xl bg-surface-card border border-border-subtle">
             <span className="text-text-muted block mb-0.5">المستوى</span>

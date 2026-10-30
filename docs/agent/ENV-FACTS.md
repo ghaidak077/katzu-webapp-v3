@@ -2,13 +2,9 @@
 
 ## Current overlay — 2026-10-04
 
-The sections below are historical recon, not current production/readiness claims.
-Current checkout at excellence-batch start: `main`, `1a72827`; source changes are local and
-uncommitted. Node remains 24.14.0 / npm 11.9.0, below the declared Node floor; no system-wide
-runtime upgrade is authorized or performed. A local `.env` exists now: never print its contents.
-The preceding audit passed 1,410 unit tests and 80 dev-server browser tests; these numbers are
-not coverage for later edits. Final edited-file evidence lives in `EXCELLENCE-STATUS.md`.
-The root shell directory is still the parent workspace; commands for the app need `cwd: katzu`.
+The sections below are historical recon, not current production/readiness claims. A local `.env`
+exists: never print its contents. The root shell directory is the parent workspace; commands for the
+app need `cwd: katzu`.
 Use bundled code_search when available, `git grep` fallback otherwise. Inspect listeners before
 starting servers and never terminate another thread's process. No production/network secret
 operations are necessary for the current batch. CLAUDE.md and AGENTS.md share one instruction
@@ -132,6 +128,7 @@ command below stops existing, so this index cannot rot silently.
 | Performance numbers | `npm run measure:perf` | lighthouse; needs a server running first |
 | Secret scan | `npm run scan:secrets` | the same patterns CI runs |
 | Build / serve the bundle locally | `npm run build` · `npm run preview` | `dist/` |
+| Shipped language data (openers, glossary) | `node scripts/build-language-data.mjs` | corpus → the two `*.generated.ts`; fails on any missing gloss |
 | Rebuild the marketing site | `node scripts/build-website.mjs` | writes `website/` (`/`, `/pricing`, `/affiliate`, `/help`, `/guides` + 12 articles, `404.html`, `robots.txt`, `sitemap.xml`, `llms.txt`, IndexNow key, `_redirects`, `assets/ref.js`, `assets/ai-ref.js`, and the `md/` twins) from `scripts/site-content.mjs`, `scripts/site-content-affiliate.mjs`, `scripts/site-pricing.mjs`, `scripts/guides/*` (12 articles), `scripts/site-seo.mjs` (sitemap/robots/llms/IndexNow), `scripts/site-schema.mjs` (JSON-LD), `scripts/seo-agents.mjs` (the crawlers), `scripts/site-referrer.mjs` (AI-referral script), `scripts/site-files.mjs` (301 table + emitter), `scripts/site-markdown.mjs` (markdown twins), `src/lib/trust/content.ts` (legal text); prunes stale `.html`/`.md` |
 | Submit the site's URLs to IndexNow (Bing, Yandex, Seznam, Naver) | `npm run seo:indexnow` (`-- --dry-run` prints them) | POSTs the sitemap's 17 URLs; manual, not a deploy hook, and the key file must already be live at the site root |
 | Curriculum audit on a module file | `node scripts/audit-curriculum.mjs --file=docs/content/<module>.json` | dry run, no writes |
