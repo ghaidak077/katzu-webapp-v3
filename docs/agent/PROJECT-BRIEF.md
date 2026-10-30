@@ -291,6 +291,17 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 
 ## 7. Recent changes
 
+- **The headline reads as words again, and the title names the language (2026-10-30, deployed)** — the home
+  `<h1>`'s two block lines were joined with no whitespace, so a checker that strips tags saw the page's main
+  string as one fused word («تُتعلَّمبالتحدّث»); a newline between the spans fixes the extraction with no visual
+  change (the two line boxes, the hero box and the document height are identical at 390×844 and 1366×800).
+  `<title>`, `og:title`, `twitter:title` and JSON-LD now read «كاتزو — تطبيق لتعلّم اللغة الألمانية بالمحادثة»
+  (46 characters) and the description carries «تعلم اللغة الألمانية»; **only `/`'s title changed**. All 20 site
+  images already carried an `alt` — 19 decorative brand marks, one meaningful Arabic alt on the conversation
+  screenshot. New `tests/headings.test.ts` fails on any heading whose extracted text fuses, and `md/index.md`
+  gained the same space. Evidence: gate 14/14; crawl 17/17 paths 200 and 33 single-hop 301s; markdown
+  negotiation intact. Deployment ids in `docs/AGENT-STATE.md` § SNAPSHOT.
+
 - **The home film has a phone cut (2026-10-30)** — the background video on `/` serves
   `bg-mobile.mp4` (720×1280) below 701px and `bg.mp4` (1280×720) above it, through a `<source media>`
   pair in `scripts/templates/home.html`, and the portrait cut is now re-encoded to **1.44 MB from
