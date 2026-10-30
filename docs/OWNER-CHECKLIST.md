@@ -51,6 +51,7 @@ ships fixed lines per level, German and Arabic side by side, in
 `cloudflare-turn-guard.js` (`RE_ASK`, `ACK`). They are short and generic («كيف
 حالك؟»), so a two-minute read is enough — change the strings there if you want
 different wording; the tests assert shape and level caps, not exact words.
+
 ## 4. The open-dictionary decision (decided, recorded here so it is not re-litigated)
 
 **What was asked:** for a word outside the generated data, check an open dictionary

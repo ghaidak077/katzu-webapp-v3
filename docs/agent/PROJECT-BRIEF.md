@@ -52,7 +52,26 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-29 (the site is crawlable and citable: 12 Arabic guides, one sitemap, honest JSON-LD)
+## Current snapshot — 2026-10-30 (word cards cost zero AI calls, openers are instant, «hallo» gets a re-ask)
+
+**Deployed 2026-10-30: worker `b33136fa-…` (adds `POST /ai/lexeme`) and app `e948f1dc-…` (source `51bf25b`);
+the site is untouched.** One endpoint added; no new route, table or dependency.
+- **Openers:** the 223 scenario openers ship pre-computed in German **and** Arabic, so a situation's first
+  partner line and its translation render with no network and no AI call — and still do in airplane mode.
+- **Words:** tapping a word shows meaning + Arabic word class + level from the shipped glossary in **0** AI
+  calls; an unseen word costs one `/ai/lexeme` lookup per **lemma**, cached fleet-wide in KV (SHA key, 180 days,
+  no learner text stored) and mirrored in IndexedDB (`katzu_lexeme_cache_v1`), so a repeat or an inflected
+  form is 0. `window.__kzAiCalls` counts only, never text or ids.
+- **A bare «hallo»:** `cloudflare-turn-guard.js` replaces a reply that invents an answer with a greeting and a
+  re-ask at the same level; 35 pure tests plus one `/ai/turn` route test that proves the guard actually runs.
+- **Proof:** gate `VERIFY OK 14/14`; live A/B in a real browser (the `exam_erfahrungen_sprechen` opener plus 20
+  words across three scenarios, every card showing meaning/POS/level, `__kzAiCalls` staying **0**); worker
+  `/ai/lexeme` live (401 unauthenticated where it answered 404 before the deploy). **Not live-proven:** a
+  signed-in turn (C) and the authenticated 1-call-then-0 path — both need a real account an agent must not use.
+- **No dictionary ships:** Kaikki/Wiktextract de+en is CC BY-SA + GFDL, FreeDict deu-eng is GPL, and neither is
+  German→Arabic. The decision and the owner's remaining items are in `docs/OWNER-CHECKLIST.md`.
+
+## Previous snapshot — 2026-10-29 (the site is crawlable and citable: 12 Arabic guides, one sitemap, honest JSON-LD)
 
 **Deployed 2026-10-29: site `03ec8a29-…` (17 pages) and app `58455d0e-…`; the worker is untouched (no
 analytics contract change).** No app route, screen, endpoint, table or dependency was added.
@@ -290,6 +309,13 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 - **`UNPROVEN`** (V10 additions marked): the real content load · human content review (AI self-review only) · sync/crypto atomicity on the *deployed* database · the counter's insert-then-increment branch at unit level · the Trail's own Lighthouse numbers (it redirects to `/welcome` without an account) · a clean-machine Lighthouse run (this one shared the page with an anti-virus script) · visual 360/390 px and offline-recording checks · real-device voice. Now **covered** and so removed from this list: built-bundle e2e, local-D1 sync/crypto atomicity, and the Lighthouse baseline itself.
 
 ## 7. Recent changes
+
+- **Openers, word cards and the greeting guard (2026-10-30, worker + app deployed)** — the first partner line of
+  every situation is pre-computed in German and Arabic (instant, offline); a word card reads the shipped glossary
+  first and only an unseen **lemma** reaches `POST /ai/lexeme` (one call per lemma, KV-cached by stem, no learner
+  text stored), which is mirrored on the device; a bare «hallo» is answered by a greeting + re-ask instead of an
+  invented «Mir geht es gut». Evidence: gate 14/14; live opener + 20 words with `__kzAiCalls` **0**; worker 401 on
+  `/ai/lexeme` where it was 404. Ids in `docs/AGENT-STATE.md` § SNAPSHOT.
 
 - **The headline reads as words again, and the title names the language (2026-10-30, deployed)** — the home
   `<h1>`'s two block lines were joined with no whitespace, so a checker that strips tags saw the page's main

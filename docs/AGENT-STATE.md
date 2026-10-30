@@ -26,6 +26,27 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-30 — word cards cost zero AI calls, openers are instant, and «hallo» gets a re-ask (worker + app
+  deployed).** Three learner-visible outcomes, each deployed and verified live where a browser could reach it.
+  (1) **Openers:** the 223 scenario openers are pre-computed German + Arabic, so `exam_erfahrungen_sprechen`
+  shows «نهارك سعيد! أخبرني: ما السهل عليك وما الصعب في تعلّم الألمانية؟» under its German line instantly and with
+  no model call (the old path called `/ai/translate` and, on the empty key pool, gave 503). (2) **Word cards:**
+  the shipped glossary answers first — 11 words in that exam scenario plus 4 in `cafe_order` and 5 in
+  `doctor_visit` each showed meaning + Arabic POS + level with `window.__kzAiCalls` at **0** for the whole
+  session; the last resort is the new `POST /ai/lexeme`, **one** model call per **lemma**, cached fleet-wide in
+  KV (SHA key, 180 days, no learner text) and mirrored in IndexedDB `katzu_lexeme_cache_v1`, so a repeat or an
+  inflected form is 0 — and a cached lemma answers even with the key pool empty. (3) **The guard:** a bare
+  «hallo» can no longer be answered with an invented «Mir geht es gut.»; `cloudflare-turn-guard.js` (35 pure
+  tests) is proven to run inside `/ai/turn` by one new route test — the first attempt answered **400** because
+  the test's empty D1 double turned `exam_erfahrungen_sprechen` (no static fallback row) into `UNKNOWN_SCENARIO`,
+  which is the failure mode a test must model, not hide. **Gate `VERIFY OK 14/14` in 676.6 s** on this tree.
+  Worker `b33136fa-…` live (`/ai/lexeme` 401 unauthenticated where it answered 404), app `e948f1dc-…`; ids and
+  rollbacks in SNAPSHOT. **Live browser C (send «hallo» in a real episode) and the authenticated
+  1-call-then-0 path stay UNPROVEN** — both need a real signed-in session, which an agent must not create.
+  No dictionary ships (Kaikki CC BY-SA + GFDL, FreeDict GPL, neither German→Arabic); the decision is in
+  `docs/OWNER-CHECKLIST.md` §4. Owner's remaining steps: proofread the Arabic openers, paste a provider key,
+  the two-account affiliate test, payment + legal fields.
+
 - **2026-10-30 — the home headline reads as words again and names the language (site deployed).** A tag-stripping extractor read the home `h1` as one word («تُتعلَّمبالتحدّث») because its two block lines were joined with no whitespace; a newline fixes the measurement and changes nothing on screen (the two `.ml` line boxes, the `h1`, the hero box and the document height are identical to the pre-fix build at 390×844 and 1366×800). The home `title`, `og:title`, `twitter:title` and the `WebPage` JSON-LD `name` now read «كاتزو — تطبيق لتعلّم اللغة الألمانية بالمحادثة» (**46 characters**), the description carries «تعلم اللغة الألمانية», and **no other page kept a different title by accident — only `/` moved**. Images: all 20 `<img>` on the site already had an `alt` (19 decorative brand marks beside the visible «كاتزو», one Arabic alt on the home screenshot), so nothing needed fixing. New `tests/headings.test.ts` fails when any heading, HTML or `md/` twin, fuses at a tag run — it reports the old H1 as `تُتعلَّم•بالتحدّث` and today as clean. Live after the deploy: `/` `/pricing` `/affiliate` `/help` `/guides` **200**, the 46-character title, the 5-word H1 with its whitespace, `og:title`, `twitter:title` and the JSON-LD name all read back from production, markdown negotiation on `/pricing` still `text/markdown` + `Vary` + `X-Robots-Tag`, and `md/` now reads «الألمانية تُتعلَّم بالتحدّث، لا بالحفظ.». Gate `VERIFY OK 14/14` (731.5 s, exit 0); local `wrangler pages dev` crawl 17/17 sitemap URLs 200 and **33 old URLs each a single 301 to a 200**. Read-only header check, no Cloudflare change: `http://website.katzuai.com/` **200**, `http://katzuai.com/` **301 → `https://katzuai.com/`**. Deploy and rollback ids: SNAPSHOT.
 - **2026-10-29 — the site is now built to be crawled and cited: 12 Arabic guides, one sitemap, a crawler
   policy that welcomes the AI assistants.** The site is 17 pages (`/guides` + 12 articles), each with one H1, an
@@ -85,6 +106,13 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## CURRENT MISSION
 
+**V45 — the conversation surface stops paying for what it already knows (2026-10-30, deployed).** Openers are
+pre-computed German + Arabic, word cards read the shipped glossary first and spend at most one `/ai/lexeme` call
+per lemma (cached fleet-wide and on the device), and a bare greeting gets a re-ask instead of an invented answer.
+What stays open is exactly what a browser without a real account cannot reach: live case C and the authenticated
+1-call-then-0 path (UNPROVEN), plus the owner's opener proofreading and the provider key
+(`docs/OWNER-CHECKLIST.md` §1–§3, §5).
+
 **GEO + `/guides` — the site is built to be crawled and cited (2026-10-29).** Twelve Arabic guides answer real
 questions (A1 visa, Integrationskurs, doctor, flat, Anmeldung, work, recognition, phone), each with one H1, an
 answer-first lead, a table or checklist, FAQs, «آخر تحديث» and official sources. `site-seo.mjs` owns
@@ -121,17 +149,25 @@ the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
 `56425f30-…` (2026-10-12), then `66bd8b92-…`, then the secret-only `31149c92-…`, and then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`6860fa2f-bfca-44d7-8fc3-870a87aec926`** (100%, deployed 2026-10-28T15:49:00Z) — `e9aa028`'s worker bundle:
-  `POST /affiliate/me` (401 signed out; it answered **404 `{"error":"not_found"}`** on the previous
-  version), `/affiliate/ref`, the six owner-only `/admin/api/affiliates` routes and cron `17 4 * * *`
-  (the deploy printed `Deployed katzu-test triggers … schedule: 17 4 * * *`). Live after the deploy:
+  **`b33136fa-dd5d-45b5-bad5-fabbbfbdca72`** (100%, deployed 2026-10-30) — `73dad45`'s worker bundle:
+  `POST /ai/lexeme` (one model lookup per lemma, KV-cached by stem) answers **401
+  `{"error":"unauthenticated","code":"UNAUTHENTICATED"}`** signed out and **401** on a malformed body —
+  it answered **404** on the previous version, which is how its absence was proven. Re-checked on this
+  version: `/health` 200 `storage:{d1,kv}`, `POST /affiliate/me` **401**, `GET /admin/api/affiliates`
+  **401**. The authenticated "first unseen lemma = 1 call, same or inflected lemma again = 0" behaviour is
+  **UNPROVEN live** (no driveable signed-in session) and is pinned only by `tests/lexemeCache.test.ts`.
+  **Rollback target: `4d20d59e-562a-43f3-a4e2-00a99da8a507`**, then
+  `6860fa2f-bfca-44d7-8fc3-870a87aec926` (`e9aa028`): `POST /affiliate/me` (401 signed out; it answered
+  **404 `{"error":"not_found"}`** on the version before it), `/affiliate/ref`, the six owner-only
+  `/admin/api/affiliates` routes and cron `17 4 * * *`
+  (that deploy printed `Deployed katzu-test triggers … schedule: 17 4 * * *`). Live after it:
   `/health` 200 `storage:{d1,kv}` ok; `POST /affiliate/me` **401**; `POST /affiliate/ref`
   **404 `unknown_code`** on `ZZTEST01` and **400 `malformed_code`** on `!!!`; `GET
   /admin/api/affiliates` and `/commissions` **401**. The `unknown_code` (never `503`) proves the
   `SELECT status FROM affiliates …` ran, so the three AFFILIATE_TABLES exist in production D1 —
   `migrations/0003_affiliate_tables.sql` needs no runner because `ensureLedgerTables` applies it
-  idempotently on the first request.
-  **Rollback target: `998873c6-d773-4bb5-9ec5-2c548e550b0f`** (the partner ledger, `4870d39`), then
+  idempotently on the first request. Before it: `998873c6-d773-4bb5-9ec5-2c548e550b0f` (the partner
+  ledger, `4870d39`), then
   `f0b5fa01-b4a2-449c-b470-e770721487eb` (the founding-price table, `80c6b9a`), then the audit #7 limiter
   `6f5ba883-6730-43d2-b8cd-9c275b298fee` (2026-10-28), then
   `e1a9a2ca-e919-43e2-baba-28a52bddd1cd` (V43.4, `4b33d70`),
@@ -141,9 +177,14 @@ the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- **App Pages production (2026-10-30, source `4ba7b4b`):** deployment
-  **`b5ab2a14-9a08-4084-9904-c202e06f8fb9`** — the site-fix push rebuilt the app and **changed nothing in
-  the bundle** (`assets/index-DZbiK2cC.js`, identical to the two deployments before it). Before it:
+- **App Pages production (2026-10-30, source `51bf25b`):** deployment
+  **`e948f1dc-40fd-4a6a-b6df-1c8efac1297b`** — the lexeme/opener batch: pre-computed scenario openers with
+  Arabic, `/ai/lexeme` word cards and the bare-greeting guard. Live bundle `assets/index-uXgW2nvR.js` +
+  `assets/AppShell-YyNXn82n.js`, both containing `/ai/lexeme`, `katzu_lexeme_cache_v1` and `__kzAiCalls`.
+  Before it: `183636fd-ac65-4cfe-a8f2-6ac42b89c085` (source `0424ef3`), then
+  `e58871a2-078d-4d6e-b6e5-591c1ce7c736` (source `2c5faff`), then
+  `b5ab2a14-9a08-4084-9904-c202e06f8fb9` (source `4ba7b4b`) — the site-fix push rebuilt the app and
+  **changed nothing in the bundle** (`assets/index-DZbiK2cC.js`, identical to the two before it), then
   `f1bccd5f-0da7-4049-ac7a-b990e38e9edb` (source `9032c46`) — same bundle as `ee86640`, a docs-only push.
   `vite build` emits `robots.txt` (ten crawlers, only `/admin/ /api/ /private/` disallowed, `Sitemap:` from the
   same origin) and a **root-only** `sitemap.xml`, and the shell carries `lang="ar"`, one canonical and
@@ -151,7 +192,9 @@ the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
   with the head links. The project builds from git, so **every** push
   to `main` mints a new id — never quote one without reading
   `wrangler pages deployment list --project-name=katzu-webapp-v3` first.
-  **Rollback target: `7754239c-0a66-4908-a4b2-bfadcd4f5a8f`** (source `f7da7e5`, same bundle), then
+  **Rollback target: `183636fd-ac65-4cfe-a8f2-6ac42b89c085`** (source `0424ef3`), then
+  `e58871a2-078d-4d6e-b6e5-591c1ce7c736` (source `2c5faff`), then
+  `7754239c-0a66-4908-a4b2-bfadcd4f5a8f` (source `f7da7e5`, same bundle), then
   `f1bccd5f-0da7-4049-ac7a-b990e38e9edb` (source `9032c46`), then `6b97992e-1d16-4198-82fd-98917a824829` (`945e7fd`, pre-batch), then
   `8c6a1c59-123b-4fca-9e89-b1ef2c7865c2` (`691a4a9`), then
   `b0be8a57-e9af-4cb6-9c4f-1d38e37e1a2c` (`d786bd0`).
@@ -313,6 +356,15 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   any assistant mentions or cites Katzu, and `/llms.txt` has no published effect. Measured instead: Cloudflare
   answers GPTBot, ClaudeBot and PerplexityBot `403` on HTML and the sitemap (robots.txt is 200), and its managed
   block disallows them before our groups — a dashboard setting.
+- **V45 (2026-10-30) — the word-card bill and the greeting guard are proven locally, not in a signed-in
+  session.** Proven this session: the shipped glossary answers 20 words across three scenarios with
+  `__kzAiCalls` at **0** in a real browser, the `exam_erfahrungen_sprechen` opener renders German + Arabic
+  instantly, `POST /ai/lexeme` answers 401 unauthenticated on the live worker (404 before the deploy), and
+  `tests/lexemeCache.test.ts` pins "first unseen lemma = 1 provider call, second call and the inflected form =
+  0, nothing but the SHA key reaches KV". **Not** proven: that same 1-then-0 path over HTTP with a real
+  session, and case **C** — sending «hallo» inside a live episode and reading the guarded reply on screen.
+  Google sign-in cannot be driven headlessly (the GIS popup/iframe did not complete), and an agent must not
+  use a real account, so both stay open until an owner-run session or a seeded harness exists.
 - **AFF-1 (2026-10-28) — the partner money path is unit-proven and now deployed, not live-proven.** Live, after the deploy: `/health` 200 with `storage:{d1,kv}` ok, `POST /affiliate/me` **401** signed out, `POST /affiliate/ref` **400** on a malformed code, `/admin/api/affiliates[/commissions]` **401** without the key, and the three tables present in production D1 (`sqlite_master` read). **Not live-proven:** the Google sign-in attach (Google-only sign-in; an agent must not use a real account), a real `/affiliate/me` code for a real account, the commission row created by a real activation-code redemption inside the app, the day-14 cron on real data, and a real refund after payout. All the rules are covered by the 32 tests in `tests/affiliate.test.ts` against a D1 double, which proves the rules, not D1's atomicity.
 
 - **Google Sign-In: the popup → credential → session path is UNPROVEN end-to-end (2026-10-27).** Live, the GIS script, its stylesheet, its button iframe and its font all return **200** under the production CSP, and Google's button renders in both a clean profile and a service-worker-controlled one — but nothing closed the loop, because that needs a real Google account an agent must not touch. Proven instead: delaying `/gsi/client` by 2.5 s on the local build shows the neutral "preparing" notice (no false "could not load"), and after the script arrives the real button replaces the fallback; a hard `ERR_FAILED` on the first request is followed by a tap that re-injects the script and lands on Google's button (`gsi-local.json`, `gsi-retry.mjs`). What remains unproven is only Google's own credential response through `exchangeGoogleToken` → session → sync.
