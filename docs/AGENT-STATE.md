@@ -177,12 +177,14 @@ the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- **App Pages production (2026-10-30, source `51bf25b`):** deployment
-  **`e948f1dc-40fd-4a6a-b6df-1c8efac1297b`** — the lexeme/opener batch: pre-computed scenario openers with
-  Arabic, `/ai/lexeme` word cards and the bare-greeting guard. Live bundle `assets/index-uXgW2nvR.js` +
-  `assets/AppShell-YyNXn82n.js`, both containing `/ai/lexeme`, `katzu_lexeme_cache_v1` and `__kzAiCalls`.
-  Before it: `183636fd-ac65-4cfe-a8f2-6ac42b89c085` (source `0424ef3`), then
-  `e58871a2-078d-4d6e-b6e5-591c1ce7c736` (source `2c5faff`), then
+- **App Pages production (2026-10-30, source `5a8c7d5`):** deployment
+  **`d150eea2-9af3-4984-bb00-70b3c181141e`** — the docs push that recorded this batch; the bundle is
+  byte-identical (`assets/index-uXgW2nvR.js`), so a later docs-only push minting yet another id changes nothing
+  a learner sees. The batch's own code is **`e948f1dc-40fd-4a6a-b6df-1c8efac1297b`** (source `51bf25b`):
+  pre-computed scenario openers with Arabic, `/ai/lexeme` word cards and the bare-greeting guard, with
+  `assets/index-uXgW2nvR.js` + `assets/AppShell-YyNXn82n.js` both carrying `/ai/lexeme`,
+  `katzu_lexeme_cache_v1` and `__kzAiCalls`. Before those: `183636fd-ac65-4cfe-a8f2-6ac42b89c085` (source
+  `0424ef3`), then `e58871a2-078d-4d6e-b6e5-591c1ce7c736` (source `2c5faff`), then
   `b5ab2a14-9a08-4084-9904-c202e06f8fb9` (source `4ba7b4b`) — the site-fix push rebuilt the app and
   **changed nothing in the bundle** (`assets/index-DZbiK2cC.js`, identical to the two before it), then
   `f1bccd5f-0da7-4049-ac7a-b990e38e9edb` (source `9032c46`) — same bundle as `ee86640`, a docs-only push.
