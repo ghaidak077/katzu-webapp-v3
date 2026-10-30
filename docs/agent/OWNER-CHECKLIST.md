@@ -90,15 +90,15 @@ import into Bing — `docs/agent/GEO-VISIBILITY.md` §5. (2) Read the 12 guides 
 
 **Done looks like:** Search Console says "Success" for both sitemaps, and the month's table has numbers.
 
-## 10. The admin panel — say go, make one Access app, decide on text — V46-1 (2026-10-31)
+## 10. The admin panel — one Access app, one text decision — V46-1 (2026-10-31)
 
-**What it is.** A separate locked admin site is built (AI calls, errors, users, content, alerts); it cannot
-touch the database or a key and is not online.
+**What it is.** The separate locked admin site is deployed; it cannot touch the database or a key. It is
+closed until you create its Cloudflare Access app (it answers 503 by design).
 
-**What you do.** (1) Say **"commit and deploy"** (`katzu-admin` + the product Worker). (2) Cloudflare → Zero
-Trust → Access → Self-hosted app: host `katzu-admin.<your-subdomain>.workers.dev`, policy = your email;
-send the **team domain** and **audience** (both public). (3) Say whether you want a Settings consent control
-and the 90-day rule in `docs/ADMIN.md` §7 — or keep learner text off.
+**What you do.** (1) Cloudflare → Zero Trust → Access → Applications → Self-hosted app: host
+`katzu-admin.<your-subdomain>.workers.dev`, policy = your email; send the **team domain** and
+**audience** (both public). (2) Say whether you want a Settings consent control and the 90-day rule in
+`docs/ADMIN.md` §7 — or keep learner text off.
 
 **Done looks like:** the panel opens for your email and shows real calls; no learner text is stored until
 you approve it.
