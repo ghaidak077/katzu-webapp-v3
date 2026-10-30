@@ -26,6 +26,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-30 — the home headline reads as words again and names the language (site deployed).** A tag-stripping extractor read the home `h1` as one word («تُتعلَّمبالتحدّث») because its two block lines were joined with no whitespace; a newline fixes the measurement and changes nothing on screen (the two `.ml` line boxes, the `h1`, the hero box and the document height are identical to the pre-fix build at 390×844 and 1366×800). The home `title`, `og:title`, `twitter:title` and the `WebPage` JSON-LD `name` now read «كاتزو — تطبيق لتعلّم اللغة الألمانية بالمحادثة» (**46 characters**), the description carries «تعلم اللغة الألمانية», and **no other page kept a different title by accident — only `/` moved**. Images: all 20 `<img>` on the site already had an `alt` (19 decorative brand marks beside the visible «كاتزو», one Arabic alt on the home screenshot), so nothing needed fixing. New `tests/headings.test.ts` fails when any heading, HTML or `md/` twin, fuses at a tag run — it reports the old H1 as `تُتعلَّم•بالتحدّث` and today as clean. Live after the deploy: `/` `/pricing` `/affiliate` `/help` `/guides` **200**, the 46-character title, the 5-word H1 with its whitespace, `og:title`, `twitter:title` and the JSON-LD name all read back from production, markdown negotiation on `/pricing` still `text/markdown` + `Vary` + `X-Robots-Tag`, and `md/` now reads «الألمانية تُتعلَّم بالتحدّث، لا بالحفظ.». Gate `VERIFY OK 14/14` (731.5 s, exit 0); local `wrangler pages dev` crawl 17/17 sitemap URLs 200 and **33 old URLs each a single 301 to a 200**. Read-only header check, no Cloudflare change: `http://website.katzuai.com/` **200**, `http://katzuai.com/` **301 → `https://katzuai.com/`**. Deploy and rollback ids: SNAPSHOT.
 - **2026-10-29 — the site is now built to be crawled and cited: 12 Arabic guides, one sitemap, a crawler
   policy that welcomes the AI assistants.** The site is 17 pages (`/guides` + 12 articles), each with one H1, an
   answer-first lead, a table or checklist, FAQs, «آخر تحديث», an author and official sources; the build refuses a
@@ -140,25 +141,29 @@ the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- **App Pages production (2026-10-29, source `9032c46`):** deployment
-  **`f1bccd5f-0da7-4049-ac7a-b990e38e9edb`** — same bundle as `ee86640`, rebuilt by a docs-only push.
+- **App Pages production (2026-10-30, source `4ba7b4b`):** deployment
+  **`b5ab2a14-9a08-4084-9904-c202e06f8fb9`** — the site-fix push rebuilt the app and **changed nothing in
+  the bundle** (`assets/index-DZbiK2cC.js`, identical to the two deployments before it). Before it:
+  `f1bccd5f-0da7-4049-ac7a-b990e38e9edb` (source `9032c46`) — same bundle as `ee86640`, a docs-only push.
   `vite build` emits `robots.txt` (ten crawlers, only `/admin/ /api/ /private/` disallowed, `Sitemap:` from the
   same origin) and a **root-only** `sitemap.xml`, and the shell carries `lang="ar"`, one canonical and
   `hreflang` ar + x-default. Live: `/sitemap.xml` 200 (one `<loc>`), `/robots.txt` 200 with our groups, `/` 200
   with the head links. The project builds from git, so **every** push
   to `main` mints a new id — never quote one without reading
   `wrangler pages deployment list --project-name=katzu-webapp-v3` first.
-  **Rollback target: `6b97992e-1d16-4198-82fd-98917a824829`** (source `945e7fd`, pre-batch), then
+  **Rollback target: `7754239c-0a66-4908-a4b2-bfadcd4f5a8f`** (source `f7da7e5`, same bundle), then
+  `f1bccd5f-0da7-4049-ac7a-b990e38e9edb` (source `9032c46`), then `6b97992e-1d16-4198-82fd-98917a824829` (`945e7fd`, pre-batch), then
   `8c6a1c59-123b-4fca-9e89-b1ef2c7865c2` (`691a4a9`), then
   `b0be8a57-e9af-4cb6-9c4f-1d38e37e1a2c` (`d786bd0`).
 - **Site Pages production (2026-10-30, direct upload of `website/`):** `katzu-landing` deployment
-  **`7d547d60-9b67-4e51-b601-01227087df90`** (branch `main`, source `3bacf75`, uploaded from inside
-  `website/` so the Functions bundle shipped) — the home film's phone cut: `bg-mobile.mp4` 1.44 MB
-  (H.264 720×1280, no audio, faststart) at ≤700px, `bg.mp4` above it. Live: five main pages **200**,
-  `/assets/bg-mobile.mp4` **200 at 1,436,774 B**, markdown negotiation on `/pricing` → `text/markdown`
-  + `Vary` + `X-Robots-Tag` (browsers get HTML), production Chromium fetched **only** the portrait cut
-  at 390×844 and only the landscape one at 1366×800. **Rollback target:
-  `39639c5c-b610-4575-bee5-5520bde0c4d2`** (`eda9a7f`), then `3e859def-277f-46e7-a107-a45bb09ef5d0`
+  **`361b0125-a220-4ab9-8e6b-b94f0e0479a9`** (branch `main`, source `4ba7b4b`, uploaded from inside
+  `website/` so the Functions bundle shipped) — the home `h1` whitespace, the home title and the heading-fusion guard: `bg-mobile.mp4` 1.44 MB
+  (H.264 720×1280, no audio, faststart) at ≤700px, `bg.mp4` above it. Live: `/` `/pricing` `/affiliate` `/help` `/guides` **200**, the 46-character title, the five-word H1 with
+  its whitespace, `og:title`, `twitter:title` and the JSON-LD `name` all read back from production, and
+  markdown negotiation on `/pricing` → `text/markdown` + `Vary` + `X-Robots-Tag` (browsers get HTML).
+  **Rollback target: `7d547d60-9b67-4e51-b601-01227087df90`** (`3bacf75`, the home film's phone cut —
+  `bg-mobile.mp4` 1.44 MB at ≤700px, `bg.mp4` above it), then `39639c5c-b610-4575-bee5-5520bde0c4d2`
+  (`eda9a7f`), then `3e859def-277f-46e7-a107-a45bb09ef5d0`
   (`f3980be`), `44566671-7ab3-43e0-91f2-b487d4a9990a` (`7595c37`),
   `03ec8a29-250d-4517-bf18-3df1049b9106` (`ee86640`), `099924cc-7269-4b48-86d9-f970dafac255`
   (`92f60a4`), `1107f7b3-8c11-459c-886a-c4c4ad5d711b` (`e9aa028`, four pages),
