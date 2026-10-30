@@ -21,7 +21,8 @@
 <body>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="ld"><img src="/assets/logo/logo-128.png" width="64" height="64" alt="" style="border-radius:16px"><b>كاتزو</b><i id="ldb"></i></div>
-<video id="veil" aria-hidden="true" src="/assets/bg.mp4" autoplay muted loop playsinline preload="metadata"></video><div class="grain"></div><i id="cd"></i><i id="cr"></i>
+<!-- The film ships in two cuts: a portrait one for phones and a landscape one for anything wider, chosen at the same 701px line the layout switches on. The browser picks a source before it fetches one, so a phone never downloads the wrong cut. -->
+<video id="veil" aria-hidden="true" autoplay muted loop playsinline preload="metadata"><source src="/assets/bg-mobile.mp4" media="(max-width:700px)" type="video/mp4"><source src="/assets/bg.mp4" type="video/mp4"></video><div class="grain"></div><i id="cd"></i><i id="cr"></i>
 <a class="skip" href="#main">تخطَّ إلى المحتوى</a>
 <nav id="nav" aria-label="التنقل الرئيسي"><a class="brand" href="/"><img src="/assets/logo/logo-64.png" alt="" width="30" height="30">كاتزو</a><div class="nl"><a class="act" href="/" aria-current="page">الرئيسية</a><a href="/pricing">الأسعار</a><a href="/help">المساعدة</a></div><a class="btn sm" href="{{START}}" data-cur="ابدأ">ابدأ مجاناً</a><i class="pg"></i></nav>
 <main id="main">

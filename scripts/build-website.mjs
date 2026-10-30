@@ -449,13 +449,22 @@ async function main() {
   // The home page is the design: its video, its loader, its rail. Every other
   // page carries the same still and the same grain instead.
   const homeHtml = readFileSync(join(outDir, 'index.html'), 'utf8');
-  for (const marker of ['/assets/bg.mp4', 'id="rail"', 'id="ld"', '/assets/vendor/gsap.min.js']) {
+  for (const marker of [
+    '/assets/bg.mp4',
+    '/assets/bg-mobile.mp4',
+    'media="(max-width:700px)"',
+    'id="rail"',
+    'id="ld"',
+    '/assets/vendor/gsap.min.js',
+  ]) {
     if (!homeHtml.includes(marker)) throw new Error(`index.html is missing ${marker}`);
   }
   for (const rel of written.filter((file) => file.endsWith('.html') && file !== 'index.html')) {
     const text = readFileSync(join(outDir, rel), 'utf8');
     if (!text.includes('class="bgimg"')) throw new Error(`${rel} is missing the background still`);
-    if (text.includes('bg.mp4')) throw new Error(`${rel} must not load the home video`);
+    if (text.includes('bg.mp4') || text.includes('bg-mobile.mp4')) {
+      throw new Error(`${rel} must not load the home video`);
+    }
   }
 
   console.log(`site: wrote ${written.length} files into website/`);

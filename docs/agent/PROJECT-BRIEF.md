@@ -291,6 +291,16 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 
 ## 7. Recent changes
 
+- **The home film has a phone cut (2026-10-30)** — the background video on `/` serves
+  `bg-mobile.mp4` (720×1280) below 701px and `bg.mp4` (1280×720) above it, through a `<source media>`
+  pair in `scripts/templates/home.html`, and the portrait cut is now re-encoded to **1.44 MB from
+  2.75 MB** (H.264, no audio, faststart; CRF 25, the best quality under a 1.5 MB phone budget). One
+  line of home HTML changed, plus the build guard and one test; no other page, route or dependency
+  moved. Evidence: chromium/firefox/webkit at 390×844 all resolved to the portrait cut and at
+  1366×800 to the landscape one (played, 12 loads) — no script fallback needed; crawl 17/17 paths 200;
+  Lighthouse mobile `/` perf 0.97 both with the new cut and with the old one swapped back in; gate
+  `npm run verify -- --ci --e2e` 14/14. Playwright's WebKit is not iOS Safari; no real phone was used.
+
 - **Home page is the owner's design again (2026-10-28, deployed)** — `website.katzuai.com/` renders
   `scripts/templates/home.html`, a copy of the owner's `index (62).html`: same hero, glass cards, pinned
   scenes, situations rail, timeline, loader, cursor, `bg.mp4`. Only nav/footer links, the CTAs, the price

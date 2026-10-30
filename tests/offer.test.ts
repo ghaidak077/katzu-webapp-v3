@@ -343,11 +343,22 @@ describe('the built marketing site', () => {
       expect(readFileSync(file, 'utf8'), `${file} background layer`).toContain('class="bgimg"');
     }
     expect(readFileSync('website/index.html', 'utf8')).not.toContain('class="bgimg"');
-    // The video is a home-page-only flourish.
-    expect(readFileSync('website/index.html', 'utf8')).toContain('/assets/bg.mp4');
+    // The video is a home-page-only flourish, and it ships in two cuts: the
+    // portrait one is picked on phones, at the same 701px line the layout
+    // switches on, and the landscape one above it.
+    const home = readFileSync('website/index.html', 'utf8');
+    const portrait = home.indexOf('/assets/bg-mobile.mp4');
+    expect(portrait, 'portrait cut').toBeGreaterThan(-1);
+    expect(home.slice(portrait, portrait + 80), 'portrait cut breakpoint').toContain('media="(max-width:700px)"');
+    expect(portrait, 'portrait cut is the first source').toBeLessThan(home.indexOf('/assets/bg.mp4'));
     for (const file of files.filter((f) => f !== 'website/index.html')) {
-      expect(readFileSync(file, 'utf8')).not.toContain('bg.mp4');
+      expect(readFileSync(file, 'utf8'), `${file} background video`).not.toMatch(/bg(-mobile)?\.mp4/);
     }
+    // The phone cut is the one a phone actually downloads, so it keeps a phone's
+    // budget: 1.4 MB of H.264 (720×1280, no audio, faststart), not the 2.7 MB
+    // encode it replaced.
+    const phoneCut = statSync('website/assets/bg-mobile.mp4').size;
+    expect(phoneCut, `bg-mobile.mp4 is ${(phoneCut / 1e6).toFixed(2)} MB`).toBeLessThanOrEqual(1_500_000);
   });
 
   it('carries the partner link and the partner reader on every page', () => {
