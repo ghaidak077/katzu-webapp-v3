@@ -919,3 +919,127 @@ Respond strictly in JSON:
     return json({ error: "ai_unavailable", message: "تعذر ترجمة النص الآن." }, 502, cors);
   }
 }
+
+// ----------------------------------------------------------------------------
+// LEXEME LOOKUP (V30 FIX 2, the last resort behind the shipped glossary)
+// ----------------------------------------------------------------------------
+
+/**
+ * One AI lookup per lemma, cached for the whole fleet.
+ *
+ * The shipped glossary (`src/lib/vocabulary/wordGlossary.generated.ts`) answers
+ * every word of every scenario opener with no network at all. This route exists
+ * only for the word a learner taps that the generated data does not know — a
+ * word of their own, a name, a compound the splitter missed.
+ *
+ * The cache is keyed by LEMMA, not by the learner's text value, so the second
+ * learner who asks for «Deutschlernens» pays nothing: the entry was written by
+ * the first one who asked for «deutschlernen». No learner text is stored — a
+ * lemma is a dictionary headword, and the value is the dictionary answer.
+ *
+ * Cache first, provider second: a lemma already answered stays answerable even
+ * while the provider pool has no usable key, which is the state production is in
+ * today (see docs/agent/ENV-FACTS.md).
+ */
+export async function handleLexemeRoute(request, env, cors, deps) {
+  const { json, authenticateAiRequest, readAiCache, writeAiCache, callAiRouter, cleanJson } = deps;
+
+  const body = await request.json().catch(() => null);
+  const auth = await authenticateAiRequest(request, body, env, cors, { requireEntitlement: true });
+  if (auth.response) return auth.response;
+
+  const lemma = lexemeKey(body?.word);
+  if (!lemma) return json({ error: "bad_word", message: "أرسل كلمة ألمانية واحدة." }, 400, cors);
+
+  const cacheKey = await lexemeCacheKey(lemma);
+  const cached = await readAiCache(env, "lx", cacheKey);
+  const parsedCached = typeof cached === "string" ? safeJson(cached) : null;
+  if (parsedCached && parsedCached.ar) {
+    return json({ ...parsedCached, lemma, cached: true }, 200, cors);
+  }
+
+  const prompt = `You are a German-Arabic learner's dictionary. Define ONE German word.
+Word: "${lemma}"
+Rules:
+- "ar": the established Arabic equivalent as a native speaker would say it, 1-6 words, never a transliteration into Arabic letters.
+- "pos": one of noun, verb, adjective, adverb, pronoun, article, preposition, conjunction, numeral, interjection, particle, proper noun.
+- "level": the CEFR level a learner meets it at: A0, A1, A2, B1 or B2.
+- "lemma": the dictionary form (infinitive, or noun with its article).
+Respond strictly in JSON: { "ar": "string", "pos": "string", "level": "string", "lemma": "string" }`;
+
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 120 },
+  };
+
+  try {
+    const raw = await callAiRouter(payload, env, { preferFast: true });
+    const answer = cleanJson(raw) || {};
+    const ar = String(answer.ar || "").trim().slice(0, 120);
+    if (!ar) return json({ error: "ai_unavailable", message: "لم نجد معنى هذه الكلمة." }, 502, cors);
+    const entry = {
+      ar,
+      pos: String(answer.pos || "").trim().toLowerCase().slice(0, 24),
+      level: validLexemeLevel(answer.level),
+      lemma: lexemeKey(answer.lemma) || lemma,
+    };
+    // 180 days: a dictionary answer does not age. The TTL only bounds the KV.
+    await writeAiCache(env, "lx", cacheKey, JSON.stringify(entry), { ttlSeconds: 180 * 86400 });
+    return json({ ...entry, cached: false }, 200, cors);
+  } catch (err) {
+    // Nothing is stored on failure, so the learner's retry is a real retry.
+    console.error("[ai/lexeme] failed:", String(err?.message || err).slice(0, 160));
+    return json({ error: "ai_unavailable", message: "تعذر البحث عن هذه الكلمة الآن." }, 502, cors);
+  }
+}
+
+const LEXEME_LEVELS = new Set(["A0", "A1", "A2", "B1", "B2"]);
+const validLexemeLevel = (value) => {
+  const level = String(value || "").toUpperCase();
+  return LEXEME_LEVELS.has(level) ? level : "A1";
+};
+
+/** The word as the learner meant it: lowercase, article dropped, letters only. */
+export function lexemeKey(raw) {
+  const text = String(raw || "")
+    .toLowerCase()
+    .replace(/^(der|die|das|den|dem|des|ein|eine|einen|einem|einer)\s+/, "")
+    .replace(/[^\p{L}\p{M}\-]/gu, "")
+    .trim();
+  if (!text || text.length > 48) return "";
+  return text;
+}
+
+/**
+ * The cache key's stem, so an inflected form shares the entry of its base form.
+ *
+ * Suffixes are stripped REPEATEDLY (max three) rather than once, because a single
+ * pass is asymmetric on this exact case: «deutschlernens» would lose only its `s`
+ * and land on «deutschlernen», while «deutschlernen» would lose `en` and land on
+ * «deutschlern» — two entries, two AI calls, for one word. Stripping until the
+ * word stops changing makes both converge. The stem is only ever a cache key; the
+ * model is asked about the real word.
+ */
+export function lexemeStem(word) {
+  let stem = word;
+  for (let i = 0; i < 3; i += 1) {
+    const next = stem.replace(/(en|es|e|s|n)$/u, "");
+    if (next === stem || next.length < 3) break;
+    stem = next;
+  }
+  return stem;
+}
+
+async function lexemeCacheKey(lemma) {
+  const bytes = new TextEncoder().encode(`lx:${lexemeStem(lemma)}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function safeJson(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}

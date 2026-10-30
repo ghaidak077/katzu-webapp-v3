@@ -46,7 +46,7 @@
 import { handleHintsRoute } from "./cloudflare-hints.js";
 import { handleWritingRoute } from "./cloudflare-writing.js";
 import { handleAskRoute } from "./cloudflare-ask.js";
-import { handleChatTurnRoute, handleTranslateRoute } from "./cloudflare-ai-chat.js";
+import { handleChatTurnRoute, handleTranslateRoute, handleLexemeRoute } from "./cloudflare-ai-chat.js";
 import { validateGermanAgainstLevel, levelFallbackLine, levelConstraintLine, correctionBudgetFor } from "./cloudflare-level-spec.js";
 import { handleTranscribeRoute } from "./cloudflare-stt.js";
 import { deriveConversationBeats } from "./cloudflare-conversation-beats.js";
@@ -1730,6 +1730,11 @@ export default {
       }
       if ((url.pathname === "/ai/translate" || url.pathname === "/translate") && request.method === "POST") {
         return await withAiTelemetry(() => handleTranslateRoute(request, env, cors, aiRouteDeps()), request, env, "ai_translate");
+      }
+      // The last resort behind the shipped glossary: ONE model lookup per LEMMA,
+      // cached for the fleet, so a word outside the generated data still answers.
+      if ((url.pathname === "/ai/lexeme" || url.pathname === "/lexeme") && request.method === "POST") {
+        return await withAiTelemetry(() => handleLexemeRoute(request, env, cors, aiRouteDeps()), request, env, "ai_lexeme");
       }
       if ((url.pathname === "/ai/hints" || url.pathname === "/hints") && request.method === "POST") {
         // Multi-move hints (2-4 distinct conversational intents) live in

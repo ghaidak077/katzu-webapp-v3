@@ -289,6 +289,7 @@ The canonical, machine-checked endpoint list is §14 (`appmap-endpoints`); this 
 | `GET /ai/health` | AI pool health |
 | `POST /ai/turn` | fused conversation turn (translate + reply + correction) |
 | `POST /ai/translate` | translation (can time out — client keeps text, offers retry) |
+| `POST /ai/lexeme` | the last resort behind the shipped glossary: ONE model lookup per LEMMA, cached fleet-wide (KV, keyed by stem) and mirrored on the device. `{word, cefr_level}` → `{ar, pos, level, lemma, cached}`; `400` no word, `401` unauth, `429` throttled, `503/502` no provider (the card keeps its honest retry). Serves a cached lemma even with no provider key |
 | `POST /ai/hints` | hint floor for the last AI message — quota-exempt from the trial SESSION counter, but has its OWN daily scope `hints` (free 30 / Pro 120 per day, 6/min); over the limit it answers **200 with an empty `hints` array**, never an error, so the client falls back to the free starter phrases |
 | `POST /ai/transcribe` | speech → text |
 | `POST /ai/check-writing` | writing check |
@@ -619,6 +620,7 @@ src/features/writing/WritingScreen.tsx
 /ai/check-writing
 /ai/health
 /ai/hints
+/ai/lexeme
 /ai/transcribe
 /ai/translate
 /ai/turn
@@ -629,6 +631,7 @@ src/features/writing/WritingScreen.tsx
 /grammar
 /health
 /hints
+/lexeme
 /mock/start
 /pricing
 /progress/get
