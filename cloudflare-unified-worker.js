@@ -96,7 +96,27 @@ import {
   handleAdminRoutes,
   withVerifyRegistry,
   withAiTelemetry,
+  resolveSessionSubFromRequest,
 } from "./cloudflare-admin.js";
+
+// Operational telemetry + conversation logging. Writers only ever run inside
+// `ctx.waitUntil`, so no learner request ever waits for a log row and a logging
+// failure can never become a failed turn.
+import {
+  createAiTelemetry,
+  makeAttemptHook,
+  recordAiCall,
+  recordRouteEvent,
+  classifyOutcome,
+  buildConversationRow,
+  conversationLoggingEnabled,
+  hasLoggingConsent,
+  sweepConversationText,
+  ensureTelemetryTables,
+} from "./cloudflare-telemetry.js";
+// The internal admin API: reached only over the admin Worker's Service Binding,
+// at /internal/admin/*, and only with the shared internal token.
+import { handleInternalAdminRoutes } from "./cloudflare-admin-api.js";
 
 // Crypto sales (NOWPayments): the separate sales site's checkout plus its
 // signature-verified IPN. Nothing here is called by the app — a buyer redeems
@@ -1470,7 +1490,7 @@ async function handlePublicHealth(env, cors) {
 // ----------------------------------------------------------------------------
 
 /** What the pool needs back from this worker: cooldowns, fallback, provider state. */
-function aiRouterDeps() {
+function aiRouterDeps(tel) {
   return {
     isKeyCoolingDown,
     markKeyCooldown,
@@ -1484,6 +1504,9 @@ function aiRouterDeps() {
     toOpenAiMessages: convertGeminiPayloadToMessages,
     onProvider: (provider) => { lastAiProvider = provider; },
     onModel: (model) => { primaryWorkingModel = model; },
+    // Telemetry only: the router reports each provider attempt to this collector.
+    // It is deliberately not read by any decision in the router.
+    onAttempt: makeAttemptHook(tel),
   };
 }
 
@@ -1499,7 +1522,7 @@ async function resolvePracticeGrammar(env, grammarId) {
   }
 }
 
-function aiRouteDeps() {
+function aiRouteDeps(tel) {
   return {
     json,
     // Pool-aware, async: AI route handlers `if (!(await deps.hasUsableProvider(env)))`
@@ -1543,7 +1566,7 @@ function aiRouteDeps() {
       // hits the memoized KV config; an explicitly injected pool (tests) always wins.
       const injectedPool = opts && opts.pool;
       const resolved = injectedPool || resolveProviderPool(callEnv).catch(() => undefined);
-      const base = opts ? { ...aiRouterDeps(), ...opts } : aiRouterDeps();
+      const base = opts ? { ...aiRouterDeps(tel), ...opts } : aiRouterDeps(tel);
       if (injectedPool) return callAiRouter(payload, callEnv, base);
       return Promise.resolve(resolved).then((pool) =>
         callAiRouter(payload, callEnv, { ...base, pool: pool || undefined })
@@ -1597,6 +1620,82 @@ async function withHonestSessionStatus(pending, cors) {
 }
 
 /**
+ * Record what one AI route did, without ever making the learner wait.
+ *
+ * Everything that costs time — cloning the body, reading the session key from
+ * KV, checking consent, inserting rows — happens inside `ctx.waitUntil`, after
+ * the response exists. `telemetry` is the per-request attempt collector the
+ * router filled through `onAttempt`. A failure anywhere in here is swallowed:
+ * a broken log must never become a broken turn.
+ */
+function withAiEvent(pending, opts) {
+  const startedAt = Date.now();
+  return Promise.resolve(pending).then((response) => {
+    try {
+      const { env, ctx, request, tel, route, conversation } = opts || {};
+      if (!env?.DB?.prepare || !response) return response;
+      // No request lifetime means no place to attach the write. Skip the work
+      // entirely rather than leave an unmanaged promise running beside a
+      // response that has already been decided.
+      if (!ctx || typeof ctx.waitUntil !== "function") return response;
+      // Both clones must be taken while the bodies are still unread.
+      let responseClone = null;
+      try { responseClone = response.clone(); } catch { responseClone = null; }
+      const wantsConversation = conversation === true && conversationLoggingEnabled(env);
+      let requestClone = null;
+      if (wantsConversation) {
+        try { requestClone = request.clone(); } catch { requestClone = null; }
+      }
+      const work = (async () => {
+        let payload = null;
+        if (responseClone) {
+          try { payload = await responseClone.json(); } catch { payload = null; }
+        }
+        const user = await resolveSessionSubFromRequest(request, env).catch(() => null);
+        let body = null;
+        let row = null;
+        if (wantsConversation && requestClone) {
+          try { body = await requestClone.json(); } catch { body = null; }
+          // Consent is checked only when text could actually be stored. Both the
+          // master switch and an explicit per-account grant must be on; a failed
+          // read counts as "no", so metrics are stored and text is not.
+          const consented = user?.sub ? await hasLoggingConsent(env, user.sub).catch(() => false) : false;
+          if (consented) {
+            const turnId = (globalThis.crypto?.randomUUID?.() || `t_${startedAt}_${Math.random().toString(36).slice(2, 10)}`);
+            row = buildConversationRow({
+              request,
+              body: body || {},
+              payload,
+              user,
+              latencyMs: Date.now() - startedAt,
+              turnId,
+              outcome: classifyOutcome({ status: response.status, payload, attempts: tel?.attempts || [] }),
+              guard: null,
+            });
+          }
+        }
+        recordAiCall(env, ctx, {
+          route,
+          status: response.status,
+          startedAt,
+          collector: tel,
+          user: user || {},
+          payload,
+          body,
+          conversation: row ? { logging: true, row } : null,
+        });
+      })().catch(() => {});
+      if (ctx && typeof ctx.waitUntil === "function") {
+        try { ctx.waitUntil(work); } catch { /* a broken ctx must not break the turn */ }
+      }
+    } catch {
+      /* telemetry must never fail a learner's request */
+    }
+    return response;
+  });
+}
+
+/**
  * Operator kill switch. `MAINTENANCE_MODE` freezes every learner write at the
  * edge while reads (health, content, a learner's own library) keep working, so
  * the app degrades to read-only instead of failing at random. It is a Worker
@@ -1643,7 +1742,43 @@ export async function sweepExpiredRows(env, now = Date.now()) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
+    // One route-level telemetry row per API request, written after the response
+    // exists and never awaited. `handleRequest` holds the router exactly as it
+    // was; this wrapper only observes.
+    const startedAt = Date.now();
+    const response = await handleRequest(request, env, ctx);
+    recordRouteEvent(env, request, response, startedAt, ctx);
+    return response;
+  },
+
+  /**
+   * Retention sweep. Inert until a cron trigger is configured for this Worker;
+   * until then POST /admin/sweep does the same job on demand.
+   */
+  async scheduled(_event, env) {
+    const swept = await sweepExpiredRows(env);
+    console.log("[sweep]", JSON.stringify(swept));
+    await ensureTelemetryTables(env).catch(() => false);
+    // Conversation text is scrubbed at 90 days even though the metrics stay; the
+    // sweep is the job that makes the retention promise true without anyone
+    // opening the panel.
+    const telemetrySwept = await sweepConversationText(env).catch(() => ({ skipped: "error" }));
+    console.log("[sweep:telemetry]", JSON.stringify(telemetrySwept));
+    // Day 14 of a pending affiliate commission is approval day. The daily cron is
+    // what makes that true without the owner opening the dashboard; the admin
+    // read repeats it lazily so a missed cron never shows a payable row as pending.
+    const approved = await approveDueCommissions(env).catch(() => 0);
+    console.log("[affiliate]", JSON.stringify({ approved }));
+  },
+};
+
+/**
+ * The worker router. Split out of the default export so the exported `fetch`
+ * can time one request and record route-level telemetry after it finishes
+ * without touching a single control-flow branch below.
+ */
+async function handleRequest(request, env, ctx) {
     // Security: TEST_MODE short-circuits Google JWT verification in
     // verifyGoogleIdToken, so a stale var left in a production deploy would let
     // anyone mint a session for any account. Neutralize it before any handler
@@ -1695,7 +1830,8 @@ export default {
     if (
       isMaintenanceMode(env) &&
       WRITE_METHODS.has(request.method) &&
-      !url.pathname.startsWith("/admin")
+      !url.pathname.startsWith("/admin") &&
+      !url.pathname.startsWith("/internal/")
     ) {
       return json(
         {
@@ -1710,6 +1846,17 @@ export default {
     }
 
     try {
+      // --- Internal admin API (admin Worker only, over a Service Binding) ---
+      // Before any content/schema work: a panel read must not pay for the
+      // learner content path. The handler answers 401 for anything without the
+      // internal token, then 404 for a path it does not own.
+      if (url.pathname === "/internal/admin" || url.pathname.startsWith("/internal/admin/")) {
+        const internalAdmin = await handleInternalAdminRoutes(url, request, env, cors, ctx, {
+          setDefaultProviderState,
+        });
+        if (internalAdmin) return internalAdmin;
+      }
+
       // Additive content columns (a scenario's 16:9 banner is the first) are
       // reconciled once per isolate before any content route reads or writes a
       // table. Additive only — see the policy in ./cloudflare-content-schema.js.
@@ -1726,58 +1873,89 @@ export default {
       // the ~63 KB byte offset this file's header documents, and moving them let
       // the multi-provider router replace the Gemini-only walker everywhere.
       if ((url.pathname === "/ai/turn" || url.pathname === "/turn") && request.method === "POST") {
-        return await withAiTelemetry(() => handleChatTurnRoute(request, env, cors, aiRouteDeps()), request, env, "ai_turn");
+        // The only route whose TEXT may be stored (master switch off by default).
+        const tel = createAiTelemetry();
+        return await withAiEvent(
+          withAiTelemetry(() => handleChatTurnRoute(request, env, cors, aiRouteDeps(tel)), request, env, "ai_turn"),
+          { env, ctx, request, tel, route: "ai_turn", conversation: true },
+        );
       }
       if ((url.pathname === "/ai/translate" || url.pathname === "/translate") && request.method === "POST") {
-        return await withAiTelemetry(() => handleTranslateRoute(request, env, cors, aiRouteDeps()), request, env, "ai_translate");
+        const tel = createAiTelemetry();
+        return await withAiEvent(
+          withAiTelemetry(() => handleTranslateRoute(request, env, cors, aiRouteDeps(tel)), request, env, "ai_translate"),
+          { env, ctx, request, tel, route: "ai_translate" },
+        );
       }
       // The last resort behind the shipped glossary: ONE model lookup per LEMMA,
       // cached for the fleet, so a word outside the generated data still answers.
       if ((url.pathname === "/ai/lexeme" || url.pathname === "/lexeme") && request.method === "POST") {
-        return await withAiTelemetry(() => handleLexemeRoute(request, env, cors, aiRouteDeps()), request, env, "ai_lexeme");
+        const tel = createAiTelemetry();
+        return await withAiEvent(
+          withAiTelemetry(() => handleLexemeRoute(request, env, cors, aiRouteDeps(tel)), request, env, "ai_lexeme"),
+          { env, ctx, request, tel, route: "ai_lexeme" },
+        );
       }
       if ((url.pathname === "/ai/hints" || url.pathname === "/hints") && request.method === "POST") {
         // Multi-move hints (2-4 distinct conversational intents) live in
         // ./cloudflare-hints.js — the legacy single-hint handler below this file's
         // header boundary now sits past the ~63 KB line the edit tooling cannot
         // reach, so the worker-scoped internals it needs are injected here.
-        return await withAiTelemetry(
-          () =>
-            handleHintsRoute(request, env, cors, aiRouteDeps()),
-          request,
-          env,
-          "ai_hints"
+        const tel = createAiTelemetry();
+        return await withAiEvent(
+          withAiTelemetry(
+            () =>
+              handleHintsRoute(request, env, cors, aiRouteDeps(tel)),
+            request,
+            env,
+            "ai_hints"
+          ),
+          { env, ctx, request, tel, route: "ai_hints" },
         );
       }
       if (url.pathname === "/ai/transcribe" && request.method === "POST") {
         // Speech-to-text lives in ./cloudflare-stt.js: Workers AI Whisper replaces
         // the browser's Web Speech API, which recorded nothing on Android, played
         // an OS beep this app can never mute, and does not exist in Firefox.
-        return await withAiTelemetry(
-          () => handleTranscribeRoute(request, env, cors, aiRouteDeps()),
-          request,
-          env,
-          "ai_transcribe"
+        // It calls env.AI directly, so the attempt collector stays empty — the
+        // event is still written (status + latency), just without a key/model.
+        const tel = createAiTelemetry();
+        return await withAiEvent(
+          withAiTelemetry(
+            () => handleTranscribeRoute(request, env, cors, aiRouteDeps(tel)),
+            request,
+            env,
+            "ai_transcribe"
+          ),
+          { env, ctx, request, tel, route: "ai_transcribe" },
         );
       }
       if (url.pathname === "/ai/check-writing" && request.method === "POST") {
-        return await withAiTelemetry(
-          () =>
-            handleWritingRoute(request, env, cors, aiRouteDeps()),
-          request,
-          env,
-          "ai_writing"
+        const tel = createAiTelemetry();
+        return await withAiEvent(
+          withAiTelemetry(
+            () =>
+              handleWritingRoute(request, env, cors, aiRouteDeps(tel)),
+            request,
+            env,
+            "ai_writing"
+          ),
+          { env, ctx, request, tel, route: "ai_writing" },
         );
       }
       // Ask Katzu — the German-only learning assistant (V28 Stage 2A). Its own
       // daily quota and rate limit live in ./cloudflare-ask.js.
       if (url.pathname === "/ai/ask" && request.method === "POST") {
-        return await withAiTelemetry(
-          () =>
-            handleAskRoute(request, env, cors, aiRouteDeps()),
-          request,
-          env,
-          "ai_ask"
+        const tel = createAiTelemetry();
+        return await withAiEvent(
+          withAiTelemetry(
+            () =>
+              handleAskRoute(request, env, cors, aiRouteDeps(tel)),
+            request,
+            env,
+            "ai_ask"
+          ),
+          { env, ctx, request, tel, route: "ai_ask" },
         );
       }
       if ((url.pathname === "/ai/health" || url.pathname === "/health") && request.method === "GET") {
@@ -2033,22 +2211,7 @@ export default {
       await recordError(env, null, "server_error", url.pathname, err);
       return json({ error: "server_error" }, 500, cors);
     }
-  },
-
-  /**
-   * Retention sweep. Inert until a cron trigger is configured for this Worker;
-   * until then POST /admin/sweep does the same job on demand.
-   */
-  async scheduled(_event, env) {
-    const swept = await sweepExpiredRows(env);
-    console.log("[sweep]", JSON.stringify(swept));
-    // Day 14 of a pending affiliate commission is approval day. The daily cron is
-    // what makes that true without the owner opening the dashboard; the admin
-    // read repeats it lazily so a missed cron never shows a payable row as pending.
-    const approved = await approveDueCommissions(env).catch(() => 0);
-    console.log("[affiliate]", JSON.stringify({ approved }));
-  },
-};
+}
 
 // ============================================================================
 // AI ROUTER ENGINE (14+ KEYS, ROUND-ROBIN, STICKY MODEL & FAST FAILOVER)

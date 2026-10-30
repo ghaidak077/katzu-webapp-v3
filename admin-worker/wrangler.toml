@@ -1,0 +1,47 @@
+# Katzu Admin — a separate Worker for the owner's panel.
+#
+# Deployed independently of the product Worker (`katzu-test`). It holds no
+# database binding and no AI secret: it reaches the product only through the
+# `KATZU_API` Service Binding, and only with the shared internal token stored in
+# the same KV namespace the product Worker reads.
+#
+# Cloudflare Access is the outer lock. Until BOTH `ACCESS_TEAM_DOMAIN` and
+# `ACCESS_AUD` are set, every page and API answers 503 — the panel ships
+# disabled, by design. Neither value is a secret: the audience is a public
+# identifier, and the signing keys come from the team's JWKS endpoint.
+#
+# Deploy:  npx wrangler deploy --config admin-worker/wrangler.toml
+# Verify:  curl -m 10 https://katzu-admin.<subdomain>.workers.dev/healthz
+#          curl -m 10 -o /dev/null -w '%{http_code}' .../api/health   # 503 until Access is set
+
+name = "katzu-admin"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+# Static pages, served only after the Worker's own Access check has passed.
+# `run_worker_first` is what makes that true: without it Cloudflare would serve a
+# matching asset before the Worker could refuse the request.
+[assets]
+binding = "ASSETS"
+directory = "./public"
+run_worker_first = true
+
+# The product Worker, reached as a Service Binding. No public hostname is used
+# for admin traffic, so `/internal/admin/*` is not reachable from the internet.
+[[services]]
+binding = "KATZU_API"
+service = "katzu-test"
+
+# Same namespace as the product Worker: the internal token lives at
+# `internal:admin-token` and is created by this Worker on first use.
+[[kv_namespaces]]
+binding = "USER_PROGRESS"
+id = "d901da2026dc4830940562c72935ec78"
+
+[vars]
+# Set these after creating the Access application (Zero Trust -> Access ->
+# Applications -> Add -> Self-hosted). Both are empty on purpose: an unset
+# audience must fail closed, never fall open.
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""

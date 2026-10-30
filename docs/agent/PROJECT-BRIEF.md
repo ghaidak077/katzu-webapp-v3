@@ -52,7 +52,29 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-30 (word cards cost zero AI calls, openers are instant, «hallo» gets a re-ask)
+## Current snapshot — 2026-10-31 (a separate, locked admin panel and opt-in telemetry — built and gated, nothing deployed)
+
+**Local only: user-facing behaviour unchanged, no production write, no deploy.** The product Worker gained
+observer-only telemetry and a token-gated internal API; a second Worker `admin-worker/` (`katzu-admin`) is the
+panel, reachable to the product only through a Service Binding and denied by default.
+- **Telemetry:** five additive tables (`ai_events`, `route_events`, `conversations`, `conversation_attempts`,
+  `admin_audit`), written only in `ctx.waitUntil` and never read on a request's hot path; the router's
+  rotation/cooldown/failover is untouched. Failures are swallowed by design, so a log write cannot break a turn.
+- **Text is off unless two independent yeses:** the operator switch **and** an explicit per-account KV consent
+  grant (opt-in; silence, anonymous and failed reads mean no text). No consent UI exists yet, so with today's
+  config the panel stores **metrics only** — counts, ids, outcomes, redacted user-agent, never learner text.
+- **Access:** the panel's pages and `/api/*` proxy sit behind Cloudflare Access (JWT verified in the Worker,
+  fail-closed 503 until the owner creates the application) and the product's `/internal/admin/*` answers 401
+  without a random KV token. The panel has no D1, AI or secret binding.
+- **Proof:** `tests/adminAccess` 12, `tests/adminWorker` 14, `tests/adminTelemetry` 29, `tests/adminApi` 26 all
+  green; `wrangler deploy --dry-run` clean (3 assets, 9.82 KiB); full gate **`VERIFY OK 13/13` in 97.5 s**
+  (browser suite not run — it is a deploy-time step). **Not live-proven:** every panel page, the new Worker and
+  the production DDL, because deployment needs a commit/push the owner has not authorised and Access cannot be
+  created with the current token scope.
+- **Owner decisions:** `docs/ADMIN.md` §12, plain language in `docs/agent/OWNER-CHECKLIST.md` §10; backup and
+  rollback ids in `docs/BACKUP.md`.
+
+## Previous snapshot — 2026-10-30 (word cards cost zero AI calls, openers are instant, «hallo» gets a re-ask)
 
 **Deployed 2026-10-30: worker `b33136fa-…` (adds `POST /ai/lexeme`) and app `e948f1dc-…` (source `51bf25b`);
 the site is untouched.** One endpoint added; no new route, table or dependency.

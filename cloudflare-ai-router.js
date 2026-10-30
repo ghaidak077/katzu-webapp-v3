@@ -832,6 +832,8 @@ export function routerCountersSnapshot() {
  *                          converter — injected instead of copied, because the
  *                          converter's own body sits past the byte wall that
  *                          forced this module to exist), onProvider, onModel,
+ *                          `onAttempt` (a non-throwing observer told about every
+ *                          provider attempt — telemetry only, never consulted),
  *                          `preferFast` (set it for anything a learner is
  *                          waiting on: the tier walk is then ordered by measured
  *                          latency instead of round-robin), plus test-only
@@ -846,6 +848,26 @@ export async function callAiRouter(payload, env, deps = {}) {
   const reserveMs = Number(deps.reserveMs ?? FALLBACK_RESERVE_MS);
   const deadline = Date.now() + budgetMs;
   const toMessages = deps.toOpenAiMessages;
+  // Observer only. `onAttempt` is told about each provider attempt so the admin
+  // panel can count what actually multiplied (attempts, not HTTP requests). It
+  // never returns anything, never throws, and is never consulted for a decision:
+  // rotation, cooldown, parking and failover below are byte-for-byte unchanged.
+  const notifyAttempt = (entry, key, kind, status, latencyMs) => {
+    const observer = deps.onAttempt;
+    if (typeof observer !== "function") return;
+    try {
+      observer({
+        provider: entry.provider,
+        model: entry.model,
+        keyId: key ? keyFingerprint(key) : null,
+        kind,
+        status: Number.isFinite(status) ? status : null,
+        latencyMs,
+      });
+    } catch {
+      /* an observation must never disturb the router */
+    }
+  };
 
   await hydrateLedger(env);
 
@@ -880,6 +902,7 @@ export async function callAiRouter(payload, env, deps = {}) {
           });
           recordLatency(entry, Date.now() - startedAt);
           persistLatency(env);
+          notifyAttempt(entry, key, "ok", 200, Date.now() - startedAt);
           deps.markKeySuccess?.(key);
           deps.onProvider?.(entry.provider);
           deps.onModel?.(entry.model);
@@ -889,6 +912,7 @@ export async function callAiRouter(payload, env, deps = {}) {
         } catch (err) {
           lastError = err;
           const kind = err instanceof ProviderCallError ? err.kind : classifyFailure(0, String(err?.message || err));
+          notifyAttempt(entry, key, kind, err?.status ?? null, Date.now() - startedAt);
 
           if (kind === "day" || kind === "model_missing") {
             // The actual fix: record the window and never call this unit again
@@ -932,13 +956,16 @@ export async function callAiRouter(payload, env, deps = {}) {
   }
 
   if (deps.canUseWorkersAiFallback?.(env)) {
+    const fallbackStartedAt = Date.now();
     try {
       console.warn("[ai-router] pool exhausted for this window — serving via Workers AI fallback.");
       const text = await deps.runWorkersAiFallback(payload, env);
+      notifyAttempt({ provider: "workers-ai", model: null }, null, "ok", 200, Date.now() - fallbackStartedAt);
       routerCounters.served += 1;
       routerCounters.lastProvider = "workers-ai";
       return text;
     } catch (fallbackErr) {
+      notifyAttempt({ provider: "workers-ai", model: null }, null, "fallback_failed", null, Date.now() - fallbackStartedAt);
       console.error("[ai-router] Workers AI fallback failed:", String(fallbackErr?.message || fallbackErr).slice(0, 140));
       lastError = fallbackErr;
     }
