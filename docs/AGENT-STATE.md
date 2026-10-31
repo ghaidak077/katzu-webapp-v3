@@ -33,7 +33,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   the case, `halo` → `hallo` adds no case error; model wording is fallback. Wraps at 360px.
   Evidence: `tests/correctionWording.test.ts` **23 passed**, `npm test` **171 files / 2429**, gate **14/14**
   (691 s), six dark shots in `correction-card/`; full record in APP-MAP's change log.
-  **Deployed** Pages `c69c1ca4-…` (source `5d04a51`, rollback `73b9768b-…`); worker untouched.
+  **Deployed** Pages `e1db6dde-…` (source `2439e3a`, rollback `5b4c2b86-…`); worker untouched.
   **UNPROVEN:** the card inside a signed-in session (`OWNER-CHECKLIST.md` §11).
 - **2026-10-31 — live «hallo» root cause fixed and deployed; the signed-in turn stays the owner's check.**
   `/ai/turn` read scene text only from `history[].sender` while the app sends `{ role, text }`, so `sceneGerman`
