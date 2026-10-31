@@ -1,17 +1,22 @@
 # Admin panel and telemetry — inspection report (2026-10-31)
 
-Status: **built and tested locally; nothing in this document is deployed yet.** The live product Worker
-is still `katzu-test` version `b33136fa-…` and the only live admin surface is the old embedded
-`/admin` page. The rollback and backup record is `docs/BACKUP.md`.
+Status: **deployed 2026-10-31 and verified live.** The product Worker
+`katzu-test` runs version `6a6db52d-a581-45b1-94c7-ef5b5e9983ea`; the panel Worker `katzu-admin`
+runs version `e7716e26-f3b4-478e-8097-106481a3369e` (deployment `02:11:40Z`) behind Cloudflare
+Access. The owner's own signed-in session exercised the panel at 02:45–02:46 UTC: 26 authenticated
+`/internal/admin/*` GETs all answered **200**. The `17 4 * * *` scheduled handler was captured live at
+**04:17:37 UTC**: `[sweep]`, `[sweep:telemetry]` and `[affiliate]` all logged with `outcome: ok`, so
+both the cron and the retention sweep are proven. The five telemetry tables were created by the first
+authenticated panel read. The rollback and backup record is `docs/BACKUP.md`.
 
 ## 1. What this adds
 
 | Phase | What | Local state | Live state |
 |---|---|---|---|
-| 1 | Telemetry: `ai_events`, `route_events`, redaction, retention sweep | code + 29 tests | **not deployed** |
-| 2 | Separate panel Worker `katzu-admin`, Access gate, Service-Binding proxy | code + 26 tests (12 access, 14 panel) | **not deployed** — no Access application exists |
-| 3 | Conversation logging: `conversations`, `conversation_attempts`, consent, 90-day scrub | code + tests, master switch **off** | **not deployed**, and **stores no text even when the switch is on** until a learner grants consent (§7) |
-| 4 | Users, content, alerts, errors, audit, export, delete screens | code + tests | **not deployed** |
+| 1 | Telemetry: `ai_events`, `route_events`, redaction, retention sweep | code + 29 tests | **deployed** — five tables exist; 26 `route_events` rows from the owner's panel session |
+| 2 | Separate panel Worker `katzu-admin`, Access gate, Service-Binding proxy | code + 26 tests (12 access, 14 panel) | **deployed** — Access intercepts `/`, `/api/*` and `/healthz` with a 302 to the team login; `kid` matches `ACCESS_AUD` |
+| 3 | Conversation logging: `conversations`, `conversation_attempts`, consent, 90-day scrub | code + tests, master switch **off** | **deployed but inert** — no consent UI, and **stores no text even when the switch is on** until a learner grants consent (§7) |
+| 4 | Users, content, alerts, errors, audit, export, delete screens | code + tests | **deployed** — the owner's session loaded health, overview, users, content, conversations, errors and alerts |
 
 The old embedded `/admin` page and `ADMIN_SECRET` are untouched. They stay until the new panel is
 verified live and the owner says to retire them.
@@ -40,7 +45,11 @@ browser ──Cloudflare Access──▶ katzu-admin (Worker, static assets)
 ## 3. Access model (deny by default)
 
 1. **Configuration.** Both `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` must be non-empty. Until then every
-   page and `/api/*` answers **503** with "Panel disabled" — the panel ships disabled by design.
+   page and `/api/*` answers **503** with "Panel disabled" — the panel ships disabled by design. Both
+   are set on `katzu-admin` (`ghaidakalosh008.cloudflareaccess.com` and `8374079e…`), and Cloudflare
+   Access is enabled for **All traffic** on the Worker. An unauthenticated request now gets a **302**
+   to the team login with `kid=8374079e…`; the Worker never sees it. `/healthz` is also behind Access,
+   so it is no longer a public liveness probe (a bypass policy would be the owner's choice).
 2. **Identity.** Every request must carry a Cloudflare Access JWT (header or `CF_Authorization`
    cookie) signed RS256 by the team's JWKS, with the right `iss`, `aud`, `exp`, `nbf` and `iat`.
    Failures answer the same `401 {"error":"unauthorized"}` and never say which check failed.
@@ -157,8 +166,9 @@ privacy page remains true because no conversation text is stored anywhere.
 
 ## 8. Inspection findings
 
-- The live admin is a single embedded HTML page in the product Worker behind `ADMIN_SECRET`; it has
-  no Access layer, no audit trail and no conversation view. It was left untouched.
+- The old embedded HTML page behind `ADMIN_SECRET` is still live and untouched; it has no Access
+  layer, no audit trail and no conversation view. The new panel is the separate Worker above. Both
+  exist until the owner retires the old one.
 - The product Worker already has `D1`, `KV`, AI keys and a scheduled trigger; the panel therefore
   gets none of them, only a Service Binding.
 - Production D1 has no `d1_migrations`; the repo's convention is idempotent DDL at runtime. Followed.
@@ -188,17 +198,17 @@ privacy page remains true because no conversation text is stored anywhere.
 - Provider "disable" means entry state, not key editing — the panel has no key surface at all.
 - Old `/admin` stays live until the new panel is verified and the owner retires it — no big-bang
   removal.
-- Deploy stays blocked on a reviewed, pushed tree — the runbook requires it and this work is
-  uncommitted.
+- The panel shipped through the normal deploy runbook (reviewed tree, full `--ci --e2e` gate,
+  version and rollback recorded) — not as an ad-hoc upload.
 
 ## 10. Phase appendices — live / rollback
 
 | Phase | Live verification | Rollback |
 |---|---|---|
-| 1 telemetry | **none** (not deployed) | not needed; tables are additive |
-| 2 panel | **none** — `katzu-admin` does not exist in Cloudflare; Access cannot be created with the current token scope | delete the Worker; no product change |
-| 3 conversation text | **none**; switch off, no consent UI | drop the two tables or leave them (nothing reads them when off) |
-| 4 screens | **none** | same as phase 2 |
+| 1 telemetry | **proven** — five tables in production D1; `route_events` has 26 authenticated `200` rows (02:45:38–02:46:11 UTC); the cron fired at **04:17:37 UTC** and logged `[sweep]` + `[sweep:telemetry]` with `outcome: ok` (`rate_limit_counters` 7, all telemetry counters 0 because the tables were empty) | not needed; tables are additive |
+| 2 panel | **proven** — `katzu-admin` `e7716e26`; unauthenticated `/` and `/api/overview` **302** to Access with matching `kid`; owner session loaded the panel and its APIs | rollback `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (deployment `3692c953-321d-4732-b883-cb9258cf0719`) or delete the Worker |
+| 3 conversation text | **live but inert** — switch off, no consent UI, no text rows | drop the two tables or leave them (nothing reads them when off) |
+| 4 screens | **proven** for reads the owner made (health, overview, users, content, conversations, errors, alerts, audit) | same as phase 2 |
 
 When a deploy is authorised, the sequence and the ids to record are in `docs/agent/DEPLOY.md`;
 the pre-deploy rollback targets are in `docs/BACKUP.md` §2.
@@ -211,34 +221,45 @@ npx wrangler deploy --dry-run --config admin-worker/wrangler.toml
 npm run verify -- --ci
 ```
 
-Last local results are in the ledger (`docs/AGENT-STATE.md`) and the final report. On 2026-10-31 the
-full gate printed `VERIFY OK — 13/13 steps passed in 97.5s` on this tree (unit suite 59.8 s, types,
-design/contrast, syntax 66 files; browser suite not run — it is a deploy-time requirement). `--dry-run`
-was clean the same day: 3 asset files, 9.82 KiB upload, `USER_PROGRESS`, `KATZU_API`, `ASSETS`,
-`ACCESS_TEAM_DOMAIN=""`, `ACCESS_AUD=""`.
+On 2026-10-31 the pre-deploy gate printed `VERIFY OK — 14/14 steps passed in 759.6s` with
+`--ci --e2e` (the browser suite ran against the built bundle; exit 0). The focused admin suites were
+re-run after the deploy: `npx vitest run tests/adminAccess.test.ts tests/adminWorker.test.ts` →
+**26 passed**. The production probe is the decisive one: `/` and `/api/overview` both answer **302**
+to `https://ghaidakalosh008.cloudflareaccess.com/cdn-cgi/access/login/…?kid=8374079e…`, and the
+login page and team JWKS are reachable. `wrangler deploy` printed version
+`e7716e26-f3b4-478e-8097-106481a3369e` with `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` bound.
 
 ## 12. OWNER INPUT NEEDED
 
-1. **Deploy permission and a reviewed tree.** Nothing is committed. The runbook needs a clean,
-   pushed tree, so the owner must say "commit and deploy" (targets: worker `katzu-test` and the new
-   `katzu-admin`). Until then every panel page is UNPROVEN live.
-2. **Cloudflare Access application.** Zero Trust → Access → Applications → Add → Self-hosted, host
-   `katzu-admin.<subdomain>.workers.dev`, policy = the owner's email. Send back the **team domain**
-   and **audience** (both public identifiers) and they go into `admin-worker/wrangler.toml`. The
-   current API token has no `access` scope, so this cannot be done by the agent.
-3. **Consent control decision.** Either approve a small Settings control (grant/withdraw + delete my
-   conversations) and the exact text in §7, or keep conversation text permanently off. Without it,
-   phase 3 stores metrics only.
-4. **Retention confirmation.** 90 days for text, 365 for counters — confirm or change before the
-   policy text is published.
-5. **Old panel.** After the new panel is verified, say whether `/admin` and `ADMIN_SECRET` should be
-   retired (recommended: yes) or kept as a break-glass door.
+> **Decided by the owner on 2026-10-31:** retention is **90 days for text, 365 for counters**;
+> **conversation text stays off** (no consent UI); the **old `/admin` + `ADMIN_SECRET` stay live** until
+> the new panel is confirmed with real traffic. Nothing below is blocking; items 1–3 are recorded
+> decisions, item 4 is still optional.
+
+1. **Consent control — decided: none for now.** Text stays off: the master switch is unset and no
+   per-account consent grant exists. Re-open only if the owner wants the feature.
+2. **Retention — confirmed:** 90 days for conversation text, 365 for counters. This is what the sweep
+   implements; the policy text in §7 already states it.
+3. **Old panel — decided: keep both.** `/admin` and `ADMIN_SECRET` remain until the owner confirms the
+   new panel with real traffic; nothing is to be retired yet.
+4. **Optional liveness bypass.** Access currently covers `/healthz` too, so external monitoring
+   cannot probe it without a signed token. If you want a public health endpoint, create one Access
+   bypass policy for `/healthz`; that is a dashboard decision, not a code change.
 
 ## 13. UNPROVEN
 
-- Every panel page and every `/api/*` proxy call: needs a real Access session an agent must not
-  create.
-- `katzu-admin` deployment: does not exist yet.
-- Runtime DDL on production D1: the tables appear on the first internal call; not observed live.
-- Conversation text end-to-end: no consent control exists, so it is intentionally inert.
-- Cloudflare Access itself: cannot be configured with the current token scope.
+- **The 04:17 UTC scheduled handler is now proven, but its telemetry branches had nothing to do.**
+  A live `wrangler tail` captured the invocation at 04:17:37 UTC: `outcome: ok`, cron `17 4 * * *`,
+  `[sweep] {"rate_limit_counters":7,"error_reports":0}`, `[sweep:telemetry] {"conversations_scrubbed":0,
+  "conversation_attempts":0,"ai_events":0,"route_events":0}` and `[affiliate] {"approved":0}`. The
+  sweep wrote no telemetry row (all tables were empty), so what is proven is that the handler runs and
+  the sweep executes; the redaction/scrub branches still need rows to act on.
+- **`ai_events` has 0 rows** because no AI call has occurred since the table was created. The writer
+  is unit-tested; the first real AI turn is what proves it in production. Same for `route_events` —
+  its 26 rows are all from the owner's panel session, none from learner traffic.
+- **Conversation text end-to-end remains inert:** no consent control exists, so no text can be
+  stored. This is deliberate, not a missing test.
+- **The agent did not sign in as the owner.** The owner's session is proven only by its own
+  telemetry (26 authenticated 200s) and by the Access redirect; an agent must not drive that session.
+- **`/healthz` is no longer publicly probeable** (Access 302); a bypass would be an owner-created
+  Access policy.

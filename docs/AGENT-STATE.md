@@ -26,21 +26,27 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-10-31 — the admin panel and its telemetry are deployed and probe-verified; the panel opens only
-  after the owner creates Cloudflare Access (V46-1).** Product Worker `katzu-test` is on version
-  **`6a6db52d-a581-45b1-94c7-ef5b5e9983ea`** (deployment `d41b8616-4dac-48ef-a424-04109500846a`, source
-  `053d882`, rollback `b33136fa-dd5d-45b5-bad5-fabbbfbdca72`): observer-only telemetry plus token-gated
-  `/internal/admin/*`; live `/health` 200 with `storage:{d1,kv}`, `POST /ai/lexeme` 401,
-  `/internal/admin/health` 401 with no header and with a bogus bearer. Admin Worker `katzu-admin` is live
-  on version `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (deployment `3692c953-321d-4732-b883-cb9258cf0719`):
-  `/healthz` 200, every page and `/api/*` **503 fail-closed** because Access is unconfigured; deleting it
-  is the rollback. Pages rebuilt the byte-identical bundle `assets/index-uXgW2nvR.js` as
-  `40b04fb7-dc48-4263-9f1f-e8e2a020fa64`. Local proof: 12+14+29+26 admin tests, dry-run clean,
-  `VERIFY OK 14/14` in 702.8 s (with e2e) and `13/13` in 97.5 s on the final tree. **Still open:** the
-  Access application (the token has no `access` scope), so every panel page is UNPROVEN live; consent has
-  no UI, so learner text stays off while metrics flow. **Not proven live yet:** any telemetry row — the
-  five tables appear on the first authenticated panel read or the 04:17 UTC cron. Backup, restore and
-  rollback ids: `docs/BACKUP.md`; inspection, endpoints, privacy text and owner input: `docs/ADMIN.md`.
+- **2026-10-31 — the admin panel is live behind Cloudflare Access with real telemetry, and the owner has
+  signed off the remaining choices.** Product Worker `katzu-test` is on version **`6a6db52d-a581-45b1-94c7-ef5b5e9983ea`** (deployment
+  `d41b8616-4dac-48ef-a424-04109500846a`, source `053d882`, rollback `b33136fa-dd5d-45b5-bad5-fabbbfbdca72`).
+  Admin Worker `katzu-admin` is on version **`e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
+  `02:11:40Z`; rollback `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16`, deployment `3692c953-321d-4732-b883-cb9258cf0719`).
+  Cloudflare Access now covers **All traffic**: unauthenticated `/`, `/api/overview` and `/healthz` all answer
+  **302** to the team login with `kid=8374079e…`, matching `ACCESS_AUD`; the team JWKS has 2 keys and the login
+  page is 200. **The owner's signed-in session is proven by its own telemetry:** 26 authenticated
+  `/internal/admin/*` GETs, all **200**, 02:45:38–02:46:11 UTC (health 13; overview/users/content/conversations/
+  errors/alerts 2 each; audit 1), which also created the five tables. Counts at 02:46 UTC: `route_events` **26**,
+  `ai_events` **0**, `conversations` **0**, `conversation_attempts` **0**, `admin_audit` **0**. Local proof:
+  12+14+29+26 admin tests; the 26 access/worker tests re-ran green after the deploy; `VERIFY OK 14/14` in
+  759.6 s with e2e. **The cron is proven:** a live `wrangler tail` captured the `17 4 * * *` invocation at
+  **04:17:37 UTC** with `outcome: ok` and the `[sweep]` / `[sweep:telemetry]` / `[affiliate]` logs (telemetry
+  counters all 0 — the tables were empty). Post-run counts at 04:20 UTC are unchanged: `route_events` 26,
+  `ai_events` 0, `conversations` 0, `conversation_attempts` 0, `admin_audit` 0. **Owner decisions (2026-10-31):**
+  text stays off, retention 90/365 days, old `/admin` stays until the panel is confirmed with real traffic.
+  **Still open:** `ai_events` has no row until a real AI turn. Pages rebuilt the byte-identical
+  bundle `assets/index-uXgW2nvR.js` as `203a5983-e334-45b9-a530-ba856055288c` (source `d920829`). Backup,
+  restore and rollback ids: `docs/BACKUP.md`; inspection, endpoints, privacy text and owner input:
+  `docs/ADMIN.md`.
 
 - **2026-10-30 — word cards cost zero AI calls, openers are instant, and «hallo» gets a re-ask (worker + app
   deployed).** Three learner-visible outcomes, each deployed and verified live where a browser could reach it.
@@ -122,13 +128,15 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## CURRENT MISSION
 
-**V46 — a separate, fail-closed admin panel and real telemetry (2026-10-31, not deployed).** The admin
+**V46 — a separate, fail-closed admin panel and real telemetry (2026-10-31, deployed).** The admin
 surface is a second Worker behind Cloudflare Access with no database or key binding; the product Worker
-records its own AI/route metrics in `ctx.waitUntil` and exposes a token-gated internal API. Conversation
-text has a master switch that is off and an explicit consent grant that nothing sets yet, so the
-shipped behaviour is metrics only. What remains is not code: commit + deploy authorization, the Access
-application (token scope), and the owner's decision on a consent control and the 90-day policy text
-(OWNER-OPEN V46-1).
+records its own AI/route metrics in `ctx.waitUntil` and exposes a token-gated internal API. The owner's
+session loaded the panel and its APIs (26 authenticated `200` route events), Access intercepts the host,
+and the five tables exist. Conversation text has a master switch that is off and an explicit consent
+grant that nothing sets yet, so the shipped behaviour is metrics only. What remains is not code: the
+owner's decision on a consent control and the 90-day policy text, plus confirmation of retention and
+whether to retire the old `/admin` (OWNER-OPEN V46-1). The `17 4 * * *` cron was observed running on
+2026-10-31 04:17:37 UTC.
 
 **V45 — the conversation surface stops paying for what it already knows (2026-10-30, deployed).** Openers are
 pre-computed German + Arabic, word cards read the shipped glossary first and spend at most one `/ai/lexeme` call
@@ -177,9 +185,12 @@ replaced by `56425f30-…` (2026-10-12), then `66bd8b92-…`, then the secret-on
   `d41b8616-4dac-48ef-a424-04109500846a`, source `053d882`) — observer-only telemetry plus the
   token-gated `/internal/admin/*`. Live: `/health` 200 `storage:{d1,kv}`; `/crypto/health` `ready:false`;
   `GET /internal/admin/health` and `/overview` **401** with no header **and** with a bogus bearer;
-  `POST /ai/lexeme` **401**; `GET /admin/api/affiliates` **401**. The five telemetry tables are created by
-  the first authenticated panel read or the 04:17 UTC cron, so **no telemetry row is proven written yet**
-  (UNPROVEN live until then).
+  `POST /ai/lexeme` **401**; `GET /admin/api/affiliates` **401**. The five telemetry tables exist in
+  production D1 and `route_events` has **26** authenticated `200` rows from the owner's panel session
+  (02:45:38–02:46:11 UTC); `ai_events` is **0** until a real AI turn. The `17 4 * * *` cron fired at
+  **04:17:37 UTC** (`wrangler tail`: `outcome: ok`, `[sweep] {"rate_limit_counters":7,"error_reports":0}`,
+  `[sweep:telemetry]` all zeros, `[affiliate] {"approved":0}`), and the post-run counts at 04:20 UTC are
+  unchanged (26 / 0 / 0 / 0 / 0).
   **Rollback target: `b33136fa-dd5d-45b5-bad5-fabbbfbdca72`** (deployment `b23b5534-29c8-4ecb-8986-33e95da356ef`,
   the 2026-10-30 lexeme batch), then `4d20d59e-562a-43f3-a4e2-00a99da8a507`, then
   `6860fa2f-bfca-44d7-8fc3-870a87aec926` (`e9aa028`): `POST /affiliate/me` (401 signed out; it answered
@@ -202,19 +213,20 @@ replaced by `56425f30-…` (2026-10-12), then `66bd8b92-…`, then the secret-on
   `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
   `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
   `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
-- **Admin panel Worker `katzu-admin` (2026-10-31, first deployment):** deployment
-  **`3692c953-321d-4732-b883-cb9258cf0719`**, version **`bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16`** (100%),
+- **Admin panel Worker `katzu-admin` (2026-10-31, Access-enabled deployment):** deployment
+  **`02:11:40Z`**, version **`e7716e26-f3b4-478e-8097-106481a3369e`** (100%),
   `https://katzu-admin.ghaidakalosh008.workers.dev`. Bindings: `USER_PROGRESS` KV (token only), `KATZU_API`
-  Service Binding → `katzu-test`, `ASSETS`; **no D1 and no AI binding**. Live: `/healthz` **200**
-  `{"ok":true,"service":"katzu-admin"}`; `/`, `/api/overview` and `/app.js` **503** because
-  `ACCESS_TEAM_DOMAIN`/`ACCESS_AUD` are empty — fail-closed until the owner creates the Access app.
-  **Rollback: delete the Worker** (`npx wrangler delete --name katzu-admin`); it is the first deployment and
-  nothing else depends on it.
-- **App Pages production (2026-10-31, source `053d882`):** deployment
-  **`40b04fb7-dc48-4263-9f1f-e8e2a020fa64`** — the admin-panel push rebuilt the app and changed nothing a
-  learner sees: the bundle is byte-identical (`assets/index-uXgW2nvR.js`, same as `d150eea2` and
+  Service Binding → `katzu-test`, `ASSETS`, `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`; **no D1 and no AI binding**.
+  Live: Cloudflare Access answers `/`, `/api/overview` and `/healthz` with **302** to the team login
+  (`kid=8374079e…`); the Worker is fail-closed 401 if a request ever reaches it without a valid JWT.
+  **Rollback target: `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16`** (deployment
+  `3692c953-321d-4732-b883-cb9258cf0719`), or delete the Worker; nothing else depends on it.
+- **App Pages production (2026-10-31, source `d920829`):** deployment
+  **`203a5983-e334-45b9-a530-ba856055288c`** — the docs push rebuilt the app and changed nothing a learner
+  sees: the bundle is byte-identical (`assets/index-uXgW2nvR.js`, same as `40b04fb7`, `d150eea2` and
   `e948f1dc`). The `/` at `katzuai.com` and the deployment URL both answer **200**.
-  **Rollback target: `39d0c289-0ce9-41ad-ae99-e886b617c48c`** (source `0b53942`), then
+  **Rollback target: `40b04fb7-dc48-4263-9f1f-e8e2a020fa64`** (source `053d882`), then
+  `39d0c289-0ce9-41ad-ae99-e886b617c48c` (source `0b53942`), then
   `d150eea2-9af3-4984-bb00-70b3c181141e` (source `5a8c7d5`), then the batch's own code
   **`e948f1dc-40fd-4a6a-b6df-1c8efac1297b`** (source `51bf25b`):
   pre-computed scenario openers with Arabic, `/ai/lexeme` word cards and the bare-greeting guard, with
@@ -321,10 +333,16 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | V10-6. Content load (Phase D.2) | blocked | Owner line `CONTENT-LOAD-AUTHORIZED: curriculum-arrival-module2.json, curriculum-30day-module1.json (module1 only if approved by the Content Gate in this run)`. **Nothing was loaded; no D1 export was taken; no production write occurred, not even a test one.** The runbook's precondition 4 fails on this machine: the sanctioned check `[ -n "$ADMIN_SECRET" ] && echo set` prints **NOT SET**, and `docs/agent/CONTENT-LOAD.md` says an unmet precondition → STOP, no partial load. The agent did not read, store, print or pass the value, and must not (§3). **The secret was published in a chat prompt earlier in this session, so it must be treated as compromised and rotated before any load.** Everything else the runbook requires is true and was verified read-only this run: both files `review.status="approved"` with review files; both audits PASSED; both dry-runs PASSED (module2 → 5/49/42/4; module1 → 5/74/49/10); production collision checks **clean for both modules** (module1: 15 ids, zero rows; module2: 9 ids, zero rows); live counts re-read **5 / 114 / 20 / 4**, unchanged. Owner commands, expected post-load counts and the rollback id list are in `docs/agent/CONTENT-LOAD.md`. |
 | V11-2. Load module2 → refused with 401; value shape diagnosed; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v11-load-module2.log 2>&1`: the draft validated locally (5 scenarios / 49 vocabulary / 42 phrases / 4 grammar, review approved), then **the first authenticated read failed — `✘ could not list vocabulary (HTTP 401): {"error":"unauthorized"}`** at `scripts/load-curriculum.mjs:70`. The log carries **zero** `Bearer`/`Authorization` occurrences (the credential was never echoed), the log never reaches a write phase (`Writing …` / `to write` are absent), and **nothing was written to production D1**. **Root cause, established structurally without ever printing the value:** the environment variable is **66 characters** of which exactly **64 are lowercase hex** — chars 2–65 match `^[0-9a-f]{64}$` — with first char `U+003C` (`<`) and last `U+003E` (`>`); i.e. the placeholder form `<secret>` was pasted *with its angle brackets*, so the loader sent `Authorization: Bearer <hex>`. **Nothing was re-encoded, trimmed or re-derived:** §3 reserves secret handling to the owner, so this is an owner-side fix. **Post-attempt state re-verified unchanged:** counts still **5 / 114 / 20 / 4**, the new scenario ids still absent, and `/scenarios`, `/vocabulary`, `/grammar` all **200**. The backup from V11-1 is still valid and still unused; no rollback was needed because no write was attempted. |
 | V12-2. Load module2 → grammar batch `HTTP 500` on a live schema gap; 89 inserted rows rolled back; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v12-load-module2.log 2>&1` → **exit 0**, 29 log lines, **`grep -c -E 'Bearer\|Authorization'` = 0** (run before anything was shown; the credential never reached the log). **Three of the four batches wrote, the fourth could not:** `scenarios ✔ HTTP 200 count 5`, `vocabulary ✔ 200 count 42` (7 of 49 rows skipped as already present), `starter_phrases ✔ 200 count 42`, and **`✘ grammar batch 1 failed (HTTP 500): {"error":"admin_route_failed","message":"D1_ERROR: table grammar has no column named rule_de: SQLITE_ERROR"}`** — **0 grammar rows written**. The loader then printed `DONE — 89 row(s) written.` and **exited 0**, because its verification loop covers scenarios and vocabulary topics only and never consults the per-batch statuses, so a failed batch is invisible in its exit code (recorded in `LESSONS.md`). **Rollback, exact, driven by the backup rather than by arithmetic on counts:** the pre-load export contains the two tables' `sqlite_sequence` rows (`vocabulary = 135`, `starter_phrases = 20`) and both are `INTEGER PRIMARY KEY AUTOINCREMENT`, so the new rows are provably `vocabulary id > 135` (42 rows, 136–177) and `starter_phrases id > 20` (42 rows, 21–62) — an id above the pre-load sequence cannot be a pre-existing row. `DELETE FROM starter_phrases WHERE id > 20; DELETE FROM vocabulary WHERE id > 135; DELETE FROM scenarios WHERE id IN ('airport_arrival','train_station','bakery_shopping','landlord_followup','friend_catchup');` → `changes` **42 / 42 / 5 = 89**, exactly the 89 the loader reported. **Both states measured:** post-attempt **10 scenarios / 156 vocabulary / 62 starter_phrases / 4 grammar**; post-rollback **5 / 114 / 20 / 4** with `MAX(vocabulary.id) = 135`, `MAX(starter_phrases.id) = 20`, 0 rows for the 5 new scenario ids and 0 `g_%` grammar ids; live scenario ids back to `apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview` and live grammar to `akkusativ_articles, dativ_prepositions, konjunktiv_ii, perfekt_tense`. **Three sampled old rows match the backup exactly:** vocabulary 22 `Reisepass`/`documents`/`جواز سفر`, 77 `Allergie`/`food`/`حساسية`, 135 `Wohnungsamt`/`housing`/`مكتب الإسكان`, and starter_phrase 1 = `embassy_appointment` "Ich habe einen Termin.". **Public endpoints back to normal:** `/scenarios` 5 rows containing **none** of the new ids, `/vocabulary` 114, `/grammar` 4, `/health` unchanged (`{status, service, ready, maintenance:false}`). **Root cause (read-only, proven twice):** the live `grammar` table is `id, level, title_ar, title_en, explanation_ar, explanation_en, example_de` (`SELECT GROUP_CONCAT(name) FROM pragma_table_info('grammar')`), while the draft row keys, `src/lib/content/curriculumAudit.ts:49`, `src/types/models.ts:89`, the Worker's own `resolvePracticeGrammar` (`cloudflare-unified-worker.js:1211`) and `docs/PRODUCT-SPEC.md:1021` all assume `id, title_ar, rule_de, rule_ar, level, explanation_ar, example_de, example_ar`. `handleAdminUpload` (`cloudflare-unified-worker.js:3053`) builds `INSERT INTO grammar (…)` from **the row's own keys**, so `rule_de` is sent to a table that has no such column; `SELECT id, rule_de FROM grammar LIMIT 1` fails with D1 error **7500** as the independent proof. **Deeper cause:** none of the four content tables' DDL exists anywhere in the repo (`git grep -n "CREATE TABLE.*grammar\|CREATE TABLE.*vocabulary\|CREATE TABLE.*scenarios\|CREATE TABLE.*starter_phrases"` → 0 hits; only the ledger tables are created by the Worker), so the live content schema is unversioned and has drifted — and the local dry-run cannot see it because it never touches the network, while the audit validates the draft against the *documented* field list. **Two production consequences beyond this load:** (a) `resolvePracticeGrammar` selects three columns the live table lacks and swallows the error in a `try/catch` that returns `null`, so the B2 grammar-reference link can never resolve in production; (b) the live grammar ids are `akkusativ_articles`-style while `SCENARIO_GRAMMAR_IDS` and the offline seed use `g_*`, so even with the columns added the five original scenarios would still have no matching D1 row. **Stopped:** module1's ten grammar rows carry the same `rule_de` field, so it was deliberately **not attempted** (rollback → mark blocked → stop). Owner fix is one additive DDL with no data loss, written into OWNER-OPEN; no deploy, no push, no further write. |
-| V46-1. Admin panel + telemetry (phases 1–4) | blocked | **Deployed 2026-10-31 and probe-verified; the panel stays closed until Access exists.** New `cloudflare-telemetry.js` (idempotent DDL for five additive tables, `ctx.waitUntil` writers, redaction, 90/365-day sweep, master switch off), `cloudflare-admin-api.js` (deny-before-route 401, constant-time KV token, 120/min, audit, users/content/alerts/errors/conversations/export/delete), observer-only router hook, and `admin-worker/` (Access JWT verification with an injected cert fetcher, fail-closed 503 until configured, `/api/*` → Service Binding, no D1/key binding, no CDN). Tests: 12 access + 14 panel + 29 telemetry + 26 internal API, all green; `wrangler deploy --dry-run --config admin-worker/wrangler.toml` clean; full gate `VERIFY OK 14/14` in 702.8 s with e2e and `13/13` in 97.5 s. **Live:** worker `6a6db52d-…` (rollback `b33136fa-…`), `katzu-admin` `bc7db8cc-…` (`/healthz` 200; every page and `/api/*` 503), Pages `40b04fb7-…` with the same learner bundle. **Blocked on (a) Cloudflare Access, which the current token scope cannot create, and (b) the consent-UI decision. No telemetry row is proven yet — the five tables appear on the first authenticated read or the 04:17 UTC cron.** `docs/ADMIN.md`, `docs/BACKUP.md`. |
+| V46-1. Admin panel + telemetry (phases 1–4) | blocked | **Deployed 2026-10-31; the panel is live behind Access and has real telemetry.** `cloudflare-telemetry.js` (five additive tables, `ctx.waitUntil` writers, redaction, 90/365-day sweep, master switch off), `cloudflare-admin-api.js` (deny-before-route 401, constant-time KV token, 120/min, audit, users/content/alerts/errors/conversations/export/delete), observer-only router hook, `admin-worker/` (Access JWT verification, `/api/*` → Service Binding, no D1/key binding). Tests: 12 access + 14 panel + 29 telemetry + 26 internal API, all green; `VERIFY OK 14/14` in 759.6 s with e2e; the 26 access/worker tests re-ran green after deploy. **Live:** worker `6a6db52d-…` (rollback `b33136fa-…`), `katzu-admin` `e7716e26-…` (rollback `bc7db8cc-…`) with Access **302** and matching `kid` on `/`, `/api/overview`, `/healthz`; owner session wrote **26** `route_events` 200s (02:45:38–02:46:11 UTC) and created the five tables. Counts: route_events 26, ai_events 0, conversations 0, conversation_attempts 0, admin_audit 0; the `17 4 * * *` cron was captured live at **04:17:37 UTC** (`outcome: ok`, `[sweep]` + `[sweep:telemetry]` logged) and the 04:20 UTC counts are unchanged. Pages `203a5983-…` same bundle. **Blocked on the owner's consent-UI/retention decisions; nothing else is unproven.** `docs/ADMIN.md`, `docs/BACKUP.md`. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
 
 ## DECISIONS
+
+- **V46-1 (2026-10-31) — owner decisions on the panel, final for now.** Retention is **90 days for
+  conversation text and 365 days for counters**; **conversation text stays off** (no consent UI is
+  built, so the master switch and the per-account consent grant remain unset); the **old `/admin` and
+  `ADMIN_SECRET` stay live** until the owner confirms the new panel works with real traffic. No code or
+  binding changes: all three confirm the shipped defaults.
 
 - **V46-1 (2026-10-31) — the panel is a second Worker with no data bindings.** Service Binding +
   token-gated `/internal/admin/*`; the panel cannot read D1 or a key, and `/internal/admin/*` is not
@@ -409,16 +427,24 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical claims are in `docs/agent/ARCHIVE-AGENT-STATE.md` under the same heading.
 
-- **V46-1 (2026-10-31) — the admin panel is deployed and probe-verified; its data path is unproven live.**
-  Proven this session: 12 Access tests (real signed JWTs, expiry/audience/issuer/tamper/unknown key/alg-none/JWKS
-  down), 14 panel tests (healthz, 503 unconfigured, 401 before any proxy call, path rewrite, token never in a
-  browser response, one 401 retry, 502/503), 29 telemetry tests and 26 internal-API tests; dry-run config
-  clean; live `/healthz` 200 and every page/`/api/*` 503; product `/internal/admin/health` 401 with no and a
-  bogus bearer. **Not proven:** no panel page or proxy call has crossed a real Access session (an agent must
-  not sign in as the owner), so Access is unconfigured; **no telemetry row has been written** — the five
-  tables do not exist yet in production D1 and appear on the first authenticated read or the 04:17 UTC cron;
-  the consent path has no UI and is intentionally inert. Access cannot be configured here — the API token has
-  no `access` scope.
+- **V46-1 (2026-10-31) — the admin panel, the Access gate and the cron are proven; only the AI writer and the
+  consent path have never carried real data.** Proven this session: 12 Access tests (real signed JWTs, expiry/
+  audience/issuer/tamper/unknown key/alg-none/JWKS down), 14 panel tests (healthz, 503 unconfigured, 401 before
+  any proxy call, path rewrite, token never in a browser response, one 401 retry, 502/503), 29 telemetry tests
+  and 26 internal-API tests; the 26 access/worker tests re-ran green after the deploy; `VERIFY OK 14/14` with
+  e2e in 759.6 s. Live: `/`, `/api/overview` and `/healthz` answer **302** to the Access login with
+  `kid=8374079e…` matching `ACCESS_AUD`; the team JWKS has 2 keys and the login page is 200. The owner's
+  signed-in session is proven by its own telemetry: **26 authenticated `/internal/admin/*` GETs, all 200**,
+  02:45:38–02:46:11 UTC, which also created the five tables (`route_events` 26, `ai_events` 0,
+  `conversations` 0, `conversation_attempts` 0, `admin_audit` 0). **The cron is proven too:** a live
+  `wrangler tail` captured the `17 4 * * *` invocation at **04:17:37 UTC**, `outcome: ok`, with
+  `[sweep] {"rate_limit_counters":7,"error_reports":0}`,
+  `[sweep:telemetry] {"conversations_scrubbed":0,"conversation_attempts":0,"ai_events":0,"route_events":0}`
+  and `[affiliate] {"approved":0}`; the 04:20 UTC counts are unchanged. **Not proven:** `ai_events` has no row
+  because no AI call has happened since the table was created (the writer is unit-tested only until a real
+  turn), and `route_events` has no learner-traffic row — all 26 are panel-admin calls. **Conversation text is
+  deliberately inert** (no consent UI), so its redaction and 90-day scrub branches have never acted on a row.
+  The agent did not sign in as the owner and must not; `/healthz` is no longer publicly probeable.
 - **GEO-1 (2026-10-29) — crawlability is verified; being cited is not.** `robots.txt`, sitemap and JSON-LD
   are machine-checked live, but nobody has asked the 30 Arabic panel yet, so there is **zero** evidence that
   any assistant mentions or cites Katzu, and `/llms.txt` has no published effect. Measured instead: Cloudflare
@@ -491,17 +517,16 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
 
-- **The admin panel is deployed; it needs one Cloudflare setting and one privacy decision
+- **The admin panel is live and the owner has decided; what remains is real traffic, not a decision
   (V46-1, 2026-10-31).** Both Workers are live (`katzu-test` version `6a6db52d-…`, `katzu-admin` version
-  `bc7db8cc-…`) and no learner-visible behaviour changed. (1) **Create the Cloudflare Access application**
-  (Zero Trust → Access → Applications → Self-hosted, host `katzu-admin.<subdomain>.workers.dev`, policy =
-  your email) and send the **team domain** and **audience** — both public, neither a secret. The current
-  API token cannot create it, so until then every panel page answers **503 by design**. (2) **Decide about
-  conversation text:** either approve a small Settings control (grant/withdraw consent + delete my
-  conversations) and the exact Arabic/English text in `docs/ADMIN.md` §7, or leave text permanently off.
-  Until then the panel records metrics only and stores no learner text, which is the safe default.
-  Done looks like: your email opens the panel through Access and `overview` shows real AI calls (the first
-  authenticated read also creates the five telemetry tables).
+  `e7716e26-…`) and no learner-visible behaviour changed. Cloudflare Access protects all traffic on the panel
+  host, and the owner's own signed-in session loaded the panel and seven API screens (26 authenticated 200s).
+  **Recorded decisions:** conversation text **stays off** (no consent UI), retention is **90 days for text /
+  365 for counters**, and the **old `/admin` + `ADMIN_SECRET` stay** until the new panel is confirmed with real
+  traffic. **Open, but not blocking:** `ai_events` and learner-traffic `route_events` need a real AI turn to
+  appear; the optional public `/healthz` bypass is still the owner's call if external monitoring is wanted.
+  Done looks like: the first real learner turn appears in the panel and the owner retires the old panel (or
+  keeps it) after seeing it work.
 
 - **Being findable needs two owner steps, and neither is code (SEO-1, GEO-1, 2026-10-29).** (1) Verify
   `katzuai.com` in Google Search Console (one TXT record in Cloudflare), submit both sitemaps, import into Bing,

@@ -90,18 +90,18 @@ import into Bing — `docs/agent/GEO-VISIBILITY.md` §5. (2) Read the 12 guides 
 
 **Done looks like:** Search Console says "Success" for both sitemaps, and the month's table has numbers.
 
-## 10. The admin panel — one Access app, one text decision — V46-1 (2026-10-31)
+## 10. The admin panel is live — decided 2026-10-31, nothing for you to do — V46-1
 
-**What it is.** The separate locked admin site is deployed; it cannot touch the database or a key. It is
-closed until you create its Cloudflare Access app (it answers 503 by design).
+**What it is.** The separate locked admin site runs behind Cloudflare Access and cannot touch the database or
+a key. Your own signed-in session already loaded it: 26 panel requests, all successful, and the five telemetry
+tables exist (`route_events` has 26 rows).
 
-**What you do.** (1) Cloudflare → Zero Trust → Access → Applications → Self-hosted app: host
-`katzu-admin.<your-subdomain>.workers.dev`, policy = your email; send the **team domain** and
-**audience** (both public). (2) Say whether you want a Settings consent control and the 90-day rule in
-`docs/ADMIN.md` §7 — or keep learner text off.
+**Your decisions, now recorded.** Conversation text stays **off** (no consent screen is built); retention is
+**90 days for text, 365 for counters**; the old `/admin` and `ADMIN_SECRET` **stay live** until you confirm the
+new panel with real traffic.
 
-**Done looks like:** the panel opens for your email and shows real calls; no learner text is stored until
-you approve it.
+**Done looks like:** a real learner turn shows up in the panel, and you then say whether to retire the old
+`/admin` or keep it.
 
 ## Nothing to do — recorded so nobody re-opens them
 

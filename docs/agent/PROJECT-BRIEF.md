@@ -52,27 +52,35 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-31 (a separate, locked admin panel and opt-in telemetry — built and gated, nothing deployed)
+## Current snapshot — 2026-10-31 (the admin panel is live behind Access; first telemetry rows exist)
 
-**Local only: user-facing behaviour unchanged, no production write, no deploy.** The product Worker gained
-observer-only telemetry and a token-gated internal API; a second Worker `admin-worker/` (`katzu-admin`) is the
-panel, reachable to the product only through a Service Binding and denied by default.
+**Deployed:** product Worker `6a6db52d-…` (rollback `b33136fa-…`), panel Worker `katzu-admin`
+`e7716e26-…` (rollback `bc7db8cc-…`), Pages `203a5983-…` with the unchanged learner bundle
+`assets/index-uXgW2nvR.js`. No learner-visible behaviour changed.
+- **Panel:** a second Worker `admin-worker/` (`katzu-admin`) behind **Cloudflare Access (All traffic)**,
+  reachable to the product only through a Service Binding; **no D1, AI or secret binding**. Unauthenticated
+  `/`, `/api/overview` and `/healthz` all answer **302** to the team login with `kid=8374079e…` matching
+  `ACCESS_AUD`.
 - **Telemetry:** five additive tables (`ai_events`, `route_events`, `conversations`, `conversation_attempts`,
-  `admin_audit`), written only in `ctx.waitUntil` and never read on a request's hot path; the router's
-  rotation/cooldown/failover is untouched. Failures are swallowed by design, so a log write cannot break a turn.
+  `admin_audit`), written only in `ctx.waitUntil`, never read on a request's hot path; router
+  rotation/cooldown/failover untouched. Failures are swallowed by design.
+- **Proven live, by the owner's own session:** **26 authenticated `/internal/admin/*` GETs, all 200**,
+  02:45:38–02:46:11 UTC, which created the tables. Counts then: `route_events` **26**, `ai_events` **0**,
+  `conversations` **0**, `conversation_attempts` **0**, `admin_audit` **0**.
 - **Text is off unless two independent yeses:** the operator switch **and** an explicit per-account KV consent
-  grant (opt-in; silence, anonymous and failed reads mean no text). No consent UI exists yet, so with today's
-  config the panel stores **metrics only** — counts, ids, outcomes, redacted user-agent, never learner text.
-- **Access:** the panel's pages and `/api/*` proxy sit behind Cloudflare Access (JWT verified in the Worker,
-  fail-closed 503 until the owner creates the application) and the product's `/internal/admin/*` answers 401
-  without a random KV token. The panel has no D1, AI or secret binding.
-- **Proof:** `tests/adminAccess` 12, `tests/adminWorker` 14, `tests/adminTelemetry` 29, `tests/adminApi` 26 all
-  green; `wrangler deploy --dry-run` clean (3 assets, 9.82 KiB); full gate **`VERIFY OK 13/13` in 97.5 s**
-  (browser suite not run — it is a deploy-time step). **Not live-proven:** every panel page, the new Worker and
-  the production DDL, because deployment needs a commit/push the owner has not authorised and Access cannot be
-  created with the current token scope.
-- **Owner decisions:** `docs/ADMIN.md` §12, plain language in `docs/agent/OWNER-CHECKLIST.md` §10; backup and
-  rollback ids in `docs/BACKUP.md`.
+  grant. No consent UI exists yet, so the panel stores **metrics only** — counts, ids, outcomes, redacted
+  user-agent, never learner text.
+- **Proof:** 12 Access + 14 panel + 29 telemetry + 26 internal-API tests green; the 26 access/worker tests
+  re-ran green after the deploy; full gate **`VERIFY OK 14/14` in 759.6 s** with the browser suite.
+- **The cron is proven:** a live `wrangler tail` captured the `17 4 * * *` invocation at **04:17:37 UTC** —
+  `outcome: ok`, `[sweep]`, `[sweep:telemetry]` and `[affiliate]` all logged, telemetry counters 0 because the
+  tables were empty — and the 04:20 UTC counts are unchanged. **Owner decisions recorded 2026-10-31:**
+  text stays **off** (no consent UI), retention is **90 days for text / 365 for counters**, and the old
+  `/admin` + `ADMIN_SECRET` **stay live** until the panel is confirmed with real traffic. **Still unproven:**
+  `ai_events` stays 0 until a real AI turn, `route_events` has no learner-traffic row yet (all 26 are panel
+  calls), and the consent path has never stored text. The optional public `/healthz` bypass remains the
+  owner's call; `docs/ADMIN.md` §12, plain language in `docs/agent/OWNER-CHECKLIST.md` §10; backup/rollback
+  in `docs/BACKUP.md`.
 
 ## Previous snapshot — 2026-10-30 (word cards cost zero AI calls, openers are instant, «hallo» gets a re-ask)
 

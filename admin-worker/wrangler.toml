@@ -40,8 +40,10 @@ binding = "USER_PROGRESS"
 id = "d901da2026dc4830940562c72935ec78"
 
 [vars]
-# Set these after creating the Access application (Zero Trust -> Access ->
-# Applications -> Add -> Self-hosted). Both are empty on purpose: an unset
-# audience must fail closed, never fall open.
-ACCESS_TEAM_DOMAIN = ""
-ACCESS_AUD = ""
+# Set when the owner created the Access application (2026-10-31, Zero Trust ->
+# Access -> Applications -> Self-hosted, host katzu-admin.<subdomain>.workers.dev).
+# Both are public identifiers, not secrets: the audience is visible in any Access
+# JWT and the signing keys come from the team's public JWKS. Empty values fail
+# closed (503), never open.
+ACCESS_TEAM_DOMAIN = "ghaidakalosh008.cloudflareaccess.com"
+ACCESS_AUD = "8374079e560575a702f7d5015a53b9deb195a4bd4f305cfbcf50c61f6af1db77"
