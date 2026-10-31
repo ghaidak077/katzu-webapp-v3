@@ -662,3 +662,26 @@ first ENV probe) is unchanged below; the ledger keeps the 2026-10-28/29/30 decis
 - **V14 — the owner decided not to rename the four legacy D1 grammar rows, so they stay unreachable by design.** They are not in `SCENARIO_GRAMMAR_IDS` and nothing points at them, which means the reachability test cannot see them (it covers the repo's own content) and they would be the one class of live row that is loadable but untaught. Recorded here as a deliberate exception instead of being encoded as an expectation in a test that would then have to tolerate it.
 - **V13 — no production statement was run to prove the preflight, and the unit tests are the substitute.** A `--commit` run against production would either abort (proving the guard fires, at the cost of a real authenticated session) or, if the guard were wrong, write 89 rows again. So the preflight is proven by pinning it against the *recorded* live column list (`pragma_table_info('grammar')`, 2026-09-29) and the exit contract by pinning it against the *recorded* V12 result shape; the end-to-end firing remains unrun until the next authorized load, which is where it will actually matter.
 - **V12 — no schema change was made, even though the fix is three additive `ALTER TABLE`s.** The prompt authorizes a content load and explicitly no deploy; production DDL is neither, and the V11 lesson is precisely that an agent must not widen its own authority to make a tool work. The commands and the evidence are in OWNER-OPEN so the owner can decide it in one step.
+
+## RESUME history moved 2026-10-31 (greeting wire fix + opener re-ask; moved verbatim out of `docs/AGENT-STATE.md`, nothing rewritten)
+
+- **2026-10-31 — live «hallo» root cause fixed and deployed; the signed-in turn stays the owner's check.**
+  `/ai/turn` read scene text only from `history[].sender` while the app sends `{ role, text }`, so `sceneGerman`
+  stayed empty live and `sceneTopicReAsk` never ran; history is now read by `role` or `sender`, and
+  `tests/turnGuard.test.ts` posts the app's real payload. Evidence: **97 passed**, four-scene probe **44/44**, gate
+  **14/14** (717 s), CI **41180974785** on `e8e722d`; worker `e3f994ef-…` (rollback `808f1553-…`).
+  **UNPROVEN:** the signed-in «hallo» reply.
+
+- **2026-10-31 — a bare «hallo» now returns to the scene's own question (worker deployed).**
+  `cloudflare-turn-guard.js` gained `sceneTopicReAsk`: for a stored opener it re-asks that opener's final
+  sentence with its reviewed Arabic (missing luggage: «Fehlt Ihr Gepäck?» / «Haben Sie Ihren Pass und Ihre
+  Bordkarte dabei?» / «Beschreiben Sie mir bitte kurz, wie Ihr Koffer aussieht …»), and a model-written later
+  turn keeps the fixed level-safe `RE_ASK`. The reviewed map now also ships to the worker as
+  `cloudflare-opener-glosses.generated.js`, emitted by `scripts/build-language-data.mjs`. Router untouched.
+  Rule test pins A0–B2 in `tests/turnGuard.test.ts` (41 passed); `tsc --noEmit` clean; deploy gate
+  **VERIFY OK 14/14** (770.6 s, `--ci --e2e`); CI run **41175396237** green on `4ba4514` (verify,
+  launch-check, secret-scan, e2e). **Deployed** as worker `808f1553-9a1a-4af4-bafd-817c62bbb10e`
+  (deployment `893767d5-6b92-416f-94fa-78e908101923`), rollback `6a6db52d-a581-45b1-94c7-ef5b5e9983ea`;
+  bundle **628.22 → 753.22 KiB** raw, **157.50 → 178.45 KiB** gzip. Post-deploy `/health` + `/crypto/health`
+  green, `/internal/admin/health` and `/admin/api/affiliates` **401**, `/ai/turn` **401** unauth. **UNPROVEN:**
+  the live «hallo» reply — no signed-in Google session, and production has no anonymous turn path.

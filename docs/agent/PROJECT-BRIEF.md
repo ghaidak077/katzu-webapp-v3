@@ -52,45 +52,37 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-31 (the admin panel is live behind Access; first telemetry rows exist)
+## Current snapshot — 2026-10-31 (a later «hallo» re-asks the scene's stored opener; Latin isolated in the card)
 
-**Deployed:** product Worker `6a6db52d-…` (rollback `b33136fa-…`), panel Worker `katzu-admin`
-`e7716e26-…` (rollback `bc7db8cc-…`), Pages `e1db6dde-…` (source `2439e3a`, rollback
-`5b4c2b86-…`) with bundle `assets/index-BHIvDiQs.js` — the correction card's chip and
-explanation are the one learner-visible change in it.
-- **Panel:** a second Worker `admin-worker/` (`katzu-admin`) behind **Cloudflare Access (All traffic)**,
-  reachable to the product only through a Service Binding; **no D1, AI or secret binding**. Unauthenticated
-  `/`, `/api/overview` and `/healthz` all answer **302** to the team login with `kid=8374079e…` matching
-  `ACCESS_AUD`.
-- **Telemetry:** five additive tables (`ai_events`, `route_events`, `conversations`, `conversation_attempts`,
-  `admin_audit`), written only in `ctx.waitUntil`, never read on a request's hot path; router
-  rotation/cooldown/failover untouched. Failures are swallowed by design.
-- **Proven live, by the owner's own session:** **26 authenticated `/internal/admin/*` GETs, all 200**,
-  02:45:38–02:46:11 UTC, which created the tables. Counts then: `route_events` **26**, `ai_events` **0**,
-  `conversations` **0**, `conversation_attempts` **0**, `admin_audit` **0**.
-- **Text is off unless two independent yeses:** the operator switch **and** an explicit per-account KV consent
-  grant. No consent UI exists yet, so the panel stores **metrics only** — counts, ids, outcomes, redacted
-  user-agent, never learner text.
-- **Proof:** 12 Access + 14 panel + 29 telemetry + 26 internal-API tests green; the 26 access/worker tests
-  re-ran green after the deploy; full gate **`VERIFY OK 14/14` in 759.6 s** with the browser suite.
-- **The cron is proven:** a live `wrangler tail` captured the `17 4 * * *` invocation at **04:17:37 UTC** —
-  `outcome: ok`, `[sweep]`, `[sweep:telemetry]` and `[affiliate]` all logged, telemetry counters 0 because the
-  tables were empty — and the 04:20 UTC counts are unchanged. **Owner decisions recorded 2026-10-31:**
-  text stays **off** (no consent UI), retention is **90 days for text / 365 for counters**, and the old
-  `/admin` + `ADMIN_SECRET` **stay live** until the panel is confirmed with real traffic. **Still unproven:**
-  `ai_events` stays 0 until a real AI turn, `route_events` has no learner-traffic row yet (all 26 are panel
-  calls), and the consent path has never stored text. The optional public `/healthz` bypass remains the
-  owner's call; `docs/ADMIN.md` §12, plain language in `docs/agent/OWNER-CHECKLIST.md` §10; backup/rollback
-  in `docs/BACKUP.md`.
-- **Correction card rebuilt and deployed (Pages `e1db6dde-…`, source `2439e3a`):** the note under a learner's
-  message now uses the bubble surface/radius/padding with one success accent (the corrected word + a 2px start
-  edge) instead of an amber outline and 📌; the rule label and the Arabic explanation are derived together from
-  the two visible strings (`halo` → `hallo` reads «Schreibung: Doppel-l», not capitalisation; `HALO` → `Hallo`
-  names the doubled l **and** the case) with the model's wording only as fallback, and long German words wrap at
-  360px instead of clipping. Correction logic, router, `/ai/turn` and the admin panel
-  are untouched. **Proof:** `tests/correctionWording.test.ts` 23 passed, `npm test` 171 files / 2429 tests, gate
-  `VERIFY OK 14/14`, six dark 360×740 before/after shots in `docs/agent/correction-card/`. **Unproven:** the card
-  inside a signed-in session — the owner's §11 check now also asks for «Schreibung: Doppel-l» and no clipping.
+**Deployed:** product Worker **`862087cb-eeef-48c0-8467-d0bd721c35c3`** (deployment `b3c5b2de-…`, source
+`a033b19`, rollback `e3f994ef-…` / `f219d5b3-…`), panel Worker `katzu-admin` `e7716e26-…` (rollback
+`bc7db8cc-…`), Pages **`bc807292-fc48-45bb-b398-ddd3710a8728`** (source `a033b19`, rollback
+`f4c077c6-…`) serving `assets/index-CfqO0tha.js` -> `AppShell-CL4Y31Jk.js` -> `LiveConversationScreen-CllYR611.js`.
+- **Greeting inside a scene:** the guard took its re-ask topic from joined assistant history, which stops matching
+  a stored opener after the first exchange — that is how a later bare `hallo` reached «Wie geht es Ihnen?».
+  `/ai/turn` now passes `sceneOpener`, the scenario's stored opener selected by id + level (`openerForLevel`, the
+  worker twin of `src/lib/conversation/opener.ts`); history still drives only off-topic detection and du/Sie, and
+  the fixed fallback invites more content per level instead of asking about wellbeing.
+- **Correction card:** Latin runs in the card's Arabic are wrapped in `<bdi dir="ltr">`, so «حرف l مضعّف» paints
+  `l`; the model's Arabic quote renders only when no derived chip exists, so it can no longer contradict
+  «Schreibung: Doppel-l». Chip and explanation still come from one classification in `correctionWording.ts`; the
+  note keeps the bubble surface, one success accent and 360px wrapping.
+- **Proof:** `turnGuard` **104** (including a multi-turn `{ role, text }` route test), `openerParity`,
+  `correctionCardRender` **4**, related suites **127**, `tsc` clean, gate **`VERIFY OK 14/14` in 672.6 s** with the
+  browser suite; the three after shots were regenerated at 360×740 in `docs/agent/correction-card/`.
+- **Live after the deploy:** worker `/health` 200 `storage:{d1,kv}`, `/crypto/health` 200 `ready:false`,
+  `/internal/admin/health` and `/admin/api/affiliates` **401**, `POST /ai/turn` and `/ai/lexeme` **401** signed
+  out; `https://katzuai.com` 200 with the new entry hash. Production smoke: **1 passed / 2 skipped / 1 failed** —
+  `workerOriginFromPricing` never saw the app's `/pricing` request within 20 s; the admin-401 it guards was
+  verified directly with curl, and no pricing, paywall or auth code changed in this batch.
+- **Admin panel (unchanged, live):** `katzu-admin` behind Cloudflare Access (All traffic); five additive telemetry
+  tables written only in `ctx.waitUntil`; the owner's own session proved 26 authenticated `/internal/admin/*` GETs
+  (all 200) and the `17 4 * * *` cron fired at 04:17:37 UTC with `outcome: ok`. Owner decisions recorded
+  2026-10-31: text stays **off** until a consent UI exists, retention **90 days text / 365 counters**, the old
+  `/admin` + `ADMIN_SECRET` stay live.
+- **Unproven:** the signed-in scene turn and card (no owner session; `OWNER-CHECKLIST.md` §11 now asks to type
+  `halo`, then `hallo` a few messages later), `ai_events` stays 0 until a real AI turn, and the consent path has
+  never stored text.
 
 ## Previous snapshot — 2026-10-30 (word cards cost zero AI calls, openers are instant, «hallo» gets a re-ask)
 

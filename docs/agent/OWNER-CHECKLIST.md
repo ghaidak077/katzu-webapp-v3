@@ -1,7 +1,6 @@
 # Owner checklist — what needs you, in plain language
 
-Each item is in `docs/AGENT-STATE.md` § OWNER-OPEN, says what "done" looks like, and a test keeps lists
-in step.
+Each item is in `docs/AGENT-STATE.md` § OWNER-OPEN and says what "done" looks like.
 
 ## 1. How a learner pays you — the details only you have (V44-1, 2026-10-28)
 
@@ -88,25 +87,25 @@ LinkedIn / GitHub / X links (§8).
 
 ## 10. The admin panel is live — decided 2026-10-31, nothing for you to do — V46-1
 
-**What it is.** The separate locked admin site sits behind Cloudflare Access and cannot touch the database or
-a key. Your signed-in session already loaded it: 26 panel requests, all successful, five telemetry tables.
+**What it is.** The separate admin site sits behind Cloudflare Access and cannot touch the database or
+a key; your session already loaded it (26 requests, all successful).
 
-**Your decisions.** Text stays **off**; retention is **90 days for text, 365 for counters**; `/admin` and
-`ADMIN_SECRET` stay until real traffic confirms the panel.
+**Your decisions.** Text stays **off**; retention **90 days text, 365 counters**; `/admin` and `ADMIN_SECRET` stay until real traffic confirms the panel.
 
-**Done looks like:** a real learner turn appears in the panel, and you say whether to retire `/admin`.
+**Done looks like:** a real learner turn appears, and you say whether to retire `/admin`.
 
 ## 11. Type «hallo» in one scene — V45 (2026-10-31)
 
-The greeting fix and the correction card are live, but both need a signed-in lesson, so I could not see them.
+The greeting fix and the card are live but need a signed-in lesson, so I could not see them.
 Sign in at `https://katzuai.com`, open **Am Flughafen** (A1), type `halo`: the partner should ask about your
 luggage, and the note under your bubble should say «Schreibung: Doppel-l» with a matching explanation, nothing cut off.
-**Done:** both appear, or send what you saw. Record: `docs/AGENT-STATE.md` UNPROVEN V45.
+**Done:** both appear, or send what you saw. Then keep chatting a few messages and type `hallo`
+again: the partner must stay in the scene and never ask «Wie geht es Ihnen?».
+Record: `docs/AGENT-STATE.md` UNPROVEN V45.
 
 ## Nothing to do — recorded so nobody re-opens them
 
-- **Free lessons are three, once, not three a month — FREE-1, closed 2026-10-28.** `MAX_FREE_AI_SESSIONS = 3`
-  counts once per account; every surface says «في المجموع».
+- **Free lessons are three, once — FREE-1, closed 2026-10-28.** `MAX_FREE_AI_SESSIONS = 3`; every surface says «في المجموع».
 - **Content-load drift check — V15-3.** Run `node scripts/check-content-drift.mjs` after any content change.
 - **Payments stay off for the beta — V18.** `/crypto/health` `ready:false` is correct.
 - **`docs/LAUNCH-CHECKLIST.md` § 2 stays untouched.** Those are your items, unchanged.

@@ -26,6 +26,17 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-31 — a later bare «hallo» re-asks the scene's stored opener; Latin is isolated in the card (worker + Pages live).**
+  Three measured defects: (1) `sceneTopicReAsk` took its topic from joined assistant history, which stops matching a
+  stored opener after the first exchange, so a later `hallo` fell back to «Wie geht es Ihnen?». `/ai/turn` now passes
+  `sceneOpener` = the scenario's stored opener by id + level (`resolveScenarioIdentity().openers` -> `openerForLevel`,
+  the worker twin of `src/lib/conversation/opener.ts`); history still drives only off-topic and du/Sie, and the fixed
+  `RE_ASK` invites more content per level instead of asking about wellbeing. (2) Latin runs in the card's Arabic are
+  wrapped in `<bdi dir="ltr">`, so «حرف l مضعّف» paints `l`. (3) The model quote renders only when no derived chip.
+  Evidence: `turnGuard` **104**, `openerParity`, `correctionCardRender` **4**, related suites **127**, `tsc` clean,
+  gate **VERIFY OK 14/14** (672.6 s); code `a033b19`.
+  **Deployed** worker `862087cb-…` / `b3c5b2de-…` (rollback `e3f994ef-…`) and Pages `bc807292-…` (rollback `f4c077c6-…`);
+  live checks in APP-MAP §9. **UNPROVEN:** the signed-in turn and card (`OWNER-CHECKLIST.md` §11).
 - **2026-10-31 — correction card redesigned; the signed-in view stays the owner's check.**
   The note under a learner's message uses bubble surface/radius/padding, one success accent (corrected word
   + 2px edge), neutral struck «قلت», and a chip plus Arabic explanation derived together from the two
@@ -35,27 +46,6 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   (691 s), six dark shots in `correction-card/`; full record in APP-MAP's change log.
   **Deployed** Pages `e1db6dde-…` (source `2439e3a`, rollback `5b4c2b86-…`); worker untouched.
   **UNPROVEN:** the card inside a signed-in session (`OWNER-CHECKLIST.md` §11).
-- **2026-10-31 — live «hallo» root cause fixed and deployed; the signed-in turn stays the owner's check.**
-  `/ai/turn` read scene text only from `history[].sender` while the app sends `{ role, text }`, so `sceneGerman`
-  stayed empty live and `sceneTopicReAsk` never ran; history is now read by `role` or `sender`, and
-  `tests/turnGuard.test.ts` posts the app's real payload. Evidence: **97 passed**, four-scene probe **44/44**, gate
-  **14/14** (717 s), CI **41180974785** on `e8e722d`; worker `e3f994ef-…` (rollback `808f1553-…`).
-  **UNPROVEN:** the signed-in «hallo» reply.
-
-- **2026-10-31 — a bare «hallo» now returns to the scene's own question (worker deployed).**
-  `cloudflare-turn-guard.js` gained `sceneTopicReAsk`: for a stored opener it re-asks that opener's final
-  sentence with its reviewed Arabic (missing luggage: «Fehlt Ihr Gepäck?» / «Haben Sie Ihren Pass und Ihre
-  Bordkarte dabei?» / «Beschreiben Sie mir bitte kurz, wie Ihr Koffer aussieht …»), and a model-written later
-  turn keeps the fixed level-safe `RE_ASK`. The reviewed map now also ships to the worker as
-  `cloudflare-opener-glosses.generated.js`, emitted by `scripts/build-language-data.mjs`. Router untouched.
-  Rule test pins A0–B2 in `tests/turnGuard.test.ts` (41 passed); `tsc --noEmit` clean; deploy gate
-  **VERIFY OK 14/14** (770.6 s, `--ci --e2e`); CI run **41175396237** green on `4ba4514` (verify,
-  launch-check, secret-scan, e2e). **Deployed** as worker `808f1553-9a1a-4af4-bafd-817c62bbb10e`
-  (deployment `893767d5-6b92-416f-94fa-78e908101923`), rollback `6a6db52d-a581-45b1-94c7-ef5b5e9983ea`;
-  bundle **628.22 → 753.22 KiB** raw, **157.50 → 178.45 KiB** gzip. Post-deploy `/health` + `/crypto/health`
-  green, `/internal/admin/health` and `/admin/api/affiliates` **401**, `/ai/turn` **401** unauth. **UNPROVEN:**
-  the live «hallo» reply — no signed-in Google session, and production has no anonymous turn path.
-
 - **2026-10-31 — the admin panel is live behind Cloudflare Access with real telemetry, and the owner has
   signed off the remaining choices.** At the panel deploy the Product Worker `katzu-test` was on version
   **`6a6db52d-a581-45b1-94c7-ef5b5e9983ea`** (deployment `d41b8616-4dac-48ef-a424-04109500846a`, source `053d882`,
@@ -211,41 +201,22 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`e3f994ef-5524-44ef-95b9-f0fde2923baa`** (100%, deployed 2026-10-31 as deployment
-  `f219d5b3-1ce4-4a3d-ad18-79e3023e8534`, source `e8e722d`) — reads scene text by `role` or `sender`
-  (the app's `{ role, text }` wire shape) and tolerates greeting typos/variants, on top of observer-only
-  telemetry and the token-gated `/internal/admin/*`; the immediate rollback is
-  `808f1553-9a1a-4af4-bafd-817c62bbb10e` (source `4ba4514`). Live: `/health` 200 `storage:{d1,kv}`;
-  `/crypto/health` `ready:false`; `GET /internal/admin/health` and `/overview` **401** with no header **and**
-  with a bogus bearer; `POST /ai/lexeme` **401**; `GET /admin/api/affiliates` **401**; `POST /ai/turn` **401**
-  with a valid body and no token. The five telemetry tables exist in production D1 and `route_events` has
-  **26** authenticated `200` rows from the owner's panel session
-  (02:45:38–02:46:11 UTC); `ai_events` is **0** until a real AI turn. The `17 4 * * *` cron fired at
-  **04:17:37 UTC** (`wrangler tail`: `outcome: ok`, `[sweep] {"rate_limit_counters":7,"error_reports":0}`,
-  `[sweep:telemetry]` all zeros, `[affiliate] {"approved":0}`), and the post-run counts at 04:20 UTC are
-  unchanged (26 / 0 / 0 / 0 / 0).
-  **Rollback target: `b33136fa-dd5d-45b5-bad5-fabbbfbdca72`** (deployment `b23b5534-29c8-4ecb-8986-33e95da356ef`,
-  the 2026-10-30 lexeme batch), then `4d20d59e-562a-43f3-a4e2-00a99da8a507`, then
-  `6860fa2f-bfca-44d7-8fc3-870a87aec926` (`e9aa028`): `POST /affiliate/me` (401 signed out; it answered
-  **404 `{"error":"not_found"}`** on the version before it), `/affiliate/ref`, the six owner-only
-  `/admin/api/affiliates` routes and cron `17 4 * * *`
-  (that deploy printed `Deployed katzu-test triggers … schedule: 17 4 * * *`). Live after it:
-  `/health` 200 `storage:{d1,kv}` ok; `POST /affiliate/me` **401**; `POST /affiliate/ref`
-  **404 `unknown_code`** on `ZZTEST01` and **400 `malformed_code`** on `!!!`; `GET
-  /admin/api/affiliates` and `/commissions` **401**. The `unknown_code` (never `503`) proves the
-  `SELECT status FROM affiliates …` ran, so the three AFFILIATE_TABLES exist in production D1 —
-  `migrations/0003_affiliate_tables.sql` needs no runner because `ensureLedgerTables` applies it
-  idempotently on the first request. Before it: `998873c6-d773-4bb5-9ec5-2c548e550b0f` (the partner
-  ledger, `4870d39`), then
-  `f0b5fa01-b4a2-449c-b470-e770721487eb` (the founding-price table, `80c6b9a`), then the audit #7 limiter
-  `6f5ba883-6730-43d2-b8cd-9c275b298fee` (2026-10-28), then
-  `e1a9a2ca-e919-43e2-baba-28a52bddd1cd` (V43.4, `4b33d70`),
-  `b2119bfb-68cb-49bb-8639-82d4583eda28` (V43.3, `1ba9abd`),
-  `5193b4e9-9653-46b1-9d3d-164e92d0da5a` (V43.2, `3358165`),
-  `d07b8701-2176-45b4-9807-fa490f469e29` (the same fix at `95f21f7`),
-  `31149c92-001f-4c61-8603-80b39c42662f` (live before this run; a secret-only deployment),
-  `66bd8b92-8db6-452d-ad99-88685cab0956` (the V42 merge-deploy) and
-  `56425f30-c67f-45ea-ace7-a9c4e9b47dd7` (2026-10-12), then the ids in the superseded snapshots below.
+  **`862087cb-eeef-48c0-8467-d0bd721c35c3`** (100%, deployment `b3c5b2de-2314-488e-aa95-8cc2853b1d27`,
+  2026-10-31T11:26Z, source `a033b19`) — the scene greeting guard now re-asks the scenario's **stored** opener by id +
+  level (`sceneOpener` -> `openerForLevel`) and reads history by `role` or `sender` only for off-topic and du/Sie, on
+  top of observer-only telemetry and the token-gated `/internal/admin/*`. Live: `/health` 200 `storage:{d1,kv}`;
+  `/crypto/health` 200 `ready:false`; `GET /internal/admin/health` and `/admin/api/affiliates` **401**;
+  `POST /ai/turn` and `/ai/lexeme` **401** with a valid body and no token. The five telemetry tables exist and
+  `route_events` held **26** owner-session rows at 02:46 UTC (`ai_events` 0 until a real AI turn); the `17 4 * * *`
+  cron fired at **04:17:37 UTC** with `outcome: ok`.
+  **Rollback target: `e3f994ef-5524-44ef-95b9-f0fde2923baa`** (deployment `f219d5b3-1ce4-4a3d-ad18-79e3023e8534`,
+  source `e8e722d`, the wire fix), then `808f1553-9a1a-4af4-bafd-817c62bbb10e` (source `4ba4514`), then
+  `6a6db52d-a581-45b1-94c7-ef5b5e9983ea` (source `053d882`), then `b33136fa-dd5d-45b5-bad5-fabbbfbdca72` (source `73dad45`),
+  then `4d20d59e-562a-43f3-a4e2-00a99da8a507`, then `6860fa2f-bfca-44d7-8fc3-870a87aec926` (`e9aa028`), then
+  `998873c6-d773-4bb5-9ec5-2c548e550b0f` (`4870d39`), then `f0b5fa01-b4a2-449c-b470-e770721487eb` (`80c6b9a`),
+  then `6f5ba883-6730-43d2-b8cd-9c275b298fee`, then `e1a9a2ca-e919-43e2-baba-28a52bddd1cd` (`4b33d70`), then
+  `b2119bfb-68cb-49bb-8639-82d4583eda28`, then `5193b4e9-9653-46b1-9d3d-164e92d0da5a`, then the older ids in
+  APP-MAP §9.
 - **Admin panel Worker `katzu-admin` (2026-10-31, Access-enabled deployment):** deployment
   **`02:11:40Z`**, version **`e7716e26-f3b4-478e-8097-106481a3369e`** (100%),
   `https://katzu-admin.ghaidakalosh008.workers.dev`. Bindings: `USER_PROGRESS` KV (token only), `KATZU_API`
@@ -254,33 +225,16 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   (`kid=8374079e…`); the Worker is fail-closed 401 if a request ever reaches it without a valid JWT.
   **Rollback target: `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16`** (deployment
   `3692c953-321d-4732-b883-cb9258cf0719`), or delete the Worker; nothing else depends on it.
-- **App Pages production (2026-10-31, source `d920829`):** deployment
-  **`203a5983-e334-45b9-a530-ba856055288c`** — the docs push rebuilt the app and changed nothing a learner
-  sees: the bundle is byte-identical (`assets/index-uXgW2nvR.js`, same as `40b04fb7`, `d150eea2` and
-  `e948f1dc`). The `/` at `katzuai.com` and the deployment URL both answer **200**.
-  **Rollback target: `40b04fb7-dc48-4263-9f1f-e8e2a020fa64`** (source `053d882`), then
-  `39d0c289-0ce9-41ad-ae99-e886b617c48c` (source `0b53942`), then
-  `d150eea2-9af3-4984-bb00-70b3c181141e` (source `5a8c7d5`), then the batch's own code
-  **`e948f1dc-40fd-4a6a-b6df-1c8efac1297b`** (source `51bf25b`):
-  pre-computed scenario openers with Arabic, `/ai/lexeme` word cards and the bare-greeting guard, with
-  `assets/index-uXgW2nvR.js` + `assets/AppShell-YyNXn82n.js` both carrying `/ai/lexeme`,
-  `katzu_lexeme_cache_v1` and `__kzAiCalls`. Before those: `183636fd-ac65-4cfe-a8f2-6ac42b89c085` (source
-  `0424ef3`), then `e58871a2-078d-4d6e-b6e5-591c1ce7c736` (source `2c5faff`), then
-  `b5ab2a14-9a08-4084-9904-c202e06f8fb9` (source `4ba7b4b`) — the site-fix push rebuilt the app and
-  **changed nothing in the bundle** (`assets/index-DZbiK2cC.js`, identical to the two before it), then
-  `f1bccd5f-0da7-4049-ac7a-b990e38e9edb` (source `9032c46`) — same bundle as `ee86640`, a docs-only push.
-  `vite build` emits `robots.txt` (ten crawlers, only `/admin/ /api/ /private/` disallowed, `Sitemap:` from the
-  same origin) and a **root-only** `sitemap.xml`, and the shell carries `lang="ar"`, one canonical and
-  `hreflang` ar + x-default. Live: `/sitemap.xml` 200 (one `<loc>`), `/robots.txt` 200 with our groups, `/` 200
-  with the head links. The project builds from git, so **every** push
-  to `main` mints a new id — never quote one without reading
-  `wrangler pages deployment list --project-name=katzu-webapp-v3` first.
-  **Rollback target: `183636fd-ac65-4cfe-a8f2-6ac42b89c085`** (source `0424ef3`), then
-  `e58871a2-078d-4d6e-b6e5-591c1ce7c736` (source `2c5faff`), then
-  `7754239c-0a66-4908-a4b2-bfadcd4f5a8f` (source `f7da7e5`, same bundle), then
-  `f1bccd5f-0da7-4049-ac7a-b990e38e9edb` (source `9032c46`), then `6b97992e-1d16-4198-82fd-98917a824829` (`945e7fd`, pre-batch), then
-  `8c6a1c59-123b-4fca-9e89-b1ef2c7865c2` (`691a4a9`), then
-  `b0be8a57-e9af-4cb6-9c4f-1d38e37e1a2c` (`d786bd0`).
+- **App Pages production (2026-10-31, source `a033b19`):** deployment
+  **`bc807292-fc48-45bb-b398-ddd3710a8728`** — entry `assets/index-CfqO0tha.js`, `assets/AppShell-CL4Y31Jk.js`,
+  lazy `LiveConversationScreen-CllYR611.js` (183,935 B) carrying the `<bdi dir="ltr">` wrapper and the derived
+  `Schreibung: Doppel-` chip; `https://katzuai.com` 200 with that hash. **Rollback target:
+  `f4c077c6-e339-4996-b155-3c678498dc39`** (source `aa6635d`, docs-only), then `e1db6dde-f870-487b-915a-ef809c43b070`
+  (source `2439e3a`, the correction-explanation build), then `5b4c2b86-338a-4ad6-b25f-fb54e1de8fb9` (`58a16f5`), then
+  `c69c1ca4-9a49-44f6-9034-5200992cd3f4` (`5d04a51`). The project builds from git, so **every** push to `main` mints a
+  new id — never quote one without reading `wrangler pages deployment list --project-name=katzu-webapp-v3` first.
+  (Older ids in APP-MAP §9; `vite build` emits `robots.txt` and a root-only `sitemap.xml`, shell `lang="ar"`,
+  canonical and `hreflang` ar/x-default.)
 - **Site Pages production (2026-10-30, direct upload of `website/`):** `katzu-landing` deployment
   **`361b0125-a220-4ab9-8e6b-b94f0e0479a9`** (branch `main`, source `4ba7b4b`, uploaded from inside
   `website/` so the Functions bundle shipped) — the home `h1` whitespace, the home title and the heading-fusion guard: `bg-mobile.mp4` 1.44 MB
@@ -367,6 +321,7 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | V11-2. Load module2 → refused with 401; value shape diagnosed; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v11-load-module2.log 2>&1`: the draft validated locally (5 scenarios / 49 vocabulary / 42 phrases / 4 grammar, review approved), then **the first authenticated read failed — `✘ could not list vocabulary (HTTP 401): {"error":"unauthorized"}`** at `scripts/load-curriculum.mjs:70`. The log carries **zero** `Bearer`/`Authorization` occurrences (the credential was never echoed), the log never reaches a write phase (`Writing …` / `to write` are absent), and **nothing was written to production D1**. **Root cause, established structurally without ever printing the value:** the environment variable is **66 characters** of which exactly **64 are lowercase hex** — chars 2–65 match `^[0-9a-f]{64}$` — with first char `U+003C` (`<`) and last `U+003E` (`>`); i.e. the placeholder form `<secret>` was pasted *with its angle brackets*, so the loader sent `Authorization: Bearer <hex>`. **Nothing was re-encoded, trimmed or re-derived:** §3 reserves secret handling to the owner, so this is an owner-side fix. **Post-attempt state re-verified unchanged:** counts still **5 / 114 / 20 / 4**, the new scenario ids still absent, and `/scenarios`, `/vocabulary`, `/grammar` all **200**. The backup from V11-1 is still valid and still unused; no rollback was needed because no write was attempted. |
 | V12-2. Load module2 → grammar batch `HTTP 500` on a live schema gap; 89 inserted rows rolled back; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v12-load-module2.log 2>&1` → **exit 0**, 29 log lines, **`grep -c -E 'Bearer\|Authorization'` = 0** (run before anything was shown; the credential never reached the log). **Three of the four batches wrote, the fourth could not:** `scenarios ✔ HTTP 200 count 5`, `vocabulary ✔ 200 count 42` (7 of 49 rows skipped as already present), `starter_phrases ✔ 200 count 42`, and **`✘ grammar batch 1 failed (HTTP 500): {"error":"admin_route_failed","message":"D1_ERROR: table grammar has no column named rule_de: SQLITE_ERROR"}`** — **0 grammar rows written**. The loader then printed `DONE — 89 row(s) written.` and **exited 0**, because its verification loop covers scenarios and vocabulary topics only and never consults the per-batch statuses, so a failed batch is invisible in its exit code (recorded in `LESSONS.md`). **Rollback, exact, driven by the backup rather than by arithmetic on counts:** the pre-load export contains the two tables' `sqlite_sequence` rows (`vocabulary = 135`, `starter_phrases = 20`) and both are `INTEGER PRIMARY KEY AUTOINCREMENT`, so the new rows are provably `vocabulary id > 135` (42 rows, 136–177) and `starter_phrases id > 20` (42 rows, 21–62) — an id above the pre-load sequence cannot be a pre-existing row. `DELETE FROM starter_phrases WHERE id > 20; DELETE FROM vocabulary WHERE id > 135; DELETE FROM scenarios WHERE id IN ('airport_arrival','train_station','bakery_shopping','landlord_followup','friend_catchup');` → `changes` **42 / 42 / 5 = 89**, exactly the 89 the loader reported. **Both states measured:** post-attempt **10 scenarios / 156 vocabulary / 62 starter_phrases / 4 grammar**; post-rollback **5 / 114 / 20 / 4** with `MAX(vocabulary.id) = 135`, `MAX(starter_phrases.id) = 20`, 0 rows for the 5 new scenario ids and 0 `g_%` grammar ids; live scenario ids back to `apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview` and live grammar to `akkusativ_articles, dativ_prepositions, konjunktiv_ii, perfekt_tense`. **Three sampled old rows match the backup exactly:** vocabulary 22 `Reisepass`/`documents`/`جواز سفر`, 77 `Allergie`/`food`/`حساسية`, 135 `Wohnungsamt`/`housing`/`مكتب الإسكان`, and starter_phrase 1 = `embassy_appointment` "Ich habe einen Termin.". **Public endpoints back to normal:** `/scenarios` 5 rows containing **none** of the new ids, `/vocabulary` 114, `/grammar` 4, `/health` unchanged (`{status, service, ready, maintenance:false}`). **Root cause (read-only, proven twice):** the live `grammar` table is `id, level, title_ar, title_en, explanation_ar, explanation_en, example_de` (`SELECT GROUP_CONCAT(name) FROM pragma_table_info('grammar')`), while the draft row keys, `src/lib/content/curriculumAudit.ts:49`, `src/types/models.ts:89`, the Worker's own `resolvePracticeGrammar` (`cloudflare-unified-worker.js:1211`) and `docs/PRODUCT-SPEC.md:1021` all assume `id, title_ar, rule_de, rule_ar, level, explanation_ar, example_de, example_ar`. `handleAdminUpload` (`cloudflare-unified-worker.js:3053`) builds `INSERT INTO grammar (…)` from **the row's own keys**, so `rule_de` is sent to a table that has no such column; `SELECT id, rule_de FROM grammar LIMIT 1` fails with D1 error **7500** as the independent proof. **Deeper cause:** none of the four content tables' DDL exists anywhere in the repo (`git grep -n "CREATE TABLE.*grammar\|CREATE TABLE.*vocabulary\|CREATE TABLE.*scenarios\|CREATE TABLE.*starter_phrases"` → 0 hits; only the ledger tables are created by the Worker), so the live content schema is unversioned and has drifted — and the local dry-run cannot see it because it never touches the network, while the audit validates the draft against the *documented* field list. **Two production consequences beyond this load:** (a) `resolvePracticeGrammar` selects three columns the live table lacks and swallows the error in a `try/catch` that returns `null`, so the B2 grammar-reference link can never resolve in production; (b) the live grammar ids are `akkusativ_articles`-style while `SCENARIO_GRAMMAR_IDS` and the offline seed use `g_*`, so even with the columns added the five original scenarios would still have no matching D1 row. **Stopped:** module1's ten grammar rows carry the same `rule_de` field, so it was deliberately **not attempted** (rollback → mark blocked → stop). Owner fix is one additive DDL with no data loss, written into OWNER-OPEN; no deploy, no push, no further write. |
 | V46-1. Admin panel + telemetry (phases 1–4) | blocked | **Deployed 2026-10-31; the panel is live behind Access and has real telemetry.** `cloudflare-telemetry.js` (five additive tables, `ctx.waitUntil` writers, redaction, 90/365-day sweep, master switch off), `cloudflare-admin-api.js` (deny-before-route 401, constant-time KV token, 120/min, audit, users/content/alerts/errors/conversations/export/delete), observer-only router hook, `admin-worker/` (Access JWT verification, `/api/*` → Service Binding, no D1/key binding). Tests: 12 access + 14 panel + 29 telemetry + 26 internal API, all green; `VERIFY OK 14/14` in 759.6 s with e2e; the 26 access/worker tests re-ran green after deploy. **Live:** worker `808f1553-…` (the panel deploy was `6a6db52d-…`, rollback `b33136fa-…`), `katzu-admin` `e7716e26-…` (rollback `bc7db8cc-…`) with Access **302** and matching `kid` on `/`, `/api/overview`, `/healthz`; owner session wrote **26** `route_events` 200s (02:45:38–02:46:11 UTC) and created the five tables. Counts: route_events 26, ai_events 0, conversations 0, conversation_attempts 0, admin_audit 0; the `17 4 * * *` cron was captured live at **04:17:37 UTC** (`outcome: ok`, `[sweep]` + `[sweep:telemetry]` logged) and the 04:20 UTC counts are unchanged. Pages `203a5983-…` same bundle. **Blocked on the owner's consent-UI/retention decisions; nothing else is unproven.** `docs/ADMIN.md`, `docs/BACKUP.md`. |
+| SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
 
 ## DECISIONS
