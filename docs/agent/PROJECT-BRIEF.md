@@ -55,8 +55,9 @@ production data was touched by that vetting run.
 ## Current snapshot — 2026-10-31 (the admin panel is live behind Access; first telemetry rows exist)
 
 **Deployed:** product Worker `6a6db52d-…` (rollback `b33136fa-…`), panel Worker `katzu-admin`
-`e7716e26-…` (rollback `bc7db8cc-…`), Pages `203a5983-…` with the unchanged learner bundle
-`assets/index-uXgW2nvR.js`. No learner-visible behaviour changed.
+`e7716e26-…` (rollback `bc7db8cc-…`), Pages `c69c1ca4-…` (source `5d04a51`, rollback
+`73b9768b-…`) with bundle `assets/index-Jlt9cfAM.js` — the correction card is the one
+learner-visible change in it.
 - **Panel:** a second Worker `admin-worker/` (`katzu-admin`) behind **Cloudflare Access (All traffic)**,
   reachable to the product only through a Service Binding; **no D1, AI or secret binding**. Unauthenticated
   `/`, `/api/overview` and `/healthz` all answer **302** to the team login with `kid=8374079e…` matching
@@ -81,7 +82,7 @@ production data was touched by that vetting run.
   calls), and the consent path has never stored text. The optional public `/healthz` bypass remains the
   owner's call; `docs/ADMIN.md` §12, plain language in `docs/agent/OWNER-CHECKLIST.md` §10; backup/rollback
   in `docs/BACKUP.md`.
-- **Correction card rebuilt (local batch, Pages deploy is this run's last step):** the note under a learner's
+- **Correction card rebuilt and deployed (Pages `c69c1ca4-…`, source `5d04a51`):** the note under a learner's
   message now uses the bubble surface/radius/padding with one success accent (the corrected word + a 2px start
   edge) instead of an amber outline and 📌; the rule label is derived from the two visible strings
   (`halo` → `hallo` reads «Schreibung: Doppel-l», not capitalisation) with the model's rule only as fallback, and

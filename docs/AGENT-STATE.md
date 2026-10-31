@@ -32,6 +32,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   (`halo` → `hallo` = «Schreibung: Doppel-l»; model rule only as fallback), wrapping at 360px without clipping.
   Evidence: `tests/correctionWording.test.ts` **10 passed**, `npm test` **171 files / 2429**, gate **14/14**
   (691 s), six dark shots in `docs/agent/correction-card/`; full record in the APP-MAP change log.
+  **Deployed** Pages `c69c1ca4-…` (source `5d04a51`, rollback `73b9768b-…`); worker untouched.
   **UNPROVEN:** the card inside a signed-in session (`OWNER-CHECKLIST.md` §11).
 - **2026-10-31 — live «hallo» root cause fixed and deployed; the signed-in turn stays the owner's check.**
   `/ai/turn` read scene text only from `history[].sender` while the app sends `{ role, text }`, so `sceneGerman`
