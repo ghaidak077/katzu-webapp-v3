@@ -93,7 +93,7 @@ export async function getOrCreateInternalToken(env) {
  * here, so the browser never learns the internal route name; the token is added
  * here, so it never reaches the browser.
  */
-export async function proxyToApi(request, env, url) {
+export async function proxyToApi(request, env, url, actor) {
   const suffix = url.pathname.slice("/api".length);
   // `/api/overview` -> `/internal/admin/overview`; the internal prefix lives in
   // exactly one place, the product Worker's contract.
@@ -104,6 +104,11 @@ export async function proxyToApi(request, env, url) {
   const headers = new Headers();
   headers.set("authorization", `Bearer ${token}`);
   headers.set("accept", "application/json");
+  // The Access-verified operator, for the content audit trail. It is a claim
+  // from a signed token, not browser input, and the internal API only treats it
+  // as a label next to the values it already trusts.
+  const who = String(actor || "").trim().slice(0, 120);
+  if (who) headers.set("x-admin-actor", who);
   const contentType = request.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType.slice(0, 120));
 
@@ -178,7 +183,10 @@ export default {
     }
 
     const isApi = url.pathname === "/api" || url.pathname.startsWith("/api/");
-    if (isApi) return proxyToApi(request, env, url);
+    if (isApi) {
+      const actor = String(checked.payload?.email || checked.payload?.sub || "");
+      return proxyToApi(request, env, url, actor);
+    }
 
     if (!env?.ASSETS?.fetch) return json({ error: "assets_unavailable" }, 503);
     const asset = await env.ASSETS.fetch(request);

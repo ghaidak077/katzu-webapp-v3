@@ -75,14 +75,21 @@ production data was touched by that vetting run.
   out; `https://katzuai.com` 200 with the new entry hash. Production smoke: **1 passed / 2 skipped / 1 failed** —
   `workerOriginFromPricing` never saw the app's `/pricing` request within 20 s; the admin-401 it guards was
   verified directly with curl, and no pricing, paywall or auth code changed in this batch.
-- **Admin panel (unchanged, live):** `katzu-admin` behind Cloudflare Access (All traffic); five additive telemetry
+- **Admin content studio (new, deployed with this batch):** `katzu-admin` can now list/search/filter content, edit it as
+  a **draft**, see a field diff, publish explicitly or discard, duplicate a row, soft-delete it to `content_trash` and
+  restore the exact row (rowid included), undo the last publish/delete/restore from `content_audit`, dry-run then apply
+  CSV/JSON imports as drafts, export JSON/CSV, and keep a dated backup of all four content tables before the first
+  write of each UTC day. Bundled openers/glosses are read-only: the panel stores proofreading flags/notes/corrected
+  Arabic and exports a corrections file for the build. Five additive tables; **no learner table or query changed**, and
+  the old `/admin` stays live. Proof: `adminContentManagement` **51** + `adminPanelContentUi`, gate green.
+- **Admin panel (live):** `katzu-admin` behind Cloudflare Access (All traffic); five additive telemetry
   tables written only in `ctx.waitUntil`; the owner's own session proved 26 authenticated `/internal/admin/*` GETs
   (all 200) and the `17 4 * * *` cron fired at 04:17:37 UTC with `outcome: ok`. Owner decisions recorded
   2026-10-31: text stays **off** until a consent UI exists, retention **90 days text / 365 counters**, the old
   `/admin` + `ADMIN_SECRET` stay live.
 - **Unproven:** the signed-in scene turn and card (no owner session; `OWNER-CHECKLIST.md` §11 now asks to type
-  `halo`, then `hallo` a few messages later), `ai_events` stays 0 until a real AI turn, and the consent path has
-  never stored text.
+  `halo`, then `hallo` a few messages later), `ai_events` stays 0 until a real AI turn, the consent path has
+  never stored text, and the content studio's D1 behaviour (backup bookmark, atomicity) is proven on `FakeD1` only.
 
 ## Previous snapshot — 2026-10-30 (word cards cost zero AI calls, openers are instant, «hallo» gets a re-ask)
 

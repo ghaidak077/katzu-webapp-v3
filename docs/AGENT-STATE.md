@@ -26,6 +26,15 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-31 — content management reaches the new panel without touching a learner table (worker + panel deployed).**
+  `cloudflare-content-admin.js` adds five additive tables (`content_drafts`, `content_audit`, `content_trash`,
+  `content_backups`, `content_reviews`) and `/internal/admin/content/*`: list/search/filter; draft → publish
+  (re-validated, field diff) or discard; duplicate; soft delete/restore with the exact rowid; one-click undo from the
+  stored before-state (NULLs preserved); CSV/JSON import that dry-runs first and applies **drafts only**; export; a
+  dated snapshot + D1 bookmark before the first write of each UTC day; and bundled opener/gloss review notes + a
+  corrections export (223/892 entries, generated read-only). Evidence: `adminContentManagement` **51**,
+  `adminPanelContentUi`, `agentDocs` **33**, gate `VERIFY OK`; old `/admin` untouched. Ids: `docs/ADMIN.md` §10.
+  **UNPROVEN:** real-D1 atomicity/bookmark (FakeD1 only) and the live panel session (owner's).
 - **2026-10-31 — a later bare «hallo» re-asks the scene's stored opener; Latin is isolated in the card (worker + Pages live).**
   Three measured defects: (1) `sceneTopicReAsk` took its topic from joined assistant history, which stops matching a
   stored opener after the first exchange, so a later `hallo` fell back to «Wie geht es Ihnen?». `/ai/turn` now passes
@@ -158,6 +167,12 @@ grant that nothing sets yet, so the shipped behaviour is metrics only. What rema
 owner's decision on a consent control and the 90-day policy text, plus confirmation of retention and
 whether to retire the old `/admin` (OWNER-OPEN V46-1). The `17 4 * * *` cron was observed running on
 2026-10-31 04:17:37 UTC.
+
+**V46 content studio — the owner can now edit content in the panel, and a learner only ever sees a published row
+(2026-10-31, deployed).** Drafts, diff, explicit publish, soft delete with exact restore, one-click undo, dry-run
+import, export, dated backup and bundled-content review notes sit behind the same Access + internal-token door; no
+learner table or query changed, and the old `/admin` stays live. What remains is the owner exercising it with real
+traffic (OWNER-OPEN V46-1) and the D1-only proof a fake cannot give (§UNPROVEN).
 
 **V45 — the conversation surface stops paying for what it already knows (2026-10-30, deployed).** Openers are
 pre-computed German + Arabic, word cards read the shipped glossary first and spend at most one `/ai/lexeme` call
@@ -433,6 +448,13 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   turn), and `route_events` has no learner-traffic row — all 26 are panel-admin calls. **Conversation text is
   deliberately inert** (no consent UI), so its redaction and 90-day scrub branches have never acted on a row.
   The agent did not sign in as the owner and must not; `/healthz` is no longer publicly probeable.
+- **V46 content studio (2026-10-31) — the rules are proven on a D1 double; production has not run one content write.**
+  `tests/adminContentManagement.test.ts` **51** go through the real token, rate limit and dispatch over `FakeD1`:
+  draft invisibility, exact undo/restore (rowid and NULLs), dry-run no-op, one backup per UTC day, CSV round-trip,
+  one draft per row on repeat saves. A fake proves the code path, not D1 itself: no JOINs, no real `TEXT PRIMARY KEY`
+  or constraint behaviour, no atomicity, and `captureBookmark` returns `""` when `withSession` is absent, so the Time
+  Travel bookmark is only code-path tested. The panel is checked structurally (`adminPanelContentUi`: no `innerHTML`,
+  every control wired) and not rendered in a browser. The owner's live session and first real publish prove the rest.
 - **GEO-1 (2026-10-29) — crawlability is verified; being cited is not.** `robots.txt`, sitemap and JSON-LD
   are machine-checked live, but nobody has asked the 30 Arabic panel yet, so there is **zero** evidence that
   any assistant mentions or cites Katzu, and `/llms.txt` has no published effect. Measured instead: Cloudflare

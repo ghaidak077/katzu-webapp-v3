@@ -28,6 +28,10 @@ import {
   CONVERSATION_RETENTION_DAYS,
   EVENT_RETENTION_DAYS,
 } from "./cloudflare-telemetry.js";
+import {
+  ensureContentAdminTables,
+  handleContentAdminRequest,
+} from "./cloudflare-content-admin.js";
 
 export const INTERNAL_ADMIN_PREFIX = "/internal/admin";
 export const INTERNAL_TOKEN_KV_KEY = "internal:admin-token";
@@ -627,6 +631,18 @@ export async function handleInternalAdminRoutes(url, request, env, cors, ctx, de
     if (segments[0] === "content" && segments.length === 1) {
       if (method !== "GET") return json({ error: "method_not_allowed" }, 405);
       return json(await handleContent(env), 200);
+    }
+    if (segments[0] === "content" && segments.length >= 2) {
+      const actor = String(request.headers.get("x-admin-actor") || "").trim().slice(0, 120);
+      const response = await handleContentAdminRequest(segments.slice(1), {
+        method,
+        url,
+        request,
+        env,
+        ctx,
+        actor,
+      });
+      return response || json({ error: "not_found" }, 404);
     }
     if (segments[0] === "conversations" && segments.length === 1) {
       if (method !== "GET") return json({ error: "method_not_allowed" }, 405);

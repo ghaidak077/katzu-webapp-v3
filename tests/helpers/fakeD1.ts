@@ -154,10 +154,22 @@ export class FakeD1 {
     }
 
     const data: Row = {};
+    let explicitRowid: number | null = null;
     columns.forEach((column, index) => {
+      if (column === "rowid") {
+        const value = Number(bound[index]);
+        if (Number.isInteger(value) && value > 0) explicitRowid = value;
+        return;
+      }
       data[column] = bound[index];
     });
-    target.push({ rowid: this.nextRowId(name), data });
+    if (explicitRowid !== null) {
+      if (target.some((entry) => entry.rowid === explicitRowid)) {
+        throw new Error("UNIQUE constraint failed: rowid");
+      }
+      this.counters[name] = Math.max(this.counters[name] ?? 0, explicitRowid);
+    }
+    target.push({ rowid: explicitRowid ?? this.nextRowId(name), data });
     return { results: [], changes: 1 };
   }
 

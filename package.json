@@ -17,6 +17,7 @@
     "design:audit": "node scripts/design-audit.mjs",
     "design:contrast": "node scripts/contrast-check.mjs",
     "design": "npm run design:audit && npm run design:contrast",
+    "build:bundled-content": "node scripts/build-bundled-content.mjs",
     "check:launch": "node scripts/check-launch.mjs",
     "make:share-image": "node scripts/make-share-image.mjs",
     "scan:secrets": "node scripts/scan-secrets.mjs",

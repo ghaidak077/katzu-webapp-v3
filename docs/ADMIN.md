@@ -21,6 +21,42 @@ authenticated panel read. The rollback and backup record is `docs/BACKUP.md`.
 The old embedded `/admin` page and `ADMIN_SECRET` are untouched. They stay until the new panel is
 verified live and the owner says to retire them.
 
+## 1a. Content management parity (2026-10-31)
+
+**Where content lives — the split the panel must not blur.**
+
+| Store | Content | How a change reaches a learner |
+|---|---|---|
+| D1 `katzu-content` (binding `DB`) | `scenarios`, `vocabulary`, `grammar`, `starter_phrases` | Live on the next read. The Worker reads these tables directly; there is no cache to bust. |
+| App bundle (built from `src/`) | 223 opener Arabic glosses, 892 word glosses, curriculum lessons and scenarios list, `scenarioGrammar` map, trust/legal copy | Rebuild + redeploy of the Pages bundle. No panel can edit these "live". |
+| Panel-only static asset | `admin-worker/public/bundled-content.json` (generated snapshot of the two gloss files) | Read-only view. Editing it in the panel writes **review notes** to D1, never the bundle. |
+
+`curriculum_lessons` is counted by the old `/admin` and by the new panel's counts, but **no editor
+exists in either panel** — lessons ship inside the app bundle. Treat it as bundled content.
+
+**Old `/admin` → new `katzu-admin` parity.**
+
+| Feature | Old `/admin` | New panel (this batch) | Plan |
+|---|---|---|---|
+| List rows per type | Yes — paged, server search, level/topic/sort | Yes — search, level, scenario, status; server filters, JS merge of drafts | Parity, no sort control yet |
+| Create | Yes (`/admin/api/content-create`) | Yes — as a **draft**, explicit Publish | Improved |
+| Edit | Yes (`content-update`, rowid/id keyed) | Yes — draft + diff + Publish | Improved |
+| Delete | Yes, hard delete, no undo | Yes — soft delete to `content_trash`, audited, one-click restore | Improved |
+| Restore | No | Yes | New |
+| Duplicate | No | Yes — draft copy with a generated id | New |
+| Bulk import | XLSX/JSON upload, per-row validation, sync confirmation | CSV/JSON paste or file, **dry run** first, then drafts only | Parity + safer (no direct write) |
+| Export | JSON + XLSX, all tables or one table | JSON + CSV, one table, `Content-Disposition` download | Parity (no XLSX) |
+| Draft vs published | No — writes go straight to learners | Yes — `content_drafts`, learners never see a draft | New |
+| Publish + diff | No | Yes — explicit publish, field-by-field diff before it | New |
+| Audit (who/when/before/after) | No content audit | Yes — `content_audit` per mutation | New |
+| Undo | No | Yes — one click per row, restores the exact before-state | New |
+| Backup before write | No | Yes — dated snapshot of all four tables + D1 bookmark, once per day, before the first write | New |
+| Schema view | Yes (`/admin/schema`) | Yes — from the same `DB_SCHEMA` | Parity |
+| Bundled content | Not shown | Read-only view, needs-review flag, proofreading note, corrected-file export | New |
+| Search/filter on bundled | No | Yes — opener/gloss search, level filter | New |
+
+Nothing above changes the learner router or the old `/admin`, which stays live.
+
 ## 2. Architecture
 
 ```
@@ -82,6 +118,31 @@ clamped server-side.
 | GET | `/users?q=&limit=` | users (id, email, plan, expiry, last seen) + totals |
 | DELETE | `/users/:id/conversations` | hard-delete one user's conversation text |
 | GET | `/content` | row counts for the five content tables + content activity (7 days) |
+| GET | `/content/meta` | content types, columns, validation metadata, per-type counts of published/draft/trash, latest backup |
+| GET | `/content/:type?q=&level=&scenario=&status=&limit=&offset=` | one table: published rows, pending create-drafts and (with `status=trash`) trash entries; drafts are merged in JS |
+| GET | `/content/:type/history?key=&limit=` | audit rows for one row (or the type), each carrying `before`, `after`, `undone`, `undoable` |
+| POST | `/content/:type/draft` | `{key?, row}` — validate, then store a draft (`operation` create/update); never writes the base table |
+| POST | `/content/:type/publish` | `{key, note?}` — re-validate and write the draft to the base table, audited with before/after |
+| POST | `/content/:type/publish-all` | publish every draft of a type; per-draft failures are reported, the rest still publish |
+| POST | `/content/:type/discard` | delete one draft; the published row is untouched |
+| POST | `/content/:type/duplicate` | `{key, id?}` — draft copy with a fresh key |
+| POST | `/content/:type/delete` | soft delete: copy the row into `content_trash`, remove it from the base table, audit both |
+| POST | `/content/:type/restore` | `{trash_uid}` — re-insert the stored row exactly (same rowid for rowid tables), remove the trash entry |
+| POST | `/content/:type/undo` | `{audit_uid}` — restore the audit `before` state for a publish/delete/restore; one undo per audit row |
+| GET | `/content/:type/export?format=json\|csv` | one table as a download; CSV includes the rowid so a re-import updates instead of duplicating |
+| POST | `/content/import` | `{type, format: auto\|json\|csv, content, apply}` — dry run returns the plan and every error; `apply:true` stores drafts only |
+| GET | `/content/backup?id=` | one backup payload, or the latest (`?list=1` returns the dated list) |
+| POST | `/content/backup` | force a snapshot now |
+| GET | `/content/reviews?kind=opener\|gloss` | proofreading notes for bundled content |
+| POST | `/content/reviews` | `{kind, key, needs_review, note, corrected_ar}` — notes only; never touches a bundle |
+| GET | `/content/reviews/export?kind=` | corrections file (`katzu-bundled-corrections-v1`) a build step can import |
+
+Every content mutation goes through the same token, rate limit and 401-before-404 dispatch as the
+rest of this API. Before the first write of a day (by UTC date) it calls
+`ensureContentBackup`: each of the four content tables is exported into `content_backups` and the
+D1 Time Travel bookmark is recorded when the binding supports `withSession`. If the snapshot fails,
+the write fails — a mutation is never allowed to happen without the backup it promised.
+
 | GET | `/conversations?hours=&limit=&user=&scenario=&before=` | list with 200-char preview, flag and redaction state |
 | GET | `/conversations/:turnId` | one row + its provider attempts |
 | DELETE | `/conversations/:turnId` | hard delete one turn |
@@ -109,6 +170,22 @@ review. No existing table or column is altered.
 
 `key_id` is a stable fingerprint, never a key value. `user_id` is the session subject; Google-ID-token
 sessions have no `sess_` token, so their `user_id` is `NULL` — a known limitation, not an error.
+
+**Content management tables** (created additively by `ensureContentAdminTables`; no learner table or
+query changed):
+
+| Table | Holds | Retention |
+|---|---|---|
+| `content_drafts` | one pending create/update per row key: payload, base snapshot, operation, actor, note | until published or discarded (no automatic prune) |
+| `content_audit` | actor, action, table, row key, `before_state`, `after_state`, `undone`, note | kept; the row history UI reads the last 50 |
+| `content_trash` | the exact row payload plus rowid address, actor and time of a soft delete | until restored or purged by hand |
+| `content_backups` | one row per table per dated snapshot (`backup_id`, payload JSON, bookmark) | kept; `content-YYYY-MM-DD`, first write of the day |
+| `content_reviews` | opener/gloss key → `needs_review`, note, `corrected_ar`, actor | kept; corrected-file export only |
+
+The draft is the only place an edit lives until Publish. `base_state` is what makes the diff and the
+undo exact: an undo writes the stored before-state, not a re-validated approximation, so a restored
+NULL stays NULL.
+
 
 ## 6. Hot path
 
@@ -195,6 +272,16 @@ privacy page remains true because no conversation text is stored anywhere.
 - Runtime idempotent DDL — production has no migration runner; matching `ensureLedgerTables`.
 - Conversation text gated by master switch **and** explicit per-account grant — silence is not
   consent.
+- Content edits are drafts until Publish — a learner read never sees a half-edited row, and a diff is
+  shown before the write.
+- Delete is soft (`content_trash` + audit) and Undo writes the stored before-state verbatim — an undo
+  that re-validates would restore an approximation, not the row that was there.
+- Import dry-runs before applying, and applying writes drafts only — the only path to a learner is
+  Publish, once per row.
+- Bundled content is read-only by design; the panel stores review notes and exports a corrections
+  file the build can import — no panel writes the app bundle.
+- A backup of the four content tables + the D1 bookmark precedes the first write of each UTC day;
+  if the snapshot fails, the write fails.
 - Provider "disable" means entry state, not key editing — the panel has no key surface at all.
 - Old `/admin` stays live until the new panel is verified and the owner retires it — no big-bang
   removal.

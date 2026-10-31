@@ -42,6 +42,10 @@ const BUDGETS_KB: Record<string, number> = {
   'docs/LAUNCH-CHECKLIST.md': 27,
   'docs/agent/LAUNCH-STATUS.md': 25,
   'docs/current-state.md': 24,
+  // The admin inspection report is read by the owner and by whoever changes the panel, not
+  // loaded at session start; its content-parity and internal-API tables are the reference for
+  // both panels, so it is named here rather than split across files.
+  'docs/ADMIN.md': 30,
   // Owner-requested product documents (2026-10-16), not agent orientation docs:
   // `katzu-baseline.md` is the row-by-row comparison file the owner asked for and
   // carries the per-task "## Launch tracker" appended during the launch pass, so it

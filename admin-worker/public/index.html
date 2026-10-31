@@ -96,8 +96,100 @@
     </section>
 
     <section class="view" id="view-content" role="tabpanel" hidden>
-      <h2>Content</h2>
+      <div class="content-head">
+        <h2>Content</h2>
+        <span class="muted" id="content-backup"></span>
+      </div>
       <div class="cards" id="content-cards"></div>
+
+      <div class="toolbar">
+        <label>Type <select id="content-type"></select></label>
+        <label>Status
+          <select id="content-status">
+            <option value="all">all</option>
+            <option value="published">published</option>
+            <option value="draft">drafts</option>
+            <option value="trash">trash</option>
+          </select>
+        </label>
+        <label>Level
+          <select id="content-level"><option value="">any</option></select>
+        </label>
+        <label>Scenario <input id="content-scenario" autocomplete="off" placeholder="id contains" size="12"></label>
+        <label>Search <input id="content-q" autocomplete="off" placeholder="any column" size="16"></label>
+        <button type="button" id="content-apply">Apply</button>
+        <button type="button" class="primary" id="content-new">New row</button>
+        <button type="button" id="content-publish-all">Publish all drafts</button>
+        <button type="button" id="content-export-csv">Export CSV</button>
+        <button type="button" id="content-export-json">Export JSON</button>
+      </div>
+
+      <div class="scroll-x" id="content-list"></div>
+
+      <div class="editor" id="content-editor" hidden>
+        <header>
+          <h3 id="content-editor-title">Row</h3>
+          <button type="button" id="content-editor-close">Close</button>
+        </header>
+        <p class="muted" id="content-editor-hint"></p>
+        <div id="content-editor-errors"></div>
+        <div class="fields" id="content-editor-fields"></div>
+        <div class="toolbar">
+          <button type="button" class="primary" id="content-save">Save draft</button>
+          <button type="button" id="content-publish" hidden>Publish</button>
+          <button type="button" class="danger" id="content-discard" hidden>Discard draft</button>
+        </div>
+        <div id="content-diff"></div>
+        <div id="content-history"></div>
+      </div>
+
+      <details class="block" id="content-import-block">
+        <summary>Import (dry run first, then drafts)</summary>
+        <p class="muted">Paste CSV or a JSON array. A dry run reports every error and how many rows would be created or updated; it changes nothing. Applying stores drafts, and nothing reaches a learner until you publish.</p>
+        <div class="toolbar">
+          <label>Format
+            <select id="content-import-format">
+              <option value="auto">auto</option>
+              <option value="json">JSON</option>
+              <option value="csv">CSV</option>
+            </select>
+          </label>
+          <button type="button" id="content-import-dry">Dry run</button>
+          <button type="button" class="primary" id="content-import-apply">Apply as drafts</button>
+        </div>
+        <textarea id="content-import-text" rows="8" spellcheck="false" placeholder="german,translation_ar,..."></textarea>
+        <div id="content-import-result"></div>
+      </details>
+
+      <details class="block" id="content-backups-block">
+        <summary>Backups</summary>
+        <p class="muted">The first write of each day exports every content table to a dated row and records the D1 Time Travel bookmark before touching anything.</p>
+        <div class="toolbar">
+          <button type="button" id="content-backup-now">Back up now</button>
+          <button type="button" id="content-backup-download">Download latest</button>
+        </div>
+        <div id="content-backup-rows"></div>
+      </details>
+
+      <details class="block" id="content-bundled-block">
+        <summary>Bundled content — read only</summary>
+        <p class="muted">Opener and word glosses ship inside the app bundle, so the panel can flag and correct them but never writes them. Generate the corrections file and let a build step import it.</p>
+        <div class="toolbar">
+          <label>Kind
+            <select id="bundled-kind">
+              <option value="opener">Scenario openers</option>
+              <option value="gloss">Word glosses</option>
+            </select>
+          </label>
+          <label>Search <input id="bundled-q" autocomplete="off" placeholder="German or Arabic"></label>
+          <button type="button" id="bundled-apply">Search</button>
+          <button type="button" id="bundled-export">Download corrections</button>
+          <span class="muted" id="bundled-count"></span>
+        </div>
+        <p class="muted">A0 and A1 entries come first. Nothing here is proofread by the panel itself; the flag is your note to the next person.</p>
+        <div class="scroll-x" id="bundled-rows"></div>
+      </details>
+
       <h3>Content activity, last 7 days</h3>
       <div id="content-recent"></div>
     </section>

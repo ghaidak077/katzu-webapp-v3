@@ -47,8 +47,14 @@
     var response = await fetch("/api" + path, init);
     if (!response.ok) {
       var text = await response.text();
-      var error = new Error(errorMessage(response.status, text));
+      var body = null;
+      try { body = JSON.parse(text); } catch (ignored) { body = null; }
+      var message = body && Array.isArray(body.errors) && body.errors.length
+        ? body.errors.join(" · ")
+        : errorMessage(response.status, text);
+      var error = new Error(message);
       error.status = response.status;
+      error.body = body;
       throw error;
     }
     return response;
@@ -389,16 +395,636 @@
     ));
   }
 
+  // -------------------------------------------------------------------------
+  // Content
+  // -------------------------------------------------------------------------
+
+  var content = {
+    meta: null,
+    type: "scenarios",
+    status: "all",
+    level: "",
+    scenario: "",
+    q: "",
+    rows: [],
+    counts: { rows: 0, drafts: 0, trash: 0 },
+    editor: null,
+    bundled: null,
+    bundledKind: "opener",
+    bundledQuery: "",
+    reviews: {},
+  };
+
+  function contentMeta() {
+    if (!content.meta) return null;
+    for (var index = 0; index < content.meta.types.length; index += 1) {
+      if (content.meta.types[index].type === content.type) return content.meta.types[index];
+    }
+    return null;
+  }
+
+  function contentSummary(row) {
+    if (!row) return "—";
+    if (content.type === "scenarios") return text(row.title_de || row.id) + " · " + text(row.title_ar);
+    if (content.type === "vocabulary" || content.type === "starter_phrases") {
+      return text(row.german) + " · " + text(row.translation_ar);
+    }
+    if (content.type === "grammar") return text(row.title_ar) + " · " + text(row.id);
+    return text(row.id);
+  }
+
+  function actionButton(label, className, handler) {
+    return el("button", { type: "button", className: className || "", text: label, onclick: handler });
+  }
+
+  async function ensureContentMeta() {
+    if (content.meta) return content.meta;
+    content.meta = await apiJson("/content/meta");
+    var types = $("content-type");
+    if (!types.options.length) {
+      content.meta.types.forEach(function (entry) {
+        types.appendChild(el("option", { value: entry.type, text: entry.label }));
+      });
+      var levels = $("content-level");
+      content.meta.levels.forEach(function (level) {
+        levels.appendChild(el("option", { value: level, text: level }));
+      });
+    }
+    types.value = content.type;
+    return content.meta;
+  }
+
   async function loadContent() {
-    var data = await apiJson("/content");
-    var cards = $("content-cards");
-    clear(cards);
-    Object.keys(data.counts).forEach(function (name) {
-      cards.appendChild(card(name.replace(/_/g, " "), num(data.counts[name]), "rows"));
-    });
-    render("content-recent", table(["Event", "Count"], data.recent_activity, function (row) {
+    await ensureContentMeta();
+    var params = new URLSearchParams();
+    if (content.status && content.status !== "all") params.set("status", content.status);
+    if (content.level) params.set("level", content.level);
+    if (content.scenario) params.set("scenario", content.scenario);
+    if (content.q) params.set("q", content.q);
+    var results = await Promise.all([
+      apiJson("/content/" + content.type + "?" + params.toString()),
+      apiJson("/content"),
+    ]);
+    var data = results[0];
+    content.rows = data.rows || [];
+    content.counts = data.counts || { rows: 0, drafts: 0, trash: 0 };
+    renderContentCards();
+    renderContentRows();
+    render("content-recent", table(["Event", "Count"], results[1].recent_activity || [], function (row) {
       return [row.event_type, num(row.n)];
     }));
+    loadContentBackups().catch(function () {});
+    loadBundled().catch(function (error) {
+      render("bundled-rows", el("div", { className: "empty", text: error.message }));
+    });
+  }
+
+  function renderContentCards() {
+    var cards = $("content-cards");
+    clear(cards);
+    cards.appendChild(card("Published rows", num(content.counts.rows), content.type));
+    cards.appendChild(card("Drafts", num(content.counts.drafts), "not visible to learners"));
+    cards.appendChild(card("In trash", num(content.counts.trash), "restorable"));
+    var backup = content.meta && content.meta.last_backup;
+    cards.appendChild(card(
+      "Last backup",
+      backup ? time(backup.ts) : "none",
+      backup ? backup.backup_id + (backup.bookmark ? " · bookmark recorded" : " · no bookmark") : "the first write takes one",
+    ));
+    $("content-backup").textContent = backup
+      ? "Latest backup " + backup.backup_id + (backup.bookmark ? " · Time Travel bookmark recorded" : "")
+      : "No backup yet. The first write of the day creates one.";
+  }
+
+  function renderContentRows() {
+    render("content-list", table(
+      ["Status", "Row", "Level", "Draft", "Actions"],
+      content.rows,
+      function (entry) {
+        var label = el("div", null, [
+          el("div", { text: contentSummary(entry.row) }),
+          el("div", { className: "mono muted", text: entry.key }),
+        ]);
+        var draft = entry.draft
+          ? el("div", null, [
+              badge(entry.draft.operation, "warn"),
+              el("div", { className: "muted", text: time(entry.draft.updated_at) }),
+              el("div", { className: "muted", text: (entry.diff || []).length + " field(s) changed" }),
+            ])
+          : el("span", { className: "muted", text: "—" });
+        return [
+          badge(
+            entry.status,
+            entry.status === "published" ? "ok" : entry.status === "draft" ? "warn" : "bad",
+          ),
+          label,
+          text(entry.row.level),
+          draft,
+          el("div", { className: "actions" }, contentActions(entry)),
+        ];
+      },
+    ));
+  }
+
+  function contentActions(entry) {
+    var actions = [
+      actionButton("Edit", "", function () { openContentEditor(entry.key); }),
+      actionButton("History", "", function () { openContentHistory(entry.key); }),
+    ];
+    if (entry.status === "trash") {
+      actions.push(actionButton("Restore", "primary", function () { restoreContent(entry); }));
+      return actions;
+    }
+    if (entry.draft) {
+      actions.push(actionButton("Publish", "primary", function () { publishContent(entry.key); }));
+      actions.push(actionButton("Discard", "danger", function () { discardContent(entry.key); }));
+    }
+    actions.push(actionButton("Duplicate", "", function () { duplicateContent(entry.key); }));
+    actions.push(actionButton("Delete", "danger", function () { deleteContent(entry.key); }));
+    return actions;
+  }
+
+  function openContentEditor(key) {
+    var meta = contentMeta();
+    if (!meta) {
+      toast("Content types are still loading.", true);
+      return;
+    }
+    var entry = null;
+    content.rows.forEach(function (row) {
+      if (row.key === key) entry = row;
+    });
+    if (key && !entry) {
+      toast("That row is not on this page. Search for it first.", true);
+      return;
+    }
+    if (entry && entry.status === "trash") {
+      toast("Restore this row before editing it.", true);
+      return;
+    }
+    var base = entry ? entry.row : null;
+    content.editor = {
+      key: key || null,
+      operation: entry && entry.published ? "update" : "create",
+      draft: entry && entry.draft ? entry : null,
+    };
+    $("content-editor").hidden = false;
+    $("content-editor-fields").hidden = false;
+    $("content-editor-title").textContent = entry ? contentSummary(base) : "New " + meta.label.replace(/s$/, "");
+    $("content-editor-hint").textContent = entry && entry.draft
+      ? "A draft is pending. Learners still see the published row until you press Publish."
+      : "Saving stores a draft. Nothing reaches a learner until you press Publish.";
+    showContentErrors([]);
+    clear($("content-diff"));
+    clear($("content-history"));
+    renderContentFields(base, meta, Boolean(entry && entry.published));
+    $("content-save").hidden = false;
+    $("content-publish").hidden = !(entry && entry.draft);
+    $("content-discard").hidden = !(entry && entry.draft);
+    if (entry && entry.diff && entry.diff.length) renderContentDiff(entry.diff);
+    if (key) openContentHistory(key);
+    if (typeof $("content-editor").scrollIntoView === "function") {
+      $("content-editor").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  function renderContentFields(base, meta, editingExisting) {
+    var host = $("content-editor-fields");
+    clear(host);
+    meta.columns.forEach(function (column) {
+      var value =
+        base && base[column.name] !== null && base[column.name] !== undefined ? String(base[column.name]) : "";
+      var field;
+      if (column.name === "level") {
+        field = el("select", { id: "field-" + column.name });
+        [""].concat(content.meta.levels).forEach(function (option) {
+          field.appendChild(el("option", { value: option, text: option || "(empty)" }));
+        });
+        field.value = value;
+      } else if (column.ui === "select" && column.options) {
+        field = el("select", { id: "field-" + column.name });
+        column.options.forEach(function (option) {
+          field.appendChild(el("option", { value: option, text: option || "(empty)" }));
+        });
+        field.value = value;
+      } else if (column.ui === "textarea") {
+        field = el("textarea", { id: "field-" + column.name, rows: "3", spellcheck: "false" });
+        field.value = value;
+      } else {
+        field = el("input", {
+          id: "field-" + column.name,
+          type: column.type === "integer" ? "number" : "text",
+          autocomplete: "off",
+        });
+        field.value = value;
+      }
+      if (column.name === meta.key && meta.key !== "rowid" && editingExisting) field.disabled = true;
+      if (/_ar$/.test(column.name)) {
+        field.setAttribute("dir", "rtl");
+        field.setAttribute("lang", "ar");
+      }
+      host.appendChild(el("label", { className: "field" }, [
+        el("span", { text: column.name + (column.required ? " *" : "") }),
+        field,
+        el("small", { className: "muted", text: column.note || "" }),
+      ]));
+    });
+  }
+
+  function contentFieldValues(meta) {
+    var row = {};
+    meta.columns.forEach(function (column) {
+      var field = $("field-" + column.name);
+      if (field) row[column.name] = field.value;
+    });
+    return row;
+  }
+
+  function renderContentDiff(diff) {
+    render("content-diff", el("div", null, [
+      el("h3", { text: "Pending changes" }),
+      table(["Field", "Published", "Draft"], diff, function (row) {
+        return [row.column, text(row.before), text(row.after)];
+      }),
+    ]));
+  }
+
+  function showContentErrors(errors) {
+    var host = $("content-editor-errors");
+    clear(host);
+    if (!errors || !errors.length) return;
+    host.appendChild(el("div", { className: "empty bad", text: "Not saved:" }));
+    host.appendChild(el("ul", { className: "errors" }, errors.map(function (message) {
+      return el("li", { text: message });
+    })));
+  }
+
+  async function saveContentDraft() {
+    var meta = contentMeta();
+    if (!meta || !content.editor) return;
+    var body = { row: contentFieldValues(meta) };
+    if (content.editor.key) body.key = content.editor.key;
+    try {
+      var result = await apiJson("/content/" + content.type + "/draft", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      showContentErrors([]);
+      toast("Draft saved. Learners still see the published row.");
+      content.meta = null;
+      await loadContent();
+      openContentEditor(result.draft.key);
+    } catch (error) {
+      showContentErrors(error.body && error.body.errors ? error.body.errors : [error.message]);
+      toast("Draft not saved.", true);
+    }
+  }
+
+  async function publishContent(key) {
+    if (!window.confirm("Publish this draft? Learners see it immediately.")) return;
+    try {
+      await apiJson("/content/" + content.type + "/publish", {
+        method: "POST",
+        body: JSON.stringify({ key: key }),
+      });
+      toast("Published.");
+      content.meta = null;
+      closeContentEditor();
+      await loadContent();
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function publishAllContent() {
+    if (!content.counts.drafts) {
+      toast("No drafts for this type.");
+      return;
+    }
+    if (!window.confirm("Publish " + content.counts.drafts + " draft(s) for " + content.type + "?")) return;
+    try {
+      var result = await apiJson("/content/" + content.type + "/publish-all", {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      var failed = result.failed || [];
+      toast(
+        "Published " + num(result.published) + (failed.length ? ", " + failed.length + " failed." : "."),
+        failed.length > 0,
+      );
+      content.meta = null;
+      await loadContent();
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function discardContent(key) {
+    if (!window.confirm("Discard this draft? The published row stays exactly as it is.")) return;
+    try {
+      await apiJson("/content/" + content.type + "/discard", {
+        method: "POST",
+        body: JSON.stringify({ key: key }),
+      });
+      toast("Draft discarded.");
+      content.meta = null;
+      closeContentEditor();
+      await loadContent();
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function duplicateContent(key) {
+    try {
+      var result = await apiJson("/content/" + content.type + "/duplicate", {
+        method: "POST",
+        body: JSON.stringify({ key: key }),
+      });
+      toast("Copied as a draft. Publish it when the copy is ready.");
+      content.meta = null;
+      await loadContent();
+      openContentEditor(result.draft.key);
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function deleteContent(key) {
+    if (!window.confirm("Move this row to trash? It leaves the app immediately and can be restored from Trash.")) return;
+    try {
+      await apiJson("/content/" + content.type + "/delete", {
+        method: "POST",
+        body: JSON.stringify({ key: key }),
+      });
+      toast("Moved to trash. Restore it from the Trash filter.");
+      content.meta = null;
+      closeContentEditor();
+      await loadContent();
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function restoreContent(entry) {
+    if (!entry.trash || !entry.trash.uid) {
+      toast("No trash entry for this row.", true);
+      return;
+    }
+    try {
+      await apiJson("/content/" + content.type + "/restore", {
+        method: "POST",
+        body: JSON.stringify({ trash_uid: entry.trash.uid }),
+      });
+      toast("Restored exactly as it was.");
+      content.meta = null;
+      await loadContent();
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function undoContent(auditUid) {
+    if (!window.confirm("Undo this change and put the row back to its exact before-state?")) return;
+    try {
+      await apiJson("/content/" + content.type + "/undo", {
+        method: "POST",
+        body: JSON.stringify({ audit_uid: auditUid }),
+      });
+      toast("Undone.");
+      content.meta = null;
+      await loadContent();
+      if (content.editor && content.editor.key) openContentHistory(content.editor.key);
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function openContentHistory(key) {
+    if (!key) {
+      render("content-history", el("div", { className: "empty", text: "History starts at the first saved draft." }));
+      return;
+    }
+    var host = $("content-history");
+    render(host, el("div", { className: "muted", text: "Loading history…" }));
+    try {
+      var data = await apiJson("/content/" + content.type + "/history?key=" + encodeURIComponent(key));
+      render(host, el("div", null, [
+        el("h3", { text: "History" }),
+        table(["When", "Action", "Actor", "Note", ""], data.rows || [], function (row) {
+          var undo = row.undoable
+            ? actionButton("Undo", "danger", function () { undoContent(row.uid); })
+            : el("span", { className: "muted", text: row.undone ? "undone" : "" });
+          return [time(row.ts), row.action, row.actor, row.note || "—", undo];
+        }),
+      ]));
+    } catch (error) {
+      render(host, el("div", { className: "empty", text: error.message }));
+    }
+  }
+
+  function closeContentEditor() {
+    content.editor = null;
+    $("content-editor").hidden = true;
+    clear($("content-editor-fields"));
+    clear($("content-editor-errors"));
+    clear($("content-diff"));
+    clear($("content-history"));
+  }
+
+  async function runContentImport(apply) {
+    var source = $("content-import-text").value;
+    if (!source.trim()) {
+      toast("Paste CSV or JSON first.", true);
+      return;
+    }
+    var body = {
+      type: content.type,
+      format: $("content-import-format").value,
+      content: source,
+      apply: apply,
+    };
+    try {
+      var result = await apiJson("/content/import", { method: "POST", body: JSON.stringify(body) });
+      renderImportResult(result, apply);
+      if (apply) {
+        content.meta = null;
+        await loadContent();
+      }
+    } catch (error) {
+      renderImportResult(error.body || { error: error.message }, apply);
+      toast(apply ? "Import not applied." : "Dry run found errors.", true);
+    }
+  }
+
+  function renderImportResult(result, applied) {
+    var host = $("content-import-result");
+    clear(host);
+    if (result.error && result.total === undefined) {
+      host.appendChild(el("div", { className: "empty bad", text: String(result.error).replace(/_/g, " ") }));
+      return;
+    }
+    var line = result.applied
+      ? "Applied as drafts. Nothing is live until you publish."
+      : applied
+        ? "Not applied."
+        : "Dry run: nothing changed.";
+    line += " Rows " + num(result.total) + " · valid " + num(result.valid) + " · invalid " + num(result.invalid) +
+      " · creates " + num(result.creates) + " · updates " + num(result.updates);
+    if (result.drafts !== undefined) line += " · drafts " + num(result.drafts);
+    host.appendChild(el("p", { className: "muted", text: line }));
+    if (result.errors && result.errors.length) {
+      host.appendChild(el("ul", { className: "errors" }, result.errors.slice(0, 50).map(function (message) {
+        return el("li", { text: message });
+      })));
+      if (result.errors.length > 50) {
+        host.appendChild(el("p", { className: "muted", text: "…and " + (result.errors.length - 50) + " more." }));
+      }
+    }
+  }
+
+  async function loadContentBackups() {
+    var data = await apiJson("/content/backup?list=1");
+    render("content-backup-rows", table(["Backup", "Taken", "Tables", "Bookmark"], data.backups || [], function (row) {
+      return [row.backup_id, time(row.ts), num(row.tables), row.bookmark ? "recorded" : "—"];
+    }));
+  }
+
+  async function backupNow() {
+    try {
+      var result = await apiJson("/content/backup", { method: "POST", body: JSON.stringify({}) });
+      toast("Backup written for " + result.backup_id + ".");
+      content.meta = null;
+      await ensureContentMeta();
+      renderContentCards();
+      await loadContentBackups();
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function downloadFromApi(path, fallbackName) {
+    var response = await api(path);
+    var blob = await response.blob();
+    var disposition = response.headers.get("content-disposition") || "";
+    var match = /filename="([^"]+)"/.exec(disposition);
+    var link = document.createElement("a");
+    var href = URL.createObjectURL(blob);
+    link.href = href;
+    link.download = match ? match[1] : fallbackName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(function () { URL.revokeObjectURL(href); }, 10000);
+  }
+
+  async function exportContent(format) {
+    try {
+      await downloadFromApi(
+        "/content/" + content.type + "/export?format=" + format,
+        "katzu-" + content.type + "." + format,
+      );
+      toast("Export downloaded.");
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function exportCorrections() {
+    try {
+      await downloadFromApi(
+        "/content/reviews/export?kind=" + content.bundledKind,
+        "katzu-" + content.bundledKind + "-corrections.json",
+      );
+      toast("Corrections file downloaded. A build step imports it; production content was not touched.");
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
+
+  async function loadBundled() {
+    if (!content.bundled) {
+      var response = await fetch("/bundled-content.json", { credentials: "same-origin" });
+      if (!response.ok) throw new Error("Bundled snapshot unavailable (" + response.status + ")");
+      content.bundled = await response.json();
+    }
+    var data = await apiJson("/content/reviews?kind=" + content.bundledKind);
+    content.reviews = {};
+    (data.rows || []).forEach(function (review) {
+      content.reviews[review.key] = review;
+    });
+    renderBundled();
+  }
+
+  function bundledEntries() {
+    if (!content.bundled) return [];
+    var entries = content.bundledKind === "opener"
+      ? content.bundled.openers || []
+      : content.bundled.glosses || [];
+    var needle = content.bundledQuery.toLowerCase();
+    var filtered = entries.filter(function (entry) {
+      if (!needle) return true;
+      if (String(entry.key).toLowerCase().indexOf(needle) !== -1) return true;
+      if (String(entry.ar || "").toLowerCase().indexOf(needle) !== -1) return true;
+      return String(entry.lemma || "").toLowerCase().indexOf(needle) !== -1;
+    });
+    var rank = { A0: 0, A1: 1, "": 2, A2: 2, B1: 3, B2: 4 };
+    filtered.sort(function (left, right) {
+      var a = rank[left.level] === undefined ? 5 : rank[left.level];
+      var b = rank[right.level] === undefined ? 5 : rank[right.level];
+      return a - b || String(left.key).localeCompare(String(right.key));
+    });
+    return filtered;
+  }
+
+  function renderBundled() {
+    $("bundled-kind").value = content.bundledKind;
+    var entries = bundledEntries();
+    var visible = entries.slice(0, 80);
+    $("bundled-count").textContent = entries.length + " entries" + (entries.length > visible.length ? ", showing first 80" : "");
+    render("bundled-rows", table(
+      ["Term", "Arabic", "Level", "Needs review", "Note", "Corrected Arabic", ""],
+      visible,
+      function (entry) {
+        var existing = content.reviews[entry.key] || {};
+        var flag = el("input", { type: "checkbox" });
+        flag.checked = Boolean(existing.needs_review);
+        var note = el("input", { type: "text", autocomplete: "off", size: "18" });
+        note.value = existing.note || "";
+        var corrected = el("input", { type: "text", autocomplete: "off", size: "18", lang: "ar", dir: "rtl" });
+        corrected.value = existing.corrected_ar || "";
+        return [
+          el("div", { dir: "ltr", text: entry.key }),
+          el("div", { dir: "rtl", text: entry.ar || "—" }),
+          text(entry.level),
+          flag,
+          note,
+          corrected,
+          actionButton("Save", "", function () {
+            saveReview(entry.key, flag.checked, note.value, corrected.value);
+          }),
+        ];
+      },
+    ));
+  }
+
+  async function saveReview(key, needsReview, note, corrected) {
+    try {
+      var saved = await apiJson("/content/reviews", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: content.bundledKind,
+          key: key,
+          needs_review: needsReview,
+          note: note,
+          corrected_ar: corrected,
+        }),
+      });
+      content.reviews[key] = saved;
+      toast("Review note saved. Bundled content itself is unchanged.");
+    } catch (error) {
+      toast(error.message, true);
+    }
   }
 
   async function loadAudit() {
@@ -479,6 +1105,77 @@
         .then(function () { toast("Applied."); loadView("overview"); })
         .catch(function (error) { toast(error.message, true); });
     });
+
+    // Content: filters reload the list; every mutation confirms first.
+    function readContentFilters() {
+      content.status = $("content-status").value;
+      content.level = $("content-level").value;
+      content.scenario = $("content-scenario").value.trim();
+      content.q = $("content-q").value.trim();
+    }
+    function reloadContent() {
+      loadContent().catch(function (error) { toast(error.message, true); });
+    }
+
+    $("content-type").addEventListener("change", function () {
+      content.type = $("content-type").value;
+      content.rows = [];
+      closeContentEditor();
+      reloadContent();
+    });
+    $("content-apply").addEventListener("click", function () {
+      readContentFilters();
+      reloadContent();
+    });
+    ["content-q", "content-scenario"].forEach(function (id) {
+      $(id).addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          readContentFilters();
+          reloadContent();
+        }
+      });
+    });
+    $("content-new").addEventListener("click", function () { openContentEditor(null); });
+    $("content-publish-all").addEventListener("click", publishAllContent);
+    $("content-export-csv").addEventListener("click", function () { exportContent("csv"); });
+    $("content-export-json").addEventListener("click", function () { exportContent("json"); });
+    $("content-editor-close").addEventListener("click", closeContentEditor);
+    $("content-save").addEventListener("click", saveContentDraft);
+    $("content-discard").addEventListener("click", function () {
+      if (content.editor && content.editor.key) discardContent(content.editor.key);
+    });
+    $("content-publish").addEventListener("click", function () {
+      if (content.editor && content.editor.key) publishContent(content.editor.key);
+    });
+    $("content-import-dry").addEventListener("click", function () { runContentImport(false); });
+    $("content-import-apply").addEventListener("click", function () {
+      if (!window.confirm("Apply these rows as drafts? Nothing goes live until you publish.")) return;
+      runContentImport(true);
+    });
+    $("content-backup-now").addEventListener("click", backupNow);
+    $("content-backup-download").addEventListener("click", function () {
+      downloadFromApi("/content/backup", "katzu-content-backup.json").catch(function (error) {
+        toast(error.message, true);
+      });
+    });
+    $("bundled-apply").addEventListener("click", function () {
+      content.bundledQuery = $("bundled-q").value.trim();
+      renderBundled();
+    });
+    $("bundled-q").addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        content.bundledQuery = $("bundled-q").value.trim();
+        renderBundled();
+      }
+    });
+    $("bundled-kind").addEventListener("change", function () {
+      content.bundledKind = $("bundled-kind").value;
+      content.reviews = {};
+      loadBundled().catch(function (error) { toast(error.message, true); });
+    });
+    $("bundled-export").addEventListener("click", exportCorrections);
   }
 
   wire();
