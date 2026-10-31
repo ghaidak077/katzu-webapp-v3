@@ -26,20 +26,19 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-31 — correction card redesigned; the signed-in view stays the owner's check.**
+  The note under a learner's message now uses the bubble surface/radius/padding with one success accent (corrected
+  word + 2px start edge), neutral struck «قلت», and a rule label derived from the two visible strings
+  (`halo` → `hallo` = «Schreibung: Doppel-l»; model rule only as fallback), wrapping at 360px without clipping.
+  Evidence: `tests/correctionWording.test.ts` **10 passed**, `npm test` **171 files / 2429**, gate **14/14**
+  (691 s), six dark shots in `docs/agent/correction-card/`; full record in the APP-MAP change log.
+  **UNPROVEN:** the card inside a signed-in session (`OWNER-CHECKLIST.md` §11).
 - **2026-10-31 — live «hallo» root cause fixed and deployed; the signed-in turn stays the owner's check.**
-  The live A1 airport turn returned «Hallo! Schön, Sie zu sehen. Wie geht es Ihnen?» even though the guard was
-  deployed, because `/ai/turn` read scene text only from `history[].sender` while `workerClient.sendTurn` sends
-  `{ role, text }` — `sceneGerman` was always empty live, so `sceneTopicReAsk` was never reached. Fixed: history
-  is read by `role` or `sender`, and `tests/turnGuard.test.ts` posts the app's real payload (`role`), plus a
-  legacy `sender` case. Greeting detection now squashes held keys and typos («halo», «hiii», «halloooo»),
-  accepts hello/hi/hey/moin/servus/guten tag, case, punctuation and a lone emoji wave, while still showing the
-  correction card; tolerance applies to greetings only, never to scene words. Router and admin panel untouched.
-  **Evidence:** `tests/turnGuard.test.ts` **97 passed**; four-scene probe **44/44** (A1 airport, A2 café, B1
-  doctor, B2 job interview); gate **VERIFY OK 14/14** (717 s, `--ci --e2e`); CI **41180974785** green on
-  `e8e722d`. **Deployed** worker `e3f994ef-5524-44ef-95b9-f0fde2923baa` (deployment
-  `f219d5b3-1ce4-4a3d-ad18-79e3023e8534`, source `e8e722d`), rollback `808f1553-…`; bundle
-  **753.22 → 753.91 KiB** raw, **178.45 → 178.67 KiB** gzip. **UNPROVEN:** the live signed-in «hallo»
-  reply — still no owner Google session and no anonymous turn path.
+  `/ai/turn` read scene text only from `history[].sender` while the app sends `{ role, text }`, so `sceneGerman`
+  stayed empty live and `sceneTopicReAsk` never ran; history is now read by `role` or `sender`, and
+  `tests/turnGuard.test.ts` posts the app's real payload. Evidence: **97 passed**, four-scene probe **44/44**, gate
+  **14/14** (717 s), CI **41180974785** on `e8e722d`; worker `e3f994ef-…` (rollback `808f1553-…`).
+  **UNPROVEN:** the signed-in «hallo» reply.
 
 - **2026-10-31 — a bare «hallo» now returns to the scene's own question (worker deployed).**
   `cloudflare-turn-guard.js` gained `sceneTopicReAsk`: for a stored opener it re-asks that opener's final
@@ -492,7 +491,8 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   Google sign-in cannot be driven headlessly (the GIS popup/iframe did not complete), and an agent must not
   use a real account, so both stay open until an owner-run session or a seeded harness exists. **Update
   2026-10-31:** the `/ai/turn` wire gap (`sender` vs the app's `{ role, text }`) is fixed and deployed as worker
-  `e3f994ef-…`; case C still needs the owner's signed-in session (`OWNER-CHECKLIST.md` §11).
+  `e3f994ef-…`; case C still needs the owner's signed-in session (`OWNER-CHECKLIST.md` §11, which now also
+  checks the redesigned correction card).
 - **AFF-1 (2026-10-28) — the partner money path is unit-proven and now deployed, not live-proven.** Live, after the deploy: `/health` 200 with `storage:{d1,kv}` ok, `POST /affiliate/me` **401** signed out, `POST /affiliate/ref` **400** on a malformed code, `/admin/api/affiliates[/commissions]` **401** without the key, and the three tables present in production D1 (`sqlite_master` read). **Not live-proven:** the Google sign-in attach (Google-only sign-in; an agent must not use a real account), a real `/affiliate/me` code for a real account, the commission row created by a real activation-code redemption inside the app, the day-14 cron on real data, and a real refund after payout. All the rules are covered by the 32 tests in `tests/affiliate.test.ts` against a D1 double, which proves the rules, not D1's atomicity.
 
 - **Google Sign-In: the popup → credential → session path is UNPROVEN end-to-end (2026-10-27).** Live, the GIS script, its stylesheet, its button iframe and its font all return **200** under the production CSP, and Google's button renders in both a clean profile and a service-worker-controlled one — but nothing closed the loop, because that needs a real Google account an agent must not touch. Proven instead: delaying `/gsi/client` by 2.5 s on the local build shows the neutral "preparing" notice (no false "could not load"), and after the script arrives the real button replaces the fallback; a hard `ERR_FAILED` on the first request is followed by a tap that re-injects the script and lands on Google's button (`gsi-local.json`, `gsi-retry.mjs`). What remains unproven is only Google's own credential response through `exchangeGoogleToken` → session → sync.

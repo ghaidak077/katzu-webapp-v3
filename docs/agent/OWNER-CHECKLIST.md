@@ -91,17 +91,17 @@ LinkedIn / GitHub / X links (§8).
 **What it is.** The separate locked admin site sits behind Cloudflare Access and cannot touch the database or
 a key. Your signed-in session already loaded it: 26 panel requests, all successful, five telemetry tables.
 
-**Your decisions, recorded.** Conversation text stays **off**; retention is **90 days for text, 365 for
-counters**; the old `/admin` and `ADMIN_SECRET` stay until you confirm the new panel with real traffic.
+**Your decisions.** Text stays **off**; retention is **90 days for text, 365 for counters**; `/admin` and
+`ADMIN_SECRET` stay until real traffic confirms the panel.
 
 **Done looks like:** a real learner turn appears in the panel, and you say whether to retire `/admin`.
 
-## 11. Type «hallo» in one scene — the last live check — V45 (2026-10-31)
+## 11. Type «hallo» in one scene — V45 (2026-10-31)
 
-The greeting fix is live, but the reply only appears inside a signed-in lesson, so I could not see it.
-Sign in at `https://katzuai.com`, open **Am Flughafen** (A1), type `hallo`, and check the partner asks about
-your luggage («Fehlt Ihr Gepäck?»), not «Wie geht es Ihnen?». **Done:** that question appears — or send what
-you saw. Record: `docs/AGENT-STATE.md` UNPROVEN V45.
+The greeting fix and the correction card are live, but both need a signed-in lesson, so I could not see them.
+Sign in at `https://katzuai.com`, open **Am Flughafen** (A1), type `halo`: the partner should ask about your
+luggage, and the note under your bubble should say «Schreibung: Doppel-l», nothing cut off.
+**Done:** both appear, or send what you saw. Record: `docs/AGENT-STATE.md` UNPROVEN V45.
 
 ## Nothing to do — recorded so nobody re-opens them
 

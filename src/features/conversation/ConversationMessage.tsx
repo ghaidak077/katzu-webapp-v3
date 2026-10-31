@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Languages, RefreshCw, Snail, Volume2 } from 'lucide-react';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
+import { correctionRuleLabel } from '@/lib/conversation/correctionWording';
 import { activeWordIndex, speechSegments } from '@/lib/speech/wordHighlight';
 import type { ChatMessage } from '@/types/models';
 
@@ -85,9 +86,18 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   const segments = useMemo(() => speechSegments(message.germanText), [message.germanText]);
   const spokenWord = activeWordIndex(segments, spokenCharIndex);
 
-  // The correction accent. `success` when Katzu had something positive to say,
-  // otherwise the learning amber — the same two roles the palette already names.
-  const correctionAccent = correctionMessage?.originalMistake ? 'learning' : 'success';
+  // The card carries one accent — the corrected word, and the thin edge beside
+  // it. The rule label is derived from the two visible strings so it names the
+  // difference the learner actually made (`halo` → `hallo` is a doubled letter,
+  // not capitalisation); the model's rule is only the fallback.
+  const ruleLabel = correctionMessage
+    ? correctionRuleLabel(
+        correctionMessage.originalMistake,
+        correctionMessage.correctedGerman,
+        correctionMessage.grammarRule,
+      )
+    : '';
+  const hasCorrection = Boolean(correctionMessage?.correctedGerman);
 
   return (
     <article
@@ -222,75 +232,69 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
           )}
         </div>
 
-        {/* The correction card: one inline block with a left accent bar, under the
-            learner's own bubble. Feedback is what the learner came for, so it stays
-            visible — but it reads as a note, not a second conversation. */}
+        {/* The correction card: a quiet note under the learner's own bubble, on
+            the same surface ladder and spacing as a bubble. One accent — the
+            corrected word and the 2px edge beside it — and neutral ink for
+            everything else, so it reads as feedback, not a second conversation. */}
         {showHelp && correctionMessage && (
           <div
-            className={`mt-2 overflow-hidden rounded-control border-s-2 bg-surface-subtle ps-3 pe-3.5 py-3 text-start ${
-              correctionAccent === 'success' ? 'border-status-success' : 'border-status-learning'
+            data-testid="correction-card"
+            className={`kz-message-in mt-2 rounded-control border-t border-b border-e border-s-2 bg-surface-subtle px-4 py-3 text-start ${
+              hasCorrection ? 'border-s-status-success/60' : 'border-s-kz-line/70'
             }`}
           >
             <div className="flex items-center gap-2">
-              <KatzuMascot name="avatar" alt="" className="h-5 w-5" />
-              <span
-                className={`kz-ar-micro font-bold ${
-                  correctionAccent === 'success' ? 'text-status-success' : 'text-status-learning'
-                }`}
-              >
-                تصحيح كَاتْزُو
-              </span>
+              <KatzuMascot name="avatar" alt="" className="h-4 w-4 rounded-full opacity-80" />
+              <span className="kz-ar-micro font-bold text-kz-ink">تصحيح كَاتْزُو</span>
             </div>
 
-            <div className="mt-2 space-y-2">
+            <div className="mt-2.5 space-y-2.5">
               {(correctionMessage.originalMistake || correctionMessage.correctedGerman) && (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {correctionMessage.originalMistake && (
-                    <div className="flex items-baseline gap-2">
-                      <span className="kz-ar-micro shrink-0 text-kz-inkFaint">قلت</span>
-                      <GermanText className="text-status-error/80 line-through decoration-status-error/60">
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="kz-ar-micro w-11 shrink-0 text-kz-inkDim">قلت</span>
+                      <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-right text-kz-inkDim line-through">
                         {correctionMessage.originalMistake}
                       </GermanText>
                     </div>
                   )}
                   {correctionMessage.correctedGerman && (
-                    <div className="flex items-baseline gap-2">
-                      <span className="kz-ar-micro shrink-0 text-kz-inkFaint">الصحيح</span>
-                      <GermanText className="font-bold text-status-success">{correctionMessage.correctedGerman}</GermanText>
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="kz-ar-micro w-11 shrink-0 text-kz-inkDim">الصحيح</span>
+                      <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-right font-semibold text-status-success">
+                        {correctionMessage.correctedGerman}
+                      </GermanText>
                     </div>
                   )}
                 </div>
               )}
 
-              {correctionMessage.grammarRule && (
-                <bdi
-                  dir="auto"
-                  className="kz-ar-micro inline-flex items-center gap-1.5 rounded-full border border-status-learning/25 bg-status-learning/10 px-2.5 py-1 text-status-learning"
-                >
-                  <span aria-hidden>📌</span>
-                  {correctionMessage.grammarRule}
-                </bdi>
+              {ruleLabel && (
+                <span className="kz-ar-micro inline-block max-w-full rounded-chip border border-kz-line bg-white/5 px-2.5 py-0.5 text-kz-inkDim">
+                  <bdi dir="auto">{ruleLabel}</bdi>
+                </span>
               )}
 
               {correctionMessage.grammarReference && correctionMessage.grammarReference.id === correctionMessage.grammarId && (
-                <div className="rounded-xl border border-kz-lavender/20 bg-kz-lavender/5 p-2.5">
+                <div className="rounded-chip border border-kz-line bg-white/5 p-2.5">
                   <span className="kz-ar-micro block text-kz-inkFaint">من قاعدة التدريب الموجّه</span>
-                  <p className="mt-1 kz-ar-micro font-semibold text-kz-lavender">{correctionMessage.grammarReference.titleAr}</p>
+                  <p className="mt-1 kz-ar-micro font-semibold text-kz-ink">{correctionMessage.grammarReference.titleAr}</p>
                   <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{correctionMessage.grammarReference.ruleAr}</p>
-                  <GermanText className="mt-1 font-german text-xs text-kz-inkDim">{correctionMessage.grammarReference.exampleDe}</GermanText>
+                  <GermanText className="mt-1 block text-xs text-kz-inkDim">{correctionMessage.grammarReference.exampleDe}</GermanText>
                 </div>
               )}
 
               {correctionMessage.explanationAr && (
-                <p className="kz-ar-micro leading-relaxed text-kz-inkDim">{correctionMessage.explanationAr}</p>
+                <p className="kz-ar-caption leading-relaxed text-kz-inkDim">{correctionMessage.explanationAr}</p>
               )}
 
               {correctionMessage.positiveNoteAr && (
-                <p className="kz-ar-micro font-semibold text-status-success">✦ {correctionMessage.positiveNoteAr}</p>
+                <p className="kz-ar-micro text-kz-inkFaint">{correctionMessage.positiveNoteAr}</p>
               )}
 
               {correctionMessage.roastComment && (
-                <p className="kz-ar-micro border-s-2 border-status-learning/40 ps-2.5 italic text-status-learning/90">
+                <p className="kz-ar-micro border-s border-kz-line ps-2.5 text-kz-inkFaint">
                   «{correctionMessage.roastComment}»
                 </p>
               )}

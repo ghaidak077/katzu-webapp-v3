@@ -119,6 +119,7 @@ command below stops existing, so this index cannot rot silently.
 | One browser spec | `npx playwright test e2e/screenNames.spec.ts --reporter=line` | one spec, a few seconds |
 | UI-polish before/after shots | `npx playwright test -c e2e/uiPolishShots.playwright.config.ts` | writes `docs/agent/ui-polish/*.png` |
 | Journey-polish before/after shots | `npx playwright test -c e2e/journeyPolishShots.playwright.config.ts` | writes `docs/agent/journey-polish/*.png` |
+| Correction-card before/after shots | `$env:TAG='before'\|'after'; npx playwright test -c e2e/correctionCardShots.playwright.config.ts` | writes `docs/agent/correction-card/*.png`, 360×740 dark |
 | Admin dashboard screenshots | `node scripts/capture-admin-screenshots.mjs` | its own output folder; needs the admin session |
 | **Admin dashboard with a key** (all 8 tabs, real data) | `npm run verify:admin:local` | boots the worker with a throwaway key on a fresh `.wrangler` D1, seeds 3 users, 37 checks + Chromium; `--no-browser` for API only, `--keep` leaves it up (~2 min) |
 | The offline/PWA contract | `npm run build` then `npx playwright test -c e2e/playReadiness.playwright.config.ts` | the only run with `serviceWorkers: 'allow'` |
