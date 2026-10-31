@@ -25,6 +25,27 @@ import type { ChatMessage } from '@/types/models';
  * inline card with a left accent bar, not a nested bordered panel.
  */
 
+/**
+ * Keeps a Latin run inside an Arabic sentence from being re-shaped by the RTL
+ * paragraph. Measured: «حرف l مضعّف» painted the isolated letter `l` as «ا»,
+ * because a single Latin letter sitting between Arabic words takes the Arabic
+ * script's joining/cursive context. Wrapping the run in `<bdi dir="ltr">` gives
+ * it its own direction and the letter stays an `l`.
+ */
+const LATIN_RUN = /([A-Za-zÄÖÜäöüß]+)/;
+
+function isolateLatin(text: string): React.ReactNode {
+  return text.split(LATIN_RUN).map((part, index) =>
+    index % 2 === 1 ? (
+      <bdi key={`latin-${index}`} dir="ltr">
+        {part}
+      </bdi>
+    ) : (
+      part
+    ),
+  );
+}
+
 export interface ConversationMessageProps {
   message: ChatMessage;
   /** Whether this bubble's Arabic is showing. */
@@ -289,14 +310,18 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
               )}
 
               {correctionCopy.explanationAr && (
-                <p className="kz-ar-caption leading-relaxed text-kz-inkDim">{correctionCopy.explanationAr}</p>
+                <p className="kz-ar-caption leading-relaxed text-kz-inkDim">{isolateLatin(correctionCopy.explanationAr)}</p>
               )}
 
               {correctionMessage.positiveNoteAr && (
                 <p className="kz-ar-micro text-kz-inkFaint">{correctionMessage.positiveNoteAr}</p>
               )}
 
-              {correctionMessage.roastComment && (
+              {/* The chip above already names the rule, derived from the two
+                  visible strings. The model's own Arabic quote is free text and
+                  measured to contradict it («حرف l مضعّف» under a capitalisation
+                  chip), so it is only shown when there is no chip. */}
+              {correctionMessage.roastComment && !ruleLabel && (
                 <p className="kz-ar-micro border-s border-kz-line ps-2.5 text-kz-inkFaint">
                   «{correctionMessage.roastComment}»
                 </p>

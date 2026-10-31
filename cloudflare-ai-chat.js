@@ -28,7 +28,7 @@ import {
   normaliseMockPartIndex,
 } from "./cloudflare-mock-exam.js";
 import { beatsInstruction } from "./cloudflare-conversation-beats.js";
-import { guardGreetingReply } from "./cloudflare-turn-guard.js";
+import { guardGreetingReply, openerForLevel } from "./cloudflare-turn-guard.js";
 import { isEasyTurn, PROVIDER_POOL, estimateTurnCostUsd } from "./cloudflare-ai-router.js";
 
 /** char/4 token estimate — the same estimator `scripts/measure-turn-cost.mjs` uses. */
@@ -484,6 +484,11 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
         replyDe: parsed.reply_de,
         replyAr: parsed.reply_ar,
         sceneGerman,
+        // The re-ask topic comes from the scenario's STORED opener for this
+        // level, not from history: joining every model turn never matches a
+        // stored opener after the first exchange, which is how the fixed
+        // «Wie geht es Ihnen?» fallback returned later in a scene.
+        sceneOpener: inMockExam ? "" : openerForLevel(scenarioIdentity.openers, level),
         level,
       });
       if (guarded.guarded) {

@@ -2552,7 +2552,9 @@ async function resolveScenarioIdentity(env, scenarioId) {
   // pays one concurrent pair of small D1 reads, and every later turn pays only the
   // identity read. A failed phrases read degrades to no beats, never to an error.
   const identityLookup = env?.DB
-    ? env.DB.prepare("SELECT title_de, ai_persona, category FROM scenarios WHERE id = ?")
+    ? env.DB.prepare(
+        "SELECT title_de, ai_persona, category, initial_message_a0, initial_message_a1, initial_message_a2, initial_message_b1, initial_message_b2 FROM scenarios WHERE id = ?",
+      )
         .bind(scenarioId)
         .first()
         .catch(() => null)
@@ -2563,6 +2565,15 @@ async function resolveScenarioIdentity(env, scenarioId) {
       title_de: String(row.title_de).slice(0, AI_LIMITS.SCENARIO_TITLE),
       persona: String(row.ai_persona || "").slice(0, AI_LIMITS.PERSONA) || "friendly conversational partner",
       category: typeof row.category === "string" ? row.category.slice(0, 40) : "",
+      // The stored openers, so the bare-greeting guard can re-ask the scene's own
+      // question by scenario id + level instead of reading joined AI history.
+      openers: {
+        a0: typeof row.initial_message_a0 === "string" ? row.initial_message_a0 : "",
+        a1: typeof row.initial_message_a1 === "string" ? row.initial_message_a1 : "",
+        a2: typeof row.initial_message_a2 === "string" ? row.initial_message_a2 : "",
+        b1: typeof row.initial_message_b1 === "string" ? row.initial_message_b1 : "",
+        b2: typeof row.initial_message_b2 === "string" ? row.initial_message_b2 : "",
+      },
       beats,
     };
   }

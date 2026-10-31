@@ -115,21 +115,51 @@ function splitSentences(text) {
 const ARABIC_GREETING = /^(أهلاً|أهلا|نهارك سعيد|صباح الخير|مساء الخير)/;
 
 /**
- * The scene's own last ask, paired with the reviewed Arabic that ships for that
- * opener.
- *
- * WHY THE SCENE'S OWN LINE: a bare «hallo» used to be answered with a fixed
- * «Wie geht es Ihnen?» — a wellbeing question the scene never asked. The learner
- * then had to answer a question that did not exist in the conversation. When the
- * scene is one of the stored openers, the re-ask is the opener's own last
- * sentence (in the missing-luggage scene: «Fehlt Ihr Gepäck?»), so the turn
- * returns to the topic the learner is actually practising.
- *
- * Returns null when the scene is not a stored opener (for example a later model
- * turn), so the caller keeps the fixed, level-safe fallback.
+ * Picks the scenario's stored opener for a level, exactly as the live screen
+ * does (`src/lib/conversation/opener.ts` — the worker is plain JS and cannot
+ * import TS, `tests/openerParity.test.ts` keeps the two ladders equal).
  */
-export function sceneTopicReAsk(sceneGerman, level = 'A1') {
-  const key = String(sceneGerman || '').replace(/\s+/g, ' ').trim();
+export function openerForLevel(openers, level = 'A1') {
+  const o = openers && typeof openers === 'object' ? openers : {};
+  const pick = (...keys) => {
+    for (const key of keys) {
+      const value = o[key];
+      if (typeof value === 'string' && value.trim()) return value;
+    }
+    return '';
+  };
+  switch (level) {
+    case 'A0': return pick('a0', 'a1', 'a2', 'b1', 'b2');
+    case 'A1': return pick('a1', 'a0', 'a2', 'b1', 'b2');
+    case 'A2': return pick('a2', 'a1', 'b1', 'b2');
+    case 'B1': return pick('b1', 'a2', 'b2', 'a1');
+    case 'B2': return pick('b2', 'b1', 'a2', 'a1');
+    default: return pick('a1');
+  }
+}
+
+/**
+ * The stored opener's own last ask, paired with the reviewed Arabic that ships
+ * for that opener.
+ *
+ * WHY THE SCENE'S STORED LINE: a bare «hallo» used to be answered with a fixed
+ * «Wie geht es Ihnen?» — a wellbeing question the scene never asked. The learner
+ * then had to answer a question that did not exist in the conversation. The
+ * re-ask must be the opener's own last sentence (in the missing-luggage scene:
+ * «Fehlt Ihr Gepäck?»), so the turn returns to the topic the learner is
+ * actually practising.
+ *
+ * WHY NOT THE LAST AI MESSAGE: reading the scene from history joins every model
+ * turn, so from the second exchange on the text is never a stored opener and the
+ * lookup missed — which is how the wellbeing fallback came back later in a
+ * scene. The caller now passes the opener selected by scenario id + level from
+ * the scenario's stored columns.
+ *
+ * Returns null when the stored opener has no shipped pairing or is off-spec for
+ * the level, so the caller keeps the fixed, level-safe fallback.
+ */
+export function sceneTopicReAsk(openerGerman, level = 'A1') {
+  const key = String(openerGerman || '').replace(/\s+/g, ' ').trim();
   const gloss = OPENER_GLOSSES[key];
   if (!gloss) return null;
   const deParts = splitSentences(key);
@@ -147,16 +177,34 @@ export function sceneTopicReAsk(sceneGerman, level = 'A1') {
 }
 
 /**
- * Fixed re-asks, one per level. Inside each level's caps by construction:
+ * Fixed continuation prompts, one per level — used only when no stored opener
+ * can answer (a model-written later turn, or the mock exam). They invite more
+ * content and never invent a question about wellbeing: «Wie geht es Ihnen?»
+ * must not appear inside a scene. Inside each level's caps by construction:
  * A0 6 words/sentence, A1 8, A2 10, B1 12, B2 15; Präsens only; and no
  * connector a lower level does not allow.
  */
 const RE_ASK = {
-  A0: { de: ['Hallo! Wie geht es Ihnen?', 'Hallo! Wie geht es dir?'], ar: 'أهلاً! كيف حالك؟' },
-  A1: { de: ['Hallo! Schön, Sie zu sehen. Wie geht es Ihnen?', 'Hallo! Schön, dich zu sehen. Wie geht es dir?'], ar: 'أهلاً! سعيد بلقائك. كيف حالك؟' },
-  A2: { de: ['Hallo! Schön, Sie zu sehen. Wie geht es Ihnen heute?', 'Hallo! Schön, dich zu sehen. Wie geht es dir heute?'], ar: 'أهلاً! سعيد بلقائك. كيف حالك اليوم؟' },
-  B1: { de: ['Guten Tag! Freut mich, Sie zu sehen. Wie geht es Ihnen heute?', 'Hallo! Freut mich, dich zu sehen. Wie geht es dir heute?'], ar: 'نهارك سعيد! يسعدني لقاؤك. كيف حالك اليوم؟' },
-  B2: { de: ['Guten Tag! Freut mich, Sie zu sehen. Wie geht es Ihnen heute?', 'Hallo! Freut mich, dich zu sehen. Wie geht es dir heute?'], ar: 'نهارك سعيد! يسعدني لقاؤك. كيف حالك اليوم؟' },
+  A0: {
+    de: ['Hallo! Bitte sagen Sie etwas mehr.', 'Hallo! Bitte sag etwas mehr.'],
+    ar: 'أهلاً! من فضلك قل شيئاً أكثر.',
+  },
+  A1: {
+    de: ['Hallo! Schön, Sie zu sehen. Bitte sagen Sie etwas mehr.', 'Hallo! Schön, dich zu sehen. Bitte sag etwas mehr.'],
+    ar: 'أهلاً! سعيد بلقائك. من فضلك قل شيئاً أكثر.',
+  },
+  A2: {
+    de: ['Hallo! Schön, Sie zu sehen. Bitte sagen Sie mir etwas mehr.', 'Hallo! Schön, dich zu sehen. Bitte sag mir etwas mehr.'],
+    ar: 'أهلاً! سعيد بلقائك. من فضلك قل لي شيئاً أكثر.',
+  },
+  B1: {
+    de: ['Guten Tag! Freut mich, Sie zu sehen. Bitte erzählen Sie mir etwas mehr.', 'Hallo! Freut mich, dich zu sehen. Bitte erzähl mir etwas mehr.'],
+    ar: 'نهارك سعيد! يسعدني لقاؤك. من فضلك حدّثني أكثر.',
+  },
+  B2: {
+    de: ['Guten Tag! Freut mich, Sie zu sehen. Bitte erzählen Sie mir gerne noch etwas mehr.', 'Hallo! Freut mich, dich zu sehen. Bitte erzähl mir gerne noch etwas mehr.'],
+    ar: 'نهارك سعيد! يسعدني لقاؤك. من فضلك حدّثني أكثر من ذلك.',
+  },
 };
 
 /** The acknowledgement in front of the re-ask when the message was off-topic. */
@@ -175,14 +223,16 @@ const ACK = {
  *   greeting/re-ask pair (German + its own Arabic, so the two bubbles always
  *   agree) when it did not.
  */
-export function guardGreetingReply({ learnerText, replyDe, replyAr, sceneGerman = '', level = 'A1' } = {}) {
+export function guardGreetingReply({ learnerText, replyDe, replyAr, sceneGerman = '', sceneOpener = '', level = 'A1' } = {}) {
   const spec = RE_ASK[level] || RE_ASK.A1;
   const ack = ACK[level] || ACK.A1;
   const greeting = isBareGreeting(learnerText);
-  // A stored opener can re-ask its own topic; a later turn keeps the fixed
-  // fallback below, because no reviewed Arabic ships for model-written lines.
+  // The stored opener (selected by scenario id + level, never by history) can
+  // re-ask its own topic; otherwise the fixed continuation below is used, which
+  // never invents a wellbeing question. `sceneGerman` still decides off-topic
+  // words and the du/Sie register — it is scene text, not a topic source.
   if (greeting) {
-    const topic = sceneTopicReAsk(sceneGerman, level);
+    const topic = sceneTopicReAsk(sceneOpener, level);
     if (topic) return { replyDe: topic.de, replyAr: topic.ar, guarded: true, reason: 'bare_greeting' };
   }
   const offTopic = !greeting && isOffTopicSingleWord(learnerText, sceneGerman);
@@ -190,7 +240,7 @@ export function guardGreetingReply({ learnerText, replyDe, replyAr, sceneGerman 
 
   // A greeting has no gender to guess: pick the polite form (the persona speaks
   // to an adult learner) and keep the learner's own register when it is obvious.
-  const informal = /\b(du|dir|dich)\b/i.test(String(sceneGerman || ''));
+  const informal = /\b(du|dir|dich)\b/i.test(`${sceneOpener} ${sceneGerman}`);
   const de = spec.de[informal ? 1 : 0];
   const text = greeting ? de : `${ack.de}${de}`;
   return {
