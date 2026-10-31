@@ -49,8 +49,11 @@ needs one model call).
 The greeting guard (a bare «hallo» must not be answered with an invented answer)
 ships fixed lines per level, German and Arabic side by side, in
 `cloudflare-turn-guard.js` (`RE_ASK`, `ACK`). They are short and generic («كيف
-حالك؟»), so a two-minute read is enough — change the strings there if you want
-different wording; the tests assert shape and level caps, not exact words.
+حالك؟») and now apply to a later, model-written turn; in a stored-opener scene
+the re-ask is the opener's own last question, whose Arabic you already review in
+`docs/OWNER-LANGUAGE-REVIEW.md`. A two-minute read of the fallback lines is
+enough — change the strings there if you want different wording; the tests assert
+shape and level caps, not exact words.
 
 ## 4. The open-dictionary decision (decided, recorded here so it is not re-litigated)
 

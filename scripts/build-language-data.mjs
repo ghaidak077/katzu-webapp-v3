@@ -232,6 +232,15 @@ writeFileSync(
   'utf8',
 );
 
+// The worker's copy of the same reviewed map. The greeting guard re-asks the
+// scene's own last question when the learner sends only a greeting, and the
+// worker is plain JS — so the corpus has to exist in a module it can import.
+writeFileSync(
+  join(ROOT, 'cloudflare-opener-glosses.generated.js'),
+  `${header}export const OPENER_GLOSSES = ${JSON.stringify(openerGlosses, null, 2)};\n`,
+  'utf8',
+);
+
 const entries = Object.entries(glossary)
   .map(([token, gloss]) => {
     const parts = gloss.parts ? `, parts: ${JSON.stringify(gloss.parts)}` : '';

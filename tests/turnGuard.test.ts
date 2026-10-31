@@ -22,6 +22,47 @@ const SCENE = 'Guten Tag! Was ist für Sie leicht, was ist schwer beim Deutschle
 
 const GREETINGS = ['hallo', 'Hallo!', 'guten Morgen', 'hi', 'Hallo hallo'];
 
+/**
+ * The rule this pins: in a scenario chat, a bare greeting is answered with a
+ * short greeting and then the SCENE'S OWN question — not a generic wellbeing
+ * question the scene never asked. These are the five live `airport_arrival`
+ * openers (A0 reuses A1, exactly as the app does), the missing-luggage scene.
+ */
+const LUGGAGE_SCENES: Record<(typeof LEVELS)[number], string> = {
+  A0: 'Guten Tag. Fehlt Ihr Gepäck?',
+  A1: 'Guten Tag. Fehlt Ihr Gepäck?',
+  A2: 'Guten Tag. Willkommen am Flughafen. Fehlt Ihr Gepäck, oder suchen Sie den Gepäckschalter?',
+  B1: 'Guten Tag. Da Ihr Koffer nicht angekommen ist, nehme ich hier die Meldung auf. Haben Sie Ihren Pass und Ihre Bordkarte dabei?',
+  B2: 'Guten Tag. Seit Ihrer Ankunft fehlt also Ihr Gepäck. Beschreiben Sie mir bitte kurz, wie Ihr Koffer aussieht, dann sehe ich nach.',
+};
+
+describe.each(LEVELS)('a bare greeting in the missing-luggage scene at %s', (level) => {
+  it('greets back briefly and returns to the scene’s own question', () => {
+    const sceneGerman = LUGGAGE_SCENES[level];
+    const sceneAsk = sceneGerman.slice(sceneGerman.lastIndexOf('. ') + 2);
+    const out = guardGreetingReply({
+      learnerText: 'hallo',
+      replyDe: 'Hallo! Mir geht es gut.',
+      replyAr: 'أهلاً! أنا بخير.',
+      sceneGerman,
+      level,
+    });
+    expect(out.guarded).toBe(true);
+    expect(out.reason).toBe('bare_greeting');
+    // A short greeting first, then the question the scenario actually asks.
+    expect(out.replyDe).toMatch(/^Hallo! /);
+    expect(out.replyDe).toContain(sceneAsk);
+    expect(out.replyDe).toMatch(/Gepäck|Koffer|Pass|Bordkarte/);
+    // The invented wellbeing answer/question is gone.
+    expect(out.replyDe).not.toContain('Mir geht es gut');
+    expect(out.replyDe).not.toContain('Wie geht es Ihnen');
+    expect(out.replyAr).toMatch(/[\u0600-\u06FF]/);
+    expect(out.replyAr).not.toContain('كيف حالك');
+    // The scene's own line is authored at its level, so the reply stays in caps.
+    expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
+  });
+});
+
 describe.each(LEVELS)('bare greetings at %s', (level) => {
   it.each(GREETINGS)('answers "%s" with a greeting and a re-ask, not an invented answer', (input) => {
     const out = guardGreetingReply({

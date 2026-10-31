@@ -20,6 +20,9 @@
  * guard only fires when the message provably carries nothing to answer.
  */
 
+import { OPENER_GLOSSES } from "./cloudflare-opener-glosses.generated.js";
+import { validateGermanAgainstLevel } from "./cloudflare-level-spec.js";
+
 /** Words that make a message a greeting rather than an answer. */
 const GREETING_WORDS = new Set([
   'hallo', 'hi', 'hey', 'hej', 'servus', 'moin', 'tag', 'guten', 'grüß', 'gruess',
@@ -80,6 +83,49 @@ export function isOffTopicSingleWord(text, sceneGerman) {
   return true;
 }
 
+/** Sentence boundaries without lookbehind (the worker runs this in every V8). */
+function splitSentences(text) {
+  return String(text || '')
+    .trim()
+    .match(/[^.!?]+[.!?]+|[^.!?]+$/g)
+    ?.map((sentence) => sentence.trim())
+    .filter(Boolean) || [];
+}
+
+const ARABIC_GREETING = /^(أهلاً|أهلا|نهارك سعيد|صباح الخير|مساء الخير)/;
+
+/**
+ * The scene's own last ask, paired with the reviewed Arabic that ships for that
+ * opener.
+ *
+ * WHY THE SCENE'S OWN LINE: a bare «hallo» used to be answered with a fixed
+ * «Wie geht es Ihnen?» — a wellbeing question the scene never asked. The learner
+ * then had to answer a question that did not exist in the conversation. When the
+ * scene is one of the stored openers, the re-ask is the opener's own last
+ * sentence (in the missing-luggage scene: «Fehlt Ihr Gepäck?»), so the turn
+ * returns to the topic the learner is actually practising.
+ *
+ * Returns null when the scene is not a stored opener (for example a later model
+ * turn), so the caller keeps the fixed, level-safe fallback.
+ */
+export function sceneTopicReAsk(sceneGerman, level = 'A1') {
+  const key = String(sceneGerman || '').replace(/\s+/g, ' ').trim();
+  const gloss = OPENER_GLOSSES[key];
+  if (!gloss) return null;
+  const deParts = splitSentences(key);
+  const arParts = splitSentences(gloss);
+  if (deParts.length === 0 || arParts.length === 0) return null;
+  const ask = deParts[deParts.length - 1];
+  const askAr = arParts[arParts.length - 1];
+  // The opener usually starts with its own greeting; the ask itself does not.
+  const de = /^(hallo|hi|hey|hej|servus|moin|guten)\b/i.test(ask) ? ask : `Hallo! ${ask}`;
+  const ar = ARABIC_GREETING.test(askAr) ? askAr : `أهلاً! ${askAr}`;
+  // The opener is authored at its level, so this fails only if the pairing is
+  // off — in which case the caller's fixed re-ask is safer than an off-spec line.
+  if (!validateGermanAgainstLevel(de, level).ok) return null;
+  return { de, ar };
+}
+
 /**
  * Fixed re-asks, one per level. Inside each level's caps by construction:
  * A0 6 words/sentence, A1 8, A2 10, B1 12, B2 15; Präsens only; and no
@@ -113,6 +159,12 @@ export function guardGreetingReply({ learnerText, replyDe, replyAr, sceneGerman 
   const spec = RE_ASK[level] || RE_ASK.A1;
   const ack = ACK[level] || ACK.A1;
   const greeting = isBareGreeting(learnerText);
+  // A stored opener can re-ask its own topic; a later turn keeps the fixed
+  // fallback below, because no reviewed Arabic ships for model-written lines.
+  if (greeting) {
+    const topic = sceneTopicReAsk(sceneGerman, level);
+    if (topic) return { replyDe: topic.de, replyAr: topic.ar, guarded: true, reason: 'bare_greeting' };
+  }
   const offTopic = !greeting && isOffTopicSingleWord(learnerText, sceneGerman);
   if (!greeting && !offTopic) return { replyDe, replyAr, guarded: false, reason: 'has_content' };
 

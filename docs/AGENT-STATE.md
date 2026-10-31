@@ -26,6 +26,15 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-31 — a bare «hallo» now returns to the scene's own question (local, verified, not deployed).**
+  `cloudflare-turn-guard.js` gained `sceneTopicReAsk`: for a stored opener it re-asks that opener's final
+  sentence with its reviewed Arabic (missing luggage: «Fehlt Ihr Gepäck?» / «Haben Sie Ihren Pass und Ihre
+  Bordkarte dabei?» / «Beschreiben Sie mir bitte kurz, wie Ihr Koffer aussieht …»), and a model-written later
+  turn keeps the fixed level-safe `RE_ASK`. The reviewed map now also ships to the worker as
+  `cloudflare-opener-glosses.generated.js`, emitted by `scripts/build-language-data.mjs`. Router untouched.
+  Rule test pins A0–B2 in `tests/turnGuard.test.ts` (41 passed); `tsc --noEmit` clean; deploy gate
+  **VERIFY OK 14/14** (770.6 s, `--ci --e2e`). Deploy follows on the pushed commit; ids added here after.
+
 - **2026-10-31 — the admin panel is live behind Cloudflare Access with real telemetry, and the owner has
   signed off the remaining choices.** Product Worker `katzu-test` is on version **`6a6db52d-a581-45b1-94c7-ef5b5e9983ea`** (deployment
   `d41b8616-4dac-48ef-a424-04109500846a`, source `053d882`, rollback `b33136fa-dd5d-45b5-bad5-fabbbfbdca72`).
