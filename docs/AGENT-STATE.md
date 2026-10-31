@@ -216,15 +216,16 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`862087cb-eeef-48c0-8467-d0bd721c35c3`** (100%, deployment `b3c5b2de-2314-488e-aa95-8cc2853b1d27`,
-  2026-10-31T11:26Z, source `a033b19`) — the scene greeting guard now re-asks the scenario's **stored** opener by id +
-  level (`sceneOpener` -> `openerForLevel`) and reads history by `role` or `sender` only for off-topic and du/Sie, on
-  top of observer-only telemetry and the token-gated `/internal/admin/*`. Live: `/health` 200 `storage:{d1,kv}`;
+  **`625986fd-46da-4c5e-a5ff-67b3925e260c`** (100%, deployment `5884fb31-6fa2-43f3-b02d-c4ae4c5f3bca`,
+  2026-10-31T13:00Z, source `ed8255c`) — the content studio's token-gated `/internal/admin/content/*`
+  (drafts, publish, undo, import, backup) on top of observer-only telemetry and the scene greeting guard. Live: `/health` 200 `storage:{d1,kv}`;
   `/crypto/health` 200 `ready:false`; `GET /internal/admin/health` and `/admin/api/affiliates` **401**;
   `POST /ai/turn` and `/ai/lexeme` **401** with a valid body and no token. The five telemetry tables exist and
   `route_events` held **26** owner-session rows at 02:46 UTC (`ai_events` 0 until a real AI turn); the `17 4 * * *`
   cron fired at **04:17:37 UTC** with `outcome: ok`.
-  **Rollback target: `e3f994ef-5524-44ef-95b9-f0fde2923baa`** (deployment `f219d5b3-1ce4-4a3d-ad18-79e3023e8534`,
+  **Rollback target: `862087cb-eeef-48c0-8467-d0bd721c35c3`** (deployment
+  `b3c5b2de-2314-488e-aa95-8cc2853b1d27`, source `a033b19`, the scene greeting guard), then
+  `e3f994ef-5524-44ef-95b9-f0fde2923baa` (deployment `f219d5b3-1ce4-4a3d-ad18-79e3023e8534`,
   source `e8e722d`, the wire fix), then `808f1553-9a1a-4af4-bafd-817c62bbb10e` (source `4ba4514`), then
   `6a6db52d-a581-45b1-94c7-ef5b5e9983ea` (source `053d882`), then `b33136fa-dd5d-45b5-bad5-fabbbfbdca72` (source `73dad45`),
   then `4d20d59e-562a-43f3-a4e2-00a99da8a507`, then `6860fa2f-bfca-44d7-8fc3-870a87aec926` (`e9aa028`), then
@@ -232,14 +233,15 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   then `6f5ba883-6730-43d2-b8cd-9c275b298fee`, then `e1a9a2ca-e919-43e2-baba-28a52bddd1cd` (`4b33d70`), then
   `b2119bfb-68cb-49bb-8639-82d4583eda28`, then `5193b4e9-9653-46b1-9d3d-164e92d0da5a`, then the older ids in
   APP-MAP §9.
-- **Admin panel Worker `katzu-admin` (2026-10-31, Access-enabled deployment):** deployment
-  **`02:11:40Z`**, version **`e7716e26-f3b4-478e-8097-106481a3369e`** (100%),
+- **Admin panel Worker `katzu-admin` (2026-10-31, content-studio deployment):** **`13:01:11Z`**, version **`8c383727-85b3-43f2-ac29-efc6126ef869`** (100%, deployment
+  `95d460dd-1abb-4634-af68-285e57bd3c93`, 4 assets incl. `/bundled-content.json`),
   `https://katzu-admin.ghaidakalosh008.workers.dev`. Bindings: `USER_PROGRESS` KV (token only), `KATZU_API`
   Service Binding → `katzu-test`, `ASSETS`, `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`; **no D1 and no AI binding**.
-  Live: Cloudflare Access answers `/`, `/api/overview` and `/healthz` with **302** to the team login
-  (`kid=8374079e…`); the Worker is fail-closed 401 if a request ever reaches it without a valid JWT.
-  **Rollback target: `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16`** (deployment
-  `3692c953-321d-4732-b883-cb9258cf0719`), or delete the Worker; nothing else depends on it.
+  Live: Cloudflare Access answers `/`, `/api/overview`, `/healthz` and `/bundled-content.json` with **302** to the
+  team login (`kid=8374079e…`); the Worker is fail-closed 401 if a request ever reaches it without a valid JWT.
+  **Rollback target: `e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
+  `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or
+  delete the Worker; nothing else depends on it.
 - **App Pages production (2026-10-31, source `a033b19`):** deployment
   **`bc807292-fc48-45bb-b398-ddd3710a8728`** — entry `assets/index-CfqO0tha.js`, `assets/AppShell-CL4Y31Jk.js`,
   lazy `LiveConversationScreen-CllYR611.js` (183,935 B) carrying the `<bdi dir="ltr">` wrapper and the derived

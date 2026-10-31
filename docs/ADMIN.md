@@ -293,9 +293,10 @@ privacy page remains true because no conversation text is stored anywhere.
 | Phase | Live verification | Rollback |
 |---|---|---|
 | 1 telemetry | **proven** — five tables in production D1; `route_events` has 26 authenticated `200` rows (02:45:38–02:46:11 UTC); the cron fired at **04:17:37 UTC** and logged `[sweep]` + `[sweep:telemetry]` with `outcome: ok` (`rate_limit_counters` 7, all telemetry counters 0 because the tables were empty) | not needed; tables are additive |
-| 2 panel | **proven** — `katzu-admin` `e7716e26`; unauthenticated `/` and `/api/overview` **302** to Access with matching `kid`; owner session loaded the panel and its APIs | rollback `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (deployment `3692c953-321d-4732-b883-cb9258cf0719`) or delete the Worker |
+| 2 panel | **proven** — `katzu-admin` `8c383727` (2026-10-31T13:01:11Z, deployment `95d460dd-1abb-4634-af68-285e57bd3c93`); unauthenticated `/`, `/api/overview`, `/healthz` and `/bundled-content.json` **302** to Access with matching `kid`; owner session loaded the panel and its APIs | rollback `e7716e26-f3b4-478e-8097-106481a3369e` (deployment `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or delete the Worker |
 | 3 conversation text | **live but inert** — switch off, no consent UI, no text rows | drop the two tables or leave them (nothing reads them when off) |
 | 4 screens | **proven** for reads the owner made (health, overview, users, content, conversations, errors, alerts, audit) | same as phase 2 |
+| 5 content studio | **deployed; code paths proven, production writes not yet exercised** — product Worker `625986fd` (2026-10-31T13:00:27Z, deployment `5884fb31-6fa2-43f3-b02d-c4ae4c5f3bca`) serves `/internal/admin/content/*` (**401** without a token, `POST` and `GET` alike) and creates the five additive content tables on the first authenticated call; panel `8c383727` ships the studio UI and `bundled-content.json` (223 openers / 892 glosses). Live probes after deploy: `/health` 200 `storage:{d1,kv}`, `/crypto/health` 200 `ready:false`, `/scenarios` 200 (45,588 bytes), `/internal/admin/content/meta` **401**, `/admin/api/affiliates` **401** | worker rollback `862087cb-eeef-48c0-8467-d0bd721c35c3` (deployment `b3c5b2de-2314-488e-aa95-8cc2853b1d27`); panel rollback `e7716e26-f3b4-478e-8097-106481a3369e` (`adff257d-…`). The five content tables are additive; dropping them loses only drafts/audit/trash/backups/reviews, never a learner row |
 
 When a deploy is authorised, the sequence and the ids to record are in `docs/agent/DEPLOY.md`;
 the pre-deploy rollback targets are in `docs/BACKUP.md` §2.
@@ -315,6 +316,17 @@ re-run after the deploy: `npx vitest run tests/adminAccess.test.ts tests/adminWo
 to `https://ghaidakalosh008.cloudflareaccess.com/cdn-cgi/access/login/…?kid=8374079e…`, and the
 login page and team JWKS are reachable. `wrangler deploy` printed version
 `e7716e26-f3b4-478e-8097-106481a3369e` with `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` bound.
+
+**Content studio batch (2026-10-31).** The pre-deploy gate printed
+`VERIFY OK — 14/14 steps passed in 726.8s` with `--ci --e2e` (the browser suite ran 616.5 s against the built
+bundle; exit 0). Focused: `npx vitest run tests/adminContentManagement.test.ts` → **51 passed**;
+`tests/adminPanelContentUi.test.ts` and `tests/agentDocs.test.ts` (**33**) green. The commit `ed8255c` was pushed
+(`c9378dd..ed8255c`) after a 6/6 pre-push gate. Deployed product Worker version
+`625986fd-46da-4c5e-a5ff-67b3925e260c` (deployment `5884fb31-…`, 13:00:27Z) and panel `8c383727-85b3-43f2-ac29-efc6126ef869`
+(deployment `95d460dd-…`, 13:01:11Z, 4 assets including `/bundled-content.json`). Production probes: `/health` 200,
+`/crypto/health` 200 `ready:false`, `/scenarios` 200, `GET /internal/admin/content/meta` **401**, and the panel's
+`/`, `/api/overview`, `/healthz`, `/bundled-content.json` all **302** to the Access login with `kid=8374079e…`.
+No content write, publish or import has run in production; those are the owner's once signed in.
 
 ## 12. OWNER INPUT NEEDED
 
@@ -350,3 +362,11 @@ login page and team JWKS are reachable. `wrangler deploy` printed version
   telemetry (26 authenticated 200s) and by the Access redirect; an agent must not drive that session.
 - **`/healthz` is no longer publicly probeable** (Access 302); a bypass would be an owner-created
   Access policy.
+- **The content studio is proven on a D1 double, not on production D1.** `FakeD1` runs the real parser
+  without JOINs, `TEXT PRIMARY KEY` or constraint semantics, so the 51 tests prove the code path —
+  draft invisibility, exact rowid/`NULL` undo and restore, dry-run no-op, one backup per UTC day, CSV
+  round-trip, one draft per row on repeat saves — not D1 atomicity. `captureBookmark` returns `""` when
+  `withSession` is absent, so the Time Travel bookmark is code-path tested only. The first authenticated
+  session creates the five tables; the owner's first publish or import is what proves the writes.
+- **The panel is structurally, not visually, checked.** `adminPanelContentUi` asserts no `innerHTML` and
+  that every content control is wired; it never renders the page. A browser pass is the owner's session.
