@@ -342,10 +342,12 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 
 ## 7. Recent changes
 
-- **A bare «hallo» returns to the scene's own question (2026-10-31, local, not deployed)** — `cloudflare-turn-guard.js`
+- **A bare «hallo» returns to the scene's own question (2026-10-31, worker deployed)** — `cloudflare-turn-guard.js`
   re-asks the stored opener's final sentence with its reviewed Arabic (`airport_arrival`: «Fehlt Ihr Gepäck?»); a
   model-written later turn keeps the fixed fallback, the AI router is untouched, and all five levels are pinned in
-  `tests/turnGuard.test.ts` (41 passed · `tsc` clean · gate 6/6).
+  `tests/turnGuard.test.ts` (41 passed · `tsc` clean · gate 14/14 · CI `41175396237`). Worker
+  `808f1553-9a1a-4af4-bafd-817c62bbb10e` (rollback `6a6db52d-…`); bundle 628.22 → 753.22 KiB raw, 157.50 →
+  178.45 KiB gzip.
 
 - **Openers and word cards (2026-10-30, worker + app deployed)** — the first partner line of every situation is
   pre-computed in German and Arabic (instant, offline); a word card reads the shipped glossary first and only an
