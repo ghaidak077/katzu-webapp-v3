@@ -26,16 +26,20 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-10-31 — live «hallo» still answered generically: root cause found, fix local (deploy pending).**
+- **2026-10-31 — live «hallo» root cause fixed and deployed; the signed-in turn stays the owner's check.**
   The live A1 airport turn returned «Hallo! Schön, Sie zu sehen. Wie geht es Ihnen?» even though the guard was
   deployed, because `/ai/turn` read scene text only from `history[].sender` while `workerClient.sendTurn` sends
-  `{ role, text }` — `sceneGerman` was always empty live, so `sceneTopicReAsk` was never reached. The extraction
-  now accepts `role` or `sender`, and `tests/turnGuard.test.ts` posts the app's real payload (`role`), plus a
+  `{ role, text }` — `sceneGerman` was always empty live, so `sceneTopicReAsk` was never reached. Fixed: history
+  is read by `role` or `sender`, and `tests/turnGuard.test.ts` posts the app's real payload (`role`), plus a
   legacy `sender` case. Greeting detection now squashes held keys and typos («halo», «hiii», «halloooo»),
   accepts hello/hi/hey/moin/servus/guten tag, case, punctuation and a lone emoji wave, while still showing the
   correction card; tolerance applies to greetings only, never to scene words. Router and admin panel untouched.
-  Local: `npx vitest run tests/turnGuard.test.ts` **97 passed**; `node --check` clean. Deploy pending the full
-  gate and CI on the exact SHA.
+  **Evidence:** `tests/turnGuard.test.ts` **97 passed**; four-scene probe **44/44** (A1 airport, A2 café, B1
+  doctor, B2 job interview); gate **VERIFY OK 14/14** (717 s, `--ci --e2e`); CI **41180974785** green on
+  `e8e722d`. **Deployed** worker `e3f994ef-5524-44ef-95b9-f0fde2923baa` (deployment
+  `f219d5b3-1ce4-4a3d-ad18-79e3023e8534`, source `e8e722d`), rollback `808f1553-…`; bundle
+  **753.22 → 753.91 KiB** raw, **178.45 → 178.67 KiB** gzip. **UNPROVEN:** the live signed-in «hallo»
+  reply — still no owner Google session and no anonymous turn path.
 
 - **2026-10-31 — a bare «hallo» now returns to the scene's own question (worker deployed).**
   `cloudflare-turn-guard.js` gained `sceneTopicReAsk`: for a stored opener it re-asks that opener's final
@@ -200,21 +204,21 @@ dashboard setting (Security → Bots / WAF), never repo code.
 
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 
-Recorded 2026-10-19, refreshed at the 2026-10-22 V43.4 worker deploy (the admin-harness fix), the
-2026-10-23 guided-home Pages deploy, the 2026-10-28 worker + site + app deploys and the 2026-10-31
-admin-panel deploys: these live ids are the rollback targets for the **next** deploy. Supersedes the
-2026-10-06 snapshot (now in `docs/agent/ARCHIVE-AGENT-STATE.md`), whose worker target `315ec953-…` was
-replaced by `56425f30-…` (2026-10-12), then `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
+Recorded 2026-10-19 and refreshed at each deploy since, including the 2026-10-31 greeting-wire fix: these
+live ids are the rollback targets for the **next** deploy. Supersedes the 2026-10-06 snapshot (now in
+`docs/agent/ARCHIVE-AGENT-STATE.md`), whose worker target `315ec953-…` was replaced by `56425f30-…`, then
+`66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`808f1553-9a1a-4af4-bafd-817c62bbb10e`** (100%, deployed 2026-10-31 as deployment
-  `893767d5-6b92-416f-94fa-78e908101923`, source `4ba4514`) — scene-aware greeting guard plus observer-only
+  **`e3f994ef-5524-44ef-95b9-f0fde2923baa`** (100%, deployed 2026-10-31 as deployment
+  `f219d5b3-1ce4-4a3d-ad18-79e3023e8534`, source `e8e722d`) — reads scene text by `role` or `sender`
+  (the app's `{ role, text }` wire shape) and tolerates greeting typos/variants, on top of observer-only
   telemetry and the token-gated `/internal/admin/*`; the immediate rollback is
-  `6a6db52d-a581-45b1-94c7-ef5b5e9983ea` (source `053d882`). Live: `/health` 200 `storage:{d1,kv}`;
+  `808f1553-9a1a-4af4-bafd-817c62bbb10e` (source `4ba4514`). Live: `/health` 200 `storage:{d1,kv}`;
   `/crypto/health` `ready:false`; `GET /internal/admin/health` and `/overview` **401** with no header **and**
   with a bogus bearer; `POST /ai/lexeme` **401**; `GET /admin/api/affiliates` **401**; `POST /ai/turn` **401**
-  with a valid body and no token. The five telemetry tables exist in
-  production D1 and `route_events` has **26** authenticated `200` rows from the owner's panel session
+  with a valid body and no token. The five telemetry tables exist in production D1 and `route_events` has
+  **26** authenticated `200` rows from the owner's panel session
   (02:45:38–02:46:11 UTC); `ai_events` is **0** until a real AI turn. The `17 4 * * *` cron fired at
   **04:17:37 UTC** (`wrangler tail`: `outcome: ok`, `[sweep] {"rate_limit_counters":7,"error_reports":0}`,
   `[sweep:telemetry]` all zeros, `[affiliate] {"approved":0}`), and the post-run counts at 04:20 UTC are
@@ -486,7 +490,9 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   0, nothing but the SHA key reaches KV". **Not** proven: that same 1-then-0 path over HTTP with a real
   session, and case **C** — sending «hallo» inside a live episode and reading the guarded reply on screen.
   Google sign-in cannot be driven headlessly (the GIS popup/iframe did not complete), and an agent must not
-  use a real account, so both stay open until an owner-run session or a seeded harness exists.
+  use a real account, so both stay open until an owner-run session or a seeded harness exists. **Update
+  2026-10-31:** the `/ai/turn` wire gap (`sender` vs the app's `{ role, text }`) is fixed and deployed as worker
+  `e3f994ef-…`; case C still needs the owner's signed-in session (`OWNER-CHECKLIST.md` §11).
 - **AFF-1 (2026-10-28) — the partner money path is unit-proven and now deployed, not live-proven.** Live, after the deploy: `/health` 200 with `storage:{d1,kv}` ok, `POST /affiliate/me` **401** signed out, `POST /affiliate/ref` **400** on a malformed code, `/admin/api/affiliates[/commissions]` **401** without the key, and the three tables present in production D1 (`sqlite_master` read). **Not live-proven:** the Google sign-in attach (Google-only sign-in; an agent must not use a real account), a real `/affiliate/me` code for a real account, the commission row created by a real activation-code redemption inside the app, the day-14 cron on real data, and a real refund after payout. All the rules are covered by the 32 tests in `tests/affiliate.test.ts` against a D1 double, which proves the rules, not D1's atomicity.
 
 - **Google Sign-In: the popup → credential → session path is UNPROVEN end-to-end (2026-10-27).** Live, the GIS script, its stylesheet, its button iframe and its font all return **200** under the production CSP, and Google's button renders in both a clean profile and a service-worker-controlled one — but nothing closed the loop, because that needs a real Google account an agent must not touch. Proven instead: delaying `/gsi/client` by 2.5 s on the local build shows the neutral "preparing" notice (no false "could not load"), and after the script arrives the real button replaces the fallback; a hard `ERR_FAILED` on the first request is followed by a tap that re-injects the script and lands on Google's button (`gsi-local.json`, `gsi-retry.mjs`). What remains unproven is only Google's own credential response through `exchangeGoogleToken` → session → sync.
@@ -546,7 +552,7 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
 
 - **The admin panel is live and the owner has decided; what remains is real traffic, not a decision
-  (V46-1, 2026-10-31).** Both Workers are live (`katzu-test` version `808f1553-…`, `katzu-admin` version
+  (V46-1, 2026-10-31).** Both Workers are live (`katzu-test` version `e3f994ef-…`, `katzu-admin` version
   `e7716e26-…`) and no learner-visible behaviour changed. Cloudflare Access protects all traffic on the panel
   host, and the owner's own signed-in session loaded the panel and seven API screens (26 authenticated 200s).
   **Recorded decisions:** conversation text **stays off** (no consent UI), retention is **90 days for text /

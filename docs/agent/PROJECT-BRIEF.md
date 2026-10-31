@@ -344,12 +344,17 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 
 ## 7. Recent changes
 
-- **The greeting guard now reaches the scene live, and greeting detection is typo-tolerant (2026-10-31, fix
-  local → deploying)** — the deployed guard never saw the scene because `/ai/turn` filtered
+- **The greeting guard now reaches the scene live, and greeting detection is typo-tolerant (2026-10-31, worker
+  deployed)** — the deployed guard never saw the scene because `/ai/turn` filtered
   `history[].sender` while the app sends `{ role, text }`; it now accepts both, so a bare «hallo» in A1
   «airport_arrival» re-asks «Fehlt Ihr Gepäck?». Greetings also tolerate held keys/typos, hello/hi/hey/moin/
   servus/guten tag, punctuation, case and an emoji wave, with the correction card unchanged. Router untouched;
-  `tests/turnGuard.test.ts` now posts the app's real payload. 97 passed locally.
+  `tests/turnGuard.test.ts` now posts the app's real payload (97 passed) and a four-scene probe passed 44/44
+  variants (A1 airport, A2 café, B1 doctor, B2 job interview). Gate 14/14 · CI `41180974785` green on
+  `e8e722d` · worker `e3f994ef-5524-44ef-95b9-f0fde2923baa` (deployment
+  `f219d5b3-1ce4-4a3d-ad18-79e3023e8534`, rollback `808f1553-…`); bundle 753.22 → 753.91 KiB raw,
+  178.45 → 178.67 KiB gzip. **Not live-proven:** the signed-in «hallo» reply (no owner session, and
+  `/ai/turn` answers 401 without one).
 
 - **A bare «hallo» returns to the scene's own question (2026-10-31, worker deployed)** — `cloudflare-turn-guard.js`
   re-asks the stored opener's final sentence with its reviewed Arabic (`airport_arrival`: «Fehlt Ihr Gepäck?»); a

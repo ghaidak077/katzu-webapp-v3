@@ -1,7 +1,7 @@
 # Owner checklist — what needs you, in plain language
 
-Every item is an open item in `docs/AGENT-STATE.md` § OWNER-OPEN; each says what "done" looks like, and a
-test keeps the two lists in step.
+Each item is in `docs/AGENT-STATE.md` § OWNER-OPEN, says what "done" looks like, and a test keeps lists
+in step.
 
 ## 1. How a learner pays you — the details only you have (V44-1, 2026-10-28)
 
@@ -10,15 +10,14 @@ test keeps the two lists in step.
 **What you send.** Telegram handle for orders; Syriatel Cash and MTN Cash numbers (and name on each); bank
 name, account holder and IBAN; and the currencies to collect.
 
-**Done looks like:** the order section shows the real numbers to pay, not just an email.
+**Done looks like:** the order section shows the real numbers, not just an email.
 
 ## 2. Four legal sentences only you can write (V44-2, 2026-10-28)
 
 **What it is.** Privacy, terms and refund are complete, except four facts an agent must not invent: governing
 law, your legal name and address, any register number, and where a dispute is settled.
 
-**What you do.** Say each in a sentence (your lawyer or tax adviser has the details); the agent adds them to
-the terms page.
+**What you do.** Say each in a sentence; the agent adds them to the terms page.
 
 **Done looks like:** the terms page names your law, your identity and where a complaint goes.
 
@@ -27,8 +26,8 @@ the terms page.
 **What it is.** Content is loaded and verified (drift exit 0). Two leftovers: rotate `ADMIN_SECRET` (once
 pasted into chat); `grammar` lacks `rule_de`, `rule_ar`, `example_ar` — one additive `ALTER TABLE`.
 
-**What you do.** Worker → Settings → Variables: set a new `ADMIN_SECRET`; then tell the agent to run the three
-`ALTER TABLE` lines and re-run `node scripts/check-content-drift.mjs`.
+**What you do.** Worker → Settings → Variables: set a new `ADMIN_SECRET`; then have the agent run the three
+`ALTER TABLE` lines and `node scripts/check-content-drift.mjs`.
 
 **Done looks like:** the drift check exits 0 and grammar shows on those five scenarios.
 
@@ -44,8 +43,7 @@ the free built-in fallback (works, capped, weaker).
 
 ## 5. One address decision — V18-3
 
-**What it is.** `robots.txt`, `sitemap.xml` and hreflang come from one origin; without it they stay honest
-but name no host.
+**What it is.** `robots.txt`, `sitemap.xml` and hreflang come from one origin; without it they name no host.
 
 **What you do.** Say "use katzuai.com" and the agent sets `VITE_PUBLIC_APP_URL` at build time.
 
@@ -61,10 +59,8 @@ but name no host.
 
 ## 7. Node version — V17-1 (not blocking)
 
-**What it is.** This machine runs Node 24.14.0; the project declares 24.15.0+ — a declaration gap, not a
-failure. Run `nvm install 24.15.0 && nvm use 24.15.0` (or `winget upgrade OpenJS.NodeJS.LTS`).
-
-**Done looks like:** `node -v` says 24.15.0 and `npm ci` prints no `EBADENGINE` line.
+This machine runs Node 24.14.0; the project declares 24.15.0+. Run `nvm install 24.15.0 && nvm use 24.15.0`
+(or `winget upgrade OpenJS.NodeJS.LTS`); done when `npm ci` prints no `EBADENGINE` line.
 
 ## 8. The partner program works; your first referred learner is the test — AFF-1 (2026-10-28)
 
@@ -80,35 +76,38 @@ least $20 — pay, then record it with `POST /admin/api/affiliates/payout`.
 
 ## 9. Be findable — Google, Bing, AI assistants — SEO-1, GEO-1 (2026-10-29)
 
-**What it is.** Twelve Arabic guides, a sitemap, crawler-friendly `robots.txt` and assistant-readable
-structured data are live; what is left is domain verification and a monthly look.
+**What it is.** Twelve Arabic guides, a sitemap, crawler-friendly `robots.txt` and structured data are live;
+what is left is domain verification and a monthly look.
 
-**What you do.** (1) Verify `katzuai.com` in Google Search Console (one TXT record), submit both sitemaps,
+**What you do.** (1) Verify `katzuai.com` in Google Search Console (one TXT record), submit both sitemaps and
 import into Bing — `docs/agent/GEO-VISIBILITY.md` §5. (2) Read the 12 guides and reply "fine" or changes
-(§7). (3) Monthly, ask the same 30 Arabic questions across six assistants and fill one table (§2–§4).
-(4) Send your real LinkedIn / GitHub / X links (§8).
+(§7). (3) Monthly, ask 30 Arabic questions across six assistants and fill one table (§2–§4). (4) Send your
+LinkedIn / GitHub / X links (§8).
 
 **Done looks like:** Search Console says "Success" for both sitemaps, and the month's table has numbers.
 
 ## 10. The admin panel is live — decided 2026-10-31, nothing for you to do — V46-1
 
-**What it is.** The separate locked admin site runs behind Cloudflare Access and cannot touch the database or
-a key. Your own signed-in session already loaded it: 26 panel requests, all successful, and the five telemetry
-tables exist (`route_events` has 26 rows).
+**What it is.** The separate locked admin site sits behind Cloudflare Access and cannot touch the database or
+a key. Your signed-in session already loaded it: 26 panel requests, all successful, five telemetry tables.
 
-**Your decisions, now recorded.** Conversation text stays **off** (no consent screen is built); retention is
-**90 days for text, 365 for counters**; the old `/admin` and `ADMIN_SECRET` **stay live** until you confirm the
-new panel with real traffic.
+**Your decisions, recorded.** Conversation text stays **off**; retention is **90 days for text, 365 for
+counters**; the old `/admin` and `ADMIN_SECRET` stay until you confirm the new panel with real traffic.
 
-**Done looks like:** a real learner turn shows up in the panel, and you then say whether to retire the old
-`/admin` or keep it.
+**Done looks like:** a real learner turn appears in the panel, and you say whether to retire `/admin`.
+
+## 11. Type «hallo» in one scene — the last live check — V45 (2026-10-31)
+
+The greeting fix is live, but the reply only appears inside a signed-in lesson, so I could not see it.
+Sign in at `https://katzuai.com`, open **Am Flughafen** (A1), type `hallo`, and check the partner asks about
+your luggage («Fehlt Ihr Gepäck?»), not «Wie geht es Ihnen?». **Done:** that question appears — or send what
+you saw. Record: `docs/AGENT-STATE.md` UNPROVEN V45.
 
 ## Nothing to do — recorded so nobody re-opens them
 
 - **Free lessons are three, once, not three a month — FREE-1, closed 2026-10-28.** `MAX_FREE_AI_SESSIONS = 3`
   counts once per account; every surface says «في المجموع».
 - **Content-load drift check — V15-3.** Run `node scripts/check-content-drift.mjs` after any content change.
-- **Payments stay off for the beta — V18.** `/crypto/health` `ready:false` is correct; the crypto block stays
-  hidden until the gateway is live.
+- **Payments stay off for the beta — V18.** `/crypto/health` `ready:false` is correct.
 - **`docs/LAUNCH-CHECKLIST.md` § 2 stays untouched.** Those are your items, unchanged.
 - **The two Worker settings are applied.** Emergency stop: `MAINTENANCE_MODE = "on"`; retention runs 04:17 UTC.
