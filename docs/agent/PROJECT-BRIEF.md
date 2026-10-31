@@ -92,8 +92,10 @@ the site is untouched.** One endpoint added; no new route, table or dependency.
   calls; an unseen word costs one `/ai/lexeme` lookup per **lemma**, cached fleet-wide in KV (SHA key, 180 days,
   no learner text stored) and mirrored in IndexedDB (`katzu_lexeme_cache_v1`), so a repeat or an inflected
   form is 0. `window.__kzAiCalls` counts only, never text or ids.
-- **A bare «hallo»:** `cloudflare-turn-guard.js` replaces a reply that invents an answer with a greeting and a
-  re-ask at the same level; 35 pure tests plus one `/ai/turn` route test that proves the guard actually runs.
+- **A bare «hallo»:** `cloudflare-turn-guard.js` replaces a reply that invents an answer with a greeting and
+  the scene's own last question (the stored opener's final sentence, with its reviewed Arabic), at the same
+  level; a model-written later turn keeps the fixed re-ask. `tests/turnGuard.test.ts` pins all five
+  missing-luggage levels, and one `/ai/turn` route test proves the guard actually runs.
 - **Proof:** gate `VERIFY OK 14/14`; live A/B in a real browser (the `exam_erfahrungen_sprechen` opener plus 20
   words across three scenarios, every card showing meaning/POS/level, `__kzAiCalls` staying **0**); worker
   `/ai/lexeme` live (401 unauthenticated where it answered 404 before the deploy). **Not live-proven:** a
@@ -340,23 +342,23 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 
 ## 7. Recent changes
 
-- **Openers, word cards and the greeting guard (2026-10-30, worker + app deployed)** — the first partner line of
-  every situation is pre-computed in German and Arabic (instant, offline); a word card reads the shipped glossary
-  first and only an unseen **lemma** reaches `POST /ai/lexeme` (one call per lemma, KV-cached by stem, no learner
-  text stored), which is mirrored on the device; a bare «hallo» is answered by a greeting + re-ask instead of an
-  invented «Mir geht es gut». Evidence: gate 14/14; live opener + 20 words with `__kzAiCalls` **0**; worker 401 on
+- **A bare «hallo» returns to the scene's own question (2026-10-31, local, not deployed)** — `cloudflare-turn-guard.js`
+  re-asks the stored opener's final sentence with its reviewed Arabic (`airport_arrival`: «Fehlt Ihr Gepäck?»); a
+  model-written later turn keeps the fixed fallback, the AI router is untouched, and all five levels are pinned in
+  `tests/turnGuard.test.ts` (41 passed · `tsc` clean · gate 6/6).
+
+- **Openers and word cards (2026-10-30, worker + app deployed)** — the first partner line of every situation is
+  pre-computed in German and Arabic (instant, offline); a word card reads the shipped glossary first and only an
+  unseen **lemma** reaches `POST /ai/lexeme` (one call per lemma, KV-cached by stem, no learner text stored),
+  mirrored on the device. Evidence: gate 14/14; live opener + 20 words with `__kzAiCalls` **0**; worker 401 on
   `/ai/lexeme` where it was 404. Ids in `docs/AGENT-STATE.md` § SNAPSHOT.
 
-- **The headline reads as words again, and the title names the language (2026-10-30, deployed)** — the home
-  `<h1>`'s two block lines were joined with no whitespace, so a checker that strips tags saw the page's main
-  string as one fused word («تُتعلَّمبالتحدّث»); a newline between the spans fixes the extraction with no visual
-  change (the two line boxes, the hero box and the document height are identical at 390×844 and 1366×800).
-  `<title>`, `og:title`, `twitter:title` and JSON-LD now read «كاتزو — تطبيق لتعلّم اللغة الألمانية بالمحادثة»
-  (46 characters) and the description carries «تعلم اللغة الألمانية»; **only `/`'s title changed**. All 20 site
-  images already carried an `alt` — 19 decorative brand marks, one meaningful Arabic alt on the conversation
-  screenshot. New `tests/headings.test.ts` fails on any heading whose extracted text fuses, and `md/index.md`
-  gained the same space. Evidence: gate 14/14; crawl 17/17 paths 200 and 33 single-hop 301s; markdown
-  negotiation intact. Deployment ids in `docs/AGENT-STATE.md` § SNAPSHOT.
+- **The headline reads as words again, and the title names the language (2026-10-30, deployed)** — a newline
+  between the home `<h1>`'s two spans stops tag-stripping checkers fusing it («تُتعلَّمبالتحدّث»), with no visual
+  change at 390×844 or 1366×800. `<title>`, `og:title`, `twitter:title` and JSON-LD now read
+  «كاتزو — تطبيق لتعلّم اللغة الألمانية بالمحادثة» (46 characters), and **only `/`'s title changed**. All 20 site
+  images already carried an `alt`. New `tests/headings.test.ts` guards fused headings. Evidence: gate 14/14; crawl
+  17/17 paths 200. Ids in `docs/AGENT-STATE.md` § SNAPSHOT.
 
 - **The home film has a phone cut (2026-10-30)** — the background video on `/` serves
   `bg-mobile.mp4` (720×1280) below 701px and `bg.mp4` (1280×720) above it, through a `<source media>`
@@ -384,11 +386,9 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
   and `sales/`). Also fixed: `flushAnalytics` no longer erases events tracked during an open POST. Evidence:
   `npm test` 2135/2135, `verify -- --ci --e2e` 14/14, Lighthouse mobile a11y/SEO 100. **Owner:** payment
   method (**V44-1**) and four legal fields (**V44-2**) remain open.
-- **Haptics + purposeful motion (2026-10-18, local only — not committed, not deployed)** — one semantic haptic API (`tap`/`select`/`success`/`warning`/`error` in `src/lib/utils/haptics.ts`, with the older `triggerHaptic` kept as an alias so ~48 shipped call sites kept their exact feel) that prefers a Capacitor bridge, then `navigator.vibrate`, then silence; a Settings switch (`hapticsEnabled`, absent = ON) plus `prefers-reduced-motion` both override the caller. Two haptics were genuinely missing and added (paywall CTA `select`, destructive delete `warning`/`error`). Motion added with the existing tokens only — `.kz-pop`, `.kz-shake`, `.kz-flip-in`, `.kz-orb-listening` (the mic halo now stays while listening), a 420 ms rAF count-up on the report's unaided-sentence count, a staggered arrival for the daily tasks and the report rows, and `ProgressRail` moved from animating `width` to `transform: scaleX`. Every new class is neutralised under reduced motion with the state still visible. Evidence: `tests/haptics.test.ts` (18) and a new `feedback motion` block in `tests/designSystem.test.ts`; `npm run verify` **6/6**. **UNPROVEN:** real vibration on hardware (no phone here) and therefore the whole iOS story — iOS Safari has no `navigator.vibrate`, so an iPhone is silent by design.
-- **V32 (2026-10-04)** — measured before touching anything (25 screens at 360px): `/app/practice` had **110 controls** and no starting point, `/app/library` 12 competing primaries, `/app/study` 6 listen buttons all reading «استمع إلى النطق», Guided Practice two inputs sharing one placeholder — while `/demo` needs 2 controls. Fixed: the quiz no longer forces a guess («لا أعرف — أرني الإجابة» reveals it and counts it missed), the practice hub opens on six skill cards with the 48 words behind «تصفّح الكلمات», the Trail previews 5 scenarios, every input has its own visible label, every Study button is named by its phrase, the Welcome name is optional, Ask has a heading and a tappable example, «بدء» reads «ابدأ التدريب», chat preselects «تدريب» as «موصى به», and the level picker appears only at signup. A new standing gate, `scripts/simplicity-check.mjs`, runs in CI; its `primary-budget` rule was written, measured against 12 healthy screens, and **deleted** rather than left crying wolf. Gates: `npm test` **1363**, tsc clean ×2, e2e green, design-audit 0, simplicity-check 0, contrast all pass, `npm audit` 0.
-- **V31 (2026-10-04)** — the app failed at exactly the moments a learner is asked to trust it. The free wall was a dead end (only `PAYWALL_REQUIRED` opened the paywall, so `FREE_QUOTA_EXHAUSTED` produced an un-clearable "try again"); one shared entitlement module now classifies by set, and an unreadable ledger is a retryable glitch rather than a payment. The debrief can no longer vanish: `ReportRoute` rebuilds from the Dexie `sessions` + `mistakes` rows, or says plainly that there is nothing to rebuild. `/check-status` reports the real trial ledger («يُحسب على خوادمنا» when unknown, never a fake 0), the hint panel admits when the day's budget is spent, and **13 Arabic count sites now agree with their noun** — one and the dual as words, 3–10 plural, 11+ singular. Gates: `npm test` **1358**, e2e **62 passed**, tsc clean ×2, contrast 4.52:1 tightest, `npm audit` 0.
-- **V30 (2026-10-04)** — the app read as two products stitched together. Five palette values sat in the rose band (OKLCH h 339–344, ~50° off the lavender); earned progress is now h 299, `tertiary` moved to a periwinkle shoulder, `article.die` to pale lilac, and both glass tiers pick up the brand hue. The declared motion ladder had **zero readers**, so every transition silently used Tailwind's undeclared 150ms — it is now a real Tailwind scale and the over-budget 560ms step is retired. Confetti (the one animated subsystem ignoring `prefers-reduced-motion`) is gated; the sheet and modal got an entrance they actually had states for; six progress bars moved from animating `width` to `scaleX`; 61 `transition-all` sites now name the property they animate. Accessibility: 19 unnamed form controls named, the global focus ring restored (a utilities-layer `outline-none` had been deleting it on 20 fields), 4 icon-only buttons labelled. Cost: `/ai/hints` was quota-exempt **and** uncapped — only the global 200/day — so it now has its own free 30 / Pro 120 ceiling. Measured: 16 routes clean at 320px and at 200% zoom. Gates: `npm test` **1323**, tsc clean, design-audit 0, contrast 20/20, build OK, `npm audit` 0.
-- **V29 design system (2026-10-03)** — the palette was unified onto `src/index.css` as its only owner, `tailwind.config.js` became a token *reader*, and `Button`/`Card` were unified into 7 variants / 4 sizes with glass compat wrappers. The duplicate sign-in button (Google's iframe *plus* Katzu's own) was fixed. `VITE_GOOGLE_CLIENT_ID` is set in the untracked `.env`.
+- Older changes (2026-10-18 and earlier: haptics, V32, V31, V30, V29) moved verbatim to
+  [PROJECT-BRIEF-CHANGELOG](PROJECT-BRIEF-CHANGELOG.md) on 2026-10-31, so this brief keeps
+  room to grow.
 
 Older stage history (RC/V7-V16 deploys and commit hashes) moved verbatim to
 `docs/agent/ARCHIVE-PROJECT-BRIEF.md` - append-only, grepped, never read whole.
