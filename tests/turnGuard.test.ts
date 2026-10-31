@@ -20,7 +20,14 @@ const LEVELS = ['A0', 'A1', 'A2', 'B1', 'B2'] as const;
 
 const SCENE = 'Guten Tag! Was ist für Sie leicht, was ist schwer beim Deutschlernen?';
 
-const GREETINGS = ['hallo', 'Hallo!', 'guten Morgen', 'hi', 'Hallo hallo'];
+const GREETINGS = [
+  'hallo', 'Hallo!', 'guten Morgen', 'hi', 'Hallo hallo',
+  // The variants a phone keyboard actually produces: typos, held keys, English
+  // and regional forms, punctuation and a lone wave. All must still get the
+  // correction card, not an invented answer.
+  'halo', 'hello', 'hiii', 'HEY!!!', 'moin', 'moin moin', 'servus', 'Guten Tag!',
+  'halloooo', '👋', 'Hallo 👋',
+];
 
 /**
  * The rule this pins: in a scenario chat, a bare greeting is answered with a
@@ -246,16 +253,20 @@ describe('/ai/turn wires the guard into the reply the learner sees', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_guard_route' },
         body: JSON.stringify({
-          scenario_id: 'exam_erfahrungen_sprechen',
+          // The exact shape `workerClient.sendTurn` puts on the wire: it rewrites
+          // history to { role, text } before sending. The old test used { sender },
+          // which the app never sends — so it was green while production was not.
+          scenario_id: 'airport_arrival',
+          scenario_title: 'Am Flughafen',
+          persona: 'friendly conversational partner and native German teacher',
           cefr_level: 'A1',
           user_message: 'hallo',
           session_id: 'sess-guard-route',
-          history: [
-            {
-              sender: 'model',
-              text: 'Guten Tag! Erzählen Sie: Was ist für Sie leicht, was ist schwer beim Deutschlernen?',
-            },
-          ],
+          mode: 'roleplay',
+          is_final_turn: false,
+          sarcasm_level: 'SASSY',
+          turn_index: 0,
+          history: [{ role: 'model', text: 'Guten Tag. Fehlt Ihr Gepäck?' }],
         }),
       }),
       env,
@@ -263,10 +274,64 @@ describe('/ai/turn wires the guard into the reply the learner sees', () => {
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
-    // The invented wellbeing answer is gone, the partner asks rather than answers.
+    // The invented wellbeing answer is gone; the partner re-asks the scene's own
+    // missing-luggage question, which is the live failure this batch fixes.
     expect(body.reply_de).not.toContain('Mir geht es gut');
-    expect(body.reply_de).toContain('?');
-    expect(body.reply_de).toContain('Ihnen');
+    expect(body.reply_de).toContain('Fehlt Ihr Gepäck');
     expect(body.reply_ar).toMatch(/[\u0600-\u06FF]/);
+  });
+
+  it('still accepts the legacy { sender } shape older callers send', async () => {
+    const env: any = {
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      NVIDIA_API_KEYS: 'test-key-aaaaaaaaaa',
+      OPENROUTER_API_KEYS: 'test-key-openrouter-b',
+      USER_PROGRESS: new MemoryKv(),
+      REDEEMED_CODES: new MemoryKv(),
+      DB: emptyDb(),
+    };
+    await env.USER_PROGRESS.put(
+      'session:sess_guard_legacy',
+      JSON.stringify({ sub: 'guard-learner', email: 'guard@test.dev', created_at: Date.now(), expires_at: Date.now() + 3600_000 }),
+    );
+    vi.stubGlobal('fetch', (async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  reply_de: 'Hallo! Mir geht es gut.',
+                  reply_ar: 'أهلاً! أنا بخير.',
+                  evaluation: { is_correct: true, explanation_ar: 'جيد.', positive_note_ar: 'أحسنت!' },
+                  next_hint: { german: 'Danke!', translation_ar: 'شكراً!' },
+                  followup_question_ar: '',
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch);
+
+    const res = await worker.fetch(
+      new Request('https://worker.test/ai/turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_guard_legacy' },
+        body: JSON.stringify({
+          scenario_id: 'airport_arrival',
+          cefr_level: 'A1',
+          user_message: 'hallo',
+          session_id: 'sess-guard-legacy',
+          history: [{ sender: 'model', text: 'Guten Tag. Fehlt Ihr Gepäck?' }],
+        }),
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.reply_de).toContain('Fehlt Ihr Gepäck');
   });
 });

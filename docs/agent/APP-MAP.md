@@ -321,7 +321,7 @@ Pro status or AI allowance. AI never governs billing/account state.
 | any Worker/API call | `src/lib/api/workerClient.ts` |
 | an AI endpoint or prompt | `cloudflare-unified-worker.js` + `cloudflare-ai-chat.js` |
 | an opener's Arabic, or a word's meaning/POS/level | `scripts/language-data/` corpus → `node scripts/build-language-data.mjs` → `src/lib/conversation/openerGlosses.generated.ts` + `src/lib/vocabulary/wordGlossary.generated.ts`; lookup in `src/lib/vocabulary/wordGloss.ts` |
-| how the partner answers a bare greeting | `cloudflare-turn-guard.js` (`guardGreetingReply`, called early in `/ai/turn`): a stored opener's own last question via `sceneTopicReAsk` + `cloudflare-opener-glosses.generated.js`; the fixed `RE_ASK` line for a model-written later turn |
+| how the partner answers a bare greeting | `cloudflare-turn-guard.js` (`guardGreetingReply`, called early in `/ai/turn`): a stored opener's own last question via `sceneTopicReAsk` + `cloudflare-opener-glosses.generated.js`; the fixed `RE_ASK` line for a model-written later turn. The scene text is read from history entries by `role` **or** `sender` — the app sends `{ role, text }` (`workerClient` rewrites it), and reading only `sender` left the scene empty live. Greeting detection squashes held keys/typos and accepts hello/hi/hey/moin/servus/guten tag and a lone emoji wave; that tolerance is greetings-only, never scene words |
 | AI provider pool | `cloudflare-ai-router.js` (defaults) + `cloudflare-ai-providers.js` (owner edits: disable defaults, custom gateways, keys) |
 | offline/DB behaviour | `src/lib/db/katzuDb.ts` |
 | domain types/shapes | `src/types/models.ts` |

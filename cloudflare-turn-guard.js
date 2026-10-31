@@ -25,9 +25,26 @@ import { validateGermanAgainstLevel } from "./cloudflare-level-spec.js";
 
 /** Words that make a message a greeting rather than an answer. */
 const GREETING_WORDS = new Set([
-  'hallo', 'hi', 'hey', 'hej', 'servus', 'moin', 'tag', 'guten', 'grüß', 'gruess',
+  'hallo', 'hello', 'hi', 'hey', 'hej', 'servus', 'moin', 'tag', 'guten', 'grüß', 'gruess',
   'gott', 'morgen', 'abend', 'nachmittag', 'tschuess', 'tschüss', 'ciao', 'salut',
+  'hallöchen', 'huhu', 'allo', 'moinmoin',
 ]);
+
+/**
+ * Greeting comparison that survives a typo or a held key: «halo», «hello»,
+ * «halloooo», «hiiii». Squashing every run of a letter to one turns all of them
+ * into a form that is already in the set above. It is only used for greetings,
+ * never for scene matching — «Kaffee» must not become «kafe».
+ */
+const squashLetters = (token) => token.replace(/(\p{L})\1+/gu, '$1');
+const SQUASHED_GREETINGS = new Set([...GREETING_WORDS].map((word) => squashLetters(word)));
+
+function isGreetingToken(token) {
+  return GREETING_WORDS.has(token) || SQUASHED_GREETINGS.has(squashLetters(token));
+}
+
+/** A wave on its own is a greeting; plain punctuation is not. */
+const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
 
 /** Short words that carry no topic on their own. */
 const EMPTY_WORDS = new Set([
@@ -57,9 +74,12 @@ const words = (text) =>
 
 /** A message that is only a greeting: «hallo», «Hallo!», «Guten Morgen». */
 export function isBareGreeting(text) {
-  const tokens = words(text);
-  if (tokens.length === 0 || tokens.length > 4) return false;
-  return tokens.every((token) => GREETING_WORDS.has(token));
+  const raw = String(text || '');
+  const tokens = words(raw);
+  // No letters at all: an emoji wave is a greeting, plain punctuation is not.
+  if (tokens.length === 0) return EMOJI.test(raw);
+  if (tokens.length > 4) return false;
+  return tokens.every(isGreetingToken);
 }
 
 /**
@@ -71,7 +91,7 @@ export function isOffTopicSingleWord(text, sceneGerman) {
   const tokens = words(text);
   if (tokens.length !== 1) return false;
   const token = tokens[0];
-  if (GREETING_WORDS.has(token) || EMPTY_WORDS.has(token) || isDoubledFiller(token)) return false;
+  if (isGreetingToken(token) || EMPTY_WORDS.has(token) || isDoubledFiller(token)) return false;
   if (/^\d+$/.test(token)) return false;
   const scene = new Set(words(sceneGerman));
   if (scene.has(token)) return false;

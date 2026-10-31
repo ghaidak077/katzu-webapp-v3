@@ -94,8 +94,10 @@ the site is untouched.** One endpoint added; no new route, table or dependency.
   form is 0. `window.__kzAiCalls` counts only, never text or ids.
 - **A bare «hallo»:** `cloudflare-turn-guard.js` replaces a reply that invents an answer with a greeting and
   the scene's own last question (the stored opener's final sentence, with its reviewed Arabic), at the same
-  level; a model-written later turn keeps the fixed re-ask. `tests/turnGuard.test.ts` pins all five
-  missing-luggage levels, and one `/ai/turn` route test proves the guard actually runs.
+  level; a model-written later turn keeps the fixed re-ask. Scene text is read from history by `role` or
+  `sender` (the app sends `{ role, text }`), and greeting detection tolerates typos, held keys, English and
+  regional variants and an emoji wave. `tests/turnGuard.test.ts` pins all five missing-luggage levels, the
+  greeting variants, and the `/ai/turn` route in the app's real payload shape.
 - **Proof:** gate `VERIFY OK 14/14`; live A/B in a real browser (the `exam_erfahrungen_sprechen` opener plus 20
   words across three scenarios, every card showing meaning/POS/level, `__kzAiCalls` staying **0**); worker
   `/ai/lexeme` live (401 unauthenticated where it answered 404 before the deploy). **Not live-proven:** a
@@ -341,6 +343,13 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 - **`UNPROVEN`** (V10 additions marked): the real content load · human content review (AI self-review only) · sync/crypto atomicity on the *deployed* database · the counter's insert-then-increment branch at unit level · the Trail's own Lighthouse numbers (it redirects to `/welcome` without an account) · a clean-machine Lighthouse run (this one shared the page with an anti-virus script) · visual 360/390 px and offline-recording checks · real-device voice. Now **covered** and so removed from this list: built-bundle e2e, local-D1 sync/crypto atomicity, and the Lighthouse baseline itself.
 
 ## 7. Recent changes
+
+- **The greeting guard now reaches the scene live, and greeting detection is typo-tolerant (2026-10-31, fix
+  local → deploying)** — the deployed guard never saw the scene because `/ai/turn` filtered
+  `history[].sender` while the app sends `{ role, text }`; it now accepts both, so a bare «hallo» in A1
+  «airport_arrival» re-asks «Fehlt Ihr Gepäck?». Greetings also tolerate held keys/typos, hello/hi/hey/moin/
+  servus/guten tag, punctuation, case and an emoji wave, with the correction card unchanged. Router untouched;
+  `tests/turnGuard.test.ts` now posts the app's real payload. 97 passed locally.
 
 - **A bare «hallo» returns to the scene's own question (2026-10-31, worker deployed)** — `cloudflare-turn-guard.js`
   re-asks the stored opener's final sentence with its reviewed Arabic (`airport_arrival`: «Fehlt Ihr Gepäck?»); a

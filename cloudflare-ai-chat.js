@@ -466,9 +466,18 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     // line is validated like any other reply, and it never fires when the message
     // carries content of its own.
     if (parsed?.reply_de) {
+      // The app's transport rewrites history to { role, text } (workerClient's
+      // formattedHistory); older/hand-written callers send { sender, text }.
+      // Reading only `sender` left sceneGerman empty on every real turn, so the
+      // guard silently fell back to the generic line instead of the scene's own
+      // question. tests/turnGuard.test.ts pins both shapes.
       const sceneGerman = (Array.isArray(v.history) ? v.history : [])
-        .filter((m) => m && m.sender === "model")
-        .map((m) => m.text)
+        .filter((m) => {
+          if (!m) return false;
+          const role = String(m.role || m.sender || "").toLowerCase();
+          return role === "model" || role === "assistant";
+        })
+        .map((m) => String(m.text ?? m.content ?? ""))
         .join(" ");
       const guarded = guardGreetingReply({
         learnerText: v.user_message,

@@ -26,6 +26,17 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-10-31 — live «hallo» still answered generically: root cause found, fix local (deploy pending).**
+  The live A1 airport turn returned «Hallo! Schön, Sie zu sehen. Wie geht es Ihnen?» even though the guard was
+  deployed, because `/ai/turn` read scene text only from `history[].sender` while `workerClient.sendTurn` sends
+  `{ role, text }` — `sceneGerman` was always empty live, so `sceneTopicReAsk` was never reached. The extraction
+  now accepts `role` or `sender`, and `tests/turnGuard.test.ts` posts the app's real payload (`role`), plus a
+  legacy `sender` case. Greeting detection now squashes held keys and typos («halo», «hiii», «halloooo»),
+  accepts hello/hi/hey/moin/servus/guten tag, case, punctuation and a lone emoji wave, while still showing the
+  correction card; tolerance applies to greetings only, never to scene words. Router and admin panel untouched.
+  Local: `npx vitest run tests/turnGuard.test.ts` **97 passed**; `node --check` clean. Deploy pending the full
+  gate and CI on the exact SHA.
+
 - **2026-10-31 — a bare «hallo» now returns to the scene's own question (worker deployed).**
   `cloudflare-turn-guard.js` gained `sceneTopicReAsk`: for a stored opener it re-asks that opener's final
   sentence with its reviewed Arabic (missing luggage: «Fehlt Ihr Gepäck?» / «Haben Sie Ihren Pass und Ihre
