@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CAPITALISATION_LABEL,
   classifyCorrection,
+  correctionCardCopy,
   correctionRuleLabel,
 } from '@/lib/conversation/correctionWording';
 
@@ -62,4 +63,64 @@ describe('correctionRuleLabel', () => {
     expect(correctionRuleLabel(undefined, 'hallo', 'x')).toBe('');
     expect(correctionRuleLabel('halo', undefined, 'x')).toBe('');
   });
+});
+
+/**
+ * Production bug this pins: the chip said «Schreibung: Doppel-l» while the
+ * model's Arabic explanation said to capitalise the first letter — the two
+ * halves of one card taught different rules. The chip and explanation now come
+ * from the same classification.
+ */
+describe('correctionCardCopy — chip and explanation agree', () => {
+  const cases = [
+    ['halo', 'hallo'],
+    ['Halo', 'hallo'],
+    ['HALO', 'hallo'],
+    ['HALO', 'Hallo'],
+  ] as const;
+
+  it.each(cases)('%s → %s: a doubled-letter chip is explained as a doubled letter', (from, to) => {
+    const copy = correctionCardCopy(from, to, CAPITALISATION_LABEL, 'اكتب الحرف الأول كبيرًا فقط');
+    expect(copy.label).toBe('Schreibung: Doppel-l');
+    expect(copy.explanationAr).toContain('مضعّف');
+    expect(copy.explanationAr).not.toContain('اكتب الحرف الأول كبيرًا فقط');
+  });
+
+  it('names both errors when HALO → Hallo also differs in case', () => {
+    const copy = correctionCardCopy('HALO', 'Hallo', CAPITALISATION_LABEL);
+    expect(copy.label).toBe('Schreibung: Doppel-l');
+    expect(copy.explanationAr).toBe('حرف l مضعّف، واكتب الحرف الأول كبيرًا والباقي صغيرًا.');
+  });
+
+  it('does not invent a case error when only the letter differs (halo → hallo)', () => {
+    expect(correctionCardCopy('halo', 'hallo', CAPITALISATION_LABEL).explanationAr).toBe(
+      'حرف l مضعّف.',
+    );
+  });
+
+  it('names the lower-case target for Halo → hallo', () => {
+    expect(correctionCardCopy('Halo', 'hallo', CAPITALISATION_LABEL).explanationAr).toBe(
+      'حرف l مضعّف، واكتب الكلمة بحروف صغيرة.',
+    );
+  });
+
+  it('explains a case-only correction instead of echoing the model', () => {
+    const copy = correctionCardCopy('hallo', 'Hallo', 'x', 'قول مختلف تمامًا');
+    expect(copy.label).toBe(CAPITALISATION_LABEL);
+    expect(copy.explanationAr).toBe('اكتب الحرف الأول كبيرًا والباقي صغيرًا.');
+  });
+
+  it('keeps the model wording only when the difference cannot be classified', () => {
+    expect(
+      correctionCardCopy('Ich habe Hund', 'Ich habe einen Hund', 'أدوات التعريف', 'ناقص أداة'),
+    ).toEqual({ label: 'أدوات التعريف', explanationAr: 'ناقص أداة' });
+  });
+
+  for (const [from, to] of cases) {
+    it(`${from} → ${to}: chip equals correctionRuleLabel`, () => {
+      expect(correctionCardCopy(from, to, CAPITALISATION_LABEL).label).toBe(
+        correctionRuleLabel(from, to, CAPITALISATION_LABEL),
+      );
+    });
+  }
 });

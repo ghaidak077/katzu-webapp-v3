@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Languages, RefreshCw, Snail, Volume2 } from 'lucide-react';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
-import { correctionRuleLabel } from '@/lib/conversation/correctionWording';
+import { correctionCardCopy } from '@/lib/conversation/correctionWording';
 import { activeWordIndex, speechSegments } from '@/lib/speech/wordHighlight';
 import type { ChatMessage } from '@/types/models';
 
@@ -87,16 +87,19 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   const spokenWord = activeWordIndex(segments, spokenCharIndex);
 
   // The card carries one accent — the corrected word, and the thin edge beside
-  // it. The rule label is derived from the two visible strings so it names the
-  // difference the learner actually made (`halo` → `hallo` is a doubled letter,
-  // not capitalisation); the model's rule is only the fallback.
-  const ruleLabel = correctionMessage
-    ? correctionRuleLabel(
+  // it. The rule label and the Arabic explanation are derived together from the
+  // two visible strings, so they cannot name different rules (`halo` → `hallo`
+  // is a doubled letter, not capitalisation; `HALO` → `Hallo` is both). The
+  // model's wording is used only when the difference cannot be classified.
+  const correctionCopy = correctionMessage
+    ? correctionCardCopy(
         correctionMessage.originalMistake,
         correctionMessage.correctedGerman,
         correctionMessage.grammarRule,
+        correctionMessage.explanationAr,
       )
-    : '';
+    : { label: '', explanationAr: '' };
+  const ruleLabel = correctionCopy.label;
   const hasCorrection = Boolean(correctionMessage?.correctedGerman);
 
   return (
@@ -285,8 +288,8 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 </div>
               )}
 
-              {correctionMessage.explanationAr && (
-                <p className="kz-ar-caption leading-relaxed text-kz-inkDim">{correctionMessage.explanationAr}</p>
+              {correctionCopy.explanationAr && (
+                <p className="kz-ar-caption leading-relaxed text-kz-inkDim">{correctionCopy.explanationAr}</p>
               )}
 
               {correctionMessage.positiveNoteAr && (

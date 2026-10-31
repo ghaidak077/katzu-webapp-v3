@@ -27,11 +27,12 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 ## RESUME
 
 - **2026-10-31 — correction card redesigned; the signed-in view stays the owner's check.**
-  The note under a learner's message now uses the bubble surface/radius/padding with one success accent (corrected
-  word + 2px start edge), neutral struck «قلت», and a rule label derived from the two visible strings
-  (`halo` → `hallo` = «Schreibung: Doppel-l»; model rule only as fallback), wrapping at 360px without clipping.
-  Evidence: `tests/correctionWording.test.ts` **10 passed**, `npm test` **171 files / 2429**, gate **14/14**
-  (691 s), six dark shots in `docs/agent/correction-card/`; full record in the APP-MAP change log.
+  The note under a learner's message uses bubble surface/radius/padding, one success accent (corrected word
+  + 2px edge), neutral struck «قلت», and a chip plus Arabic explanation derived together from the two
+  visible strings in `src/lib/conversation/correctionWording.ts` — `HALO` → `Hallo` names the doubled l **and**
+  the case, `halo` → `hallo` adds no case error; model wording is fallback. Wraps at 360px.
+  Evidence: `tests/correctionWording.test.ts` **23 passed**, `npm test` **171 files / 2429**, gate **14/14**
+  (691 s), six dark shots in `correction-card/`; full record in APP-MAP's change log.
   **Deployed** Pages `c69c1ca4-…` (source `5d04a51`, rollback `73b9768b-…`); worker untouched.
   **UNPROVEN:** the card inside a signed-in session (`OWNER-CHECKLIST.md` §11).
 - **2026-10-31 — live «hallo» root cause fixed and deployed; the signed-in turn stays the owner's check.**

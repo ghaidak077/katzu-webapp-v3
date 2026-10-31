@@ -100,7 +100,7 @@ a key. Your signed-in session already loaded it: 26 panel requests, all successf
 
 The greeting fix and the correction card are live, but both need a signed-in lesson, so I could not see them.
 Sign in at `https://katzuai.com`, open **Am Flughafen** (A1), type `halo`: the partner should ask about your
-luggage, and the note under your bubble should say «Schreibung: Doppel-l», nothing cut off.
+luggage, and the note under your bubble should say «Schreibung: Doppel-l» with a matching explanation, nothing cut off.
 **Done:** both appear, or send what you saw. Record: `docs/AGENT-STATE.md` UNPROVEN V45.
 
 ## Nothing to do — recorded so nobody re-opens them

@@ -55,6 +55,47 @@ function singleSubstitution(a: string, b: string): { from: string; to: string } 
   return found;
 }
 
+/** `value` without the character at `index`. */
+function withoutAt(value: string, index: number): string {
+  return value.slice(0, index) + value.slice(index + 1);
+}
+
+/**
+ * Do the two strings differ in letter case, once the one inserted/dropped
+ * letter is aligned away? `halo` → `hallo` is false; `HALO` → `Hallo` is true
+ * even though the letter difference is the doubled `l`.
+ */
+function caseDiffers(from: string, to: string): boolean {
+  let a = from;
+  let b = to;
+
+  const added = singleInsertion(to.toLowerCase(), from.toLowerCase());
+  if (added) b = withoutAt(to, added.index);
+  else {
+    const dropped = singleInsertion(from.toLowerCase(), to.toLowerCase());
+    if (dropped) a = withoutAt(from, dropped.index);
+  }
+
+  if (a.length !== b.length) return false;
+
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] === b[index]) continue;
+    if (a[index].toLowerCase() === b[index].toLowerCase()) return true;
+  }
+  return false;
+}
+
+/** How the corrected word is capitalised, said the way the chip says it. */
+function targetCaseClause(to: string): string {
+  const letters = to.replace(/[^A-Za-zÄÖÜäöüß]/g, '');
+  if (!letters) return 'طابق حالة الأحرف في الكلمة الصحيحة';
+  if (letters === letters.toLowerCase()) return 'اكتب الكلمة بحروف صغيرة';
+  if (letters === letters.toUpperCase()) return 'اكتب الكلمة بحروف كبيرة';
+  if (/^[A-ZÄÖÜ][^A-ZÄÖÜ]*$/.test(letters)) return 'اكتب الحرف الأول كبيرًا والباقي صغيرًا';
+  return 'طابق حالة الأحرف في الكلمة الصحيحة';
+}
+
+
 /**
  * Classify the visible difference between the learner's sentence and the
  * corrected one. Case-insensitive comparison comes first, because "the only
@@ -102,6 +143,65 @@ export function classifyCorrection(
 }
 
 /**
+ * The chip and the Arabic explanation, built from the same classification so
+ * they cannot name different rules. `HALO` → `Hallo` is a doubled `l` *and* a
+ * case error, so the explanation names both; the chip still names the letter
+ * rule, and the model's own wording is used only for `fallback`.
+ */
+export interface CorrectionCardCopy {
+  label: string;
+  explanationAr: string;
+}
+
+export function correctionCardCopy(
+  original: string | undefined,
+  corrected: string | undefined,
+  fallbackLabel?: string,
+  fallbackExplanation?: string,
+): CorrectionCardCopy {
+  const from = (original ?? '').trim();
+  const to = (corrected ?? '').trim();
+  const rule = classifyCorrection(from, to);
+
+  if (rule.kind === 'none') return { label: '', explanationAr: '' };
+  if (rule.kind === 'fallback') {
+    return {
+      label: (fallbackLabel ?? '').trim(),
+      explanationAr: (fallbackExplanation ?? '').trim(),
+    };
+  }
+
+  const withCase = (base: string) =>
+    caseDiffers(from, to) ? `${base}، و${targetCaseClause(to)}.` : `${base}.`;
+
+  if (rule.kind === 'capitalisation') {
+    return { label: rule.label, explanationAr: `${targetCaseClause(to)}.` };
+  }
+
+  if (rule.kind === 'doubled-letter') {
+    const added = singleInsertion(to.toLowerCase(), from.toLowerCase());
+    const base = added ? `حرف ${added.char} مضعّف` : 'الحرف مضعّف';
+    return { label: rule.label, explanationAr: withCase(base) };
+  }
+
+  if (rule.kind === 'inserted-letter') {
+    return { label: rule.label, explanationAr: withCase('ينقص الكلمة حرف واحد') };
+  }
+
+  if (rule.kind === 'extra-letter') {
+    return { label: rule.label, explanationAr: withCase('في الكلمة حرف زائد') };
+  }
+
+  const swapped = singleSubstitution(from, to);
+  return {
+    label: rule.label,
+    explanationAr: swapped
+      ? withCase(`اكتب ${swapped.to} بدل ${swapped.from}`)
+      : withCase('راجع كتابة الكلمة'),
+  };
+}
+
+/**
  * The label to render, or '' when the card should show no rule chip.
  * `fallback` is the model's own Arabic or German rule, used only when the
  * strings cannot be classified.
@@ -111,7 +211,5 @@ export function correctionRuleLabel(
   corrected: string | undefined,
   fallback?: string,
 ): string {
-  const result = classifyCorrection(original, corrected);
-  if (result.kind === 'fallback') return (fallback ?? '').trim();
-  return result.label;
+  return correctionCardCopy(original, corrected, fallback).label;
 }

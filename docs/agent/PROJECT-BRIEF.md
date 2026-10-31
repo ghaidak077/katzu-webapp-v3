@@ -84,10 +84,11 @@ learner-visible change in it.
   in `docs/BACKUP.md`.
 - **Correction card rebuilt and deployed (Pages `c69c1ca4-…`, source `5d04a51`):** the note under a learner's
   message now uses the bubble surface/radius/padding with one success accent (the corrected word + a 2px start
-  edge) instead of an amber outline and 📌; the rule label is derived from the two visible strings
-  (`halo` → `hallo` reads «Schreibung: Doppel-l», not capitalisation) with the model's rule only as fallback, and
-  long German words wrap at 360px instead of clipping. Correction logic, router, `/ai/turn` and the admin panel
-  are untouched. **Proof:** `tests/correctionWording.test.ts` 10 passed, `npm test` 171 files / 2429 tests, gate
+  edge) instead of an amber outline and 📌; the rule label and the Arabic explanation are derived together from
+  the two visible strings (`halo` → `hallo` reads «Schreibung: Doppel-l», not capitalisation; `HALO` → `Hallo`
+  names the doubled l **and** the case) with the model's wording only as fallback, and long German words wrap at
+  360px instead of clipping. Correction logic, router, `/ai/turn` and the admin panel
+  are untouched. **Proof:** `tests/correctionWording.test.ts` 23 passed, `npm test` 171 files / 2429 tests, gate
   `VERIFY OK 14/14`, six dark 360×740 before/after shots in `docs/agent/correction-card/`. **Unproven:** the card
   inside a signed-in session — the owner's §11 check now also asks for «Schreibung: Doppel-l» and no clipping.
 
