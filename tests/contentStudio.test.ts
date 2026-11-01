@@ -487,3 +487,137 @@ describe('content studio — export and telemetry', () => {
     expect(events).toContain('content_bulk_upload');
   });
 });
+
+/**
+ * The bridge is how a scripted update reaches the studio without a browser: the
+ * same handlers, the same draft → publish → audit → undo path, behind the same
+ * admin bearer check. These tests exist because the loader's safety story is
+ * only true if the surface it writes through really is the studio's.
+ */
+describe('content-studio bridge on the admin surface', () => {
+  it('serves the studio router and does not bypass the admin bearer check', async () => {
+    const env = makeEnv();
+
+    const meta = await call(env, '/admin/api/content-studio/meta');
+    expect(meta.status).toBe(200);
+    expect(meta.body.types.map((entry: { type: string }) => entry.type)).toEqual(CONTENT_TYPES);
+
+    const denied = await call(env, '/admin/api/content-studio/meta', {
+      headers: { Authorization: 'Bearer wrong-secret-that-is-long-enough' },
+    });
+    expect(denied.status).toBe(401);
+  });
+
+  it('drafts, publishes with an audit row and undoes back to the exact field values', async () => {
+    const env = makeEnv();
+    const before = env.DB.snapshot('scenarios')[0];
+    const key = 'cafe_order';
+
+    const drafted = await post(env, '/admin/api/content-studio/scenarios/draft', {
+      key,
+      row: scenario({ title_ar: 'عنوان مصحح' }),
+      note: 'bridge test',
+    });
+    expect(drafted.status).toBe(200);
+    expect(drafted.body.draft.diff).toEqual([
+      { column: 'title_ar', before: scenario().title_ar, after: 'عنوان مصحح' },
+    ]);
+    // The learner-facing row is untouched until publish.
+    expect(env.DB.snapshot('scenarios')[0].title_ar).toBe(scenario().title_ar);
+
+    const pending = await call(env, '/admin/api/content-studio/scenarios?status=draft');
+    expect(pending.body.total).toBe(1);
+
+    const published = await post(env, '/admin/api/content-studio/scenarios/publish', { key });
+    expect(published.status).toBe(200);
+    expect(published.body.audit_uid).toBeTruthy();
+    expect(env.DB.snapshot('scenarios')[0].title_ar).toBe('عنوان مصحح');
+
+    const audit = await call(env, '/admin/api/content-studio/audit');
+    const publishRow = audit.body.rows.find((row: { action: string }) => row.action === 'publish');
+    expect(publishRow.actor).toBe('content-loader');
+
+    const undone = await post(env, '/admin/api/content-studio/scenarios/undo', {
+      audit_uid: published.body.audit_uid,
+    });
+    expect(undone.status).toBe(200);
+    const restored = env.DB.snapshot('scenarios')[0];
+    expect(restored.title_ar).toBe(before.title_ar);
+    expect(restored.title_de).toBe(before.title_de);
+
+    const second = await post(env, '/admin/api/content-studio/scenarios/undo', {
+      audit_uid: published.body.audit_uid,
+    });
+    expect(second.status).toBe(409);
+    expect(second.body.error).toBe('already_undone');
+  });
+
+  it('undoes a row whose audit before-state carries a column the schema does not describe', async () => {
+    // The deployed `scenarios` table has a legacy `sequence_order` column that
+    // `DB_SCHEMA` deliberately does not expose. `SELECT *` still puts it in the
+    // audit's before-state, and undo used to reject it as an unknown column and
+    // leave the publish in place — proven against a real local D1 by
+    // `verify-content-update-local.mjs` (49/49 undos returned 409 restore_invalid).
+    const env = makeEnv();
+    const before = scenario({ sequence_order: 7 });
+    env.DB.seed('scenarios', [before]);
+
+    const drafted = await post(env, '/admin/api/content-studio/scenarios/draft', {
+      key: 'cafe_order',
+      row: scenario({ title_ar: 'عنوان مصحح' }),
+    });
+    expect(drafted.status).toBe(200);
+    const published = await post(env, '/admin/api/content-studio/scenarios/publish', { key: 'cafe_order' });
+    expect(env.DB.snapshot('scenarios')[0].title_ar).toBe('عنوان مصحح');
+
+    const undone = await post(env, '/admin/api/content-studio/scenarios/undo', {
+      audit_uid: published.body.audit_uid,
+    });
+    expect(undone.status).toBe(200);
+    const restored = env.DB.snapshot('scenarios')[0];
+    expect(restored.title_ar).toBe(before.title_ar);
+    // The legacy column is not in the contract, so undo must leave it alone.
+    expect((restored as Row & { sequence_order?: number }).sequence_order).toBe(7);
+  });
+
+  it('imports a plan as drafts, then publishes them all with reusable audit uids', async () => {
+    const env = makeEnv();
+    const original = env.DB.snapshot('scenarios')[0];
+
+    const dry = await post(env, '/admin/api/content-studio/import', {
+      type: 'scenarios',
+      content: [scenario({ title_ar: 'عنوان مستورد' })],
+      apply: false,
+    });
+    expect(dry.body.applied).toBe(false);
+    expect(dry.body.updates).toBe(1);
+    // A dry run changes no row and creates no draft.
+    expect(env.DB.snapshot('scenarios')[0].title_ar).toBe(original.title_ar);
+    expect((await call(env, '/admin/api/content-studio/scenarios?status=draft')).body.total).toBe(0);
+
+    const applied = await post(env, '/admin/api/content-studio/import', {
+      type: 'scenarios',
+      content: [scenario({ title_ar: 'عنوان مستورد' })],
+      apply: true,
+    });
+    expect(applied.body.applied).toBe(true);
+    expect(applied.body.drafts).toBe(1);
+    expect(env.DB.snapshot('scenarios')[0].title_ar).toBe(original.title_ar);
+
+    const published = await post(env, '/admin/api/content-studio/scenarios/publish-all', {});
+    expect(published.body.published).toBe(1);
+    expect(published.body.failed).toEqual([]);
+    expect(env.DB.snapshot('scenarios')[0].title_ar).toBe('عنوان مستورد');
+    expect((await call(env, '/admin/api/content-studio/scenarios?status=draft')).body.total).toBe(0);
+
+    const history = await call(env, '/admin/api/content-studio/scenarios/history?limit=5');
+    const latest = history.body.rows.find(
+      (row: { action: string; key: string }) => row.action === 'publish' && row.key === 'cafe_order',
+    );
+    expect(latest.undoable).toBe(true);
+
+    const undone = await post(env, '/admin/api/content-studio/scenarios/undo', { audit_uid: latest.uid });
+    expect(undone.status).toBe(200);
+    expect(env.DB.snapshot('scenarios')[0].title_ar).toBe(original.title_ar);
+  });
+});

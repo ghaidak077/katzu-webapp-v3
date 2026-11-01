@@ -9,6 +9,7 @@ import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
 import { freeSessionsCopy } from '@/lib/entitlement/trialCopy';
 import { buildWordBank } from '@/lib/utils/wordBank';
 import { track } from '@/lib/analytics/client';
+import { acquireUpdateHold } from '@/lib/pwa/updatePrompt';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
 import type { CEFRLevel } from '@/types/models';
 import { ConversationDock } from './ConversationDock';
@@ -164,6 +165,15 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     refreshHints,
     handleNudgeDifficulty,
   } = live;
+
+  // A deploy installs a new bundle but must not reload over a live conversation:
+  // the messages exist only in this component until the session ends and is
+  // written to Dexie. The prompt stays visible; its button waits for this hold.
+  const conversationInProgress = messages.length > 0 && !isSessionCompleted;
+  useEffect(() => {
+    if (!conversationInProgress) return;
+    return acquireUpdateHold();
+  }, [conversationInProgress]);
 
   // An exam has no "with help / without help" question: the mock starts as it is.
   // The setter is stable, so this runs once per mount and never re-fires.

@@ -6,7 +6,7 @@ Each item is in `docs/AGENT-STATE.md` § OWNER-OPEN, with what "done" looks like
 
 Pricing is finished but no payment method is connected, so buyers can only email. Send: the Telegram handle
 orders may go to; the Syriatel Cash and MTN Cash numbers (and the name on each); bank, account holder and IBAN;
-and the currencies to collect. **Done:** the order section shows the real numbers.
+the currencies to collect. **Done:** the order section shows the real numbers.
 
 ## 2. Four legal sentences — V44-2 (2026-10-28)
 
@@ -16,15 +16,15 @@ address, any register number, and the dispute forum. Say each in a sentence; the
 
 ## 3. Admin secret and grammar columns — V11, V12, V12-1, V18-2
 
-Rotate `ADMIN_SECRET` once (it was pasted into chat), and `grammar` needs one additive `ALTER TABLE` adding
-`rule_de`, `rule_ar`, `example_ar`. Worker → Settings → Variables: set the new secret, then have the agent run
-the three lines and the drift check. **Done:** drift exits 0 and grammar shows.
+Rotate `ADMIN_SECRET` once (it was pasted into chat); `grammar` needs one additive `ALTER TABLE` adding
+`rule_de`, `rule_ar`, `example_ar`. Set it in Worker → Settings → Variables, then have the agent run the three
+lines and the drift check. **Done:** drift exits 0 and grammar shows.
 
 ## 4. Real AI keys — AI-POOL (2026-10-18)
 
 Both key lists are empty, so every turn rides the free fallback (works, weaker, capped). Admin → **AI Providers**
-→ paste key(s) → **Save provider** → **Test**; or `npx wrangler secret put OPENROUTER_API_KEYS` /
-`NVIDIA_API_KEYS`. **Done:** Test answers "OK in a few hundred ms", and a live turn stops naming the fallback.
+→ paste key(s) → **Save** → **Test**; or `npx wrangler secret put OPENROUTER_API_KEYS` / `NVIDIA_API_KEYS`.
+**Done:** Test answers "OK in a few hundred ms" and a live turn stops naming the fallback.
 
 ## 5. One address — V18-3
 
@@ -43,7 +43,7 @@ This machine runs 24.14.0; the project wants 24.15.0+. Run `nvm install 24.15.0 
 
 ## 8. Partner program first test — AFF-1 (2026-10-28)
 
-The ledger, self-serve link and day-14 approval are live (20%, 14-day hold, $20 minimum). (1) **Two-account
+The ledger, self-serve link and 14-day approval are live (20%, 14-day hold, $20 minimum). (1) **Two-account
 test** (an agent must not sign in as you): A copies its `/partners` link; B signs up, pays and redeems; A shows
 one `pending` row, then tell the agent to delete it. (2) **Mondays:** `GET /admin/api/affiliates/commissions`
 lists who is owed at least $20 — pay, then record it with `POST /admin/api/affiliates/payout`.
@@ -69,16 +69,15 @@ and the note under your bubble should say «Schreibung: Doppel-l», nothing cut 
 `hallo` again: the partner must stay in the scene and never ask «Wie geht es Ihnen?».
 **Done:** both appear, or send what you saw. Record: `docs/AGENT-STATE.md` UNPROVEN V45.
 
-## 12. Turn on the new conversations — CONTENT-V2-1 (2026-11-01)
+## 12. Turn on the new conversations — CONTENT-V2-1, CONTENT-V2-4 (2026-11-01)
 
-61 conversations are tested locally: your 49 corrected with A0 levels, plus 12 new (pharmacy, Jobcenter,
-emergency call, dentist, language café…). The live app still shows the old 49: production content needs your
-words and today's loader can only add rows, not update them. Choose:
-1. **New only (safe):** `CONTENT-LOAD-AUTHORIZED: scenarios-new.json` — adds the 12; the 49 stay as they are.
-2. **Everything:** approve an update-capable load, so the 49 corrected rows replace the old ones. I write and
-   test that path before touching production.
-**Done:** the app lists the chosen situations at all five levels and `node scripts/check-content-drift.mjs`
-exits 0.
+You chose **everything**: your 49 corrected conversations replace the old ones; the 12 new ones wait until the
+Arabic is checked. Two things block it, both yours:
+1. **The line** `CONTENT-LOAD-AUTHORIZED: scenarios-catalogue.json`. Project rules allow only *adding* rows today,
+   so this line is also your approval to update existing ones. Nothing is written without it.
+2. **The admin key.** It is set on this machine, but the live site answers «unauthorized», so even a read-only
+   check cannot run. Rotate it once (item 3), then tell me it is done.
+**Done:** a dry run lists 49 rows / 327 fields, the load lands with a backup, and the app shows the corrected scenes.
 
 ## 13. Native check of the new Arabic — CONTENT-V2-2 (2026-11-01)
 

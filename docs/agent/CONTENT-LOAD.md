@@ -27,3 +27,48 @@ Row counts equal the dry-run expectation. Old rows unchanged (counts + 3 sampled
 
 ## Rollback (automatic)
 Any mismatch → delete ONLY the ids this run inserted (from the dry-run list) via wrangler, verify the counts return to 5 scenarios / 114 vocabulary / 20 starter_phrases / 4 grammar, mark `blocked`, stop.
+
+## Correcting rows that are already live (built 2026-11-01 — NOT yet authorized)
+
+The insert-only loader above cannot change a live row. `scripts/load-content-updates.mjs`
+is the update-capable path: same `ADMIN_SECRET` rule, but it writes through the Content
+Studio (`/admin/api/content-studio/<type>/{draft,publish-all,undo}`) so every write has a
+draft, an audit row, a dated backup and an undo per row.
+
+```
+node scripts/load-content-updates.mjs                      # dry run: lists every field before → after, writes nothing
+node scripts/load-content-updates.mjs --commit             # drafts → publish-all → verify → manifest in backups/content-load-<stamp>/
+node scripts/load-content-updates.mjs --undo=backups/content-load-<stamp>/manifest.json
+```
+
+Rules it enforces itself (all covered by `tests/loadContentUpdates.test.ts`):
+
+- **insert-only stays true**: a catalogue id that is not already live is printed as
+  `WILL NOT be created` and never written. 2026-11-01: the 12 new scenes stay out.
+- refuses to start if any draft of that type already exists (`publish-all` would publish it too);
+- carries live `banner_url` over; never writes `sequence_order` (the journey order is code:
+  `src/lib/content/scenarioOrder.ts`);
+- takes a studio backup + export, records a manifest (before, after, audit uids, bookmark) and
+  only then writes; on any verification failure it undoes the publishes it made;
+- `--undo` refuses when live rows no longer match the manifest's after-state (someone edited
+  them since the load).
+
+The gate is unchanged: **§3 still says insert-only, so this path needs the owner's explicit
+amendment plus the exact `CONTENT-LOAD-AUTHORIZED: <file names>` line**. `docs/AGENT-STATE.md`
+carries the open item.
+
+Local proof of the whole path (fresh D1 seeded from `backups/pre-content-v2/content.sql`,
+throwaway key, real `wrangler dev`, ~2 min):
+
+```
+node scripts/verify-content-update-local.mjs    # 28 checks; exit 0 = pass
+```
+
+Measured 2026-11-01: 49 live rows, **49 rows / 327 fields** (a0/a1/a2/b1/b2 49 each, title_ar 32,
+ai_persona 25, title_de 15, icon 10); dry run wrote nothing and made no draft; a planted draft
+blocked the commit; the commit published 49 rows, matched the catalogue column-for-column, left
+the 12 new ids absent, `/scenarios` served the corrected rows, a second dry run found nothing,
+and `--undo` restored every field. The run also found a real studio defect: an audit
+`before_state` from `SELECT *` carries the legacy `sequence_order`, which undo rejected as an
+unknown column — fixed by projecting stored audit rows onto `DB_SCHEMA` (`contractRow`).
+

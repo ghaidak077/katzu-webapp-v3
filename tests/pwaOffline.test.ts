@@ -51,10 +51,19 @@ describe('offline app shell', () => {
     }
   });
 
-  it('activates a new service worker immediately so a deploy cannot strand a stale bundle', () => {
-    // An old bundle against a newer database raises VersionError; autoUpdate is
-    // what stops a learner's open tab from keeping the old one alive.
-    expect(pwaOptions.registerType).toBe('autoUpdate');
+  it('waits for the learner before activating a new service worker', () => {
+    // autoUpdate reloads the moment a new bundle activates, and a conversation
+    // exists only in React state until the session is finished and saved. The
+    // worker therefore installs and waits: the banner in `UpdatePrompt` asks,
+    // and a conversation hold keeps its button disabled until the chat is done.
+    expect(pwaOptions.registerType).toBe('prompt');
+    // Registration is hand-written in `src/lib/pwa/updatePrompt.ts`, because the
+    // plugin's helper reloads on `controlling` before unsaved work can be saved.
+    expect(pwaOptions.injectRegister).toBeNull();
+    expect(pwaOptions.workbox.skipWaiting).toBe(false);
+    // Once the learner agrees, the open page must move to the new worker, or
+    // `controllerchange` never fires and the reload serves the old bundle again.
+    expect(pwaOptions.workbox.clientsClaim).toBe(true);
   });
 
   it('gives every precached file exactly one owner', () => {

@@ -40,6 +40,12 @@ import {
 import { CONTENT_STUDIO_TOOLS_SCRIPT } from "./cloudflare-content-studio-tools.js";
 import { handleAnalyticsRoute } from "./cloudflare-analytics.js";
 import { handleAffiliateAdminRoutes } from "./cloudflare-affiliate.js";
+// The Content Studio's draft/publish/undo router lives behind the internal
+// `/internal/admin/content/*` door. A thin bridge below exposes the same
+// handlers on this authenticated admin surface, so a scripted content update
+// can reuse the studio's draft → publish → audit → undo path instead of
+// duplicating it (or writing learner tables directly).
+import { handleContentAdminRequest } from "./cloudflare-content-admin.js";
 // Owner-managed AI provider pool (admin dashboard → AI Providers). Keys are
 // written server-side only and every read is masked (counts + fingerprints).
 import {
@@ -1360,6 +1366,33 @@ export async function handleAdminRoutes(url, request, env, cors, deps = {}) {
   // into `invalid_code` (400) — a bug this placement is the fix for.
   const affiliateResponse = await handleAffiliateAdminRoutes(url, request, env, cors, { json });
   if (affiliateResponse) return affiliateResponse;
+
+  // Content Studio bridge: `GET|POST /admin/api/content-studio/<segments>` runs
+  // the studio's own router (`cloudflare-content-admin.js`) on this surface, so
+  // a scripted content update reuses draft → publish → audit → undo instead of
+  // writing learner tables. It keeps this surface's guarantees unchanged: the
+  // same bearer check and throttle above, `no-store` on every answer, and no new
+  // privilege — the studio is what the internal door already exposes to an
+  // operator. Dispatched BEFORE the shared body read below because the studio
+  // router consumes the JSON body itself; reading it here first would hand it an
+  // empty `{}` (the same failure the affiliate dispatch above documents).
+  if (path === "/admin/api/content-studio" || path.startsWith("/admin/api/content-studio/")) {
+    const segments = path.slice("/admin/api/content-studio".length).split("/").filter(Boolean);
+    const studioResponse = await handleContentAdminRequest(segments, {
+      method,
+      url,
+      request,
+      env,
+      ctx: deps.ctx,
+      actor: "content-loader",
+    });
+    if (!studioResponse) return json({ error: "not_found" }, 404, cors);
+    if (!cors) return studioResponse;
+    return new Response(studioResponse.body, {
+      status: studioResponse.status,
+      headers: { ...Object.fromEntries(studioResponse.headers), ...cors },
+    });
+  }
 
   const body = method === "POST" ? await request.json().catch(() => null) : null;
   // Content mutations are logged so an edit shows up in the Activity tab.

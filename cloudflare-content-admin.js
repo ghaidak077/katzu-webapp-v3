@@ -567,6 +567,23 @@ function rowValues(type, row, columns) {
   return columns.map((column) => (row?.[column] === undefined ? null : row[column]));
 }
 
+/**
+ * An audit row stores `SELECT *`, so it can carry a column the live table has but
+ * `DB_SCHEMA` does not describe (the legacy `sequence_order` is the one that
+ * exists today). Validation rejects unknown columns by design, which made every
+ * undo of a scenario row fail with "unknown column sequence_order". Project onto
+ * the contract first: the write below ignores those columns anyway, and old audit
+ * rows become undoable again without a data migration.
+ */
+function contractRow(type, row) {
+  if (!row || typeof row !== "object" || Array.isArray(row)) return row;
+  const projected = {};
+  for (const column of contentColumns(type)) {
+    if (column in row) projected[column] = row[column];
+  }
+  return projected;
+}
+
 function placeholders(count) {
   return new Array(count).fill("?").join(", ");
 }
@@ -1016,7 +1033,7 @@ async function undoAudit(env, type, actor, auditUid) {
   if (!["publish", "delete", "restore"].includes(String(entry.action))) throw new HttpError(409, "not_undoable");
 
   const key = String(entry.row_key || "");
-  const before = parseJson(entry.before_state);
+  const before = contractRow(type, parseJson(entry.before_state));
   const current = await findRow(env, type, key);
 
   if (before) {

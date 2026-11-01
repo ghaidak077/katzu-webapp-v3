@@ -10,7 +10,15 @@ import { CONTENT_SIGNAL, CRAWLER_AGENTS, robotsGroup } from './scripts/seo-agent
  * browser's error page.
  */
 export const pwaOptions = {
-  registerType: 'autoUpdate' as const,
+  // Prompt, not autoUpdate. An automatic activation reloads the page, and a live
+  // conversation exists only in React state until the session finishes and is
+  // written to Dexie — so the learner would lose the exchange. The worker now
+  // waits, `src/lib/pwa/updatePrompt.ts` shows one banner, and only the learner's
+  // tap reloads. Registration is hand-written for the same reason: the plugin's
+  // `virtual:pwa-register` helper reloads on `controlling` before any caller can
+  // protect unsaved work, so `injectRegister` is null and main.tsx registers.
+  registerType: 'prompt' as const,
+  injectRegister: null,
   // Deliberately no `includeAssets`. Every public asset (favicon, mascot art,
   // fonts) already matches `globPatterns` below, and listing a file twice —
   // once unrevisioned from `includeAssets`, once revisioned from the glob —
@@ -92,6 +100,13 @@ export const pwaOptions = {
     ]
   },
   workbox: {
+    // Prompt mode leaves both flags off: `skipWaiting` false keeps the new
+    // worker waiting for the banner's SKIP_WAITING message (workbox then emits
+    // the message listener), and `clientsClaim` true is what moves the open page
+    // to the new worker once the learner has agreed. It does not reload by
+    // itself; `applyPendingUpdate` does.
+    skipWaiting: false,
+    clientsClaim: true,
     // `webp` is here for the hero (`assets/mascot/katzu_welcome.webp`, the one
     // painted sticker the app renders at full width): without it the precache
     // would ship a hero that only exists online, and a cold offline open would
