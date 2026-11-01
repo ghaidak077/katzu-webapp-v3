@@ -114,6 +114,36 @@ describe('the journey order', () => {
   });
 });
 
+describe('the 12 new situations join the journey where a learner meets them', () => {
+  const expected: Array<[string, string]> = [
+    ['nahverkehr_ticket', 'arrival'],
+    ['paket_abholen', 'everyday'],
+    ['handyvertrag', 'everyday'],
+    ['sprachcafe', 'everyday'],
+    ['jobcenter_termin', 'official'],
+    ['integrationskurs_anmelden', 'official'],
+    ['polizei_fundbuero', 'official'],
+    ['kita_elterngespraech', 'official'],
+    ['apotheke', 'health'],
+    ['zahnarzt', 'health'],
+    ['arzttermin_telefon', 'health'],
+    ['notruf_112', 'health'],
+  ];
+
+  it.each(expected)('places %s in the %s stage', (id, stage) => {
+    expect(journeyStageFor(id)).toBe(stage);
+  });
+
+  it('orders them without hiding or dropping any of them', () => {
+    const list = expected.map(([id, category]) => ({ id, category }));
+    const ordered = journeyOrderedScenarios(list);
+    expect(ordered).toHaveLength(list.length);
+    expect(ordered.map((s) => s.id).sort()).toEqual(expected.map(([id]) => id).sort());
+    expect(ordered[0].id).toBe('nahverkehr_ticket');
+    expect(ordered.at(-1)?.id).toBe('notruf_112');
+  });
+});
+
 describe('the Trail uses the rule and keeps its own controls', () => {
   const TRAIL = readFileSync('src/features/trail/TrailScreen.tsx', 'utf8');
 

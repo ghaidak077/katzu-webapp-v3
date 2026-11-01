@@ -80,6 +80,7 @@ const SCENARIO_STAGE: Record<string, JourneyStage> = {
   airport_arrival: 'arrival',
   train_station: 'arrival',
   train_first_ride: 'arrival',
+  nahverkehr_ticket: 'arrival',
 
   // 2 · Your first words, before any errand works.
   first_greetings: 'first_words',
@@ -95,6 +96,9 @@ const SCENARIO_STAGE: Record<string, JourneyStage> = {
   kollegen_smalltalk: 'everyday',
   betriebs_kantine: 'everyday',
   tech_kuechenpause: 'everyday',
+  paket_abholen: 'everyday',
+  handyvertrag: 'everyday',
+  sprachcafe: 'everyday',
 
   // 4 · A roof.
   apartment_viewing: 'home',
@@ -107,16 +111,24 @@ const SCENARIO_STAGE: Record<string, JourneyStage> = {
   termin_online_buchen: 'official',
   banking_first_visit: 'official',
   pass_und_dokumente: 'official',
+  jobcenter_termin: 'official',
+  integrationskurs_anmelden: 'official',
   pruefung_anmeldung: 'official',
   anerkennung_gespraech: 'official',
   anerkennung_it_zertifikate: 'official',
+  polizei_fundbuero: 'official',
+  kita_elterngespraech: 'official',
 
   // 6 · Your body, and the people who look after it.
   krankenkasse_anmelden: 'health',
   doctor_visit: 'health',
   gesundheit_alltag: 'health',
+  apotheke: 'health',
+  zahnarzt: 'health',
+  arzttermin_telefon: 'health',
   patient_conversation_basics: 'health',
   station_uebergabe: 'health',
+  notruf_112: 'health',
 
   // 7 · The job itself.
   erster_arbeitstag: 'work',
@@ -183,7 +195,7 @@ export function journeyStageFor(id: string, category?: string | null): JourneySt
  * database happened to return it in.
  */
 const ORDER_WITHIN_STAGE: Partial<Record<JourneyStage, string[]>> = {
-  arrival: ['airport_arrival', 'train_station', 'train_first_ride'],
+  arrival: ['airport_arrival', 'train_station', 'train_first_ride', 'nahverkehr_ticket'],
   first_words: ['first_greetings', 'numbers_and_prices', 'letters_and_forms'],
   everyday: [
     'supermarket_checkout',
@@ -194,6 +206,9 @@ const ORDER_WITHIN_STAGE: Partial<Record<JourneyStage, string[]>> = {
     'kollegen_smalltalk',
     'betriebs_kantine',
     'tech_kuechenpause',
+    'paket_abholen',
+    'handyvertrag',
+    'sprachcafe',
   ],
   home: ['apartment_viewing', 'wohnung_besichtigen_tiefer', 'mietvertrag_uebergabe', 'landlord_followup'],
   official: [
@@ -201,16 +216,24 @@ const ORDER_WITHIN_STAGE: Partial<Record<JourneyStage, string[]>> = {
     'termin_online_buchen',
     'banking_first_visit',
     'pass_und_dokumente',
+    'jobcenter_termin',
+    'integrationskurs_anmelden',
     'pruefung_anmeldung',
     'anerkennung_gespraech',
     'anerkennung_it_zertifikate',
+    'polizei_fundbuero',
+    'kita_elterngespraech',
   ],
   health: [
     'krankenkasse_anmelden',
     'doctor_visit',
     'gesundheit_alltag',
+    'apotheke',
+    'zahnarzt',
+    'arzttermin_telefon',
     'patient_conversation_basics',
     'station_uebergabe',
+    'notruf_112',
   ],
   work: [
     'erster_arbeitstag',

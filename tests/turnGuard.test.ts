@@ -5,6 +5,7 @@ import { guardGreetingReply, isBareGreeting, isOffTopicSingleWord } from '../clo
 // @ts-expect-error — same: the level spec twin ships as JS.
 import { validateGermanAgainstLevel } from '../cloudflare-level-spec.js';
 import { resetRouterState } from '../cloudflare-ai-router.js';
+import catalogue from '../docs/content/catalogue/scenarios-catalogue.json';
 
 /**
  * FIX 3: a reply must never invent a question to answer (V30).
@@ -17,6 +18,28 @@ import { resetRouterState } from '../cloudflare-ai-router.js';
  */
 
 const LEVELS = ['A0', 'A1', 'A2', 'B1', 'B2'] as const;
+type Level = (typeof LEVELS)[number];
+
+const LEVEL_TO_KEY: Record<Level, 'a0' | 'a1' | 'a2' | 'b1' | 'b2'> = {
+  A0: 'a0', A1: 'a1', A2: 'a2', B1: 'b1', B2: 'b2',
+};
+
+const SCENARIOS = (catalogue as unknown as {
+  scenarios: Array<{
+    id: string;
+    title_de: string;
+    title_ar: string;
+    ai_persona: string;
+    category: string;
+    openers: Record<string, [string, string]>;
+  }>;
+}).scenarios;
+
+const scenarioById = (id: string) => {
+  const found = SCENARIOS.find((s) => s.id === id);
+  if (!found) throw new Error(`catalogue has no ${id}`);
+  return found;
+};
 
 const SCENE = 'Guten Tag! Was ist für Sie leicht, was ist schwer beim Deutschlernen?';
 
@@ -32,21 +55,24 @@ const GREETINGS = [
 /**
  * The rule this pins: in a scenario chat, a bare greeting is answered with a
  * short greeting and then the SCENE'S OWN question — not a generic wellbeing
- * question the scene never asked. These are the five live `airport_arrival`
- * openers (A0 reuses A1, exactly as the app does), the missing-luggage scene.
+ * question the scene never asked. The openers come from the catalogue, the same
+ * source that ships to learners, so editing content changes this fixture with it.
  */
-const LUGGAGE_SCENES: Record<(typeof LEVELS)[number], string> = {
-  A0: 'Guten Tag. Fehlt Ihr Gepäck?',
-  A1: 'Guten Tag. Fehlt Ihr Gepäck?',
-  A2: 'Guten Tag. Willkommen am Flughafen. Fehlt Ihr Gepäck, oder suchen Sie den Gepäckschalter?',
-  B1: 'Guten Tag. Da Ihr Koffer nicht angekommen ist, nehme ich hier die Meldung auf. Haben Sie Ihren Pass und Ihre Bordkarte dabei?',
-  B2: 'Guten Tag. Seit Ihrer Ankunft fehlt also Ihr Gepäck. Beschreiben Sie mir bitte kurz, wie Ihr Koffer aussieht, dann sehe ich nach.',
-};
+const LUGGAGE_SCENES = Object.fromEntries(
+  LEVELS.map((level) => [level, scenarioById('airport_arrival').openers[LEVEL_TO_KEY[level]][0]]),
+) as Record<Level, string>;
+
+/** The last sentence of an opener — the question the scene is actually asking. */
+const askOf = (opener: string) => germanSentences(opener).slice(-1)[0];
+
+function germanSentences(text: string) {
+  return text.trim().split(/(?<=[.!?])\s+/).filter(Boolean);
+}
 
 describe.each(LEVELS)('a bare greeting in the missing-luggage scene at %s', (level) => {
   it('greets back briefly and returns to the stored opener’s own question', () => {
     const sceneOpener = LUGGAGE_SCENES[level];
-    const sceneAsk = sceneOpener.slice(sceneOpener.lastIndexOf('. ') + 2);
+    const sceneAsk = askOf(sceneOpener);
     const out = guardGreetingReply({
       learnerText: 'hallo',
       replyDe: 'Hallo! Mir geht es gut.',
@@ -62,7 +88,6 @@ describe.each(LEVELS)('a bare greeting in the missing-luggage scene at %s', (lev
     // A short greeting first, then the question the scenario actually asks.
     expect(out.replyDe).toMatch(/^Hallo! /);
     expect(out.replyDe).toContain(sceneAsk);
-    expect(out.replyDe).toMatch(/Gepäck|Koffer|Pass|Bordkarte/);
     // The invented wellbeing answer/question is gone.
     expect(out.replyDe).not.toContain('Mir geht es gut');
     expect(out.replyDe).not.toContain('Wie geht es Ihnen');
@@ -90,7 +115,7 @@ describe.each(LEVELS)('a bare greeting in the missing-luggage scene at %s', (lev
       level,
     });
     expect(out.reason).toBe('bare_greeting');
-    expect(out.replyDe).toContain(sceneOpener.slice(sceneOpener.lastIndexOf('. ') + 2));
+    expect(out.replyDe).toContain(askOf(sceneOpener));
     expect(out.replyDe).not.toContain('Wie geht es Ihnen');
     expect(out.replyDe).not.toContain('Mir geht es gut');
   });
@@ -131,6 +156,39 @@ describe.each(LEVELS)('bare greetings at %s', (level) => {
     expect(out.reason).toBe('off_topic_single_word');
     expect(out.replyDe).not.toContain('Wie geht es');
     expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
+  });
+});
+
+describe('every shipped scene answers a bare greeting with its own question', () => {
+  it('holds for all 61 scenarios at all five levels', () => {
+    let checked = 0;
+    for (const scenario of SCENARIOS) {
+      for (const level of LEVELS) {
+        const opener = scenario.openers[LEVEL_TO_KEY[level]][0];
+        const out = guardGreetingReply({
+          learnerText: 'hallo',
+          replyDe: 'Hallo! Mir geht es gut.',
+          replyAr: 'أهلاً! أنا بخير.',
+          sceneGerman: opener,
+          sceneOpener: opener,
+          level,
+        });
+        const label = `${scenario.id}/${level}`;
+        expect(out.guarded, label).toBe(true);
+        expect(out.reason, label).toBe('bare_greeting');
+        // The invented wellbeing answer/question never survives.
+        expect(out.replyDe, label).not.toContain('Mir geht es gut');
+        expect(out.replyDe, label).not.toContain('Wie geht es');
+        expect(out.replyDe, label).not.toMatch(/Wie geht es Ihnen/);
+        expect(out.replyAr, label).not.toContain('كيف حالك');
+        // The scene's own last question is what the learner gets back.
+        expect(out.replyDe, label).toContain(askOf(opener));
+        // And it stays inside the level, so the guard cannot teach off-spec German.
+        expect(validateGermanAgainstLevel(out.replyDe, level), label).toEqual({ ok: true });
+        checked += 1;
+      }
+    }
+    expect(checked).toBe(61 * 5);
   });
 });
 
@@ -220,20 +278,19 @@ class MemoryKv {
   }
 }
 
-// The route resolves the scenario from D1 before it can answer, and the exam
-// scenario this bug was reported in has no static fallback row, so the stub has
-// to serve it — an empty DB turns the turn into UNKNOWN_SCENARIO (400).
+// The route resolves the scenario from D1 before it can answer, so the stub has
+// to serve it. The row is built from the catalogue, so this fixture cannot drift
+// away from what the app ships.
+const LUGGAGE_SCENARIO = scenarioById('airport_arrival');
 const SCENARIO_ROW = {
-  title_de: 'Erfahrungen sprechen',
-  ai_persona: 'friendly German examiner',
-  category: 'exam',
-  // The stored openers the route now reads by scenario id + level. A0 is empty
-  // in the corpus and falls back to A1, exactly as the live screen does.
-  initial_message_a0: '',
-  initial_message_a1: 'Guten Tag. Fehlt Ihr Gepäck?',
-  initial_message_a2: 'Guten Tag. Willkommen am Flughafen. Fehlt Ihr Gepäck, oder suchen Sie den Gepäckschalter?',
-  initial_message_b1: 'Guten Tag. Da Ihr Koffer nicht angekommen ist, nehme ich hier die Meldung auf. Haben Sie Ihren Pass und Ihre Bordkarte dabei?',
-  initial_message_b2: 'Guten Tag. Seit Ihrer Ankunft fehlt also Ihr Gepäck. Beschreiben Sie mir bitte kurz, wie Ihr Koffer aussieht, dann sehe ich nach.',
+  title_de: LUGGAGE_SCENARIO.title_de,
+  ai_persona: LUGGAGE_SCENARIO.ai_persona,
+  category: LUGGAGE_SCENARIO.category,
+  initial_message_a0: LUGGAGE_SCENARIO.openers.a0[0],
+  initial_message_a1: LUGGAGE_SCENARIO.openers.a1[0],
+  initial_message_a2: LUGGAGE_SCENARIO.openers.a2[0],
+  initial_message_b1: LUGGAGE_SCENARIO.openers.b1[0],
+  initial_message_b2: LUGGAGE_SCENARIO.openers.b2[0],
 };
 
 const emptyDb = () => {
@@ -323,7 +380,7 @@ describe('/ai/turn wires the guard into the reply the learner sees', () => {
     // The invented wellbeing answer is gone; the partner re-asks the scene's own
     // missing-luggage question, which is the live failure this batch fixes.
     expect(body.reply_de).not.toContain('Mir geht es gut');
-    expect(body.reply_de).toContain('Fehlt Ihr Gepäck');
+    expect(body.reply_de).toContain(askOf(LUGGAGE_SCENES.A1));
     expect(body.reply_ar).toMatch(/[\u0600-\u06FF]/);
   });
 
@@ -390,7 +447,7 @@ describe('/ai/turn wires the guard into the reply the learner sees', () => {
     const body = (await res.json()) as any;
     expect(body.reply_de).not.toContain('Mir geht es gut');
     expect(body.reply_de).not.toContain('Wie geht es');
-    expect(body.reply_de).toContain('Fehlt Ihr Gepäck');
+    expect(body.reply_de).toContain(askOf(LUGGAGE_SCENES.A1));
     expect(body.reply_ar).not.toContain('كيف حالك');
   });
 
@@ -445,6 +502,73 @@ describe('/ai/turn wires the guard into the reply the learner sees', () => {
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
-    expect(body.reply_de).toContain('Fehlt Ihr Gepäck');
+    expect(body.reply_de).toContain(askOf(LUGGAGE_SCENES.A1));
+  });
+
+  it('returns the scene question even when a later greeting is in history', async () => {
+    // The reported failure: after the learner greeted mid-conversation, the
+    // joined history contained a greeting line, so the guard answered that
+    // greeting and never re-asked the scene. The topic must come from the
+    // stored opener, not from whatever the history happens to contain.
+    const env: any = {
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      NVIDIA_API_KEYS: 'test-key-aaaaaaaaaa',
+      OPENROUTER_API_KEYS: 'test-key-openrouter-b',
+      USER_PROGRESS: new MemoryKv(),
+      REDEEMED_CODES: new MemoryKv(),
+      DB: emptyDb(),
+    };
+    await env.USER_PROGRESS.put(
+      'session:sess_guard_late_greeting',
+      JSON.stringify({ sub: 'guard-learner', email: 'guard@test.dev', created_at: Date.now(), expires_at: Date.now() + 3600_000 }),
+    );
+    vi.stubGlobal('fetch', (async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  reply_de: 'Hallo! Mir geht es gut.',
+                  reply_ar: 'أهلاً! أنا بخير.',
+                  evaluation: { is_correct: true, explanation_ar: 'جيد.', positive_note_ar: 'أحسنت!' },
+                  next_hint: { german: 'Danke!', translation_ar: 'شكراً!' },
+                  followup_question_ar: '',
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch);
+
+    const res = await worker.fetch(
+      new Request('https://worker.test/ai/turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_guard_late_greeting' },
+        body: JSON.stringify({
+          scenario_id: 'airport_arrival',
+          cefr_level: 'A1',
+          user_message: 'hallo',
+          session_id: 'sess-guard-late-greeting',
+          turn_index: 2,
+          history: [
+            { role: 'model', text: LUGGAGE_SCENES.A1 },
+            { role: 'user', text: 'hallo' },
+            { role: 'model', text: 'Hallo! Wie geht es Ihnen?' },
+            { role: 'user', text: 'hallo' },
+          ],
+        }),
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.reply_de).not.toContain('Mir geht es gut');
+    expect(body.reply_de).not.toMatch(/Wie geht es Ihnen/);
+    expect(body.reply_de).toContain(askOf(LUGGAGE_SCENES.A1));
+    expect(body.reply_ar).not.toContain('كيف حالك');
   });
 });

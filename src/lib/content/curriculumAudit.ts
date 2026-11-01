@@ -151,12 +151,12 @@ const UMLAUT_AS_ASCII =
  *
  * Deliberately excludes `was`, which is German ("Was ist das?").
  */
-const ENGLISH_ONLY_WORDS = [
+export const ENGLISH_ONLY_WORDS = [
   'is', 'are', 'were', 'the', 'and', 'of', 'question', 'answer', 'sentence',
   'means', 'translates', 'polite', 'infinitive', 'stands', 'always', 'never',
 ];
 
-function englishTells(value: string): string[] {
+export function englishTells(value: string): string[] {
   const lower = value.toLowerCase();
   return ENGLISH_ONLY_WORDS.filter((word) => new RegExp(`\\b${word}\\b`).test(lower));
 }
