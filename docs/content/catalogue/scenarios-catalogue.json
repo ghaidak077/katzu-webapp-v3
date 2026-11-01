@@ -1,0 +1,1971 @@
+{
+ "version": 2,
+ "updated": "2026-11-01",
+ "source": "D1 export backups/pre-content-v2/content.sql + owner katzu-scenarios.json",
+ "scenarios": [
+  {
+   "id": "first_greetings",
+   "title_de": "Erste Worte: Hallo und Tschüss",
+   "title_ar": "أول الكلمات: مرحباً وإلى اللقاء",
+   "ai_persona": "Nachbarin katze",
+   "category": "daily_life",
+   "icon": "users",
+   "sequence_order": 1,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Wie heißt du?",
+     "أهلاً! ما اسمك؟"
+    ],
+    "a1": [
+     "Hallo! Ich bin Frau Yilmaz. Wie heißt du?",
+     "أهلاً! أنا السيدة يلماز. ما اسمك؟"
+    ],
+    "a2": [
+     "Hallo, ich wohne neu hier. Wie heißt du?",
+     "أهلاً، أنا أسكن هنا حديثاً. ما اسمك؟"
+    ],
+    "b1": [
+     "Hallo! Ich bin neu in der Straße. Wie heißt du, und woher kommst du?",
+     "أهلاً! أنا جديد في الشارع. ما اسمك، ومن أين أنت؟"
+    ],
+    "b2": [
+     "Hallo! Ich bin letzte Woche eingezogen. Wie heißt du, und wie gefällt dir die Nachbarschaft?",
+     "أهلاً! انتقلت للسكن هنا الأسبوع الماضي. ما اسمك، وكيف تعجبك الحي؟"
+    ]
+   }
+  },
+  {
+   "id": "numbers_and_prices",
+   "title_de": "Zahlen und Preise",
+   "title_ar": "الأرقام والأسعار",
+   "ai_persona": "Kioskverkäufer katze",
+   "category": "travel",
+   "icon": "shopping-bag",
+   "sequence_order": 2,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was möchten Sie?",
+     "أهلاً! ماذا تريد؟"
+    ],
+    "a1": [
+     "Hallo! Die Zeitung kostet zwei Euro. Möchten Sie eine?",
+     "أهلاً! الجريدة تكلف يوروين. هل تريد واحدة؟"
+    ],
+    "a2": [
+     "Hallo! Die Zeitung kostet zwei Euro, wie viele möchten Sie?",
+     "أهلاً! الجريدة تكلف يوروين، كم واحدة تريد؟"
+    ],
+    "b1": [
+     "Guten Tag! Die Zeitung kostet heute zwei Euro. Möchten Sie auch etwas anderes?",
+     "نهارك سعيد! الجريدة تكلف اليوم يوروين. هل تريد شيئاً آخر أيضاً؟"
+    ],
+    "b2": [
+     "Guten Tag! Die Zeitung kostet heute zwei Euro, die Zeitschrift drei. Möchten Sie beides, oder zahlen Sie getrennt?",
+     "نهارك سعيد! الجريدة تكلف اليوم يوروين، والمجلة ثلاثة. هل تريد الاثنين، أم تدفع كل واحد على حدة؟"
+    ]
+   }
+  },
+  {
+   "id": "letters_and_forms",
+   "title_de": "Buchstabieren und Formulare",
+   "title_ar": "التهجئة والاستمارات",
+   "ai_persona": "Sachbearbeiter katze",
+   "category": "official",
+   "icon": "file-text",
+   "sequence_order": 3,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Brauchen Sie Hilfe?",
+     "أهلاً! هل تحتاج إلى مساعدة؟"
+    ],
+    "a1": [
+     "Guten Tag! Wie buchstabieren Sie Ihren Namen?",
+     "نهارك سعيد! كيف تتهجّى اسمك؟"
+    ],
+    "a2": [
+     "Guten Tag! Wie schreiben Sie Ihren Nachnamen im Formular?",
+     "نهارك سعيد! كيف تكتب اسم عائلتك في الاستمارة؟"
+    ],
+    "b1": [
+     "Guten Tag! Bitte füllen Sie dieses Formular aus. Wie schreiben Sie Ihren Nachnamen?",
+     "نهارك سعيد! من فضلك املأ هذه الاستمارة. كيف تكتب اسم عائلتك؟"
+    ],
+    "b2": [
+     "Guten Tag! Das Formular ist fast fertig, es fehlen nur noch zwei Angaben. Wie schreiben Sie Ihren Nachnamen, und wo wohnen Sie?",
+     "نهارك سعيد! الاستمارة شبه جاهزة، ينقصها معلومتان فقط. كيف تكتب اسم عائلتك، وأين تسكن؟"
+    ]
+   }
+  },
+  {
+   "id": "airport_arrival",
+   "title_de": "Am Flughafen: das Gepäck",
+   "title_ar": "في المطار: الأمتعة",
+   "ai_persona": "Mitarbeiterin am Gepäckschalter katze",
+   "category": "travel",
+   "icon": "plane",
+   "sequence_order": 4,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Ist das Ihr Koffer?",
+     "أهلاً! هل هذه حقيبتك؟"
+    ],
+    "a1": [
+     "Hallo! Ist das Ihr Koffer?",
+     "أهلاً! هل هذه حقيبتك؟"
+    ],
+    "a2": [
+     "Guten Tag! Ihr Koffer ist nicht angekommen, wie sieht er aus?",
+     "نهارك سعيد! حقيبتك لم تصل، كيف تبدو؟"
+    ],
+    "b1": [
+     "Guten Tag! Ihr Koffer ist leider nicht angekommen. Können Sie ihn mir beschreiben?",
+     "نهارك سعيد! حقيبتك لم تصل للأسف. هل يمكنك وصفها لي؟"
+    ],
+    "b2": [
+     "Guten Tag! Ihr Koffer ist leider nicht angekommen, das tut mir leid. Können Sie ihn mir beschreiben, und haben Sie eine Quittung?",
+     "نهارك سعيد! حقيبتك لم تصل للأسف، أنا آسف. هل يمكنك وصفها لي، وهل لديك إيصال؟"
+    ]
+   }
+  },
+  {
+   "id": "train_station",
+   "title_de": "Am Bahnhof",
+   "title_ar": "في محطة القطار",
+   "ai_persona": "Bahnmitarbeiter katze",
+   "category": "travel",
+   "icon": "train",
+   "sequence_order": 5,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Wohin möchten Sie?",
+     "أهلاً! إلى أين تريد الذهاب؟"
+    ],
+    "a1": [
+     "Hallo! Suchen Sie einen Zug?",
+     "أهلاً! هل تبحث عن قطار؟"
+    ],
+    "a2": [
+     "Guten Tag! Haben Sie ein Ticket für den Zug nach Köln?",
+     "نهارك سعيد! هل لديك تذكرة للقطار إلى كولونيا؟"
+    ],
+    "b1": [
+     "Guten Tag! Der Zug nach Köln fährt in zehn Minuten von Gleis drei. Haben Sie schon ein Ticket?",
+     "نهارك سعيد! القطار إلى كولونيا ينطلق بعد عشر دقائق من الرصيف ثلاثة. هل لديك تذكرة بالفعل؟"
+    ],
+    "b2": [
+     "Guten Tag! Der Zug nach Köln fährt in zehn Minuten von Gleis drei. Haben Sie schon ein Ticket, oder müssen Sie noch eines kaufen?",
+     "نهارك سعيد! القطار إلى كولونيا ينطلق بعد عشر دقائق من الرصيف ثلاثة. هل لديك تذكرة بالفعل، أم يجب أن تشتري واحدة؟"
+    ]
+   }
+  },
+  {
+   "id": "train_first_ride",
+   "title_de": "Die erste Zugfahrt",
+   "title_ar": "أول رحلة بالقطار",
+   "ai_persona": "Bahnmitarbeiter katze",
+   "category": "travel",
+   "icon": "train",
+   "sequence_order": 6,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Möchten Sie sitzen?",
+     "أهلاً! هل تريد الجلوس؟"
+    ],
+    "a1": [
+     "Hallo! Ist das Ihr Platz?",
+     "أهلاً! هل هذا مقعدك؟"
+    ],
+    "a2": [
+     "Guten Tag! Ist das Ihr Platz am Fenster, Nummer zwölf?",
+     "نهارك سعيد! هل هذا مقعدك عند النافذة، رقم اثني عشر؟"
+    ],
+    "b1": [
+     "Guten Tag! Ihr Platz ist Nummer zwölf, dort am Fenster. Möchten Sie lieber am Gang sitzen?",
+     "نهارك سعيد! مقعدك رقم اثني عشر، هناك عند النافذة. هل تفضّل الجلوس عند الممر؟"
+    ],
+    "b2": [
+     "Guten Tag! Ihr Platz ist Nummer zwölf, dort am Fenster. Möchten Sie lieber am Gang sitzen, oder ist der Platz so in Ordnung?",
+     "نهارك سعيد! مقعدك رقم اثني عشر، هناك عند النافذة. هل تفضّل الجلوس عند الممر، أم المقعد مناسب هكذا؟"
+    ]
+   }
+  },
+  {
+   "id": "nahverkehr_ticket",
+   "title_de": "Fahrkarte im Nahverkehr",
+   "title_ar": "تذكرة النقل المحلي",
+   "ai_persona": "Kontrolleur katze",
+   "category": "travel",
+   "icon": "ticket",
+   "sequence_order": 7,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie eine Fahrkarte?",
+     "أهلاً! هل لديك تذكرة؟"
+    ],
+    "a1": [
+     "Hallo! Eine Fahrkarte kostet drei Euro. Wohin möchten Sie fahren?",
+     "أهلاً! التذكرة تكلف ثلاثة يورو. إلى أين تريد السفر؟"
+    ],
+    "a2": [
+     "Guten Tag! Eine Fahrkarte kostet drei Euro, wohin möchten Sie fahren?",
+     "نهارك سعيد! التذكرة تكلف ثلاثة يورو، إلى أين تريد السفر؟"
+    ],
+    "b1": [
+     "Guten Tag! Die Fahrkarte für die Stadt kostet drei Euro. Fahren Sie nur kurz, oder den ganzen Tag?",
+     "نهارك سعيد! تذكرة المدينة تكلف ثلاثة يورو. هل تسافر مسافة قصيرة، أم اليوم كله؟"
+    ],
+    "b2": [
+     "Guten Tag! Die Fahrkarte für die Stadt kostet drei Euro, ein Tagesticket sechs. Möchten Sie nur eine Fahrt, oder fahren Sie den ganzen Tag?",
+     "نهارك سعيد! تذكرة المدينة تكلف ثلاثة يورو، وتذكرة اليوم ستة. هل تريد رحلة واحدة، أم تسافر اليوم كله؟"
+    ]
+   }
+  },
+  {
+   "id": "supermarket_checkout",
+   "title_de": "Im Supermarkt: die ersten Einkäufe",
+   "title_ar": "في السوبرماركت: أول المشتريات",
+   "ai_persona": "Kassiererin katze",
+   "category": "daily_life",
+   "icon": "shopping-bag",
+   "sequence_order": 8,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie eine Tasche?",
+     "أهلاً! هل لديك حقيبة؟"
+    ],
+    "a1": [
+     "Hallo! Die Tasche kostet zwanzig Cent. Möchten Sie eine?",
+     "أهلاً! الحقيبة تكلف عشرين سنتاً. هل تريد واحدة؟"
+    ],
+    "a2": [
+     "Guten Tag! Die Tasche kostet zwanzig Cent, möchten Sie eine?",
+     "نهارك سعيد! الحقيبة تكلف عشرين سنتاً، هل تريد واحدة؟"
+    ],
+    "b1": [
+     "Guten Tag! Die Tasche kostet zwanzig Cent. Haben Sie eine eigene Tasche, oder soll ich eine dazugeben?",
+     "نهارك سعيد! الحقيبة تكلف عشرين سنتاً. هل لديك حقيبة خاصة، أم أضيف واحدة؟"
+    ],
+    "b2": [
+     "Guten Tag! Die Tasche kostet zwanzig Cent, wir haben auch größere für fünfzig. Möchten Sie eine kleine Tasche, oder haben Sie selbst eine?",
+     "نهارك سعيد! الحقيبة تكلف عشرين سنتاً، ولدينا أكبر بخمسين. هل تريد حقيبة صغيرة، أم لديك واحدة خاصة؟"
+    ]
+   }
+  },
+  {
+   "id": "bakery_shopping",
+   "title_de": "Beim Bäcker",
+   "title_ar": "عند الخبّاز",
+   "ai_persona": "Bäcker katze",
+   "category": "daily_life",
+   "icon": "shopping-bag",
+   "sequence_order": 9,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Möchten Sie Brot?",
+     "أهلاً! هل تريد خبزاً؟"
+    ],
+    "a1": [
+     "Hallo! Das Brot kostet drei Euro. Möchten Sie es?",
+     "أهلاً! الخبز يكلف ثلاثة يورو. هل تريده؟"
+    ],
+    "a2": [
+     "Guten Tag! Wie viele Brötchen möchten Sie, drei oder fünf?",
+     "نهارك سعيد! كم كعكة صغيرة تريد، ثلاث أم خمس؟"
+    ],
+    "b1": [
+     "Guten Tag! Das Brot ist heute frisch. Möchten Sie es ganz, oder soll ich es schneiden?",
+     "نهارك سعيد! الخبز طازج اليوم. هل تريده كاملاً، أم أقطعه لك؟"
+    ],
+    "b2": [
+     "Guten Tag! Das Brot ist heute frisch, die Brötchen kommen gerade aus dem Ofen. Möchten Sie das Brot ganz, oder soll ich es schneiden?",
+     "نهارك سعيد! الخبز طازج اليوم، والكعكات الصغيرة تخرج الآن من الفرن. هل تريد الخبز كاملاً، أم أقطعه لك؟"
+    ]
+   }
+  },
+  {
+   "id": "cafe_order",
+   "title_de": "Bestellung im Café",
+   "title_ar": "الطلب في المقهى",
+   "ai_persona": "Kellnerin katze",
+   "category": "daily_life",
+   "icon": "coffee",
+   "sequence_order": 10,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was möchten Sie trinken?",
+     "أهلاً! ماذا تريد أن تشرب؟"
+    ],
+    "a1": [
+     "Hallo! Möchten Sie Kaffee oder Tee?",
+     "أهلاً! هل تريد قهوة أم شاياً؟"
+    ],
+    "a2": [
+     "Guten Tag! Wir haben Kaffee und Kuchen, was möchten Sie?",
+     "نهارك سعيد! لدينا قهوة وكعك، ماذا تريد؟"
+    ],
+    "b1": [
+     "Guten Tag! Wir haben heute frischen Kuchen. Möchten Sie Kaffee dazu, oder lieber Tee?",
+     "نهارك سعيد! لدينا اليوم كعك طازج. هل تريد قهوة معه، أم شاياً؟"
+    ],
+    "b2": [
+     "Guten Tag! Wir haben heute frischen Kuchen und eine neue Torte. Möchten Sie Kaffee dazu, oder probieren Sie lieber den Tee?",
+     "نهارك سعيد! لدينا اليوم كعك طازج وتورتة جديدة. هل تريد قهوة معه، أم تفضّل تجربة الشاي؟"
+    ]
+   }
+  },
+  {
+   "id": "restaurant_besonders",
+   "title_de": "Im Restaurant: Wünsche und Fragen",
+   "title_ar": "في المطعم: الطلبات والأسئلة",
+   "ai_persona": "Kellner katze",
+   "category": "daily_life",
+   "icon": "utensils",
+   "sequence_order": 11,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Möchten Sie bestellen?",
+     "أهلاً! هل تريد أن تطلب؟"
+    ],
+    "a1": [
+     "Hallo! Hier ist die Speisekarte. Möchten Sie etwas trinken?",
+     "أهلاً! هذه قائمة الطعام. هل تريد أن تشرب شيئاً؟"
+    ],
+    "a2": [
+     "Guten Tag! Hier ist die Speisekarte, haben Sie einen Wunsch?",
+     "نهارك سعيد! هذه قائمة الطعام، هل لديك طلب؟"
+    ],
+    "b1": [
+     "Guten Tag! Hier ist die Speisekarte, das Tagesgericht ist vegetarisch. Möchten Sie etwas dazu trinken?",
+     "نهارك سعيد! هذه قائمة الطعام، وطبق اليوم نباتي. هل تريد شيئاً للشرب معه؟"
+    ],
+    "b2": [
+     "Guten Tag! Hier ist die Speisekarte, das Tagesgericht ist vegetarisch. Möchten Sie etwas dazu trinken, oder haben Sie eine Frage zum Gericht?",
+     "نهارك سعيد! هذه قائمة الطعام، وطبق اليوم نباتي. هل تريد شيئاً للشرب معه، أم لديك سؤال عن الطبق؟"
+    ]
+   }
+  },
+  {
+   "id": "friend_catchup",
+   "title_de": "Mit einer Freundin plaudern",
+   "title_ar": "حديث مع صديقة",
+   "ai_persona": "Freundin katze",
+   "category": "daily_life",
+   "icon": "users",
+   "sequence_order": 12,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Alles gut bei dir?",
+     "أهلاً! كل شيء بخير عندك؟"
+    ],
+    "a1": [
+     "Hallo! Schön, dich zu sehen. Ist alles gut bei dir?",
+     "أهلاً! جميل أن أراك. هل كل شيء بخير عندك؟"
+    ],
+    "a2": [
+     "Hallo, schön dich zu sehen. Was hast du heute gemacht?",
+     "أهلاً، جميل أن أراك. ماذا فعلت اليوم؟"
+    ],
+    "b1": [
+     "Hallo! Schön, dich zu sehen, das ist ja lange her. Was hast du in letzter Zeit gemacht?",
+     "أهلاً! جميل أن أراك، لقد مضى وقت طويل. ماذا فعلت في الفترة الأخيرة؟"
+    ],
+    "b2": [
+     "Hallo! Schön, dich zu sehen, das ist ja lange her. Was hast du zuletzt gemacht, und wie geht es deiner Familie?",
+     "أهلاً! جميل أن أراك، لقد مضى وقت طويل. ماذا فعلت مؤخراً، وكيف حال عائلتك؟"
+    ]
+   }
+  },
+  {
+   "id": "paket_abholen",
+   "title_de": "Ein Paket abholen",
+   "title_ar": "استلام طرد",
+   "ai_persona": "Paketshop-Mitarbeiter katze",
+   "category": "daily_life",
+   "icon": "package",
+   "sequence_order": 13,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie eine Karte?",
+     "أهلاً! هل لديك بطاقة؟"
+    ],
+    "a1": [
+     "Hallo! Haben Sie eine Benachrichtigung?",
+     "أهلاً! هل لديك إشعار؟"
+    ],
+    "a2": [
+     "Guten Tag! Ihr Paket ist da, haben Sie eine Benachrichtigung?",
+     "نهارك سعيد! طردك وصل، هل لديك إشعار؟"
+    ],
+    "b1": [
+     "Guten Tag! Ihr Paket ist angekommen. Haben Sie eine Benachrichtigung dabei, oder brauchen Sie Ihren Ausweis?",
+     "نهارك سعيد! طردك وصل. هل لديك إشعار معك، أم تحتاج بطاقة هويتك؟"
+    ],
+    "b2": [
+     "Guten Tag! Ihr Paket ist angekommen, es ist ziemlich groß. Haben Sie eine Benachrichtigung dabei, oder soll ich mit Ihrem Ausweis nachsehen?",
+     "نهارك سعيد! طردك وصل، وهو كبير نوعاً ما. هل لديك إشعار معك، أم أنظر باسمك في البطاقة؟"
+    ]
+   }
+  },
+  {
+   "id": "kollegen_smalltalk",
+   "title_de": "Smalltalk mit Kolleginnen",
+   "title_ar": "حديث جانبي مع الزملاء",
+   "ai_persona": "Kollege katze",
+   "category": "daily_life",
+   "icon": "users",
+   "sequence_order": 14,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Alles gut bei dir?",
+     "أهلاً! كل شيء بخير عندك؟"
+    ],
+    "a1": [
+     "Hallo! Guten Morgen. Alles gut bei dir?",
+     "أهلاً! صباح الخير. كل شيء بخير عندك؟"
+    ],
+    "a2": [
+     "Hallo! Guten Morgen, hast du am Wochenende etwas gemacht?",
+     "أهلاً! صباح الخير، هل فعلت شيئاً جميلاً في عطلة الأسبوع؟"
+    ],
+    "b1": [
+     "Guten Morgen! Wie war dein Wochenende, hast du etwas Schönes gemacht?",
+     "صباح الخير! كيف كانت عطلتك الأسبوعية، هل فعلت شيئاً جميلاً؟"
+    ],
+    "b2": [
+     "Guten Morgen! Wir können später kurz Kaffee trinken. Wie war dein Wochenende, hattest du Zeit für deine Familie?",
+     "صباح الخير! يمكننا شرب قهوة سريعة لاحقاً. كيف كانت عطلتك الأسبوعية، هل كان لديك وقت لعائلتك؟"
+    ]
+   }
+  },
+  {
+   "id": "tech_kuechenpause",
+   "title_de": "Pause in der Tech-Küche",
+   "title_ar": "استراحة في مطبخ الشركة",
+   "ai_persona": "Kollege Jonas katze",
+   "category": "daily_life",
+   "icon": "coffee",
+   "sequence_order": 15,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Kaffee oder Tee?",
+     "أهلاً! قهوة أم شاي؟"
+    ],
+    "a1": [
+     "Hallo! Der Kaffee ist fertig. Möchtest du einen?",
+     "أهلاً! القهوة جاهزة. هل تريد واحدة؟"
+    ],
+    "a2": [
+     "Hallo! Der Kaffee ist fertig, möchtest du einen?",
+     "أهلاً! القهوة جاهزة، هل تريد واحدة؟"
+    ],
+    "b1": [
+     "Hallo! Der Kaffee ist fertig, ich habe auch Tee. Möchtest du einen Kaffee mit Milch?",
+     "أهلاً! القهوة جاهزة، ولديّ شاي أيضاً. هل تريد قهوة بالحليب؟"
+    ],
+    "b2": [
+     "Hallo! Der Kaffee ist fertig, ich habe auch Tee und Kekse. Möchtest du einen Kaffee mit Milch, oder lieber einen Tee?",
+     "أهلاً! القهوة جاهزة، ولديّ شاي وكعك أيضاً. هل تريد قهوة بالحليب، أم تفضّل الشاي؟"
+    ]
+   }
+  },
+  {
+   "id": "betriebs_kantine",
+   "title_de": "Mittagspause in der Betriebskantine",
+   "title_ar": "استراحة الغداء في مطعم الشركة",
+   "ai_persona": "Azubi Meltem katze",
+   "category": "daily_life",
+   "icon": "coffee",
+   "sequence_order": 16,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was gibt es heute?",
+     "أهلاً! ماذا يوجد اليوم؟"
+    ],
+    "a1": [
+     "Hallo! Heute gibt es Suppe. Möchtest du auch etwas?",
+     "أهلاً! اليوم يوجد حساء. هل تريد شيئاً أيضاً؟"
+    ],
+    "a2": [
+     "Hallo! Heute gibt es Suppe oder Nudeln, was möchtest du?",
+     "أهلاً! اليوم يوجد حساء أو معكرونة، ماذا تريد؟"
+    ],
+    "b1": [
+     "Hallo! Heute gibt es Suppe oder Nudeln mit Gemüse. Möchtest du auch einen Nachtisch?",
+     "أهلاً! اليوم يوجد حساء أو معكرونة بالخضار. هل تريد حلوى أيضاً؟"
+    ],
+    "b2": [
+     "Hallo! Heute gibt es Suppe oder Nudeln mit Gemüse, der Nachtisch ist kostenlos. Möchtest du eine Suppe, oder lieber Nudeln?",
+     "أهلاً! اليوم يوجد حساء أو معكرونة بالخضار، والحلوى مجانية. هل تريد حساءً، أم تفضّل المعكرونة؟"
+    ]
+   }
+  },
+  {
+   "id": "sprachcafe",
+   "title_de": "Im Sprachcafé",
+   "title_ar": "في مقهى اللغات",
+   "ai_persona": "Kursleiterin katze",
+   "category": "daily_life",
+   "icon": "message-circle",
+   "sequence_order": 17,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Sprichst du Deutsch?",
+     "أهلاً! هل تتحدث الألمانية؟"
+    ],
+    "a1": [
+     "Hallo! Wir sprechen hier Deutsch. Wie heißt du?",
+     "أهلاً! نحن نتحدث الألمانية هنا. ما اسمك؟"
+    ],
+    "a2": [
+     "Hallo! Hier sprechen wir nur Deutsch, woher kommst du?",
+     "أهلاً! نحن نتحدث الألمانية فقط هنا، من أين أنت؟"
+    ],
+    "b1": [
+     "Hallo! Hier sprechen wir nur Deutsch, das ist am Anfang schwer. Woher kommst du, und was machst du in Deutschland?",
+     "أهلاً! نحن نتحدث الألمانية فقط هنا، وهذا صعب في البداية. من أين أنت، وماذا تعمل في ألمانيا؟"
+    ],
+    "b2": [
+     "Hallo! Hier sprechen wir nur Deutsch, auch wenn es am Anfang schwer ist. Woher kommst du, und was möchtest du hier lernen?",
+     "أهلاً! نحن نتحدث الألمانية فقط هنا، حتى لو كان ذلك صعباً في البداية. من أين أنت، وماذا تريد أن تتعلم هنا؟"
+    ]
+   }
+  },
+  {
+   "id": "handyvertrag",
+   "title_de": "Einen Handyvertrag abschließen",
+   "title_ar": "إبرام عقد الهاتف المحمول",
+   "ai_persona": "Mitarbeiter im Handyshop katze",
+   "category": "services",
+   "icon": "smartphone",
+   "sequence_order": 18,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Suchen Sie ein Handy?",
+     "أهلاً! هل تبحث عن هاتف؟"
+    ],
+    "a1": [
+     "Guten Tag! Wir haben Prepaid und Vertrag. Was möchten Sie?",
+     "نهارك سعيد! لدينا الدفع المسبق والعقد. ماذا تريد؟"
+    ],
+    "a2": [
+     "Guten Tag! Wir haben Prepaid und Vertrag, was möchten Sie?",
+     "نهارك سعيد! لدينا الدفع المسبق والعقد، ماذا تريد؟"
+    ],
+    "b1": [
+     "Guten Tag! Wir haben Prepaid und Verträge mit monatlicher Zahlung. Möchten Sie einen Vertrag, oder lieber Prepaid?",
+     "نهارك سعيد! لدينا الدفع المسبق وعقود بدفع شهري. هل تريد عقداً، أم تفضّل الدفع المسبق؟"
+    ],
+    "b2": [
+     "Guten Tag! Wir haben Prepaid und Verträge mit monatlicher Zahlung. Möchten Sie einen Vertrag mit Datenvolumen, oder lieber Prepaid ohne Bindung?",
+     "نهارك سعيد! لدينا الدفع المسبق وعقود بدفع شهري. هل تريد عقداً مع باقة إنترنت، أم تفضّل الدفع المسبق بدون التزام؟"
+    ]
+   }
+  },
+  {
+   "id": "apartment_viewing",
+   "title_de": "Wohnungsbesichtigung",
+   "title_ar": "معاينة شقة",
+   "ai_persona": "Vermieterin katze",
+   "category": "housing",
+   "icon": "home",
+   "sequence_order": 19,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Kommen Sie zur Besichtigung?",
+     "أهلاً! هل أتيت للمعاينة؟"
+    ],
+    "a1": [
+     "Hallo! Die Wohnung hat zwei Zimmer. Möchten Sie sie sehen?",
+     "أهلاً! الشقة فيها غرفتان. هل تريد رؤيتها؟"
+    ],
+    "a2": [
+     "Guten Tag! Die Wohnung hat zwei Zimmer, wann können Sie einziehen?",
+     "نهارك سعيد! الشقة فيها غرفتان، متى يمكنك الانتقال؟"
+    ],
+    "b1": [
+     "Guten Tag! Die Wohnung hat zwei Zimmer, eine Küche und einen Balkon. Wann möchten Sie einziehen?",
+     "نهارك سعيد! الشقة فيها غرفتان ومطبخ وشرفة. متى تريد الانتقال؟"
+    ],
+    "b2": [
+     "Guten Tag! Die Wohnung hat zwei Zimmer, eine Küche und einen Balkon, die Miete ist warm. Wann möchten Sie einziehen, und wie viele Personen ziehen mit?",
+     "نهارك سعيد! الشقة فيها غرفتان ومطبخ وشرفة، والإيجار شامل. متى تريد الانتقال، وكم شخصاً سينتقل معك؟"
+    ]
+   }
+  },
+  {
+   "id": "wohnung_besichtigen_tiefer",
+   "title_de": "Wohnung: Details und Einzug",
+   "title_ar": "الشقة: التفاصيل والانتقال",
+   "ai_persona": "Vermieter katze",
+   "category": "housing",
+   "icon": "home",
+   "sequence_order": 20,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Passt der Termin?",
+     "أهلاً! هل الموعد مناسب؟"
+    ],
+    "a1": [
+     "Guten Tag! Die Wohnung ist leer. Wann möchten Sie einziehen?",
+     "نهارك سعيد! الشقة فارغة. متى تريد الانتقال؟"
+    ],
+    "a2": [
+     "Guten Tag! Die Küche bleibt hier, sehen Sie den Vertrag?",
+     "نهارك سعيد! المطبخ يبقى هنا، هل ترى العقد؟"
+    ],
+    "b1": [
+     "Guten Tag! Die Küche bleibt in der Wohnung, der Keller auch. Wann möchten Sie den Vertrag unterschreiben?",
+     "نهارك سعيد! المطبخ يبقى في الشقة، والقبو أيضاً. متى تريد توقيع العقد؟"
+    ],
+    "b2": [
+     "Guten Tag! Die Küche bleibt in der Wohnung, der Keller auch. Möchten Sie den Vertrag heute unterschreiben, oder erst nächste Woche?",
+     "نهارك سعيد! المطبخ يبقى في الشقة، والقبو أيضاً. هل تريد توقيع العقد اليوم، أم الأسبوع القادم؟"
+    ]
+   }
+  },
+  {
+   "id": "mietvertrag_uebergabe",
+   "title_de": "Mietvertrag und Wohnungsübergabe",
+   "title_ar": "عقد الإيجار وتسليم الشقة",
+   "ai_persona": "Vermieter katze",
+   "category": "housing",
+   "icon": "home",
+   "sequence_order": 21,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie den Vertrag?",
+     "أهلاً! هل لديك العقد؟"
+    ],
+    "a1": [
+     "Guten Tag! Hier ist der Vertrag. Haben Sie Fragen?",
+     "نهارك سعيد! هذا هو العقد. هل لديك أسئلة؟"
+    ],
+    "a2": [
+     "Guten Tag! Hier ist der Vertrag, haben Sie Fragen dazu?",
+     "نهارك سعيد! هذا هو العقد، هل لديك أسئلة عنه؟"
+    ],
+    "b1": [
+     "Guten Tag! Hier ist der Vertrag, bitte lesen Sie ihn in Ruhe. Haben Sie Fragen zur Miete?",
+     "نهارك سعيد! هذا هو العقد، من فضلك اقرأه بهدوء. هل لديك أسئلة عن الإيجار؟"
+    ],
+    "b2": [
+     "Guten Tag! Hier ist der Vertrag, bitte lesen Sie ihn in Ruhe. Haben Sie Fragen zur Miete, oder sollen wir die Wohnung gemeinsam prüfen?",
+     "نهارك سعيد! هذا هو العقد، من فضلك اقرأه بهدوء. هل لديك أسئلة عن الإيجار، أم نفحص الشقة معاً؟"
+    ]
+   }
+  },
+  {
+   "id": "landlord_followup",
+   "title_de": "Anruf beim Vermieter",
+   "title_ar": "اتصال بالمؤجّر",
+   "ai_persona": "Vermieter katze",
+   "category": "housing",
+   "icon": "phone",
+   "sequence_order": 22,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Können Sie kommen?",
+     "أهلاً! هل يمكنكم أن تأتوا؟"
+    ],
+    "a1": [
+     "Guten Tag! Die Heizung ist kaputt. Können Sie heute kommen?",
+     "نهارك سعيد! التدفئة معطلة. هل يمكنكم أن تأتوا اليوم؟"
+    ],
+    "a2": [
+     "Guten Tag! Die Heizung ist seit gestern kaputt, können Sie kommen?",
+     "نهارك سعيد! التدفئة معطلة منذ أمس، هل يمكنكم أن تأتوا؟"
+    ],
+    "b1": [
+     "Guten Tag! Die Heizung ist seit gestern kaputt, es ist sehr kalt. Können Sie heute noch kommen?",
+     "نهارك سعيد! التدفئة معطلة منذ أمس، والجو بارد جداً. هل يمكنكم أن تأتوا اليوم؟"
+    ],
+    "b2": [
+     "Guten Tag! Die Heizung ist seit gestern kaputt, es ist sehr kalt in der Wohnung. Können Sie heute noch kommen, oder soll ich einen Handwerker rufen?",
+     "نهارك سعيد! التدفئة معطلة منذ أمس، والجو بارد جداً في الشقة. هل يمكنكم أن تأتوا اليوم، أم أتصل بحرفي؟"
+    ]
+   }
+  },
+  {
+   "id": "anmeldung_buergeramt",
+   "title_de": "Die Anmeldung beim Bürgeramt",
+   "title_ar": "التسجيل في مكتب المواطنين",
+   "ai_persona": "Sachbearbeiter katze",
+   "category": "official",
+   "icon": "stamp",
+   "sequence_order": 23,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Wie kann ich helfen?",
+     "أهلاً! كيف يمكنني المساعدة؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie Ihren Ausweis und den Mietvertrag?",
+     "نهارك سعيد! هل لديك بطاقة هويتك وعقد الإيجار؟"
+    ],
+    "a2": [
+     "Guten Tag! Für die Anmeldung brauche ich Ihren Ausweis, haben Sie ihn?",
+     "نهارك سعيد! للتسجيل أحتاج بطاقة هويتك، هل هي معك؟"
+    ],
+    "b1": [
+     "Guten Tag! Für die Anmeldung brauche ich Ihren Ausweis und den Mietvertrag. Haben Sie beides dabei?",
+     "نهارك سعيد! للتسجيل أحتاج بطاقة هويتك وعقد الإيجار. هل لديك الاثنان معك؟"
+    ],
+    "b2": [
+     "Guten Tag! Für die Anmeldung brauche ich Ihren Ausweis und den Mietvertrag. Haben Sie beides dabei, oder wohnen Sie noch bei jemandem?",
+     "نهارك سعيد! للتسجيل أحتاج بطاقة هويتك وعقد الإيجار. هل لديك الاثنان معك، أم تسكن حالياً عند أحد؟"
+    ]
+   }
+  },
+  {
+   "id": "termin_online_buchen",
+   "title_de": "Einen Termin buchen",
+   "title_ar": "حجز موعد",
+   "ai_persona": "Terminvergabe katze",
+   "category": "official",
+   "icon": "calendar",
+   "sequence_order": 24,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie einen Termin?",
+     "أهلاً! هل لديكم موعد؟"
+    ],
+    "a1": [
+     "Guten Tag! Wir haben Montag frei. Wann möchten Sie kommen?",
+     "نهارك سعيد! لدينا يوم الاثنين موعد متاح. متى تريد أن تأتي؟"
+    ],
+    "a2": [
+     "Guten Tag! Diese Woche ist nur Montag frei, wann möchten Sie kommen?",
+     "نهارك سعيد! هذا الأسبوع يوم الاثنين فقط متاح، متى تريد أن تأتي؟"
+    ],
+    "b1": [
+     "Guten Tag! Diese Woche ist nur Montag frei, nächste Woche haben wir mehr Termine. Wann möchten Sie kommen?",
+     "نهارك سعيد! هذا الأسبوع يوم الاثنين فقط متاح، والأسبوع القادم لدينا مواعيد أكثر. متى تريد أن تأتي؟"
+    ],
+    "b2": [
+     "Guten Tag! Diese Woche ist nur Montag frei, nächste Woche haben wir mehr Termine. Wann möchten Sie kommen, und brauchen Sie einen Dolmetscher?",
+     "نهارك سعيد! هذا الأسبوع يوم الاثنين فقط متاح، والأسبوع القادم لدينا مواعيد أكثر. متى تريد أن تأتي، وهل تحتاج مترجماً؟"
+    ]
+   }
+  },
+  {
+   "id": "banking_first_visit",
+   "title_de": "Das erste Mal auf der Bank",
+   "title_ar": "أول زيارة إلى البنك",
+   "ai_persona": "Bankangestellte katze",
+   "category": "official",
+   "icon": "stamp",
+   "sequence_order": 25,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Möchten Sie ein Konto?",
+     "أهلاً! هل تريد حساباً؟"
+    ],
+    "a1": [
+     "Guten Tag! Möchten Sie ein Konto eröffnen?",
+     "نهارك سعيد! هل تريد فتح حساب؟"
+    ],
+    "a2": [
+     "Guten Tag! Für ein Konto brauchen wir Ihren Ausweis, haben Sie ihn?",
+     "نهارك سعيد! لفتح حساب نحتاج بطاقة هويتك، هل هي معك؟"
+    ],
+    "b1": [
+     "Guten Tag! Für ein Konto brauchen wir Ihren Ausweis und eine Anmeldung. Haben Sie beides dabei?",
+     "نهارك سعيد! لفتح حساب نحتاج بطاقة هويتك وإثبات السكن. هل لديك الاثنان معك؟"
+    ],
+    "b2": [
+     "Guten Tag! Für ein Konto brauchen wir Ihren Ausweis und eine Anmeldung. Haben Sie beides dabei, oder brauchen Sie zuerst einen Termin?",
+     "نهارك سعيد! لفتح حساب نحتاج بطاقة هويتك وإثبات السكن. هل لديك الاثنان معك، أم تحتاج أولاً إلى موعد؟"
+    ]
+   }
+  },
+  {
+   "id": "pass_und_dokumente",
+   "title_de": "Reisepass und Ausweis",
+   "title_ar": "جواز السفر وبطاقة الهوية",
+   "ai_persona": "Beamte Ausländerbehörde katze",
+   "category": "official",
+   "icon": "file-text",
+   "sequence_order": 26,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie Ihren Pass?",
+     "أهلاً! هل لديك جواز سفرك؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie Ihren Pass dabei?",
+     "نهارك سعيد! هل جواز سفرك معك؟"
+    ],
+    "a2": [
+     "Guten Tag! Ihr Pass ist abgelaufen, haben Sie einen neuen beantragt?",
+     "نهارك سعيد! جواز سفرك منتهي، هل طلبت واحداً جديداً؟"
+    ],
+    "b1": [
+     "Guten Tag! Ihr Pass ist abgelaufen, das sehen wir hier. Haben Sie schon einen neuen beantragt?",
+     "نهارك سعيد! جواز سفرك منتهي، وهذا ظاهر هنا. هل طلبت واحداً جديداً بالفعل؟"
+    ],
+    "b2": [
+     "Guten Tag! Ihr Pass ist abgelaufen, das sehen wir hier im System. Haben Sie schon einen neuen beantragt, oder brauchen Sie zuerst einen Termin?",
+     "نهارك سعيد! جواز سفرك منتهي، وهذا ظاهر هنا في النظام. هل طلبت واحداً جديداً بالفعل، أم تحتاج أولاً إلى موعد؟"
+    ]
+   }
+  },
+  {
+   "id": "polizei_fundbuero",
+   "title_de": "Polizei und Fundbüro",
+   "title_ar": "الشرطة ومكتب المفقودات",
+   "ai_persona": "Beamter im Fundbüro katze",
+   "category": "official",
+   "icon": "search",
+   "sequence_order": 27,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Suchen Sie etwas?",
+     "أهلاً! هل تبحث عن شيء؟"
+    ],
+    "a1": [
+     "Guten Tag! Was haben Sie verloren?",
+     "نهارك سعيد! ماذا فقدت؟"
+    ],
+    "a2": [
+     "Guten Tag! Wir haben viele Taschen, können Sie Ihre beschreiben?",
+     "نهارك سعيد! لدينا حقائب كثيرة، هل يمكنك وصف حقيبتك؟"
+    ],
+    "b1": [
+     "Guten Tag! Wir haben heute viele Taschen bekommen. Können Sie Ihre Tasche genauer beschreiben?",
+     "نهارك سعيد! وصلتنا اليوم حقائب كثيرة. هل يمكنك وصف حقيبتك بدقة؟"
+    ],
+    "b2": [
+     "Guten Tag! Wir haben heute viele Taschen bekommen. Können Sie Ihre Tasche genauer beschreiben, und wann haben Sie sie verloren?",
+     "نهارك سعيد! وصلتنا اليوم حقائب كثيرة. هل يمكنك وصف حقيبتك بدقة، ومتى فقدتها؟"
+    ]
+   }
+  },
+  {
+   "id": "jobcenter_termin",
+   "title_de": "Termin beim Jobcenter",
+   "title_ar": "موعد في مكتب العمل",
+   "ai_persona": "Mitarbeiter im Jobcenter katze",
+   "category": "official",
+   "icon": "briefcase",
+   "sequence_order": 28,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie einen Termin?",
+     "أهلاً! هل لديك موعد؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie einen Termin bei uns?",
+     "نهارك سعيد! هل لديك موعد عندنا؟"
+    ],
+    "a2": [
+     "Guten Tag! Ihr Termin ist um zehn, haben Sie Unterlagen?",
+     "نهارك سعيد! لديك موعد في الساعة العاشرة، هل مستنداتك معك؟"
+    ],
+    "b1": [
+     "Guten Tag! Sie haben einen Termin um zehn Uhr. Haben Sie Ihre Unterlagen dabei, oder brauchen Sie noch Hilfe?",
+     "نهارك سعيد! لديك موعد في الساعة العاشرة. هل مستنداتك معك، أم تحتاج مساعدة؟"
+    ],
+    "b2": [
+     "Guten Tag! Sie haben einen Termin um zehn Uhr. Haben Sie Ihre Unterlagen dabei, oder brauchen Sie zuerst Hilfe beim Ausfüllen?",
+     "نهارك سعيد! لديك موعد في الساعة العاشرة. هل مستنداتك معك، أم تحتاج أولاً مساعدة في التعبئة؟"
+    ]
+   }
+  },
+  {
+   "id": "integrationskurs_anmelden",
+   "title_de": "Für einen Integrationskurs anmelden",
+   "title_ar": "التسجيل في دورة الاندماج",
+   "ai_persona": "Sachbearbeiterin katze",
+   "category": "official",
+   "icon": "graduation-cap",
+   "sequence_order": 29,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Möchten Sie einen Kurs?",
+     "أهلاً! هل تريد دورة؟"
+    ],
+    "a1": [
+     "Guten Tag! Möchten Sie einen Deutschkurs besuchen?",
+     "نهارك سعيد! هل تريد حضور دورة ألمانية؟"
+    ],
+    "a2": [
+     "Guten Tag! Wir haben Kurse am Morgen, wann können Sie kommen?",
+     "نهارك سعيد! لدينا دورات صباحية، متى يمكنك أن تأتي؟"
+    ],
+    "b1": [
+     "Guten Tag! Wir haben Kurse am Morgen und am Abend. Wann können Sie kommen, und haben Sie schon Deutsch gelernt?",
+     "نهارك سعيد! لدينا دورات صباحية ومسائية. متى يمكنك أن تأتي، وهل تعلمت الألمانية من قبل؟"
+    ],
+    "b2": [
+     "Guten Tag! Wir haben Kurse am Morgen und am Abend, der Kurs dauert mehrere Wochen. Wann können Sie kommen, und haben Sie schon einen Sprachkurs besucht?",
+     "نهارك سعيد! لدينا دورات صباحية ومسائية، والدورة تستمر عدة أسابيع. متى يمكنك أن تأتي، وهل حضرت دورة لغة من قبل؟"
+    ]
+   }
+  },
+  {
+   "id": "embassy_appointment",
+   "title_de": "Termin bei der Botschaft",
+   "title_ar": "موعد في السفارة",
+   "ai_persona": "Konsulatsangestellter katze",
+   "category": "official",
+   "icon": "building",
+   "sequence_order": 30,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was ist Ihr Anliegen?",
+     "أهلاً! ما طلبك؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie einen Termin?",
+     "نهارك سعيد! هل لديك موعد؟"
+    ],
+    "a2": [
+     "Guten Tag! Ihr Termin ist um neun, haben Sie Ihren Pass?",
+     "نهارك سعيد! موعدك في التاسعة، هل جواز سفرك معك؟"
+    ],
+    "b1": [
+     "Guten Tag! Ihr Termin ist um neun Uhr. Haben Sie Ihren Pass und Ihre Unterlagen dabei?",
+     "نهارك سعيد! موعدك في التاسعة. هل جواز سفرك ومستنداتك معك؟"
+    ],
+    "b2": [
+     "Guten Tag! Ihr Termin ist um neun Uhr. Haben Sie Ihren Pass und Ihre Unterlagen dabei, oder fehlt noch etwas?",
+     "نهارك سعيد! موعدك في التاسعة. هل جواز سفرك ومستنداتك معك، أم ينقص شيء؟"
+    ]
+   }
+  },
+  {
+   "id": "pruefung_anmeldung",
+   "title_de": "Anmeldung zur Sprachprüfung",
+   "title_ar": "التسجيل في امتحان اللغة",
+   "ai_persona": "Sachbearbeiterin Roth katze",
+   "category": "official",
+   "icon": "stamp",
+   "sequence_order": 31,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Möchten Sie sich anmelden?",
+     "أهلاً! هل تريد التسجيل؟"
+    ],
+    "a1": [
+     "Guten Tag! Möchten Sie sich für die Prüfung anmelden?",
+     "نهارك سعيد! هل تريد التسجيل في الامتحان؟"
+    ],
+    "a2": [
+     "Guten Tag! Die Prüfung ist nächsten Monat, haben Sie Ihren Ausweis?",
+     "نهارك سعيد! الامتحان الشهر القادم، هل بطاقة هويتك معك؟"
+    ],
+    "b1": [
+     "Guten Tag! Die Prüfung ist nächsten Monat, die Anmeldung ist heute. Möchten Sie sich anmelden?",
+     "نهارك سعيد! الامتحان الشهر القادم، والتسجيل اليوم. هل تريد التسجيل؟"
+    ],
+    "b2": [
+     "Guten Tag! Die Prüfung ist nächsten Monat, die Anmeldung ist heute. Möchten Sie sich anmelden, oder haben Sie noch Fragen zur Prüfung?",
+     "نهارك سعيد! الامتحان الشهر القادم، والتسجيل اليوم. هل تريد التسجيل، أم لديك أسئلة عن الامتحان؟"
+    ]
+   }
+  },
+  {
+   "id": "krankenkasse_anmelden",
+   "title_de": "Bei der Krankenkasse anmelden",
+   "title_ar": "التسجيل في التأمين الصحي",
+   "ai_persona": "Mitarbeiterin der Krankenkasse katze",
+   "category": "health",
+   "icon": "heart-pulse",
+   "sequence_order": 32,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Sind Sie neu hier?",
+     "أهلاً! هل أنت جديد هنا؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie einen Arbeitsvertrag?",
+     "نهارك سعيد! هل لديك عقد عمل؟"
+    ],
+    "a2": [
+     "Guten Tag! Für die Versicherung brauche ich Ihren Ausweis, haben Sie ihn?",
+     "نهارك سعيد! للتأمين أحتاج بطاقة هويتك، هل هي معك؟"
+    ],
+    "b1": [
+     "Guten Tag! Für die Versicherung brauche ich Ihren Ausweis und den Arbeitsvertrag. Haben Sie beides dabei?",
+     "نهارك سعيد! للتأمين أحتاج بطاقة هويتك وعقد العمل. هل لديك الاثنان معك؟"
+    ],
+    "b2": [
+     "Guten Tag! Für die Versicherung brauche ich Ihren Ausweis und den Arbeitsvertrag. Haben Sie beides dabei, oder sind Sie gerade arbeitslos?",
+     "نهارك سعيد! للتأمين أحتاج بطاقة هويتك وعقد العمل. هل لديك الاثنان معك، أم أنت حالياً بدون عمل؟"
+    ]
+   }
+  },
+  {
+   "id": "doctor_visit",
+   "title_de": "Beim Arzt",
+   "title_ar": "عند الطبيب",
+   "ai_persona": "Hausarzt katze",
+   "category": "health",
+   "icon": "stethoscope",
+   "sequence_order": 33,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was fehlt Ihnen?",
+     "أهلاً! ماذا يؤلمك؟"
+    ],
+    "a1": [
+     "Guten Tag! Was fehlt Ihnen?",
+     "نهارك سعيد! ما الذي يؤلمك؟"
+    ],
+    "a2": [
+     "Guten Tag! Was fehlt Ihnen, seit wann ist das so?",
+     "نهارك سعيد! ما الذي يؤلمك، ومنذ متى؟"
+    ],
+    "b1": [
+     "Guten Tag! Was fehlt Ihnen, und seit wann haben Sie diese Beschwerden?",
+     "نهارك سعيد! ما الذي يؤلمك، ومنذ متى تعاني من هذه الأعراض؟"
+    ],
+    "b2": [
+     "Guten Tag! Seit wann haben Sie diese Beschwerden, und nehmen Sie Medikamente?",
+     "نهارك سعيد! منذ متى تعاني من هذه الأعراض، وهل تتناول أدوية؟"
+    ]
+   }
+  },
+  {
+   "id": "gesundheit_alltag",
+   "title_de": "Beim Arzt: Symptome und Rezept",
+   "title_ar": "عند الطبيب: الأعراض والوصفة",
+   "ai_persona": "Arzt katze",
+   "category": "health",
+   "icon": "stethoscope",
+   "sequence_order": 34,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie ein Rezept?",
+     "أهلاً! هل لديكم وصفة طبية؟"
+    ],
+    "a1": [
+     "Guten Tag! Wo haben Sie Schmerzen?",
+     "نهارك سعيد! أين تشعر بالألم؟"
+    ],
+    "a2": [
+     "Guten Tag! Sie brauchen ein Rezept, haben Sie Tabletten genommen?",
+     "نهارك سعيد! تحتاج وصفة طبية، هل تناولت حبوباً؟"
+    ],
+    "b1": [
+     "Guten Tag! Sie brauchen ein Rezept für die Tabletten. Haben Sie die Tabletten schon genommen?",
+     "نهارك سعيد! تحتاج وصفة طبية للحبوب. هل تناولت الحبوب بالفعل؟"
+    ],
+    "b2": [
+     "Guten Tag! Sie brauchen ein Rezept für die Tabletten. Haben Sie die Tabletten schon genommen, oder sind Sie noch ohne Medikamente?",
+     "نهارك سعيد! تحتاج وصفة طبية للحبوب. هل تناولت الحبوب بالفعل، أم أنت بدون دواء حتى الآن؟"
+    ]
+   }
+  },
+  {
+   "id": "apotheke",
+   "title_de": "In der Apotheke",
+   "title_ar": "في الصيدلية",
+   "ai_persona": "Apothekerin katze",
+   "category": "health",
+   "icon": "pill",
+   "sequence_order": 35,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Was brauchen Sie?",
+     "أهلاً! ماذا تحتاج؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie ein Rezept?",
+     "نهارك سعيد! هل لديك وصفة طبية؟"
+    ],
+    "a2": [
+     "Guten Tag! Ohne Rezept haben wir nur Tabletten, möchten Sie diese?",
+     "نهارك سعيد! بدون وصفة لدينا حبوب فقط، هل تريدها؟"
+    ],
+    "b1": [
+     "Guten Tag! Ohne Rezept haben wir nur Tabletten, kein Antibiotikum. Möchten Sie die Tabletten nehmen?",
+     "نهارك سعيد! بدون وصفة لدينا حبوب فقط، وليس مضاداً حيوياً. هل تريد أخذ الحبوب؟"
+    ],
+    "b2": [
+     "Guten Tag! Ohne Rezept haben wir nur Tabletten, kein Antibiotikum. Möchten Sie die Tabletten nehmen, oder fragen Sie zuerst Ihre Ärztin?",
+     "نهارك سعيد! بدون وصفة لدينا حبوب فقط، وليس مضاداً حيوياً. هل تريد أخذ الحبوب، أم تسأل طبيبتك أولاً؟"
+    ]
+   }
+  },
+  {
+   "id": "zahnarzt",
+   "title_de": "Beim Zahnarzt",
+   "title_ar": "عند طبيب الأسنان",
+   "ai_persona": "Zahnarzt katze",
+   "category": "health",
+   "icon": "smile",
+   "sequence_order": 36,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie einen Termin?",
+     "أهلاً! هل لديكم موعد؟"
+    ],
+    "a1": [
+     "Guten Tag! Wo tut es weh?",
+     "نهارك سعيد! أين يؤلمك؟"
+    ],
+    "a2": [
+     "Guten Tag! Der Zahn ist hinten rechts, haben Sie Schmerzen?",
+     "نهارك سعيد! السنّ في الخلف على اليمين، هل تشعر بالألم؟"
+    ],
+    "b1": [
+     "Guten Tag! Der Zahn ist hinten rechts, ich sehe eine kleine Stelle. Haben Sie Schmerzen?",
+     "نهارك سعيد! السنّ في الخلف على اليمين، وأرى بقعة صغيرة. هل تشعر بالألم؟"
+    ],
+    "b2": [
+     "Guten Tag! Der Zahn ist hinten rechts, ich sehe eine kleine Stelle. Haben Sie starke Schmerzen, oder nur beim Essen?",
+     "نهارك سعيد! السنّ في الخلف على اليمين، وأرى بقعة صغيرة. هل الألم شديد، أم فقط عند الأكل؟"
+    ]
+   }
+  },
+  {
+   "id": "arzttermin_telefon",
+   "title_de": "Arzttermin am Telefon",
+   "title_ar": "موعد الطبيب عبر الهاتف",
+   "ai_persona": "Praxisteam katze",
+   "category": "health",
+   "icon": "phone",
+   "sequence_order": 37,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Wann haben Sie Zeit?",
+     "أهلاً! متى لديكم وقت؟"
+    ],
+    "a1": [
+     "Guten Tag! Was kann ich für Sie tun?",
+     "نهارك سعيد! ماذا يمكنني أن أفعل لك؟"
+    ],
+    "a2": [
+     "Guten Tag! Morgen früh ist ein Termin frei, passt Ihnen das?",
+     "نهارك سعيد! غداً صباحاً يوجد موعد متاح، هل يناسبك؟"
+    ],
+    "b1": [
+     "Guten Tag! Morgen früh ist ein Termin frei, oder am Donnerstag um drei. Was passt Ihnen besser?",
+     "نهارك سعيد! غداً صباحاً يوجد موعد متاح، أو الخميس الساعة الثالثة. ما يناسبك أكثر؟"
+    ],
+    "b2": [
+     "Guten Tag! Morgen früh ist ein Termin frei, oder am Donnerstag um drei. Was passt Ihnen besser, und wie ist Ihr Name?",
+     "نهارك سعيد! غداً صباحاً يوجد موعد متاح، أو الخميس الساعة الثالثة. ما يناسبك أكثر، وما اسمك؟"
+    ]
+   }
+  },
+  {
+   "id": "notruf_112",
+   "title_de": "Notruf 112",
+   "title_ar": "النجدة 112",
+   "ai_persona": "Notruf-Mitarbeiter katze",
+   "category": "services",
+   "icon": "phone-call",
+   "sequence_order": 38,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Was ist passiert?",
+     "أهلاً! ماذا حدث؟"
+    ],
+    "a1": [
+     "Notruf 112. Was ist passiert?",
+     "النجدة 112. ماذا حدث؟"
+    ],
+    "a2": [
+     "Notruf 112. Wo genau sind Sie, in welcher Straße?",
+     "النجدة 112. أين أنت بالضبط، في أي شارع؟"
+    ],
+    "b1": [
+     "Notruf 112. Bitte bleiben Sie ruhig. Wo sind Sie, und was ist passiert?",
+     "النجدة 112. من فضلك ابقَ هادئاً. أين أنت، وماذا حدث؟"
+    ],
+    "b2": [
+     "Notruf 112. Bitte bleiben Sie ruhig und sagen Sie mir, wo Sie sind. Was ist passiert, und ist jemand verletzt?",
+     "النجدة 112. من فضلك ابقَ هادئاً وأخبرني أين أنت. ماذا حدث، وهل أحد مصاب؟"
+    ]
+   }
+  },
+  {
+   "id": "patient_conversation_basics",
+   "title_de": "Gespräch mit dem Patienten",
+   "title_ar": "حديث مع المريض",
+   "ai_persona": "Patientin katze",
+   "category": "health",
+   "icon": "heart-pulse",
+   "sequence_order": 39,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was soll ich tun?",
+     "أهلاً! ماذا أفعل؟"
+    ],
+    "a1": [
+     "Guten Tag! Mir ist nicht gut. Können Sie helfen?",
+     "نهارك سعيد! أنا لست بخير. هل يمكنكم المساعدة؟"
+    ],
+    "a2": [
+     "Guten Tag! Ich fühle mich nicht gut, was soll ich tun?",
+     "نهارك سعيد! أنا لا أشعر أنني بحال جيدة، ماذا أفعل؟"
+    ],
+    "b1": [
+     "Guten Tag! Ich fühle mich seit gestern nicht gut, mir ist schwindelig. Was soll ich jetzt tun?",
+     "نهارك سعيد! أنا لا أشعر أنني بحال جيدة منذ أمس، وأشعر بدوار. ماذا أفعل الآن؟"
+    ],
+    "b2": [
+     "Guten Tag! Ich fühle mich seit gestern nicht gut, mir ist schwindelig und ich habe Kopfschmerzen. Was soll ich jetzt tun, und brauche ich ein Medikament?",
+     "نهارك سعيد! أنا لا أشعر أنني بحال جيدة منذ أمس، وأشعر بدوار وصداع. ماذا أفعل الآن، وهل أحتاج دواءً؟"
+    ]
+   }
+  },
+  {
+   "id": "station_uebergabe",
+   "title_de": "Übergabe auf der Station",
+   "title_ar": "تسليم المناوبة في القسم",
+   "ai_persona": "Oberärztin katze",
+   "category": "health",
+   "icon": "clipboard",
+   "sequence_order": 40,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Ist der Patient stabil?",
+     "أهلاً! هل المريض مستقر؟"
+    ],
+    "a1": [
+     "Guten Tag! Der Patient ist stabil. Haben Sie Fragen?",
+     "نهارك سعيد! المريض مستقر. هل لديك أسئلة؟"
+    ],
+    "a2": [
+     "Guten Tag! Der Patient ist stabil und schläft, haben Sie Fragen?",
+     "نهارك سعيد! المريض مستقر وينام، هل لديك أسئلة؟"
+    ],
+    "b1": [
+     "Guten Tag! Der Patient ist stabil, er schläft seit einer Stunde. Haben Sie Fragen zur Übergabe?",
+     "نهارك سعيد! المريض مستقر، وهو نائم منذ ساعة. هل لديك أسئلة عن التسليم؟"
+    ],
+    "b2": [
+     "Guten Tag! Der Patient ist stabil, er schläft seit einer Stunde. Haben Sie Fragen zur Übergabe, oder möchten Sie die Werte sehen?",
+     "نهارك سعيد! المريض مستقر، وهو نائم منذ ساعة. هل لديك أسئلة عن التسليم، أم تريد رؤية القيم؟"
+    ]
+   }
+  },
+  {
+   "id": "kita_elterngespraech",
+   "title_de": "Elterngespräch in der Kita",
+   "title_ar": "اجتماع أولياء الأمور في الروضة",
+   "ai_persona": "Erzieherin katze",
+   "category": "study",
+   "icon": "users",
+   "sequence_order": 41,
+   "review": "new",
+   "needs_review": true,
+   "openers": {
+    "a0": [
+     "Hallo! Wie heißt Ihr Kind?",
+     "أهلاً! ما اسم طفلكم؟"
+    ],
+    "a1": [
+     "Guten Tag! Ihr Kind ist heute fröhlich. Haben Sie Zeit?",
+     "نهارك سعيد! طفلكم سعيد اليوم. هل لديكم وقت؟"
+    ],
+    "a2": [
+     "Guten Tag! Ihr Kind spielt gern mit anderen, haben Sie Fragen?",
+     "نهارك سعيد! طفلكم يحب اللعب مع الآخرين، هل لديكم أسئلة؟"
+    ],
+    "b1": [
+     "Guten Tag! Ihr Kind spielt gern mit anderen, es spricht schon viel. Haben Sie Fragen dazu?",
+     "نهارك سعيد! طفلكم يحب اللعب مع الآخرين، ويتحدث كثيراً بالفعل. هل لديكم أسئلة؟"
+    ],
+    "b2": [
+     "Guten Tag! Ihr Kind spielt gern mit anderen, es spricht schon viel. Haben Sie Fragen dazu, oder möchten Sie etwas besprechen?",
+     "نهارك سعيد! طفلكم يحب اللعب مع الآخرين، ويتحدث كثيراً بالفعل. هل لديكم أسئلة، أم تريدون مناقشة شيء؟"
+    ]
+   }
+  },
+  {
+   "id": "job_interview",
+   "title_de": "Vorstellungsgespräch",
+   "title_ar": "مقابلة العمل",
+   "ai_persona": "Personalleiter katze",
+   "category": "work",
+   "icon": "briefcase",
+   "sequence_order": 42,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Erzählen Sie kurz von sich?",
+     "أهلاً! حدّثني عن نفسك باختصار؟"
+    ],
+    "a1": [
+     "Guten Tag! Was machen Sie beruflich?",
+     "نهارك سعيد! ماذا تعمل؟"
+    ],
+    "a2": [
+     "Guten Tag! Sie haben Erfahrung, was suchen Sie hier?",
+     "نهارك سعيد! لديك خبرة، ماذا تبحث عنه هنا؟"
+    ],
+    "b1": [
+     "Guten Tag! Sie haben schon Erfahrung in diesem Beruf. Warum möchten Sie zu uns kommen?",
+     "نهارك سعيد! لديك خبرة بالفعل في هذه المهنة. لماذا تريد أن تأتي إلينا؟"
+    ],
+    "b2": [
+     "Guten Tag! Sie haben schon Erfahrung in diesem Beruf, das sehe ich im Lebenslauf. Warum möchten Sie zu uns kommen, und was erwarten Sie von der Stelle?",
+     "نهارك سعيد! لديك خبرة بالفعل في هذه المهنة، وهذا واضح في سيرتك الذاتية. لماذا تريد أن تأتي إلينا، وماذا تتوقع من الوظيفة؟"
+    ]
+   }
+  },
+  {
+   "id": "erster_arbeitstag",
+   "title_de": "Der erste Arbeitstag",
+   "title_ar": "أول يوم عمل",
+   "ai_persona": "Kollegin katze",
+   "category": "work",
+   "icon": "briefcase",
+   "sequence_order": 43,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Kennen Sie schon alle?",
+     "أهلاً! هل تعرف الجميع بالفعل؟"
+    ],
+    "a1": [
+     "Hallo! Ich zeige Ihnen Ihren Platz. Haben Sie Fragen?",
+     "أهلاً! سأريك مكانك. هل لديك أسئلة؟"
+    ],
+    "a2": [
+     "Guten Tag! Das ist Ihr Platz, haben Sie Fragen?",
+     "نهارك سعيد! هذا مكانك، هل لديك أسئلة؟"
+    ],
+    "b1": [
+     "Guten Tag! Das ist Ihr Platz, hier arbeitet unser Team. Haben Sie Fragen zum Ablauf?",
+     "نهارك سعيد! هذا مكانك، وهنا يعمل فريقنا. هل لديك أسئلة عن سير العمل؟"
+    ],
+    "b2": [
+     "Guten Tag! Das ist Ihr Platz, hier arbeitet unser Team. Haben Sie Fragen zum Ablauf, oder soll ich Ihnen alles zeigen?",
+     "نهارك سعيد! هذا مكانك، وهنا يعمل فريقنا. هل لديك أسئلة عن سير العمل، أم أريك كل شيء؟"
+    ]
+   }
+  },
+  {
+   "id": "buero_gespraech_tiefer",
+   "title_de": "Ein Gespräch im Büro",
+   "title_ar": "حديث في المكتب",
+   "ai_persona": "Teamleiter katze",
+   "category": "work",
+   "icon": "briefcase",
+   "sequence_order": 44,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie kurz Zeit?",
+     "أهلاً! هل لديك وقت قصير؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie kurz Zeit für ein Gespräch?",
+     "نهارك سعيد! هل لديك وقت قصير لحديث؟"
+    ],
+    "a2": [
+     "Guten Tag! Ich möchte über die Aufgabe sprechen, wann passt es?",
+     "نهارك سعيد! أريد أن أتحدث عن المهمة، متى يناسبك؟"
+    ],
+    "b1": [
+     "Guten Tag! Ich möchte über die Aufgabe sprechen, sie ist diese Woche wichtig. Wann passt es Ihnen?",
+     "نهارك سعيد! أريد أن أتحدث عن المهمة، فهي مهمة هذا الأسبوع. متى يناسبك؟"
+    ],
+    "b2": [
+     "Guten Tag! Ich möchte über die Aufgabe sprechen, sie ist diese Woche wichtig. Wann passt es Ihnen, heute oder morgen?",
+     "نهارك سعيد! أريد أن أتحدث عن المهمة، فهي مهمة هذا الأسبوع. متى يناسبك، اليوم أم غداً؟"
+    ]
+   }
+  },
+  {
+   "id": "daily_standup",
+   "title_de": "Das tägliche Standup",
+   "title_ar": "الاجتماع اليومي القصير",
+   "ai_persona": "Teamleiter katze",
+   "category": "work",
+   "icon": "users",
+   "sequence_order": 45,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was machen Sie heute?",
+     "أهلاً! ماذا تفعل اليوم؟"
+    ],
+    "a1": [
+     "Guten Tag! Was machen Sie heute im Team?",
+     "نهارك سعيد! ماذا تفعل اليوم في الفريق؟"
+    ],
+    "a2": [
+     "Guten Tag! Das Standup beginnt, was machen Sie heute?",
+     "نهارك سعيد! الاجتماع القصير يبدأ، ماذا تفعل اليوم؟"
+    ],
+    "b1": [
+     "Guten Tag! Das Standup beginnt jetzt, jeder sagt kurz seine Aufgabe. Was machen Sie heute?",
+     "نهارك سعيد! الاجتماع القصير يبدأ الآن، وكل واحد يذكر مهمته باختصار. ماذا تفعل اليوم؟"
+    ],
+    "b2": [
+     "Guten Tag! Das Standup beginnt jetzt, jeder sagt kurz seine Aufgabe. Was machen Sie heute, und gibt es ein Problem?",
+     "نهارك سعيد! الاجتماع القصير يبدأ الآن، وكل واحد يذكر مهمته باختصار. ماذا تفعل اليوم، وهل هناك مشكلة؟"
+    ]
+   }
+  },
+  {
+   "id": "support_ticket",
+   "title_de": "Eine Support-Anfrage",
+   "title_ar": "طلب دعم فني",
+   "ai_persona": "Support-Mitarbeiter katze",
+   "category": "work",
+   "icon": "file-text",
+   "sequence_order": 46,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was ist das Problem?",
+     "أهلاً! ما المشكلة؟"
+    ],
+    "a1": [
+     "Guten Tag! Was funktioniert nicht bei Ihnen?",
+     "نهارك سعيد! ما الذي لا يعمل عندك؟"
+    ],
+    "a2": [
+     "Guten Tag! Ich sehe Ihr Ticket, was funktioniert nicht?",
+     "نهارك سعيد! أرى طلبك، ما الذي لا يعمل؟"
+    ],
+    "b1": [
+     "Guten Tag! Ich sehe Ihr Ticket, es ist heute eingegangen. Was funktioniert nicht genau?",
+     "نهارك سعيد! أرى طلبك، وقد وصل اليوم. ما الذي لا يعمل بالضبط؟"
+    ],
+    "b2": [
+     "Guten Tag! Ich sehe Ihr Ticket, es ist heute eingegangen. Was funktioniert nicht genau, und seit wann?",
+     "نهارك سعيد! أرى طلبك، وقد وصل اليوم. ما الذي لا يعمل بالضبط، ومنذ متى؟"
+    ]
+   }
+  },
+  {
+   "id": "interview_pflegefachkraft",
+   "title_de": "Vorstellungsgespräch: Pflegefachkraft",
+   "title_ar": "مقابلة عمل: ممرض مؤهل",
+   "ai_persona": "Pflegedienstleitung katze",
+   "category": "work",
+   "icon": "heart-pulse",
+   "sequence_order": 47,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Warum möchten Sie hier arbeiten?",
+     "أهلاً! لماذا تريد العمل هنا؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie schon in der Pflege gearbeitet?",
+     "نهارك سعيد! هل عملت في مجال الرعاية من قبل؟"
+    ],
+    "a2": [
+     "Guten Tag! Sie haben Pflegeerfahrung, warum möchten Sie zu uns?",
+     "نهارك سعيد! لديك خبرة في الرعاية، لماذا تريد القدوم إلينا؟"
+    ],
+    "b1": [
+     "Guten Tag! Sie haben schon in der Pflege gearbeitet, das passt gut. Warum möchten Sie zu uns kommen?",
+     "نهارك سعيد! عملت في مجال الرعاية من قبل، وهذا مناسب جداً. لماذا تريد القدوم إلينا؟"
+    ],
+    "b2": [
+     "Guten Tag! Sie haben schon in der Pflege gearbeitet, das passt gut zu uns. Warum möchten Sie zu uns, und welche Schicht passt Ihnen?",
+     "نهارك سعيد! عملت في مجال الرعاية من قبل، وهذا يناسبنا تماماً. لماذا تريد القدوم إلينا، وأي فترة عمل تناسبك؟"
+    ]
+   }
+  },
+  {
+   "id": "interview_arzt",
+   "title_de": "Vorstellungsgespräch: Arzt",
+   "title_ar": "مقابلة عمل: طبيب",
+   "ai_persona": "Chefärztin katze",
+   "category": "work",
+   "icon": "stethoscope",
+   "sequence_order": 48,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Wo arbeiten Sie?",
+     "أهلاً! أين تعمل؟"
+    ],
+    "a1": [
+     "Guten Tag! In welcher Klinik haben Sie gearbeitet?",
+     "نهارك سعيد! في أي مستشفى عملت؟"
+    ],
+    "a2": [
+     "Guten Tag! Sie haben in einer Klinik gearbeitet, welche Abteilung war das?",
+     "نهارك سعيد! عملت في مستشفى، أي قسم كان ذلك؟"
+    ],
+    "b1": [
+     "Guten Tag! Sie haben in einer Klinik gearbeitet. In welcher Abteilung, und warum wechseln Sie?",
+     "نهارك سعيد! عملت في مستشفى. في أي قسم، ولماذا تريد التغيير؟"
+    ],
+    "b2": [
+     "Guten Tag! Sie haben in einer Klinik gearbeitet, in welcher Abteilung und warum zu uns?",
+     "نهارك سعيد! عملت في مستشفى، في أي قسم ولماذا تريد الانتقال إلينا؟"
+    ]
+   }
+  },
+  {
+   "id": "interview_it_fachkraft",
+   "title_de": "Vorstellungsgespräch: IT-Fachkraft",
+   "title_ar": "مقابلة عمل: تقني معلوماتية",
+   "ai_persona": "IT-Leiter katze",
+   "category": "work",
+   "icon": "briefcase",
+   "sequence_order": 49,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was können Sie gut?",
+     "أهلاً! ماذا تجيد؟"
+    ],
+    "a1": [
+     "Guten Tag! Welche Programme kennen Sie gut?",
+     "نهارك سعيد! ما البرامج التي تعرفها جيداً؟"
+    ],
+    "a2": [
+     "Guten Tag! Sie arbeiten mit Computern, welche Programme kennen Sie?",
+     "نهارك سعيد! أنت تعمل بالحاسوب، ما البرامج التي تعرفها؟"
+    ],
+    "b1": [
+     "Guten Tag! Sie arbeiten schon mit Computern, das ist gut. Welche Programme kennen Sie gut?",
+     "نهارك سعيد! أنت تعمل بالحاسوب بالفعل، وهذا جيد. ما البرامج التي تعرفها جيداً؟"
+    ],
+    "b2": [
+     "Guten Tag! Sie arbeiten schon mit Computern, das ist gut. Welche Programme kennen Sie gut, und wo haben Sie sie benutzt?",
+     "نهارك سعيد! أنت تعمل بالحاسوب بالفعل، وهذا جيد. ما البرامج التي تعرفها جيداً، وأين استخدمتها؟"
+    ]
+   }
+  },
+  {
+   "id": "interview_entwickler",
+   "title_de": "Vorstellungsgespräch: Entwickler",
+   "title_ar": "مقابلة عمل: مطوّر برمجيات",
+   "ai_persona": "Entwicklungsleiterin katze",
+   "category": "work",
+   "icon": "briefcase",
+   "sequence_order": 50,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was haben Sie gebaut?",
+     "أهلاً! ماذا بنيت؟"
+    ],
+    "a1": [
+     "Guten Tag! An welchem Projekt haben Sie gearbeitet?",
+     "نهارك سعيد! على أي مشروع عملت؟"
+    ],
+    "a2": [
+     "Guten Tag! Sie haben schon programmiert, an welchem Projekt?",
+     "نهارك سعيد! سبق أن برمجت، في أي مشروع؟"
+    ],
+    "b1": [
+     "Guten Tag! Sie haben schon programmiert, das sehe ich. An welchem Projekt haben Sie gearbeitet?",
+     "نهارك سعيد! سبق أن برمجت، وهذا واضح. على أي مشروع عملت؟"
+    ],
+    "b2": [
+     "Guten Tag! Sie haben schon programmiert, das sehe ich im Lebenslauf. An welchem Projekt haben Sie gearbeitet, und was war Ihre Aufgabe?",
+     "نهارك سعيد! سبق أن برمجت، وهذا واضح في سيرتك الذاتية. على أي مشروع عملت، وما كانت مهمتك؟"
+    ]
+   }
+  },
+  {
+   "id": "anerkennung_gespraech",
+   "title_de": "Gespräch zur Anerkennung",
+   "title_ar": "حديث حول معادلة الشهادة",
+   "ai_persona": "Sachbearbeiterin Anerkennung katze",
+   "category": "official",
+   "icon": "stamp",
+   "sequence_order": 51,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie Ihren Antrag?",
+     "أهلاً! هل لديك طلبك؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie Ihren Antrag dabei?",
+     "نهارك سعيد! هل طلبك معك؟"
+    ],
+    "a2": [
+     "Guten Tag! Ihr Antrag ist da, haben Sie Ihre Zeugnisse?",
+     "نهارك سعيد! طلبك وصل، هل شهاداتك معك؟"
+    ],
+    "b1": [
+     "Guten Tag! Ihr Antrag ist da, wir prüfen ihn gerade. Haben Sie Ihre Zeugnisse dabei?",
+     "نهارك سعيد! طلبك وصل، ونحن نراجعه الآن. هل شهاداتك معك؟"
+    ],
+    "b2": [
+     "Guten Tag! Ihr Antrag ist da, wir prüfen ihn gerade. Haben Sie Ihre Zeugnisse dabei, oder brauchen Sie eine Übersetzung?",
+     "نهارك سعيد! طلبك وصل، ونحن نراجعه الآن. هل شهاداتك معك، أم تحتاج ترجمة؟"
+    ]
+   }
+  },
+  {
+   "id": "anerkennung_it_zertifikate",
+   "title_de": "Anerkennung: IT-Zertifikate",
+   "title_ar": "معادلة الشهادة: شهادات تقنية المعلومات",
+   "ai_persona": "Sachbearbeiter katze",
+   "category": "official",
+   "icon": "file-text",
+   "sequence_order": 52,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Haben Sie ein Zertifikat?",
+     "أهلاً! هل لديك شهادة؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie ein Zertifikat für IT?",
+     "نهارك سعيد! هل لديك شهادة في تقنية المعلومات؟"
+    ],
+    "a2": [
+     "Guten Tag! Ihr Zertifikat ist für IT, haben Sie eine Übersetzung?",
+     "نهارك سعيد! شهادتك في تقنية المعلومات، هل لديك ترجمة؟"
+    ],
+    "b1": [
+     "Guten Tag! Ihr Zertifikat ist für IT, wir prüfen es noch. Haben Sie eine Übersetzung dabei?",
+     "نهارك سعيد! شهادتك في تقنية المعلومات، ونحن نراجعها الآن. هل الترجمة معك؟"
+    ],
+    "b2": [
+     "Guten Tag! Ihr Zertifikat ist für IT, wir prüfen es noch. Haben Sie eine Übersetzung dabei, oder fehlt sie noch?",
+     "نهارك سعيد! شهادتك في تقنية المعلومات، ونحن نراجعها الآن. هل الترجمة معك، أم أنها لا تزال ناقصة؟"
+    ]
+   }
+  },
+  {
+   "id": "bewerbung_ausbildung",
+   "title_de": "Bewerbung für eine Ausbildung",
+   "title_ar": "التقدّم لدورة تدريب مهني",
+   "ai_persona": "Ausbilder katze",
+   "category": "work",
+   "icon": "briefcase",
+   "sequence_order": 53,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Möchten Sie sich bewerben?",
+     "أهلاً! هل تريد التقديم؟"
+    ],
+    "a1": [
+     "Guten Tag! Möchten Sie eine Ausbildung machen?",
+     "نهارك سعيد! هل تريد حضور تدريب مهني؟"
+    ],
+    "a2": [
+     "Guten Tag! Ihre Bewerbung ist da, welche Ausbildung möchten Sie machen?",
+     "نهارك سعيد! طلبك وصل، أي تدريب مهني تريد أن تحضر؟"
+    ],
+    "b1": [
+     "Guten Tag! Ihre Bewerbung ist da, wir lesen sie gerade. Welche Ausbildung möchten Sie machen?",
+     "نهارك سعيد! طلبك وصل، ونحن نقرأه الآن. أي تدريب مهني تريد أن تحضر؟"
+    ],
+    "b2": [
+     "Guten Tag! Ihre Bewerbung ist da, wir lesen sie gerade. Welche Ausbildung möchten Sie machen, und haben Sie schon Praktika gemacht?",
+     "نهارك سعيد! طلبك وصل، ونحن نقرأه الآن. أي تدريب مهني تريد أن تحضر، وهل قمت بتدريبات عملية من قبل؟"
+    ]
+   }
+  },
+  {
+   "id": "ausbildung_alltag",
+   "title_de": "Alltag in der Ausbildung",
+   "title_ar": "اليومي في التدريب المهني",
+   "ai_persona": "Ausbilder katze",
+   "category": "work",
+   "icon": "clipboard",
+   "sequence_order": 54,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Wie ist die Arbeit?",
+     "أهلاً! كيف العمل؟"
+    ],
+    "a1": [
+     "Guten Tag! Wie ist Ihr erster Tag in der Firma?",
+     "نهارك سعيد! كيف يومك الأول في الشركة؟"
+    ],
+    "a2": [
+     "Guten Tag! Sie arbeiten jetzt in der Werkstatt, wie war der Tag?",
+     "نهارك سعيد! أنت تعمل الآن في الورشة، كيف كان اليوم؟"
+    ],
+    "b1": [
+     "Guten Tag! Sie arbeiten jetzt in der Werkstatt, das ist neu für Sie. Wie war der erste Tag?",
+     "نهارك سعيد! أنت تعمل الآن في الورشة، وهذا جديد عليك. كيف كان اليوم الأول؟"
+    ],
+    "b2": [
+     "Guten Tag! Sie arbeiten jetzt in der Werkstatt, das ist neu für Sie. Wie war der erste Tag, und was haben Sie gelernt?",
+     "نهارك سعيد! أنت تعمل الآن في الورشة، وهذا جديد عليك. كيف كان اليوم الأول، وماذا تعلمت؟"
+    ]
+   }
+  },
+  {
+   "id": "berufsschule_tag",
+   "title_de": "Ein Tag in der Berufsschule",
+   "title_ar": "يوم في المدرسة المهنية",
+   "ai_persona": "Mitschüler katze",
+   "category": "work",
+   "icon": "users",
+   "sequence_order": 55,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Hast du den Plan?",
+     "أهلاً! هل لديك الجدول؟"
+    ],
+    "a1": [
+     "Guten Tag! Wann beginnt der Unterricht heute?",
+     "نهارك سعيد! متى يبدأ الدرس اليوم؟"
+    ],
+    "a2": [
+     "Guten Tag! Der Unterricht beginnt um acht, haben Sie den Plan?",
+     "نهارك سعيد! الدرس يبدأ في الثامنة، هل لديك الجدول؟"
+    ],
+    "b1": [
+     "Guten Tag! Der Unterricht beginnt um acht, wir haben zwei Stunden Mathe. Haben Sie den Plan dabei?",
+     "نهارك سعيد! الدرس يبدأ في الثامنة، ولدينا ساعتان رياضيات. هل الجدول معك؟"
+    ],
+    "b2": [
+     "Guten Tag! Der Unterricht beginnt um acht, wir haben zwei Stunden Mathe. Haben Sie den Plan dabei, oder brauchen Sie meinen?",
+     "نهارك سعيد! الدرس يبدأ في الثامنة، ولدينا ساعتان رياضيات. هل الجدول معك، أم تحتاج جدولي؟"
+    ]
+   }
+  },
+  {
+   "id": "pruefungstag",
+   "title_de": "Der Tag der Prüfung",
+   "title_ar": "يوم الامتحان",
+   "ai_persona": "Prüfer katze",
+   "category": "work",
+   "icon": "stamp",
+   "sequence_order": 56,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Sind Sie bereit?",
+     "أهلاً! هل أنت مستعد؟"
+    ],
+    "a1": [
+     "Guten Tag! Sind Sie bereit für die Prüfung?",
+     "نهارك سعيد! هل أنت مستعد للامتحان؟"
+    ],
+    "a2": [
+     "Guten Tag! Die Prüfung beginnt gleich, sind Sie bereit?",
+     "نهارك سعيد! الامتحان يبدأ حالاً، هل أنت مستعد؟"
+    ],
+    "b1": [
+     "Guten Tag! Die Prüfung beginnt in fünf Minuten, Sie haben noch Zeit. Sind Sie bereit?",
+     "نهارك سعيد! الامتحان يبدأ بعد خمس دقائق، ولا يزال لديك وقت. هل أنت مستعد؟"
+    ],
+    "b2": [
+     "Guten Tag! Die Prüfung beginnt in fünf Minuten, Sie haben noch Zeit. Haben Sie Fragen, oder sind Sie bereit?",
+     "نهارك سعيد! الامتحان يبدأ بعد خمس دقائق، ولا يزال لديك وقت. هل لديك أسئلة، أم أنت مستعد؟"
+    ]
+   }
+  },
+  {
+   "id": "exam_sich_vorstellen",
+   "title_de": "Prüfung: sich vorstellen",
+   "title_ar": "الامتحان: التعريف بالنفس",
+   "ai_persona": "Prüferin katze",
+   "category": "exam",
+   "icon": "graduation-cap",
+   "sequence_order": 57,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Wie heißen Sie?",
+     "أهلاً! ما اسمك؟"
+    ],
+    "a1": [
+     "Guten Tag! Stellen Sie sich bitte vor, wie heißen Sie?",
+     "نهارك سعيد! عرّف بنفسك من فضلك، ما اسمك؟"
+    ],
+    "a2": [
+     "Guten Tag! Bitte stellen Sie sich vor, woher kommen Sie?",
+     "نهارك سعيد! عرّف بنفسك من فضلك، من أين أنت؟"
+    ],
+    "b1": [
+     "Guten Tag! Bitte stellen Sie sich kurz vor, das gehört zur Prüfung. Wie heißen Sie?",
+     "نهارك سعيد! عرّف بنفسك باختصار من فضلك، فهذا جزء من الامتحان. ما اسمك؟"
+    ],
+    "b2": [
+     "Guten Tag! Bitte stellen Sie sich kurz vor, das gehört zur Prüfung. Woher kommen Sie, und warum lernen Sie Deutsch?",
+     "نهارك سعيد! عرّف بنفسك باختصار من فضلك، فهذا جزء من الامتحان. من أين أنت، ولماذا تتعلم الألمانية؟"
+    ]
+   }
+  },
+  {
+   "id": "exam_erfahrungen_sprechen",
+   "title_de": "Prüfung: über Erfahrungen sprechen",
+   "title_ar": "الامتحان: الحديث عن التجارب",
+   "ai_persona": "Prüfungspartner katze",
+   "category": "exam",
+   "icon": "message-circle",
+   "sequence_order": 58,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Wie ist die Prüfung?",
+     "أهلاً! كيف الامتحان؟"
+    ],
+    "a1": [
+     "Guten Tag! Wie ist Ihre Prüfung?",
+     "نهارك سعيد! كيف امتحانك؟"
+    ],
+    "a2": [
+     "Guten Tag! Sie hatten gestern eine Prüfung, wie war sie?",
+     "نهارك سعيد! كان لديك امتحان أمس، كيف كان؟"
+    ],
+    "b1": [
+     "Guten Tag! Sie hatten gestern eine Prüfung, das habe ich gehört. Wie war sie?",
+     "نهارك سعيد! كان لديك امتحان أمس، وقد سمعت بذلك. كيف كان؟"
+    ],
+    "b2": [
+     "Guten Tag! Sie hatten gestern eine Prüfung, das habe ich gehört. Wie war sie, und was war schwer?",
+     "نهارك سعيد! كان لديك امتحان أمس، وقد سمعت بذلك. كيف كان، وما كان صعباً؟"
+    ]
+   }
+  },
+  {
+   "id": "exam_gemeinsam_planen",
+   "title_de": "Prüfung: gemeinsam etwas planen",
+   "title_ar": "الامتحان: التخطيط المشترك",
+   "ai_persona": "Prüfer katze",
+   "category": "exam",
+   "icon": "calendar-check",
+   "sequence_order": 59,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was planen wir heute?",
+     "أهلاً! ماذا نخطط اليوم؟"
+    ],
+    "a1": [
+     "Guten Tag! Was möchten Sie heute planen?",
+     "نهارك سعيد! ماذا تريد أن تخطط اليوم؟"
+    ],
+    "a2": [
+     "Guten Tag! Wir planen gemeinsam ein Fest, was brauchen wir?",
+     "نهارك سعيد! نخطط معاً لحفل، ماذا نحتاج؟"
+    ],
+    "b1": [
+     "Guten Tag! Wir planen gemeinsam ein Fest, das ist unsere Aufgabe. Was brauchen wir zuerst?",
+     "نهارك سعيد! نخطط معاً لحفل، وهذه مهمتنا. ماذا نحتاج أولاً؟"
+    ],
+    "b2": [
+     "Guten Tag! Wir planen gemeinsam ein Fest, das ist unsere Aufgabe. Was brauchen wir zuerst, und wer macht was?",
+     "نهارك سعيد! نخطط معاً لحفل، وهذه مهمتنا. ماذا نحتاج أولاً، ومن يفعل ماذا؟"
+    ]
+   }
+  },
+  {
+   "id": "exam_thema_praesentieren",
+   "title_de": "Prüfung: ein Thema präsentieren",
+   "title_ar": "الامتحان: تقديم موضوع",
+   "ai_persona": "Prüfer katze",
+   "category": "exam",
+   "icon": "presentation",
+   "sequence_order": 60,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was ist Ihr Thema?",
+     "أهلاً! ما موضوعك؟"
+    ],
+    "a1": [
+     "Guten Tag! Haben Sie ein Thema gewählt?",
+     "نهارك سعيد! هل اخترت موضوعاً؟"
+    ],
+    "a2": [
+     "Guten Tag! Sie haben ein Thema gewählt, was zeigen Sie uns?",
+     "نهارك سعيد! اخترت موضوعاً، ماذا تعرض علينا؟"
+    ],
+    "b1": [
+     "Guten Tag! Sie haben ein Thema gewählt. Wie möchten Sie es zeigen, und haben Sie Bilder?",
+     "نهارك سعيد! اخترت موضوعاً. كيف تريد أن تعرضه، وهل لديك صور؟"
+    ],
+    "b2": [
+     "Guten Tag! Sie haben ein Thema gewählt, wie möchten Sie es zeigen und brauchen Sie noch Zeit?",
+     "نهارك سعيد! اخترت موضوعاً، كيف تريد أن تعرضه وهل تحتاج وقتاً إضافياً؟"
+    ]
+   }
+  },
+  {
+   "id": "exam_auf_partner_reagieren",
+   "title_de": "Prüfung: auf den Partner reagieren",
+   "title_ar": "الامتحان: التفاعل مع الشريك",
+   "ai_persona": "Prüfungspartner katze",
+   "category": "exam",
+   "icon": "users",
+   "sequence_order": 61,
+   "review": "rewritten",
+   "openers": {
+    "a0": [
+     "Hallo! Was sagen Sie dazu?",
+     "أهلاً! ماذا تقول عن ذلك؟"
+    ],
+    "a1": [
+     "Guten Tag! Was sagen Sie zu meinem Plan?",
+     "نهارك سعيد! ماذا تقول عن خطتي؟"
+    ],
+    "a2": [
+     "Guten Tag! Ich finde den Plan gut, was sagen Sie dazu?",
+     "نهارك سعيد! أرى أن الخطة جيدة، ماذا تقول عنها؟"
+    ],
+    "b1": [
+     "Guten Tag! Ich finde den Plan gut, er ist praktisch. Sind Sie auch dieser Meinung?",
+     "نهارك سعيد! أرى أن الخطة جيدة وعملية. هل توافقني الرأي؟"
+    ],
+    "b2": [
+     "Guten Tag! Ich finde den Plan gut, er ist praktisch. Sind Sie auch dieser Meinung, oder haben Sie eine andere Idee?",
+     "نهارك سعيد! أرى أن الخطة جيدة وعملية. هل توافقني الرأي، أم لديك فكرة أخرى؟"
+    ]
+   }
+  }
+ ]
+}

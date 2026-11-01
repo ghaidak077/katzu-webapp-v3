@@ -1,447 +1,555 @@
 {
- "fetchedAt": "2026-10-30",
- "source": "https://katzu-test.ghaidakalosh008.workers.dev",
+ "fetchedAt": "2026-11-01",
+ "source": "docs/content/catalogue/scenarios-catalogue.json",
  "scenarios": [
-  {
-   "id": "embassy_appointment",
-   "category": "official",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Tag. Wie kann ich Ihnen helfen?",
-   "initial_message_a2": "Guten Tag. Was ist der Grund Ihres Besuchs heute?",
-   "initial_message_b1": "Guten Tag, bitte nehmen Sie Platz und schildern Sie mir Ihr Anliegen.",
-   "initial_message_b2": "Guten Tag, ich würde gerne die Einzelheiten Ihres Antrags im Detail mit Ihnen besprechen."
-  },
-  {
-   "id": "cafe_order",
-   "category": "daily_life",
-   "initial_message_a0": "",
-   "initial_message_a1": "Hallo! Was möchten Sie trinken?",
-   "initial_message_a2": "Hallo! Was darf ich Ihnen heute bringen?",
-   "initial_message_b1": "Guten Tag, haben Sie schon gewählt, oder brauchen Sie noch einen Moment?",
-   "initial_message_b2": "Guten Tag, darf ich Ihnen unsere heutigen Empfehlungen vorschlagen, bevor Sie sich entscheiden?"
-  },
-  {
-   "id": "job_interview",
-   "category": "work",
-   "initial_message_a0": "",
-   "initial_message_a1": "Hallo, schön dass Sie da sind. Wie heißen Sie?",
-   "initial_message_a2": "Guten Tag, erzählen Sie mir bitte kurz etwas über sich.",
-   "initial_message_b1": "Guten Tag, könnten Sie mir Ihre bisherige Berufserfahrung genauer erläutern?",
-   "initial_message_b2": "Guten Tag, inwiefern glauben Sie, dass Ihre Qualifikationen zu den Anforderungen dieser Position passen?"
-  },
-  {
-   "id": "doctor_visit",
-   "category": "health",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Tag. Was fehlt Ihnen?",
-   "initial_message_a2": "Guten Tag, wo genau haben Sie Schmerzen?",
-   "initial_message_b1": "Guten Tag, seit wann bestehen diese Beschwerden schon?",
-   "initial_message_b2": "Guten Tag, könnten Sie mir Ihre Symptome möglichst genau und in der zeitlichen Reihenfolge schildern?"
-  },
-  {
-   "id": "apartment_viewing",
-   "category": "housing",
-   "initial_message_a0": "",
-   "initial_message_a1": "Hallo! Willkommen. Das ist die Wohnung.",
-   "initial_message_a2": "Hallo! Schön, dass Sie da sind. Ich zeige Ihnen die Wohnung.",
-   "initial_message_b1": "Guten Tag, kommen Sie bitte herein — ich zeige Ihnen zunächst das Wohnzimmer.",
-   "initial_message_b2": "Guten Tag, bevor wir beginnen, hätten Sie im Voraus schon spezielle Fragen zur Wohnung oder zum Mietvertrag?"
-  },
-  {
-   "id": "airport_arrival",
-   "category": "travel",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Tag. Fehlt Ihr Gepäck?",
-   "initial_message_a2": "Guten Tag. Willkommen am Flughafen. Fehlt Ihr Gepäck, oder suchen Sie den Gepäckschalter?",
-   "initial_message_b1": "Guten Tag. Da Ihr Koffer nicht angekommen ist, nehme ich hier die Meldung auf. Haben Sie Ihren Pass und Ihre Bordkarte dabei?",
-   "initial_message_b2": "Guten Tag. Seit Ihrer Ankunft fehlt also Ihr Gepäck. Beschreiben Sie mir bitte kurz, wie Ihr Koffer aussieht, dann sehe ich nach."
-  },
-  {
-   "id": "train_station",
-   "category": "travel",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Tag. Wohin möchten Sie fahren?",
-   "initial_message_a2": "Guten Tag. Möchten Sie eine Fahrkarte kaufen oder Ihre Verbindung suchen?",
-   "initial_message_b1": "Guten Tag. Wann möchten Sie abfahren, und muss man umsteigen?",
-   "initial_message_b2": "Guten Tag. Wenn Ihr Zug Verspätung hat, suche ich mit Ihnen eine passende Verbindung. Wohin möchten Sie reisen?"
-  },
-  {
-   "id": "bakery_shopping",
-   "category": "daily_life",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Morgen! Was darf es sein?",
-   "initial_message_a2": "Guten Morgen! Möchten Sie Brot oder Brötchen?",
-   "initial_message_b1": "Guten Morgen. Das Vollkornbrot ist heute besonders frisch. Darf es sonst noch etwas sein?",
-   "initial_message_b2": "Guten Morgen. Ich schneide Ihnen das Brot gern auf. Was darf ich Ihnen einpacken?"
-  },
-  {
-   "id": "landlord_followup",
-   "category": "housing",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Tag. Was kann ich für Sie tun?",
-   "initial_message_a2": "Guten Tag. Haben Sie einen Termin, oder geht es um etwas Dringendes?",
-   "initial_message_b1": "Guten Tag. Sie haben gesagt, die Heizung ist kaputt? Dann schauen wir, wann ich vorbeikommen kann.",
-   "initial_message_b2": "Guten Tag. Zu Ihrer Frage zum Mietvertrag und zur Kaution: Am besten lesen wir die Stelle gemeinsam durch. Wann passt es Ihnen?"
-  },
-  {
-   "id": "friend_catchup",
-   "category": "daily_life",
-   "initial_message_a0": "",
-   "initial_message_a1": "Hallo! Schön, dich zu sehen!",
-   "initial_message_a2": "Na, wie geht es dir? Erzähl mal!",
-   "initial_message_b1": "Was machst du am Wochenende? Hast du Zeit für einen Kaffee?",
-   "initial_message_b2": "Lass uns zusammen essen gehen. Wie wäre es, wenn wir uns morgen treffen?"
-  },
-  {
-   "id": "anmeldung_buergeramt",
-   "category": "official",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Tag! Was kann ich für Sie tun?",
-   "initial_message_a2": "Guten Tag! Sie möchten sich anmelden? Haben Sie alle Unterlagen dabei?",
-   "initial_message_b1": "Guten Tag! Herzlich willkommen in Berlin. Für die Anmeldung brauche ich Ihren Ausweis und die Wohnungsgeberbestätigung.",
-   "initial_message_b2": "Guten Tag! Ich sehe, Sie sind neu hier. Bevor ich Sie anmelde, prüfe ich die Angaben — sind im Formular alle Personen aufgeführt, die mit Ihnen einziehen?"
-  },
-  {
-   "id": "termin_online_buchen",
-   "category": "official",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Tag. Möchten Sie einen Termin?",
-   "initial_message_a2": "Hallo! Die nächsten freien Termine sind in zwei Wochen. Welcher Tag passt Ihnen?",
-   "initial_message_b1": "Guten Tag! Ich kann Ihnen einen Termin am Montag um neun Uhr oder am Donnerstag um vierzehn Uhr anbieten. Was passt Ihnen besser?",
-   "initial_message_b2": "Guten Tag! Der früheste Termin wäre am 12. März um 8:20 Uhr. Falls Ihnen das zu früh ist, hätte ich noch einen Nachmittagstermin am 14. März — welchen möchten Sie reservieren?"
-  },
-  {
-   "id": "krankenkasse_anmelden",
-   "category": "health",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Tag. Möchten Sie sich bei uns anmelden?",
-   "initial_message_a2": "Guten Tag! Möchten Sie sich bei uns anmelden? Haben Sie schon eine Versichertennummer?",
-   "initial_message_b1": "Guten Tag! Ich helfe Ihnen gern beim nächsten Schritt. Welche Unterlagen oder Informationen liegen Ihnen bereits vor?",
-   "initial_message_b2": "Guten Tag! Ich kann mit Ihnen prüfen, welche Angaben noch fehlen. Haben Sie Fragen dazu, wie Ihre Anmeldung weitergeht?"
-  },
-  {
-   "id": "mietvertrag_uebergabe",
-   "category": "housing",
-   "initial_message_a0": "",
-   "initial_message_a1": "Hallo! Sie möchten die Wohnung mieten?",
-   "initial_message_a2": "Guten Tag! Wir treffen uns heute zur Übergabe. Möchten Sie das Protokoll zuerst lesen?",
-   "initial_message_b1": "Guten Tag. Bevor wir das Übergabeprotokoll abschließen, können wir gemeinsam die Zählerstände und sichtbaren Mängel notieren. Haben Sie noch etwas entdeckt?",
-   "initial_message_b2": "Guten Tag. Sehen wir uns die Angaben zu Mietdauer, Kündigungsfrist und Kaution in Ihrem Vertrag gemeinsam an. Welche Punkte möchten Sie zuerst klären?"
-  },
-  {
-   "id": "erster_arbeitstag",
-   "category": "work",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Morgen! Willkommen im Team.",
-   "initial_message_a2": "Guten Morgen! Ich zeige Ihnen heute alles. Haben Sie Ihre Steuer-ID und Ihre Bankverbindung dabei?",
-   "initial_message_b1": "Guten Morgen! Für die Personalabteilung brauche ich noch Ihre Steueridentifikationsnummer, Ihre Sozialversicherungsnummer und Ihre Bankverbindung für die Gehaltsabrechnung.",
-   "initial_message_b2": "Guten Morgen! Willkommen an Bord. Wir melden Sie noch heute bei der Sozialversicherung an. Für die Lohnabrechnung brauche ich Ihre Steuer-ID, Ihre Bankverbindung und — falls vorhanden — die Anerkennung Ihrer ausländischen Abschlüsse."
-  },
-  {
-   "id": "interview_pflegefachkraft",
-   "category": "work",
-   "initial_message_a0": "Guten Tag! Ich bin Herr Falk. Bitte nehmen Sie Platz.",
-   "initial_message_a1": "Guten Tag, schön, dass Sie da sind. Ich bin Herr Falk, der Pflegedirektor. Bitte nehmen Sie Platz. Erzählen Sie zuerst: Wie heißen Sie?",
-   "initial_message_a2": "Guten Tag, Frau Josten hat Sie hereingebeten — schön. Ich bin Herr Falk, der Pflegedirektor. Nehmen Sie bitte Platz. Beginnen Sie ruhig mit Ihrer Person: Woher kommen Sie, und was haben Sie gelernt?",
-   "initial_message_b1": "Guten Tag, schön, dass Sie sich bei uns beworben haben. Ich bin Herr Falk, der Pflegedirektor, und führe heute das Gespräch mit Ihnen. Nehmen Sie Platz. Erzählen Sie mir zuerst etwas über Ihre Erfahrung in der Pflege — und ich frage vorweg schon einmal: Warum sollten wir gerade Sie einstellen?",
-   "initial_message_b2": "Guten Tag, es freut mich, dass Sie sich bei uns beworben haben — Ihre Unterlagen waren überzeugend. Ich bin Herr Falk, der Pflegedirektor, und führe heute das Gespräch mit Ihnen. Erzählen Sie mir zunächst, wie Sie in die Pflege gekommen sind. Eine Frage vorweg: Viele Bewerber sagen, sie seien absolut teamfähig — was heißt das bei Ihnen ganz konkret?"
-  },
-  {
-   "id": "interview_arzt",
-   "category": "work",
-   "initial_message_a0": "Guten Tag! Ich bin Dr. Berg. Nehmen Sie bitte Platz.",
-   "initial_message_a1": "Guten Tag, ich bin Dr. Berg, der Chefarzt der Inneren Abteilung. Nehmen Sie bitte Platz. Erzählen Sie: Was ist Ihr Fachgebiet?",
-   "initial_message_a2": "Guten Tag, Dr. Berg hier, Chefarzt der Inneren Abteilung. Schön, dass Sie da sind. Sagen Sie mir zuerst: Was ist Ihr Fachgebiet, und wie lange arbeiten Sie schon darin?",
-   "initial_message_b1": "Guten Tag, Dr. Berg, Chefarzt der Inneren Abteilung — schön, dass Sie da sind. Bevor wir in die Details gehen: Erzählen Sie von einer Situation, in der Sie einen Fehler gemacht haben, und was daraus für Sie gefolgt ist.",
-   "initial_message_b2": "Guten Tag, Dr. Berg, Chefarzt der Inneren Abteilung — ich habe Ihren Lebenslauf mit Interesse gelesen. Erzählen Sie mir zuerst, warum Sie genau bei uns arbeiten möchten. Und dann wäre ich an einer Situation interessiert, in der Sie einen Fehler gemacht haben — und was sich seitdem für Sie verändert hat."
-  },
-  {
-   "id": "patient_conversation_basics",
-   "category": "health",
-   "initial_message_a0": "Guten Tag. Ich bin Frau Adler. Ich habe Schmerzen.",
-   "initial_message_a1": "Guten Tag, ich bin Frau Adler, Zimmer zwölf. Können Sie mir helfen? Ich habe seit heute Morgen Schmerzen.",
-   "initial_message_a2": "Guten Tag, ich bin Frau Adler aus Zimmer zwölf. Schön, dass Sie da sind. Ich habe seit heute Morgen Schmerzen im Rücken — können Sie bitte nachsehen, was dagegen hilft?",
-   "initial_message_b1": "Guten Tag, ich bin Frau Adler aus Zimmer zwölf. Schön, dass Sie kommen. Ich weiß nicht, ob ich Sie richtig verstanden habe: Kommen Sie, um mir die Tabletten zu bringen, oder geht es um die Untersuchung heute Nachmittag? Ich habe nämlich seit heute Morgen Schmerzen im Rücken.",
-   "initial_message_b2": "Guten Tag, Sie müssen Frau Berger sein, die neue Pflegekraft — ich bin Frau Adler aus Zimmer zwölf. Kommen Sie bitte herein. Ich wollte Sie eigentlich schon rufen: Ich habe seit heute Morgen Schmerzen im Rücken, und die Tabletten, die der Arzt verschrieben hat, helfen kaum. Könnten Sie bitte nachsehen, was man dagegen tun kann?"
-  },
-  {
-   "id": "station_uebergabe",
-   "category": "health",
-   "initial_message_a0": "Guten Morgen. Ich bin Dr. Weiss. Was ist mit Herrn Krause?",
-   "initial_message_a1": "Guten Morgen, ich bin Dr. Weiss. Beginnen wir mit Herrn Krause aus Zimmer drei. Wie geht es ihm heute?",
-   "initial_message_a2": "Guten Morgen, ich bin Dr. Weiss und übernehme die Frühschicht. Fangen wir mit Herrn Krause aus Zimmer drei an: Wie war seine Nacht, und was hat der Arzt gestern angeordnet?",
-   "initial_message_b1": "Guten Morgen, ich bin Dr. Weiss und übernehme von Ihnen die Frühschicht. Geben Sie mir bitte kurz die Übergabe für Herrn Krause aus Zimmer drei: Wie war seine Nacht, welche Medikamente hat er bekommen, und was steht für heute an?",
-   "initial_message_b2": "Guten Morgen, ich bin Dr. Weiss und übernehme die Frühschicht von Ihnen. Bevor ich zu den Ärzten gehe, hätte ich gern in fünf Minuten die Übergabe für die ganzen Station — fangen wir mit Herrn Krause aus Zimmer drei an: Wie war seine Nacht, was wurde verordnet, und gibt es irgendetwas, worauf ich besonders achten sollte?"
-  },
-  {
-   "id": "kollegen_smalltalk",
-   "category": "daily_life",
-   "initial_message_a0": "Hi! Ich bin Jonas. Isst du mit uns?",
-   "initial_message_a1": "Hi, ich bin Jonas aus der Frühschicht. Wir essen gleich zusammen in der Kantine — isst du mit?",
-   "initial_message_a2": "Hi, Jonas hier, ich bin auch in der Frühschicht. Wir gehen gleich alle zusammen in die Kantine — hast du Lust mitzukommen, oder bringst du dir etwas mit?",
-   "initial_message_b1": "Hi, ich bin Jonas, ich arbeite wie du in der Frühschicht. Wir gehen gleich alle zusammen in die Kantine — das Mittagessen dort ist heute richtig gut, glaube ich. Kommst du mit, oder hast du etwas mitgebracht?",
-   "initial_message_b2": "Hi, ich bin Jonas — wir kennen uns ja schon von der Übergabe, aber noch gar nicht richtig. Ich arbeite in der Frühschicht wie du. Wir wollen gleich alle zusammen in die Kantine gehen, das Mittagessen soll heute richtig gut sein. Kommst du mit, oder hast du dir selbst etwas mitgebracht? Und sag mal: Wie gefällt dir die Station bisher?"
-  },
-  {
-   "id": "anerkennung_gespraech",
-   "category": "official",
-   "initial_message_a0": "Guten Tag. Ich bin Frau Lange. Wie kann ich helfen?",
-   "initial_message_a1": "Guten Tag, ich bin Frau Lange, ich bearbeite Ihre Unterlagen. Wie kann ich Ihnen heute helfen?",
-   "initial_message_a2": "Guten Tag, Frau Lange hier, ich bearbeite Anträge zur Anerkennung. Schön, dass Sie gekommen sind. Erzählen Sie mir: In welchem Stand ist Ihr Antrag, und welche Unterlagen liegen schon vor?",
-   "initial_message_b1": "Guten Tag, Frau Lange, ich bearbeite Anträge zur Anerkennung beruflicher Qualifikationen. Nehmen Sie Platz. Sagen Sie mir bitte: In welchem Stand ist Ihr Verfahren, und fehlen Ihrer Sicht nach noch Unterlagen, die Sie nachreichen müssten?",
-   "initial_message_b2": "Guten Tag, Frau Lange, ich bin für die Anerkennung beruflicher Qualifikationen zuständig. Nehmen Sie Platz. Damit wir nicht aneinander vorbeireden: Erzählen Sie mir bitte kurz, in welchem Stand Ihr Verfahren ist und welche Fragen Sie sich gestellt haben — dann sehen wir gemeinsam, was als Nächstes sinnvoll wäre."
-  },
-  {
-   "id": "interview_it_fachkraft",
-   "category": "work",
-   "initial_message_a0": "Guten Tag! Ich bin Herr Vogel. Bitte nehmen Sie Platz.",
-   "initial_message_a1": "Guten Tag, ich bin Herr Vogel, der Teamleiter. Schön, dass Sie da sind. Erzählen Sie zuerst: Wie heißen Sie, und was machen Sie gern?",
-   "initial_message_a2": "Guten Tag, Herr Vogel hier, Teamleiter der IT-Abteilung. Nehmen Sie bitte Platz. Erzählen Sie mir zuerst: Woher kommen Sie, und was haben Sie vorher gemacht?",
-   "initial_message_b1": "Guten Tag, ich bin Herr Vogel, der Teamleiter, und führe heute das Gespräch mit Ihnen. Erzählen Sie mir zuerst etwas über Ihren Weg zur IT — und vorweg schon einmal: Warum wollen Sie bei uns arbeiten?",
-   "initial_message_b2": "Guten Tag, schön, dass Sie sich bei uns beworben haben — Ihr Profil war interessant. Ich bin Herr Vogel, der Teamleiter. Erzählen Sie mir zuerst, wie Sie zur IT gekommen sind. Eine Frage vorweg: Viele Bewerber nennen sich lösungsorientiert — was heißt das bei Ihnen ganz konkret?"
-  },
-  {
-   "id": "interview_entwickler",
-   "category": "work",
-   "initial_message_a0": "Guten Tag! Ich bin Dr. Sander. Bitte nehmen Sie Platz.",
-   "initial_message_a1": "Guten Tag, ich bin Dr. Sander. Erzählen Sie: Was ist Ihr Fachgebiet?",
-   "initial_message_a2": "Guten Tag, Dr. Sander hier, Chefentwickler. Schön, dass Sie da sind. Sagen Sie mir zuerst: Was entwickeln Sie gern, und wie lange machen Sie das schon?",
-   "initial_message_b1": "Guten Tag, Dr. Sander, Chefentwickler — schön, dass Sie da sind. Erzählen Sie von einem technischen Problem, das Sie gelöst haben, und was daraus für Sie gefolgt ist.",
-   "initial_message_b2": "Guten Tag, Dr. Sander hier — ich habe Ihren Lebenslauf mit Interesse gelesen. Erzählen Sie zuerst, warum Sie genau bei uns entwickeln möchten. Und dann würde mich eine Situation interessieren, in der ein Update schiefgelaufen ist — und was sich seitdem für Sie verändert hat."
-  },
-  {
-   "id": "daily_standup",
-   "category": "work",
-   "initial_message_a0": "Guten Morgen! Kurz berichten, bitte.",
-   "initial_message_a1": "Guten Morgen, alle zusammen! Ich bin Pia, die Scrum-Masterin. Was hast du gestern gemacht, und was machst du heute?",
-   "initial_message_a2": "Guten Morgen! Pia hier, die Scrum-Masterin. Fangen wir an: Was hast du gestern geschafft, was machst du heute, und was blockiert dich?",
-   "initial_message_b1": "Guten Morgen, alle zusammen — kurzer Blick auf das Board vor dem Termin. Berichte bitte in drei Sätzen: Gestern, heute, Blocker. Und wenn etwas den Server betrifft, nenne es gleich.",
-   "initial_message_b2": "Guten Morgen! Ich fasse uns kurz zusammen, damit pünktlich um elf alle rauskommen. Dein Part: drei Sätze — Gestern, Heute, Blocker — und wenn deine Programmierung eine andere Stelle blockiert, sag es direkt, damit wir das Ticket umbauen können."
-  },
-  {
-   "id": "support_ticket",
-   "category": "work",
-   "initial_message_a0": "Hallo? Mein Computer geht nicht!",
-   "initial_message_a1": "Hallo, hier ist Frau Berger. Mein Computer startet nicht. Können Sie mir helfen?",
-   "initial_message_a2": "Guten Tag, Frau Berger hier. Seit heute Morgen geht mein Computer nicht mehr — ich sehe nur eine Fehlermeldung. Können Sie mir bitte weiterhelfen?",
-   "initial_message_b1": "Guten Tag, Frau Berger hier — ich arbeite von zu Hause und komme nicht weiter. Der Bildschirm bleibt schwarz, und eine Fehlermeldung kommt immer wieder. Ich habe schon neu gestartet, aber das Problem bleibt.",
-   "initial_message_b2": "Guten Tag, ich störe bestimmt — aber ich muss heute noch eine Sache fertig machen, und genau jetzt lässt mein Computer mich nicht rein. Ich habe alles versucht, was ich kenne: neu gestartet, Kabel geprüft. Die Fehlermeldung kommt trotzdem, und ich weiß nicht, was sie bedeutet."
-  },
-  {
-   "id": "tech_kuechenpause",
-   "category": "daily_life",
-   "initial_message_a0": "Hi! Pause?",
-   "initial_message_a1": "Hi, ich bin Jonas. Machst du auch eine Pause? Ich bin so hungrig.",
-   "initial_message_a2": "Hi, Jonas hier aus dem zweiten Stock. Ich mache eine Pause — willst du mitkommen? Die Kaffeemaschine unten ist übrigens kaputt.",
-   "initial_message_b1": "Hi, ich bin Jonas — wir kennen uns vom Standup, aber noch nicht richtig. Ich hole mir erst einmal Kaffee, wenn die Maschine denn läuft. Hast du eigentlich immer so wenig mit, oder kommt deine Mahlzeit später?",
-   "initial_message_b2": "Hi, Jonas hier — dann setzen wir uns mal. Sag mal, wie findest du eigentlich das Team so bisher? Und wenn du irgendwas brauchst — Besteck liegt oben im Schrank, und im Kühlschrank ist Platz, wenn du etwas mitbringen willst."
-  },
-  {
-   "id": "anerkennung_it_zertifikate",
-   "category": "official",
-   "initial_message_a0": "Guten Tag. Wie kann ich helfen?",
-   "initial_message_a1": "Guten Tag, ich bin Herr Weber. Sie möchten Ihr Zertifikat anerkennen lassen? Erzählen Sie kurz.",
-   "initial_message_a2": "Guten Tag, Herr Weber hier, ich bearbeite Zeugnisse aus dem Ausland. Erzählen Sie mir: Welche Prüfung haben Sie gemacht, und wo?",
-   "initial_message_b1": "Guten Tag, Herr Weber, ich bin für die Bewertung ausländischer Qualifikationen zuständig. Nehmen Sie Platz. Sagen Sie mir bitte zuerst: Welche Ausbildung steht auf Ihren Unterlagen, und welchen Abschluss haben Sie genau?",
-   "initial_message_b2": "Guten Tag, Herr Weber hier — ich sehe, Sie haben einen Termin zur Zeugnisbewertung. Damit wir uns nicht doppelt unterhalten: Erzählen Sie mir bitte kurz, welche Zertifikate Sie haben, wo Sie sie gemacht haben, und welche Frage Sie sich dazu gestellt haben."
-  },
-  {
-   "id": "bewerbung_ausbildung",
-   "category": "work",
-   "initial_message_a0": "Guten Tag! Ich bin Herr Brenner. Bitte nehmen Sie Platz.",
-   "initial_message_a1": "Guten Tag, ich bin Herr Brenner, der Ausbilder. Schön, dass Sie da sind. Erzählen Sie zuerst: Wie heißen Sie, und warum möchten Sie hier lernen?",
-   "initial_message_a2": "Guten Tag, Herr Brenner hier, Ihr Ausbilder im Bewerbungsgespräch. Nehmen Sie bitte Platz. Erzählen Sie mir zuerst: Woher kommen Sie, und was interessiert Sie an diesem Beruf?",
-   "initial_message_b1": "Guten Tag, ich bin Herr Brenner, der Ausbilder, und führe heute das Gespräch um den Ausbildungsplatz. Erzählen Sie mir zuerst etwas über Ihren Weg — und vorweg schon einmal: Warum gerade dieses Betrieb?",
-   "initial_message_b2": "Guten Tag, schön, dass Sie sich beworben haben — Ihre Mappe war vollständig. Ich bin Herr Brenner, der Ausbilder. Erzählen Sie zuerst, wie Sie auf uns gekommen sind. Eine Frage vorweg: Viele Bewerber sagen, sie lernen gern — wie zeigen Sie das in Ihrem Alltag?"
-  },
-  {
-   "id": "ausbildung_alltag",
-   "category": "work",
-   "initial_message_a0": "Guten Morgen! Heute lernen wir die Werkstatt.",
-   "initial_message_a1": "Guten Morgen! Ich bin Herr Brenner. Heute zeige ich Ihnen die Werkstatt. Was möchten Sie wissen?",
-   "initial_message_a2": "Guten Morgen, Herr Brenner hier. Heute beginnen wir mit den ersten Aufgaben in der Werkstatt. Haben Sie alles verstanden, was wir gestern besprochen haben?",
-   "initial_message_b1": "Guten Morgen — dritter Woche, dritter Tag. Ihr Ausbilder hier: Zeigen Sie mir bitte Ihren Berichtsheft-Eintrag, und sagen Sie mir gleich, wo Sie noch unsicher sind.",
-   "initial_message_b2": "Guten Morgen. Ich erwarte heute Ihren ersten selbstständigen Arbeitsschritt — mit Unterstützung, aber ohne dass ich die Hand führe. Erzählen Sie mir zuerst: Wie wollen Sie vorgehen, und wo brauchen Sie mich?"
-  },
-  {
-   "id": "berufsschule_tag",
-   "category": "work",
-   "initial_message_a0": "Hallo! Neu hier? Ich bin Denis.",
-   "initial_message_a1": "Hallo, ich bin Denis, ich mache die gleiche Ausbildung. Wie findest du die Schule bis jetzt?",
-   "initial_message_a2": "Hi, Denis hier. Hast du den Stundenplan gesehen? Montag und Mittwoch sind unsere langen Tage — hast du schon einen Plan für die Hausaufgaben?",
-   "initial_message_b1": "Hi, Denis hier — wir sitzen seit September im gleichen Raum, aber wir haben noch nicht viel geredet. Sag mal: Welches Fach fällt dir leicht, und wo brauchst du Hilfe? Vielleicht können wir uns zusammensetzen.",
-   "initial_message_b2": "Hi, Denis hier. Die Zwischenprüfung rückt näher, und ich merke, dass ich im Theorieteil nachlässig geworden bin. Wie bereitest du dich vor — und hättest du Lust, uns gegenseitig abzufragen?"
-  },
-  {
-   "id": "pruefungstag",
-   "category": "work",
-   "initial_message_a0": "Guten Tag! Heute ist Ihre Prüfung. Viel Erfolg!",
-   "initial_message_a1": "Guten Tag, ich bin Herr Kaiwicz, Ihr Prüfer. Keine Angst — zeigen Sie einfach, was Sie können. Bereit?",
-   "initial_message_a2": "Guten Tag, Herr Kaiwicz hier, Vorsitzender des Prüfungsausschusses. Zuerst die Practical: Erzählen Sie, welchen Arbeitsschritt Sie heute zeigen, und welche Werkzeuge Sie brauchen.",
-   "initial_message_b1": "Guten Tag, Herr Kaiwicz, ich leite heute die Prüfung. Wir beginnen mit einer kurzen Vorstellung Ihres Projekts: Beschreiben Sie bitte Ihren Weg von der Aufgabe bis zum Ergebnis — und wo es schwierig wurde.",
-   "initial_message_b2": "Guten Tag, Herr Kaiwicz hier. Sie haben die schriftlichen Teile hinter sich — jetzt das Fachgespräch. Erzählen Sie mir zuerst frei: Was war die schwierigste Entscheidung in Ihrem Prüfungsauftrag, und was würden Sie beim nächsten Mal anders machen?"
-  },
-  {
-   "id": "betriebs_kantine",
-   "category": "daily_life",
-   "initial_message_a0": "Hi! Essen? Komm mit!",
-   "initial_message_a1": "Hi, ich bin Meltem. Kommst du mit in die Kantine? Ich habe heute schon Hunger.",
-   "initial_message_a2": "Hi, Meltem hier. In zehn Minuten ist Mittagspause — kommst du mit? Heute gibt es angeblich Schnitzel, aber ich bringe mir lieber mein Pausenbrot mit.",
-   "initial_message_b1": "Hi, Meltem hier — setzen wir uns ans Fenster? Sag mal, wie war dein Vormittag im Betrieb? Meine Brotdose ist diesmal richtig gut gefüllt: Brötchen mit Käse, Gemüse und ein Apfelsaft dazu.",
-   "initial_message_b2": "Hi, Meltem hier — dann erzähl mal. Du wirkst ein bisschen müde. Zu wenig geschlafen, oder hängt die Prüfungsvorbereitung dir an? Meine Mutter packt mir jeden Tag zwei Brötchen ein, sonst würde ich nur von Kaffee und Schokolade leben."
-  },
-  {
-   "id": "pruefung_anmeldung",
-   "category": "official",
-   "initial_message_a0": "Guten Tag. Wie kann ich helfen?",
-   "initial_message_a1": "Guten Tag, ich bin Frau Roth. Sie möchten sich für eine Prüfung anmelden? Erzählen Sie kurz.",
-   "initial_message_a2": "Guten Tag, Frau Roth hier, ich bearbeite die Prüfungsanmeldungen. Erzählen Sie mir: Welches Niveau möchten Sie prüfen, und wann passt es Ihnen?",
-   "initial_message_b1": "Guten Tag, Frau Roth, ich bin für die Anmeldungen zur Sprachprüfung zuständig. Nehmen Sie Platz. Sagen Sie mir bitte zuerst: Welches Niveau, mündlich und schriftlich komplett — und haben Sie einen Kurs bei uns gemacht?",
-   "initial_message_b2": "Guten Tag, Frau Roth hier — schön, dass Sie den Schritt machen. Damit wir nichts doppelt besprechen: Erzählen Sie mir bitte kurz, wie weit Sie mit der Vorbereitung sind, welche Unterlagen Sie mitgebracht haben und welche Frage Sie sich zum Ablauf gestellt haben."
-  },
-  {
-   "id": "pass_und_dokumente",
-   "category": "official",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Tag. Ist Ihr Reisepass dabei?",
-   "initial_message_a2": "Guten Tag, willkommen. Ich brauche Ihren Reisepass und Ihre Nummer.",
-   "initial_message_b1": "Guten Tag. Bitte zeigen Sie Ihren Reisepass, dann prüfe ich Ihre Nummer im System.",
-   "initial_message_b2": "Guten Tag, schön, dass Sie da sind. Bevor wir den Antrag einreichen, brauche ich Ihren Reisepass und die Aktennummer."
-  },
-  {
-   "id": "restaurant_besonders",
-   "category": "daily_life",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Abend! Was möchten Sie trinken?",
-   "initial_message_a2": "Guten Abend! Hier ist die Karte. Ich empfehle heute das Gericht mit saisonalen Zutaten.",
-   "initial_message_b1": "Guten Abend! Haben Sie reserviert? Heute gibt es eine saisonale Karte — lassen Sie sich beraten.",
-   "initial_message_b2": "Guten Abend, herrlich, Sie da zu sehen! Falls Sie Fragen zur Zubereitung haben oder eine Allergie beachten müssen, sagen Sie es mir einfach."
-  },
-  {
-   "id": "gesundheit_alltag",
-   "category": "health",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Tag. Was fehlt Ihnen?",
-   "initial_message_a2": "Guten Tag. Since wann fühlen Sie sich so müde? Beschreiben Sie mir Ihre Symptome.",
-   "initial_message_b1": "Guten Tag. Sie wirken erkältet — Husten, Fieber? Ich verschreibe Ihnen etwas, aber erst höre ich zu.",
-   "initial_message_b2": "Guten Tag. Bevor ich etwas verschreibe: Sind die Beschwerden chronisch oder eine akute Verletzung? Und wie erholen Sie sich aktuell?"
-  },
-  {
-   "id": "wohnung_besichtigen_tiefer",
-   "category": "housing",
-   "initial_message_a0": "",
-   "initial_message_a1": "Hallo! Die Wohnung ist frei. Komm rein.",
-   "initial_message_a2": "Hallo! Schön, dass du da bist. Die Wohnung ist groß und hell, das Bad ist neu.",
-   "initial_message_b1": "Hallo, schön, dass du dir die Wohnung ansiehst. Sie ist ruhig gelegen, der Balkon zeigt nach Süden.",
-   "initial_message_b2": "Hallo! Vor dem Einzug klären wir die Details: möbliert oder unmöbliert, und wie die Nebenkostenabrechnung und die Instandhaltung geregelt sind."
-  },
-  {
-   "id": "buero_gespraech_tiefer",
-   "category": "work",
-   "initial_message_a0": "",
-   "initial_message_a1": "Guten Morgen! Willkommen im Büro.",
-   "initial_message_a2": "Guten Morgen! Ihr Arbeitsplatz ist neben dem Büro der Führungskraft.",
-   "initial_message_b1": "Guten Morgen! Heute zeige ich Ihnen das Büro und erkläre, wofür Sie verantwortlich sind.",
-   "initial_message_b2": "Guten Morgen! Ich bin gespannt: Welche Herausforderung reizen Sie an dieser Stelle, und wie übernehmen Sie gern Verantwortung?"
-  },
   {
    "id": "first_greetings",
    "category": "daily_life",
-   "initial_message_a0": "Hallo! Ich bin Frau Meier. Und du?",
-   "initial_message_a1": "Hallo! Ich bin Frau Meier, deine Nachbarin. Wie heißt du?",
-   "initial_message_a2": "Guten Tag! Ich bin Frau Meier und wohne nebenan. Wie heißt du, und woher kommst du?",
-   "initial_message_b1": "Guten Tag, ich bin Frau Meier, deine Nachbarin von nebenan. Schön, dich kennenzulernen — wie heißt du, und woher kommst du?",
-   "initial_message_b2": "Guten Tag, ich bin Frau Meier und wohne seit vielen Jahren nebenan. Es freut mich, dich kennenzulernen — erzähl mir doch ein wenig: Wie heißt du, und woher kommst du?"
-  },
-  {
-   "id": "supermarket_checkout",
-   "category": "daily_life",
-   "initial_message_a0": "Hallo! Ich helfe Ihnen. Was brauchen Sie?",
-   "initial_message_a1": "Hallo, schön dass Sie da sind! Wir haben Kaffee, Tee, Zucker und Milch. Was brauchen Sie heute?",
-   "initial_message_a2": "Hallo, schön dass Sie vorbeischauen! Wir haben heute Kaffee, Tee, Zucker und Milch im Angebot. Sagen Sie mir, was Sie brauchen.",
-   "initial_message_b1": "Hallo, schön, dass Sie vorbeischauen! Wir haben heute Kaffee, Tee, Zucker und Milch im Angebot — sagen Sie mir einfach, was Sie brauchen, dann zeige ich Ihnen, wo es steht.",
-   "initial_message_b2": "Hallo, schön, dass Sie heute zu uns kommen! Wenn Sie mir einfach sagen, was Sie brauchen, zeige ich Ihnen gern, in welchem Regal es steht — wir haben heute auch Kaffee, Tee, Zucker und Milch im Angebot."
-  },
-  {
-   "id": "banking_first_visit",
-   "category": "official",
-   "initial_message_a0": "Guten Tag! Willkommen. Ich helfe Ihnen. Was brauchen Sie?",
-   "initial_message_a1": "Guten Tag, willkommen bei uns! Ich helfe Ihnen gern. Was können wir für Sie erledigen?",
-   "initial_message_a2": "Guten Tag, herzlich willkommen! Schön, dass Sie da sind. Wie können wir Ihnen heute helfen — eröffnen Sie ein Konto oder haben Sie eine Frage?",
-   "initial_message_b1": "Guten Tag, herzlich willkommen bei uns! Schön, dass Sie den Weg zu uns gefunden haben. Erzählen Sie mir ruhig, was Sie heute erledigen möchten — ein Konto eröffnen oder zunächst nur Fragen stellen?",
-   "initial_message_b2": "Guten Tag und herzlich willkommen! Es freut mich, dass Sie sich für uns entschieden haben. Sagen Sie mir einfach, was Sie heute erledigen möchten — ob Sie ein Konto eröffnen wollen oder zunächst nur ein paar Fragen klären möchten, wir nehmen uns Zeit für Sie."
-  },
-  {
-   "id": "letters_and_forms",
-   "category": "official",
-   "initial_message_a0": "Guten Tag! Ihr Name, bitte. Ich schreibe alles auf.",
-   "initial_message_a1": "Guten Tag! Ich nehme Ihre Daten auf. Wie schreiben Sie Ihren Namen, bitte buchstabieren Sie.",
-   "initial_message_a2": "Guten Tag, Sie sind richtig hier. Ich trage Ihre Daten ein — wie schreibt man Ihren Namen, bitte buchstabieren Sie langsam.",
-   "initial_message_b1": "Guten Tag, Sie sind hier genau richtig. Ich trage Ihre Daten in das Formular ein; buchstabieren Sie Ihren Namen bitte langsam, damit nichts falsch wird.",
-   "initial_message_b2": "Guten Tag, Sie sind hier genau richtig. Damit nichts falsch ins Formular gerät, buchstabieren Sie Ihren Namen bitte langsam — und sagen Sie mir auch ruhig, wenn Sie bei einem Feld unsicher sind, dann lese ich es Ihnen vor."
-  },
-  {
-   "id": "train_first_ride",
-   "category": "travel",
-   "initial_message_a0": "Hallo! Ich helfe Ihnen. Wohin fahren Sie?",
-   "initial_message_a1": "Hallo, schön dass Sie fragen! Ich helfe Ihnen gern. Wohin möchten Sie fahren?",
-   "initial_message_a2": "Guten Tag, schön dass Sie fragen! Ich helfe Ihnen gern weiter — wohin möchten Sie fahren, und wann möchten Sie los?",
-   "initial_message_b1": "Guten Tag, schön, dass Sie direkt bei uns fragen! Ich helfe Ihnen gern weiter: Wohin möchten Sie fahren, und haben Sie schon eine Uhrzeit im Kopf?",
-   "initial_message_b2": "Guten Tag, schön, dass Sie direkt bei uns am Schalter fragen, statt sich lange durch die Automaten zu kämpfen! Sagen Sie mir einfach: Wohin soll die Reise gehen, und haben Sie schon eine ungefähre Uhrzeit im Kopf?"
+   "initial_message_a0": "Hallo! Wie heißt du?",
+   "initial_message_a1": "Hallo! Ich bin Frau Yilmaz. Wie heißt du?",
+   "initial_message_a2": "Hallo, ich wohne neu hier. Wie heißt du?",
+   "initial_message_b1": "Hallo! Ich bin neu in der Straße. Wie heißt du, und woher kommst du?",
+   "initial_message_b2": "Hallo! Ich bin letzte Woche eingezogen. Wie heißt du, und wie gefällt dir die Nachbarschaft?"
   },
   {
    "id": "numbers_and_prices",
    "category": "travel",
-   "initial_message_a0": "Hallo! Hier ist alles billig. Was nehmen Sie?",
-   "initial_message_a1": "Hallo, schön dass Sie da sind! Hier ist alles günstig — was dürfen wir Ihnen geben?",
-   "initial_message_a2": "Hallo, schön dass Sie vorbeischauen! Wir haben heute vieles günstig — sagen Sie mir, was Sie brauchen, dann nenne ich Ihnen den Preis.",
-   "initial_message_b1": "Hallo, schön, dass Sie vorbeischauen! Wir haben heute einiges günstig im Angebot — sagen Sie mir einfach, was Sie brauchen, dann sage ich Ihnen gleich den Preis.",
-   "initial_message_b2": "Hallo, schön, dass Sie heute vorbeischauen! Wir haben einiges im Angebot, das günstig ist — sagen Sie mir einfach, was Sie brauchen, dann nenne ich Ihnen sofort den Preis, und wenn Sie Fragen zu einer Zahl auf dem Preisschild haben, lese ich sie Ihnen gern vor."
+   "initial_message_a0": "Hallo! Was möchten Sie?",
+   "initial_message_a1": "Hallo! Die Zeitung kostet zwei Euro. Möchten Sie eine?",
+   "initial_message_a2": "Hallo! Die Zeitung kostet zwei Euro, wie viele möchten Sie?",
+   "initial_message_b1": "Guten Tag! Die Zeitung kostet heute zwei Euro. Möchten Sie auch etwas anderes?",
+   "initial_message_b2": "Guten Tag! Die Zeitung kostet heute zwei Euro, die Zeitschrift drei. Möchten Sie beides, oder zahlen Sie getrennt?"
+  },
+  {
+   "id": "letters_and_forms",
+   "category": "official",
+   "initial_message_a0": "Hallo! Brauchen Sie Hilfe?",
+   "initial_message_a1": "Guten Tag! Wie buchstabieren Sie Ihren Namen?",
+   "initial_message_a2": "Guten Tag! Wie schreiben Sie Ihren Nachnamen im Formular?",
+   "initial_message_b1": "Guten Tag! Bitte füllen Sie dieses Formular aus. Wie schreiben Sie Ihren Nachnamen?",
+   "initial_message_b2": "Guten Tag! Das Formular ist fast fertig, es fehlen nur noch zwei Angaben. Wie schreiben Sie Ihren Nachnamen, und wo wohnen Sie?"
+  },
+  {
+   "id": "airport_arrival",
+   "category": "travel",
+   "initial_message_a0": "Hallo! Ist das Ihr Koffer?",
+   "initial_message_a1": "Hallo! Ist das Ihr Koffer?",
+   "initial_message_a2": "Guten Tag! Ihr Koffer ist nicht angekommen, wie sieht er aus?",
+   "initial_message_b1": "Guten Tag! Ihr Koffer ist leider nicht angekommen. Können Sie ihn mir beschreiben?",
+   "initial_message_b2": "Guten Tag! Ihr Koffer ist leider nicht angekommen, das tut mir leid. Können Sie ihn mir beschreiben, und haben Sie eine Quittung?"
+  },
+  {
+   "id": "train_station",
+   "category": "travel",
+   "initial_message_a0": "Hallo! Wohin möchten Sie?",
+   "initial_message_a1": "Hallo! Suchen Sie einen Zug?",
+   "initial_message_a2": "Guten Tag! Haben Sie ein Ticket für den Zug nach Köln?",
+   "initial_message_b1": "Guten Tag! Der Zug nach Köln fährt in zehn Minuten von Gleis drei. Haben Sie schon ein Ticket?",
+   "initial_message_b2": "Guten Tag! Der Zug nach Köln fährt in zehn Minuten von Gleis drei. Haben Sie schon ein Ticket, oder müssen Sie noch eines kaufen?"
+  },
+  {
+   "id": "train_first_ride",
+   "category": "travel",
+   "initial_message_a0": "Hallo! Möchten Sie sitzen?",
+   "initial_message_a1": "Hallo! Ist das Ihr Platz?",
+   "initial_message_a2": "Guten Tag! Ist das Ihr Platz am Fenster, Nummer zwölf?",
+   "initial_message_b1": "Guten Tag! Ihr Platz ist Nummer zwölf, dort am Fenster. Möchten Sie lieber am Gang sitzen?",
+   "initial_message_b2": "Guten Tag! Ihr Platz ist Nummer zwölf, dort am Fenster. Möchten Sie lieber am Gang sitzen, oder ist der Platz so in Ordnung?"
+  },
+  {
+   "id": "nahverkehr_ticket",
+   "category": "travel",
+   "initial_message_a0": "Hallo! Haben Sie eine Fahrkarte?",
+   "initial_message_a1": "Hallo! Eine Fahrkarte kostet drei Euro. Wohin möchten Sie fahren?",
+   "initial_message_a2": "Guten Tag! Eine Fahrkarte kostet drei Euro, wohin möchten Sie fahren?",
+   "initial_message_b1": "Guten Tag! Die Fahrkarte für die Stadt kostet drei Euro. Fahren Sie nur kurz, oder den ganzen Tag?",
+   "initial_message_b2": "Guten Tag! Die Fahrkarte für die Stadt kostet drei Euro, ein Tagesticket sechs. Möchten Sie nur eine Fahrt, oder fahren Sie den ganzen Tag?"
+  },
+  {
+   "id": "supermarket_checkout",
+   "category": "daily_life",
+   "initial_message_a0": "Hallo! Haben Sie eine Tasche?",
+   "initial_message_a1": "Hallo! Die Tasche kostet zwanzig Cent. Möchten Sie eine?",
+   "initial_message_a2": "Guten Tag! Die Tasche kostet zwanzig Cent, möchten Sie eine?",
+   "initial_message_b1": "Guten Tag! Die Tasche kostet zwanzig Cent. Haben Sie eine eigene Tasche, oder soll ich eine dazugeben?",
+   "initial_message_b2": "Guten Tag! Die Tasche kostet zwanzig Cent, wir haben auch größere für fünfzig. Möchten Sie eine kleine Tasche, oder haben Sie selbst eine?"
+  },
+  {
+   "id": "bakery_shopping",
+   "category": "daily_life",
+   "initial_message_a0": "Hallo! Möchten Sie Brot?",
+   "initial_message_a1": "Hallo! Das Brot kostet drei Euro. Möchten Sie es?",
+   "initial_message_a2": "Guten Tag! Wie viele Brötchen möchten Sie, drei oder fünf?",
+   "initial_message_b1": "Guten Tag! Das Brot ist heute frisch. Möchten Sie es ganz, oder soll ich es schneiden?",
+   "initial_message_b2": "Guten Tag! Das Brot ist heute frisch, die Brötchen kommen gerade aus dem Ofen. Möchten Sie das Brot ganz, oder soll ich es schneiden?"
+  },
+  {
+   "id": "cafe_order",
+   "category": "daily_life",
+   "initial_message_a0": "Hallo! Was möchten Sie trinken?",
+   "initial_message_a1": "Hallo! Möchten Sie Kaffee oder Tee?",
+   "initial_message_a2": "Guten Tag! Wir haben Kaffee und Kuchen, was möchten Sie?",
+   "initial_message_b1": "Guten Tag! Wir haben heute frischen Kuchen. Möchten Sie Kaffee dazu, oder lieber Tee?",
+   "initial_message_b2": "Guten Tag! Wir haben heute frischen Kuchen und eine neue Torte. Möchten Sie Kaffee dazu, oder probieren Sie lieber den Tee?"
+  },
+  {
+   "id": "restaurant_besonders",
+   "category": "daily_life",
+   "initial_message_a0": "Hallo! Möchten Sie bestellen?",
+   "initial_message_a1": "Hallo! Hier ist die Speisekarte. Möchten Sie etwas trinken?",
+   "initial_message_a2": "Guten Tag! Hier ist die Speisekarte, haben Sie einen Wunsch?",
+   "initial_message_b1": "Guten Tag! Hier ist die Speisekarte, das Tagesgericht ist vegetarisch. Möchten Sie etwas dazu trinken?",
+   "initial_message_b2": "Guten Tag! Hier ist die Speisekarte, das Tagesgericht ist vegetarisch. Möchten Sie etwas dazu trinken, oder haben Sie eine Frage zum Gericht?"
+  },
+  {
+   "id": "friend_catchup",
+   "category": "daily_life",
+   "initial_message_a0": "Hallo! Alles gut bei dir?",
+   "initial_message_a1": "Hallo! Schön, dich zu sehen. Ist alles gut bei dir?",
+   "initial_message_a2": "Hallo, schön dich zu sehen. Was hast du heute gemacht?",
+   "initial_message_b1": "Hallo! Schön, dich zu sehen, das ist ja lange her. Was hast du in letzter Zeit gemacht?",
+   "initial_message_b2": "Hallo! Schön, dich zu sehen, das ist ja lange her. Was hast du zuletzt gemacht, und wie geht es deiner Familie?"
+  },
+  {
+   "id": "paket_abholen",
+   "category": "daily_life",
+   "initial_message_a0": "Hallo! Haben Sie eine Karte?",
+   "initial_message_a1": "Hallo! Haben Sie eine Benachrichtigung?",
+   "initial_message_a2": "Guten Tag! Ihr Paket ist da, haben Sie eine Benachrichtigung?",
+   "initial_message_b1": "Guten Tag! Ihr Paket ist angekommen. Haben Sie eine Benachrichtigung dabei, oder brauchen Sie Ihren Ausweis?",
+   "initial_message_b2": "Guten Tag! Ihr Paket ist angekommen, es ist ziemlich groß. Haben Sie eine Benachrichtigung dabei, oder soll ich mit Ihrem Ausweis nachsehen?"
+  },
+  {
+   "id": "kollegen_smalltalk",
+   "category": "daily_life",
+   "initial_message_a0": "Hallo! Alles gut bei dir?",
+   "initial_message_a1": "Hallo! Guten Morgen. Alles gut bei dir?",
+   "initial_message_a2": "Hallo! Guten Morgen, hast du am Wochenende etwas gemacht?",
+   "initial_message_b1": "Guten Morgen! Wie war dein Wochenende, hast du etwas Schönes gemacht?",
+   "initial_message_b2": "Guten Morgen! Wir können später kurz Kaffee trinken. Wie war dein Wochenende, hattest du Zeit für deine Familie?"
+  },
+  {
+   "id": "tech_kuechenpause",
+   "category": "daily_life",
+   "initial_message_a0": "Hallo! Kaffee oder Tee?",
+   "initial_message_a1": "Hallo! Der Kaffee ist fertig. Möchtest du einen?",
+   "initial_message_a2": "Hallo! Der Kaffee ist fertig, möchtest du einen?",
+   "initial_message_b1": "Hallo! Der Kaffee ist fertig, ich habe auch Tee. Möchtest du einen Kaffee mit Milch?",
+   "initial_message_b2": "Hallo! Der Kaffee ist fertig, ich habe auch Tee und Kekse. Möchtest du einen Kaffee mit Milch, oder lieber einen Tee?"
+  },
+  {
+   "id": "betriebs_kantine",
+   "category": "daily_life",
+   "initial_message_a0": "Hallo! Was gibt es heute?",
+   "initial_message_a1": "Hallo! Heute gibt es Suppe. Möchtest du auch etwas?",
+   "initial_message_a2": "Hallo! Heute gibt es Suppe oder Nudeln, was möchtest du?",
+   "initial_message_b1": "Hallo! Heute gibt es Suppe oder Nudeln mit Gemüse. Möchtest du auch einen Nachtisch?",
+   "initial_message_b2": "Hallo! Heute gibt es Suppe oder Nudeln mit Gemüse, der Nachtisch ist kostenlos. Möchtest du eine Suppe, oder lieber Nudeln?"
+  },
+  {
+   "id": "sprachcafe",
+   "category": "daily_life",
+   "initial_message_a0": "Hallo! Sprichst du Deutsch?",
+   "initial_message_a1": "Hallo! Wir sprechen hier Deutsch. Wie heißt du?",
+   "initial_message_a2": "Hallo! Hier sprechen wir nur Deutsch, woher kommst du?",
+   "initial_message_b1": "Hallo! Hier sprechen wir nur Deutsch, das ist am Anfang schwer. Woher kommst du, und was machst du in Deutschland?",
+   "initial_message_b2": "Hallo! Hier sprechen wir nur Deutsch, auch wenn es am Anfang schwer ist. Woher kommst du, und was möchtest du hier lernen?"
+  },
+  {
+   "id": "handyvertrag",
+   "category": "services",
+   "initial_message_a0": "Hallo! Suchen Sie ein Handy?",
+   "initial_message_a1": "Guten Tag! Wir haben Prepaid und Vertrag. Was möchten Sie?",
+   "initial_message_a2": "Guten Tag! Wir haben Prepaid und Vertrag, was möchten Sie?",
+   "initial_message_b1": "Guten Tag! Wir haben Prepaid und Verträge mit monatlicher Zahlung. Möchten Sie einen Vertrag, oder lieber Prepaid?",
+   "initial_message_b2": "Guten Tag! Wir haben Prepaid und Verträge mit monatlicher Zahlung. Möchten Sie einen Vertrag mit Datenvolumen, oder lieber Prepaid ohne Bindung?"
+  },
+  {
+   "id": "apartment_viewing",
+   "category": "housing",
+   "initial_message_a0": "Hallo! Kommen Sie zur Besichtigung?",
+   "initial_message_a1": "Hallo! Die Wohnung hat zwei Zimmer. Möchten Sie sie sehen?",
+   "initial_message_a2": "Guten Tag! Die Wohnung hat zwei Zimmer, wann können Sie einziehen?",
+   "initial_message_b1": "Guten Tag! Die Wohnung hat zwei Zimmer, eine Küche und einen Balkon. Wann möchten Sie einziehen?",
+   "initial_message_b2": "Guten Tag! Die Wohnung hat zwei Zimmer, eine Küche und einen Balkon, die Miete ist warm. Wann möchten Sie einziehen, und wie viele Personen ziehen mit?"
+  },
+  {
+   "id": "wohnung_besichtigen_tiefer",
+   "category": "housing",
+   "initial_message_a0": "Hallo! Passt der Termin?",
+   "initial_message_a1": "Guten Tag! Die Wohnung ist leer. Wann möchten Sie einziehen?",
+   "initial_message_a2": "Guten Tag! Die Küche bleibt hier, sehen Sie den Vertrag?",
+   "initial_message_b1": "Guten Tag! Die Küche bleibt in der Wohnung, der Keller auch. Wann möchten Sie den Vertrag unterschreiben?",
+   "initial_message_b2": "Guten Tag! Die Küche bleibt in der Wohnung, der Keller auch. Möchten Sie den Vertrag heute unterschreiben, oder erst nächste Woche?"
+  },
+  {
+   "id": "mietvertrag_uebergabe",
+   "category": "housing",
+   "initial_message_a0": "Hallo! Haben Sie den Vertrag?",
+   "initial_message_a1": "Guten Tag! Hier ist der Vertrag. Haben Sie Fragen?",
+   "initial_message_a2": "Guten Tag! Hier ist der Vertrag, haben Sie Fragen dazu?",
+   "initial_message_b1": "Guten Tag! Hier ist der Vertrag, bitte lesen Sie ihn in Ruhe. Haben Sie Fragen zur Miete?",
+   "initial_message_b2": "Guten Tag! Hier ist der Vertrag, bitte lesen Sie ihn in Ruhe. Haben Sie Fragen zur Miete, oder sollen wir die Wohnung gemeinsam prüfen?"
+  },
+  {
+   "id": "landlord_followup",
+   "category": "housing",
+   "initial_message_a0": "Hallo! Können Sie kommen?",
+   "initial_message_a1": "Guten Tag! Die Heizung ist kaputt. Können Sie heute kommen?",
+   "initial_message_a2": "Guten Tag! Die Heizung ist seit gestern kaputt, können Sie kommen?",
+   "initial_message_b1": "Guten Tag! Die Heizung ist seit gestern kaputt, es ist sehr kalt. Können Sie heute noch kommen?",
+   "initial_message_b2": "Guten Tag! Die Heizung ist seit gestern kaputt, es ist sehr kalt in der Wohnung. Können Sie heute noch kommen, oder soll ich einen Handwerker rufen?"
+  },
+  {
+   "id": "anmeldung_buergeramt",
+   "category": "official",
+   "initial_message_a0": "Hallo! Wie kann ich helfen?",
+   "initial_message_a1": "Guten Tag! Haben Sie Ihren Ausweis und den Mietvertrag?",
+   "initial_message_a2": "Guten Tag! Für die Anmeldung brauche ich Ihren Ausweis, haben Sie ihn?",
+   "initial_message_b1": "Guten Tag! Für die Anmeldung brauche ich Ihren Ausweis und den Mietvertrag. Haben Sie beides dabei?",
+   "initial_message_b2": "Guten Tag! Für die Anmeldung brauche ich Ihren Ausweis und den Mietvertrag. Haben Sie beides dabei, oder wohnen Sie noch bei jemandem?"
+  },
+  {
+   "id": "termin_online_buchen",
+   "category": "official",
+   "initial_message_a0": "Hallo! Haben Sie einen Termin?",
+   "initial_message_a1": "Guten Tag! Wir haben Montag frei. Wann möchten Sie kommen?",
+   "initial_message_a2": "Guten Tag! Diese Woche ist nur Montag frei, wann möchten Sie kommen?",
+   "initial_message_b1": "Guten Tag! Diese Woche ist nur Montag frei, nächste Woche haben wir mehr Termine. Wann möchten Sie kommen?",
+   "initial_message_b2": "Guten Tag! Diese Woche ist nur Montag frei, nächste Woche haben wir mehr Termine. Wann möchten Sie kommen, und brauchen Sie einen Dolmetscher?"
+  },
+  {
+   "id": "banking_first_visit",
+   "category": "official",
+   "initial_message_a0": "Hallo! Möchten Sie ein Konto?",
+   "initial_message_a1": "Guten Tag! Möchten Sie ein Konto eröffnen?",
+   "initial_message_a2": "Guten Tag! Für ein Konto brauchen wir Ihren Ausweis, haben Sie ihn?",
+   "initial_message_b1": "Guten Tag! Für ein Konto brauchen wir Ihren Ausweis und eine Anmeldung. Haben Sie beides dabei?",
+   "initial_message_b2": "Guten Tag! Für ein Konto brauchen wir Ihren Ausweis und eine Anmeldung. Haben Sie beides dabei, oder brauchen Sie zuerst einen Termin?"
+  },
+  {
+   "id": "pass_und_dokumente",
+   "category": "official",
+   "initial_message_a0": "Hallo! Haben Sie Ihren Pass?",
+   "initial_message_a1": "Guten Tag! Haben Sie Ihren Pass dabei?",
+   "initial_message_a2": "Guten Tag! Ihr Pass ist abgelaufen, haben Sie einen neuen beantragt?",
+   "initial_message_b1": "Guten Tag! Ihr Pass ist abgelaufen, das sehen wir hier. Haben Sie schon einen neuen beantragt?",
+   "initial_message_b2": "Guten Tag! Ihr Pass ist abgelaufen, das sehen wir hier im System. Haben Sie schon einen neuen beantragt, oder brauchen Sie zuerst einen Termin?"
+  },
+  {
+   "id": "polizei_fundbuero",
+   "category": "official",
+   "initial_message_a0": "Hallo! Suchen Sie etwas?",
+   "initial_message_a1": "Guten Tag! Was haben Sie verloren?",
+   "initial_message_a2": "Guten Tag! Wir haben viele Taschen, können Sie Ihre beschreiben?",
+   "initial_message_b1": "Guten Tag! Wir haben heute viele Taschen bekommen. Können Sie Ihre Tasche genauer beschreiben?",
+   "initial_message_b2": "Guten Tag! Wir haben heute viele Taschen bekommen. Können Sie Ihre Tasche genauer beschreiben, und wann haben Sie sie verloren?"
+  },
+  {
+   "id": "jobcenter_termin",
+   "category": "official",
+   "initial_message_a0": "Hallo! Haben Sie einen Termin?",
+   "initial_message_a1": "Guten Tag! Haben Sie einen Termin bei uns?",
+   "initial_message_a2": "Guten Tag! Ihr Termin ist um zehn, haben Sie Unterlagen?",
+   "initial_message_b1": "Guten Tag! Sie haben einen Termin um zehn Uhr. Haben Sie Ihre Unterlagen dabei, oder brauchen Sie noch Hilfe?",
+   "initial_message_b2": "Guten Tag! Sie haben einen Termin um zehn Uhr. Haben Sie Ihre Unterlagen dabei, oder brauchen Sie zuerst Hilfe beim Ausfüllen?"
+  },
+  {
+   "id": "integrationskurs_anmelden",
+   "category": "official",
+   "initial_message_a0": "Hallo! Möchten Sie einen Kurs?",
+   "initial_message_a1": "Guten Tag! Möchten Sie einen Deutschkurs besuchen?",
+   "initial_message_a2": "Guten Tag! Wir haben Kurse am Morgen, wann können Sie kommen?",
+   "initial_message_b1": "Guten Tag! Wir haben Kurse am Morgen und am Abend. Wann können Sie kommen, und haben Sie schon Deutsch gelernt?",
+   "initial_message_b2": "Guten Tag! Wir haben Kurse am Morgen und am Abend, der Kurs dauert mehrere Wochen. Wann können Sie kommen, und haben Sie schon einen Sprachkurs besucht?"
+  },
+  {
+   "id": "embassy_appointment",
+   "category": "official",
+   "initial_message_a0": "Hallo! Was ist Ihr Anliegen?",
+   "initial_message_a1": "Guten Tag! Haben Sie einen Termin?",
+   "initial_message_a2": "Guten Tag! Ihr Termin ist um neun, haben Sie Ihren Pass?",
+   "initial_message_b1": "Guten Tag! Ihr Termin ist um neun Uhr. Haben Sie Ihren Pass und Ihre Unterlagen dabei?",
+   "initial_message_b2": "Guten Tag! Ihr Termin ist um neun Uhr. Haben Sie Ihren Pass und Ihre Unterlagen dabei, oder fehlt noch etwas?"
+  },
+  {
+   "id": "pruefung_anmeldung",
+   "category": "official",
+   "initial_message_a0": "Hallo! Möchten Sie sich anmelden?",
+   "initial_message_a1": "Guten Tag! Möchten Sie sich für die Prüfung anmelden?",
+   "initial_message_a2": "Guten Tag! Die Prüfung ist nächsten Monat, haben Sie Ihren Ausweis?",
+   "initial_message_b1": "Guten Tag! Die Prüfung ist nächsten Monat, die Anmeldung ist heute. Möchten Sie sich anmelden?",
+   "initial_message_b2": "Guten Tag! Die Prüfung ist nächsten Monat, die Anmeldung ist heute. Möchten Sie sich anmelden, oder haben Sie noch Fragen zur Prüfung?"
+  },
+  {
+   "id": "krankenkasse_anmelden",
+   "category": "health",
+   "initial_message_a0": "Hallo! Sind Sie neu hier?",
+   "initial_message_a1": "Guten Tag! Haben Sie einen Arbeitsvertrag?",
+   "initial_message_a2": "Guten Tag! Für die Versicherung brauche ich Ihren Ausweis, haben Sie ihn?",
+   "initial_message_b1": "Guten Tag! Für die Versicherung brauche ich Ihren Ausweis und den Arbeitsvertrag. Haben Sie beides dabei?",
+   "initial_message_b2": "Guten Tag! Für die Versicherung brauche ich Ihren Ausweis und den Arbeitsvertrag. Haben Sie beides dabei, oder sind Sie gerade arbeitslos?"
+  },
+  {
+   "id": "doctor_visit",
+   "category": "health",
+   "initial_message_a0": "Hallo! Was fehlt Ihnen?",
+   "initial_message_a1": "Guten Tag! Was fehlt Ihnen?",
+   "initial_message_a2": "Guten Tag! Was fehlt Ihnen, seit wann ist das so?",
+   "initial_message_b1": "Guten Tag! Was fehlt Ihnen, und seit wann haben Sie diese Beschwerden?",
+   "initial_message_b2": "Guten Tag! Seit wann haben Sie diese Beschwerden, und nehmen Sie Medikamente?"
+  },
+  {
+   "id": "gesundheit_alltag",
+   "category": "health",
+   "initial_message_a0": "Hallo! Haben Sie ein Rezept?",
+   "initial_message_a1": "Guten Tag! Wo haben Sie Schmerzen?",
+   "initial_message_a2": "Guten Tag! Sie brauchen ein Rezept, haben Sie Tabletten genommen?",
+   "initial_message_b1": "Guten Tag! Sie brauchen ein Rezept für die Tabletten. Haben Sie die Tabletten schon genommen?",
+   "initial_message_b2": "Guten Tag! Sie brauchen ein Rezept für die Tabletten. Haben Sie die Tabletten schon genommen, oder sind Sie noch ohne Medikamente?"
+  },
+  {
+   "id": "apotheke",
+   "category": "health",
+   "initial_message_a0": "Hallo! Was brauchen Sie?",
+   "initial_message_a1": "Guten Tag! Haben Sie ein Rezept?",
+   "initial_message_a2": "Guten Tag! Ohne Rezept haben wir nur Tabletten, möchten Sie diese?",
+   "initial_message_b1": "Guten Tag! Ohne Rezept haben wir nur Tabletten, kein Antibiotikum. Möchten Sie die Tabletten nehmen?",
+   "initial_message_b2": "Guten Tag! Ohne Rezept haben wir nur Tabletten, kein Antibiotikum. Möchten Sie die Tabletten nehmen, oder fragen Sie zuerst Ihre Ärztin?"
+  },
+  {
+   "id": "zahnarzt",
+   "category": "health",
+   "initial_message_a0": "Hallo! Haben Sie einen Termin?",
+   "initial_message_a1": "Guten Tag! Wo tut es weh?",
+   "initial_message_a2": "Guten Tag! Der Zahn ist hinten rechts, haben Sie Schmerzen?",
+   "initial_message_b1": "Guten Tag! Der Zahn ist hinten rechts, ich sehe eine kleine Stelle. Haben Sie Schmerzen?",
+   "initial_message_b2": "Guten Tag! Der Zahn ist hinten rechts, ich sehe eine kleine Stelle. Haben Sie starke Schmerzen, oder nur beim Essen?"
+  },
+  {
+   "id": "arzttermin_telefon",
+   "category": "health",
+   "initial_message_a0": "Hallo! Wann haben Sie Zeit?",
+   "initial_message_a1": "Guten Tag! Was kann ich für Sie tun?",
+   "initial_message_a2": "Guten Tag! Morgen früh ist ein Termin frei, passt Ihnen das?",
+   "initial_message_b1": "Guten Tag! Morgen früh ist ein Termin frei, oder am Donnerstag um drei. Was passt Ihnen besser?",
+   "initial_message_b2": "Guten Tag! Morgen früh ist ein Termin frei, oder am Donnerstag um drei. Was passt Ihnen besser, und wie ist Ihr Name?"
+  },
+  {
+   "id": "notruf_112",
+   "category": "services",
+   "initial_message_a0": "Hallo! Was ist passiert?",
+   "initial_message_a1": "Notruf 112. Was ist passiert?",
+   "initial_message_a2": "Notruf 112. Wo genau sind Sie, in welcher Straße?",
+   "initial_message_b1": "Notruf 112. Bitte bleiben Sie ruhig. Wo sind Sie, und was ist passiert?",
+   "initial_message_b2": "Notruf 112. Bitte bleiben Sie ruhig und sagen Sie mir, wo Sie sind. Was ist passiert, und ist jemand verletzt?"
+  },
+  {
+   "id": "patient_conversation_basics",
+   "category": "health",
+   "initial_message_a0": "Hallo! Was soll ich tun?",
+   "initial_message_a1": "Guten Tag! Mir ist nicht gut. Können Sie helfen?",
+   "initial_message_a2": "Guten Tag! Ich fühle mich nicht gut, was soll ich tun?",
+   "initial_message_b1": "Guten Tag! Ich fühle mich seit gestern nicht gut, mir ist schwindelig. Was soll ich jetzt tun?",
+   "initial_message_b2": "Guten Tag! Ich fühle mich seit gestern nicht gut, mir ist schwindelig und ich habe Kopfschmerzen. Was soll ich jetzt tun, und brauche ich ein Medikament?"
+  },
+  {
+   "id": "station_uebergabe",
+   "category": "health",
+   "initial_message_a0": "Hallo! Ist der Patient stabil?",
+   "initial_message_a1": "Guten Tag! Der Patient ist stabil. Haben Sie Fragen?",
+   "initial_message_a2": "Guten Tag! Der Patient ist stabil und schläft, haben Sie Fragen?",
+   "initial_message_b1": "Guten Tag! Der Patient ist stabil, er schläft seit einer Stunde. Haben Sie Fragen zur Übergabe?",
+   "initial_message_b2": "Guten Tag! Der Patient ist stabil, er schläft seit einer Stunde. Haben Sie Fragen zur Übergabe, oder möchten Sie die Werte sehen?"
+  },
+  {
+   "id": "kita_elterngespraech",
+   "category": "study",
+   "initial_message_a0": "Hallo! Wie heißt Ihr Kind?",
+   "initial_message_a1": "Guten Tag! Ihr Kind ist heute fröhlich. Haben Sie Zeit?",
+   "initial_message_a2": "Guten Tag! Ihr Kind spielt gern mit anderen, haben Sie Fragen?",
+   "initial_message_b1": "Guten Tag! Ihr Kind spielt gern mit anderen, es spricht schon viel. Haben Sie Fragen dazu?",
+   "initial_message_b2": "Guten Tag! Ihr Kind spielt gern mit anderen, es spricht schon viel. Haben Sie Fragen dazu, oder möchten Sie etwas besprechen?"
+  },
+  {
+   "id": "job_interview",
+   "category": "work",
+   "initial_message_a0": "Hallo! Erzählen Sie kurz von sich?",
+   "initial_message_a1": "Guten Tag! Was machen Sie beruflich?",
+   "initial_message_a2": "Guten Tag! Sie haben Erfahrung, was suchen Sie hier?",
+   "initial_message_b1": "Guten Tag! Sie haben schon Erfahrung in diesem Beruf. Warum möchten Sie zu uns kommen?",
+   "initial_message_b2": "Guten Tag! Sie haben schon Erfahrung in diesem Beruf, das sehe ich im Lebenslauf. Warum möchten Sie zu uns kommen, und was erwarten Sie von der Stelle?"
+  },
+  {
+   "id": "erster_arbeitstag",
+   "category": "work",
+   "initial_message_a0": "Hallo! Kennen Sie schon alle?",
+   "initial_message_a1": "Hallo! Ich zeige Ihnen Ihren Platz. Haben Sie Fragen?",
+   "initial_message_a2": "Guten Tag! Das ist Ihr Platz, haben Sie Fragen?",
+   "initial_message_b1": "Guten Tag! Das ist Ihr Platz, hier arbeitet unser Team. Haben Sie Fragen zum Ablauf?",
+   "initial_message_b2": "Guten Tag! Das ist Ihr Platz, hier arbeitet unser Team. Haben Sie Fragen zum Ablauf, oder soll ich Ihnen alles zeigen?"
+  },
+  {
+   "id": "buero_gespraech_tiefer",
+   "category": "work",
+   "initial_message_a0": "Hallo! Haben Sie kurz Zeit?",
+   "initial_message_a1": "Guten Tag! Haben Sie kurz Zeit für ein Gespräch?",
+   "initial_message_a2": "Guten Tag! Ich möchte über die Aufgabe sprechen, wann passt es?",
+   "initial_message_b1": "Guten Tag! Ich möchte über die Aufgabe sprechen, sie ist diese Woche wichtig. Wann passt es Ihnen?",
+   "initial_message_b2": "Guten Tag! Ich möchte über die Aufgabe sprechen, sie ist diese Woche wichtig. Wann passt es Ihnen, heute oder morgen?"
+  },
+  {
+   "id": "daily_standup",
+   "category": "work",
+   "initial_message_a0": "Hallo! Was machen Sie heute?",
+   "initial_message_a1": "Guten Tag! Was machen Sie heute im Team?",
+   "initial_message_a2": "Guten Tag! Das Standup beginnt, was machen Sie heute?",
+   "initial_message_b1": "Guten Tag! Das Standup beginnt jetzt, jeder sagt kurz seine Aufgabe. Was machen Sie heute?",
+   "initial_message_b2": "Guten Tag! Das Standup beginnt jetzt, jeder sagt kurz seine Aufgabe. Was machen Sie heute, und gibt es ein Problem?"
+  },
+  {
+   "id": "support_ticket",
+   "category": "work",
+   "initial_message_a0": "Hallo! Was ist das Problem?",
+   "initial_message_a1": "Guten Tag! Was funktioniert nicht bei Ihnen?",
+   "initial_message_a2": "Guten Tag! Ich sehe Ihr Ticket, was funktioniert nicht?",
+   "initial_message_b1": "Guten Tag! Ich sehe Ihr Ticket, es ist heute eingegangen. Was funktioniert nicht genau?",
+   "initial_message_b2": "Guten Tag! Ich sehe Ihr Ticket, es ist heute eingegangen. Was funktioniert nicht genau, und seit wann?"
+  },
+  {
+   "id": "interview_pflegefachkraft",
+   "category": "work",
+   "initial_message_a0": "Hallo! Warum möchten Sie hier arbeiten?",
+   "initial_message_a1": "Guten Tag! Haben Sie schon in der Pflege gearbeitet?",
+   "initial_message_a2": "Guten Tag! Sie haben Pflegeerfahrung, warum möchten Sie zu uns?",
+   "initial_message_b1": "Guten Tag! Sie haben schon in der Pflege gearbeitet, das passt gut. Warum möchten Sie zu uns kommen?",
+   "initial_message_b2": "Guten Tag! Sie haben schon in der Pflege gearbeitet, das passt gut zu uns. Warum möchten Sie zu uns, und welche Schicht passt Ihnen?"
+  },
+  {
+   "id": "interview_arzt",
+   "category": "work",
+   "initial_message_a0": "Hallo! Wo arbeiten Sie?",
+   "initial_message_a1": "Guten Tag! In welcher Klinik haben Sie gearbeitet?",
+   "initial_message_a2": "Guten Tag! Sie haben in einer Klinik gearbeitet, welche Abteilung war das?",
+   "initial_message_b1": "Guten Tag! Sie haben in einer Klinik gearbeitet. In welcher Abteilung, und warum wechseln Sie?",
+   "initial_message_b2": "Guten Tag! Sie haben in einer Klinik gearbeitet, in welcher Abteilung und warum zu uns?"
+  },
+  {
+   "id": "interview_it_fachkraft",
+   "category": "work",
+   "initial_message_a0": "Hallo! Was können Sie gut?",
+   "initial_message_a1": "Guten Tag! Welche Programme kennen Sie gut?",
+   "initial_message_a2": "Guten Tag! Sie arbeiten mit Computern, welche Programme kennen Sie?",
+   "initial_message_b1": "Guten Tag! Sie arbeiten schon mit Computern, das ist gut. Welche Programme kennen Sie gut?",
+   "initial_message_b2": "Guten Tag! Sie arbeiten schon mit Computern, das ist gut. Welche Programme kennen Sie gut, und wo haben Sie sie benutzt?"
+  },
+  {
+   "id": "interview_entwickler",
+   "category": "work",
+   "initial_message_a0": "Hallo! Was haben Sie gebaut?",
+   "initial_message_a1": "Guten Tag! An welchem Projekt haben Sie gearbeitet?",
+   "initial_message_a2": "Guten Tag! Sie haben schon programmiert, an welchem Projekt?",
+   "initial_message_b1": "Guten Tag! Sie haben schon programmiert, das sehe ich. An welchem Projekt haben Sie gearbeitet?",
+   "initial_message_b2": "Guten Tag! Sie haben schon programmiert, das sehe ich im Lebenslauf. An welchem Projekt haben Sie gearbeitet, und was war Ihre Aufgabe?"
+  },
+  {
+   "id": "anerkennung_gespraech",
+   "category": "official",
+   "initial_message_a0": "Hallo! Haben Sie Ihren Antrag?",
+   "initial_message_a1": "Guten Tag! Haben Sie Ihren Antrag dabei?",
+   "initial_message_a2": "Guten Tag! Ihr Antrag ist da, haben Sie Ihre Zeugnisse?",
+   "initial_message_b1": "Guten Tag! Ihr Antrag ist da, wir prüfen ihn gerade. Haben Sie Ihre Zeugnisse dabei?",
+   "initial_message_b2": "Guten Tag! Ihr Antrag ist da, wir prüfen ihn gerade. Haben Sie Ihre Zeugnisse dabei, oder brauchen Sie eine Übersetzung?"
+  },
+  {
+   "id": "anerkennung_it_zertifikate",
+   "category": "official",
+   "initial_message_a0": "Hallo! Haben Sie ein Zertifikat?",
+   "initial_message_a1": "Guten Tag! Haben Sie ein Zertifikat für IT?",
+   "initial_message_a2": "Guten Tag! Ihr Zertifikat ist für IT, haben Sie eine Übersetzung?",
+   "initial_message_b1": "Guten Tag! Ihr Zertifikat ist für IT, wir prüfen es noch. Haben Sie eine Übersetzung dabei?",
+   "initial_message_b2": "Guten Tag! Ihr Zertifikat ist für IT, wir prüfen es noch. Haben Sie eine Übersetzung dabei, oder fehlt sie noch?"
+  },
+  {
+   "id": "bewerbung_ausbildung",
+   "category": "work",
+   "initial_message_a0": "Hallo! Möchten Sie sich bewerben?",
+   "initial_message_a1": "Guten Tag! Möchten Sie eine Ausbildung machen?",
+   "initial_message_a2": "Guten Tag! Ihre Bewerbung ist da, welche Ausbildung möchten Sie machen?",
+   "initial_message_b1": "Guten Tag! Ihre Bewerbung ist da, wir lesen sie gerade. Welche Ausbildung möchten Sie machen?",
+   "initial_message_b2": "Guten Tag! Ihre Bewerbung ist da, wir lesen sie gerade. Welche Ausbildung möchten Sie machen, und haben Sie schon Praktika gemacht?"
+  },
+  {
+   "id": "ausbildung_alltag",
+   "category": "work",
+   "initial_message_a0": "Hallo! Wie ist die Arbeit?",
+   "initial_message_a1": "Guten Tag! Wie ist Ihr erster Tag in der Firma?",
+   "initial_message_a2": "Guten Tag! Sie arbeiten jetzt in der Werkstatt, wie war der Tag?",
+   "initial_message_b1": "Guten Tag! Sie arbeiten jetzt in der Werkstatt, das ist neu für Sie. Wie war der erste Tag?",
+   "initial_message_b2": "Guten Tag! Sie arbeiten jetzt in der Werkstatt, das ist neu für Sie. Wie war der erste Tag, und was haben Sie gelernt?"
+  },
+  {
+   "id": "berufsschule_tag",
+   "category": "work",
+   "initial_message_a0": "Hallo! Hast du den Plan?",
+   "initial_message_a1": "Guten Tag! Wann beginnt der Unterricht heute?",
+   "initial_message_a2": "Guten Tag! Der Unterricht beginnt um acht, haben Sie den Plan?",
+   "initial_message_b1": "Guten Tag! Der Unterricht beginnt um acht, wir haben zwei Stunden Mathe. Haben Sie den Plan dabei?",
+   "initial_message_b2": "Guten Tag! Der Unterricht beginnt um acht, wir haben zwei Stunden Mathe. Haben Sie den Plan dabei, oder brauchen Sie meinen?"
+  },
+  {
+   "id": "pruefungstag",
+   "category": "work",
+   "initial_message_a0": "Hallo! Sind Sie bereit?",
+   "initial_message_a1": "Guten Tag! Sind Sie bereit für die Prüfung?",
+   "initial_message_a2": "Guten Tag! Die Prüfung beginnt gleich, sind Sie bereit?",
+   "initial_message_b1": "Guten Tag! Die Prüfung beginnt in fünf Minuten, Sie haben noch Zeit. Sind Sie bereit?",
+   "initial_message_b2": "Guten Tag! Die Prüfung beginnt in fünf Minuten, Sie haben noch Zeit. Haben Sie Fragen, oder sind Sie bereit?"
   },
   {
    "id": "exam_sich_vorstellen",
    "category": "exam",
-   "initial_message_a0": "Hallo! Ich bin Ihr Prüfungspartner. Wie heißen Sie?",
-   "initial_message_a1": "Guten Tag! Ich bin Ihr Prüfungspartner. Bitte stellen Sie sich kurz vor: Wie heißen Sie und woher kommen Sie?",
-   "initial_message_a2": "Guten Tag, schön, dass Sie da sind. Bitte stellen Sie sich vor: Name, Herkunft, Familie und was Sie in Deutschland machen.",
-   "initial_message_b1": "Guten Tag. Ich bin Ihr Prüfungspartner für diese Übung. Erzählen Sie mir etwas über sich: Ihren Werdegang, Ihre Pläne und warum Sie Deutsch lernen.",
-   "initial_message_b2": "Guten Tag. Bitte stellen Sie sich vor und gehen Sie dabei auf Ihren Werdegang, Ihre aktuellen Ziele und Ihre Erwartungen an diese Prüfungsvorbereitung ein."
+   "initial_message_a0": "Hallo! Wie heißen Sie?",
+   "initial_message_a1": "Guten Tag! Stellen Sie sich bitte vor, wie heißen Sie?",
+   "initial_message_a2": "Guten Tag! Bitte stellen Sie sich vor, woher kommen Sie?",
+   "initial_message_b1": "Guten Tag! Bitte stellen Sie sich kurz vor, das gehört zur Prüfung. Wie heißen Sie?",
+   "initial_message_b2": "Guten Tag! Bitte stellen Sie sich kurz vor, das gehört zur Prüfung. Woher kommen Sie, und warum lernen Sie Deutsch?"
   },
   {
    "id": "exam_erfahrungen_sprechen",
    "category": "exam",
-   "initial_message_a0": "Hallo! Was ist für Sie leicht beim Deutschlernen?",
-   "initial_message_a1": "Guten Tag! Erzählen Sie: Was ist für Sie leicht, was ist schwer beim Deutschlernen?",
-   "initial_message_a2": "Guten Tag. Heute sprechen wir über Erfahrungen. Beschreiben Sie mir eine Situation, in der Sie zum ersten Mal allein auf Deutsch sprechen mussten.",
-   "initial_message_b1": "Guten Tag. Erzählen Sie mir von einer Erfahrung, die Ihr Deutsch verändert hat: Was war die Situation, was haben Sie gesagt und was haben Sie daraus gelernt?",
-   "initial_message_b2": "Guten Tag. Ich interessiere mich für Ihre Erfahrungen mit der Sprache: Beschreiben Sie eine prägende Situation und reflektieren Sie, wie sie Ihr Lernen verändert hat."
+   "initial_message_a0": "Hallo! Wie ist die Prüfung?",
+   "initial_message_a1": "Guten Tag! Wie ist Ihre Prüfung?",
+   "initial_message_a2": "Guten Tag! Sie hatten gestern eine Prüfung, wie war sie?",
+   "initial_message_b1": "Guten Tag! Sie hatten gestern eine Prüfung, das habe ich gehört. Wie war sie?",
+   "initial_message_b2": "Guten Tag! Sie hatten gestern eine Prüfung, das habe ich gehört. Wie war sie, und was war schwer?"
   },
   {
    "id": "exam_gemeinsam_planen",
    "category": "exam",
-   "initial_message_a0": "Hallo! Wir planen zusammen etwas. Was möchten Sie machen?",
-   "initial_message_a1": "Guten Tag! Wir planen zusammen einen Ausflug. Was möchten Sie machen, und wann haben Sie Zeit?",
-   "initial_message_a2": "Guten Tag. Stellen Sie sich vor, wir planen gemeinsam ein Fest für unsere Deutschkurs-Gruppe. Machen Sie Vorschläge und fragen Sie mich nach meiner Meinung.",
-   "initial_message_b1": "Guten Tag. Unsere Aufgabe: Wir planen gemeinsam ein Abschiedsfest für eine Kollegin. Schlagen Sie Termin, Ort, Essen und ein Geschenk vor, und wir entscheiden zusammen.",
-   "initial_message_b2": "Guten Tag. Wir planen gemeinsam ein Abschiedsfest für eine Kollegin. Gehen Sie strukturiert vor: Terminvorschläge, Ort, Verpflegung, Geschenk und Aufgabenverteilung — und reagieren Sie auf meine Einwände."
+   "initial_message_a0": "Hallo! Was planen wir heute?",
+   "initial_message_a1": "Guten Tag! Was möchten Sie heute planen?",
+   "initial_message_a2": "Guten Tag! Wir planen gemeinsam ein Fest, was brauchen wir?",
+   "initial_message_b1": "Guten Tag! Wir planen gemeinsam ein Fest, das ist unsere Aufgabe. Was brauchen wir zuerst?",
+   "initial_message_b2": "Guten Tag! Wir planen gemeinsam ein Fest, das ist unsere Aufgabe. Was brauchen wir zuerst, und wer macht was?"
   },
   {
    "id": "exam_thema_praesentieren",
    "category": "exam",
-   "initial_message_a0": "Hallo! Erzählen Sie mir von einem Thema. Ich höre zu.",
-   "initial_message_a1": "Guten Tag! Erzählen Sie mir von Ihrem Lieblingsort in Ihrer Stadt. Wo ist das, und was macht man dort?",
-   "initial_message_a2": "Guten Tag. Heute präsentieren Sie ein Thema: Ihr Lieblingsort in Ihrer Stadt. Nutzen Sie die Punkte Ort, Anfahrt, Angebot, Grund und Tipp.",
-   "initial_message_b1": "Guten Tag. Ihre Präsentation: Ihr Lieblingsort in Ihrer Stadt. Strukturieren Sie frei: Ort, Anfahrt, Angebot, persönlicher Grund und ein Tipp für Besucher. Ich stelle danach Fragen.",
-   "initial_message_b2": "Guten Tag. Bitte präsentieren Sie Ihr Thema „Ein Lieblingsort in meiner Stadt“ mit einer klaren Gliederung und begründeten Empfehlungen. Anschließend diskutieren wir Ihre Argumente."
+   "initial_message_a0": "Hallo! Was ist Ihr Thema?",
+   "initial_message_a1": "Guten Tag! Haben Sie ein Thema gewählt?",
+   "initial_message_a2": "Guten Tag! Sie haben ein Thema gewählt, was zeigen Sie uns?",
+   "initial_message_b1": "Guten Tag! Sie haben ein Thema gewählt. Wie möchten Sie es zeigen, und haben Sie Bilder?",
+   "initial_message_b2": "Guten Tag! Sie haben ein Thema gewählt, wie möchten Sie es zeigen und brauchen Sie noch Zeit?"
   },
   {
    "id": "exam_auf_partner_reagieren",
    "category": "exam",
-   "initial_message_a0": "Hallo! Ich sage etwas, und Sie antworten. Einverstanden?",
-   "initial_message_a1": "Guten Tag! Ich sage etwas über den Alltag in Deutschland, und Sie antworten mir: Einverstanden?",
-   "initial_message_a2": "Guten Tag. Übung: Ich sage eine Meinung, Sie reagieren — einverstanden, überrascht oder anderer Meinung? Begründen Sie kurz.",
-   "initial_message_b1": "Guten Tag. Ich nenne eine Meinung zum Leben in Deutschland, und Sie reagieren: Sie sind einverstanden oder nicht, und Sie begründen Ihre Sicht mit Beispielen.",
-   "initial_message_b2": "Guten Tag. Wir diskutieren: Ich vertrete eine These über das Leben in Deutschland, und Sie reagieren argumentativ — mit Zustimmung, Kritik und eigenen Beispielen."
+   "initial_message_a0": "Hallo! Was sagen Sie dazu?",
+   "initial_message_a1": "Guten Tag! Was sagen Sie zu meinem Plan?",
+   "initial_message_a2": "Guten Tag! Ich finde den Plan gut, was sagen Sie dazu?",
+   "initial_message_b1": "Guten Tag! Ich finde den Plan gut, er ist praktisch. Sind Sie auch dieser Meinung?",
+   "initial_message_b2": "Guten Tag! Ich finde den Plan gut, er ist praktisch. Sind Sie auch dieser Meinung, oder haben Sie eine andere Idee?"
   }
  ],
  "vocabulary": [

@@ -1,456 +1,612 @@
 # Owner review — the Arabic shipped with every scenario opener
 
-Generated 2026-10-30 by `node scripts/build-language-data.mjs --list`.
+Generated 2026-11-01 by `node scripts/build-language-data.mjs --list`.
 Read it the way a learner would: the German is what the partner says first, the Arabic is what
 the learner sees behind «ترجمة». Edit `scripts/language-data/opener-translations.json` (same order)
 or `scripts/language-data/word-glosses.json`, then regenerate.
 
-- 223 openers across 49 scenarios
-- 892 word entries (lemma + meaning + part of speech + level)
+- 301 openers across 61 scenarios
+- 457 word entries (lemma + meaning + part of speech + level)
 
-1. **Guten Tag. Wie kann ich Ihnen helfen?**
-   - نهارك سعيد. كيف يمكنني مساعدتك؟
-2. **Guten Tag. Was ist der Grund Ihres Besuchs heute?**
-   - نهارك سعيد. ما سبب زيارتك اليوم؟
-3. **Guten Tag, bitte nehmen Sie Platz und schildern Sie mir Ihr Anliegen.**
-   - نهارك سعيد، تفضّل بالجلوس وأخبرني بطلبك.
-4. **Guten Tag, ich würde gerne die Einzelheiten Ihres Antrags im Detail mit Ihnen besprechen.**
-   - نهارك سعيد، أودّ أن أناقش معك تفاصيل طلبك واحداً واحداً.
-5. **Hallo! Was möchten Sie trinken?**
-   - أهلاً! ماذا تحب أن تشرب؟
-6. **Hallo! Was darf ich Ihnen heute bringen?**
-   - أهلاً! ماذا أحضر لك اليوم؟
-7. **Guten Tag, haben Sie schon gewählt, oder brauchen Sie noch einen Moment?**
-   - نهارك سعيد، هل اخترت أم تحتاج بعض الوقت؟
-8. **Guten Tag, darf ich Ihnen unsere heutigen Empfehlungen vorschlagen, bevor Sie sich entscheiden?**
-   - نهارك سعيد، هل أقدّم لك توصياتنا لهذا اليوم قبل أن تقرّر؟
-9. **Hallo, schön dass Sie da sind. Wie heißen Sie?**
-   - أهلاً، سعيد بمجيئك. ما اسمك؟
-10. **Guten Tag, erzählen Sie mir bitte kurz etwas über sich.**
-   - نهارك سعيد، حدّثني عن نفسك بإيجاز من فضلك.
-11. **Guten Tag, könnten Sie mir Ihre bisherige Berufserfahrung genauer erläutern?**
-   - نهارك سعيد، هل يمكنك أن تشرح لي خبرتك العملية السابقة بمزيد من التفصيل؟
-12. **Guten Tag, inwiefern glauben Sie, dass Ihre Qualifikationen zu den Anforderungen dieser Position passen?**
-   - نهارك سعيد، إلى أي مدى ترى أن مؤهلاتك تناسب متطلبات هذه الوظيفة؟
-13. **Guten Tag. Was fehlt Ihnen?**
-   - نهارك سعيد. ما الذي يؤلمك؟
-14. **Guten Tag, wo genau haben Sie Schmerzen?**
-   - نهارك سعيد، أين تشعر بالألم بالتحديد؟
-15. **Guten Tag, seit wann bestehen diese Beschwerden schon?**
-   - نهارك سعيد، منذ متى تشكو من هذه الأعراض؟
-16. **Guten Tag, könnten Sie mir Ihre Symptome möglichst genau und in der zeitlichen Reihenfolge schildern?**
-   - نهارك سعيد، هل يمكنك وصف أعراضك بدقة وبالترتيب الزمني؟
-17. **Hallo! Willkommen. Das ist die Wohnung.**
-   - أهلاً! مرحباً. هذه هي الشقة.
-18. **Hallo! Schön, dass Sie da sind. Ich zeige Ihnen die Wohnung.**
-   - أهلاً! سعيد بمجيئك. سأعرض عليك الشقة.
-19. **Guten Tag, kommen Sie bitte herein — ich zeige Ihnen zunächst das Wohnzimmer.**
-   - نهارك سعيد، تفضّل بالدخول — سأعرض عليك غرفة المعيشة أولاً.
-20. **Guten Tag, bevor wir beginnen, hätten Sie im Voraus schon spezielle Fragen zur Wohnung oder zum Mietvertrag?**
-   - نهارك سعيد، قبل أن نبدأ، هل لديك مسبقاً أسئلة خاصة عن الشقة أو عن عقد الإيجار؟
-21. **Guten Tag. Fehlt Ihr Gepäck?**
-   - نهارك سعيد. هل ينقصك شيء من أمتعتك؟
-22. **Guten Tag. Willkommen am Flughafen. Fehlt Ihr Gepäck, oder suchen Sie den Gepäckschalter?**
-   - نهارك سعيد. مرحباً بك في المطار. هل أمتعتك مفقودة أم تبحث عن مكتب الأمتعة؟
-23. **Guten Tag. Da Ihr Koffer nicht angekommen ist, nehme ich hier die Meldung auf. Haben Sie Ihren Pass und Ihre Bordkarte dabei?**
-   - نهارك سعيد. بما أن حقيبتك لم تصل، سأسجّل البلاغ هنا. هل معك جواز سفرك وبطاقة صعودك؟
-24. **Guten Tag. Seit Ihrer Ankunft fehlt also Ihr Gepäck. Beschreiben Sie mir bitte kurz, wie Ihr Koffer aussieht, dann sehe ich nach.**
-   - نهارك سعيد. إذاً حقيبتك مفقودة منذ وصولك. صف لي حقيبتك بإيجاز وسأتحقق من الأمر.
-25. **Guten Tag. Wohin möchten Sie fahren?**
-   - نهارك سعيد. إلى أين تريد أن تسافر؟
-26. **Guten Tag. Möchten Sie eine Fahrkarte kaufen oder Ihre Verbindung suchen?**
-   - نهارك سعيد. هل تريد شراء تذكرة أم أن تبحث عن خط سيرك؟
-27. **Guten Tag. Wann möchten Sie abfahren, und muss man umsteigen?**
-   - نهارك سعيد. متى تريد المغادرة، وهل يلزم التبديل بين القطارات؟
-28. **Guten Tag. Wenn Ihr Zug Verspätung hat, suche ich mit Ihnen eine passende Verbindung. Wohin möchten Sie reisen?**
-   - نهارك سعيد. إذا تأخّر قطارك سأبحث معك عن خط سير مناسب. إلى أين تريد السفر؟
-29. **Guten Morgen! Was darf es sein?**
-   - صباح الخير! ماذا تطلب؟
-30. **Guten Morgen! Möchten Sie Brot oder Brötchen?**
-   - صباح الخير! هل تريد خبزاً أم لفائف صغيرة؟
-31. **Guten Morgen. Das Vollkornbrot ist heute besonders frisch. Darf es sonst noch etwas sein?**
-   - صباح الخير. خبز الحبوب الكاملة طازج جداً اليوم. هل تريد شيئاً آخر؟
-32. **Guten Morgen. Ich schneide Ihnen das Brot gern auf. Was darf ich Ihnen einpacken?**
-   - صباح الخير. سأقطع لك الخبز بكل سرور. ماذا أغلّف لك؟
-33. **Guten Tag. Was kann ich für Sie tun?**
-   - نهارك سعيد. بماذا أخدمك؟
-34. **Guten Tag. Haben Sie einen Termin, oder geht es um etwas Dringendes?**
-   - نهارك سعيد. هل لديك موعد، أم أن الأمر عاجل؟
-35. **Guten Tag. Sie haben gesagt, die Heizung ist kaputt? Dann schauen wir, wann ich vorbeikommen kann.**
-   - نهارك سعيد. قلت إن التدفئة معطّلة؟ إذاً لنرَ متى أستطيع المرور عليك.
-36. **Guten Tag. Zu Ihrer Frage zum Mietvertrag und zur Kaution: Am besten lesen wir die Stelle gemeinsam durch. Wann passt es Ihnen?**
-   - نهارك سعيد. بخصوص سؤالك عن عقد الإيجار والتأمين: الأفضل أن نقرأ الفقرة معاً. متى يناسبك ذلك؟
-37. **Hallo! Schön, dich zu sehen!**
-   - أهلاً! سعيد برؤيتك!
-38. **Na, wie geht es dir? Erzähl mal!**
-   - كيف حالك؟ أخبرني!
-39. **Was machst du am Wochenende? Hast du Zeit für einen Kaffee?**
-   - ماذا ستفعل في نهاية الأسبوع؟ هل لديك وقت لقهوة؟
-40. **Lass uns zusammen essen gehen. Wie wäre es, wenn wir uns morgen treffen?**
-   - لنأكل معاً. ما رأيك أن نتقابل غداً؟
-41. **Guten Tag! Was kann ich für Sie tun?**
-   - نهارك سعيد! بماذا أخدمك؟
-42. **Guten Tag! Sie möchten sich anmelden? Haben Sie alle Unterlagen dabei?**
-   - نهارك سعيد! تريد تسجيل عنوانك؟ هل معك كل الأوراق؟
-43. **Guten Tag! Herzlich willkommen in Berlin. Für die Anmeldung brauche ich Ihren Ausweis und die Wohnungsgeberbestätigung.**
-   - نهارك سعيد! أهلاً بك في برلين. للتسجيل أحتاج بطاقة هويتك وإقرار صاحب السكن.
-44. **Guten Tag! Ich sehe, Sie sind neu hier. Bevor ich Sie anmelde, prüfe ich die Angaben — sind im Formular alle Personen aufgeführt, die mit Ihnen einziehen?**
-   - نهارك سعيد! أرى أنك جديد هنا. قبل أن أسجّلك سأتحقق من البيانات — هل ذُكر في الاستمارة كل من سيسكن معك؟
-45. **Guten Tag. Möchten Sie einen Termin?**
-   - نهارك سعيد. هل تريد موعداً؟
-46. **Hallo! Die nächsten freien Termine sind in zwei Wochen. Welcher Tag passt Ihnen?**
-   - أهلاً! أقرب المواعيد المتاحة بعد أسبوعين. أي يوم يناسبك؟
-47. **Guten Tag! Ich kann Ihnen einen Termin am Montag um neun Uhr oder am Donnerstag um vierzehn Uhr anbieten. Was passt Ihnen besser?**
-   - نهارك سعيد! أستطيع أن أعطيك موعداً يوم الاثنين الساعة التاسعة أو يوم الخميس الساعة الثانية. أيّهما أنسب لك؟
-48. **Guten Tag! Der früheste Termin wäre am 12. März um 8:20 Uhr. Falls Ihnen das zu früh ist, hätte ich noch einen Nachmittagstermin am 14. März — welchen möchten Sie reservieren?**
-   - نهارك سعيد! أقرب موعد هو 12 مارس الساعة 8:20. وإن كان ذلك مبكراً عليك فعندي أيضاً موعد بعد الظهر في 14 مارس — أيّهما تريد أن تحجز؟
-49. **Guten Tag. Möchten Sie sich bei uns anmelden?**
-   - نهارك سعيد. هل تريد التسجيل عندنا؟
-50. **Guten Tag! Möchten Sie sich bei uns anmelden? Haben Sie schon eine Versichertennummer?**
-   - نهارك سعيد! تريد التسجيل عندنا؟ هل لديك رقم تأمين صحي؟
-51. **Guten Tag! Ich helfe Ihnen gern beim nächsten Schritt. Welche Unterlagen oder Informationen liegen Ihnen bereits vor?**
-   - نهارك سعيد! يسعدني مساعدتك في الخطوة التالية. ما الأوراق أو المعلومات التي لديك حتى الآن؟
-52. **Guten Tag! Ich kann mit Ihnen prüfen, welche Angaben noch fehlen. Haben Sie Fragen dazu, wie Ihre Anmeldung weitergeht?**
-   - نهارك سعيد! يمكنني أن أتحقق معك من البيانات الناقصة. هل لديك أسئلة عن كيفية استكمال تسجيلك؟
-53. **Hallo! Sie möchten die Wohnung mieten?**
-   - أهلاً! تريد استئجار الشقة؟
-54. **Guten Tag! Wir treffen uns heute zur Übergabe. Möchten Sie das Protokoll zuerst lesen?**
-   - نهارك سعيد! نلتقي اليوم لتسليم الشقة. هل تريد قراءة محضر التسليم أولاً؟
-55. **Guten Tag. Bevor wir das Übergabeprotokoll abschließen, können wir gemeinsam die Zählerstände und sichtbaren Mängel notieren. Haben Sie noch etwas entdeckt?**
-   - نهارك سعيد. قبل أن نُنهي محضر التسليم يمكننا أن ندوّن معاً قراءات العدادات والعيوب الظاهرة. هل لاحظت شيئاً آخر؟
-56. **Guten Tag. Sehen wir uns die Angaben zu Mietdauer, Kündigungsfrist und Kaution in Ihrem Vertrag gemeinsam an. Welche Punkte möchten Sie zuerst klären?**
-   - نهارك سعيد. لنراجع معاً في عقدك مدة الإيجار ومدة الإشعار بالتسريح والتأمين. أي نقطة تريد توضيحها أولاً؟
-57. **Guten Morgen! Willkommen im Team.**
-   - صباح الخير! أهلاً بك في الفريق.
-58. **Guten Morgen! Ich zeige Ihnen heute alles. Haben Sie Ihre Steuer-ID und Ihre Bankverbindung dabei?**
-   - صباح الخير! سأعرض عليك كل شيء اليوم. هل معك رقمك الضريبي وبيانات حسابك البنكي؟
-59. **Guten Morgen! Für die Personalabteilung brauche ich noch Ihre Steueridentifikationsnummer, Ihre Sozialversicherungsnummer und Ihre Bankverbindung für die Gehaltsabrechnung.**
-   - صباح الخير! يحتاج قسم الموارد البشرية رقمك الضريبي ورقم تأمينك الاجتماعي وبيانات حسابك البنكي لإعداد كشف الراتب.
-60. **Guten Morgen! Willkommen an Bord. Wir melden Sie noch heute bei der Sozialversicherung an. Für die Lohnabrechnung brauche ich Ihre Steuer-ID, Ihre Bankverbindung und — falls vorhanden — die Anerkennung Ihrer ausländischen Abschlüsse.**
-   - صباح الخير! أهلاً بك معنا. سنسجّلك اليوم في التأمين الاجتماعي. ولإعداد كشف الراتب أحتاج رقمك الضريبي وبيانات حسابك البنكي — وإن وُجد، معادلة شهاداتك الأجنبية.
-61. **Guten Tag! Ich bin Herr Falk. Bitte nehmen Sie Platz.**
-   - نهارك سعيد! أنا السيد فالغ. تفضّل بالجلوس.
-62. **Guten Tag, schön, dass Sie da sind. Ich bin Herr Falk, der Pflegedirektor. Bitte nehmen Sie Platz. Erzählen Sie zuerst: Wie heißen Sie?**
-   - نهارك سعيد، سعيد بوجودك. أنا السيد فالغ، مدير التمريض. تفضّل بالجلوس. حدّثني أولاً: ما اسمك؟
-63. **Guten Tag, Frau Josten hat Sie hereingebeten — schön. Ich bin Herr Falk, der Pflegedirektor. Nehmen Sie bitte Platz. Beginnen Sie ruhig mit Ihrer Person: Woher kommen Sie, und was haben Sie gelernt?**
-   - نهارك سعيد، السيدة يوستن دعوتك للدخول — جميل. أنا السيد فالغ، مدير التمريض. تفضّل بالجلوس. ابدأ بنفسك: من أين أتيت، وما الذي درسته؟
-64. **Guten Tag, schön, dass Sie sich bei uns beworben haben. Ich bin Herr Falk, der Pflegedirektor, und führe heute das Gespräch mit Ihnen. Nehmen Sie Platz. Erzählen Sie mir zuerst etwas über Ihre Erfahrung in der Pflege — und ich frage vorweg schon einmal: Warum sollten wir gerade Sie einstellen?**
-   - نهارك سعيد، سعيد بأنك تقدّمت للعمل عندنا. أنا السيد فالغ، مدير التمريض، وأجري اليوم المقابلة معك. تفضّل بالجلوس. حدّثني أولاً عن خبرتك في التمريض — وأسألك من الآن: لماذا ينبغي أن نوظّفك أنت بالتحديد؟
-65. **Guten Tag, es freut mich, dass Sie sich bei uns beworben haben — Ihre Unterlagen waren überzeugend. Ich bin Herr Falk, der Pflegedirektor, und führe heute das Gespräch mit Ihnen. Erzählen Sie mir zunächst, wie Sie in die Pflege gekommen sind. Eine Frage vorweg: Viele Bewerber sagen, sie seien absolut teamfähig — was heißt das bei Ihnen ganz konkret?**
-   - نهارك سعيد، يُسعدني أنك تقدّمت للعمل عندنا — أوراقك كانت مقنعة. أنا السيد فالغ، مدير التمريض، وأجري اليوم المقابلة معك. حدّثني أولاً كيف دخلت مجال التمريض. وسؤال مسبق: كثير من المتقدمين يقولون إنهم يعملون بروح الفريق — ماذا يعني ذلك عندك عملياً؟
-66. **Guten Tag! Ich bin Dr. Berg. Nehmen Sie bitte Platz.**
-   - نهارك سعيد! أنا الدكتور بيرغ. تفضّل بالجلوس.
-67. **Guten Tag, ich bin Dr. Berg, der Chefarzt der Inneren Abteilung. Nehmen Sie bitte Platz. Erzählen Sie: Was ist Ihr Fachgebiet?**
-   - نهارك سعيد، أنا الدكتور بيرغ، رئيس قسم الباطنة. تفضّل بالجلوس. أخبرني: ما مجالك التخصصي؟
-68. **Guten Tag, Dr. Berg hier, Chefarzt der Inneren Abteilung. Schön, dass Sie da sind. Sagen Sie mir zuerst: Was ist Ihr Fachgebiet, und wie lange arbeiten Sie schon darin?**
-   - نهارك سعيد، الدكتور بيرغ معك، رئيس قسم الباطنة. سعيد بوجودك. قل لي أولاً: ما مجالك التخصصي، ومنذ متى تعمل فيه؟
-69. **Guten Tag, Dr. Berg, Chefarzt der Inneren Abteilung — schön, dass Sie da sind. Bevor wir in die Details gehen: Erzählen Sie von einer Situation, in der Sie einen Fehler gemacht haben, und was daraus für Sie gefolgt ist.**
-   - نهارك سعيد، الدكتور بيرغ، رئيس قسم الباطنة — سعيد بوجودك. قبل أن ندخل في التفاصيل: حدّثني عن موقف ارتكبت فيه خطأً، وما الذي نتج عنه لك.
-70. **Guten Tag, Dr. Berg, Chefarzt der Inneren Abteilung — ich habe Ihren Lebenslauf mit Interesse gelesen. Erzählen Sie mir zuerst, warum Sie genau bei uns arbeiten möchten. Und dann wäre ich an einer Situation interessiert, in der Sie einen Fehler gemacht haben — und was sich seitdem für Sie verändert hat.**
-   - نهارك سعيد، الدكتور بيرغ هنا — قرأت سيرتك الذاتية باهتمام. حدّثني أولاً لماذا تريد العمل عندنا تحديداً. ثم يهمّني موقف ارتكبت فيه خطأً — وما الذي تغيّر عندك بعده.
-71. **Guten Tag. Ich bin Frau Adler. Ich habe Schmerzen.**
-   - نهارك سعيد. أنا السيدة أدلر. عندي آلام.
-72. **Guten Tag, ich bin Frau Adler, Zimmer zwölf. Können Sie mir helfen? Ich habe seit heute Morgen Schmerzen.**
-   - نهارك سعيد، أنا السيدة أدلر، الغرفة الثانية عشرة. هل يمكنك مساعدتي؟ عندي آلام منذ صباح اليوم.
-73. **Guten Tag, ich bin Frau Adler aus Zimmer zwölf. Schön, dass Sie da sind. Ich habe seit heute Morgen Schmerzen im Rücken — können Sie bitte nachsehen, was dagegen hilft?**
-   - نهارك سعيد، أنا السيدة أدلر من الغرفة الثانية عشرة. سعيد بوجودك. عندي منذ صباح اليوم آلام في الظهر — هل يمكنك أن تتفقّد ما يساعد في ذلك؟
-74. **Guten Tag, ich bin Frau Adler aus Zimmer zwölf. Schön, dass Sie kommen. Ich weiß nicht, ob ich Sie richtig verstanden habe: Kommen Sie, um mir die Tabletten zu bringen, oder geht es um die Untersuchung heute Nachmittag? Ich habe nämlich seit heute Morgen Schmerzen im Rücken.**
-   - نهارك سعيد، أنا السيدة أدلر من الغرفة الثانية عشرة. سعيد بمجيئك. لست متأكدة إن كنت فهمتك جيداً: هل جئت لتجلب لي الحبوب أم أن الأمر يتعلق بالفحص بعد الظهر؟ فأنا أعاني منذ صباح اليوم آلاماً في الظهر.
-75. **Guten Tag, Sie müssen Frau Berger sein, die neue Pflegekraft — ich bin Frau Adler aus Zimmer zwölf. Kommen Sie bitte herein. Ich wollte Sie eigentlich schon rufen: Ich habe seit heute Morgen Schmerzen im Rücken, und die Tabletten, die der Arzt verschrieben hat, helfen kaum. Könnten Sie bitte nachsehen, was man dagegen tun kann?**
-   - نهارك سعيد، لا بد أنك السيدة بيرغر، الممرضة الجديدة — أنا السيدة أدلر من الغرفة الثانية عشرة. تفضّلي بالدخول. كنت سأناديك فعلاً: عندي منذ صباح اليوم آلام في الظهر، والحبوب التي وصفها الطبيب بالكاد تنفع. هل يمكنك أن تتفقّدي ما يمكن فعله؟
-76. **Guten Morgen. Ich bin Dr. Weiss. Was ist mit Herrn Krause?**
-   - صباح الخير. أنا الدكتور فايس. ما أخبار السيد كراوزه؟
-77. **Guten Morgen, ich bin Dr. Weiss. Beginnen wir mit Herrn Krause aus Zimmer drei. Wie geht es ihm heute?**
-   - صباح الخير، أنا الدكتور فايس. لنبدأ بالسيد كراوزه من الغرفة الثالثة. كيف حاله اليوم؟
-78. **Guten Morgen, ich bin Dr. Weiss und übernehme die Frühschicht. Fangen wir mit Herrn Krause aus Zimmer drei an: Wie war seine Nacht, und was hat der Arzt gestern angeordnet?**
-   - صباح الخير، أنا الدكتور فايس وأتولّى الوردية الصباحية. لنبدأ بالسيد كراوزه من الغرفة الثالثة: كيف كانت ليلته، وماذا أمر الطبيب أمس؟
-79. **Guten Morgen, ich bin Dr. Weiss und übernehme von Ihnen die Frühschicht. Geben Sie mir bitte kurz die Übergabe für Herrn Krause aus Zimmer drei: Wie war seine Nacht, welche Medikamente hat er bekommen, und was steht für heute an?**
-   - صباح الخير، أنا الدكتور فايس وأتسلّم منك الوردية الصباحية. أعطني تسليم الحالة بإيجاز للسيد كراوزه من الغرفة الثالثة: كيف كانت ليلته، وما الأدوية التي تلقاها، وما المطلوب اليوم؟
-80. **Guten Morgen, ich bin Dr. Weiss und übernehme die Frühschicht von Ihnen. Bevor ich zu den Ärzten gehe, hätte ich gern in fünf Minuten die Übergabe für die ganzen Station — fangen wir mit Herrn Krause aus Zimmer drei an: Wie war seine Nacht, was wurde verordnet, und gibt es irgendetwas, worauf ich besonders achten sollte?**
-   - صباح الخير، أنا الدكتور فايس وأتسلّم منك الوردية الصباحية. قبل أن أذهب إلى الأطباء، أريد تسليم الحالات للقسم كله في خمس دقائق — لنبدأ بالسيد كراوزه من الغرفة الثالثة: كيف كانت ليلته، وما الذي وُصف له، وهل هناك أي شيء يجب أن أنتبه له بشكل خاص؟
-81. **Hi! Ich bin Jonas. Isst du mit uns?**
-   - مرحباً! أنا يوناس. هل تأكل معنا؟
-82. **Hi, ich bin Jonas aus der Frühschicht. Wir essen gleich zusammen in der Kantine — isst du mit?**
-   - مرحباً، أنا يوناس من الوردية الصباحية. سنأكل بعد قليل معاً في الكانتين — هل تأكل معنا؟
-83. **Hi, Jonas hier, ich bin auch in der Frühschicht. Wir gehen gleich alle zusammen in die Kantine — hast du Lust mitzukommen, oder bringst du dir etwas mit?**
-   - مرحباً، يوناس معك، وأنا أيضاً في الوردية الصباحية. سنذهب بعد قليل كلنا إلى الكانتين — هل ترغب في المجيء معنا أم تحضر معك شيئاً؟
-84. **Hi, ich bin Jonas, ich arbeite wie du in der Frühschicht. Wir gehen gleich alle zusammen in die Kantine — das Mittagessen dort ist heute richtig gut, glaube ich. Kommst du mit, oder hast du etwas mitgebracht?**
-   - مرحباً، أنا يوناس، وأعمل مثلك في الوردية الصباحية. سنذهب بعد قليل كلنا إلى الكانتين — غداء اليوم هناك جيد فعلاً في ظني. هل تأتي معنا أم أحضرت معك شيئاً؟
-85. **Hi, ich bin Jonas — wir kennen uns ja schon von der Übergabe, aber noch gar nicht richtig. Ich arbeite in der Frühschicht wie du. Wir wollen gleich alle zusammen in die Kantine gehen, das Mittagessen soll heute richtig gut sein. Kommst du mit, oder hast du dir selbst etwas mitgebracht? Und sag mal: Wie gefällt dir die Station bisher?**
-   - مرحباً، أنا يوناس — تعارفنا في تسليم الحالات لكن ليس بشكل حقيقي بعد. أعمل مثلك في الوردية الصباحية. نريد بعد قليل أن نذهب كلنا إلى الكانتين، وغداء اليوم يُقال إنه جيد جداً. هل تأتي معنا أم أحضرت لنفسك شيئاً؟ وقل لي: كيف ترى القسم حتى الآن؟
-86. **Guten Tag. Ich bin Frau Lange. Wie kann ich helfen?**
-   - نهارك سعيد. أنا السيدة لانغه. كيف أساعد؟
-87. **Guten Tag, ich bin Frau Lange, ich bearbeite Ihre Unterlagen. Wie kann ich Ihnen heute helfen?**
-   - نهارك سعيد، أنا السيدة لانغه، وأنا التي تعالج أوراقك. كيف أساعدك اليوم؟
-88. **Guten Tag, Frau Lange hier, ich bearbeite Anträge zur Anerkennung. Schön, dass Sie gekommen sind. Erzählen Sie mir: In welchem Stand ist Ihr Antrag, und welche Unterlagen liegen schon vor?**
-   - نهارك سعيد، السيدة لانغه معك، وأنا أعالج طلبات المعادلة. سعيد بأنك جئت. حدّثني: في أي مرحلة وصل طلبك، وما الأوراق المتوفرة حتى الآن؟
-89. **Guten Tag, Frau Lange, ich bearbeite Anträge zur Anerkennung beruflicher Qualifikationen. Nehmen Sie Platz. Sagen Sie mir bitte: In welchem Stand ist Ihr Verfahren, und fehlen Ihrer Sicht nach noch Unterlagen, die Sie nachreichen müssten?**
-   - نهارك سعيد، أنا السيدة لانغه، وأعالج طلبات معادلة المؤهلات المهنية. تفضّل بالجلوس. قل لي من فضلك: في أي مرحلة وصل إجراءك، وهل ترى أن أوراقاً ما زالت ناقصة وتحتاج إلى تقديمها لاحقاً؟
-90. **Guten Tag, Frau Lange, ich bin für die Anerkennung beruflicher Qualifikationen zuständig. Nehmen Sie Platz. Damit wir nicht aneinander vorbeireden: Erzählen Sie mir bitte kurz, in welchem Stand Ihr Verfahren ist und welche Fragen Sie sich gestellt haben — dann sehen wir gemeinsam, was als Nächstes sinnvoll wäre.**
-   - نهارك سعيد، أنا السيدة لانغه، ومسؤولة عن معادلة المؤهلات المهنية. تفضّل بالجلوس. لكي لا يتحدث كل منا في موضوع آخر: حدّثني بإيجاز عن مرحلة إجراءك وما الأسئلة التي طرحتها على نفسك — ثم نرى معاً ما هو الأنسب بعد ذلك.
-91. **Guten Tag! Ich bin Herr Vogel. Bitte nehmen Sie Platz.**
-   - نهارك سعيد! أنا السيد فوغل. تفضّل بالجلوس.
-92. **Guten Tag, ich bin Herr Vogel, der Teamleiter. Schön, dass Sie da sind. Erzählen Sie zuerst: Wie heißen Sie, und was machen Sie gern?**
-   - نهارك سعيد، أنا السيد فوغل، رئيس الفريق. سعيد بوجودك. حدّثني أولاً: ما اسمك، وماذا تحب أن تعمل؟
-93. **Guten Tag, Herr Vogel hier, Teamleiter der IT-Abteilung. Nehmen Sie bitte Platz. Erzählen Sie mir zuerst: Woher kommen Sie, und was haben Sie vorher gemacht?**
-   - نهارك سعيد، السيد فوغل معك، رئيس قسم تقنية المعلومات. تفضّل بالجلوس. حدّثني أولاً: من أين أتيت، وماذا كنت تعمل سابقاً؟
-94. **Guten Tag, ich bin Herr Vogel, der Teamleiter, und führe heute das Gespräch mit Ihnen. Erzählen Sie mir zuerst etwas über Ihren Weg zur IT — und vorweg schon einmal: Warum wollen Sie bei uns arbeiten?**
-   - نهارك سعيد، أنا السيد فوغل، رئيس الفريق، وأجري اليوم المقابلة معك. حدّثني أولاً عن طريقك إلى تقنية المعلومات — وسؤال مسبق: لماذا تريد العمل عندنا؟
-95. **Guten Tag, schön, dass Sie sich bei uns beworben haben — Ihr Profil war interessant. Ich bin Herr Vogel, der Teamleiter. Erzählen Sie mir zuerst, wie Sie zur IT gekommen sind. Eine Frage vorweg: Viele Bewerber nennen sich lösungsorientiert — was heißt das bei Ihnen ganz konkret?**
-   - نهارك سعيد، سعيد بأنك تقدّمت للعمل عندنا — كان ملفك مثيراً للاهتمام. أنا السيد فوغل، رئيس الفريق. حدّثني أولاً كيف وصلت إلى تقنية المعلومات. وسؤال مسبق: كثير من المتقدمين يصفون أنفسهم بأنهم يفكرون بالحلول — ماذا يعني ذلك عندك عملياً؟
-96. **Guten Tag! Ich bin Dr. Sander. Bitte nehmen Sie Platz.**
-   - نهارك سعيد! أنا الدكتور زاندر. تفضّل بالجلوس.
-97. **Guten Tag, ich bin Dr. Sander. Erzählen Sie: Was ist Ihr Fachgebiet?**
-   - نهارك سعيد، أنا الدكتور زاندر. أخبرني: ما مجالك التخصصي؟
-98. **Guten Tag, Dr. Sander hier, Chefentwickler. Schön, dass Sie da sind. Sagen Sie mir zuerst: Was entwickeln Sie gern, und wie lange machen Sie das schon?**
-   - نهارك سعيد، الدكتور زاندر معك، كبير المطوّرين. سعيد بوجودك. قل لي أولاً: ماذا تحب أن تطوّر، ومنذ متى تفعل ذلك؟
-99. **Guten Tag, Dr. Sander, Chefentwickler — schön, dass Sie da sind. Erzählen Sie von einem technischen Problem, das Sie gelöst haben, und was daraus für Sie gefolgt ist.**
-   - نهارك سعيد، الدكتور زاندر، كبير المطوّرين — سعيد بوجودك. حدّثني عن مشكلة تقنية حللتها، وما الذي نتج عنها لك.
-100. **Guten Tag, Dr. Sander hier — ich habe Ihren Lebenslauf mit Interesse gelesen. Erzählen Sie zuerst, warum Sie genau bei uns entwickeln möchten. Und dann würde mich eine Situation interessieren, in der ein Update schiefgelaufen ist — und was sich seitdem für Sie verändert hat.**
-   - نهارك سعيد، الدكتور زاندر معك — قرأت سيرتك الذاتية باهتمام. حدّثني أولاً لماذا تريد أن تطوّر عندنا تحديداً. ثم يهمّني موقف فشل فيه تحديث — وما الذي تغيّر عندك بعده.
-101. **Guten Morgen! Kurz berichten, bitte.**
-   - صباح الخير! أعطني تقريراً موجزاً من فضلك.
-102. **Guten Morgen, alle zusammen! Ich bin Pia, die Scrum-Masterin. Was hast du gestern gemacht, und was machst du heute?**
-   - صباح الخير للجميع! أنا بيا، مديرة السكرام. ماذا فعلت أمس، وماذا ستفعل اليوم؟
-103. **Guten Morgen! Pia hier, die Scrum-Masterin. Fangen wir an: Was hast du gestern geschafft, was machst du heute, und was blockiert dich?**
-   - صباح الخير! بيا معكم، مديرة السكرام. لنبدأ: ماذا أنجزت أمس، وماذا ستفعل اليوم، وما الذي يعطّلك؟
-104. **Guten Morgen, alle zusammen — kurzer Blick auf das Board vor dem Termin. Berichte bitte in drei Sätzen: Gestern, heute, Blocker. Und wenn etwas den Server betrifft, nenne es gleich.**
-   - صباح الخير للجميع — نظرة سريعة على اللوحة قبل الموعد. أبلغ في ثلاث جمل: أمس، اليوم، المعطّلات. وإن كان هناك أمر يتعلق بالسيرفر فاذكره فوراً.
-105. **Guten Morgen! Ich fasse uns kurz zusammen, damit pünktlich um elf alle rauskommen. Dein Part: drei Sätze — Gestern, Heute, Blocker — und wenn deine Programmierung eine andere Stelle blockiert, sag es direkt, damit wir das Ticket umbauen können.**
-   - صباح الخير! سأختصر لنا الأمر حتى يخرج الجميع في الحادية عشرة في الوقت المحدد. دورك: ثلاث جمل — أمس، اليوم، المعطّلات — وإن كان برنامجك يعطّل عملاً آخر فقل ذلك مباشرة حتى نعيد تنظيم التذكرة.
-106. **Hallo? Mein Computer geht nicht!**
-   - أهلاً؟ حاسوبي لا يعمل!
-107. **Hallo, hier ist Frau Berger. Mein Computer startet nicht. Können Sie mir helfen?**
-   - أهلاً، أنا السيدة بيرغر. حاسوبي لا يشتغل. هل يمكنك مساعدتي؟
-108. **Guten Tag, Frau Berger hier. Seit heute Morgen geht mein Computer nicht mehr — ich sehe nur eine Fehlermeldung. Können Sie mir bitte weiterhelfen?**
-   - نهارك سعيد، السيدة بيرغر هنا. حاسوبي لا يعمل منذ صباح اليوم — أرى رسالة خطأ فقط. هل يمكنك مساعدتي؟
-109. **Guten Tag, Frau Berger hier — ich arbeite von zu Hause und komme nicht weiter. Der Bildschirm bleibt schwarz, und eine Fehlermeldung kommt immer wieder. Ich habe schon neu gestartet, aber das Problem bleibt.**
-   - نهارك سعيد، السيدة بيرغر هنا — أعمل من البيت وتوقّفت تماماً. الشاشة تبقى سوداء ورسالة الخطأ تتكرر. أعدت التشغيل ولم تُحلّ المشكلة.
-110. **Guten Tag, ich störe bestimmt — aber ich muss heute noch eine Sache fertig machen, und genau jetzt lässt mein Computer mich nicht rein. Ich habe alles versucht, was ich kenne: neu gestartet, Kabel geprüft. Die Fehlermeldung kommt trotzdem, und ich weiß nicht, was sie bedeutet.**
-   - نهارك سعيد، أعرف أنني أزعجك — لكن عليّ إنجاز عمل اليوم، والآن حاسوبي لا يسمح لي بالدخول. جرّبت كل ما أعرفه: أعدت التشغيل وفحصت الأسلاك، ورسالة الخطأ تتكرر ولا أفهم معناها.
-111. **Hi! Pause?**
-   - مرحباً! استراحة؟
-112. **Hi, ich bin Jonas. Machst du auch eine Pause? Ich bin so hungrig.**
-   - مرحباً، أنا يوناس. هل تأخذ استراحة أيضاً؟ أنا جائع جداً.
-113. **Hi, Jonas hier aus dem zweiten Stock. Ich mache eine Pause — willst du mitkommen? Die Kaffeemaschine unten ist übrigens kaputt.**
-   - مرحباً، يوناس من الطابق الثاني. سآخذ استراحة — هل تأتي معي؟ وماكينة القهوة في الأسفل معطّلة بالمناسبة.
-114. **Hi, ich bin Jonas — wir kennen uns vom Standup, aber noch nicht richtig. Ich hole mir erst einmal Kaffee, wenn die Maschine denn läuft. Hast du eigentlich immer so wenig mit, oder kommt deine Mahlzeit später?**
-   - مرحباً، أنا يوناس — تعارفنا في الاجتماع اليومي لكن ليس بشكل حقيقي. سأحضر قهوة أولاً إن عملت الماكينة. هل تحضر معك دائماً بهذا القليل أم يأتي طعامك لاحقاً؟
-115. **Hi, Jonas hier — dann setzen wir uns mal. Sag mal, wie findest du eigentlich das Team so bisher? Und wenn du irgendwas brauchst — Besteck liegt oben im Schrank, und im Kühlschrank ist Platz, wenn du etwas mitbringen willst.**
-   - مرحباً، يوناس معك — فلنجلس إذن. قل لي، كيف ترى الفريق حتى الآن؟ وإن احتجت شيئاً: أدوات الطعام في الخزانة بالأعلى، وفي الثلاجة مكان إن أحببت أن تحضر شيئاً.
-116. **Guten Tag. Wie kann ich helfen?**
-   - نهارك سعيد. كيف أساعد؟
-117. **Guten Tag, ich bin Herr Weber. Sie möchten Ihr Zertifikat anerkennen lassen? Erzählen Sie kurz.**
-   - نهارك سعيد، أنا السيد فيبر. تريد معادلة شهادتك؟ أخبرني بإيجاز.
-118. **Guten Tag, Herr Weber hier, ich bearbeite Zeugnisse aus dem Ausland. Erzählen Sie mir: Welche Prüfung haben Sie gemacht, und wo?**
-   - نهارك سعيد، السيد فيبر معك، وأعالج الشهادات الصادرة من الخارج. أخبرني: أي امتحان قدّمت، وأين؟
-119. **Guten Tag, Herr Weber, ich bin für die Bewertung ausländischer Qualifikationen zuständig. Nehmen Sie Platz. Sagen Sie mir bitte zuerst: Welche Ausbildung steht auf Ihren Unterlagen, und welchen Abschluss haben Sie genau?**
-   - نهارك سعيد، أنا السيد فيبر، ومسؤول عن تقييم المؤهلات الأجنبية. تفضّل بالجلوس. قل لي أولاً: ما التعليم المدوّن في أوراقك، وما شهادتك بالتحديد؟
-120. **Guten Tag, Herr Weber hier — ich sehe, Sie haben einen Termin zur Zeugnisbewertung. Damit wir uns nicht doppelt unterhalten: Erzählen Sie mir bitte kurz, welche Zertifikate Sie haben, wo Sie sie gemacht haben, und welche Frage Sie sich dazu gestellt haben.**
-   - نهارك سعيد، السيد فيبر هنا — أرى أن لديك موعداً لتقييم الشهادة. حتى لا نتحدث مرتين: أخبرني بإيجاز ما الشهادات التي لديك، وأين حصلت عليها، وما السؤال الذي طرحته على نفسك.
-121. **Guten Tag! Ich bin Herr Brenner. Bitte nehmen Sie Platz.**
-   - نهارك سعيد! أنا السيد برينر. تفضّل بالجلوس.
-122. **Guten Tag, ich bin Herr Brenner, der Ausbilder. Schön, dass Sie da sind. Erzählen Sie zuerst: Wie heißen Sie, und warum möchten Sie hier lernen?**
-   - نهارك سعيد، أنا السيد برينر، المدرّب. سعيد بوجودك. أخبرني أولاً: ما اسمك، ولماذا تريد أن تتعلم هنا؟
-123. **Guten Tag, Herr Brenner hier, Ihr Ausbilder im Bewerbungsgespräch. Nehmen Sie bitte Platz. Erzählen Sie mir zuerst: Woher kommen Sie, und was interessiert Sie an diesem Beruf?**
-   - نهارك سعيد، السيد برينر معك، مدرّبك في مقابلة التقديم. تفضّل بالجلوس. أخبرني أولاً: من أين أتيت، وما الذي يشدّك في هذه المهنة؟
-124. **Guten Tag, ich bin Herr Brenner, der Ausbilder, und führe heute das Gespräch um den Ausbildungsplatz. Erzählen Sie mir zuerst etwas über Ihren Weg — und vorweg schon einmal: Warum gerade dieses Betrieb?**
-   - نهارك سعيد، أنا السيد برينر، المدرّب، وأجري اليوم المقابلة على مقعد التدريب. حدّثني أولاً عن طريقك — ولماذا هذا المصنع تحديداً؟
-125. **Guten Tag, schön, dass Sie sich beworben haben — Ihre Mappe war vollständig. Ich bin Herr Brenner, der Ausbilder. Erzählen Sie zuerst, wie Sie auf uns gekommen sind. Eine Frage vorweg: Viele Bewerber sagen, sie lernen gern — wie zeigen Sie das in Ihrem Alltag?**
-   - نهارك سعيد، سعيد بتقدّمك — ملفك كان كاملاً. أنا السيد برينر، المدرّب. أخبرني كيف وصلت إلينا. وكثيرون يقولون إنهم يحبون التعلم — كيف تُظهر ذلك في يومك؟
-126. **Guten Morgen! Heute lernen wir die Werkstatt.**
-   - صباح الخير! اليوم سنتعلّم الورشة.
-127. **Guten Morgen! Ich bin Herr Brenner. Heute zeige ich Ihnen die Werkstatt. Was möchten Sie wissen?**
-   - صباح الخير! أنا السيد برينر. سأعرض عليك الورشة اليوم. ماذا تريد أن تعرف؟
-128. **Guten Morgen, Herr Brenner hier. Heute beginnen wir mit den ersten Aufgaben in der Werkstatt. Haben Sie alles verstanden, was wir gestern besprochen haben?**
-   - صباح الخير، السيد برينر معك. نبدأ اليوم بأول مهام في الورشة. هل فهمت كل ما تحدثنا عنه أمس؟
-129. **Guten Morgen — dritter Woche, dritter Tag. Ihr Ausbilder hier: Zeigen Sie mir bitte Ihren Berichtsheft-Eintrag, und sagen Sie mir gleich, wo Sie noch unsicher sind.**
-   - صباح الخير — الأسبوع الثالث، اليوم الثالث. مدرّبك معك: أرني دفتر تقاريرك، وأخبرني فوراً في أي نقطة ما زلت غير واثق.
-130. **Guten Morgen. Ich erwarte heute Ihren ersten selbstständigen Arbeitsschritt — mit Unterstützung, aber ohne dass ich die Hand führe. Erzählen Sie mir zuerst: Wie wollen Sie vorgehen, und wo brauchen Sie mich?**
-   - صباح الخير. أنتظر اليوم أول خطوة عمل تقوم بها بنفسك — بدعم مني لكن دون أن أقود يدك. أخبرني أولاً: كيف تنوي أن تتقدم، وأين تحتاجني؟
-131. **Hallo! Neu hier? Ich bin Denis.**
-   - أهلاً! جديد هنا؟ أنا دينيس.
-132. **Hallo, ich bin Denis, ich mache die gleiche Ausbildung. Wie findest du die Schule bis jetzt?**
-   - أهلاً، أنا دينيس وأتلقّى التدريب نفسه. كيف ترى المدرسة حتى الآن؟
-133. **Hi, Denis hier. Hast du den Stundenplan gesehen? Montag und Mittwoch sind unsere langen Tage — hast du schon einen Plan für die Hausaufgaben?**
-   - مرحباً، دينيس معك. هل رأيت جدول الحصص؟ الاثنين والأربعاء أيامنا الطويلة — هل وضعت خطة للواجبات؟
-134. **Hi, Denis hier — wir sitzen seit September im gleichen Raum, aber wir haben noch nicht viel geredet. Sag mal: Welches Fach fällt dir leicht, und wo brauchst du Hilfe? Vielleicht können wir uns zusammensetzen.**
-   - مرحباً، دينيس معك — ندرس في الصف نفسه منذ سبتمبر لكن لم نتحدث كثيراً. قل لي: أي مادة سهلة عليك، وأين تحتاج المساعدة؟ ربما نستطيع أن ندرس معاً.
-135. **Hi, Denis hier. Die Zwischenprüfung rückt näher, und ich merke, dass ich im Theorieteil nachlässig geworden bin. Wie bereitest du dich vor — und hättest du Lust, uns gegenseitig abzufragen?**
-   - مرحباً، دينيس معك. الامتحان النصفي يقترب، وألاحظ أنني أهملت الجزء النظري. كيف تستعد — وهل تحب أن نختبر بعضنا؟
-136. **Guten Tag! Heute ist Ihre Prüfung. Viel Erfolg!**
-   - نهارك سعيد! اليوم امتحانك. حظاً موفقاً!
-137. **Guten Tag, ich bin Herr Kaiwicz, Ihr Prüfer. Keine Angst — zeigen Sie einfach, was Sie können. Bereit?**
-   - نهارك سعيد، أنا السيد كايفيتش، ممتحنك. لا تخف — أرني فقط ما تعرف. مستعد؟
-138. **Guten Tag, Herr Kaiwicz hier, Vorsitzender des Prüfungsausschusses. Zuerst die Practical: Erzählen Sie, welchen Arbeitsschritt Sie heute zeigen, und welche Werkzeuge Sie brauchen.**
-   - نهارك سعيد، السيد كايفيتش معك، رئيس لجنة الامتحان. أولاً الجزء العملي: أخبرني أي خطوة عمل ستؤدّي اليوم، وما الأدوات التي تحتاجها.
-139. **Guten Tag, Herr Kaiwicz, ich leite heute die Prüfung. Wir beginnen mit einer kurzen Vorstellung Ihres Projekts: Beschreiben Sie bitte Ihren Weg von der Aufgabe bis zum Ergebnis — und wo es schwierig wurde.**
-   - نهارك سعيد، السيد كايفيتش، وأنا أُدير الامتحان اليوم. نبدأ بتقديم موجز لمشروعك: صف لي طريقك من المهمة إلى النتيجة — وأين صعُبت.
-140. **Guten Tag, Herr Kaiwicz hier. Sie haben die schriftlichen Teile hinter sich — jetzt das Fachgespräch. Erzählen Sie mir zuerst frei: Was war die schwierigste Entscheidung in Ihrem Prüfungsauftrag, und was würden Sie beim nächsten Mal anders machen?**
-   - نهارك سعيد، السيد كايفيتش معك. أنهيت الأجزاء الكتابية — والآن الحوار المهني. حدّثني بحرية أولاً: ما أصعب قرار اتخذته في مهمة الامتحان، وما كنت ستغيّره في المرة القادمة؟
-141. **Hi! Essen? Komm mit!**
-   - مرحباً! الطعام؟ تعال معي!
-142. **Hi, ich bin Meltem. Kommst du mit in die Kantine? Ich habe heute schon Hunger.**
-   - مرحباً، أنا ملتم. هل تأتي معنا إلى الكانتين؟ أنا جائعة اليوم.
-143. **Hi, Meltem hier. In zehn Minuten ist Mittagspause — kommst du mit? Heute gibt es angeblich Schnitzel, aber ich bringe mir lieber mein Pausenbrot mit.**
-   - مرحباً، ملتم معك. الاستراحة بعد عشر دقائق — هل تأتي؟ يُقال إن هناك شنيتزل اليوم، لكني أفضل أن أحضر خبز الاستراحة معي.
-144. **Hi, Meltem hier — setzen wir uns ans Fenster? Sag mal, wie war dein Vormittag im Betrieb? Meine Brotdose ist diesmal richtig gut gefüllt: Brötchen mit Käse, Gemüse und ein Apfelsaft dazu.**
-   - مرحباً، ملتم معك — لنجلس عند النافذة. قل لي، كيف كان صباحك في الشركة؟ علبة طعامي ممتلئة هذه المرة بشكل جيد: لفائف بالجبن وخضار وعصير تفاح.
-145. **Hi, Meltem hier — dann erzähl mal. Du wirkst ein bisschen müde. Zu wenig geschlafen, oder hängt die Prüfungsvorbereitung dir an? Meine Mutter packt mir jeden Tag zwei Brötchen ein, sonst würde ich nur von Kaffee und Schokolade leben.**
-   - مرحباً، ملتم معك — أخبرني إذن. تبدو متعباً قليلاً. نمت قليلاً أم أن التحضير للامتحان يتعبك؟ أمي تحضّر لي لفافتين كل يوم، وإلا عشت على القهوة والشوكولاتة فقط.
-146. **Guten Tag, ich bin Frau Roth. Sie möchten sich für eine Prüfung anmelden? Erzählen Sie kurz.**
-   - نهارك سعيد، أنا السيدة روث. تريد أن تسجّل في امتحان؟ أخبرني بإيجاز.
-147. **Guten Tag, Frau Roth hier, ich bearbeite die Prüfungsanmeldungen. Erzählen Sie mir: Welches Niveau möchten Sie prüfen, und wann passt es Ihnen?**
-   - نهارك سعيد، السيدة روث معك، وأنا أعالج تسجيلات الامتحانات. أخبرني: أي مستوى تريد أن تمتحن فيه، ومتى يناسبك؟
-148. **Guten Tag, Frau Roth, ich bin für die Anmeldungen zur Sprachprüfung zuständig. Nehmen Sie Platz. Sagen Sie mir bitte zuerst: Welches Niveau, mündlich und schriftlich komplett — und haben Sie einen Kurs bei uns gemacht?**
-   - نهارك سعيد، أنا السيدة روث، ومسؤولة عن التسجيل في امتحان اللغة. تفضّل بالجلوس. قل لي أولاً: أي مستوى، شفهي وكتابي كاملاً — وهل درست دورة عندنا؟
-149. **Guten Tag, Frau Roth hier — schön, dass Sie den Schritt machen. Damit wir nichts doppelt besprechen: Erzählen Sie mir bitte kurz, wie weit Sie mit der Vorbereitung sind, welche Unterlagen Sie mitgebracht haben und welche Frage Sie sich zum Ablauf gestellt haben.**
-   - نهارك سعيد، السيدة روث معك — سعيد أنك اتخذت هذه الخطوة. حتى لا نتحدث مرتين: أخبرني بإيجاز إلى أين وصلت في التحضير، وما الأوراق التي أحضرتها، وما السؤال الذي طرحته عن سير الامتحان.
-150. **Guten Tag. Ist Ihr Reisepass dabei?**
-   - نهارك سعيد. هل معك جواز سفرك؟
-151. **Guten Tag, willkommen. Ich brauche Ihren Reisepass und Ihre Nummer.**
-   - نهارك سعيد، مرحباً. أحتاج جواز سفرك ورقمك.
-152. **Guten Tag. Bitte zeigen Sie Ihren Reisepass, dann prüfe ich Ihre Nummer im System.**
-   - نهارك سعيد. أرني جواز سفرك من فضلك، ثم أتحقق من رقمك في النظام.
-153. **Guten Tag, schön, dass Sie da sind. Bevor wir den Antrag einreichen, brauche ich Ihren Reisepass und die Aktennummer.**
-   - نهارك سعيد، سعيد بوجودك. قبل أن نقدّم الطلب أحتاج جواز سفرك ورقم الملف.
-154. **Guten Abend! Was möchten Sie trinken?**
-   - مساء الخير! ماذا تحب أن تشرب؟
-155. **Guten Abend! Hier ist die Karte. Ich empfehle heute das Gericht mit saisonalen Zutaten.**
-   - مساء الخير! هذه القائمة. أوصي اليوم بالطبق المحضّر بمكوّنات الموسم.
-156. **Guten Abend! Haben Sie reserviert? Heute gibt es eine saisonale Karte — lassen Sie sich beraten.**
-   - مساء الخير! هل حجزت؟ لدينا اليوم قائمة موسمية — اسأل عن التوصيات.
-157. **Guten Abend, herrlich, Sie da zu sehen! Falls Sie Fragen zur Zubereitung haben oder eine Allergie beachten müssen, sagen Sie es mir einfach.**
-   - مساء الخير، جميل أن نراك! إن كان لديك سؤال عن طريقة التحضير أو حساسية يجب مراعاتها فقل لي فقط.
-158. **Guten Tag. Since wann fühlen Sie sich so müde? Beschreiben Sie mir Ihre Symptome.**
-   - نهارك سعيد. منذ متى تشعر بهذا الإرهاق؟ صف لي أعراضك.
-159. **Guten Tag. Sie wirken erkältet — Husten, Fieber? Ich verschreibe Ihnen etwas, aber erst höre ich zu.**
-   - نهارك سعيد. يبدو أنك مصاب بالزكام — كحة، حرارة؟ سأصف لك دواءً، لكن سأستمع إليك أولاً.
-160. **Guten Tag. Bevor ich etwas verschreibe: Sind die Beschwerden chronisch oder eine akute Verletzung? Und wie erholen Sie sich aktuell?**
-   - نهارك سعيد. قبل أن أصف شيئاً: هل الأعراض مزمنة أم إصابة حادة؟ وكيف تستريح حالياً؟
-161. **Hallo! Die Wohnung ist frei. Komm rein.**
-   - أهلاً! الشقة فاضية. تفضّل بالدخول.
-162. **Hallo! Schön, dass du da bist. Die Wohnung ist groß und hell, das Bad ist neu.**
-   - أهلاً! سعيد بوجودك. الشقة واسعة ومشرقة، والحمام جديد.
-163. **Hallo, schön, dass du dir die Wohnung ansiehst. Sie ist ruhig gelegen, der Balkon zeigt nach Süden.**
-   - أهلاً، سعيد أنك تشاهد الشقة. موقعها هادئ، والشرفة تطلّ على الجنوب.
-164. **Hallo! Vor dem Einzug klären wir die Details: möbliert oder unmöbliert, und wie die Nebenkostenabrechnung und die Instandhaltung geregelt sind.**
-   - أهلاً! قبل الانتقال نوضّح التفاصيل: مفروشة أم غير مفروشة، وكيف تُحتسب المصاريف الإضافية والصيانة.
-165. **Guten Morgen! Willkommen im Büro.**
-   - صباح الخير! أهلاً بك في المكتب.
-166. **Guten Morgen! Ihr Arbeitsplatz ist neben dem Büro der Führungskraft.**
-   - صباح الخير! مكان عملك بجانب مكتب المدير.
-167. **Guten Morgen! Heute zeige ich Ihnen das Büro und erkläre, wofür Sie verantwortlich sind.**
-   - صباح الخير! سأعرض عليك المكتب اليوم وأشرح ما أنت مسؤول عنه.
-168. **Guten Morgen! Ich bin gespannt: Welche Herausforderung reizen Sie an dieser Stelle, und wie übernehmen Sie gern Verantwortung?**
-   - صباح الخير! متشوّق لمعرفة: أي تحدٍّ يجذبك في هذا العمل، وكيف تحب أن تتحمّل المسؤولية؟
-169. **Hallo! Ich bin Frau Meier. Und du?**
-   - أهلاً! أنا السيدة ماير. وأنت؟
-170. **Hallo! Ich bin Frau Meier, deine Nachbarin. Wie heißt du?**
-   - أهلاً! أنا السيدة ماير، جارتك. ما اسمك؟
-171. **Guten Tag! Ich bin Frau Meier und wohne nebenan. Wie heißt du, und woher kommst du?**
-   - نهارك سعيد! أنا السيدة ماير وأسكن بالجوار. ما اسمك، ومن أين أتيت؟
-172. **Guten Tag, ich bin Frau Meier, deine Nachbarin von nebenan. Schön, dich kennenzulernen — wie heißt du, und woher kommst du?**
-   - نهارك سعيد، أنا السيدة ماير، جارتك المجاورة. سعيد بمعرفتك — ما اسمك، ومن أين أتيت؟
-173. **Guten Tag, ich bin Frau Meier und wohne seit vielen Jahren nebenan. Es freut mich, dich kennenzulernen — erzähl mir doch ein wenig: Wie heißt du, und woher kommst du?**
-   - نهارك سعيد، أنا السيدة ماير وأسكن بالجوار منذ سنوات. سعيد بمعرفتك — حدّثني قليلاً: ما اسمك، ومن أين أتيت؟
-174. **Hallo! Ich helfe Ihnen. Was brauchen Sie?**
-   - أهلاً! سأساعدك. ماذا تحتاج؟
-175. **Hallo, schön dass Sie da sind! Wir haben Kaffee, Tee, Zucker und Milch. Was brauchen Sie heute?**
-   - أهلاً، سعيد بوجودك! لدينا قهوة وشاي وسكر وحليب. ماذا تحتاج اليوم؟
-176. **Hallo, schön dass Sie vorbeischauen! Wir haben heute Kaffee, Tee, Zucker und Milch im Angebot. Sagen Sie mir, was Sie brauchen.**
-   - أهلاً، سعيد بمرورك! عندنا اليوم قهوة وشاي وسكر وحليب بعرض خاص. قل لي ماذا تحتاج.
-177. **Hallo, schön, dass Sie vorbeischauen! Wir haben heute Kaffee, Tee, Zucker und Milch im Angebot — sagen Sie mir einfach, was Sie brauchen, dann zeige ich Ihnen, wo es steht.**
-   - أهلاً، سعيد بمرورك! عندنا اليوم قهوة وشاي وسكر وحليب بعرض خاص — قل لي ماذا تحتاج وسأدلّك على مكانه.
-178. **Hallo, schön, dass Sie heute zu uns kommen! Wenn Sie mir einfach sagen, was Sie brauchen, zeige ich Ihnen gern, in welchem Regal es steht — wir haben heute auch Kaffee, Tee, Zucker und Milch im Angebot.**
-   - أهلاً، سعيد بأنك جئت إلينا اليوم! قل لي ما تحتاج وسأدلّك على الرف الذي يوجد فيه — عندنا أيضاً اليوم عرض على القهوة والشاي والسكر والحليب.
-179. **Guten Tag! Willkommen. Ich helfe Ihnen. Was brauchen Sie?**
-   - نهارك سعيد! مرحباً. سأساعدك. ماذا تحتاج؟
-180. **Guten Tag, willkommen bei uns! Ich helfe Ihnen gern. Was können wir für Sie erledigen?**
-   - نهارك سعيد، مرحباً بك عندنا! سأساعدك بكل سرور. ماذا نُنجز لك؟
-181. **Guten Tag, herzlich willkommen! Schön, dass Sie da sind. Wie können wir Ihnen heute helfen — eröffnen Sie ein Konto oder haben Sie eine Frage?**
-   - نهارك سعيد، أهلاً بك! سعيد بوجودك. كيف نساعدك اليوم — تريد فتح حساب أم لديك سؤال؟
-182. **Guten Tag, herzlich willkommen bei uns! Schön, dass Sie den Weg zu uns gefunden haben. Erzählen Sie mir ruhig, was Sie heute erledigen möchten — ein Konto eröffnen oder zunächst nur Fragen stellen?**
-   - نهارك سعيد، أهلاً بك عندنا! جميل أنك وجدت طريقك إلينا. أخبرني بما تريد أن تنجزه اليوم — فتح حساب أم طرح بعض الأسئلة أولاً؟
-183. **Guten Tag und herzlich willkommen! Es freut mich, dass Sie sich für uns entschieden haben. Sagen Sie mir einfach, was Sie heute erledigen möchten — ob Sie ein Konto eröffnen wollen oder zunächst nur ein paar Fragen klären möchten, wir nehmen uns Zeit für Sie.**
-   - نهارك سعيد وأهلاً بك! سعيد أنك اخترتنا. قل لي فقط ما تريد أن تنجزه اليوم — سواء أردت فتح حساب أو مجرد توضيح بعض الأسئلة، سنأخذ وقتنا معك.
-184. **Guten Tag! Ihr Name, bitte. Ich schreibe alles auf.**
-   - نهارك سعيد! اسمك من فضلك. سأدوّن كل شيء.
-185. **Guten Tag! Ich nehme Ihre Daten auf. Wie schreiben Sie Ihren Namen, bitte buchstabieren Sie.**
-   - نهارك سعيد! سأسجّل بياناتك. كيف تكتب اسمك؟ تهجّأه من فضلك.
-186. **Guten Tag, Sie sind richtig hier. Ich trage Ihre Daten ein — wie schreibt man Ihren Namen, bitte buchstabieren Sie langsam.**
-   - نهارك سعيد، أنت في المكان الصحيح. سأسجّل بياناتك — كيف يُكتب اسمك؟ تهجّأه ببطء من فضلك.
-187. **Guten Tag, Sie sind hier genau richtig. Ich trage Ihre Daten in das Formular ein; buchstabieren Sie Ihren Namen bitte langsam, damit nichts falsch wird.**
-   - نهارك سعيد، أنت في المكان الصحيح تماماً. سأدوّن بياناتك في الاستمارة؛ تهجّأ اسمك ببطء حتى لا يحدث خطأ.
-188. **Guten Tag, Sie sind hier genau richtig. Damit nichts falsch ins Formular gerät, buchstabieren Sie Ihren Namen bitte langsam — und sagen Sie mir auch ruhig, wenn Sie bei einem Feld unsicher sind, dann lese ich es Ihnen vor.**
-   - نهارك سعيد، أنت في المكان الصحيح تماماً. حتى لا يقع خطأ في الاستمارة، تهجّأ اسمك ببطء — وأخبرني أيضاً إن لم تكن واثقاً في أحد الحقول، سأقرأه لك.
-189. **Hallo! Ich helfe Ihnen. Wohin fahren Sie?**
-   - أهلاً! سأساعدك. إلى أين تسافر؟
-190. **Hallo, schön dass Sie fragen! Ich helfe Ihnen gern. Wohin möchten Sie fahren?**
-   - أهلاً، سعيد بأنك سألت! سأساعدك بكل سرور. إلى أين تريد أن تسافر؟
-191. **Guten Tag, schön dass Sie fragen! Ich helfe Ihnen gern weiter — wohin möchten Sie fahren, und wann möchten Sie los?**
-   - نهارك سعيد، سعيد بأنك سألت! سأساعدك بكل سرور — إلى أين تريد أن تسافر، ومتى تريد الانطلاق؟
-192. **Guten Tag, schön, dass Sie direkt bei uns fragen! Ich helfe Ihnen gern weiter: Wohin möchten Sie fahren, und haben Sie schon eine Uhrzeit im Kopf?**
-   - نهارك سعيد، سعيد بأنك سألتنا مباشرة! يسعدني أن أساعدك: إلى أين تريد أن تسافر، وهل حدّدت وقتاً في ذهنك؟
-193. **Guten Tag, schön, dass Sie direkt bei uns am Schalter fragen, statt sich lange durch die Automaten zu kämpfen! Sagen Sie mir einfach: Wohin soll die Reise gehen, und haben Sie schon eine ungefähre Uhrzeit im Kopf?**
-   - نهارك سعيد، سعيد بأنك سألت عند الشباك مباشرة بدل أن تعاني مع الآلات! قل لي فقط: إلى أين الرحلة، وهل لديك وقت تقريبي في ذهنك؟
-194. **Hallo! Hier ist alles billig. Was nehmen Sie?**
-   - أهلاً! كل شيء هنا رخيص. ماذا تأخذ؟
-195. **Hallo, schön dass Sie da sind! Hier ist alles günstig — was dürfen wir Ihnen geben?**
-   - أهلاً، سعيد بوجودك! كل شيء هنا بسعر مناسب — ماذا نقدّم لك؟
-196. **Hallo, schön dass Sie vorbeischauen! Wir haben heute vieles günstig — sagen Sie mir, was Sie brauchen, dann nenne ich Ihnen den Preis.**
-   - أهلاً، سعيد بمرورك! عندنا اليوم أشياء كثيرة بسعر مناسب — قل لي ماذا تحتاج وسأخبرك بالسعر.
-197. **Hallo, schön, dass Sie vorbeischauen! Wir haben heute einiges günstig im Angebot — sagen Sie mir einfach, was Sie brauchen, dann sage ich Ihnen gleich den Preis.**
-   - أهلاً، سعيد بمرورك! عندنا اليوم عروض جيدة على أشياء عديدة — قل لي فقط ماذا تحتاج وسأخبرك بالسعر فوراً.
-198. **Hallo, schön, dass Sie heute vorbeischauen! Wir haben einiges im Angebot, das günstig ist — sagen Sie mir einfach, was Sie brauchen, dann nenne ich Ihnen sofort den Preis, und wenn Sie Fragen zu einer Zahl auf dem Preisschild haben, lese ich sie Ihnen gern vor.**
-   - أهلاً، سعيد بأنك مررت علينا اليوم! عندنا عروض جيدة وبأسعار مناسبة — قل لي فقط ماذا تحتاج وسأخبرك بالسعر فوراً، وإن كان لديك سؤال عن رقم على بطاقة السعر فسأقرأه لك.
-199. **Hallo! Ich bin Ihr Prüfungspartner. Wie heißen Sie?**
-   - أهلاً! أنا شريكك في الامتحان. ما اسمك؟
-200. **Guten Tag! Ich bin Ihr Prüfungspartner. Bitte stellen Sie sich kurz vor: Wie heißen Sie und woher kommen Sie?**
-   - نهارك سعيد! أنا شريكك في الامتحان. عرّف نفسك بإيجاز: ما اسمك ومن أين أتيت؟
-201. **Guten Tag, schön, dass Sie da sind. Bitte stellen Sie sich vor: Name, Herkunft, Familie und was Sie in Deutschland machen.**
-   - نهارك سعيد، سعيد بوجودك. عرّف بنفسك من فضلك: الاسم، الأصل، العائلة، وماذا تفعل في ألمانيا.
-202. **Guten Tag. Ich bin Ihr Prüfungspartner für diese Übung. Erzählen Sie mir etwas über sich: Ihren Werdegang, Ihre Pläne und warum Sie Deutsch lernen.**
-   - نهارك سعيد. أنا شريكك في هذا التدريب. حدّثني عن نفسك: مسارك، خططك، ولماذا تتعلم الألمانية.
-203. **Guten Tag. Bitte stellen Sie sich vor und gehen Sie dabei auf Ihren Werdegang, Ihre aktuellen Ziele und Ihre Erwartungen an diese Prüfungsvorbereitung ein.**
-   - نهارك سعيد. عرّف بنفسك وتحدّث عن مسارك وأهدافك الحالية وتوقعاتك من هذا التحضير للامتحان.
-204. **Hallo! Was ist für Sie leicht beim Deutschlernen?**
-   - أهلاً! ما السهل عليك في تعلّم الألمانية؟
-205. **Guten Tag! Erzählen Sie: Was ist für Sie leicht, was ist schwer beim Deutschlernen?**
-   - نهارك سعيد! أخبرني: ما السهل عليك وما الصعب في تعلّم الألمانية؟
-206. **Guten Tag. Heute sprechen wir über Erfahrungen. Beschreiben Sie mir eine Situation, in der Sie zum ersten Mal allein auf Deutsch sprechen mussten.**
-   - نهارك سعيد. اليوم نتحدث عن الخبرات. صف لي موقفاً اضطررت فيه أن تتحدث بالألمانية وحدك لأول مرة.
-207. **Guten Tag. Erzählen Sie mir von einer Erfahrung, die Ihr Deutsch verändert hat: Was war die Situation, was haben Sie gesagt und was haben Sie daraus gelernt?**
-   - نهارك سعيد. حدّثني عن تجربة غيّرت ألمانيتك: ما كان الموقف، وماذا قلت، وماذا تعلمت منه؟
-208. **Guten Tag. Ich interessiere mich für Ihre Erfahrungen mit der Sprache: Beschreiben Sie eine prägende Situation und reflektieren Sie, wie sie Ihr Lernen verändert hat.**
-   - نهارك سعيد. يهمّني حديثك عن تجاربك مع اللغة: صف موقفاً مؤثراً وتأمّل كيف غيّر تعلّمك.
-209. **Hallo! Wir planen zusammen etwas. Was möchten Sie machen?**
-   - أهلاً! سنخطّط معاً شيئاً. ماذا تحب أن نفعل؟
-210. **Guten Tag! Wir planen zusammen einen Ausflug. Was möchten Sie machen, und wann haben Sie Zeit?**
-   - نهارك سعيد! سنخطّط معاً رحلة. ماذا تحب أن نفعل، ومتى لديك وقت؟
-211. **Guten Tag. Stellen Sie sich vor, wir planen gemeinsam ein Fest für unsere Deutschkurs-Gruppe. Machen Sie Vorschläge und fragen Sie mich nach meiner Meinung.**
-   - نهارك سعيد. تخيّل أننا نخطّط معاً حفلاً لمجموعة درس الألمانية. قدّم اقتراحات واسألني عن رأيي.
-212. **Guten Tag. Unsere Aufgabe: Wir planen gemeinsam ein Abschiedsfest für eine Kollegin. Schlagen Sie Termin, Ort, Essen und ein Geschenk vor, und wir entscheiden zusammen.**
-   - نهارك سعيد. مهمتنا: نخطّط معاً حفل وداع لزميلة. اقترح الموعد والمكان والطعام والهدية، ونقرّر معاً.
-213. **Guten Tag. Wir planen gemeinsam ein Abschiedsfest für eine Kollegin. Gehen Sie strukturiert vor: Terminvorschläge, Ort, Verpflegung, Geschenk und Aufgabenverteilung — und reagieren Sie auf meine Einwände.**
-   - نهارك سعيد. نخطّط معاً حفل وداع لزميلة. تقدّم بشكل منظّم: اقتراحات الموعد، المكان، الطعام، الهدية، وتوزيع المهام — وتفاعل مع اعتراضاتي.
-214. **Hallo! Erzählen Sie mir von einem Thema. Ich höre zu.**
-   - أهلاً! حدّثني عن موضوع. أنا أستمع.
-215. **Guten Tag! Erzählen Sie mir von Ihrem Lieblingsort in Ihrer Stadt. Wo ist das, und was macht man dort?**
-   - نهارك سعيد! حدّثني عن مكانك المفضل في مدينتك. أين هو، وماذا يفعل الناس هناك؟
-216. **Guten Tag. Heute präsentieren Sie ein Thema: Ihr Lieblingsort in Ihrer Stadt. Nutzen Sie die Punkte Ort, Anfahrt, Angebot, Grund und Tipp.**
-   - نهارك سعيد. اليوم تقدّم موضوعاً: مكانك المفضل في مدينتك. استخدم النقاط: المكان، الوصول، المعروض، السبب، ونصيحة.
-217. **Guten Tag. Ihre Präsentation: Ihr Lieblingsort in Ihrer Stadt. Strukturieren Sie frei: Ort, Anfahrt, Angebot, persönlicher Grund und ein Tipp für Besucher. Ich stelle danach Fragen.**
-   - نهارك سعيد. تقديمك: مكانك المفضل في مدينتك. نظّمه بحرية: المكان، الوصول، المعروض، سبب شخصي، ونصيحة للزوار. وسأسألك بعد ذلك.
-218. **Guten Tag. Bitte präsentieren Sie Ihr Thema „Ein Lieblingsort in meiner Stadt“ mit einer klaren Gliederung und begründeten Empfehlungen. Anschließend diskutieren wir Ihre Argumente.**
-   - نهارك سعيد. قدّم موضوعك «مكان مفضل في مدينتي» بتنظيم واضح وتوصيات مبرّرة. ثم نناقش حججك.
-219. **Hallo! Ich sage etwas, und Sie antworten. Einverstanden?**
-   - أهلاً! سأقول شيئاً وأنت تجيب. موافق؟
-220. **Guten Tag! Ich sage etwas über den Alltag in Deutschland, und Sie antworten mir: Einverstanden?**
-   - نهارك سعيد! سأقول شيئاً عن الحياة اليومية في ألمانيا وأنت تجيبني: موافق؟
-221. **Guten Tag. Übung: Ich sage eine Meinung, Sie reagieren — einverstanden, überrascht oder anderer Meinung? Begründen Sie kurz.**
-   - نهارك سعيد. تمرين: سأقول رأياً وأنت تتفاعل — موافق، متفاجئ، أم مختلف؟ برّر بإيجاز.
-222. **Guten Tag. Ich nenne eine Meinung zum Leben in Deutschland, und Sie reagieren: Sie sind einverstanden oder nicht, und Sie begründen Ihre Sicht mit Beispielen.**
-   - نهارك سعيد. سأذكر رأياً عن الحياة في ألمانيا وأنت تتفاعل: موافق أم غير موافق، وبرّر وجهة نظرك بأمثلة.
-223. **Guten Tag. Wir diskutieren: Ich vertrete eine These über das Leben in Deutschland, und Sie reagieren argumentativ — mit Zustimmung, Kritik und eigenen Beispielen.**
-   - نهارك سعيد. سنتناقش: سأطرح أطروحة عن الحياة في ألمانيا وأنت تتفاعل بحجج — بالموافقة والنقد وأمثلتك الخاصة.
+1. **Hallo! Wie heißt du?**
+   - أهلاً! ما اسمك؟
+2. **Hallo! Ich bin Frau Yilmaz. Wie heißt du?**
+   - أهلاً! أنا السيدة يلماز. ما اسمك؟
+3. **Hallo, ich wohne neu hier. Wie heißt du?**
+   - أهلاً، أنا أسكن هنا حديثاً. ما اسمك؟
+4. **Hallo! Ich bin neu in der Straße. Wie heißt du, und woher kommst du?**
+   - أهلاً! أنا جديد في الشارع. ما اسمك، ومن أين أنت؟
+5. **Hallo! Ich bin letzte Woche eingezogen. Wie heißt du, und wie gefällt dir die Nachbarschaft?**
+   - أهلاً! انتقلت للسكن هنا الأسبوع الماضي. ما اسمك، وكيف تعجبك الحي؟
+6. **Hallo! Was möchten Sie?**
+   - أهلاً! ماذا تريد؟
+7. **Hallo! Die Zeitung kostet zwei Euro. Möchten Sie eine?**
+   - أهلاً! الجريدة تكلف يوروين. هل تريد واحدة؟
+8. **Hallo! Die Zeitung kostet zwei Euro, wie viele möchten Sie?**
+   - أهلاً! الجريدة تكلف يوروين، كم واحدة تريد؟
+9. **Guten Tag! Die Zeitung kostet heute zwei Euro. Möchten Sie auch etwas anderes?**
+   - نهارك سعيد! الجريدة تكلف اليوم يوروين. هل تريد شيئاً آخر أيضاً؟
+10. **Guten Tag! Die Zeitung kostet heute zwei Euro, die Zeitschrift drei. Möchten Sie beides, oder zahlen Sie getrennt?**
+   - نهارك سعيد! الجريدة تكلف اليوم يوروين، والمجلة ثلاثة. هل تريد الاثنين، أم تدفع كل واحد على حدة؟
+11. **Hallo! Brauchen Sie Hilfe?**
+   - أهلاً! هل تحتاج إلى مساعدة؟
+12. **Guten Tag! Wie buchstabieren Sie Ihren Namen?**
+   - نهارك سعيد! كيف تتهجّى اسمك؟
+13. **Guten Tag! Wie schreiben Sie Ihren Nachnamen im Formular?**
+   - نهارك سعيد! كيف تكتب اسم عائلتك في الاستمارة؟
+14. **Guten Tag! Bitte füllen Sie dieses Formular aus. Wie schreiben Sie Ihren Nachnamen?**
+   - نهارك سعيد! من فضلك املأ هذه الاستمارة. كيف تكتب اسم عائلتك؟
+15. **Guten Tag! Das Formular ist fast fertig, es fehlen nur noch zwei Angaben. Wie schreiben Sie Ihren Nachnamen, und wo wohnen Sie?**
+   - نهارك سعيد! الاستمارة شبه جاهزة، ينقصها معلومتان فقط. كيف تكتب اسم عائلتك، وأين تسكن؟
+16. **Hallo! Ist das Ihr Koffer?**
+   - أهلاً! هل هذه حقيبتك؟
+17. **Guten Tag! Ihr Koffer ist nicht angekommen, wie sieht er aus?**
+   - نهارك سعيد! حقيبتك لم تصل، كيف تبدو؟
+18. **Guten Tag! Ihr Koffer ist leider nicht angekommen. Können Sie ihn mir beschreiben?**
+   - نهارك سعيد! حقيبتك لم تصل للأسف. هل يمكنك وصفها لي؟
+19. **Guten Tag! Ihr Koffer ist leider nicht angekommen, das tut mir leid. Können Sie ihn mir beschreiben, und haben Sie eine Quittung?**
+   - نهارك سعيد! حقيبتك لم تصل للأسف، أنا آسف. هل يمكنك وصفها لي، وهل لديك إيصال؟
+20. **Hallo! Wohin möchten Sie?**
+   - أهلاً! إلى أين تريد الذهاب؟
+21. **Hallo! Suchen Sie einen Zug?**
+   - أهلاً! هل تبحث عن قطار؟
+22. **Guten Tag! Haben Sie ein Ticket für den Zug nach Köln?**
+   - نهارك سعيد! هل لديك تذكرة للقطار إلى كولونيا؟
+23. **Guten Tag! Der Zug nach Köln fährt in zehn Minuten von Gleis drei. Haben Sie schon ein Ticket?**
+   - نهارك سعيد! القطار إلى كولونيا ينطلق بعد عشر دقائق من الرصيف ثلاثة. هل لديك تذكرة بالفعل؟
+24. **Guten Tag! Der Zug nach Köln fährt in zehn Minuten von Gleis drei. Haben Sie schon ein Ticket, oder müssen Sie noch eines kaufen?**
+   - نهارك سعيد! القطار إلى كولونيا ينطلق بعد عشر دقائق من الرصيف ثلاثة. هل لديك تذكرة بالفعل، أم يجب أن تشتري واحدة؟
+25. **Hallo! Möchten Sie sitzen?**
+   - أهلاً! هل تريد الجلوس؟
+26. **Hallo! Ist das Ihr Platz?**
+   - أهلاً! هل هذا مقعدك؟
+27. **Guten Tag! Ist das Ihr Platz am Fenster, Nummer zwölf?**
+   - نهارك سعيد! هل هذا مقعدك عند النافذة، رقم اثني عشر؟
+28. **Guten Tag! Ihr Platz ist Nummer zwölf, dort am Fenster. Möchten Sie lieber am Gang sitzen?**
+   - نهارك سعيد! مقعدك رقم اثني عشر، هناك عند النافذة. هل تفضّل الجلوس عند الممر؟
+29. **Guten Tag! Ihr Platz ist Nummer zwölf, dort am Fenster. Möchten Sie lieber am Gang sitzen, oder ist der Platz so in Ordnung?**
+   - نهارك سعيد! مقعدك رقم اثني عشر، هناك عند النافذة. هل تفضّل الجلوس عند الممر، أم المقعد مناسب هكذا؟
+30. **Hallo! Haben Sie eine Fahrkarte?**
+   - أهلاً! هل لديك تذكرة؟
+31. **Hallo! Eine Fahrkarte kostet drei Euro. Wohin möchten Sie fahren?**
+   - أهلاً! التذكرة تكلف ثلاثة يورو. إلى أين تريد السفر؟
+32. **Guten Tag! Eine Fahrkarte kostet drei Euro, wohin möchten Sie fahren?**
+   - نهارك سعيد! التذكرة تكلف ثلاثة يورو، إلى أين تريد السفر؟
+33. **Guten Tag! Die Fahrkarte für die Stadt kostet drei Euro. Fahren Sie nur kurz, oder den ganzen Tag?**
+   - نهارك سعيد! تذكرة المدينة تكلف ثلاثة يورو. هل تسافر مسافة قصيرة، أم اليوم كله؟
+34. **Guten Tag! Die Fahrkarte für die Stadt kostet drei Euro, ein Tagesticket sechs. Möchten Sie nur eine Fahrt, oder fahren Sie den ganzen Tag?**
+   - نهارك سعيد! تذكرة المدينة تكلف ثلاثة يورو، وتذكرة اليوم ستة. هل تريد رحلة واحدة، أم تسافر اليوم كله؟
+35. **Hallo! Haben Sie eine Tasche?**
+   - أهلاً! هل لديك حقيبة؟
+36. **Hallo! Die Tasche kostet zwanzig Cent. Möchten Sie eine?**
+   - أهلاً! الحقيبة تكلف عشرين سنتاً. هل تريد واحدة؟
+37. **Guten Tag! Die Tasche kostet zwanzig Cent, möchten Sie eine?**
+   - نهارك سعيد! الحقيبة تكلف عشرين سنتاً، هل تريد واحدة؟
+38. **Guten Tag! Die Tasche kostet zwanzig Cent. Haben Sie eine eigene Tasche, oder soll ich eine dazugeben?**
+   - نهارك سعيد! الحقيبة تكلف عشرين سنتاً. هل لديك حقيبة خاصة، أم أضيف واحدة؟
+39. **Guten Tag! Die Tasche kostet zwanzig Cent, wir haben auch größere für fünfzig. Möchten Sie eine kleine Tasche, oder haben Sie selbst eine?**
+   - نهارك سعيد! الحقيبة تكلف عشرين سنتاً، ولدينا أكبر بخمسين. هل تريد حقيبة صغيرة، أم لديك واحدة خاصة؟
+40. **Hallo! Möchten Sie Brot?**
+   - أهلاً! هل تريد خبزاً؟
+41. **Hallo! Das Brot kostet drei Euro. Möchten Sie es?**
+   - أهلاً! الخبز يكلف ثلاثة يورو. هل تريده؟
+42. **Guten Tag! Wie viele Brötchen möchten Sie, drei oder fünf?**
+   - نهارك سعيد! كم كعكة صغيرة تريد، ثلاث أم خمس؟
+43. **Guten Tag! Das Brot ist heute frisch. Möchten Sie es ganz, oder soll ich es schneiden?**
+   - نهارك سعيد! الخبز طازج اليوم. هل تريده كاملاً، أم أقطعه لك؟
+44. **Guten Tag! Das Brot ist heute frisch, die Brötchen kommen gerade aus dem Ofen. Möchten Sie das Brot ganz, oder soll ich es schneiden?**
+   - نهارك سعيد! الخبز طازج اليوم، والكعكات الصغيرة تخرج الآن من الفرن. هل تريد الخبز كاملاً، أم أقطعه لك؟
+45. **Hallo! Was möchten Sie trinken?**
+   - أهلاً! انتقلت للسكن هنا الأسبوع الماضي. ما اسمك، وكيف تعجبك الحي؟
+46. **Hallo! Möchten Sie Kaffee oder Tee?**
+   - أهلاً! هل تريد قهوة أم شاياً؟
+47. **Guten Tag! Wir haben Kaffee und Kuchen, was möchten Sie?**
+   - نهارك سعيد! لدينا قهوة وكعك، ماذا تريد؟
+48. **Guten Tag! Wir haben heute frischen Kuchen. Möchten Sie Kaffee dazu, oder lieber Tee?**
+   - نهارك سعيد! لدينا اليوم كعك طازج. هل تريد قهوة معه، أم شاياً؟
+49. **Guten Tag! Wir haben heute frischen Kuchen und eine neue Torte. Möchten Sie Kaffee dazu, oder probieren Sie lieber den Tee?**
+   - نهارك سعيد! لدينا اليوم كعك طازج وتورتة جديدة. هل تريد قهوة معه، أم تفضّل تجربة الشاي؟
+50. **Hallo! Möchten Sie bestellen?**
+   - أهلاً! هل تريد أن تطلب؟
+51. **Hallo! Hier ist die Speisekarte. Möchten Sie etwas trinken?**
+   - أهلاً! هذه قائمة الطعام. هل تريد أن تشرب شيئاً؟
+52. **Guten Tag! Hier ist die Speisekarte, haben Sie einen Wunsch?**
+   - نهارك سعيد! هذه قائمة الطعام، هل لديك طلب؟
+53. **Guten Tag! Hier ist die Speisekarte, das Tagesgericht ist vegetarisch. Möchten Sie etwas dazu trinken?**
+   - نهارك سعيد! هذه قائمة الطعام، وطبق اليوم نباتي. هل تريد شيئاً للشرب معه؟
+54. **Guten Tag! Hier ist die Speisekarte, das Tagesgericht ist vegetarisch. Möchten Sie etwas dazu trinken, oder haben Sie eine Frage zum Gericht?**
+   - نهارك سعيد! هذه قائمة الطعام، وطبق اليوم نباتي. هل تريد شيئاً للشرب معه، أم لديك سؤال عن الطبق؟
+55. **Hallo! Alles gut bei dir?**
+   - أهلاً! كل شيء بخير عندك؟
+56. **Hallo! Schön, dich zu sehen. Ist alles gut bei dir?**
+   - أهلاً! جميل أن أراك. هل كل شيء بخير عندك؟
+57. **Hallo, schön dich zu sehen. Was hast du heute gemacht?**
+   - أهلاً، جميل أن أراك. ماذا فعلت اليوم؟
+58. **Hallo! Schön, dich zu sehen, das ist ja lange her. Was hast du in letzter Zeit gemacht?**
+   - أهلاً! جميل أن أراك، لقد مضى وقت طويل. ماذا فعلت في الفترة الأخيرة؟
+59. **Hallo! Schön, dich zu sehen, das ist ja lange her. Was hast du zuletzt gemacht, und wie geht es deiner Familie?**
+   - أهلاً! جميل أن أراك، لقد مضى وقت طويل. ماذا فعلت مؤخراً، وكيف حال عائلتك؟
+60. **Hallo! Haben Sie eine Karte?**
+   - أهلاً! هل لديك بطاقة؟
+61. **Hallo! Haben Sie eine Benachrichtigung?**
+   - أهلاً! هل لديك إشعار؟
+62. **Guten Tag! Ihr Paket ist da, haben Sie eine Benachrichtigung?**
+   - نهارك سعيد! طردك وصل، هل لديك إشعار؟
+63. **Guten Tag! Ihr Paket ist angekommen. Haben Sie eine Benachrichtigung dabei, oder brauchen Sie Ihren Ausweis?**
+   - نهارك سعيد! طردك وصل. هل لديك إشعار معك، أم تحتاج بطاقة هويتك؟
+64. **Guten Tag! Ihr Paket ist angekommen, es ist ziemlich groß. Haben Sie eine Benachrichtigung dabei, oder soll ich mit Ihrem Ausweis nachsehen?**
+   - نهارك سعيد! طردك وصل، وهو كبير نوعاً ما. هل لديك إشعار معك، أم أنظر باسمك في البطاقة؟
+65. **Hallo! Guten Morgen. Alles gut bei dir?**
+   - أهلاً! صباح الخير. كل شيء بخير عندك؟
+66. **Hallo! Guten Morgen, hast du am Wochenende etwas gemacht?**
+   - أهلاً! صباح الخير، هل فعلت شيئاً جميلاً في عطلة الأسبوع؟
+67. **Guten Morgen! Wie war dein Wochenende, hast du etwas Schönes gemacht?**
+   - صباح الخير! كيف كانت عطلتك الأسبوعية، هل فعلت شيئاً جميلاً؟
+68. **Guten Morgen! Wir können später kurz Kaffee trinken. Wie war dein Wochenende, hattest du Zeit für deine Familie?**
+   - صباح الخير! يمكننا شرب قهوة سريعة لاحقاً. كيف كانت عطلتك الأسبوعية، هل كان لديك وقت لعائلتك؟
+69. **Hallo! Kaffee oder Tee?**
+   - أهلاً! قهوة أم شاي؟
+70. **Hallo! Der Kaffee ist fertig. Möchtest du einen?**
+   - أهلاً! القهوة جاهزة. هل تريد واحدة؟
+71. **Hallo! Der Kaffee ist fertig, möchtest du einen?**
+   - أهلاً! القهوة جاهزة، هل تريد واحدة؟
+72. **Hallo! Der Kaffee ist fertig, ich habe auch Tee. Möchtest du einen Kaffee mit Milch?**
+   - أهلاً! القهوة جاهزة، ولديّ شاي أيضاً. هل تريد قهوة بالحليب؟
+73. **Hallo! Der Kaffee ist fertig, ich habe auch Tee und Kekse. Möchtest du einen Kaffee mit Milch, oder lieber einen Tee?**
+   - أهلاً! القهوة جاهزة، ولديّ شاي وكعك أيضاً. هل تريد قهوة بالحليب، أم تفضّل الشاي؟
+74. **Hallo! Was gibt es heute?**
+   - أهلاً! ماذا يوجد اليوم؟
+75. **Hallo! Heute gibt es Suppe. Möchtest du auch etwas?**
+   - أهلاً! اليوم يوجد حساء. هل تريد شيئاً أيضاً؟
+76. **Hallo! Heute gibt es Suppe oder Nudeln, was möchtest du?**
+   - أهلاً! اليوم يوجد حساء أو معكرونة، ماذا تريد؟
+77. **Hallo! Heute gibt es Suppe oder Nudeln mit Gemüse. Möchtest du auch einen Nachtisch?**
+   - أهلاً! اليوم يوجد حساء أو معكرونة بالخضار. هل تريد حلوى أيضاً؟
+78. **Hallo! Heute gibt es Suppe oder Nudeln mit Gemüse, der Nachtisch ist kostenlos. Möchtest du eine Suppe, oder lieber Nudeln?**
+   - أهلاً! اليوم يوجد حساء أو معكرونة بالخضار، والحلوى مجانية. هل تريد حساءً، أم تفضّل المعكرونة؟
+79. **Hallo! Sprichst du Deutsch?**
+   - أهلاً! هل تتحدث الألمانية؟
+80. **Hallo! Wir sprechen hier Deutsch. Wie heißt du?**
+   - أهلاً! نحن نتحدث الألمانية هنا. ما اسمك؟
+81. **Hallo! Hier sprechen wir nur Deutsch, woher kommst du?**
+   - أهلاً! نحن نتحدث الألمانية فقط هنا، من أين أنت؟
+82. **Hallo! Hier sprechen wir nur Deutsch, das ist am Anfang schwer. Woher kommst du, und was machst du in Deutschland?**
+   - أهلاً! نحن نتحدث الألمانية فقط هنا، وهذا صعب في البداية. من أين أنت، وماذا تعمل في ألمانيا؟
+83. **Hallo! Hier sprechen wir nur Deutsch, auch wenn es am Anfang schwer ist. Woher kommst du, und was möchtest du hier lernen?**
+   - أهلاً! نحن نتحدث الألمانية فقط هنا، حتى لو كان ذلك صعباً في البداية. من أين أنت، وماذا تريد أن تتعلم هنا؟
+84. **Hallo! Suchen Sie ein Handy?**
+   - أهلاً! هل تبحث عن هاتف؟
+85. **Guten Tag! Wir haben Prepaid und Vertrag. Was möchten Sie?**
+   - نهارك سعيد! لدينا الدفع المسبق والعقد. ماذا تريد؟
+86. **Guten Tag! Wir haben Prepaid und Vertrag, was möchten Sie?**
+   - نهارك سعيد! لدينا الدفع المسبق والعقد، ماذا تريد؟
+87. **Guten Tag! Wir haben Prepaid und Verträge mit monatlicher Zahlung. Möchten Sie einen Vertrag, oder lieber Prepaid?**
+   - نهارك سعيد! لدينا الدفع المسبق وعقود بدفع شهري. هل تريد عقداً، أم تفضّل الدفع المسبق؟
+88. **Guten Tag! Wir haben Prepaid und Verträge mit monatlicher Zahlung. Möchten Sie einen Vertrag mit Datenvolumen, oder lieber Prepaid ohne Bindung?**
+   - نهارك سعيد! لدينا الدفع المسبق وعقود بدفع شهري. هل تريد عقداً مع باقة إنترنت، أم تفضّل الدفع المسبق بدون التزام؟
+89. **Hallo! Kommen Sie zur Besichtigung?**
+   - أهلاً! هل أتيت للمعاينة؟
+90. **Hallo! Die Wohnung hat zwei Zimmer. Möchten Sie sie sehen?**
+   - أهلاً! الشقة فيها غرفتان. هل تريد رؤيتها؟
+91. **Guten Tag! Die Wohnung hat zwei Zimmer, wann können Sie einziehen?**
+   - نهارك سعيد! الشقة فيها غرفتان، متى يمكنك الانتقال؟
+92. **Guten Tag! Die Wohnung hat zwei Zimmer, eine Küche und einen Balkon. Wann möchten Sie einziehen?**
+   - نهارك سعيد! الشقة فيها غرفتان ومطبخ وشرفة. متى تريد الانتقال؟
+93. **Guten Tag! Die Wohnung hat zwei Zimmer, eine Küche und einen Balkon, die Miete ist warm. Wann möchten Sie einziehen, und wie viele Personen ziehen mit?**
+   - نهارك سعيد! الشقة فيها غرفتان ومطبخ وشرفة، والإيجار شامل. متى تريد الانتقال، وكم شخصاً سينتقل معك؟
+94. **Hallo! Passt der Termin?**
+   - أهلاً! هل الموعد مناسب؟
+95. **Guten Tag! Die Wohnung ist leer. Wann möchten Sie einziehen?**
+   - نهارك سعيد! الشقة فارغة. متى تريد الانتقال؟
+96. **Guten Tag! Die Küche bleibt hier, sehen Sie den Vertrag?**
+   - نهارك سعيد! المطبخ يبقى هنا، هل ترى العقد؟
+97. **Guten Tag! Die Küche bleibt in der Wohnung, der Keller auch. Wann möchten Sie den Vertrag unterschreiben?**
+   - نهارك سعيد! المطبخ يبقى في الشقة، والقبو أيضاً. متى تريد توقيع العقد؟
+98. **Guten Tag! Die Küche bleibt in der Wohnung, der Keller auch. Möchten Sie den Vertrag heute unterschreiben, oder erst nächste Woche?**
+   - نهارك سعيد! المطبخ يبقى في الشقة، والقبو أيضاً. هل تريد توقيع العقد اليوم، أم الأسبوع القادم؟
+99. **Hallo! Haben Sie den Vertrag?**
+   - أهلاً! هل لديك العقد؟
+100. **Guten Tag! Hier ist der Vertrag. Haben Sie Fragen?**
+   - نهارك سعيد! هذا هو العقد. هل لديك أسئلة؟
+101. **Guten Tag! Hier ist der Vertrag, haben Sie Fragen dazu?**
+   - نهارك سعيد! هذا هو العقد، هل لديك أسئلة عنه؟
+102. **Guten Tag! Hier ist der Vertrag, bitte lesen Sie ihn in Ruhe. Haben Sie Fragen zur Miete?**
+   - نهارك سعيد! هذا هو العقد، من فضلك اقرأه بهدوء. هل لديك أسئلة عن الإيجار؟
+103. **Guten Tag! Hier ist der Vertrag, bitte lesen Sie ihn in Ruhe. Haben Sie Fragen zur Miete, oder sollen wir die Wohnung gemeinsam prüfen?**
+   - نهارك سعيد! هذا هو العقد، من فضلك اقرأه بهدوء. هل لديك أسئلة عن الإيجار، أم نفحص الشقة معاً؟
+104. **Hallo! Können Sie kommen?**
+   - أهلاً! هل يمكنكم أن تأتوا؟
+105. **Guten Tag! Die Heizung ist kaputt. Können Sie heute kommen?**
+   - نهارك سعيد! التدفئة معطلة. هل يمكنكم أن تأتوا اليوم؟
+106. **Guten Tag! Die Heizung ist seit gestern kaputt, können Sie kommen?**
+   - نهارك سعيد! التدفئة معطلة منذ أمس، هل يمكنكم أن تأتوا؟
+107. **Guten Tag! Die Heizung ist seit gestern kaputt, es ist sehr kalt. Können Sie heute noch kommen?**
+   - نهارك سعيد! التدفئة معطلة منذ أمس، والجو بارد جداً. هل يمكنكم أن تأتوا اليوم؟
+108. **Guten Tag! Die Heizung ist seit gestern kaputt, es ist sehr kalt in der Wohnung. Können Sie heute noch kommen, oder soll ich einen Handwerker rufen?**
+   - نهارك سعيد! التدفئة معطلة منذ أمس، والجو بارد جداً في الشقة. هل يمكنكم أن تأتوا اليوم، أم أتصل بحرفي؟
+109. **Hallo! Wie kann ich helfen?**
+   - أهلاً! كيف يمكنني المساعدة؟
+110. **Guten Tag! Haben Sie Ihren Ausweis und den Mietvertrag?**
+   - نهارك سعيد! هل لديك بطاقة هويتك وعقد الإيجار؟
+111. **Guten Tag! Für die Anmeldung brauche ich Ihren Ausweis, haben Sie ihn?**
+   - نهارك سعيد! للتسجيل أحتاج بطاقة هويتك، هل هي معك؟
+112. **Guten Tag! Für die Anmeldung brauche ich Ihren Ausweis und den Mietvertrag. Haben Sie beides dabei?**
+   - نهارك سعيد! للتسجيل أحتاج بطاقة هويتك وعقد الإيجار. هل لديك الاثنان معك؟
+113. **Guten Tag! Für die Anmeldung brauche ich Ihren Ausweis und den Mietvertrag. Haben Sie beides dabei, oder wohnen Sie noch bei jemandem?**
+   - نهارك سعيد! للتسجيل أحتاج بطاقة هويتك وعقد الإيجار. هل لديك الاثنان معك، أم تسكن حالياً عند أحد؟
+114. **Hallo! Haben Sie einen Termin?**
+   - أهلاً! هل لديكم موعد؟
+115. **Guten Tag! Wir haben Montag frei. Wann möchten Sie kommen?**
+   - نهارك سعيد! لدينا يوم الاثنين موعد متاح. متى تريد أن تأتي؟
+116. **Guten Tag! Diese Woche ist nur Montag frei, wann möchten Sie kommen?**
+   - نهارك سعيد! هذا الأسبوع يوم الاثنين فقط متاح، متى تريد أن تأتي؟
+117. **Guten Tag! Diese Woche ist nur Montag frei, nächste Woche haben wir mehr Termine. Wann möchten Sie kommen?**
+   - نهارك سعيد! هذا الأسبوع يوم الاثنين فقط متاح، والأسبوع القادم لدينا مواعيد أكثر. متى تريد أن تأتي؟
+118. **Guten Tag! Diese Woche ist nur Montag frei, nächste Woche haben wir mehr Termine. Wann möchten Sie kommen, und brauchen Sie einen Dolmetscher?**
+   - نهارك سعيد! هذا الأسبوع يوم الاثنين فقط متاح، والأسبوع القادم لدينا مواعيد أكثر. متى تريد أن تأتي، وهل تحتاج مترجماً؟
+119. **Hallo! Möchten Sie ein Konto?**
+   - أهلاً! هل تريد حساباً؟
+120. **Guten Tag! Möchten Sie ein Konto eröffnen?**
+   - نهارك سعيد! هل تريد فتح حساب؟
+121. **Guten Tag! Für ein Konto brauchen wir Ihren Ausweis, haben Sie ihn?**
+   - نهارك سعيد! لفتح حساب نحتاج بطاقة هويتك، هل هي معك؟
+122. **Guten Tag! Für ein Konto brauchen wir Ihren Ausweis und eine Anmeldung. Haben Sie beides dabei?**
+   - نهارك سعيد! لفتح حساب نحتاج بطاقة هويتك وإثبات السكن. هل لديك الاثنان معك؟
+123. **Guten Tag! Für ein Konto brauchen wir Ihren Ausweis und eine Anmeldung. Haben Sie beides dabei, oder brauchen Sie zuerst einen Termin?**
+   - نهارك سعيد! لفتح حساب نحتاج بطاقة هويتك وإثبات السكن. هل لديك الاثنان معك، أم تحتاج أولاً إلى موعد؟
+124. **Hallo! Haben Sie Ihren Pass?**
+   - أهلاً! هل لديك جواز سفرك؟
+125. **Guten Tag! Haben Sie Ihren Pass dabei?**
+   - نهارك سعيد! هل جواز سفرك معك؟
+126. **Guten Tag! Ihr Pass ist abgelaufen, haben Sie einen neuen beantragt?**
+   - نهارك سعيد! جواز سفرك منتهي، هل طلبت واحداً جديداً؟
+127. **Guten Tag! Ihr Pass ist abgelaufen, das sehen wir hier. Haben Sie schon einen neuen beantragt?**
+   - نهارك سعيد! جواز سفرك منتهي، وهذا ظاهر هنا. هل طلبت واحداً جديداً بالفعل؟
+128. **Guten Tag! Ihr Pass ist abgelaufen, das sehen wir hier im System. Haben Sie schon einen neuen beantragt, oder brauchen Sie zuerst einen Termin?**
+   - نهارك سعيد! جواز سفرك منتهي، وهذا ظاهر هنا في النظام. هل طلبت واحداً جديداً بالفعل، أم تحتاج أولاً إلى موعد؟
+129. **Hallo! Suchen Sie etwas?**
+   - أهلاً! هل تبحث عن شيء؟
+130. **Guten Tag! Was haben Sie verloren?**
+   - نهارك سعيد! ماذا فقدت؟
+131. **Guten Tag! Wir haben viele Taschen, können Sie Ihre beschreiben?**
+   - نهارك سعيد! لدينا حقائب كثيرة، هل يمكنك وصف حقيبتك؟
+132. **Guten Tag! Wir haben heute viele Taschen bekommen. Können Sie Ihre Tasche genauer beschreiben?**
+   - نهارك سعيد! وصلتنا اليوم حقائب كثيرة. هل يمكنك وصف حقيبتك بدقة؟
+133. **Guten Tag! Wir haben heute viele Taschen bekommen. Können Sie Ihre Tasche genauer beschreiben, und wann haben Sie sie verloren?**
+   - نهارك سعيد! وصلتنا اليوم حقائب كثيرة. هل يمكنك وصف حقيبتك بدقة، ومتى فقدتها؟
+134. **Guten Tag! Haben Sie einen Termin bei uns?**
+   - نهارك سعيد! هل لديك موعد عندنا؟
+135. **Guten Tag! Ihr Termin ist um zehn, haben Sie Unterlagen?**
+   - نهارك سعيد! لديك موعد في الساعة العاشرة، هل مستنداتك معك؟
+136. **Guten Tag! Sie haben einen Termin um zehn Uhr. Haben Sie Ihre Unterlagen dabei, oder brauchen Sie noch Hilfe?**
+   - نهارك سعيد! لديك موعد في الساعة العاشرة. هل مستنداتك معك، أم تحتاج مساعدة؟
+137. **Guten Tag! Sie haben einen Termin um zehn Uhr. Haben Sie Ihre Unterlagen dabei, oder brauchen Sie zuerst Hilfe beim Ausfüllen?**
+   - نهارك سعيد! لديك موعد في الساعة العاشرة. هل مستنداتك معك، أم تحتاج أولاً مساعدة في التعبئة؟
+138. **Hallo! Möchten Sie einen Kurs?**
+   - أهلاً! هل تريد دورة؟
+139. **Guten Tag! Möchten Sie einen Deutschkurs besuchen?**
+   - نهارك سعيد! هل تريد حضور دورة ألمانية؟
+140. **Guten Tag! Wir haben Kurse am Morgen, wann können Sie kommen?**
+   - نهارك سعيد! لدينا دورات صباحية، متى يمكنك أن تأتي؟
+141. **Guten Tag! Wir haben Kurse am Morgen und am Abend. Wann können Sie kommen, und haben Sie schon Deutsch gelernt?**
+   - نهارك سعيد! لدينا دورات صباحية ومسائية. متى يمكنك أن تأتي، وهل تعلمت الألمانية من قبل؟
+142. **Guten Tag! Wir haben Kurse am Morgen und am Abend, der Kurs dauert mehrere Wochen. Wann können Sie kommen, und haben Sie schon einen Sprachkurs besucht?**
+   - نهارك سعيد! لدينا دورات صباحية ومسائية، والدورة تستمر عدة أسابيع. متى يمكنك أن تأتي، وهل حضرت دورة لغة من قبل؟
+143. **Hallo! Was ist Ihr Anliegen?**
+   - أهلاً! ما طلبك؟
+144. **Guten Tag! Haben Sie einen Termin?**
+   - نهارك سعيد! هل لديك موعد؟
+145. **Guten Tag! Ihr Termin ist um neun, haben Sie Ihren Pass?**
+   - نهارك سعيد! موعدك في التاسعة، هل جواز سفرك معك؟
+146. **Guten Tag! Ihr Termin ist um neun Uhr. Haben Sie Ihren Pass und Ihre Unterlagen dabei?**
+   - نهارك سعيد! موعدك في التاسعة. هل جواز سفرك ومستنداتك معك؟
+147. **Guten Tag! Ihr Termin ist um neun Uhr. Haben Sie Ihren Pass und Ihre Unterlagen dabei, oder fehlt noch etwas?**
+   - نهارك سعيد! موعدك في التاسعة. هل جواز سفرك ومستنداتك معك، أم ينقص شيء؟
+148. **Hallo! Möchten Sie sich anmelden?**
+   - أهلاً! هل تريد التسجيل؟
+149. **Guten Tag! Möchten Sie sich für die Prüfung anmelden?**
+   - نهارك سعيد! هل تريد التسجيل في الامتحان؟
+150. **Guten Tag! Die Prüfung ist nächsten Monat, haben Sie Ihren Ausweis?**
+   - نهارك سعيد! الامتحان الشهر القادم، هل بطاقة هويتك معك؟
+151. **Guten Tag! Die Prüfung ist nächsten Monat, die Anmeldung ist heute. Möchten Sie sich anmelden?**
+   - نهارك سعيد! الامتحان الشهر القادم، والتسجيل اليوم. هل تريد التسجيل؟
+152. **Guten Tag! Die Prüfung ist nächsten Monat, die Anmeldung ist heute. Möchten Sie sich anmelden, oder haben Sie noch Fragen zur Prüfung?**
+   - نهارك سعيد! الامتحان الشهر القادم، والتسجيل اليوم. هل تريد التسجيل، أم لديك أسئلة عن الامتحان؟
+153. **Hallo! Sind Sie neu hier?**
+   - أهلاً! هل أنت جديد هنا؟
+154. **Guten Tag! Haben Sie einen Arbeitsvertrag?**
+   - نهارك سعيد! هل لديك عقد عمل؟
+155. **Guten Tag! Für die Versicherung brauche ich Ihren Ausweis, haben Sie ihn?**
+   - نهارك سعيد! للتأمين أحتاج بطاقة هويتك، هل هي معك؟
+156. **Guten Tag! Für die Versicherung brauche ich Ihren Ausweis und den Arbeitsvertrag. Haben Sie beides dabei?**
+   - نهارك سعيد! للتأمين أحتاج بطاقة هويتك وعقد العمل. هل لديك الاثنان معك؟
+157. **Guten Tag! Für die Versicherung brauche ich Ihren Ausweis und den Arbeitsvertrag. Haben Sie beides dabei, oder sind Sie gerade arbeitslos?**
+   - نهارك سعيد! للتأمين أحتاج بطاقة هويتك وعقد العمل. هل لديك الاثنان معك، أم أنت حالياً بدون عمل؟
+158. **Hallo! Was fehlt Ihnen?**
+   - أهلاً! ماذا يؤلمك؟
+159. **Guten Tag! Was fehlt Ihnen?**
+   - نهارك سعيد! ما الذي يؤلمك؟
+160. **Guten Tag! Was fehlt Ihnen, seit wann ist das so?**
+   - نهارك سعيد! ما الذي يؤلمك، ومنذ متى؟
+161. **Guten Tag! Was fehlt Ihnen, und seit wann haben Sie diese Beschwerden?**
+   - نهارك سعيد! ما الذي يؤلمك، ومنذ متى تعاني من هذه الأعراض؟
+162. **Guten Tag! Seit wann haben Sie diese Beschwerden, und nehmen Sie Medikamente?**
+   - نهارك سعيد! منذ متى تعاني من هذه الأعراض، وهل تتناول أدوية؟
+163. **Hallo! Haben Sie ein Rezept?**
+   - أهلاً! هل لديكم وصفة طبية؟
+164. **Guten Tag! Wo haben Sie Schmerzen?**
+   - نهارك سعيد! أين تشعر بالألم؟
+165. **Guten Tag! Sie brauchen ein Rezept, haben Sie Tabletten genommen?**
+   - نهارك سعيد! تحتاج وصفة طبية، هل تناولت حبوباً؟
+166. **Guten Tag! Sie brauchen ein Rezept für die Tabletten. Haben Sie die Tabletten schon genommen?**
+   - نهارك سعيد! تحتاج وصفة طبية للحبوب. هل تناولت الحبوب بالفعل؟
+167. **Guten Tag! Sie brauchen ein Rezept für die Tabletten. Haben Sie die Tabletten schon genommen, oder sind Sie noch ohne Medikamente?**
+   - نهارك سعيد! تحتاج وصفة طبية للحبوب. هل تناولت الحبوب بالفعل، أم أنت بدون دواء حتى الآن؟
+168. **Hallo! Was brauchen Sie?**
+   - أهلاً! ماذا تحتاج؟
+169. **Guten Tag! Haben Sie ein Rezept?**
+   - نهارك سعيد! هل لديك وصفة طبية؟
+170. **Guten Tag! Ohne Rezept haben wir nur Tabletten, möchten Sie diese?**
+   - نهارك سعيد! بدون وصفة لدينا حبوب فقط، هل تريدها؟
+171. **Guten Tag! Ohne Rezept haben wir nur Tabletten, kein Antibiotikum. Möchten Sie die Tabletten nehmen?**
+   - نهارك سعيد! بدون وصفة لدينا حبوب فقط، وليس مضاداً حيوياً. هل تريد أخذ الحبوب؟
+172. **Guten Tag! Ohne Rezept haben wir nur Tabletten, kein Antibiotikum. Möchten Sie die Tabletten nehmen, oder fragen Sie zuerst Ihre Ärztin?**
+   - نهارك سعيد! بدون وصفة لدينا حبوب فقط، وليس مضاداً حيوياً. هل تريد أخذ الحبوب، أم تسأل طبيبتك أولاً؟
+173. **Guten Tag! Wo tut es weh?**
+   - نهارك سعيد! أين يؤلمك؟
+174. **Guten Tag! Der Zahn ist hinten rechts, haben Sie Schmerzen?**
+   - نهارك سعيد! السنّ في الخلف على اليمين، هل تشعر بالألم؟
+175. **Guten Tag! Der Zahn ist hinten rechts, ich sehe eine kleine Stelle. Haben Sie Schmerzen?**
+   - نهارك سعيد! السنّ في الخلف على اليمين، وأرى بقعة صغيرة. هل تشعر بالألم؟
+176. **Guten Tag! Der Zahn ist hinten rechts, ich sehe eine kleine Stelle. Haben Sie starke Schmerzen, oder nur beim Essen?**
+   - نهارك سعيد! السنّ في الخلف على اليمين، وأرى بقعة صغيرة. هل الألم شديد، أم فقط عند الأكل؟
+177. **Hallo! Wann haben Sie Zeit?**
+   - أهلاً! متى لديكم وقت؟
+178. **Guten Tag! Was kann ich für Sie tun?**
+   - أهلاً! الخبز يكلف ثلاثة يورو. هل تريده؟
+179. **Guten Tag! Morgen früh ist ein Termin frei, passt Ihnen das?**
+   - نهارك سعيد! غداً صباحاً يوجد موعد متاح، هل يناسبك؟
+180. **Guten Tag! Morgen früh ist ein Termin frei, oder am Donnerstag um drei. Was passt Ihnen besser?**
+   - نهارك سعيد! غداً صباحاً يوجد موعد متاح، أو الخميس الساعة الثالثة. ما يناسبك أكثر؟
+181. **Guten Tag! Morgen früh ist ein Termin frei, oder am Donnerstag um drei. Was passt Ihnen besser, und wie ist Ihr Name?**
+   - نهارك سعيد! غداً صباحاً يوجد موعد متاح، أو الخميس الساعة الثالثة. ما يناسبك أكثر، وما اسمك؟
+182. **Hallo! Was ist passiert?**
+   - أهلاً! ماذا حدث؟
+183. **Notruf 112. Was ist passiert?**
+   - النجدة 112. ماذا حدث؟
+184. **Notruf 112. Wo genau sind Sie, in welcher Straße?**
+   - النجدة 112. أين أنت بالضبط، في أي شارع؟
+185. **Notruf 112. Bitte bleiben Sie ruhig. Wo sind Sie, und was ist passiert?**
+   - النجدة 112. من فضلك ابقَ هادئاً. أين أنت، وماذا حدث؟
+186. **Notruf 112. Bitte bleiben Sie ruhig und sagen Sie mir, wo Sie sind. Was ist passiert, und ist jemand verletzt?**
+   - النجدة 112. من فضلك ابقَ هادئاً وأخبرني أين أنت. ماذا حدث، وهل أحد مصاب؟
+187. **Hallo! Was soll ich tun?**
+   - أهلاً! ماذا أفعل؟
+188. **Guten Tag! Mir ist nicht gut. Können Sie helfen?**
+   - نهارك سعيد! أنا لست بخير. هل يمكنكم المساعدة؟
+189. **Guten Tag! Ich fühle mich nicht gut, was soll ich tun?**
+   - نهارك سعيد! أنا لا أشعر أنني بحال جيدة، ماذا أفعل؟
+190. **Guten Tag! Ich fühle mich seit gestern nicht gut, mir ist schwindelig. Was soll ich jetzt tun?**
+   - نهارك سعيد! أنا لا أشعر أنني بحال جيدة منذ أمس، وأشعر بدوار. ماذا أفعل الآن؟
+191. **Guten Tag! Ich fühle mich seit gestern nicht gut, mir ist schwindelig und ich habe Kopfschmerzen. Was soll ich jetzt tun, und brauche ich ein Medikament?**
+   - نهارك سعيد! أنا لا أشعر أنني بحال جيدة منذ أمس، وأشعر بدوار وصداع. ماذا أفعل الآن، وهل أحتاج دواءً؟
+192. **Hallo! Ist der Patient stabil?**
+   - أهلاً! هل المريض مستقر؟
+193. **Guten Tag! Der Patient ist stabil. Haben Sie Fragen?**
+   - نهارك سعيد! المريض مستقر. هل لديك أسئلة؟
+194. **Guten Tag! Der Patient ist stabil und schläft, haben Sie Fragen?**
+   - نهارك سعيد! المريض مستقر وينام، هل لديك أسئلة؟
+195. **Guten Tag! Der Patient ist stabil, er schläft seit einer Stunde. Haben Sie Fragen zur Übergabe?**
+   - نهارك سعيد! المريض مستقر، وهو نائم منذ ساعة. هل لديك أسئلة عن التسليم؟
+196. **Guten Tag! Der Patient ist stabil, er schläft seit einer Stunde. Haben Sie Fragen zur Übergabe, oder möchten Sie die Werte sehen?**
+   - نهارك سعيد! المريض مستقر، وهو نائم منذ ساعة. هل لديك أسئلة عن التسليم، أم تريد رؤية القيم؟
+197. **Hallo! Wie heißt Ihr Kind?**
+   - أهلاً! ما اسم طفلكم؟
+198. **Guten Tag! Ihr Kind ist heute fröhlich. Haben Sie Zeit?**
+   - نهارك سعيد! طفلكم سعيد اليوم. هل لديكم وقت؟
+199. **Guten Tag! Ihr Kind spielt gern mit anderen, haben Sie Fragen?**
+   - نهارك سعيد! طفلكم يحب اللعب مع الآخرين، هل لديكم أسئلة؟
+200. **Guten Tag! Ihr Kind spielt gern mit anderen, es spricht schon viel. Haben Sie Fragen dazu?**
+   - نهارك سعيد! طفلكم يحب اللعب مع الآخرين، ويتحدث كثيراً بالفعل. هل لديكم أسئلة؟
+201. **Guten Tag! Ihr Kind spielt gern mit anderen, es spricht schon viel. Haben Sie Fragen dazu, oder möchten Sie etwas besprechen?**
+   - نهارك سعيد! طفلكم يحب اللعب مع الآخرين، ويتحدث كثيراً بالفعل. هل لديكم أسئلة، أم تريدون مناقشة شيء؟
+202. **Hallo! Erzählen Sie kurz von sich?**
+   - أهلاً! حدّثني عن نفسك باختصار؟
+203. **Guten Tag! Was machen Sie beruflich?**
+   - نهارك سعيد! ماذا تعمل؟
+204. **Guten Tag! Sie haben Erfahrung, was suchen Sie hier?**
+   - نهارك سعيد! لديك خبرة، ماذا تبحث عنه هنا؟
+205. **Guten Tag! Sie haben schon Erfahrung in diesem Beruf. Warum möchten Sie zu uns kommen?**
+   - نهارك سعيد! لديك خبرة بالفعل في هذه المهنة. لماذا تريد أن تأتي إلينا؟
+206. **Guten Tag! Sie haben schon Erfahrung in diesem Beruf, das sehe ich im Lebenslauf. Warum möchten Sie zu uns kommen, und was erwarten Sie von der Stelle?**
+   - نهارك سعيد! لديك خبرة بالفعل في هذه المهنة، وهذا واضح في سيرتك الذاتية. لماذا تريد أن تأتي إلينا، وماذا تتوقع من الوظيفة؟
+207. **Hallo! Kennen Sie schon alle?**
+   - أهلاً! هل تعرف الجميع بالفعل؟
+208. **Hallo! Ich zeige Ihnen Ihren Platz. Haben Sie Fragen?**
+   - أهلاً! سأريك مكانك. هل لديك أسئلة؟
+209. **Guten Tag! Das ist Ihr Platz, haben Sie Fragen?**
+   - نهارك سعيد! هذا مكانك، هل لديك أسئلة؟
+210. **Guten Tag! Das ist Ihr Platz, hier arbeitet unser Team. Haben Sie Fragen zum Ablauf?**
+   - نهارك سعيد! هذا مكانك، وهنا يعمل فريقنا. هل لديك أسئلة عن سير العمل؟
+211. **Guten Tag! Das ist Ihr Platz, hier arbeitet unser Team. Haben Sie Fragen zum Ablauf, oder soll ich Ihnen alles zeigen?**
+   - نهارك سعيد! هذا مكانك، وهنا يعمل فريقنا. هل لديك أسئلة عن سير العمل، أم أريك كل شيء؟
+212. **Hallo! Haben Sie kurz Zeit?**
+   - أهلاً! هل لديك وقت قصير؟
+213. **Guten Tag! Haben Sie kurz Zeit für ein Gespräch?**
+   - نهارك سعيد! هل لديك وقت قصير لحديث؟
+214. **Guten Tag! Ich möchte über die Aufgabe sprechen, wann passt es?**
+   - نهارك سعيد! أريد أن أتحدث عن المهمة، متى يناسبك؟
+215. **Guten Tag! Ich möchte über die Aufgabe sprechen, sie ist diese Woche wichtig. Wann passt es Ihnen?**
+   - نهارك سعيد! أريد أن أتحدث عن المهمة، فهي مهمة هذا الأسبوع. متى يناسبك؟
+216. **Guten Tag! Ich möchte über die Aufgabe sprechen, sie ist diese Woche wichtig. Wann passt es Ihnen, heute oder morgen?**
+   - نهارك سعيد! أريد أن أتحدث عن المهمة، فهي مهمة هذا الأسبوع. متى يناسبك، اليوم أم غداً؟
+217. **Hallo! Was machen Sie heute?**
+   - أهلاً! ماذا تفعل اليوم؟
+218. **Guten Tag! Was machen Sie heute im Team?**
+   - نهارك سعيد! ماذا تفعل اليوم في الفريق؟
+219. **Guten Tag! Das Standup beginnt, was machen Sie heute?**
+   - نهارك سعيد! الاجتماع القصير يبدأ، ماذا تفعل اليوم؟
+220. **Guten Tag! Das Standup beginnt jetzt, jeder sagt kurz seine Aufgabe. Was machen Sie heute?**
+   - نهارك سعيد! الاجتماع القصير يبدأ الآن، وكل واحد يذكر مهمته باختصار. ماذا تفعل اليوم؟
+221. **Guten Tag! Das Standup beginnt jetzt, jeder sagt kurz seine Aufgabe. Was machen Sie heute, und gibt es ein Problem?**
+   - نهارك سعيد! الاجتماع القصير يبدأ الآن، وكل واحد يذكر مهمته باختصار. ماذا تفعل اليوم، وهل هناك مشكلة؟
+222. **Hallo! Was ist das Problem?**
+   - أهلاً! ما المشكلة؟
+223. **Guten Tag! Was funktioniert nicht bei Ihnen?**
+   - نهارك سعيد! ما الذي لا يعمل عندك؟
+224. **Guten Tag! Ich sehe Ihr Ticket, was funktioniert nicht?**
+   - نهارك سعيد! أرى طلبك، ما الذي لا يعمل؟
+225. **Guten Tag! Ich sehe Ihr Ticket, es ist heute eingegangen. Was funktioniert nicht genau?**
+   - نهارك سعيد! أرى طلبك، وقد وصل اليوم. ما الذي لا يعمل بالضبط؟
+226. **Guten Tag! Ich sehe Ihr Ticket, es ist heute eingegangen. Was funktioniert nicht genau, und seit wann?**
+   - نهارك سعيد! أرى طلبك، وقد وصل اليوم. ما الذي لا يعمل بالضبط، ومنذ متى؟
+227. **Hallo! Warum möchten Sie hier arbeiten?**
+   - أهلاً! لماذا تريد العمل هنا؟
+228. **Guten Tag! Haben Sie schon in der Pflege gearbeitet?**
+   - نهارك سعيد! هل عملت في مجال الرعاية من قبل؟
+229. **Guten Tag! Sie haben Pflegeerfahrung, warum möchten Sie zu uns?**
+   - نهارك سعيد! لديك خبرة في الرعاية، لماذا تريد القدوم إلينا؟
+230. **Guten Tag! Sie haben schon in der Pflege gearbeitet, das passt gut. Warum möchten Sie zu uns kommen?**
+   - نهارك سعيد! عملت في مجال الرعاية من قبل، وهذا مناسب جداً. لماذا تريد القدوم إلينا؟
+231. **Guten Tag! Sie haben schon in der Pflege gearbeitet, das passt gut zu uns. Warum möchten Sie zu uns, und welche Schicht passt Ihnen?**
+   - نهارك سعيد! عملت في مجال الرعاية من قبل، وهذا يناسبنا تماماً. لماذا تريد القدوم إلينا، وأي فترة عمل تناسبك؟
+232. **Hallo! Wo arbeiten Sie?**
+   - أهلاً! أين تعمل؟
+233. **Guten Tag! In welcher Klinik haben Sie gearbeitet?**
+   - نهارك سعيد! في أي مستشفى عملت؟
+234. **Guten Tag! Sie haben in einer Klinik gearbeitet, welche Abteilung war das?**
+   - نهارك سعيد! عملت في مستشفى، أي قسم كان ذلك؟
+235. **Guten Tag! Sie haben in einer Klinik gearbeitet. In welcher Abteilung, und warum wechseln Sie?**
+   - نهارك سعيد! عملت في مستشفى. في أي قسم، ولماذا تريد التغيير؟
+236. **Guten Tag! Sie haben in einer Klinik gearbeitet, in welcher Abteilung und warum zu uns?**
+   - نهارك سعيد! عملت في مستشفى، في أي قسم ولماذا تريد الانتقال إلينا؟
+237. **Hallo! Was können Sie gut?**
+   - أهلاً! ماذا تجيد؟
+238. **Guten Tag! Welche Programme kennen Sie gut?**
+   - نهارك سعيد! ما البرامج التي تعرفها جيداً؟
+239. **Guten Tag! Sie arbeiten mit Computern, welche Programme kennen Sie?**
+   - نهارك سعيد! أنت تعمل بالحاسوب، ما البرامج التي تعرفها؟
+240. **Guten Tag! Sie arbeiten schon mit Computern, das ist gut. Welche Programme kennen Sie gut?**
+   - نهارك سعيد! أنت تعمل بالحاسوب بالفعل، وهذا جيد. ما البرامج التي تعرفها جيداً؟
+241. **Guten Tag! Sie arbeiten schon mit Computern, das ist gut. Welche Programme kennen Sie gut, und wo haben Sie sie benutzt?**
+   - نهارك سعيد! أنت تعمل بالحاسوب بالفعل، وهذا جيد. ما البرامج التي تعرفها جيداً، وأين استخدمتها؟
+242. **Hallo! Was haben Sie gebaut?**
+   - أهلاً! ماذا بنيت؟
+243. **Guten Tag! An welchem Projekt haben Sie gearbeitet?**
+   - نهارك سعيد! على أي مشروع عملت؟
+244. **Guten Tag! Sie haben schon programmiert, an welchem Projekt?**
+   - نهارك سعيد! سبق أن برمجت، في أي مشروع؟
+245. **Guten Tag! Sie haben schon programmiert, das sehe ich. An welchem Projekt haben Sie gearbeitet?**
+   - نهارك سعيد! سبق أن برمجت، وهذا واضح. على أي مشروع عملت؟
+246. **Guten Tag! Sie haben schon programmiert, das sehe ich im Lebenslauf. An welchem Projekt haben Sie gearbeitet, und was war Ihre Aufgabe?**
+   - نهارك سعيد! سبق أن برمجت، وهذا واضح في سيرتك الذاتية. على أي مشروع عملت، وما كانت مهمتك؟
+247. **Hallo! Haben Sie Ihren Antrag?**
+   - أهلاً! هل لديك طلبك؟
+248. **Guten Tag! Haben Sie Ihren Antrag dabei?**
+   - نهارك سعيد! هل طلبك معك؟
+249. **Guten Tag! Ihr Antrag ist da, haben Sie Ihre Zeugnisse?**
+   - نهارك سعيد! طلبك وصل، هل شهاداتك معك؟
+250. **Guten Tag! Ihr Antrag ist da, wir prüfen ihn gerade. Haben Sie Ihre Zeugnisse dabei?**
+   - نهارك سعيد! طلبك وصل، ونحن نراجعه الآن. هل شهاداتك معك؟
+251. **Guten Tag! Ihr Antrag ist da, wir prüfen ihn gerade. Haben Sie Ihre Zeugnisse dabei, oder brauchen Sie eine Übersetzung?**
+   - نهارك سعيد! طلبك وصل، ونحن نراجعه الآن. هل شهاداتك معك، أم تحتاج ترجمة؟
+252. **Hallo! Haben Sie ein Zertifikat?**
+   - أهلاً! هل لديك شهادة؟
+253. **Guten Tag! Haben Sie ein Zertifikat für IT?**
+   - نهارك سعيد! هل لديك شهادة في تقنية المعلومات؟
+254. **Guten Tag! Ihr Zertifikat ist für IT, haben Sie eine Übersetzung?**
+   - نهارك سعيد! شهادتك في تقنية المعلومات، هل لديك ترجمة؟
+255. **Guten Tag! Ihr Zertifikat ist für IT, wir prüfen es noch. Haben Sie eine Übersetzung dabei?**
+   - نهارك سعيد! شهادتك في تقنية المعلومات، ونحن نراجعها الآن. هل الترجمة معك؟
+256. **Guten Tag! Ihr Zertifikat ist für IT, wir prüfen es noch. Haben Sie eine Übersetzung dabei, oder fehlt sie noch?**
+   - نهارك سعيد! شهادتك في تقنية المعلومات، ونحن نراجعها الآن. هل الترجمة معك، أم أنها لا تزال ناقصة؟
+257. **Hallo! Möchten Sie sich bewerben?**
+   - أهلاً! هل تريد التقديم؟
+258. **Guten Tag! Möchten Sie eine Ausbildung machen?**
+   - نهارك سعيد! هل تريد حضور تدريب مهني؟
+259. **Guten Tag! Ihre Bewerbung ist da, welche Ausbildung möchten Sie machen?**
+   - نهارك سعيد! طلبك وصل، أي تدريب مهني تريد أن تحضر؟
+260. **Guten Tag! Ihre Bewerbung ist da, wir lesen sie gerade. Welche Ausbildung möchten Sie machen?**
+   - نهارك سعيد! طلبك وصل، ونحن نقرأه الآن. أي تدريب مهني تريد أن تحضر؟
+261. **Guten Tag! Ihre Bewerbung ist da, wir lesen sie gerade. Welche Ausbildung möchten Sie machen, und haben Sie schon Praktika gemacht?**
+   - نهارك سعيد! طلبك وصل، ونحن نقرأه الآن. أي تدريب مهني تريد أن تحضر، وهل قمت بتدريبات عملية من قبل؟
+262. **Hallo! Wie ist die Arbeit?**
+   - أهلاً! كيف العمل؟
+263. **Guten Tag! Wie ist Ihr erster Tag in der Firma?**
+   - نهارك سعيد! كيف يومك الأول في الشركة؟
+264. **Guten Tag! Sie arbeiten jetzt in der Werkstatt, wie war der Tag?**
+   - نهارك سعيد! أنت تعمل الآن في الورشة، كيف كان اليوم؟
+265. **Guten Tag! Sie arbeiten jetzt in der Werkstatt, das ist neu für Sie. Wie war der erste Tag?**
+   - نهارك سعيد! أنت تعمل الآن في الورشة، وهذا جديد عليك. كيف كان اليوم الأول؟
+266. **Guten Tag! Sie arbeiten jetzt in der Werkstatt, das ist neu für Sie. Wie war der erste Tag, und was haben Sie gelernt?**
+   - نهارك سعيد! أنت تعمل الآن في الورشة، وهذا جديد عليك. كيف كان اليوم الأول، وماذا تعلمت؟
+267. **Hallo! Hast du den Plan?**
+   - أهلاً! هل لديك الجدول؟
+268. **Guten Tag! Wann beginnt der Unterricht heute?**
+   - نهارك سعيد! متى يبدأ الدرس اليوم؟
+269. **Guten Tag! Der Unterricht beginnt um acht, haben Sie den Plan?**
+   - نهارك سعيد! الدرس يبدأ في الثامنة، هل لديك الجدول؟
+270. **Guten Tag! Der Unterricht beginnt um acht, wir haben zwei Stunden Mathe. Haben Sie den Plan dabei?**
+   - نهارك سعيد! الدرس يبدأ في الثامنة، ولدينا ساعتان رياضيات. هل الجدول معك؟
+271. **Guten Tag! Der Unterricht beginnt um acht, wir haben zwei Stunden Mathe. Haben Sie den Plan dabei, oder brauchen Sie meinen?**
+   - نهارك سعيد! الدرس يبدأ في الثامنة، ولدينا ساعتان رياضيات. هل الجدول معك، أم تحتاج جدولي؟
+272. **Hallo! Sind Sie bereit?**
+   - أهلاً! هل أنت مستعد؟
+273. **Guten Tag! Sind Sie bereit für die Prüfung?**
+   - نهارك سعيد! هل أنت مستعد للامتحان؟
+274. **Guten Tag! Die Prüfung beginnt gleich, sind Sie bereit?**
+   - نهارك سعيد! الامتحان يبدأ حالاً، هل أنت مستعد؟
+275. **Guten Tag! Die Prüfung beginnt in fünf Minuten, Sie haben noch Zeit. Sind Sie bereit?**
+   - نهارك سعيد! الامتحان يبدأ بعد خمس دقائق، ولا يزال لديك وقت. هل أنت مستعد؟
+276. **Guten Tag! Die Prüfung beginnt in fünf Minuten, Sie haben noch Zeit. Haben Sie Fragen, oder sind Sie bereit?**
+   - نهارك سعيد! الامتحان يبدأ بعد خمس دقائق، ولا يزال لديك وقت. هل لديك أسئلة، أم أنت مستعد؟
+277. **Hallo! Wie heißen Sie?**
+   - أهلاً! ما اسمك؟
+278. **Guten Tag! Stellen Sie sich bitte vor, wie heißen Sie?**
+   - نهارك سعيد! عرّف بنفسك من فضلك، ما اسمك؟
+279. **Guten Tag! Bitte stellen Sie sich vor, woher kommen Sie?**
+   - نهارك سعيد! عرّف بنفسك من فضلك، من أين أنت؟
+280. **Guten Tag! Bitte stellen Sie sich kurz vor, das gehört zur Prüfung. Wie heißen Sie?**
+   - نهارك سعيد! عرّف بنفسك باختصار من فضلك، فهذا جزء من الامتحان. ما اسمك؟
+281. **Guten Tag! Bitte stellen Sie sich kurz vor, das gehört zur Prüfung. Woher kommen Sie, und warum lernen Sie Deutsch?**
+   - نهارك سعيد! عرّف بنفسك باختصار من فضلك، فهذا جزء من الامتحان. من أين أنت، ولماذا تتعلم الألمانية؟
+282. **Hallo! Wie ist die Prüfung?**
+   - أهلاً! كيف الامتحان؟
+283. **Guten Tag! Wie ist Ihre Prüfung?**
+   - نهارك سعيد! كيف امتحانك؟
+284. **Guten Tag! Sie hatten gestern eine Prüfung, wie war sie?**
+   - نهارك سعيد! كان لديك امتحان أمس، كيف كان؟
+285. **Guten Tag! Sie hatten gestern eine Prüfung, das habe ich gehört. Wie war sie?**
+   - نهارك سعيد! كان لديك امتحان أمس، وقد سمعت بذلك. كيف كان؟
+286. **Guten Tag! Sie hatten gestern eine Prüfung, das habe ich gehört. Wie war sie, und was war schwer?**
+   - نهارك سعيد! كان لديك امتحان أمس، وقد سمعت بذلك. كيف كان، وما كان صعباً؟
+287. **Hallo! Was planen wir heute?**
+   - أهلاً! ماذا نخطط اليوم؟
+288. **Guten Tag! Was möchten Sie heute planen?**
+   - نهارك سعيد! ماذا تريد أن تخطط اليوم؟
+289. **Guten Tag! Wir planen gemeinsam ein Fest, was brauchen wir?**
+   - نهارك سعيد! نخطط معاً لحفل، ماذا نحتاج؟
+290. **Guten Tag! Wir planen gemeinsam ein Fest, das ist unsere Aufgabe. Was brauchen wir zuerst?**
+   - نهارك سعيد! نخطط معاً لحفل، وهذه مهمتنا. ماذا نحتاج أولاً؟
+291. **Guten Tag! Wir planen gemeinsam ein Fest, das ist unsere Aufgabe. Was brauchen wir zuerst, und wer macht was?**
+   - نهارك سعيد! نخطط معاً لحفل، وهذه مهمتنا. ماذا نحتاج أولاً، ومن يفعل ماذا؟
+292. **Hallo! Was ist Ihr Thema?**
+   - أهلاً! ما موضوعك؟
+293. **Guten Tag! Haben Sie ein Thema gewählt?**
+   - نهارك سعيد! هل اخترت موضوعاً؟
+294. **Guten Tag! Sie haben ein Thema gewählt, was zeigen Sie uns?**
+   - نهارك سعيد! اخترت موضوعاً، ماذا تعرض علينا؟
+295. **Guten Tag! Sie haben ein Thema gewählt. Wie möchten Sie es zeigen, und haben Sie Bilder?**
+   - نهارك سعيد! اخترت موضوعاً. كيف تريد أن تعرضه، وهل لديك صور؟
+296. **Guten Tag! Sie haben ein Thema gewählt, wie möchten Sie es zeigen und brauchen Sie noch Zeit?**
+   - نهارك سعيد! اخترت موضوعاً، كيف تريد أن تعرضه وهل تحتاج وقتاً إضافياً؟
+297. **Hallo! Was sagen Sie dazu?**
+   - أهلاً! ماذا تقول عن ذلك؟
+298. **Guten Tag! Was sagen Sie zu meinem Plan?**
+   - نهارك سعيد! ماذا تقول عن خطتي؟
+299. **Guten Tag! Ich finde den Plan gut, was sagen Sie dazu?**
+   - نهارك سعيد! أرى أن الخطة جيدة، ماذا تقول عنها؟
+300. **Guten Tag! Ich finde den Plan gut, er ist praktisch. Sind Sie auch dieser Meinung?**
+   - نهارك سعيد! أرى أن الخطة جيدة وعملية. هل توافقني الرأي؟
+301. **Guten Tag! Ich finde den Plan gut, er ist praktisch. Sind Sie auch dieser Meinung, oder haben Sie eine andere Idee?**
+   - نهارك سعيد! أرى أن الخطة جيدة وعملية. هل توافقني الرأي، أم لديك فكرة أخرى؟
