@@ -60,7 +60,9 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The suite takes ~14 min locally and ~20 on a runner: the 2026-11-01 run was
+    # cancelled at 20:17 on a 20-minute cap (all other jobs green, same SHA).
+    timeout-minutes: 35
     needs: verify
     steps:
       - uses: actions/checkout@v4
