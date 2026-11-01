@@ -28,7 +28,7 @@ verified live and the owner says to retire them.
 | Store | Content | How a change reaches a learner |
 |---|---|---|
 | D1 `katzu-content` (binding `DB`) | `scenarios`, `vocabulary`, `grammar`, `starter_phrases` | Live on the next read. The Worker reads these tables directly; there is no cache to bust. |
-| App bundle (built from `src/`) | 223 opener Arabic glosses, 892 word glosses, curriculum lessons and scenarios list, `scenarioGrammar` map, trust/legal copy | Rebuild + redeploy of the Pages bundle. No panel can edit these "live". |
+| App bundle (built from `src/`) | Opener Arabic glosses, word glosses, curriculum lessons and scenarios list, `scenarioGrammar` map, trust/legal copy (live: 223 / 892; catalogue v2: 301 / 351) | Rebuild + redeploy of the Pages bundle. No panel can edit these "live". |
 | Panel-only static asset | `admin-worker/public/bundled-content.json` (generated snapshot of the two gloss files) | Read-only view. Editing it in the panel writes **review notes** to D1, never the bundle. |
 
 `curriculum_lessons` is counted by the old `/admin` and by the new panel's counts, but **no editor
@@ -56,6 +56,12 @@ exists in either panel** — lessons ship inside the app bundle. Treat it as bun
 | Search/filter on bundled | No | Yes — opener/gloss search, level filter | New |
 
 Nothing above changes the learner router or the old `/admin`, which stays live.
+
+**Scenarios v2 authoring source (2026-11-01, local only).** `docs/content/catalogue/scenarios-catalogue.json` is the one
+authoring source (61 scenarios × A0–B2); `node scripts/apply-content-catalogue.mjs` derives the language-data
+inputs, then `node scripts/build-language-data.mjs --offline` regenerates the bundle and the worker opener map.
+New Arabic carries `needs_review` (12 scenarios, 159 glosses) and shows in the panel's review list, never as
+final copy. Production D1 is unchanged until an authorized load (`docs/CONTENT-AUDIT.md`).
 
 ## 2. Architecture
 

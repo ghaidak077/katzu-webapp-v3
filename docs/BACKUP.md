@@ -156,3 +156,32 @@ a key ever needs to be compared or restored.
    that step the internal routes stay reachable **only** through a Service Binding, never from the
    internet, and they still require the token.
 4. Leave the five telemetry tables or drop them; nothing else reads them.
+
+## 10. Pre-content-v2 backup (2026-11-01)
+
+Taken **before any content edit**. Every value below was read from Cloudflare or git in that session.
+
+- git tag `pre-content-v2` and branch `backup/pre-content-v2` — both at **`544d4d3`**, the last commit
+  before the content work. The mission branch is `content-v2`.
+- **Product Worker `katzu-test`**: version **`625986fd-46da-4c5e-a5ff-67b3925e260c`** at 100%
+  (deployment created 2026-10-31T13:00:27Z). Rollback candidates, newest first:
+  `862087cb-eeef-48c0-8467-d0bd721c35c3`, `e3f994ef-5524-44ef-95b9-f0fde2923baa`,
+  `808f1553-9a1a-4af4-bafd-817c62bbb10e`.
+  Restore: `npx wrangler rollback 625986fd-46da-4c5e-a5ff-67b3925e260c --name katzu-test`.
+- **Panel Worker `katzu-admin`**: version `8c383727-85b3-43f2-ac29-efc6126ef869` (deployment
+  `95d460dd-1abb-4634-af68-285e57bd3c93`). Not part of this mission; untouched.
+- **Pages app `katzu-webapp-v3`**: production deployment
+  **`9d6c0d70-795c-4ade-9fbb-51e64c1def1d`** (branch `main`, source `544d4d3`). Rollback targets, in
+  order: `4081d1ae-2815-493c-8479-5c54d3bd56a2` (`ed8255c`), `ae43fc22-1c6e-4044-b8ad-4cdf2a6c139c`
+  (`c9378dd`), `bc807292-fc48-45bb-b398-ddd3710a8728` (`a033b19`).
+- **D1 `katzu-content`** Time Travel bookmark
+  **`000005c1-00000000-00005116-36131c39efa2772ce09e619db6993ce6`**. Restore:
+  `npx wrangler d1 time-travel restore katzu-content --bookmark=000005c1-00000000-00005116-36131c39efa2772ce09e619db6993ce6`.
+  (The first `time-travel info` call returned API `code: 7500`; the immediate retry returned it.)
+- **Content export**: `backups/pre-content-v2/content.sql` (434,843 bytes) from
+  `npx wrangler d1 export katzu-content --remote --table scenarios --table vocabulary --table grammar
+  --table starter_phrases`. Gitignored; this machine only.
+- **Row counts at backup time**: scenarios 49, vocabulary 531, grammar 73, starter_phrases 426.
+
+Restore content with Time Travel first; the export is the fallback but is not idempotent over a live
+database (§6). Content writes still require the `CONTENT-LOAD-AUTHORIZED` line in `AGENTS.md` §3.

@@ -26,6 +26,19 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-01 — conversation content v2 authored locally: 61 scenarios, every A0–B2 opener inside its level, one authoring source (nothing deployed).**
+  `docs/content/catalogue/scenarios-catalogue.json` is now the only place scenarios are authored: the 49 existing rows corrected
+  plus 12 new situations (`jobcenter_termin`, `apotheke`, `handyvertrag`, `kita_elterngespraech`, `notruf_112`,
+  `nahverkehr_ticket`, `integrationskurs_anmelden`, `arzttermin_telefon`, `paket_abholen`, `polizei_fundbuero`,
+  `zahnarzt`, `sprachcafe`). Measured before → after: missing A0 openers **20 → 0**; openers breaking a cap or the
+  level spec **165 → 0 of 305**; personas not ending in `katze` **5 → 0**; emoji icons **5 → 0**; `sequence_order`
+  **0 everywhere → 1..61**. `scripts/apply-content-catalogue.mjs` derives the snapshot, the positional Arabic corpus
+  and the gloss file; `node scripts/build-language-data.mjs --offline` regenerated **301 openers / 457 tokens / 0
+  unresolved**. Two defects were fixed rather than accepted: **29 A0 openers were the learner's line instead of the
+  partner's**, and **8 A0/A1 openers used forbidden past-tense markers**. Evidence: `contentCatalogue` **21**,
+  `turnGuard` runs a bare greeting against **61 × 5** openers, `trailOrdering`, `tsc` exit 0. Audit and duplicate
+  decisions: `docs/CONTENT-AUDIT.md`. **UNPROVEN:** the live app — production D1 still has the old 49 rows and the
+  loader is insert-only.
 - **2026-10-31 — content management reaches the new panel without touching a learner table (worker + panel deployed).**
   `cloudflare-content-admin.js` adds five additive tables (`content_drafts`, `content_audit`, `content_trash`,
   `content_backups`, `content_reviews`) and `/internal/admin/content/*`: list/search/filter; draft → publish
@@ -78,83 +91,8 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   restore and rollback ids: `docs/BACKUP.md`; inspection, endpoints, privacy text and owner input:
   `docs/ADMIN.md`.
 
-- **2026-10-30 — word cards cost zero AI calls, openers are instant, and «hallo» gets a re-ask (worker + app
-  deployed).** Three learner-visible outcomes, each deployed and verified live where a browser could reach it.
-  (1) **Openers:** the 223 scenario openers are pre-computed German + Arabic, so `exam_erfahrungen_sprechen`
-  shows «نهارك سعيد! أخبرني: ما السهل عليك وما الصعب في تعلّم الألمانية؟» under its German line instantly and with
-  no model call (the old path called `/ai/translate` and, on the empty key pool, gave 503). (2) **Word cards:**
-  the shipped glossary answers first — 11 words in that exam scenario plus 4 in `cafe_order` and 5 in
-  `doctor_visit` each showed meaning + Arabic POS + level with `window.__kzAiCalls` at **0** for the whole
-  session; the last resort is the new `POST /ai/lexeme`, **one** model call per **lemma**, cached fleet-wide in
-  KV (SHA key, 180 days, no learner text) and mirrored in IndexedDB `katzu_lexeme_cache_v1`, so a repeat or an
-  inflected form is 0 — and a cached lemma answers even with the key pool empty. (3) **The guard:** a bare
-  «hallo» can no longer be answered with an invented «Mir geht es gut.»; `cloudflare-turn-guard.js` (35 pure
-  tests) is proven to run inside `/ai/turn` by one new route test — the first attempt answered **400** because
-  the test's empty D1 double turned `exam_erfahrungen_sprechen` (no static fallback row) into `UNKNOWN_SCENARIO`,
-  which is the failure mode a test must model, not hide. **Gate `VERIFY OK 14/14` in 676.6 s** on this tree.
-  Worker `b33136fa-…` live (`/ai/lexeme` 401 unauthenticated where it answered 404), app `e948f1dc-…`; ids and
-  rollbacks in SNAPSHOT. **Live browser C (send «hallo» in a real episode) and the authenticated
-  1-call-then-0 path stay UNPROVEN** — both need a real signed-in session, which an agent must not create.
-  No dictionary ships (Kaikki CC BY-SA + GFDL, FreeDict GPL, neither German→Arabic); the decision is in
-  `docs/OWNER-CHECKLIST.md` §4. Owner's remaining steps: proofread the Arabic openers, paste a provider key,
-  the two-account affiliate test, payment + legal fields.
-
-- **2026-10-30 — the home headline reads as words again and names the language (site deployed).** A tag-stripping extractor read the home `h1` as one word («تُتعلَّمبالتحدّث») because its two block lines were joined with no whitespace; a newline fixes the measurement and changes nothing on screen (the two `.ml` line boxes, the `h1`, the hero box and the document height are identical to the pre-fix build at 390×844 and 1366×800). The home `title`, `og:title`, `twitter:title` and the `WebPage` JSON-LD `name` now read «كاتزو — تطبيق لتعلّم اللغة الألمانية بالمحادثة» (**46 characters**), the description carries «تعلم اللغة الألمانية», and **no other page kept a different title by accident — only `/` moved**. Images: all 20 `<img>` on the site already had an `alt` (19 decorative brand marks beside the visible «كاتزو», one Arabic alt on the home screenshot), so nothing needed fixing. New `tests/headings.test.ts` fails when any heading, HTML or `md/` twin, fuses at a tag run — it reports the old H1 as `تُتعلَّم•بالتحدّث` and today as clean. Live after the deploy: `/` `/pricing` `/affiliate` `/help` `/guides` **200**, the 46-character title, the 5-word H1 with its whitespace, `og:title`, `twitter:title` and the JSON-LD name all read back from production, markdown negotiation on `/pricing` still `text/markdown` + `Vary` + `X-Robots-Tag`, and `md/` now reads «الألمانية تُتعلَّم بالتحدّث، لا بالحفظ.». Gate `VERIFY OK 14/14` (731.5 s, exit 0); local `wrangler pages dev` crawl 17/17 sitemap URLs 200 and **33 old URLs each a single 301 to a 200**. Read-only header check, no Cloudflare change: `http://website.katzuai.com/` **200**, `http://katzuai.com/` **301 → `https://katzuai.com/`**. Deploy and rollback ids: SNAPSHOT.
-- **2026-10-29 — the site is now built to be crawled and cited: 12 Arabic guides, one sitemap, a crawler
-  policy that welcomes the AI assistants.** The site is 17 pages (`/guides` + 12 articles), each with one H1, an
-  answer-first lead, a table or checklist, FAQs, «آخر تحديث», an author and official sources; the build refuses a
-  guide outside 900–1500 words, a dead related link, a quoted price or a promise. Both hosts' `robots.txt` allow
-  the ten named crawlers and disallow only `/admin/ /api/ /private/`; the site sitemap carries **17** URLs with
-  real `lastmod`; `/llms.txt` and an IndexNow key are generated and `npm run seo:indexnow` submitted the 17 (202).
-  The app emits a root-only `sitemap.xml`, and both hosts count an assistant referral as
-  `landing_viewed`/`source` (hostname only, no cookie). Live: site
-  `03ec8a29-…`, app `58455d0e-…` (SNAPSHOT); 17/17 sitemap URLs 200, 47 links/assets 0 dead, mobile SEO/a11y 100
-  on five pages, `/` byte-identical except the head tags, the footer «الأدلة» link and `ai-ref.js`. **Edge block,
-  unfixable here:** Cloudflare answers `403` to GPTBot, ClaudeBot and PerplexityBot and its managed `robots.txt`
-  disallows them — OWNER-OPEN SEO-1/GEO-1; citation evidence UNPROVEN.
-
-- **2026-10-28 — AFF-1 went live on the Worker, and the free tier stopped promising a month.** The worker that
-  owns the partner ledger is deployed and answers `/affiliate/me` (401 signed out), `/affiliate/ref` (400 on a
-  malformed code) and the owner-only `/admin/api/affiliates*` (401); the three tables exist in production D1.
-  Every free-lesson surface now says «في المجموع» — home meta/OG/JSON-LD/CTA, `/pricing`, the paywall and the
-  soft-prompt copy — because `MAX_FREE_AI_SESSIONS` counts `trial_quota_ledger` rows with no period filter
-  (FREE-1 closed; the once-branch of the owner's OR). The `dayZeroReport` flake was a **cause**, not a rerun:
-  a 1.2 s timer opened the soft Pro modal after the first correction and its scrim covered «أرسل جملتك» for the
-  rest of the episode; the timer is gone and the spec now watches that 1.6 s window. Deploy ids, live strings
-  and the two-account gap: SNAPSHOT + OWNER-OPEN AFF-1.
-
-- **2026-10-28 — the home page stopped saying two things the app does not do (site deployed).** Three copy fixes,
-  text only: the trust line dropped «أخطاؤك ومحادثاتك تبقى على جهازك» (`syncProgress` uploads mistakes + session
-  summaries to `/progress/sync`); the free-lessons FAQ dropped «تتجدد دروسك المجانية كل شهر» (`MAX_FREE_AI_SESSIONS
-  = 3`, all-time in `trial_quota_ledger`); the voice FAQ answers instead of pointing at a paragraph
-  (`cloudflare-stt.js`: audio → Workers AI Whisper, never stored). Stat `6` → **49** (live `GET /scenarios`), rail
-  card 06 = the real café scenario; `/help` links `/#rail` as «49 موقفاً في التطبيق». Proof: gate green, 390 + 1440
-  one H1 / no overflow, strings read back live; ids in SNAPSHOT. Its «كل شهر» residue was closed by FREE-1.
-
-- **2026-10-28 — `/partners` was a 404, not a broken button (app rebuilt from git).** The route was in the
-  router but not in `public/_redirects`, so that deep link died while its siblings answered 200 (`404.html`
-  stops the shell fallback; gotcha 11). `/partners / 200` is listed and `tests/appMap.test.ts` fails when a code
-  route has no 200 rewrite (proved by deleting the line). Live: 200 → shell → `/welcome`, no page errors.
-
-- **CI on `c359095` is green.** Run `40703219152` rerun: **170 passed / 2 skipped**, verify green; attempt 1
-  failed only `dayZeroReport.spec.ts:179`, where the `PaywallModal` scrim covered «أرسل جملتك» for all 90 s.
-  It passes locally (17.2 s) and the suite was green on `e453e1c`: trigger UNPROVEN at the time — the cause is
-  the removed soft-prompt timer (RESUME above), and CI on `d786bd0` is green (run `40709993823`).
-
-- **2026-10-28 — CI red on `3980b39` was a socket reset, not the tree.** Run `40701347617` failed only
-  `quiz content audit` with `fetch failed [ECONNRESET]` while `GET /scenarios` answered 3/3 200 here and the
-  same step passed in the pre-push gate. That step now retries a *thrown* network error 3× (an HTTP status still
-  fails; proven: exit 1 after 3 attempts against a closed port), so a runner's TLS reset no longer reddens CI.
-
-- **2026-10-28 — the partner program is live and has no partners yet (AFF-1).** `/affiliate` states 20% of the
-  first paid order, a 14-day hold, a $20 minimum and four payout methods (from `AFFILIATE_CONFIG`);
-  `cloudflare-affiliate.js` owns the tables, signup attach, day-14 approval and refund voiding. Deployed worker
-  `998873c6-…`, site `4dbf4a05-…`, app `408cf69c-…`, push `ccbbacb..4870d39`; live proof (`ZZTEST01`, 30-day
-  cookie, admin 401) in SNAPSHOT. Next: the owner creates the first code.
-
-- **2026-10-28 — `/` is the owner's design again (deployed).** Full record (design parity, Lighthouse
-  97/100/100, 33 redirects, deploy `90880c38-…`) and the three-page site + audit #7 entries are in
-  `docs/agent/ARCHIVE-AGENT-STATE.md` (search `RESUME 2026-10-28`).
+- **Older RESUME entries (2026-10-30 and earlier) moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on
+  2026-11-01 (search `RESUME 2026-10-28..30 moved`), to keep the ledger under its 80 KB cap. Nothing was deleted.
 
 ## CURRENT MISSION
 
@@ -338,6 +276,13 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | V11-2. Load module2 → refused with 401; value shape diagnosed; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v11-load-module2.log 2>&1`: the draft validated locally (5 scenarios / 49 vocabulary / 42 phrases / 4 grammar, review approved), then **the first authenticated read failed — `✘ could not list vocabulary (HTTP 401): {"error":"unauthorized"}`** at `scripts/load-curriculum.mjs:70`. The log carries **zero** `Bearer`/`Authorization` occurrences (the credential was never echoed), the log never reaches a write phase (`Writing …` / `to write` are absent), and **nothing was written to production D1**. **Root cause, established structurally without ever printing the value:** the environment variable is **66 characters** of which exactly **64 are lowercase hex** — chars 2–65 match `^[0-9a-f]{64}$` — with first char `U+003C` (`<`) and last `U+003E` (`>`); i.e. the placeholder form `<secret>` was pasted *with its angle brackets*, so the loader sent `Authorization: Bearer <hex>`. **Nothing was re-encoded, trimmed or re-derived:** §3 reserves secret handling to the owner, so this is an owner-side fix. **Post-attempt state re-verified unchanged:** counts still **5 / 114 / 20 / 4**, the new scenario ids still absent, and `/scenarios`, `/vocabulary`, `/grammar` all **200**. The backup from V11-1 is still valid and still unused; no rollback was needed because no write was attempted. |
 | V12-2. Load module2 → grammar batch `HTTP 500` on a live schema gap; 89 inserted rows rolled back; stopped (Phase 4) | blocked | `node scripts/load-curriculum.mjs --file=docs/content/curriculum-arrival-module2.json --commit > /tmp/v12-load-module2.log 2>&1` → **exit 0**, 29 log lines, **`grep -c -E 'Bearer\|Authorization'` = 0** (run before anything was shown; the credential never reached the log). **Three of the four batches wrote, the fourth could not:** `scenarios ✔ HTTP 200 count 5`, `vocabulary ✔ 200 count 42` (7 of 49 rows skipped as already present), `starter_phrases ✔ 200 count 42`, and **`✘ grammar batch 1 failed (HTTP 500): {"error":"admin_route_failed","message":"D1_ERROR: table grammar has no column named rule_de: SQLITE_ERROR"}`** — **0 grammar rows written**. The loader then printed `DONE — 89 row(s) written.` and **exited 0**, because its verification loop covers scenarios and vocabulary topics only and never consults the per-batch statuses, so a failed batch is invisible in its exit code (recorded in `LESSONS.md`). **Rollback, exact, driven by the backup rather than by arithmetic on counts:** the pre-load export contains the two tables' `sqlite_sequence` rows (`vocabulary = 135`, `starter_phrases = 20`) and both are `INTEGER PRIMARY KEY AUTOINCREMENT`, so the new rows are provably `vocabulary id > 135` (42 rows, 136–177) and `starter_phrases id > 20` (42 rows, 21–62) — an id above the pre-load sequence cannot be a pre-existing row. `DELETE FROM starter_phrases WHERE id > 20; DELETE FROM vocabulary WHERE id > 135; DELETE FROM scenarios WHERE id IN ('airport_arrival','train_station','bakery_shopping','landlord_followup','friend_catchup');` → `changes` **42 / 42 / 5 = 89**, exactly the 89 the loader reported. **Both states measured:** post-attempt **10 scenarios / 156 vocabulary / 62 starter_phrases / 4 grammar**; post-rollback **5 / 114 / 20 / 4** with `MAX(vocabulary.id) = 135`, `MAX(starter_phrases.id) = 20`, 0 rows for the 5 new scenario ids and 0 `g_%` grammar ids; live scenario ids back to `apartment_viewing, cafe_order, doctor_visit, embassy_appointment, job_interview` and live grammar to `akkusativ_articles, dativ_prepositions, konjunktiv_ii, perfekt_tense`. **Three sampled old rows match the backup exactly:** vocabulary 22 `Reisepass`/`documents`/`جواز سفر`, 77 `Allergie`/`food`/`حساسية`, 135 `Wohnungsamt`/`housing`/`مكتب الإسكان`, and starter_phrase 1 = `embassy_appointment` "Ich habe einen Termin.". **Public endpoints back to normal:** `/scenarios` 5 rows containing **none** of the new ids, `/vocabulary` 114, `/grammar` 4, `/health` unchanged (`{status, service, ready, maintenance:false}`). **Root cause (read-only, proven twice):** the live `grammar` table is `id, level, title_ar, title_en, explanation_ar, explanation_en, example_de` (`SELECT GROUP_CONCAT(name) FROM pragma_table_info('grammar')`), while the draft row keys, `src/lib/content/curriculumAudit.ts:49`, `src/types/models.ts:89`, the Worker's own `resolvePracticeGrammar` (`cloudflare-unified-worker.js:1211`) and `docs/PRODUCT-SPEC.md:1021` all assume `id, title_ar, rule_de, rule_ar, level, explanation_ar, example_de, example_ar`. `handleAdminUpload` (`cloudflare-unified-worker.js:3053`) builds `INSERT INTO grammar (…)` from **the row's own keys**, so `rule_de` is sent to a table that has no such column; `SELECT id, rule_de FROM grammar LIMIT 1` fails with D1 error **7500** as the independent proof. **Deeper cause:** none of the four content tables' DDL exists anywhere in the repo (`git grep -n "CREATE TABLE.*grammar\|CREATE TABLE.*vocabulary\|CREATE TABLE.*scenarios\|CREATE TABLE.*starter_phrases"` → 0 hits; only the ledger tables are created by the Worker), so the live content schema is unversioned and has drifted — and the local dry-run cannot see it because it never touches the network, while the audit validates the draft against the *documented* field list. **Two production consequences beyond this load:** (a) `resolvePracticeGrammar` selects three columns the live table lacks and swallows the error in a `try/catch` that returns `null`, so the B2 grammar-reference link can never resolve in production; (b) the live grammar ids are `akkusativ_articles`-style while `SCENARIO_GRAMMAR_IDS` and the offline seed use `g_*`, so even with the columns added the five original scenarios would still have no matching D1 row. **Stopped:** module1's ten grammar rows carry the same `rule_de` field, so it was deliberately **not attempted** (rollback → mark blocked → stop). Owner fix is one additive DDL with no data loss, written into OWNER-OPEN; no deploy, no push, no further write. |
 | V46-1. Admin panel + telemetry (phases 1–4) | blocked | **Deployed 2026-10-31; the panel is live behind Access and has real telemetry.** `cloudflare-telemetry.js` (five additive tables, `ctx.waitUntil` writers, redaction, 90/365-day sweep, master switch off), `cloudflare-admin-api.js` (deny-before-route 401, constant-time KV token, 120/min, audit, users/content/alerts/errors/conversations/export/delete), observer-only router hook, `admin-worker/` (Access JWT verification, `/api/*` → Service Binding, no D1/key binding). Tests: 12 access + 14 panel + 29 telemetry + 26 internal API, all green; `VERIFY OK 14/14` in 759.6 s with e2e; the 26 access/worker tests re-ran green after deploy. **Live:** worker `808f1553-…` (the panel deploy was `6a6db52d-…`, rollback `b33136fa-…`), `katzu-admin` `e7716e26-…` (rollback `bc7db8cc-…`) with Access **302** and matching `kid` on `/`, `/api/overview`, `/healthz`; owner session wrote **26** `route_events` 200s (02:45:38–02:46:11 UTC) and created the five tables. Counts: route_events 26, ai_events 0, conversations 0, conversation_attempts 0, admin_audit 0; the `17 4 * * *` cron was captured live at **04:17:37 UTC** (`outcome: ok`, `[sweep]` + `[sweep:telemetry]` logged) and the 04:20 UTC counts are unchanged. Pages `203a5983-…` same bundle. **Blocked on the owner's consent-UI/retention decisions; nothing else is unproven.** `docs/ADMIN.md`, `docs/BACKUP.md`. |
+| CONTENT-V2. Scenarios v2 (61 rows, A0–B2) | doing | **Local green, nothing deployed.** One authoring source
+`docs/content/catalogue/scenarios-catalogue.json` (49 corrected + 12 new) → `scripts/apply-content-catalogue.mjs` →
+`build-language-data.mjs`; **0/305** openers off-spec, 0 personas without `katze`, 0 emoji icons, `sequence_order`
+1..61; 301 openers / 457 glossed tokens / 0 unresolved; 12 rows and 159 glosses marked `needs_review`. Focused
+suites green (`contentCatalogue` 21, `turnGuard` 61×5, `trailOrdering`, `openersStatic`). **Blocked on the owner:**
+production D1 needs `CONTENT-LOAD-AUTHORIZED: <file>` and the loader is insert-only, so the 49 corrected rows have
+no write path yet (`docs/CONTENT-AUDIT.md` §9). |
 | SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
 
@@ -423,6 +368,18 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   row and two privacy sentences only. The owner's home design is otherwise untouched.
 
 
+- **CONTENT-V2 (2026-11-01) — one authoring source, generated artefacts, no hand-edited bundle.** Scenarios are
+  authored only in `docs/content/catalogue/scenarios-catalogue.json`; `apply-content-catalogue.mjs` derives the snapshot, the
+  positional German/Arabic corpus and the gloss file, and `build-language-data.mjs --offline` writes the shipped
+  modules. Hand-editing a `.generated.ts` is a defect, not a shortcut.
+- **CONTENT-V2 (2026-11-01) — near-duplicates were differentiated, never deleted.** Seven pairs keep both rows so
+  saved links and learner progress still resolve; the later scene's final question was narrowed and the canonical
+  pair is listed in `docs/CONTENT-AUDIT.md` §4. A soft-retire flag would need schema + app support and was not built.
+- **CONTENT-V2 (2026-11-01) — "one icon system" means kebab-case lucide keys.** Five emoji icons were replaced; the
+  app never renders `scenario.icon` directly, so there is no visual regression path.
+- **CONTENT-V2 (2026-11-01) — new Arabic is marked, not claimed.** The 12 new scenarios and 159 new glosses carry
+  `needs_review`; native review is an owner task (`OWNER-CHECKLIST.md` §13), never an agent assertion.
+
 > **Older decisions (2026-10-19 and earlier — V8–V18, the September deploy authorizations, the first ENV
 > probe) moved verbatim to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-10-30**, when this file sat 45 bytes
 > under its 80 KB cap. Nothing was deleted or rewritten: `grep -n "V14" docs/agent/ARCHIVE-AGENT-STATE.md`
@@ -432,6 +389,11 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical claims are in `docs/agent/ARCHIVE-AGENT-STATE.md` under the same heading.
 
+- **CONTENT-V2 (2026-11-01) — none of the new content is live, and two paths remain unproven.** Production D1 still
+  serves the old 49 rows; the loader is insert-only and `docs/agent/CONTENT-LOAD.md` needs an owner
+  `CONTENT-LOAD-AUTHORIZED: <file>` line, so the 49 corrected rows have no write path yet. The Arabic is
+  machine-authored and marked `needs_review`. The 12 new scenarios at A0–B2 are proven by catalogue + bundled↔worker
+  parity tests only, not by a live signed-in lesson.
 - **V46-1 (2026-10-31) — the admin panel, the Access gate and the cron are proven; only the AI writer and the
   consent path have never carried real data.** Proven this session: 12 Access tests (real signed JWTs, expiry/
   audience/issuer/tamper/unknown key/alg-none/JWKS down), 14 panel tests (healthz, 503 unconfigured, 401 before
@@ -532,6 +494,20 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
 
+- **Turn on the new conversations — production needs your line, and today's loader can only add rows (CONTENT-V2-1,
+  2026-11-01).** 61 scenarios are authored and tested locally; live D1 still has the old 49. Choose **(a) new only**:
+  `CONTENT-LOAD-AUTHORIZED: scenarios-new.json` inserts the 12 new situations and leaves the 49 untouched, or
+  **(b) everything**: authorize an update-capable load (loader change written and tested first), so the 49 corrected
+  rows replace the old ones. Done looks like: the chosen situations appear at all five levels and
+  `node scripts/check-content-drift.mjs` exits 0.
+
+- **Native review of the new Arabic (CONTENT-V2-2, 2026-11-01).** 159 word glosses and the 12 new scenarios' Arabic
+  are machine-written and marked `needs_review`; `docs/OWNER-LANGUAGE-REVIEW.md` lists every German/Arabic pair.
+  Done looks like: the owner or a native speaker returns corrections (or «fine») and the marks are cleared.
+
+- **Near-duplicate conversations: keep both or hide some (CONTENT-V2-3, 2026-11-01).** Seven pairs overlap; both rows
+  are kept so progress and saved links resolve, and the second of each pair was narrowed. Hiding needs a code-level
+  retired list, not a deletion. Pairs: `docs/CONTENT-AUDIT.md` §4. Done looks like: one decision recorded.
 - **The admin panel is live and the owner has decided; what remains is real traffic, not a decision
   (V46-1, 2026-10-31).** Both Workers are live (`katzu-test` version `e3f994ef-…`, `katzu-admin` version
   `e7716e26-…`) and no learner-visible behaviour changed. Cloudflare Access protects all traffic on the panel

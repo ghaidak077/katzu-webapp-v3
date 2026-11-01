@@ -1,112 +1,102 @@
 # Owner checklist — what needs you, in plain language
 
-Each item is in `docs/AGENT-STATE.md` § OWNER-OPEN and says what "done" looks like.
+Each item is in `docs/AGENT-STATE.md` § OWNER-OPEN, with what "done" looks like.
 
-## 1. How a learner pays you — the details only you have (V44-1, 2026-10-28)
+## 1. Your payment details — V44-1 (2026-10-28)
 
-**What it is.** The pricing page is finished, but no payment method is connected, so a buyer can only email.
+Pricing is finished but no payment method is connected, so buyers can only email. Send: the Telegram handle
+orders may go to; the Syriatel Cash and MTN Cash numbers (and the name on each); bank, account holder and IBAN;
+and the currencies to collect. **Done:** the order section shows the real numbers.
 
-**What you send.** Telegram handle for orders; Syriatel Cash and MTN Cash numbers (and name on each); bank
-name, account holder and IBAN; and the currencies to collect.
+## 2. Four legal sentences — V44-2 (2026-10-28)
 
-**Done looks like:** the order section shows the real numbers, not just an email.
+Privacy, terms and refund are complete except four facts only you may state: governing law, your legal name and
+address, any register number, and the dispute forum. Say each in a sentence; the agent adds it.
+**Done:** the terms page names your law, your identity and where a complaint goes.
 
-## 2. Four legal sentences only you can write (V44-2, 2026-10-28)
+## 3. Admin secret and grammar columns — V11, V12, V12-1, V18-2
 
-**What it is.** Privacy, terms and refund are complete, except four facts an agent must not invent: governing
-law, your legal name and address, any register number, and where a dispute is settled.
+Rotate `ADMIN_SECRET` once (it was pasted into chat), and `grammar` needs one additive `ALTER TABLE` adding
+`rule_de`, `rule_ar`, `example_ar`. Worker → Settings → Variables: set the new secret, then have the agent run
+the three lines and the drift check. **Done:** drift exits 0 and grammar shows.
 
-**What you do.** Say each in a sentence; the agent adds them to the terms page.
+## 4. Real AI keys — AI-POOL (2026-10-18)
 
-**Done looks like:** the terms page names your law, your identity and where a complaint goes.
+Both key lists are empty, so every turn rides the free fallback (works, weaker, capped). Admin → **AI Providers**
+→ paste key(s) → **Save provider** → **Test**; or `npx wrangler secret put OPENROUTER_API_KEYS` /
+`NVIDIA_API_KEYS`. **Done:** Test answers "OK in a few hundred ms", and a live turn stops naming the fallback.
 
-## 3. The admin secret, then the content load — V11, V12, V12-1, V18-2
+## 5. One address — V18-3
 
-**What it is.** Content is loaded and verified (drift exit 0). Two leftovers: rotate `ADMIN_SECRET` (once
-pasted into chat); `grammar` lacks `rule_de`, `rule_ar`, `example_ar` — one additive `ALTER TABLE`.
+`robots.txt`, `sitemap.xml` and hreflang need one origin. Say "use katzuai.com" and the agent sets
+`VITE_PUBLIC_APP_URL` at build time. **Done:** `https://katzuai.com/sitemap.xml` lists `https://katzuai.com/`.
 
-**What you do.** Worker → Settings → Variables: set a new `ADMIN_SECRET`; then have the agent run the three
-`ALTER TABLE` lines and `node scripts/check-content-drift.mjs`.
+## 6. Real-device voice — V18-3
 
-**Done looks like:** the drift check exits 0 and grammar shows on those five scenarios.
-
-## 4. Give the AI pool real keys — AI-POOL (2026-10-18)
-
-**What it is.** NVIDIA + OpenRouter are the default pool and both key lists are empty, so every AI turn rides
-the free built-in fallback (works, capped, weaker).
-
-**What you do.** Admin → **AI Providers** → preset or Custom, paste key(s), **Save provider**, **Test**; or
-`npx wrangler secret put OPENROUTER_API_KEYS` / `NVIDIA_API_KEYS`.
-
-**Done looks like:** Test answers "OK in a few hundred ms", and a live turn stops naming the fallback model.
-
-## 5. One address decision — V18-3
-
-**What it is.** `robots.txt`, `sitemap.xml` and hreflang come from one origin; without it they name no host.
-
-**What you do.** Say "use katzuai.com" and the agent sets `VITE_PUBLIC_APP_URL` at build time.
-
-**Done looks like:** `https://katzuai.com/sitemap.xml` lists `https://katzuai.com/`.
-
-## 6. Real-device voice — the last big unknown — V18-3
-
-**What it is.** All voice checks ran against a simulated microphone; speaking is the headline feature.
-
-**What you do.** Follow `docs/agent/OWNER-STEPS.md` § 2 (14 rows) on two real phones (iPhone + Android).
-
-**Done looks like:** each row marked pass or fail, with a note.
+All voice checks used a simulated microphone. Follow `docs/agent/OWNER-STEPS.md` §2 (14 rows) on an iPhone and an
+Android. **Done:** each row marked pass or fail with a note.
 
 ## 7. Node version — V17-1 (not blocking)
 
-This machine runs Node 24.14.0; the project declares 24.15.0+. Run `nvm install 24.15.0 && nvm use 24.15.0`
-(or `winget upgrade OpenJS.NodeJS.LTS`); done when `npm ci` prints no `EBADENGINE` line.
+This machine runs 24.14.0; the project wants 24.15.0+. Run `nvm install 24.15.0 && nvm use 24.15.0`; done when
+`npm ci` prints no `EBADENGINE` line.
 
-## 8. The partner program works; your first referred learner is the test — AFF-1 (2026-10-28)
+## 8. Partner program first test — AFF-1 (2026-10-28)
 
-**What it is.** The partner ledger, self-serve link and day-14 approval are live: 20% of the first paid order,
-14-day hold, $20 minimum, four payout methods.
+The ledger, self-serve link and day-14 approval are live (20%, 14-day hold, $20 minimum). (1) **Two-account
+test** (an agent must not sign in as you): A copies its `/partners` link; B signs up, pays and redeems; A shows
+one `pending` row, then tell the agent to delete it. (2) **Mondays:** `GET /admin/api/affiliates/commissions`
+lists who is owed at least $20 — pay, then record it with `POST /admin/api/affiliates/payout`.
+**Done:** a real referred learner shows `pending`, and the first payout is recorded.
 
-**What you do.** (1) **Two-account test** (an agent must not sign in as you): A copies its `/partners` link;
-B signs up through it, pays and redeems; A's page and the admin list show one `pending` row, then tell the
-agent to delete it. (2) **Mondays (UTC):** `GET /admin/api/affiliates/commissions` lists who is owed at
-least $20 — pay, then record it with `POST /admin/api/affiliates/payout`.
+## 9. Be findable — SEO-1, GEO-1 (2026-10-29)
 
-**Done looks like:** a real referred learner shows `pending`, and the first payout is recorded as paid.
+(1) Verify `katzuai.com` in Google Search Console (one TXT record), submit both sitemaps, import into Bing —
+`docs/agent/GEO-VISIBILITY.md` §5. (2) Read the 12 guides, reply "fine" or changes (§7). (3) Monthly, ask 30
+Arabic questions across six assistants and fill one table (§2–§4). (4) Send your LinkedIn / GitHub / X links.
+**Done:** Search Console says "Success" for both sitemaps, and the month's table has numbers.
 
-## 9. Be findable — Google, Bing, AI assistants — SEO-1, GEO-1 (2026-10-29)
+## 10. Admin panel — decided, nothing to do — V46-1
 
-**What it is.** Twelve Arabic guides, a sitemap, crawler-friendly `robots.txt` and structured data are live;
-what is left is domain verification and a monthly look.
-
-**What you do.** (1) Verify `katzuai.com` in Google Search Console (one TXT record), submit both sitemaps and
-import into Bing — `docs/agent/GEO-VISIBILITY.md` §5. (2) Read the 12 guides and reply "fine" or changes
-(§7). (3) Monthly, ask 30 Arabic questions across six assistants and fill one table (§2–§4). (4) Send your
-LinkedIn / GitHub / X links (§8).
-
-**Done looks like:** Search Console says "Success" for both sitemaps, and the month's table has numbers.
-
-## 10. The admin panel is live — decided 2026-10-31, nothing for you to do — V46-1
-
-**What it is.** The separate admin site sits behind Cloudflare Access and cannot touch the database or
-a key; your session already loaded it (26 requests, all successful).
-
-**Your decisions.** Text stays **off**; retention **90 days text, 365 counters**; `/admin` and `ADMIN_SECRET` stay until real traffic confirms the panel.
-
-**Done looks like:** a real learner turn appears, and you say whether to retire `/admin`.
+The panel is live behind Cloudflare Access and cannot touch the database or a key; text **off**, retention
+**90 days text / 365 counters**, and `/admin` + `ADMIN_SECRET` stay until real traffic confirms it.
+**Done:** a real learner turn appears and you say whether to retire `/admin`.
 
 ## 11. Type «hallo» in one scene — V45 (2026-10-31)
 
-The greeting fix and the card are live but need a signed-in lesson, so I could not see them.
-Sign in at `https://katzuai.com`, open **Am Flughafen** (A1), type `halo`: the partner should ask about your
-luggage, and the note under your bubble should say «Schreibung: Doppel-l» with a matching explanation, nothing cut off.
-**Done:** both appear, or send what you saw. Then keep chatting a few messages and type `hallo`
-again: the partner must stay in the scene and never ask «Wie geht es Ihnen?».
-Record: `docs/AGENT-STATE.md` UNPROVEN V45.
+Sign in at `https://katzuai.com`, open **Am Flughafen** (A1), type `halo`: the partner should ask about luggage,
+and the note under your bubble should say «Schreibung: Doppel-l», nothing cut off. Then keep chatting and type
+`hallo` again: the partner must stay in the scene and never ask «Wie geht es Ihnen?».
+**Done:** both appear, or send what you saw. Record: `docs/AGENT-STATE.md` UNPROVEN V45.
 
-## Nothing to do — recorded so nobody re-opens them
+## 12. Turn on the new conversations — CONTENT-V2-1 (2026-11-01)
 
-- **Free lessons are three, once — FREE-1, closed 2026-10-28.** `MAX_FREE_AI_SESSIONS = 3`; every surface says «في المجموع».
-- **Content-load drift check — V15-3.** Run `node scripts/check-content-drift.mjs` after any content change.
+61 conversations are tested locally: your 49 corrected with A0 levels, plus 12 new (pharmacy, Jobcenter,
+emergency call, dentist, language café…). The live app still shows the old 49: production content needs your
+words and today's loader can only add rows, not update them. Choose:
+1. **New only (safe):** `CONTENT-LOAD-AUTHORIZED: scenarios-new.json` — adds the 12; the 49 stay as they are.
+2. **Everything:** approve an update-capable load, so the 49 corrected rows replace the old ones. I write and
+   test that path before touching production.
+**Done:** the app lists the chosen situations at all five levels and `node scripts/check-content-drift.mjs`
+exits 0.
+
+## 13. Native check of the new Arabic — CONTENT-V2-2 (2026-11-01)
+
+159 new word meanings and the Arabic for the 12 new situations are machine-written and marked `needs_review`.
+Open `docs/OWNER-LANGUAGE-REVIEW.md` (German beside Arabic), read it or send it to a native speaker, then reply
+with corrections or «fine». **Done:** every `needs_review` mark is cleared.
+
+## 14. Near-duplicate conversations — CONTENT-V2-3 (2026-11-01)
+
+Seven pairs overlap (viewing vs. contract, café vs. restaurant, station vs. first ride, five interviews…).
+Deleting one would erase a learner's progress and saved links, and the app has no "hidden" flag, so both stay
+and the second is narrower. Say **keep both** (recommended) or **hide the second** (needs a small code-level
+retired list). Pairs: `docs/CONTENT-AUDIT.md` §4. **Done:** one decision recorded.
+
+## Nothing to do — so nobody re-opens them
+
+- **Free lessons are three, once — FREE-1.** `MAX_FREE_AI_SESSIONS = 3`; every surface says «في المجموع».
+- **Drift check — V15-3.** Run `node scripts/check-content-drift.mjs` after any content change.
 - **Payments stay off for the beta — V18.** `/crypto/health` `ready:false` is correct.
-- **`docs/LAUNCH-CHECKLIST.md` § 2 stays untouched.** Those are your items, unchanged.
+- **`docs/LAUNCH-CHECKLIST.md` §2 stays untouched.** Those are your items, unchanged.
 - **The two Worker settings are applied.** Emergency stop: `MAINTENANCE_MODE = "on"`; retention runs 04:17 UTC.

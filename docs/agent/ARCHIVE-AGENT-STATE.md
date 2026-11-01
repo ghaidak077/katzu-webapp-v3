@@ -685,3 +685,84 @@ first ENV probe) is unchanged below; the ledger keeps the 2026-10-28/29/30 decis
   bundle **628.22 → 753.22 KiB** raw, **157.50 → 178.45 KiB** gzip. Post-deploy `/health` + `/crypto/health`
   green, `/internal/admin/health` and `/admin/api/affiliates` **401**, `/ai/turn` **401** unauth. **UNPROVEN:**
   the live «hallo» reply — no signed-in Google session, and production has no anonymous turn path.
+
+
+## RESUME 2026-10-28..30 moved (2026-11-01, verbatim out of `docs/AGENT-STATE.md`, nothing rewritten)
+
+- **2026-10-30 — word cards cost zero AI calls, openers are instant, and «hallo» gets a re-ask (worker + app
+  deployed).** Three learner-visible outcomes, each deployed and verified live where a browser could reach it.
+  (1) **Openers:** the 223 scenario openers are pre-computed German + Arabic, so `exam_erfahrungen_sprechen`
+  shows «نهارك سعيد! أخبرني: ما السهل عليك وما الصعب في تعلّم الألمانية؟» under its German line instantly and with
+  no model call (the old path called `/ai/translate` and, on the empty key pool, gave 503). (2) **Word cards:**
+  the shipped glossary answers first — 11 words in that exam scenario plus 4 in `cafe_order` and 5 in
+  `doctor_visit` each showed meaning + Arabic POS + level with `window.__kzAiCalls` at **0** for the whole
+  session; the last resort is the new `POST /ai/lexeme`, **one** model call per **lemma**, cached fleet-wide in
+  KV (SHA key, 180 days, no learner text) and mirrored in IndexedDB `katzu_lexeme_cache_v1`, so a repeat or an
+  inflected form is 0 — and a cached lemma answers even with the key pool empty. (3) **The guard:** a bare
+  «hallo» can no longer be answered with an invented «Mir geht es gut.»; `cloudflare-turn-guard.js` (35 pure
+  tests) is proven to run inside `/ai/turn` by one new route test — the first attempt answered **400** because
+  the test's empty D1 double turned `exam_erfahrungen_sprechen` (no static fallback row) into `UNKNOWN_SCENARIO`,
+  which is the failure mode a test must model, not hide. **Gate `VERIFY OK 14/14` in 676.6 s** on this tree.
+  Worker `b33136fa-…` live (`/ai/lexeme` 401 unauthenticated where it answered 404), app `e948f1dc-…`; ids and
+  rollbacks in SNAPSHOT. **Live browser C (send «hallo» in a real episode) and the authenticated
+  1-call-then-0 path stay UNPROVEN** — both need a real signed-in session, which an agent must not create.
+  No dictionary ships (Kaikki CC BY-SA + GFDL, FreeDict GPL, neither German→Arabic); the decision is in
+  `docs/OWNER-CHECKLIST.md` §4. Owner's remaining steps: proofread the Arabic openers, paste a provider key,
+  the two-account affiliate test, payment + legal fields.
+
+- **2026-10-30 — the home headline reads as words again and names the language (site deployed).** A tag-stripping extractor read the home `h1` as one word («تُتعلَّمبالتحدّث») because its two block lines were joined with no whitespace; a newline fixes the measurement and changes nothing on screen (the two `.ml` line boxes, the `h1`, the hero box and the document height are identical to the pre-fix build at 390×844 and 1366×800). The home `title`, `og:title`, `twitter:title` and the `WebPage` JSON-LD `name` now read «كاتزو — تطبيق لتعلّم اللغة الألمانية بالمحادثة» (**46 characters**), the description carries «تعلم اللغة الألمانية», and **no other page kept a different title by accident — only `/` moved**. Images: all 20 `<img>` on the site already had an `alt` (19 decorative brand marks beside the visible «كاتزو», one Arabic alt on the home screenshot), so nothing needed fixing. New `tests/headings.test.ts` fails when any heading, HTML or `md/` twin, fuses at a tag run — it reports the old H1 as `تُتعلَّم•بالتحدّث` and today as clean. Live after the deploy: `/` `/pricing` `/affiliate` `/help` `/guides` **200**, the 46-character title, the 5-word H1 with its whitespace, `og:title`, `twitter:title` and the JSON-LD name all read back from production, markdown negotiation on `/pricing` still `text/markdown` + `Vary` + `X-Robots-Tag`, and `md/` now reads «الألمانية تُتعلَّم بالتحدّث، لا بالحفظ.». Gate `VERIFY OK 14/14` (731.5 s, exit 0); local `wrangler pages dev` crawl 17/17 sitemap URLs 200 and **33 old URLs each a single 301 to a 200**. Read-only header check, no Cloudflare change: `http://website.katzuai.com/` **200**, `http://katzuai.com/` **301 → `https://katzuai.com/`**. Deploy and rollback ids: SNAPSHOT.
+- **2026-10-29 — the site is now built to be crawled and cited: 12 Arabic guides, one sitemap, a crawler
+  policy that welcomes the AI assistants.** The site is 17 pages (`/guides` + 12 articles), each with one H1, an
+  answer-first lead, a table or checklist, FAQs, «آخر تحديث», an author and official sources; the build refuses a
+  guide outside 900–1500 words, a dead related link, a quoted price or a promise. Both hosts' `robots.txt` allow
+  the ten named crawlers and disallow only `/admin/ /api/ /private/`; the site sitemap carries **17** URLs with
+  real `lastmod`; `/llms.txt` and an IndexNow key are generated and `npm run seo:indexnow` submitted the 17 (202).
+  The app emits a root-only `sitemap.xml`, and both hosts count an assistant referral as
+  `landing_viewed`/`source` (hostname only, no cookie). Live: site
+  `03ec8a29-…`, app `58455d0e-…` (SNAPSHOT); 17/17 sitemap URLs 200, 47 links/assets 0 dead, mobile SEO/a11y 100
+  on five pages, `/` byte-identical except the head tags, the footer «الأدلة» link and `ai-ref.js`. **Edge block,
+  unfixable here:** Cloudflare answers `403` to GPTBot, ClaudeBot and PerplexityBot and its managed `robots.txt`
+  disallows them — OWNER-OPEN SEO-1/GEO-1; citation evidence UNPROVEN.
+
+- **2026-10-28 — AFF-1 went live on the Worker, and the free tier stopped promising a month.** The worker that
+  owns the partner ledger is deployed and answers `/affiliate/me` (401 signed out), `/affiliate/ref` (400 on a
+  malformed code) and the owner-only `/admin/api/affiliates*` (401); the three tables exist in production D1.
+  Every free-lesson surface now says «في المجموع» — home meta/OG/JSON-LD/CTA, `/pricing`, the paywall and the
+  soft-prompt copy — because `MAX_FREE_AI_SESSIONS` counts `trial_quota_ledger` rows with no period filter
+  (FREE-1 closed; the once-branch of the owner's OR). The `dayZeroReport` flake was a **cause**, not a rerun:
+  a 1.2 s timer opened the soft Pro modal after the first correction and its scrim covered «أرسل جملتك» for the
+  rest of the episode; the timer is gone and the spec now watches that 1.6 s window. Deploy ids, live strings
+  and the two-account gap: SNAPSHOT + OWNER-OPEN AFF-1.
+
+- **2026-10-28 — the home page stopped saying two things the app does not do (site deployed).** Three copy fixes,
+  text only: the trust line dropped «أخطاؤك ومحادثاتك تبقى على جهازك» (`syncProgress` uploads mistakes + session
+  summaries to `/progress/sync`); the free-lessons FAQ dropped «تتجدد دروسك المجانية كل شهر» (`MAX_FREE_AI_SESSIONS
+  = 3`, all-time in `trial_quota_ledger`); the voice FAQ answers instead of pointing at a paragraph
+  (`cloudflare-stt.js`: audio → Workers AI Whisper, never stored). Stat `6` → **49** (live `GET /scenarios`), rail
+  card 06 = the real café scenario; `/help` links `/#rail` as «49 موقفاً في التطبيق». Proof: gate green, 390 + 1440
+  one H1 / no overflow, strings read back live; ids in SNAPSHOT. Its «كل شهر» residue was closed by FREE-1.
+
+- **2026-10-28 — `/partners` was a 404, not a broken button (app rebuilt from git).** The route was in the
+  router but not in `public/_redirects`, so that deep link died while its siblings answered 200 (`404.html`
+  stops the shell fallback; gotcha 11). `/partners / 200` is listed and `tests/appMap.test.ts` fails when a code
+  route has no 200 rewrite (proved by deleting the line). Live: 200 → shell → `/welcome`, no page errors.
+
+- **CI on `c359095` is green.** Run `40703219152` rerun: **170 passed / 2 skipped**, verify green; attempt 1
+  failed only `dayZeroReport.spec.ts:179`, where the `PaywallModal` scrim covered «أرسل جملتك» for all 90 s.
+  It passes locally (17.2 s) and the suite was green on `e453e1c`: trigger UNPROVEN at the time — the cause is
+  the removed soft-prompt timer (RESUME above), and CI on `d786bd0` is green (run `40709993823`).
+
+- **2026-10-28 — CI red on `3980b39` was a socket reset, not the tree.** Run `40701347617` failed only
+  `quiz content audit` with `fetch failed [ECONNRESET]` while `GET /scenarios` answered 3/3 200 here and the
+  same step passed in the pre-push gate. That step now retries a *thrown* network error 3× (an HTTP status still
+  fails; proven: exit 1 after 3 attempts against a closed port), so a runner's TLS reset no longer reddens CI.
+
+- **2026-10-28 — the partner program is live and has no partners yet (AFF-1).** `/affiliate` states 20% of the
+  first paid order, a 14-day hold, a $20 minimum and four payout methods (from `AFFILIATE_CONFIG`);
+  `cloudflare-affiliate.js` owns the tables, signup attach, day-14 approval and refund voiding. Deployed worker
+  `998873c6-…`, site `4dbf4a05-…`, app `408cf69c-…`, push `ccbbacb..4870d39`; live proof (`ZZTEST01`, 30-day
+  cookie, admin 401) in SNAPSHOT. Next: the owner creates the first code.
+
+- **2026-10-28 — `/` is the owner's design again (deployed).** Full record (design parity, Lighthouse
+  97/100/100, 33 redirects, deploy `90880c38-…`) and the three-page site + audit #7 entries are in
+  `docs/agent/ARCHIVE-AGENT-STATE.md` (search `RESUME 2026-10-28`).
