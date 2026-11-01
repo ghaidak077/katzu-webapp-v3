@@ -37,8 +37,9 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   unresolved**. Two defects were fixed rather than accepted: **29 A0 openers were the learner's line instead of the
   partner's**, and **8 A0/A1 openers used forbidden past-tense markers**. Evidence: `contentCatalogue` **21**,
   `turnGuard` runs a bare greeting against **61 × 5** openers, `trailOrdering`, `tsc` exit 0. Audit and duplicate
-  decisions: `docs/CONTENT-AUDIT.md`. **UNPROVEN:** the live app — production D1 still has the old 49 rows and the
-  loader is insert-only.
+  decisions: `docs/CONTENT-AUDIT.md`. Pushed as branch `content-v2`; full gate **VERIFY OK 14/14** with e2e and CI
+  run **41277670237** green on `4e41a38` (`verify`, `e2e`, `secret-scan`, `launch-check`), no PR, nothing merged.
+  **UNPROVEN:** the live app — production D1 still has the old 49 rows and the loader is insert-only.
 - **2026-10-31 — content management reaches the new panel without touching a learner table (worker + panel deployed).**
   `cloudflare-content-admin.js` adds five additive tables (`content_drafts`, `content_audit`, `content_trash`,
   `content_backups`, `content_reviews`) and `/internal/admin/content/*`: list/search/filter; draft → publish
@@ -280,7 +281,9 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 `docs/content/catalogue/scenarios-catalogue.json` (49 corrected + 12 new) → `scripts/apply-content-catalogue.mjs` →
 `build-language-data.mjs`; **0/305** openers off-spec, 0 personas without `katze`, 0 emoji icons, `sequence_order`
 1..61; 301 openers / 457 glossed tokens / 0 unresolved; 12 rows and 159 glosses marked `needs_review`. Focused
-suites green (`contentCatalogue` 21, `turnGuard` 61×5, `trailOrdering`, `openersStatic`). **Blocked on the owner:**
+suites green (`contentCatalogue` 21, `turnGuard` 61×5, `trailOrdering`, `openersStatic`). Full gate `VERIFY OK`
+14/14 with e2e on `4e41a38`; CI run **41277670237** on that exact SHA: `verify`, `e2e`, `secret-scan`, `launch-check`
+all **success**. Pushed to `origin/content-v2` (branch only, no PR, nothing merged). **Blocked on the owner:**
 production D1 needs `CONTENT-LOAD-AUTHORIZED: <file>` and the loader is insert-only, so the 49 corrected rows have
 no write path yet (`docs/CONTENT-AUDIT.md` §9). |
 | SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
