@@ -167,7 +167,7 @@
     cards.appendChild(card("Success rate", pct(data.ai.success_rate), num(data.ai.ok) + " succeeded"));
     cards.appendChild(card("Avg latency", ms(data.ai.avg_latency_ms), "max " + ms(data.ai.max_latency_ms)));
     cards.appendChild(card("API errors", num(data.routes.errors), pct(data.routes.error_rate) + " of " + num(data.routes.total)));
-    cards.appendChild(card("Conversation turns", num(data.conversations.turns), data.logging_enabled ? "text logging ON" : "text logging OFF"));
+    cards.appendChild(card("Conversation turns", num(data.conversations.turns), data.logging_enabled ? "text logging ON (opt-in)" : "text logging OFF"));
     cards.appendChild(card("Release", text(data.release), "worker"));
 
     render("overview-kinds", table(["Outcome", "Calls"], data.ai.by_kind, function (row) {
@@ -221,7 +221,7 @@
     if (hours) params.set("hours", hours);
     var data = await apiJson("/conversations?" + params.toString());
     $("conversation-mode").textContent = data.logging_enabled
-      ? "Text logging is ON. Showing stored turns; 90-day retention."
+      ? "Text logging is ON for learners who opted in from Settings. Turns from accounts without a grant are never stored; 90-day retention."
       : "Text logging is OFF. This list is empty until the master switch is turned on; metrics continue.";
     render("conversation-rows", table(
       ["When", "User", "Scenario", "Outcome", "Preview", "Flags"],
@@ -347,24 +347,6 @@
       toast("Deleted.");
       closeDrawer();
       loadView("conversations").catch(function () {});
-    } catch (error) {
-      toast(error.message, true);
-    }
-  }
-
-  async function exportConversations() {
-    var hours = Number($("filter-hours").value) || 720;
-    try {
-      var response = await api("/export", { method: "POST", body: JSON.stringify({ hours: hours }) });
-      var blob = await response.blob();
-      var link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "katzu-conversations-" + Date.now() + ".json";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(function () { URL.revokeObjectURL(link.href); }, 10000);
-      toast("Export downloaded.");
     } catch (error) {
       toast(error.message, true);
     }
@@ -1084,7 +1066,6 @@
         loadView("users").catch(function (error) { toast(error.message, true); });
       }
     });
-    $("export").addEventListener("click", exportConversations);
     $("drawer-close").addEventListener("click", closeDrawer);
     $("flag").addEventListener("click", function () { flag(true); });
     $("clear-flag").addEventListener("click", function () { flag(false); });

@@ -499,40 +499,6 @@ async function handleAudit(env, url) {
   return { rows };
 }
 
-async function handleExport(env, request) {
-  await ensureTelemetryTables(env);
-  let body = null;
-  try {
-    body = await request.json();
-  } catch {
-    body = null;
-  }
-  const hours = num(body?.hours, 720, 1, 8760);
-  const userId = text(body?.user_id, 80);
-  const since = windowStart(hours);
-  const clauses = ["ts >= ?"];
-  const binds = [since];
-  if (userId) {
-    clauses.push("user_id = ?");
-    binds.push(userId);
-  }
-  const rows = await all(
-    env,
-    `SELECT turn_id, session_id, turn_no, ts, ts_local, user_id, plan, scenario, level,
-            learner_text, reply_text, hints, corrections, word_cards, outcome, guard,
-            latency_ms, provider, model, flagged, note, redacted
-       FROM conversations WHERE ${clauses.join(" AND ")} ORDER BY ts ASC LIMIT 5000`,
-    binds,
-  );
-  return {
-    generated_at: Date.now(),
-    window_hours: hours,
-    user_id: userId || null,
-    logging_enabled: conversationLoggingEnabled(env),
-    turns: rows,
-  };
-}
-
 async function handleRetentionSweep(env, ctx) {
   const result = await sweepConversationText(env);
   if (ctx) ctx.waitUntil(audit(env, { action: "retention_sweep", target: "conversations", meta: JSON.stringify(result).slice(0, 400) }));
@@ -664,20 +630,11 @@ export async function handleInternalAdminRoutes(url, request, env, cors, ctx, de
       if (!turnId) return json({ error: "turn_required" }, 400);
       return json(await handleFlagConversation(env, turnId, request, ctx), 200);
     }
-    if (segments[0] === "export") {
-      if (method !== "POST") return json({ error: "method_not_allowed" }, 405);
-      const payload = await handleExport(env, request);
-      ctx?.waitUntil?.(audit(env, { action: "conversation_export", target: payload.user_id || "all", meta: `hours=${payload.window_hours}` }));
-      return new Response(JSON.stringify(payload), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          "Content-Disposition": `attachment; filename="katzu-conversations-${Date.now()}.json"`,
-          "Cache-Control": "no-store",
-          "X-Content-Type-Options": "nosniff",
-        },
-      });
-    }
+    // No bulk conversation export exists on purpose. The list is read one page
+    // at a time and one turn at a time, behind the same auth as everything else;
+    // a single downloadable file of every learner's text is exactly the artifact
+    // this feature must not create. `POST /export` answers 404 like any unknown
+    // internal route (see `docs/ADMIN.md` §7).
     if (segments[0] === "retention" && segments[1] === "sweep") {
       if (method !== "POST") return json({ error: "method_not_allowed" }, 405);
       return json(await handleRetentionSweep(env, ctx), 200);

@@ -26,6 +26,8 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-03 — one brand graph (local only).** One Organization `@id`, both robots files naming both
+  sitemaps, an apex `llms.txt`; gate **6/6**, live UNPROVEN until deploy.
 - **2026-11-01 — the corrected 49 rows have a tested update path, and the PWA now asks before it reloads (local only).**
   `scripts/load-content-updates.mjs` (dry run / `--commit` / `--undo=<manifest>`) updates only ids already live, through the
   Content Studio, so each row gets a draft, audit row, dated backup and undo; it never creates rows, refuses while a draft
@@ -153,12 +155,11 @@ paywall and the soft-prompt copy (FREE-1 resolved). **Motion:** the soft Pro pro
 after the first correction is removed — its scrim covered «أرسل جملتك» until dismissed, which is the
 `dayZeroReport` CI flake; `e2e/dayZeroReport.spec.ts` now watches that window.
 
-NEXT (V44): **SEO-1 and GEO-1 are the owner's two steps, and nothing in this batch is startable without them.**
-Search Console (one TXT record) + Bing + `npm run seo:indexnow` (SEO-1); a native read of the 12 guides, the
-30-prompt panel and real profile URLs for `sameAs` (GEO-1) — all in `docs/agent/GEO-VISIBILITY.md`. V44-1 and
+NEXT (V44): **SEO-1's code half is done (2026-11-03); the rest is the owner's.** Search Console + Bing +
+`npm run seo:indexnow` (SEO-1); the 12-guide read, 30-prompt panel and `sameAs` URLs (GEO-1) — see
+`docs/agent/GEO-VISIBILITY.md`. Index status stays UNPROVEN until URL Inspection is read on both hosts. V44-1 and
 V44-2 (money and legal fields) still block the paying surfaces. AFF-1's referral test and payout day stay with
-the owner; an agent must not sign in as them or use the admin key. A live 403 or challenge from Cloudflare is a
-dashboard setting (Security → Bots / WAF), never repo code.
+the owner; an agent must not sign in as them or use the admin key.
 
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 

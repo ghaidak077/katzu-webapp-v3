@@ -338,7 +338,7 @@ describe('mutations are explicit and audited', () => {
     expect(del?.args).toEqual(['u1']);
   });
 
-  it('exports as a download and audits it', async () => {
+  it('has no bulk conversation export: the route answers 404 and reads nothing', async () => {
     const env = makeEnv();
     const c = ctx();
     const response = await handleInternalAdminRoutes(
@@ -348,12 +348,11 @@ describe('mutations are explicit and audited', () => {
       undefined,
       c as unknown as ExecutionContext,
     );
-    expect(response?.status).toBe(200);
-    expect(response?.headers.get('Content-Disposition')).toContain('attachment');
-    const body = await response!.json();
-    expect(body.turns).toEqual([]);
-    expect(body.window_hours).toBe(24);
-    expect(env.DB.statements.some((s) => s.sql.includes('INSERT INTO admin_audit'))).toBe(true);
+    // A downloadable file of every learner's text is the one artifact this
+    // feature must not create; the list stays paginated behind the admin auth.
+    expect(response?.status).toBe(404);
+    expect(response?.headers.get('Content-Disposition')).toBeNull();
+    expect(env.DB.statements.some((s) => s.sql.includes('FROM conversations'))).toBe(false);
   });
 
   it('runs the retention sweep on demand', async () => {

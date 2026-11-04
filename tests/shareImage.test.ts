@@ -133,13 +133,25 @@ describe('the Open Graph tags point at it', () => {
     const structured = withStructuredData(html, 'https://katzu.example/');
     const match = structured.match(/<script type="application\/ld\+json">(.*?)<\/script>/);
     expect(match).not.toBeNull();
-    expect(JSON.parse(match![1])).toMatchObject({
+    const nodes = JSON.parse(match![1]) as Array<Record<string, unknown>>;
+    expect(Array.isArray(nodes)).toBe(true);
+    const website = nodes.find((node) => node['@type'] === 'WebSite');
+    expect(website).toMatchObject({
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       name: 'Katzu',
       url: 'https://katzu.example/',
       inLanguage: 'ar',
     });
+    // The brand entity is anchored on the apex, not on whichever host built
+    // this bundle, so the app and the marketing site name one Organization.
+    const organization = nodes.find((node) => node['@type'] === 'Organization');
+    expect(organization).toMatchObject({
+      '@id': 'https://katzuai.com/#organization',
+      name: 'Katzu',
+      url: 'https://katzuai.com/',
+    });
+    expect(website!.publisher).toEqual({ '@id': 'https://katzuai.com/#organization' });
     expect(withStructuredData(structured, 'https://katzu.example')).toBe(structured);
     expect(withStructuredData(html, '')).toBe(html);
   });
@@ -220,6 +232,10 @@ describe('the crawler files the app build emits', () => {
       expect(robots).toContain(`Disallow: ${path}`);
     }
     expect(robots).toContain('Sitemap: https://katzuai.example/sitemap.xml');
+    // The rankable pages live on the marketing subdomain; the app's robots
+    // file must point a crawler at them or they are a second, unfound site.
+    expect(robots).toContain('Sitemap: https://website.katzuai.com/sitemap.xml');
+    expect(robots.match(/^Sitemap:/gm)).toHaveLength(2);
     // No dead host may survive in a generated file.
     expect(robots).not.toContain('katzu.app');
   });

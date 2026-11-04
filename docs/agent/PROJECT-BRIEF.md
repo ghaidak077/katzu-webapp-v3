@@ -1,5 +1,14 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
+**Latest (2026-11-03, crawl graph joined — local only, not deployed).** The app (`katzuai.com`) and the
+marketing site (`website.katzuai.com`) now describe one brand: a single Organization `@id`
+(`https://katzuai.com/#organization`), the app's JSON-LD carrying that node beside its own `WebSite`,
+both `robots.txt` files listing both sitemaps, and an apex `llms.txt` that points at the site instead
+of 404ing. The sitemaps stay per-host (17 marketing URLs + the app root) because a sitemap index can
+only name sitemaps, not pages. Rebuilt `website/` and `dist/`; `npm run verify` **VERIFY OK 6/6**
+(81.9 s). Live effect is UNPROVEN until a deploy; index status still needs the owner's Search Console
+URL Inspection.
+
 **Latest (2026-10-24, AI visibility — read this first).** Public marketing and trust pages are now
 static, crawlable HTML: 21 indexable pages (13 Arabic, 8 English) plus a real 404, with unique
 titles/canonicals, `lang`/`dir`/`hreflang`, JSON-LD, `robots.txt`, `sitemap.xml` with `lastmod`,
@@ -134,9 +143,10 @@ analytics contract change).** No app route, screen, endpoint, table or dependenc
   0 dead on the live host; Lighthouse mobile SEO **100** and accessibility **100** on `/`, `/pricing`, `/help`,
   `/guides`, `/guides/a1-visa`; `/` byte-identical to the live page except head tags, the footer «الأدلة» link
   and `ai-ref.js`.
-- **Not fixed here:** Cloudflare answers `GPTBot`, `ClaudeBot` and `PerplexityBot` a **403** on HTML and the
-  sitemap, and its managed `robots.txt` block disallows them before ours — Security → Bots / WAF, owner-only.
-  Citation evidence is `UNPROVEN` until the 30-prompt panel in `docs/agent/GEO-VISIBILITY.md` is run.
+- **Not fixed here:** Cloudflare answered `GPTBot`, `ClaudeBot` and `PerplexityBot` a **403** on HTML and the
+  sitemap, and its managed `robots.txt` block disallowed them before ours — Security → Bots / WAF, owner-only.
+  **Resolved 2026-11-03:** all ten agents receive `200` on both hosts' home, `robots.txt` and sitemap; see
+  `docs/agent/GEO-VISIBILITY.md` §5. Citation evidence is `UNPROVEN` until the 30-prompt panel is run.
 
 ## Previous snapshot — 2026-10-28 (the partner worker is live; the free-tier promise now matches the app)
 

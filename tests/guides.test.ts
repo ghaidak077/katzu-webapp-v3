@@ -154,7 +154,10 @@ describe('the twelve guides', () => {
       expect(article.datePublished).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(article.dateModified).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(article.dateModified >= article.datePublished).toBe(true);
-      expect(article.author.name).toBe('Katzu');
+      // The author is the brand entity itself, anchored on the apex, so the
+      // guide and the app cannot describe two different organizations.
+      expect(article.author).toEqual({ '@id': 'https://katzuai.com/#organization' });
+      expect(article.publisher).toEqual({ '@id': 'https://katzuai.com/#organization' });
       expect(article.mainEntityOfPage['@id']).toBe(`${SITE}/guides/${slug}`);
 
       const crumbs = blocks.find((block) => block['@type'] === 'BreadcrumbList');

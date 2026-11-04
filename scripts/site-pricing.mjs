@@ -24,7 +24,7 @@ export const WORKER = 'https://katzu-test.ghaidakalosh008.workers.dev';
 /** Where every "ابدأ مجاناً" CTA goes: the demo lesson was removed. */
 export const START = `${APP}/welcome`;
 export const SUPPORT = 'support@ghaidak.com';
-export const UPDATED = '2026-10-28';
+export const UPDATED = '2026-11-04';
 export const CTA_LABEL = 'ابدأ مجاناً';
 
 /* ------------------------------------------------------------------ */

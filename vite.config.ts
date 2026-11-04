@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import { CONTENT_SIGNAL, CRAWLER_AGENTS, robotsGroup } from './scripts/seo-agents.mjs';
+import { ORG_ID, organizationJsonLd } from './scripts/site-schema.mjs';
+import { appLlmsTxt } from './scripts/site-seo.mjs';
+import { SITE } from './scripts/site-pricing.mjs';
 
 /**
  * Exported so a test can pin the offline contract: the generated sw.js must
@@ -285,24 +288,32 @@ export function withCanonicalUrl(html: string, origin: string): string {
 }
 
 /**
- * Add a minimal WebSite JSON-LD block when the build knows its origin.
+ * Add the app's structured data when the build knows its origin.
  *
- * The page is a single public product site; `WebSite` with a canonical `url`
- * and language is the honest machine-readable description of it. The value is
- * JSON-stringified (and `<` escaped) so the origin can never terminate the
- * script element.
+ * Two nodes, not one. The `Organization` is the brand and keeps the same `@id`
+ * on both hosts (`https://katzuai.com/#organization`), so the app and the
+ * marketing site describe one entity instead of two. The `WebSite` is this
+ * host's own property, with the canonical `url` and language a crawler needs.
+ * The value is JSON-stringified (and `<` escaped) so the origin can never
+ * terminate the script element.
  */
 export function withStructuredData(html: string, origin: string): string {
   const base = normalizeOrigin(origin);
   if (!base) return html;
   if (/application\/ld\+json/.test(html)) return html;
-  const json = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: 'Katzu',
-    url: `${base}/`,
-    inLanguage: 'ar',
-  }).replace(/</g, '\\u003c');
+  const json = JSON.stringify([
+    organizationJsonLd(),
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      '@id': `${base}/#website`,
+      name: 'Katzu',
+      alternateName: 'كاتزو',
+      url: `${base}/`,
+      inLanguage: 'ar',
+      publisher: { '@id': ORG_ID },
+    },
+  ]).replace(/</g, '\\u003c');
   return html.replace('</head>', `  <script type="application/ld+json">${json}</script>\n</head>`);
 }
 
@@ -326,12 +337,18 @@ export function withHreflang(html: string, origin: string): string {
 
 /**
  * The app's `robots.txt`: the same ten crawlers the marketing site welcomes, the
- * same private paths, one sitemap line when the build knows its origin.
+ * same private paths, and both sitemaps when the build knows its origin.
+ *
+ * WHY BOTH SITEMAPS
+ * The apex sitemap lists the app shell; the marketing sitemap lists the guides,
+ * pricing and help pages. Naming only the first left every rankable page one
+ * subdomain away from a crawler that started here. The two `Sitemap:` lines are
+ * the standard way to make either entry point lead to both.
  *
  * Why it is built rather than checked in: the checked-in file named `katzu.app`,
  * a host that does not resolve. A file generated from `VITE_PUBLIC_APP_URL` cannot
  * advertise a dead domain, and when the origin is unset it says so by omitting the
- * `Sitemap:` line instead of inventing one.
+ * `Sitemap:` lines instead of inventing them.
  */
 export function appRobotsTxt(origin: string): string {
   const base = normalizeOrigin(origin);
@@ -344,7 +361,7 @@ export function appRobotsTxt(origin: string): string {
     // above already state the same policy to the crawlers that read them.
     robotsGroup('*', [CONTENT_SIGNAL]),
     '',
-    ...(base ? [`Sitemap: ${base}/sitemap.xml`, ''] : []),
+    ...(base ? [`Sitemap: ${base}/sitemap.xml`, `Sitemap: ${SITE}/sitemap.xml`, ''] : []),
   ].join('\n');
 }
 
@@ -432,6 +449,9 @@ function publicOriginFiles(env: Record<string, string | undefined>): Plugin {
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: appRobotsTxt(origin) });
       const sitemap = appSitemapXml(origin);
       if (sitemap) this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: sitemap });
+      // The conventional path an assistant guesses on the brand domain. It
+      // points at the marketing site's own `llms.txt` rather than copying it.
+      this.emitFile({ type: 'asset', fileName: 'llms.txt', source: appLlmsTxt() });
     },
   };
 }

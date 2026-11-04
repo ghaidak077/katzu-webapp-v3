@@ -15,8 +15,8 @@ authenticated panel read. The rollback and backup record is `docs/BACKUP.md`.
 |---|---|---|---|
 | 1 | Telemetry: `ai_events`, `route_events`, redaction, retention sweep | code + 29 tests | **deployed** — five tables exist; 26 `route_events` rows from the owner's panel session |
 | 2 | Separate panel Worker `katzu-admin`, Access gate, Service-Binding proxy | code + 26 tests (12 access, 14 panel) | **deployed** — Access intercepts `/`, `/api/*` and `/healthz` with a 302 to the team login; `kid` matches `ACCESS_AUD` |
-| 3 | Conversation logging: `conversations`, `conversation_attempts`, consent, 90-day scrub | code + tests, master switch **off** | **deployed but inert** — no consent UI, and **stores no text even when the switch is on** until a learner grants consent (§7) |
-| 4 | Users, content, alerts, errors, audit, export, delete screens | code + tests | **deployed** — the owner's session loaded health, overview, users, content, conversations, errors and alerts |
+| 3 | Conversation logging: `conversations`, `conversation_attempts`, consent, 90-day scrub | code + tests, master switch **on**, Settings opt-in built | **deployed but collecting nothing yet** — text is stored only for an account whose learner opted in from Settings (§7); no grant exists until someone does |
+| 4 | Users, content, alerts, errors, audit, delete screens | code + tests | **deployed** — the owner's session loaded health, overview, users, content, conversations, errors and alerts |
 
 The old embedded `/admin` page and `ADMIN_SECRET` are untouched. They stay until the new panel is
 verified live and the owner says to retire them.
@@ -153,7 +153,6 @@ the write fails — a mutation is never allowed to happen without the backup it 
 | GET | `/conversations/:turnId` | one row + its provider attempts |
 | DELETE | `/conversations/:turnId` | hard delete one turn |
 | POST | `/conversations/:turnId/flag` | `{flagged, note}` — review marking |
-| POST | `/export` | `{user_id?, hours?}` JSON download; audited |
 | GET | `/retention` | the retention vocabulary the sweep uses |
 | POST | `/retention/sweep` | apply the 90/365-day rules now |
 | POST | `/providers/state` | `{provider, enabled}` — entry-level enable/disable, reversible |
@@ -208,31 +207,54 @@ NULL stays NULL.
 Two independent gates, both required:
 
 1. **Operator switch** `CONVERSATION_LOGGING` — absent, `off`, `0`, `false` or anything else means
-   **metrics only**. This is the default and the state that will ship.
+   **metrics only**. `wrangler.toml` now sets `CONVERSATION_LOGGING = "on"`; a deploy is what
+   activates it. Turning it back to `off` is the emergency stop and needs no code change.
 2. **Learner grant** — KV `consent:logging:<user_sub>` must be `1`, `true` or `granted`. An absent
    key, an anonymous request (`user_id` null) or a failed KV read means **no text is stored**.
-   Silence is not consent; this is deliberately not an opt-out check.
+   Silence is not consent; this is deliberately not an opt-out check. The only writer of the key is
+   `POST /consent/conversation` (`cloudflare-consent.js`), called from the Settings toggle; it takes
+   the account from the session, never from the body, so no learner can grant or revoke another's.
 
-When both are on: text is redacted at write time (email, phone, URL, long digit runs), capped
-(2,000 chars for message/reply), stored with `turn_id` (unique), and scrubbed to `NULL` at 90 days
-while the row keeps its metrics. Per-turn and per-user hard delete exist in the admin API.
+When both are on: text is redacted at write time, capped at 2,000 chars, stored with a unique
+`turn_id`, and scrubbed to `NULL` at 90 days while the row keeps its metrics.
 
-**Current limitation, stated plainly:** no user-facing consent control exists yet (adding one changes
-learner-visible UI, which this batch was not allowed to do). Therefore, even with
-`CONVERSATION_LOGGING=on`, **no conversation text will be stored** until a consent grant is written
-to that KV key. The metrics half works immediately. This is the conservative reading of "stored only
-with consent" and it is why phase 3 is not claimed as complete.
+**The consent control (2026-11-04):** Settings → «الحساب والخصوصية» has a switch that says what is
+stored, for how long and why; it reads and writes `/consent/conversation`. `{ granted: true }`
+writes the KV key and is **refused with 409** while the operator switch is off. `{ granted: false }`
+deletes the key **and** hard-deletes that account's `conversations` and `conversation_attempts`,
+scoped by the session's `sub`; it is allowed while the switch is off. A failed delete answers 500
+`delete_incomplete` and the app leaves the switch where it was.
 
-### Exact privacy-policy text (to publish only with a consent control)
+The panel lists only opted-in turns; an empty list is not proof logging is broken — check the health
+badge and switch.
 
-Add to `TRUST_CONTENT.privacy.sections` in `src/lib/trust/content.ts`, and bump `TRUST_VERSION`:
+**Account deletion and export (2026-11-04).** `/user/delete` deletes `conversation_attempts`, then
+`conversations`, then the KV grant, inside the same all-or-nothing list; a failure answers
+`DELETE_INCOMPLETE` instead of leaving text behind. Deleting the grant matters on its own: a deleted
+account that signed in again would otherwise inherit consent it never gave. `/user/export` includes
+both tables (2,000 rows each, scoped by the verified `sub`). There is **no bulk export**:
+`POST /internal/admin/export` was removed (404) with the panel's button, so turns are read one page
+and one turn at a time behind the same Access + internal-token auth. Worker logs never carry text.
+
+**What redaction removes, and what it misses** (`REDACTIONS` in `cloudflare-telemetry.js`). Removes:
+emails, credential-shaped strings (`Bearer`, `sess_`, JWTs, `AIza…`, `sk-`/`pk-`/`rk-`/`nvapi-`,
+40+ char opaque runs), URLs carrying `token`/`code`/`key`/`sig`/`session`, phone numbers, and digit
+runs of 9+. Misses: names, street addresses, health or immigration facts written in words, IBANs,
+card and ID numbers written in groups or with separators, numbers under nine digits, plain URLs and
+handles — hence the Settings line against writing real personal data in practice sentences.
+
+### Published privacy-policy text
+
+Published as the `conversations` section of `TRUST_CONTENT.privacy` in `src/lib/trust/content.ts`
+(`TRUST_VERSION` bumped to `2026-11-04`), and the `ai` section now says text is not kept after the
+reply unless this is on:
 
 ```ts
 {
   id: 'conversations',
   headingAr: 'المحادثات المحفوظة للمراجعة (بموافقتك)',
   bodyAr:
-    'لا نحفظ نص محادثاتك ما لم توافق على ذلك صراحةً. إن وافقت، نحفظ رسالتك وردّ كاتزو لمدة ٩٠ يوماً كحد أقصى، بعد إخفاء البريد الإلكتروني وأرقام الهاتف والروابط، ولمراجعة جودة التعليم فقط. لا نستخدم النص لتدريب أي نموذج، ولا نبيعه، ولا نشاركه لأغراض تسويقية، ويمكنك سحب موافقتك وحذف محادثاتك في أي وقت من الإعدادات.',
+    'لا نحفظ نص محادثاتك ما لم توافق على ذلك صراحةً. إن وافقت، نحفظ رسالتك وردّ كاتزو لمدة 90 يوماً كحد أقصى، بعد إخفاء البريد الإلكتروني وأرقام الهاتف والروابط، ولمراجعة جودة التعليم فقط. لا نستخدم النص لتدريب أي نموذج، ولا نبيعه، ولا نشاركه لأغراض تسويقية، ويمكنك سحب موافقتك وحذف محادثاتك في أي وقت من الإعدادات.',
 },
 ```
 
@@ -244,26 +266,25 @@ English equivalent, for the owner's review (not shipped):
 > model, sold, or shared for marketing, and you can withdraw consent and delete your conversations
 > at any time in Settings.
 
-Do **not** publish this text before the Settings control and the delete action exist. Today's live
-privacy page remains true because no conversation text is stored anywhere.
+The control and the withdrawal-deletes-text action exist, so this text may ship with the next Pages
+build; until then the live page still describes the no-consent behaviour, which is still true in
+production.
 
 ## 8. Inspection findings
 
-- The old embedded HTML page behind `ADMIN_SECRET` is still live and untouched; it has no Access
-  layer, no audit trail and no conversation view. The new panel is the separate Worker above. Both
-  exist until the owner retires the old one.
-- The product Worker already has `D1`, `KV`, AI keys and a scheduled trigger; the panel therefore
-  gets none of them, only a Service Binding.
+- The old embedded page behind `ADMIN_SECRET` is still live: no Access layer, no audit trail, no
+  conversation view. Both panels exist until the owner retires the old one.
+- The product Worker holds `D1`, `KV`, AI keys and a trigger, so the panel gets only a Service
+  Binding.
 - Production D1 has no `d1_migrations`; the repo's convention is idempotent DDL at runtime. Followed.
-- The AI router's key rotation is in-memory and per isolate; a "disable key" that edits provider
-  config would not be the same thing as a cooldown. The panel disables a provider **entry** through
-  the existing `setDefaultProviderState`, which is reversible and never touches a key value.
-- `MAINTENANCE_MODE` would otherwise block admin writes; `/internal/*` is explicitly exempt so the
-  owner can inspect during maintenance. The exemption is one `if` and is covered by tests.
-- The panel proxy rewrites `/api/*` → `/internal/admin/*`, so the internal route name exists in one
-  place in the browser bundle: nowhere.
-- No runtime dependency was added. Access JWT verification uses WebCrypto; tests inject the
-  certificate fetcher instead of adding a production bypass.
+- The AI router's key rotation is in-memory and per isolate, so the panel disables a provider
+  **entry** through `setDefaultProviderState` — reversible, and never touching a key value.
+- `MAINTENANCE_MODE` would block admin writes; `/internal/*` is exempt so the owner can inspect
+  during maintenance — one `if`, covered by tests.
+- The panel proxy rewrites `/api/*` → `/internal/admin/*`, so the internal route name appears
+  nowhere in the browser bundle.
+- No runtime dependency was added: Access JWT verification uses WebCrypto, and tests inject the
+  certificate fetcher.
 
 ## 9. Decision log (one line each)
 
@@ -288,7 +309,6 @@ privacy page remains true because no conversation text is stored anywhere.
   file the build can import — no panel writes the app bundle.
 - A backup of the four content tables + the D1 bookmark precedes the first write of each UTC day;
   if the snapshot fails, the write fails.
-- Provider "disable" means entry state, not key editing — the panel has no key surface at all.
 - Old `/admin` stays live until the new panel is verified and the owner retires it — no big-bang
   removal.
 - The panel shipped through the normal deploy runbook (reviewed tree, full `--ci --e2e` gate,

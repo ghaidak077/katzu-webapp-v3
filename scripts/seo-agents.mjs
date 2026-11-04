@@ -59,11 +59,21 @@ export function robotsGroup(agent, extraLines = []) {
 
 /**
  * One robots.txt. Named crawlers first, then the wildcard group with the same
- * rules plus the content signal, then the sitemap. `Allow: /` is stated before
- * each `Disallow` because a longer path wins in the standard, and stating it
- * keeps the intent readable.
+ * rules plus the content signal, then one line per sitemap.
+ *
+ * WHY MORE THAN ONE SITEMAP
+ * `katzuai.com` and `website.katzuai.com` are two deployments of one brand and
+ * two Search Console properties. A robots file that names only its own sitemap
+ * makes a crawler discover half the site; naming both from each host is how the
+ * app shell and the twelve guides stop being two unrelated discoveries. The
+ * standard allows repeated `Sitemap:` lines, and Google accepts a sitemap on a
+ * sibling host of the same domain property.
+ *
+ * `Allow: /` is stated before each `Disallow` because a longer path wins in the
+ * standard, and stating it keeps the intent readable.
  */
-export function robotsTxt(sitemapUrl) {
+export function robotsTxt(sitemapUrls) {
+  const urls = (Array.isArray(sitemapUrls) ? sitemapUrls : [sitemapUrls]).filter(Boolean);
   return [
     '# Search engines and AI crawlers are welcome to every public page.',
     '# The private surfaces are not public and are named below.',
@@ -72,7 +82,7 @@ export function robotsTxt(sitemapUrl) {
     ...CRAWLER_AGENTS.map((agent) => `${robotsGroup(agent)}\n`),
     robotsGroup('*', [CONTENT_SIGNAL]),
     '',
-    `Sitemap: ${sitemapUrl}`,
+    ...urls.map((url) => `Sitemap: ${url}`),
     '',
   ].join('\n');
 }
@@ -106,11 +116,13 @@ const CRAWLER_USER_AGENTS = {
   'Google-Extended': 'Mozilla/5.0 (compatible; Google-Extended/1.0; +http://www.google.com/bot.html)',
 };
 
-/** The default panel: both hosts' home, the site's robots file and the app's sitemap. */
+/** The default panel: both hosts' home and crawler files, and both sitemaps. */
 export const CRAWL_TARGETS = [
   'https://website.katzuai.com/',
   'https://website.katzuai.com/robots.txt',
+  'https://website.katzuai.com/sitemap.xml',
   'https://katzuai.com/',
+  'https://katzuai.com/robots.txt',
   'https://katzuai.com/sitemap.xml',
 ];
 

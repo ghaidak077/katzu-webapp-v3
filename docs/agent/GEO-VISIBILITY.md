@@ -125,7 +125,10 @@ Perplexity and Copilot cite; the others often paraphrase.
    that value. Save, wait a minute, click **Verify**.
 3. **Sitemaps** → submit `https://website.katzuai.com/sitemap.xml` and
    `https://katzuai.com/sitemap.xml`.
-4. **URL inspection** → `https://website.katzuai.com/guides` → *Request indexing* (once).
+4. **URL inspection** → `https://website.katzuai.com/guides` → *Request indexing* (once). Also paste
+   `https://katzuai.com/` and `https://website.katzuai.com/guides/a1-visa` into the same box and note the
+   status line each returns ("URL is on Google", "Discovered — currently not indexed", or "Crawled —
+   currently not indexed") — that line is the only honest answer to "why is Katzu not showing?".
 5. **Bing Webmaster Tools** → *Import from Google Search Console* (same account, two clicks) →
    confirm both sitemaps are listed. Bing is what Copilot reads.
 6. After any future site deploy that changed a page: `npm run seo:indexnow` in the repo folder.
@@ -133,15 +136,13 @@ Perplexity and Copilot cite; the others often paraphrase.
 The IndexNow key file `01b620d0b185bc05ba94023366c02b06.txt` sits at the site root **on purpose**:
 the protocol requires the key to be publicly readable at that URL. It is not a secret.
 
-**One thing only you can turn off (measured 2026-10-29).** Cloudflare answers `GPTBot`, `ClaudeBot` and
-`PerplexityBot` with **403 "Your request was blocked"** on every HTML page and on `sitemap.xml`, while
-`robots.txt` is 200 for all ten crawlers — so the block happens in front of the site, not in the site.
-Cloudflare also prepends its own managed `robots.txt` block, which disallows `GPTBot`, `ClaudeBot` and
-`Google-Extended` *before* our groups that allow them. In the dashboard: **Security → Bots** — turn off
-"Block AI bots" / the AI-crawler blocking rule, and **Bots → Manage robots.txt / Content Signals** — disable
-the managed block or set it to allow these crawlers. Then re-run the panel — `node scripts/seo-agents.mjs
---check` asks both hosts the same question as each of the ten crawlers and prints one line per agent — and
-expect ten `200`s.
+**The 403 is gone (re-measured 2026-11-03).** All ten crawlers now receive `200` on both hosts' home,
+`robots.txt` and `sitemap.xml`; the Cloudflare rule that answered `GPTBot`, `ClaudeBot` and
+`PerplexityBot` with "Your request was blocked" no longer fires. If it returns, the fix is in the
+dashboard, not the repo: **Security → Bots** — turn off "Block AI bots" / the AI-crawler rule, and
+**Bots → Manage robots.txt / Content Signals** — disable the managed block that disallows `GPTBot`,
+`ClaudeBot` and `Google-Extended` before our groups. Then re-run `node scripts/seo-agents.mjs --check`
+(now six targets, ten agents) and expect `200`s.
 
 ---
 
@@ -193,3 +194,14 @@ If a fact is wrong, say so — the build will not catch a wrong fact, only a bro
   off. The repo's `robots.txt` cannot override a challenge served before it.
 - **Citation data is empty until the first panel run.** Until then, treat every GEO claim as
   unproven — the referral counter and Search Console are the only evidence.
+- **`www.katzuai.com` answers NXDOMAIN (measured 2026-11-03).** A `www` CNAME/AAAA record in
+  Cloudflare is the owner's one DNS step; without it, anyone who types `www.` reaches nothing.
+- **The apex is an app shell, not a landing page (measured 2026-11-03).** `https://katzuai.com/`
+  ships 48 characters of HTML and immediately becomes the sign-up screen; every rankable word lives on
+  `website.katzuai.com`. The two honest options are (a) serve the marketing site at the apex and move the
+  app to `app.katzuai.com`, or (b) prerender a real apex landing page that links to `/welcome`. Both are
+  structural decisions for the owner, not a tag fix; the joined brand graph shipped on 2026-11-03 makes
+  either option safe to take.
+- **Index status is unmeasured from the repo.** Google served a CAPTCHA to every automated query, so
+  the only source is Search Console URL Inspection (§5 step 4). Do not read a rank as proof of indexing,
+  or its absence as proof of a penalty, until that line is recorded.

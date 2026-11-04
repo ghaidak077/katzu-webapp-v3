@@ -70,3 +70,4 @@ Disallow: /api/
 Disallow: /private/
 
 Sitemap: https://website.katzuai.com/sitemap.xml
+Sitemap: https://katzuai.com/sitemap.xml

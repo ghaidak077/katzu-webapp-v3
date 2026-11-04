@@ -1,6 +1,6 @@
 # Owner checklist — what needs you, in plain language
 
-Each item is in `docs/AGENT-STATE.md` § OWNER-OPEN, with what "done" looks like.
+Each is in `docs/AGENT-STATE.md` § OWNER-OPEN, with what "done" looks like.
 
 ## 1. Your payment details — V44-1 (2026-10-28)
 
@@ -33,7 +33,7 @@ Both key lists are empty, so every turn rides the free fallback (works, weaker, 
 
 ## 6. Real-device voice — V18-3
 
-All voice checks used a simulated microphone. Follow `docs/agent/OWNER-STEPS.md` §2 (14 rows) on an iPhone and an
+All voice checks used a simulated microphone. Follow `docs/agent/OWNER-STEPS.md` §2 (14 rows) on iPhone and
 Android. **Done:** each row marked pass or fail with a note.
 
 ## 7. Node version — V17-1 (not blocking)
@@ -43,29 +43,29 @@ This machine runs 24.14.0; the project wants 24.15.0+. Run `nvm install 24.15.0 
 
 ## 8. Partner program first test — AFF-1 (2026-10-28)
 
-The ledger, self-serve link and 14-day approval are live (20%, 14-day hold, $20 minimum). (1) **Two-account
+The program is live (20%, 14-day hold, $20 minimum). (1) **Two-account
 test** (an agent must not sign in as you): A copies its `/partners` link; B signs up, pays and redeems; A shows
 one `pending` row, then tell the agent to delete it. (2) **Mondays:** `GET /admin/api/affiliates/commissions`
 lists who is owed at least $20 — pay, then record it with `POST /admin/api/affiliates/payout`.
 **Done:** a real referred learner shows `pending`, and the first payout is recorded.
 
-## 9. Be findable — SEO-1, GEO-1 (2026-10-29)
+## 9. Be findable — SEO-1, GEO-1 (2026-11-03)
 
-(1) Verify `katzuai.com` in Google Search Console (one TXT record), submit both sitemaps, import into Bing —
-`docs/agent/GEO-VISIBILITY.md` §5. (2) Read the 12 guides, reply "fine" or changes (§7). (3) Monthly, ask 30
-Arabic questions across six assistants and fill one table (§2–§4). (4) Send your LinkedIn / GitHub / X links.
-**Done:** Search Console says "Success" for both sitemaps, and the month's table has numbers.
+Code done. You: (1) URL Inspection on `katzuai.com/` and `website.katzuai.com/guides/a1-visa`; send both status
+lines. (2) Verify the domain, submit both sitemaps, import into Bing (`GEO-VISIBILITY.md` §5). (3) Add the `www`
+DNS record. (4) Read the 12 guides, reply "fine" or edits. (5) Monthly, the 30-question table. (6) Send
+LinkedIn / GitHub / X links. **Done:** "Success" for both sitemaps, and the table has numbers.
 
 ## 10. Admin panel — decided, nothing to do — V46-1
 
-The panel is live behind Cloudflare Access and cannot touch the database or a key; text **off**, retention
+The panel is live behind Cloudflare Access and cannot touch data or keys; text **off**, retention
 **90 days text / 365 counters**, and `/admin` + `ADMIN_SECRET` stay until real traffic confirms it.
 **Done:** a real learner turn appears and you say whether to retire `/admin`.
 
 ## 11. Type «hallo» in one scene — V45 (2026-10-31)
 
-Sign in at `https://katzuai.com`, open **Am Flughafen** (A1), type `halo`: the partner should ask about luggage,
-and the note under your bubble should say «Schreibung: Doppel-l», nothing cut off. Then keep chatting and type
+Sign in at `https://katzuai.com`, open **Am Flughafen** (A1), type `halo`: the partner asks about luggage,
+and the note under your bubble says «Schreibung: Doppel-l», nothing cut off. Then keep chatting and type
 `hallo` again: the partner must stay in the scene and never ask «Wie geht es Ihnen?».
 **Done:** both appear, or send what you saw. Record: `docs/AGENT-STATE.md` UNPROVEN V45.
 

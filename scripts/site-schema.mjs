@@ -31,7 +31,17 @@ export const PRICE_VALID_UNTIL = '2027-01-31';
 
 const LOGO = `${SITE}/assets/logo/logo-512.png`;
 
-export const ORG_ID = `${SITE}/#organization`;
+/**
+ * The brand entity lives on the apex domain, on every page and on both hosts.
+ *
+ * WHY NOT `${SITE}/#organization`
+ * `katzuai.com` is the brand; `website.katzuai.com` is where the prose happens.
+ * An Organization `@id` on the subdomain told a crawler the brand was a
+ * different entity from the product it publishes, so the app and the guides
+ * competed instead of reinforcing one name. One `@id`, one `url`, both hosts
+ * referencing it, is what makes "Katzu" and "كاتزو" resolve to one thing.
+ */
+export const ORG_ID = `${APP}/#organization`;
 export const WEBSITE_ID = `${SITE}/#website`;
 
 /** Organization: the publisher named on every Article and on the home page. */
@@ -42,7 +52,7 @@ export function organizationJsonLd() {
     '@id': ORG_ID,
     name: 'Katzu',
     alternateName: ['كاتزو'],
-    url: `${SITE}/`,
+    url: `${APP}/`,
     logo: {
       '@type': 'ImageObject',
       url: LOGO,
@@ -162,7 +172,7 @@ export function articleJsonLd({ path, headline, description, published, modified
     mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE}${path}` },
     datePublished: published,
     dateModified: modified,
-    author: { '@type': 'Organization', name: 'Katzu', url: `${SITE}/` },
+    author: { '@id': ORG_ID },
     publisher: { '@id': ORG_ID },
     image: LOGO,
   };

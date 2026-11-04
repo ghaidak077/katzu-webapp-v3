@@ -19,6 +19,10 @@ class MemoryKv {
 
 class FakeD1 {
   tables: Record<string, Map<string, Record<string, unknown>>>;
+  /** Every run() the worker issued, in order: deletion scope is asserted this way. */
+  calls: { sql: string; args: unknown[] }[] = [];
+  /** Queued `.all()` payloads (conversations, then attempts) for the export test. */
+  allResults: unknown[][] = [];
   constructor() { this.tables = {}; }
   private table(name: string) {
     if (!this.tables[name]) this.tables[name] = new Map();
@@ -35,6 +39,7 @@ class FakeD1 {
     const bumpRev = norm.match(/^UPDATE sync_revisions SET rev = rev \+ 1(, payload = \?)? WHERE user_id = \? AND rev = \?$/i);
     const insertRev = norm.match(/^INSERT INTO sync_revisions \(user_id, rev, payload\) VALUES \(\?, 1, \?\) ON CONFLICT\(user_id\) DO NOTHING$/i);
     const run = async (...args: unknown[]) => {
+      this.calls.push({ sql: norm, args });
       if (bumpRev) {
         // Worker binds: (payload, user_id, base_rev) — see handleProgressSync.
         const [payload, userId, baseRev] = args as [string, string, number];
@@ -111,6 +116,7 @@ class FakeD1 {
           }
           return null;
         },
+        all: async () => ({ results: this.allResults.shift() || [] }),
       }),
     };
   }
@@ -326,6 +332,33 @@ describe('Phase 3: complete account deletion', () => {
     expect(await (env.REDEEMED_CODES as MemoryKv).get('email_index:gone@test.dev')).toBeNull();
   });
 
+  it('deletes the stored conversation turns, their attempts, and the consent grant', async () => {
+    const env = makeEnv();
+    const sub = 'user-with-turns', email = 'turns@test.dev';
+    const kv = env.USER_PROGRESS as MemoryKv;
+    await kv.put(`consent:logging:${sub}`, '1');
+    await kv.put('consent:logging:someone-else', '1');
+
+    const res = await post('/user/delete', {}, env, sub, email);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { deleted_steps: string[] };
+    expect(body.deleted_steps).toContain('conversation_attempts');
+    expect(body.deleted_steps).toContain('conversations');
+    expect(body.deleted_steps).toContain('consent_grant');
+
+    const db = env.DB as FakeD1;
+    const attempts = db.calls.find((c) => c.sql.includes('DELETE FROM conversation_attempts'));
+    expect(attempts?.sql).toContain('SELECT turn_id FROM conversations WHERE user_id = ?');
+    expect(attempts?.args).toEqual([sub]);
+    const turns = db.calls.find((c) => c.sql.startsWith('DELETE FROM conversations WHERE'));
+    expect(turns?.args).toEqual([sub]);
+
+    // A deleted account that signs in again must not inherit a grant it gave
+    // before deletion — and another learner's grant is untouched.
+    expect(await kv.get(`consent:logging:${sub}`)).toBeNull();
+    expect(await kv.get('consent:logging:someone-else')).toBe('1');
+  });
+
   // `activity_log` funnel rows are keyed by the client's account handle, not by
   // the Google sub, so the registry purge never matched them: a deleted learner
   // kept a row per funnel event, replicating a handle that is confirmable against
@@ -430,6 +463,22 @@ describe('Phase 4: data export', () => {
     expect(body.daily_ledger?.totalXp).toBe(300);
     expect(body.subscription.active).toBe(true);
     expect(Array.isArray(body.referral.history)).toBe(true);
+  });
+
+  it('includes the conversation turns that were stored with consent', async () => {
+    const env = makeEnv();
+    const sub = 'user-export-turns', email = 'turns@test.dev';
+    (env.DB as FakeD1).allResults = [
+      [{ turn_id: 'turn-1', ts: 1, scenario: 'arzt', learner_text: 'Ich habe Fieber', reply_text: 'Gute Besserung' }],
+      [{ turn_id: 'turn-1', ts: 1, provider: 'groq', model: 'm', status: 200 }],
+    ];
+
+    const body = await (await post('/user/export', {}, env, sub, email)).json() as {
+      conversations?: { learner_text: string }[];
+      conversation_attempts?: { provider: string }[];
+    };
+    expect(body.conversations?.[0].learner_text).toBe('Ich habe Fieber');
+    expect(body.conversation_attempts?.[0].provider).toBe('groq');
   });
 
   it('never exports tokens, secrets, or other users\u2019 data', async () => {

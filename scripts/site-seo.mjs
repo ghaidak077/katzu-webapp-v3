@@ -19,6 +19,7 @@
 
 import {
   ACTIVATION_HOURS,
+  APP,
   CTA_LABEL,
   FOUNDING_CAP,
   FREE_LESSONS_PER_MONTH,
@@ -66,7 +67,9 @@ ${urls}
 }
 
 export function robotsTxt() {
-  return robotsFromAgents(`${SITE}/sitemap.xml`);
+  // Both hosts, both directions: a crawler that reads either robots file finds
+  // every public page on the brand, not just the half that host serves.
+  return robotsFromAgents([`${SITE}/sitemap.xml`, `${APP}/sitemap.xml`]);
 }
 
 /** The public URL list, exactly as the sitemap lists it. */
@@ -115,6 +118,31 @@ ${guides}
 
 ## ملاحظة
 هذا الملف مولَّد من إعدادات الموقع نفسها عند كل بناء. وهو اتفاق غير معياري بعد، ويُقرأ كدليل لا كضمان.
+`;
+}
+
+/**
+ * `llms.txt` for the app host.
+ *
+ * The apex served no `llms.txt`, so an assistant that guessed the conventional
+ * path on the brand domain got a 404 while the same file existed one subdomain
+ * away. This one is a pointer, not a second copy: it states what the host is
+ * and where the full catalogue lives, so the two files cannot disagree.
+ */
+export function appLlmsTxt() {
+  return `# كاتزو (Katzu)
+
+> تطبيق ويب عربي لتعلّم الألمانية بالتحدّث. هذا النطاق (katzuai.com) يخدم التطبيق نفسه: التسجيل والجلسات. المحتوى العام والأدلة على النطاق الفرعي أدناه.
+
+## أين المحتوى
+- الموقع العام: ${SITE}/
+- الأدلة (${GUIDES.length}): ${SITE}/guides
+- الأسعار: ${SITE}/pricing
+- المساعدة والخصوصية: ${SITE}/help
+- ابدأ من التطبيق: ${START}
+
+## الملف الكامل
+${SITE}/llms.txt
 `;
 }
 
