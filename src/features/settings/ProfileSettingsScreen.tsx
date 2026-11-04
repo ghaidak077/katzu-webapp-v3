@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
+import { getConversationConsent, setConversationConsent } from '@/lib/api/conversationConsent';
 import { isProEffective } from '@/lib/utils/subscription';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { haptic, setHapticsEnabled } from '@/lib/utils/haptics';
@@ -82,6 +83,12 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting' | 'success' | 'error'>('idle');
   const [deleteError, setDeleteError] = useState('');
   const [analyticsOff, setAnalyticsOff] = useState(() => isAnalyticsOptedOut());
+  // Conversation review is opt-in and lives on the server (KV grant), not on the
+  // device: `null` means the status could not be read, and the toggle stays
+  // neutral rather than claiming a consent the server never recorded.
+  const [reviewConsent, setReviewConsent] = useState<{ available: boolean; granted: boolean } | null>(null);
+  const [consentSaving, setConsentSaving] = useState(false);
+  const [consentError, setConsentError] = useState('');
 
   const levelInfo = describeLearnerLevel(user);
 
@@ -93,8 +100,33 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
         setReferralLoading(false);
       }
     });
+    getConversationConsent(workerClient).then((state) => {
+      if (isMounted) setReviewConsent(state);
+    });
     return () => { isMounted = false; };
   }, []);
+
+  const handleToggleReviewConsent = async () => {
+    if (!reviewConsent?.available || consentSaving) return;
+    const next = !reviewConsent.granted;
+    setConsentSaving(true);
+    setConsentError('');
+    const result = await setConversationConsent(workerClient, next);
+    setConsentSaving(false);
+    if (!result.ok) {
+      // Never flip the switch on a failed write: an opt-out that quietly failed
+      // would leave the stored text in place while the learner believes it gone.
+      setConsentError(
+        next
+          ? 'تعذر حفظ الموافقة. تحقق من الاتصال وأعد المحاولة.'
+          : 'تعذر سحب الموافقة وحذف المحادثات المحفوظة. أعد المحاولة.',
+      );
+      haptic('error');
+      return;
+    }
+    haptic(next ? 'success' : 'tap');
+    setReviewConsent({ available: reviewConsent.available, granted: result.granted });
+  };
 
   // Keep the diagnostics count live without re-rendering on every log line.
   useEffect(() => {
@@ -647,7 +679,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </button>
         </div>
         <p className="text-micro font-arabic text-text-muted leading-relaxed">
-          نتذكر الأخطاء المتكررة والكلمات التي تعود للنسيان وهدفك من التعلم — نصوص محادثاتك لا تُخزَّن ولا تُرسل.
+          نتذكر الأخطاء المتكررة والكلمات التي تعود للنسيان وهدفك من التعلم — هذه ذاكرة تعليمية، لا نصوص محادثات.
           يمكنك حذف أي سطر أو كل الذاكرة.
         </p>
         {memoryRows !== null && (
@@ -734,15 +766,67 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
                 إيقافها يحذف ما لم يُرسل.
               </span>
             </span>
-            <span
-              className={`shrink-0 w-11 h-6 rounded-full flex items-center px-0.5 transition-colors ${
-                analyticsOff ? 'bg-surface-highest justify-start' : 'bg-primary justify-end'
-              }`}
-              aria-hidden
-            >
-              <span className="w-5 h-5 rounded-full bg-white shadow" />
+            <span className="shrink-0 flex flex-col items-center gap-1">
+              <span className="text-[0.6rem] font-bold font-arabic text-text-secondary">
+                {analyticsOff ? 'متوقف' : 'مفعّل'}
+              </span>
+              <span
+                className={`w-11 h-6 rounded-full flex items-center px-0.5 transition-colors ${
+                  analyticsOff ? 'bg-surface-highest justify-start' : 'bg-primary justify-end'
+                }`}
+                aria-hidden
+              >
+                <span className="w-5 h-5 rounded-full bg-white shadow" />
+              </span>
             </span>
           </button>
+
+          {/* Conversation review: the learner's half of the logging gate. The
+              server stores nothing for this account until this is on, and
+              turning it off deletes what was stored. */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={reviewConsent?.granted === true}
+            disabled={!reviewConsent?.available || consentSaving}
+            onClick={handleToggleReviewConsent}
+            className="w-full flex items-center justify-between gap-3 py-3 px-3 rounded-2xl bg-surface-subtle border border-border-subtle min-h-[44px] pointer-hover:border-primary/40 transition-colors disabled:opacity-60"
+          >
+            <span className="text-start">
+              <span className="block text-xs font-bold font-arabic text-text-primary">مراجعة المحادثات (بموافقتك)</span>
+              <span className="block text-micro font-arabic text-text-muted mt-0.5 leading-relaxed">
+                إن وافقت، نحفظ رسالتك وردّ كاتزو 90 يوماً كحد أقصى، بعد إخفاء البريد والهاتف والروابط،
+                لمراجعة جودة التعليم فقط. لا نستخدم النص لتدريب أي نموذج ولا نبيعه. سحب الموافقة يحذف المحفوظ.
+              </span>
+            </span>
+            <span className="shrink-0 flex flex-col items-center gap-1">
+              <span className="text-[0.6rem] font-bold font-arabic text-text-secondary">
+                {reviewConsent?.granted ? 'مفعّل' : 'متوقف'}
+              </span>
+              <span
+                className={`w-11 h-6 rounded-full flex items-center px-0.5 transition-colors ${
+                  reviewConsent?.granted ? 'bg-primary justify-end' : 'bg-surface-highest justify-start'
+                }`}
+                aria-hidden
+              >
+                <span className="w-5 h-5 rounded-full bg-white shadow" />
+              </span>
+            </span>
+          </button>
+          <p className="text-micro font-arabic text-text-muted leading-relaxed px-1">
+            لا تكتب بيانات شخصية حقيقية في جُمل التمرين — صحتك أو وضع إقامتك أو رقم هويتك أو عنوانك. الإخفاء
+            يزيل البريد والهاتف والروابط، ولا يميّز الاسم أو العنوان المكتوب بالكلمات.
+          </p>
+          {reviewConsent && !reviewConsent.available && (
+            <p className="text-micro font-arabic text-text-muted leading-relaxed px-1">
+              حفظ المحادثات للمراجعة غير مفعّل على الخادم الآن. تبقى الإحصاءات تعمل بلا نصوص.
+            </p>
+          )}
+          {consentError && (
+            <p role="alert" className="text-micro font-arabic text-status-error leading-relaxed px-1">
+              {consentError}
+            </p>
+          )}
 
         <div className="flex items-center justify-center gap-4 text-xs text-text-secondary font-arabic">
           <button onClick={() => onOpenTrustPage?.('privacy')} className="pointer-hover:text-primary underline">الخصوصية</button>

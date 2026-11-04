@@ -6,6 +6,15 @@ import { SceneBackdrop } from '@/components/glass/SceneBackdrop';
 import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { GlassWell, useReducedMotion } from '@/components/glass/GlassSurface';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { getConversationConsent, setConversationConsent } from '@/lib/api/conversationConsent';
+import { workerClient } from '@/lib/api/workerClient';
+import {
+  readConsentPromptRecord,
+  recordConsentAnswer,
+  shouldOfferConsentPrompt,
+  type ConsentPromptRecord,
+} from '@/lib/consent/prompt';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuPresence, type KatzuState } from '@/components/v2/KatzuPresence';
 import { ProgressRail } from '@/components/v2/ProgressStrip';
@@ -182,6 +191,92 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   const [isLevelPromoted, setIsLevelPromoted] = useState(false);
   // Step 5: the quiet «تفاصيل الجلسة» disclosure on the day-0 first view.
   const [disclosureOpen, setDisclosureOpen] = useState(false);
+
+  // Conversation-review consent, asked once after the first FULL practice
+  // conversation. The server owns the grant; this screen only decides whether
+  // the one-time question is allowed to appear (pure gate in
+  // `@/lib/consent/prompt`), and a "no"/close suppresses it locally for 60 days.
+  const [reviewConsent, setReviewConsent] = useState<{ available: boolean; granted: boolean } | null>(null);
+  const [reviewConsentChecked, setReviewConsentChecked] = useState(false);
+  const [consentPromptRecord, setConsentPromptRecord] = useState<ConsentPromptRecord | null>(() =>
+    readConsentPromptRecord(),
+  );
+  const [consentSheetOpen, setConsentSheetOpen] = useState(false);
+  const [consentSaving, setConsentSaving] = useState(false);
+  const [consentError, setConsentError] = useState('');
+
+  // "First full practice conversation": the live finish reached its target in
+  // practice mode, and exactly one session is on disk. A recovered report can
+  // never qualify, and neither can an ended-early or REAL session.
+  const firstPracticeSession = sessionsRaw?.length === 1 ? sessionsRaw[0] : null;
+  const isFirstFullPractice =
+    !fromRecovered &&
+    firstPracticeSession?.mode === 'practice' &&
+    summary.completedNaturally === true;
+
+  useEffect(() => {
+    if (!isFirstFullPractice) return;
+    let cancelled = false;
+    getConversationConsent(workerClient).then((state) => {
+      if (cancelled) return;
+      setReviewConsent(state);
+      setReviewConsentChecked(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFirstFullPractice]);
+
+  useEffect(() => {
+    if (!isFirstFullPractice || !reviewConsentChecked || !reviewConsent) return;
+    const allowed = shouldOfferConsentPrompt({
+      fromRecovered,
+      completedNaturally: summary.completedNaturally,
+      mode: firstPracticeSession?.mode,
+      sessionsCount: sessionsRaw?.length,
+      available: reviewConsent.available,
+      granted: reviewConsent.granted,
+      record: consentPromptRecord,
+    });
+    if (allowed) setConsentSheetOpen(true);
+  }, [
+    consentPromptRecord,
+    firstPracticeSession?.mode,
+    fromRecovered,
+    isFirstFullPractice,
+    reviewConsent,
+    reviewConsentChecked,
+    sessionsRaw?.length,
+    summary.completedNaturally,
+  ]);
+
+  const answerConsentYes = async () => {
+    if (consentSaving) return;
+    setConsentSaving(true);
+    setConsentError('');
+    const result = await setConversationConsent(workerClient, true);
+    setConsentSaving(false);
+    if (!result.ok) {
+      setConsentError(
+        result.error === 'logging_unavailable'
+          ? 'المراجعة غير متاحة على الخادم الآن. يمكنك المحاولة لاحقاً من الإعدادات.'
+          : 'تعذر تفعيل المراجعة — تحقق من اتصالك وحاول مرة أخرى.',
+      );
+      return;
+    }
+    setConsentPromptRecord(recordConsentAnswer('yes'));
+    setReviewConsent({ available: true, granted: true });
+    setConsentSheetOpen(false);
+  };
+
+  // Closing the sheet (X, backdrop, Escape) is "no": both answers suppress the
+  // question for 60 days and neither stores any text.
+  const answerConsentNo = () => {
+    if (consentSaving) return;
+    setConsentPromptRecord(recordConsentAnswer('no'));
+    setConsentError('');
+    setConsentSheetOpen(false);
+  };
 
   // V24 Phase 5: the mock-exam result card — exam scenarios only, built from
   // the same numbers this screen already shows. No AI call behind it.
@@ -719,6 +814,56 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
     </section>
   ) : null;
 
+  // The one-time consent sheet. It is rendered by BOTH report layouts (day-0
+  // and returning) so the question cannot depend on which finish screen the
+  // learner happened to get. Neither button is preselected; closing = no.
+  const consentSheetEl = (
+    <BottomSheet
+      isOpen={consentSheetOpen}
+      onClose={answerConsentNo}
+      title="هل تساعدنا في تحسين كاتزو؟"
+    >
+      <div className="space-y-4" dir="rtl">
+        <p className="kz-ar-body leading-relaxed text-kz-ink">
+          نحفظ رسالتك وردّ كاتزو من محادثات التمرين — نصاً فقط، بلا صوت — بعد إخفاء البريد
+          والهاتف والروابط، لمدة 90 يوماً كحد أقصى.
+        </p>
+        <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
+          لمراجعة جودة التعليم فقط. لا نستخدم النص لتدريب أي نموذج، ولا نبيعه. يمكنك إيقاف ذلك
+          في أي وقت من الإعدادات، وسيُحذف المحفوظ عند الإيقاف.
+        </p>
+        <p className="rounded-xl bg-white/[0.04] px-3 py-2 kz-ar-micro leading-relaxed text-kz-inkDim">
+          لا تكتب بيانات شخصية حقيقية في جُمل التمرين — الإخفاء يزيل البريد والهاتف والروابط،
+          ولا يميّز الاسم أو العنوان المكتوب بالكلمات.
+        </p>
+        {consentError && (
+          <p role="alert" className="kz-ar-micro leading-relaxed text-kz-warm">
+            {consentError}
+          </p>
+        )}
+        <div className="flex gap-2">
+          <GlassButton
+            variant="secondary"
+            className="flex-1"
+            disabled={consentSaving}
+            onClick={answerConsentYes}
+          >
+            {consentSaving ? 'جارٍ التفعيل…' : 'نعم، ساعدوا في التحسين'}
+          </GlassButton>
+          <GlassButton
+            variant="quiet"
+            className="flex-1"
+            disabled={consentSaving}
+            onClick={answerConsentNo}
+          >
+            لا، شكراً
+          </GlassButton>
+        </div>
+        <p className="text-center kz-ar-micro text-kz-inkFaint">الإغلاق يعني «لا».</p>
+      </div>
+    </BottomSheet>
+  );
+
   // `conversation_completed` is already emitted once by the conversation when
   // it finishes (with the same scenario id), so this screen must not send it
   // again — two events for one session would inflate the funnel it feeds.
@@ -789,6 +934,8 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             العودة إلى الرحلة
           </PrimaryAction>
         </FloatingControl>
+
+        {consentSheetEl}
       </div>
     );
   }
@@ -1164,6 +1311,8 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           </PrimaryAction>
         )}
       </FloatingControl>
+
+      {consentSheetEl}
     </div>
   );
 };

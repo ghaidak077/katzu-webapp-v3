@@ -111,6 +111,14 @@ AI_DAILY_SPEND_CAP = "292"
 # off, while "1"/"true"/"on"/"yes" freeze every POST/PUT/PATCH/DELETE and leave
 # reads working. Emergency stop: docs/LAUNCH-CHECKLIST.md §6.5.
 MAINTENANCE_MODE = "off"
+# Conversation-review logging master switch. "on" lets the worker store a
+# learner's message and reply for 90 days — but only for an account whose
+# learner has explicitly opted in from Settings (KV `consent:logging:<sub>`).
+# Nothing is stored while this is "off", and a grant written while it is off is
+# refused rather than silently ignored. Metrics never depend on it.
+# Off by default is the privacy default; this value is a plain, reviewable var
+# on purpose, the same as MAINTENANCE_MODE.
+CONVERSATION_LOGGING = "on"
 
 # ---------------------------------------------------------------------------
 # Crypto sales — NOWPayments (one-off purchase of an N-month activation code)

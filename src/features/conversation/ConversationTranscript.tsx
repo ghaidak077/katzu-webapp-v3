@@ -37,6 +37,8 @@ export interface ConversationTranscriptProps {
   onRetryTranslation: (messageId: string, germanText: string) => void;
   onSpeak: (message: ChatMessage) => void;
   onSlowSpeak?: (message: ChatMessage) => void;
+  /** Reports one Katzu reply; the parent owns the confirmation and the send. */
+  onReportReply?: (message: ChatMessage) => void;
   onWordClick: (word: string) => void;
   onRetryFailedTurn: () => void;
 }
@@ -58,6 +60,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
   onRetryTranslation,
   onSpeak,
   onSlowSpeak,
+  onReportReply,
   onWordClick,
   onRetryFailedTurn,
 }) => {
@@ -128,6 +131,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
               onRetryTranslation={onRetryTranslation}
               onSpeak={onSpeak}
               onSlowSpeak={onSlowSpeak}
+              onReport={onReportReply}
               onWordClick={onWordClick}
               spokenCharIndex={speakingId === msg.id ? activeCharIndex : null}
               isSpeaking={speakingId === msg.id}

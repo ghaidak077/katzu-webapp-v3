@@ -1,8 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, ChevronDown, ChevronUp, Languages, MoreHorizontal } from 'lucide-react';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Modal } from '@/components/ui/Modal';
+import { GlassButton } from '@/components/glass/GlassButton';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
+import { reportConversationExchange } from '@/lib/api/conversationConsent';
+import { workerClient } from '@/lib/api/workerClient';
+import { buildReportExchange, type ConversationReportExchange } from '@/lib/conversation/reportExchange';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { NO_GERMAN_VOICE_MESSAGE_AR } from '@/lib/speech/useSpeechOutput';
 import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
@@ -11,7 +16,7 @@ import { buildWordBank } from '@/lib/utils/wordBank';
 import { track } from '@/lib/analytics/client';
 import { acquireUpdateHold } from '@/lib/pwa/updatePrompt';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
-import type { CEFRLevel } from '@/types/models';
+import type { CEFRLevel, ChatMessage } from '@/types/models';
 import { ConversationDock } from './ConversationDock';
 import { ConversationTranscript } from './ConversationTranscript';
 import { useLiveConversation } from './useLiveConversation';
@@ -72,6 +77,14 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   onCompleteSession,
 }) => {
   const [optionsOpen, setOptionsOpen] = useState(false);
+  /**
+   * A bad-reply report: the exchange waiting for confirmation, and its send
+   * state. The target is built only when the learner taps the flag, so nothing
+   * can be sent without that tap; `sent` is terminal for this exchange.
+   */
+  const [reportTarget, setReportTarget] = useState<ConversationReportExchange | null>(null);
+  const [reportState, setReportState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [reportError, setReportError] = useState('');
   /**
    * The visual viewport, when the engine has one.
    *
@@ -165,6 +178,51 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     refreshHints,
     handleNudgeDifficulty,
   } = live;
+
+  const handleReportReply = (message: ChatMessage) => {
+    const exchange = buildReportExchange(messages, message.id);
+    if (!exchange) return;
+    setReportError('');
+    setReportState('idle');
+    setReportTarget(exchange);
+  };
+
+  const closeReport = () => {
+    if (reportState === 'sending') return;
+    setReportTarget(null);
+    setReportState('idle');
+    setReportError('');
+  };
+
+  /**
+   * Exactly one request per confirmed tap: the button is disabled while
+   * `sending`, and `sent` cannot be sent again. The exchange itself was frozen
+   * when the flag was tapped, so later transcript changes cannot widen it.
+   */
+  const sendReport = async () => {
+    if (!reportTarget || reportState === 'sending' || reportState === 'sent') return;
+    setReportState('sending');
+    setReportError('');
+    const result = await reportConversationExchange(workerClient, {
+      learnerText: reportTarget.learnerText,
+      replyText: reportTarget.replyText,
+      scenarioId,
+      cefrLevel: effectiveLevel,
+      turnIndex: reportTarget.turnIndex,
+    });
+    if (result.ok) {
+      setReportState('sent');
+      return;
+    }
+    setReportState('error');
+    setReportError(
+      result.error === 'unauthenticated'
+        ? 'سجّل الدخول أولاً حتى نربط الإبلاغ بحسابك.'
+        : result.error === 'logging_unavailable'
+          ? 'الإبلاغ غير متاح الآن على الخادم. حاول لاحقاً.'
+          : 'تعذر إرسال الإبلاغ — تحقق من اتصالك وحاول مرة أخرى.',
+    );
+  };
 
   // A deploy installs a new bundle but must not reload over a live conversation:
   // the messages exist only in this component until the session ends and is
@@ -356,6 +414,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         onRetryTranslation={requestOpenerTranslation}
         onSpeak={handleSpeak}
         onSlowSpeak={handleSlowSpeak}
+        onReportReply={handleReportReply}
         onWordClick={handleWordClick}
         onRetryFailedTurn={retryFailedTurn}
       />
@@ -497,6 +556,65 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           </div>
         </div>
       </BottomSheet>
+
+      {/* Reporting one bad reply. The confirmation is the consent: nothing is
+          sent until the learner taps «إرسال», and the honest line says this
+          works even while conversation review is switched off in Settings. */}
+      <Modal
+        isOpen={!!reportTarget}
+        onClose={closeReport}
+        title="أبلغ عن رد سيئ"
+      >
+        {reportState === 'sent' ? (
+          <div className="space-y-4">
+            <p className="kz-ar-body leading-relaxed text-kz-ink">
+              شكراً — وصل هذا التبادل إلى فريق كاتزو.
+            </p>
+            <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
+              سنراجعه لتحسين التعليم. حُذف البريد والهاتف والروابط قبل الحفظ، ويُحفظ 90 يوماً كحد أقصى.
+            </p>
+            <GlassButton variant="secondary" fullWidth onClick={closeReport}>
+              إغلاق
+            </GlassButton>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="kz-ar-body font-bold leading-relaxed text-kz-ink">
+              إرسال هذا التبادل لفريق كاتزو؟
+            </p>
+            <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
+              سيُرسل هذا التبادل فقط: جملتك وردّ كاتزو عليها، بعد إخفاء البريد والهاتف والروابط.
+              يُحفظ 90 يوماً كحد أقصى لمراجعة جودة التعليم، ولا يُستخدم لتدريب أي نموذج ولا يُباع.
+            </p>
+            <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
+              يُرسل حتى لو كانت «مراجعة المحادثات» متوقفة في الإعدادات، لأنك اخترت الإبلاغ عن هذا الرد بنفسك.
+            </p>
+            {reportError && (
+              <p role="alert" className="kz-ar-micro leading-relaxed text-kz-warm">
+                {reportError}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <GlassButton
+                variant="secondary"
+                className="flex-1"
+                disabled={reportState === 'sending'}
+                onClick={sendReport}
+              >
+                {reportState === 'sending' ? 'جارٍ الإرسال…' : 'إرسال'}
+              </GlassButton>
+              <GlassButton
+                variant="quiet"
+                className="flex-1"
+                disabled={reportState === 'sending'}
+                onClick={closeReport}
+              >
+                إلغاء
+              </GlassButton>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Word Insight Bottom Sheet */}
       <WordInsightBottomSheet

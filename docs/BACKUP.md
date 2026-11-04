@@ -185,3 +185,26 @@ Taken **before any content edit**. Every value below was read from Cloudflare or
 
 Restore content with Time Travel first; the export is the fallback but is not idempotent over a live
 database (§6). Content writes still require the `CONTENT-LOAD-AUTHORIZED` line in `AGENTS.md` §3.
+
+## 11. Consent-control deploy (2026-11-04)
+
+The conversation-review consent toggle, the withdrawal delete and the removal of the bulk export
+went live here. `npm run verify -- --ci --e2e` was **VERIFY OK 14/14** (706.5 s) on the same tree.
+
+- **Product Worker `katzu-test`**: version **`70daf981-98bf-49eb-9722-a4b533ac017f`** at 100%,
+  deployed with `CONVERSATION_LOGGING = "on"`. Previous version, and the rollback target:
+  `625986fd-46da-4c5e-a5ff-67b3925e260c` —
+  `npx wrangler rollback 625986fd-46da-4c5e-a5ff-67b3925e260c --name katzu-test`.
+- **Pages app `katzu-webapp-v3`**: production deployment
+  **`c2fb76b0-cae3-4235-a7f4-49cc0693514a`** (branch `main`, source `59a6942`). Rollback:
+  `npx wrangler pages deployment rollback 9d6c0d70-795c-4ade-9fbb-51e64c1def1d --project-name=katzu-webapp-v3`.
+- **Landing site `katzu-landing`**: production deployment
+  **`5be0e65b-02dd-4eaf-9826-44e5bb0d39f6`** (branch `main`), built by `node scripts/build-website.mjs`
+  and uploaded from inside `website/`. Rollback:
+  `npx wrangler pages deployment rollback 361b0125-a220-4ab9-8e6b-b94f0e0479a9 --project-name=katzu-landing`.
+- No schema change: this deploy writes no new table or column, so the worker rollback alone is the
+  whole undo. Consent grants already written stay in KV and simply stop being read.
+- Checked live after deploy: `/consent/conversation` answers `401 {"ok":false,"error":"unauthorized"}`
+  to an anonymous GET and POST, `/internal/admin/export` answers `401` (deny-before-route), and a CORS
+  preflight from `https://katzuai.com` echoes the origin. `https://website.katzuai.com/help` serves
+  `text/markdown` to `Accept: text/markdown` with the new consent paragraph.

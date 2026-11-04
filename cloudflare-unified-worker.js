@@ -111,12 +111,16 @@ import {
   buildConversationRow,
   conversationLoggingEnabled,
   hasLoggingConsent,
+  consentKey,
   sweepConversationText,
   ensureTelemetryTables,
 } from "./cloudflare-telemetry.js";
 // The internal admin API: reached only over the admin Worker's Service Binding,
 // at /internal/admin/*, and only with the shared internal token.
 import { handleInternalAdminRoutes } from "./cloudflare-admin-api.js";
+// Learner-controlled consent for conversation review: the only writer of the
+// per-account grant the telemetry gate reads.
+import { handleConsentRoute, REPORT_PATH } from "./cloudflare-consent.js";
 
 // Crypto sales (NOWPayments): the separate sales site's checkout plus its
 // signature-verified IPN. Nothing here is called by the app — a buyer redeems
@@ -1085,6 +1089,26 @@ async function handleDeleteUser(request, env, cors) {
         "DELETE FROM activity_log WHERE user_id = ?"
       ).bind(analyticsAccountHandle(account.email)).run());
     }
+
+    // Conversation text (phase 3) is this account's data too, and it is keyed by
+    // the same Google sub every step above deletes. The tables are created
+    // lazily on the first telemetry write, so on a database that never logged a
+    // turn they may not exist yet; `ensureTelemetryTables` creates them
+    // idempotently. If it reports the DB unusable, deletion has already failed
+    // on another step, so skipping here cannot hide a deletion.
+    if (await ensureTelemetryTables(env)) {
+      await tryStep("conversation_attempts", () => env.DB.prepare(
+        "DELETE FROM conversation_attempts WHERE turn_id IN (SELECT turn_id FROM conversations WHERE user_id = ?)"
+      ).bind(account.sub).run());
+      await tryStep("conversations", () => env.DB.prepare(
+        "DELETE FROM conversations WHERE user_id = ?"
+      ).bind(account.sub).run());
+    }
+    // The consent grant lives in KV, outside the tables above. Left behind, a
+    // deleted account that signs in again would inherit consent it never gave.
+    if (env.USER_PROGRESS) {
+      await tryStep("consent_grant", () => env.USER_PROGRESS.delete(consentKey(account.sub)));
+    }
   }
 
   if (failed.length > 0) {
@@ -1170,6 +1194,27 @@ async function handleUserExport(request, env, cors) {
     if (quotaRaw) {
       try { exportData.trial_quota = JSON.parse(quotaRaw); } catch {}
     }
+  }
+
+  // Conversation text is stored only with an explicit grant, and it is this
+  // account's data: a portability export that omitted it would be incomplete.
+  // It is bounded and scoped by the verified sub, like every query above.
+  if (await ensureTelemetryTables(env)) {
+    try {
+      const turns = await env.DB.prepare(
+        `SELECT turn_id, session_id, turn_no, ts, ts_local, scenario, level, learner_text, reply_text,
+                outcome, flagged, note, redacted
+           FROM conversations WHERE user_id = ? ORDER BY ts ASC LIMIT 2000`
+      ).bind(account.sub).all();
+      if (turns?.results?.length) exportData.conversations = stripCredentials(turns.results);
+      const attempts = await env.DB.prepare(
+        `SELECT turn_id, ts, provider, model, kind, status, latency_ms
+           FROM conversation_attempts
+          WHERE turn_id IN (SELECT turn_id FROM conversations WHERE user_id = ?)
+          ORDER BY ts ASC LIMIT 2000`
+      ).bind(account.sub).all();
+      if (attempts?.results?.length) exportData.conversation_attempts = stripCredentials(attempts.results);
+    } catch { /* an export must still answer when telemetry is unreadable */ }
   }
 
   if (exportData.progress?.stats?.level) {
@@ -1868,6 +1913,18 @@ async function handleRequest(request, env, ctx) {
       }
       if (url.pathname === "/auth/signout" && request.method === "POST") {
         return await handleAuthSignout(request, env, cors);
+      }
+      // --- Conversation-review consent (learner-controlled) ---
+      // Reads and writes `consent:logging:<sub>` for the caller's own account.
+      // The master switch alone stores nothing, so this is what makes the
+      // admin panel's conversation list reachable at all.
+      if (url.pathname === "/consent/conversation" || url.pathname === REPORT_PATH) {
+        return await handleConsentRoute(url, request, env, cors, {
+          authenticate: async (req) => {
+            const token = extractIdToken(req);
+            return token ? await verifyGoogleIdToken(token, env.GOOGLE_CLIENT_ID, env) : null;
+          },
+        });
       }
       // Turn + translation live in ./cloudflare-ai-chat.js: both handlers sat past
       // the ~63 KB byte offset this file's header documents, and moving them let

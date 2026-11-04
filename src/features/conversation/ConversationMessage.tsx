@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Languages, RefreshCw, Snail, Volume2 } from 'lucide-react';
+import { Languages, RefreshCw, Snail, Volume2, Flag } from 'lucide-react';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { correctionCardCopy } from '@/lib/conversation/correctionWording';
@@ -61,6 +61,11 @@ export interface ConversationMessageProps {
   onSpeak: (message: ChatMessage) => void;
   /** Speaks the sentence slowly — the replay a learner reaches for after missing it. */
   onSlowSpeak?: (message: ChatMessage) => void;
+  /**
+   * Opens the confirmation for reporting THIS reply. The learner still has to
+   * confirm; a tap here sends nothing.
+   */
+  onReport?: (message: ChatMessage) => void;
   onWordClick: (word: string) => void;
   /**
    * V28 Stage 1D: whether the study aids render — the Arabic translation, the
@@ -93,6 +98,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   onRetryTranslation,
   onSpeak,
   onSlowSpeak,
+  onReport,
   onWordClick,
   showHelp = true,
   spokenCharIndex = null,
@@ -231,6 +237,17 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                     className="flex h-9 w-9 items-center justify-center rounded-full text-kz-lavender/60 transition-colors pointer-hover:bg-white/10 pointer-hover:text-kz-lavender"
                   >
                     <Snail className="h-4 w-4" />
+                  </button>
+                )}
+                {onReport && (
+                  <button
+                    type="button"
+                    onClick={() => onReport(message)}
+                    aria-label="أبلغ عن رد سيئ"
+                    title="أبلغ عن رد سيئ"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-kz-inkFaint transition-colors pointer-hover:bg-white/10 pointer-hover:text-kz-warm"
+                  >
+                    <Flag className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
