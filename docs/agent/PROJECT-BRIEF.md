@@ -61,44 +61,40 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-10-31 (a later «hallo» re-asks the scene's stored opener; Latin isolated in the card)
+## Current snapshot — 2026-11-04 (the learner controls conversation review, and can report one bad reply)
 
-**Deployed:** product Worker **`862087cb-eeef-48c0-8467-d0bd721c35c3`** (deployment `b3c5b2de-…`, source
-`a033b19`, rollback `e3f994ef-…` / `f219d5b3-…`), panel Worker `katzu-admin` `e7716e26-…` (rollback
-`bc7db8cc-…`), Pages **`bc807292-fc48-45bb-b398-ddd3710a8728`** (source `a033b19`, rollback
-`f4c077c6-…`) serving `assets/index-CfqO0tha.js` -> `AppShell-CL4Y31Jk.js` -> `LiveConversationScreen-CllYR611.js`.
-- **Greeting inside a scene:** the guard took its re-ask topic from joined assistant history, which stops matching
-  a stored opener after the first exchange — that is how a later bare `hallo` reached «Wie geht es Ihnen?».
-  `/ai/turn` now passes `sceneOpener`, the scenario's stored opener selected by id + level (`openerForLevel`, the
-  worker twin of `src/lib/conversation/opener.ts`); history still drives only off-topic detection and du/Sie, and
-  the fixed fallback invites more content per level instead of asking about wellbeing.
-- **Correction card:** Latin runs in the card's Arabic are wrapped in `<bdi dir="ltr">`, so «حرف l مضعّف» paints
-  `l`; the model's Arabic quote renders only when no derived chip exists, so it can no longer contradict
-  «Schreibung: Doppel-l». Chip and explanation still come from one classification in `correctionWording.ts`; the
-  note keeps the bubble surface, one success accent and 360px wrapping.
-- **Proof:** `turnGuard` **104** (including a multi-turn `{ role, text }` route test), `openerParity`,
-  `correctionCardRender` **4**, related suites **127**, `tsc` clean, gate **`VERIFY OK 14/14` in 672.6 s** with the
-  browser suite; the three after shots were regenerated at 360×740 in `docs/agent/correction-card/`.
-- **Live after the deploy:** worker `/health` 200 `storage:{d1,kv}`, `/crypto/health` 200 `ready:false`,
-  `/internal/admin/health` and `/admin/api/affiliates` **401**, `POST /ai/turn` and `/ai/lexeme` **401** signed
-  out; `https://katzuai.com` 200 with the new entry hash. Production smoke: **1 passed / 2 skipped / 1 failed** —
-  `workerOriginFromPricing` never saw the app's `/pricing` request within 20 s; the admin-401 it guards was
-  verified directly with curl, and no pricing, paywall or auth code changed in this batch.
-- **Admin content studio (new, deployed with this batch):** `katzu-admin` can now list/search/filter content, edit it as
-  a **draft**, see a field diff, publish explicitly or discard, duplicate a row, soft-delete it to `content_trash` and
-  restore the exact row (rowid included), undo the last publish/delete/restore from `content_audit`, dry-run then apply
-  CSV/JSON imports as drafts, export JSON/CSV, and keep a dated backup of all four content tables before the first
-  write of each UTC day. Bundled openers/glosses are read-only: the panel stores proofreading flags/notes/corrected
-  Arabic and exports a corrections file for the build. Five additive tables; **no learner table or query changed**, and
-  the old `/admin` stays live. Proof: `adminContentManagement` **51** + `adminPanelContentUi`, gate green.
-- **Admin panel (live):** `katzu-admin` behind Cloudflare Access (All traffic); five additive telemetry
-  tables written only in `ctx.waitUntil`; the owner's own session proved 26 authenticated `/internal/admin/*` GETs
-  (all 200) and the `17 4 * * *` cron fired at 04:17:37 UTC with `outcome: ok`. Owner decisions recorded
-  2026-10-31: text stays **off** until a consent UI exists, retention **90 days text / 365 counters**, the old
-  `/admin` + `ADMIN_SECRET` stay live.
-- **Unproven:** the signed-in scene turn and card (no owner session; `OWNER-CHECKLIST.md` §11 now asks to type
-  `halo`, then `hallo` a few messages later), `ai_events` stays 0 until a real AI turn, the consent path has
-  never stored text, and the content studio's D1 behaviour (backup bookmark, atomicity) is proven on `FakeD1` only.
+**Deployed:** product Worker **`e98031d5-…`** (deployment `09fa2438-…`, source `580e522`, rollback
+`70daf981-…`), Pages **`d1324296-3585-4b4d-afca-bb2453825ac2`** (source `580e522`, rollback `c2fb76b0-…`)
+serving `assets/index-CsARdscf.js`, and landing site **`6c6c6023-…`** (rollback `5be0e65b-…`).
+- **Consent, off by default:** Settings shows an ON/OFF pair readable from the knob and a visible label,
+  never pre-ticked. A one-time sheet appears only after the first full live practice conversation (never
+  mid-session or on a recovered report); «نعم» calls `POST /consent/conversation`, «لا» or close suppresses
+  the ask for 60 days.
+- **Per-reply report:** «أبلغ عن رد سيئ» confirms, then the worker stores exactly **one** redacted exchange
+  (`conversations` with `flagged=1`, `note='learner_report'`, `outcome='reported'`) — even with the global
+  toggle off, and the UI says so. Reported rows inherit the 90-day sweep, withdrawal and account deletion.
+- **Privacy text:** app, `website/help.html` and its markdown twin gained the report sentence;
+  `TRUST_VERSION` is `2026-11-05`.
+- **Proof:** `conversationConsent` + `conversationConsentPrompt` **28**, `tsc` clean, gate
+  **`VERIFY OK 14/14` in 814.5 s** with e2e; production smoke **2 passed / 2 skipped** after fixing a
+  stale `/pricing` wait that also failed on the previous deployment.
+- **Live:** worker `/health` 200, `/consent/conversation` 401 signed out, report GET 405 / anonymous POST
+  401, admin health and export 401; app 200 with the new hash; site pages 200 and `/help` negotiates
+  `text/markdown` with the report sentence.
+- **Unproven:** the toggle and sheet in a real signed-in session, and a real reported exchange reaching
+  D1 from the app. **Owner input needed:** legal identity/contact for the privacy policy.
+
+## Previous snapshot — 2026-10-31 (a later «hallo» re-asks the scene's stored opener; Latin isolated in the card)
+
+**Deployed:** worker `862087cb-…` (source `a033b19`, rollback `e3f994ef-…`), panel `e7716e26-…`, Pages
+`bc807292-…` (source `a033b19`, rollback `f4c077c6-…`) serving `index-CfqO0tha.js` →
+`AppShell-CL4Y31Jk.js` → `LiveConversationScreen-CllYR611.js`.
+- **Greeting:** `/ai/turn` now passes the stored `sceneOpener` by id + level, so a later bare `hallo` re-asks
+  the scene instead of «Wie geht es Ihnen?»; Latin runs in the card render inside `<bdi dir="ltr">`.
+- **Admin:** the content studio (drafts/publish/undo/import/backup, five additive tables, old `/admin`
+  untouched) and the Access-gated panel with five telemetry tables went live; the `17 4 * * *` cron fired
+  at 04:17:37 UTC with `outcome: ok`. Proof: `turnGuard` **104**, `adminContentManagement` **51**, gate
+  **14/14** (672.6 s). **Unproven:** signed-in turn/card, `ai_events` until a real AI turn, studio D1 behaviour.
 
 ## Previous snapshot — 2026-10-30 (word cards cost zero AI calls, openers are instant, «hallo» gets a re-ask)
 

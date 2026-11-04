@@ -208,3 +208,40 @@ went live here. `npm run verify -- --ci --e2e` was **VERIFY OK 14/14** (706.5 s)
   to an anonymous GET and POST, `/internal/admin/export` answers `401` (deny-before-route), and a CORS
   preflight from `https://katzuai.com` echoes the origin. `https://website.katzuai.com/help` serves
   `text/markdown` to `Accept: text/markdown` with the new consent paragraph.
+
+## 12. Consent prompt + per-reply report deploy (2026-11-04)
+
+This batch added the one-time consent sheet after the first full live practice conversation (60-day
+suppression on no/close), the per-reply «أبلغ عن رد سيئ» action backed by
+`POST /consent/conversation/report`, visible ON/OFF labels in Settings, and the report sentence in
+the privacy policy. `npm run verify -- --ci --e2e` was **VERIFY OK 14/14** (814.5 s) on source
+`580e522`. No schema change: reported exchanges reuse `conversations` (`flagged=1`,
+`note='learner_report'`, `outcome='reported'`), so the 90-day sweep, withdrawal and account deletion
+already cover them, and the worker rollback alone is the whole undo.
+
+- **Product Worker `katzu-test`**: version **`e98031d5-9932-4093-a7a9-7ba4ab827b0d`** at 100%,
+  deployment **`09fa2438-d578-40c8-9076-c52cfa0ba922`**, `CONVERSATION_LOGGING = "on"`. Rollback:
+  `70daf981-98bf-49eb-9722-a4b533ac017f` (deployment `798fd12a-1c44-49c0-b13b-cb636b2df49d`, the
+  first consent deploy), then `625986fd-46da-4c5e-a5ff-67b3925e260c` (`5884fb31-…`):
+  `npx wrangler rollback 70daf981-98bf-49eb-9722-a4b533ac017f --name katzu-test`.
+- **Pages app `katzu-webapp-v3`**: production deployment
+  **`d1324296-3585-4b4d-afca-bb2453825ac2`** (branch `main`, source `580e522`; entry
+  `assets/index-CsARdscf.js`, `AppShell-Sy8uwkx5.js`, `LiveConversationScreen-DIf5FKxw.js`,
+  `SessionReportScreen-BaO5BEu7.js`, `ProfileSettingsScreen-DG11uPLH.js`,
+  `conversationConsent-ac6MEAi4.js`). Rollback:
+  `npx wrangler pages deployment rollback c2fb76b0-cae3-4235-a7f4-49cc0693514a --project-name=katzu-webapp-v3`.
+- **Landing site `katzu-landing`**: production deployment
+  **`6c6c6023-888f-4786-8b38-64eba9cc9852`** (branch `main`, source `580e522`), uploaded from inside
+  `website/` so `functions/_middleware.js` shipped. Rollback:
+  `npx wrangler pages deployment rollback 5be0e65b-02dd-4eaf-9826-44e5bb0d39f6 --project-name=katzu-landing`.
+- Checked live after deploy: worker `/health` 200 `storage:{d1,kv}`, `/crypto/health` 200,
+  `/consent/conversation` 401 signed out, `GET /consent/conversation/report` 405 and an anonymous
+  POST 401, `/internal/admin/health` and `POST /internal/admin/export` 401. App `https://katzuai.com`
+  200 serving `assets/index-CsARdscf.js`. Site `/`, `/pricing`, `/affiliate`, `/help`, `/guides` 200,
+  `/privacy` one 301 to `/help#privacy`, markdown negotiation returns `text/markdown` with the report
+  sentence, the sitemap has 17 URLs and `robots.txt` names both sitemaps.
+- **Smoke helper fix:** `e2e/productionSmoke.spec.ts` now reads the worker origin from the app's boot
+  request (`/scenarios|/vocabulary|/grammar`) instead of `/pricing`; the old waiter timed out on the
+  previous deployment `c2fb76b0-…` too, proving a stale assertion rather than a regression.
+- A docs-only push to `main` mints a new Pages deployment id; re-read
+  `npx wrangler pages deployment list --project-name=katzu-webapp-v3` before quoting an id.

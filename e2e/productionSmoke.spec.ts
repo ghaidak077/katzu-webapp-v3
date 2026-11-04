@@ -89,22 +89,27 @@ function amountOf(text: string): string {
   return match![1];
 }
 
-/** Set a waiter for the app's own `/pricing` call, so no host is hardcoded. */
-async function workerOriginFromPricing(page: Page): Promise<string> {
-  const priced = page.waitForRequest(
+/**
+ * Read the worker origin from a request the app itself makes, so no host is
+ * hardcoded. The front door asks `/scenarios` (with `/vocabulary` and
+ * `/grammar`) before any auth guard decides where a visitor goes, which is why
+ * this no longer waits for `/pricing`: that call lives on the paywall, and an
+ * anonymous visitor is redirected away from it before it mounts.
+ */
+async function workerOriginFromBoot(page: Page): Promise<string> {
+  const wanted = new Set(['/scenarios', '/vocabulary', '/grammar']);
+  const called = page.waitForRequest(
     (request) => {
       try {
-        return new URL(request.url()).pathname === '/pricing';
+        return wanted.has(new URL(request.url()).pathname);
       } catch {
         return false;
       }
     },
     { timeout: 20_000 },
   );
-  // `/paywall` is the app's only price surface now; it asks `/pricing` on mount,
-  // before the auth guard has decided where an anonymous visitor goes.
-  await page.goto('/paywall');
-  return new URL((await priced).url()).origin;
+  await page.goto('/');
+  return new URL((await called).url()).origin;
 }
 
 test.describe('production smoke (read-only)', () => {
@@ -174,7 +179,7 @@ test.describe('production smoke (read-only)', () => {
     // 401 there would be the mock's answer, not the worker's.
     test.skip(!PRODUCTION, 'production-only: needs the real worker, not the mock');
 
-    const origin = await workerOriginFromPricing(page);
+    const origin = await workerOriginFromBoot(page);
     const response = await request.get(`${origin}/admin/api/orders`);
     expect(response.status()).toBe(401);
   });

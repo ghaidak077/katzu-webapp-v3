@@ -766,3 +766,36 @@ first ENV probe) is unchanged below; the ledger keeps the 2026-10-28/29/30 decis
 - **2026-10-28 — `/` is the owner's design again (deployed).** Full record (design parity, Lighthouse
   97/100/100, 33 redirects, deploy `90880c38-…`) and the three-page site + audit #7 entries are in
   `docs/agent/ARCHIVE-AGENT-STATE.md` (search `RESUME 2026-10-28`).
+
+## RESUME 2026-10-31 correction card + admin panel (moved verbatim 2026-11-04 out of `docs/AGENT-STATE.md`, nothing rewritten)
+- **2026-10-31 — correction card redesigned; the signed-in view stays the owner's check.**
+  The note under a learner's message uses bubble surface/radius/padding, one success accent (corrected word
+  + 2px edge), neutral struck «قلت», and a chip plus Arabic explanation derived together from the two
+  visible strings in `src/lib/conversation/correctionWording.ts` — `HALO` → `Hallo` names the doubled l **and**
+  the case, `halo` → `hallo` adds no case error; model wording is fallback. Wraps at 360px.
+  Evidence: `tests/correctionWording.test.ts` **23 passed**, `npm test` **171 files / 2429**, gate **14/14**
+  (691 s), six dark shots in `correction-card/`; full record in APP-MAP's change log.
+  **Deployed** Pages `e1db6dde-…` (source `2439e3a`, rollback `5b4c2b86-…`); worker untouched.
+  **UNPROVEN:** the card inside a signed-in session (`OWNER-CHECKLIST.md` §11).
+- **2026-10-31 — the admin panel is live behind Cloudflare Access with real telemetry, and the owner has
+  signed off the remaining choices.** At the panel deploy the Product Worker `katzu-test` was on version
+  **`6a6db52d-a581-45b1-94c7-ef5b5e9983ea`** (deployment `d41b8616-4dac-48ef-a424-04109500846a`, source `053d882`,
+  rollback `b33136fa-dd5d-45b5-bad5-fabbbfbdca72`); the greeting deploy above moved it to `808f1553-…`.
+  Admin Worker `katzu-admin` is on version **`e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
+  `02:11:40Z`; rollback `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16`, deployment `3692c953-321d-4732-b883-cb9258cf0719`).
+  Cloudflare Access now covers **All traffic**: unauthenticated `/`, `/api/overview` and `/healthz` all answer
+  **302** to the team login with `kid=8374079e…`, matching `ACCESS_AUD`; the team JWKS has 2 keys and the login
+  page is 200. **The owner's signed-in session is proven by its own telemetry:** 26 authenticated
+  `/internal/admin/*` GETs, all **200**, 02:45:38–02:46:11 UTC (health 13; overview/users/content/conversations/
+  errors/alerts 2 each; audit 1), which also created the five tables. Counts at 02:46 UTC: `route_events` **26**,
+  `ai_events` **0**, `conversations` **0**, `conversation_attempts` **0**, `admin_audit` **0**. Local proof:
+  12+14+29+26 admin tests; the 26 access/worker tests re-ran green after the deploy; `VERIFY OK 14/14` in
+  759.6 s with e2e. **The cron is proven:** a live `wrangler tail` captured the `17 4 * * *` invocation at
+  **04:17:37 UTC** with `outcome: ok` and the `[sweep]` / `[sweep:telemetry]` / `[affiliate]` logs (telemetry
+  counters all 0 — the tables were empty). Post-run counts at 04:20 UTC are unchanged: `route_events` 26,
+  `ai_events` 0, `conversations` 0, `conversation_attempts` 0, `admin_audit` 0. **Owner decisions (2026-10-31):**
+  text stays off, retention 90/365 days, old `/admin` stays until the panel is confirmed with real traffic.
+  **Still open:** `ai_events` has no row until a real AI turn. Pages rebuilt the byte-identical
+  bundle `assets/index-uXgW2nvR.js` as `203a5983-e334-45b9-a530-ba856055288c` (source `d920829`). Backup,
+  restore and rollback ids: `docs/BACKUP.md`; inspection, endpoints, privacy text and owner input:
+  `docs/ADMIN.md`.

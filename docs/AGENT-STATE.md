@@ -26,6 +26,20 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-04 — the learner chooses conversation review, and can report one bad reply (worker, app and site live).**
+  Settings now shows an ON/OFF toggle pair with visible text labels, never pre-ticked, off by default. A one-time
+  bottom sheet appears after the learner's first full *live practice* conversation only (never during a session or on
+  a recovered report); «نعم، ساعدوا في التحسين» calls `POST /consent/conversation`, «لا، شكراً» or close suppresses
+  the ask for 60 days (`src/lib/consent/prompt.ts`). Every partner reply can be reported with «أبلغ عن رد سيئ»
+  (confirm: «إرسال هذا التبادل لفريق كاتزو؟»); `POST /consent/conversation/report` stores exactly one redacted
+  exchange as `conversations(flagged=1, note='learner_report', outcome='reported')`, works with the global toggle
+  off, and inherits the 90-day sweep and withdrawal deletion. Privacy text in the app, `website/help.html` and its
+  markdown twin gained the report sentence; `TRUST_VERSION` is `2026-11-05`. Arabic typo scan found no
+  «في كمل التمرين» anywhere (the source already reads «لنكمل التمرين»). Evidence: `conversationConsent` +
+  `conversationConsentPrompt` **28**, `tsc` clean, gate **VERIFY OK 14/14** (814.5 s) with e2e. Deployed worker
+  `e98031d5-…` (rollback `70daf981-…`), app `d1324296-…` (rollback `c2fb76b0-…`), site `6c6c6023-…` (rollback
+  `5be0e65b-…`); ids and checks in BACKUP §12, APP-MAP §9. **Still owner-only:** the legal identity/contact line in
+  the privacy policy (`OWNER-CHECKLIST.md`).
 - **2026-11-03 — one brand graph (local only).** One Organization `@id`, both robots files naming both
   sitemaps, an apex `llms.txt`; gate **6/6**, live UNPROVEN until deploy.
 - **2026-11-01 — the corrected 49 rows have a tested update path, and the PWA now asks before it reloads (local only).**
@@ -75,37 +89,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   gate **VERIFY OK 14/14** (672.6 s); code `a033b19`.
   **Deployed** worker `862087cb-…` / `b3c5b2de-…` (rollback `e3f994ef-…`) and Pages `bc807292-…` (rollback `f4c077c6-…`);
   live checks in APP-MAP §9. **UNPROVEN:** the signed-in turn and card (`OWNER-CHECKLIST.md` §11).
-- **2026-10-31 — correction card redesigned; the signed-in view stays the owner's check.**
-  The note under a learner's message uses bubble surface/radius/padding, one success accent (corrected word
-  + 2px edge), neutral struck «قلت», and a chip plus Arabic explanation derived together from the two
-  visible strings in `src/lib/conversation/correctionWording.ts` — `HALO` → `Hallo` names the doubled l **and**
-  the case, `halo` → `hallo` adds no case error; model wording is fallback. Wraps at 360px.
-  Evidence: `tests/correctionWording.test.ts` **23 passed**, `npm test` **171 files / 2429**, gate **14/14**
-  (691 s), six dark shots in `correction-card/`; full record in APP-MAP's change log.
-  **Deployed** Pages `e1db6dde-…` (source `2439e3a`, rollback `5b4c2b86-…`); worker untouched.
-  **UNPROVEN:** the card inside a signed-in session (`OWNER-CHECKLIST.md` §11).
-- **2026-10-31 — the admin panel is live behind Cloudflare Access with real telemetry, and the owner has
-  signed off the remaining choices.** At the panel deploy the Product Worker `katzu-test` was on version
-  **`6a6db52d-a581-45b1-94c7-ef5b5e9983ea`** (deployment `d41b8616-4dac-48ef-a424-04109500846a`, source `053d882`,
-  rollback `b33136fa-dd5d-45b5-bad5-fabbbfbdca72`); the greeting deploy above moved it to `808f1553-…`.
-  Admin Worker `katzu-admin` is on version **`e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
-  `02:11:40Z`; rollback `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16`, deployment `3692c953-321d-4732-b883-cb9258cf0719`).
-  Cloudflare Access now covers **All traffic**: unauthenticated `/`, `/api/overview` and `/healthz` all answer
-  **302** to the team login with `kid=8374079e…`, matching `ACCESS_AUD`; the team JWKS has 2 keys and the login
-  page is 200. **The owner's signed-in session is proven by its own telemetry:** 26 authenticated
-  `/internal/admin/*` GETs, all **200**, 02:45:38–02:46:11 UTC (health 13; overview/users/content/conversations/
-  errors/alerts 2 each; audit 1), which also created the five tables. Counts at 02:46 UTC: `route_events` **26**,
-  `ai_events` **0**, `conversations` **0**, `conversation_attempts` **0**, `admin_audit` **0**. Local proof:
-  12+14+29+26 admin tests; the 26 access/worker tests re-ran green after the deploy; `VERIFY OK 14/14` in
-  759.6 s with e2e. **The cron is proven:** a live `wrangler tail` captured the `17 4 * * *` invocation at
-  **04:17:37 UTC** with `outcome: ok` and the `[sweep]` / `[sweep:telemetry]` / `[affiliate]` logs (telemetry
-  counters all 0 — the tables were empty). Post-run counts at 04:20 UTC are unchanged: `route_events` 26,
-  `ai_events` 0, `conversations` 0, `conversation_attempts` 0, `admin_audit` 0. **Owner decisions (2026-10-31):**
-  text stays off, retention 90/365 days, old `/admin` stays until the panel is confirmed with real traffic.
-  **Still open:** `ai_events` has no row until a real AI turn. Pages rebuilt the byte-identical
-  bundle `assets/index-uXgW2nvR.js` as `203a5983-e334-45b9-a530-ba856055288c` (source `d920829`). Backup,
-  restore and rollback ids: `docs/BACKUP.md`; inspection, endpoints, privacy text and owner input:
-  `docs/ADMIN.md`.
+- **2026-10-31 (correction card + admin panel) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-04, to keep this file under its 80 KB cap (search `RESUME 2026-10-31 correction card + admin panel`). Nothing was deleted.
 
 - **Older RESUME entries (2026-10-30 and earlier) moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on
   2026-11-01 (search `RESUME 2026-10-28..30 moved`), to keep the ledger under its 80 KB cap. Nothing was deleted.
@@ -169,14 +153,17 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`625986fd-46da-4c5e-a5ff-67b3925e260c`** (100%, deployment `5884fb31-6fa2-43f3-b02d-c4ae4c5f3bca`,
-  2026-10-31T13:00Z, source `ed8255c`) — the content studio's token-gated `/internal/admin/content/*`
-  (drafts, publish, undo, import, backup) on top of observer-only telemetry and the scene greeting guard. Live: `/health` 200 `storage:{d1,kv}`;
+  **`e98031d5-9932-4093-a7a9-7ba4ab827b0d`** (100%, deployment `09fa2438-d578-40c8-9076-c52cfa0ba922`,
+  2026-11-04T07:02Z, source `580e522`) — the learner's conversation-review grant plus the per-reply
+  `POST /consent/conversation/report` (one redacted exchange) on top of the content studio, observer-only
+  telemetry and the scene greeting guard. Live: `/health` 200 `storage:{d1,kv}`;
   `/crypto/health` 200 `ready:false`; `GET /internal/admin/health` and `/admin/api/affiliates` **401**;
   `POST /ai/turn` and `/ai/lexeme` **401** with a valid body and no token. The five telemetry tables exist and
   `route_events` held **26** owner-session rows at 02:46 UTC (`ai_events` 0 until a real AI turn); the `17 4 * * *`
   cron fired at **04:17:37 UTC** with `outcome: ok`.
-  **Rollback target: `862087cb-eeef-48c0-8467-d0bd721c35c3`** (deployment
+  **Rollback target: `70daf981-98bf-49eb-9722-a4b533ac017f`** (deployment
+  `798fd12a-1c44-49c0-b13b-cb636b2df49d`, 2026-11-04T05:52Z, the first consent deploy: the review
+  grant, withdrawal delete and removal of the bulk export), then `862087cb-eeef-48c0-8467-d0bd721c35c3` (deployment
   `b3c5b2de-2314-488e-aa95-8cc2853b1d27`, source `a033b19`, the scene greeting guard), then
   `e3f994ef-5524-44ef-95b9-f0fde2923baa` (deployment `f219d5b3-1ce4-4a3d-ad18-79e3023e8534`,
   source `e8e722d`, the wire fix), then `808f1553-9a1a-4af4-bafd-817c62bbb10e` (source `4ba4514`), then
@@ -195,23 +182,32 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   **Rollback target: `e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
   `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or
   delete the Worker; nothing else depends on it.
-- **App Pages production (2026-10-31, source `a033b19`):** deployment
-  **`bc807292-fc48-45bb-b398-ddd3710a8728`** — entry `assets/index-CfqO0tha.js`, `assets/AppShell-CL4Y31Jk.js`,
+- **App Pages production (2026-11-04, source `580e522`):** deployment
+  **`d1324296-3585-4b4d-afca-bb2453825ac2`** — entry `assets/index-CsARdscf.js`,
+  `assets/AppShell-Sy8uwkx5.js`, lazy `LiveConversationScreen-DIf5FKxw.js` (the confirmed report action),
+  `SessionReportScreen-BaO5BEu7.js` (the one-time consent sheet), `ProfileSettingsScreen-DG11uPLH.js` (visible
+  ON/OFF labels) and `conversationConsent-ac6MEAi4.js` (`/consent/conversation/report`); `https://katzuai.com`
+  200 with that hash. **Rollback target:
+  `c2fb76b0-cae3-4235-a7f4-49cc0693514a`** (source `59a6942`, the first consent deploy), then 2026-10-31
+  (source `a033b19`): `bc807292-fc48-45bb-b398-ddd3710a8728` — entry `assets/index-CfqO0tha.js`, `assets/AppShell-CL4Y31Jk.js`,
   lazy `LiveConversationScreen-CllYR611.js` (183,935 B) carrying the `<bdi dir="ltr">` wrapper and the derived
-  `Schreibung: Doppel-` chip; `https://katzuai.com` 200 with that hash. **Rollback target:
-  `f4c077c6-e339-4996-b155-3c678498dc39`** (source `aa6635d`, docs-only), then `e1db6dde-f870-487b-915a-ef809c43b070`
+  `Schreibung: Doppel-` chip; then `f4c077c6-e339-4996-b155-3c678498dc39` (source `aa6635d`, docs-only), then `e1db6dde-f870-487b-915a-ef809c43b070`
   (source `2439e3a`, the correction-explanation build), then `5b4c2b86-338a-4ad6-b25f-fb54e1de8fb9` (`58a16f5`), then
   `c69c1ca4-9a49-44f6-9034-5200992cd3f4` (`5d04a51`). The project builds from git, so **every** push to `main` mints a
   new id — never quote one without reading `wrangler pages deployment list --project-name=katzu-webapp-v3` first.
   (Older ids in APP-MAP §9; `vite build` emits `robots.txt` and a root-only `sitemap.xml`, shell `lang="ar"`,
   canonical and `hreflang` ar/x-default.)
-- **Site Pages production (2026-10-30, direct upload of `website/`):** `katzu-landing` deployment
-  **`361b0125-a220-4ab9-8e6b-b94f0e0479a9`** (branch `main`, source `4ba7b4b`, uploaded from inside
-  `website/` so the Functions bundle shipped) — the home `h1` whitespace, the home title and the heading-fusion guard: `bg-mobile.mp4` 1.44 MB
+- **Site Pages production (2026-11-04, direct upload of `website/`):** `katzu-landing` deployment
+  **`6c6c6023-888f-4786-8b38-64eba9cc9852`** (branch `main`, source `580e522`, uploaded from inside
+  `website/` so the Functions bundle shipped) — the consent report sentence in `/help#privacy` and its
+  markdown twin, `/privacy` a single **301** to `/help#privacy`, live `/` `/pricing` `/affiliate` `/help`
+  `/guides` **200**, markdown negotiation on `/help` → `text/markdown` with that sentence.
+  **Rollback target: `5be0e65b-02dd-4eaf-9826-44e5bb0d39f6`** (source `59a6942`), then 2026-10-30
+  (source `4ba7b4b`): `361b0125-a220-4ab9-8e6b-b94f0e0479a9` — the home `h1` whitespace, the home title and the heading-fusion guard: `bg-mobile.mp4` 1.44 MB
   (H.264 720×1280, no audio, faststart) at ≤700px, `bg.mp4` above it. Live: `/` `/pricing` `/affiliate` `/help` `/guides` **200**, the 46-character title, the five-word H1 with
   its whitespace, `og:title`, `twitter:title` and the JSON-LD `name` all read back from production, and
-  markdown negotiation on `/pricing` → `text/markdown` + `Vary` + `X-Robots-Tag` (browsers get HTML).
-  **Rollback target: `7d547d60-9b67-4e51-b601-01227087df90`** (`3bacf75`, the home film's phone cut —
+  markdown negotiation on `/pricing` → `text/markdown` + `Vary` + `X-Robots-Tag` (browsers get HTML); then
+  `7d547d60-9b67-4e51-b601-01227087df90` (`3bacf75`, the home film's phone cut —
   `bg-mobile.mp4` 1.44 MB at ≤700px, `bg.mp4` above it), then `39639c5c-b610-4575-bee5-5520bde0c4d2`
   (`eda9a7f`), then `3e859def-277f-46e7-a107-a45bb09ef5d0`
   (`f3980be`), `44566671-7ab3-43e0-91f2-b487d4a9990a` (`7595c37`),
