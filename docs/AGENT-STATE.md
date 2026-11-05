@@ -26,6 +26,13 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-05 — the report action is findable (app live; worker unchanged).** The per-reply control was a
+  14 px unlabelled flag sharing the meta row with three icons. It now sits on its own line inside every AI
+  bubble with the words «أبلغ عن رد سيئ», same handler and confirmation sheet. Evidence: `tsc`, consent
+  suites **28/28**, gate **VERIFY OK 14/14** (908.7 s) with e2e, 390 px rig
+  `e2e/reportActionShots…` → `docs/agent/report-action/`. Pages `0c25ba91-…` (source `d2353a6`, lazy
+  `LiveConversationScreen-CjozgZmU.js` 145,681 B), rollback `6cb04cff-…`; production entry served and the
+  prompt-mode SW had the labelled chunk cached after two reloads. Ids in APP-MAP §9.
 - **2026-11-04 — the learner chooses conversation review, and can report one bad reply (worker, app and site live).**
   Settings now shows an ON/OFF toggle pair with visible text labels, never pre-ticked, off by default. A one-time
   bottom sheet appears after the learner's first full *live practice* conversation only (never during a session or on
@@ -69,15 +76,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   decisions: `docs/CONTENT-AUDIT.md`. Pushed as branch `content-v2`; full gate **VERIFY OK 14/14** with e2e and CI
   run **41277670237** green on `4e41a38` (`verify`, `e2e`, `secret-scan`, `launch-check`), no PR, nothing merged.
   **UNPROVEN:** the live app — production D1 still has the old 49 rows and the loader is insert-only.
-- **2026-10-31 — content management reaches the new panel without touching a learner table (worker + panel deployed).**
-  `cloudflare-content-admin.js` adds five additive tables (`content_drafts`, `content_audit`, `content_trash`,
-  `content_backups`, `content_reviews`) and `/internal/admin/content/*`: list/search/filter; draft → publish
-  (re-validated, field diff) or discard; duplicate; soft delete/restore with the exact rowid; one-click undo from the
-  stored before-state (NULLs preserved); CSV/JSON import that dry-runs first and applies **drafts only**; export; a
-  dated snapshot + D1 bookmark before the first write of each UTC day; and bundled opener/gloss review notes + a
-  corrections export (223/892 entries, generated read-only). Evidence: `adminContentManagement` **51**,
-  `adminPanelContentUi`, `agentDocs` **33**, gate `VERIFY OK`; old `/admin` untouched. Ids: `docs/ADMIN.md` §10.
-  **UNPROVEN:** real-D1 atomicity/bookmark (FakeD1 only) and the live panel session (owner's).
+- **2026-10-31 (content management in the new panel) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-05, to keep this file under its 80 KB cap (search `RESUME 2026-10-31 content management`). Nothing was deleted.
 - **2026-10-31 — a later bare «hallo» re-asks the scene's stored opener; Latin is isolated in the card (worker + Pages live).**
   Three measured defects: (1) `sceneTopicReAsk` took its topic from joined assistant history, which stops matching a
   stored opener after the first exchange, so a later `hallo` fell back to «Wie geht es Ihnen?». `/ai/turn` now passes
@@ -182,13 +181,14 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   **Rollback target: `e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
   `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or
   delete the Worker; nothing else depends on it.
-- **App Pages production (2026-11-04, source `580e522`):** deployment
-  **`d1324296-3585-4b4d-afca-bb2453825ac2`** — entry `assets/index-CsARdscf.js`,
-  `assets/AppShell-Sy8uwkx5.js`, lazy `LiveConversationScreen-DIf5FKxw.js` (the confirmed report action),
-  `SessionReportScreen-BaO5BEu7.js` (the one-time consent sheet), `ProfileSettingsScreen-DG11uPLH.js` (visible
-  ON/OFF labels) and `conversationConsent-ac6MEAi4.js` (`/consent/conversation/report`); `https://katzuai.com`
-  200 with that hash. **Rollback target:
-  `c2fb76b0-cae3-4235-a7f4-49cc0693514a`** (source `59a6942`, the first consent deploy), then 2026-10-31
+- **App Pages production (2026-11-05, source `d2353a6`):** deployment
+  **`0c25ba91-21cd-4eee-83c7-893755803cf3`** — entry `assets/index-3KsTlLGj.js`,
+  `assets/AppShell-BkKLS82I.js`, lazy `LiveConversationScreen-CjozgZmU.js` (145,681 B, the labelled
+  «أبلغ عن رد سيئ» line), `SessionReportScreen-COJKDuE4.js`, `conversationConsent-B7o-RqQj.js`;
+  `https://katzuai.com` 200 with that hash and the prompt-mode SW served it after two reloads.
+  **Rollback target: `6cb04cff-076a-4e5c-8bfa-e50b07138493`** (source `11e7051`, docs-only), then
+  `d1324296-3585-4b4d-afca-bb2453825ac2` (source `580e522`, consent + icon-only report),
+  then `c2fb76b0-cae3-4235-a7f4-49cc0693514a` (source `59a6942`, the first consent deploy), then 2026-10-31
   (source `a033b19`): `bc807292-fc48-45bb-b398-ddd3710a8728` — entry `assets/index-CfqO0tha.js`, `assets/AppShell-CL4Y31Jk.js`,
   lazy `LiveConversationScreen-CllYR611.js` (183,935 B) carrying the `<bdi dir="ltr">` wrapper and the derived
   `Schreibung: Doppel-` chip; then `f4c077c6-e339-4996-b155-3c678498dc39` (source `aa6635d`, docs-only), then `e1db6dde-f870-487b-915a-ef809c43b070`

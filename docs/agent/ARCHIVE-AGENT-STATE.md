@@ -799,3 +799,14 @@ first ENV probe) is unchanged below; the ledger keeps the 2026-10-28/29/30 decis
   bundle `assets/index-uXgW2nvR.js` as `203a5983-e334-45b9-a530-ba856055288c` (source `d920829`). Backup,
   restore and rollback ids: `docs/BACKUP.md`; inspection, endpoints, privacy text and owner input:
   `docs/ADMIN.md`.
+
+## RESUME 2026-10-31 content management in the new panel (moved verbatim 2026-11-05 out of `docs/AGENT-STATE.md`, nothing rewritten)
+- **2026-10-31 — content management reaches the new panel without touching a learner table (worker + panel deployed).**
+  `cloudflare-content-admin.js` adds five additive tables (`content_drafts`, `content_audit`, `content_trash`,
+  `content_backups`, `content_reviews`) and `/internal/admin/content/*`: list/search/filter; draft → publish
+  (re-validated, field diff) or discard; duplicate; soft delete/restore with the exact rowid; one-click undo from the
+  stored before-state (NULLs preserved); CSV/JSON import that dry-runs first and applies **drafts only**; export; a
+  dated snapshot + D1 bookmark before the first write of each UTC day; and bundled opener/gloss review notes + a
+  corrections export (223/892 entries, generated read-only). Evidence: `adminContentManagement` **51**,
+  `adminPanelContentUi`, `agentDocs` **33**, gate `VERIFY OK`; old `/admin` untouched. Ids: `docs/ADMIN.md` §10.
+  **UNPROVEN:** real-D1 atomicity/bookmark (FakeD1 only) and the live panel session (owner's).

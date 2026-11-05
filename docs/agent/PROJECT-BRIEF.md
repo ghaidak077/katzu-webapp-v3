@@ -61,16 +61,18 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-04 (the learner controls conversation review, and can report one bad reply)
+## Current snapshot — 2026-11-05 (the report action is labelled; consent work unchanged)
 
 **Deployed:** product Worker **`e98031d5-…`** (deployment `09fa2438-…`, source `580e522`, rollback
-`70daf981-…`), Pages **`d1324296-3585-4b4d-afca-bb2453825ac2`** (source `580e522`, rollback `c2fb76b0-…`)
-serving `assets/index-CsARdscf.js`, and landing site **`6c6c6023-…`** (rollback `5be0e65b-…`).
+`70daf981-…`, unchanged today), Pages **`0c25ba91-21cd-4eee-83c7-893755803cf3`** (source `d2353a6`,
+rollback `6cb04cff-…`, then `d1324296-…`) serving `assets/index-3KsTlLGj.js`, and landing site
+**`6c6c6023-…`** (rollback `5be0e65b-…`).
 - **Consent, off by default:** Settings shows an ON/OFF pair readable from the knob and a visible label,
   never pre-ticked. A one-time sheet appears only after the first full live practice conversation (never
   mid-session or on a recovered report); «نعم» calls `POST /consent/conversation`, «لا» or close suppresses
   the ask for 60 days.
-- **Per-reply report:** «أبلغ عن رد سيئ» confirms, then the worker stores exactly **one** redacted exchange
+- **Per-reply report:** «أبلغ عن رد سيئ» is now a labelled line at the bottom of every AI bubble (it was
+  an unlabelled 14 px flag); it confirms, then the worker stores exactly **one** redacted exchange
   (`conversations` with `flagged=1`, `note='learner_report'`, `outcome='reported'`) — even with the global
   toggle off, and the UI says so. Reported rows inherit the 90-day sweep, withdrawal and account deletion.
 - **Privacy text:** app, `website/help.html` and its markdown twin gained the report sentence;
