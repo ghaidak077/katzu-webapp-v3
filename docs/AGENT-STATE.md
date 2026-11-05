@@ -32,8 +32,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   `initial_message_<level>` has no gloss or a non-Arabic one (2 when the payload is unreadable); it is the CI-only step
   `served opener coverage` in `scripts/verify.mjs` (`--offline` = fixture). `docs/OWNER-OPENER-REVIEW.md` lists the 227
   V47 glosses by level with 18 flags and suggested wording (`OWNER-CHECKLIST` §13). Measured **49 / 225 / 0 missing** live
-  and from the fixture; `tests/openerCoverage` **8**, gate **VERIFY OK 15/15** (721.9 s, `--ci --e2e`). No bundle byte
-  changed; Pages redeploys on push, worker untouched.
+  and from the fixture; `tests/openerCoverage` **8**, gate **VERIFY OK 15/15** (721.9 s).
 - **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (deployed: merge + worker + pages).** Root cause of «تعذرت الترجمة» on the A1 «أول الكلمات» greeting: the shipped opener map was generated from
   the authored 61-scenario snapshot (301 openers, «Frau Yilmaz») while the worker serves 49 scenarios / 223 openers
   («Frau Meier»), so 221 live first messages had no gloss and the first render had nothing to show. The new durable
@@ -173,12 +172,13 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   **Rollback target: `e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
   `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or
   delete the Worker; nothing else depends on it.
-- **App Pages production (2026-11-05, source `d2353a6`):** deployment
-  **`0c25ba91-21cd-4eee-83c7-893755803cf3`** — entry `assets/index-3KsTlLGj.js`,
-  `assets/AppShell-BkKLS82I.js`, lazy `LiveConversationScreen-CjozgZmU.js` (145,681 B, the labelled
-  «أبلغ عن رد سيئ» line), `SessionReportScreen-COJKDuE4.js`, `conversationConsent-B7o-RqQj.js`;
-  `https://katzuai.com` 200 with that hash and the prompt-mode SW served it after two reloads.
-  **Rollback target: `6cb04cff-076a-4e5c-8bfa-e50b07138493`** (source `11e7051`, docs-only), then
+- **App Pages production (2026-11-05, source `87997a4`):** deployment
+  **`7bfe14d6-eef2-420a-9164-f853bc8f4f11`** (same entry; `/` and `katzuai.com` 200).
+  **Rollback: `5c3e24c8-8183-4eaa-90d1-e85a701f502e`** (source `0099ab4`, docs-only), then
+  `bf78a12c-fae8-4474-b70b-4142a98e9a1e` (source `9ace95e`, first-message Arabic; entry `index-BuFoPzZ9.js`),
+  then source `d2353a6` deployment `0c25ba91-21cd-4eee-83c7-893755803cf3` (entry `assets/index-3KsTlLGj.js`, lazy
+  `LiveConversationScreen-CjozgZmU.js` 145,681 B, `SessionReportScreen-COJKDuE4.js`, `conversationConsent-B7o-RqQj.js`).
+  Before it: `6cb04cff-076a-4e5c-8bfa-e50b07138493` (source `11e7051`, docs-only), then
   `d1324296-3585-4b4d-afca-bb2453825ac2` (source `580e522`, consent + icon-only report),
   then `c2fb76b0-cae3-4235-a7f4-49cc0693514a` (source `59a6942`, the first consent deploy), then 2026-10-31
   (source `a033b19`): `bc807292-fc48-45bb-b398-ddd3710a8728` — entry `assets/index-CfqO0tha.js`, `assets/AppShell-CL4Y31Jk.js`,

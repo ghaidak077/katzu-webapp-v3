@@ -71,13 +71,13 @@ merges it after the authored corpus, shipping **526 openers / 457 glosses / 0 un
 map synchronously, so the first render makes **no `/ai/translate` call** and works offline. A missing gloss
 shows a short loading state, retries once automatically, then an honest retry. Point-closed modals keep
 focus without the ring until the next key press. **Proof:** `firstMessageTranslation` **6** (1,484 cells,
-zero `fetch`), `reportFocus` **4**, `tsc` clean, gate **VERIFY OK 14/14** (866.1 s). **V47-1 (local,
+zero `fetch`), `reportFocus` **4**, `tsc` clean, gate **VERIFY OK 14/14** (866.1 s). **V47-1 (deployed
 2026-11-05):** the missing half is now a gate — `scripts/audit-opener-coverage.mjs` reads the worker's real
 `/scenarios` in CI and fails on any served first message with no Arabic (measured 49 scenarios / 225 first
-messages / 0 missing), and `docs/OWNER-OPENER-REVIEW.md` lists the 227 new glosses with 18 flags. No bundle
-byte changed. Pages
-`bf78a12c-…` (source `9ace95e`, entry `index-BuFoPzZ9.js`, lazy `opener-DcmfekFc.js` serving the live
-Arabic; rollback `0c25ba91-…`); worker `dd23b2ac-…` (rollback `e98031d5-…`). **Unproven:** a signed-in
+messages / 0 missing), and `docs/OWNER-OPENER-REVIEW.md` lists the 227 new glosses with 18 flags. Gate
+**15/15** (721.9 s), no bundle byte changed. Pages `7bfe14d6-…` (source `87997a4`, same entry
+`index-BuFoPzZ9.js`; rollback `5c3e24c8-…`); previous `bf78a12c-…` (source `9ace95e`); worker
+`dd23b2ac-…` (rollback `e98031d5-…`). **Unproven:** a signed-in
 production first bubble; production `/scenarios` still answers 404.
 
 ## Previous snapshot — 2026-11-05 (the report action is labelled; consent work unchanged)
