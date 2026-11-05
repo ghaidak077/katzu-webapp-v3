@@ -34,17 +34,42 @@ export function useModalDialog(
   containerRef: RefObject<HTMLElement | null>,
 ): void {
   const restoreRef = useRef<HTMLElement | null>(null);
+  /**
+   * Whether the trigger was showing a keyboard focus ring when the dialog opened.
+   *
+   * Closing a dialog restores focus to the trigger. On a pointer close that
+   * programmatic focus can still match `:focus-visible`, which drew a lavender
+   * pill around the reply-report button the learner had just clicked — only the
+   * last one, because only the last one had been restored. Focus still returns
+   * (keyboard users must not lose their place); the ring is suppressed for the
+   * pointer case and comes back on the next key press.
+   */
+  const openedWithKeyboard = useRef(false);
 
   // Remember what opened the dialog and give focus back to it on close, so the
   // keyboard learner resumes where they were instead of at the top of the page.
   useEffect(() => {
     if (!isOpen) return;
-    restoreRef.current = (document.activeElement as HTMLElement | null) ?? null;
+    const trigger = (document.activeElement as HTMLElement | null) ?? null;
+    restoreRef.current = trigger;
+    openedWithKeyboard.current = trigger?.matches(':focus-visible') ?? false;
     return () => {
       const target = restoreRef.current;
-      if (target && typeof target.focus === 'function' && document.contains(target)) {
-        target.focus();
-      }
+      if (!target || typeof target.focus !== 'function' || !document.contains(target)) return;
+      target.focus();
+      if (openedWithKeyboard.current) return;
+
+      // Pointer close: keep focus, hide the ring until the learner uses the
+      // keyboard again. The attribute is scoped to this one element and is
+      // cleared on the next key press or blur, so it cannot leak.
+      target.setAttribute('data-pointer-focus', 'true');
+      const clear = () => {
+        target.removeAttribute('data-pointer-focus');
+        window.removeEventListener('keydown', clear, true);
+        target.removeEventListener('blur', clear);
+      };
+      window.addEventListener('keydown', clear, true);
+      target.addEventListener('blur', clear);
     };
   }, [isOpen]);
 

@@ -1,6 +1,6 @@
 # Owner review — the Arabic shipped with every scenario opener
 
-Generated 2026-11-01 by `node scripts/build-language-data.mjs --list`.
+Generated 2026-11-05 by `node scripts/build-language-data.mjs --list`.
 Read it the way a learner would: the German is what the partner says first, the Arabic is what
 the learner sees behind «ترجمة». Edit `scripts/language-data/opener-translations.json` (same order)
 or `scripts/language-data/word-glosses.json`, then regenerate.

@@ -575,17 +575,32 @@ export function useLiveConversation({
     // openerForLevel): the same sentence the learner saw when the episode opened.
     // A mock part overrides it: the examiner opens the part, not the scenario.
     const initialMsgText = mockOpenerDe || openerForLevel(scenario, effectiveLevel);
+    const germanText = initialMsgText || 'Hallo! Wie kann ich Ihnen helfen?';
+    // A shipped gloss lands on the first render: no loading flash, no request.
+    // An opener with no shipped gloss (a retired or truly dynamic string) keeps
+    // the loading state briefly and gets exactly one automatic retry before the
+    // honest «تعذرت الترجمة» state — never a dead end on first sight.
+    const storedArabic = storedOpenerArabic(germanText);
 
     const welcomeMsg: ChatMessage = {
       id: 'msg_initial',
       sender: 'KATZU',
-      germanText: initialMsgText || 'Hallo! Wie kann ich Ihnen helfen?',
+      germanText,
       // No placeholder translation: the scenario title is a TOPIC, not a
       // translation of the opener, and showing it made the first bubble of every
       // conversation say something the German never said.
-      translationState: 'pending',
+      ...(storedArabic
+        ? { arabicTranslation: storedArabic }
+        : { translationState: 'pending' as const }),
       timestamp: Date.now(),
     };
+
+    let autoRetryTimer: ReturnType<typeof setTimeout> | null = null;
+    if (!storedArabic) {
+      autoRetryTimer = setTimeout(() => {
+        requestOpenerTranslation(welcomeMsg.id, welcomeMsg.germanText);
+      }, 450);
+    }
 
     setMessages([welcomeMsg]);
     dispatch({ type: 'reset' });
@@ -597,10 +612,9 @@ export function useLiveConversation({
     // Load cached starter phrases as initial hints (never in REAL mode).
     if (sessionMode !== 'real') void loadStarterHints();
 
-    // V19: stored gloss first (zero AI calls before the first message), AI
-    // refinement only when no gloss ships for this opener, with an honest
-    // retry affordance on failure — see requestOpenerTranslation.
-    requestOpenerTranslation(welcomeMsg.id, welcomeMsg.germanText);
+    return () => {
+      if (autoRetryTimer) clearTimeout(autoRetryTimer);
+    };
   }, [
     scenario,
     scenarioId,

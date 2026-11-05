@@ -810,3 +810,50 @@ first ENV probe) is unchanged below; the ledger keeps the 2026-10-28/29/30 decis
   corrections export (223/892 entries, generated read-only). Evidence: `adminContentManagement` **51**,
   `adminPanelContentUi`, `agentDocs` **33**, gate `VERIFY OK`; old `/admin` untouched. Ids: `docs/ADMIN.md` §10.
   **UNPROVEN:** real-D1 atomicity/bookmark (FakeD1 only) and the live panel session (owner's).
+
+## RESUME 2026-11-01 conversation content v2
+
+- **2026-11-01 — conversation content v2 authored locally: 61 scenarios, every A0–B2 opener inside its level, one authoring source (nothing deployed).**
+  `docs/content/catalogue/scenarios-catalogue.json` is now the only place scenarios are authored: the 49 existing rows corrected
+  plus 12 new situations (`jobcenter_termin`, `apotheke`, `handyvertrag`, `kita_elterngespraech`, `notruf_112`,
+  `nahverkehr_ticket`, `integrationskurs_anmelden`, `arzttermin_telefon`, `paket_abholen`, `polizei_fundbuero`,
+  `zahnarzt`, `sprachcafe`). Measured before → after: missing A0 openers **20 → 0**; openers breaking a cap or the
+  level spec **165 → 0 of 305**; personas not ending in `katze` **5 → 0**; emoji icons **5 → 0**; `sequence_order`
+  **0 everywhere → 1..61**. `scripts/apply-content-catalogue.mjs` derives the snapshot, the positional Arabic corpus
+  and the gloss file; `node scripts/build-language-data.mjs --offline` regenerated **301 openers / 457 tokens / 0
+  unresolved**. Two defects were fixed rather than accepted: **29 A0 openers were the learner's line instead of the
+  partner's**, and **8 A0/A1 openers used forbidden past-tense markers**. Evidence: `contentCatalogue` **21**,
+  `turnGuard` runs a bare greeting against **61 × 5** openers, `trailOrdering`, `tsc` exit 0. Audit and duplicate
+  decisions: `docs/CONTENT-AUDIT.md`. Pushed as branch `content-v2`; full gate **VERIFY OK 14/14** with e2e and CI
+  run **41277670237** green on `4e41a38` (`verify`, `e2e`, `secret-scan`, `launch-check`), no PR, nothing merged.
+  **UNPROVEN:** the live app — production D1 still has the old 49 rows and the loader is insert-only.
+
+## RESUME 2026-11-01 corrected 49 rows update path
+
+- **2026-11-01 — the corrected 49 rows have a tested update path, and the PWA now asks before it reloads (local only).**
+  `scripts/load-content-updates.mjs` (dry run / `--commit` / `--undo=<manifest>`) updates only ids already live, through the
+  Content Studio, so each row gets a draft, audit row, dated backup and undo; it never creates rows, refuses while a draft
+  exists, keeps live `banner_url`, and never writes `sequence_order`. `cloudflare-admin.js` bridges
+  `/admin/api/content-studio/*` to the studio router under the same bearer check (actor `content-loader`).
+  `scripts/verify-content-update-local.mjs` proves it on a real local D1 seeded from `backups/pre-content-v2/content.sql`:
+  **28/28 checks**, 49 rows / **327 fields**, catalogue-exact, 12 new ids absent, undo complete. It also found a real defect:
+  undo rejected the legacy `sequence_order` in `SELECT *` audit states (**49/49** `409 restore_invalid`) — fixed with
+  `contractRow` + regression (`contentStudio` **33**, `loadContentUpdates` **17**). SW updates now ask first
+  (`registerType: 'prompt'`, Arabic «تحديث متاح», `updatePrompt` **4**) and `LiveConversationScreen` holds the reload mid-chat.
+  **Blocked on the owner:** §3 is insert-only, so the 49-row UPDATE needs `CONTENT-LOAD-AUTHORIZED: <file names>` plus an
+  amendment; and the production dry run answers `401 unauthorized` although the environment `ADMIN_SECRET` is set
+  (64-hex, no whitespace). Pushed `f7a76f7`; CI **41300425341** green. Then: dry run → backup + bookmark → load → Worker → Pages.
+
+## RESUME 2026-10-31 hallo re-asks stored opener
+
+- **2026-10-31 — a later bare «hallo» re-asks the scene's stored opener; Latin is isolated in the card (worker + Pages live).**
+  Three measured defects: (1) `sceneTopicReAsk` took its topic from joined assistant history, which stops matching a
+  stored opener after the first exchange, so a later `hallo` fell back to «Wie geht es Ihnen?». `/ai/turn` now passes
+  `sceneOpener` = the scenario's stored opener by id + level (`resolveScenarioIdentity().openers` -> `openerForLevel`,
+  the worker twin of `src/lib/conversation/opener.ts`); history still drives only off-topic and du/Sie, and the fixed
+  `RE_ASK` invites more content per level instead of asking about wellbeing. (2) Latin runs in the card's Arabic are
+  wrapped in `<bdi dir="ltr">`, so «حرف l مضعّف» paints `l`. (3) The model quote renders only when no derived chip.
+  Evidence: `turnGuard` **104**, `openerParity`, `correctionCardRender` **4**, related suites **127**, `tsc` clean,
+  gate **VERIFY OK 14/14** (672.6 s); code `a033b19`.
+  **Deployed** worker `862087cb-…` / `b3c5b2de-…` (rollback `e3f994ef-…`) and Pages `bc807292-…` (rollback `f4c077c6-…`);
+  live checks in APP-MAP §9. **UNPROVEN:** the signed-in turn and card (`OWNER-CHECKLIST.md` §11).

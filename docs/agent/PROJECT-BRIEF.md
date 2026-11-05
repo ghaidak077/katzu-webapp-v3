@@ -61,7 +61,21 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-05 (the report action is labelled; consent work unchanged)
+## Current snapshot — 2026-11-05 (every first message ships its Arabic; report buttons share one focus ring)
+
+**Local, verified; deploy approved (merge + worker + pages).** The A1 «أول الكلمات» first message had shown
+«تعذرت الترجمة» because the shipped opener map came from the authored 61-scenario snapshot (301 openers,
+«Frau Yilmaz») while the worker serves 49 scenarios / **223** openers («Frau Meier») — 221 had no gloss.
+`scripts/language-data/opener-ar-extra.json` now holds those 227 first messages and `build-language-data.mjs`
+merges it after the authored corpus, shipping **526 openers / 457 glosses / 0 unresolved**; the app reads the
+map synchronously, so the first render makes **no `/ai/translate` call** and works offline. A missing gloss
+shows a short loading state, retries once automatically, then an honest retry. The lone outlined report
+button was `:focus-visible` after a pointer-closed modal; focus is still restored but its ring is suppressed
+until the next key press. **Proof:** `firstMessageTranslation` **6** (1,484 cells, 1,484/1,484 translated,
+526 distinct, zero `fetch`), `reportFocus` **4**, `tsc` clean, full gate recorded in the deploy entry below.
+**Unproven:** a signed-in production first bubble; production `/scenarios` still answers 404.
+
+## Previous snapshot — 2026-11-05 (the report action is labelled; consent work unchanged)
 
 **Deployed:** product Worker **`e98031d5-…`** (deployment `09fa2438-…`, source `580e522`, rollback
 `70daf981-…`, unchanged today), Pages **`0c25ba91-21cd-4eee-83c7-893755803cf3`** (source `d2353a6`,

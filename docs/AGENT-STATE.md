@@ -26,6 +26,21 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (local; deploy
+  approved).** Root cause of «تعذرت الترجمة» on the A1 «أول الكلمات» greeting: the shipped opener map was generated from
+  the authored 61-scenario snapshot (301 openers, «Frau Yilmaz») while the worker serves 49 scenarios / 223 openers
+  («Frau Meier»), so 221 live first messages had no gloss and the first render had nothing to show. The new durable
+  `scripts/language-data/opener-ar-extra.json` (227 entries: live corpus + 3 mock-exam part openers + the code fallback) is
+  merged after the authored corpus by `scripts/build-language-data.mjs` with the same validation, giving **526 openers /
+  457 glosses / 0 unresolved**; `openerGlosses.generated.ts`, `cloudflare-opener-glosses.generated.js`,
+  `admin-worker/public/bundled-content.json` and `docs/OWNER-LANGUAGE-REVIEW.md` were regenerated. `useLiveConversation.ts`
+  and `StorySetupScreen.tsx` render a stored gloss immediately, otherwise show a short loading state with exactly one
+  automatic retry (450 ms, cleaned up) before the honest retry affordance; no first-message path calls `/ai/translate`.
+  The one outlined report button was `:focus-visible` on the programmatically restored trigger after a pointer close —
+  `useModalDialog.ts` sets `data-pointer-focus` and `src/index.css` suppresses that ring until the next key press/blur,
+  while keyboard-opened dialogs keep it. Tests: `firstMessageTranslation` **6** (1,484 cells / 1,484 translated /
+  526 distinct / zero `fetch`), `reportFocus` **4**, `contentCatalogue` + `adminContentManagement` updated to treat the
+  catalogue as a subset. `tsc` clean; gate result recorded in the deploy entry below.
 - **2026-11-05 — the report action is findable (app live; worker unchanged).** The per-reply control was a
   14 px unlabelled flag sharing the meta row with three icons. It now sits on its own line inside every AI
   bubble with the words «أبلغ عن رد سيئ», same handler and confirmation sheet. Evidence: `tsc`, consent
@@ -49,45 +64,10 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   the privacy policy (`OWNER-CHECKLIST.md`).
 - **2026-11-03 — one brand graph (local only).** One Organization `@id`, both robots files naming both
   sitemaps, an apex `llms.txt`; gate **6/6**, live UNPROVEN until deploy.
-- **2026-11-01 — the corrected 49 rows have a tested update path, and the PWA now asks before it reloads (local only).**
-  `scripts/load-content-updates.mjs` (dry run / `--commit` / `--undo=<manifest>`) updates only ids already live, through the
-  Content Studio, so each row gets a draft, audit row, dated backup and undo; it never creates rows, refuses while a draft
-  exists, keeps live `banner_url`, and never writes `sequence_order`. `cloudflare-admin.js` bridges
-  `/admin/api/content-studio/*` to the studio router under the same bearer check (actor `content-loader`).
-  `scripts/verify-content-update-local.mjs` proves it on a real local D1 seeded from `backups/pre-content-v2/content.sql`:
-  **28/28 checks**, 49 rows / **327 fields**, catalogue-exact, 12 new ids absent, undo complete. It also found a real defect:
-  undo rejected the legacy `sequence_order` in `SELECT *` audit states (**49/49** `409 restore_invalid`) — fixed with
-  `contractRow` + regression (`contentStudio` **33**, `loadContentUpdates` **17**). SW updates now ask first
-  (`registerType: 'prompt'`, Arabic «تحديث متاح», `updatePrompt` **4**) and `LiveConversationScreen` holds the reload mid-chat.
-  **Blocked on the owner:** §3 is insert-only, so the 49-row UPDATE needs `CONTENT-LOAD-AUTHORIZED: <file names>` plus an
-  amendment; and the production dry run answers `401 unauthorized` although the environment `ADMIN_SECRET` is set
-  (64-hex, no whitespace). Pushed `f7a76f7`; CI **41300425341** green. Then: dry run → backup + bookmark → load → Worker → Pages.
-- **2026-11-01 — conversation content v2 authored locally: 61 scenarios, every A0–B2 opener inside its level, one authoring source (nothing deployed).**
-  `docs/content/catalogue/scenarios-catalogue.json` is now the only place scenarios are authored: the 49 existing rows corrected
-  plus 12 new situations (`jobcenter_termin`, `apotheke`, `handyvertrag`, `kita_elterngespraech`, `notruf_112`,
-  `nahverkehr_ticket`, `integrationskurs_anmelden`, `arzttermin_telefon`, `paket_abholen`, `polizei_fundbuero`,
-  `zahnarzt`, `sprachcafe`). Measured before → after: missing A0 openers **20 → 0**; openers breaking a cap or the
-  level spec **165 → 0 of 305**; personas not ending in `katze` **5 → 0**; emoji icons **5 → 0**; `sequence_order`
-  **0 everywhere → 1..61**. `scripts/apply-content-catalogue.mjs` derives the snapshot, the positional Arabic corpus
-  and the gloss file; `node scripts/build-language-data.mjs --offline` regenerated **301 openers / 457 tokens / 0
-  unresolved**. Two defects were fixed rather than accepted: **29 A0 openers were the learner's line instead of the
-  partner's**, and **8 A0/A1 openers used forbidden past-tense markers**. Evidence: `contentCatalogue` **21**,
-  `turnGuard` runs a bare greeting against **61 × 5** openers, `trailOrdering`, `tsc` exit 0. Audit and duplicate
-  decisions: `docs/CONTENT-AUDIT.md`. Pushed as branch `content-v2`; full gate **VERIFY OK 14/14** with e2e and CI
-  run **41277670237** green on `4e41a38` (`verify`, `e2e`, `secret-scan`, `launch-check`), no PR, nothing merged.
-  **UNPROVEN:** the live app — production D1 still has the old 49 rows and the loader is insert-only.
+- **2026-11-01 — the corrected 49 rows have a tested update path (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-05 to stay under the 80 KB cap (search `RESUME 2026-11-01 corrected 49 rows update path`). Nothing was deleted.
+- **2026-11-01 — conversation content v2 authored locally (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-05, to keep this file under its 80 KB cap (search `RESUME 2026-11-01 conversation content v2`). Nothing was deleted.
 - **2026-10-31 (content management in the new panel) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-05, to keep this file under its 80 KB cap (search `RESUME 2026-10-31 content management`). Nothing was deleted.
-- **2026-10-31 — a later bare «hallo» re-asks the scene's stored opener; Latin is isolated in the card (worker + Pages live).**
-  Three measured defects: (1) `sceneTopicReAsk` took its topic from joined assistant history, which stops matching a
-  stored opener after the first exchange, so a later `hallo` fell back to «Wie geht es Ihnen?». `/ai/turn` now passes
-  `sceneOpener` = the scenario's stored opener by id + level (`resolveScenarioIdentity().openers` -> `openerForLevel`,
-  the worker twin of `src/lib/conversation/opener.ts`); history still drives only off-topic and du/Sie, and the fixed
-  `RE_ASK` invites more content per level instead of asking about wellbeing. (2) Latin runs in the card's Arabic are
-  wrapped in `<bdi dir="ltr">`, so «حرف l مضعّف» paints `l`. (3) The model quote renders only when no derived chip.
-  Evidence: `turnGuard` **104**, `openerParity`, `correctionCardRender` **4**, related suites **127**, `tsc` clean,
-  gate **VERIFY OK 14/14** (672.6 s); code `a033b19`.
-  **Deployed** worker `862087cb-…` / `b3c5b2de-…` (rollback `e3f994ef-…`) and Pages `bc807292-…` (rollback `f4c077c6-…`);
-  live checks in APP-MAP §9. **UNPROVEN:** the signed-in turn and card (`OWNER-CHECKLIST.md` §11).
+- **2026-10-31 — a later bare «hallo» re-asks the scene (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-05 to stay under the 80 KB cap (search `RESUME 2026-10-31 hallo re-asks stored opener`). Nothing was deleted.
 - **2026-10-31 (correction card + admin panel) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-04, to keep this file under its 80 KB cap (search `RESUME 2026-10-31 correction card + admin panel`). Nothing was deleted.
 
 - **Older RESUME entries (2026-10-30 and earlier) moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on
@@ -391,6 +371,11 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   app never renders `scenario.icon` directly, so there is no visual regression path.
 - **CONTENT-V2 (2026-11-01) — new Arabic is marked, not claimed.** The 12 new scenarios and 159 new glosses carry
   `needs_review`; native review is an owner task (`OWNER-CHECKLIST.md` §13), never an agent assertion.
+- **V47 (2026-11-05) — the shipped opener corpus follows the corpus learners receive, not the authoring snapshot.**
+  `scripts/language-data/opener-ar-extra.json` is the durable home for first messages outside the 61-scenario catalogue
+  (live 49, mock-exam parts, fallback). `build-language-data.mjs` merges it *after* the authored corpus with the same
+  Arabic/Latin/token validation, authored entries win, and the regenerated bundle is the only source of truth — so a
+  content refresh cannot silently drop 221 live openers again. `tests/firstMessageTranslation.test.ts` is the guard.
 
 > **Older decisions (2026-10-19 and earlier — V8–V18, the September deploy authorizations, the first ENV
 > probe) moved verbatim to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-10-30**, when this file sat 45 bytes
@@ -401,6 +386,11 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical claims are in `docs/agent/ARCHIVE-AGENT-STATE.md` under the same heading.
 
+- **V47 (2026-11-05) — the fixed first bubble is proven in code and data, not in a signed-in production session.** The
+  coverage test enumerates the live corpus fixture and the app reads the same generated map, but no owner session exists
+  to open a live conversation and see the Arabic on screen; production `https://katzuai.com/scenarios` also answers 404
+  (the live content is only readable from `https://katzu-test.ghaidakalosh008.workers.dev`). After deploy, verify a
+  production conversation shows Arabic on its first bubble before closing V47.
 - **CONTENT-V2 (2026-11-01) — none of the new content is live, and two paths remain unproven.** Production D1 still
   serves the old 49 rows; the loader is insert-only and `docs/agent/CONTENT-LOAD.md` needs an owner
   `CONTENT-LOAD-AUTHORIZED: <file>` line, so the 49 corrected rows have no write path yet. The Arabic is

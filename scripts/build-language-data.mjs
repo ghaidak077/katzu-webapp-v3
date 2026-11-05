@@ -45,6 +45,18 @@ const args = new Set(process.argv.slice(2));
 const read = (file) => JSON.parse(readFileSync(join(DATA, file), 'utf8'));
 const corpus = read('opener-translations.json');
 const glossCorpus = read('word-glosses.json').glosses;
+/**
+ * Arabic for first messages the authored catalogue snapshot does not hold.
+ *
+ * The snapshot is the catalogue (61 scenarios). The worker serves a different
+ * 49-scenario corpus, so regenerating from the snapshot alone silently dropped
+ * 221 openers that learners actually receive (V41: live chat showed «تعذرت
+ * الترجمة» on the A1 greeting because «Hallo! Ich bin Frau Meier, deine
+ * Nachbarin. Wie heißt du?» had no gloss). This file records the served corpus
+ * plus the mock-exam openers and the code fallback, so a content refresh cannot
+ * erase them again. Authored entries win when the same German appears in both.
+ */
+const extraCorpus = read('opener-ar-extra.json').openers || {};
 
 /** Lowercase tokens as they appear in an opener: letters, umlauts and hyphens. */
 export function tokensOf(text) {
@@ -112,6 +124,23 @@ openers.forEach((opener, index) => {
   else if (latinOutsideParens(arabic)) problems.push(`opener #${index + 1} carries Latin text: ${arabic}`);
   openerGlosses[opener.text.replace(/\s+/g, ' ').trim()] = arabic;
 });
+
+// Merge the durable extra corpus after the authored one. It only fills keys the
+// catalogue does not already cover, and it is validated exactly like authored
+// Arabic: a gloss that is empty, has no Arabic, or carries unsupported Latin
+// text is a build failure, not a quiet fallback.
+let mergedFromExtra = 0;
+for (const [german, arabicValue] of Object.entries(extraCorpus)) {
+  const key = String(german || '').trim().replace(/\s+/g, ' ');
+  const arabic = String(arabicValue || '').trim();
+  if (!key) { problems.push('extra corpus has an empty opener key'); continue; }
+  if (!arabic) { problems.push(`extra opener has no translation: ${key}`); continue; }
+  if (!ARABIC.test(arabic)) { problems.push(`extra opener has no Arabic: ${key}`); continue; }
+  if (latinOutsideParens(arabic)) { problems.push(`extra opener carries Latin text: ${key}`); continue; }
+  if (Object.prototype.hasOwnProperty.call(openerGlosses, key)) continue;
+  openerGlosses[key] = arabic;
+  mergedFromExtra += 1;
+}
 
 const glossary = {};
 const tokenOwners = new Map();
@@ -193,10 +222,13 @@ const report = {
   distinctTokens: tokenOwners.size,
   glossed: Object.keys(glossary).length,
   filledFromVocabulary,
+  mergedFromExtra,
+  shippedOpeners: Object.keys(openerGlosses).length,
   unresolved: tokenOwners.size - Object.keys(glossary).length,
 };
 
 console.log(`language data: ${report.scenarios} scenarios · ${report.distinctOpeners} distinct openers · ${report.translated} translated`);
+console.log(`                ${report.mergedFromExtra} extra live/mock openers merged · ${report.shippedOpeners} openers shipped in total`);
 console.log(`                ${report.distinctTokens} distinct opener tokens · ${report.glossed} in the shipped glossary (${report.filledFromVocabulary} from the content vocabulary) · ${report.unresolved} unresolved`);
 console.log(`                corpus size: ${Object.keys(glossCorpus).length} authored glosses, ${translations.length} translations`);
 

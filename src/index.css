@@ -224,6 +224,15 @@
     outline-offset: 2px;
   }
 
+  /* Focus restored by a modal after a POINTER close keeps the element focused
+     but skips the ring; a key press or blur removes the attribute, so keyboard
+     navigation still shows it. Without this, the reply-report button the learner
+     just tapped kept a lavender pill while its identical siblings did not. */
+  [data-pointer-focus]:focus,
+  [data-pointer-focus]:focus-visible {
+    outline: none;
+  }
+
   /* Arabic display weight: Cairo is variable (100–900), so headings can be
      genuinely heavy without a second font file. */
   .kz-ar-display {

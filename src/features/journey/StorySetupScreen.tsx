@@ -19,7 +19,7 @@ import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
 import { SceneBackdrop } from '@/components/glass/SceneBackdrop';
 import { StatusIndicator } from '@/components/v2/StatusIndicator';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
-import { ArrowRight, Volume2, RefreshCw } from 'lucide-react';
+import { ArrowRight, Volume2, RefreshCw, Languages } from 'lucide-react';
 
 export interface StorySetupScreenProps {
   scenarioId: string;
@@ -57,7 +57,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
   const dayZero = isDayZeroOpening({ guided, sessionCount, user });
 
   const [translationAr, setTranslationAr] = useState<string | null>(null);
-  const [translationState, setTranslationState] = useState<'idle' | 'unavailable'>('idle');
+  const [translationState, setTranslationState] = useState<'idle' | 'pending' | 'unavailable'>('idle');
 
   // The opener is the character's own line at the level this episode runs at,
   // which is the level the conversation will actually be served at — a learner
@@ -107,7 +107,19 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
   }, []);
 
   useEffect(() => {
-    if (story?.openingDe) requestTranslation(story.openingDe);
+    if (!story?.openingDe) return;
+    const stored = storedOpenerArabic(story.openingDe);
+    if (stored) {
+      setTranslationAr(stored);
+      setTranslationState('idle');
+      return;
+    }
+    // A missing gloss keeps a short loading state and retries once before the
+    // honest retry affordance appears — the first line a learner sees must never
+    // be a dead end.
+    setTranslationState('pending');
+    const timer = setTimeout(() => requestTranslation(story.openingDe), 450);
+    return () => clearTimeout(timer);
   }, [story?.openingDe, requestTranslation]);
 
   if (!scenario) {
@@ -224,6 +236,12 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                     <GermanText className="kz-de-body block text-kz-ink">{story.openingDe}</GermanText>
                     {translationAr && (
                       <p className="kz-ar-caption mt-1.5 text-kz-inkDim">{translationAr}</p>
+                    )}
+                    {translationState === 'pending' && !translationAr && (
+                      <p className="kz-ar-micro mt-1.5 flex items-center gap-1.5 text-kz-inkFaint">
+                        <Languages className="h-3.5 w-3.5 animate-pulse" />
+                        جارٍ الترجمة…
+                      </p>
                     )}
                     {translationState === 'unavailable' && !translationAr && (
                       <button

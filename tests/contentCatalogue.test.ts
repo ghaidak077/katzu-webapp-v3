@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import catalogue from '../docs/content/catalogue/scenarios-catalogue.json';
 import snapshot from '../scripts/language-data/content-snapshot.json';
 import corpus from '../scripts/language-data/opener-translations.json';
+import extraCorpus from '../scripts/language-data/opener-ar-extra.json';
 import glossFile from '../scripts/language-data/word-glosses.json';
 import { englishTells } from '../src/lib/content/curriculumAudit';
 import { LEVEL_LADDER, LEVEL_SPECS } from '../src/lib/levels/levelSpec';
@@ -283,10 +284,12 @@ describe('the bundled and worker opener maps agree with the catalogue', () => {
     expect(keys(WORKER_GLOSSES)).toEqual(keys(BUNDLED_GLOSSES));
   });
 
-  it('translates every shipped opener identically in both copies', () => {
+  it('translates every authored opener identically in both copies', () => {
     // Unchanged German keeps the Arabic that already shipped (the corpus is
     // zipped by exact text), so the source of truth here is the shipped corpus,
-    // not the catalogue's Arabic column.
+    // not the catalogue's Arabic column. The shipped map is a superset: it also
+    // holds the live worker corpus and the mock-exam openers
+    // (`scripts/language-data/opener-ar-extra.json`), which have no catalogue row.
     const rows = (snapshot as unknown as { scenarios: Array<Record<string, string>> }).scenarios;
     const translations = (corpus as unknown as { translations: string[] }).translations;
     const shipped = new Map<string, string>();
@@ -299,7 +302,7 @@ describe('the bundled and worker opener maps agree with the catalogue', () => {
         index += 1;
       }
     }
-    expect(shipped.size).toBe(keys(BUNDLED_GLOSSES).length);
+    expect(keys(BUNDLED_GLOSSES).length).toBeGreaterThanOrEqual(shipped.size);
     for (const [german, arabic] of shipped) {
       expect(BUNDLED_GLOSSES[german], `bundle ${german}`).toBe(arabic);
       expect(WORKER_GLOSSES[german], `worker ${german}`).toBe(arabic);
@@ -307,7 +310,14 @@ describe('the bundled and worker opener maps agree with the catalogue', () => {
   });
 
   it('has no stale opener in either copy', () => {
+    // What may ship: catalogue openers, the durable extra corpus (the live
+    // worker's 49 scenarios + the three mock-exam part prompts + the code
+    // fallback), and anything the build script validated there. A key outside
+    // those sets is a retired string and still fails.
     const authored = new Set(scenarios.flatMap((s) => LEVELS.map((level) => s.openers[level][0])));
+    for (const german of Object.keys(extraCorpus.openers)) authored.add(german);
+    const mockExam = readFileSync('cloudflare-mock-exam.js', 'utf8');
+    for (const match of mockExam.matchAll(/openerDe: '([^']+)'/g)) authored.add(match[1]);
     for (const german of keys(BUNDLED_GLOSSES)) expect(authored.has(german), german).toBe(true);
     for (const german of keys(WORKER_GLOSSES)) expect(authored.has(german), german).toBe(true);
   });

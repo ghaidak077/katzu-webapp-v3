@@ -8,6 +8,8 @@ import {
 } from '../cloudflare-admin-api';
 import { ensureContentAdminTables } from '../cloudflare-content-admin';
 import { contentColumns } from '../cloudflare-content-schema';
+import { OPENER_GLOSSES } from '../src/lib/conversation/openerGlosses.generated';
+import { WORD_GLOSSARY } from '../src/lib/vocabulary/wordGlossary.generated';
 
 /**
  * The content surface of the new panel. Every route goes through the real
@@ -582,10 +584,21 @@ describe('bundled content stays read-only', () => {
     const snapshot = JSON.parse(
       readFileSync('admin-worker/public/bundled-content.json', 'utf8'),
     );
-    expect(snapshot.counts.openers).toBe(223);
-    expect(snapshot.counts.glosses).toBe(892);
-    expect(snapshot.openers).toHaveLength(223);
-    expect(snapshot.glosses).toHaveLength(892);
+    // Counts are derived from the generated maps, not hard-coded: the snapshot
+    // is the admin copy of exactly what the app ships, and the extra live-corpus
+    // Arabic (`scripts/language-data/opener-ar-extra.json`) grows it.
+    const openerCount = Object.keys(OPENER_GLOSSES).length;
+    const glossCount = Object.keys(WORD_GLOSSARY).length;
+    expect(snapshot.counts.openers).toBe(openerCount);
+    expect(snapshot.openers).toHaveLength(openerCount);
+    expect(snapshot.counts.glosses).toBe(glossCount);
+    expect(snapshot.glosses).toHaveLength(glossCount);
+    const snapshotOpeners = new Map<string, string>(
+      (snapshot.openers as Array<{ key: string; ar: string }>).map((entry) => [entry.key, entry.ar]),
+    );
+    for (const [german, arabic] of Object.entries(OPENER_GLOSSES)) {
+      expect(snapshotOpeners.get(german), german).toBe(arabic);
+    }
     expect(snapshot.glosses.every((entry: { level: string }) => ['A0', 'A1', 'A2', 'B1', 'B2'].includes(entry.level))).toBe(true);
   });
 });
