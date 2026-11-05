@@ -239,17 +239,6 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                     <Snail className="h-4 w-4" />
                   </button>
                 )}
-                {onReport && (
-                  <button
-                    type="button"
-                    onClick={() => onReport(message)}
-                    aria-label="أبلغ عن رد سيئ"
-                    title="أبلغ عن رد سيئ"
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-kz-inkFaint transition-colors pointer-hover:bg-white/10 pointer-hover:text-kz-warm"
-                  >
-                    <Flag className="h-3.5 w-3.5" />
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -270,6 +259,24 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
               <span aria-hidden>💬</span>
               <span className="min-w-0">{message.followupAr}</span>
             </p>
+          )}
+
+          {/* Reporting lives on its own line with a written label. It used to be a
+              14 px icon sharing the meta row with three others, which was present
+              on every reply but effectively unfindable — the design cannot rely on
+              a learner guessing what a faint flag means. It stays inside the bubble
+              so it is unmistakably attached to the reply it reports. */}
+          {isKatzu && onReport && (
+            <button
+              type="button"
+              onClick={() => onReport(message)}
+              aria-label="أبلغ عن رد سيئ"
+              title="أبلغ عن رد سيئ"
+              className="kz-ar-micro mt-1 flex h-9 items-center gap-1.5 rounded-full px-2 text-kz-inkDim transition-colors pointer-hover:bg-white/10 pointer-hover:text-kz-warm focus-visible:text-kz-warm"
+            >
+              <Flag className="h-3.5 w-3.5" />
+              أبلغ عن رد سيئ
+            </button>
           )}
         </div>
 
