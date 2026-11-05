@@ -6,19 +6,19 @@ Each is in `docs/AGENT-STATE.md` § OWNER-OPEN, with what "done" looks like.
 
 Pricing is finished but no payment method is connected, so buyers can only email. Send: the Telegram handle
 orders may go to; the Syriatel Cash and MTN Cash numbers (and the name on each); bank, account holder and IBAN;
-the currencies to collect. **Done:** the order section shows the real numbers.
+currencies to collect. **Done:** the order section shows the real numbers.
 
 ## 2. Four legal sentences — V44-2 (2026-10-28)
 
-Privacy, terms and refund are complete except four facts only you may state: governing law, your legal name and
-address, any register number, and the dispute forum. Say each in a sentence; the agent adds it.
+Privacy, terms and refund are complete except four facts only you may state: governing law, your name and
+address, register number, dispute forum. Say each in a sentence; the agent adds it.
 **Done:** the terms page names your law, your identity and where a complaint goes.
 
 ## 3. Admin secret and grammar columns — V11, V12, V12-1, V18-2
 
 Rotate `ADMIN_SECRET` once (it was pasted into chat); `grammar` needs one additive `ALTER TABLE` adding
-`rule_de`, `rule_ar`, `example_ar`. Set it in Worker → Settings → Variables, then have the agent run the three
-lines and the drift check. **Done:** drift exits 0 and grammar shows.
+`rule_de`, `rule_ar`, `example_ar`. Set it in Worker → Variables, then have the agent run the three lines
+and the drift check. **Done:** drift exits 0 and grammar shows.
 
 ## 4. Real AI keys — AI-POOL (2026-10-18)
 
@@ -29,17 +29,17 @@ Both key lists are empty, so every turn rides the free fallback (works, weaker, 
 ## 5. One address — V18-3
 
 `robots.txt`, `sitemap.xml` and hreflang need one origin. Say "use katzuai.com" and the agent sets
-`VITE_PUBLIC_APP_URL` at build time. **Done:** `https://katzuai.com/sitemap.xml` lists `https://katzuai.com/`.
+`VITE_PUBLIC_APP_URL` at build time. **Done:** `https://katzuai.com/sitemap.xml` lists the root.
 
 ## 6. Real-device voice — V18-3
 
 All voice checks used a simulated microphone. Follow `docs/agent/OWNER-STEPS.md` §2 (14 rows) on iPhone and
-Android. **Done:** each row marked pass or fail with a note.
+Android. **Done:** each row marked pass or fail.
 
 ## 7. Node version — V17-1 (not blocking)
 
 This machine runs 24.14.0; the project wants 24.15.0+. Run `nvm install 24.15.0 && nvm use 24.15.0`; done when
-`npm ci` prints no `EBADENGINE` line.
+`npm ci` shows no `EBADENGINE`.
 
 ## 8. Partner program first test — AFF-1 (2026-10-28)
 
@@ -65,8 +65,8 @@ The panel is live behind Cloudflare Access and cannot touch data or keys; text *
 ## 11. Type «hallo» in one scene — V45 (2026-10-31)
 
 Sign in at `https://katzuai.com`, open **Am Flughafen** (A1), type `halo`: the partner asks about luggage,
-and the note under your bubble says «Schreibung: Doppel-l», nothing cut off. Then keep chatting and type
-`hallo` again: the partner must stay in the scene and never ask «Wie geht es Ihnen?».
+and the note under your bubble says «Schreibung: Doppel-l», nothing cut off. Then type `hallo` again: the partner
+must stay in the scene and never ask «Wie geht es Ihnen?».
 **Done:** both appear, or send what you saw. Record: `docs/AGENT-STATE.md` UNPROVEN V45.
 
 ## 12. Turn on the new conversations — CONTENT-V2-1, CONTENT-V2-4 (2026-11-01)
@@ -74,16 +74,17 @@ and the note under your bubble says «Schreibung: Doppel-l», nothing cut off. T
 You chose **everything**: your 49 corrected conversations replace the old ones; the 12 new ones wait until the
 Arabic is checked. Two things block it, both yours:
 1. **The line** `CONTENT-LOAD-AUTHORIZED: scenarios-catalogue.json`. Project rules allow only *adding* rows today,
-   so this line is also your approval to update existing ones. Nothing is written without it.
+   so this line also approves updating existing ones. Nothing is written without it.
 2. **The admin key.** It is set on this machine, but the live site answers «unauthorized», so even a read-only
    check cannot run. Rotate it once (item 3), then tell me it is done.
 **Done:** a dry run lists 49 rows / 327 fields, the load lands with a backup, and the app shows the corrected scenes.
 
-## 13. Native check of the new Arabic — CONTENT-V2-2 (2026-11-01)
+## 13. Native check of the new Arabic — CONTENT-V2-2, V47 (2026-11-01)
 
-159 new word meanings and the Arabic for the 12 new situations are machine-written and marked `needs_review`.
-Open `docs/OWNER-LANGUAGE-REVIEW.md` (German beside Arabic), read it or send it to a native speaker, then reply
-with corrections or «fine». **Done:** every `needs_review` mark is cleared.
+The 159 new word meanings, the 12 new situations and V47's 227 first-message glosses are machine-written.
+`docs/OWNER-LANGUAGE-REVIEW.md` and `docs/OWNER-OPENER-REVIEW.md` list German beside Arabic; the latter flags
+18 literal, stiff or wrong rows with wording. Read both with a native speaker. **Done:** every
+`needs_review` mark is cleared and every flag is approved or corrected.
 
 ## 14. Near-duplicate conversations — CONTENT-V2-3 (2026-11-01)
 

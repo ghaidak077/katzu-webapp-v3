@@ -26,6 +26,14 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-05 — the opener gate checks the worker, not just the fixture (local; no bundle change).** V47 proved the
+  committed fixture; the authored catalogue is 61 scenarios and the worker serves 49. `scripts/audit-opener-coverage.mjs`
+  now fetches `/scenarios` (3 attempts, 15 s), applies the app's trim + whitespace collapse, and exits 1 when any served
+  `initial_message_<level>` has no gloss or a non-Arabic one (2 when the payload is unreadable); it is the CI-only step
+  `served opener coverage` in `scripts/verify.mjs` (`--offline` = fixture). `docs/OWNER-OPENER-REVIEW.md` lists the 227
+  V47 glosses by level with 18 flags and suggested wording (`OWNER-CHECKLIST` §13). Measured **49 / 225 / 0 missing** live
+  and from the fixture; `tests/openerCoverage` **8**, gate **VERIFY OK 15/15** (721.9 s, `--ci --e2e`). No bundle byte
+  changed; Pages redeploys on push, worker untouched.
 - **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (deployed: merge + worker + pages).** Root cause of «تعذرت الترجمة» on the A1 «أول الكلمات» greeting: the shipped opener map was generated from
   the authored 61-scenario snapshot (301 openers, «Frau Yilmaz») while the worker serves 49 scenarios / 223 openers
   («Frau Meier»), so 221 live first messages had no gloss and the first render had nothing to show. The new durable
@@ -37,9 +45,8 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   automatic retry (450 ms, cleaned up) before the honest retry affordance; no first-message path calls `/ai/translate`.
   The one outlined report button was `:focus-visible` on the programmatically restored trigger after a pointer close —
   `useModalDialog.ts` sets `data-pointer-focus` and `src/index.css` suppresses that ring until the next key press/blur,
-  while keyboard-opened dialogs keep it. Tests: `firstMessageTranslation` **6** (1,484 cells / 1,484 translated /
-  526 distinct / zero `fetch`), `reportFocus` **4**, `contentCatalogue` + `adminContentManagement` updated to treat the
-  catalogue as a subset. `tsc` clean; gate **VERIFY OK 14/14** (866.1 s) with `--ci --e2e` on the committed tree.
+  while keyboard-opened dialogs keep it. Tests: `firstMessageTranslation` **6**, `reportFocus` **4**, catalogue tests
+  updated to treat the catalogue as a subset; gate **VERIFY OK 14/14** (866.1 s) with `--ci --e2e`.
   **Deployed:** `main` `4229f71..9ace95e`; Pages `bf78a12c-fae8-4474-b70b-4142a98e9a1e` (source `9ace95e`,
   entry `assets/index-BuFoPzZ9.js`, lazy `assets/opener-DcmfekFc.js` 90,565 B serving the live-corpus Arabic,
   `/sw.js` 200; rollback `0c25ba91-…`); worker `dd23b2ac-46b0-4b42-a20b-4a41be0cc739` (2026-11-05T06:47Z,

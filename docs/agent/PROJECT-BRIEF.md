@@ -69,10 +69,13 @@ production data was touched by that vetting run.
 `scripts/language-data/opener-ar-extra.json` now holds those 227 first messages and `build-language-data.mjs`
 merges it after the authored corpus, shipping **526 openers / 457 glosses / 0 unresolved**; the app reads the
 map synchronously, so the first render makes **no `/ai/translate` call** and works offline. A missing gloss
-shows a short loading state, retries once automatically, then an honest retry. The lone outlined report
-button was `:focus-visible` after a pointer-closed modal; focus is still restored but its ring is suppressed
-until the next key press. **Proof:** `firstMessageTranslation` **6** (1,484 cells, 1,484/1,484 translated,
-526 distinct, zero `fetch`), `reportFocus` **4**, `tsc` clean, gate **VERIFY OK 14/14** (866.1 s). Pages
+shows a short loading state, retries once automatically, then an honest retry. Point-closed modals keep
+focus without the ring until the next key press. **Proof:** `firstMessageTranslation` **6** (1,484 cells,
+zero `fetch`), `reportFocus` **4**, `tsc` clean, gate **VERIFY OK 14/14** (866.1 s). **V47-1 (local,
+2026-11-05):** the missing half is now a gate — `scripts/audit-opener-coverage.mjs` reads the worker's real
+`/scenarios` in CI and fails on any served first message with no Arabic (measured 49 scenarios / 225 first
+messages / 0 missing), and `docs/OWNER-OPENER-REVIEW.md` lists the 227 new glosses with 18 flags. No bundle
+byte changed. Pages
 `bf78a12c-…` (source `9ace95e`, entry `index-BuFoPzZ9.js`, lazy `opener-DcmfekFc.js` serving the live
 Arabic; rollback `0c25ba91-…`); worker `dd23b2ac-…` (rollback `e98031d5-…`). **Unproven:** a signed-in
 production first bubble; production `/scenarios` still answers 404.

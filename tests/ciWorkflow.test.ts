@@ -297,6 +297,7 @@ describe('the CI gates themselves stay in place', () => {
       'npm run build',
       'node scripts/audit-curriculum.mjs',
       'node scripts/audit-quiz-content.mjs',
+      'node scripts/audit-opener-coverage.mjs',
       'node scripts/eval-chat-quality.mjs',
       'node scripts/measure-turn-cost.mjs',
       'node scripts/simplicity-check.mjs',
