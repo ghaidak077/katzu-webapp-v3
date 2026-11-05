@@ -26,8 +26,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (local; deploy
-  approved).** Root cause of «تعذرت الترجمة» on the A1 «أول الكلمات» greeting: the shipped opener map was generated from
+- **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (deployed: merge + worker + pages).** Root cause of «تعذرت الترجمة» on the A1 «أول الكلمات» greeting: the shipped opener map was generated from
   the authored 61-scenario snapshot (301 openers, «Frau Yilmaz») while the worker serves 49 scenarios / 223 openers
   («Frau Meier»), so 221 live first messages had no gloss and the first render had nothing to show. The new durable
   `scripts/language-data/opener-ar-extra.json` (227 entries: live corpus + 3 mock-exam part openers + the code fallback) is
@@ -40,7 +39,13 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   `useModalDialog.ts` sets `data-pointer-focus` and `src/index.css` suppresses that ring until the next key press/blur,
   while keyboard-opened dialogs keep it. Tests: `firstMessageTranslation` **6** (1,484 cells / 1,484 translated /
   526 distinct / zero `fetch`), `reportFocus` **4**, `contentCatalogue` + `adminContentManagement` updated to treat the
-  catalogue as a subset. `tsc` clean; gate result recorded in the deploy entry below.
+  catalogue as a subset. `tsc` clean; gate **VERIFY OK 14/14** (866.1 s) with `--ci --e2e` on the committed tree.
+  **Deployed:** `main` `4229f71..9ace95e`; Pages `bf78a12c-fae8-4474-b70b-4142a98e9a1e` (source `9ace95e`,
+  entry `assets/index-BuFoPzZ9.js`, lazy `assets/opener-DcmfekFc.js` 90,565 B serving the live-corpus Arabic,
+  `/sw.js` 200; rollback `0c25ba91-…`); worker `dd23b2ac-46b0-4b42-a20b-4a41be0cc739` (2026-11-05T06:47Z,
+  rollback `e98031d5-9932-4093-a7a9-7ba4ab827b0d`), `/health` 200 with `storage:{d1:ok,kv:ok}`,
+  `/crypto/health` 200, `/internal/admin/content/reviews` 401, `/scenarios` 200; production smoke 2 passed /
+  2 skipped (production profile). Ids in APP-MAP §9.
 - **2026-11-05 — the report action is findable (app live; worker unchanged).** The per-reply control was a
   14 px unlabelled flag sharing the meta row with three icons. It now sits on its own line inside every AI
   bubble with the words «أبلغ عن رد سيئ», same handler and confirmation sheet. Evidence: `tsc`, consent
