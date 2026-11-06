@@ -26,6 +26,8 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-06 — the path screen answers «what do I do now?» and the app has one progression system (app live; worker unchanged).** `/app/library` now shows a slim header (name, Pro badge, daily-goal ring; streak only when >0), **one** full-width CTA «تابع: [scenario] · [N] دقائق», a secondary 10-item review row with the backlog as small text, and the CEFR journey: a level card with ring/percent and «N مواقف للمستوى التالي», a sticky A1/A2/B1/B2 bar (future levels dimmed, tap opens the paywall) and compact 64 px scenario cards with the three stages (دراسة · مع مساعدة · وحدك). The rank card, XP strip and side timeline left the screen. Rank/XP now lives in `profile-rank-card` on `/app/profile` from one `absoluteXpProgress` (800 XP → «800 / 1500 XP», bar 53%), and a rank crossing is celebrated once on `/session-report`. New `scenarioMinutes.ts` owns duration, the 10-review cap and backlog. Evidence: `tsc`, new `trailOrdering`/`scenarioMinutes`, the updated 390×844 probe (one CTA, ≥3 cards above the fold, 130 reviews → 10, locked levels → paywall, text/bar agreement), gate **VERIFY OK 15/15** (792.8 s) with `--ci --e2e`. **Deployed:** Pages `a10ab1b7-…` (source `35a4363`, entry `assets/index-BVLRTDPT.js`, `/` + `katzuai.com` 200, `/sw.js` 200), rollback `7549eab3-…`. **Owner-open:** level descriptions and rank placement (`OWNER-CHECKLIST.md` §15).
+
 - **2026-11-05 — the opener gate checks the worker, not just the fixture (local; no bundle change).** V47 proved the
   committed fixture; the authored catalogue is 61 scenarios and the worker serves 49. `scripts/audit-opener-coverage.mjs`
   now fetches `/scenarios` (3 attempts, 15 s), applies the app's trim + whitespace collapse, and exits 1 when any served
@@ -33,29 +35,9 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   `served opener coverage` in `scripts/verify.mjs` (`--offline` = fixture). `docs/OWNER-OPENER-REVIEW.md` lists the 227
   V47 glosses by level with 18 flags and suggested wording (`OWNER-CHECKLIST` §13). Measured **49 / 225 / 0 missing** live
   and from the fixture; `tests/openerCoverage` **8**, gate **VERIFY OK 15/15** (721.9 s).
-- **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (deployed: merge + worker + pages).** The shipped opener map was generated from the 61-scenario authored snapshot while the worker serves 49, so 221 live openers had no gloss («تعذرت الترجمة» on the A1 greeting). `scripts/language-data/opener-ar-extra.json` (227 entries) is merged after the authored corpus by `build-language-data.mjs`, giving **526 openers / 457 glosses / 0 unresolved**, and the generated files were rebuilt. `useLiveConversation.ts` and `StorySetupScreen.tsx` render a stored gloss immediately, otherwise one automatic retry then an honest retry; no first-message path calls `/ai/translate`. Report buttons: `useModalDialog.ts` sets `data-pointer-focus` and `src/index.css` suppresses the ring until the next key press, while keyboard dialogs keep it. Tests: `firstMessageTranslation` **6**, `reportFocus` **4**, gate **VERIFY OK 14/14** (866.1 s) with `--ci --e2e`.
-  **Deployed:** `main` `4229f71..9ace95e`; Pages `bf78a12c-…` (source `9ace95e`, rollback `0c25ba91-…`); worker `dd23b2ac-…` (rollback `e98031d5-…`), `/health` 200, production smoke 2 passed / 2 skipped. Ids in APP-MAP §9.
-- **2026-11-05 — the report action is findable (app live; worker unchanged).** The per-reply control was a
-  14 px unlabelled flag sharing the meta row with three icons. It now sits on its own line inside every AI
-  bubble with the words «أبلغ عن رد سيئ», same handler and confirmation sheet. Evidence: `tsc`, consent
-  suites **28/28**, gate **VERIFY OK 14/14** (908.7 s) with e2e, 390 px rig
-  `e2e/reportActionShots…` → `docs/agent/report-action/`. Pages `0c25ba91-…` (source `d2353a6`, lazy
-  `LiveConversationScreen-CjozgZmU.js` 145,681 B), rollback `6cb04cff-…`; production entry served and the
-  prompt-mode SW had the labelled chunk cached after two reloads. Ids in APP-MAP §9.
-- **2026-11-04 — the learner chooses conversation review, and can report one bad reply (worker, app and site live).**
-  Settings now shows an ON/OFF toggle pair with visible text labels, never pre-ticked, off by default. A one-time
-  bottom sheet appears after the learner's first full *live practice* conversation only (never during a session or on
-  a recovered report); «نعم، ساعدوا في التحسين» calls `POST /consent/conversation`, «لا، شكراً» or close suppresses
-  the ask for 60 days (`src/lib/consent/prompt.ts`). Every partner reply can be reported with «أبلغ عن رد سيئ»
-  (confirm: «إرسال هذا التبادل لفريق كاتزو؟»); `POST /consent/conversation/report` stores exactly one redacted
-  exchange as `conversations(flagged=1, note='learner_report', outcome='reported')`, works with the global toggle
-  off, and inherits the 90-day sweep and withdrawal deletion. Privacy text in the app, `website/help.html` and its
-  markdown twin gained the report sentence; `TRUST_VERSION` is `2026-11-05`. Arabic typo scan found no
-  «في كمل التمرين» anywhere (the source already reads «لنكمل التمرين»). Evidence: `conversationConsent` +
-  `conversationConsentPrompt` **28**, `tsc` clean, gate **VERIFY OK 14/14** (814.5 s) with e2e. Deployed worker
-  `e98031d5-…` (rollback `70daf981-…`), app `d1324296-…` (rollback `c2fb76b0-…`), site `6c6c6023-…` (rollback
-  `5be0e65b-…`); ids and checks in BACKUP §12, APP-MAP §9. **Still owner-only:** the legal identity/contact line in
-  the privacy policy (`OWNER-CHECKLIST.md`).
+- **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-06 to stay under the 80 KB cap (search `RESUME 2026-11-05 first message Arabic`). Nothing was deleted.
+- **2026-11-05 — the report action is findable (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-06 to stay under the 80 KB cap (search `RESUME 2026-11-05 report action findable`). Nothing was deleted.
+- **2026-11-04 — the learner chooses conversation review, and can report one bad reply (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-06 to stay under the 80 KB cap (search `RESUME 2026-11-04 conversation review`). Nothing was deleted.
 - **2026-11-03 — one brand graph (local only).** One Organization `@id`, both robots files naming both
   sitemaps, an apex `llms.txt`; gate **6/6**, live UNPROVEN until deploy.
 - **2026-11-01 — the corrected 49 rows have a tested update path (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-05 to stay under the 80 KB cap (search `RESUME 2026-11-01 corrected 49 rows update path`). Nothing was deleted.
@@ -155,9 +137,12 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   **Rollback target: `e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
   `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or
   delete the Worker; nothing else depends on it.
-- **App Pages production (2026-11-05, source `87997a4`):** deployment
-  **`7bfe14d6-eef2-420a-9164-f853bc8f4f11`** (same entry; `/` and `katzuai.com` 200).
-  **Rollback: `5c3e24c8-8183-4eaa-90d1-e85a701f502e`** (source `0099ab4`, docs-only), then
+- **App Pages production (2026-11-06, source `35a4363`):** deployment
+  **`a10ab1b7-69a1-4bb8-8870-ecd9c2a50b1e`** (TRAIL-1 path screen; entry `assets/index-BVLRTDPT.js`,
+  `/` and `katzuai.com` 200, `/sw.js` 200; production smoke 2 passed / 2 skipped).
+  **Rollback: `7549eab3-ffb4-4583-9bbe-87061a55eca9`** (source `31f65d3`, docs-only, entry `index-BuFoPzZ9.js`),
+  then `7bfe14d6-eef2-420a-9164-f853bc8f4f11` (source `87997a4`, docs-only, same entry), then
+  `5c3e24c8-8183-4eaa-90d1-e85a701f502e` (source `0099ab4`, docs-only), then
   `bf78a12c-fae8-4474-b70b-4142a98e9a1e` (source `9ace95e`, first-message Arabic; entry `index-BuFoPzZ9.js`),
   then source `d2353a6` deployment `0c25ba91-21cd-4eee-83c7-893755803cf3` (entry `assets/index-3KsTlLGj.js`, lazy
   `LiveConversationScreen-CjozgZmU.js` 145,681 B, `SessionReportScreen-COJKDuE4.js`, `conversationConsent-B7o-RqQj.js`).

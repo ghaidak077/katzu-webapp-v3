@@ -857,3 +857,35 @@ first ENV probe) is unchanged below; the ledger keeps the 2026-10-28/29/30 decis
   gate **VERIFY OK 14/14** (672.6 s); code `a033b19`.
   **Deployed** worker `862087cb-…` / `b3c5b2de-…` (rollback `e3f994ef-…`) and Pages `bc807292-…` (rollback `f4c077c6-…`);
   live checks in APP-MAP §9. **UNPROVEN:** the signed-in turn and card (`OWNER-CHECKLIST.md` §11).
+
+## RESUME 2026-11-05 first message Arabic (moved 2026-11-06, verbatim)
+
+- **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (deployed: merge + worker + pages).** The shipped opener map was generated from the 61-scenario authored snapshot while the worker serves 49, so 221 live openers had no gloss («تعذرت الترجمة» on the A1 greeting). `scripts/language-data/opener-ar-extra.json` (227 entries) is merged after the authored corpus by `build-language-data.mjs`, giving **526 openers / 457 glosses / 0 unresolved**, and the generated files were rebuilt. `useLiveConversation.ts` and `StorySetupScreen.tsx` render a stored gloss immediately, otherwise one automatic retry then an honest retry; no first-message path calls `/ai/translate`. Report buttons: `useModalDialog.ts` sets `data-pointer-focus` and `src/index.css` suppresses the ring until the next key press, while keyboard dialogs keep it. Tests: `firstMessageTranslation` **6**, `reportFocus` **4**, gate **VERIFY OK 14/14** (866.1 s) with `--ci --e2e`.
+  **Deployed:** `main` `4229f71..9ace95e`; Pages `bf78a12c-…` (source `9ace95e`, rollback `0c25ba91-…`); worker `dd23b2ac-…` (rollback `e98031d5-…`), `/health` 200, production smoke 2 passed / 2 skipped. Ids in APP-MAP §9.
+
+## RESUME 2026-11-05 report action findable (moved 2026-11-06, verbatim)
+
+- **2026-11-05 — the report action is findable (app live; worker unchanged).** The per-reply control was a
+  14 px unlabelled flag sharing the meta row with three icons. It now sits on its own line inside every AI
+  bubble with the words «أبلغ عن رد سيئ», same handler and confirmation sheet. Evidence: `tsc`, consent
+  suites **28/28**, gate **VERIFY OK 14/14** (908.7 s) with e2e, 390 px rig
+  `e2e/reportActionShots…` → `docs/agent/report-action/`. Pages `0c25ba91-…` (source `d2353a6`, lazy
+  `LiveConversationScreen-CjozgZmU.js` 145,681 B), rollback `6cb04cff-…`; production entry served and the
+  prompt-mode SW had the labelled chunk cached after two reloads. Ids in APP-MAP §9.
+
+## RESUME 2026-11-04 conversation review (moved 2026-11-06, verbatim)
+
+- **2026-11-04 — the learner chooses conversation review, and can report one bad reply (worker, app and site live).**
+  Settings now shows an ON/OFF toggle pair with visible text labels, never pre-ticked, off by default. A one-time
+  bottom sheet appears after the learner's first full *live practice* conversation only (never during a session or on
+  a recovered report); «نعم، ساعدوا في التحسين» calls `POST /consent/conversation`, «لا، شكراً» or close suppresses
+  the ask for 60 days (`src/lib/consent/prompt.ts`). Every partner reply can be reported with «أبلغ عن رد سيئ»
+  (confirm: «إرسال هذا التبادل لفريق كاتزو؟»); `POST /consent/conversation/report` stores exactly one redacted
+  exchange as `conversations(flagged=1, note='learner_report', outcome='reported')`, works with the global toggle
+  off, and inherits the 90-day sweep and withdrawal deletion. Privacy text in the app, `website/help.html` and its
+  markdown twin gained the report sentence; `TRUST_VERSION` is `2026-11-05`. Arabic typo scan found no
+  «في كمل التمرين» anywhere (the source already reads «لنكمل التمرين»). Evidence: `conversationConsent` +
+  `conversationConsentPrompt` **28**, `tsc` clean, gate **VERIFY OK 14/14** (814.5 s) with e2e. Deployed worker
+  `e98031d5-…` (rollback `70daf981-…`), app `d1324296-…` (rollback `c2fb76b0-…`), site `6c6c6023-…` (rollback
+  `5be0e65b-…`); ids and checks in BACKUP §12, APP-MAP §9. **Still owner-only:** the legal identity/contact line in
+  the privacy policy (`OWNER-CHECKLIST.md`).
