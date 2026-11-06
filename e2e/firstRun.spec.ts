@@ -144,8 +144,9 @@ test('the Pro offer names the price, the free tier, the terms and who sells it',
   // reaches it from home (footer chip with the flag off, «المزيد» with it on).
   await openLibraryFromHome(page);
 
-  // A2 is locked on the free plan, so the pill is the honest path to the offer.
-  const lockedPill = page.getByRole('button', { name: 'A2', exact: true });
+  // A2 is locked on the free plan, so the level in the sticky CEFR bar is the
+  // honest path to the offer. Its accessible name says why it is locked.
+  const lockedPill = page.getByRole('button', { name: /^المستوى A2/ });
   await expectTapTarget(lockedPill, 'CEFR level pill');
   await lockedPill.click();
 

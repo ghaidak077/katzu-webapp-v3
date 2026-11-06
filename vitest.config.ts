@@ -7,7 +7,8 @@ export default defineConfig({
     environment: 'node',
     // `e2e/**` is the Playwright suite: it needs a browser and a running preview,
     // so it must never be picked up by the unit runner (which has neither).
-    exclude: [...configDefaults.exclude, 'e2e/**'],
+    // `.tmp/**` is local scratch space (screenshot rigs, probe files): never gate input.
+    exclude: [...configDefaults.exclude, 'e2e/**', '.tmp/**'],
   },
   resolve: {
     alias: {

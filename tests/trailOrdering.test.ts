@@ -168,19 +168,55 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     expect(TRAIL).toMatch(/pathScenarios\.slice\(0, showAllScenarios \? undefined : TRAIL_PREVIEW_COUNT\)/);
   });
 
-  it('gives every card its banner, not only the cards that have artwork', () => {
-    // The old card rendered artwork conditionally, so the majority of situations
-    // were a text-only row beside a photographed one.
+  it('gives every card a compact 64px thumbnail, not a full-width banner', () => {
+    // Every situation still gets artwork — the old card rendered it
+    // conditionally — but the compact card trades the 16:9 banner for a 64px
+    // square so three situations fit above the fold.
     expect(TRAIL).not.toMatch(/scene\.artUrl &&/);
-    expect(TRAIL).toMatch(/<ScenarioBanner scene=\{scene\}[^>]*className="shrink-0"/);
+    expect(TRAIL).toMatch(/<ScenarioBanner[\s\S]{0,160}className="h-16 w-16 shrink-0 rounded-control"/);
   });
 
   it('leads each card with the Arabic title and puts the German underneath', () => {
     expect(TRAIL).toMatch(
-      /font-arabic text-base font-bold leading-snug text-text-primary">[\s\S]*?\{scenario\.title_ar\}/,
+      /font-arabic text-sm font-bold leading-snug text-text-primary">\s*<bdi dir="rtl">\{scenario\.title_ar\}<\/bdi>/,
     );
     expect(TRAIL).toMatch(
-      /<GermanText className="line-clamp-1 block text-xs leading-snug text-text-secondary">\s*\{scenario\.title_de\}\s*<\/GermanText>/,
+      /<GermanText className="line-clamp-1 block min-w-0 text-xs leading-snug text-text-secondary">\s*\{scenario\.title_de\}\s*<\/GermanText>/,
     );
+  });
+
+  it('shows the three evidence stages on every card', () => {
+    expect(TRAIL).toMatch(/<MasteryStage done=\{studied\} label="دراسة" \/>/);
+    expect(TRAIL).toMatch(/<MasteryStage done=\{withHelp\} label="مع مساعدة" \/>/);
+    expect(TRAIL).toMatch(/<MasteryStage done=\{done\} label="وحدك" \/>/);
+  });
+});
+
+describe('the path has one primary action and one progression system', () => {
+  const TRAIL = readFileSync('src/features/trail/TrailScreen.tsx', 'utf8');
+
+  it('renders exactly one primary CTA above the review row', () => {
+    expect(TRAIL.match(/data-testid="trail-primary-cta"/g)).toHaveLength(1);
+    expect(TRAIL.indexOf('trail-primary-cta')).toBeLessThan(TRAIL.indexOf('trail-review-row'));
+  });
+
+  it('never renders the rank card or the ladder on the path', () => {
+    // Rank and XP now live on the profile, and the rank-up is celebrated after
+    // the session that earned it — so the path carries one progression story.
+    expect(TRAIL).not.toMatch(/data-testid="trail-rank-card"/);
+    expect(TRAIL).not.toMatch(/trail-rank-pill/);
+    expect(TRAIL).not.toMatch(/rankFor\(/);
+  });
+
+  it('caps the review action at ten items and puts the backlog in plain text', () => {
+    expect(TRAIL).toMatch(/Math\.min\(dueCount, REVIEW_SESSION_CAP\)/);
+    expect(TRAIL).toMatch(/reviewBacklog\(dueCount\)/);
+    expect(TRAIL).not.toMatch(/راجع \$\{dueCount\}/);
+  });
+
+  it('keeps the sticky level bar as the only level control', () => {
+    expect(TRAIL).toMatch(/data-testid="trail-level-bar"/);
+    expect(TRAIL).toMatch(/const BAR_LEVELS: BarLevel\[\] = \['A1', 'A2', 'B1', 'B2'\]/);
+    expect(TRAIL).toMatch(/locked && <Lock className="h-3 w-3"/);
   });
 });

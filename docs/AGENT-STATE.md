@@ -33,25 +33,8 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   `served opener coverage` in `scripts/verify.mjs` (`--offline` = fixture). `docs/OWNER-OPENER-REVIEW.md` lists the 227
   V47 glosses by level with 18 flags and suggested wording (`OWNER-CHECKLIST` §13). Measured **49 / 225 / 0 missing** live
   and from the fixture; `tests/openerCoverage` **8**, gate **VERIFY OK 15/15** (721.9 s).
-- **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (deployed: merge + worker + pages).** Root cause of «تعذرت الترجمة» on the A1 «أول الكلمات» greeting: the shipped opener map was generated from
-  the authored 61-scenario snapshot (301 openers, «Frau Yilmaz») while the worker serves 49 scenarios / 223 openers
-  («Frau Meier»), so 221 live first messages had no gloss and the first render had nothing to show. The new durable
-  `scripts/language-data/opener-ar-extra.json` (227 entries: live corpus + 3 mock-exam part openers + the code fallback) is
-  merged after the authored corpus by `scripts/build-language-data.mjs` with the same validation, giving **526 openers /
-  457 glosses / 0 unresolved**; `openerGlosses.generated.ts`, `cloudflare-opener-glosses.generated.js`,
-  `admin-worker/public/bundled-content.json` and `docs/OWNER-LANGUAGE-REVIEW.md` were regenerated. `useLiveConversation.ts`
-  and `StorySetupScreen.tsx` render a stored gloss immediately, otherwise show a short loading state with exactly one
-  automatic retry (450 ms, cleaned up) before the honest retry affordance; no first-message path calls `/ai/translate`.
-  The one outlined report button was `:focus-visible` on the programmatically restored trigger after a pointer close —
-  `useModalDialog.ts` sets `data-pointer-focus` and `src/index.css` suppresses that ring until the next key press/blur,
-  while keyboard-opened dialogs keep it. Tests: `firstMessageTranslation` **6**, `reportFocus` **4**, catalogue tests
-  updated to treat the catalogue as a subset; gate **VERIFY OK 14/14** (866.1 s) with `--ci --e2e`.
-  **Deployed:** `main` `4229f71..9ace95e`; Pages `bf78a12c-fae8-4474-b70b-4142a98e9a1e` (source `9ace95e`,
-  entry `assets/index-BuFoPzZ9.js`, lazy `assets/opener-DcmfekFc.js` 90,565 B serving the live-corpus Arabic,
-  `/sw.js` 200; rollback `0c25ba91-…`); worker `dd23b2ac-46b0-4b42-a20b-4a41be0cc739` (2026-11-05T06:47Z,
-  rollback `e98031d5-9932-4093-a7a9-7ba4ab827b0d`), `/health` 200 with `storage:{d1:ok,kv:ok}`,
-  `/crypto/health` 200, `/internal/admin/content/reviews` 401, `/scenarios` 200; production smoke 2 passed /
-  2 skipped (production profile). Ids in APP-MAP §9.
+- **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (deployed: merge + worker + pages).** The shipped opener map was generated from the 61-scenario authored snapshot while the worker serves 49, so 221 live openers had no gloss («تعذرت الترجمة» on the A1 greeting). `scripts/language-data/opener-ar-extra.json` (227 entries) is merged after the authored corpus by `build-language-data.mjs`, giving **526 openers / 457 glosses / 0 unresolved**, and the generated files were rebuilt. `useLiveConversation.ts` and `StorySetupScreen.tsx` render a stored gloss immediately, otherwise one automatic retry then an honest retry; no first-message path calls `/ai/translate`. Report buttons: `useModalDialog.ts` sets `data-pointer-focus` and `src/index.css` suppresses the ring until the next key press, while keyboard dialogs keep it. Tests: `firstMessageTranslation` **6**, `reportFocus` **4**, gate **VERIFY OK 14/14** (866.1 s) with `--ci --e2e`.
+  **Deployed:** `main` `4229f71..9ace95e`; Pages `bf78a12c-…` (source `9ace95e`, rollback `0c25ba91-…`); worker `dd23b2ac-…` (rollback `e98031d5-…`), `/health` 200, production smoke 2 passed / 2 skipped. Ids in APP-MAP §9.
 - **2026-11-05 — the report action is findable (app live; worker unchanged).** The per-reply control was a
   14 px unlabelled flag sharing the meta row with three icons. It now sits on its own line inside every AI
   bubble with the words «أبلغ عن رد سيئ», same handler and confirmation sheet. Evidence: `tsc`, consent
@@ -285,6 +268,12 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 ## DECISIONS
 
+- **TRAIL-1 (2026-11-06) — one progression system on the path; rank/XP only on the profile.** `/app/library` shows
+  the CEFR journey (A1/A2/B1/B2, locked future levels), one «تابع» action and a 10-item review; it no longer shows
+  the rank card or side timeline. Rank/XP lives in `/app/profile` from one `absoluteXpProgress`, so «N / M XP» and
+  the bar cannot disagree; crossing a rank is celebrated on `/session-report`. The level copy and rank placement
+  remain owner decisions.
+
 - **CONTENT-V2 (2026-11-01) — the 49-row correction reuses the Content Studio instead of a second writer.** It goes
   through `draft → publish-all → audit → undo`, so it inherits validation, audit, a dated snapshot and per-row undo;
   a direct D1 `UPDATE` would have bypassed all four. The `/admin/api/content-studio/*` bridge adds no privilege: same
@@ -507,6 +496,11 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 ## OWNER-OPEN
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
+
+- **Two path-screen wording decisions (TRAIL-1, 2026-11-06).** Approve or rewrite the four CEFR level lines
+  («أتدبّر أمري في ألمانيا»، «أتحرّك في يومي بثقة»، «أتعامل مع المواقف الرسمية والعمل»، «أتحدّث بطلاقة في العمل
+  والدراسة») and say whether rank/XP stays on the profile only (current) or returns as a small home line.
+  Done: the lines approved or replaced, and one placement recorded. Plain copy: `OWNER-CHECKLIST.md` §15.
 
 - **Turn on the new conversations — production needs your line, and today's loader can only add rows (CONTENT-V2-1,
   2026-11-01).** 61 scenarios are authored and tested locally; live D1 still has the old 49. Choose **(a) new only**:

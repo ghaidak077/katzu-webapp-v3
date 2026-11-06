@@ -7,6 +7,7 @@ import { isProEffective } from '@/lib/utils/subscription';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { haptic, setHapticsEnabled } from '@/lib/utils/haptics';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
+import { LtrCounter } from '@/components/common/LtrCounter';
 import { Card } from '@/components/ui/Card';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { Button } from '@/components/ui/Button';
@@ -36,6 +37,7 @@ import { clearMemoryPatterns, deleteMemoryPattern, listMemoryPatterns, rebuildMe
 import { ARRIVAL_COPY, GOAL_COPY, TARGET_DATE_COPY, describeLearnerLevel } from '@/lib/onboarding/preferences';
 import { isAnalyticsOptedOut, setAnalyticsOptOut } from '@/lib/analytics/client';
 import { track } from '@/lib/analytics/client';
+import { absoluteXpProgress, rankFor } from '@/lib/progress/ranks';
 import { arCount } from '@/lib/i18n/arabicCount';
 import { LOG_ENTRY_NOM } from '@/lib/i18n/countForms';
 import {
@@ -91,6 +93,12 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   const [consentError, setConsentError] = useState('');
 
   const levelInfo = describeLearnerLevel(user);
+  // Rank lives on the profile, not on the path: the path answers «what do I do
+  // now?», and a second progression system beside the CEFR journey made the
+  // learner compare two numbers that were not comparable. Text and bar share one
+  // calculation, so «900 / 1500 XP» can never sit above a bar that disagrees.
+  const rankProgress = rankFor(user?.totalXp ?? 0);
+  const xpProgress = absoluteXpProgress(user?.totalXp ?? 0);
 
   useEffect(() => {
     let isMounted = true;
@@ -331,6 +339,43 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </Badge>
         </div>
         <KatzuMascot name="profile_card" className="w-20 h-20 object-contain" />
+      </Card>
+
+      {/* Rank and XP — moved here from the path. Read as one absolute fraction
+          of the ladder («900 / 1500 XP») with the bar filled from the same
+          percent, so the number and the line always tell the same story. */}
+      <Card className="p-4 mb-6" data-testid="profile-rank-card">
+        <div className="flex items-center gap-3">
+          <KatzuMascot name="peace" className="h-10 w-10 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate font-arabic text-sm font-bold text-text-primary">
+                {rankProgress.rank.nameAr}
+              </span>
+              <span className="shrink-0 whitespace-nowrap font-arabic text-micro text-text-secondary">
+                <span dir="ltr">
+                  <LtrCounter value={xpProgress.xp} total={xpProgress.target} /> XP
+                </span>
+              </span>
+            </div>
+            <div
+              className="mt-2 h-[7px] w-full overflow-hidden rounded-full bg-surface-subtle"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={xpProgress.percent}
+              aria-label="التقدم في نقاط الخبرة"
+            >
+              <div
+                className="h-full w-full origin-right rounded-full bg-primary transition-transform duration-panels ease-out motion-reduce:transition-none"
+                style={{ transform: `scaleX(${xpProgress.percent / 100})` }}
+              />
+            </div>
+            <p className="mt-1.5 font-arabic text-micro text-text-muted">
+              الرتبة {rankProgress.rankNumber} من {rankProgress.totalRanks}
+            </p>
+          </div>
+        </div>
       </Card>
 
       {/* Subscription Upgrade Card */}

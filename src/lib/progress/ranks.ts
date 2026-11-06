@@ -47,6 +47,35 @@ function clampPercent(part: number, whole: number): number {
   return Math.min(100, Math.max(0, Math.round((part / whole) * 100)));
 }
 
+export interface AbsoluteXpProgress {
+  /** Measured XP, floored at 0. */
+  xp: number;
+  /** The XP total the bar is measured against (next rank, or the top of the ladder). */
+  target: number;
+  /** 0-100 of `xp / target`, so text and bar can never disagree. */
+  percent: number;
+}
+
+/**
+ * The XP bar as an absolute fraction of the ladder.
+ *
+ * The profile card used to describe rank progress as "XP to the next rank", which
+ * is a *within-rank* number: a learner at 900 XP of a 1000 XP rank saw "100 XP
+ * left" above a bar that was almost full, while a learner at 0 of 250 saw the
+ * same bar shape. The card now prints «900 / 1000 XP» and fills the bar from the
+ * same `percent` this function returns, so the two can never drift apart.
+ *
+ * The top of the ladder has no next rank, so its target is the top threshold
+ * itself; XP beyond it still reads 100%.
+ */
+export function absoluteXpProgress(totalXp: number): AbsoluteXpProgress {
+  const xp = Math.max(0, Math.floor(totalXp || 0));
+  const rank = rankFor(xp);
+  const target = rank.next ? rank.next.minXp : TOP_RANK_XP;
+  if (target <= 0) return { xp, target: 0, percent: 100 };
+  return { xp, target, percent: clampPercent(xp, target) };
+}
+
 /** The learner's rank for a measured XP total. Never throws; negatives floor at 0. */
 export function rankFor(totalXp: number): RankProgress {
   const xp = Math.max(0, Math.floor(totalXp || 0));

@@ -50,3 +50,6 @@ yarn-error.log*
 tsc-verify.txt
 vitest-verify.txt
 *.tmp.txt
+
+# Local scratch: screenshot evidence and probes that must never be committed.
+.tmp/

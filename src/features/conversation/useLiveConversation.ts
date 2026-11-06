@@ -19,6 +19,7 @@ import { buildSessionDebrief, type SessionDebrief } from '@/lib/debrief/debrief'
 import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 import { sessionXp } from '@/lib/progress/sessionXp';
 import { creditXp, xpEarnedToday } from '@/lib/progress/dailyXp';
+import { rankFor } from '@/lib/progress/ranks';
 import { enqueueDailyEvent, sessionEventId } from '@/lib/progress/dailyAuthority';
 import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
@@ -79,6 +80,8 @@ export interface UseLiveConversationOptions {
     /** Step 5: whether the session hit its full turn target (vs ended early). */
     completedNaturally: boolean;
     debrief: SessionDebrief;
+    /** Present only when this session crossed a rank threshold. */
+    rankUp?: { rankNameAr: string; rankNumber: number; totalRanks: number };
   }) => void;
 }
 
@@ -1207,6 +1210,20 @@ export function useLiveConversation({
       amount: earnedXp,
     });
 
+    // A rank-up is a celebration, not a second progression bar on the path:
+    // detect the crossing here, after the one writer of totalXp, and hand it to
+    // the report so it can be celebrated once, where the win happened.
+    const rankBefore = rankFor(user?.totalXp || 0);
+    const rankAfter = rankFor(xpCredit.totalXp);
+    const rankUp =
+      rankAfter.rankNumber > rankBefore.rankNumber
+        ? {
+            rankNameAr: rankAfter.rank.nameAr,
+            rankNumber: rankAfter.rankNumber,
+            totalRanks: rankAfter.totalRanks,
+          }
+        : undefined;
+
     // Daily habit loop: consecutive day extends the streak, a missed day resets
     // it honestly, same-day repeats never inflate it (all logic unit-tested).
     const streakResult = recalculateStreak({
@@ -1253,6 +1270,7 @@ export function useLiveConversation({
       assistedSentences: assistedMsgs.length,
       mistakes: mistakesList,
       completedNaturally,
+      rankUp,
       // Deterministic Phase-2 debrief, built from the same numbers this
       // function just computed — no extra AI call anywhere.
       debrief: buildSessionDebrief({

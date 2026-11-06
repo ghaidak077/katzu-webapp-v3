@@ -190,14 +190,14 @@ The canonical, machine-checked route list is §14 (`appmap-routes`); this sectio
 | Route | Screen | What it is |
 |---|---|---|
 | `/app/trail` (default tab) | `journey/JourneyHomeScreen.tsx` | Daily mission home: resume, review-due, streak |
-| `/app/library` | `trail/TrailScreen.tsx` | Browse all scenarios/levels (navigation, not the daily mission) |
+| `/app/library` | `trail/TrailScreen.tsx` | The path: one primary «تابع: …» action, capped review row, CEFR journey (A1/A2/B1/B2 with locked levels), compact situation cards with 3-stage mastery. Rank/XP moved to Profile; no side timeline |
 | `/scenario/:id/story` | `journey/StorySetupScreen.tsx` | Scene + vocab setup before practice; day-0 CTA hint gated on the shared `isFirstSessionDone` |
 | `/scenario/:id/practice` | `journey/GuidedPracticeScreen.tsx` | Guided rehearsal; passes context to Live via route state |
 | `/scenario/:id/live` | `conversation/LiveConversationScreen.tsx` | **Core loop** — AI chat turn; typing + mic; corrections |
 | `/scenario/:id/study` | `study/StudyScreen.tsx` | Deep practice / study |
 | `/scenario/:id/quiz` | `quiz/QuizScreen.tsx` | Quiz → result card |
 | `/scenario/:id` | `study/ScenarioDetailScreen.tsx` | Scenario detail |
-| `/session-report` | `report/SessionReportScreen.tsx` | Debrief: honest stats, corrections, spaced-review scheduling, fix-exercise |
+| `/session-report` | `report/SessionReportScreen.tsx` | Debrief: honest stats, corrections, spaced-review scheduling, fix-exercise; rank-up celebration when the session crossed a rank |
 | `/app/review` | `review/ReviewScreen.tsx` | One explicit task per item: word, sentence→German, German→Arabic read-and-reveal, or correction |
 | `/app/listen` | `listening/ListeningScreen.tsx` | Listening drill |
 | `/app/write` | `writing/WritingScreen.tsx` | Writing task |
@@ -205,7 +205,7 @@ The canonical, machine-checked route list is §14 (`appmap-routes`); this sectio
 | `/app/grammar` | `grammar/GrammarSectionScreen.tsx` | Grammar locked path: lessons unlock one after another |
 | `/app/progress` | `progress/ProgressScreen.tsx` | Honest measured-vs-unmeasured skills, patterns, streak |
 | `/app/practice` | `practice/PracticeScreen.tsx` | Vocabulary hub: search, filters, error bank, flashcards, rules |
-| `/app/profile` | `settings/ProfileSettingsScreen.tsx` | Profile/settings, sign-out; carries the `REF-` referral card and a separate partner-programme entry |
+| `/app/profile` | `settings/ProfileSettingsScreen.tsx` | Profile/settings, sign-out; rank + XP card (one calculation for text and bar), the `REF-` referral card and a separate partner-programme entry |
 | `/partners` | `partners/PartnersScreen.tsx` | The signed-in partner link: `POST /affiliate/me` on mount, then the link + copy/share, three steps, a plain sample message and the fine print. Numbers come from the server, never a constant; loading/error/retry states |
 | `/dev/system` | `dev/DesignSystemScreen.tsx` | Dev-build only design system |
 
@@ -226,7 +226,8 @@ The canonical, machine-checked route list is §14 (`appmap-routes`); this sectio
 |---|---|---|
 | Auth (Google ID token) | `/signin` | `features/auth`, verified server-side against `GOOGLE_CLIENT_ID` |
 | Legacy demo migration | `/signin` | `lib/demo/migration.ts` folds pre-signup demo state into the account (`demoFlow.ts` only supplies the legacy state shape; the demo lesson itself was removed) |
-| Daily mission selection | Trail | `lib/mission/selectMission.ts`, `lib/utils/dailyMission.ts`, `checkIn.ts` |
+| Daily mission selection | Trail | `lib/mission/selectMission.ts`, `lib/mission/scenarioMinutes.ts`, `lib/utils/dailyMission.ts`, `checkIn.ts` |
+| Path one-action layout | `/app/library` | `trail/TrailScreen.tsx` (single CTA, 10-item review cap, CEFR bar, mastery stages), `lib/progress/ranks.ts` (`absoluteXpProgress`) |
 | Journey/story context | Story→Live | `lib/journey/{story,practice,context,brief}.ts` |
 | Live AI conversation | `/scenario/:id/live` | `useLiveConversation.ts`, `ConversationTranscript.tsx`, `ConversationDock.tsx`, `lib/conversation/*` |
 | AI partner persona/correction | server | `cloudflare-ai-chat.js` (identity limits, gentle correction, schema-echo filter) |

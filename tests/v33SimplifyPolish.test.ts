@@ -103,7 +103,7 @@ describe('V33 — the preferences prompt no longer outranks today’s mission', 
   const source = read('src/features/trail/TrailScreen.tsx');
 
   it('the prompt is rendered after the mission card, not before it', () => {
-    const mission = source.indexOf('ONE primary action for today');
+    const mission = source.indexOf('ONE PRIMARY ACTION');
     const nag = source.indexOf('أكمل تفضيلاتك');
     expect(mission).toBeGreaterThan(-1);
     expect(nag).toBeGreaterThan(-1);

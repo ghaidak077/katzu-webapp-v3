@@ -61,6 +61,8 @@ export interface SessionReportScreenProps {
     debrief: SessionDebrief;
     /** Step 5: the live completion sets whether it hit its full turn target. */
     completedNaturally?: boolean;
+    /** Present only when this session crossed a rank threshold. */
+    rankUp?: { rankNameAr: string; rankNumber: number; totalRanks: number };
   };
   onReturnToTrail: () => void;
   /** Step 5: true when this summary was rebuilt by recover.ts, not a live finish. */
@@ -579,6 +581,26 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
     </GlassCard>
   );
 
+  // The rank-up celebration. It appears only in the report of the session that
+  // actually crossed the threshold, and only once: rank is no longer a permanent
+  // second progress system on the path, so this is where moving up is felt.
+  const rankUpEl = summary.rankUp ? (
+    <GlassCard emphasis="earned" className="mt-4" data-testid="session-rank-up">
+      <div className="flex items-start gap-3">
+        <Sparkles className="mt-0.5 h-5 w-5 shrink-0 kz-earned-text" aria-hidden />
+        <div className="min-w-0">
+          <p className="kz-ar-caption kz-earned-text">رتبة جديدة</p>
+          <p className="mt-1 kz-ar-body font-bold leading-relaxed text-kz-ink">
+            أصبحت «{summary.rankUp.rankNameAr}»
+          </p>
+          <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
+            الرتبة {summary.rankUp.rankNumber} من {summary.rankUp.totalRanks} — تقدّمك محفوظ في حسابك.
+          </p>
+        </div>
+      </div>
+    </GlassCard>
+  ) : null;
+
   // The «غداً» teaser is shared: it sits inside the debrief card on today's full
   // screen, and on the day-0 first view it is shown alone, non-tappable.
   const tomorrowTeaserLineEl = (
@@ -897,6 +919,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           )}
           {/* The «غداً» teaser, non-tappable on the first view. */}
           {tomorrowTeaserLineEl}
+          {rankUpEl}
 
           <GlassButton
             variant="quiet"
@@ -954,6 +977,8 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           </p>
           <h1 className="mt-2 kz-ar-title leading-relaxed text-kz-ink">{outcome.headlineAr(summary.scenarioTitle)}</h1>
         </div>
+
+        {rankUpEl}
 
         {/* The capability card carries the earned treatment only when the same
             threshold the Progress screen uses was actually crossed. */}

@@ -238,16 +238,19 @@ test('Coach aggregates repeated mistakes and offers a focused drill', async ({ p
   await expect(page.getByRole('button', { name: 'تدرّب على هذا الآن' }).first()).toBeEnabled();
 });
 
-test('Trail shows the earned Arabic rank and its position in the ladder', async ({ page }) => {
-  // 800 XP sits inside the third rung (umlaut, 750 XP), so the badge must read
-  // "rank 3 of 6" — the same single ladder the unit tests pin.
+test('Profile shows the earned Arabic rank and an XP fraction that matches its bar', async ({ page }) => {
+  // 800 XP sits inside the third rung (umlaut, 750 XP); the next rung opens at
+  // 1500 XP, so the card must read "800 / 1500 XP" and fill 53% — the same
+  // single ladder the unit tests pin. Rank left the path when the path became
+  // one progression story (CEFR); it lives on the profile now.
   await bootSignedIn(page, { user: { totalXp: 800, cefrLevel: 'A1' } });
 
-  await page.goto('/app/library');
+  await page.goto('/app/profile');
 
-  // The rank name and the rank number are two chips now: the pill in the header
-  // carries only «الرتبة 3 من 6», and the name lives in the rank card below.
-  await expect(page.getByText('الرتبة 3 من 6')).toBeVisible();
-  await expect(page.getByText('صياد الأُملاوت')).toBeVisible();
-  await expect(page.getByText(/XP للرتبة التالية/)).toBeVisible();
+  const card = page.getByTestId('profile-rank-card');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('صياد الأُملاوت');
+  await expect(card).toContainText('الرتبة 3 من 6');
+  await expect(card).toContainText('800 / 1500 XP');
+  await expect(card.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '53');
 });

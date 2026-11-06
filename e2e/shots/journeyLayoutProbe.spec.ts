@@ -1,29 +1,35 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { bootSignedIn, seedRows } from '../harness';
 
 /**
- * Acceptance probe for the journey-polish brief — measures the rendered layout
- * instead of trusting an eyeball: the current node visible without scrolling at
- * 390x844, no horizontal clipping, unwrapped header chips, compact sections, and
- * a full-width 16:9 banner on every path card.
+ * Acceptance probe for the path screen — it measures the rendered layout at
+ * 390×844 instead of trusting an eyeball.
  *
- * The banner assertion used to cap thumbnails at 120px, because a card rendered
- * its artwork as a small 96px-wide thumbnail and only when the scenario had one.
- * The owner replaced that on 2026-10-07: every card now leads with its own
- * full-width 16:9 banner and the Arabic title as the headline, so the ceiling is
- * gone and the span is asserted instead. What still has to hold is the thing the
- * ceiling was protecting — the first card stays fully inside one screen.
+ * The screen this replaces carried four competing stories above the fold (rank,
+ * CEFR tabs, mission strip, review chip), three-digit review counts, full-width
+ * banners that pushed every situation below the fold, and an empty timeline
+ * column. The contract now is the opposite, and each clause below is a number:
+ *
+ *   - exactly one primary action, always naming a situation;
+ *   - review is a secondary row, capped at ten items, backlog in small text;
+ *   - no rank card and no second progression system on the path;
+ *   - at least three compact situation cards fully visible without scrolling;
+ *   - locked levels say why they are locked;
+ *   - on the profile, the XP text and the bar come from one calculation.
  */
 
-function reviewRow(promptAr: string, answerDe: string): Record<string, unknown> {
+const VIEWPORT = { width: 390, height: 844 };
+
+function reviewRow(index: number): Record<string, unknown> {
+  const answerDe = `Wort${index}`;
   return {
     userId: 'current_user',
     kind: 'vocab',
     refId: `vocab:${answerDe}`,
-    sourceId: 4242,
-    promptAr,
+    sourceId: 5000 + index,
+    promptAr: `كلمة ${index}`,
     answerDe,
-    contextDe: `Ich habe morgen ${answerDe.replace(/^der |die |das /, 'einen ')}.`,
+    contextDe: `Ich lerne ${answerDe} heute.`,
     direction: 'ar_to_de',
     dueAt: 1,
     intervalDays: 1,
@@ -37,110 +43,117 @@ function reviewRow(promptAr: string, answerDe: string): Record<string, unknown> 
 
 test.describe.configure({ mode: 'serial' });
 
-test('layout probe at 390x844', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('the path at 390x844 answers "what now" with one primary action', async ({ page }) => {
+  await page.setViewportSize(VIEWPORT);
   await bootSignedIn(page);
-  await seedRows(page, 'review_items', [
-    reviewRow('موعد', 'der Termin'),
-    reviewRow('قهوة', 'der Kaffee'),
-    reviewRow('فاتورة', 'die Rechnung'),
-    reviewRow('خبز', 'das Brot'),
-    reviewRow('تذكرة', 'die Fahrkarte'),
-    reviewRow('طبيب', 'der Arzt'),
-    reviewRow('شقة', 'die Wohnung'),
-    reviewRow('سؤال', 'die Frage'),
-  ]);
   await page.goto('/app/library');
-  const firstCard = page.getByRole('button', { name: /الطلب في المقهى/ }).first();
-  await expect(firstCard).toBeVisible({ timeout: 30_000 });
-  await page.waitForTimeout(500);
+
+  const cta = page.getByTestId('trail-primary-cta');
+  await expect(cta).toBeVisible({ timeout: 30_000 });
+  // One primary action, and it names a situation rather than "review".
+  await expect(cta).toHaveCount(1);
+  await expect(cta).toContainText('تابع:');
+
+  // Rank moved to the profile; the path has one progression system.
+  await expect(page.getByTestId('trail-rank-card')).toHaveCount(0);
+  await expect(page.getByTestId('trail-rank-pill')).toHaveCount(0);
+
+  await expect(page.getByTestId('trail-goal-ring')).toBeVisible();
+  await expect(page.getByTestId('trail-level-bar')).toBeVisible();
 
   const metrics = await page.evaluate(() => {
+    const vh = window.innerHeight;
     const box = (el: Element | null) => (el ? el.getBoundingClientRect().toJSON() : null);
-    const byTestId = (id: string) => document.querySelector(`[data-testid="${id}"]`);
+    const cards = [...document.querySelectorAll('[data-testid="trail-scenario-card"]')];
     return {
-      viewport: { w: window.innerWidth, h: window.innerHeight },
-      // No horizontal clipping anywhere.
+      viewportWidth: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
-      // Header chips: one line each (height ≈ one min-h-touch chip, not two).
-      streakChip: box(byTestId('trail-streak-chip')),
-      rankPill: box(byTestId('trail-rank-pill')),
-      // Compact sections.
-      rankCard: box(byTestId('trail-rank-card')),
-      // The first path card and the timeline line.
-      firstCard: box(document.querySelector('[data-testid="trail-path"] button')),
-      line: box(document.querySelector('[data-testid="trail-path"] > div[aria-hidden]')),
-      // Banner thumbnails are 16:9.
-      banners: [...document.querySelectorAll('[data-testid="scenario-banner"]')].map((el) => {
+      cta: box(document.querySelector('[data-testid="trail-primary-cta"]')),
+      firstCard: box(cards[0] ?? null),
+      cardsAboveFold: cards.filter((el) => {
         const r = el.getBoundingClientRect();
-        return { w: Math.round(r.width), h: Math.round(r.height), ratio: +(r.width / r.height).toFixed(3) };
-      }),
-      // Glow count: only the current card may carry a purple glow.
-      glows: [...document.querySelectorAll('.shadow-glow-purple')].length,
+        return r.top >= 0 && r.bottom <= vh;
+      }).length,
+      cardWidths: cards.map((el) => Math.round(el.getBoundingClientRect().width)),
     };
   });
 
-  expect(metrics.scrollWidth, 'no horizontal clipping').toBeLessThanOrEqual(metrics.viewport.w);
-  expect(metrics.streakChip!.height, 'streak chip unwrapped').toBeLessThanOrEqual(44);
-  expect(metrics.rankPill!.height, 'rank pill unwrapped').toBeLessThanOrEqual(44);
-  expect(metrics.rankCard!.height, 'rank card collapsed (~72px)').toBeLessThanOrEqual(84);
-  // The current node's card is visible without scrolling at 390x844.
-  expect(metrics.firstCard!.top, 'first path card above the fold').toBeLessThan(metrics.viewport.h);
-  expect(metrics.firstCard!.bottom, 'first path card fully visible').toBeLessThanOrEqual(metrics.viewport.h);
-  // The timeline never crosses a card: it lives in the 40px node gutter.
-  expect(metrics.line!.width).toBeLessThanOrEqual(4);
-  for (const b of metrics.banners) {
-    // Full-width, not a thumbnail: a card is 306px wide at 390x844 after the
-    // page padding and the 40px node gutter, so the banner spans most of it.
-    // 200 is a floor that still fails if the banner is shrunk back to a corner.
-    expect(b.w, 'banner spans the card').toBeGreaterThanOrEqual(200);
-    expect(Math.abs(b.ratio - 16 / 9), `16:9 banner (${b.w}x${b.h})`).toBeLessThan(0.05);
+  expect(metrics.scrollWidth, 'no horizontal clipping').toBeLessThanOrEqual(metrics.viewportWidth);
+  expect(metrics.cta!.bottom, 'primary action above the first card').toBeLessThan(metrics.firstCard!.top);
+  expect(metrics.cardsAboveFold, 'at least three situations visible without scrolling').toBeGreaterThanOrEqual(3);
+  for (const width of metrics.cardWidths) {
+    expect(width, 'cards span the path width').toBeGreaterThanOrEqual(300);
   }
-  // Glow rule: at most one, and only a card can carry it. With reviews due the
-  // mission is the review strip, so no path card is current — 0 is correct.
-  expect(metrics.glows, 'at most one glow on the screen').toBeLessThanOrEqual(1);
-  expect(metrics.glows, 'no glow while the review strip leads').toBe(0);
-
-  // The rank card: collapsed and readable.
-  const stripBox = await page.locator('[data-testid="trail-rank-card"]').boundingBox();
-  expect(stripBox).toBeTruthy();
 });
 
-test('no reviews due: the current scenario card carries the one glow', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('every card carries the three evidence stages', async ({ page }) => {
+  await page.setViewportSize(VIEWPORT);
   await bootSignedIn(page);
   await page.goto('/app/library');
-  const firstCard = page.getByRole('button', { name: /الطلب في المقهى/ }).first();
+
+  const firstCard = page.getByTestId('trail-scenario-card').first();
   await expect(firstCard).toBeVisible({ timeout: 30_000 });
-  await page.waitForTimeout(500);
-
-  const metrics = await page.evaluate(() => ({
-    glows: [...document.querySelectorAll('.shadow-glow-purple')].length,
-    firstCardTop: document.querySelector('[data-testid="trail-path"] button')?.getBoundingClientRect().top ?? 9999,
-  }));
-  // The mission is a scenario now, so its card is the current node and the one
-  // glow — visible without scrolling at 390x844.
-  expect(metrics.glows).toBe(1);
-  expect(metrics.firstCardTop).toBeLessThan(844);
+  const mastery = firstCard.getByTestId('trail-mastery');
+  await expect(mastery).toContainText('دراسة');
+  await expect(mastery).toContainText('مع مساعدة');
+  await expect(mastery).toContainText('وحدك');
 });
 
-test('review strip shows the agreeing count and the fixed subtitle', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('130 due reviews become a ten-item action with the backlog in small text', async ({ page }) => {
+  await page.setViewportSize(VIEWPORT);
   await bootSignedIn(page);
-  await seedRows(page, 'review_items', [
-    reviewRow('موعد', 'der Termin'),
-    reviewRow('قهوة', 'der Kaffee'),
-    reviewRow('فاتورة', 'die Rechnung'),
-    reviewRow('خبز', 'das Brot'),
-    reviewRow('تذكرة', 'die Fahrkarte'),
-    reviewRow('طبيب', 'der Arzt'),
-    reviewRow('شقة', 'die Wohnung'),
-    reviewRow('سؤال', 'die Frage'),
-  ]);
+  await seedRows(
+    page,
+    'review_items',
+    Array.from({ length: 130 }, (_, index) => reviewRow(index)),
+  );
   await page.goto('/app/library');
-  await expect(page.getByText('8 عناصر للمراجعة')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('حان وقت تثبيتها')).toBeVisible();
-  // The duplicate tag is gone: «مراجعة اليوم» appears in the CTA only.
-  await expect(page.getByText('مراجعة اليوم')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /راجع 8 عناصر الآن/ })).toBeVisible();
+
+  const row = page.getByTestId('trail-review-row');
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await expect(row).toContainText('مراجعة سريعة: 10 عناصر · 3 دقائق');
+  await expect(page.getByText('+120 في الانتظار')).toBeVisible();
+  // The primary action still leads and still names a situation.
+  const cta = page.getByTestId('trail-primary-cta');
+  await expect(cta).toContainText('تابع:');
+  const ctaBox = await cta.boundingBox();
+  const rowBox = await row.boundingBox();
+  expect(ctaBox!.y).toBeLessThan(rowBox!.y);
+});
+
+test('locked levels are dimmed, marked, and explain the Pro gate', async ({ page }) => {
+  await page.setViewportSize(VIEWPORT);
+  await bootSignedIn(page);
+  await page.goto('/app/library');
+
+  const bar = page.getByTestId('trail-level-bar');
+  await expect(bar).toBeVisible({ timeout: 30_000 });
+  for (const level of ['A2', 'B1', 'B2']) {
+    await expect(bar.getByRole('button', { name: new RegExp(`المستوى ${level} — يُفتح مع Pro`) })).toBeVisible();
+  }
+  await bar.getByRole('button', { name: /المستوى A2/ }).click();
+  await expect(page.getByText('المستوى A2 يُفتح مع Pro').first()).toBeVisible();
+});
+
+test('the profile XP text and its bar share one calculation', async ({ page }) => {
+  await page.setViewportSize(VIEWPORT);
+  // The fill animates from 0 to its target; read the settled value, not a frame
+  // mid-transition (measured: one run read matrix(0.425856, …) at ~800 ms).
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  // 800 XP sits in the third rung; the next rung opens at 1500 XP.
+  await bootSignedIn(page, { user: { totalXp: 800, cefrLevel: 'A1' } });
+  await page.goto('/app/profile');
+
+  const card = page.getByTestId('profile-rank-card');
+  await expect(card).toBeVisible({ timeout: 30_000 });
+  await expect(card).toContainText('800 / 1500 XP');
+  await expect(card).toContainText('الرتبة 3 من 6');
+
+  const bar = card.getByRole('progressbar');
+  await expect(bar).toHaveAttribute('aria-valuenow', '53');
+  // 800 / 1500 = 53.3% → scaleX(0.53). Poll the settled computed matrix instead
+  // of sampling one frame of the fill's transition.
+  await expect
+    .poll(async () => bar.locator('div').evaluate((el) => getComputedStyle(el).transform))
+    .toBe('matrix(0.53, 0, 0, 1, 0, 0)');
 });

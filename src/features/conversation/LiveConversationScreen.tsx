@@ -48,6 +48,9 @@ export interface LiveConversationScreenProps {
     assistedSentences: number;
     mistakes: Array<{ original: string; corrected: string; grammarRule: string }>;
     debrief: SessionDebrief;
+    completedNaturally?: boolean;
+    /** Present only when this session crossed a rank threshold. */
+    rankUp?: { rankNameAr: string; rankNumber: number; totalRanks: number };
   }) => void;
 }
 

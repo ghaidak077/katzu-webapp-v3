@@ -101,9 +101,17 @@ test('a scenario’s own banner reaches every screen that lists it', async ({ pa
   const libraryBanner = cafeCard.locator(BANNER);
   await expect(libraryBanner).toBeVisible();
   await expect(libraryBanner.locator('img')).toHaveAttribute('src', PATCHED_ART);
-  const library = await bannerGeometry(page);
-  expect(library.length).toBeGreaterThanOrEqual(1);
-  for (const box of library) expectSixteenByNine(box);
+  // The library's cards are compact rows now: the banner is the 64px square
+  // thumbnail, deliberately not the 16:9 hero. The scenario's own artwork still
+  // has to reach that thumbnail, and the visual stays square.
+  const thumb = await libraryBanner.evaluate((element) => ({
+    width: element.clientWidth,
+    height: element.clientHeight,
+    src: element.querySelector('img')?.getAttribute('src') ?? '',
+  }));
+  expect(thumb.src).toBe(PATCHED_ART);
+  expect(thumb.width).toBe(64);
+  expect(thumb.height).toBe(64);
 
   // The scenario's own screen. It reads the scenario before it draws, so the wait
   // is for its own content rather than for a timeout.
