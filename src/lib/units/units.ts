@@ -99,85 +99,79 @@ function unit(
 }
 
 /**
- * The nine units, in level order. Every served id appears exactly once.
+ * The ten units, in path order. Every served id appears exactly once.
  *
- * Titles are plain Arabic; the outcome line is what the learner can do after
- * the unit, never a promise about fluency or a certificate.
+ * Titles are plain Arabic; the outcome line is what the unit has the learner
+ * practise — never a promise about fluency, a result or a certificate.
  */
 export const UNITS: Unit[] = [
   unit(
     'u1-first-words',
     'أول كلماتك',
-    'بعد هذه الوحدة تستطيع أن تعرّف بنفسك وتطلب ما تحتاجه في المقهى والمتجر.',
+    'في هذه الوحدة تتدرّب على التحيات والأرقام والأسعار والطلب في المقهى والمخبز والسوق والمطعم.',
     'A1',
     ['general', 'family', 'travel'],
     [
       'first_greetings',
       'numbers_and_prices',
-      'letters_and_forms',
-      'supermarket_checkout',
-      'bakery_shopping',
       'cafe_order',
+      'bakery_shopping',
+      'supermarket_checkout',
+      'restaurant_besonders',
     ],
   ),
   unit(
-    'u2-arrival',
-    'الوصول والتنقّل',
-    'بعد هذه الوحدة تستطيع أن تصل من المطار وتتحرك بالقطار وتفهم السعر والتذكرة.',
+    'u2-embassy-arrival',
+    'من السفارة إلى ألمانيا',
+    'في هذه الوحدة تتدرّب على موعد السفارة والجوازات والوثائق والوصول في المطار والتنقّل بالقطار.',
     'A1',
-    ['travel', 'general', 'family'],
-    ['airport_arrival', 'train_first_ride', 'train_station', 'pass_und_dokumente', 'banking_first_visit'],
+    ['family', 'travel', 'general'],
+    ['embassy_appointment', 'pass_und_dokumente', 'airport_arrival', 'train_station', 'train_first_ride'],
   ),
   unit(
-    'u3-out-and-about',
-    'يومك خارج البيت',
-    'بعد هذه الوحدة تستطيع أن تسجّل عنوانك وتحجز موعداً وتتعامل مع الطبيب والصديق والمطعم.',
+    'u3-paperwork',
+    'أوراقك ومعاملاتك',
+    'في هذه الوحدة تتدرّب على التسجيل في البلدية وملء النماذج وفتح حساب بنكي وحجز موعد للامتحان.',
     'A1',
-    ['general', 'family', 'work'],
-    ['anmeldung_buergeramt', 'termin_online_buchen', 'doctor_visit', 'friend_catchup', 'restaurant_besonders'],
+    ['family', 'general', 'work'],
+    ['anmeldung_buergeramt', 'letters_and_forms', 'banking_first_visit', 'pruefung_anmeldung'],
   ),
   unit(
     'u4-new-home',
     'بيت جديد',
-    'بعد هذه الوحدة تستطيع أن تعاين شقة وتوقّع عقداً وتتابع مع المؤجّر وتؤمّن صحتك.',
+    'في هذه الوحدة تتدرّب على معاينة شقة وقراءة عقد الإيجار والتسليم والمتابعة مع المؤجّر.',
     'A2',
     ['family', 'general', 'work'],
-    [
-      'apartment_viewing',
-      'wohnung_besichtigen_tiefer',
-      'mietvertrag_uebergabe',
-      'landlord_followup',
-      'krankenkasse_anmelden',
-      'gesundheit_alltag',
-    ],
+    ['apartment_viewing', 'wohnung_besichtigen_tiefer', 'mietvertrag_uebergabe', 'landlord_followup'],
   ),
   unit(
-    'u5-working-day',
-    'العمل والحياة اليومية',
-    'بعد هذه الوحدة تستطيع أن تبدأ يوم عملك وتتعامل مع الزملاء والمواعيد الرسمية وحديث المريض.',
+    'u5-health',
+    'صحتك ومواعيدك',
+    'في هذه الوحدة تتدرّب على زيارة الطبيب وحجز المواعيد والتأمين الصحي والحديث عن صحتك.',
     'A2',
-    ['work', 'general', 'study'],
-    [
-      'erster_arbeitstag',
-      'kollegen_smalltalk',
-      'betriebs_kantine',
-      'patient_conversation_basics',
-      'embassy_appointment',
-      'pruefung_anmeldung',
-    ],
+    ['general', 'family', 'work'],
+    ['doctor_visit', 'termin_online_buchen', 'krankenkasse_anmelden', 'gesundheit_alltag', 'patient_conversation_basics'],
   ),
   unit(
-    'u6-office',
+    'u6-work-people',
+    'العمل والناس',
+    'في هذه الوحدة تتدرّب على أول يوم عمل وحديث الزملاء والكانتين ولقاء صديق.',
+    'A2',
+    ['work', 'general', 'family'],
+    ['erster_arbeitstag', 'kollegen_smalltalk', 'betriebs_kantine', 'friend_catchup'],
+  ),
+  unit(
+    'u7-office',
     'في المكتب',
-    'بعد هذه الوحدة تستطيع أن تشارك في اجتماع قصير وتسلّم مناوبة وتتعامل مع مشكلة عميل.',
+    'في هذه الوحدة تتدرّب على تسليم المناوبة والاجتماع القصير والتحدّث مع الدعم في المكتب.',
     'B1',
     ['work', 'study'],
     ['station_uebergabe', 'buero_gespraech_tiefer', 'daily_standup', 'support_ticket', 'tech_kuechenpause'],
   ),
   unit(
-    'u7-training',
-    'التدريب والمدرسة',
-    'بعد هذه الوحدة تستطيع أن تتقدم لمقعد تدريب وتتابع يوم المدرسة المهنية وتفهم إجراءات معادلة الشهادات.',
+    'u8-training',
+    'التدريب والاعتراف بشهادتك',
+    'في هذه الوحدة تتدرّب على التقدّم للتدريب ويوم المدرسة المهنية وإجراءات الاعتراف بشهادتك.',
     'B1',
     ['work', 'study'],
     [
@@ -190,9 +184,9 @@ export const UNITS: Unit[] = [
     ],
   ),
   unit(
-    'u8-interview',
-    'مقابلة العمل',
-    'بعد هذه الوحدة تستطيع أن تخوض مقابلة عمل في مجالك وتشرح خبرتك ومهاراتك.',
+    'u9-interviews',
+    'مقابلات العمل',
+    'في هذه الوحدة تتدرّب على أسئلة مقابلة العمل وشرح خبرتك في مجالك.',
     'B1',
     ['work', 'study'],
     [
@@ -204,9 +198,9 @@ export const UNITS: Unit[] = [
     ],
   ),
   unit(
-    'u9-exam',
-    'استعداد الامتحان',
-    'بعد هذه الوحدة تستطيع أن تتعامل مع أسئلة الامتحان الشفوي: التعريف، الخبرات، التخطيط، العرض، والتفاعل.',
+    'u10-exam-style',
+    'محادثة بأسلوب الامتحان',
+    'في هذه الوحدة تتدرّب على الحديث بأسلوب الامتحان الشفوي — تدريب فقط، لا يمنح شهادة.',
     'B2',
     ['study', 'work', 'family'],
     [

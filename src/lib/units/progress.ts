@@ -265,6 +265,11 @@ export interface UnitProgress {
   /** Future units are dimmed and locked; the next unit is still tappable. */
   locked: boolean;
   finished: boolean;
+  /**
+   * A unit below the level the placement measured. It stays open and tappable
+   * — nothing is locked behind the starting point — and is shown as «تخطّيتَ».
+   */
+  skipped: boolean;
 }
 
 export function buildUnitProgress(input: {
@@ -293,6 +298,9 @@ export function buildUnitProgress(input: {
       // tappable so a strong learner can look one step ahead without a wall.
       locked: index > currentIndex + 1,
       finished,
+      // Placement starts the learner at their measured level; everything below
+      // it stays open (never locked) and is labelled «تخطّيتَ».
+      skipped: index < start,
     };
   });
 }

@@ -40,11 +40,18 @@ describe('the unit map owns every served scenario exactly once', () => {
     expect(unitIds).toHaveLength(servedIds.length);
   });
 
-  it('has nine units and each scenario resolves to exactly one', () => {
-    expect(UNITS).toHaveLength(9);
+  it('has ten units and each scenario resolves to exactly one', () => {
+    expect(UNITS).toHaveLength(10);
     for (const id of servedIds) {
       expect(unitForScenario(id), id).toBeDefined();
       expect(UNITS.filter((unit) => unit.scenarioIds.includes(id)), id).toHaveLength(1);
+    }
+  });
+
+  it('keeps every unit between four and six scenarios', () => {
+    for (const unit of UNITS) {
+      expect(unit.scenarioIds.length, unit.id).toBeGreaterThanOrEqual(4);
+      expect(unit.scenarioIds.length, unit.id).toBeLessThanOrEqual(6);
     }
   });
 
@@ -73,11 +80,11 @@ describe('units are ordered level first, then goal, then authored order', () => 
     const travel = orderedUnits('travel')
       .filter((unit) => unit.level === 'A1')
       .map((unit) => unit.id);
-    expect(travel[0]).toBe('u2-arrival');
+    expect(travel[0]).toBe('u2-embassy-arrival');
     const standard = orderedUnits()
       .filter((unit) => unit.level === 'A1')
       .map((unit) => unit.id);
-    expect(standard).toEqual(['u1-first-words', 'u2-arrival', 'u3-out-and-about']);
+    expect(standard).toEqual(['u1-first-words', 'u2-embassy-arrival', 'u3-paperwork']);
   });
 
   it('starts a learner at their measured level', () => {
@@ -205,6 +212,16 @@ describe('unit progress is derived from completed scenarios', () => {
     expect(progress[0].current).toBe(false);
     expect(progress[1].current).toBe(true);
     expect(progress[1].locked).toBe(false);
+  });
+
+  it('marks units below the placement level as skipped and keeps them open', () => {
+    const progress = buildUnitProgress({ completedIds: [], level: 'B1' });
+    const earlier = progress.filter((entry) => entry.unit.level === 'A1' || entry.unit.level === 'A2');
+    expect(earlier.length).toBeGreaterThan(0);
+    expect(earlier.every((entry) => entry.skipped && !entry.locked)).toBe(true);
+    const current = progress.find((entry) => entry.current);
+    expect(current?.unit.level).toBe('B1');
+    expect(current?.skipped).toBe(false);
   });
 
   it('finishes the path without locking the last unit when everything is done', () => {

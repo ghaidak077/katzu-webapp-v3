@@ -87,12 +87,13 @@ Approve or rewrite the four level lines (A1 «أتصرّف في المواقف �
 المواقف الرسمية والعمل»، B2 «أتحدّث عن الدراسة والعمل بثقة»), and say whether rank/XP stays on the profile only
 (current) or returns as a home line. **Done:** lines approved/replaced, one option recorded.
 
-## 16. The nine units — UNIT-PATH-1 (2026-11-07)
+## 16. The ten units — UNIT-PATH-1 (2026-11-07, owner-approved)
 
-The path is nine units built from the 49 served conversations; titles, outcome lines and every situation are in
-`docs/OWNER-UNITS-REVIEW.md`. Reply **fine** or send changes. **Done:** approved, or changes applied. Agent choices
-(change any): a goal reorders only inside a level; conversations offer three unit topics + «فاجئني», never a level;
-«سهلة/مناسبة/صعبة» adjusts only the next step; review caps at 10 and the paywall only appears between sessions.
+The path is ten units built from the 49 served conversations; titles, practice-only outcome lines and every
+situation are in `docs/OWNER-UNITS-REVIEW.md`. Owner approved the list; agent moved `patient_conversation_basics`
+from unit 6 «العمل والناس» to unit 5 «صحتك ومواعيدك» because the scenario is the learner speaking as a patient
+(«Mir ist nicht gut…»), not a work/small-talk scene. Placement still starts the learner at their measured
+level; earlier units stay open and show «تخطّيتَ». **Done:** applied; owner may still send wording changes.
 
 
 ## Nothing to do — so nobody re-opens them

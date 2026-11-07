@@ -26,20 +26,20 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-11-07 — the path is nine units and the day is one composed session (deployed; worker unchanged).**
+- **2026-11-07 — the path is ten owner-approved units and the day is one composed session (deploy pending in this batch; worker unchanged).**
   `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
-  dimmed and locked, unit progress «الوحدة 1 · 0 من 6», plus the level percent ring and the exact ability lines. The 49
-  served scenarios are partitioned into 9 units exactly once, checkpoint last, enforced by
-  `scripts/audit-unit-coverage.mjs` in the gate. `src/lib/units/{units,progress}.ts` own recommendation
-  (unfinished-started → unit order → checkpoint), stage (study → with help → solo), composition (due review ≤10 → next
-  stage → short free set, ≤3 steps with minutes), `nextPlanStep` and the post-session offers (>85 test-out, <50 repeat
-  with help). One CTA «ابدأ جلسة اليوم»/«تابع»; the report auto-advances after 2 s with «ليس الآن». Signup asks one goal
-  question; placement still sets the start; conversations show 3 unit topic chips + «فاجئني» and no level control, and
-  ease is stored on `lastSessionEase`. Free line «جلسة مجانية N من 3»; paywall only at a session boundary. Existing
-  learners map by completed ids with level/XP preserved. Evidence: `units` + `trailOrdering` **56**, six 390×844
-  screenshots in `.tmp/unit-path/`, full gate `VERIFY OK — 16/16 steps passed in 795s` (browser suite 665.6s, exit 0).
-  **Deployed** Pages `eff039c2-…` (source `4af08b2`, entry `assets/index-DesAHQkO.js`, `/` and `katzuai.com` 200,
-  `/sw.js` 200; production smoke 2 passed / 2 skipped); rollback `4e9775c6-…` (source `8e37986`). Owner review:
+  dimmed and locked, units below the placement level open and marked «تخطّيتَ», plus the level percent ring and the exact
+  ability lines. The 49 served scenarios are partitioned into the owner's 10 units exactly once, checkpoint last,
+  enforced by `scripts/audit-unit-coverage.mjs` in the gate. Outcome lines are practice-only («في هذه الوحدة تتدرّب
+  على …»); the B2 unit says the exam-style talk is training only and grants no certificate. One move from the owner's
+  draft: `patient_conversation_basics` sits in unit 5 «صحتك ومواعيدك» (the learner speaks as a patient: «Mir ist nicht
+  gut…»), not unit 6. `src/lib/units/{units,progress}.ts` own recommendation (unfinished-started → unit order →
+  checkpoint), stage (study → with help → solo), composition, `nextPlanStep`, the post-session offers, and a `skipped`
+  flag for pre-placement units. One CTA «ابدأ جلسة اليوم»/«تابع»; the report auto-advances after 2 s with «ليس الآن».
+  Signup asks one goal question; placement still sets the start; conversations show 3 unit topic chips + «فاجئني» and no
+  level control. Free line «جلسة مجانية N من 3»; paywall only at a session boundary. Existing learners map by completed
+  ids with level/XP preserved. Evidence: `units` + `trailOrdering` **58**, unit coverage **49/49 across 10 units**, full
+  gate `VERIFY OK — 16/16 steps passed in 896.5s` (browser suite 774.4s, exit 0). Owner review:
   `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
 
 - **Older RESUME entries moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-01/07 to stay under the
@@ -501,12 +501,6 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   («أتدبّر أمري في ألمانيا»، «أتحرّك في يومي بثقة»، «أتعامل مع المواقف الرسمية والعمل»، «أتحدّث بطلاقة في العمل
   والدراسة») and say whether rank/XP stays on the profile only (current) or returns as a small home line.
   Done: the lines approved or replaced, and one placement recorded. Plain copy: `OWNER-CHECKLIST.md` §15.
-
-- **The nine units need your read (UNIT-PATH-1, 2026-11-07).** The path is now nine themed units built from the 49
-  conversations the worker actually serves, each with an Arabic title, an outcome line and 5–6 situations, checkpoint
-  last. Every situation appears in exactly one unit; the gate fails otherwise. Read `docs/OWNER-UNITS-REVIEW.md` and
-  reply **fine**, or name any title, outcome line or situation that belongs somewhere else. Done: the file is marked
-  approved or the changes are applied. Plain copy: `OWNER-CHECKLIST.md` §16.
 
 - **Turn on the new conversations — production needs your line, and today's loader can only add rows (CONTENT-V2-1,
   2026-11-01).** 61 scenarios are authored and tested locally; live D1 still has the old 49. Choose **(a) new only**:

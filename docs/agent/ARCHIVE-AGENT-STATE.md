@@ -241,6 +241,11 @@ ARCHIVED NEXT (V26): **audit executed end to end: all 10 plan items implemented 
 - *History (resolved in V14-1) — the two ways the schema could have been cleared:* *(1)* Run the three `ALTER TABLE`s below (one minute, immediate), or *(2)* deploy the Worker carrying the V13 `ADDITIVE_COLUMNS` entries, which adds them on its first request. Doing both is harmless — SQLite answers `duplicate column name` and `ensureContentColumns` treats that as its steady state. **Either way the loader now refuses to write while the two shapes disagree** (`live schema mismatch — nothing was written`, with the missing columns named), so the half-load that V12 had to roll back cannot recur.
 
 - *Superseded by V12 (kept for the history):* the V11 credential note — the environment then held the 64-hex secret wrapped in angle brackets. V12 re-checked the shape and it is clean.
+- **DONE — the ten units are approved and applied (UNIT-PATH-1, 2026-11-07).** The path is the owner's ten themed units built
+  from the 49 conversations the worker actually serves, each with an Arabic title, a practice-only outcome line and 4–6
+  situations, checkpoint last. Every situation appears in exactly one unit; the gate fails otherwise. `patient_conversation_basics`
+  moved to unit 5 «صحتك ومواعيدك» because it is patient-side talk. Review file: `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
+  **DONE** — owner approved the list and the move; applied in this batch.
 
 ## UNPROVEN — resolved/historical
 

@@ -61,22 +61,22 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-07 (the path is nine units; one composed session; goal-only signup)
+## Current snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
 
-**Local, verified; deploy pending.** `/app/library` is now one guided vertical unit path: the current unit expanded,
-the rest collapsed with «3 من 6», future units dimmed and locked, unit-sized progress («الوحدة 1 · 0 من 6»), the level
-percent ring and the exact ability lines. The 49 served conversations are partitioned into nine themed units exactly
-once, each checkpoint exam last; `scripts/audit-unit-coverage.mjs` fails the gate if a served situation is in no unit
-or in two. One button runs today's composed session — due review (max 10) → the next stage (study → with help → solo)
-→ a short free conversation set, at most three steps with total minutes. The report auto-advances after 2 s with a
-«ليس الآن» escape, repeats with help below 50 % and offers a short test-out above 85 %. Signup asks one question (the
-goal) instead of a level; a conversation offers three current-unit topics plus «فاجئني», never a level control, and
-«سهلة/مناسبة/صعبة» only moves the next step. Free sessions read «جلسة مجانية N من 3», and the paywall appears only
-between sessions. Existing learners are mapped by their completed conversation ids; level and XP are untouched.
-**Proof:** `tsc` clean, new `units` + `trailOrdering` tests, six 390×844 state screenshots in `.tmp/unit-path/`, gate
-**VERIFY OK 16/16 (795 s)**. **Deployed:** Pages `eff039c2-…` (source `4af08b2`, entry
-`assets/index-DesAHQkO.js`, `/` 200, smoke 2/2; rollback `4e9775c6-…`); worker unchanged `e98031d5-…`. **Owner-open:** approve the nine unit titles and outcome lines
-(`docs/OWNER-UNITS-REVIEW.md`, `OWNER-CHECKLIST.md` §16) and the four level lines (§15).
+**Local, verified; deploy pending in this batch.** `/app/library` is one guided vertical unit path: the current unit expanded,
+the rest collapsed with «3 من 6», future units dimmed and locked, units below the placement level open and marked «تخطّيتَ»,
+unit-sized progress («الوحدة 1 · 0 من 6»), the level percent ring and the exact ability lines. The 49 served conversations are
+partitioned into the owner's ten units exactly once, each checkpoint last; `scripts/audit-unit-coverage.mjs` fails the gate if a
+served situation is in no unit or in two. Outcome lines are practice-only («في هذه الوحدة تتدرّب على …»), and the B2 unit says the
+exam-style talk is training only and grants no certificate. One deliberate move: `patient_conversation_basics` is in unit 5
+«صحتك ومواعيدك» (patient-side talk, «Mir ist nicht gut…»), not unit 6. One button runs today's composed session — due review
+(max 10) → the next stage (study → with help → solo) → a short free conversation set, at most three steps with total minutes. The
+report auto-advances after 2 s with a «ليس الآن» escape, repeats with help below 50 % and offers a short test-out above 85 %.
+Signup asks one question (the goal) instead of a level; a conversation offers three current-unit topics plus «فاجئني», never a
+level control. Free sessions read «جلسة مجانية N من 3», and the paywall appears only between sessions. Existing learners are mapped
+by their completed conversation ids; level and XP are untouched. **Proof:** `tsc` clean, `units` + `trailOrdering` **58 passed**,
+unit coverage **49/49 across 10 units**, gate **VERIFY OK 16/16 (896.5 s)** with `--ci --e2e`. **Worker:** unchanged. **Owner-open:**
+the four level lines (§15).
 
 ## Previous snapshots — 2026-11-05 (first-message Arabic; labelled report action) moved
 

@@ -574,7 +574,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 disabled={headerLocked}
                 aria-expanded={expanded && !softLocked}
                 aria-label={`${entry.unit.titleAr} — ${entry.done} من ${entry.total}${
-                  softLocked ? ' (مقفلة)' : levelBlocked ? ' (تفتح مع Pro)' : ''
+                  softLocked ? ' (مقفلة)' : levelBlocked ? ' (تفتح مع Pro)' : entry.skipped ? ' (تخطّيتَ)' : ''
                 }`}
                 onClick={() =>
                   setExpandedUnitId(expanded ? null : entry.unit.id)
@@ -606,6 +606,14 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                     <span data-testid="trail-unit-count">
                       {entry.done} من {entry.total}
                     </span>
+                    {entry.skipped && (
+                      <>
+                        {' · '}
+                        <span data-testid="trail-unit-skipped" className="text-text-muted">
+                          تخطّيتَ
+                        </span>
+                      </>
+                    )}
                   </span>
                 </span>
                 {levelBlocked && <Lock className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden />}

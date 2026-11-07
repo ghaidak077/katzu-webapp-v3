@@ -1,6 +1,6 @@
-# الوحدات — قائمة للمراجعة من المالك
+# الوحدات — قائمة المالك المعتمدة
 
-هذه هي الوحدات التي سيقسم إليها التطبيق المواقف الـ49 التي يخدمها الـWorker
+هذه هي الوحدات التي يقسم إليها التطبيق المواقف الـ49 التي يخدمها الـWorker
 فعلياً (وليس الـ61 في كتالوج المحتوى المؤلف). كل موقف يظهر في وحدة واحدة فقط،
 وGit-gate يفشل إذا خرج موقف مخدوم عن هذا التقسيم أو تكرر.
 
@@ -10,37 +10,37 @@
   الأقل.
 - **آخر موقف في الوحدة** هو موقف الامتحان/التحقق إن وُجد، ولا يُقترح قبل إنهاء
   بقية مواقف الوحدة.
+- **صيغة الناتج** تدريب فقط: «في هذه الوحدة تتدرّب على …»، ولا تعد بنتيجة أو
+  شهادة.
 
-## الوحدات (9)
+## الوحدات (10)
 
 | # | المستوى | العنوان | الناتج | الوسوم | المواقف |
 |---|---------|---------|--------|--------|---------|
-| 1 | A1 | أول كلماتك | بعد هذه الوحدة تستطيع أن تعرّف بنفسك وتطلب ما تحتاجه في المقهى والمتجر. | عام، لمّ الشمل، سفر | first_greetings, numbers_and_prices, letters_and_forms, supermarket_checkout, bakery_shopping, cafe_order |
-| 2 | A1 | الوصول والتنقّل | بعد هذه الوحدة تستطيع أن تصل من المطار وتتحرك بالقطار وتفهم السعر والتذكرة. | سفر، عام، لمّ الشمل | airport_arrival, train_first_ride, train_station, pass_und_dokumente, banking_first_visit |
-| 3 | A1 | يومك خارج البيت | بعد هذه الوحدة تستطيع أن تسجّل عنوانك وتحجز موعداً وتتعامل مع الطبيب والصديق والمطعم. | عام، لمّ الشمل، عمل | anmeldung_buergeramt, termin_online_buchen, doctor_visit, friend_catchup, restaurant_besonders |
-| 4 | A2 | بيت جديد | بعد هذه الوحدة تستطيع أن تعاين شقة وتوقّع عقداً وتتابع مع المؤجّر وتؤمّن صحتك. | لمّ الشمل، عام، عمل | apartment_viewing, wohnung_besichtigen_tiefer, mietvertrag_uebergabe, landlord_followup, krankenkasse_anmelden, gesundheit_alltag |
-| 5 | A2 | العمل والحياة اليومية | بعد هذه الوحدة تستطيع أن تبدأ يوم عملك وتتعامل مع الزملاء والمواعيد الرسمية وحديث المريض. | عمل، عام، دراسة | erster_arbeitstag, kollegen_smalltalk, betriebs_kantine, patient_conversation_basics, embassy_appointment, pruefung_anmeldung |
-| 6 | B1 | في المكتب | بعد هذه الوحدة تستطيع أن تشارك في اجتماع قصير وتسلّم مناوبة وتتعامل مع مشكلة عميل. | عمل، دراسة | station_uebergabe, buero_gespraech_tiefer, daily_standup, support_ticket, tech_kuechenpause |
-| 7 | B1 | التدريب والمدرسة | بعد هذه الوحدة تستطيع أن تتقدم لمقعد تدريب وتتابع يوم المدرسة المهنية وتفهم إجراءات معادلة الشهادات. | عمل، دراسة | bewerbung_ausbildung, ausbildung_alltag, berufsschule_tag, pruefungstag, anerkennung_gespraech, anerkennung_it_zertifikate |
-| 8 | B1 | مقابلة العمل | بعد هذه الوحدة تستطيع أن تخوض مقابلة عمل في مجالك وتشرح خبرتك ومهاراتك. | عمل، دراسة | job_interview, interview_pflegefachkraft, interview_arzt, interview_it_fachkraft, interview_entwickler |
-| 9 | B2 | استعداد الامتحان | بعد هذه الوحدة تستطيع أن تتعامل مع أسئلة الامتحان الشفوي: التعريف، الخبرات، التخطيط، العرض، والتفاعل. | دراسة، عمل، لمّ الشمل | exam_sich_vorstellen, exam_erfahrungen_sprechen, exam_gemeinsam_planen, exam_thema_praesentieren, exam_auf_partner_reagieren |
+| 1 | A1 | أول كلماتك | في هذه الوحدة تتدرّب على التحيات والأرقام والأسعار والطلب في المقهى والمخبز والسوق والمطعم. | عام، لمّ الشمل، سفر | first_greetings, numbers_and_prices, cafe_order, bakery_shopping, supermarket_checkout, restaurant_besonders |
+| 2 | A1 | من السفارة إلى ألمانيا | في هذه الوحدة تتدرّب على موعد السفارة والجوازات والوثائق والوصول في المطار والتنقّل بالقطار. | لمّ الشمل، سفر، عام | embassy_appointment, pass_und_dokumente, airport_arrival, train_station, train_first_ride |
+| 3 | A1 | أوراقك ومعاملاتك | في هذه الوحدة تتدرّب على التسجيل في البلدية وملء النماذج وفتح حساب بنكي وحجز موعد للامتحان. | لمّ الشمل، عام، عمل | anmeldung_buergeramt, letters_and_forms, banking_first_visit, pruefung_anmeldung |
+| 4 | A2 | بيت جديد | في هذه الوحدة تتدرّب على معاينة شقة وقراءة عقد الإيجار والتسليم والمتابعة مع المؤجّر. | لمّ الشمل، عام، عمل | apartment_viewing, wohnung_besichtigen_tiefer, mietvertrag_uebergabe, landlord_followup |
+| 5 | A2 | صحتك ومواعيدك | في هذه الوحدة تتدرّب على زيارة الطبيب وحجز المواعيد والتأمين الصحي والحديث عن صحتك. | عام، لمّ الشمل، عمل | doctor_visit, termin_online_buchen, krankenkasse_anmelden, gesundheit_alltag, patient_conversation_basics |
+| 6 | A2 | العمل والناس | في هذه الوحدة تتدرّب على أول يوم عمل وحديث الزملاء والكانتين ولقاء صديق. | عمل، عام، لمّ الشمل | erster_arbeitstag, kollegen_smalltalk, betriebs_kantine, friend_catchup |
+| 7 | B1 | في المكتب | في هذه الوحدة تتدرّب على تسليم المناوبة والاجتماع القصير والتحدّث مع الدعم في المكتب. | عمل، دراسة | station_uebergabe, buero_gespraech_tiefer, daily_standup, support_ticket, tech_kuechenpause |
+| 8 | B1 | التدريب والاعتراف بشهادتك | في هذه الوحدة تتدرّب على التقدّم للتدريب ويوم المدرسة المهنية وإجراءات الاعتراف بشهادتك. | عمل، دراسة | bewerbung_ausbildung, ausbildung_alltag, berufsschule_tag, pruefungstag, anerkennung_gespraech, anerkennung_it_zertifikate |
+| 9 | B1 | مقابلات العمل | في هذه الوحدة تتدرّب على أسئلة مقابلة العمل وشرح خبرتك في مجالك. | عمل، دراسة | job_interview, interview_pflegefachkraft, interview_arzt, interview_it_fachkraft, interview_entwickler |
+| 10 | B2 | محادثة بأسلوب الامتحان | في هذه الوحدة تتدرّب على الحديث بأسلوب الامتحان الشفوي — تدريب فقط، لا يمنح شهادة. | دراسة، عمل | exam_sich_vorstellen, exam_erfahrungen_sprechen, exam_gemeinsam_planen, exam_thema_praesentieren, exam_auf_partner_reagieren |
+
+**الموقف الأخير في الوحدة 10** هو `exam_auf_partner_reagieren` بوصفه نقطة
+التحقق الختامية للوحدة.
 
 ## ما يجب أن يراه المتعلم
 
 - وحدة واحدة مفتوحة (الحالية) بكل مواقفها، والبقية مطوية مع «3 من 6».
 - الوحدات القادمة داكنة ومقفلة، ولا يُقفل إلا ما بعد الوحدة التالية.
 - وحدة منتهية تبقى قابلة للفتح والمراجعة.
+- من بدأ من مستوى أعلى (اختبار تحديد المستوى) يرى الوحدات الأقل مفتوحة أيضاً،
+  وعليها «تخطّيتَ» — لا يُقفل شيء خلف نقطة البداية.
 - كل بطاقة تُظهر ثلاث مراحل: **دراسة · مع مساعدة · وحدك**، و«التالي» على الموقف
   المقترح فقط، و«جديد» على ما لم يُلمس.
 - المواقف المفتوحة كلها قابلة للنقر، حتى لو لم تكن المقترحة.
-
-## أسئلة للمالك
-
-1. هل أسماء الوحدات وناتجها مقبولة، أم تريد صياغة أقرب إلى لهجتك؟
-2. هل ترتيب المستويات (A1 ثم A2 ثم B1 ثم B2) هو الترتيب الذي تريده للجميع، أم
-   تريد أن يبدأ من قاس الاختبار مستواه مباشرة (وهذا ما يفعله الكود الآن)؟
-3. هل مواقف الامتحان الخمسة في وحدة واحدة أخيرة مناسبة، أم تريد توزيعها كآخر
-   موقف في الوحدات 7 و8 و9؟
 
 **تمّ:** العدد 49 = مجموع مواقف الوحدات، بلا تكرار. أي تعديل هنا يُطبَّق في
 `src/lib/units/units.ts` ويعيد الـgate حسابه تلقائياً.

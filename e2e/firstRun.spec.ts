@@ -149,22 +149,21 @@ test('the Pro offer names the price, the free tier, the terms and who sells it',
     // u1-first-words
     'first_greetings',
     'numbers_and_prices',
-    'letters_and_forms',
-    'supermarket_checkout',
-    'bakery_shopping',
     'cafe_order',
-    // u2-arrival
-    'airport_arrival',
-    'train_first_ride',
-    'train_station',
-    'pass_und_dokumente',
-    'banking_first_visit',
-    // u3-out-and-about
-    'anmeldung_buergeramt',
-    'termin_online_buchen',
-    'doctor_visit',
-    'friend_catchup',
+    'bakery_shopping',
+    'supermarket_checkout',
     'restaurant_besonders',
+    // u2-embassy-arrival
+    'embassy_appointment',
+    'pass_und_dokumente',
+    'airport_arrival',
+    'train_station',
+    'train_first_ride',
+    // u3-paperwork
+    'anmeldung_buergeramt',
+    'letters_and_forms',
+    'banking_first_visit',
+    'pruefung_anmeldung',
   ];
   const now = Date.now();
   await seedRows(
