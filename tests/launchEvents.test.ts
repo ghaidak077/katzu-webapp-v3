@@ -125,9 +125,11 @@ describe('A5: the funnel can see these now', () => {
   it('fires onboarding_goal at the moment the goal is chosen', () => {
     const text = source('src/features/onboarding/OnboardingScreen.tsx');
     expect(text).toMatch(/track\(\s*'onboarding_goal'/);
-    // The goal it records is the one just picked, not a later default.
+    // Counts only (Phase 4): the funnel learns the question was answered, not
+    // which private reason this learner picked.
     const call = text.slice(text.indexOf("track('onboarding_goal'"));
-    expect(call.slice(0, 120)).toMatch(/kind: goal/);
+    expect(call.slice(0, 120)).toMatch(/count: 1/);
+    expect(call.slice(0, 120)).not.toMatch(/kind:/);
   });
 
   it('fires paywall_view from the modal too, not only paywall_viewed', () => {

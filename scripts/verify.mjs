@@ -86,6 +86,7 @@ export const CI_ONLY_STEPS = [
   { name: 'curriculum audit', cmd: 'node', args: ['scripts/audit-curriculum.mjs'] },
   { name: 'quiz content audit', cmd: 'node', args: ['scripts/audit-quiz-content.mjs'] },
   { name: 'served opener coverage', cmd: 'node', args: ['scripts/audit-opener-coverage.mjs'] },
+  { name: 'unit coverage', cmd: 'node', args: ['scripts/audit-unit-coverage.mjs'] },
   { name: 'chat quality eval', cmd: 'node', args: ['scripts/eval-chat-quality.mjs'] },
   { name: 'turn cost probe', cmd: 'node', args: ['scripts/measure-turn-cost.mjs'] },
   { name: 'simplicity budget', cmd: 'node', args: ['scripts/simplicity-check.mjs'] },

@@ -9,8 +9,10 @@ import { track } from '@/lib/analytics/client';
 import { ONBOARDING_SKIP_SOURCE } from '@/lib/analytics/events';
 import {
   ARRIVAL_COPY,
+  DEFAULT_DAILY_MINUTES,
   GOAL_COPY,
   PREVIOUS_GERMAN_COPY,
+  SIGNUP_GOAL_ORDER,
   TARGET_DATE_COPY,
   emptyOnboardingAnswers,
   onboardingPatch,
@@ -20,7 +22,7 @@ import {
   type PlacementChoice,
 } from '@/lib/onboarding/preferences';
 import { DAILY_MINUTE_CHOICES, type ArrivalStatus, type DailyMinuteChoice, type LearnerGoal, type PreviousGerman, type TargetDateKind } from '@/types/models';
-import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, Clock, Compass, Target, GraduationCap } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, CheckCircle2, Clock, Compass, GraduationCap, Heart, Plane, Sparkles, Target } from 'lucide-react';
 
 export interface OnboardingScreenProps {
   /** `first_run` ends with the placement choice; `edit` is a profile edit. */
@@ -38,12 +40,16 @@ type Step = 'goal' | 'arrival' | 'previous' | 'time' | 'target' | 'placement';
  * previous German, the target date and the placement offer move to the debrief
  * card (A4). The edit screen keeps the full set.
  */
-const FIRST_RUN_STEPS: Step[] = ['goal', 'time'];
+const FIRST_RUN_STEPS: Step[] = ['goal'];
 const EDIT_STEPS: Step[] = ['goal', 'arrival', 'previous', 'time', 'target'];
 
 const GOAL_ICONS: Record<LearnerGoal, React.ReactNode> = {
-  daily_life: <Compass className="w-5 h-5" />,
+  family: <Heart className="w-5 h-5" />,
   work: <Target className="w-5 h-5" />,
+  study: <BookOpen className="w-5 h-5" />,
+  travel: <Plane className="w-5 h-5" />,
+  general: <Sparkles className="w-5 h-5" />,
+  daily_life: <Compass className="w-5 h-5" />,
   university: <GraduationCap className="w-5 h-5" />,
   exam: <CheckCircle2 className="w-5 h-5" />,
 };
@@ -182,32 +188,39 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
         {/* One line of orientation on the first run, not a second question: the
             dots already say "two", these words say what the two are for. */}
         {mode === 'first_run' && isGuidedHomeEnabled() && (
-          <p className="mb-4 kz-ar-micro text-kz-inkFaint">سؤالان فقط — ثم أفتح لك أول موقف.</p>
+          <p className="mb-4 kz-ar-micro text-kz-inkFaint">سؤال واحد فقط — ثم أفتح لك أول موقف.</p>
         )}
 
         {step === 'goal' && (
           <GlassCard emphasis="primary" className="flex flex-1 flex-col">
             <KatzuPresence state="story" size="md" className="self-start" />
-            <h1 className="mt-3 kz-ar-title text-kz-ink">قبل أن نبدأ، عرّفني بنفسك</h1>
+            <h1 className="mt-3 kz-ar-title text-kz-ink">ما هدفك من الألمانية؟</h1>
             <p className="mt-2 kz-ar-caption leading-relaxed text-kz-inkDim">
-              أسئلة قصيرة، سؤال واحد في كل شاشة. بها أختار لك ما تبدأ به فعلاً — لا أريد أن
-              أُضيع وقتك في شيء لن تحتاجه.
+              سؤال واحد فقط. به أرتّب الوحدات التي أضعها أمامك — لا أريد أن أُضيع وقتك في شيء لن
+              تحتاجه.
             </p>
             <p className="mt-5 kz-ar-body font-bold text-kz-ink">لماذا تتعلّم الألمانية؟</p>
             <p className="mt-1 kz-ar-micro text-kz-inkFaint">هذا يغيّر ترتيب المواقف التي أضعها أمامك أولاً.</p>
             <div className="mt-3 space-y-2.5">
-              {(Object.keys(GOAL_COPY) as LearnerGoal[]).map((goal) => (
+              {(mode === 'edit' ? (Object.keys(GOAL_COPY) as LearnerGoal[]) : SIGNUP_GOAL_ORDER).map((goal) => (
                 <button
                   key={goal}
                   type="button"
                   onClick={() => {
                     setAnswers((prev) => ({ ...prev, primaryGoal: goal }));
-                    // A5: the first funnel step. The answer arrives with `goal`
-                    // on every later event too, but without this line the
-                    // funnel's opening step has no rows at all — the owner
-                    // could see who finished and not who began.
-                    track('onboarding_goal', { kind: goal, source: mode });
-                    advance(mode === 'edit' ? 'arrival' : 'time');
+                    // Counts only: the funnel learns that the question was
+                    // answered, not which private reason this learner chose.
+                    track('onboarding_goal', { count: 1 });
+                    if (mode === 'edit') advance('arrival');
+                    else {
+                      // One signup question, then straight into the app with
+                      // the default daily minutes; the time choice lives in
+                      // Settings and the debrief card.
+                      void save('skip', {
+                        primaryGoal: goal,
+                        dailyMinutes: answers.dailyMinutes ?? DEFAULT_DAILY_MINUTES,
+                      });
+                    }
                   }}
                   className={`w-full rounded-2xl border p-4 text-start transition-colors ${
                     answers.primaryGoal === goal

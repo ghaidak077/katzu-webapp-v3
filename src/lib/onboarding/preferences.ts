@@ -24,13 +24,31 @@ import { DAILY_MINUTE_CHOICES } from '@/types/models';
  */
 
 export const GOAL_COPY: Record<LearnerGoal, { labelAr: string; hintAr: string }> = {
+  // The five answers the signup question shows (Phase 4), in order.
+  family: {
+    labelAr: 'لمّ الشمل',
+    hintAr: 'الأوراق، السكن، الطبيب، حياة العائلة',
+  },
+  work: {
+    labelAr: 'العمل',
+    hintAr: 'المقابلة، الزملاء، Ausbildung، المكتب',
+  },
+  study: {
+    labelAr: 'الدراسة',
+    hintAr: 'الجامعة، التسجيل، المحاضرات، الامتحان',
+  },
+  travel: {
+    labelAr: 'السفر',
+    hintAr: 'المطار، القطار، الحجز، التنقّل',
+  },
+  general: {
+    labelAr: 'عام',
+    hintAr: 'أبدأ من الأساسيات وأبني يوماً بيوم',
+  },
+  // Legacy stored answers, kept so old rows still render their choice.
   daily_life: {
     labelAr: 'الحياة اليومية في ألمانيا',
     hintAr: 'السكن، الطبيب، التسوق، المواصلات',
-  },
-  work: {
-    labelAr: 'العمل أو Ausbildung',
-    hintAr: 'المقابلة، زملاء العمل، دوائر العمل',
   },
   university: {
     labelAr: 'الجامعة',
@@ -44,6 +62,13 @@ export const GOAL_COPY: Record<LearnerGoal, { labelAr: string; hintAr: string }>
     hintAr: 'تدريب محادثة B1 بأسلوب الامتحان — وليس الصيغة الرسمية',
   },
 };
+
+/**
+ * The one signup question's answers, in order (Phase 4). Legacy values stay in
+ * `GOAL_COPY` so old rows still render their stored choice, but they are not
+ * offered to a new learner.
+ */
+export const SIGNUP_GOAL_ORDER: LearnerGoal[] = ['family', 'work', 'study', 'travel', 'general'];
 
 export const ARRIVAL_COPY: Record<ArrivalStatus, string> = {
   preparing: 'ما زلت أستعد للسفر',
@@ -118,6 +143,10 @@ export const DEFAULT_WEEKLY_GOAL_DAYS = 5;
  * generic order — personalisation that fails invisibly.
  */
 const GOAL_CATEGORY_KEYWORDS: Record<LearnerGoal, string[]> = {
+  family: ['housing', 'health', 'official', 'document', 'daily', 'food', 'services', 'travel'],
+  study: ['study', 'university', 'student', 'campus', 'official', 'document', 'exam', 'visa'],
+  travel: ['travel', 'transport', 'station', 'airport', 'daily', 'food', 'services'],
+  general: ['daily', 'life', 'food', 'health', 'housing', 'travel', 'cafe', 'basics', 'services'],
   daily_life: ['daily', 'life', 'food', 'health', 'housing', 'travel', 'cafe', 'basics', 'services'],
   work: ['work', 'career', 'job', 'ausbildung', 'office', 'interview', 'official', 'document', 'trades', 'visa'],
   university: ['study', 'university', 'student', 'campus', 'official', 'document', 'exam', 'visa'],

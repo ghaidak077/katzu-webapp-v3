@@ -26,28 +26,23 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-11-06 — the path screen answers «what do I do now?» and the app has one progression system (app live; worker unchanged).** `/app/library` now shows a slim header (name, Pro badge, daily-goal ring; streak only when >0), **one** full-width CTA «تابع: [scenario] · [N] دقائق», a secondary 10-item review row with the backlog as small text, and the CEFR journey: a level card with ring/percent and «N مواقف للمستوى التالي», a sticky A1/A2/B1/B2 bar (future levels dimmed, tap opens the paywall) and compact 64 px scenario cards with the three stages (دراسة · مع مساعدة · وحدك). The rank card, XP strip and side timeline left the screen. Rank/XP now lives in `profile-rank-card` on `/app/profile` from one `absoluteXpProgress` (800 XP → «800 / 1500 XP», bar 53%), and a rank crossing is celebrated once on `/session-report`. New `scenarioMinutes.ts` owns duration, the 10-review cap and backlog. Evidence: `tsc`, new `trailOrdering`/`scenarioMinutes`, the updated 390×844 probe (one CTA, ≥3 cards above the fold, 130 reviews → 10, locked levels → paywall, text/bar agreement), gate **VERIFY OK 15/15** (792.8 s) with `--ci --e2e`. **Deployed:** Pages `a10ab1b7-…` (source `35a4363`, entry `assets/index-BVLRTDPT.js`, `/` + `katzuai.com` 200, `/sw.js` 200), rollback `7549eab3-…`. **Owner-open:** level descriptions and rank placement (`OWNER-CHECKLIST.md` §15).
+- **2026-11-07 — the path is nine units and the day is one composed session (gate green; Pages deploy next, worker unchanged).**
+  `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
+  dimmed and locked, unit progress «الوحدة 1 · 0 من 6», plus the level percent ring and the exact ability lines. The 49
+  served scenarios are partitioned into 9 units exactly once, checkpoint last, enforced by
+  `scripts/audit-unit-coverage.mjs` in the gate. `src/lib/units/{units,progress}.ts` own recommendation
+  (unfinished-started → unit order → checkpoint), stage (study → with help → solo), composition (due review ≤10 → next
+  stage → short free set, ≤3 steps with minutes), `nextPlanStep` and the post-session offers (>85 test-out, <50 repeat
+  with help). One CTA «ابدأ جلسة اليوم»/«تابع»; the report auto-advances after 2 s with «ليس الآن». Signup asks one goal
+  question; placement still sets the start; conversations show 3 unit topic chips + «فاجئني» and no level control, and
+  ease is stored on `lastSessionEase`. Free line «جلسة مجانية N من 3»; paywall only at a session boundary. Existing
+  learners map by completed ids with level/XP preserved. Evidence: `units` + `trailOrdering` **56**, six 390×844
+  screenshots in `.tmp/unit-path/`, full gate `VERIFY OK — 16/16 steps passed in 795s` (browser suite 665.6s, exit 0).
+  Deploy pending. Owner review: `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
 
-- **2026-11-05 — the opener gate checks the worker, not just the fixture (local; no bundle change).** V47 proved the
-  committed fixture; the authored catalogue is 61 scenarios and the worker serves 49. `scripts/audit-opener-coverage.mjs`
-  now fetches `/scenarios` (3 attempts, 15 s), applies the app's trim + whitespace collapse, and exits 1 when any served
-  `initial_message_<level>` has no gloss or a non-Arabic one (2 when the payload is unreadable); it is the CI-only step
-  `served opener coverage` in `scripts/verify.mjs` (`--offline` = fixture). `docs/OWNER-OPENER-REVIEW.md` lists the 227
-  V47 glosses by level with 18 flags and suggested wording (`OWNER-CHECKLIST` §13). Measured **49 / 225 / 0 missing** live
-  and from the fixture; `tests/openerCoverage` **8**, gate **VERIFY OK 15/15** (721.9 s).
-- **2026-11-05 — every first message now carries its Arabic, and the report buttons share one focus ring (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-06 to stay under the 80 KB cap (search `RESUME 2026-11-05 first message Arabic`). Nothing was deleted.
-- **2026-11-05 — the report action is findable (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-06 to stay under the 80 KB cap (search `RESUME 2026-11-05 report action findable`). Nothing was deleted.
-- **2026-11-04 — the learner chooses conversation review, and can report one bad reply (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-06 to stay under the 80 KB cap (search `RESUME 2026-11-04 conversation review`). Nothing was deleted.
-- **2026-11-03 — one brand graph (local only).** One Organization `@id`, both robots files naming both
-  sitemaps, an apex `llms.txt`; gate **6/6**, live UNPROVEN until deploy.
-- **2026-11-01 — the corrected 49 rows have a tested update path (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-05 to stay under the 80 KB cap (search `RESUME 2026-11-01 corrected 49 rows update path`). Nothing was deleted.
-- **2026-11-01 — conversation content v2 authored locally (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-05, to keep this file under its 80 KB cap (search `RESUME 2026-11-01 conversation content v2`). Nothing was deleted.
-- **2026-10-31 (content management in the new panel) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-05, to keep this file under its 80 KB cap (search `RESUME 2026-10-31 content management`). Nothing was deleted.
-- **2026-10-31 — a later bare «hallo» re-asks the scene (RESUME entry) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-05 to stay under the 80 KB cap (search `RESUME 2026-10-31 hallo re-asks stored opener`). Nothing was deleted.
-- **2026-10-31 (correction card + admin panel) moved verbatim to** `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-04, to keep this file under its 80 KB cap (search `RESUME 2026-10-31 correction card + admin panel`). Nothing was deleted.
-
-- **Older RESUME entries (2026-10-30 and earlier) moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on
-  2026-11-01 (search `RESUME 2026-10-28..30 moved`), to keep the ledger under its 80 KB cap. Nothing was deleted.
+- **Older RESUME entries moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-01/07 to stay under the
+  80 KB cap (search `RESUME moved 2026-11-07 path screen + opener gate`, `RESUME 2026-11-05 first message Arabic`,
+  `RESUME 2026-10-28..30 moved`). Nothing was deleted.
 
 ## CURRENT MISSION
 
@@ -252,6 +247,22 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
 
 ## DECISIONS
+
+- **UNIT-PATH (2026-11-07) — one guided vertical unit path; the learner never chooses.** The 49 served scenarios are
+  partitioned into 9 themed units (5–6 each), ordered level then difficulty, checkpoint last. `units.ts` is the only
+  id list (the gate imports it via Node 24 type stripping); `progress.ts` owns recommendation, stage and composition.
+  Recommendation: unfinished-started → unit order → checkpoint, so a 2 % learner never gets an exam while an earlier
+  situation is open. Goal tags reorder inside a level only. Existing learners map by completed ids; level/XP
+  untouched, nobody reset. Owner review: `OWNER-UNITS-REVIEW.md`, checklist §16.
+
+- **SESSION-1 (2026-11-07) — today's session is composed, not browsed.** One button runs due review (cap 10) → next
+  stage (study → with help → solo) → a short free conversation set; ≤3 steps with total minutes. Report auto-advances
+  after 2 s with «ليس الآن»; <50 % repeats with help, >85 % offers «تخطَّ الوحدة باختبار قصير», announced after a
+  session only. Free line «جلسة مجانية N من 3»; paywall only at a session boundary.
+
+- **ONBOARD-GOAL (2026-11-07) — signup asks one question, the goal.** Five choices reorder unit presentation inside a
+  level; placement still sets the start; skipping keeps standard order. `onboarding_goal` is counts-only (`{count:1}`).
+  Time/arrival/previous/target stay in the edit flow.
 
 - **TRAIL-1 (2026-11-06) — one progression system on the path; rank/XP only on the profile.** `/app/library` shows
   the CEFR journey (A1/A2/B1/B2, locked future levels), one «تابع» action and a 10-item review; it no longer shows
@@ -486,6 +497,12 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   («أتدبّر أمري في ألمانيا»، «أتحرّك في يومي بثقة»، «أتعامل مع المواقف الرسمية والعمل»، «أتحدّث بطلاقة في العمل
   والدراسة») and say whether rank/XP stays on the profile only (current) or returns as a small home line.
   Done: the lines approved or replaced, and one placement recorded. Plain copy: `OWNER-CHECKLIST.md` §15.
+
+- **The nine units need your read (UNIT-PATH-1, 2026-11-07).** The path is now nine themed units built from the 49
+  conversations the worker actually serves, each with an Arabic title, an outcome line and 5–6 situations, checkpoint
+  last. Every situation appears in exactly one unit; the gate fails otherwise. Read `docs/OWNER-UNITS-REVIEW.md` and
+  reply **fine**, or name any title, outcome line or situation that belongs somewhere else. Done: the file is marked
+  approved or the changes are applied. Plain copy: `OWNER-CHECKLIST.md` §16.
 
 - **Turn on the new conversations — production needs your line, and today's loader can only add rows (CONTENT-V2-1,
   2026-11-01).** 61 scenarios are authored and tested locally; live D1 still has the old 49. Choose **(a) new only**:

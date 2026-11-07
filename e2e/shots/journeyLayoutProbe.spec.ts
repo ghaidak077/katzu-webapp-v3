@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { bootSignedIn, seedRows } from '../harness';
+import { seedServedContent } from '../servedContent';
 
 /**
  * Acceptance probe for the path screen — it measures the rendered layout at
@@ -46,20 +47,26 @@ test.describe.configure({ mode: 'serial' });
 test('the path at 390x844 answers "what now" with one primary action', async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
   await bootSignedIn(page);
+  await seedServedContent(page);
   await page.goto('/app/library');
 
   const cta = page.getByTestId('trail-primary-cta');
   await expect(cta).toBeVisible({ timeout: 30_000 });
-  // One primary action, and it names a situation rather than "review".
+  // One primary action, and it names the session rather than "review".
   await expect(cta).toHaveCount(1);
-  await expect(cta).toContainText('تابع:');
+  await expect(cta).toContainText(/تابع|ابدأ جلسة اليوم/);
+  await expect(page.getByTestId('trail-session-preview')).toBeVisible();
 
   // Rank moved to the profile; the path has one progression system.
   await expect(page.getByTestId('trail-rank-card')).toHaveCount(0);
   await expect(page.getByTestId('trail-rank-pill')).toHaveCount(0);
 
   await expect(page.getByTestId('trail-goal-ring')).toBeVisible();
-  await expect(page.getByTestId('trail-level-bar')).toBeVisible();
+  await expect(page.getByTestId('trail-level-card')).toBeVisible();
+  await expect(page.getByTestId('trail-unit-map')).toBeVisible();
+  // Wait for the unit's rows, not just the map: the card count is content, and
+  // measuring while Dexie is still hydrating is a race, not a layout verdict.
+  await expect(page.getByTestId('trail-scenario-card').nth(2)).toBeVisible();
 
   const metrics = await page.evaluate(() => {
     const vh = window.innerHeight;
@@ -89,6 +96,7 @@ test('the path at 390x844 answers "what now" with one primary action', async ({ 
 test('every card carries the three evidence stages', async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
   await bootSignedIn(page);
+  await seedServedContent(page);
   await page.goto('/app/library');
 
   const firstCard = page.getByTestId('trail-scenario-card').first();
@@ -115,24 +123,25 @@ test('130 due reviews become a ten-item action with the backlog in small text', 
   await expect(page.getByText('+120 في الانتظار')).toBeVisible();
   // The primary action still leads and still names a situation.
   const cta = page.getByTestId('trail-primary-cta');
-  await expect(cta).toContainText('تابع:');
+  await expect(cta).toContainText(/تابع|ابدأ جلسة اليوم/);
   const ctaBox = await cta.boundingBox();
   const rowBox = await row.boundingBox();
   expect(ctaBox!.y).toBeLessThan(rowBox!.y);
 });
 
-test('locked levels are dimmed, marked, and explain the Pro gate', async ({ page }) => {
+test('future units are dimmed, marked, and cannot be opened', async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
   await bootSignedIn(page);
+  await seedServedContent(page);
   await page.goto('/app/library');
 
-  const bar = page.getByTestId('trail-level-bar');
-  await expect(bar).toBeVisible({ timeout: 30_000 });
-  for (const level of ['A2', 'B1', 'B2']) {
-    await expect(bar.getByRole('button', { name: new RegExp(`المستوى ${level} — يُفتح مع Pro`) })).toBeVisible();
-  }
-  await bar.getByRole('button', { name: /المستوى A2/ }).click();
-  await expect(page.getByText('المستوى A2 يُفتح مع Pro').first()).toBeVisible();
+  const headers = page.getByTestId('trail-unit-header');
+  await expect(headers.first()).toBeVisible({ timeout: 30_000 });
+  // The current unit is open; the next one may be opened; everything beyond it
+  // is dimmed and disabled instead of a level picker.
+  await expect(headers.first()).toHaveAttribute('aria-expanded', 'true');
+  await expect(headers.nth(2)).toBeDisabled();
+  await expect(headers.nth(2)).toHaveAttribute('aria-label', /مقفلة/);
 });
 
 test('the profile XP text and its bar share one calculation', async ({ page }) => {

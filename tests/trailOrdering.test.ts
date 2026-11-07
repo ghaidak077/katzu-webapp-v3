@@ -154,26 +154,26 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     expect(TRAIL).not.toMatch(/examFirstScenarios\(/);
   });
 
-  it('keeps the "show the rest" control and its preview count', () => {
-    expect(TRAIL).toMatch(/TRAIL_PREVIEW_COUNT/);
-    expect(TRAIL).toMatch(/setShowAllScenarios\(true\)/);
-    expect(TRAIL).toMatch(/اعرض بقية المشاهد/);
+  it('renders one vertical unit map with the current unit expanded', () => {
+    expect(TRAIL).toMatch(/data-testid="trail-unit-map"/);
+    expect(TRAIL).toMatch(/const openUnitId = expandedUnitId \?\? currentUnitId/);
+    expect(TRAIL).toMatch(/data-testid="trail-unit-count"/);
+    expect(TRAIL).toMatch(/الوحدة \{index \+ 1\} · \{entry\.done\} من \{entry\.total\}/);
   });
 
-  it('filters the path by the level pills, using the real content index', () => {
-    // The pills used to only set state; the path now lists a situation at a
-    // level only when its content exists there (or the index is not known yet).
-    expect(TRAIL).toMatch(/const pathScenarios = useMemo\(/);
-    expect(TRAIL).toMatch(/scenarioLevels\[s\.id\]\.includes\(selectedLevel\)/);
-    expect(TRAIL).toMatch(/pathScenarios\.slice\(0, showAllScenarios \? undefined : TRAIL_PREVIEW_COUNT\)/);
+  it('never renders a level selector in the main flow', () => {
+    // The level is what the server serves; the learner chooses nothing here.
+    expect(TRAIL).not.toMatch(/data-testid="trail-level-bar"/);
+    expect(TRAIL).not.toMatch(/BAR_LEVELS/);
+    expect(TRAIL).not.toMatch(/setSelectedLevel/);
+    expect(TRAIL).toMatch(/const episodeLevel = servedLevel\(learnerLevel, isPro\)/);
   });
 
-  it('gives every card a compact 64px thumbnail, not a full-width banner', () => {
-    // Every situation still gets artwork — the old card rendered it
-    // conditionally — but the compact card trades the 16:9 banner for a 64px
-    // square so three situations fit above the fold.
+  it('uses one tinted category glyph per card instead of blurred artwork', () => {
     expect(TRAIL).not.toMatch(/scene\.artUrl &&/);
-    expect(TRAIL).toMatch(/<ScenarioBanner[\s\S]{0,160}className="h-16 w-16 shrink-0 rounded-control"/);
+    expect(TRAIL).not.toMatch(/<ScenarioBanner/);
+    expect(TRAIL).toMatch(/const visual = visualFor\(scenario\.category\)/);
+    expect(TRAIL).toMatch(/const CATEGORY_VISUALS[\s\S]{0,600}Icon: ShieldCheck/);
   });
 
   it('leads each card with the Arabic title and puts the German underneath', () => {
@@ -181,7 +181,7 @@ describe('the Trail uses the rule and keeps its own controls', () => {
       /font-arabic text-sm font-bold leading-snug text-text-primary">\s*<bdi dir="rtl">\{scenario\.title_ar\}<\/bdi>/,
     );
     expect(TRAIL).toMatch(
-      /<GermanText className="line-clamp-1 block min-w-0 text-xs leading-snug text-text-secondary">\s*\{scenario\.title_de\}\s*<\/GermanText>/,
+      /<GermanText className="line-clamp-1 block min-w-0 text-micro leading-snug text-text-secondary">\s*\{scenario\.title_de\}\s*<\/GermanText>/,
     );
   });
 
@@ -214,9 +214,22 @@ describe('the path has one primary action and one progression system', () => {
     expect(TRAIL).not.toMatch(/راجع \$\{dueCount\}/);
   });
 
-  it('keeps the sticky level bar as the only level control', () => {
-    expect(TRAIL).toMatch(/data-testid="trail-level-bar"/);
-    expect(TRAIL).toMatch(/const BAR_LEVELS: BarLevel\[\] = \['A1', 'A2', 'B1', 'B2'\]/);
-    expect(TRAIL).toMatch(/locked && <Lock className="h-3 w-3"/);
+  it('states the free sessions as one labelled line, never a bare number', () => {
+    expect(TRAIL).toMatch(/data-testid="trail-free-sessions"/);
+    expect(TRAIL).toMatch(/جلسة مجانية \{freeSessions\} من \{FREE_SESSION_TOTAL\}/);
+  });
+
+  it('uses quiet next/new labels instead of a status pill', () => {
+    expect(TRAIL).not.toMatch(/data-testid="trail-status-pill"/);
+    expect(TRAIL).toMatch(/data-testid="trail-next-label"/);
+    expect(TRAIL).toMatch(/data-testid="trail-new-label"/);
+  });
+
+  it('keeps level and percent in one card and the unit map as the only plan', () => {
+    expect(TRAIL).toMatch(/data-testid="trail-level-card"/);
+    expect(TRAIL).toMatch(/const LEVEL_ABILITY_AR: Record<ShownLevel, string>/);
+    expect(TRAIL).toMatch(/أتصرّف في المواقف اليومية/);
+    // Rank names belong to the profile; the path carries no rank wording.
+    expect(TRAIL).not.toMatch(/رتبتك/);
   });
 });

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { bootSignedIn, openLibraryFromHome, seedRows } from './harness';
+import { bootSignedIn, seedRows } from './harness';
 
 /**
  * A scenario's 16:9 banner, from the content column to the card.
@@ -88,33 +88,13 @@ test('a scenario’s own banner reaches every screen that lists it', async ({ pa
     expectSixteenByNine(box);
   }
 
-  // The scenario library, where every scenario is browsable — reached the way a
-  // learner reaches it: the home's own control (the footer chip with the flag
-  // off, «المزيد» → كل المشاهد with it on). Tapping home is also what makes the
-  // lazy Trail chunk load in this sequence, which the geometry below reads.
-  await openLibraryFromHome(page);
-  // The route changes before React's lazy-loaded Trail screen is mounted. Wait
-  // on the exact card and its banner, not the URL, so a cold chunk cannot make
-  // the geometry read race the render.
-  const cafeCard = page.getByRole('button', { name: /الطلب في المقهى \(Im Café bestellen\)/ });
-  await expect(cafeCard).toBeVisible();
-  const libraryBanner = cafeCard.locator(BANNER);
-  await expect(libraryBanner).toBeVisible();
-  await expect(libraryBanner.locator('img')).toHaveAttribute('src', PATCHED_ART);
-  // The library's cards are compact rows now: the banner is the 64px square
-  // thumbnail, deliberately not the 16:9 hero. The scenario's own artwork still
-  // has to reach that thumbnail, and the visual stays square.
-  const thumb = await libraryBanner.evaluate((element) => ({
-    width: element.clientWidth,
-    height: element.clientHeight,
-    src: element.querySelector('img')?.getAttribute('src') ?? '',
-  }));
-  expect(thumb.src).toBe(PATCHED_ART);
-  expect(thumb.width).toBe(64);
-  expect(thumb.height).toBe(64);
-
   // The scenario's own screen. It reads the scenario before it draws, so the wait
   // is for its own content rather than for a timeout.
+  //
+  // The library is a unit map now: its cards are compact rows with a tinted
+  // category glyph, not artwork thumbnails, so the banner's reach is the home
+  // mission card and the scenario's own screen. `tests/sceneBanner.test.ts` pins
+  // the precedence rule; `trail` screens deliberately show no banner.
   await page.goto('/scenario/cafe_order');
   await expect(page.getByText('Im Café bestellen')).toBeVisible();
   const detail = await bannerGeometry(page);

@@ -1287,27 +1287,6 @@ export function useLiveConversation({
     });
   };
 
-  const handleNudgeDifficulty = (direction: 'easier' | 'harder') => {
-    if (!isProUser) {
-      setPaywall({
-        isOpen: true,
-        title: 'تغيير المستوى أثناء المحادثة ميزة Pro',
-        description:
-          'في الخطة المجانية تتدرب على مستواك الحالي فقط. رَقِّ حسابك لفتح التعديل الفوري للصعوبة (أسهل / أصعب) وكل المستويات من A1 حتى B2.',
-      });
-      return;
-    }
-    const levelOrder: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
-    const currentIndex = levelOrder.indexOf(effectiveLevel);
-    if (direction === 'easier' && currentIndex > 0) {
-      setCurrentLevel(levelOrder[currentIndex - 1]);
-      triggerHaptic('light');
-    } else if (direction === 'harder' && currentIndex < levelOrder.length - 1) {
-      setCurrentLevel(levelOrder[currentIndex + 1]);
-      triggerHaptic('light');
-    }
-  };
-
   const handleToggleAllTranslations = () => {
     setShowAllTranslations((v) => !v);
     setShowArabicTranslation({}); // clear per-message overrides
@@ -1391,7 +1370,6 @@ export function useLiveConversation({
     requestOpenerTranslation,
     handleUseHint,
     refreshHints,
-    handleNudgeDifficulty,
     canEndSession,
     endSessionNow,
   };

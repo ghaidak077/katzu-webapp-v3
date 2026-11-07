@@ -4,12 +4,12 @@ import { bootSignedIn, mockBackend, readStoredUser, seedSignedInUser } from './h
 /**
  * Onboarding, as the first conversation with Katzu.
  *
- * A3 changed the shape: first-run asks exactly TWO questions (goal + daily
- * minutes) and lands on the mission; the arrival, previous-German and target-date
- * questions plus the placement offer moved to the debrief card. The edit screen
- * keeps the full set. The assertions are about structure and effect, not
- * adjectives — a question whose answer goes nowhere is data collection dressed up
- * as personalisation.
+ * Phase 4 changed the shape again: first-run asks exactly ONE question (the
+ * goal) and lands on the first episode; the daily minutes default to ten, and the
+ * arrival, previous-German, target-date and placement questions moved to the
+ * debrief card. The edit screen keeps the full set. The assertions are about
+ * structure and effect, not adjectives — a question whose answer goes nowhere is
+ * data collection dressed up as personalisation.
  */
 
 /** Force the guided home on before the app's first load — the flag is cached per load. */
@@ -23,7 +23,7 @@ async function setSwitch(page: import('@playwright/test').Page, value: '1' | '0'
   }, value);
 }
 
-test('first run asks two questions and opens the opening episode', async ({ page }) => {
+test('first run asks one question and opens the opening episode', async ({ page }) => {
   await setSwitch(page, '1');
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
@@ -32,29 +32,23 @@ test('first run asks two questions and opens the opening episode', async ({ page
   await expect(page.getByRole('progressbar', { name: 'تقدم الأسئلة' })).toBeVisible();
   await expect(page.getByText(/سؤال \d من/)).toHaveCount(0);
 
-  // Katzu's opening, and the first question.
-  await expect(page.getByText('قبل أن نبدأ، عرّفني بنفسك')).toBeVisible();
+  // Katzu's opening, and the only question.
+  await expect(page.getByText('ما هدفك من الألمانية؟')).toBeVisible();
   await expect(page.getByText('لماذا تتعلّم الألمانية؟')).toBeVisible();
-  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
+  await page.getByRole('button', { name: /لمّ الشمل/ }).click();
 
-  // The second and LAST question. The moved questions must not appear on the
-  // first-run path at all.
-  await expect(page.getByText('وكم دقيقة تستطيع أن تعطيني يومياً؟')).toBeVisible();
-  await expect(page.getByText('وأين أنت الآن من ألمانيا؟')).toHaveCount(0);
-  await expect(page.getByText('هل جرّبت الألمانية قبل اليوم؟')).toHaveCount(0);
-  await expect(page.getByText('هل هناك تاريخ تنتظره؟ (اختياري)')).toHaveCount(0);
-  await expect(page.getByText('هل أقيس مستواك الآن؟')).toHaveCount(0);
-
-  await page.getByRole('button', { name: /20\s*دقائق/ }).click();
-
-  // Step 2: straight into the first episode's Story screen — never the placement
-  // check, and no home-screen card to decode first.
+  // The click is the answer AND the ending: no second question, no placement
+  // check, no home-screen card to decode first — straight into the first
+  // episode's Story screen.
   await expect(page).toHaveURL(/\/scenario\/airport_arrival\/story$/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('في المطار');
+  await expect(page.getByText('وكم دقيقة تستطيع أن تعطيني يومياً؟')).toHaveCount(0);
 
   const stored = await readStoredUser(page);
-  expect(stored?.primaryGoal).toBe('daily_life');
-  expect(stored?.dailyGoalMinutes).toBe(20);
+  expect(stored?.primaryGoal).toBe('family');
+  // The minutes question is gone from the first run: the default is written
+  // rather than a number invented for the learner.
+  expect(stored?.dailyGoalMinutes).toBe(10);
   expect(typeof stored?.onboardingCompletedAt).toBe('number');
   // The level stays the A1 default: a first-run learner is never asked, so nothing
   // may be invented for them (the seeded 'preparing' arrival status is left as it
@@ -84,8 +78,7 @@ test('a stranger lands on the app and walks to the first mission', async ({ page
 
   await seedSignedInUser(page, { onboardingCompletedAt: 0 });
   await page.goto('/onboarding');
-  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
-  await page.getByRole('button', { name: /20\s*دقائق/ }).click();
+  await page.getByRole('button', { name: /لمّ الشمل/ }).click();
 
   // The first episode, not the placement check, and nothing asked twice on the
   // way. Then one step further: the story's own action opens the practice.

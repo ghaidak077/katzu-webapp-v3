@@ -164,6 +164,7 @@ the hit. Never load this file whole.
 | LAUNCH-3. Phase 3 launch-tracker verification (`guided-home`) | done | **Already complete; re-verified this run, no code change needed.** `docs/katzu-baseline.md`'s launch tracker has **A4, A5, A6 (both halves), A7 and B1–B5 all `[x]`** with their historical commit evidence, and the long-standing red `e2e/firstRun.spec.ts:84` («the Pro offer names the price, the free tier, the terms and who sells it») now passes — `ok 44` in both full flag runs. The only unchecked lines left are the intentional ones (D4's own "nothing else was found", RC3.5's retention remainder, the Cloudflare alert thresholds owned by the owner, RC6.7's read-not-run note). Phase C remains behind its flag as before. |
 | DEPLOY-8. Ship guided refinement to `main` + Pages (`merge`, `pages`) | done | **Deployed 2026-10-23; no worker/D1 change.** Gate `npm run verify -- --ci --e2e` **14/14 in 723 s**, exit 0. Branch `4b581d0`; merge `1e9d09f` (`--no-ff`) → `main`. Staging preview `fedcd115-ba2b-4cf3-9dca-00b70041da6b` (19 routes 200, `VITE_GUIDED_HOME:"1"`, `/demo` 4/4). Production Pages `c89828af-acba-41bd-8514-8eba166d6c0e` from `1e9d09f`, entry `assets/index-DkRAI1BL.js` with `VITE_GUIDED_HOME:"1"` (2×, 0× `"0"`) + worker origin; 15 routes 200, live demo 4/4, production smoke 4 passed/2 skipped/0 failed, SW on `/`. Rollback: `50f30132-0412-417f-95de-8cc0dc545d7b` (source `d216ae8`, `index-BfNVQ58w.js`) via dashboard redeploy or `git revert -m 1 1e9d09f` + push; worker `e1a9a2ca-…` untouched. Signed-in day-0/report/paywall UNPROVEN (owner Google account). |
 | GEO-1. SEO + AI discoverability | done | 18 built pages (17 sitemap URLs, real `lastmod`), 12 guides, ten-crawler `robots.txt`, `/llms.txt`, IndexNow key (`202 Accepted`), app root-only sitemap, referral capture. Shipped site `03ec8a29-…` / app `58455d0e-…`; live: 17/17 URLs 200, 47 links 0 dead, SEO/a11y 100 on five pages. Open: citation evidence (UNPROVEN), Cloudflare `403` for three crawlers (OWNER-OPEN). |
+| UNIT-PATH. Guided vertical unit path + composed sessions + goal-only signup | done | Phases 0–4 shipped: `src/lib/units/units.ts` (9 units, all 49 served ids once, checkpoints last), `progress.ts` (recommendation, stage, ≤3-step composition, test-out/repeat offers), `scripts/audit-unit-coverage.mjs` in the gate, `TrailScreen.tsx` vertical map + one CTA, `SessionReportScreen.tsx` auto-advance/ease/offers, goal-only `OnboardingScreen.tsx`, topic chips in `LiveConversationScreen.tsx`. Full gate `VERIFY OK 16/16` (795 s); six 390×844 screenshots in `.tmp/unit-path/`. Owner review: `docs/OWNER-UNITS-REVIEW.md`, `OWNER-CHECKLIST.md` §16. |
 
 ## RUN-LOG
 
@@ -889,3 +890,19 @@ first ENV probe) is unchanged below; the ledger keeps the 2026-10-28/29/30 decis
   `e98031d5-…` (rollback `70daf981-…`), app `d1324296-…` (rollback `c2fb76b0-…`), site `6c6c6023-…` (rollback
   `5be0e65b-…`); ids and checks in BACKUP §12, APP-MAP §9. **Still owner-only:** the legal identity/contact line in
   the privacy policy (`OWNER-CHECKLIST.md`).
+
+## RESUME moved 2026-11-07 (path screen + opener gate)
+
+- **2026-11-06 — the path screen answers «what do I do now?» and the app has one progression system (app live; worker unchanged).** `/app/library` now shows a slim header (name, Pro badge, daily-goal ring; streak only when >0), **one** full-width CTA «تابع: [scenario] · [N] دقائق», a secondary 10-item review row with the backlog as small text, and the CEFR journey: a level card with ring/percent and «N مواقف للمستوى التالي», a sticky A1/A2/B1/B2 bar (future levels dimmed, tap opens the paywall) and compact 64 px scenario cards with the three stages (دراسة · مع مساعدة · وحدك). The rank card, XP strip and side timeline left the screen. Rank/XP now lives in `profile-rank-card` on `/app/profile` from one `absoluteXpProgress` (800 XP → «800 / 1500 XP», bar 53%), and a rank crossing is celebrated once on `/session-report`. New `scenarioMinutes.ts` owns duration, the 10-review cap and backlog. Evidence: `tsc`, new `trailOrdering`/`scenarioMinutes`, the updated 390×844 probe (one CTA, ≥3 cards above the fold, 130 reviews → 10, locked levels → paywall, text/bar agreement), gate **VERIFY OK 15/15** (792.8 s) with `--ci --e2e`. **Deployed:** Pages `a10ab1b7-…` (source `35a4363`, entry `assets/index-BVLRTDPT.js`, `/` + `katzuai.com` 200, `/sw.js` 200), rollback `7549eab3-…`. **Owner-open:** level descriptions and rank placement (`OWNER-CHECKLIST.md` §15).
+
+- **2026-11-05 — the opener gate checks the worker, not just the fixture (local; no bundle change).** V47 proved the
+  committed fixture; the authored catalogue is 61 scenarios and the worker serves 49. `scripts/audit-opener-coverage.mjs`
+  now fetches `/scenarios` (3 attempts, 15 s), applies the app's trim + whitespace collapse, and exits 1 when any served
+  `initial_message_<level>` has no gloss or a non-Arabic one (2 when the payload is unreadable); it is the CI-only step
+  `served opener coverage` in `scripts/verify.mjs` (`--offline` = fixture). `docs/OWNER-OPENER-REVIEW.md` lists the 227
+  V47 glosses by level with 18 flags and suggested wording (`OWNER-CHECKLIST` §13). Measured **49 / 225 / 0 missing** live
+  and from the fixture; `tests/openerCoverage` **8**, gate **VERIFY OK 15/15** (721.9 s).
+
+
+- **2026-11-03 — one brand graph (local only).** One Organization `@id`, both robots files naming both
+  sitemaps, an apex `llms.txt`; gate **6/6**, live UNPROVEN until deploy.

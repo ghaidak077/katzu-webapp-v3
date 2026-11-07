@@ -168,7 +168,6 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
           {[
             'محادثات صوتية بلا حد بعد الجلسات التجريبية',
             'كل المستويات والمشاهد من A0 إلى B2',
-            'تغيير الصعوبة أثناء المحادثة وتلميحات إضافية',
           ].map((benefit) => (
             <div
               key={benefit}

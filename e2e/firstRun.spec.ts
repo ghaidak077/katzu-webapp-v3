@@ -1,5 +1,6 @@
 import { expect, test, type Locator } from '@playwright/test';
-import { bootSignedIn, openLibraryFromHome } from './harness';
+import { bootSignedIn, openLibraryFromHome, seedRows } from './harness';
+import { seedServedContent } from './servedContent';
 
 /**
  * Stage 2 — the first three minutes, on the phone the learner actually holds.
@@ -140,15 +141,63 @@ test('the Pro offer names the price, the free tier, the terms and who sells it',
     },
   });
 
-  // The level pills live in the scenario library, reached the way a learner
-  // reaches it from home (footer chip with the flag off, «المزيد» with it on).
-  await openLibraryFromHome(page);
+  // The unit map replaced the level pills, so the free plan's honest path to the
+  // offer is a unit boundary: a learner who finished A1 sees the first A2 unit
+  // as the current, expanded one, and its scenarios carry the Pro lock.
+  await seedServedContent(page);
+  const A1_UNIT_IDS = [
+    // u1-first-words
+    'first_greetings',
+    'numbers_and_prices',
+    'letters_and_forms',
+    'supermarket_checkout',
+    'bakery_shopping',
+    'cafe_order',
+    // u2-arrival
+    'airport_arrival',
+    'train_first_ride',
+    'train_station',
+    'pass_und_dokumente',
+    'banking_first_visit',
+    // u3-out-and-about
+    'anmeldung_buergeramt',
+    'termin_online_buchen',
+    'doctor_visit',
+    'friend_catchup',
+    'restaurant_besonders',
+  ];
+  const now = Date.now();
+  await seedRows(
+    page,
+    'sessions',
+    A1_UNIT_IDS.map((scenarioId, index) => ({
+      // The evidence the capability model counts as INDEPENDENT: four unaided
+      // sentences above the accuracy bar.
+      id: `e2e-a1-${scenarioId}`,
+      scenarioId,
+      scenarioTitle: scenarioId,
+      cefrLevel: 'A1',
+      sentencesSpoken: 4,
+      wordsLearned: 12,
+      accuracyPercent: 90,
+      durationSeconds: 180,
+      timestamp: now - index * 1_000,
+      wasIndependentOnly: true,
+      independentSentences: 4,
+      hintAssistedSentences: 0,
+      mode: 'practice',
+      mistakesCount: 0,
+    })),
+  );
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
 
-  // A2 is locked on the free plan, so the level in the sticky CEFR bar is the
-  // honest path to the offer. Its accessible name says why it is locked.
-  const lockedPill = page.getByRole('button', { name: /^المستوى A2/ });
-  await expectTapTarget(lockedPill, 'CEFR level pill');
-  await lockedPill.click();
+  // Reach the library the way a learner does, then tap a locked A2 card — the
+  // offer appears at the session boundary with the unit preview behind it.
+  await openLibraryFromHome(page);
+  const lockedCard = page.locator('[data-testid="trail-scenario-card"][aria-label*="تفتح مع Pro"]').first();
+  await expectTapTarget(lockedCard, 'locked A2 scenario card');
+  await lockedCard.click();
 
   await expect(page.getByText('عضوية Katzu Pro')).toBeVisible();
 

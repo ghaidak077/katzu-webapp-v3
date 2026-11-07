@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, ChevronDown, ChevronUp, Languages, MoreHorizontal } from 'lucide-react';
+import { ArrowRight, Languages, MoreHorizontal, Shuffle } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { db } from '@/lib/db/katzuDb';
+import { isCheckpointScenario, unitForScenario } from '@/lib/units/units';
 import { Modal } from '@/components/ui/Modal';
 import { GlassButton } from '@/components/glass/GlassButton';
 import { WordInsightBottomSheet } from '@/components/sheets/WordInsightBottomSheet';
@@ -16,7 +19,7 @@ import { buildWordBank } from '@/lib/utils/wordBank';
 import { track } from '@/lib/analytics/client';
 import { acquireUpdateHold } from '@/lib/pwa/updatePrompt';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
-import type { CEFRLevel, ChatMessage } from '@/types/models';
+import type { CEFRLevel, ChatMessage, ScenarioEntity } from '@/types/models';
 import { ConversationDock } from './ConversationDock';
 import { ConversationTranscript } from './ConversationTranscript';
 import { useLiveConversation } from './useLiveConversation';
@@ -35,6 +38,12 @@ export interface LiveConversationScreenProps {
   examChrome?: React.ReactNode;
   /** Skip the help/no-help chooser: an exam has one way to run it. */
   autoStartMode?: 'practice' | 'real';
+  /**
+   * Phase 3: the learner chooses what to talk about, never the level. Tapping a
+   * topic moves to that scenario's page in the same unit; the level stays the
+   * one on the profile. Omitted in designs/tests where there is nowhere to go.
+   */
+  onChooseTopic?: (scenarioId: string) => void;
   onBack: () => void;
   onOpenSubscription?: () => void;
   onCompleteSession: (sessionSummary: {
@@ -75,6 +84,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   mockPart,
   examChrome,
   autoStartMode,
+  onChooseTopic,
   onBack,
   onOpenSubscription,
   onCompleteSession,
@@ -179,8 +189,48 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     requestOpenerTranslation,
     handleUseHint,
     refreshHints,
-    handleNudgeDifficulty,
   } = live;
+
+  /**
+   * Phase 3: topic, not level.
+   *
+   * The learner already has a level on the profile; asking them to move it
+   * mid-conversation made a learning decision into a settings chore, and on the
+   * free tier it opened a paywall in the middle of a unit. So the sheet offers
+   * what the conversation is *about* — three scenarios from the current unit
+   * plus a surprise — and never moves the level. Offered only before the first
+   * learner turn, because switching topic discards nothing at that point.
+   */
+  const unit = useMemo(() => unitForScenario(scenarioId), [scenarioId]);
+  const unitScenarioRows =
+    useLiveQuery(
+      async (): Promise<ScenarioEntity[]> =>
+        unit ? db.scenarios.where('id').anyOf(unit.scenarioIds).toArray() : [],
+      [unit?.id],
+    ) || [];
+  const topicChoices = useMemo(() => {
+    if (!unit || userTurnsCount > 0) return [];
+    const titles = new Map(unitScenarioRows.map((row) => [row.id, row.title_ar]));
+    return unit.scenarioIds
+      .filter((id) => id !== scenarioId && !isCheckpointScenario(id))
+      .slice(0, 3)
+      .map((id) => ({ id, titleAr: titles.get(id) || id }));
+  }, [unit, unitScenarioRows, scenarioId, userTurnsCount]);
+  const surpriseTopics = useMemo(
+    () =>
+      unit
+        ? unit.scenarioIds.filter((id) => id !== scenarioId && !isCheckpointScenario(id))
+        : [],
+    [unit, scenarioId],
+  );
+  const chooseTopic = (id: string) => {
+    setOptionsOpen(false);
+    onChooseTopic?.(id);
+  };
+  const chooseSurpriseTopic = () => {
+    if (surpriseTopics.length === 0) return;
+    chooseTopic(surpriseTopics[Math.floor(Math.random() * surpriseTopics.length)]);
+  };
 
   const handleReportReply = (message: ChatMessage) => {
     const exchange = buildReportExchange(messages, message.id);
@@ -501,26 +551,31 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       {/* ⋯: the conversation-level controls, out of the header and into a sheet. */}
       <BottomSheet isOpen={optionsOpen} onClose={() => setOptionsOpen(false)} title="خيارات الجلسة">
         <div className="space-y-1">
-          <button
-            onClick={() => handleNudgeDifficulty('easier')}
-            disabled={effectiveLevel === 'A1'}
-            className="flex min-h-control w-full items-center justify-between rounded-control px-3 kz-ar-caption text-kz-ink transition-colors pointer-hover:bg-white/5 disabled:opacity-30"
-          >
-            <span>أسهل</span>
-            <ChevronDown className="h-4 w-4 text-kz-inkFaint" />
-          </button>
-          <div className="flex min-h-control w-full items-center justify-between rounded-control px-3 kz-ar-caption text-kz-inkDim">
-            <span>المستوى الحالي</span>
-            <span className="kz-de-caption font-german font-bold text-kz-lavender">{effectiveLevel}</span>
-          </div>
-          <button
-            onClick={() => handleNudgeDifficulty('harder')}
-            disabled={effectiveLevel === 'B2'}
-            className="flex min-h-control w-full items-center justify-between rounded-control px-3 kz-ar-caption text-kz-ink transition-colors pointer-hover:bg-white/5 disabled:opacity-30"
-          >
-            <span>أصعب</span>
-            <ChevronUp className="h-4 w-4 text-kz-inkFaint" />
-          </button>
+          {topicChoices.length > 0 && (
+            <div data-testid="topic-choices" className="pb-2">
+              <p className="px-3 pb-2 kz-ar-micro font-semibold text-kz-inkDim">موضوع المحادثة</p>
+              <div className="flex flex-wrap gap-2 px-3">
+                {topicChoices.map((topic) => (
+                  <button
+                    key={topic.id}
+                    onClick={() => chooseTopic(topic.id)}
+                    className="flex min-h-touch items-center rounded-full border border-white/10 bg-white/5 px-3 kz-ar-caption text-kz-ink transition-colors pointer-hover:bg-white/10"
+                  >
+                    {topic.titleAr}
+                  </button>
+                ))}
+                {surpriseTopics.length > 0 && (
+                  <button
+                    onClick={chooseSurpriseTopic}
+                    className="flex min-h-touch items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 kz-ar-caption font-semibold text-kz-lavender transition-colors pointer-hover:bg-primary/15"
+                  >
+                    <Shuffle className="h-3.5 w-3.5" aria-hidden />
+                    فاجئني
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           {!realMode && (
             <button
               onClick={handleToggleAllTranslations}

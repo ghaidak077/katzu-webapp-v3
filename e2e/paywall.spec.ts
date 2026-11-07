@@ -142,36 +142,22 @@ test('a Pro row the server no longer honours stops being Pro on the next open', 
 });
 
 /**
- * B4: the Pro benefit the paywall names third — «تغيير الصعوبة أثناء المحادثة» —
- * is a real control (`handleNudgeDifficulty` behind the ⋯ sheet), and it is
- * Pro-only: a free learner tapping it gets the offer instead of the level. The
- * claim is on the screen that asks for money, so it is pinned here rather than
- * left to a code read; the baseline used to record this as an unverified promise.
+ * Phase 3: a conversation runs at the level on the profile — the learner is
+ * never asked to pick a difficulty mid-unit. The ⋯ sheet offers what the
+ * conversation is about (three current-unit topics and «فاجئني») and has no
+ * level control, so the old Pro-level nudge page is gone with it.
  */
-test('the difficulty nudge is a real control, and it is Pro-only', async ({ page }) => {
+test('the conversation sheet offers topics, never a level selector', async ({ page }) => {
   await bootSignedIn(page);
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   await page.getByRole('button', { name: 'خيارات الجلسة' }).click();
-  await page.getByRole('button', { name: 'أصعب' }).click();
-
-  // The free learner is offered Pro, and the level does not move.
-  await expect(page.getByText('تغيير المستوى أثناء المحادثة ميزة Pro')).toBeVisible();
+  await expect(page.getByTestId('topic-choices')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'فاجئني' })).toBeVisible();
+  await expect(page.getByText('أصعب')).toHaveCount(0);
+  await expect(page.getByText('أسهل')).toHaveCount(0);
   await expect(page.getByTestId('level-chip')).toHaveText('A1');
-});
-
-test('a Pro learner nudges the level mid-conversation', async ({ page }) => {
-  await bootSignedIn(page, { isPro: true });
-  await page.goto('/scenario/cafe_order/live');
-  await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
-
-  await page.getByRole('button', { name: 'خيارات الجلسة' }).click();
-  await page.getByRole('button', { name: 'أصعب' }).click();
-
-  // The level moved, and nothing was sold: this is the benefit the paywall names.
-  await expect(page.getByTestId('level-chip')).toHaveText('A2');
-  await expect(page.getByText('تغيير المستوى أثناء المحادثة ميزة Pro')).toHaveCount(0);
 });
 
 /**

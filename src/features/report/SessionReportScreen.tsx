@@ -25,6 +25,7 @@ import { CAPABILITY_LABEL_AR, capabilityFromSession } from '@/lib/capability/mod
 import { completedEpisodeCount, shouldOfferPro } from '@/lib/entitlement/trial';
 import { isProEffective } from '@/lib/utils/subscription';
 import { MASTERED_REPS, countDue, gradeCorrectionRetype, reviewRefId } from '@/lib/srs/engine';
+import { sessionOutcomeOffer } from '@/lib/units/progress';
 import { enrolMistake, gradeReviewItem } from '@/lib/srs/store';
 import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
@@ -75,6 +76,13 @@ export interface SessionReportScreenProps {
   onOpenScenario?: (scenarioId: string) => void;
   /** V33/A4: the placement check, when the one-time card offers it. */
   onOpenPlacement?: () => void;
+  /** Phase 2: the next composed step, auto-advanced 2 s after the report. */
+  nextStep?: { scenarioId: string; titleAr: string };
+  /** Phase 2: the current unit's checkpoint, offered after a >85% session. */
+  testOutScenarioId?: string;
+  onContinueSession?: (scenarioId: string) => void;
+  /** Phase 3: asked once after each conversation, adjusts the next stage only. */
+  onEaseAnswer?: (ease: 'easy' | 'ok' | 'hard') => void;
 }
 
 /** One row of the retype drill: either answered, or waiting for the learner. */
@@ -175,6 +183,10 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   onOpenSubscription,
   onOpenScenario,
   onOpenPlacement,
+  nextStep,
+  testOutScenarioId,
+  onContinueSession,
+  onEaseAnswer,
   fromRecovered = false,
 }) => {
   const user = useLiveQuery(() => db.users.get('current_user'));
@@ -191,6 +203,14 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   const reviewItems = useLiveQuery(() => db.review_items.toArray()) || [];
   const [drill, setDrill] = useState<Record<number, { text: string; result: DrillState | null }>>({});
   const [isLevelPromoted, setIsLevelPromoted] = useState(false);
+  // Phase 2/3: the 2-second hand-off and the once-per-conversation ease answer.
+  const [autoAdvance, setAutoAdvance] = useState(true);
+  const [easeAnswered, setEaseAnswered] = useState(false);
+  useEffect(() => {
+    if (!nextStep || !onContinueSession || !autoAdvance) return;
+    const timer = window.setTimeout(() => onContinueSession(nextStep.scenarioId), 2000);
+    return () => window.clearTimeout(timer);
+  }, [nextStep, onContinueSession, autoAdvance]);
   // Step 5: the quiet «تفاصيل الجلسة» disclosure on the day-0 first view.
   const [disclosureOpen, setDisclosureOpen] = useState(false);
 
@@ -622,6 +642,69 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
     </GlassButton>
   ) : null;
 
+  const outcomeOffer = sessionOutcomeOffer(summary.accuracyPercent);
+
+  const easePromptEl = onEaseAnswer && !easeAnswered ? (
+    <GlassCard className="mt-4" data-testid="session-ease-prompt">
+      <p className="kz-ar-body font-bold text-kz-ink">كيف كانت الجلسة؟</p>
+      <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
+        سؤال واحد فقط، أضبط به صعوبة المرة القادمة — ولا أغيّر مستواك.
+      </p>
+      <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="تقييم صعوبة الجلسة">
+        {([
+          ['easy', 'سهلة'],
+          ['ok', 'مناسبة'],
+          ['hard', 'صعبة'],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            data-testid={`session-ease-${value}`}
+            onClick={() => {
+              setEaseAnswered(true);
+              onEaseAnswer(value);
+            }}
+            className="min-h-touch rounded-control border border-white/[0.07] bg-white/[0.02] px-2 font-arabic text-xs font-bold text-kz-ink transition-colors pointer-hover:border-kz-lavender/50"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </GlassCard>
+  ) : null;
+
+  const outcomeOfferEl = outcomeOffer === 'test_out' && testOutScenarioId && onOpenScenario ? (
+    <GlassCard className="mt-4" data-testid="session-test-out">
+      <p className="kz-ar-body font-bold text-kz-ink">أتقنت هذا الموقف بسهولة</p>
+      <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
+        يمكنك تخطّي بقية الوحدة باختبار قصير — أو متابعة المشاهد بالترتيب.
+      </p>
+      <GlassButton
+        variant="secondary"
+        fullWidth
+        className="mt-3"
+        onClick={() => onOpenScenario(testOutScenarioId)}
+      >
+        تخطَّ الوحدة باختبار قصير
+      </GlassButton>
+    </GlassCard>
+  ) : outcomeOffer === 'repeat_help' && onOpenScenario ? (
+    <GlassCard className="mt-4" data-testid="session-repeat-help">
+      <p className="kz-ar-body font-bold text-kz-ink">نعيد هذا الموقف بمساعدة</p>
+      <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
+        المرة القادمة سنبدأ بالدراسة ومع المساعدة قبل أن نجرب وحدك — هذا هو الطريق الطبيعي.
+      </p>
+      <GlassButton
+        variant="secondary"
+        fullWidth
+        className="mt-3"
+        onClick={() => onOpenScenario(summary.scenarioId)}
+      >
+        أعد الموقف بمساعدة
+      </GlassButton>
+    </GlassCard>
+  ) : null;
+
   const debriefDetailsEl = (
     <>
       <p className="mt-1.5 kz-ar-body font-bold leading-relaxed text-kz-ink">{summary.debrief.headlineAr}</p>
@@ -948,14 +1031,31 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           )}
         </div>
 
+        {easePromptEl}
+        {outcomeOfferEl}
+
         {/* Day 0: one primary, no review in the dock. */}
         <FloatingControl className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md rounded-t-[26px] border-t border-white/[0.06] p-4 pb-6">
-          <PrimaryAction
-            hintAr="خطوتك الأولى تمت — العودة إلى الرحلة هي الخطوة التالية."
-            onClick={onReturnToTrail}
-          >
-            العودة إلى الرحلة
-          </PrimaryAction>
+          {nextStep && onContinueSession && autoAdvance ? (
+            <>
+              <PrimaryAction
+                hintAr="يبدأ تلقائياً بعد ثانيتين — أو اضغط للمتابعة الآن."
+                onClick={() => onContinueSession(nextStep.scenarioId)}
+              >
+                التالي: {nextStep.titleAr}
+              </PrimaryAction>
+              <GlassButton variant="quiet" fullWidth className="mt-1" onClick={() => setAutoAdvance(false)}>
+                ليس الآن
+              </GlassButton>
+            </>
+          ) : (
+            <PrimaryAction
+              hintAr="خطوتك الأولى تمت — العودة إلى الرحلة هي الخطوة التالية."
+              onClick={onReturnToTrail}
+            >
+              العودة إلى الرحلة
+            </PrimaryAction>
+          )}
         </FloatingControl>
 
         {consentSheetEl}
@@ -1307,11 +1407,25 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             </div>
           </section>
         )}
+        {easePromptEl}
+        {outcomeOfferEl}
       </div>
 
       {/* Dock: one obvious next action, plus the way back. */}
       <FloatingControl className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md rounded-t-[26px] border-t border-white/[0.06] p-4 pb-6">
-        {openCorrections > 0 && onOpenReview ? (
+        {nextStep && onContinueSession && autoAdvance ? (
+          <>
+            <PrimaryAction
+              hintAr="يبدأ تلقائياً بعد ثانيتين — أو اضغط للمتابعة الآن."
+              onClick={() => onContinueSession(nextStep.scenarioId)}
+            >
+              التالي: {nextStep.titleAr}
+            </PrimaryAction>
+            <GlassButton variant="quiet" fullWidth className="mt-1" onClick={() => setAutoAdvance(false)}>
+              ليس الآن
+            </GlassButton>
+          </>
+        ) : openCorrections > 0 && onOpenReview ? (
           <>
             <PrimaryAction
               hintAr={`بقي ${openCorrections} تصحيحاً لم تُثبّتها هنا — نفس الجمل ستعود في المراجعة المجدولة.`}

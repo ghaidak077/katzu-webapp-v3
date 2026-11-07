@@ -22,7 +22,18 @@ export type ReviewDirection = 'ar_to_de' | 'de_to_ar';
  * the landlord. Choosing a goal must visibly change what the home screen asks
  * for, otherwise the question was data collection, not personalisation.
  */
-export type LearnerGoal = 'daily_life' | 'work' | 'university' | 'exam';
+export type LearnerGoal =
+  // The four original stored values. Kept so every existing profile row keeps
+  // meaning; the signup question now asks the five below instead.
+  | 'daily_life'
+  | 'work'
+  | 'university'
+  | 'exam'
+  // The five signup answers (Phase 4). Additive, never a migration.
+  | 'family'
+  | 'study'
+  | 'travel'
+  | 'general';
 
 /** Where the learner is in the move: it decides which situations are urgent. */
 export type ArrivalStatus = 'preparing' | 'recently_arrived' | 'living_in_germany';
@@ -228,6 +239,9 @@ export interface UserEntity {
   onboardingPromptDismissedAt?: number;
   primaryGoal?: LearnerGoal;
   arrivalStatus?: ArrivalStatus;
+  /** Last post-session answer to «كانت: سهلة / مناسبة / صعبة» — a small dial
+   * for the next stage only; it never changes the level. */
+  lastSessionEase?: 'easy' | 'ok' | 'hard';
   /** Self-reported prior exposure; decides the placement offer, never the level. */
   previousGerman?: PreviousGerman;
   /** Epoch ms of the learner's optional target date (move/exam/interview). */

@@ -5,7 +5,7 @@ import { bootSignedIn, readStoredUser, seedFinishedEpisode, seedStoreRow } from 
  * Step 2 — the first-session chain, in a browser.
  *
  * The claim under test is narrow and load-bearing: with `guidedHome` on, a new
- * learner's two answers lead *into the first episode*, not to a home screen that
+ * learner's one answer leads *into the first episode*, not to a home screen that
  * asks them to choose again; and when they come back, the home tells the truth
  * about what is finished.
  *
@@ -22,10 +22,9 @@ import { bootSignedIn, readStoredUser, seedFinishedEpisode, seedStoreRow } from 
  */
 test.use({ viewport: { width: 390, height: 844 } });
 
-/** Answer the two first-run questions the way a learner does. */
+/** Answer the one first-run question the way a learner does. */
 async function answerPreferences(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
-  await page.getByRole('button', { name: /20\s*دقائق/ }).click();
+  await page.getByRole('button', { name: /لمّ الشمل/ }).click();
 }
 
 /** Force the guided home on before the app's first load — the flag is cached per load. */
@@ -54,17 +53,19 @@ test('the questions end inside «لحظة الوصول», not on the home screen
 
 test('the skip link ends the questions on the default minutes and still opens the episode', async ({ page }) => {
   await setSwitch(page, '1');
-  await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
+  // No stored goal: the seed is a brand-new profile, so the skip cannot inherit
+  // one from a previous answer and claim it invented nothing.
+  await bootSignedIn(page, { user: { onboardingCompletedAt: 0, primaryGoal: undefined } });
   await page.goto('/onboarding');
-  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
 
-  // A third way past the preferences step that is not an answer: the app saves
-  // the default 10 minutes and stops asking. It must not invent a goal.
-  await page.getByRole('button', { name: 'تخطَّ الأسئلة وابدأ الآن' }).click();
+  // The way past the ONE question that is not an answer: the app saves the
+  // default 10 minutes and stops asking. It must not invent a goal.
+  await page.getByRole('button', { name: 'تخطَّ الآن وابدأ' }).click();
   await expect(page).toHaveURL(/\/scenario\/[a-z_]+\/story$/);
 
   const stored = await readStoredUser(page);
   expect(stored?.dailyGoalMinutes).toBe(10);
+  expect(stored?.primaryGoal).toBeUndefined();
   expect(typeof stored?.onboardingCompletedAt).toBe('number');
 });
 
@@ -81,16 +82,18 @@ test('the first question is not an exit: it offers no back control', async ({ pa
   await expect(page.getByRole('progressbar', { name: 'تقدم الأسئلة' })).toBeVisible();
 });
 
-test('the second question’s back link returns to the goal, not to a question first run never asks', async ({ page }) => {
+test('the goal question is the only first-run question', async ({ page }) => {
   await setSwitch(page, '1');
   await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
   await page.goto('/onboarding');
-  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
-  await expect(page.getByText('وكم دقيقة تستطيع أن تعطيني يومياً؟')).toBeVisible();
+  await page.getByRole('button', { name: /لمّ الشمل/ }).click();
 
-  await page.getByRole('button', { name: 'رجوع للسؤال السابق' }).click();
-  await expect(page.getByText('لماذا تتعلّم الألمانية؟')).toBeVisible();
+  // There is no second screen to go back to: the answer ends the flow, and the
+  // old minutes/previous steps never appear on the way.
+  await expect(page).toHaveURL(/\/scenario\/airport_arrival\/story$/);
+  await expect(page.getByText('وكم دقيقة تستطيع أن تعطيني يومياً؟')).toHaveCount(0);
   await expect(page.getByText('هل جرّبت الألمانية قبل اليوم؟')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'رجوع للسؤال السابق' })).toHaveCount(0);
 });
 
 test('back from the first story lands on the home screen', async ({ page }) => {
@@ -108,21 +111,23 @@ test('back from the first story lands on the home screen', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
 });
 
-test('the skip leaves the minutes at the default and the goal at what was answered', async ({ page }) => {
+test('the skip leaves the level unmeasured and invents no goal', async ({ page }) => {
   await setSwitch(page, '1');
-  await bootSignedIn(page, { user: { onboardingCompletedAt: 0 } });
+  await bootSignedIn(page, { user: { onboardingCompletedAt: 0, primaryGoal: undefined } });
   await page.goto('/onboarding');
-  await page.getByRole('button', { name: /الحياة اليومية في ألمانيا/ }).click();
-  await page.getByRole('button', { name: 'تخطَّ الأسئلة وابدأ الآن' }).click();
+  await page.getByRole('button', { name: 'تخطَّ الآن وابدأ' }).click();
   await expect(page).toHaveURL(/\/scenario\/[a-z_]+\/story$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/app\/trail$/);
 
-  // The skip is on the SECOND question, so the goal has already been answered —
-  // it skips the minutes, and writes the default rather than a guess.
+  // The skip is on the ONLY question: it writes the default minutes and the
+  // completion stamp, leaves the goal unanswered rather than guessing one, and
+  // does not claim the placement was skipped (it was never offered here).
   const stored = await readStoredUser(page);
   expect(stored?.dailyGoalMinutes).toBe(10);
-  expect(stored?.primaryGoal).toBe('daily_life');
+  expect(stored?.primaryGoal).toBeUndefined();
+  expect(stored?.cefrLevel).toBe('A1');
+  expect(stored?.placementSkippedAt || 0).toBe(0);
 });
 
 test('a learner with no goal recorded still gets a mission and an honest sheet', async ({ page }) => {

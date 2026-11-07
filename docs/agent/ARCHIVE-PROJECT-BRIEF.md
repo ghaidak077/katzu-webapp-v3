@@ -62,3 +62,28 @@ rollback `6cb04cff-…`, then `d1324296-…`) serving `assets/index-3KsTlLGj.js`
   `text/markdown` with the report sentence.
 - **Unproven:** the toggle and sheet in a real signed-in session, and a real reported exchange reaching
   D1 from the app. **Owner input needed:** legal identity/contact for the privacy policy.
+
+
+## Snapshot moved 2026-11-07 (2026-11-06 path screen answers what now)
+
+## Current snapshot — 2026-11-06 (the path screen answers «what now»; rank lives on the profile)
+
+**Deployed 2026-11-06 (app; worker unchanged).** `/app/library` used to ask the learner to choose
+between a rank card, an XP strip, a timeline and a grid of oversized cards. It now has one job: a
+slim header (name, Pro badge, daily-goal ring, and a streak chip only when the streak is above zero),
+**one** full-width action «تابع: [scenario] · [N] دقائق», and a secondary 10-item review row whose
+backlog is a quiet «+120 في الانتظار» instead of a guilt count. Below it sits the only progression
+system — the CEFR journey: a level card with a ring, «N مواقف للمستوى التالي» and one ability line,
+a sticky A1/A2/B1/B2 bar (future levels dimmed, tap opens the paywall) and compact 64 px scenario
+cards with the three evidence stages (دراسة · مع مساعدة · وحدك), «التالي» and «جديد». The rank/XP
+card moved to `/app/profile`, where «800 / 1500 XP» and the bar come from one `absoluteXpProgress`
+calculation; crossing a rank is celebrated once on `/session-report`. **Proof:** `tsc` clean, new
+`trailOrdering` + `scenarioMinutes` tests, updated `v33SimplifyPolish`/`interfaceContracts`, a
+390×844 browser probe (one CTA, ≥3 cards above the fold, 130 reviews → 10, locked levels → paywall,
+XP text and bar agree), gate **VERIFY OK 15/15** (792.8 s). **Deployed:** Pages `a10ab1b7-…`
+(source `35a4363`, entry `assets/index-BVLRTDPT.js`, `/` and `katzuai.com` 200, `/sw.js` 200),
+rollback `7549eab3-…`; production smoke 2 passed / 2 skipped. Before/after screenshots for new,
+mid-progress, 130-review and zero states are in the gitignored `.tmp/trail-redesign/`.
+**Owner-open:** the four level descriptions are proposed copy and the rank placement is a choice
+(`OWNER-CHECKLIST.md` §15).
+

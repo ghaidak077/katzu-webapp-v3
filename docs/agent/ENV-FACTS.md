@@ -12,7 +12,7 @@ source, and neither grants automatic commits or deploys.
 
 One-time recon, read-only. Every `FACT` line carries the command and its result.
 `UNKNOWN` means the probe could not prove the claim — never a guess.
-Recon date: 2026-09-29. Host: the owner's Windows desktop (Freebuff desktop app).
+Recon date: 2026-09-29. Host: the owner's Windows desktop.
 
 ## Corrections folded into AGENTS.md v7 (2026-09-29)
 These four probe results were promoted from this file into the manual, so they are rules now, not
@@ -34,10 +34,10 @@ Workspace root (where shell commands start): `/c/Users/Lenovo/Desktop/k1` (not a
 
 | | |
 |---|---|
-| Agent identity | FACT: `Buffy`, the coding agent behind Codebuff, running in the Freebuff desktop client — proof: harness/system prompt states it. |
+| Agent identity | FACT: `Buffy`, Codebuff's coding agent in the Freebuff desktop client (harness prompt states it). |
 | Model name | UNKNOWN — the harness does not state a model name anywhere in this session. (`GLM 5.3 Flash` appears in `docs/AGENT-STATE.md` only as a content-review attribution, not the runtime model.) |
 | Context window | UNKNOWN — not stated by the harness. |
-| Token/usage counter | UNKNOWN — no counter is visible in tool results; the app UI may show one the agent cannot read. |
+| Token/usage counter | UNKNOWN — no counter is visible in tool results. |
 
 **Tools callable** (name → purpose):
 
@@ -143,9 +143,10 @@ command below stops existing, so this index cannot rot silently.
 | What the gate costs (no flags to remember) | `npm run verify:ci` | the `--ci` profile as its own script; the same command CI runs, for a local reproduction of a CI red |
 | What each gate run cost | `npm run cost:report` | reads the gitignored `.verify-runs.ndjson` from `npm run verify -- --cost` (pre-push): seconds per step + median. Wall-clock, **not** tokens (§A) |
 | Make the gate fire on this clone | `npm run hooks:install` | sets `core.hooksPath=.githooks`; `npm install`/`npm ci` do it via `prepare`; refuses another tool's hooks path |
-| Performance probe | `npx playwright test -c e2e/perf/playwright.perf.config.ts` | run by hand; the gate excludes `**/perf/**` so a machine number never flakes it |
-| Content drifting from production (read-only) | `node scripts/check-content-drift.mjs` | GETs the public endpoints only; exits non-zero when production disagrees with the drafts |
-| A served first message with no Arabic | `node scripts/audit-opener-coverage.mjs` | CI-only `served opener coverage`: reads the worker's real `/scenarios`, fails when a served first message has no gloss; `--offline` audits the fixture |
+| Performance probe | `npx playwright test -c e2e/perf/playwright.perf.config.ts` | by hand; the gate excludes `**/perf/**` so machine numbers never flake it |
+| Content drifting from production | `node scripts/check-content-drift.mjs` | read-only GETs of public endpoints; fails when production disagrees with drafts |
+| A served first message with no Arabic | `node scripts/audit-opener-coverage.mjs` | CI-only `served opener coverage`; reads the worker's `/scenarios`, fails on a served message with no gloss (`--offline` uses the fixture) |
+| A served scenario outside the unit map | `node scripts/audit-unit-coverage.mjs` | CI-only `unit coverage`; fails unless each served scenario is in exactly one unit |
 | The simplicity budget (29 screens) | `node scripts/simplicity-check.mjs` | part of the design gate; fails when a screen exceeds its element budget |
 | The verification battery (12 checks) | `node scripts/verification-battery.cjs` | the battery whose output the ledger quotes |
 | Quiz content audit | `node scripts/audit-quiz-content.mjs` | CI runs it; fails on a malformed quiz row |

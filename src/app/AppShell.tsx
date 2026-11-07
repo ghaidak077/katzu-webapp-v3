@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useEffect } from 'react';
+import React, { Suspense, useMemo, useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { db, initializeDatabaseSeed, seedArrivalTopUps, wipeUserScopedData } from '@/lib/db/katzuDb';
@@ -20,6 +20,8 @@ import { WelcomeScreen } from '@/features/auth/WelcomeScreen';
 import { SignInScreen } from '@/features/auth/SignInScreen';
 import { PracticeLockSheet } from '@/features/journey/PracticeLockSheet';
 import { usePracticeLock, type PracticeLock } from '@/features/journey/usePracticeLock';
+import { nextPlanStep, type SessionPlan } from '@/lib/units/progress';
+import { isCheckpointScenario, unitForScenario } from '@/lib/units/units';
 
 /**
  * The app shell: every route except the landing page.
@@ -854,7 +856,7 @@ function LiveRoute({ onComplete }: { onComplete: (summary: any) => void }) {
   const grammarId = typeof practiceContext?.grammarId === 'string' && /^[a-z0-9_]{1,80}$/i.test(practiceContext.grammarId)
     ? practiceContext.grammarId
     : undefined;
-  return <LiveConversationScreen scenarioId={scenarioId} vocabularyContext={vocabularyContext} grammarId={grammarId} onBack={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}`)} onOpenSubscription={() => navigate('/subscription')} onCompleteSession={onComplete} />;
+  return <LiveConversationScreen scenarioId={scenarioId} vocabularyContext={vocabularyContext} grammarId={grammarId} onChooseTopic={(id) => navigate(`/scenario/${encodeURIComponent(id)}`)} onBack={() => navigate(`/scenario/${encodeURIComponent(scenarioId)}`)} onOpenSubscription={() => navigate('/subscription')} onCompleteSession={onComplete} />;
 }
 
 /**
@@ -904,31 +906,46 @@ function ReportRoute({ summary, onLoadSummary }: { summary: any; onLoadSummary: 
     };
   }, [summary, onLoadSummary]);
 
-  if (summary) {
-    return (
-      <SessionReportScreen
-        summary={summary}
-        onReturnToTrail={() => navigate('/app/trail')}
-        onOpenReview={() => navigate('/app/review')}
-        onOpenSubscription={() => navigate('/subscription')}
-        onOpenScenario={(scenarioId) => navigate(`/scenario/${scenarioId}/story`)}
-        onOpenPlacement={() => navigate('/placement')}
-      />
-    );
-  }
-  if (recovered) {
-    return (
-      <SessionReportScreen
-        summary={recovered}
-        fromRecovered
-        onReturnToTrail={() => navigate('/app/trail')}
-        onOpenReview={() => navigate('/app/review')}
-        onOpenSubscription={() => navigate('/subscription')}
-        onOpenScenario={(scenarioId) => navigate(`/scenario/${scenarioId}/story`)}
-        onOpenPlacement={() => navigate('/placement')}
-      />
-    );
-  }
+  const plan = useMemo<SessionPlan | null>(() => {
+    try {
+      const raw = sessionStorage.getItem('katzu_session_plan');
+      return raw ? (JSON.parse(raw) as SessionPlan) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const active = summary || recovered;
+  const nextStep = active ? nextPlanStep(plan, active.scenarioId) : undefined;
+  const activeUnit = active ? unitForScenario(active.scenarioId) : undefined;
+  const testOutScenarioId = activeUnit?.scenarioIds.find(
+    (scenarioId) => isCheckpointScenario(scenarioId) && scenarioId !== active?.scenarioId,
+  );
+
+  const report = (payload: any, fromRecovered = false) => (
+    <SessionReportScreen
+      summary={payload}
+      fromRecovered={fromRecovered}
+      nextStep={
+        nextStep?.scenarioId
+          ? { scenarioId: nextStep.scenarioId, titleAr: nextStep.titleAr }
+          : undefined
+      }
+      testOutScenarioId={testOutScenarioId}
+      onContinueSession={(scenarioId) => navigate(`/scenario/${scenarioId}/story`)}
+      onEaseAnswer={(ease) => {
+        void db.users.update('current_user', { lastSessionEase: ease, updatedAt: Date.now() });
+      }}
+      onReturnToTrail={() => navigate('/app/trail')}
+      onOpenReview={() => navigate('/app/review')}
+      onOpenSubscription={() => navigate('/subscription')}
+      onOpenScenario={(scenarioId) => navigate(`/scenario/${scenarioId}/story`)}
+      onOpenPlacement={() => navigate('/placement')}
+    />
+  );
+
+  if (summary) return report(summary);
+  if (recovered) return report(recovered, true);
   if (!looked) return <RouteFallback />;
   return <NoSavedReportScreen onReturnToTrail={() => navigate('/app/trail')} />;
 }

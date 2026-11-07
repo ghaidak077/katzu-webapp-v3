@@ -61,37 +61,27 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-06 (the path screen answers «what now»; rank lives on the profile)
+## Current snapshot — 2026-11-07 (the path is nine units; one composed session; goal-only signup)
 
-**Deployed 2026-11-06 (app; worker unchanged).** `/app/library` used to ask the learner to choose
-between a rank card, an XP strip, a timeline and a grid of oversized cards. It now has one job: a
-slim header (name, Pro badge, daily-goal ring, and a streak chip only when the streak is above zero),
-**one** full-width action «تابع: [scenario] · [N] دقائق», and a secondary 10-item review row whose
-backlog is a quiet «+120 في الانتظار» instead of a guilt count. Below it sits the only progression
-system — the CEFR journey: a level card with a ring, «N مواقف للمستوى التالي» and one ability line,
-a sticky A1/A2/B1/B2 bar (future levels dimmed, tap opens the paywall) and compact 64 px scenario
-cards with the three evidence stages (دراسة · مع مساعدة · وحدك), «التالي» and «جديد». The rank/XP
-card moved to `/app/profile`, where «800 / 1500 XP» and the bar come from one `absoluteXpProgress`
-calculation; crossing a rank is celebrated once on `/session-report`. **Proof:** `tsc` clean, new
-`trailOrdering` + `scenarioMinutes` tests, updated `v33SimplifyPolish`/`interfaceContracts`, a
-390×844 browser probe (one CTA, ≥3 cards above the fold, 130 reviews → 10, locked levels → paywall,
-XP text and bar agree), gate **VERIFY OK 15/15** (792.8 s). **Deployed:** Pages `a10ab1b7-…`
-(source `35a4363`, entry `assets/index-BVLRTDPT.js`, `/` and `katzuai.com` 200, `/sw.js` 200),
-rollback `7549eab3-…`; production smoke 2 passed / 2 skipped. Before/after screenshots for new,
-mid-progress, 130-review and zero states are in the gitignored `.tmp/trail-redesign/`.
-**Owner-open:** the four level descriptions are proposed copy and the rank placement is a choice
-(`OWNER-CHECKLIST.md` §15).
+**Local, verified; deploy pending.** `/app/library` is now one guided vertical unit path: the current unit expanded,
+the rest collapsed with «3 من 6», future units dimmed and locked, unit-sized progress («الوحدة 1 · 0 من 6»), the level
+percent ring and the exact ability lines. The 49 served conversations are partitioned into nine themed units exactly
+once, each checkpoint exam last; `scripts/audit-unit-coverage.mjs` fails the gate if a served situation is in no unit
+or in two. One button runs today's composed session — due review (max 10) → the next stage (study → with help → solo)
+→ a short free conversation set, at most three steps with total minutes. The report auto-advances after 2 s with a
+«ليس الآن» escape, repeats with help below 50 % and offers a short test-out above 85 %. Signup asks one question (the
+goal) instead of a level; a conversation offers three current-unit topics plus «فاجئني», never a level control, and
+«سهلة/مناسبة/صعبة» only moves the next step. Free sessions read «جلسة مجانية N من 3», and the paywall appears only
+between sessions. Existing learners are mapped by their completed conversation ids; level and XP are untouched.
+**Proof:** `tsc` clean, new `units` + `trailOrdering` tests, six 390×844 state screenshots in `.tmp/unit-path/`, gate
+**VERIFY OK 16/16 (795 s)**. **Deployed:** pending. **Owner-open:** approve the nine unit titles and outcome lines
+(`docs/OWNER-UNITS-REVIEW.md`, `OWNER-CHECKLIST.md` §16) and the four level lines (§15).
 
-## Previous snapshot — 2026-11-05 (every first message ships its Arabic) moved
+## Previous snapshots — 2026-11-05 (first-message Arabic; labelled report action) moved
 
-That snapshot moved verbatim to `docs/agent/ARCHIVE-PROJECT-BRIEF.md` on 2026-11-06 to stay under the
-80 KB cap (search `2026-11-05 every first message ships its Arabic`). Nothing was deleted; the live
-deploy ids stay in `docs/agent/APP-MAP.md` §9 and `docs/AGENT-STATE.md`.
-
-## Previous snapshot — 2026-11-05 (the report action is labelled) moved
-
-That snapshot moved verbatim to `docs/agent/ARCHIVE-PROJECT-BRIEF.md` on 2026-11-06 to stay under the
-80 KB cap (search `2026-11-05 the report action is labelled`). Nothing was deleted.
+Both moved verbatim to `docs/agent/ARCHIVE-PROJECT-BRIEF.md` on 2026-11-06 to stay under the 80 KB cap
+(search `2026-11-05 every first message ships its Arabic`, `2026-11-05 the report action is labelled`).
+Nothing was deleted; live deploy ids stay in `docs/agent/APP-MAP.md` §9 and `docs/AGENT-STATE.md`.
 
 ## Previous snapshot — 2026-10-31 (a later «hallo» re-asks the scene's stored opener; Latin isolated in the card)
 
@@ -368,6 +358,12 @@ Arabic-first German-learning PWA. Public demo needs no account and makes no AI c
 - **`UNPROVEN`** (V10 additions marked): the real content load · human content review (AI self-review only) · sync/crypto atomicity on the *deployed* database · the counter's insert-then-increment branch at unit level · the Trail's own Lighthouse numbers (it redirects to `/welcome` without an account) · a clean-machine Lighthouse run (this one shared the page with an anti-virus script) · visual 360/390 px and offline-recording checks · real-device voice. Now **covered** and so removed from this list: built-bundle e2e, local-D1 sync/crypto atomicity, and the Lighthouse baseline itself.
 
 ## 7. Recent changes
+
+- **Nine units, one composed session, one signup question (2026-11-07, local)** — `src/lib/units/units.ts` partitions
+  the 49 served conversations into 9 ordered units; `progress.ts` recommends the next situation, stages it, and
+  composes a ≤3-step session; `scripts/audit-unit-coverage.mjs` enforces exactly-one-unit in the gate. `/app/library`
+  is the vertical map, the report hands off to the next step, signup asks the goal only, and conversations offer unit
+  topics instead of a level. Tests `units` + `trailOrdering` **56**; six 390×844 screenshots in `.tmp/unit-path/`.
 
 - **The greeting guard now reaches the scene live, and greeting detection is typo-tolerant (2026-10-31, worker
   deployed)** — the deployed guard never saw the scene because `/ai/turn` filtered
