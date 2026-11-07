@@ -53,7 +53,7 @@ test('PRACTICE mode shows the hint and the live correction, one /ai/turn per tur
 
   // And the correction is shown live.
   await expect(page.getByText('تصحيح كَاتْزُو')).toBeVisible();
-  await expect(page.getByText('Ich möchte einen Kaffee')).toBeVisible();
+  await expect(page.getByText(/^Ich möchte einen Kaffee\.?$/)).toBeVisible();
 
   expect(aiTurn, 'exactly one chat call per typed turn').toEqual(['/ai/turn']);
 });
@@ -113,7 +113,7 @@ test('REAL mode hides every aid, still reports the mistake, and its correction i
 
   await expect(page.getByText('تصحيحات هذه الجلسة', { exact: true })).toBeVisible();
   await expect(page.getByText('Akkusativ: einen Kaffee')).toBeVisible();
-  await expect(page.getByText('Ich möchte einen Kaffee')).toBeVisible();
+  await expect(page.getByText(/^Ich möchte einen Kaffee\.?$/)).toBeVisible();
 
   // And the correction is answerable: the report's drill accepts it through the
   // review store (the item was enqueued by the REAL-mode turn).

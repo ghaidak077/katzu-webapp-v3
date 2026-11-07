@@ -177,6 +177,80 @@ export function sceneTopicReAsk(openerGerman, level = 'A1') {
 }
 
 /**
+ * Does the reply finish with a question? A closing quote after the question
+ * mark still counts; trailing whitespace never changes the verdict.
+ */
+export function replyEndsWithQuestion(text) {
+  const trimmed = String(text || '').trim().replace(/["'“”«»„]+$/g, '').trim();
+  return trimmed.endsWith('?');
+}
+
+/**
+ * The scene's own last ask, without the greeting prefix, paired with its
+ * reviewed Arabic. Used to close a reply that forgot its question without
+ * inventing a new topic. Returns null when the stored opener has no usable
+ * question at this level.
+ */
+function sceneTrailingQuestion(sceneOpener, level) {
+  const topic = sceneTopicReAsk(sceneOpener, level);
+  if (!topic) return null;
+  const deParts = splitSentences(topic.de);
+  const arParts = splitSentences(topic.ar);
+  const de = deParts[deParts.length - 1] || '';
+  const ar = arParts[arParts.length - 1] || '';
+  if (!de.endsWith('?') || !ar) return null;
+  return { de, ar };
+}
+
+/**
+ * Fixed question when no stored opener is available (mock exam, or a retired
+ * scene string). Each line is inside its level's caps and asks something the
+ * learner can answer with the vocabulary they already saw.
+ */
+const TRAILING_QUESTION = {
+  A0: { de: 'Und Sie?', ar: 'وأنت؟' },
+  A1: { de: 'Und was möchten Sie?', ar: 'وماذا تريد؟' },
+  A2: { de: 'Und was machen Sie jetzt?', ar: 'وماذا تفعل الآن؟' },
+};
+
+/**
+ * A0–A2 turn guarantee: the reply must end with exactly one short question the
+ * learner can answer, except on the final exchange (a farewell).
+ *
+ * The prompt asks for this, but prompts are not guarantees. When a model stops
+ * after its answer, this appends the SCENE'S own last question (its German and
+ * Arabic travel together) instead of spending a second model call on a repair.
+ * That is deterministic, free, and cannot drift to a new topic. A reply that
+ * already ends with a question is untouched.
+ */
+export function guardTrailingQuestion({
+  replyDe,
+  replyAr,
+  sceneOpener = '',
+  level = 'A1',
+  isFinalTurn = false,
+} = {}) {
+  const de = String(replyDe || '').trim();
+  const ar = String(replyAr || '').trim();
+  if (isFinalTurn || !de || !['A0', 'A1', 'A2'].includes(level)) {
+    return { replyDe: de, replyAr: ar, guarded: false, reason: 'not_required' };
+  }
+  if (replyEndsWithQuestion(de)) {
+    return { replyDe: de, replyAr: ar, guarded: false, reason: 'already_question' };
+  }
+  const fromScene = sceneTrailingQuestion(sceneOpener, level);
+  const question = fromScene || TRAILING_QUESTION[level];
+  const separator = /[.!?]$/.test(de) ? ' ' : '. ';
+  const arabicSeparator = ar ? ' ' : '';
+  return {
+    replyDe: `${de}${separator}${question.de}`,
+    replyAr: `${ar}${arabicSeparator}${question.ar}`.trim(),
+    guarded: true,
+    reason: fromScene ? 'appended_scene_question' : 'appended_level_question',
+  };
+}
+
+/**
  * Fixed continuation prompts, one per level — used only when no stored opener
  * can answer (a model-written later turn, or the mock exam). They invite more
  * content and never invent a question about wellbeing: «Wie geht es Ihnen?»

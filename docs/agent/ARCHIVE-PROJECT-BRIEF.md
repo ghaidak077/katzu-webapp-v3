@@ -87,3 +87,14 @@ mid-progress, 130-review and zero states are in the gitignored `.tmp/trail-redes
 **Owner-open:** the four level descriptions are proposed copy and the rank placement is a choice
 (`OWNER-CHECKLIST.md` §15).
 
+## Previous snapshot — 2026-10-31 (a later «hallo» re-asks the scene's stored opener; Latin isolated in the card)
+
+**Deployed:** worker `862087cb-…` (source `a033b19`, rollback `e3f994ef-…`), panel `e7716e26-…`, Pages
+`bc807292-…` (source `a033b19`, rollback `f4c077c6-…`) serving `index-CfqO0tha.js` →
+`AppShell-CL4Y31Jk.js` → `LiveConversationScreen-CllYR611.js`.
+- **Greeting:** `/ai/turn` now passes the stored `sceneOpener` by id + level, so a later bare `hallo` re-asks
+  the scene instead of «Wie geht es Ihnen?»; Latin runs in the card render inside `<bdi dir="ltr">`.
+- **Admin:** the content studio (drafts/publish/undo/import/backup, five additive tables, old `/admin`
+  untouched) and the Access-gated panel with five telemetry tables went live; the `17 4 * * *` cron fired
+  at 04:17:37 UTC with `outcome: ok`. Proof: `turnGuard` **104**, `adminContentManagement` **51**, gate
+  **14/14** (672.6 s). **Unproven:** signed-in turn/card, `ai_events` until a real AI turn, studio D1 behaviour.

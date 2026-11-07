@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker, { resetScenarioBeatsCache } from '../cloudflare-unified-worker';
 // @ts-expect-error — the worker is plain JS (no types), imported the way the turn route imports it.
-import { guardGreetingReply, isBareGreeting, isOffTopicSingleWord } from '../cloudflare-turn-guard.js';
+import {
+  guardGreetingReply,
+  guardTrailingQuestion,
+  isBareGreeting,
+  isOffTopicSingleWord,
+  replyEndsWithQuestion,
+} from '../cloudflare-turn-guard.js';
 // @ts-expect-error — same: the level spec twin ships as JS.
 import { validateGermanAgainstLevel } from '../cloudflare-level-spec.js';
 import { resetRouterState } from '../cloudflare-ai-router.js';
@@ -254,6 +260,79 @@ describe('the guard leaves real answers alone', () => {
       expect(out.replyAr).not.toContain('كيف حالك');
       expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
     }
+  });
+});
+
+/**
+ * FIX 4: every A0–A2 turn ends with one answerable question.
+ *
+ * The prompt asks for it, but a model that stops after its answer leaves the
+ * learner with nothing to reply. The guard appends the SCENE'S own last question
+ * (deterministic, no second model call), never a new topic. These tests pin both
+ * the rule and the `/ai/turn` wiring.
+ */
+describe('guardTrailingQuestion — the A0–A2 closing question', () => {
+  it('recognises a question even behind a closing quote or trailing space', () => {
+    expect(replyEndsWithQuestion('Was möchten Sie?')).toBe(true);
+    expect(replyEndsWithQuestion('Was möchten Sie?  ')).toBe(true);
+    expect(replyEndsWithQuestion('«Was möchten Sie?»')).toBe(true);
+    expect(replyEndsWithQuestion('Gut.')).toBe(false);
+  });
+
+  it('appends the scene’s own question when the reply stops after an answer', () => {
+    const out = guardTrailingQuestion({
+      replyDe: 'Gut.',
+      replyAr: 'حسنًا.',
+      sceneOpener: LUGGAGE_SCENES.A1,
+      level: 'A1',
+    });
+    expect(out.guarded).toBe(true);
+    expect(out.reason).toBe('appended_scene_question');
+    expect(out.replyDe).toContain(askOf(LUGGAGE_SCENES.A1));
+    expect(out.replyDe.trim().endsWith('?')).toBe(true);
+    expect(out.replyAr).toMatch(/[\u0600-\u06FF]/);
+    expect(out.replyAr.trim().endsWith('؟')).toBe(true);
+  });
+
+  it('leaves a reply that already ends with a question untouched', () => {
+    const out = guardTrailingQuestion({
+      replyDe: 'Gut. Und was möchten Sie?',
+      replyAr: 'حسنًا. وماذا تريد؟',
+      sceneOpener: LUGGAGE_SCENES.A1,
+      level: 'A1',
+    });
+    expect(out.guarded).toBe(false);
+    expect(out.reason).toBe('already_question');
+    expect(out.replyDe).toBe('Gut. Und was möchten Sie?');
+  });
+
+  it('does not add a question to the final exchange', () => {
+    const out = guardTrailingQuestion({
+      replyDe: 'Danke für das Gespräch. Auf Wiedersehen!',
+      replyAr: 'شكراً على المحادثة. إلى اللقاء!',
+      sceneOpener: LUGGAGE_SCENES.A1,
+      level: 'A1',
+      isFinalTurn: true,
+    });
+    expect(out.guarded).toBe(false);
+    expect(out.reason).toBe('not_required');
+    expect(out.replyDe).not.toContain('?');
+  });
+
+  it('does not touch B1 and B2, where a statement turn is allowed', () => {
+    for (const level of ['B1', 'B2'] as const) {
+      const out = guardTrailingQuestion({ replyDe: 'Gut.', replyAr: 'حسنًا.', level });
+      expect(out.guarded).toBe(false);
+      expect(out.replyDe).toBe('Gut.');
+    }
+  });
+
+  it('falls back to a level-safe question when no stored opener exists', () => {
+    const out = guardTrailingQuestion({ replyDe: 'Gut.', replyAr: 'حسنًا.', level: 'A0' });
+    expect(out.guarded).toBe(true);
+    expect(out.reason).toBe('appended_level_question');
+    expect(validateGermanAgainstLevel(out.replyDe, 'A0')).toEqual({ ok: true });
+    expect(out.replyAr).toMatch(/[\u0600-\u06FF]/);
   });
 });
 
@@ -570,5 +649,120 @@ describe('/ai/turn wires the guard into the reply the learner sees', () => {
     expect(body.reply_de).not.toMatch(/Wie geht es Ihnen/);
     expect(body.reply_de).toContain(askOf(LUGGAGE_SCENES.A1));
     expect(body.reply_ar).not.toContain('كيف حالك');
+  });
+
+  it('appends the scene question when the model ends its A1 turn with a statement', async () => {
+    const env: any = {
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      NVIDIA_API_KEYS: 'test-key-aaaaaaaaaa',
+      OPENROUTER_API_KEYS: 'test-key-openrouter-b',
+      USER_PROGRESS: new MemoryKv(),
+      REDEEMED_CODES: new MemoryKv(),
+      DB: emptyDb(),
+    };
+    await env.USER_PROGRESS.put(
+      'session:sess_trailing_question',
+      JSON.stringify({ sub: 'trailing-learner', email: 'trailing@test.dev', created_at: Date.now(), expires_at: Date.now() + 3600_000 }),
+    );
+
+    vi.stubGlobal('fetch', (async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  reply_de: 'Gut.',
+                  reply_ar: 'حسنًا.',
+                  evaluation: { is_correct: true, explanation_ar: 'جيد.', positive_note_ar: 'أحسنت!' },
+                  next_hint: { german: 'Danke!', translation_ar: 'شكراً!' },
+                  followup_question_ar: '',
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch);
+
+    const res = await worker.fetch(
+      new Request('https://worker.test/ai/turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_trailing_question' },
+        body: JSON.stringify({
+          scenario_id: 'airport_arrival',
+          cefr_level: 'A1',
+          user_message: 'Ich habe einen Koffer dabei.',
+          session_id: 'sess-trailing-question',
+          turn_index: 1,
+          is_final_turn: false,
+          history: [{ role: 'model', text: LUGGAGE_SCENES.A1 }],
+        }),
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.reply_de.trim().endsWith('?')).toBe(true);
+    expect(body.reply_de).toContain(askOf(LUGGAGE_SCENES.A1));
+    expect(body.reply_ar).toMatch(/[\u0600-\u06FF]/);
+  });
+
+  it('does not append a question to the final turn', async () => {
+    const env: any = {
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      NVIDIA_API_KEYS: 'test-key-aaaaaaaaaa',
+      OPENROUTER_API_KEYS: 'test-key-openrouter-b',
+      USER_PROGRESS: new MemoryKv(),
+      REDEEMED_CODES: new MemoryKv(),
+      DB: emptyDb(),
+    };
+    await env.USER_PROGRESS.put(
+      'session:sess_final_turn',
+      JSON.stringify({ sub: 'final-learner', email: 'final@test.dev', created_at: Date.now(), expires_at: Date.now() + 3600_000 }),
+    );
+    vi.stubGlobal('fetch', (async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  reply_de: 'Danke für das Gespräch. Auf Wiedersehen!',
+                  reply_ar: 'شكراً على المحادثة. إلى اللقاء!',
+                  evaluation: { is_correct: true, explanation_ar: 'جيد.', positive_note_ar: 'أحسنت!' },
+                  next_hint: { german: 'Danke!', translation_ar: 'شكراً!' },
+                  followup_question_ar: '',
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch);
+
+    const res = await worker.fetch(
+      new Request('https://worker.test/ai/turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_final_turn' },
+        body: JSON.stringify({
+          scenario_id: 'airport_arrival',
+          cefr_level: 'A1',
+          user_message: 'Danke, auf Wiedersehen.',
+          session_id: 'sess-final-turn',
+          turn_index: 8,
+          is_final_turn: true,
+          history: [{ role: 'model', text: LUGGAGE_SCENES.A1 }],
+        }),
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.reply_de).not.toContain('?');
   });
 });

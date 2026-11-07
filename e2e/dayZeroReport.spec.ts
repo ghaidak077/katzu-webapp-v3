@@ -159,7 +159,7 @@ test('the first finished conversation is a finish line — celebration, one acti
   await expect(page.getByRole('button', { name: 'مشهد آخر الآن' })).toBeVisible();
   await expect(page.getByText('جُمل نطقتها بلا مساعدة')).toBeVisible();
   await expect(page.getByText('أثبّت الصيغة الصحيحة — أعد كتابتها مرة واحدة الآن')).toBeVisible();
-  await expect(page.getByText('Ich möchte ein Kaffee')).toBeVisible();
+  await expect(page.getByText('Ich möchte einen Kaffee bitte', { exact: true })).toBeVisible();
   await expect(page.getByText(PRO_OFFER_TITLE)).toBeVisible();
   await expect(page.getByRole('button', { name: 'تفاصيل Pro' })).toBeVisible();
 

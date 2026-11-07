@@ -24,6 +24,8 @@ import { enqueueDailyEvent, sessionEventId } from '@/lib/progress/dailyAuthority
 import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
+import { checkGerman, correctionNoteAr, mergeAiCorrection } from '@/lib/conversation/germanChecker';
+import { suggestionFitsContext } from '@/lib/conversation/suggestionGuard';
 import { lookupWord } from '@/lib/vocabulary/wordGloss';
 import { logAiCallTotals, resetAiCallMeter } from '@/lib/ai/aiCallMeter';
 import { sessionTurnCap } from '@/lib/conversation/turnPlan';
@@ -793,6 +795,13 @@ export function useLiveConversation({
     setInputText('');
     if (voice.isRecording) voice.stop();
 
+    // The deterministic check runs FIRST, on this device, before any model call.
+    // It owns every error it can prove (noun capitalisation, sentence start,
+    // greeting comma, ie/ei and ß/ss, article, V2) and produces the FULL corrected
+    // sentence plus one Arabic reason per error. The model's evaluation is then a
+    // fallback for anything the rules cannot classify, never an override.
+    const localCheck = checkGerman(text, effectiveLevel);
+
     const wasHintUsed = isHintUsedForCurrentTurn;
     setIsHintUsedForCurrentTurn(false);
 
@@ -858,22 +867,46 @@ export function useLiveConversation({
           : {}),
       });
 
-      // 3. Form Katzu reply with pedagogical evaluation embedded
+      // 3. Form Katzu reply with pedagogical evaluation embedded.
+      //
+      // The local checker wins for every error it proves; the model's fragment is
+      // rebuilt into a full sentence and used only for what the rules missed. A
+      // reply to a wrong sentence is never a reply to a "correct" one: spelling
+      // and capitalisation first, feedback after.
+      const aiFullSentence =
+        res.isCorrect === false
+          ? mergeAiCorrection(text, res.mistakeSegment, res.correctedSegment)
+          : null;
+      const aiChanged = Boolean(aiFullSentence && aiFullSentence.trim() !== text.trim());
+      const hasCorrection = localCheck.errors.length > 0 || aiChanged;
+      const correctedSentence =
+        localCheck.errors.length > 0 ? localCheck.corrected : aiFullSentence || '';
+      const correctionErrors = localCheck.errors;
+      const errorCount = correctionErrors.length > 0 ? correctionErrors.length : hasCorrection ? 1 : 0;
+
       const katzuReply: ChatMessage = {
         id: `ktz_${Date.now()}`,
         sender: 'KATZU',
         germanText: res.germanReply,
         arabicTranslation: res.arabicTranslation,
         followupAr: res.followupAr || undefined,
-        hasCorrection: res.isCorrect === false,
-        originalMistake: res.mistakeSegment,
-        correctedGerman: res.correctedSegment,
-        grammarRule: res.grammarRule,
+        hasCorrection,
+        // The card shows the learner's WHOLE sentence and the WHOLE corrected
+        // sentence — never the broken fragment the model returned.
+        originalMistake: hasCorrection ? text : res.mistakeSegment,
+        correctedGerman: hasCorrection ? correctedSentence || res.correctedSegment : res.correctedSegment,
+        correctedSentence: hasCorrection ? correctedSentence || undefined : undefined,
+        correctionErrors: correctionErrors.length > 0 ? correctionErrors : undefined,
+        grammarRule: correctionErrors[0]?.label || res.grammarRule,
         grammarId: res.grammarId,
         grammarReference: res.grammarReference,
-        explanationAr: res.explanationAr,
+        explanationAr: correctionErrors.length > 0 ? undefined : res.explanationAr,
         roastComment: res.roastComment,
-        positiveNoteAr: res.positiveNoteAr,
+        // «أحسنت المحاولة!» belongs only to a fully correct sentence. A wrong one
+        // gets the neutral, countable line instead of praise it did not earn.
+        positiveNoteAr: hasCorrection
+          ? correctionNoteAr(errorCount)
+          : res.positiveNoteAr || 'أحسنت!',
         timestamp: Date.now(),
       };
 
@@ -908,14 +941,16 @@ export function useLiveConversation({
       setSpeakingId(katzuReply.id);
       speak(res.germanReply);
 
-      // Save mistake to database if an error occurred
-      if (res.isCorrect === false && res.mistakeSegment && res.correctedSegment) {
+      // Save mistake to database if an error occurred. The stored pair is the
+      // learner's whole sentence and the whole corrected sentence, so review and
+      // the end-of-session report show the same thing the card showed.
+      if (hasCorrection && correctedSentence) {
         const mistake = {
           userId: 'current_user',
           scenarioId,
-          original: res.mistakeSegment,
-          corrected: res.correctedSegment,
-          grammarRule: res.grammarRule || 'قواعد نحوية',
+          original: text,
+          corrected: correctedSentence,
+          grammarRule: correctionErrors[0]?.label || res.grammarRule || 'قواعد نحوية',
           grammarId: res.grammarId,
           grammarReference: res.grammarReference,
           roastComment: res.roastComment,
@@ -1051,10 +1086,29 @@ export function useLiveConversation({
     }
     return null;
   }, [messages]);
-  const visibleHints = useMemo(
-    () => (realMode ? [] : rankHintFloor(currentHints.length > 0 ? currentHints : starterHints, lastAssistantGerman)),
-    [realMode, currentHints, starterHints, lastAssistantGerman],
-  );
+  const lastUserGerman = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.sender === 'USER') return message.germanText;
+    }
+    return null;
+  }, [messages]);
+  /**
+   * Rank, then VALIDATE. A stored café phrase is a legitimate line only while the
+   * conversation is about the café; after «Ich liebe meine Katze» it is a
+   * non-answer. The guard also drops a model hint that answers nothing when the
+   * last line is a question. An empty list is honest — the sheet says so and the
+   * refresh path can load a fresh, contextual set.
+   */
+  const visibleHints = useMemo(() => {
+    if (realMode) return [];
+    const ranked = rankHintFloor(
+      currentHints.length > 0 ? currentHints : starterHints,
+      lastAssistantGerman,
+    );
+    const context = [lastAssistantGerman, lastUserGerman, scenario?.title_de, scenario?.title_ar];
+    return ranked.filter((hint) => suggestionFitsContext(hint.german, context));
+  }, [realMode, currentHints, starterHints, lastAssistantGerman, lastUserGerman, scenario?.title_de, scenario?.title_ar]);
 
   const [isRefreshingHints, setIsRefreshingHints] = useState(false);
   /**

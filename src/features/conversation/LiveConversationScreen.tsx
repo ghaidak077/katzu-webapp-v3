@@ -428,6 +428,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                   />
                 ))}
               </div>
+              {/* The dashes alone are unlabelled decoration to a learner; the
+                  count says what they mean. */}
+              <span data-testid="round-progress-label" className="kz-ar-micro shrink-0 text-kz-inkFaint">
+                {Math.min(userTurnsCount + 1, targetTurns)}/{targetTurns}
+              </span>
               <span
                 data-testid="level-chip"
                 className="kz-de-caption shrink-0 rounded-full border border-white/10 px-1.5 font-german font-bold text-kz-lavender"

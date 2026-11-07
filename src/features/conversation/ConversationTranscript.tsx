@@ -100,7 +100,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
         ref={setRef}
         onScroll={handleScroll}
         data-testid="conversation-transcript"
-        className="h-full space-y-3 overflow-y-auto px-4 py-3"
+        className="h-full space-y-3 overflow-y-auto px-4 pb-20 pt-3"
       >
         {messages.map((msg, index) => {
           // The correction rides the reply the worker returned, but it belongs to

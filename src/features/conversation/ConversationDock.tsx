@@ -307,7 +307,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           {isHintRevealed && hintBank.length > 0 && (
             <div data-testid="word-bank" dir="ltr" className="mt-3">
               <span className="kz-ar-micro mb-1 block text-kz-inkFaint">
-                هذه كلمات الجملة بالترتيب — اضغط لتبني جملتك بنفسك
+                رتّب الكلمات لتبني الجملة
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {hintBank.map((word, wordIndex) => (

@@ -28,7 +28,7 @@ import {
   normaliseMockPartIndex,
 } from "./cloudflare-mock-exam.js";
 import { beatsInstruction } from "./cloudflare-conversation-beats.js";
-import { guardGreetingReply, openerForLevel } from "./cloudflare-turn-guard.js";
+import { guardGreetingReply, guardTrailingQuestion, openerForLevel } from "./cloudflare-turn-guard.js";
 import { isEasyTurn, PROVIDER_POOL, estimateTurnCostUsd } from "./cloudflare-ai-router.js";
 
 /** char/4 token estimate — the same estimator `scripts/measure-turn-cost.mjs` uses. */
@@ -132,6 +132,7 @@ CONVERSATION RULES:
 - The learner's LAST message is the one you are answering. Answer THAT, not an earlier line, and never restate their sentence back as your reply.
 - react to what the learner ACTUALLY just said — answer their question, comment on their statement, build on it. Never reply with a generic pleasance.
 - Keep reply_de to 1-2 short sentences that feel like real spoken German.
+- END WITH ONE QUESTION: at A0–A2 every reply_de must finish with exactly ONE short question the learner can answer using words this conversation has already introduced. Ask it about the scene's own goal (name, drink, luggage, appointment, price) — never about a new topic, and never two questions in one turn. If the learner introduced a topic, follow that topic; do not invent cats, pets or hobbies they did not mention. On the final exchange, give the farewell and no question.
 ${brevity}
 Return:
 - reply_de: your natural German reply, in character, at CEFR level ${level}. Plain sentence only — never prefix it with field labels.
@@ -150,7 +151,7 @@ FIELD RULES — the learner reads these, so they have to be short and in the rig
 - grammar_rule: a SHORT ARABIC label of 3-7 words naming the rule (e.g. "ترتيب الكلمات: الفعل في الموضع الثاني"). Never English — it is shown to an Arabic speaker as a chip, not explained.
 - explanation_ar: one or two short Arabic sentences explaining the fix.
 - roast_comment: one playful Arabic line about German grammar; empty when is_correct is true.
-- positive_note_ar: one short encouraging Arabic line, always present.
+- positive_note_ar: one short encouraging Arabic line, ONLY when is_correct is true; leave it empty when is_correct is false (a wrong sentence gets the neutral correction note, never praise).
 ${brevity}
 Keep the whole JSON under ~350 tokens: the learner is waiting, and a longer answer risks being cut off mid-sentence.`;
 
@@ -526,6 +527,28 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
           if (candidate?.reply_de && validateGermanAgainstLevel(candidate.reply_de, level).ok) repaired = candidate;
         } catch {}
         parsed = repaired || { ...parsed, reply_de: levelFallbackLine(level).de, reply_ar: levelFallbackLine(level).ar };
+      }
+    }
+    // A0–A2 turn guarantee: every reply except the farewell ends with ONE short
+    // answerable question. This is enforced after the level gate so a repaired
+    // or fallback line is covered too. No repair call: the scene's own stored
+    // question (German + Arabic together) is appended deterministically, so the
+    // turn costs nothing extra and cannot drift to a topic nobody introduced.
+    if (parsed?.reply_de) {
+      const trailingGuard = guardTrailingQuestion({
+        replyDe: parsed.reply_de,
+        replyAr: parsed.reply_ar,
+        sceneOpener: inMockExam ? "" : openerForLevel(scenarioIdentity.openers, level),
+        level,
+        isFinalTurn: is_final_turn,
+      });
+      if (trailingGuard.guarded) {
+        parsed = { ...parsed, reply_de: trailingGuard.replyDe, reply_ar: trailingGuard.replyAr };
+        try {
+          console.log(JSON.stringify({ event: "ai_turn_trailing_question", reason: trailingGuard.reason, level }));
+        } catch {
+          /* logging must never fail a turn */
+        }
       }
     }
     // Sanitize every string field — a model echoing schema labels ("reply_de: ...")

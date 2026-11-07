@@ -605,7 +605,8 @@ describe('/ai/turn refuses unusable model output', () => {
       '{"reply_de":"Ja, gerne! Kommen Sie mit.","reply_ar":"نعم، بكل سرور! تفضل معي.","evaluation":{"is_correct":false,"corrected_german":"Ja, gerne!","original_mistake":"Jaja","grammar_rule":"التصريف","explanation_ar":"قل: نعم بكل سرور';
     const { res, body } = await runTurn(raw, 'cut-after-grade');
     expect(res.status).toBe(200);
-    expect(body.reply_de).toBe('Ja, gerne! Kommen Sie mit.');
+    expect(body.reply_de.startsWith('Ja, gerne! Kommen Sie mit.')).toBe(true);
+    expect(body.reply_de.endsWith('?')).toBe(true);
     expect(body.evaluation.is_correct).toBe(false);
     expect(body.evaluation.corrected_german).toBe('Ja, gerne!');
   });
@@ -748,7 +749,7 @@ describe('AI persona rules (RC-3)', () => {
     const prompt = await promptFor('cafe_order', 'rc3_gentle');
     expect(prompt).toContain('never mocking the learner');
     expect(prompt).toContain('staying encouraging');
-    expect(prompt).toContain('positive_note_ar: one short encouraging Arabic line, always present');
+    expect(prompt).toContain('positive_note_ar: one short encouraging Arabic line, ONLY when is_correct is true');
   });
 
   it('refuses real medical, legal and immigration advice in professional scenarios', async () => {
@@ -944,8 +945,9 @@ describe('level enforcement on /ai/turn (V21 Phase 1, e2e-pinned here)', () => {
 
     expect(res.status).toBe(200);
     const body = await res.json() as any;
-    expect(body.reply_de).toBe('Ich verstehe. Wir üben weiter.');
-    expect(body.reply_ar).toBe('فهمت. نكمل التدريب.');
+    expect(body.reply_de.startsWith('Ich verstehe. Wir üben weiter.')).toBe(true);
+    expect(body.reply_de.endsWith('?')).toBe(true);
+    expect(body.reply_ar.startsWith('فهمت. نكمل التدريب.')).toBe(true);
   });
 });
 

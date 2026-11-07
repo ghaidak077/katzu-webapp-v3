@@ -3,6 +3,7 @@ import { Languages, RefreshCw, Snail, Volume2, Flag } from 'lucide-react';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { correctionCardCopy } from '@/lib/conversation/correctionWording';
+import { diffSentences } from '@/lib/conversation/germanDiff';
 import { activeWordIndex, speechSegments } from '@/lib/speech/wordHighlight';
 import type { ChatMessage } from '@/types/models';
 
@@ -128,6 +129,17 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
     : { label: '', explanationAr: '' };
   const ruleLabel = correctionCopy.label;
   const hasCorrection = Boolean(correctionMessage?.correctedGerman);
+  // The full sentence is what the learner must be able to re-read: the old card
+  // showed only the broken fragment, so a multi-word or capitalisation error had
+  // no sentence around it. `correctedSentence` is the whole corrected line; the
+  // learner's side is their own bubble text.
+  const learnerSentence = correctionMessage?.originalMistake || message.germanText;
+  const correctedSentence = correctionMessage?.correctedSentence || correctionMessage?.correctedGerman || '';
+  const structuredErrors = correctionMessage?.correctionErrors ?? [];
+  const sentenceDiff = useMemo(
+    () => diffSentences(learnerSentence, correctedSentence),
+    [learnerSentence, correctedSentence],
+  );
 
   return (
     <article
@@ -297,28 +309,66 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
             </div>
 
             <div className="mt-2.5 space-y-2.5">
-              {(correctionMessage.originalMistake || correctionMessage.correctedGerman) && (
+              {(learnerSentence || correctedSentence) && (
                 <div className="space-y-1.5">
-                  {correctionMessage.originalMistake && (
+                  {learnerSentence && (
                     <div className="flex items-baseline gap-2.5">
                       <span className="kz-ar-micro w-11 shrink-0 text-kz-inkDim">قلت</span>
-                      <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-right text-kz-inkDim line-through">
-                        {correctionMessage.originalMistake}
+                      <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-right text-status-error/80">
+                        {sentenceDiff.from.map((segment, index) =>
+                          segment.changed ? (
+                            <mark
+                              key={`from-${index}`}
+                              className="rounded-sm bg-status-error/15 font-semibold text-status-error underline decoration-status-error/60 decoration-2 underline-offset-2"
+                            >
+                              {segment.text}
+                            </mark>
+                          ) : (
+                            <React.Fragment key={`from-${index}`}>{segment.text}</React.Fragment>
+                          ),
+                        )}
                       </GermanText>
                     </div>
                   )}
-                  {correctionMessage.correctedGerman && (
+                  {correctedSentence && (
                     <div className="flex items-baseline gap-2.5">
                       <span className="kz-ar-micro w-11 shrink-0 text-kz-inkDim">الصحيح</span>
                       <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-right font-semibold text-status-success">
-                        {correctionMessage.correctedGerman}
+                        {sentenceDiff.to.map((segment, index) =>
+                          segment.changed ? (
+                            <mark
+                              key={`to-${index}`}
+                              className="rounded-sm bg-status-success/15 font-bold text-status-success"
+                            >
+                              {segment.text}
+                            </mark>
+                          ) : (
+                            <React.Fragment key={`to-${index}`}>{segment.text}</React.Fragment>
+                          ),
+                        )}
                       </GermanText>
                     </div>
                   )}
                 </div>
               )}
 
-              {ruleLabel && (
+              {/* Every error the local checker found, each with its own rule chip
+                  and one-line Arabic reason. One correction per line, in the order
+                  the learner must fix them (meaning → grammar → spelling → cap.). */}
+              {structuredErrors.length > 0 && (
+                <ul className="space-y-1.5" data-testid="correction-errors">
+                  {structuredErrors.map((error, index) => (
+                    <li key={`${error.category}-${index}`} className="flex flex-wrap items-baseline gap-1.5">
+                      <span className="kz-ar-micro inline-block max-w-full rounded-chip border border-kz-line bg-white/5 px-2.5 py-0.5 font-semibold text-kz-inkDim">
+                        <bdi dir="ltr">{error.label}</bdi>
+                      </span>
+                      <span className="kz-ar-micro min-w-0 flex-1 text-kz-inkDim">{error.reasonAr}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {structuredErrors.length === 0 && ruleLabel && (
                 <span className="kz-ar-micro inline-block max-w-full rounded-chip border border-kz-line bg-white/5 px-2.5 py-0.5 text-kz-inkDim">
                   <bdi dir="auto">{ruleLabel}</bdi>
                 </span>
@@ -333,7 +383,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 </div>
               )}
 
-              {correctionCopy.explanationAr && (
+              {structuredErrors.length === 0 && correctionCopy.explanationAr && (
                 <p className="kz-ar-caption leading-relaxed text-kz-inkDim">{isolateLatin(correctionCopy.explanationAr)}</p>
               )}
 
@@ -345,7 +395,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                   visible strings. The model's own Arabic quote is free text and
                   measured to contradict it («حرف l مضعّف» under a capitalisation
                   chip), so it is only shown when there is no chip. */}
-              {correctionMessage.roastComment && !ruleLabel && (
+              {correctionMessage.roastComment && !ruleLabel && structuredErrors.length === 0 && (
                 <p className="kz-ar-micro border-s border-kz-line ps-2.5 text-kz-inkFaint">
                   «{correctionMessage.roastComment}»
                 </p>

@@ -25,7 +25,7 @@ async function sendTurns(page: Page, count: number): Promise<void> {
     await expect(input).toHaveValue('');
   }
   // The last reply is the signal that the final turn landed.
-  await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?').last()).toBeVisible();
+  await expect(page.getByText('Die Kaution beträgt drei Monatsmieten. Möchten Sie noch etwas?').last()).toBeVisible();
 }
 
 function intersects(a: { x: number; y: number; width: number; height: number }, b: typeof a): boolean {
@@ -93,7 +93,15 @@ test('the transcript ends above the dock, with the suggestion panel open', async
         hints: [{ german: 'Ist die Kaution verhandelbar?', translation_ar: 'هل يمكن التفاوض على مبلغ التأمين؟' }],
       }),
       turn({ reply_de: 'Sehr gern. Möchten Sie noch etwas?' }),
-      turn({ reply_de: 'Sehr gern. Möchten Sie noch etwas?' }),
+      turn({
+        reply_de: 'Die Kaution beträgt drei Monatsmieten. Möchten Sie noch etwas?',
+        hints: [
+          {
+            german: 'Ich möchte über die Kaution sprechen.',
+            translation_ar: 'أريد التحدث عن مبلغ التأمين.',
+          },
+        ],
+      }),
     ],
   });
 
@@ -111,7 +119,7 @@ test('the transcript ends above the dock, with the suggestion panel open', async
   // And with the on-demand suggestion revealed — the pill that covered the same
   // bubble in the report.
   await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
-  await expect(page.getByText('Ist die Kaution verhandelbar?')).toBeVisible();
+  await expect(page.getByText('Ich möchte über die Kaution sprechen.')).toBeVisible();
   await assertNothingIsCovered(page);
 });
 

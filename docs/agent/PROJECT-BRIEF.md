@@ -61,7 +61,25 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
+## Current snapshot — 2026-11-07 (live chat: rule-first corrections, honest hints, question-bounded turns)
+
+**Local batch; gate green.** A wrong sentence is now corrected on the
+device before the model is asked: the deterministic checker (`src/lib/conversation/germanChecker.ts`) catches meaning
+traps (Gift ≠ Geschenk, bekommen ≠ werden), noun and proper-name capitals, sentence-start capitals, the greeting comma,
+ie/ei, ß/ss, article gender/case/possessive, mass nouns, plural hints and question punctuation. The card shows the
+learner's FULL sentence and the FULL corrected sentence with red/green character marks, then one chip and one short
+Arabic reason per error, in the order meaning → grammar → spelling → capitalisation. Its lexicon is generated from the
+shipped content snapshot plus a curated supplement (`npm run build:lexicon`; 305 nouns / 585 words). The model is a
+fallback only, its sentence is merged into the learner's whole line, and «أحسنت» appears only when the sentence is
+correct. Suggestions must answer the last AI line: hints whose topic anchor is absent from the conversation are
+dropped, a question demands an answer-shaped line, and the sheet says «رتّب الكلمات لتبني الجملة». Every A0–A2 worker
+turn that arrives without a question gets one deterministic scene question appended, so the closing step is reachable
+in bounded turns. The card sits above the composer at 390×844 and the header dashes carry the `N/M` label.
+**Proof:** gate **VERIFY OK 16/16 in 762 s** (`--ci --e2e`); full suite **2829 tests**; `germanCheckerGolden` 141,
+`suggestionGuard` 9, `germanDiff` 6, plus the turnGuard route tests. Before/after 390×844 screenshots are in the
+gitignored `.tmp`; nothing is claimed about a signed-in production turn.
+
+## Previous snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
 
 **Deployed and verified.** `/app/library` is one guided vertical unit path: the current unit expanded,
 the rest collapsed with «3 من 6», future units dimmed and locked, units below the placement level open and marked «تخطّيتَ»,
@@ -84,18 +102,7 @@ unit coverage **49/49 across 10 units**, gate **VERIFY OK 16/16 (896.5 s)** with
 Both moved verbatim to `docs/agent/ARCHIVE-PROJECT-BRIEF.md` on 2026-11-06 to stay under the 80 KB cap
 (search `2026-11-05 every first message ships its Arabic`, `2026-11-05 the report action is labelled`).
 Nothing was deleted; live deploy ids stay in `docs/agent/APP-MAP.md` §9 and `docs/AGENT-STATE.md`.
-
-## Previous snapshot — 2026-10-31 (a later «hallo» re-asks the scene's stored opener; Latin isolated in the card)
-
-**Deployed:** worker `862087cb-…` (source `a033b19`, rollback `e3f994ef-…`), panel `e7716e26-…`, Pages
-`bc807292-…` (source `a033b19`, rollback `f4c077c6-…`) serving `index-CfqO0tha.js` →
-`AppShell-CL4Y31Jk.js` → `LiveConversationScreen-CllYR611.js`.
-- **Greeting:** `/ai/turn` now passes the stored `sceneOpener` by id + level, so a later bare `hallo` re-asks
-  the scene instead of «Wie geht es Ihnen?»; Latin runs in the card render inside `<bdi dir="ltr">`.
-- **Admin:** the content studio (drafts/publish/undo/import/backup, five additive tables, old `/admin`
-  untouched) and the Access-gated panel with five telemetry tables went live; the `17 4 * * *` cron fired
-  at 04:17:37 UTC with `outcome: ok`. Proof: `turnGuard` **104**, `adminContentManagement` **51**, gate
-  **14/14** (672.6 s). **Unproven:** signed-in turn/card, `ai_events` until a real AI turn, studio D1 behaviour.
+The 2026-10-31 greeting/admin snapshot moved 2026-11-07.
 
 ## Previous snapshot — 2026-10-30 (word cards cost zero AI calls, openers are instant, «hallo» gets a re-ask)
 

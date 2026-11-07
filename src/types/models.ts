@@ -480,6 +480,20 @@ export interface ChatMessage {
   hasCorrection?: boolean;
   originalMistake?: string;
   correctedGerman?: string;
+  /**
+   * Every error the LOCAL checker found, in fix order (meaning → grammar →
+   * spelling → capitalisation). Each carries its own German chip label and
+   * Arabic reason, so the card can explain all of them instead of one fragment.
+   */
+  correctionErrors?: Array<{
+    category: 'meaning' | 'grammar' | 'spelling' | 'capitalisation';
+    label: string;
+    reasonAr: string;
+    from: string;
+    to: string;
+  }>;
+  /** The learner's whole sentence after every correction (not just the broken part). */
+  correctedSentence?: string;
   roastComment?: string;
   grammarRule?: string;
   /** Exact grammar row Guided Practice selected, when it was part of this episode. */
