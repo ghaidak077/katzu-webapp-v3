@@ -63,7 +63,7 @@ production data was touched by that vetting run.
 
 ## Current snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
 
-**Local, verified; deploy pending in this batch.** `/app/library` is one guided vertical unit path: the current unit expanded,
+**Deployed and verified.** `/app/library` is one guided vertical unit path: the current unit expanded,
 the rest collapsed with «3 من 6», future units dimmed and locked, units below the placement level open and marked «تخطّيتَ»,
 unit-sized progress («الوحدة 1 · 0 من 6»), the level percent ring and the exact ability lines. The 49 served conversations are
 partitioned into the owner's ten units exactly once, each checkpoint last; `scripts/audit-unit-coverage.mjs` fails the gate if a
@@ -75,8 +75,9 @@ report auto-advances after 2 s with a «ليس الآن» escape, repeats with h
 Signup asks one question (the goal) instead of a level; a conversation offers three current-unit topics plus «فاجئني», never a
 level control. Free sessions read «جلسة مجانية N من 3», and the paywall appears only between sessions. Existing learners are mapped
 by their completed conversation ids; level and XP are untouched. **Proof:** `tsc` clean, `units` + `trailOrdering` **58 passed**,
-unit coverage **49/49 across 10 units**, gate **VERIFY OK 16/16 (896.5 s)** with `--ci --e2e`. **Worker:** unchanged. **Owner-open:**
-the four level lines (§15).
+unit coverage **49/49 across 10 units**, gate **VERIFY OK 16/16 (896.5 s)** with `--ci --e2e`. **Deployed:** Pages `5c63e575-…` (source `19b431a`, entry
+`assets/index-BnLPxd6G.js`, `/` and `katzuai.com` 200, `/sw.js` 200, smoke 2/2; rollback `b914e4ba-…`); worker unchanged
+`e98031d5-…`. **Owner-open:** the four level lines (§15).
 
 ## Previous snapshots — 2026-11-05 (first-message Arabic; labelled report action) moved
 
