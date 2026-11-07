@@ -26,6 +26,14 @@ import { classifyTurnError, conversationReducer, initialConversationState, isTur
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
 import { checkGerman, correctionNoteAr, mergeAiCorrection } from '@/lib/conversation/germanChecker';
 import { suggestionFitsContext } from '@/lib/conversation/suggestionGuard';
+import {
+  answerHintsFor,
+  classifyQuestion,
+  filterCleanHints,
+  GENERIC_SAFE_FAMILY,
+  REPEAT_FAMILY,
+} from '@/lib/conversation/answerBank';
+import { firstNameOf } from '@/lib/debrief/examCard';
 import { lookupWord } from '@/lib/vocabulary/wordGloss';
 import { logAiCallTotals, resetAiCallMeter } from '@/lib/ai/aiCallMeter';
 import { sessionTurnCap } from '@/lib/conversation/turnPlan';
@@ -614,8 +622,10 @@ export function useLiveConversation({
     resetAiCallMeter();
     track('conversation_started', { scenarioId, kind: sessionMode });
 
-    // Load cached starter phrases as initial hints (never in REAL mode).
-    if (sessionMode !== 'real') void loadStarterHints();
+    // Load cached starter phrases as the contextual floor in every mode. The
+    // floor is no longer suppressed in a real conversation: suppressing it made
+    // the hint sheet EMPTY after a normal A1 question (measured baseline).
+    void loadStarterHints();
 
     return () => {
       if (autoRetryTimer) clearTimeout(autoRetryTimer);
@@ -889,7 +899,9 @@ export function useLiveConversation({
         sender: 'KATZU',
         germanText: res.germanReply,
         arabicTranslation: res.arabicTranslation,
-        followupAr: res.followupAr || undefined,
+        // No model-authored 💬 follow-up. A deterministic scene question is
+        // already appended to the reply by the worker's trailing-question guard,
+        // so a second, model-chosen question was the off-topic line learners saw.
         hasCorrection,
         // The card shows the learner's WHOLE sentence and the WHOLE corrected
         // sentence — never the broken fragment the model returned.
@@ -907,6 +919,9 @@ export function useLiveConversation({
         positiveNoteAr: hasCorrection
           ? correctionNoteAr(errorCount)
           : res.positiveNoteAr || 'أحسنت!',
+        // A missing final «.» or «?» is not a correction and never changes the
+        // learner's sentence; it is only an optional note.
+        softNoteAr: localCheck.softNoteAr,
         timestamp: Date.now(),
       };
 
@@ -964,14 +979,17 @@ export function useLiveConversation({
       }
 
       // The turn response already carries ONE context-aware hint (same AI
-      // call as the reply — no extra network round-trip). Fall back to the
-      // starter-phrase floor when the model didn't provide one. The pill
-      // re-arms so each new turn offers a fresh on-demand suggestion.
-      if (realMode) {
-        setCurrentHints([]);
-      } else if (res.hints && res.hints.length > 0) {
-        setCurrentHints(res.hints);
-        logEvent('hints', `Embedded hint loaded (${res.hints.length})`);
+      // call as the reply — no extra network round-trip). The static answer
+      // bank is layered on top of it in `visibleHints`, so the sheet answers
+      // the question on screen even when this list is empty.
+      if (res.hints && res.hints.length > 0) {
+        const cleanHints = filterCleanHints(res.hints);
+        if (cleanHints.length > 0) {
+          setCurrentHints(cleanHints);
+          logEvent('hints', `Embedded hint loaded (${cleanHints.length})`);
+        } else {
+          void loadStarterHints();
+        }
       } else {
         void loadStarterHints();
       }
@@ -1101,14 +1119,42 @@ export function useLiveConversation({
    * refresh path can load a fresh, contextual set.
    */
   const visibleHints = useMemo(() => {
-    if (realMode) return [];
+    // Every hint must pass the local corrector unchanged: an offer the app
+    // would "correct" the moment the learner sends it is a trap, not help.
+    const clean = (hints: ContextualHint[]) => filterCleanHints(hints);
+
+    // A question on screen gets its direct answer FIRST, from the static bank.
+    const bank = answerHintsFor(lastAssistantGerman, {
+      learnerName: firstNameOf(user?.displayName),
+      level: effectiveLevel,
+    });
+    const matched = classifyQuestion(lastAssistantGerman) !== null;
+
     const ranked = rankHintFloor(
       currentHints.length > 0 ? currentHints : starterHints,
       lastAssistantGerman,
     );
     const context = [lastAssistantGerman, lastUserGerman, scenario?.title_de, scenario?.title_ar];
-    return ranked.filter((hint) => suggestionFitsContext(hint.german, context));
-  }, [realMode, currentHints, starterHints, lastAssistantGerman, lastUserGerman, scenario?.title_de, scenario?.title_ar]);
+    const contextual = ranked.filter((hint) => suggestionFitsContext(hint.german, context));
+
+    const isRepeat = (german: string) => REPEAT_FAMILY.some((hint) => hint.german === german);
+    // A matched question leads with its own answers; an unmatched one keeps the
+    // model's contextual hint when it is clean, and the honest safe family always
+    // closes the sheet — the "didn't understand / please repeat" lines go LAST.
+    const direct = matched ? bank.filter((hint) => !isRepeat(hint.german)) : [];
+    const trailing = matched ? bank.filter((hint) => isRepeat(hint.german)) : bank;
+    const seen = new Set<string>();
+    const merged = clean([...direct, ...contextual, ...trailing]).filter((hint) => {
+      const key = hint.german.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    // The sheet is never empty: when nothing contextual survives, the generic
+    // safe family still gives the learner something they can say.
+    if (merged.length > 0) return merged.slice(0, 6);
+    return clean(GENERIC_SAFE_FAMILY.map((hint) => ({ ...hint })));
+  }, [currentHints, starterHints, user?.displayName, lastAssistantGerman, lastUserGerman, scenario?.title_de, scenario?.title_ar]);
 
   const [isRefreshingHints, setIsRefreshingHints] = useState(false);
   /**
@@ -1137,8 +1183,13 @@ export function useLiveConversation({
           void loadStarterHints();
           logEvent('hints', 'daily hint budget spent — showing the starter floor');
         } else if (fresh.length > 0) {
-          setCurrentHints(fresh);
-          logEvent('hints', `Hints refreshed manually (${fresh.length})`);
+          const cleanFresh = filterCleanHints(fresh);
+          if (cleanFresh.length > 0) {
+            setCurrentHints(cleanFresh);
+            logEvent('hints', `Hints refreshed manually (${cleanFresh.length})`);
+          } else {
+            void loadStarterHints();
+          }
         } else {
           void loadStarterHints();
         }

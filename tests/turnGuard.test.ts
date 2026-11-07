@@ -198,6 +198,39 @@ describe('every shipped scene answers a bare greeting with its own question', ()
   });
 });
 
+/**
+ * Cross-scenario isolation (requirement 5).
+ *
+ * The appended question must come from the CURRENT scenario's own stored opener.
+ * A café line («Möchten Sie einen Tee?») in a greetings or doctor scene is the
+ * exact defect the owner reported, so the guard is checked against the topics
+ * where a stray drink question would be most obviously wrong.
+ */
+describe('the appended question comes from the current scene only', () => {
+  const cases = ['first_greetings', 'doctor_visit', 'airport_arrival'] as const;
+
+  it.each(cases)('%s re-asks its own question and never a café line', (id) => {
+    const scenario = scenarioById(id);
+    for (const level of ['A0', 'A1', 'A2'] as const) {
+      const opener = scenario.openers[LEVEL_TO_KEY[level]][0];
+      const out = guardTrailingQuestion({
+        replyDe: 'Gut.',
+        replyAr: 'حسنًا.',
+        sceneOpener: opener,
+        level,
+      });
+      expect(out.guarded, `${id}/${level}`).toBe(true);
+      expect(out.reason, `${id}/${level}`).toBe('appended_scene_question');
+      expect(out.replyDe, `${id}/${level}`).toContain(askOf(opener));
+      // No other scenario's vocabulary leaks into this one.
+      for (const leaked of ['Tee', 'Kaffee', 'Kuchen', 'Gepäck', 'Koffer', 'Rezept']) {
+        if (opener.includes(leaked)) continue;
+        expect(out.replyDe, `${id}/${level} leaked ${leaked}`).not.toContain(leaked);
+      }
+    }
+  });
+});
+
 describe('the guard leaves real answers alone', () => {
   it('does not touch a sentence the learner composed', () => {
     const out = guardGreetingReply({

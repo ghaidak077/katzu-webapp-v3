@@ -87,6 +87,8 @@ export interface ConversationMessageProps {
    * even though the data rides the reply the worker produced.
    */
   correctionMessage?: ChatMessage;
+  /** Optional punctuation note for the learner's own line; never a correction. */
+  softNoteAr?: string;
 }
 
 const normalize = (value: string) => value.replace(/[^a-zA-ZäöüÄÖÜß]/g, '').toLowerCase();
@@ -105,6 +107,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   spokenCharIndex = null,
   isSpeaking = false,
   correctionMessage,
+  softNoteAr,
 }) => {
   const isKatzu = message.sender === 'KATZU';
 
@@ -265,13 +268,9 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
             </div>
           )}
 
-          {/* Katzu's nudge towards the learner's next move. */}
-          {showHelp && isKatzu && message.followupAr && (
-            <p className="kz-ar-micro mt-2 flex items-start gap-1.5 text-kz-lavender/85">
-              <span aria-hidden>💬</span>
-              <span className="min-w-0">{message.followupAr}</span>
-            </p>
-          )}
+          {/* No model-authored 💬 follow-up: a deterministic scene question is
+              already appended to the reply, so a second question here was the
+              off-topic line. */}
 
           {/* Reporting lives on its own line with a written label. It used to be a
               14 px icon sharing the meta row with three others, which was present
@@ -402,6 +401,12 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
               )}
             </div>
           </div>
+        )}
+
+        {/* A missing final «.» / «?» is optional, not an error: a quiet note
+            under the learner's line, with no red mark and no "correction". */}
+        {showHelp && softNoteAr && (
+          <p className="kz-ar-micro mt-1 text-end text-kz-inkFaint">{softNoteAr}</p>
         )}
       </div>
     </article>

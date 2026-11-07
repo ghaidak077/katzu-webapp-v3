@@ -157,6 +157,9 @@ const CURATED_WORDS = [
   'dein', 'deine', 'deinen', 'ihr', 'ihre', 'ihren', 'unser', 'unsere', 'unseren', 'danke', 'bitte',
   'hallo', 'tschüss', 'wiedersehen', 'guten', 'frau', 'herr', 'ghaidak', 'katze', 'hund', 'gift',
   'geschenk', 'freund', 'freundin', 'mutter', 'vater', 'kind', 'name',
+  // Participles that are not in the taught vocabulary; without them the
+  // ie/ei spelling rule "corrected" «entschieden» to «entscheiden».
+  'entschieden', 'entscheiden',
 ];
 for (const word of CURATED_WORDS) words.add(word);
 for (const proper of PROPER_NOUNS) words.add(proper);

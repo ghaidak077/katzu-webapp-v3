@@ -61,24 +61,21 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-07 (live chat: rule-first corrections, honest hints, question-bounded turns)
+## Current snapshot — 2026-11-07 (session-replay fixes: no false correction, never-empty hints, no off-topic 💬 line)
 
-**Deployed; gate green.** A wrong sentence is now corrected on the
-device before the model is asked: the deterministic checker (`src/lib/conversation/germanChecker.ts`) catches meaning
-traps (Gift ≠ Geschenk, bekommen ≠ werden), noun and proper-name capitals, sentence-start capitals, the greeting comma,
-ie/ei, ß/ss, article gender/case/possessive, mass nouns, plural hints and question punctuation. The card shows the
-learner's FULL sentence and the FULL corrected sentence with red/green character marks, then one chip and one short
-Arabic reason per error. Its lexicon is generated from the
-shipped content snapshot plus a curated supplement (`npm run build:lexicon`; 305 nouns / 585 words). The model is a
-fallback only, its sentence is merged into the learner's whole line, and «أحسنت» appears only when the sentence is
-correct. Suggestions must answer the last AI line: hints whose topic anchor is absent from the conversation are
-dropped, a question demands an answer-shaped line, and the sheet says «رتّب الكلمات لتبني الجملة». Every A0–A2 worker
-turn that arrives without a question gets one deterministic scene question appended, so the closing step is reachable
-in bounded turns. The card sits above the composer at 390×844 and the header dashes carry the `N/M` label.
-**Deployed:** Pages `a1bb59aa` (source `95f327e`; rollback `35a7ae7b`), worker `3afaa92c` (rollback `dd23b2ac`).
-**Proof:** gate **VERIFY OK 16/16 in 762 s** (`--ci --e2e`); full suite **2829**; `germanCheckerGolden` 141,
-`suggestionGuard` 9, `germanDiff` 6. Before/after 390×844 shots in gitignored `.tmp`; a signed-in production turn is
-UNPROVEN.
+**Deployed; gate green.** A real A1 session exposed four trust bugs, all fixed on the device. The checker no longer
+touches `du/dir/dich/dein*` (formal `Sie/Ihnen` always capitalised; only common nouns in context or a person name after
+heiße/bin/ist/Frau/Herr), and a missing final `.`/`?` is an optional soft note instead of a silent edit, so the
+«قريب! بقي تصحيح واحد» line appears only with a real error. `answerBank.ts` ships 49 question types × 3 answers
+(+ 3 repeat + 4 generic = 154 strings, 0 corrections): the first hint answers the last question («Wie heißt du?» →
+«Ich heiße …», «Wie geht es dir?» → «Mir geht es gut, danke.»), the repeat family is last, and the sheet is never
+empty. The off-topic 💬 Arabic line was removed from `cloudflare-ai-chat.js`, so only the current scene's own
+level-validated question is appended. The earlier rule-first card (full sentence, red/green diff, Arabic reason,
+model fallback, «أحسنت» only when correct) is unchanged.
+**Deployed:** this batch's Pages/worker ids are recorded in `APP-MAP` after the deploy; before it, live was Pages
+`a1bb59aa` / worker `3afaa92c`.
+**Proof:** gate **VERIFY OK 16/16 in 725 s** (`--ci --e2e`); `answerBank`, `shippedGermanStrings`, `germanCheckerGolden`
++21 du/Sie, `turnGuard` cross-scenario, `e2e/greetingsReplay` replay. Before/after 390×844 shots in gitignored `.tmp`.
 
 ## Previous snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
 

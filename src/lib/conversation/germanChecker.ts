@@ -48,6 +48,13 @@ export interface GermanCheckResult {
   /** Ordered meaning → grammar → spelling → capitalisation. */
   errors: CorrectionError[];
   ok: boolean;
+  /**
+   * A missing final punctuation mark is NOT an error: a learner typing in a chat
+   * box is not failing a punctuation exercise. It is offered as this optional
+   * note only, and the corrected sentence never gains a mark the learner did not
+   * write.
+   */
+  softNoteAr?: string;
 }
 
 /** Deterministic rules, so the chip and the Arabic explanation cannot disagree. */
@@ -194,6 +201,11 @@ const DATIVE_PREPOSITIONS = new Set(['mit', 'bei', 'nach', 'aus', 'von', 'zu', '
 function nounCase(tokens: Token[], index: number): 'accusative' | 'dative' | 'unknown' {
   for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
     const word = lower(tokens[cursor].core);
+    // A sentence-initial finite verb opens a yes/no question and the noun
+    // phrase after it is the SUBJECT: «Hat der Zug Verspätung?» is nominative.
+    // Reading it as an object turned a correct question into «den Zug».
+    if (cursor === 0 && VERB_FORMS.has(word)) return 'unknown';
+    if (WEAK_PREPOSITIONS.has(word)) return 'unknown';
     if (ACCUSATIVE_PREPOSITIONS.has(word)) return 'accusative';
     if (DATIVE_PREPOSITIONS.has(word)) return 'dative';
     if (ACCUSATIVE_VERBS.has(word)) return 'accusative';
@@ -206,6 +218,28 @@ function nounCase(tokens: Token[], index: number): 'accusative' | 'dative' | 'un
 }
 
 const POSSESSIVE_DETERMINER = /^(mein|dein|sein|ihr|unser|euer|kein)(e|en|em|er|es)?$/;
+
+/**
+ * A gender mismatch the checker can prove without knowing the case.
+ *
+ * Case-marked forms (den/dem/einen/einem/einer/…), «der» (which is also dative
+ * feminine) and every possessive are left alone when the case is unknown: the
+ * measured false corrections were «den Mietvertrag» → «der Mietvertrag» and
+ * «einen Kurs» → «ein Kurs», both correct German. Only the plain nominative
+ * forms can be wrong for gender on their own.
+ */
+function certainGenderMismatch(nounArticle: LexiconNoun['article'], written: string): boolean {
+  if (!nounArticle) return false;
+  if (POSSESSIVE_DETERMINER.test(written)) return false;
+  // «der» is the correct feminine dative/genitive article, so it is only
+  // certain to be wrong in front of a neuter noun («der Auto» → «das Auto»).
+  if (written === 'der') return nounArticle === 'das';
+  if (written === 'die') return nounArticle !== 'die';
+  if (written === 'das') return nounArticle !== 'das';
+  if (written === 'ein') return nounArticle === 'die';
+  if (written === 'eine') return nounArticle !== 'die';
+  return false;
+}
 
 /** The determiner a noun needs for its gender and the sentence's likely case. */
 function expectedArticle(noun: LexiconNoun, written: string, grammaticalCase: 'accusative' | 'dative' | 'unknown'): string {
@@ -245,6 +279,74 @@ const GREETING_PHRASES = [
 
 const TIME_ADVERBS = new Set(['heute', 'morgen', 'gestern', 'jetzt', 'dann', 'manchmal', 'oft', 'danach', 'später', 'spaeter']);
 const SUBJECT_PRONOUNS = new Set(['ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr']);
+/**
+ * Pronouns are never person names. Modern German writes the informal ones
+ * lowercase — «Wie heißt du nochmal?» is correct — and the formal «Sie / Ihnen»
+ * is always capitalised. This set exists because the proper-name rule after
+ * «heißen» used to capitalise the word that followed it, which turned the app's
+ * own hint into a false correction.
+ */
+const PERSONAL_PRONOUNS = new Set([
+  'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'euch',
+  'mich', 'dich', 'mir', 'dir', 'uns', 'ihm', 'ihn', 'ihnen',
+]);
+/** Words that can follow «heißen» without being a name. */
+const NAME_STOPWORDS = new Set([
+  ...PERSONAL_PRONOUNS,
+  'bitte', 'nochmal', 'noch', 'mal', 'doch', 'auch', 'denn', 'eigentlich',
+  'nicht', 'sehr', 'gern', 'gerne', 'so', 'ja', 'nein', 'wie', 'wer', 'was',
+  // Function words that can follow «heißen» in a normal sentence:
+  // «Teamfähigkeit heißt für mich: …» is not a person's name.
+  'für', 'fuer', 'mit', 'ohne', 'in', 'im', 'am', 'an', 'auf', 'aus', 'bei',
+  'nach', 'von', 'zu', 'zum', 'zur', 'über', 'ueber', 'unter', 'vor', 'hinter',
+  'neben', 'zwischen', 'dass', 'wenn', 'weil', 'aber', 'und', 'oder', 'als',
+  'das', 'der', 'die', 'dem', 'den', 'des', 'ein', 'eine', 'einen', 'einem',
+  'einer', 'eines', 'man', 'hier', 'da', 'dort', 'jetzt', 'heute', 'morgen',
+]);
+/**
+ * Prepositions whose case cannot be inferred without a full grammar parse.
+ * Two-way prepositions («in», «auf», «an» …) take accusative OR dative, so the
+ * checker must not guess and "correct" a correct article.
+ */
+const WEAK_PREPOSITIONS = new Set(['in', 'an', 'auf', 'über', 'ueber', 'unter', 'vor', 'hinter', 'neben', 'zwischen']);
+/**
+ * Finite plural verb forms. If «die X <plural verb>» appears, X is a plural
+ * noun and its article is correct: «die Brötchen kommen gerade aus dem Ofen».
+ * Without this the gender rule read the plural «Brötchen» as the singular
+ * neuter noun and "corrected" a correct sentence.
+ */
+const PLURAL_VERB_FORMS = new Set([
+  'sind', 'haben', 'werden', 'kommen', 'gehen', 'wohnen', 'trinken', 'essen',
+  'lernen', 'sprechen', 'machen', 'kaufen', 'geben', 'nehmen', 'sehen', 'möchten',
+  'können', 'müssen', 'brauchen', 'besuchen', 'suchen', 'finden', 'verstehen',
+  'lieben', 'heißen', 'heissen', 'arbeiten', 'spielen', 'stehen',
+]);
+/**
+ * Infinitives that are also nouns («das Essen»). After «zu» they are verbs and
+ * stay lowercase: «etwas zu essen», «zu trinken».
+ */
+const INFINITIVES = new Set([
+  'essen', 'trinken', 'gehen', 'kommen', 'lernen', 'sprechen', 'machen',
+  'kaufen', 'geben', 'nehmen', 'sehen', 'arbeiten', 'spielen', 'stehen',
+  'wohnen', 'suchen', 'finden', 'verstehen', 'lieben', 'heißen', 'heissen',
+  'sein', 'haben', 'werden', 'bleiben', 'fahren', 'lesen', 'schreiben',
+  'kochen', 'schlafen', 'helfen', 'zahlen', 'bezahlen', 'warten',
+]);
+/** Nouns that normally appear without an article: «Sie haben Erfahrung». */
+const UNCOUNTABLE_NOUNS = new Set([
+  'erfahrung', 'zeit', 'hunger', 'durst', 'stress', 'musik', 'sport',
+  'unterricht', 'information', 'angst',
+  // Everyday mass/abstract uses that read naturally without an article:
+  // «Ich brauche Hilfe», «Ich habe Fieber», «Mein Flug hatte Verspätung».
+  'hilfe', 'zucker', 'fieber', 'verspätung', 'verspaetung', 'joghurt',
+  'verantwortung', 'sonne', 'regen', 'schnee', 'urlaub',
+]);
+/** Days and months read without an article after «haben»: «Wir haben Montag frei». */
+const CALENDAR_WORDS = new Set([
+  'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag',
+  'januar', 'februar', 'märz', 'maerz', 'april', 'mai', 'juni', 'juli', 'august',
+  'september', 'oktober', 'november', 'dezember',
+]);
 /** A sentence that opens with one of these is a question even without «?». */
 const QUESTION_WORDS = new Set(['wo', 'wohin', 'woher', 'was', 'wie', 'wer', 'wen', 'wann', 'warum', 'welche', 'welcher', 'welches']);
 
@@ -357,12 +459,21 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
     if (determinerIndex >= 0) {
       if (!noun.article) continue;
       const written = lower(previous.core);
+      // «die Brötchen kommen» — a plural verb proves the noun is plural, so the
+      // article is right even though it differs from the singular gender.
+      if (written === 'die' && PLURAL_VERB_FORMS.has(lower(tokens[index + 1]?.core || ''))) continue;
       const grammaticalCase = nounCase(tokens, determinerIndex);
+      // «die Schlüssel» / «die Brötchen»: a plural article in front of a noun
+      // whose singular is masculine/neuter is correct German. With no case
+      // clue the written form is ambiguous, so it is never "corrected" to the
+      // singular article.
+      if (written === 'die' && noun.article !== 'die' && grammaticalCase === 'unknown') continue;
       const expected = expectedArticle(noun, written, grammaticalCase);
       if (expected === written) continue;
       // A clear case clue (object after «haben/brauchen», dative preposition)
       // outranks a bare gender mismatch, because the written article can be the
       // right gender in the wrong case: «Ich habe der Hund» → «den Hund».
+      if (grammaticalCase === 'unknown' && !certainGenderMismatch(noun.article, written)) continue;
       const rule = grammaticalCase !== 'unknown' ? RULE_LIBRARY.articleCase : RULE_LIBRARY.articleGender;
       const displayNoun = isUpperFirst(tokens[index].core) ? tokens[index].core : capitalize(tokens[index].core);
       pushError(errors, {
@@ -379,7 +490,9 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
       ACCUSATIVE_VERBS.has(lower(previous.core)) &&
       noun.article &&
       !noun.plural &&
-      !MASS_NOUNS.has(lower(tokens[index].core))
+      !MASS_NOUNS.has(lower(tokens[index].core)) &&
+      !UNCOUNTABLE_NOUNS.has(lower(tokens[index].core)) &&
+      !CALENDAR_WORDS.has(lower(tokens[index].core))
     ) {
       const article = expectedArticle(noun, 'eine', 'accusative');
       const displayNoun = isUpperFirst(tokens[index].core) ? tokens[index].core : capitalize(tokens[index].core);
@@ -395,7 +508,8 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
 
   // 4. Noun capitalisation. Runs after article insertion so the inserted word
   //    and its noun are treated as one phrase.
-  for (const token of tokens) {
+  for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex += 1) {
+    const token = tokens[tokenIndex];
     const proper = PROPER_NOUNS[lower(token.core)];
     if (proper) {
       if (token.core !== proper) {
@@ -407,6 +521,12 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
     const noun = NOUNS[lower(token.core)];
     if (!noun) continue;
     if (isUpperFirst(token.core)) continue;
+    // «morgen» is an adverb in «heute oder morgen», not the noun «Morgen».
+    // Time adverbs carry their own lowercase spelling; never noun-capitalise them.
+    // The greeting «Guten Morgen» is the exception the rule must keep.
+    if (TIME_ADVERBS.has(lower(token.core)) && lower(tokens[tokenIndex - 1]?.core || '') !== 'guten') continue;
+    // «etwas zu essen»: an infinitive after «zu» is a verb, not the noun «Essen».
+    if (lower(tokens[tokenIndex - 1]?.core || '') === 'zu' && INFINITIVES.has(lower(token.core))) continue;
     const corrected = capitalize(token.core);
     pushError(errors, { ...RULE_LIBRARY.nounCapital, from: token.core, to: corrected });
     token.core = corrected;
@@ -417,6 +537,12 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
     if (!/^(heiße|heisst|heißt|heisse)$/i.test(tokens[index - 1].core)) continue;
     const token = tokens[index];
     if (!/^[A-Za-zÄÖÜäöüß-]+$/.test(token.core) || isUpperFirst(token.core)) continue;
+    const word = lower(token.core);
+    // «Wie heißt du nochmal?» is correct German. A pronoun or a known non-name
+    // word after «heißen» is not a missing capital; the formal «Sie / Ihnen»
+    // already ships capitalised. Only an unknown word is treated as a name.
+    if (NAME_STOPWORDS.has(word)) continue;
+    if (KNOWN_WORDS.has(word) && !PROPER_NOUNS[word]) continue;
     const corrected = capitalize(token.core);
     pushError(errors, { ...RULE_LIBRARY.properName, from: token.core, to: corrected });
     token.core = corrected;
@@ -457,12 +583,20 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
         nameToken.core = corrected;
       }
       // The comma separates the address from a following clause. A bare
-      // greeting plus vocative is a complete line and needs no comma.
-      if (tokens[greetingWords + 2] && !/[,;:!?]/.test(nameToken.post)) {
+      // greeting plus vocative is a complete line and needs no comma; a line
+      // that already ends in «.» / «!» / «?» is complete too.
+      if (tokens[greetingWords + 2] && !/[,;:!?.]/.test(nameToken.post)) {
         pushError(errors, { ...RULE_LIBRARY.greetingComma, from: `${afterGreeting.core} ${nameToken.core}`, to: `${afterGreeting.core} ${nameToken.core},` });
         nameToken.post = `,${nameToken.post}`;
       }
-    } else if (afterGreeting && !/[,;:!?]/.test(tokens[greetingWords - 1].post)) {
+    } else if (
+      afterGreeting &&
+      !/[,;:!?.]/.test(tokens[greetingWords - 1].post) &&
+      // «Hallo Denis, ich …» already separates the address; adding a comma
+      // right after «Hallo» would double it. Any separator in the next two
+      // tokens means the line is already punctuated.
+      !tokens.slice(greetingWords, greetingWords + 2).some((token) => /[,;:!?]/.test(token.post))
+    ) {
       pushError(errors, { ...RULE_LIBRARY.greetingComma, from: tokens[greetingWords - 1].core, to: `${tokens[greetingWords - 1].core},` });
       tokens[greetingWords - 1].post = `,${tokens[greetingWords - 1].post}`;
     }
@@ -475,13 +609,17 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
     tokens[0].core = corrected;
   }
 
-  // Terminal punctuation is normalization, not an error: a learner typing in a
-  // chat box is not failing a punctuation exercise.
+  // Terminal punctuation is optional. A learner typing in a chat box is not
+  // failing a punctuation exercise, so a missing final mark is never added to
+  // their sentence; it is offered as a soft note only.
+  let softNoteAr: string | undefined;
   if (tokens.length > 0) {
     const last = tokens[tokens.length - 1];
     if (!/[.!?]/.test(last.post)) {
       const isQuestion = QUESTION_WORDS.has(lower(tokens[0]?.core || ''));
-      last.post = `${last.post}${isQuestion ? '?' : '.'}`;
+      softNoteAr = isQuestion
+        ? 'ملاحظة اختيارية: السؤال في الألمانية يُنهى بعلامة استفهام «؟».'
+        : 'ملاحظة اختيارية: الجملة في الألمانية تُنهى بنقطة.';
     }
   }
 
@@ -491,6 +629,7 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
     corrected: render(tokens),
     errors,
     ok: errors.length === 0,
+    ...(softNoteAr ? { softNoteAr } : {}),
   };
 }
 

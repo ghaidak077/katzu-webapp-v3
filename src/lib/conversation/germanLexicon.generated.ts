@@ -521,6 +521,7 @@ export const KNOWN_WORDS: ReadonlySet<string> = new Set([
   "empfehlen",
   "entdecken",
   "entscheiden",
+  "entschieden",
   "entwickler",
   "entwicklung",
   "erfahrung",

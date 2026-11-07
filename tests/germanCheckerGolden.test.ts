@@ -97,7 +97,14 @@ describe.each([
 
   it.each(cases)('«$input» is corrected to «$corrected»', (sample) => {
     const result = checkGerman(sample.input, level);
-    expect(result.corrected).toBe(sample.corrected);
+    // Terminal punctuation is never added to the learner's sentence any more:
+    // a missing «.» / «?» is an optional soft note, not a correction. The goldens
+    // keep their punctuation to document the intended sentence; the asserted
+    // corrected text drops it when the learner omitted it.
+    const endsWithMark = /[.!?]\s*$/.test(sample.input);
+    const expectedCorrected = endsWithMark ? sample.corrected : sample.corrected.replace(/[.!?]+$/, '');
+    expect(result.corrected).toBe(expectedCorrected);
+    expect(Boolean(result.softNoteAr)).toBe(!endsWithMark);
     expect(result.ok).toBe(sample.categories.length === 0);
     expect(result.errors.map((error) => error.category)).toEqual(sample.categories);
   });
@@ -125,5 +132,78 @@ describe('praise never accompanies a wrong sentence', () => {
     for (const sample of A2) {
       expect(checkGerman(sample.input, 'A2').ok, sample.input).toBe(sample.categories.length === 0);
     }
+  });
+});
+
+/**
+ * Pronouns are not nouns.
+ *
+ * Reported defect: the name-after-«heißen» rule read the «du» in
+ * «Wie heißt du nochmal?» as a person's name and capitalised it, so a correct
+ * question came back "corrected". The noun rule had the same shape: pronouns
+ * after an article or sentence-initial were one keystroke away from «Du».
+ * Formal «Sie/Ihnen/Ihr» must stay capitalised; informal du/dir/dich/dein never.
+ */
+describe('pronoun and formal-address goldens', () => {
+  const cases: Array<{ input: string; corrected: string; categories: string[]; soft: boolean }> = [
+    { input: 'Wie heißt du nochmal, bitte?', corrected: 'Wie heißt du nochmal, bitte?', categories: [], soft: false },
+    { input: 'Wie heißt du nochmal?', corrected: 'Wie heißt du nochmal?', categories: [], soft: false },
+    { input: 'Wie heißt du?', corrected: 'Wie heißt du?', categories: [], soft: false },
+    { input: 'Wie heißt du', corrected: 'Wie heißt du', categories: [], soft: true },
+    { input: 'Wie geht es dir?', corrected: 'Wie geht es dir?', categories: [], soft: false },
+    { input: 'wie geht es dir', corrected: 'Wie geht es dir', categories: ['capitalisation'], soft: true },
+    { input: 'ich danke dir', corrected: 'Ich danke dir', categories: ['capitalisation'], soft: true },
+    { input: 'ich sehe dich', corrected: 'Ich sehe dich', categories: ['capitalisation'], soft: true },
+    { input: 'Ich liebe dich', corrected: 'Ich liebe dich', categories: [], soft: true },
+    { input: 'Ich habe dich gesehen', corrected: 'Ich habe dich gesehen', categories: [], soft: true },
+    { input: 'Ich gebe dir das Buch', corrected: 'Ich gebe dir das Buch', categories: [], soft: true },
+    { input: 'das ist dein hund', corrected: 'Das ist dein Hund', categories: ['capitalisation', 'capitalisation'], soft: true },
+    { input: 'ich habe deine katze', corrected: 'Ich habe deine Katze', categories: ['capitalisation', 'capitalisation'], soft: true },
+    { input: 'Gib mir bitte dein Buch', corrected: 'Gib mir bitte dein Buch', categories: [], soft: true },
+    { input: 'Du bist nett', corrected: 'Du bist nett', categories: [], soft: true },
+    { input: 'Wie heißen Sie?', corrected: 'Wie heißen Sie?', categories: [], soft: false },
+    { input: 'können Sie mir helfen', corrected: 'Können Sie mir helfen', categories: ['capitalisation'], soft: true },
+    { input: 'ich danke Ihnen', corrected: 'Ich danke Ihnen', categories: ['capitalisation'], soft: true },
+    { input: 'Ich habe Ihr Buch', corrected: 'Ich habe Ihr Buch', categories: [], soft: true },
+    { input: 'Ich möchte mit Ihnen sprechen', corrected: 'Ich möchte mit Ihnen sprechen', categories: [], soft: true },
+    { input: 'Ist das dein Koffer?', corrected: 'Ist das dein Koffer?', categories: [], soft: false },
+  ];
+
+  it('covers at least 20 pronoun cases', () => {
+    expect(cases.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it.each(cases)('«$input» stays natural German', (sample) => {
+    const result = checkGerman(sample.input, 'A1');
+    expect(result.corrected).toBe(sample.corrected);
+    expect(result.errors.map((error) => error.category)).toEqual(sample.categories);
+    expect(Boolean(result.softNoteAr)).toBe(sample.soft);
+  });
+});
+
+describe('terminal punctuation is a soft note, never a silent edit', () => {
+  it.each([
+    ['Ich heiße Ghaidak', 'Ich heiße Ghaidak'],
+    ['Ich heiße ghaidak', 'Ich heiße Ghaidak'],
+    ['Wo ist der Bahnhof', 'Wo ist der Bahnhof'],
+    ['Wie heißt du', 'Wie heißt du'],
+  ])('«%s» is not given a mark it did not have', (input, expected) => {
+    const result = checkGerman(input, 'A1');
+    expect(result.corrected).toBe(expected);
+    expect(result.corrected).not.toMatch(/[.!?]$/);
+    expect(result.softNoteAr).toBeTruthy();
+  });
+
+  it('does not emit a soft note when the learner already punctuated', () => {
+    for (const input of ['Ich heiße Ghaidak.', 'Wie heißt du?', 'Danke!']) {
+      const result = checkGerman(input, 'A1');
+      expect(result.softNoteAr, input).toBeUndefined();
+    }
+  });
+
+  it('never counts punctuation as a correction in the note count', () => {
+    const result = checkGerman('Ich heiße ghaidak', 'A1');
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].category).toBe('capitalisation');
   });
 });

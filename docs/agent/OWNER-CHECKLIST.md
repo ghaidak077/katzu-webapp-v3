@@ -89,12 +89,11 @@ Approve or rewrite the four level lines (A1 «أتصرّف في المواقف �
 
 ## 16. The ten units — UNIT-PATH-1 (2026-11-07, owner-approved)
 
-The path is ten units built from the 49 served conversations; titles, practice-only outcome lines and every
-situation are in `docs/OWNER-UNITS-REVIEW.md`. Owner approved the list; agent moved `patient_conversation_basics`
-from unit 6 «العمل والناس» to unit 5 «صحتك ومواعيدك» because the scenario is the learner speaking as a patient
-(«Mir ist nicht gut…»), not a work/small-talk scene. Placement still starts the learner at their measured
-level; earlier units stay open and show «تخطّيتَ». **Done:** applied; owner may still send wording changes.
+Ten units from the 49 served conversations; titles, practice-only outcome lines and situations are in docs/OWNER-UNITS-REVIEW.md. patient_conversation_basics sits in unit 5 «صحتك ومواعيدك». **Done:** applied; send wording changes if any.
 
+## 17. Review the hint answers — 49 questions (2026-11-07)
+
+The first button now answers the last question and the sheet is never empty; all 154 lines are clean. List: docs/OWNER-ANSWER-BANK-REVIEW.md. **Done:** read it, report any odd answer.
 
 ## Nothing to do — so nobody re-opens them
 

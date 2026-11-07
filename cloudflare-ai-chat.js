@@ -138,8 +138,8 @@ Return:
 - reply_de: your natural German reply, in character, at CEFR level ${level}. Plain sentence only — never prefix it with field labels.
 - reply_ar: its accurate, idiomatic Modern Standard Arabic translation. Never translate secular German greetings as السلام عليكم.
 - next_hint: ONE short German sentence (with its Arabic translation_ar) that the LEARNER could realistically say next in this conversation at their level — a suggestion, not your own line.
-- followup_question_ar: ONE short Arabic question the person you are playing would naturally ask the learner next, using only the words this situation has already introduced. Empty string when nothing natural fits — a filler question is worse than none. Never introduce a legal or technical term the situation has not used: a rent conversation that suddenly asks about الشفعة reads as a different conversation.
-Respond strictly as JSON with keys: reply_de, reply_ar, next_hint { german, translation_ar }, followup_question_ar`;
+- Do not add a separate follow-up question: the reply's own closing question already carries the conversation forward.
+Respond strictly as JSON with keys: reply_de, reply_ar, next_hint { german, translation_ar }`;
   const evaluationInstruction = `You are Katzu, a witty, warm Arabic-speaking German grammar coach who roasts German grammar (not the learner).
 Evaluate ONLY the learner's latest German sentence against CEFR level ${level}. Do not use conversation history, scenario context, or the roleplay persona.
 Sarcasm level for roast_comment (1-5, default 2): ${Math.min(5, Math.max(1, Number(sarcasmLevel) || 2))}. 1 = gentle, 3 = playfully sarcastic, 5 = maximum sass about how absurd German grammar is — never mocking the learner.
@@ -170,7 +170,7 @@ ${evaluationInstruction}
 Isolation rule for JOB 2: grade ONLY the learner's final sentence. Earlier turns exist as context for JOB 1 and must not change the grade, the corrections, or the roast.
 The conversation history is context, not a topic list: if the learner's last message answers your own previous question, continue from there. Do not change the subject and do not repeat a question you already asked.
 Write the JSON keys in exactly this order:
-{ "reply_de": string, "reply_ar": string, "evaluation": { "is_correct": boolean, "corrected_german": string, "original_mistake": string, "grammar_rule": string, "grammar_id": string, "explanation_ar": string, "roast_comment": string, "positive_note_ar": string }, "next_hint": { "german": string, "translation_ar": string }, "followup_question_ar": string }`;
+{ "reply_de": string, "reply_ar": string, "evaluation": { "is_correct": boolean, "corrected_german": string, "original_mistake": string, "grammar_rule": string, "grammar_id": string, "explanation_ar": string, "roast_comment": string, "positive_note_ar": string }, "next_hint": { "german": string, "translation_ar": string } }`;
 
   // The learner's own recurring errors. The worker has validated this field since
   // the route was written and then thrown it away, so the coach graded a stranger
@@ -419,11 +419,10 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
               translation_ar: { type: "STRING" }
             },
             required: ["german", "translation_ar"]
-          },
-          followup_question_ar: { type: "STRING" }
+          }
         },
-        required: ["reply_de", "reply_ar", "evaluation", "next_hint", "followup_question_ar"],
-        propertyOrdering: ["reply_de", "reply_ar", "evaluation", "next_hint", "followup_question_ar"]
+        required: ["reply_de", "reply_ar", "evaluation", "next_hint"],
+        propertyOrdering: ["reply_de", "reply_ar", "evaluation", "next_hint"]
       },
       // One budget for what used to be two calls (700 + 350). Reasoning models
       // spend tokens on thoughts before the JSON answer, and a tight cap is what
@@ -607,7 +606,6 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     // to show; otherwise drop it and let the client fall back to the validated
     // on-demand /ai/hints floor.
     const hints = nextHint && nextHint.german && hintMatchesQuestion(replyDe, nextHint.german) ? [nextHint] : [];
-    const followupAr = sanitizeFieldLabel(parsed.followup_question_ar) || "";
     const linkedGrammarId = grammarReference && !evaluation.is_correct && evaluation.grammar_id === grammarReference.id
       ? grammarReference.id
       : "";
@@ -642,7 +640,6 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       },
       grammar_reference: linkedGrammarId ? grammarReference : null,
       hints,
-      followup_ar: followupAr,
       provider: getProvider()
     }, 200, cors);
   } catch (err) {
@@ -851,7 +848,7 @@ function closeOpenJson(text) {
   if (!inString && stack.length === 0) return null; // balanced — nothing was lost
   let out = body;
   if (inString) out += '"';
-  // A response cut exactly on a key ("...,\"followup_question_ar\":" ) has no
+  // A response cut exactly on a key ("...,\"next_hint\":" ) has no
   // value to keep, so the dangling fragment goes before the closers.
   out = out.replace(/,\s*"[^"]*"\s*:\s*$/, "").replace(/,\s*$/, "");
   let closers = "";
