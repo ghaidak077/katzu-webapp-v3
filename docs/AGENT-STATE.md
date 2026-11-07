@@ -26,6 +26,20 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-07 — live chat tells the truth: rules correct first, suggestions answer the last line, turns end with a question (deployed).**
+  A wrong learner sentence is corrected on device before the model is called: `src/lib/conversation/germanChecker.ts` catches
+  meaning traps (Gift≠Geschenk, bekommen≠werden), noun/proper-name capitals, sentence-start capitals, greeting comma, ie/ei,
+  ß/ss, article gender/case/possessive, mass nouns, plural hints and question punctuation, its lexicon generated from
+  `content-snapshot.json` plus a curated supplement (305 nouns/585 words).
+  The card shows the learner's FULL sentence and FULL correction with red/green marks (`germanDiff.ts`) plus one short
+  Arabic reason per error; the model is a fallback merged into a whole sentence, and «أحسنت» appears only when correct. `suggestionGuard.ts` drops hints whose topic anchor is absent and requires an answer-shaped line after a question;
+  the sheet says «رتّب الكلمات لتبني الجملة». The worker appends one scene question when an A0–A2 reply lacks one
+  (`guardTrailingQuestion`). Card sits above the dock at 390×844; header dashes carry the `N/M` label. Evidence: gate
+  `VERIFY OK 16/16 in 762s`, full suite **2829**, `germanCheckerGolden` 141, `suggestionGuard` 9, `germanDiff` 6. **Deployed**
+  Pages `a1bb59aa-cc7e-40f9-a085-d9cb1a57e154` (source `95f327e`; entry `index-CwoHfIVI.js` → lazy
+  `LiveConversationScreen-81tNUWQg.js` 188,947 B; rollback `35a7ae7b-40f7-4216-8127-4a8b22bab9c0`), worker
+  `3afaa92c-5d0e-463a-af73-7eaf90d00cde` (rollback `dd23b2ac-46b0-4b42-a20b-4a41be0cc739`; `/health` storage ok).
+
 - **2026-11-07 — the path is ten owner-approved units and the day is one composed session (deployed; worker unchanged).**
   `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
   dimmed and locked, units below the placement level open and marked «تخطّيتَ», plus the level percent ring and the exact

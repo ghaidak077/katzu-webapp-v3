@@ -63,21 +63,22 @@ production data was touched by that vetting run.
 
 ## Current snapshot — 2026-11-07 (live chat: rule-first corrections, honest hints, question-bounded turns)
 
-**Local batch; gate green.** A wrong sentence is now corrected on the
+**Deployed; gate green.** A wrong sentence is now corrected on the
 device before the model is asked: the deterministic checker (`src/lib/conversation/germanChecker.ts`) catches meaning
 traps (Gift ≠ Geschenk, bekommen ≠ werden), noun and proper-name capitals, sentence-start capitals, the greeting comma,
 ie/ei, ß/ss, article gender/case/possessive, mass nouns, plural hints and question punctuation. The card shows the
 learner's FULL sentence and the FULL corrected sentence with red/green character marks, then one chip and one short
-Arabic reason per error, in the order meaning → grammar → spelling → capitalisation. Its lexicon is generated from the
+Arabic reason per error. Its lexicon is generated from the
 shipped content snapshot plus a curated supplement (`npm run build:lexicon`; 305 nouns / 585 words). The model is a
 fallback only, its sentence is merged into the learner's whole line, and «أحسنت» appears only when the sentence is
 correct. Suggestions must answer the last AI line: hints whose topic anchor is absent from the conversation are
 dropped, a question demands an answer-shaped line, and the sheet says «رتّب الكلمات لتبني الجملة». Every A0–A2 worker
 turn that arrives without a question gets one deterministic scene question appended, so the closing step is reachable
 in bounded turns. The card sits above the composer at 390×844 and the header dashes carry the `N/M` label.
-**Proof:** gate **VERIFY OK 16/16 in 762 s** (`--ci --e2e`); full suite **2829 tests**; `germanCheckerGolden` 141,
-`suggestionGuard` 9, `germanDiff` 6, plus the turnGuard route tests. Before/after 390×844 screenshots are in the
-gitignored `.tmp`; nothing is claimed about a signed-in production turn.
+**Deployed:** Pages `a1bb59aa` (source `95f327e`; rollback `35a7ae7b`), worker `3afaa92c` (rollback `dd23b2ac`).
+**Proof:** gate **VERIFY OK 16/16 in 762 s** (`--ci --e2e`); full suite **2829**; `germanCheckerGolden` 141,
+`suggestionGuard` 9, `germanDiff` 6. Before/after 390×844 shots in gitignored `.tmp`; a signed-in production turn is
+UNPROVEN.
 
 ## Previous snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
 
