@@ -26,7 +26,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-11-07 — the path is nine units and the day is one composed session (gate green; Pages deploy next, worker unchanged).**
+- **2026-11-07 — the path is nine units and the day is one composed session (deployed; worker unchanged).**
   `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
   dimmed and locked, unit progress «الوحدة 1 · 0 من 6», plus the level percent ring and the exact ability lines. The 49
   served scenarios are partitioned into 9 units exactly once, checkpoint last, enforced by
@@ -38,7 +38,9 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   ease is stored on `lastSessionEase`. Free line «جلسة مجانية N من 3»; paywall only at a session boundary. Existing
   learners map by completed ids with level/XP preserved. Evidence: `units` + `trailOrdering` **56**, six 390×844
   screenshots in `.tmp/unit-path/`, full gate `VERIFY OK — 16/16 steps passed in 795s` (browser suite 665.6s, exit 0).
-  Deploy pending. Owner review: `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
+  **Deployed** Pages `eff039c2-…` (source `4af08b2`, entry `assets/index-DesAHQkO.js`, `/` and `katzuai.com` 200,
+  `/sw.js` 200; production smoke 2 passed / 2 skipped); rollback `4e9775c6-…` (source `8e37986`). Owner review:
+  `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
 
 - **Older RESUME entries moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-01/07 to stay under the
   80 KB cap (search `RESUME moved 2026-11-07 path screen + opener gate`, `RESUME 2026-11-05 first message Arabic`,
@@ -132,10 +134,12 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   **Rollback target: `e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
   `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or
   delete the Worker; nothing else depends on it.
-- **App Pages production (2026-11-06, source `35a4363`):** deployment
-  **`a10ab1b7-69a1-4bb8-8870-ecd9c2a50b1e`** (TRAIL-1 path screen; entry `assets/index-BVLRTDPT.js`,
-  `/` and `katzuai.com` 200, `/sw.js` 200; production smoke 2 passed / 2 skipped).
-  **Rollback: `7549eab3-ffb4-4583-9bbe-87061a55eca9`** (source `31f65d3`, docs-only, entry `index-BuFoPzZ9.js`),
+- **App Pages production (2026-11-07, source `4af08b2`):** deployment
+  **`eff039c2-4f80-4836-b964-8337d61cdddb`** (UNIT-PATH: nine-unit map + composed session + goal-only signup; entry
+  `assets/index-DesAHQkO.js`, `/` and `katzuai.com` 200, `/sw.js` 200; production smoke 2 passed / 2 skipped).
+  **Rollback: `4e9775c6-40e9-4ebc-aa59-b24c7a4ee1d2`** (source `8e37986`, docs-only, same bundle),
+  then `a10ab1b7-69a1-4bb8-8870-ecd9c2a50b1e` (source `35a4363`, TRAIL-1; entry `assets/index-BVLRTDPT.js`),
+  then `7549eab3-ffb4-4583-9bbe-87061a55eca9` (source `31f65d3`, docs-only, entry `index-BuFoPzZ9.js`),
   then `7bfe14d6-eef2-420a-9164-f853bc8f4f11` (source `87997a4`, docs-only, same entry), then
   `5c3e24c8-8183-4eaa-90d1-e85a701f502e` (source `0099ab4`, docs-only), then
   `bf78a12c-fae8-4474-b70b-4142a98e9a1e` (source `9ace95e`, first-message Arabic; entry `index-BuFoPzZ9.js`),

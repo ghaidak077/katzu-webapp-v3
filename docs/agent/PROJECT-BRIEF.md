@@ -74,7 +74,8 @@ goal) instead of a level; a conversation offers three current-unit topics plus �
 «سهلة/مناسبة/صعبة» only moves the next step. Free sessions read «جلسة مجانية N من 3», and the paywall appears only
 between sessions. Existing learners are mapped by their completed conversation ids; level and XP are untouched.
 **Proof:** `tsc` clean, new `units` + `trailOrdering` tests, six 390×844 state screenshots in `.tmp/unit-path/`, gate
-**VERIFY OK 16/16 (795 s)**. **Deployed:** pending. **Owner-open:** approve the nine unit titles and outcome lines
+**VERIFY OK 16/16 (795 s)**. **Deployed:** Pages `eff039c2-…` (source `4af08b2`, entry
+`assets/index-DesAHQkO.js`, `/` 200, smoke 2/2; rollback `4e9775c6-…`); worker unchanged `e98031d5-…`. **Owner-open:** approve the nine unit titles and outcome lines
 (`docs/OWNER-UNITS-REVIEW.md`, `OWNER-CHECKLIST.md` §16) and the four level lines (§15).
 
 ## Previous snapshots — 2026-11-05 (first-message Arabic; labelled report action) moved
