@@ -38,8 +38,9 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   Tests: `answerBank` (154 clean, coverage, ordering, name), `shippedGermanStrings` (openers + starter phrases,
   0 corrections), `germanCheckerGolden` +21 du/Sie, `turnGuard` cross-scenario isolation, `e2e/greetingsReplay.spec.ts`
   replays the owner's session (no false correction; one capital `G`, no period; non-empty sheet, no café words).
-  Gate **`VERIFY OK 16/16 in 725s`**. Live at commit time: Pages `a1bb59aa-cc7e-40f9-a085-d9cb1a57e154`, worker
-  `3afaa92c-5d0e-463a-af73-7eaf90d00cde`; deploy recorded in the next commit.
+  Gate **`VERIFY OK 16/16 in 725s`**. Deployed: Pages `7b5995a4-9b08-4fb6-9190-670a6aca10a9` (source
+  `421715a`; rollback `26335c17-a358-444e-a29a-bedd99845690`), worker
+  `aeee3302-f036-47e4-aea6-211043375d60` (rollback `3afaa92c-5d0e-463a-af73-7eaf90d00cde`).
 
 - **2026-11-07 — the path is ten owner-approved units and the day is one composed session (deployed; worker unchanged).**
   `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
@@ -122,15 +123,11 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`e98031d5-9932-4093-a7a9-7ba4ab827b0d`** (100%, deployment `09fa2438-d578-40c8-9076-c52cfa0ba922`,
-  2026-11-04T07:02Z, source `580e522`) — the learner's conversation-review grant plus the per-reply
-  `POST /consent/conversation/report` (one redacted exchange) on top of the content studio, observer-only
-  telemetry and the scene greeting guard. Live: `/health` 200 `storage:{d1,kv}`;
-  `/crypto/health` 200 `ready:false`; `GET /internal/admin/health` and `/admin/api/affiliates` **401**;
-  `POST /ai/turn` and `/ai/lexeme` **401** with a valid body and no token. The five telemetry tables exist and
-  `route_events` held **26** owner-session rows at 02:46 UTC (`ai_events` 0 until a real AI turn); the `17 4 * * *`
-  cron fired at **04:17:37 UTC** with `outcome: ok`.
-  **Rollback target: `70daf981-98bf-49eb-9722-a4b533ac017f`** (deployment
+  **`aeee3302-f036-47e4-aea6-211043375d60`** (2026-11-07, source `421715a`) — the off-topic 💬 `followup_question_ar`
+  line removed from `cloudflare-ai-chat.js`; the turn-quality/hint batch stays. Live: `/health` 200
+  `storage:{d1,kv}`; `/crypto/health` 200 `ready:false`; `/internal/admin/health` **401**.
+  **Rollback target: `3afaa92c-5d0e-463a-af73-7eaf90d00cde`**, then
+  `dd23b2ac-46b0-4b42-a20b-4a41be0cc739` (first-message opener glosses), then `70daf981-98bf-49eb-9722-a4b533ac017f` (deployment
   `798fd12a-1c44-49c0-b13b-cb636b2df49d`, 2026-11-04T05:52Z, the first consent deploy: the review
   grant, withdrawal delete and removal of the bulk export), then `862087cb-eeef-48c0-8467-d0bd721c35c3` (deployment
   `b3c5b2de-2314-488e-aa95-8cc2853b1d27`, source `a033b19`, the scene greeting guard), then
