@@ -108,10 +108,11 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`aeee3302-f036-47e4-aea6-211043375d60`** (2026-11-07, source `421715a`) — the off-topic 💬 `followup_question_ar`
-  line removed from `cloudflare-ai-chat.js`; the turn-quality/hint batch stays. Live: `/health` 200
-  `storage:{d1,kv}`; `/crypto/health` 200 `ready:false`; `/internal/admin/health` **401**.
-  **Rollback target: `3afaa92c-5d0e-463a-af73-7eaf90d00cde`**, then
+  **`5b0635aa-112d-45f8-ab17-093fd9295e69`** (2026-11-08, tree `09f0b92`; worker code unchanged from 2026-11-07,
+  redeployed with the script-owned chat commit). Live: `/health` 200 `storage:{d1,kv}`; `/crypto/health` 200
+  `ready:false`; `/internal/admin/health` **401**.
+  **Rollback target: `aeee3302-f036-47e4-aea6-211043375d60`** (2026-11-07, source `421715a`; off-topic 💬
+  `followup_question_ar` removed), then `3afaa92c-5d0e-463a-af73-7eaf90d00cde`, then
   `dd23b2ac-46b0-4b42-a20b-4a41be0cc739` (first-message opener glosses), then `70daf981-98bf-49eb-9722-a4b533ac017f` (deployment
   `798fd12a-1c44-49c0-b13b-cb636b2df49d`, 2026-11-04T05:52Z, the first consent deploy: the review
   grant, withdrawal delete and removal of the bulk export), then `862087cb-eeef-48c0-8467-d0bd721c35c3` (deployment
@@ -133,10 +134,14 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   **Rollback target: `e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
   `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or
   delete the Worker; nothing else depends on it.
-- **App Pages production (2026-11-07, source `4af08b2`):** deployment
-  **`eff039c2-4f80-4836-b964-8337d61cdddb`** (UNIT-PATH: nine-unit map + composed session + goal-only signup; entry
-  `assets/index-DesAHQkO.js`, `/` and `katzuai.com` 200, `/sw.js` 200; production smoke 2 passed / 2 skipped).
-  **Rollback: `4e9775c6-40e9-4ebc-aa59-b24c7a4ee1d2`** (source `8e37986`, docs-only, same bundle),
+- **App Pages production (2026-11-08, source `09f0b92`):** deployment
+  **`ecc68c3f-4985-4cff-8a1e-809a43851645`** (script-owned chat + hint dock + local memory; entry
+  `assets/index-DJm9SVZq.js` contains the pilot script lines `Fehlt Ihr Koffer`/`Kaution`, `/` and `katzuai.com`
+  200, `/sw.js` 200). **Rollback: `f9261d73-7f96-43ad-a07c-42c099fe6a51`** (source `7cedfd0`),
+  then `7b5995a4-9b08-4fb6-9190-670a6aca10a9` (source `421715a`, session-replay fixes), then
+  `eff039c2-4f80-4836-b964-8337d61cdddb` (UNIT-PATH: nine-unit map + composed session + goal-only signup; entry
+  `assets/index-DesAHQkO.js`, production smoke 2 passed / 2 skipped).
+  **Rollback after that: `4e9775c6-40e9-4ebc-aa59-b24c7a4ee1d2`** (source `8e37986`, docs-only, same bundle),
   then `a10ab1b7-69a1-4bb8-8870-ecd9c2a50b1e` (source `35a4363`, TRAIL-1; entry `assets/index-BVLRTDPT.js`),
   then `7549eab3-ffb4-4583-9bbe-87061a55eca9` (source `31f65d3`, docs-only, entry `index-BuFoPzZ9.js`),
   then `7bfe14d6-eef2-420a-9164-f853bc8f4f11` (source `87997a4`, docs-only, same entry), then
