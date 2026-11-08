@@ -61,19 +61,20 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-08 (scripted chat V34: the AI reads the learner, the script keeps the arc)
+## Current snapshot — 2026-11-08 (scripted practice rebuilt after replaying a real A1 session)
 
-**Deployed 2026-11-08** (worker `17abb92b-…`, Pages `eea032dd-…`; gate 16/16). The pilot chat now has a real AI half without giving the model the wheel: for the
-11 migrated scenes, one bounded `/ai/turn` carries `script_context` — the step, slot, question on screen, authored hint,
-keywords and scene facts — and returns only how it read THIS sentence, one in-character reaction with no question mark,
-and a hint that repairs THIS attempt (`lib/conversation/script/aiTurn.ts`). The script still decides the step, the accepted
-answer and the next question, so an answered question is never asked again, a reaction never replaces the ask (off-topic
-shows «reaction + the script's re-ask»), and a 7 s timeout silently falls back to the authored line — no error card. The
-local matcher is the cross-check: an explicit match overrules an AI rejection, and an accepted value must appear in the
-learner's own words, so «Ich wohne in Bali» is never turned into Berlin. The worker re-bounds every field. The hint dock,
-collapsed «تصحيح صغير ›» correction, «N من M» header, local memory and privacy text from V33 remain.
-**Proof:** `scriptAiTurn` **13**, `scenarioScript` **39** (10 personas × 5 AI behaviours × 11 scripts), `umlautCorrection`,
-`e2e/scriptedConversation.spec.ts` **3** (the 49 served rows seeded); gate **VERIFY OK 16/16** (827.8 s, `--ci --e2e`).
+**Deployed 2026-11-08** (worker `e89a0fc1-…`, Pages `b0b066df-…`; gate 16/16). Replaying one real A1 session in «أول الكلمات»
+exposed seven defects; all were fixed across the 11 scripts. Slots accept fragments and any casing per type (place
+«in berlin»/«aus London», name «ich heiße leo»/«Hallo, ich bin Leo», origin, age, job) and a cross-slot guard rejects the
+wrong type. Static tests fail the build when two steps share a slot or ask the same question in different words. The
+greetings arc is name → origin → city → «Wie gefällt dir {city}?» → farewell; every address/street/phone ask is gone
+from all scripts; the header total equals the script's real step count (5 here), with a test pinning it. Personas carry
+`gender`, so Arabic agrees («سعيدة بمعرفتك» vs «سعيد»), enforced by `glossLint` over every shipped gloss; a learner's name
+appears once per turn; the «تُنهى بنقطة» note is deleted. An unclear first answer gets «Wie bitte?» with the model answer
+in the hint dock; only a second failure moves on, gently. The V34 AI half (`aiTurn.ts`, `script_context`, 7 s silent
+fallback), hint dock, correction chip and local memory are unchanged.
+**Proof:** `scenarioScript` **84** (exact golden replay, 15 fragment/casing cases per slot, lint, header), `scriptAiTurn` 13;
+gate **VERIFY OK 16/16** (729 s, `--ci --e2e`); production smoke 2 passed / 2 skipped.
 **Owner-open:** a native read of the 11 pilot scripts (§18); the other 38 migrations.
 
 ## Previous snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)

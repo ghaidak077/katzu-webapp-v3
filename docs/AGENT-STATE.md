@@ -26,22 +26,22 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-11-08 — the chat is script-owned: a question answered is never asked again, and every session ends after a farewell.**
-  `src/lib/conversation/script/*` is one pure state machine shared by client and tests: 11 pilot scripts
-  (`first_greetings` + units 1–2), 3 ask variants, slots, reactions and a farewell last. `useLiveConversation.ts` runs the
-  script step plus one bounded AI call for the human half (SCRIPT-AI), and persists a stated city locally. Every line
-  passes `guardGermanLine`. New `HintDock.tsx` + `lib/conversation/hintMatch.ts` show sentence-with-blanks, Arabic meaning
-  and «سمّعني»/«ببطء»/«قلها» without sending; a hint-matched sentence is tagged «بتلميح». Correction is a collapsed
-  `<details>` chip «تصحيح صغير ›». Header «N من M»;
-  report counts are LTR-isolated and the review hint is capped at 10; the green «أحسنت!» banner is gone. Settings gains
-  «ما نتذكره عنك» (name/city/job/goal, local only, visible and deletable) and the privacy text names the four facts
-  (`TRUST_VERSION 2026-11-08`). Unmigrated scenarios stay on `/ai/turn` behind a per-scenario flag; V34 adds the AI half
-  (SCRIPT-AI). Tests: `scenarioScript` **39 passed** (10 personas × 5 AI behaviours × 11 scripts), `scriptAiTurn` 13,
-  `hintMatch` 4, `personalFacts` 5, `reportedExchange`.
-  A script is served only when the session's served level equals the script's own (`scriptForScenario(id, level)`; B1 mock
-  and A2 paywall keep the legacy engine). Browser specs that measure the model engine run on `friend_catchup`/
-  `landlord_followup`; scripted UI specs stay on pilots. V33 gate **VERIFY OK 16/16** (799.5 s, `--ci --e2e`);
-  measurements are in the APP-MAP change log.
+- **2026-11-08 (later) — scripted practice rebuilt into real training; deployed `086d545`.**
+  Fragment/casing slot matching (name/origin/city/age/job) with cross-slot rejection; static guards for repeated
+  slots and re-worded duplicate questions; greetings arc name→origin→city→opinion→farewell on all 11 scripts; every
+  address/street/phone ask removed; persona `gender` with gendered Arabic glosses (`glossLint.ts` gate over shipped
+  glosses); a name appears once per turn; period note deleted; first unclear turn says «Wie bitte?» with the model
+  answer in the hint dock, the second moves on. Header `M` equals the script's real step count (`first_greetings` = 5).
+  `scenarioScript` 84 passed; gate **VERIFY OK 16/16** (729 s, `--ci --e2e`); worker `e89a0fc1`, Pages `b0b066df`,
+  production smoke 2/2. Details and rollback ids in APP-MAP §9.
+
+- **2026-11-08 — script-owned chat: answered questions are never re-asked, every session ends after a farewell.**
+  `src/lib/conversation/script/*` is one pure state machine: 11 pilot scripts (`first_greetings` + units 1–2), ask
+  variants, slots, reactions, farewell last. `useLiveConversation.ts` runs the script step plus one bounded AI call
+  (SCRIPT-AI). `HintDock.tsx` shows blanks, Arabic meaning and «سمّعني»/«ببطء»/«قلها» without sending. Line guards,
+  collapsed correction chip, settings «ما نتذكره عنك» (local only), `TRUST_VERSION 2026-11-08`. Unmigrated scenarios
+  stay on `/ai/turn`; V34 adds the AI half. Earlier tests: `scenarioScript` 39, `scriptAiTurn` 13, `hintMatch` 4.
+  V33 gate **VERIFY OK 16/16** (799.5 s).
 
 - **Older RESUME entries moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-01/07 to stay under the
   80 KB cap (search `RESUME moved 2026-11-07 path screen + opener gate`, `RESUME 2026-11-05 first message Arabic`,
