@@ -42,7 +42,7 @@ async function violations(page: import('@playwright/test').Page) {
 /** Opens the live conversation in Practice mode and waits for the bar to settle. */
 async function openLive(page: import('@playwright/test').Page) {
   await bootSignedIn(page, { turns: [turn(), turn(), turn(), turn(), turn()] });
-  await page.goto('/scenario/cafe_order/live');
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.getByRole('button', { name: 'ابدأ التحدث' })).toBeVisible();
 }

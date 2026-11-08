@@ -33,11 +33,13 @@ test('an A2 learner is not gated before their first episode', async ({ page }) =
   await primary.click();
   await expect(page).toHaveURL(/\/scenario\/(.+)\/story$/);
   const scenarioId = new URL(page.url()).pathname.split('/')[2];
+  expect(scenarioId).toMatch(/^[a-z_]+$/);
 
   // The free mission runs at the level the trial actually serves, and says so.
   // A measured A2 cannot buy an A2 conversation, so promising one here would
-  // send the learner into a wall on their own first turn.
-  await page.goto(`/scenario/${scenarioId}/live`);
+  // send the learner into a wall on their own first turn. The conversation runs
+  // on an unmigrated A1 scene so the mocked turn reply is the one on screen.
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
   await expect(page.getByTestId('level-chip')).toHaveText('A1');
@@ -70,7 +72,7 @@ test('the fourth conversation ends in the Pro card, not in a retry that cannot c
   });
 
   await bootSignedIn(page, { freeQuotaExhausted: true });
-  await page.goto('/scenario/airport_arrival/live');
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   const input = page.getByPlaceholder(/Schreib deinen Satz/);
@@ -226,7 +228,7 @@ test('the Pro offer appears on the Debrief, after the episode is finished', asyn
     ],
   });
 
-  await page.goto('/scenario/cafe_order/live');
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   for (const reply of ['Guten Tag! Möchten Sie einen Kaffee?', 'Gerne, einen Kaffee.', 'Sehr gern. Möchten Sie noch etwas?', 'Perfekt, bis bald!']) {

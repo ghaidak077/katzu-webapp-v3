@@ -270,6 +270,11 @@ export interface UserEntity {
   /** Where the learner needs German to actually work: a profession focus inside
    * the goal (medical / tech / other). Optional + non-indexed. */
   profession?: 'medical' | 'tech' | 'other';
+  /** The city the learner names in conversation, remembered locally so the
+   * persona can refer to it again. Visible/deletable in Settings. */
+  city?: string;
+  /** The learner's job, as they describe it. Local-only callback material. */
+  jobTitle?: string;
 }
 
 export interface RedeemedCodeEntity {

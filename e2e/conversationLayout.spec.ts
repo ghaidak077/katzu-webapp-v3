@@ -105,7 +105,7 @@ test('the transcript ends above the dock, with the suggestion panel open', async
     ],
   });
 
-  await page.goto('/scenario/cafe_order/live');
+  await page.goto('/scenario/landlord_followup/live');
   // Three of the A1 session's four turns leave it running, so the layout is
   // measured mid-conversation rather than on the debrief hand-off. Practice mode
   // on purpose: the suggestion panel is part of what has to fit.
@@ -119,7 +119,7 @@ test('the transcript ends above the dock, with the suggestion panel open', async
   // And with the on-demand suggestion revealed — the pill that covered the same
   // bubble in the report.
   await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
-  await expect(page.getByText('Ich möchte über die Kaution sprechen.')).toBeVisible();
+  await expect(page.getByTestId('hint-dock').getByText('Ich möchte über die Kaution sprechen.')).toBeVisible();
   await assertNothingIsCovered(page);
 });
 

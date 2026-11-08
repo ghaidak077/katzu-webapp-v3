@@ -258,7 +258,7 @@ test('Live Interaction runs a turn with the orb and keeps the typed path open', 
   // A real turn takes a moment; the delay is what makes the orb's in-flight
   // state observable at all (an instant reply would skip straight to feedback).
   await bootSignedIn(page, { turnDelayMs: 900 });
-  await page.goto('/scenario/cafe_order/live');
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   // Turn one of three at A1 — pacing comes from the tested rule, not the screen.
@@ -314,7 +314,7 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
     ],
   });
 
-  await page.goto('/scenario/cafe_order/live');
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   // Four turns is the A1 session cap (levelSpec.maxSessionTurns); the last one
@@ -398,7 +398,7 @@ test('the learner sees their own German while they are still speaking', async ({
  */
 test('a browser without a platform recogniser still speaks through the worker', async ({ page }) => {
   await bootSignedIn(page, { nativeSpeech: false });
-  await page.goto('/scenario/cafe_order/live');
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   await orb(page).click();
@@ -417,7 +417,7 @@ test('a browser without a platform recogniser still speaks through the worker', 
 
 test('a denied microphone is stated in Arabic and never closes the typed path', async ({ page }) => {
   await bootSignedIn(page, { denyMicrophone: true });
-  await page.goto('/scenario/cafe_order/live');
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   await orb(page).click();

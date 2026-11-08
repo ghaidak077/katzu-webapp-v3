@@ -146,6 +146,8 @@ elsewhere, four new V10 entries.
 
 2026-10-28 | Affiliate admin routes answered "unauthorized"/malformed for a valid key | The shared `request.json()` ran before the affiliate dispatcher, consuming the body, so the handler read an empty stream | Dispatch a route family before any shared body parse it will read itself; the admin suite caught it because it sends a real signed request, not a stub.
 
+2026-11-08 | A learner gave their name and was asked it again immediately | The dialogue had no owner: each turn was whatever the model returned, so the step was re-derived from text and a question could repeat | A conversation that must not repeat itself is a script with a slot per step run by a pure app-owned state machine; the AI only rewords an unclear answer.
+
 ## Pruned (encoded elsewhere — kept here only as a pointer)
 2026-10-04 | Three "HIGH" findings from the cross-discipline review dissolved on the second measurement | Accessible-name checks that skip `<label for>`, `scrollWidth` read as horizontal scroll, and Arabic glyph overflow read as clipped text all report failures that no user can perceive | Before a finding becomes a fix, ask what the user would *do* differently: `labels[]` association is how the platform names a field, `window.scrollX` after a real swipe is whether a page moves, and a 3px line-box overflow in Cairo is not an ellipsis. Three harness fixes, zero product changes.
 
@@ -159,7 +161,6 @@ elsewhere, four new V10 entries.
 - `rg` is missing on this machine. Now stated in `AGENTS.md` §1 and `docs/agent/ENV-FACTS.md` (use `grep -rn` / `git grep -n`, never retry `rg`).
 - A hand-started dev/preview server never receives Playwright's `webServer.env`, so a preview bundle built without `VITE_WORKER_URL` calls its own origin and every turn 404s. Now encoded in `playwright.config.ts` (the `E2E_TARGET=preview` mode owns the build and injects the origin) and exercised by the V7-2/V9 gates.
 - CI had been red for 16 consecutive runs while every local run was green (2026-09-29). Encoded in `AGENTS.md` §5/§11 and `MEMORY` §A: `engines.node` declares the dependency floor, CI pins 24.15.0, and `tests/ciWorkflow.test.ts` compares them — a local run cannot see the runner's Node.
-- The gate was built and documented but nothing triggered it (2026-10-15). Encoded in `AGENTS.md` §5: CI runs `npm run verify -- --ci`, `.githooks/` run `--fast`/full, and `tests/{ciWorkflow,hooks,verifyScript}.test.ts` keep it true.
 
 ## Promotion candidates (a proposal to the owner — an agent never edits §3 or the Content Gate)
 

@@ -8,6 +8,42 @@ rows (`blocked`, `todo`, `doing`) stayed in the ledger.
 Read it by search only: `grep -n "<topic>" docs/agent/ARCHIVE-AGENT-STATE.md`, then read ~30 lines around
 the hit. Never load this file whole.
 
+## RESUME entries moved 2026-11-08
+
+- **2026-11-07 — session-replay fixes: no false correction, never-empty hints, no off-topic 💬 line.**
+  `germanChecker.ts` no longer flags `du/dir/dich/dein*` (formal `Sie/Ihnen` always capitalised; only common nouns
+  in context or a person name after heiße/bin/ist/Frau/Herr), and a missing final `.`/`?` is an optional soft note
+  (`softNoteAr`) instead of a silent edit, so «قريب! بقي تصحيح واحد» appears only with ≥1 real error.
+  `answerBank.ts` ships 49 question types × 3 answers + 3 repeat + 4 generic = **154 strings, 0 corrections**;
+  `visibleHints` leads with the direct answer to the last question («Wie heißt du?» → «Ich heiße …» with the name,
+  «Wie geht es dir?» → «Mir geht es gut, danke.»), keeps the repeat family last, and falls back to the generic family
+  so the sheet is never empty. The 💬 `followup_question_ar` line was removed from `cloudflare-ai-chat.js`: only the
+  current scene's own level-validated question is appended. Glosses already read «اسمي …» (no «أنا اسمي» in the repo).
+  Tests: `answerBank` (154 clean, coverage, ordering, name), `shippedGermanStrings` (openers + starter phrases,
+  0 corrections), `germanCheckerGolden` +21 du/Sie, `turnGuard` cross-scenario isolation, `e2e/greetingsReplay.spec.ts`
+  replays the owner's session (no false correction; one capital `G`, no period; non-empty sheet, no café words).
+  Gate **`VERIFY OK 16/16 in 725s`**. Deployed: Pages `7b5995a4-9b08-4fb6-9190-670a6aca10a9` (source
+  `421715a`; rollback `26335c17-a358-444e-a29a-bedd99845690`), worker
+  `aeee3302-f036-47e4-aea6-211043375d60` (rollback `3afaa92c-5d0e-463a-af73-7eaf90d00cde`).
+
+- **2026-11-07 — the path is ten owner-approved units and the day is one composed session (deployed; worker unchanged).**
+  `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
+  dimmed and locked, units below the placement level open and marked «تخطّيتَ», plus the level percent ring and the exact
+  ability lines. The 49 served scenarios are partitioned into the owner's 10 units exactly once, checkpoint last,
+  enforced by `scripts/audit-unit-coverage.mjs` in the gate. Outcome lines are practice-only («في هذه الوحدة تتدرّب
+  على …»); the B2 unit says the exam-style talk is training only and grants no certificate. One move from the owner's
+  draft: `patient_conversation_basics` sits in unit 5 «صحتك ومواعيدك» (the learner speaks as a patient: «Mir ist nicht
+  gut…»), not unit 6. `src/lib/units/{units,progress}.ts` own recommendation (unfinished-started → unit order →
+  checkpoint), stage (study → with help → solo), composition, `nextPlanStep`, the post-session offers, and a `skipped`
+  flag for pre-placement units. One CTA «ابدأ جلسة اليوم»/«تابع»; the report auto-advances after 2 s with «ليس الآن».
+  Signup asks one goal question; placement still sets the start; conversations show 3 unit topic chips + «فاجئني» and no
+  level control. Free line «جلسة مجانية N من 3»; paywall only at a session boundary. Existing learners map by completed
+  ids with level/XP preserved. Evidence: `units` + `trailOrdering` **58**, unit coverage **49/49 across 10 units**, full
+  gate `VERIFY OK — 16/16 steps passed in 896.5s` (browser suite 774.4s, exit 0). **Deployed** Pages
+  `5c63e575-9021-4caa-82de-a2ec6dd7d6c7` (source `19b431a`, entry `assets/index-BnLPxd6G.js`; `/`, `katzuai.com` and
+  `/sw.js` 200; production smoke 2 passed / 2 skipped); rollback `b914e4ba-c296-44eb-8302-f19c5d571c03` (source
+  `58551b9`, docs-only, same bundle). Worker unchanged. Owner review: `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
+
 ## ITEMS — completed
 
 | ID | Status | Evidence / blocker |

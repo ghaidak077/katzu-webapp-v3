@@ -296,18 +296,24 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
             corrected word and the 2px edge beside it — and neutral ink for
             everything else, so it reads as feedback, not a second conversation. */}
         {showHelp && correctionMessage && (
-          <div
+          <details
             data-testid="correction-card"
-            className={`kz-message-in mt-2 rounded-control border-t border-b border-e border-s-2 bg-surface-subtle px-4 py-3 text-start ${
+            className={`kz-message-in group mt-2 rounded-control border-t border-b border-e border-s-2 bg-surface-subtle text-start ${
               hasCorrection ? 'border-s-status-success/60' : 'border-s-kz-line/70'
             }`}
           >
-            <div className="flex items-center gap-2">
+            {/* Collapsed by default: the learner is never interrupted mid-flow.
+                «تصحيح صغير ›» sits under their own line and opens the same card. */}
+            <summary className="kz-ar-micro flex min-h-touch cursor-pointer list-none items-center gap-1.5 px-3 py-2 font-bold text-kz-inkDim [&::-webkit-details-marker]:hidden">
               <KatzuMascot name="avatar" alt="" className="h-4 w-4 rounded-full opacity-80" />
-              <span className="kz-ar-micro font-bold text-kz-ink">تصحيح كَاتْزُو</span>
-            </div>
+              <span>تصحيح صغير</span>
+              <span aria-hidden className="transition-transform group-open:rotate-90">›</span>
+            </summary>
 
-            <div className="mt-2.5 space-y-2.5">
+            <div className="px-4 pb-3">
+              <span className="kz-ar-micro font-bold text-kz-ink">تصحيح كَاتْزُو</span>
+
+              <div className="mt-2.5 space-y-2.5">
               {(learnerSentence || correctedSentence) && (
                 <div className="space-y-1.5">
                   {learnerSentence && (
@@ -399,8 +405,9 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                   «{correctionMessage.roastComment}»
                 </p>
               )}
+              </div>
             </div>
-          </div>
+          </details>
         )}
 
         {/* A missing final «.» / «?» is optional, not an error: a quiet note

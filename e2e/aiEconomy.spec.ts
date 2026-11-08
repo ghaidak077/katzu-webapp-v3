@@ -49,7 +49,7 @@ test('a typed turn costs exactly one /ai/turn and no other AI call', async ({ pa
   });
 
   await bootSignedIn(page);
-  await page.goto('/scenario/airport_arrival/live');
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]').first()).toBeVisible();
 

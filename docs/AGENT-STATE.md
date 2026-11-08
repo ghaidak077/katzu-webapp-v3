@@ -26,39 +26,24 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-11-07 — session-replay fixes: no false correction, never-empty hints, no off-topic 💬 line.**
-  `germanChecker.ts` no longer flags `du/dir/dich/dein*` (formal `Sie/Ihnen` always capitalised; only common nouns
-  in context or a person name after heiße/bin/ist/Frau/Herr), and a missing final `.`/`?` is an optional soft note
-  (`softNoteAr`) instead of a silent edit, so «قريب! بقي تصحيح واحد» appears only with ≥1 real error.
-  `answerBank.ts` ships 49 question types × 3 answers + 3 repeat + 4 generic = **154 strings, 0 corrections**;
-  `visibleHints` leads with the direct answer to the last question («Wie heißt du?» → «Ich heiße …» with the name,
-  «Wie geht es dir?» → «Mir geht es gut, danke.»), keeps the repeat family last, and falls back to the generic family
-  so the sheet is never empty. The 💬 `followup_question_ar` line was removed from `cloudflare-ai-chat.js`: only the
-  current scene's own level-validated question is appended. Glosses already read «اسمي …» (no «أنا اسمي» in the repo).
-  Tests: `answerBank` (154 clean, coverage, ordering, name), `shippedGermanStrings` (openers + starter phrases,
-  0 corrections), `germanCheckerGolden` +21 du/Sie, `turnGuard` cross-scenario isolation, `e2e/greetingsReplay.spec.ts`
-  replays the owner's session (no false correction; one capital `G`, no period; non-empty sheet, no café words).
-  Gate **`VERIFY OK 16/16 in 725s`**. Deployed: Pages `7b5995a4-9b08-4fb6-9190-670a6aca10a9` (source
-  `421715a`; rollback `26335c17-a358-444e-a29a-bedd99845690`), worker
-  `aeee3302-f036-47e4-aea6-211043375d60` (rollback `3afaa92c-5d0e-463a-af73-7eaf90d00cde`).
-
-- **2026-11-07 — the path is ten owner-approved units and the day is one composed session (deployed; worker unchanged).**
-  `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
-  dimmed and locked, units below the placement level open and marked «تخطّيتَ», plus the level percent ring and the exact
-  ability lines. The 49 served scenarios are partitioned into the owner's 10 units exactly once, checkpoint last,
-  enforced by `scripts/audit-unit-coverage.mjs` in the gate. Outcome lines are practice-only («في هذه الوحدة تتدرّب
-  على …»); the B2 unit says the exam-style talk is training only and grants no certificate. One move from the owner's
-  draft: `patient_conversation_basics` sits in unit 5 «صحتك ومواعيدك» (the learner speaks as a patient: «Mir ist nicht
-  gut…»), not unit 6. `src/lib/units/{units,progress}.ts` own recommendation (unfinished-started → unit order →
-  checkpoint), stage (study → with help → solo), composition, `nextPlanStep`, the post-session offers, and a `skipped`
-  flag for pre-placement units. One CTA «ابدأ جلسة اليوم»/«تابع»; the report auto-advances after 2 s with «ليس الآن».
-  Signup asks one goal question; placement still sets the start; conversations show 3 unit topic chips + «فاجئني» and no
-  level control. Free line «جلسة مجانية N من 3»; paywall only at a session boundary. Existing learners map by completed
-  ids with level/XP preserved. Evidence: `units` + `trailOrdering` **58**, unit coverage **49/49 across 10 units**, full
-  gate `VERIFY OK — 16/16 steps passed in 896.5s` (browser suite 774.4s, exit 0). **Deployed** Pages
-  `5c63e575-9021-4caa-82de-a2ec6dd7d6c7` (source `19b431a`, entry `assets/index-BnLPxd6G.js`; `/`, `katzuai.com` and
-  `/sw.js` 200; production smoke 2 passed / 2 skipped); rollback `b914e4ba-c296-44eb-8302-f19c5d571c03` (source
-  `58551b9`, docs-only, same bundle). Worker unchanged. Owner review: `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
+- **2026-11-08 — the chat is script-owned: a question answered is never asked again, and every session ends after a farewell.**
+  `src/lib/conversation/script/{types,engine,scripts,index}.ts` is one pure, network-free state machine shared by the client
+  and the tests: 11 pilot scripts (`first_greetings` + units 1–2) with 3 German/Arabic ask variants, slot recognition,
+  reactions, hint lines and a farewell last. `useLiveConversation.ts` runs the script branch before any AI call (0 AI calls
+  per scripted turn) and persists a stated city locally. Every shown line passes `guardGermanLine` (one question max, role,
+  level length, no markdown). New `HintDock.tsx` + `lib/conversation/hintMatch.ts` show sentence-with-blanks, Arabic meaning
+  and «سمّعني»/«ببطء»/«قلها» without ever sending; a hint-matched sentence is tagged
+  «بتلميح». Correction moved into a collapsed `<details>` chip «تصحيح صغير ›». Header «N من M»;
+  report counts are LTR-isolated and the review hint is capped at 10; the green «أحسنت!» banner is gone. Settings gains
+  «ما نتذكره عنك» (name/city/job/goal, local only, visible and deletable) and the privacy text names the four facts
+  (`TRUST_VERSION 2026-11-08`). Unmigrated scenarios stay on `/ai/turn` behind a per-scenario flag. Tests: `scenarioScript`
+  **39 passed** (10 personas × 5 AI behaviours × 11 scripts), `hintMatch` 4, `personalFacts` 5, `reportedExchange`.
+  A script is served only when the session's served level equals the script's own level (`scriptForScenario(id, level)`;
+  the B1 mock and A2 paywall keep the legacy engine). Browser specs that measure the model engine now run on unmigrated
+  `friend_catchup`/`landlord_followup`; scripted-only UI specs stay on the pilot scenes. Gate **VERIFY OK 16/16** (799.5 s,
+  `--ci --e2e`). Measured locally with `vite-node` over the real engine: 2,200 sessions / 9,400 turns, **0 AI calls**,
+  turn compute p50 0.004 ms / p95 0.009 ms (excludes the deliberate 0.6–1.4 s typing beat and rendering). Before/after
+  390×844 pairs in `.tmp/`.
 
 - **Older RESUME entries moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-01/07 to stay under the
   80 KB cap (search `RESUME moved 2026-11-07 path screen + opener gate`, `RESUME 2026-11-05 first message Arabic`,
@@ -263,8 +248,16 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | CONTENT-V2. Scenarios v2 (61 rows, A0–B2) | blocked | **All 61 authored; the 49-row update path is built and proven locally; nothing deployed.** One authoring source `docs/content/catalogue/scenarios-catalogue.json` (49 corrected + 12 new) → `scripts/apply-content-catalogue.mjs` → `build-language-data.mjs`; **0/305** openers off-spec, 0 personas without `katze`, 0 emoji icons, `sequence_order` 1..61; 301 openers / 457 glossed tokens / 0 unresolved; 12 rows + 159 glosses `needs_review`. `scripts/load-content-updates.mjs` corrects the 49 through the new `/admin/api/content-studio/*` bridge (draft → publish-all → audit → undo, studio backup + per-run manifest); `scripts/verify-content-update-local.mjs` **28/28** on a real local D1: 49 rows / **327 fields**, catalogue-exact column by column, the 12 new ids absent, undo restored every field. That run found and fixed a real undo defect (`SELECT *` audit state carried the legacy `sequence_order` → 49/49 `409 restore_invalid`; `contractRow` + regression, `contentStudio` **33**, `loadContentUpdates` **17**). SW update prompt shipped locally (`updatePrompt` **4**). Full gate + e2e green locally; pushed `f7a76f7`, CI **41300425341** green on it. **Blocked on the owner:** §3 is insert-only → needs `CONTENT-LOAD-AUTHORIZED: <file>` plus an amendment for the UPDATE, and the production dry run returns `401 unauthorized` while the environment `ADMIN_SECRET` is set, 64-hex, no whitespace (`docs/CONTENT-AUDIT.md` §9). |
 | SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
+| SCRIPT-MIGRATE. Remaining 38 scenarios → script engine | todo | 11 pilots run locally (`first_greetings` + units 1–2; `tests/scenarioScript.test.ts` 39 passed); every unmigrated id stays on `/ai/turn` behind `isScriptedScenario`. Order: unit by unit, simulation gate green per batch. |
 
 ## DECISIONS
+
+- **SCRIPT-ENGINE (2026-11-08) — the app owns the dialogue; the AI only helps when the learner is unclear.** A migrated
+  scenario is a typed script (`lib/conversation/script/*`) read by one pure state machine on the client and in tests:
+  local match → fill slot → short reaction + the next step's unused ask, exactly one question per turn. Zero AI calls per
+  scripted turn; only an unclear/off-topic answer may spend one small call, and any failure falls back to the script line,
+  so no turn can show an error card. Guards run on every shown line. 11 pilots migrated; the other 38 stay on `/ai/turn`
+  behind `isScriptedScenario` until each unit's simulation gate is green.
 
 - **UNIT-PATH (2026-11-07) — one guided vertical unit path; the learner never chooses.** The 49 served scenarios are
   partitioned into 9 themed units (5–6 each), ordered level then difficulty, checkpoint last. `units.ts` is the only
@@ -510,6 +503,11 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 ## OWNER-OPEN
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
+
+- **Read the 11 pilot scripts' German and Arabic (SCRIPT-ENGINE, 2026-11-08).** Every line a learner sees in
+  `first_greetings` and units 1–2 now comes from `src/lib/conversation/script/scripts.ts` (3 asks, reactions, hints and a
+  farewell per scene). A native read is the only check that matters: report any odd line and it is replaced.
+  Plain copy: `OWNER-CHECKLIST.md` §18.
 
 - **Two path-screen wording decisions (TRAIL-1, 2026-11-06).** Approve or rewrite the four CEFR level lines
   («أتدبّر أمري في ألمانيا»، «أتحرّك في يومي بثقة»، «أتعامل مع المواقف الرسمية والعمل»، «أتحدّث بطلاقة في العمل

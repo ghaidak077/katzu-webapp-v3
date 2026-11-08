@@ -40,19 +40,23 @@ test('PRACTICE mode shows the hint and the live correction, one /ai/turn per tur
     ],
   });
 
-  await page.goto('/scenario/cafe_order/live');
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   await page.getByPlaceholder(/Schreib deinen Satz/).fill('Ich möchte ein Kaffee');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Verstanden.')).toBeVisible();
 
-  // Help is on: the suggestion pill exists and answers the reply.
-  await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
-  await expect(page.getByText('Ja, bitte einen Kaffee.')).toBeVisible();
-
-  // And the correction is shown live.
+  // The correction is shown live, one tap under the learner's own line. This is
+  // asserted before any sheet opens: a closing sheet's scrim covers the chip.
+  await page.getByText(/تصحيح صغير/).click();
   await expect(page.getByText('تصحيح كَاتْزُو')).toBeVisible();
+  await expect(page.getByText(/^Ich möchte einen Kaffee\.?$/)).toBeVisible();
+
+  // Help is on: the suggestion pill exists and answers the reply. The hint dock
+  // shows the same sentence, which is the surface that must be visible.
+  await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
+  await expect(page.getByTestId('hint-dock').getByText('Ja, bitte einen Kaffee.')).toBeVisible();
   await expect(page.getByText(/^Ich möchte einen Kaffee\.?$/)).toBeVisible();
 
   expect(aiTurn, 'exactly one chat call per typed turn').toEqual(['/ai/turn']);
@@ -73,7 +77,7 @@ test('REAL mode hides every aid, still reports the mistake, and its correction i
     ],
   });
 
-  await page.goto('/scenario/cafe_order/live');
+  await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'محادثة حقيقية (بدون مساعدة)' }).click();
 
   // No aid is present, anywhere, from the first screen.

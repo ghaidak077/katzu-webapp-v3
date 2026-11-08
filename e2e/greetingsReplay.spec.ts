@@ -1,8 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { bootSignedIn, seedStoreRow, turn } from './harness';
+import { bootSignedIn, turn } from './harness';
 
 /**
  * The reported A1 session, replayed on the built bundle.
+ *
+ * The conversation below runs on an UNMIGRATED scene (`landlord_followup`), so
+ * it still exercises the model-driven engine and its local corrector/hint rules.
+ * The scripted scenes have their own gate (`tests/scenarioScript.test.ts`).
  *
  * «أول الكلمات: مرحباً ومع السلامة» produced four defects at once:
  *  1. the app's own question «Wie heißt du nochmal, bitte?» came back corrected
@@ -25,25 +29,7 @@ test('the first-words session is corrected and hinted correctly', async ({ page 
     ],
   });
 
-  // The offline seed only ships a handful of scenes, and `first_greetings` is
-  // not one of them: the app reads the opener from Dexie, so the row has to be
-  // there before the route can render it. Seed the same shape the curriculum
-  // loader writes.
-  await seedStoreRow(page, 'scenarios', {
-    id: 'first_greetings',
-    title_de: 'Erste Wörter: Hallo und Tschüss',
-    title_ar: 'أول الكلمات: مرحباً ومع السلامة',
-    ai_persona: 'Nachbarin katze',
-    category: 'daily_life',
-    icon: 'hand',
-    initial_message_a0: 'Hallo! Wie heißt du?',
-    initial_message_a1: 'Hallo! Ich bin Frau Yilmaz. Wie heißt du?',
-    initial_message_a2: 'Hallo, ich wohne neu hier. Wie heißt du?',
-    initial_message_b1: 'Hallo! Ich bin neu in der Straße. Wie heißt du, und woher kommst du?',
-    initial_message_b2: 'Hallo! Ich bin letzte Woche eingezogen. Wie heißt du, und wie gefällt dir die Nachbarschaft?',
-  });
-
-  await page.goto('/scenario/first_greetings/live');
+  await page.goto('/scenario/landlord_followup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]').first()).toBeVisible();
 
@@ -57,6 +43,8 @@ test('the first-words session is corrected and hinted correctly', async ({ page 
   // 2. One real capitalisation error, no silent final period.
   await input.fill('Ich heiße ghaidak');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
+  // The card is collapsed to a quiet chip under the learner's own line.
+  await page.getByText(/تصحيح صغير/).click();
   await expect(corrections).toBeVisible();
   await expect(page.getByText(/^Ich heiße Ghaidak$/)).toBeVisible();
   await expect(page.getByText('قريب! بقي تصحيح واحد.')).toBeVisible();

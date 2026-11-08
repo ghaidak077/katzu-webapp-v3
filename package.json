@@ -28,6 +28,7 @@
     "verify": "node scripts/verify.mjs",
     "verify:ci": "node scripts/verify.mjs --ci",
     "verify:admin:local": "node scripts/verify-admin-local.mjs",
+    "regression:report": "node scripts/replay-reported-exchange.mjs",
     "cost:report": "node scripts/verify-cost.mjs",
     "hooks:install": "node scripts/install-hooks.mjs",
     "prepare": "node scripts/install-hooks.mjs",

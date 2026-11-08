@@ -61,21 +61,23 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-07 (session-replay fixes: no false correction, never-empty hints, no off-topic 💬 line)
+## Current snapshot — 2026-11-08 (the chat is script-owned: no repeated question, hint dock, local memory)
 
-**Deployed; gate green.** A real A1 session exposed four trust bugs, all fixed on the device. The checker no longer
-touches `du/dir/dich/dein*` (formal `Sie/Ihnen` always capitalised; only common nouns in context or a person name after
-heiße/bin/ist/Frau/Herr), and a missing final `.`/`?` is an optional soft note instead of a silent edit, so the
-«قريب! بقي تصحيح واحد» line appears only with a real error. `answerBank.ts` ships 49 question types × 3 answers
-(+ 3 repeat + 4 generic = 154 strings, 0 corrections): the first hint answers the last question («Wie heißt du?» →
-«Ich heiße …», «Wie geht es dir?» → «Mir geht es gut, danke.»), the repeat family is last, and the sheet is never
-empty. The off-topic 💬 Arabic line was removed from `cloudflare-ai-chat.js`, so only the current scene's own
-level-validated question is appended. The earlier rule-first card (full sentence, red/green diff, Arabic reason,
-model fallback, «أحسنت» only when correct) is unchanged.
-**Deployed:** this batch's Pages/worker ids are recorded in `APP-MAP` after the deploy; before it, live was Pages
-`a1bb59aa` / worker `3afaa92c`.
-**Proof:** gate **VERIFY OK 16/16 in 725 s** (`--ci --e2e`); `answerBank`, `shippedGermanStrings`, `germanCheckerGolden`
-+21 du/Sie, `turnGuard` cross-scenario, `e2e/greetingsReplay` replay. Before/after 390×844 shots in gitignored `.tmp`.
+**Local and verified; deploy follows.** A learner answered «Wie heißt du?» and was asked it again. Migrated scenarios now run an app-owned script — `src/lib/conversation/script/*` is a pure
+state machine with 11 pilot scripts (`first_greetings` + units 1–2): three DE/AR ask
+variants per step, recognition, a reaction echoing the answer, hints and a farewell last. A scripted
+turn costs **0 AI calls**; only an unclear or off-topic answer may spend one small call, and any failure falls back to the
+script line, so no turn shows an error card. Every shown line passes `guardGermanLine` (one question max, role, level
+length, no markdown). The other 38 scenarios stay on `/ai/turn` behind a per-scenario flag until each unit's gate is green.
+The hint dock shows the sentence with blanks, its Arabic meaning and
+«سمّعني»/«ببطء»/«قلها» without inserting text or sending; a hint-matched sentence is tagged «بتلميح». Correction is now a
+collapsed chip «تصحيح صغير ›» under the learner message instead of a blocking card. The header reads «N من M», report
+counts are LTR-isolated, the review hint respects the 10-item cap, and the «أحسنت!» banner is gone. Settings gains
+«ما نتذكره عنك» — name, city, job and goal, local only, visible and deletable — and the privacy page names those four facts
+(`TRUST_VERSION 2026-11-08`).
+**Proof:** `scenarioScript` **39 passed** (10 personas × 5 AI behaviours × 11 scripts), `hintMatch` 4, `personalFacts` 5,
+`reportedExchange`, `airport_arrival` opener gate green; before/after 390×844 shots in `.tmp`.
+**Owner-open:** a native read of the 11 pilot scripts (§18); the other 38 migrations.
 
 ## Previous snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
 

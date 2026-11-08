@@ -23,6 +23,7 @@ import type { CEFRLevel, ChatMessage, ScenarioEntity } from '@/types/models';
 import { ConversationDock } from './ConversationDock';
 import { ConversationTranscript } from './ConversationTranscript';
 import { useLiveConversation } from './useLiveConversation';
+import { HintDock } from './HintDock';
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
@@ -184,6 +185,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     handleToggleSaveWord,
     handleSpeak,
     handleSlowSpeak,
+    speakText,
     handleSendMessage,
     retryFailedTurn,
     requestOpenerTranslation,
@@ -431,7 +433,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
               {/* The dashes alone are unlabelled decoration to a learner; the
                   count says what they mean. */}
               <span data-testid="round-progress-label" className="kz-ar-micro shrink-0 text-kz-inkFaint">
-                {Math.min(userTurnsCount + 1, targetTurns)}/{targetTurns}
+                {Math.min(userTurnsCount + 1, targetTurns)} من {targetTurns}
               </span>
               <span
                 data-testid="level-chip"
@@ -503,6 +505,30 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         >
           {NO_GERMAN_VOICE_MESSAGE_AR}
         </p>
+      )}
+
+      {/* Whose turn it is, said once and quietly. The learner should never have
+          to infer it from a typing dot. */}
+      {!realMode && !isSessionCompleted && !isGenerating && messages.length > 1 && (
+        <p data-testid="your-turn-cue" className="shrink-0 px-4 pb-0.5 text-center kz-ar-micro font-semibold text-kz-lavender">
+          دورك
+        </p>
+      )}
+
+      {/* The hint dock: the sentence for THIS question, its Arabic, and the
+          three ways to use it. It never inserts text and never sends. */}
+      {!realMode && !isSessionCompleted && (
+        <HintDock
+          hint={visibleHints[0] ?? null}
+          typed={inputText}
+          disabled={isGenerating}
+          onSpeak={(text) => speakText(text)}
+          onSlowSpeak={(text) => speakText(text, 0.6)}
+          onTypeMyself={() => {
+            triggerHaptic('light');
+            inputRef.current?.focus();
+          }}
+        />
       )}
 
       {/* The bottom input bar: hint · field · orb/send. */}

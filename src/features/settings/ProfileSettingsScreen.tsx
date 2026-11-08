@@ -34,6 +34,7 @@ import { buildExamReminderIcs, reminderFileName } from '@/lib/reminder/ics';
 import type { CEFRLevel, MemoryPatternEntity, SarcasmLevel } from '@/types/models';
 import { workerClient } from '@/lib/api/workerClient';
 import { clearMemoryPatterns, deleteMemoryPattern, listMemoryPatterns, rebuildMemoryPatterns } from '@/lib/memory/patterns';
+import { PersonalFactsCard } from './PersonalFactsCard';
 import { ARRIVAL_COPY, GOAL_COPY, TARGET_DATE_COPY, describeLearnerLevel } from '@/lib/onboarding/preferences';
 import { isAnalyticsOptedOut, setAnalyticsOptOut } from '@/lib/analytics/client';
 import { track } from '@/lib/analytics/client';
@@ -708,6 +709,9 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </button>
         )}
       </Card>
+
+      {/* The learner's own copy of what Katzu remembers about them. */}
+      <PersonalFactsCard />
 
       {/* Long memory (V21 Phase 3): transparent by design — view and delete. */}
       <Card className="p-4 mb-6 space-y-3">

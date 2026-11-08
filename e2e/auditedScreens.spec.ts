@@ -24,7 +24,7 @@ test.describe('audited screens: practice, live failure, mock gate', () => {
     await page.goto('/');
     await expect(page.locator('#root')).not.toBeEmpty({ timeout: 30_000 });
     await seedSignedInUser(page);
-    await page.goto('/scenario/airport_arrival/live');
+    await page.goto('/scenario/friend_catchup/live');
 
     // mode chooser → training mode
     await page.getByRole('button', { name: /ابدأ «تدريب» الآن/ }).click();

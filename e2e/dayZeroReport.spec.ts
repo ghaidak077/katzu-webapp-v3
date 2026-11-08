@@ -60,7 +60,7 @@ function episodeTurns() {
 
 /** Walks the whole four-turn cafe episode and stops on the report. */
 async function finishCafeEpisode(page: Page) {
-  await page.goto('/scenario/cafe_order/live');
+  await page.goto('/scenario/landlord_followup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   const replies = [

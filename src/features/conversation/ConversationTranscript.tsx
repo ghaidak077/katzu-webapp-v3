@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { AlertTriangle, ArrowDown, CheckCircle2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ArrowDown, RefreshCw } from 'lucide-react';
 import { ConversationMessage } from './ConversationMessage';
 import { KatzuThinking } from '@/components/effects/KatzuThinking';
 import type { ChatMessage } from '@/types/models';
@@ -183,22 +183,17 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
           </div>
         )}
 
-        {/* Rule 7: Celebration Card on Exchange Completion */}
+        {/* The session ended honestly: no success banner and no «أحسنت!» before
+            the report has judged anything. Just the hand-off to the report. */}
         {isSessionCompleted && (
-          <div className="my-2 flex items-center gap-3 rounded-3xl border border-primary/40 bg-white/5 p-4 shadow-glow-purple">
+          <div className="my-2 flex items-center gap-3 rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex-1">
-              <div className="kz-ar-micro flex items-center gap-1.5 font-bold text-status-success">
-                <CheckCircle2 className="h-4 w-4" />
-                اكتملت محادثة السيناريو بنجاح!
-              </div>
-              <div className="mt-1">
-                <KatzuThinking
-                  size={30}
-                  layout="inline"
-                  labelAr="أحسنت! جاري إعداد تقرير أدائك اللغوي مع كَاتْزُو..."
-                  className="gap-2"
-                />
-              </div>
+              <KatzuThinking
+                size={30}
+                layout="inline"
+                labelAr="جارٍ إعداد تقرير الجلسة…"
+                className="gap-2"
+              />
             </div>
           </div>
         )}

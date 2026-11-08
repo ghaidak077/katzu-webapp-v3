@@ -5,6 +5,7 @@ import { db } from '@/lib/db/katzuDb';
 import { enrolMistake } from '@/lib/srs/store';
 import { buildMemorySummary } from '@/lib/memory/summary';
 import { listMemoryPatterns, rebuildMemoryPatterns } from '@/lib/memory/patterns';
+import { rememberPersonalFact } from '@/lib/memory/personalFacts';
 import { workerClient } from '@/lib/api/workerClient';
 import { useVoiceCapture, voiceStartFailureMessageAr } from '@/lib/audio/useVoiceCapture';
 import { triggerHaptic } from '@/lib/utils/haptics';
@@ -24,7 +25,16 @@ import { enqueueDailyEvent, sessionEventId } from '@/lib/progress/dailyAuthority
 import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
+import {
+  advanceScript,
+  currentHint,
+  scriptForScenario,
+  scriptOpener,
+  startScript,
+  type ScriptState,
+} from '@/lib/conversation/script';
 import { checkGerman, correctionNoteAr, mergeAiCorrection } from '@/lib/conversation/germanChecker';
+import { sentenceMatchesHint } from '@/lib/conversation/hintMatch';
 import { suggestionFitsContext } from '@/lib/conversation/suggestionGuard';
 import {
   answerHintsFor,
@@ -193,6 +203,11 @@ export function useLiveConversation({
   const vocabulary = useLiveQuery(() => db.vocabulary.toArray()) || [];
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
 
+  // The app-owned script, when this scenario is migrated. Its state is the
+  // conversation: which step is on screen, which slots are filled, and whether
+  // the farewell has been said. Nothing here asks a model what to do next.
+  const [scriptState, setScriptState] = useState<ScriptState | null>(null);
+
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // V40: the sentence field is a textarea so it can grow to three lines, but
   // every caller only ever focuses it, so the element type is all that changed.
@@ -236,6 +251,13 @@ export function useLiveConversation({
   // turn pacing and the request must all agree with the level the worker forces,
   // or the learner is told A1 and examined at B1.
   const effectiveLevel = mockPart ? MOCK_EXAM_LEVEL : currentLevel;
+
+  // The app-owned script, when this scenario is migrated AT THE LEVEL the
+  // session is actually served at. A B1 mock part is not an A1 script.
+  const scenarioScript = useMemo(
+    () => scriptForScenario(scenarioId, effectiveLevel),
+    [scenarioId, effectiveLevel],
+  );
 
   // Turn pacing comes from the explicit, tested rule in turnPlan.ts — the screen
   // no longer decides session length, so the documented and implemented numbers
@@ -586,14 +608,18 @@ export function useLiveConversation({
 
     // One level→opener rule, shared with the story screen's logic (tested in
     // openerForLevel): the same sentence the learner saw when the episode opened.
-    // A mock part overrides it: the examiner opens the part, not the scenario.
-    const initialMsgText = mockOpenerDe || openerForLevel(scenario, effectiveLevel);
+    // A migrated script supplies its own opener so the first bubble and the
+    // engine's step 0 can never disagree. A mock part overrides both: the
+    // examiner opens the part, not the scenario.
+    const scriptFirst = scenarioScript ? scriptOpener(scenarioScript) : null;
+    const initialMsgText = mockOpenerDe || scriptFirst?.de || openerForLevel(scenario, effectiveLevel);
     const germanText = initialMsgText || 'Hallo! Wie kann ich Ihnen helfen?';
     // A shipped gloss lands on the first render: no loading flash, no request.
     // An opener with no shipped gloss (a retired or truly dynamic string) keeps
     // the loading state briefly and gets exactly one automatic retry before the
-    // honest «تعذرت الترجمة» state — never a dead end on first sight.
-    const storedArabic = storedOpenerArabic(germanText);
+    // honest «تعذرت الترجمة» state — never a dead end on first sight. A script
+    // opener carries its own Arabic, so no lookup is needed.
+    const storedArabic = scriptFirst ? scriptFirst.ar : storedOpenerArabic(germanText);
 
     const welcomeMsg: ChatMessage = {
       id: 'msg_initial',
@@ -617,6 +643,9 @@ export function useLiveConversation({
 
     setMessages([welcomeMsg]);
     dispatch({ type: 'reset' });
+    // The script's step 0 is already on screen: startScript marks its first ask
+    // as shown, so the engine never repeats the opener.
+    setScriptState(scenarioScript ? startScript(scenarioScript) : null);
     sessionOpenedAtRef.current = Date.now();
     firstTurnTrackedRef.current = false;
     resetAiCallMeter();
@@ -639,6 +668,7 @@ export function useLiveConversation({
     mockPartIndex,
     mockOpenerDe,
     mockTopicId,
+    scenarioScript,
     loadStarterHints,
     requestOpenerTranslation,
   ]);
@@ -789,6 +819,17 @@ export function useLiveConversation({
     [speak],
   );
 
+  /**
+   * A hint is heard, never inserted: the dock's «سمّعني» / «ببطء» reach the same
+   * speech engine without touching the composer or sending anything.
+   */
+  const speakText = useCallback(
+    (text: string, rate?: number) => {
+      speak(text, rate);
+    },
+    [speak],
+  );
+
   // Rule 5: Exactly ONE /ai/turn call per user turn. The state machine refuses
   // a submit while a turn is in flight and the ref closes the window before the
   // next render, so a double-tap cannot buy two calls (and two units of quota)
@@ -813,6 +854,13 @@ export function useLiveConversation({
     const localCheck = checkGerman(text, effectiveLevel);
 
     const wasHintUsed = isHintUsedForCurrentTurn;
+    // Typing the offered sentence (personal blanks filled) counts as «بتلميح»,
+    // even though the hint dock never inserts text for the learner.
+    const activeHintGerman = visibleHints[0]?.german;
+    const matchesVisibleHint = activeHintGerman
+      ? sentenceMatchesHint(text, activeHintGerman)
+      : false;
+    const usedHintForThisTurn = wasHintUsed || matchesVisibleHint;
     setIsHintUsedForCurrentTurn(false);
 
     // 1. Add User message
@@ -820,7 +868,7 @@ export function useLiveConversation({
       id: `usr_${Date.now()}`,
       sender: 'USER',
       germanText: text,
-      wasHintUsed,
+      wasHintUsed: usedHintForThisTurn,
       timestamp: Date.now(),
     };
 
@@ -831,6 +879,105 @@ export function useLiveConversation({
 
     // 2. Call Worker /ai/turn (Executes Call A and Call B in parallel on Worker)
     try {
+      // A migrated scenario is decided entirely on this device: the script knows
+      // the step, the recognition and the next question, so the turn costs zero
+      // AI calls and cannot repeat a question or invert a role. The learner's own
+      // sentence still goes through the same local corrector as every turn.
+      if (scenarioScript && scriptState) {
+        const result = advanceScript(scenarioScript, scriptState, {
+          text,
+          hintUsed: usedHintForThisTurn,
+          learnerName: firstNameOf(user?.displayName),
+        });
+        setScriptState(result.state);
+
+        // A fact the learner just stated in conversation is remembered locally
+        // (today: the city) so Settings can show it and the persona can use it
+        // in a later session. It never goes to the server.
+        if (result.filledSlot === 'city' && result.state.slots.city) {
+          void rememberPersonalFact('city', result.state.slots.city);
+        }
+
+        if (!result.reply) {
+          // Safety stop (turn cap) or an already-finished script: end honestly
+          // with what the learner actually said, never a blank bubble.
+          dispatch({ type: 'complete' });
+          triggerHaptic('success');
+          setTimeout(() => {
+            void finishSession(newMessages, false);
+          }, 1200);
+          return;
+        }
+
+        const hasCorrection = localCheck.errors.length > 0;
+        const correctedSentence = hasCorrection ? localCheck.corrected : '';
+
+        const katzuReply: ChatMessage = {
+          id: `ktz_${Date.now()}`,
+          sender: 'KATZU',
+          germanText: result.reply.de,
+          arabicTranslation: result.reply.ar,
+          hasCorrection,
+          originalMistake: hasCorrection ? text : undefined,
+          correctedGerman: hasCorrection ? correctedSentence : undefined,
+          correctedSentence: hasCorrection ? correctedSentence : undefined,
+          correctionErrors: hasCorrection ? localCheck.errors : undefined,
+          grammarRule: hasCorrection ? localCheck.errors[0]?.label : undefined,
+          positiveNoteAr: hasCorrection ? correctionNoteAr(localCheck.errors.length) : 'أحسنت!',
+          softNoteAr: localCheck.softNoteAr,
+          timestamp: Date.now(),
+        };
+
+        const updatedHistory = [...newMessages, katzuReply];
+        setMessages(updatedHistory);
+        dispatch({ type: 'turn_ok' });
+
+        if (!firstTurnTrackedRef.current) {
+          firstTurnTrackedRef.current = true;
+          const elapsedSeconds = Math.max(
+            0,
+            Math.round((Date.now() - (sessionOpenedAtRef.current || Date.now())) / 1000),
+          );
+          track('time_to_first_turn', { scenarioId, kind: sessionMode ?? undefined, count: elapsedSeconds });
+        }
+        if (!usedHintForThisTurn && !firstIndependentTrackedRef.current) {
+          firstIndependentTrackedRef.current = true;
+          track('first_independent_turn', { scenarioId, count: 1 });
+        }
+
+        setSpeakingId(katzuReply.id);
+        speak(result.reply.de);
+
+        if (hasCorrection && correctedSentence) {
+          const mistake = {
+            userId: 'current_user',
+            scenarioId,
+            original: text,
+            corrected: correctedSentence,
+            grammarRule: localCheck.errors[0]?.label || 'قواعد نحوية',
+            timestamp: Date.now(),
+            wasHintUsed: usedHintForThisTurn,
+          };
+          const mistakeId = await db.mistakes.put(mistake);
+          await enrolMistake({ ...mistake, id: mistakeId });
+        }
+
+        // The script's own sentence for the question on screen is the first
+        // suggestion; the bank and the starter floor still follow it.
+        setIsHintRevealed(false);
+        setIsHintExpanded(false);
+
+        // The script ends only after the learner answered the real farewell.
+        if (result.state.done) {
+          dispatch({ type: 'complete' });
+          triggerHaptic('success');
+          setTimeout(() => {
+            void finishSession(updatedHistory, true);
+          }, 2400);
+        }
+        return;
+      }
+
       // Everything BEFORE the message being sent. `newMessages` includes it, and
       // sending it in both places made the worker hand the model the learner's
       // sentence twice in a row — which is what let it answer the previous
@@ -970,7 +1117,7 @@ export function useLiveConversation({
           grammarReference: res.grammarReference,
           roastComment: res.roastComment,
           timestamp: Date.now(),
-          wasHintUsed,
+          wasHintUsed: usedHintForThisTurn,
         };
         const mistakeId = await db.mistakes.put(mistake);
         // Every correction earns a scheduled retrieval: the app remembers what
@@ -1112,6 +1259,17 @@ export function useLiveConversation({
     return null;
   }, [messages]);
   /**
+   * The scripted scenario's own sentence for the question on screen. It is the
+   * first suggestion whenever one exists: it is guaranteed to answer THIS
+   * question, in this level's words, with the blanks a personal fact needs.
+   */
+  const scriptHint = useMemo(() => {
+    if (!scenarioScript || !scriptState || scriptState.done) return null;
+    const line = currentHint(scenarioScript, scriptState);
+    return line ? { german: line.de, arabic: line.ar } : null;
+  }, [scenarioScript, scriptState]);
+
+  /**
    * Rank, then VALIDATE. A stored café phrase is a legitimate line only while the
    * conversation is about the café; after «Ich liebe meine Katze» it is a
    * non-answer. The guard also drops a model hint that answers nothing when the
@@ -1144,7 +1302,13 @@ export function useLiveConversation({
     const direct = matched ? bank.filter((hint) => !isRepeat(hint.german)) : [];
     const trailing = matched ? bank.filter((hint) => isRepeat(hint.german)) : bank;
     const seen = new Set<string>();
-    const merged = clean([...direct, ...contextual, ...trailing]).filter((hint) => {
+    const merged = clean([
+      // The script's own line outranks every generic suggestion.
+      ...(scriptHint ? [scriptHint] : []),
+      ...direct,
+      ...contextual,
+      ...trailing,
+    ]).filter((hint) => {
       const key = hint.german.toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
@@ -1154,7 +1318,7 @@ export function useLiveConversation({
     // safe family still gives the learner something they can say.
     if (merged.length > 0) return merged.slice(0, 6);
     return clean(GENERIC_SAFE_FAMILY.map((hint) => ({ ...hint })));
-  }, [currentHints, starterHints, user?.displayName, lastAssistantGerman, lastUserGerman, scenario?.title_de, scenario?.title_ar]);
+  }, [currentHints, starterHints, scriptHint, user?.displayName, lastAssistantGerman, lastUserGerman, scenario?.title_de, scenario?.title_ar]);
 
   const [isRefreshingHints, setIsRefreshingHints] = useState(false);
   /**
@@ -1470,6 +1634,7 @@ export function useLiveConversation({
     handleToggleSaveWord,
     handleSpeak,
     handleSlowSpeak,
+    speakText,
     handleSendMessage,
     retryFailedTurn,
     requestOpenerTranslation,
