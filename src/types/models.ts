@@ -606,6 +606,26 @@ export interface TurnAiResponse {
   explanationAr?: string;
   roastComment?: string;
   positiveNoteAr?: string;
+  /**
+   * A scripted turn's model half: how it read the learner's answer, one
+   * in-character reaction, and a hint written for the question on screen.
+   * Present only when the request carried `script_context`; the script validates
+   * every field and falls back to its own line when one is missing or unsafe.
+   */
+  scriptTurn?: ScriptTurnResponse;
+}
+
+export interface ScriptTurnResponse {
+  replyDe: string;
+  replyAr: string;
+  /** Whether the learner's sentence answered the question on screen. */
+  matched?: boolean;
+  /** The slot the model believed it filled; the script ignores any other slot. */
+  slot?: string;
+  /** The learner's value, extracted from their own words (grounded client-side). */
+  value?: string;
+  hintDe?: string;
+  hintAr?: string;
 }
 
 /**

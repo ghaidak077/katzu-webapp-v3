@@ -7,6 +7,7 @@ import type { DailyAuthority, DailyPayload } from '@/lib/progress/dailyAuthority
 import { logError, logEvent, logNetwork } from '../utils/diagnostics';
 import { recordAiCall } from '@/lib/ai/aiCallMeter';
 import { lookupLexeme, type LexemeLookupResult } from './lexemeLookup';
+import { mapTurnAiResponse } from './aiTurnResponse';
 import type {
   ScenarioEntity,
   StarterPhraseEntity,
@@ -454,6 +455,18 @@ export class WorkerClient {
     vocabularyContext?: string[];
     grammarId?: string;
     /**
+     * The scripted turn packet (see `script/aiTurn.ts`). It tells the worker
+     * which question is on screen and what the learner may answer with, so the
+     * model reacts to the learner's words without choosing the next question.
+     */
+    scriptContext?: Record<string, unknown>;
+    /**
+     * A scripted turn is a short in-character reaction, not a lesson: waiting
+     * 30 s for it would leave the learner staring at a frozen bubble. The caller
+     * supplies a short ceiling and silently falls back to the script line.
+     */
+    timeoutMs?: number;
+    /**
      * The B1 mock: the grant minted by `/mock/start`, the part index and the
      * learner's topic id. All three are optional and all three are ignored by the
      * worker unless the grant verifies for this account — an ordinary
@@ -498,6 +511,8 @@ export class WorkerClient {
     learnerMemory?: Array<{ rule: string; example?: string }>;
     vocabularyContext?: string[];
     grammarId?: string;
+    scriptContext?: Record<string, unknown>;
+    timeoutMs?: number;
     mockGrant?: string;
     mockPart?: number;
     mockTopic?: string;
@@ -543,6 +558,11 @@ export class WorkerClient {
     if (params.grammarId && /^[a-z0-9_]{1,80}$/i.test(params.grammarId)) {
       payload.grammar_id = params.grammarId;
     }
+    if (params.scriptContext && typeof params.scriptContext === 'object') {
+      // The worker re-bounds every field; the client only guarantees it sends
+      // the packet shape it built, never arbitrary text.
+      payload.script_context = params.scriptContext;
+    }
     if (params.mockGrant && Number.isInteger(params.mockPart)) {
       payload.mock_grant = params.mockGrant;
       payload.mock_part = params.mockPart;
@@ -562,11 +582,15 @@ export class WorkerClient {
 
     logNetwork('ai/turn', `POST ${this.baseUrl}/ai/turn (${formattedHistory.length} history msgs, final=${!!params.isFinalTurn})`);
     recordAiCall('turn');
-    const res = await fetchWithTimeout(`${this.baseUrl}/ai/turn`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    });
+    const res = await fetchWithTimeout(
+      `${this.baseUrl}/ai/turn`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      },
+      params.timeoutMs,
+    );
 
     logNetwork('ai/turn', `HTTP ${res.status}`);
 
@@ -625,50 +649,7 @@ export class WorkerClient {
     }
 
     if (res.ok) {
-      const data = await res.json();
-      const evalData = data.evaluation;
-      if (
-        !data ||
-        typeof data.reply_de !== 'string' ||
-        typeof data.reply_ar !== 'string' ||
-        !evalData ||
-        typeof evalData.is_correct !== 'boolean'
-      ) {
-        const error: any = new Error('تعذر التحقق من رد المحادثة. لم يتم احتساب هذه الجملة.');
-        error.code = 'INVALID_AI_RESPONSE';
-        error.status = 502;
-        logError('ai/turn', 'Response failed schema validation (missing reply_de/reply_ar/evaluation)');
-        throw error;
-      }
-
-      logEvent('ai/turn', `OK (is_correct=${evalData.is_correct}, level=${params.cefrLevel})`);
-      return {
-        germanReply: data.reply_de,
-        arabicTranslation: data.reply_ar,
-        isCorrect: evalData.is_correct,
-        mistakeSegment: evalData.original_mistake || '',
-        correctedSegment: evalData.corrected_german || '',
-        grammarRule: evalData.grammar_rule || '',
-        explanationAr: evalData.explanation_ar || '',
-        roastComment: evalData.roast_comment || '',
-        positiveNoteAr: evalData.positive_note_ar || '',
-        hints: Array.isArray(data.hints)
-          ? data.hints
-              .filter((h: any) => h && typeof h.german === 'string' && h.german.trim())
-              .map((h: any) => ({ german: h.german, arabic: h.translation_ar || '' }))
-          : [],
-        followupAr: typeof data.followup_ar === 'string' ? data.followup_ar : '',
-        grammarId: typeof evalData.grammar_id === 'string' && /^[a-z0-9_]{1,80}$/i.test(evalData.grammar_id) ? evalData.grammar_id : undefined,
-        grammarReference: data.grammar_reference && typeof data.grammar_reference.id === 'string' && data.grammar_reference.id === evalData.grammar_id && /^[a-z0-9_]{1,80}$/i.test(data.grammar_reference.id)
-          ? {
-              id: data.grammar_reference.id,
-              titleAr: typeof data.grammar_reference.title_ar === 'string' ? data.grammar_reference.title_ar.slice(0, 160) : '',
-              ruleAr: typeof data.grammar_reference.rule_ar === 'string' ? data.grammar_reference.rule_ar.slice(0, 320) : '',
-              ruleDe: typeof data.grammar_reference.rule_de === 'string' ? data.grammar_reference.rule_de.slice(0, 320) : '',
-              exampleDe: typeof data.grammar_reference.example_de === 'string' ? data.grammar_reference.example_de.slice(0, 240) : '',
-          }
-          : undefined,
-      };
+      return mapTurnAiResponse(await res.json(), params.cefrLevel);
     }
 
     // Unreachable in practice: every non-OK status is handled above; this

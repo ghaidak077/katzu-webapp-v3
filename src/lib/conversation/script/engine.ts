@@ -10,6 +10,7 @@ import {
   type ScriptLine,
   type ScriptState,
   type ScriptStep,
+  type ScriptUnderstanding,
 } from './types';
 
 /**
@@ -119,6 +120,19 @@ export interface MatchResult {
   value?: string;
 }
 
+/**
+ * Words that follow «ich bin» without being a name. «Ich bin müde» used to be
+ * read as the name «Müde» — and the persona then called the learner that. The
+ * model already rejects it; this keeps the local fallback honest too.
+ */
+const NOT_A_NAME = new Set([
+  'müde', 'muede', 'gut', 'schlecht', 'krank', 'froh', 'traurig', 'hungrig',
+  'durstig', 'neu', 'hier', 'da', 'bereit', 'fertig', 'einverstanden', 'spät',
+  'satt', 'dünn', 'dick', 'groß', 'klein', 'jung', 'alt', 'glücklich', 'böse',
+  'student', 'studentin', 'lehrer', 'lehrerin', 'arzt', 'ärztin', 'arztin',
+  'aus', 'in', 'zu', 'von', 'nicht', 'auch', 'noch', 'schon', 'sehr', 'so',
+]);
+
 export function matchAnswer(step: ScriptStep, raw: string): MatchResult {
   const text = normalize(raw);
   if (!text) return { matched: false };
@@ -126,8 +140,10 @@ export function matchAnswer(step: ScriptStep, raw: string): MatchResult {
 
   switch (match.type) {
     case 'name': {
-      const stated = text.match(/(?:ich heiße|ich heisse|ich bin|mein name ist)\s+([a-zäöüß][a-zäöüß-]{1,23})/);
-      if (stated) return { matched: true, value: titleCase(stated[1]) };
+      const explicit = text.match(/(?:ich heiße|ich heisse|mein name ist)\s+([a-zäöüß][a-zäöüß-]{1,23})/);
+      if (explicit) return { matched: true, value: titleCase(explicit[1]) };
+      const stated = text.match(/ich bin\s+([a-zäöüß][a-zäöüß-]{1,23})/);
+      if (stated && !NOT_A_NAME.has(stated[1])) return { matched: true, value: titleCase(stated[1]) };
       const bare = text.match(/^([a-zäöüß][a-zäöüß-]{1,23})$/);
       if (bare) return { matched: true, value: titleCase(bare[1]) };
       return { matched: false };
@@ -173,6 +189,88 @@ export function matchAnswer(step: ScriptStep, raw: string): MatchResult {
   }
 }
 
+/**
+ * Whether the local matcher is sure enough to overrule the model when the model
+ * says "this did not answer the question".
+ *
+ * Only explicit patterns count. The old fallbacks — a bare word as a name, a
+ * three-word sentence as a yes/no, "Ich bin müde" as «Müde» — are exactly what
+ * produced a persona calling the learner «Müde». The model may reject those; it
+ * may never reject an explicit «Ich heiße Sara» or a stated number.
+ */
+function strongLocalMatch(step: ScriptStep, raw: string): boolean {
+  const text = normalize(raw);
+  switch (step.match.type) {
+    case 'name':
+      return /(?:ich heiße|ich heisse|mein name ist)\s+[a-zäöüß]/.test(text);
+    case 'origin':
+      return /(?:ich komme aus|komme aus|ich bin aus)\s+[a-zäöüß]/.test(text);
+    case 'city':
+      return /(?:ich wohne in|wohne in|ich lebe in|lebe in)\s+[a-zäöüß]/.test(text);
+    case 'yesno':
+      return /^(ja|nein|doch|gern|gerne|klar|natürlich|bitte)\b/.test(text);
+    case 'number':
+      return matchAnswer(step, raw).matched;
+    case 'keyword':
+      return step.match.keywords.some((keyword) => text.includes(keyword.toLowerCase()));
+    case 'anything':
+      return false;
+    default:
+      return false;
+  }
+}
+
+function numericValue(value: string): number | null {
+  const clean = normalize(value);
+  if (/^\d{1,3}$/.test(clean)) return Number(clean);
+  const word = NUMBER_WORDS[clean];
+  return typeof word === 'number' ? word : null;
+}
+
+/**
+ * The value must be the learner's own. A model that returns «Berlin» because the
+ * scene mentions Berlin, when the learner said «Bali», is not understanding —
+ * it is inventing, and that value must never enter the transcript or a reaction.
+ */
+function groundedInLearnerText(raw: string, value: string, step: ScriptStep): boolean {
+  const text = normalize(raw);
+  const candidate = normalize(value);
+  if (!candidate) return false;
+  if (text.includes(candidate)) return true;
+  if (step.match.type === 'number') {
+    const a = numericValue(value);
+    const b = matchAnswer(step, raw).value;
+    return a !== null && b !== undefined && a === numericValue(b);
+  }
+  return false;
+}
+
+/**
+ * One answer decision, with the model as a second reader rather than the owner.
+ *
+ * Order matters:
+ *  1. no usable model reading → the local matcher decides;
+ *  2. model says «answered» → its value is accepted only when it is literally
+ *     grounded in the learner's sentence;
+ *  3. model says «not answered» → an explicit local match still wins, every
+ *     weak fallback defers to the model.
+ */
+export function understandAnswer(
+  step: ScriptStep,
+  raw: string,
+  ai?: ScriptUnderstanding | null,
+): MatchResult {
+  const local = matchAnswer(step, raw);
+  if (!ai || typeof ai.matched !== 'boolean') return local;
+  if (ai.slot && step.slot && ai.slot !== step.slot) return local;
+  if (ai.matched) {
+    const value = String(ai.value ?? '').trim().slice(0, 48);
+    if (!value || !groundedInLearnerText(raw, value, step)) return local;
+    return { matched: true, value: step.match.type === 'number' ? (local.value ?? value) : value };
+  }
+  return strongLocalMatch(step, raw) ? local : { matched: false };
+}
+
 function titleCase(value: string): string {
   if (!value) return value;
   return value
@@ -186,6 +284,8 @@ export function startScript(script: ScenarioScript): ScriptState {
     scenarioId: script.scenarioId,
     stepIndex: 0,
     slots: {},
+    hintOverride: null,
+    hintStepIndex: 0,
     // The opener has already shown the first ask of step 0.
     askCursor: script.steps.map((_step, index) => (index === 0 ? 1 : 0)),
     reaskCursor: script.steps.map(() => 0),
@@ -204,6 +304,10 @@ export function currentStep(script: ScenarioScript, state: ScriptState): ScriptS
 export function currentHint(script: ScenarioScript, state: ScriptState): ScriptLine | null {
   const step = currentStep(script, state);
   if (!step) return null;
+  // A hint written for this exact step and this learner's last attempt is
+  // always better than the authored default; a stale one from an earlier step
+  // is never shown.
+  if (state.hintOverride && state.hintStepIndex === state.stepIndex) return state.hintOverride;
   return step.hints[0] ?? null;
 }
 
@@ -280,6 +384,11 @@ function composeAnsweredReply(
   const picked = pickAsk(script, nextState, nextIndex, input.learnerName);
   nextState = picked.state;
   if (nextStep.farewell) nextState = { ...nextState, awaitingFarewell: true };
+  // The AI hint was written for the question the learner JUST answered, so it
+  // must not survive into the new question: that one starts from its own
+  // authored hint. (Keeping it is how «Drei Gläser» ended up under «Wie viel
+  // kostet das?».)
+  nextState = { ...nextState, hintOverride: null, hintStepIndex: nextIndex };
   const asksQuestion = !nextStep.farewell && countQuestions(picked.line.de) === 1;
   const reply: ScriptLine = {
     de: `${reaction.de} ${picked.line.de}`.replace(/\s+/g, ' ').trim(),
@@ -294,7 +403,7 @@ function composeClosingReply(
   input: AdvanceInput,
 ): ScriptLine {
   const farewell = script.steps[script.steps.length - 1];
-  const line = farewell.reactions[0] ?? { de: 'Tschüss!', ar: 'إلى اللقاء!' };
+  const line = input.aiReaction ?? farewell.reactions[0] ?? { de: 'Tschüss!', ar: 'إلى اللقاء!' };
   return fillLine(line, state.slots, input.learnerName);
 }
 
@@ -340,7 +449,7 @@ export function advanceScript(script: ScenarioScript, state: ScriptState, input:
     hintTurns: state.hintTurns + (input.hintUsed ? 1 : 0),
   };
 
-  const match = matchAnswer(step, input.text);
+  const match = understandAnswer(step, input.text, input.aiUnderstanding);
   if (match.matched) {
     const composed = composeAnsweredReply(script, baseState, step, match.value, input);
     const nextStep = script.steps[composed.state.stepIndex];
@@ -369,6 +478,7 @@ export function advanceScript(script: ScenarioScript, state: ScriptState, input:
     const picked = pickAsk(script, nextState, nextIndex, input.learnerName);
     nextState = picked.state;
     if (nextStep.farewell) nextState = { ...nextState, awaitingFarewell: true };
+    nextState = { ...nextState, hintOverride: null, hintStepIndex: nextIndex };
     return {
       state: nextState,
       outcome: nextStep.farewell ? 'farewell' : 'unclear',
@@ -382,11 +492,32 @@ export function advanceScript(script: ScenarioScript, state: ScriptState, input:
   }
 
   const picked = pickReask(script, { ...baseState, offTopic }, state.stepIndex, input.learnerName);
+  // The model's reaction acknowledges what the learner actually said ("Alles
+  // klar." after «Ich bin müde.»), then the script re-asks its own question —
+  // one question per turn, and never a sentence the learner did not prompt.
+  const reply: ScriptLine = input.aiReaction
+    ? {
+        de: `${fillLine(input.aiReaction, baseState.slots, input.learnerName).de} ${picked.line.de}`
+          .replace(/\s+/g, ' ')
+          .trim(),
+        ar: `${fillLine(input.aiReaction, baseState.slots, input.learnerName).ar} ${picked.line.ar}`
+          .replace(/\s+/g, ' ')
+          .trim(),
+      }
+    : picked.line;
   return {
-    state: { ...picked.state, offTopic },
+    state: {
+      ...picked.state,
+      offTopic,
+      // The repair hint answers the attempt that just failed, not the step's
+      // authored default: «drie glasse» must offer «Drei Gläser», never
+      // «Zwei Stück».
+      hintOverride: input.aiHint ?? null,
+      hintStepIndex: state.stepIndex,
+    },
     outcome: looksGerman ? 'offtopic' : 'unclear',
     matched: false,
-    reply: picked.line,
+    reply,
     asksQuestion: countQuestions(picked.line.de) === 1,
   };
 }

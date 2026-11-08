@@ -350,6 +350,71 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   }
 
   const turnIndex = Number.isFinite(Number(v?.turn_index)) ? Math.max(0, Number(v?.turn_index)) : 0;
+
+  // SCRIPTED TURN (V34): a migrated scenario sends its bounded step packet. The
+  // model answers only the human half and returns `script_turn`; the appraisal,
+  // the next question and the conversation arc stay on the device. It returns
+  // BEFORE the greeting/trailing-question guards: those exist to repair a model
+  // that chose its own question, and this model never did.
+  const scriptContext = sanitizeScriptContext(body.script_context);
+  if (scriptContext && !inMockExam) {
+    try {
+      const scriptInstruction = buildScriptTurnInstruction({
+        level,
+        persona,
+        scenarioTitle: scenario_title,
+        script: scriptContext,
+        learnerText: user_message,
+      });
+      const scriptPayload = {
+        systemInstruction: scriptInstruction,
+        contents: shapeTurnContents(history, user_message, mode),
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: SCRIPT_TURN_SCHEMA,
+          temperature: 0.4,
+          maxOutputTokens: 420,
+          reasoningEffort: "low",
+        },
+      };
+      const raw = await callAiRouter(scriptPayload, env, { preferFast: true, easyTurn: true });
+      const scriptTurn = shapeScriptTurn(parseTurnJson(raw), scriptContext);
+      if (!scriptTurn) {
+        console.error("[ai/turn] unusable scripted output — raw:", String(raw).slice(0, 160));
+        return json({
+          error: "ai_empty_reply",
+          code: "AI_EMPTY_REPLY",
+          message: "تعذر توليد رد واضح. حاول إعادة الإرسال.",
+        }, 502, cors);
+      }
+      try {
+        const servedModel = getModel ? getModel() : null;
+        const tier = (servedModel && TIER_BY_MODEL.get(servedModel)) || "unknown";
+        console.log(JSON.stringify({
+          event: "ai_turn_script",
+          tier,
+          model: servedModel,
+          provider: getProvider(),
+          level,
+          step: scriptContext.step_id,
+          matched: scriptTurn.matched,
+          input_tokens: estimateTokens(scriptInstruction) + estimateTokens(JSON.stringify(scriptPayload.contents)),
+          output_tokens: estimateTokens(raw),
+        }));
+      } catch {
+        /* a log line must never fail a learner's turn */
+      }
+      return json({
+        reply_de: scriptTurn.reply_de,
+        reply_ar: scriptTurn.reply_ar,
+        script_turn: scriptTurn,
+        provider: getProvider(),
+      }, 200, cors);
+    } catch (err) {
+      console.error("[ai/turn] scripted turn failed:", String(err?.message || err).slice(0, 160));
+      return json({ error: "ai_error", code: "AI_TURN_FAILED", message: "تعذر إكمال دور المحادثة. حاول إعادة الإرسال." }, 502, cors);
+    }
+  }
   // Every prompt word lives in buildTurnSystemInstruction (top of this file), so
   // the exact token cost is measurable offline and the handler decides only WHICH
   // context this turn carries. V28 Stage 1 adds the scenario's deterministic beats
@@ -679,6 +744,132 @@ function validatePracticeContext(body) {
     }
   }
   return { ok: errors.length === 0, errors, vocabulary, grammarId };
+}
+
+// ----------------------------------------------------------------------------
+// SCRIPTED TURN MODE
+// ----------------------------------------------------------------------------
+
+/**
+ * The app's script owns the arc of a migrated scenario: which question is on
+ * screen, what counts as an answer, what is asked next. This packet lets the
+ * model do only the human half — read the learner's sentence, react in
+ * character, and write a hint that repairs THIS attempt.
+ *
+ * It is re-bounded here because the client is not trusted: every field is a
+ * short string or a capped list, and nothing in it can add a new question.
+ */
+const SCRIPT_FIELD_LIMITS = {
+  step_id: 40,
+  slot: 30,
+  question_de: 220,
+  question_ar: 420,
+  hint_de: 180,
+  hint_ar: 420,
+  learner_name: 40,
+  keyword: 40,
+  fact: 220,
+};
+
+function scriptText(value, limit) {
+  return typeof value === "string"
+    ? value.replace(/[\u0000-\u001F\u007F]+/g, " ").replace(/\s+/g, " ").trim().slice(0, limit)
+    : "";
+}
+
+function sanitizeScriptContext(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const stepId = scriptText(raw.step_id, SCRIPT_FIELD_LIMITS.step_id).replace(/[^a-z0-9_]/gi, "");
+  const questionDe = scriptText(raw.question_de, SCRIPT_FIELD_LIMITS.question_de);
+  const questionAr = scriptText(raw.question_ar, SCRIPT_FIELD_LIMITS.question_ar);
+  if (!stepId || !questionDe) return null;
+  const keywords = Array.isArray(raw.allowed_keywords)
+    ? raw.allowed_keywords.slice(0, 8).map((word) => scriptText(word, SCRIPT_FIELD_LIMITS.keyword)).filter(Boolean)
+    : [];
+  const facts = Array.isArray(raw.facts)
+    ? raw.facts.slice(0, 24).map((fact) => scriptText(fact, SCRIPT_FIELD_LIMITS.fact)).filter(Boolean)
+    : [];
+  return {
+    step_id: stepId,
+    slot: scriptText(raw.slot, SCRIPT_FIELD_LIMITS.slot).replace(/[^a-z_]/gi, ""),
+    question_de: questionDe,
+    question_ar: questionAr,
+    hint_de: scriptText(raw.hint_de, SCRIPT_FIELD_LIMITS.hint_de),
+    hint_ar: scriptText(raw.hint_ar, SCRIPT_FIELD_LIMITS.hint_ar),
+    allowed_keywords: keywords,
+    facts,
+    learner_name: scriptText(raw.learner_name, SCRIPT_FIELD_LIMITS.learner_name),
+    awaiting_farewell: raw.awaiting_farewell === true,
+    turn_index: Number.isFinite(Number(raw.turn_index)) ? Math.max(0, Math.min(200, Number(raw.turn_index))) : 0,
+  };
+}
+
+/**
+ * The scripted-turn instruction. Deliberately small: everything the model needs
+ * is the question, the learner's sentence, the scene facts, and the one rule —
+ * react to the learner, never choose the next question.
+ */
+function buildScriptTurnInstruction({ level, persona, scenarioTitle, script, learnerText }) {
+  return [
+    `You are ${persona} in the German practice scene «${scenarioTitle}». Level ${level}.`,
+    "The conversation is guided: the app has ALREADY shown the learner the QUESTION below.",
+    "You never choose or change the next question, and you never end the conversation.",
+    "",
+    `QUESTION ON SCREEN (do not repeat it, do not answer it): ${script.question_de}`,
+    `QUESTION MEANING (Arabic): ${script.question_ar}`,
+    script.slot ? `SLOT THIS ANSWER FILLS: ${script.slot}` : "SLOT THIS ANSWER FILLS: (open question)",
+    script.allowed_keywords.length ? `WORDS THAT COUNT FOR THIS SLOT: ${script.allowed_keywords.join(", ")}` : "",
+    script.learner_name ? `LEARNER NAME: ${script.learner_name}` : "",
+    "",
+    "SCENE FACTS — the ONLY facts you may state. Never invent a city, place, price, name, time or opinion that is not here:",
+    ...script.facts.map((fact) => `- ${fact}`),
+    "",
+    "Read the learner's LAST message and return JSON only:",
+    "- matched: true only if that sentence actually answers the question on screen. A greeting, a complaint, 'Ich bin müde' or an unrelated sentence is NOT an answer to «Wie heißt du?».",
+    "- slot: exactly the slot above when matched, otherwise \"\".",
+    "- value: the learner's own value for the slot, copied from their sentence (e.g. their name or number). Never invent it. Empty when not matched.",
+    "- reply_de: ONE short natural German reaction to what the learner actually said, in persona. No question mark, no new question, no markdown. If they did not answer, react kindly and let the app re-ask.",
+    "- reply_ar: an accurate Arabic translation of reply_de.",
+    "- hint_de: a short German sentence the learner can say to answer the question on screen. If their last attempt was close, repair THAT sentence (same meaning, correct form). Include the words the slot needs.",
+    "- hint_ar: its Arabic meaning.",
+    script.awaiting_farewell
+      ? "This is the farewell exchange: reply_de is one warm goodbye sentence, no question; hint_de and hint_ar are empty strings."
+      : "",
+    learnerText ? `LEARNER'S LAST MESSAGE: ${learnerText}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+/** The scripted response schema: seven short fields, no evaluation. */
+const SCRIPT_TURN_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    reply_de: { type: "STRING" },
+    reply_ar: { type: "STRING" },
+    matched: { type: "BOOLEAN" },
+    slot: { type: "STRING" },
+    value: { type: "STRING" },
+    hint_de: { type: "STRING" },
+    hint_ar: { type: "STRING" },
+  },
+  required: ["reply_de", "reply_ar", "matched", "hint_de", "hint_ar"],
+  propertyOrdering: ["reply_de", "reply_ar", "matched", "slot", "value", "hint_de", "hint_ar"],
+};
+
+function shapeScriptTurn(parsed, script) {
+  if (!parsed || typeof parsed !== "object") return null;
+  const replyDe = sanitizeFieldLabel(parsed.reply_de) || "";
+  const replyAr = sanitizeFieldLabel(parsed.reply_ar) || "";
+  if (!replyDe || !replyAr) return null;
+  const matched = parsed.matched === true;
+  return {
+    reply_de: replyDe,
+    reply_ar: replyAr,
+    matched,
+    slot: matched ? (script.slot && String(parsed.slot || "") === script.slot ? script.slot : "") : "",
+    value: matched ? scriptText(parsed.value, 48) : "",
+    hint_de: script.awaiting_farewell ? "" : scriptText(parsed.hint_de, 160),
+    hint_ar: script.awaiting_farewell ? "" : scriptText(parsed.hint_ar, 420),
+  };
 }
 
 // ----------------------------------------------------------------------------

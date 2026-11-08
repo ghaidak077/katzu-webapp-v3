@@ -67,6 +67,17 @@ export interface ScriptedTurn {
   explanation_ar?: string;
   /** The on-demand suggestion the turn carries (the dock's 💡 pill). */
   hints?: Array<{ german: string; translation_ar: string }>;
+  /**
+   * Scripted-turn extras. A migrated scenario sends `script_context`; the mock
+   * then answers with a `script_turn` instead of an `evaluation`. Leaving these
+   * unset means "the model read nothing special", so the script's own local
+   * matcher still decides — which is what keeps the old specs honest.
+   */
+  script_matched?: boolean;
+  script_value?: string;
+  script_slot?: string;
+  script_hint_de?: string;
+  script_hint_ar?: string;
 }
 
 /** A well-formed `/ai/turn` payload: the client rejects a reply it cannot parse. */
@@ -341,6 +352,29 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
         const scripted = options.turns?.[turnIndex] ?? turn();
         turnIndex += 1;
         if (options.turnDelayMs) await new Promise((resolve) => setTimeout(resolve, options.turnDelayMs));
+        const requestBody = JSON.parse(route.request().postData() || '{}') as {
+          script_context?: unknown;
+        };
+        if (requestBody && requestBody.script_context) {
+          // Scripted scenes ask for the model's human half only. Mirroring the
+          // Worker: no `evaluation`, just `script_turn`.
+          const scriptTurn: Record<string, unknown> = {
+            reply_de: scripted.reply_de,
+            reply_ar: scripted.reply_ar,
+          };
+          if (typeof scripted.script_matched === 'boolean') scriptTurn.matched = scripted.script_matched;
+          if (scripted.script_slot) scriptTurn.slot = scripted.script_slot;
+          if (scripted.script_value) scriptTurn.value = scripted.script_value;
+          if (scripted.script_hint_de && scripted.script_hint_ar) {
+            scriptTurn.hint_de = scripted.script_hint_de;
+            scriptTurn.hint_ar = scripted.script_hint_ar;
+          }
+          return json({
+            reply_de: scripted.reply_de,
+            reply_ar: scripted.reply_ar,
+            script_turn: scriptTurn,
+          });
+        }
         return json({
           reply_de: scripted.reply_de,
           reply_ar: scripted.reply_ar,

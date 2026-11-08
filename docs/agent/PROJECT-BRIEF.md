@@ -61,22 +61,19 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-08 (the chat is script-owned: no repeated question, hint dock, local memory)
+## Current snapshot — 2026-11-08 (scripted chat V34: the AI reads the learner, the script keeps the arc)
 
-**Local and verified; deploy follows.** A learner answered «Wie heißt du?» and was asked it again. Migrated scenarios now run an app-owned script — `src/lib/conversation/script/*` is a pure
-state machine with 11 pilot scripts (`first_greetings` + units 1–2): three DE/AR ask
-variants per step, recognition, a reaction echoing the answer, hints and a farewell last. A scripted
-turn costs **0 AI calls**; only an unclear or off-topic answer may spend one small call, and any failure falls back to the
-script line, so no turn shows an error card. Every shown line passes `guardGermanLine` (one question max, role, level
-length, no markdown). The other 38 scenarios stay on `/ai/turn` behind a per-scenario flag until each unit's gate is green.
-The hint dock shows the sentence with blanks, its Arabic meaning and
-«سمّعني»/«ببطء»/«قلها» without inserting text or sending; a hint-matched sentence is tagged «بتلميح». Correction is now a
-collapsed chip «تصحيح صغير ›» under the learner message instead of a blocking card. The header reads «N من M», report
-counts are LTR-isolated, the review hint respects the 10-item cap, and the «أحسنت!» banner is gone. Settings gains
-«ما نتذكره عنك» — name, city, job and goal, local only, visible and deletable — and the privacy page names those four facts
-(`TRUST_VERSION 2026-11-08`).
-**Proof:** `scenarioScript` **39 passed** (10 personas × 5 AI behaviours × 11 scripts), `hintMatch` 4, `personalFacts` 5,
-`reportedExchange`, `airport_arrival` opener gate green; before/after 390×844 shots in `.tmp`.
+**Local and verified; deploy follows.** The pilot chat now has a real AI half without giving the model the wheel: for the
+11 migrated scenes, one bounded `/ai/turn` carries `script_context` — the step, slot, question on screen, authored hint,
+keywords and scene facts — and returns only how it read THIS sentence, one in-character reaction with no question mark,
+and a hint that repairs THIS attempt (`lib/conversation/script/aiTurn.ts`). The script still decides the step, the accepted
+answer and the next question, so an answered question is never asked again, a reaction never replaces the ask (off-topic
+shows «reaction + the script's re-ask»), and a 7 s timeout silently falls back to the authored line — no error card. The
+local matcher is the cross-check: an explicit match overrules an AI rejection, and an accepted value must appear in the
+learner's own words, so «Ich wohne in Bali» is never turned into Berlin. The worker re-bounds every field. The hint dock,
+collapsed «تصحيح صغير ›» correction, «N من M» header, local memory and privacy text from V33 remain.
+**Proof:** `scriptAiTurn` **13**, `scenarioScript` **39** (10 personas × 5 AI behaviours × 11 scripts), `umlautCorrection`,
+`e2e/scriptedConversation.spec.ts` **3** (the 49 served rows seeded); gate **VERIFY OK 16/16** (827.8 s, `--ci --e2e`).
 **Owner-open:** a native read of the 11 pilot scripts (§18); the other 38 migrations.
 
 ## Previous snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)

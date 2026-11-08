@@ -27,10 +27,14 @@ import { classifyTurnError, conversationReducer, initialConversationState, isTur
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
 import {
   advanceScript,
+  buildScriptTurnContext,
   currentHint,
   scriptForScenario,
   scriptOpener,
   startScript,
+  validateFarewellTurn,
+  validateScriptAiTurn,
+  type ScriptAiTurn,
   type ScriptState,
 } from '@/lib/conversation/script';
 import { checkGerman, correctionNoteAr, mergeAiCorrection } from '@/lib/conversation/germanChecker';
@@ -104,6 +108,13 @@ export interface UseLiveConversationOptions {
     rankUp?: { rankNameAr: string; rankNumber: number; totalRanks: number };
   }) => void;
 }
+
+/**
+ * How long a scripted turn waits for its in-character reaction. The script can
+ * answer instantly on its own, so anything slower than this is worse than the
+ * authored line — the learner never sees a spinner for it.
+ */
+const SCRIPT_AI_TIMEOUT_MS = 7000;
 
 /** The learner reads the transcript; keep it clear of the dock at every height. */
 function orbSizeForViewport(): number {
@@ -884,10 +895,55 @@ export function useLiveConversation({
       // AI calls and cannot repeat a question or invert a role. The learner's own
       // sentence still goes through the same local corrector as every turn.
       if (scenarioScript && scriptState) {
+        const learnerName = firstNameOf(user?.displayName);
+
+        // The script owns the arc; the model supplies the human half — how it
+        // read THIS sentence, one in-character reaction, and a hint that repairs
+        // THIS attempt. A short ceiling and a silent catch mean a slow, offline
+        // or paywalled model never blocks practice: the authored script line is
+        // shown instead, exactly as before.
+        let aiTurn: ScriptAiTurn = { reaction: null, hint: null, understanding: null };
+        try {
+          const step = scriptState.awaitingFarewell
+            ? scenarioScript.steps[scenarioScript.steps.length - 1]
+            : scenarioScript.steps[scriptState.stepIndex];
+          const scriptContext = buildScriptTurnContext(scenarioScript, scriptState, learnerName).script_context;
+          const scriptRes = await workerClient.sendTurn({
+            scenarioId,
+            scenarioTitle: scenario?.title_de || '',
+            persona: scenarioScript.persona.name,
+            userMessage: text,
+            history: messages.map((m) => ({
+              sender: m.sender === 'USER' ? 'user' : 'model',
+              text: m.germanText,
+            })),
+            cefrLevel: effectiveLevel,
+            sarcasmLevel: user?.sarcasmLevel || 'SASSY',
+            mode: sessionMode === 'real' ? 'extended' : 'roleplay',
+            sessionId,
+            turnIndex: userTurnsCount,
+            scriptContext: scriptContext as unknown as Record<string, unknown>,
+            timeoutMs: SCRIPT_AI_TIMEOUT_MS,
+          });
+          aiTurn = scriptState.awaitingFarewell
+            ? validateFarewellTurn(scriptRes.scriptTurn, { script: scenarioScript, level: effectiveLevel })
+            : validateScriptAiTurn(scriptRes.scriptTurn, {
+                script: scenarioScript,
+                step,
+                level: effectiveLevel,
+                learnerText: text,
+              });
+        } catch {
+          logEvent('ai/turn', 'Scripted AI turn unavailable — using script line');
+        }
+
         const result = advanceScript(scenarioScript, scriptState, {
           text,
           hintUsed: usedHintForThisTurn,
-          learnerName: firstNameOf(user?.displayName),
+          learnerName,
+          aiReaction: aiTurn.reaction,
+          aiHint: aiTurn.hint,
+          aiUnderstanding: aiTurn.understanding,
         });
         setScriptState(result.state);
 

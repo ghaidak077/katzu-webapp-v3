@@ -62,4 +62,12 @@ export {
   isAwaitingGoodbye,
   matchAnswer,
   startScript,
+  understandAnswer,
 } from './engine';
+export {
+  buildScriptTurnContext,
+  validateFarewellTurn,
+  validateScriptAiTurn,
+  type ScriptAiTurn,
+  type ScriptTurnWireContext,
+} from './aiTurn';

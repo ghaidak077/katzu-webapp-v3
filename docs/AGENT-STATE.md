@@ -27,23 +27,21 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 ## RESUME
 
 - **2026-11-08 — the chat is script-owned: a question answered is never asked again, and every session ends after a farewell.**
-  `src/lib/conversation/script/{types,engine,scripts,index}.ts` is one pure, network-free state machine shared by the client
-  and the tests: 11 pilot scripts (`first_greetings` + units 1–2) with 3 German/Arabic ask variants, slot recognition,
-  reactions, hint lines and a farewell last. `useLiveConversation.ts` runs the script branch before any AI call (0 AI calls
-  per scripted turn) and persists a stated city locally. Every shown line passes `guardGermanLine` (one question max, role,
-  level length, no markdown). New `HintDock.tsx` + `lib/conversation/hintMatch.ts` show sentence-with-blanks, Arabic meaning
-  and «سمّعني»/«ببطء»/«قلها» without ever sending; a hint-matched sentence is tagged
-  «بتلميح». Correction moved into a collapsed `<details>` chip «تصحيح صغير ›». Header «N من M»;
+  `src/lib/conversation/script/*` is one pure state machine shared by client and tests: 11 pilot scripts
+  (`first_greetings` + units 1–2), 3 ask variants, slots, reactions and a farewell last. `useLiveConversation.ts` runs the
+  script step plus one bounded AI call for the human half (SCRIPT-AI), and persists a stated city locally. Every line
+  passes `guardGermanLine`. New `HintDock.tsx` + `lib/conversation/hintMatch.ts` show sentence-with-blanks, Arabic meaning
+  and «سمّعني»/«ببطء»/«قلها» without sending; a hint-matched sentence is tagged «بتلميح». Correction is a collapsed
+  `<details>` chip «تصحيح صغير ›». Header «N من M»;
   report counts are LTR-isolated and the review hint is capped at 10; the green «أحسنت!» banner is gone. Settings gains
   «ما نتذكره عنك» (name/city/job/goal, local only, visible and deletable) and the privacy text names the four facts
-  (`TRUST_VERSION 2026-11-08`). Unmigrated scenarios stay on `/ai/turn` behind a per-scenario flag. Tests: `scenarioScript`
-  **39 passed** (10 personas × 5 AI behaviours × 11 scripts), `hintMatch` 4, `personalFacts` 5, `reportedExchange`.
-  A script is served only when the session's served level equals the script's own level (`scriptForScenario(id, level)`;
-  the B1 mock and A2 paywall keep the legacy engine). Browser specs that measure the model engine now run on unmigrated
-  `friend_catchup`/`landlord_followup`; scripted-only UI specs stay on the pilot scenes. Gate **VERIFY OK 16/16** (799.5 s,
-  `--ci --e2e`). Measured locally with `vite-node` over the real engine: 2,200 sessions / 9,400 turns, **0 AI calls**,
-  turn compute p50 0.004 ms / p95 0.009 ms (excludes the deliberate 0.6–1.4 s typing beat and rendering). Before/after
-  390×844 pairs in `.tmp/`.
+  (`TRUST_VERSION 2026-11-08`). Unmigrated scenarios stay on `/ai/turn` behind a per-scenario flag; V34 adds the AI half
+  (SCRIPT-AI). Tests: `scenarioScript` **39 passed** (10 personas × 5 AI behaviours × 11 scripts), `scriptAiTurn` 13,
+  `hintMatch` 4, `personalFacts` 5, `reportedExchange`.
+  A script is served only when the session's served level equals the script's own (`scriptForScenario(id, level)`; B1 mock
+  and A2 paywall keep the legacy engine). Browser specs that measure the model engine run on `friend_catchup`/
+  `landlord_followup`; scripted UI specs stay on pilots. V33 gate **VERIFY OK 16/16** (799.5 s, `--ci --e2e`);
+  measurements are in the APP-MAP change log.
 
 - **Older RESUME entries moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-01/07 to stay under the
   80 KB cap (search `RESUME moved 2026-11-07 path screen + opener gate`, `RESUME 2026-11-05 first message Arabic`,
@@ -257,12 +255,14 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 ## DECISIONS
 
-- **SCRIPT-ENGINE (2026-11-08) — the app owns the dialogue; the AI only helps when the learner is unclear.** A migrated
-  scenario is a typed script (`lib/conversation/script/*`) read by one pure state machine on the client and in tests:
-  local match → fill slot → short reaction + the next step's unused ask, exactly one question per turn. Zero AI calls per
-  scripted turn; only an unclear/off-topic answer may spend one small call, and any failure falls back to the script line,
-  so no turn can show an error card. Guards run on every shown line. 11 pilots migrated; the other 38 stay on `/ai/turn`
-  behind `isScriptedScenario` until each unit's simulation gate is green.
+- **SCRIPT-ENGINE + SCRIPT-AI (2026-11-08) — the app owns the arc; the AI writes the human half.** A migrated scenario is
+  a typed script (`lib/conversation/script/*`) run as one pure state machine: local match → fill slot → exactly one
+  question per turn, never a repeat, farewell last. One bounded `/ai/turn` (`script_context`) returns only how the model
+  read THIS sentence, one question-free in-character reaction and a hint repairing THIS attempt; validators reject
+  invented facts or questions, a strong local match overrules an AI rejection, and an accepted value must appear in the
+  learner's text. Off-topic turns show «reaction + the script's re-ask», never the next step. A 7 s timeout silently
+  falls back to the authored line, so no error card. 11 pilots migrated, 38 legacy; tests `scenarioScript` 39,
+  `scriptAiTurn` 13.
 
 - **UNIT-PATH (2026-11-07) — one guided vertical unit path; the learner never chooses.** The 49 served scenarios are
   partitioned into 9 themed units (5–6 each), ordered level then difficulty, checkpoint last. `units.ts` is the only

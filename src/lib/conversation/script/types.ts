@@ -77,6 +77,14 @@ export interface ScriptState {
   /** Index of the step whose question is on screen. */
   stepIndex: number;
   slots: Record<string, string>;
+  /**
+   * A hint written for THIS attempt (repairing the learner's own sentence or
+   * pointing at the next question). It is cleared as soon as the step advances,
+   * so a fixed per-step sentence never hangs around after it stopped fitting.
+   */
+  hintOverride?: ScriptLine | null;
+  /** The step index `hintOverride` was written for; guards against stale hints. */
+  hintStepIndex?: number;
   /** Per step: how many ask / reask variants have been shown. */
   askCursor: number[];
   reaskCursor: number[];
@@ -91,11 +99,31 @@ export interface ScriptState {
   endedByCap?: boolean;
 }
 
+/**
+ * What the AI understood the learner's answer to be.
+ *
+ * The script still owns the slot and the next question. This only says whether
+ * the line on screen was answered, and with which value — it lets the AI reject
+ * a local false positive («Ich bin müde» is not a name) or rescue a phrasing the
+ * local matcher missed, without letting it invent a topic.
+ */
+export interface ScriptUnderstanding {
+  matched: boolean;
+  /** The slot the model believed it filled. Ignored unless it is this step's slot. */
+  slot?: string;
+  /** The learner's value, already extracted from their own words. */
+  value?: string;
+}
+
 export interface AdvanceInput {
   text: string;
   hintUsed: boolean;
-  /** A validated in-character line from the off-script AI call, if one ran. */
+  /** A validated in-character line from the AI call, if one ran. */
   aiReaction?: ScriptLine | null;
+  /** A validated hint for the learner's next attempt. */
+  aiHint?: ScriptLine | null;
+  /** The AI's reading of the learner's answer, when it returned one. */
+  aiUnderstanding?: ScriptUnderstanding | null;
   /** The learner's display name, for reactions that need it. */
   learnerName?: string;
 }

@@ -119,7 +119,51 @@ export const RULE_LIBRARY = {
     label: 'Schreibung: ß statt ss',
     reasonAr: 'هذه الكلمة تُكتب بـ «ß» وليس «ss».',
   },
+  spellingUmlaut: {
+    category: 'spelling' as const,
+    label: 'Umlaut fehlt',
+    reasonAr: 'تحتاج هذه الكلمة إلى حرف أملاوت (ä/ö/ü) وليست كتابتها بدون نقاط.',
+  },
 } satisfies Record<string, Omit<CorrectionError, 'from' | 'to'>>;
+
+/**
+ * ASCII spellings of words whose correct form carries an umlaut.
+ *
+ * Only unambiguous forms are listed: «schon» (already), «mochte» (past of
+ * mögen), «wurde» and «zahlen» are real German words themselves, so correcting
+ * them would teach a wrong rule. These entries are words a learner cannot mean
+ * without the umlaut.
+ */
+const UMLAUT_WORDS: Record<string, string> = {
+  gefallt: 'gefällt',
+  gefaellt: 'gefällt',
+  konnen: 'können',
+  koennen: 'können',
+  uber: 'über',
+  ueber: 'über',
+  fur: 'für',
+  fuer: 'für',
+  zuruck: 'zurück',
+  zurueck: 'zurück',
+  gluck: 'Glück',
+  glueck: 'Glück',
+  wunsche: 'wünsche',
+  wuensche: 'wünsche',
+  moechte: 'möchte',
+  mogen: 'mögen',
+  moegen: 'mögen',
+  naturlich: 'natürlich',
+  natuerlich: 'natürlich',
+  personlich: 'persönlich',
+  hoeren: 'hören',
+  horen: 'hören',
+  fruh: 'früh',
+  frueh: 'früh',
+  schuler: 'Schüler',
+  schueler: 'Schüler',
+  moglich: 'möglich',
+  moeglich: 'möglich',
+};
 
 const CATEGORY_ORDER: Record<CorrectionCategory, number> = {
   meaning: 0,
@@ -433,6 +477,21 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
         to: sharp,
       });
       token.core = sharp;
+      continue;
+    }
+
+    // Umlaut restoration: «Es gefallt mir» is a spelling error, not a
+    // punctuation preference. The table only holds forms that cannot be a
+    // different valid word (see UMLAUT_WORDS).
+    const umlaut = UMLAUT_WORDS[lower(word)];
+    if (umlaut && lower(umlaut) !== lower(word)) {
+      const correctedWord = isUpperFirst(word) ? capitalize(umlaut) : umlaut;
+      pushError(errors, {
+        ...RULE_LIBRARY.spellingUmlaut,
+        from: word,
+        to: correctedWord,
+      });
+      token.core = correctedWord;
     }
   }
 
