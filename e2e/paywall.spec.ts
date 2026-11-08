@@ -137,10 +137,10 @@ test('a Pro row the server no longer honours stops being Pro on the next open', 
 
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
-  // A1 and its four rounds are the trial's level; A2 and six rounds would mean the
+  // A1 and its five rounds are the trial's level; A2 and six rounds would mean the
   // demotion never happened.
   await expect(page.getByTestId('level-chip')).toHaveText('A1');
-  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 5/);
 });
 
 /**

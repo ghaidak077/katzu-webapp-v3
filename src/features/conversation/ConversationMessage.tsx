@@ -87,8 +87,6 @@ export interface ConversationMessageProps {
    * even though the data rides the reply the worker produced.
    */
   correctionMessage?: ChatMessage;
-  /** Optional punctuation note for the learner's own line; never a correction. */
-  softNoteAr?: string;
 }
 
 const normalize = (value: string) => value.replace(/[^a-zA-ZäöüÄÖÜß]/g, '').toLowerCase();
@@ -107,7 +105,6 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   spokenCharIndex = null,
   isSpeaking = false,
   correctionMessage,
-  softNoteAr,
 }) => {
   const isKatzu = message.sender === 'KATZU';
 
@@ -408,12 +405,6 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
               </div>
             </div>
           </details>
-        )}
-
-        {/* A missing final «.» / «?» is optional, not an error: a quiet note
-            under the learner's line, with no red mark and no "correction". */}
-        {showHelp && softNoteAr && (
-          <p className="kz-ar-micro mt-1 text-end text-kz-inkFaint">{softNoteAr}</p>
         )}
       </div>
     </article>

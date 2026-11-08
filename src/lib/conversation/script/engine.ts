@@ -60,6 +60,37 @@ export function fillSlots(line: string, slots: Record<string, string>, learnerNa
   });
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * A learner's name appears at most once per persona turn. «Freut mich, Leo!
+ * Woher kommst du, Leo?» says the name twice in one bubble and reads like a
+ * database greeting; the second mention is dropped, never the first.
+ */
+export function keepNameOnce(text: string, name?: string): string {
+  const clean = (name ?? '').trim();
+  if (clean.length < 2) return text;
+  const matches = [...text.matchAll(new RegExp(escapeRegExp(clean), 'gi'))];
+  if (matches.length <= 1) return text;
+  let out = text;
+  for (let index = matches.length - 1; index >= 1; index -= 1) {
+    const match = matches[index];
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    const before = out.slice(0, start).replace(/[،,]\s*$/, '').replace(/\s+$/, '');
+    const after = out.slice(end);
+    out = `${before}${after}`
+      .replace(/\s+([,.!?،؛])/g, (_all, mark: string) => mark)
+      .replace(/[،,]\s*([.!?])/g, (_all, mark: string) => mark)
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+  return out;
+}
+
+
 export interface LineGuardResult {
   ok: boolean;
   reasons: string[];
@@ -133,28 +164,77 @@ const NOT_A_NAME = new Set([
   'aus', 'in', 'zu', 'von', 'nicht', 'auch', 'noch', 'schon', 'sehr', 'so',
 ]);
 
-export function matchAnswer(step: ScriptStep, raw: string): MatchResult {
+/** A place answer may carry the word «Stadt» or a city suffix; keep the name. */
+function cleanPlace(value: string): string {
+  return titleCase(
+    value
+      .replace(/\b(stadt|city)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  );
+}
+
+/** Letters only, up to three words: the shape of a bare fragment answer. */
+function barePhrase(text: string): boolean {
+  return /^[a-zäöüß][a-zäöüß\s-]{0,30}$/.test(text) && text.split(/\s+/).length <= 3;
+}
+
+function numberValue(text: string): string | null {
+  const digits = text.match(/\b(\d{1,3})\b/);
+  if (digits) return digits[1];
+  for (const [word, value] of Object.entries(NUMBER_WORDS)) {
+    if (new RegExp(`\\b${word}\\b`).test(text)) return String(value);
+  }
+  return null;
+}
+
+/**
+ * One answer against one step's slot. Fragments and any casing count: «in
+ * berlin», «Berlin», «berlin», «berlin Stadt» all fill the city slot. A value
+ * that already belongs to ANOTHER slot is rejected by `matchAnswer` below, so
+ * repeating «aus Syrien» at the city question never fills it.
+ */
+function matchAnswerOnce(step: ScriptStep, raw: string): MatchResult {
   const text = normalize(raw);
   if (!text) return { matched: false };
   const match: AnswerMatch = step.match;
 
   switch (match.type) {
     case 'name': {
-      const explicit = text.match(/(?:ich heiße|ich heisse|mein name ist)\s+([a-zäöüß][a-zäöüß-]{1,23})/);
+      const explicit = text.match(/(?:ich hei(?:ße|sse|se)|mein name ist)\s+([a-zäöüß][a-zäöüß-]{1,23})/);
       if (explicit) return { matched: true, value: titleCase(explicit[1]) };
       const stated = text.match(/ich bin\s+([a-zäöüß][a-zäöüß-]{1,23})/);
       if (stated && !NOT_A_NAME.has(stated[1])) return { matched: true, value: titleCase(stated[1]) };
       const bare = text.match(/^([a-zäöüß][a-zäöüß-]{1,23})$/);
-      if (bare) return { matched: true, value: titleCase(bare[1]) };
+      if (bare && !NOT_A_NAME.has(bare[1])) return { matched: true, value: titleCase(bare[1]) };
       return { matched: false };
     }
     case 'origin': {
+      if (/^(in|nach|wohne|ich wohne|ich lebe|ich bin in)\b/.test(text)) return { matched: false };
       const stated = text.match(/(?:ich komme aus|komme aus|ich bin aus|aus|von)\s+([a-zäöüß][a-zäöüß\s-]{1,30})/);
-      return stated ? { matched: true, value: titleCase(stated[1].trim()) } : { matched: false };
+      if (stated) return { matched: true, value: titleCase(stated[1].trim()) };
+      if (barePhrase(text)) return { matched: true, value: titleCase(text) };
+      return { matched: false };
     }
     case 'city': {
-      const stated = text.match(/(?:ich wohne in|wohne in|ich lebe in|lebe in|ich bin in|bin in|nach)\s+([a-zäöüß][a-zäöüß\s-]{1,30})/);
-      return stated ? { matched: true, value: titleCase(stated[1].trim()) } : { matched: false };
+      // «aus London» is an origin answer, never a city — otherwise the city
+      // question would be filled by the slot the learner just answered.
+      if (/^(aus|von)\b/.test(text)) return { matched: false };
+      const stated = text.match(/\b(?:ich wohne in|wohne in|ich lebe in|lebe in|ich bin in|bin in|wohne|nach|in)\s+([a-zäöüß][a-zäöüß\s-]{1,30})/);
+      if (stated) return { matched: true, value: cleanPlace(stated[1]) };
+      if (barePhrase(text)) return { matched: true, value: cleanPlace(text) };
+      return { matched: false };
+    }
+    case 'age': {
+      const value = numberValue(text);
+      return value ? { matched: true, value } : { matched: false };
+    }
+    case 'job': {
+      const stated = text.match(/(?:ich bin|ich arbeite als|arbeite als|ich arbeite bei|von beruf)\s+([a-zäöüß][a-zäöüß\s-]{1,30})/);
+      if (stated) return { matched: true, value: titleCase(stated[1].trim()) };
+      if (/^(ich bin|ich arbeite)\b/.test(text)) return { matched: false };
+      if (barePhrase(text)) return { matched: true, value: titleCase(text) };
+      return { matched: false };
     }
     case 'yesno': {
       const yesno = text.match(/^(ja|nein|doch|gern|gerne|klar|natürlich|bitte)\b/);
@@ -164,12 +244,8 @@ export function matchAnswer(step: ScriptStep, raw: string): MatchResult {
       return { matched: false };
     }
     case 'number': {
-      const digits = text.match(/\b(\d{1,3})\b/);
-      if (digits) return { matched: true, value: digits[1] };
-      for (const [word, value] of Object.entries(NUMBER_WORDS)) {
-        if (new RegExp(`\\b${word}\\b`).test(text)) return { matched: true, value: String(value) };
-      }
-      return { matched: false };
+      const value = numberValue(text);
+      return value ? { matched: true, value } : { matched: false };
     }
     case 'keyword': {
       const keywords = match.keywords.map((keyword) => keyword.toLowerCase());
@@ -190,33 +266,39 @@ export function matchAnswer(step: ScriptStep, raw: string): MatchResult {
 }
 
 /**
+ * The public matcher: the slot answer above, minus a value that already belongs
+ * to another slot. «in London» at the city question after «aus London» must not
+ * fill the city — it is the learner repeating what they already told us.
+ */
+export function matchAnswer(step: ScriptStep, raw: string, slots?: Record<string, string>): MatchResult {
+  const result = matchAnswerOnce(step, raw);
+  if (!result.matched || !result.value || !slots || !step.slot) return result;
+  const candidate = normalize(result.value);
+  if (!candidate) return result;
+  for (const [slot, value] of Object.entries(slots)) {
+    if (slot === step.slot || !value) continue;
+    if (normalize(value) === candidate) return { matched: false };
+  }
+  return result;
+}
+
+/**
  * Whether the local matcher is sure enough to overrule the model when the model
  * says "this did not answer the question".
  *
- * Only explicit patterns count. The old fallbacks — a bare word as a name, a
- * three-word sentence as a yes/no, "Ich bin müde" as «Müde» — are exactly what
- * produced a persona calling the learner «Müde». The model may reject those; it
- * may never reject an explicit «Ich heiße Sara» or a stated number.
+ * Fragments count: a bare «Berlin» or «Leo» is a real answer, and re-asking a
+ * question the learner just answered is the worse failure. The model may still
+ * reject a weak keyword fallback or a free sentence it read as off-topic.
  */
 function strongLocalMatch(step: ScriptStep, raw: string): boolean {
   const text = normalize(raw);
   switch (step.match.type) {
-    case 'name':
-      return /(?:ich heiße|ich heisse|mein name ist)\s+[a-zäöüß]/.test(text);
-    case 'origin':
-      return /(?:ich komme aus|komme aus|ich bin aus)\s+[a-zäöüß]/.test(text);
-    case 'city':
-      return /(?:ich wohne in|wohne in|ich lebe in|lebe in)\s+[a-zäöüß]/.test(text);
-    case 'yesno':
-      return /^(ja|nein|doch|gern|gerne|klar|natürlich|bitte)\b/.test(text);
-    case 'number':
-      return matchAnswer(step, raw).matched;
     case 'keyword':
       return step.match.keywords.some((keyword) => text.includes(keyword.toLowerCase()));
     case 'anything':
       return false;
     default:
-      return false;
+      return matchAnswerOnce(step, raw).matched;
   }
 }
 
@@ -259,8 +341,9 @@ export function understandAnswer(
   step: ScriptStep,
   raw: string,
   ai?: ScriptUnderstanding | null,
+  slots?: Record<string, string>,
 ): MatchResult {
-  const local = matchAnswer(step, raw);
+  const local = matchAnswer(step, raw, slots);
   if (!ai || typeof ai.matched !== 'boolean') return local;
   if (ai.slot && step.slot && ai.slot !== step.slot) return local;
   if (ai.matched) {
@@ -390,9 +473,12 @@ function composeAnsweredReply(
   // kostet das?».)
   nextState = { ...nextState, hintOverride: null, hintStepIndex: nextIndex };
   const asksQuestion = !nextStep.farewell && countQuestions(picked.line.de) === 1;
+  // The name the learner JUST gave wins over the profile's display name: the
+  // dedupe must search the name that is actually inside the sentence.
+  const name = slots.name || input.learnerName;
   const reply: ScriptLine = {
-    de: `${reaction.de} ${picked.line.de}`.replace(/\s+/g, ' ').trim(),
-    ar: `${reaction.ar} ${picked.line.ar}`.replace(/\s+/g, ' ').trim(),
+    de: keepNameOnce(`${reaction.de} ${picked.line.de}`.replace(/\s+/g, ' ').trim(), name),
+    ar: keepNameOnce(`${reaction.ar} ${picked.line.ar}`.replace(/\s+/g, ' ').trim(), name),
   };
   return { state: nextState, reply, asksQuestion };
 }
@@ -404,7 +490,11 @@ function composeClosingReply(
 ): ScriptLine {
   const farewell = script.steps[script.steps.length - 1];
   const line = input.aiReaction ?? farewell.reactions[0] ?? { de: 'Tschüss!', ar: 'إلى اللقاء!' };
-  return fillLine(line, state.slots, input.learnerName);
+  const filled = fillLine(line, state.slots, input.learnerName);
+  return {
+    de: keepNameOnce(filled.de, state.slots.name || input.learnerName),
+    ar: keepNameOnce(filled.ar, state.slots.name || input.learnerName),
+  };
 }
 
 /**
@@ -449,7 +539,7 @@ export function advanceScript(script: ScenarioScript, state: ScriptState, input:
     hintTurns: state.hintTurns + (input.hintUsed ? 1 : 0),
   };
 
-  const match = understandAnswer(step, input.text, input.aiUnderstanding);
+  const match = understandAnswer(step, input.text, input.aiUnderstanding, state.slots);
   if (match.matched) {
     const composed = composeAnsweredReply(script, baseState, step, match.value, input);
     const nextStep = script.steps[composed.state.stepIndex];
@@ -468,10 +558,13 @@ export function advanceScript(script: ScenarioScript, state: ScriptState, input:
   const offTopic = baseState.offTopic + 1;
   const looksGerman = hasLatinWords(input.text);
 
-  // Two unclear turns in a row is the ceiling the owner set: after that the
-  // script moves to the next step instead of looping on the same question.
-  if (offTopic > 2) {
-    const bridge: ScriptLine = { de: 'Kein Problem, wir machen weiter.', ar: 'لا مشكلة، نكمل.' };
+  // After TWO unclear turns the script moves on with a gentle line — never a
+  // silent skip and never «Kein Problem, wir machen weiter».
+  if (offTopic >= 2) {
+    const bridge: ScriptLine = {
+      de: 'Alles gut. Wir schauen uns die nächste Frage an.',
+      ar: 'لا بأس. ننتقل إلى السؤال التالي بهدوء.',
+    };
     const nextIndex = nextOpenStep(script, baseState, baseState.stepIndex + 1);
     let nextState: ScriptState = { ...baseState, stepIndex: nextIndex, offTopic: 0 };
     const nextStep = script.steps[nextIndex];
@@ -484,41 +577,40 @@ export function advanceScript(script: ScenarioScript, state: ScriptState, input:
       outcome: nextStep.farewell ? 'farewell' : 'unclear',
       matched: false,
       reply: {
-        de: `${bridge.de} ${picked.line.de}`.replace(/\s+/g, ' ').trim(),
-        ar: `${bridge.ar} ${picked.line.ar}`.replace(/\s+/g, ' ').trim(),
+        de: keepNameOnce(`${bridge.de} ${picked.line.de}`.replace(/\s+/g, ' ').trim(), baseState.slots.name || input.learnerName),
+        ar: keepNameOnce(`${bridge.ar} ${picked.line.ar}`.replace(/\s+/g, ' ').trim(), baseState.slots.name || input.learnerName),
       },
       asksQuestion: !nextStep.farewell && countQuestions(picked.line.de) === 1,
     };
   }
 
   const picked = pickReask(script, { ...baseState, offTopic }, state.stepIndex, input.learnerName);
-  // The model's reaction acknowledges what the learner actually said ("Alles
-  // klar." after «Ich bin müde.»), then the script re-asks its own question —
-  // one question per turn, and never a sentence the learner did not prompt.
+  // The model's reaction acknowledges what the learner actually said, then the
+  // script rephrases its own question. With no model line the persona says the
+  // simplest human thing — «Wie bitte?» — while the hint dock offers the model
+  // answer, so the learner can retry without losing the thread.
   const reply: ScriptLine = input.aiReaction
-    ? {
-        de: `${fillLine(input.aiReaction, baseState.slots, input.learnerName).de} ${picked.line.de}`
-          .replace(/\s+/g, ' ')
-          .trim(),
-        ar: `${fillLine(input.aiReaction, baseState.slots, input.learnerName).ar} ${picked.line.ar}`
-          .replace(/\s+/g, ' ')
-          .trim(),
-      }
-    : picked.line;
+    ? (() => {
+        const reaction = fillLine(input.aiReaction, baseState.slots, input.learnerName);
+        return {
+          de: keepNameOnce(`${reaction.de} ${picked.line.de}`.replace(/\s+/g, ' ').trim(), baseState.slots.name || input.learnerName),
+          ar: keepNameOnce(`${reaction.ar} ${picked.line.ar}`.replace(/\s+/g, ' ').trim(), baseState.slots.name || input.learnerName),
+        };
+      })()
+    : { de: 'Wie bitte?', ar: 'عذراً؟' };
   return {
     state: {
       ...picked.state,
       offTopic,
-      // The repair hint answers the attempt that just failed, not the step's
-      // authored default: «drie glasse» must offer «Drei Gläser», never
-      // «Zwei Stück».
-      hintOverride: input.aiHint ?? null,
+      // The hint dock offers the model answer for THIS question: the AI's repair
+      // when it wrote one, otherwise the script's authored sentence.
+      hintOverride: input.aiHint ?? step.hints[0] ?? null,
       hintStepIndex: state.stepIndex,
     },
     outcome: looksGerman ? 'offtopic' : 'unclear',
     matched: false,
     reply,
-    asksQuestion: countQuestions(picked.line.de) === 1,
+    asksQuestion: countQuestions(reply.de) === 1,
   };
 }
 
@@ -533,4 +625,12 @@ export function currentQuestionLine(script: ScenarioScript, state: ScriptState):
 /** True when the farewell line has been spoken and only the goodbye is missing. */
 export function isAwaitingGoodbye(state: ScriptState): boolean {
   return state.awaitingFarewell && !state.done;
+}
+
+/**
+ * The header's «N من M» denominator: the script's own step count, never the
+ * level's generic turn cap. An A1 script with five beats must say «من 5».
+ */
+export function scriptTurnTarget(script: ScenarioScript): number {
+  return script.steps.length;
 }

@@ -131,7 +131,7 @@ test('the dock fits a short phone without pushing the transcript off screen', as
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
-  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 5/);
   await assertNothingIsCovered(page);
 
   const transcript = await page.getByTestId('conversation-transcript').boundingBox();

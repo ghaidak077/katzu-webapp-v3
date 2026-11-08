@@ -1,5 +1,5 @@
 ﻿import type { CEFRLevel } from '@/types/models';
-import type { AnswerMatch, PersonaRole, ScenarioScript, ScriptStep } from './types';
+import type { AnswerMatch, PersonaGender, PersonaRole, ScenarioScript, ScriptStep } from './types';
 
 /**
  * The migrated scenarios, authored as scripts.
@@ -42,7 +42,7 @@ const step = (input: StepInput): ScriptStep => ({
 const script = (
   scenarioId: string,
   level: CEFRLevel,
-  persona: { name: string; role: PersonaRole; personality: string },
+  persona: { name: string; role: PersonaRole; gender: PersonaGender; personality: string },
   goalAr: string,
   steps: ScriptStep[],
 ): ScenarioScript => ({ scenarioId, level, persona, goalAr, steps });
@@ -54,7 +54,7 @@ const keyword = (keywords: string[]): AnswerMatch => ({ type: 'keyword', keyword
 
 const GOODBYE: StepInput = {
   id: 'goodbye',
-  asks: [['Schön, dass wir gesprochen haben. Auf Wiedersehen!', 'سعيد أننا تحدثنا. إلى اللقاء!']],
+  asks: [['Schön, dass wir gesprochen haben. Auf Wiedersehen!', 'كان حديثنا جميلاً. إلى اللقاء!']],
   reasks: [['Auf Wiedersehen!', 'إلى اللقاء!'], ['Bis zum nächsten Mal!', 'إلى المرة القادمة!']],
   match: { type: 'anything' },
   reactions: [['Auf Wiedersehen! Einen schönen Tag noch.', 'إلى اللقاء! أتمنى لك يوماً جميلاً.']],
@@ -67,7 +67,7 @@ const GOODBYE: StepInput = {
 const firstGreetings = script(
   'first_greetings',
   'A1',
-  { name: 'Frau Meier', role: 'host', personality: 'دافئة وهادئة، تسأل سؤالاً واحداً في كل مرة' },
+  { name: 'Frau Meier', role: 'host', gender: 'female', personality: 'دافئة وهادئة، تسأل سؤالاً واحداً في كل مرة' },
   'تتعرّف على جارتك، تتبادلان الاسم والبلد والمدينة، ثم تنهيان الحديث بتحية.',
   [
     step({
@@ -75,7 +75,7 @@ const firstGreetings = script(
       slot: 'name',
       asks: [
         ['Hallo! Ich bin Frau Meier. Wie heißt du?', 'مرحباً! أنا السيدة ماير. ما اسمك؟'],
-        ['Hallo! Schön, dich zu treffen. Wie heißt du?', 'مرحباً! سعيد بلقائك. ما اسمك؟'],
+        ['Hallo! Schön, dich zu treffen. Wie heißt du?', 'مرحباً! سعيدة بلقائك. ما اسمك؟'],
         ['Hi! Ich wohne gleich nebenan. Wie heißt du?', 'أهلاً! أسكن بجوارك تماماً. ما اسمك؟'],
       ],
       reasks: [
@@ -83,14 +83,14 @@ const firstGreetings = script(
         ['Wie darf ich dich nennen?', 'بماذا أناديك؟'],
       ],
       match: { type: 'name' },
-      reactions: [['Freut mich, {name}!', 'سعيد بمعرفتك، {name}!']],
+      reactions: [['Freut mich, {name}!', 'سعيدة بمعرفتك، {name}!']],
       hint: ['Ich heiße ___.', 'اسمي ___.'],
     }),
     step({
       id: 'origin',
       slot: 'origin',
       asks: [
-        ['Woher kommst du, {name}?', 'من أين أنت يا {name}؟'],
+        ['Woher kommst du, {name}?', 'من أين أنت؟'],
         ['Aus welchem Land kommst du?', 'من أي بلد أنت؟'],
         ['Und wo bist du geboren?', 'وأين وُلدت؟'],
       ],
@@ -108,31 +108,31 @@ const firstGreetings = script(
       asks: [
         ['Und wo wohnst du jetzt?', 'وأين تسكن الآن؟'],
         ['In welcher Stadt wohnst du?', 'في أي مدينة تسكن؟'],
-        ['Wohnst du auch hier in der Straße?', 'هل تسكن هنا في الشارع أيضاً؟'],
+        ['Wo lebst du gerade?', 'أين تعيش حالياً؟'],
       ],
       reasks: [
         ['In welcher Stadt wohnst du gerade?', 'في أي مدينة تسكن حالياً؟'],
-        ['Wo ist deine Wohnung?', 'أين شقتك؟'],
+        ['Wo wohnst du im Moment?', 'أين تسكن في الوقت الحالي؟'],
       ],
       match: { type: 'city' },
       reactions: [['{city} ist eine schöne Stadt.', '{city} مدينة جميلة.']],
       hint: ['Ich wohne in ___.', 'أسكن في ___.'],
     }),
     step({
-      id: 'neighbourhood',
+      id: 'city_opinion',
       asks: [
-        ['Wie gefällt dir die Nachbarschaft?', 'كيف تعجبك الحي؟'],
-        ['Gefällt es dir hier?', 'هل يعجبك المكان هنا؟'],
-        ['Ist es hier schön für dich?', 'هل المكان جميل بالنسبة لك؟'],
+        ['Wie gefällt dir {city}?', 'كيف تعجبك {city}؟'],
+        ['Gefällt dir {city}?', 'هل تعجبك {city}؟'],
+        ['Fühlst du dich in {city} wohl?', 'هل تشعر بالراحة في {city}؟'],
       ],
       reasks: [
-        ['Gefällt dir das Viertel?', 'هل يعجبك الحي؟'],
-        ['Fühlst du dich hier wohl?', 'هل تشعر بالراحة هنا؟'],
+        ['Und wie findest du {city}?', 'وما رأيك في {city}؟'],
+        ['Magst du {city}?', 'هل تحب {city}؟'],
       ],
-      match: keyword(['gut', 'schön', 'gefällt', 'ruhig', 'freundlich', 'wohl']),
-      keywords: ['gut', 'schön', 'ruhig', 'freundlich'],
+      match: keyword(['gut', 'schön', 'gefällt', 'ruhig', 'freundlich', 'wohl', 'gern', 'gerne', 'mag']),
+      keywords: ['gut', 'schön', 'ruhig', 'freundlich', 'gern', 'mag'],
       reactions: [['Das freut mich sehr!', 'يسعدني ذلك كثيراً!']],
-      hint: ['Es gefällt mir hier sehr gut.', 'يعجبني المكان هنا كثيراً.'],
+      hint: ['Die Stadt gefällt mir sehr gut.', 'المدينة تعجبني كثيراً.'],
     }),
     step(GOODBYE),
   ],
@@ -143,7 +143,7 @@ const firstGreetings = script(
 const numbersAndPrices = script(
   'numbers_and_prices',
   'A1',
-  { name: 'Herr Klein', role: 'clerk', personality: 'صاحب دكان صبور، يكرّر السعر بوضوح' },
+  { name: 'Herr Klein', role: 'clerk', gender: 'male', personality: 'صاحب دكان صبور، يكرّر السعر بوضوح' },
   'تسأل عن شيء وتدفع ثمنه، وتفهم السعر والعدد.',
   [
     step({
@@ -217,7 +217,7 @@ const numbersAndPrices = script(
 const cafeOrder = script(
   'cafe_order',
   'A1',
-  { name: 'Lena', role: 'barista', personality: 'سريعة وودودة، تكرّر الطلب للتأكيد' },
+  { name: 'Lena', role: 'barista', gender: 'female', personality: 'سريعة وودودة، تكرّر الطلب للتأكيد' },
   'تطلب مشروباً وتحدّد الحجم والمكان وتدفع.',
   [
     step({
@@ -291,7 +291,7 @@ const cafeOrder = script(
 const bakeryShopping = script(
   'bakery_shopping',
   'A1',
-  { name: 'Frau Weber', role: 'baker', personality: 'صبورة، تعرض ما طازج اليوم' },
+  { name: 'Frau Weber', role: 'baker', gender: 'female', personality: 'صبورة، تعرض ما طازج اليوم' },
   'تشتري خبزاً وتحدّد الكمية وتدفع.',
   [
     step({
@@ -350,7 +350,7 @@ const bakeryShopping = script(
 const supermarketCheckout = script(
   'supermarket_checkout',
   'A1',
-  { name: 'Herr Özdemir', role: 'cashier', personality: 'عملي وسريع، يشرح كل خطوة' },
+  { name: 'Herr Özdemir', role: 'cashier', gender: 'male', personality: 'عملي وسريع، يشرح كل خطوة' },
   'تمرّ من الصندوق: كيس، دفع، إيصال، ثم تنصرف.',
   [
     step({
@@ -406,7 +406,7 @@ const supermarketCheckout = script(
 const restaurantBesonders = script(
   'restaurant_besonders',
   'A1',
-  { name: 'Herr Lang', role: 'waiter', personality: 'مهذّب، يقترح الأطباق بهدوء' },
+  { name: 'Herr Lang', role: 'waiter', gender: 'male', personality: 'مهذّب، يقترح الأطباق بهدوء' },
   'تطلب طبقاً ومشروباً وتدفع ثم تنصرف.',
   [
     step({
@@ -467,7 +467,7 @@ const restaurantBesonders = script(
 const embassyAppointment = script(
   'embassy_appointment',
   'A1',
-  { name: 'Frau Sahin', role: 'official', personality: 'رسمية لكن لطيفة، تسأل خطوة بخطوة' },
+  { name: 'Frau Sahin', role: 'official', gender: 'female', personality: 'رسمية لكن لطيفة، تسأل خطوة بخطوة' },
   'تحجز موعداً في السفارة وتوضّح سبب الزيارة والوثائق.',
   [
     step({
@@ -525,7 +525,7 @@ const embassyAppointment = script(
 const passUndDokumente = script(
   'pass_und_dokumente',
   'A1',
-  { name: 'Herr Bauer', role: 'official', personality: 'دقيق في الوثائق، يشرح ما ينقص' },
+  { name: 'Herr Bauer', role: 'official', gender: 'male', personality: 'دقيق في الوثائق، يشرح ما ينقص' },
   'تُظهر جوازك ووثائقك وتتأكد مما ينقص.',
   [
     step({
@@ -581,7 +581,7 @@ const passUndDokumente = script(
 const airportArrival = script(
   'airport_arrival',
   'A1',
-  { name: 'Herr Novak', role: 'guard', personality: 'هادئ ومحترف، سؤاله واحد واضح' },
+  { name: 'Herr Novak', role: 'guard', gender: 'male', personality: 'هادئ ومحترف، سؤاله واحد واضح' },
   'تمرّ من مراقبة الجوازات وتوضّح رحلتك وسبب الزيارة.',
   [
     step({
@@ -638,7 +638,7 @@ const airportArrival = script(
 const trainStation = script(
   'train_station',
   'A1',
-  { name: 'Frau Krüger', role: 'clerk', personality: 'منظّمة، تعطي الخيارات بسرعة' },
+  { name: 'Frau Krüger', role: 'clerk', gender: 'female', personality: 'منظّمة، تعطي الخيارات بسرعة' },
   'تشتري تذكرة قطار: الوجهة، الوقت، ونوع التذكرة.',
   [
     step({
@@ -696,7 +696,7 @@ const trainStation = script(
 const trainFirstRide = script(
   'train_first_ride',
   'A1',
-  { name: 'Herr Peters', role: 'conductor', personality: 'ودود، يتحقق من التذاكر بهدوء' },
+  { name: 'Herr Peters', role: 'conductor', gender: 'male', personality: 'ودود، يتحقق من التذاكر بهدوء' },
   'تجد مقعداً وتُظهر تذكرتك وتؤكّد وجهتك.',
   [
     step({

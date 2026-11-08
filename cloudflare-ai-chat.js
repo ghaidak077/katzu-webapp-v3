@@ -799,6 +799,7 @@ function sanitizeScriptContext(raw) {
     allowed_keywords: keywords,
     facts,
     learner_name: scriptText(raw.learner_name, SCRIPT_FIELD_LIMITS.learner_name),
+    persona_gender: raw.persona_gender === "male" ? "male" : "female",
     awaiting_farewell: raw.awaiting_farewell === true,
     turn_index: Number.isFinite(Number(raw.turn_index)) ? Math.max(0, Math.min(200, Number(raw.turn_index))) : 0,
   };
@@ -820,6 +821,7 @@ function buildScriptTurnInstruction({ level, persona, scenarioTitle, script, lea
     script.slot ? `SLOT THIS ANSWER FILLS: ${script.slot}` : "SLOT THIS ANSWER FILLS: (open question)",
     script.allowed_keywords.length ? `WORDS THAT COUNT FOR THIS SLOT: ${script.allowed_keywords.join(", ")}` : "",
     script.learner_name ? `LEARNER NAME: ${script.learner_name}` : "",
+    `YOUR GENDERED VOICE: you are ${script.persona_gender === "male" ? "male — Arabic first-person adjectives take the masculine form (سعيد، جاهز)" : "female — Arabic first-person adjectives take the feminine form (سعيدة، جاهزة)"}.`,
     "",
     "SCENE FACTS — the ONLY facts you may state. Never invent a city, place, price, name, time or opinion that is not here:",
     ...script.facts.map((fact) => `- ${fact}`),

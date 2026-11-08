@@ -97,14 +97,12 @@ describe.each([
 
   it.each(cases)('«$input» is corrected to «$corrected»', (sample) => {
     const result = checkGerman(sample.input, level);
-    // Terminal punctuation is never added to the learner's sentence any more:
-    // a missing «.» / «?» is an optional soft note, not a correction. The goldens
-    // keep their punctuation to document the intended sentence; the asserted
-    // corrected text drops it when the learner omitted it.
+    // Terminal punctuation is never added to the learner's sentence and never
+    // mentioned: a missing «.» / «?» is not a correction and not a note.
     const endsWithMark = /[.!?]\s*$/.test(sample.input);
     const expectedCorrected = endsWithMark ? sample.corrected : sample.corrected.replace(/[.!?]+$/, '');
     expect(result.corrected).toBe(expectedCorrected);
-    expect(Boolean(result.softNoteAr)).toBe(!endsWithMark);
+    expect('softNoteAr' in result).toBe(false);
     expect(result.ok).toBe(sample.categories.length === 0);
     expect(result.errors.map((error) => error.category)).toEqual(sample.categories);
   });
@@ -177,11 +175,11 @@ describe('pronoun and formal-address goldens', () => {
     const result = checkGerman(sample.input, 'A1');
     expect(result.corrected).toBe(sample.corrected);
     expect(result.errors.map((error) => error.category)).toEqual(sample.categories);
-    expect(Boolean(result.softNoteAr)).toBe(sample.soft);
+    expect('softNoteAr' in result).toBe(false);
   });
 });
 
-describe('terminal punctuation is a soft note, never a silent edit', () => {
+describe('terminal punctuation is never added, never flagged', () => {
   it.each([
     ['Ich heiße Ghaidak', 'Ich heiße Ghaidak'],
     ['Ich heiße ghaidak', 'Ich heiße Ghaidak'],
@@ -191,13 +189,14 @@ describe('terminal punctuation is a soft note, never a silent edit', () => {
     const result = checkGerman(input, 'A1');
     expect(result.corrected).toBe(expected);
     expect(result.corrected).not.toMatch(/[.!?]$/);
-    expect(result.softNoteAr).toBeTruthy();
+    expect('softNoteAr' in result).toBe(false);
+    expect(JSON.stringify(result)).not.toContain('ملاحظة اختيارية');
   });
 
-  it('does not emit a soft note when the learner already punctuated', () => {
+  it('emits no note even when the learner already punctuated', () => {
     for (const input of ['Ich heiße Ghaidak.', 'Wie heißt du?', 'Danke!']) {
       const result = checkGerman(input, 'A1');
-      expect(result.softNoteAr, input).toBeUndefined();
+      expect('softNoteAr' in result).toBe(false);
     }
   });
 

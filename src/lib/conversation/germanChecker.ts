@@ -48,13 +48,6 @@ export interface GermanCheckResult {
   /** Ordered meaning → grammar → spelling → capitalisation. */
   errors: CorrectionError[];
   ok: boolean;
-  /**
-   * A missing final punctuation mark is NOT an error: a learner typing in a chat
-   * box is not failing a punctuation exercise. It is offered as this optional
-   * note only, and the corrected sentence never gains a mark the learner did not
-   * write.
-   */
-  softNoteAr?: string;
 }
 
 /** Deterministic rules, so the chip and the Arabic explanation cannot disagree. */
@@ -668,19 +661,10 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
     tokens[0].core = corrected;
   }
 
-  // Terminal punctuation is optional. A learner typing in a chat box is not
-  // failing a punctuation exercise, so a missing final mark is never added to
-  // their sentence; it is offered as a soft note only.
-  let softNoteAr: string | undefined;
-  if (tokens.length > 0) {
-    const last = tokens[tokens.length - 1];
-    if (!/[.!?]/.test(last.post)) {
-      const isQuestion = QUESTION_WORDS.has(lower(tokens[0]?.core || ''));
-      softNoteAr = isQuestion
-        ? 'ملاحظة اختيارية: السؤال في الألمانية يُنهى بعلامة استفهام «؟».'
-        : 'ملاحظة اختيارية: الجملة في الألمانية تُنهى بنقطة.';
-    }
-  }
+  // Terminal punctuation is optional and is NOT mentioned: a learner typing in a
+  // chat box is not failing a punctuation exercise. The old soft note («ملاحظة
+  // اختيارية: الجملة تُنهى بنقطة») was noise on every single learner message and
+  // is gone from the chat entirely.
 
   errors.sort((a, b) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category]);
 
@@ -688,7 +672,6 @@ export function checkGerman(input: string, _level: CEFRLevel = 'A1'): GermanChec
     corrected: render(tokens),
     errors,
     ok: errors.length === 0,
-    ...(softNoteAr ? { softNoteAr } : {}),
   };
 }
 

@@ -31,6 +31,7 @@ import {
   currentHint,
   scriptForScenario,
   scriptOpener,
+  scriptTurnTarget,
   startScript,
   validateFarewellTurn,
   validateScriptAiTurn,
@@ -272,8 +273,9 @@ export function useLiveConversation({
 
   // Turn pacing comes from the explicit, tested rule in turnPlan.ts — the screen
   // no longer decides session length, so the documented and implemented numbers
-  // cannot drift apart.
-  const targetTurns = sessionTurnCap(effectiveLevel);
+  // cannot drift apart. A migrated script knows its own beats: «N من M» must
+  // count the steps the learner will actually see (five beats, not the A1 cap).
+  const targetTurns = scenarioScript ? scriptTurnTarget(scenarioScript) : sessionTurnCap(effectiveLevel);
   // REAL mode (V28 Stage 1D): the same conversation with no help — no hints, no
   // translation, no live correction. The turn call is unchanged and still returns
   // the evaluation, so the end-of-session report is built from it.
@@ -980,7 +982,6 @@ export function useLiveConversation({
           correctionErrors: hasCorrection ? localCheck.errors : undefined,
           grammarRule: hasCorrection ? localCheck.errors[0]?.label : undefined,
           positiveNoteAr: hasCorrection ? correctionNoteAr(localCheck.errors.length) : 'أحسنت!',
-          softNoteAr: localCheck.softNoteAr,
           timestamp: Date.now(),
         };
 
@@ -1122,9 +1123,6 @@ export function useLiveConversation({
         positiveNoteAr: hasCorrection
           ? correctionNoteAr(errorCount)
           : res.positiveNoteAr || 'أحسنت!',
-        // A missing final «.» or «?» is not a correction and never changes the
-        // learner's sentence; it is only an optional note.
-        softNoteAr: localCheck.softNoteAr,
         timestamp: Date.now(),
       };
 

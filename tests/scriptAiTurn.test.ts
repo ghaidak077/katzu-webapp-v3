@@ -140,12 +140,14 @@ describe('an unclear answer still gets a human reaction', () => {
     expect(result.state.stepIndex).toBe(0);
   });
 
-  it('falls back to the authored re-ask when the model wrote nothing', () => {
+  it('falls back to «Wie bitte?» when the model wrote nothing, with the model answer in the hint dock', () => {
     const result = advanceScript(greetings, startScript(greetings), {
       text: 'Ich bin müde.',
       hintUsed: false,
     });
-    expect(result.reply?.de).toBe('Entschuldigung, wie ist dein Name?');
+    expect(result.reply?.de).toBe('Wie bitte?');
+    expect(result.state.hintOverride).not.toBeNull();
+    expect(result.state.hintStepIndex).toBe(0);
   });
 });
 

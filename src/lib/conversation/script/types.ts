@@ -24,6 +24,19 @@ export type PersonaRole =
   | 'doctor'
   | 'interviewer';
 
+/**
+ * The persona's grammatical gender, which every Arabic gloss must agree with.
+ * «Frau Meier» saying «سعيد بمعرفتك» is the bug this field exists to stop.
+ */
+export type PersonaGender = 'female' | 'male';
+
+export interface ScriptPersona {
+  name: string;
+  role: PersonaRole;
+  gender: PersonaGender;
+  personality: string;
+}
+
 export interface ScriptLine {
   de: string;
   ar: string;
@@ -31,7 +44,7 @@ export interface ScriptLine {
 
 /** How a learner answer is recognised, and what it fills. */
 export type AnswerMatch =
-  | { type: 'name' | 'origin' | 'city' }
+  | { type: 'name' | 'origin' | 'city' | 'age' | 'job' }
   | { type: 'yesno' }
   | { type: 'number' }
   /** At least one keyword present, or a short free sentence (≥3 words). */
@@ -66,7 +79,7 @@ export interface ScriptStep {
 export interface ScenarioScript {
   scenarioId: string;
   level: CEFRLevel;
-  persona: { name: string; role: PersonaRole; personality: string };
+  persona: ScriptPersona;
   /** One labelled goal in Arabic — what finishing actually means. */
   goalAr: string;
   steps: ScriptStep[];

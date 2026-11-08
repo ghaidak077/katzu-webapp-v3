@@ -7,11 +7,14 @@ import {
   guardGermanLine,
   guardHintLine,
   matchAnswer,
+  scriptTurnTarget,
   startScript,
 } from '@/lib/conversation/script';
+import { checkGerman } from '@/lib/conversation/germanChecker';
+import { lintGloss, lintScript } from '@/lib/conversation/script/glossLint';
 import { PILOT_SCRIPTS } from '@/lib/conversation/script/scripts';
 import { scriptedScenarioIds } from '@/lib/conversation/script';
-import type { AdvanceResult, ScenarioScript, ScriptState, ScriptStep } from '@/lib/conversation/script/types';
+import type { AdvanceResult, AnswerMatch, ScenarioScript, ScriptState, ScriptStep } from '@/lib/conversation/script/types';
 
 /**
  * The simulation gate (owner spec §7). Thirty scripted learners per migrated
@@ -246,14 +249,18 @@ describe('the failed real session replay', () => {
   it('completes only after the farewell and the learner’s goodbye', () => {
     const script = PILOT_SCRIPTS[0];
     let state = startScript(script);
-    const answers = ['Ich heiße Ghaidak.', 'Ich komme aus Syrien.', 'Ich wohne in Berlin.'];
+    const answers = [
+      'Ich heiße Ghaidak.',
+      'Ich komme aus Syrien.',
+      'Ich wohne in Berlin.',
+    ];
     for (const text of answers) {
       const result = advanceScript(script, state, { text, hintUsed: false });
       state = result.state;
       expect(result.state.done).toBe(false);
     }
-    // The neighbourhood answer moves the persona to her farewell statement.
-    const farewellTurn = advanceScript(script, state, { text: 'Es gefällt mir hier gut.', hintUsed: false });
+    // The opinion answer moves the persona to her farewell statement.
+    const farewellTurn = advanceScript(script, state, { text: 'Berlin gefällt mir sehr gut.', hintUsed: false });
     expect(farewellTurn.outcome).toBe('farewell');
     expect(farewellTurn.state.done).toBe(false);
     // Only the learner's goodbye completes the session.
@@ -308,5 +315,227 @@ describe('simulation gate — 30 learners × 11 migrated scenarios', () => {
     expect(matchAnswer(nameStep, 'asdfgh').matched).toBe(true); // a bare-looking word still reads as a name
     expect(matchAnswer(nameStep, '12345').matched).toBe(false);
     expect(matchAnswer(nameStep, 'أنا لا أفهم').matched).toBe(false);
+  });
+});
+
+/* ── static authoring checks: the build fails on a slot/question collision ── */
+
+const CONTENT = (line: string): string =>
+  line
+    .toLowerCase()
+    .replace(/\{[a-z]+\}/g, ' ')
+    .replace(/[^a-zäöüß\s]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length >= 5)
+    .sort()
+    .join(' ');
+
+describe('script authoring — no repeated slot, no repeated question, no sensitive ask', () => {
+  for (const script of PILOT_SCRIPTS) {
+    it(`${script.scenarioId}: every filled slot is unique and every step asks something new`, () => {
+      const slots = script.steps.map((step) => step.slot).filter((slot): slot is string => !!slot);
+      expect(new Set(slots).size, `duplicate slot in ${script.scenarioId}: ${slots.join(', ')}`).toBe(slots.length);
+
+      const seen = new Map<string, string>();
+      script.steps.forEach((step) => {
+        for (const line of [...step.asks, ...step.reasks]) {
+          const signature = CONTENT(line.de);
+          if (!signature) continue;
+          const owner = seen.get(signature);
+          if (owner && owner !== step.id) {
+            expect(
+              owner,
+              `${script.scenarioId}: «${step.id}» asks the same thing as «${owner}» — ${line.de}`,
+            ).toBeUndefined();
+          }
+          seen.set(signature, step.id);
+        }
+      });
+    });
+
+    it(`${script.scenarioId}: never asks for an address, street, phone or document number`, () => {
+      const sensitive = /\b(straße|strasse|wohnung|adresse|telefon|handy|nachname|geburtsdatum|passnummer|kontonummer)\b/i;
+      for (const step of script.steps) {
+        for (const line of [...step.asks, ...step.reasks, ...step.hints]) {
+          expect(sensitive.test(line.de), `${script.scenarioId}/${step.id}: ${line.de}`).toBe(false);
+          expect(sensitive.test(line.ar), `${script.scenarioId}/${step.id}: ${line.ar}`).toBe(false);
+        }
+      }
+    });
+
+    it(`${script.scenarioId}: the header total is the script's real step count`, () => {
+      expect(scriptTurnTarget(script)).toBe(script.steps.length);
+      expect(scriptTurnTarget(script)).toBeGreaterThanOrEqual(4);
+    });
+  }
+});
+
+/* ── Arabic gloss agreement (per-gender deny-lists) ── */
+
+describe('script glosses agree with the persona gender', () => {
+  it('every shipped gloss passes the lint', () => {
+    for (const script of PILOT_SCRIPTS) {
+      expect(lintScript(script), script.scenarioId).toEqual([]);
+    }
+  });
+
+  it('catches the feminine/masculine and noun-agreement slips that shipped', () => {
+    expect(lintGloss('سعيد بمعرفتك!', 'female')).toContain('سعيد');
+    expect(lintGloss('سعيدة بمعرفتك!', 'male')).toContain('سعيدة');
+    expect(lintGloss('كيف تعجبك الحي؟', 'female')).toContain('تعجبك الحي');
+    expect(lintGloss('كيف يعجبك المدينة؟', 'female')).toContain('يعجبك المدينة');
+    expect(lintGloss('سعيدة بمعرفتك!', 'female')).toEqual([]);
+    expect(lintGloss('سعيد بمعرفتك!', 'male')).toEqual([]);
+  });
+});
+
+/* ── fragments, casing and typos: a filled slot is never re-asked ── */
+
+const makeStep = (type: AnswerMatch['type'], slot?: string, keywords?: string[]): ScriptStep => ({
+  id: `${type}_step`,
+  slot,
+  asks: [{ de: 'Und du?', ar: 'وأنت؟' }],
+  reasks: [{ de: 'Noch einmal, bitte?', ar: 'مرة أخرى، من فضلك؟' }],
+  match: type === 'keyword' ? { type, keywords: keywords ?? ['gut'] } : ({ type } as AnswerMatch),
+  reactions: [{ de: 'Danke.', ar: 'شكراً.' }],
+  hints: [{ de: 'Ich heiße ___.', ar: 'اسمي ___.' }],
+});
+
+const SLOT_CASES: Array<[AnswerMatch['type'], string[]]> = [
+  ['name', [
+    'Ich heiße Leo', 'ich heisse leo', 'ich heiße LEO', 'LEO', 'leo', 'Leo', 'mein Name ist Leo',
+    'mein name ist leo', 'Hallo, ich bin Leo', 'hallo, ich bin leo', 'ich bin leo', 'Ich heisse Leo.',
+    'LEO!', '  leo  ', 'Ich heiße Leo.',
+  ]],
+  ['origin', [
+    'Ich komme aus Syrien', 'ich komme aus syrien', 'aus Syrien', 'Aus Syrien', 'Syrien', 'syrien',
+    'SYRIEN', 'Ich bin aus Syrien', 'ich bin aus syrien', 'komme aus Syrien', 'von Syrien',
+    'aus London', 'London', 'london', 'Ich komme aus der Türkei',
+  ]],
+  ['city', [
+    'in berlin', 'Berlin', 'berlin', 'BERLIN', 'Ich wohne in Berlin', 'ich wohne in berlin',
+    'wohne in Berlin', 'Ich lebe in Berlin', 'ich lebe in berlin', 'Ich bin in Berlin',
+    'Berlin Stadt', 'berlin stadt', 'in Berlin Stadt', 'Ich wohne in Hamburg', 'hamburg',
+  ]],
+  ['age', [
+    '24', '24 Jahre', 'ich bin 24', 'ich bin 24 jahre alt', 'zwanzig', 'zwanzig Jahre',
+    'Ich bin zwanzig', 'ich bin 20', 'zwanzig jahre alt', 'Ich werde 24', '24.', ' 24 ',
+    '24 jahre', 'ich bin 24.', 'zehn',
+  ]],
+  ['job', [
+    'Ich bin Lehrer', 'ich bin lehrer', 'Lehrer', 'lehrer', 'LEHRER', 'ich arbeite als Lehrer',
+    'Ich arbeite als Lehrerin', 'ich arbeite als lehrerin', 'arbeite als Arzt', 'Ich arbeite bei Siemens',
+    'von Beruf Lehrer', 'Lehrerin', 'Koch', 'Ich bin Koch.', 'koch',
+  ]],
+];
+
+describe('slot matchers accept fragments, casing and typos', () => {
+  for (const [type, cases] of SLOT_CASES) {
+    it(`${type}: 15 fragments all fill the slot`, () => {
+      const step = makeStep(type, type);
+      for (const text of cases) {
+        const result = matchAnswer(step, text);
+        expect(result.matched, `${type} rejected «${text}»`).toBe(true);
+        expect(result.value?.trim().length, `${type} returned no value for «${text}»`).toBeGreaterThan(0);
+      }
+    });
+  }
+
+  it('a value already stored in another slot never fills this one', () => {
+    const city = makeStep('city', 'city');
+    expect(matchAnswer(city, 'aus London', { origin: 'London' }).matched).toBe(false);
+    expect(matchAnswer(city, 'Syrien', { origin: 'Syrien' }).matched).toBe(false);
+    expect(matchAnswer(city, 'in berlin', { origin: 'Syrien' }).matched).toBe(true);
+  });
+});
+
+/* ── the exact session that failed, replayed end to end ── */
+
+describe('golden replay — أول الكلمات: مرحباً ومع السلامة', () => {
+  it('full session: name once, city from «in berlin», header M = steps, farewell closes', () => {
+    const script = PILOT_SCRIPTS[0];
+    expect(scriptTurnTarget(script)).toBe(script.steps.length);
+    expect(scriptTurnTarget(script)).toBe(5);
+
+    let state = startScript(script);
+    const replies: Array<{ de: string; ar: string }> = [];
+    const send = (text: string) => {
+      const result = advanceScript(script, state, { text, hintUsed: false });
+      state = result.state;
+      if (result.reply) replies.push(result.reply);
+      return result;
+    };
+
+    const first = send('Hallo, ich heiße Ghaidak');
+    expect(first.matched).toBe(true);
+    expect(first.filledSlot).toBe('name');
+    expect(state.slots.name).toBe('Ghaidak');
+
+    const second = send('Ich komme aus Syrien');
+    expect(second.matched).toBe(true);
+    expect(state.slots.origin).toBe('Syrien');
+
+    const third = send('in berlin');
+    expect(third.matched, '«in berlin» must fill the city slot').toBe(true);
+    expect(state.slots.city).toBe('Berlin');
+
+    // The next question is about the city the learner just gave.
+    expect(third.reply?.de).toContain('Berlin');
+    expect(third.reply?.de).toContain('?');
+    expect(third.reply?.ar).toContain('Berlin');
+
+    const fourth = send('Berlin gefällt mir sehr gut');
+    expect(fourth.outcome).toBe('farewell');
+    expect(state.done).toBe(false);
+
+    const goodbye = send('Tschüss!');
+    expect(goodbye.state.done).toBe(true);
+    expect(goodbye.reply?.de).toContain('Auf Wiedersehen');
+
+    // A name appears at most once per language in any persona turn.
+    for (const reply of replies) {
+      const deMentions = (reply.de.match(/Ghaidak/gi) ?? []).length;
+      const arMentions = (reply.ar.match(/Ghaidak/gi) ?? []).length;
+      expect(deMentions, `name repeated in «${reply.de}»`).toBeLessThanOrEqual(1);
+      expect(arMentions, `name repeated in «${reply.ar}»`).toBeLessThanOrEqual(1);
+    }
+
+    // No question was asked twice in the same words.
+    const questions = replies.filter((line) => line.de.includes('?')).map((line) => line.de.toLowerCase());
+    expect(new Set(questions).size).toBe(questions.length);
+  });
+
+  it('dedupes the typed name even when the profile name is different', () => {
+    const script = PILOT_SCRIPTS[0];
+    const first = advanceScript(script, startScript(script), {
+      text: 'Hallo, ich heiße Ghaidak',
+      hintUsed: false,
+      learnerName: 'Leo', // the signed-in profile, not the name just typed
+    });
+    expect(first.state.slots.name).toBe('Ghaidak');
+    expect(first.reply?.de).toBe('Freut mich, Ghaidak! Woher kommst du?');
+    expect((first.reply?.de.match(/Ghaidak/g) ?? []).length).toBe(1);
+  });
+
+  it('never silently skips, never says «Kein Problem, wir machen weiter»', () => {
+    const script = PILOT_SCRIPTS[0];
+    let state = startScript(script);
+    const first = advanceScript(script, state, { text: 'Ich verstehe nicht.', hintUsed: false });
+    state = first.state;
+    expect(first.reply?.de).toContain('Wie bitte?');
+    expect(first.state.offTopic).toBe(1);
+    expect(first.state.hintOverride).not.toBeNull();
+
+    const second = advanceScript(script, state, { text: 'Ich verstehe nicht.', hintUsed: false });
+    expect(second.reply?.de).not.toContain('Kein Problem');
+    expect(second.reply?.de).toContain('Alles gut');
+    expect(second.state.stepIndex).toBe(1);
+    expect(second.asksQuestion).toBe(true);
+  });
+
+  it('never shows a punctuation note after a learner message', () => {
+    const result = checkGerman('Ich heiße Ghaidak', 'A1');
+    expect('softNoteAr' in result).toBe(false);
+    expect(JSON.stringify(result)).not.toContain('ملاحظة اختيارية');
   });
 });

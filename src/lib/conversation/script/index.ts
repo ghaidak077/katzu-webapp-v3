@@ -60,7 +60,9 @@ export {
   guardHintLine,
   hasMarkdown,
   isAwaitingGoodbye,
+  keepNameOnce,
   matchAnswer,
+  scriptTurnTarget,
   startScript,
   understandAnswer,
 } from './engine';

@@ -1,5 +1,6 @@
 import type { CEFRLevel } from '@/types/models';
 import { fillSlots, guardGermanLine, guardHintLine, hasMarkdown } from './engine';
+import { lintGloss } from './glossLint';
 import type {
   PersonaRole,
   ScenarioScript,
@@ -35,6 +36,8 @@ export interface ScriptTurnWireContext {
   /** The scene's own facts: persona, goal and values the learner supplied. */
   facts: string[];
   learner_name: string;
+  /** The persona's grammatical gender, so its Arabic agrees with itself. */
+  persona_gender: 'female' | 'male';
   awaiting_farewell: boolean;
   /** 0-based turn index; the model uses it only for variety. */
   turn_index: number;
@@ -101,6 +104,7 @@ export function buildScriptTurnContext(
       allowed_keywords: (step.keywords ?? []).slice(0, 8).map((word) => word.slice(0, 40)),
       facts: sceneFacts(script, state, learnerName).slice(0, 24),
       learner_name: (state.slots.name || learnerName || '').slice(0, 40),
+      persona_gender: script.persona.gender,
       awaiting_farewell: state.awaitingFarewell,
       turn_index: Math.max(0, Math.min(200, state.turns)),
     },
@@ -168,7 +172,8 @@ export function validateScriptAiTurn(
     const guard = guardGermanLine(reactionDe, { level, role, asksQuestion: false });
     const repeatsQuestion = reactionDe.toLowerCase() === opts.step.asks[0]?.de.toLowerCase();
     const echo = opts.learnerText && reactionDe.trim().toLowerCase() === opts.learnerText.trim().toLowerCase();
-    if (guard.ok && !repeatsQuestion && !echo) reaction = { de: reactionDe, ar: reactionAr };
+    const agrees = lintGloss(reactionAr, opts.script.persona.gender).length === 0;
+    if (guard.ok && !repeatsQuestion && !echo && agrees) reaction = { de: reactionDe, ar: reactionAr };
   }
 
   // 2. The hint must answer the question that is on screen. A generic "try
@@ -179,7 +184,8 @@ export function validateScriptAiTurn(
   if (hintDe && hintAr && !hasMarkdown(hintDe) && !hintDe.includes('?') && !hintDe.includes('{')) {
     const guard = guardHintLine({ de: hintDe, ar: hintAr }, level, role);
     const sameAsQuestion = hintDe.toLowerCase() === opts.step.asks[0]?.de.toLowerCase();
-    if (guard.ok && !sameAsQuestion && hintFitsStep(opts.step, hintDe)) {
+    const agrees = lintGloss(hintAr, opts.script.persona.gender).length === 0;
+    if (guard.ok && !sameAsQuestion && agrees && hintFitsStep(opts.step, hintDe)) {
       hint = { de: hintDe, ar: hintAr };
     }
   }

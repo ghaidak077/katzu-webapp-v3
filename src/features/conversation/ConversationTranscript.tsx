@@ -109,8 +109,6 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
           const next = messages[index + 1];
           const correctionMessage =
             msg.sender === 'USER' && next?.sender === 'KATZU' && next.hasCorrection ? next : undefined;
-          const softNoteAr =
-            msg.sender === 'USER' && next?.sender === 'KATZU' ? next.softNoteAr : undefined;
 
           // Explicit per-message choice overrides the global toggle. The scenario
           // opener is the exception: it is the one message a learner cannot guess
@@ -138,7 +136,6 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
               spokenCharIndex={speakingId === msg.id ? activeCharIndex : null}
               isSpeaking={speakingId === msg.id}
               correctionMessage={correctionMessage}
-              softNoteAr={softNoteAr}
             />
           );
         })}

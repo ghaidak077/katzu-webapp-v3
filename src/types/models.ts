@@ -513,12 +513,6 @@ export interface ChatMessage {
   };
   explanationAr?: string;
   positiveNoteAr?: string;
-  /**
-   * Optional punctuation note (missing final «.» / «?»). It is never a
-   * correction and the corrected sentence never gains a mark the learner did
-   * not write.
-   */
-  softNoteAr?: string;
   wasHintUsed?: boolean;
   isGenerating?: boolean;
   /** The server never accepted this turn (network/timeout). The bubble stays in
