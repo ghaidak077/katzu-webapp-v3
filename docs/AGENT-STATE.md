@@ -106,10 +106,10 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`5b0635aa-112d-45f8-ab17-093fd9295e69`** (2026-11-08, tree `09f0b92`; worker code unchanged from 2026-11-07,
-  redeployed with the script-owned chat commit). Live: `/health` 200 `storage:{d1,kv}`; `/crypto/health` 200
-  `ready:false`; `/internal/admin/health` **401**.
-  **Rollback target: `aeee3302-f036-47e4-aea6-211043375d60`** (2026-11-07, source `421715a`; off-topic 💬
+  **`17abb92b-bf13-4656-bb02-c9c9c75af41c`** (2026-11-08, tree `4d419d6`; scripted `/ai/turn` early return).
+  Live: `/health` 200 `storage:{d1,kv}`; `/crypto/health` 200 `ready:false`; `/internal/admin/health` **401**.
+  **Rollback target: `5b0635aa-112d-45f8-ab17-093fd9295e69`** (source `09f0b92`), then
+  `aeee3302-f036-47e4-aea6-211043375d60` (2026-11-07, source `421715a`; off-topic 💬
   `followup_question_ar` removed), then `3afaa92c-5d0e-463a-af73-7eaf90d00cde`, then
   `dd23b2ac-46b0-4b42-a20b-4a41be0cc739` (first-message opener glosses), then `70daf981-98bf-49eb-9722-a4b533ac017f` (deployment
   `798fd12a-1c44-49c0-b13b-cb636b2df49d`, 2026-11-04T05:52Z, the first consent deploy: the review
@@ -132,10 +132,11 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   **Rollback target: `e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
   `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or
   delete the Worker; nothing else depends on it.
-- **App Pages production (2026-11-08, source `09f0b92`):** deployment
-  **`ecc68c3f-4985-4cff-8a1e-809a43851645`** (script-owned chat + hint dock + local memory; entry
-  `assets/index-DJm9SVZq.js` contains the pilot script lines `Fehlt Ihr Koffer`/`Kaution`, `/` and `katzuai.com`
-  200, `/sw.js` 200). **Rollback: `f9261d73-7f96-43ad-a07c-42c099fe6a51`** (source `7cedfd0`),
+- **App Pages production (2026-11-08, source `4d419d6`):** deployment
+  **`eea032dd-ebb1-4636-8381-0ea38e177789`** (script-AI turns; `assets/index-D6Htrqgk.js`, `AppShell` carries
+  `script_turn`; `/` and `katzuai.com` 200, `/sw.js` 200, production smoke 2 passed / 2 skipped).
+  **Rollback: `9ab1f882-0659-4d66-a051-7ef5941cddf7`** (source `48f723b`), then
+  `ecc68c3f-4985-4cff-8a1e-809a43851645` (source `09f0b92`; script-owned chat + hint dock), then `f9261d73-7f96-43ad-a07c-42c099fe6a51` (source `7cedfd0`),
   then `7b5995a4-9b08-4fb6-9190-670a6aca10a9` (source `421715a`, session-replay fixes), then
   `eff039c2-4f80-4836-b964-8337d61cdddb` (UNIT-PATH: nine-unit map + composed session + goal-only signup; entry
   `assets/index-DesAHQkO.js`, production smoke 2 passed / 2 skipped).

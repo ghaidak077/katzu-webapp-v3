@@ -63,7 +63,7 @@ production data was touched by that vetting run.
 
 ## Current snapshot — 2026-11-08 (scripted chat V34: the AI reads the learner, the script keeps the arc)
 
-**Local and verified; deploy follows.** The pilot chat now has a real AI half without giving the model the wheel: for the
+**Deployed 2026-11-08** (worker `17abb92b-…`, Pages `eea032dd-…`; gate 16/16). The pilot chat now has a real AI half without giving the model the wheel: for the
 11 migrated scenes, one bounded `/ai/turn` carries `script_context` — the step, slot, question on screen, authored hint,
 keywords and scene facts — and returns only how it read THIS sentence, one in-character reaction with no question mark,
 and a hint that repairs THIS attempt (`lib/conversation/script/aiTurn.ts`). The script still decides the step, the accepted
