@@ -253,6 +253,7 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
 | SCRIPT-MIGRATE. Remaining 38 scenarios → script engine | todo | 11 pilots run locally (`first_greetings` + units 1–2; `tests/scenarioScript.test.ts` 39 passed); every unmigrated id stays on `/ai/turn` behind `isScriptedScenario`. Order: unit by unit, simulation gate green per batch. |
+| ROLEPLAY-1. Normal AI chat hardening (2026-11-09) | doing | Provider retry/backoff + «أعد المحاولة», hint safety, legacy `script_turn`, rate limit; evidence lands with the eval/verify rows. |
 
 ## DECISIONS
 
@@ -400,6 +401,9 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical claims are in `docs/agent/ARCHIVE-AGENT-STATE.md` under the same heading.
 
+- **ROLEPLAY-1 (2026-11-09) — the gate is free-tier, not production load.** `ROLEPLAY-EVAL.md` measures Groq alone;
+  three simultaneous learners are unit-simulated; paid/second-provider failover is untested (no key).
+
 - **V47 (2026-11-05) — the fixed first bubble is proven in code and data, not in a signed-in production session.** The
   coverage test enumerates the live corpus fixture and the app reads the same generated map, but no owner session exists
   to open a live conversation and see the Arabic on screen; production `https://katzuai.com/scenarios` also answers 404
@@ -510,21 +514,22 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
 
+- **Three AI launch choices (ROLEPLAY-1, 2026-11-09).** Approve `openai/gpt-oss-120b`; add a paid/second provider key;
+  confirm the AI-provider privacy line. Plain copy: `OWNER-CHECKLIST.md` §19.
+
 - **Read the 11 pilot scripts' German and Arabic (SCRIPT-ENGINE, 2026-11-08).** Every line a learner sees in
   `first_greetings` and units 1–2 now comes from `src/lib/conversation/script/scripts.ts` (3 asks, reactions, hints and a
   farewell per scene). A native read is the only check that matters: report any odd line and it is replaced.
   Plain copy: `OWNER-CHECKLIST.md` §18.
 
-- **Two path-screen wording decisions (TRAIL-1, 2026-11-06).** Approve or rewrite the four CEFR level lines
-  («أتدبّر أمري في ألمانيا»، «أتحرّك في يومي بثقة»، «أتعامل مع المواقف الرسمية والعمل»، «أتحدّث بطلاقة في العمل
-  والدراسة») and say whether rank/XP stays on the profile only (current) or returns as a small home line.
-  Done: the lines approved or replaced, and one placement recorded. Plain copy: `OWNER-CHECKLIST.md` §15.
+- **Two path-screen wording decisions (TRAIL-1, 2026-11-06).** Approve or rewrite the four CEFR level lines (copy:
+  `OWNER-CHECKLIST.md` §15) and say whether rank/XP stays on the profile only (current) or returns as a small home line.
+  Done: the lines approved or replaced, and one placement recorded.
 
-- **Turn on the new conversations — production needs your line, and today's loader can only add rows (CONTENT-V2-1,
-  2026-11-01).** 61 scenarios are authored and tested locally; live D1 still has the old 49. Choose **(a) new only**:
-  `CONTENT-LOAD-AUTHORIZED: scenarios-new.json` inserts the 12 new situations and leaves the 49 untouched, or
-  **(b) everything**: authorize an update-capable load (loader change written and tested first), so the 49 corrected
-  rows replace the old ones. Done looks like: the chosen situations appear at all five levels and
+- **Turn on the new conversations — production needs your line (CONTENT-V2-1, 2026-11-01).** 61 scenarios are authored
+  and tested; live D1 still serves the old 49. Choose **(a) new only**: `CONTENT-LOAD-AUTHORIZED: scenarios-new.json`
+  inserts the 12 new situations, or **(b) everything**: authorize an update-capable load so the 49 corrected rows
+  replace the old ones. Done: the chosen situations appear at all five levels and
   `node scripts/check-content-drift.mjs` exits 0.
 
 - **Two owner steps still block any production content write (CONTENT-V2-4, 2026-11-01).** (1) The 49-row correction

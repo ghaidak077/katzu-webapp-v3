@@ -4,15 +4,13 @@ Each is in `docs/AGENT-STATE.md` § OWNER-OPEN, with what "done" looks like.
 
 ## 1. Your payment details — V44-1 (2026-10-28)
 
-Pricing is finished but no payment method is connected, so buyers can only email. Send the Telegram handle for
-orders, Syriatel/MTN Cash numbers and holder names, bank/holder/IBAN, currencies. **Done:** the order section
-shows them.
+Pricing is finished but no payment method is connected, so buyers can only email. Send the Telegram handle,
+Syriatel/MTN Cash numbers and holder names, bank/holder/IBAN, currencies. **Done:** the order section shows them.
 
 ## 2. Four legal sentences — V44-2 (2026-10-28)
 
-Privacy, terms and refund need four facts only you may state: governing law, your name and address, register
-number, dispute forum. Say each in a sentence; the agent adds it. **Done:** the terms page names your law,
-identity and complaint route.
+Privacy, terms and refund need four facts only you may state: governing law, name and address, register number,
+dispute forum. Say each in a sentence. **Done:** the terms page names your law, identity and complaint route.
 
 ## 3. Admin secret and grammar columns — V11, V12, V12-1, V18-2
 
@@ -52,9 +50,9 @@ Code done. You: URL Inspection on `katzuai.com/` and `/guides/a1-visa`; submit b
 **Done:** "Success" for both sitemaps.
 ## 10. Admin panel — decided, nothing to do — V46-1
 
-The panel is live behind Cloudflare Access and cannot touch data or keys; text **off**, retention **90 days
-text / 365 counters**, and `/admin` + `ADMIN_SECRET` stay until real traffic confirms it. **Done:** a real
-learner turn appears, and you say whether to retire `/admin`.
+Live behind Cloudflare Access; cannot touch data or keys. Text **off**, retention **90 days text / 365
+counters**. `/admin` + `ADMIN_SECRET` stay until real traffic confirms. **Done:** a real learner turn appears;
+say whether to retire `/admin`.
 
 ## 11. Type «hallo» in one scene — V45 (2026-10-31)
 
@@ -64,10 +62,10 @@ Ihnen?». **Done:** both appear, or send what you saw.
 
 ## 12. Turn on the new conversations — CONTENT-V2-1, CONTENT-V2-4 (2026-11-01)
 
-You chose **everything**: the 49 corrected conversations replace the old ones; the 12 new wait until the
-Arabic is checked. Two blockers: `CONTENT-LOAD-AUTHORIZED: scenarios-catalogue.json` (updates, not just
-adds) and the admin key (set here, but the live site answers «unauthorized»). **Done:** a dry run lists 49 rows /
-327 fields, the load lands with a backup, and the app shows the corrected scenes.
+The 49 corrected conversations replace the old ones; the 12 new wait for Arabic check. Two blockers:
+`CONTENT-LOAD-AUTHORIZED: scenarios-catalogue.json` (updates too) and the admin key (set, but live answers
+«unauthorized»). **Done:** a dry run lists 49 rows / 327 fields, the load lands with a backup, and the app shows
+the scenes.
 
 ## 13. Native check of the new Arabic — CONTENT-V2-2, V47 (2026-11-01)
 
@@ -79,7 +77,7 @@ and `OWNER-OPENER-REVIEW.md` show German beside Arabic (18 flags). Read both wit
 
 Seven pairs overlap (viewing/contract, café/restaurant, station/first ride, five interviews…). Deleting one erases
 progress and links, and there is no "hidden" flag, so both stay and the second is narrower. Say **keep both**
-(recommended) or **hide the second** (needs a retired list). Pairs: `docs/CONTENT-AUDIT.md` §4. **Done:** decided.
+(recommended) or **hide the second**. Pairs: `docs/CONTENT-AUDIT.md` §4. **Done:** decided.
 
 ## 15. Two path-screen decisions — TRAIL-1 (2026-11-06)
 
@@ -89,7 +87,7 @@ Approve or rewrite the four level lines (A1 «أتصرّف في المواقف �
 
 ## 16. The ten units — UNIT-PATH-1 (2026-11-07, owner-approved)
 
-Ten units from the 49 conversations; titles, outcome lines and situations are in docs/OWNER-UNITS-REVIEW.md (patient talk sits in unit 5). **Done:** applied; send wording changes.
+Ten units from the 49 conversations; titles, outcome lines, situations in docs/OWNER-UNITS-REVIEW.md (patient talk is unit 5). **Done:** applied; send wording changes.
 
 ## 17. Review the hint answers — 49 questions (2026-11-07)
 
@@ -100,10 +98,14 @@ The first button now answers the last question and the sheet is never empty; all
 Conversations now run on one prompt + a plan per scene (persona, goal, 3–5 goals-to-do), not written lines.
 20 personas worth a look are listed in `docs/OWNER-ROLEPLAY-REVIEW.md`. **Done:** name any wrong line.
 
+## 19. Three AI launch choices — ROLEPLAY (2026-11-09)
+
+(1) Approve `openai/gpt-oss-120b` (`docs/agent/ROLEPLAY-EVAL.md`). (2) Add a paid/second provider key
+to survive a free-tier day (item 4). (3) Confirm the AI-provider line on the privacy page. **Done:** yes.
+
 ## Nothing to do — so nobody re-opens them
 
 - **Free lessons are three, once — FREE-1.** `MAX_FREE_AI_SESSIONS = 3`; every surface says «في المجموع».
-- **Drift check — V15-3.** Run `node scripts/check-content-drift.mjs` after any content change.
-- **Payments stay off for the beta — V18.** `/crypto/health` `ready:false` is correct.
-- **`docs/LAUNCH-CHECKLIST.md` §2 stays untouched.** Those are your items, unchanged.
-- **The two Worker settings are applied.** Emergency stop: `MAINTENANCE_MODE = "on"`; retention runs 04:17 UTC.
+- **Drift check — V15-3.** `node scripts/check-content-drift.mjs` after content changes.
+- **Payments stay off for the beta — V18.** `/crypto/health` `ready:false` is correct; `docs/LAUNCH-CHECKLIST.md` §2 stays untouched.
+- **Worker settings applied.** `MAINTENANCE_MODE = "on"`; retention runs 04:17 UTC.
