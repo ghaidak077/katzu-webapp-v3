@@ -655,7 +655,7 @@ export function classifyFailure(status, bodyText = "", entry = null) {
 
 export class ProviderCallError extends Error {
   constructor(entry, status, bodyText, kind) {
-    super(`${entry.provider}/${entry.model} HTTP ${status}: ${String(bodyText || "").slice(0, 140)}`);
+    super(`${entry.provider}/${entry.model} HTTP ${status}: ${String(bodyText || "").slice(0, 320)}`);
     this.name = "ProviderCallError";
     this.entry = entry;
     this.status = status;
@@ -877,7 +877,17 @@ export async function callAiRouter(payload, env, deps = {}) {
     const tierEntries = pool.filter((entry) => entry.tier === tier && isEntryConfigured(entry) && entryKeysFor(entry, env).length > 0);
     if (!tierEntries.length) continue;
     const start = nextRotation(tierRotations, `tier:${tier}`, tierEntries.length);
-    const walk = orderTierEntries(tierEntries, start, deps.preferFast === true);
+    const ordered = orderTierEntries(tierEntries, start, deps.preferFast === true);
+    // A route may name the model it wants (the roleplay turn reads
+    // ROLEPLAY_MODEL): the named entry moves to the front of its tier, and every
+    // other usable entry stays behind it, so a dead model still fails over
+    // exactly as before. No silent model swap, no second pool.
+    const walk = typeof deps.preferModel === "string" && deps.preferModel
+      ? [
+          ...ordered.filter((entry) => entry.model === deps.preferModel),
+          ...ordered.filter((entry) => entry.model !== deps.preferModel),
+        ]
+      : ordered;
 
     for (const entry of walk) {
       const keys = entryKeysFor(entry, env);

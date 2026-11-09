@@ -90,17 +90,14 @@ test('the transcript ends above the dock, with the suggestion panel open', async
       turn({
         reply_de:
           'Die Miete beträgt 800 Euro kalt, dazu kommen 150 Euro Nebenkosten und die Kaution von drei Monatsmieten.',
-        hints: [{ german: 'Ist die Kaution verhandelbar?', translation_ar: 'هل يمكن التفاوض على مبلغ التأمين؟' }],
+        hint_de: 'Ist die Kaution verhandelbar?',
+        hint_ar: 'هل يمكن التفاوض على مبلغ التأمين؟',
       }),
       turn({ reply_de: 'Sehr gern. Möchten Sie noch etwas?' }),
       turn({
         reply_de: 'Die Kaution beträgt drei Monatsmieten. Möchten Sie noch etwas?',
-        hints: [
-          {
-            german: 'Ich möchte über die Kaution sprechen.',
-            translation_ar: 'أريد التحدث عن مبلغ التأمين.',
-          },
-        ],
+        hint_de: 'Ich möchte über die Kaution sprechen.',
+        hint_ar: 'أريد التحدث عن مبلغ التأمين.',
       }),
     ],
   });
@@ -131,7 +128,9 @@ test('the dock fits a short phone without pushing the transcript off screen', as
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
-  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 5/);
+  // Before the first reply there is no plan on the client yet, so the header shows
+  // no objective bar — it is not an invented "1 of 5".
+  await expect(page.getByTestId('objective-progress')).toHaveCount(0);
   await assertNothingIsCovered(page);
 
   const transcript = await page.getByTestId('conversation-transcript').boundingBox();

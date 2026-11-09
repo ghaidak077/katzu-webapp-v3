@@ -32,6 +32,9 @@ export interface ConversationDockProps {
   /** V31: today's AI hint budget is spent. */
   hintQuotaSpent?: boolean;
   micError: string | null;
+  /** The sentence was restored to the composer; one inline retry, no card. */
+  turnNotice: { message: string } | null;
+  onRetryTurnNotice: () => void;
   orbState: OrbState;
   orbTone: 'lavender' | 'earned';
   orbLabelAr: string;
@@ -68,6 +71,8 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
   isRefreshingHints,
   hintQuotaSpent,
   micError,
+  turnNotice,
+  onRetryTurnNotice,
   orbState,
   orbTone,
   orbLabelAr,
@@ -113,6 +118,33 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
             {micError}
           </span>
           <button
+            onClick={onDismissError}
+            aria-label="إخفاء"
+            className="flex min-h-touch min-w-touch items-center justify-center text-kz-inkFaint pointer-hover:text-kz-ink"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* The sentence is back in the field after a busy service: a quiet inline
+          notice with one retry, not a red error card in the transcript. */}
+      {turnNotice && !isGenerating && (
+        <div
+          role="status"
+          className="kz-ar-micro mb-2 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 p-2.5 text-kz-ink"
+        >
+          <span className="flex-1">{turnNotice.message}</span>
+          <button
+            type="button"
+            onClick={onRetryTurnNotice}
+            className="flex min-h-touch shrink-0 items-center gap-1 rounded-xl border border-primary/50 bg-primary/20 px-3 py-1.5 font-bold text-primary transition-colors pointer-hover:bg-primary/30"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+            أعد المحاولة
+          </button>
+          <button
+            type="button"
             onClick={onDismissError}
             aria-label="إخفاء"
             className="flex min-h-touch min-w-touch items-center justify-center text-kz-inkFaint pointer-hover:text-kz-ink"

@@ -24,30 +24,12 @@ import { rankFor } from '@/lib/progress/ranks';
 import { enqueueDailyEvent, sessionEventId } from '@/lib/progress/dailyAuthority';
 import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
+import { isRetryableTransportFailure, retryDelayFor, RATE_LIMIT_MESSAGE_AR, shouldRestoreDraft, sleep } from '@/lib/conversation/turnRecovery';
+import { sanitizeHints } from '@/lib/conversation/hintSafety';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
-import {
-  advanceScript,
-  buildScriptTurnContext,
-  currentHint,
-  scriptForScenario,
-  scriptOpener,
-  scriptTurnTarget,
-  startScript,
-  validateFarewellTurn,
-  validateScriptAiTurn,
-  type ScriptAiTurn,
-  type ScriptState,
-} from '@/lib/conversation/script';
-import { checkGerman, correctionNoteAr, mergeAiCorrection } from '@/lib/conversation/germanChecker';
+import { checkGerman, correctionNoteAr } from '@/lib/conversation/germanChecker';
+import { chipCorrectionFor } from '@/lib/conversation/correctionChip';
 import { sentenceMatchesHint } from '@/lib/conversation/hintMatch';
-import { suggestionFitsContext } from '@/lib/conversation/suggestionGuard';
-import {
-  answerHintsFor,
-  classifyQuestion,
-  filterCleanHints,
-  GENERIC_SAFE_FAMILY,
-  REPEAT_FAMILY,
-} from '@/lib/conversation/answerBank';
 import { firstNameOf } from '@/lib/debrief/examCard';
 import { lookupWord } from '@/lib/vocabulary/wordGloss';
 import { logAiCallTotals, resetAiCallMeter } from '@/lib/ai/aiCallMeter';
@@ -111,11 +93,11 @@ export interface UseLiveConversationOptions {
 }
 
 /**
- * How long a scripted turn waits for its in-character reaction. The script can
- * answer instantly on its own, so anything slower than this is worse than the
- * authored line — the learner never sees a spinner for it.
+ * One roleplay turn: the worker itself gives up at ~9 s (two attempts), so the
+ * client waits a little longer than that and then shows «أعد المحاولة» with the
+ * learner's sentence still in the composer.
  */
-const SCRIPT_AI_TIMEOUT_MS = 7000;
+const ROLEPLAY_TIMEOUT_MS = 13000;
 
 /** The learner reads the transcript; keep it clear of the dock at every height. */
 function orbSizeForViewport(): number {
@@ -178,13 +160,20 @@ export function useLiveConversation({
   const [starterHints, setStarterHints] = useState<ContextualHint[]>([]);
   // Derived, never stored: the machine already has exactly one error.
   const conversationError = conversation.error;
+  // A restored draft keeps the sentence in the composer instead of a red card:
+  // no bubble, no counted turn, and one inline retry in the dock.
   const turnError =
     conversation.pendingText &&
     conversationError &&
+    !conversationError.draftRestored &&
     (conversationError.kind === 'network' ||
       conversationError.kind === 'ai_service' ||
       conversationError.kind === 'invalid_session')
       ? { failedText: conversation.pendingText, message: conversationError.messageAr }
+      : null;
+  const turnNotice =
+    conversation.pendingText && conversationError?.draftRestored
+      ? { message: conversationError.messageAr }
       : null;
   const micError =
     conversationError &&
@@ -215,10 +204,12 @@ export function useLiveConversation({
   const vocabulary = useLiveQuery(() => db.vocabulary.toArray()) || [];
   const savedWords = useLiveQuery(() => db.saved_words.toArray()) || [];
 
-  // The app-owned script, when this scenario is migrated. Its state is the
-  // conversation: which step is on screen, which slots are filled, and whether
-  // the farewell has been said. Nothing here asks a model what to do next.
-  const [scriptState, setScriptState] = useState<ScriptState | null>(null);
+  // Roleplay progress: the objective ids the server has confirmed done, and the
+  // plan's total. The header shows done/total, and `isClosed` is the server's
+  // `close` — the AI has said goodbye and the session may end after one more
+  // learner turn (or the «إنهاء» button).
+  const [objectiveState, setObjectiveState] = useState<{ done: string[]; total: number }>({ done: [], total: 0 });
+  const [isClosed, setIsClosed] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // V40: the sentence field is a textarea so it can grow to three lines, but
@@ -264,18 +255,11 @@ export function useLiveConversation({
   // or the learner is told A1 and examined at B1.
   const effectiveLevel = mockPart ? MOCK_EXAM_LEVEL : currentLevel;
 
-  // The app-owned script, when this scenario is migrated AT THE LEVEL the
-  // session is actually served at. A B1 mock part is not an A1 script.
-  const scenarioScript = useMemo(
-    () => scriptForScenario(scenarioId, effectiveLevel),
-    [scenarioId, effectiveLevel],
-  );
-
   // Turn pacing comes from the explicit, tested rule in turnPlan.ts — the screen
-  // no longer decides session length, so the documented and implemented numbers
-  // cannot drift apart. A migrated script knows its own beats: «N من M» must
-  // count the steps the learner will actually see (five beats, not the A1 cap).
-  const targetTurns = scenarioScript ? scriptTurnTarget(scenarioScript) : sessionTurnCap(effectiveLevel);
+  // does not decide session length. It is now a SAFETY CAP only: the session
+  // ends when the objectives are done and the persona has said goodbye, and this
+  // cap is the calm stop for a conversation that never gets there.
+  const targetTurns = sessionTurnCap(effectiveLevel);
   // REAL mode (V28 Stage 1D): the same conversation with no help — no hints, no
   // translation, no live correction. The turn call is unchanged and still returns
   // the evaluation, so the end-of-session report is built from it.
@@ -621,18 +605,16 @@ export function useLiveConversation({
 
     // One level→opener rule, shared with the story screen's logic (tested in
     // openerForLevel): the same sentence the learner saw when the episode opened.
-    // A migrated script supplies its own opener so the first bubble and the
-    // engine's step 0 can never disagree. A mock part overrides both: the
-    // examiner opens the part, not the scenario.
-    const scriptFirst = scenarioScript ? scriptOpener(scenarioScript) : null;
-    const initialMsgText = mockOpenerDe || scriptFirst?.de || openerForLevel(scenario, effectiveLevel);
+    // The shipped opener is data — no AI call — and its Arabic is a map read.
+    // A mock part overrides it: the examiner opens the part, not the scenario.
+    const initialMsgText = mockOpenerDe || openerForLevel(scenario, effectiveLevel);
     const germanText = initialMsgText || 'Hallo! Wie kann ich Ihnen helfen?';
     // A shipped gloss lands on the first render: no loading flash, no request.
     // An opener with no shipped gloss (a retired or truly dynamic string) keeps
     // the loading state briefly and gets exactly one automatic retry before the
     // honest «تعذرت الترجمة» state — never a dead end on first sight. A script
     // opener carries its own Arabic, so no lookup is needed.
-    const storedArabic = scriptFirst ? scriptFirst.ar : storedOpenerArabic(germanText);
+    const storedArabic = storedOpenerArabic(germanText);
 
     const welcomeMsg: ChatMessage = {
       id: 'msg_initial',
@@ -656,9 +638,9 @@ export function useLiveConversation({
 
     setMessages([welcomeMsg]);
     dispatch({ type: 'reset' });
-    // The script's step 0 is already on screen: startScript marks its first ask
-    // as shown, so the engine never repeats the opener.
-    setScriptState(scenarioScript ? startScript(scenarioScript) : null);
+    setObjectiveState({ done: [], total: 0 });
+    setIsClosed(false);
+    setCurrentHints([]);
     sessionOpenedAtRef.current = Date.now();
     firstTurnTrackedRef.current = false;
     resetAiCallMeter();
@@ -681,7 +663,6 @@ export function useLiveConversation({
     mockPartIndex,
     mockOpenerDe,
     mockTopicId,
-    scenarioScript,
     loadStarterHints,
     requestOpenerTranslation,
   ]);
@@ -859,11 +840,9 @@ export function useLiveConversation({
     setInputText('');
     if (voice.isRecording) voice.stop();
 
-    // The deterministic check runs FIRST, on this device, before any model call.
-    // It owns every error it can prove (noun capitalisation, sentence start,
-    // greeting comma, ie/ei and ß/ss, article, V2) and produces the FULL corrected
-    // sentence plus one Arabic reason per error. The model's evaluation is then a
-    // fallback for anything the rules cannot classify, never an override.
+    // The deterministic corrector still runs on EVERY turn: it is the report's
+    // own evidence and the mistake bank's source. It no longer decides what the
+    // reply bubble says — the model reads the learner's intended sentence.
     const localCheck = checkGerman(text, effectiveLevel);
 
     const wasHintUsed = isHintUsedForCurrentTurn;
@@ -876,7 +855,24 @@ export function useLiveConversation({
     const usedHintForThisTurn = wasHintUsed || matchesVisibleHint;
     setIsHintUsedForCurrentTurn(false);
 
-    // 1. Add User message
+    // The persona has already said goodbye: this line is the learner's farewell,
+    // so it closes the session with no further model call.
+    if (isClosed) {
+      const farewell: ChatMessage = {
+        id: `usr_${Date.now()}`,
+        sender: 'USER',
+        germanText: text,
+        wasHintUsed: usedHintForThisTurn,
+        timestamp: Date.now(),
+      };
+      const finalMessages = [...messages, farewell];
+      setMessages(finalMessages);
+      dispatch({ type: 'complete' });
+      triggerHaptic('success');
+      void finishSession(finalMessages, true);
+      return;
+    }
+
     const userMsg: ChatMessage = {
       id: `usr_${Date.now()}`,
       sender: 'USER',
@@ -888,241 +884,87 @@ export function useLiveConversation({
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
 
-    const isFinalTurn = userTurnsCount + 1 >= targetTurns;
-
-    // 2. Call Worker /ai/turn (Executes Call A and Call B in parallel on Worker)
-    try {
-      // A migrated scenario is decided entirely on this device: the script knows
-      // the step, the recognition and the next question, so the turn costs zero
-      // AI calls and cannot repeat a question or invert a role. The learner's own
-      // sentence still goes through the same local corrector as every turn.
-      if (scenarioScript && scriptState) {
-        const learnerName = firstNameOf(user?.displayName);
-
-        // The script owns the arc; the model supplies the human half — how it
-        // read THIS sentence, one in-character reaction, and a hint that repairs
-        // THIS attempt. A short ceiling and a silent catch mean a slow, offline
-        // or paywalled model never blocks practice: the authored script line is
-        // shown instead, exactly as before.
-        let aiTurn: ScriptAiTurn = { reaction: null, hint: null, understanding: null };
-        try {
-          const step = scriptState.awaitingFarewell
-            ? scenarioScript.steps[scenarioScript.steps.length - 1]
-            : scenarioScript.steps[scriptState.stepIndex];
-          const scriptContext = buildScriptTurnContext(scenarioScript, scriptState, learnerName).script_context;
-          const scriptRes = await workerClient.sendTurn({
-            scenarioId,
-            scenarioTitle: scenario?.title_de || '',
-            persona: scenarioScript.persona.name,
-            userMessage: text,
-            history: messages.map((m) => ({
-              sender: m.sender === 'USER' ? 'user' : 'model',
-              text: m.germanText,
-            })),
-            cefrLevel: effectiveLevel,
-            sarcasmLevel: user?.sarcasmLevel || 'SASSY',
-            mode: sessionMode === 'real' ? 'extended' : 'roleplay',
-            sessionId,
-            turnIndex: userTurnsCount,
-            scriptContext: scriptContext as unknown as Record<string, unknown>,
-            timeoutMs: SCRIPT_AI_TIMEOUT_MS,
-          });
-          aiTurn = scriptState.awaitingFarewell
-            ? validateFarewellTurn(scriptRes.scriptTurn, { script: scenarioScript, level: effectiveLevel })
-            : validateScriptAiTurn(scriptRes.scriptTurn, {
-                script: scenarioScript,
-                step,
-                level: effectiveLevel,
-                learnerText: text,
-              });
-        } catch {
-          logEvent('ai/turn', 'Scripted AI turn unavailable — using script line');
-        }
-
-        const result = advanceScript(scenarioScript, scriptState, {
-          text,
-          hintUsed: usedHintForThisTurn,
-          learnerName,
-          aiReaction: aiTurn.reaction,
-          aiHint: aiTurn.hint,
-          aiUnderstanding: aiTurn.understanding,
-        });
-        setScriptState(result.state);
-
-        // A fact the learner just stated in conversation is remembered locally
-        // (today: the city) so Settings can show it and the persona can use it
-        // in a later session. It never goes to the server.
-        if (result.filledSlot === 'city' && result.state.slots.city) {
-          void rememberPersonalFact('city', result.state.slots.city);
-        }
-
-        if (!result.reply) {
-          // Safety stop (turn cap) or an already-finished script: end honestly
-          // with what the learner actually said, never a blank bubble.
-          dispatch({ type: 'complete' });
-          triggerHaptic('success');
-          setTimeout(() => {
-            void finishSession(newMessages, false);
-          }, 1200);
-          return;
-        }
-
-        const hasCorrection = localCheck.errors.length > 0;
-        const correctedSentence = hasCorrection ? localCheck.corrected : '';
-
-        const katzuReply: ChatMessage = {
-          id: `ktz_${Date.now()}`,
-          sender: 'KATZU',
-          germanText: result.reply.de,
-          arabicTranslation: result.reply.ar,
-          hasCorrection,
-          originalMistake: hasCorrection ? text : undefined,
-          correctedGerman: hasCorrection ? correctedSentence : undefined,
-          correctedSentence: hasCorrection ? correctedSentence : undefined,
-          correctionErrors: hasCorrection ? localCheck.errors : undefined,
-          grammarRule: hasCorrection ? localCheck.errors[0]?.label : undefined,
-          positiveNoteAr: hasCorrection ? correctionNoteAr(localCheck.errors.length) : 'أحسنت!',
-          timestamp: Date.now(),
-        };
-
-        const updatedHistory = [...newMessages, katzuReply];
-        setMessages(updatedHistory);
-        dispatch({ type: 'turn_ok' });
-
-        if (!firstTurnTrackedRef.current) {
-          firstTurnTrackedRef.current = true;
-          const elapsedSeconds = Math.max(
-            0,
-            Math.round((Date.now() - (sessionOpenedAtRef.current || Date.now())) / 1000),
-          );
-          track('time_to_first_turn', { scenarioId, kind: sessionMode ?? undefined, count: elapsedSeconds });
-        }
-        if (!usedHintForThisTurn && !firstIndependentTrackedRef.current) {
-          firstIndependentTrackedRef.current = true;
-          track('first_independent_turn', { scenarioId, count: 1 });
-        }
-
-        setSpeakingId(katzuReply.id);
-        speak(result.reply.de);
-
-        if (hasCorrection && correctedSentence) {
-          const mistake = {
-            userId: 'current_user',
-            scenarioId,
-            original: text,
-            corrected: correctedSentence,
-            grammarRule: localCheck.errors[0]?.label || 'قواعد نحوية',
-            timestamp: Date.now(),
-            wasHintUsed: usedHintForThisTurn,
-          };
-          const mistakeId = await db.mistakes.put(mistake);
-          await enrolMistake({ ...mistake, id: mistakeId });
-        }
-
-        // The script's own sentence for the question on screen is the first
-        // suggestion; the bank and the starter floor still follow it.
-        setIsHintRevealed(false);
-        setIsHintExpanded(false);
-
-        // The script ends only after the learner answered the real farewell.
-        if (result.state.done) {
-          dispatch({ type: 'complete' });
-          triggerHaptic('success');
-          setTimeout(() => {
-            void finishSession(updatedHistory, true);
-          }, 2400);
-        }
-        return;
-      }
-
-      // Everything BEFORE the message being sent. `newMessages` includes it, and
-      // sending it in both places made the worker hand the model the learner's
-      // sentence twice in a row — which is what let it answer the previous
-      // question instead of the one on screen.
-      const historyPayload = messages.map((m) => ({
-        sender: m.sender === 'USER' ? 'user' : 'model',
-        text: m.germanText,
-      }));
-
-      // Long memory (V21 Phase 3): rebuild the derived pattern view from the
-      // source tables (mistakes + review items), then pack the ≤150-token
-      // summary for the tutor. Rebuilt per turn on purpose: the correction from
-      // THIS turn is part of it next turn, and the rebuild is two local scans.
-      // The items ride the existing allow-listed `learner_memory` wire field.
-      await rebuildMemoryPatterns();
-      const learnerMemory = buildMemorySummary({
-        patterns: await listMemoryPatterns(),
-        level: effectiveLevel,
-        goal: user?.primaryGoal ?? null,
-        profession: user?.profession ?? null,
-      }).items;
-
-      const res = await workerClient.sendTurn({
+    // ONE call per learner turn. The server owns the persona plan, the objective
+    // flags and the closing rule; the client sends only its sentence, the
+    // finished ids the header already shows, and the last turns.
+    //
+    // A busy worker (429), a timeout or a 5xx is retried here, silently, with a
+    // short backoff: the learner sees the spinner a moment longer instead of an
+    // error for something that is not their fault. The bubble and the turn
+    // count do not change between attempts because the sentence is sent once
+    // logically.
+    const requestTurn = async () => {
+      const payload: Parameters<typeof workerClient.sendTurn>[0] = {
         scenarioId,
+        scenarioTitle: scenario?.title_de || '',
         vocabularyContext,
         grammarId,
         userMessage: text,
-        history: historyPayload,
+        history: messages.map((m) => ({
+          sender: m.sender === 'USER' ? 'user' : 'model',
+          text: m.germanText,
+        })),
         cefrLevel: effectiveLevel,
-        scenarioTitle: scenario?.title_de || '',
-        sarcasmLevel: user?.sarcasmLevel || 'SASSY',
-        isFinalTurn,
         mode: sessionMode === 'real' ? 'extended' : 'roleplay',
         sessionId,
-        learnerMemory,
-        // Which turn of the episode this is — rotates the persona's
-        // live-conversation behaviour (ask, repeat-check, react, advance) on the
-        // worker side without changing the wire format's other fields.
+        objectivesDone: objectiveState.done,
         turnIndex: userTurnsCount,
+        timeoutMs: ROLEPLAY_TIMEOUT_MS,
         // Present only inside a mock part; the worker ignores both without a
         // grant that verifies for this account.
         ...(mockPart
           ? { mockGrant: mockPart.grant, mockPart: mockPart.partIndex, mockTopic: mockPart.topicId }
           : {}),
-      });
+      };
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          return await workerClient.sendTurn(payload);
+        } catch (error) {
+          const delay = retryDelayFor(attempt);
+          if (delay === null || !isRetryableTransportFailure(error)) throw error;
+          logEvent('ai/turn', `Transient failure ${(error as { code?: string })?.code || 'UNKNOWN'} — retrying in ${delay}ms`);
+          await sleep(delay);
+        }
+      }
+    };
 
-      // 3. Form Katzu reply with pedagogical evaluation embedded.
-      //
-      // The local checker wins for every error it proves; the model's fragment is
-      // rebuilt into a full sentence and used only for what the rules missed. A
-      // reply to a wrong sentence is never a reply to a "correct" one: spelling
-      // and capitalisation first, feedback after.
-      const aiFullSentence =
-        res.isCorrect === false
-          ? mergeAiCorrection(text, res.mistakeSegment, res.correctedSegment)
-          : null;
-      const aiChanged = Boolean(aiFullSentence && aiFullSentence.trim() !== text.trim());
-      const hasCorrection = localCheck.errors.length > 0 || aiChanged;
-      const correctedSentence =
-        localCheck.errors.length > 0 ? localCheck.corrected : aiFullSentence || '';
-      const correctionErrors = localCheck.errors;
-      const errorCount = correctionErrors.length > 0 ? correctionErrors.length : hasCorrection ? 1 : 0;
+    try {
+      const res = await requestTurn();
+
+      const roleplay = res.roleplay;
+      if (!roleplay) {
+        const error: any = new Error('تعذر التحقق من رد المحادثة. لم يتم احتساب هذه الجملة.');
+        error.code = 'INVALID_AI_RESPONSE';
+        throw error;
+      }
+
+      // The chip shows the learner's own sentence, corrected — and only when the
+      // model really fixed it (not for case or punctuation, not for a rewrite).
+      const chip = chipCorrectionFor(text, roleplay.understoodDe, roleplay.fixReasonAr);
+      const localErrors = localCheck.errors;
+      const hasCorrection = !!chip;
 
       const katzuReply: ChatMessage = {
         id: `ktz_${Date.now()}`,
         sender: 'KATZU',
         germanText: res.germanReply,
         arabicTranslation: res.arabicTranslation,
-        // No model-authored 💬 follow-up. A deterministic scene question is
-        // already appended to the reply by the worker's trailing-question guard,
-        // so a second, model-chosen question was the off-topic line learners saw.
         hasCorrection,
-        // The card shows the learner's WHOLE sentence and the WHOLE corrected
-        // sentence — never the broken fragment the model returned.
-        originalMistake: hasCorrection ? text : res.mistakeSegment,
-        correctedGerman: hasCorrection ? correctedSentence || res.correctedSegment : res.correctedSegment,
-        correctedSentence: hasCorrection ? correctedSentence || undefined : undefined,
-        correctionErrors: correctionErrors.length > 0 ? correctionErrors : undefined,
-        grammarRule: correctionErrors[0]?.label || res.grammarRule,
-        grammarId: res.grammarId,
-        grammarReference: res.grammarReference,
-        explanationAr: correctionErrors.length > 0 ? undefined : res.explanationAr,
-        roastComment: res.roastComment,
-        // «أحسنت المحاولة!» belongs only to a fully correct sentence. A wrong one
-        // gets the neutral, countable line instead of praise it did not earn.
-        positiveNoteAr: hasCorrection
-          ? correctionNoteAr(errorCount)
-          : res.positiveNoteAr || 'أحسنت!',
+        originalMistake: chip?.original,
+        correctedGerman: chip?.corrected,
+        correctedSentence: chip?.corrected,
+        explanationAr: chip?.reasonAr || undefined,
+        positiveNoteAr: hasCorrection ? correctionNoteAr(localErrors.length || 1) : 'أحسنت!',
+        // Kept for the report and the mistake bank only — never rendered as a
+        // second card: the corrector is the honest, repeatable measure.
+        ...(localErrors.length > 0
+          ? {
+              localErrorCount: localErrors.length,
+              localOriginal: text,
+              localCorrected: localCheck.corrected,
+              localRule: localErrors[0]?.label || 'قواعد نحوية',
+            }
+          : {}),
         timestamp: Date.now(),
       };
 
@@ -1130,11 +972,10 @@ export function useLiveConversation({
       setMessages(updatedHistory);
       dispatch({ type: 'turn_ok' });
 
+      setObjectiveState({ done: roleplay.objectivesDone, total: roleplay.objectivesTotal });
+
       // A5: the first ACCEPTED turn, whether or not it needed a hint — the
-      // seconds from opening the scenario to actually speaking German. Kept
-      // separate from the independence moment below, because "how long until
-      // they spoke" and "how long until they spoke unaided" are different
-      // questions and merging them would answer neither.
+      // seconds from opening the scenario to actually speaking German.
       if (!firstTurnTrackedRef.current) {
         firstTurnTrackedRef.current = true;
         const elapsedSeconds = Math.max(
@@ -1146,63 +987,49 @@ export function useLiveConversation({
 
       // The first sentence produced without a hint is the product's real "you
       // can speak" moment, and the funnel needs to know it happened.
-      if (!wasHintUsed && !firstIndependentTrackedRef.current) {
+      if (!usedHintForThisTurn && !firstIndependentTrackedRef.current) {
         firstIndependentTrackedRef.current = true;
         track('first_independent_turn', { scenarioId, count: 1 });
       }
 
-      // Speak Katzu's reply automatically, and highlight it word by word while it
-      // is being said — a voice-only conversation leaves the learner guessing
-      // which parts they missed.
       setSpeakingId(katzuReply.id);
       speak(res.germanReply);
 
-      // Save mistake to database if an error occurred. The stored pair is the
-      // learner's whole sentence and the whole corrected sentence, so review and
-      // the end-of-session report show the same thing the card showed.
-      if (hasCorrection && correctedSentence) {
+      // The deterministic correction still becomes a review item, even when the
+      // chip stayed closed because the learner's meaning was clear.
+      if (localErrors.length > 0 && localCheck.corrected) {
         const mistake = {
           userId: 'current_user',
           scenarioId,
           original: text,
-          corrected: correctedSentence,
-          grammarRule: correctionErrors[0]?.label || res.grammarRule || 'قواعد نحوية',
-          grammarId: res.grammarId,
-          grammarReference: res.grammarReference,
-          roastComment: res.roastComment,
+          corrected: localCheck.corrected,
+          grammarRule: localErrors[0]?.label || 'قواعد نحوية',
           timestamp: Date.now(),
           wasHintUsed: usedHintForThisTurn,
         };
         const mistakeId = await db.mistakes.put(mistake);
-        // Every correction earns a scheduled retrieval: the app remembers what
-        // this learner keeps getting wrong, instead of only archiving it.
         await enrolMistake({ ...mistake, id: mistakeId });
       }
 
-      // The turn response already carries ONE context-aware hint (same AI
-      // call as the reply — no extra network round-trip). The static answer
-      // bank is layered on top of it in `visibleHints`, so the sheet answers
-      // the question on screen even when this list is empty.
-      if (res.hints && res.hints.length > 0) {
-        const cleanHints = filterCleanHints(res.hints);
-        if (cleanHints.length > 0) {
-          setCurrentHints(cleanHints);
-          logEvent('hints', `Embedded hint loaded (${cleanHints.length})`);
-        } else {
-          void loadStarterHints();
-        }
-      } else {
-        void loadStarterHints();
-      }
+      // The dock shows the model's own next sentence (one answer, at this level),
+      // after the deterministic safety pass: one German line, no meta label, and
+      // personal facts reduced to blanks.
+      setCurrentHints(sanitizeHints(roleplay.hint ? [roleplay.hint] : [], effectiveLevel));
       setIsHintRevealed(false);
       setIsHintExpanded(false);
 
-      // Check for completion (Rule 7)
-      if (isFinalTurn) {
+      // Closing: the server only sets close when EVERY objective is done, so the
+      // AI cannot end earlier. The learner still gets the last word — their
+      // farewell reply, or the «إنهاء» button in the dock.
+      if (roleplay.close) {
+        setIsClosed(true);
+      } else if (userTurnsCount + 1 >= targetTurns) {
+        // The calm safety stop: a conversation that never reached its objectives
+        // still ends honestly rather than running forever.
         dispatch({ type: 'complete' });
         triggerHaptic('success');
         setTimeout(() => {
-          void finishSession(updatedHistory, true);
+          void finishSession(updatedHistory, false);
         }, 3200);
       }
     } catch (e: unknown) {
@@ -1212,56 +1039,58 @@ export function useLiveConversation({
         // conversations spent) — show the Katzu paywall instead of a dead error
         // in the chat, and mark the quota state so a retry cannot burn the
         // learner's remaining allowance.
-        //
-        // V31: this used to match only `PAYWALL_REQUIRED`, so `FREE_QUOTA_EXHAUSTED`
-        // fell through to the generic branch and produced a "try again" card that
-        // no retry could ever clear. The entitlement that must be paid for is the
-        // same entitlement either way.
         dispatch({ type: 'quota_exhausted', messageAr: err?.message });
         setPaywall({
           isOpen: true,
-          // The number the Worker enforced, named in the words the learner was
-          // promised before they ever started — not a vague "your free sessions".
           title:
             err?.code === 'FREE_QUOTA_EXHAUSTED'
               ? `انتهت ${MAX_FREE_SESSIONS_AR} محادثة مجانية`
               : 'هذا المستوى ميزة Pro',
           description: err?.message || 'رَقِّ حسابك لفتح كل المستويات من A0 حتى B2 ومحادثات بلا حدّ جلسات.',
         });
-        // The top of the priced funnel, counted once per turn that hits the wall.
-        // A level lock is NOT this event: a learner locked out of B2 on turn one
-        // has not spent anything, and counting the two together would make the
-        // free allowance look far more exhausted than it is.
         if (err?.code === 'FREE_QUOTA_EXHAUSTED') {
           track('free_session_exhausted', { kind: 'trial', state: 'wall' });
         }
       } else {
-        // The user's message stays in the transcript with a visible error card
-        // and a one-tap retry — never a silent spinner or a swallowed error.
+        // The learner's sentence stays where they can act on it. A reply the
+        // server could not produce is not a turn: no duplicate bubble, no
+        // counted round, and a one-tap «أعد المحاولة».
         const message =
-          err?.code === 'REQUEST_TIMEOUT'
-            ? 'انتهت مهلة الاتصال بالخادم. جملتك محفوظة — أعد الإرسال عندما يعود الاتصال.'
-            : err?.code === 'NETWORK_ERROR'
-              ? 'تعذر الوصول إلى الخادم. جملتك محفوظة هنا، أعد المحاولة.'
-              : err?.code === 'WORKER_URL_MISSING'
-                ? 'خدمة كَاتْزُو غير متاحة في هذه النسخة. تواصل معنا وسنعيد لك للعمل — جملتك محفوظة.'
-                : // The Worker could not read the trial ledger. Say THAT, rather
-                  // than the generic AI-service line: the learner has not run out,
-                  // the server lost count, and retrying is the honest action.
-                  isEntitlementUnavailable(err?.code)
-                  ? 'تعذّر التحقق من رصيدك على الخادم الآن — لم تُستهلك جلسة. جملتك محفوظة، أعد المحاولة بعد قليل.'
-                  : classifyTurnError(e).messageAr;
-        dispatch({ type: 'turn_failed', error: { ...classifyTurnError(e), messageAr: message } });
-        // Mark the bubble as failed so the round counter («الجولة N من M») and
-        // the debrief only count turns the server actually accepted. The learner
-        // never sees progress they have not earned.
-        setMessages((prev) => {
-          const idx = prev.map((m) => m.id).lastIndexOf(userMsg.id);
-          if (idx === -1) return prev;
-          const copy = [...prev];
-          copy[idx] = { ...copy[idx], sendFailed: true };
-          return copy;
+          err?.code === 'RATE_LIMIT_EXCEEDED'
+            ? RATE_LIMIT_MESSAGE_AR
+            : err?.code === 'REQUEST_TIMEOUT'
+              ? 'انتهت مهلة الاتصال بالخادم. جملتك محفوظة — أعد الإرسال عندما يعود الاتصال.'
+              : err?.code === 'NETWORK_ERROR'
+                ? 'تعذر الوصول إلى الخادم. جملتك محفوظة هنا، أعد المحاولة.'
+                : err?.code === 'WORKER_URL_MISSING'
+                  ? 'خدمة كَاتْزُو غير متاحة في هذه النسخة. تواصل معنا وسنعيد لك للعمل — جملتك محفوظة.'
+                  : isEntitlementUnavailable(err?.code)
+                    ? 'تعذّر التحقق من رصيدك على الخادم الآن — لم تُستهلك جلسة. جملتك محفوظة، أعد المحاولة بعد قليل.'
+                    : classifyTurnError(e).messageAr;
+        // After the automatic backoff, a transport failure still must not cost
+        // the learner their words: the sentence goes back into the composer,
+        // the bubble disappears (so it is not a counted/duplicated turn), and
+        // the dock offers one inline retry. No red transcript card.
+        const keepInComposer = shouldRestoreDraft(err);
+        if (keepInComposer) {
+          setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+          setInputText(text);
+        }
+        dispatch({
+          type: 'turn_failed',
+          error: { ...classifyTurnError(e), messageAr: message, draftRestored: keepInComposer },
         });
+        if (!keepInComposer) {
+          // Any remaining failure keeps its bubble marked, so the round
+          // counter and the debrief count only accepted turns.
+          setMessages((prev) => {
+            const idx = prev.map((m) => m.id).lastIndexOf(userMsg.id);
+            if (idx === -1) return prev;
+            const copy = [...prev];
+            copy[idx] = { ...copy[idx], sendFailed: true };
+            return copy;
+          });
+        }
         logError('ai/turn', `Turn failed (${err?.code || 'UNKNOWN'}): ${message}`);
       }
     } finally {
@@ -1272,10 +1101,11 @@ export function useLiveConversation({
   const retryFailedTurn = () => {
     const failedText = conversation.pendingText;
     if (!failedText || inFlightRef.current) return;
-    // Remove the failed user message before re-sending so the transcript has
-    // exactly one copy of the sentence.
+    // Remove the failed copy of the sentence so the transcript has exactly one
+    // copy. A restored draft has no bubble at all, so match only a failed one —
+    // never an older, accepted sentence that happens to read the same.
     setMessages((prev) => {
-      const idx = prev.map((m) => m.germanText).lastIndexOf(failedText);
+      const idx = prev.findIndex((m) => m.sendFailed && m.germanText === failedText);
       if (idx === -1) return prev;
       return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
     });
@@ -1292,12 +1122,11 @@ export function useLiveConversation({
     inputRef.current?.focus();
   };
 
-  // AI hints when loaded; otherwise the D1 starter-phrase floor, ranked against
-  // what the other side just said (V19 Phase 2): the first suggestion must be a
-  // plausible ANSWER to the last AI message, not the scenario's sort_order[0].
-  // The measured mismatch this fixes: the opener asked "Fehlt Ihr Koffer?" and
-  // the floor offered "Hier ist mein Pass." — a passport answer to a luggage
-  // question. The user must never face an empty suggestions bar either.
+  // The suggestion the learner sees is the ONE the model wrote for the question
+  // it just asked (at this level, with ___ for personal facts). Before the first
+  // reply there is nothing to answer, so the scene's own starter phrases are the
+  // floor. No answer bank, no question classifier, no ranking: the sentence that
+  // belongs to THIS turn is the one the turn produced.
   const lastAssistantGerman = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       const message = messages[index];
@@ -1312,67 +1141,20 @@ export function useLiveConversation({
     }
     return null;
   }, [messages]);
-  /**
-   * The scripted scenario's own sentence for the question on screen. It is the
-   * first suggestion whenever one exists: it is guaranteed to answer THIS
-   * question, in this level's words, with the blanks a personal fact needs.
-   */
-  const scriptHint = useMemo(() => {
-    if (!scenarioScript || !scriptState || scriptState.done) return null;
-    const line = currentHint(scenarioScript, scriptState);
-    return line ? { german: line.de, arabic: line.ar } : null;
-  }, [scenarioScript, scriptState]);
-
-  /**
-   * Rank, then VALIDATE. A stored café phrase is a legitimate line only while the
-   * conversation is about the café; after «Ich liebe meine Katze» it is a
-   * non-answer. The guard also drops a model hint that answers nothing when the
-   * last line is a question. An empty list is honest — the sheet says so and the
-   * refresh path can load a fresh, contextual set.
-   */
   const visibleHints = useMemo(() => {
-    // Every hint must pass the local corrector unchanged: an offer the app
-    // would "correct" the moment the learner sends it is a trap, not help.
-    const clean = (hints: ContextualHint[]) => filterCleanHints(hints);
-
-    // A question on screen gets its direct answer FIRST, from the static bank.
-    const bank = answerHintsFor(lastAssistantGerman, {
-      learnerName: firstNameOf(user?.displayName),
-      level: effectiveLevel,
-    });
-    const matched = classifyQuestion(lastAssistantGerman) !== null;
-
-    const ranked = rankHintFloor(
-      currentHints.length > 0 ? currentHints : starterHints,
-      lastAssistantGerman,
-    );
-    const context = [lastAssistantGerman, lastUserGerman, scenario?.title_de, scenario?.title_ar];
-    const contextual = ranked.filter((hint) => suggestionFitsContext(hint.german, context));
-
-    const isRepeat = (german: string) => REPEAT_FAMILY.some((hint) => hint.german === german);
-    // A matched question leads with its own answers; an unmatched one keeps the
-    // model's contextual hint when it is clean, and the honest safe family always
-    // closes the sheet — the "didn't understand / please repeat" lines go LAST.
-    const direct = matched ? bank.filter((hint) => !isRepeat(hint.german)) : [];
-    const trailing = matched ? bank.filter((hint) => isRepeat(hint.german)) : bank;
     const seen = new Set<string>();
-    const merged = clean([
-      // The script's own line outranks every generic suggestion.
-      ...(scriptHint ? [scriptHint] : []),
-      ...direct,
-      ...contextual,
-      ...trailing,
-    ]).filter((hint) => {
-      const key = hint.german.toLowerCase();
-      if (seen.has(key)) return false;
+    const merged: ContextualHint[] = [];
+    for (const hint of [...currentHints, ...starterHints]) {
+      const german = String(hint?.german || '').trim();
+      if (!german) continue;
+      const key = german.toLowerCase();
+      if (seen.has(key)) continue;
       seen.add(key);
-      return true;
-    });
-    // The sheet is never empty: when nothing contextual survives, the generic
-    // safe family still gives the learner something they can say.
-    if (merged.length > 0) return merged.slice(0, 6);
-    return clean(GENERIC_SAFE_FAMILY.map((hint) => ({ ...hint })));
-  }, [currentHints, starterHints, scriptHint, user?.displayName, lastAssistantGerman, lastUserGerman, scenario?.title_de, scenario?.title_ar]);
+      merged.push({ german, arabic: hint.arabic || '' });
+      if (merged.length >= 6) break;
+    }
+    return merged;
+  }, [currentHints, starterHints]);
 
   const [isRefreshingHints, setIsRefreshingHints] = useState(false);
   /**
@@ -1401,10 +1183,10 @@ export function useLiveConversation({
           void loadStarterHints();
           logEvent('hints', 'daily hint budget spent — showing the starter floor');
         } else if (fresh.length > 0) {
-          const cleanFresh = filterCleanHints(fresh);
-          if (cleanFresh.length > 0) {
-            setCurrentHints(cleanFresh);
-            logEvent('hints', `Hints refreshed manually (${cleanFresh.length})`);
+          const cleaned = sanitizeHints(fresh, effectiveLevel);
+          if (cleaned.length > 0) {
+            setCurrentHints(cleaned);
+            logEvent('hints', `Hints refreshed manually (${cleaned.length})`);
           } else {
             void loadStarterHints();
           }
@@ -1431,12 +1213,14 @@ export function useLiveConversation({
     const independentMsgs = userMsgs.filter((m) => !m.wasHintUsed);
     const assistedMsgs = userMsgs.filter((m) => m.wasHintUsed);
 
-    // Rule 6: Session accuracy is computed strictly on independent user sentences
+    // Rule 6: Session accuracy is computed strictly on independent user sentences.
+    // The error signal is the DETERMINISTIC corrector's count (or a shown chip),
+    // never the model's opinion: the same sentence must score the same every time.
     const userMsgTurns = userMsgs.map((uMsg) => {
       // Find the immediately following Katzu message
       const uIndex = finalMessages.findIndex((m) => m.id === uMsg.id);
       const nextKatzuMsg = finalMessages.slice(uIndex + 1).find((m) => m.sender === 'KATZU');
-      const hasError = !!nextKatzuMsg?.hasCorrection;
+      const hasError = !!nextKatzuMsg?.hasCorrection || (nextKatzuMsg?.localErrorCount || 0) > 0;
       return {
         wasHintUsed: !!uMsg.wasHintUsed,
         hasError,
@@ -1448,12 +1232,14 @@ export function useLiveConversation({
       independentTurns.map((turn) => ({ hasError: turn.hasError })),
     );
 
+    // What the report lists is what the deterministic corrector proved — the same
+    // source as the review queue and the mistake bank, so the three never disagree.
     const mistakesList = finalMessages
-      .filter((m) => m.hasCorrection && m.originalMistake && m.correctedGerman)
+      .filter((m) => (m.localErrorCount || 0) > 0 && m.localOriginal && m.localCorrected)
       .map((m) => ({
-        original: m.originalMistake!,
-        corrected: m.correctedGerman!,
-        grammarRule: m.grammarRule || 'قاعدة نحوية',
+        original: m.localOriginal!,
+        corrected: m.localCorrected!,
+        grammarRule: m.localRule || 'قاعدة نحوية',
       }));
 
     const duration = Math.round((Date.now() - startTime) / 1000);
@@ -1627,6 +1413,19 @@ export function useLiveConversation({
     void finishSession(messages, false);
   };
 
+  /**
+   * The learner's «إنهاء» after the persona's goodbye. The session counts as
+   * naturally completed: every objective was done, so the report is entitled to
+   * say the scene closed — the button only saves them typing a farewell.
+   */
+  const canFinishAfterClose = isClosed && !isSessionCompleted && !isGenerating;
+  const finishAfterClose = () => {
+    if (!canFinishAfterClose) return;
+    dispatch({ type: 'complete' });
+    triggerHaptic('success');
+    void finishSession(messages, true);
+  };
+
   return {
     // data
     scenario,
@@ -1649,6 +1448,7 @@ export function useLiveConversation({
     isRefreshingHints,
     hintQuotaSpent,
     turnError,
+    turnNotice,
     micError,
     isSessionCompleted,
     isGenerating,
@@ -1696,5 +1496,11 @@ export function useLiveConversation({
     refreshHints,
     canEndSession,
     endSessionNow,
+    // Roleplay progress: the header's done/total, and the server's close flag.
+    objectivesDone: objectiveState.done,
+    objectivesTotal: objectiveState.total,
+    isClosed,
+    canFinishAfterClose,
+    finishAfterClose,
   };
 }

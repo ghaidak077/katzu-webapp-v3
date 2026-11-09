@@ -63,11 +63,8 @@ for (const item of CASES) {
         turn({
           reply_de: 'Verstanden. Noch etwas?',
           reply_ar: 'فهمت. هل من شيء آخر؟',
-          is_correct: false,
-          original_mistake: item.original,
-          corrected_german: item.corrected,
-          grammar_rule: item.rule,
-          explanation_ar: item.explanation,
+          understood_de: item.corrected,
+          fix_reason_ar: item.explanation,
         }),
       ],
     });

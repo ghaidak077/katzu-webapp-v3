@@ -300,7 +300,7 @@ describe('the CI gates themselves stay in place', () => {
       'node scripts/audit-opener-coverage.mjs',
       'node scripts/audit-unit-coverage.mjs',
       'node scripts/eval-chat-quality.mjs',
-      'node scripts/measure-turn-cost.mjs',
+      'node scripts/eval-chat.mjs --dry',
       'node scripts/simplicity-check.mjs',
       'npm audit --omit=dev --audit-level=high',
     ];

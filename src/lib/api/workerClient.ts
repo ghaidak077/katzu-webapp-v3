@@ -455,15 +455,14 @@ export class WorkerClient {
     vocabularyContext?: string[];
     grammarId?: string;
     /**
-     * The scripted turn packet (see `script/aiTurn.ts`). It tells the worker
-     * which question is on screen and what the learner may answer with, so the
-     * model reacts to the learner's words without choosing the next question.
+     * The objective ids this learner has already finished, as the header counts
+     * them. The worker merges them with the plan and decides progress; a made-up
+     * id is dropped, so this can never invent finished work.
      */
-    scriptContext?: Record<string, unknown>;
+    objectivesDone?: string[];
     /**
-     * A scripted turn is a short in-character reaction, not a lesson: waiting
-     * 30 s for it would leave the learner staring at a frozen bubble. The caller
-     * supplies a short ceiling and silently falls back to the script line.
+     * One roleplay turn is short; waiting 30 s would leave the learner staring
+     * at a frozen bubble. The caller supplies a ceiling.
      */
     timeoutMs?: number;
     /**
@@ -511,7 +510,7 @@ export class WorkerClient {
     learnerMemory?: Array<{ rule: string; example?: string }>;
     vocabularyContext?: string[];
     grammarId?: string;
-    scriptContext?: Record<string, unknown>;
+    objectivesDone?: string[];
     timeoutMs?: number;
     mockGrant?: string;
     mockPart?: number;
@@ -558,10 +557,11 @@ export class WorkerClient {
     if (params.grammarId && /^[a-z0-9_]{1,80}$/i.test(params.grammarId)) {
       payload.grammar_id = params.grammarId;
     }
-    if (params.scriptContext && typeof params.scriptContext === 'object') {
-      // The worker re-bounds every field; the client only guarantees it sends
-      // the packet shape it built, never arbitrary text.
-      payload.script_context = params.scriptContext;
+    if (params.objectivesDone && params.objectivesDone.length > 0) {
+      // The worker re-validates every id against the scenario plan.
+      payload.objectives_done = params.objectivesDone
+        .slice(0, 12)
+        .filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,60}$/i.test(id));
     }
     if (params.mockGrant && Number.isInteger(params.mockPart)) {
       payload.mock_grant = params.mockGrant;
