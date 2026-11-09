@@ -27,7 +27,15 @@ async function openGreetings(page: Page): Promise<void> {
   await page.setViewportSize({ width: 390, height: 844 });
   await bootSignedIn(page, {
     user: { displayName: 'Ghaidak' },
-    turns: [turn({ reply_de: 'Wie heißt du nochmal, bitte?' })],
+    turns: [
+      turn({
+        reply_de: 'Woher kommst du?',
+        reply_ar: 'من أين أنت؟',
+        understood_de: 'Ich heiße Ghaidak.',
+        hint_de: 'Ich heiße ___.',
+        hint_ar: 'اسمي ___.',
+      }),
+    ],
   });
   await seedStoreRow(page, 'scenarios', {
     id: 'first_greetings',
@@ -63,6 +71,11 @@ test(`session replay: name answered without a repeat [${TAG}]`, async ({ page })
 test(`session replay: hint dock [${TAG}]`, async ({ page }) => {
   await openGreetings(page);
 
+  // The dock carries the persona's next sentence, which the turn returns; on a
+  // cold open the starter floor is fetched from the Worker, so answer first.
+  await page.getByPlaceholder(/Schreib deinen Satz/).fill('Ich heiße Ghaidak.');
+  await page.getByRole('button', { name: 'أرسل جملتك' }).click();
+
   const dock = page.getByTestId('hint-dock');
   await expect(dock).toBeVisible({ timeout: 20_000 });
   await expect(dock).toContainText('Ich heiße ___.');
@@ -74,7 +87,7 @@ test(`session replay: hint dock [${TAG}]`, async ({ page }) => {
 test(`session replay: correction chip [${TAG}]`, async ({ page }) => {
   await openGreetings(page);
 
-  await page.getByPlaceholder(/Schreib deinen Satz/).fill('Ich heiße ghaidak');
+  await page.getByPlaceholder(/Schreib deinen Satz/).fill('Ich heise Ghaidak');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
 
   const chip = page.getByTestId('correction-card').getByText('تصحيح صغير', { exact: true });

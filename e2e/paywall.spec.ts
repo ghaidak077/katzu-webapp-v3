@@ -50,6 +50,12 @@ test('an A2 learner is not gated before their first episode', async ({ page }) =
   await input.fill('Guten Tag');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
+  // Progress is the scene's objectives now, not rounds taken; it appears once the
+  // server's plan is known (the first reply), and this account's plan is 4.
+  await expect(page.getByTestId('objective-progress')).toHaveAttribute(
+    'aria-label',
+    /الأهداف المنجزة 0 من 4/,
+  );
   await expect(page.getByText('هذا المستوى ميزة Pro')).toHaveCount(0);
 });
 
@@ -118,6 +124,10 @@ test('a Pro learner runs the episode at their own measured level', async ({ page
   await input.fill('Guten Tag');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
+  await expect(page.getByTestId('objective-progress')).toHaveAttribute(
+    'aria-label',
+    /الأهداف المنجزة 0 من 4/,
+  );
 });
 
 test('a Pro row the server no longer honours stops being Pro on the next open', async ({ page }) => {
