@@ -95,11 +95,10 @@ Ten units from the 49 conversations; titles, outcome lines and situations are in
 
 The first button now answers the last question and the sheet is never empty; all 154 lines are clean. List: docs/OWNER-ANSWER-BANK-REVIEW.md. **Done:** read it, report any odd answer.
 
-## 18. Read the pilot chat scripts — SCRIPT-ENGINE (2026-11-08)
+## 18. Read the 49 roleplay plans — ROLEPLAY (2026-11-09)
 
-The 11 pilot conversations now run from a fixed script: every question, reply, hint and farewell is in
-`src/lib/conversation/script/scripts.ts`, three German/Arabic variants per step. **Done:** read the pairs,
-report any odd line.
+Conversations now run on one prompt + a plan per scene (persona, goal, 3–5 goals-to-do), not written lines.
+20 personas worth a look are listed in `docs/OWNER-ROLEPLAY-REVIEW.md`. **Done:** name any wrong line.
 
 ## Nothing to do — so nobody re-opens them
 

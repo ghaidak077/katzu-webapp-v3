@@ -47,14 +47,16 @@ function episodeTurns() {
     turn({ reply_de: 'Guten Tag! Möchten Sie einen Kaffee?' }),
     turn({
       reply_de: 'Gerne. Einen Kaffee, bitte schön.',
-      is_correct: false,
-      original_mistake: 'Ich möchte ein Kaffee',
-      corrected_german: 'Ich möchte einen Kaffee',
-      grammar_rule: 'Akkusativ: einen Kaffee',
-      explanation_ar: 'بعد möchte يأتي الاسم في حالة النصب.',
+      understood_de: 'Ich möchte einen Kaffee',
+      fix_reason_ar: 'بعد möchte يأتي الاسم في حالة النصب.',
     }),
     turn({ reply_de: 'Sehr gern. Möchten Sie noch etwas?' }),
-    turn({ reply_de: 'Perfekt. Auf Wiedersehen!' }),
+    // The persona's goodbye carries the server's `close`: every objective done.
+    turn({
+      reply_de: 'Perfekt. Auf Wiedersehen!',
+      objectives_done: ['greet', 'order', 'confirm', 'farewell'],
+      close: true,
+    }),
   ];
 }
 
@@ -72,7 +74,9 @@ async function finishCafeEpisode(page: Page) {
 
   for (const [index, reply] of replies.entries()) {
     const input = page.getByPlaceholder(/Schreib deinen Satz/);
-    await input.fill('Ich möchte einen Kaffee bitte');
+    // Turn two carries the one real slip the report has to name; the others
+    // are clean, so the day-0 teaser counts exactly one correction.
+    await input.fill(index === 1 ? 'Ich möchte ein Kaffee bitte' : 'Ich möchte einen Kaffee bitte');
     await page.getByRole('button', { name: 'أرسل جملتك' }).click();
     await expect(page.getByText(reply)).toBeVisible();
 
@@ -93,6 +97,9 @@ async function finishCafeEpisode(page: Page) {
     }
   }
 
+  // The scene closed with the persona's goodbye; «إنهاء» ends it as a natural
+  // completion (the learner may also type a farewell, which adds a turn).
+  await page.getByTestId('closed-scene').getByRole('button', { name: 'إنهاء الجلسة وعرض الملخص' }).click();
   await expect(page).toHaveURL(/\/session-report$/, { timeout: 30_000 });
 }
 
@@ -184,7 +191,7 @@ test('with the flag off, the first conversation still renders today\'s full repo
   // Today's evidence cards are on the first screen, as before.
   await expect(page.getByText('جُمل نطقتها بلا مساعدة')).toBeVisible();
   await expect(page.getByText('تصحيحات هذه الجلسة', { exact: true })).toBeVisible();
-  await expect(page.getByText('Akkusativ: einen Kaffee')).toBeVisible();
+  await expect(page.getByText('Artikel: richtiger Fall')).toBeVisible();
 
   // Today's dock keeps the review route beside the way back.
   await expect(page.getByRole('button', { name: REVIEW_DOCK })).toBeVisible();

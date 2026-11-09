@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import worker, { resetScenarioBeatsCache } from '../cloudflare-unified-worker';
+import worker from '../cloudflare-unified-worker';
 import { resetRouterState } from '../cloudflare-ai-router.js';
 import {
   MOCK_EXAM_NOTICE_AR,
@@ -397,7 +397,6 @@ describe('the mock grant on /ai/turn', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     resetRouterState();
-    resetScenarioBeatsCache();
   });
 
   it('serves a B1 turn as an examiner, and only with its own grant', async () => {

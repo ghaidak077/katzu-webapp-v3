@@ -41,7 +41,6 @@ test('an A2 learner is not gated before their first episode', async ({ page }) =
   // on an unmigrated A1 scene so the mocked turn reply is the one on screen.
   await page.goto('/scenario/friend_catchup/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
-  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
   await expect(page.getByTestId('level-chip')).toHaveText('A1');
 
   // The whole point of the rule: the first episode *completes*. The mock refuses
@@ -113,7 +112,6 @@ test('a Pro learner runs the episode at their own measured level', async ({ page
 
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
-  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 6/);
   await expect(page.getByTestId('level-chip')).toHaveText('A2');
 
   const input = page.getByPlaceholder(/Schreib deinen Satz/);
@@ -137,10 +135,8 @@ test('a Pro row the server no longer honours stops being Pro on the next open', 
 
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
-  // A1 and its five rounds are the trial's level; A2 and six rounds would mean the
-  // demotion never happened.
+  // A1 is the trial's level; A2 would mean the demotion never happened.
   await expect(page.getByTestId('level-chip')).toHaveText('A1');
-  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 5/);
 });
 
 /**

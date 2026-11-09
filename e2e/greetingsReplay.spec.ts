@@ -24,8 +24,19 @@ test('the first-words session is corrected and hinted correctly', async ({ page 
 
   await bootSignedIn(page, {
     turns: [
-      turn({ reply_de: 'Wie heißt du nochmal, bitte?', is_correct: true }),
-      turn({ reply_de: 'Schön, Ghaidak. Wie geht es dir?', is_correct: true }),
+      turn({ reply_de: 'Wie heißt du nochmal, bitte?' }),
+      turn({
+        reply_de: 'Schön, Ghaidak. Wie geht es dir?',
+        // The persona read the name and spelled it with ß — the only fix it made.
+        // (A capital-letter-only fix is deliberately not a chip: case alone is
+        // not a correction, so this case has to be a real spelling fix.)
+        understood_de: 'Ich heiße Ghaidak',
+        fix_reason_ar: 'اكتب ß بدل s في heiße.',
+        // The persona's own next sentence is what the dock offers — a greeting
+        // answer, never the scene's café/landlord starter lines.
+        hint_de: 'Mir geht es gut, danke.',
+        hint_ar: 'أنا بخير، شكراً.',
+      }),
     ],
   });
 
@@ -41,7 +52,7 @@ test('the first-words session is corrected and hinted correctly', async ({ page 
   await expect(corrections).toHaveCount(0);
 
   // 2. One real capitalisation error, no silent final period.
-  await input.fill('Ich heiße ghaidak');
+  await input.fill('Ich heise Ghaidak');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   // The card is collapsed to a quiet chip under the learner's own line.
   await page.getByText(/تصحيح صغير/).click();
@@ -56,5 +67,5 @@ test('the first-words session is corrected and hinted correctly', async ({ page 
   await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
   const chips = page.locator('[data-testid="conversation-controls"] button');
   await expect(chips.first()).toContainText('Mir geht es gut, danke.');
-  await expect(page.getByText(/Tee|Kaffee|Kuchen/i)).toHaveCount(0);
+  await expect(page.getByText(/Tee|Kaffee|Kuchen|Heizung/i)).toHaveCount(0);
 });

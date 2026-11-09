@@ -19,7 +19,7 @@ test.describe('audited screens: practice, live failure, mock gate', () => {
     await expect(page.getByRole('button', { name: 'أنا جاهز' })).toBeEnabled();
   });
 
-  test('live conversation: a failed send keeps the round counter honest', async ({ page }) => {
+  test('live conversation: a failed send adds no turn and no objectives', async ({ page }) => {
     // Seeded WITHOUT the mocked backend: the worker is genuinely unreachable.
     await page.goto('/');
     await expect(page.locator('#root')).not.toBeEmpty({ timeout: 30_000 });
@@ -30,17 +30,18 @@ test.describe('audited screens: practice, live failure, mock gate', () => {
     await page.getByRole('button', { name: /ابدأ «تدريب» الآن/ }).click();
     const opener = page.getByRole('article').first();
     await expect(opener).toBeVisible();
-    const roundLabel = page.getByRole('progressbar');
-    await expect(roundLabel).toHaveAttribute('aria-label', /الجولة 1 /);
+    // No server plan has arrived yet, so there is no objective bar to advance.
+    await expect(page.locator('[data-testid="objective-progress"]')).toHaveCount(0);
 
     // Send a reply; with no worker the turn fails.
     await page.getByRole('textbox', { name: 'اكتب جملتك بالألمانية' }).fill('Ja, mein Koffer ist nicht angekommen.');
     await page.keyboard.press('Enter');
 
-    // The honest failure: a retry card, and the round did NOT advance to 2.
+    // The honest failure: a retry card, and the failed turn added nothing.
     await expect(page.getByText('أعد المحاولة').first()).toBeVisible({ timeout: 20_000 });
-    await expect(roundLabel).toHaveAttribute('aria-label', /الجولة 1 /);
     await expect(page.getByRole('button', { name: 'إعادة المحاولة' })).toBeVisible();
+    await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="objective-progress"]')).toHaveCount(0);
   });
 
   test('mock gate does not tell a signed-in learner to sign in with Google', async ({ page }) => {
@@ -55,7 +56,7 @@ test.describe('audited screens: practice, live failure, mock gate', () => {
     // timeout in the next, on identical code), and the page it had actually
     // reached showed «الجولة 1 من 9» with the opener. The loading label is
     // accepted only because the gate copy is what the assertion is about.
-    const started = page.getByRole('progressbar', { name: /الجولة 1 من/ });
+    const started = page.getByText(/^الجزء 1 من/);
     const gate = page.getByText(/تسجيل الدخول|تعذّر|تعذر/).first();
     await expect(
       started.or(gate).or(page.getByText('جارٍ تجهيز المحاكاة…')),

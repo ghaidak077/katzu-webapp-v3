@@ -36,7 +36,7 @@ file is the digest that is short enough to always read.
 | Content corpora (2026-11-05) | **The served set wins over the authored set.** Authoring: `docs/content/catalogue/scenarios-catalogue.json` (**61** scenarios). Served: the worker's `GET /scenarios` (**49** scenarios, 225 first messages). Never assume authored = production; `audit-opener-coverage.mjs` fails if a *served* opener has no Arabic gloss. |
 | Unit path (2026-11-07) | `units.ts` splits the **49 served** ids into **9 ordered units** (checkpoint last, 5 goal tags); `progress.ts` owns `recommendScenario` (continue → next → checkpoint), `stageFor`, `composeSession` (review ≤10 → next stage), `nextPlanStep`, `sessionOutcomeOffer`. `/app/library` is the map; `/app/trail` is Journey Home. A new served id must join exactly one unit — `scripts/audit-unit-coverage.mjs` fails otherwise. |
 | Conversation shape (2026-11-07) | No level selector in any main flow: a conversation runs at `servedLevel`, and the ⋯ sheet offers 3 current-unit topics + «فاجئني» before the first turn. Ease («سهلة/مناسبة/صعبة») is stored on `UserEntity.lastSessionEase` and moves only the next stage. Signup asks one goal question; goal reordering stays inside a level. |
-| Chat scripts (2026-11-08) | 11 scenarios run an app-owned script (`src/lib/conversation/script/*`: 3 DE/AR asks per step, recognition, reactions, hints, farewell last) through one pure state machine — **0 AI calls per scripted turn**; the other 38 stay on `/ai/turn` behind `isScriptedScenario`; every line passes `guardGermanLine`. |
+| Conversation turn (2026-11-09) | Every scene is ONE model call: `cloudflare-roleplay.js` builds one versioned prompt (`ROLEPLAY_PROMPT_VERSION`) from the scene plan in `cloudflare-roleplay-plans.js` (persona, goal, 3–5 objectives) + the last 6 turns; JSON `{reply_de, reply_ar, understood_de, fix_reason_ar, objectives_done, close, hint_de, hint_ar}`; model via `ROLEPLAY_MODEL`; temp 0.3, 300 tokens, 4 s attempt. Server owns progress/closing; one retry then 502 `AI_EMPTY_REPLY` (no template line). Prompt: `docs/agent/ROLEPLAY-PROMPT.md`; eval: `npm run eval:chat -- --from-kv` → `ROLEPLAY-EVAL.md`. The script engine, beats, answer bank and suggestion guard are deleted. |
 | Sign-in | Google-only |
 | Payments | NOWPayments **test mode**, `ready:false` |
 | Partner program (2026-10-28) | `/affiliate` on the site; logic + DDL in `cloudflare-affiliate.js` (tables `affiliates`, `referrals`, `commissions`), admin under `/admin/api/affiliates*`. Cookie `katzu_ref` (30 days, `.katzuai.com`) set by `website/assets/ref.js` from `?ref=CODE`; attached at Google signup, first valid code wins. Commission = `Math.round(net × 0.20)` of the **first paid** order: `pending` on redemption, `approved` on day 14, refund before = `void`, refund after payout = negative row `refund:<ref>`. Applications: `support@ghaidak.com`; owner creates codes; separate from `REF-` rewards. |
@@ -165,20 +165,14 @@ file is the digest that is short enough to always read.
   refuses an item with no clear Arabic prompt, no answer, or a correction that changes nothing
   (`isMeaningfulCorrection` folds case/punctuation/umlaut-transliteration). Bad stored items are
   **suppressed** (Dexie v7 migration), never deleted, and mastery stays `gradeReviewItem`'s.
-- **The AI's own output is validated before the learner sees it.** `cloudflare-turn-quality.js`
-  drops a `next_hint` that does not answer the last AI message, refuses a no-op correction, and
-  gates the persona obstacles (never the first turn, never right after a repeat request).
-  Client side, `answerBank.ts` ships 154 hint strings that all pass `checkGerman` unchanged, leads
-  with the direct answer to the last question, and never auto-inserts a missing `.`/`?` (soft note).
-  `scripts/eval-chat-quality.mjs` (in CI) is the before/after measure.
-- **A conversation follows the scenario's own arc (V28 Stage 1).** `cloudflare-conversation-beats.js`
-  derives 4–8 deterministic beats from a scenario's starter phrases (pure; ordered by `sort_order`;
-  evenly sampled above 8) and the prompt moves through them one per turn without reciting them. Beats
-  are server-resolved in `resolveScenarioIdentity` (one extra concurrent D1 read on a scenario's first
-  turn per isolate, isolate-cached after; `resetScenarioBeatsCache` for tests) — never client-supplied.
-  The whole `/ai/turn` system instruction lives in the exported pure `buildTurnSystemInstruction`, and
-  `scripts/measure-turn-cost.mjs` (in CI) fails if the beats add more than `BEATS_PROMPT_TOKEN_CAP`
-  (220) estimated tokens; measured ~103–110/turn.
+- **The AI's own output is validated before the learner sees it.** For mock-exam turns
+  `cloudflare-turn-quality.js` still drops a `next_hint` that does not answer the last AI message,
+  refuses a no-op correction, and gates the persona obstacles; `scripts/eval-chat-quality.mjs` (CI)
+  is its measure. Ordinary turns are roleplay turns and bypass those guards entirely: the checks are
+  a near-repeat test against the last three persona lines, at most one `?` (none at the goodbye) and a
+  meta-phrase ban, with one retry and no fallback line. The correction chip shows `understood_de` only
+  when it is a small edit of the learner's sentence (`correctionChip.ts`); `checkGerman` still owns the
+  report and the mistake bank.
 - **Language data is generated, not fetched (V30).** `scripts/language-data/` (authored corpus +
   `content-snapshot.json`) → `src/lib/conversation/openerGlosses.generated.ts` (223 openers, Arabic) and
   `src/lib/vocabulary/wordGlossary.generated.ts` (892 tokens: lemma, Arabic, part of speech, level, compound

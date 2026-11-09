@@ -27,7 +27,7 @@ async function openGreetings(page: Page): Promise<void> {
   await page.setViewportSize({ width: 390, height: 844 });
   await bootSignedIn(page, {
     user: { displayName: 'Ghaidak' },
-    turns: [turn({ reply_de: 'Wie heißt du nochmal, bitte?', is_correct: true })],
+    turns: [turn({ reply_de: 'Wie heißt du nochmal, bitte?' })],
   });
   await seedStoreRow(page, 'scenarios', {
     id: 'first_greetings',

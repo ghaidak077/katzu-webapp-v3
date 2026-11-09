@@ -159,6 +159,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     effectiveLevel,
     targetTurns,
     userTurnsCount,
+    objectivesDone,
+    objectivesTotal,
+    isClosed,
+    canFinishAfterClose,
+    finishAfterClose,
     characterNameAr,
     orbState,
     orbTone,
@@ -412,29 +417,35 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <div className="min-w-0 flex-1 px-1">
             <p className="kz-ar-caption truncate text-center text-kz-ink">{characterNameAr}</p>
             <div className="mt-1 flex items-center justify-center gap-2">
-              <div
-                data-testid="round-progress"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={targetTurns}
-                aria-valuenow={userTurnsCount}
-                aria-label={`الجولة ${Math.min(userTurnsCount + 1, targetTurns)} من ${targetTurns}`}
-                className="flex items-center gap-1"
-              >
-                {Array.from({ length: targetTurns }).map((_, index) => (
-                  <span
-                    key={index}
-                    className={`h-1 w-4 rounded-full transition-colors duration-fast ${
-                      index < userTurnsCount ? 'bg-primary' : 'bg-white/15'
-                    }`}
-                  />
-                ))}
-              </div>
-              {/* The dashes alone are unlabelled decoration to a learner; the
-                  count says what they mean. */}
-              <span data-testid="round-progress-label" className="kz-ar-micro shrink-0 text-kz-inkFaint">
-                {Math.min(userTurnsCount + 1, targetTurns)} من {targetTurns}
-              </span>
+              {/* Progress is the SCENE's objectives, not turns taken: a turn is
+                  effort, an objective is something the learner actually did.
+                  Why it is empty before the first reply: the total comes from
+                  the server's plan, which the opener does not need. */}
+              {objectivesTotal > 0 && (
+                <>
+                  <div
+                    data-testid="objective-progress"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={objectivesTotal}
+                    aria-valuenow={objectivesDone.length}
+                    aria-label={`الأهداف المنجزة ${objectivesDone.length} من ${objectivesTotal}`}
+                    className="flex items-center gap-1"
+                  >
+                    {Array.from({ length: objectivesTotal }).map((_, index) => (
+                      <span
+                        key={index}
+                        className={`h-1 w-4 rounded-full transition-colors duration-fast ${
+                          index < objectivesDone.length ? 'bg-primary' : 'bg-white/15'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span data-testid="objective-progress-label" className="kz-ar-micro shrink-0 text-kz-inkFaint">
+                    {objectivesDone.length} من {objectivesTotal}
+                  </span>
+                </>
+              )}
               <span
                 data-testid="level-chip"
                 className="kz-de-caption shrink-0 rounded-full border border-white/10 px-1.5 font-german font-bold text-kz-lavender"
@@ -515,9 +526,27 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         </p>
       )}
 
+      {/* The persona has said goodbye: the learner can answer with their own
+          farewell (the next send closes the session) or finish right here. */}
+      {isClosed && !isSessionCompleted && (
+        <div data-testid="closed-scene" className="mx-3 mb-1 shrink-0 rounded-2xl border border-primary/30 bg-primary/10 px-3 py-2">
+          <p className="kz-ar-micro leading-relaxed text-kz-ink">
+            انتهت المحادثة — يمكنك توديع الطرف الآخر بجملة، أو إغلاقها الآن.
+          </p>
+          <button
+            type="button"
+            onClick={finishAfterClose}
+            disabled={!canFinishAfterClose}
+            className="mt-1.5 flex min-h-touch items-center rounded-full bg-primary px-3 kz-ar-micro font-bold text-on-lavender transition-colors pointer-hover:brightness-110 disabled:opacity-40"
+          >
+            إنهاء الجلسة وعرض الملخص
+          </button>
+        </div>
+      )}
+
       {/* The hint dock: the sentence for THIS question, its Arabic, and the
           three ways to use it. It never inserts text and never sends. */}
-      {!realMode && !isSessionCompleted && (
+      {!realMode && !isSessionCompleted && !isClosed && (
         <HintDock
           hint={visibleHints[0] ?? null}
           typed={inputText}
@@ -637,6 +666,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             >
               إنهاء الجلسة وعرض الملخص
             </button>
+            {isClosed && (
+              <p className="mt-1 px-3 kz-ar-micro text-kz-inkDim">
+                المحادثة انتهت — هذا الزر يعرض الملخص نفسه.
+              </p>
+            )}
             {!live.canEndSession && (
               <p className="mt-1 px-3 kz-ar-micro text-kz-inkFaint">
                 ابدأ بجملة واحدة على الأقل لتنهي الجلسة وتحصل على الملخص.

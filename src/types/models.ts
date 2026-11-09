@@ -499,6 +499,16 @@ export interface ChatMessage {
   }>;
   /** The learner's whole sentence after every correction (not just the broken part). */
   correctedSentence?: string;
+  /**
+   * What the DETERMINISTIC corrector (germanChecker) found on this turn. The
+   * chip may stay closed when the model read the sentence fine, but the report
+   * and the mistake bank still count and store these — the corrector is the
+   * honest, repeatable measure, never the model's opinion.
+   */
+  localErrorCount?: number;
+  localOriginal?: string;
+  localCorrected?: string;
+  localRule?: string;
   roastComment?: string;
   grammarRule?: string;
   /** Exact grammar row Guided Practice selected, when it was part of this episode. */
@@ -601,25 +611,27 @@ export interface TurnAiResponse {
   roastComment?: string;
   positiveNoteAr?: string;
   /**
-   * A scripted turn's model half: how it read the learner's answer, one
-   * in-character reaction, and a hint written for the question on screen.
-   * Present only when the request carried `script_context`; the script validates
-   * every field and falls back to its own line when one is missing or unsafe.
+   * The roleplay half of one ordinary conversation turn (cloudflare-roleplay.js).
+   * One model call plays the persona; this is everything the screen needs from
+   * it: progress, the learner's corrected sentence, and the next hint.
    */
-  scriptTurn?: ScriptTurnResponse;
+  roleplay?: RoleplayTurn;
 }
 
-export interface ScriptTurnResponse {
-  replyDe: string;
-  replyAr: string;
-  /** Whether the learner's sentence answered the question on screen. */
-  matched?: boolean;
-  /** The slot the model believed it filled; the script ignores any other slot. */
-  slot?: string;
-  /** The learner's value, extracted from their own words (grounded client-side). */
-  value?: string;
-  hintDe?: string;
-  hintAr?: string;
+/** The roleplay fields of a turn — the server already validated and bounded them. */
+export interface RoleplayTurn {
+  /** The learner's intended sentence, corrected; compared before the chip shows. */
+  understoodDe: string;
+  /** Short Arabic reason for the fix; empty when there is nothing to fix. */
+  fixReasonAr: string;
+  /** Objective ids this learner has finished, server-checked against the plan. */
+  objectivesDone: string[];
+  /** Every objective in the scenario plan — the header's denominator. */
+  objectivesTotal: number;
+  /** True only when every objective is done; the AI cannot close earlier. */
+  close: boolean;
+  /** One model answer the learner could give next, at their level. */
+  hint: ContextualHint | null;
 }
 
 /**
