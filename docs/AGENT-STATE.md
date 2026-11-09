@@ -253,7 +253,6 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
 | SCRIPT-MIGRATE. Remaining 38 scenarios → script engine | todo | 11 pilots run locally (`first_greetings` + units 1–2; `tests/scenarioScript.test.ts` 39 passed); every unmigrated id stays on `/ai/turn` behind `isScriptedScenario`. Order: unit by unit, simulation gate green per batch. |
-| ROLEPLAY-1. Normal AI chat hardening (2026-11-09) | doing | Provider retry/backoff + «أعد المحاولة», hint safety, legacy `script_turn`, rate limit; evidence lands with the eval/verify rows. |
 
 ## DECISIONS
 
