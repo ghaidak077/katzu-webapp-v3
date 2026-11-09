@@ -61,21 +61,27 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-08 (scripted practice rebuilt after replaying a real A1 session)
+## Current snapshot — 2026-11-09 (normal AI roleplay chat; a stall no longer costs a turn)
 
-**Deployed 2026-11-08** (worker `e89a0fc1-…`, Pages `b0b066df-…`; gate 16/16). Replaying one real A1 session in «أول الكلمات»
-exposed seven defects; all were fixed across the 11 scripts. Slots accept fragments and any casing per type (place
-«in berlin»/«aus London», name «ich heiße leo»/«Hallo, ich bin Leo», origin, age, job) and a cross-slot guard rejects the
-wrong type. Static tests fail the build when two steps share a slot or ask the same question in different words. The
-greetings arc is name → origin → city → «Wie gefällt dir {city}?» → farewell; every address/street/phone ask is gone
-from all scripts; the header total equals the script's real step count (5 here), with a test pinning it. Personas carry
-`gender`, so Arabic agrees («سعيدة بمعرفتك» vs «سعيد»), enforced by `glossLint` over every shipped gloss; a learner's name
-appears once per turn; the «تُنهى بنقطة» note is deleted. An unclear first answer gets «Wie bitte?» with the model answer
-in the hint dock; only a second failure moves on, gently. The V34 AI half (`aiTurn.ts`, `script_context`, 7 s silent
-fallback), hint dock, correction chip and local memory are unchanged.
-**Proof:** `scenarioScript` **84** (exact golden replay, 15 fragment/casing cases per slot, lint, header), `scriptAiTurn` 13;
-gate **VERIFY OK 16/16** (729 s, `--ci --e2e`); production smoke 2 passed / 2 skipped.
-**Owner-open:** a native read of the 11 pilot scripts (§18); the other 38 migrations.
+**Deployed 2026-11-09** (worker `a73207be-…`, Pages bundle `4b95a34a-…`; gate 16/16). Each of the 49 conversations is one
+bounded model call playing a server-side plan; the client sends progress only, derives
+the correction chip from `understood_de` and sanitises `hint_de`. A 429/timeout/5xx is retried silently (1.2 s, 3.2 s)
+and then restores the sentence with «أعد المحاولة» — no duplicate bubble, no counted turn, no error card;
+`RATE_LIMIT_EXCEEDED` has its own Arabic line. Free learners get 3 AI sessions per `session_id`. A cached pre-rewrite
+bundle still finishes its lesson: a `script_context` request gets its reply under the legacy `script_turn` key. Hints
+are repaired deterministically (spacing, capitals, umlauts), meta/placeholder/personal-data hints are dropped, and a
+hint is tap-to-insert only — never sent.
+**Proof:** eval 12 gate inputs → 10/10 judged pass (2 provider-skipped), p50 1121 ms / p95 4553 ms, ≈$0.0025 per 8-turn
+session at list price (`ROLEPLAY-EVAL.md`); gate **VERIFY OK 16/16** (773 s, `--ci --e2e`); production smoke 2 passed /
+2 skipped.
+**Owner-open:** model approval, a paid/second provider key, the privacy line, the 20 flagged persona lines (§19).
+UNPROVEN: full 60-input corpus (free-tier TPD) and real 3-learner load.
+
+## Previous snapshot — 2026-11-08 (scripted practice, since replaced by the roleplay turn)
+
+The 11 pilot scripts were rebuilt after replaying a real A1 session (fragments/casing, cross-slot guard, greetings arc,
+gendered glosses, name once, no address asks). That engine, `scriptAiTurn` and their tests were deleted on 2026-11-09
+with the roleplay turn; the German checks, hint dock and correction chip remain.
 
 ## Previous snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
 
