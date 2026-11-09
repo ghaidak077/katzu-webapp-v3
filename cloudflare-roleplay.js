@@ -287,7 +287,7 @@ export async function runRoleplayTurn({
         ...(preferModel ? { preferModel } : {}),
       });
     } catch (err) {
-      reason = `provider:${String(err?.message || err).slice(0, 80)}`;
+      reason = `provider:${String(err?.message || err).slice(0, 360)}`;
       continue;
     }
     const shaped = shapeRoleplayReply(parseRoleplayJson(raw), { plan, done, learnerText });

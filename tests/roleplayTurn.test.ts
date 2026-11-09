@@ -13,6 +13,7 @@ import {
   shapeRoleplayReply,
 } from '../cloudflare-roleplay.js';
 import { ROLEPLAY_PLANS, objectivesOf, planForScenario } from '../cloudflare-roleplay-plans.js';
+import { legacyScriptTurn } from '../cloudflare-ai-chat.js';
 import { UNITS } from '../src/lib/units/units';
 
 const plan = planForScenario('cafe_order');
@@ -246,5 +247,26 @@ describe('one roleplay turn with one retry', () => {
     });
     expect(outcome.ok).toBe(true);
     expect(outcome.turn.objectives_done).toEqual(['order_drink']);
+  });
+});
+
+describe('a cached pre-rewrite bundle keeps working', () => {
+  it('gets the reply and hint under the legacy script_turn key', () => {
+    const legacy = legacyScriptTurn(reply);
+    expect(legacy).toEqual({
+      reply_de: reply.reply_de,
+      reply_ar: reply.reply_ar,
+      hint_de: reply.hint_de,
+      hint_ar: reply.hint_ar,
+    });
+  });
+
+  it('omits an empty hint but never invents a reply', () => {
+    expect(legacyScriptTurn({ ...reply, hint_de: '' })).toEqual({
+      reply_de: reply.reply_de,
+      reply_ar: reply.reply_ar,
+    });
+    expect(legacyScriptTurn({ reply_de: '' })).toBeNull();
+    expect(legacyScriptTurn(null)).toBeNull();
   });
 });

@@ -202,6 +202,29 @@ How to use it:
 }
 
 /**
+ * Compatibility for a PWA bundle cached before the roleplay rewrite.
+ *
+ * The scripted build sends `script_context` and only renders a turn that carries
+ * `script_turn` or `evaluation`; anything else throws INVALID_AI_RESPONSE mid
+ * lesson. That bundle still owns its authored script and its local answer
+ * matcher, so returning the same reply and hint under the legacy key lets an
+ * out-of-date client finish the lesson while the service worker fetches the new
+ * bundle. A current client ignores these keys entirely.
+ */
+export function legacyScriptTurn(turn) {
+  if (!turn || typeof turn.reply_de !== "string" || !turn.reply_de) return null;
+  const scriptTurn = {
+    reply_de: turn.reply_de,
+    reply_ar: typeof turn.reply_ar === "string" ? turn.reply_ar : "",
+  };
+  if (typeof turn.hint_de === "string" && turn.hint_de.trim()) {
+    scriptTurn.hint_de = turn.hint_de;
+    scriptTurn.hint_ar = typeof turn.hint_ar === "string" ? turn.hint_ar : "";
+  }
+  return scriptTurn;
+}
+
+/**
  * @param {Request} request
  * @param {object} env
  * @param {object} cors
@@ -410,7 +433,18 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     } catch {
       /* a log line must never fail a learner's turn */
     }
-    return json({ ...turn, provider: getProvider() }, 200, cors);
+    const response = { ...turn, provider: getProvider() };
+    // A cached pre-rewrite bundle identifies itself with `script_context`.
+    if (body && body.script_context && typeof body.script_context === "object") {
+      const legacy = legacyScriptTurn(turn);
+      if (legacy) {
+        response.script_turn = legacy;
+        if (legacy.hint_de) {
+          response.hints = [{ german: legacy.hint_de, translation_ar: legacy.hint_ar }];
+        }
+      }
+    }
+    return json(response, 200, cors);
   }
   // Every prompt word lives in buildTurnSystemInstruction (top of this file), so
   // the exact token cost is measurable offline and the handler decides only WHICH

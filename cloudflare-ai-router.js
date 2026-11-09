@@ -655,7 +655,7 @@ export function classifyFailure(status, bodyText = "", entry = null) {
 
 export class ProviderCallError extends Error {
   constructor(entry, status, bodyText, kind) {
-    super(`${entry.provider}/${entry.model} HTTP ${status}: ${String(bodyText || "").slice(0, 140)}`);
+    super(`${entry.provider}/${entry.model} HTTP ${status}: ${String(bodyText || "").slice(0, 320)}`);
     this.name = "ProviderCallError";
     this.entry = entry;
     this.status = status;
