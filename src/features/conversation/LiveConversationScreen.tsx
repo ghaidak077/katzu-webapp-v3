@@ -150,6 +150,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     isRefreshingHints,
     hintQuotaSpent,
     turnError,
+    turnNotice,
     micError,
     isSessionCompleted,
     isGenerating,
@@ -569,6 +570,8 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         isRefreshingHints={isRefreshingHints}
         hintQuotaSpent={hintQuotaSpent}
         micError={micError}
+        turnNotice={turnNotice}
+        onRetryTurnNotice={retryFailedTurn}
         orbState={orbState}
         orbTone={orbTone}
         orbLabelAr={orbLabelAr}

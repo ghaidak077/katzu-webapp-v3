@@ -24,6 +24,8 @@ import { rankFor } from '@/lib/progress/ranks';
 import { enqueueDailyEvent, sessionEventId } from '@/lib/progress/dailyAuthority';
 import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
+import { isRetryableTransportFailure, retryDelayFor, RATE_LIMIT_MESSAGE_AR, shouldRestoreDraft, sleep } from '@/lib/conversation/turnRecovery';
+import { sanitizeHints } from '@/lib/conversation/hintSafety';
 import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
 import { checkGerman, correctionNoteAr } from '@/lib/conversation/germanChecker';
 import { chipCorrectionFor } from '@/lib/conversation/correctionChip';
@@ -158,13 +160,20 @@ export function useLiveConversation({
   const [starterHints, setStarterHints] = useState<ContextualHint[]>([]);
   // Derived, never stored: the machine already has exactly one error.
   const conversationError = conversation.error;
+  // A restored draft keeps the sentence in the composer instead of a red card:
+  // no bubble, no counted turn, and one inline retry in the dock.
   const turnError =
     conversation.pendingText &&
     conversationError &&
+    !conversationError.draftRestored &&
     (conversationError.kind === 'network' ||
       conversationError.kind === 'ai_service' ||
       conversationError.kind === 'invalid_session')
       ? { failedText: conversation.pendingText, message: conversationError.messageAr }
+      : null;
+  const turnNotice =
+    conversation.pendingText && conversationError?.draftRestored
+      ? { message: conversationError.messageAr }
       : null;
   const micError =
     conversationError &&
@@ -878,8 +887,14 @@ export function useLiveConversation({
     // ONE call per learner turn. The server owns the persona plan, the objective
     // flags and the closing rule; the client sends only its sentence, the
     // finished ids the header already shows, and the last turns.
-    try {
-      const res = await workerClient.sendTurn({
+    //
+    // A busy worker (429), a timeout or a 5xx is retried here, silently, with a
+    // short backoff: the learner sees the spinner a moment longer instead of an
+    // error for something that is not their fault. The bubble and the turn
+    // count do not change between attempts because the sentence is sent once
+    // logically.
+    const requestTurn = async () => {
+      const payload: Parameters<typeof workerClient.sendTurn>[0] = {
         scenarioId,
         scenarioTitle: scenario?.title_de || '',
         vocabularyContext,
@@ -900,7 +915,21 @@ export function useLiveConversation({
         ...(mockPart
           ? { mockGrant: mockPart.grant, mockPart: mockPart.partIndex, mockTopic: mockPart.topicId }
           : {}),
-      });
+      };
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          return await workerClient.sendTurn(payload);
+        } catch (error) {
+          const delay = retryDelayFor(attempt);
+          if (delay === null || !isRetryableTransportFailure(error)) throw error;
+          logEvent('ai/turn', `Transient failure ${(error as { code?: string })?.code || 'UNKNOWN'} — retrying in ${delay}ms`);
+          await sleep(delay);
+        }
+      }
+    };
+
+    try {
+      const res = await requestTurn();
 
       const roleplay = res.roleplay;
       if (!roleplay) {
@@ -982,8 +1011,10 @@ export function useLiveConversation({
         await enrolMistake({ ...mistake, id: mistakeId });
       }
 
-      // The dock shows the model's own next sentence (one answer, at this level).
-      setCurrentHints(roleplay.hint ? [roleplay.hint] : []);
+      // The dock shows the model's own next sentence (one answer, at this level),
+      // after the deterministic safety pass: one German line, no meta label, and
+      // personal facts reduced to blanks.
+      setCurrentHints(sanitizeHints(roleplay.hint ? [roleplay.hint] : [], effectiveLevel));
       setIsHintRevealed(false);
       setIsHintExpanded(false);
 
@@ -1025,23 +1056,32 @@ export function useLiveConversation({
         // server could not produce is not a turn: no duplicate bubble, no
         // counted round, and a one-tap «أعد المحاولة».
         const message =
-          err?.code === 'REQUEST_TIMEOUT'
-            ? 'انتهت مهلة الاتصال بالخادم. جملتك محفوظة — أعد الإرسال عندما يعود الاتصال.'
-            : err?.code === 'NETWORK_ERROR'
-              ? 'تعذر الوصول إلى الخادم. جملتك محفوظة هنا، أعد المحاولة.'
-              : err?.code === 'WORKER_URL_MISSING'
-                ? 'خدمة كَاتْزُو غير متاحة في هذه النسخة. تواصل معنا وسنعيد لك للعمل — جملتك محفوظة.'
-                : isEntitlementUnavailable(err?.code)
-                  ? 'تعذّر التحقق من رصيدك على الخادم الآن — لم تُستهلك جلسة. جملتك محفوظة، أعد المحاولة بعد قليل.'
-                  : classifyTurnError(e).messageAr;
-        const keepInComposer = err?.code === 'AI_EMPTY_REPLY' || err?.code === 'INVALID_AI_RESPONSE';
+          err?.code === 'RATE_LIMIT_EXCEEDED'
+            ? RATE_LIMIT_MESSAGE_AR
+            : err?.code === 'REQUEST_TIMEOUT'
+              ? 'انتهت مهلة الاتصال بالخادم. جملتك محفوظة — أعد الإرسال عندما يعود الاتصال.'
+              : err?.code === 'NETWORK_ERROR'
+                ? 'تعذر الوصول إلى الخادم. جملتك محفوظة هنا، أعد المحاولة.'
+                : err?.code === 'WORKER_URL_MISSING'
+                  ? 'خدمة كَاتْزُو غير متاحة في هذه النسخة. تواصل معنا وسنعيد لك للعمل — جملتك محفوظة.'
+                  : isEntitlementUnavailable(err?.code)
+                    ? 'تعذّر التحقق من رصيدك على الخادم الآن — لم تُستهلك جلسة. جملتك محفوظة، أعد المحاولة بعد قليل.'
+                    : classifyTurnError(e).messageAr;
+        // After the automatic backoff, a transport failure still must not cost
+        // the learner their words: the sentence goes back into the composer,
+        // the bubble disappears (so it is not a counted/duplicated turn), and
+        // the dock offers one inline retry. No red transcript card.
+        const keepInComposer = shouldRestoreDraft(err);
         if (keepInComposer) {
           setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
           setInputText(text);
         }
-        dispatch({ type: 'turn_failed', error: { ...classifyTurnError(e), messageAr: message } });
+        dispatch({
+          type: 'turn_failed',
+          error: { ...classifyTurnError(e), messageAr: message, draftRestored: keepInComposer },
+        });
         if (!keepInComposer) {
-          // A network or quota failure keeps its bubble marked, so the round
+          // Any remaining failure keeps its bubble marked, so the round
           // counter and the debrief count only accepted turns.
           setMessages((prev) => {
             const idx = prev.map((m) => m.id).lastIndexOf(userMsg.id);
@@ -1061,10 +1101,11 @@ export function useLiveConversation({
   const retryFailedTurn = () => {
     const failedText = conversation.pendingText;
     if (!failedText || inFlightRef.current) return;
-    // Remove the failed user message before re-sending so the transcript has
-    // exactly one copy of the sentence.
+    // Remove the failed copy of the sentence so the transcript has exactly one
+    // copy. A restored draft has no bubble at all, so match only a failed one —
+    // never an older, accepted sentence that happens to read the same.
     setMessages((prev) => {
-      const idx = prev.map((m) => m.germanText).lastIndexOf(failedText);
+      const idx = prev.findIndex((m) => m.sendFailed && m.germanText === failedText);
       if (idx === -1) return prev;
       return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
     });
@@ -1142,7 +1183,7 @@ export function useLiveConversation({
           void loadStarterHints();
           logEvent('hints', 'daily hint budget spent — showing the starter floor');
         } else if (fresh.length > 0) {
-          const cleaned = fresh.filter((hint) => String(hint?.german || '').trim());
+          const cleaned = sanitizeHints(fresh, effectiveLevel);
           if (cleaned.length > 0) {
             setCurrentHints(cleaned);
             logEvent('hints', `Hints refreshed manually (${cleaned.length})`);
@@ -1407,6 +1448,7 @@ export function useLiveConversation({
     isRefreshingHints,
     hintQuotaSpent,
     turnError,
+    turnNotice,
     micError,
     isSessionCompleted,
     isGenerating,
