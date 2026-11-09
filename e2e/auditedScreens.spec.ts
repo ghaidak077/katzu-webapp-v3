@@ -4,8 +4,9 @@
  *
  * `bootSignedIn` seeds the signed-in learner the rest of the suite uses. The
  * harness's mocked backend is left ON for the practice and mock specs, and OFF
- * for the live-failure spec: a live turn against an unreachable worker must
- * fail with an honest retry card that does NOT advance the round counter.
+ * for the live-failure spec: a live turn against an unreachable worker is retried
+ * quietly, then the sentence returns to the composer with one inline retry — no
+ * error card in the transcript and no advanced round counter.
  */
 import { test, expect } from '@playwright/test';
 import { bootSignedIn, seedSignedInUser } from './harness';
@@ -37,9 +38,16 @@ test.describe('audited screens: practice, live failure, mock gate', () => {
     await page.getByRole('textbox', { name: 'اكتب جملتك بالألمانية' }).fill('Ja, mein Koffer ist nicht angekommen.');
     await page.keyboard.press('Enter');
 
-    // The honest failure: a retry card, and the failed turn added nothing.
-    await expect(page.getByText('أعد المحاولة').first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByRole('button', { name: 'إعادة المحاولة' })).toBeVisible();
+    // The quiet failure: after the automatic retries the sentence is back in the
+    // composer, the transcript has no error card, and the dock offers one inline
+    // retry. The failed turn added nothing.
+    await expect(page.getByRole('textbox', { name: 'اكتب جملتك بالألمانية' })).toHaveValue(
+      'Ja, mein Koffer ist nicht angekommen.',
+      { timeout: 25_000 },
+    );
+    await expect(page.getByRole('status')).toContainText('جملتك محفوظة');
+    await expect(page.getByRole('button', { name: 'أعد المحاولة' })).toBeVisible();
+    await expect(page.getByText('إعادة المحاولة')).toHaveCount(0);
     await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]')).toHaveCount(1);
     await expect(page.locator('[data-testid="objective-progress"]')).toHaveCount(0);
   });
