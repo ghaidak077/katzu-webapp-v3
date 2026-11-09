@@ -222,7 +222,15 @@ function stripe(text, width = 46) {
 
 async function main() {
   const reportPath = value('from-report');
-  const cases = [...CASES];
+  // `--only a,b` runs a named subset. The full table needs ~60 provider calls,
+  // so a metered day uses this to check the gated categories first; the report
+  // then states how many cases were actually judged.
+  const only = value('only', '').split(',').map((id) => id.trim()).filter(Boolean);
+  const cases = only.length ? CASES.filter((c) => only.includes(c.id)) : [...CASES];
+  if (only.length) {
+    const missing = only.filter((id) => !CASES.some((c) => c.id === id));
+    if (missing.length) throw new Error(`unknown eval id(s): ${missing.join(', ')}`);
+  }
   if (reportPath) {
     if (!existsSync(reportPath)) throw new Error(`no such report: ${reportPath}`);
     const report = JSON.parse(readFileSync(reportPath, 'utf8'));
@@ -242,7 +250,7 @@ async function main() {
     ids.add(c.id);
     if (!planForScenario(c.scenario)) throw new Error(`eval case ${c.id} uses an unknown scenario ${c.scenario}`);
   }
-  if (!reportPath && cases.length !== 60) throw new Error(`expected 60 eval inputs, found ${cases.length}`);
+  if (!reportPath && !only.length && cases.length !== 60) throw new Error(`expected 60 eval inputs, found ${cases.length}`);
   console.log(`inputs: ${cases.length} | prompt v${ROLEPLAY_PROMPT_VERSION} | model ${GROQ_ENTRY.model}`);
 
   if (flag('dry')) {
@@ -261,7 +269,65 @@ async function main() {
   let inputTokens = 0;
   let outputTokens = 0;
 
+  // A metered run can take most of an hour, so a checkpoint after every case
+  // means a network stall costs one case, not the whole table. `--resume <file>`
+  // continues where the previous run stopped; the file itself lives in TEMP.
+  const partialPath = value('partial', join(process.env.TEMP || ROOT, 'eval-chat.partial.json'));
+  const resumePath = value('resume', '');
+  const known = new Map();
+  if (resumePath && existsSync(resumePath)) {
+    const prev = JSON.parse(readFileSync(resumePath, 'utf8'));
+    for (const row of prev.rows || []) known.set(row.id, row);
+    latencies.push(...(prev.latencies || []));
+    retries += Number(prev.retries) || 0;
+    inputTokens += Number(prev.inputTokens) || 0;
+    outputTokens += Number(prev.outputTokens) || 0;
+    console.log(`resume: ${known.size} case(s) already judged from ${resumePath}`);
+  }
+  const savePartial = () => {
+    try {
+      writeFileSync(partialPath, JSON.stringify({ rows, latencies, retries, inputTokens, outputTokens }));
+    } catch {
+      /* a checkpoint must never fail the run */
+    }
+  };
+  // The report is written after EVERY case, not only at the end: a metered run
+  // that is stopped (or rate-limited out) still leaves the results it actually
+  // judged on disk, and the header says how many that was.
+  const writeDoc = () => {
+    const sorted = [...latencies].sort((a, b) => a - b);
+    const p50 = pct(sorted, 50);
+    const p95 = pct(sorted, 95);
+    const judged = rows.length - rows.filter((r) => r.infra).length;
+    const scores = rows.filter((r) => r.ok).length;
+    const perTurnCost = estimateTurnCostUsd({
+      tier: TIER,
+      inputTokens: inputTokens / Math.max(1, rows.length),
+      outputTokens: outputTokens / Math.max(1, rows.length),
+    });
+    const doc = renderDoc({
+      rows,
+      scores,
+      judged,
+      rate: judged ? ((scores / judged) * 100).toFixed(1) : '0.0',
+      p50,
+      p95,
+      retries,
+      infraCount: rows.length - judged,
+      inputTokens,
+      outputTokens,
+      perTurnCost,
+      total: cases.length,
+    });
+    mkdirSync(join(ROOT, 'docs', 'agent'), { recursive: true });
+    writeFileSync(join(ROOT, 'docs', 'agent', 'ROLEPLAY-EVAL.md'), doc);
+  };
+
   for (const testCase of cases) {
+    if (known.has(testCase.id)) {
+      rows.push(known.get(testCase.id));
+      continue;
+    }
     const plan = planForScenario(testCase.scenario);
     const history = testCase.lastPersonaLine ? [{ role: 'model', text: testCase.lastPersonaLine }] : [];
     const done = testCase.done === 'all' ? plan.objectives.map((o) => o.id) : testCase.done || [];
@@ -295,14 +361,16 @@ async function main() {
               const rateLimited = /HTTP 429|rate limit/i.test(String(err?.message || err));
               // The free tier's window is per minute; waiting one window is what
               // turns a 429 into a measurement instead of a skipped input.
-              if (!rateLimited || attempt >= 6) throw err;
-              await new Promise((resolve) => setTimeout(resolve, 20000));
+              // The free tier's window is per minute, so retrying inside that
+              // same minute is what turns one 429 into ten minutes of stalling.
+              if (!rateLimited || attempt >= 4) throw err;
+              await new Promise((resolve) => setTimeout(resolve, 65000));
             }
           }
         },
       });
     } catch (err) {
-      outcome = { ok: false, reason: `threw: ${String(err?.message || err).slice(0, 90)}` };
+      outcome = { ok: false, reason: `threw: ${String(err?.message || err).slice(0, 240)}` };
     }
     if (!outcome.ok && flag('verbose')) console.log(`      reason: ${outcome.reason}`);
     if ((outcome.attempts || 1) > 1) retries += 1;
@@ -331,6 +399,8 @@ async function main() {
     });
     const verdict = infra ? 'SKIP' : problems.length ? 'FAIL' : 'ok  ';
     console.log(`${verdict} ${testCase.id.padEnd(22)} ${stripe(outcome.ok ? outcome.turn.reply_de : problems.join('; '), 50)}`);
+    savePartial();
+    writeDoc();
     // The free tier meters tokens per minute and the roleplay prompt is a few
     // thousand tokens, so the safe spacing is far wider than a second. `--pacing`
     // lets a metered run trade wall-clock for a full, judged table.
@@ -342,26 +412,24 @@ async function main() {
   const p95 = pct(sorted, 95);
   const perTurnCost = estimateTurnCostUsd({
     tier: TIER,
-    inputTokens: inputTokens / cases.length,
-    outputTokens: outputTokens / cases.length,
+    inputTokens: inputTokens / Math.max(1, rows.length),
+    outputTokens: outputTokens / Math.max(1, rows.length),
   });
+  infraCount = rows.filter((r) => r.infra).length;
   const judged = rows.length - infraCount;
   const scores = rows.filter((r) => r.ok).length;
-  const rate = ((scores / judged) * 100).toFixed(1);
+  const rate = judged ? ((scores / judged) * 100).toFixed(1) : '0.0';
 
   console.log(`\npass ${scores}/${judged} (${rate}%)${infraCount ? ` | provider-unavailable ${infraCount}` : ''} | retried ${retries} | p50 ${p50} ms | p95 ${p95} ms`);
-  console.log(`tokens/turn in ${Math.round(inputTokens / cases.length)} out ${Math.round(outputTokens / cases.length)} | cost/turn $${perTurnCost.toFixed(5)} @ ${TIER} list price`);
+  console.log(`tokens/turn in ${Math.round(inputTokens / Math.max(1, rows.length))} out ${Math.round(outputTokens / Math.max(1, rows.length))} | cost/turn $${perTurnCost.toFixed(5)} @ ${TIER} list price`);
   console.log(`cost per 8-turn session ≈ $${(perTurnCost * 8).toFixed(4)} (list price, not an invoice)`);
 
-  const doc = renderDoc({ rows, scores, judged, rate, p50, p95, retries, infraCount, inputTokens, outputTokens, perTurnCost });
-  mkdirSync(join(ROOT, 'docs', 'agent'), { recursive: true });
-  const out = join(ROOT, 'docs', 'agent', 'ROLEPLAY-EVAL.md');
-  writeFileSync(out, doc);
-  console.log(`results written to docs/agent/ROLEPLAY-EVAL.md`);
+  writeDoc();
+  console.log(`results written to docs/agent/ROLEPLAY-EVAL.md (${rows.length}/${cases.length} cases run)`);
   if (scores < judged) process.exitCode = 1;
 }
 
-function renderDoc({ rows, scores, judged, rate, p50, p95, retries, infraCount, inputTokens, outputTokens, perTurnCost }) {
+function renderDoc({ rows, scores, judged, rate, p50, p95, retries, infraCount, inputTokens, outputTokens, perTurnCost, total = 0 }) {
   const now = new Date().toISOString().slice(0, 10);
   const lines = [
     '# Roleplay turn — eval results',
@@ -369,10 +437,11 @@ function renderDoc({ rows, scores, judged, rate, p50, p95, retries, infraCount, 
     `Generated by \`npm run eval:chat\` on ${now}, prompt v${ROLEPLAY_PROMPT_VERSION}.`,
     'Do not edit by hand: the next run replaces this file.',
     '',
+    `- Cases run: **${rows.length}${total && total !== rows.length ? ` of ${total} selected` : ''}**${total && total !== rows.length ? ' — a partial/`--only` run; it does not cover the full 60-input corpus' : ''}`,
     `- Pass: **${scores}/${judged} (${rate}%)**${infraCount ? ` — ${infraCount} input(s) skipped because the provider was unavailable (429/timeout), not judged` : ''}`,
     `- Retried once: ${retries}`,
     `- Latency: p50 **${p50} ms**, p95 **${p95} ms** (one provider call, 15 s ceiling)`,
-    `- Tokens per turn: ${Math.round(inputTokens / rows.length)} in / ${Math.round(outputTokens / rows.length)} out (chars/4 estimate)`,
+    `- Tokens per turn: ${Math.round(inputTokens / Math.max(1, rows.length))} in / ${Math.round(outputTokens / Math.max(1, rows.length))} out (chars/4 estimate)`,
     `- Cost: **$${perTurnCost.toFixed(5)} per turn**, ≈$${(perTurnCost * 8).toFixed(4)} per 8-turn session, at list price — an estimate, never an invoice`,
     '',
     '| input | scenario | level | ms | pass | reply |',
