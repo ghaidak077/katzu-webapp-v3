@@ -45,9 +45,14 @@ test.describe('audited screens: practice, live failure, mock gate', () => {
       'Ja, mein Koffer ist nicht angekommen.',
       { timeout: 25_000 },
     );
-    await expect(page.getByRole('status')).toContainText('جملتك محفوظة');
+    // There is no authored persona fallback any more: with no worker the turn
+    // fails and the learner reads the offline sentence, with their sentence kept
+    // and one retry. The persona bubble count stays at the shipped opener.
+    await expect(page.getByRole('status')).toContainText('لا يوجد اتصال بالإنترنت');
     await expect(page.getByRole('button', { name: 'أعد المحاولة' })).toBeVisible();
-    await expect(page.getByText('إعادة المحاولة')).toHaveCount(0);
+    // No old-style error card: the sentence itself stays in the composer, so the
+    // offline notice's own wording is the only «…إعادة المحاولة» on screen.
+    await expect(page.getByRole('button', { name: 'إعادة المحاولة' })).toHaveCount(0);
     await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]')).toHaveCount(1);
     await expect(page.locator('[data-testid="objective-progress"]')).toHaveCount(0);
   });

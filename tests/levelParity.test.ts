@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { LEVEL_LADDER, LEVEL_SPECS, levelConstraintLine } from '../src/lib/levels/levelSpec';
-import {
-  LEVEL_SPECS as WORKER_LEVEL_SPECS,
-  FALLBACK_LINES,
+import * as workerLevelSpec from '../cloudflare-level-spec';
+
+const {
+  LEVEL_SPECS: WORKER_LEVEL_SPECS,
   correctionBudgetFor,
-  levelConstraintLine as workerLevelConstraintLine,
-  levelFallbackLine,
-} from '../cloudflare-level-spec';
+  levelConstraintLine: workerLevelConstraintLine,
+} = workerLevelSpec;
 import type { CEFRLevel } from '../src/types/models';
 
 /**
@@ -56,13 +56,13 @@ describe('level spec parity (client TS <-> worker JS)', () => {
     }
   });
 
-  it('has a deterministic fallback for every level on both sides', () => {
-    for (const level of LADDER) {
-      const line = levelFallbackLine(level);
-      expect(FALLBACK_LINES[level]).toEqual(line);
-      expect(line.de.trim().length).toBeGreaterThan(0);
-      expect(line.ar.trim().length).toBeGreaterThan(0);
-    }
-    expect(levelFallbackLine('C1' as CEFRLevel)).toEqual(FALLBACK_LINES.A1);
+  it('ships NO authored persona fallback line at any level', () => {
+    // Removed 2026-11-10: a deterministic per-level line stood in for the
+    // model's reply. A persona bubble is the shipped opener or a real model
+    // answer, nothing else.
+    // @ts-expect-error — the export must not exist any more (the gate).
+    expect(workerLevelSpec.levelFallbackLine).toBeUndefined();
+    // @ts-expect-error — nor the table behind it.
+    expect(workerLevelSpec.FALLBACK_LINES).toBeUndefined();
   });
 });

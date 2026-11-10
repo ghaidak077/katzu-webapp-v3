@@ -17,8 +17,19 @@
 export const RATE_LIMIT_MESSAGE_AR =
   'الخدمة مزدحمة الآن قليلاً — جملتك محفوظة في صندوق الكتابة. أعد المحاولة بعد لحظات.';
 
-/** Delays before each automatic retry (three attempts total). */
-export const TURN_RETRY_DELAYS_MS = [1200, 3200] as const;
+/**
+ * ONE silent automatic retry (2026-11-10), with a short backoff, while the
+ * typing indicator is on. The learner should not read an error for a hiccup
+ * that clears in a second.
+ */
+export const TURN_RETRY_DELAYS_MS = [900] as const;
+
+/**
+ * A busy service gets TWO more attempts, and those are VISIBLE: a countdown in
+ * the composer area, so the wait is something the learner can see instead of an
+ * unexplained pause. After the second one the button is theirs again.
+ */
+export const BUSY_RETRY_DELAYS_SECONDS = [3, 5] as const;
 
 const TRANSIENT_CODES = new Set([
   'RATE_LIMIT_EXCEEDED',

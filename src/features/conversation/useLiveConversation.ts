@@ -24,9 +24,13 @@ import { rankFor } from '@/lib/progress/ranks';
 import { enqueueDailyEvent, sessionEventId } from '@/lib/progress/dailyAuthority';
 import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
-import { isRetryableTransportFailure, retryDelayFor, RATE_LIMIT_MESSAGE_AR, shouldRestoreDraft, sleep } from '@/lib/conversation/turnRecovery';
+import { BUSY_RETRY_DELAYS_SECONDS, isRetryableTransportFailure, retryDelayFor, sleep } from '@/lib/conversation/turnRecovery';
 import { sanitizeHints } from '@/lib/conversation/hintSafety';
-import { openerForLevel, rankHintFloor, storedOpenerArabic } from '@/lib/conversation/opener';
+import { openerForLevel, storedOpenerArabic } from '@/lib/conversation/opener';
+import { failureCauseOf, messageForCause, type TurnFailureCause } from '@/lib/conversation/failureCopy';
+import { failedTurn, newDiagnosticId } from '@/lib/conversation/failedTurn';
+import { aiDebugLabel, errorDebugLabel, isDebugLabelEnabled } from '@/lib/conversation/debugLabel';
+import { reportDiagnosticId } from '@/lib/utils/diagnostics';
 import { checkGerman, correctionNoteAr } from '@/lib/conversation/germanChecker';
 import { chipCorrectionFor } from '@/lib/conversation/correctionChip';
 import { sentenceMatchesHint } from '@/lib/conversation/hintMatch';
@@ -135,6 +139,8 @@ export function useLiveConversation({
   // never run beside an error card and two sends can never overlap.
   const [conversation, dispatch] = useReducer(conversationReducer, undefined, initialConversationState);
   const isGenerating = isTurnInFlight(conversation);
+  /** Entering a chat with no connection: the composer is disabled, nothing queues. */
+  const isOffline = conversation.status === 'offline';
   // The opener effect below starts a conversation, so it must re-run when the
   // PART changes and never merely because the parent re-rendered. Callers pass
   // `mockPart` as an inline literal (the mock re-creates it every render, and
@@ -155,26 +161,33 @@ export function useLiveConversation({
   // The dock shows one suggestion by default; the other conversational moves
   // are one tap away rather than competing with the chat.
   const [isHintExpanded, setIsHintExpanded] = useState(false);
-  // Cached starter phrases are the always-available hint floor — shown when AI
-  // hints fail/paywall and refreshed from the Worker when the cache is empty.
-  const [starterHints, setStarterHints] = useState<ContextualHint[]>([]);
+  // HINTS ARE AI ONLY (2026-11-10): the authored starter-phrase floor is gone.
+  // A hint is the model's own sentence for this turn, or nothing plus a
+  // «اطلب تلميحاً» button that makes one small AI call. No cached line is ever
+  // offered as if the persona had suggested it.
   // Derived, never stored: the machine already has exactly one error.
   const conversationError = conversation.error;
-  // A restored draft keeps the sentence in the composer instead of a red card:
-  // no bubble, no counted turn, and one inline retry in the dock.
-  const turnError =
-    conversation.pendingText &&
-    conversationError &&
-    !conversationError.draftRestored &&
-    (conversationError.kind === 'network' ||
-      conversationError.kind === 'ai_service' ||
-      conversationError.kind === 'invalid_session')
-      ? { failedText: conversation.pendingText, message: conversationError.messageAr }
-      : null;
-  const turnNotice =
-    conversation.pendingText && conversationError?.draftRestored
-      ? { message: conversationError.messageAr }
-      : null;
+  /**
+   * The failed turn's one inline notice — never a persona bubble.
+   *
+   * `cause` chooses the sentence (failureCopy.ts), `secondsLeft` is the visible
+   * countdown of the two automatic busy retries, and `diagnosticId` is the only
+   * thing «أبلغ عن المشكلة» sends.
+   */
+  const [turnFailure, setTurnFailure] = useState<{
+    cause: TurnFailureCause;
+    message: string;
+    diagnosticId?: string;
+    /** «ERROR · reason» — rendered only when the hidden debug toggle is on. */
+    debugLabel: string;
+  } | null>(null);
+  const [busySecondsLeft, setBusySecondsLeft] = useState<number | null>(null);
+  /** How many of the two visible busy retries have already run. */
+  const busyRetriesRef = useRef(0);
+  /** Why the last AI hint request produced nothing (AI only, no starter floor). */
+  const [hintFailure, setHintFailure] = useState<string | null>(null);
+  /** Hidden Settings toggle, read once on mount; off by default. */
+  const [showAiDebug] = useState(isDebugLabelEnabled);
   const micError =
     conversationError &&
     (conversationError.kind === 'mic_permission' || conversationError.kind === 'speech_recognition')
@@ -424,10 +437,24 @@ export function useLiveConversation({
     const onOnline = () => dispatch({ type: 'back_online' });
     window.addEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
+    // ENTERING OFFLINE: the events only fire on a CHANGE, so a conversation
+    // opened with no connection used to look online until the first send failed.
+    // The shipped opener and its shipped translation still show (they are data);
+    // the composer is disabled and offers a re-check.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      dispatch({ type: 'going_offline' });
+    }
     return () => {
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
     };
+  }, []);
+
+  /** The offline notice's button: re-ask the browser, then say the truth. */
+  const recheckConnection = useCallback(() => {
+    const online = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
+    dispatch({ type: online ? 'back_online' : 'going_offline' });
+    if (online) inputRef.current?.focus();
   }, []);
 
   // Backgrounding the tab mid-turn must not lose the turn: a browser that kills
@@ -508,66 +535,6 @@ export function useLiveConversation({
     // that only watched a stable callback would never attach the observer at all.
   }, [scrollTranscriptToBottom, sessionMode]);
 
-  // Initial message and starter hints (Rule 5: No call needed for turn 0)
-  // Cached D1 starter phrases are the always-available hint floor: if the AI
-  // hints call fails or is paywalled, the user still gets real suggestions.
-  //
-  // Level floor (V21): phrases are filtered to the learner's effective level
-  // first, falling back outward (level → neighbours → all) so a learner never
-  // sees hints pitched at the wrong level when rows for theirs exist — the
-  // B2 learner must not train on A1 scaffolding while real B2 lines sit unused.
-  const loadStarterHints = useCallback(async () => {
-    const levelOrder = (level: string): number => {
-      const rungs = ['A1', 'A2', 'B1', 'B2'];
-      const index = rungs.indexOf(level.toUpperCase());
-      return index === -1 ? 1 : index;
-    };
-    type PhraseRow = { level?: string | null; german: string; translation_ar?: string | null };
-    const phrasesByLevel = (rows: PhraseRow[]): Array<PhraseRow[]> => {
-      const target = levelOrder(effectiveLevel);
-      const sorted = [...rows].sort(
-        (a, b) => Math.abs(levelOrder(String(a.level)) - target) - Math.abs(levelOrder(String(b.level)) - target),
-      );
-      const buckets = new Map<string, PhraseRow[]>();
-      for (const row of sorted) {
-        const key = String(row.level || '').toUpperCase();
-        const bucket = buckets.get(key) || [];
-        bucket.push(row);
-        buckets.set(key, bucket);
-      }
-      return [...buckets.values()].sort(
-        (a, b) => Math.abs(levelOrder(String(a[0].level)) - target) - Math.abs(levelOrder(String(b[0].level)) - target),
-      );
-    };
-    try {
-      let phrases = await db.starter_phrases
-        .where('scenario_id')
-        .equals(scenarioId)
-        .toArray();
-      // Empty cache (first launch / fresh device): fetch this scenario's real
-      // starter phrases from the Worker, then show them.
-      if (phrases.length === 0) {
-        const detail = await workerClient.fetchScenarioDetail(scenarioId);
-        if (detail.starterPhrases.length > 0) {
-          logEvent('hints', `Starter phrases fetched from worker (${detail.starterPhrases.length})`);
-          phrases = detail.starterPhrases;
-        }
-      }
-      if (phrases.length > 0) {
-        // Nearest-level bucket first; a bucket with too few phrases is topped
-        // up from the next-nearest so the floor never thins out below three.
-        const [best, ...rest] = phrasesByLevel(phrases);
-        let picked = [...best];
-        for (const bucket of rest) {
-          if (picked.length >= 3) break;
-          picked = picked.concat(bucket);
-        }
-        setStarterHints(picked.map((p) => ({ german: p.german, arabic: p.translation_ar || '' })));
-      }
-    } catch {
-      /* offline with empty cache — hints bar simply stays hidden */
-    }
-  }, [scenarioId, effectiveLevel]);
 
   /**
    * The opener is the one Katzu message no AI call produces, so its Arabic is
@@ -638,6 +605,11 @@ export function useLiveConversation({
 
     setMessages([welcomeMsg]);
     dispatch({ type: 'reset' });
+    // The reset must not pretend we are online: the opener and its shipped
+    // Arabic still show, but the composer stays disabled until a connection.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      dispatch({ type: 'going_offline' });
+    }
     setObjectiveState({ done: [], total: 0 });
     setIsClosed(false);
     setCurrentHints([]);
@@ -645,11 +617,6 @@ export function useLiveConversation({
     firstTurnTrackedRef.current = false;
     resetAiCallMeter();
     track('conversation_started', { scenarioId, kind: sessionMode });
-
-    // Load cached starter phrases as the contextual floor in every mode. The
-    // floor is no longer suppressed in a real conversation: suppressing it made
-    // the hint sheet EMPTY after a normal A1 question (measured baseline).
-    void loadStarterHints();
 
     return () => {
       if (autoRetryTimer) clearTimeout(autoRetryTimer);
@@ -663,7 +630,6 @@ export function useLiveConversation({
     mockPartIndex,
     mockOpenerDe,
     mockTopicId,
-    loadStarterHints,
     requestOpenerTranslation,
   ]);
 
@@ -831,6 +797,9 @@ export function useLiveConversation({
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
     if (!text || inFlightRef.current) return;
+    // OFFLINE: there is no queue and no cached answer. The composer keeps the
+    // sentence; the dock says why nothing can be sent and offers a re-check.
+    if (isOffline) return;
     inFlightRef.current = true;
     dispatch({ type: 'submit', text, turnId: Date.now() });
     await sendTurn(text);
@@ -965,12 +934,18 @@ export function useLiveConversation({
               localRule: localErrors[0]?.label || 'قواعد نحوية',
             }
           : {}),
+        // Hidden Settings toggle, off by default.
+        ...(aiDebugLabel(res.aiMeta) ? { aiDebug: aiDebugLabel(res.aiMeta) } : {}),
         timestamp: Date.now(),
       };
 
       const updatedHistory = [...newMessages, katzuReply];
       setMessages(updatedHistory);
       dispatch({ type: 'turn_ok' });
+      // A successful turn is the only thing that clears a failure notice.
+      setTurnFailure(null);
+      setBusySecondsLeft(null);
+      busyRetriesRef.current = 0;
 
       setObjectiveState({ done: roleplay.objectivesDone, total: roleplay.objectivesTotal });
 
@@ -1052,50 +1027,63 @@ export function useLiveConversation({
           track('free_session_exhausted', { kind: 'trial', state: 'wall' });
         }
       } else {
-        // The learner's sentence stays where they can act on it. A reply the
-        // server could not produce is not a turn: no duplicate bubble, no
-        // counted round, and a one-tap «أعد المحاولة».
-        const message =
-          err?.code === 'RATE_LIMIT_EXCEEDED'
-            ? RATE_LIMIT_MESSAGE_AR
-            : err?.code === 'REQUEST_TIMEOUT'
-              ? 'انتهت مهلة الاتصال بالخادم. جملتك محفوظة — أعد الإرسال عندما يعود الاتصال.'
-              : err?.code === 'NETWORK_ERROR'
-                ? 'تعذر الوصول إلى الخادم. جملتك محفوظة هنا، أعد المحاولة.'
-                : err?.code === 'WORKER_URL_MISSING'
-                  ? 'خدمة كَاتْزُو غير متاحة في هذه النسخة. تواصل معنا وسنعيد لك للعمل — جملتك محفوظة.'
-                  : isEntitlementUnavailable(err?.code)
-                    ? 'تعذّر التحقق من رصيدك على الخادم الآن — لم تُستهلك جلسة. جملتك محفوظة، أعد المحاولة بعد قليل.'
-                    : classifyTurnError(e).messageAr;
-        // After the automatic backoff, a transport failure still must not cost
-        // the learner their words: the sentence goes back into the composer,
-        // the bubble disappears (so it is not a counted/duplicated turn), and
-        // the dock offers one inline retry. No red transcript card.
-        const keepInComposer = shouldRestoreDraft(err);
-        if (keepInComposer) {
-          setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
-          setInputText(text);
-        }
+        // A reply the server could not produce is NOT a turn. The sentence goes
+        // back into the composer untouched, the optimistic bubble disappears
+        // (one copy of the text, never a duplicate), the round is not counted,
+        // and the notice says why — in the only three sentences that exist.
+        const cause = failureCauseOf(err);
+        const restored = failedTurn({ messages, userMessageId: userMsg.id, text });
+        setMessages(restored.messages);
+        setInputText(restored.inputText);
+        setIsHintUsedForCurrentTurn(false);
         dispatch({
           type: 'turn_failed',
-          error: { ...classifyTurnError(e), messageAr: message, draftRestored: keepInComposer },
+          error: {
+            ...classifyTurnError(e),
+            messageAr: messageForCause(cause),
+            draftRestored: true,
+          },
         });
-        if (!keepInComposer) {
-          // Any remaining failure keeps its bubble marked, so the round
-          // counter and the debrief count only accepted turns.
-          setMessages((prev) => {
-            const idx = prev.map((m) => m.id).lastIndexOf(userMsg.id);
-            if (idx === -1) return prev;
-            const copy = [...prev];
-            copy[idx] = { ...copy[idx], sendFailed: true };
-            return copy;
-          });
+        logError('ai/turn', `Turn failed (${err?.code || 'UNKNOWN'}): ${cause}`);
+        const debugLabel = errorDebugLabel(err?.code || cause);
+        // A busy service gets two more tries, visibly counted down; after that
+        // the retry button is the learner's. Every other cause shows the line
+        // and the button straight away.
+        const delaySeconds = cause === 'busy' ? BUSY_RETRY_DELAYS_SECONDS[busyRetriesRef.current] : undefined;
+        if (delaySeconds !== undefined) {
+          busyRetriesRef.current += 1;
+          setTurnFailure({ cause, message: messageForCause(cause), debugLabel });
+          await autoRetryBusy(text, delaySeconds);
+          return;
         }
-        logError('ai/turn', `Turn failed (${err?.code || 'UNKNOWN'}): ${message}`);
+        setTurnFailure({
+          cause,
+          message: messageForCause(cause),
+          debugLabel,
+          ...(cause === 'other' ? { diagnosticId: newDiagnosticId() } : {}),
+        });
       }
     } finally {
       inFlightRef.current = false;
     }
+  };
+
+  /** The visible countdown before an automatic busy retry, then the retry itself. */
+  const autoRetryBusy = async (text: string, seconds: number) => {
+    for (let left = seconds; left > 0; left -= 1) {
+      setBusySecondsLeft(left);
+      await sleep(1000);
+    }
+    setBusySecondsLeft(null);
+    dispatch({ type: 'retry' });
+    await sendTurn(text);
+  };
+
+  /** «أبلغ عن المشكلة»: sends the diagnostic id and nothing else — no text. */
+  const reportProblem = () => {
+    if (!turnFailure?.diagnosticId) return;
+    reportDiagnosticId(turnFailure.diagnosticId);
+    logEvent('ai/turn', 'failure reported (diagnostic id only)');
   };
 
   const retryFailedTurn = () => {
@@ -1110,6 +1098,9 @@ export function useLiveConversation({
       return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
     });
     inFlightRef.current = true;
+    setTurnFailure(null);
+    setBusySecondsLeft(null);
+    busyRetriesRef.current = 0;
     dispatch({ type: 'retry' });
     void sendTurn(failedText);
   };
@@ -1123,10 +1114,11 @@ export function useLiveConversation({
   };
 
   // The suggestion the learner sees is the ONE the model wrote for the question
-  // it just asked (at this level, with ___ for personal facts). Before the first
-  // reply there is nothing to answer, so the scene's own starter phrases are the
-  // floor. No answer bank, no question classifier, no ranking: the sentence that
-  // belongs to THIS turn is the one the turn produced.
+  // it just asked (at this level, with ___ for personal facts). There is no
+  // authored floor and no answer bank: before the first reply there is nothing
+  // to answer, and after it the sentence that belongs to THIS turn is the one
+  // the turn produced. When the turn carries no valid hint, the dock offers
+  // «اطلب تلميحاً» — one small AI call — instead of a stored line.
   const lastAssistantGerman = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       const message = messages[index];
@@ -1144,60 +1136,58 @@ export function useLiveConversation({
   const visibleHints = useMemo(() => {
     const seen = new Set<string>();
     const merged: ContextualHint[] = [];
-    for (const hint of [...currentHints, ...starterHints]) {
+    for (const hint of currentHints) {
       const german = String(hint?.german || '').trim();
       if (!german) continue;
       const key = german.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
       merged.push({ german, arabic: hint.arabic || '' });
-      if (merged.length >= 6) break;
+      if (merged.length >= 4) break;
     }
     return merged;
-  }, [currentHints, starterHints]);
+  }, [currentHints]);
 
   const [isRefreshingHints, setIsRefreshingHints] = useState(false);
-  /**
-   * V31: today's AI hint budget is spent. The starter-phrase floor keeps the
-   * panel useful, but the learner is told once and the refresh stops pretending
-   * to do something it can no longer do.
-   */
+  /** Today's AI hint budget is spent: the button stops pretending to work. */
   const [hintQuotaSpent, setHintQuotaSpent] = useState(false);
+  /**
+   * ONE small AI call for a hint. AI only: on failure the learner gets the same
+   * clear error a failed turn gets, never a stored phrase dressed as a reply.
+   */
   const refreshHints = async () => {
     if (isRefreshingHints || hintQuotaSpent) return;
     setIsRefreshingHints(true);
+    setHintFailure(null);
     try {
       const lastKatzu = [...messages].reverse().find((m) => m.sender === 'KATZU');
-      if (lastKatzu) {
-        const { hints: fresh, quotaExceeded } = await workerClient.fetchHintsWithStatus({
-          scenarioTitle: scenario?.title_de || '',
-          cefrLevel: effectiveLevel,
-          lastAiReply: lastKatzu.germanText,
-          history: messages.map((m) => ({
-            sender: m.sender === 'USER' ? 'user' : 'model',
-            text: m.germanText,
-          })),
-        });
-        if (quotaExceeded) {
-          setHintQuotaSpent(true);
-          void loadStarterHints();
-          logEvent('hints', 'daily hint budget spent — showing the starter floor');
-        } else if (fresh.length > 0) {
-          const cleaned = sanitizeHints(fresh, effectiveLevel);
-          if (cleaned.length > 0) {
-            setCurrentHints(cleaned);
-            logEvent('hints', `Hints refreshed manually (${cleaned.length})`);
-          } else {
-            void loadStarterHints();
-          }
-        } else {
-          void loadStarterHints();
-        }
-      } else {
-        void loadStarterHints();
+      if (!lastKatzu) return;
+      const { hints: fresh, quotaExceeded } = await workerClient.fetchHintsWithStatus({
+        scenarioTitle: scenario?.title_de || '',
+        cefrLevel: effectiveLevel,
+        lastAiReply: lastKatzu.germanText,
+        history: messages.map((m) => ({
+          sender: m.sender === 'USER' ? 'user' : 'model',
+          text: m.germanText,
+        })),
+      });
+      if (quotaExceeded) {
+        setHintQuotaSpent(true);
+        setHintFailure(messageForCause('busy'));
+        logEvent('hints', 'daily hint budget spent');
+        return;
       }
-    } catch {
-      void loadStarterHints();
+      const cleaned = sanitizeHints(fresh, effectiveLevel);
+      if (cleaned.length > 0) {
+        setCurrentHints(cleaned);
+        logEvent('hints', `Hints refreshed manually (${cleaned.length})`);
+      } else {
+        setHintFailure(messageForCause('other'));
+        logEvent('hints', 'hint request returned no usable sentence');
+      }
+    } catch (error) {
+      setHintFailure(messageForCause(failureCauseOf(error)));
+      logError('hints', 'AI hint request failed');
     } finally {
       setIsRefreshingHints(false);
     }
@@ -1447,8 +1437,13 @@ export function useLiveConversation({
     setIsHintExpanded,
     isRefreshingHints,
     hintQuotaSpent,
-    turnError,
-    turnNotice,
+    hintFailure,
+    showAiDebug,
+    turnFailure,
+    busySecondsLeft,
+    isOffline,
+    recheckConnection,
+    reportProblem,
     micError,
     isSessionCompleted,
     isGenerating,

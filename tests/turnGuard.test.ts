@@ -1,419 +1,138 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import worker from '../cloudflare-unified-worker';
-// @ts-expect-error — the worker is plain JS (no types), imported the way the turn route imports it.
-import {
-  guardGreetingReply,
-  guardTrailingQuestion,
-  isBareGreeting,
-  isOffTopicSingleWord,
-  replyEndsWithQuestion,
-} from '../cloudflare-turn-guard.js';
-// @ts-expect-error — same: the level spec twin ships as JS.
-import { validateGermanAgainstLevel } from '../cloudflare-level-spec.js';
-import { resetRouterState } from '../cloudflare-ai-router.js';
-import catalogue from '../docs/content/catalogue/scenarios-catalogue.json';
+import { describe, expect, it } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import * as turnGuard from '../cloudflare-turn-guard.js';
 
 /**
- * FIX 3: a reply must never invent a question to answer (V30).
+ * THE NO-AUTHORED-PERSONA GATE (2026-11-10).
  *
- * The measured bug: the learner answered an opener with «hallo» and the partner
- * said «Hallo! Mir geht es gut.» — answering a wellbeing question the opener
- * never asked. Five bare inputs per level are pinned here, plus the cases the
- * guard must NOT touch (a one-word answer that belongs to the scene is a real
- * answer, and rewriting it would be a second bug).
+ * The practice chat used to own a script of persona lines: per-level re-asks,
+ * acknowledgement prefixes, a trailing-question table, level fallback lines and
+ * «Wie bitte?» fallbacks. Those produced bubbles the model never wrote, and a
+ * bad turn looked like a worse conversation instead of a visible failure.
+ *
+ * This file is the structural half of the gate (the behavioural half is
+ * `tests/noFallbackPersona.test.ts`): it fails if any of that text or any of
+ * the guards that swapped it in comes back. A persona bubble may exist in
+ * exactly two places — the shipped opener and a real model reply.
  */
 
-const LEVELS = ['A0', 'A1', 'A2', 'B1', 'B2'] as const;
-type Level = (typeof LEVELS)[number];
+const ROOT = join(__dirname, '..');
 
-const LEVEL_TO_KEY: Record<Level, 'a0' | 'a1' | 'a2' | 'b1' | 'b2'> = {
-  A0: 'a0', A1: 'a1', A2: 'a2', B1: 'b1', B2: 'b2',
-};
+function sourceFiles(dir: string, extensions: string[]): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    const stat = statSync(full);
+    if (stat.isDirectory()) {
+      if (entry === 'node_modules' || entry === 'dist' || entry === '.git') continue;
+      out.push(...sourceFiles(full, extensions));
+    } else if (extensions.some((ext) => entry.endsWith(ext))) {
+      out.push(full);
+    }
+  }
+  return out;
+}
 
-const SCENARIOS = (catalogue as unknown as {
-  scenarios: Array<{
-    id: string;
-    title_de: string;
-    title_ar: string;
-    ai_persona: string;
-    category: string;
-    openers: Record<string, [string, string]>;
-  }>;
-}).scenarios;
+/**
+ * Comments are stripped before scanning: a comment may NAME the line that was
+ * deleted (that is how the next reader learns what not to re-add), but no
+ * executable string may contain it.
+ */
+function withoutComments(text: string): string {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('//'))
+    .join('\n');
+}
 
-const scenarioById = (id: string) => {
-  const found = SCENARIOS.find((s) => s.id === id);
-  if (!found) throw new Error(`catalogue has no ${id}`);
-  return found;
-};
+const workerSources = readdirSync(ROOT)
+  .filter((name) => name.startsWith('cloudflare-') && name.endsWith('.js'))
+  .map((name) => ({ path: name, text: withoutComments(readFileSync(join(ROOT, name), 'utf8')) }));
 
-const SCENE = 'Guten Tag! Was ist für Sie leicht, was ist schwer beim Deutschlernen?';
+const clientSources = sourceFiles(join(ROOT, 'src'), ['.ts', '.tsx']).map((full) => ({
+  path: relative(ROOT, full).replace(/\\/g, '/'),
+  text: withoutComments(readFileSync(full, 'utf8')),
+}));
 
-const GREETINGS = [
-  'hallo', 'Hallo!', 'guten Morgen', 'hi', 'Hallo hallo',
-  // The variants a phone keyboard actually produces: typos, held keys, English
-  // and regional forms, punctuation and a lone wave. All must still get the
-  // correction card, not an invented answer.
-  'halo', 'hello', 'hiii', 'HEY!!!', 'moin', 'moin moin', 'servus', 'Guten Tag!',
-  'halloooo', '👋', 'Hallo 👋',
+/** Every authored persona line this work deleted, verbatim. */
+const DELETED_AUTHORED_LINES = [
+  'Bitte sagen Sie etwas mehr',
+  'Bitte sag etwas mehr',
+  'Bitte sagen Sie mir etwas mehr',
+  'Bitte erzählen Sie mir etwas mehr',
+  'Bitte erzähl mir etwas mehr',
+  'Schön, Sie zu sehen',
+  'Freut mich, Sie zu sehen',
+  'Und was möchten Sie?',
+  'Und was machen Sie jetzt?',
+  'Wir üben weiter',
+  'Sprechen wir weiter',
+  'Machen wir mit der Übung weiter',
+  'Fahren wir mit dem Gespräch fort',
+  'aber die Übung geht weiter',
 ];
 
-/**
- * The rule this pins: in a scenario chat, a bare greeting is answered with a
- * short greeting and then the SCENE'S OWN question — not a generic wellbeing
- * question the scene never asked. The openers come from the catalogue, the same
- * source that ships to learners, so editing content changes this fixture with it.
- */
-const LUGGAGE_SCENES = Object.fromEntries(
-  LEVELS.map((level) => [level, scenarioById('airport_arrival').openers[LEVEL_TO_KEY[level]][0]]),
-) as Record<Level, string>;
-
-/** The last sentence of an opener — the question the scene is actually asking. */
-const askOf = (opener: string) => germanSentences(opener).slice(-1)[0];
-
-function germanSentences(text: string) {
-  return text.trim().split(/(?<=[.!?])\s+/).filter(Boolean);
-}
-
-describe.each(LEVELS)('a bare greeting in the missing-luggage scene at %s', (level) => {
-  it('greets back briefly and returns to the stored opener’s own question', () => {
-    const sceneOpener = LUGGAGE_SCENES[level];
-    const sceneAsk = askOf(sceneOpener);
-    const out = guardGreetingReply({
-      learnerText: 'hallo',
-      replyDe: 'Hallo! Mir geht es gut.',
-      replyAr: 'أهلاً! أنا بخير.',
-      sceneGerman: sceneOpener,
-      // The stored opener for this scenario+level is the topic source; history
-      // is not, because after the first exchange it joins and never matches.
-      sceneOpener,
-      level,
-    });
-    expect(out.guarded).toBe(true);
-    expect(out.reason).toBe('bare_greeting');
-    // A short greeting first, then the question the scenario actually asks.
-    expect(out.replyDe).toMatch(/^Hallo! /);
-    expect(out.replyDe).toContain(sceneAsk);
-    // The invented wellbeing answer/question is gone.
-    expect(out.replyDe).not.toContain('Mir geht es gut');
-    expect(out.replyDe).not.toContain('Wie geht es Ihnen');
-    expect(out.replyAr).toMatch(/[\u0600-\u06FF]/);
-    expect(out.replyAr).not.toContain('كيف حالك');
-    // The scene's own line is authored at its level, so the reply stays in caps.
-    expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
+describe('the roleplay guard module authors no persona line', () => {
+  it('exports the opener selector and nothing else', () => {
+    expect(Object.keys(turnGuard).sort()).toEqual(['openerForLevel']);
   });
 
-  it('uses the stored opener even when history has many later model turns', () => {
-    const sceneOpener = LUGGAGE_SCENES[level];
-    // What `/ai/turn` used to build and pass as `sceneGerman`: every assistant
-    // turn joined. It is not a stored opener, so the old lookup returned null.
-    const joinedHistory = [
-      sceneOpener,
-      'Gut. Und wie lange sind Sie schon in Deutschland?',
-      'Danke. Möchten Sie noch etwas ergänzen?',
-    ].join(' ');
-    const out = guardGreetingReply({
-      learnerText: 'hallo',
-      replyDe: 'Hallo! Mir geht es gut.',
-      replyAr: 'أهلاً! أنا بخير.',
-      sceneGerman: joinedHistory,
-      sceneOpener,
-      level,
-    });
-    expect(out.reason).toBe('bare_greeting');
-    expect(out.replyDe).toContain(askOf(sceneOpener));
-    expect(out.replyDe).not.toContain('Wie geht es Ihnen');
-    expect(out.replyDe).not.toContain('Mir geht es gut');
+  it('has no greeting, trailing-question or re-ask guard', () => {
+    for (const name of ['guardGreetingReply', 'guardTrailingQuestion', 'sceneTopicReAsk', 'RE_ASK', 'ACK', 'TRAILING_QUESTION']) {
+      expect((turnGuard as Record<string, unknown>)[name], name).toBeUndefined();
+    }
+  });
+
+  it('still selects stored openers — the one allowed persona text', () => {
+    const openers = { a1: 'Hallo! Was möchten Sie trinken?', a2: 'Guten Tag!' };
+    expect(turnGuard.openerForLevel(openers, 'A1')).toBe('Hallo! Was möchten Sie trinken?');
+    expect(turnGuard.openerForLevel(openers, 'B2')).toBe('Guten Tag!');
   });
 });
 
-describe.each(LEVELS)('bare greetings at %s', (level) => {
-  it.each(GREETINGS)('answers "%s" with a greeting and a continuation, not an invented answer', (input) => {
-    const out = guardGreetingReply({
-      learnerText: input,
-      replyDe: 'Hallo! Mir geht es gut.',
-      replyAr: 'أهلاً! أنا بخير.',
-      sceneGerman: SCENE,
-      level,
-    });
-    expect(out.guarded).toBe(true);
-    expect(out.reason).toBe('bare_greeting');
-    expect(out.replyDe).toMatch(/^(Hallo|Guten Tag)/);
-    // The invented wellbeing answer is gone, and the fixed continuation never
-    // invents a wellbeing question either: that line must not exist in a scene.
-    expect(out.replyDe).not.toContain('Mir geht es gut');
-    expect(out.replyDe).not.toContain('Wie geht es');
-    expect(out.replyAr).not.toContain('كيف حالك');
-    // German and Arabic travel together, so the two bubbles never disagree.
-    expect(out.replyAr).toMatch(/[\u0600-\u06FF]/);
-    // And the fixed line is inside the level's own caps.
-    expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
-  });
-
-  it('answers an off-topic single word with an acknowledgement and a continuation', () => {
-    const out = guardGreetingReply({
-      learnerText: 'Banane',
-      replyDe: 'Ja, Bananen sind gesund.',
-      replyAr: 'نعم، الموز صحي.',
-      sceneGerman: SCENE,
-      level,
-    });
-    expect(out.guarded).toBe(true);
-    expect(out.reason).toBe('off_topic_single_word');
-    expect(out.replyDe).not.toContain('Wie geht es');
-    expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
-  });
-});
-
-describe('every shipped scene answers a bare greeting with its own question', () => {
-  it('holds for all 61 scenarios at all five levels', () => {
-    let checked = 0;
-    for (const scenario of SCENARIOS) {
-      for (const level of LEVELS) {
-        const opener = scenario.openers[LEVEL_TO_KEY[level]][0];
-        const out = guardGreetingReply({
-          learnerText: 'hallo',
-          replyDe: 'Hallo! Mir geht es gut.',
-          replyAr: 'أهلاً! أنا بخير.',
-          sceneGerman: opener,
-          sceneOpener: opener,
-          level,
-        });
-        const label = `${scenario.id}/${level}`;
-        expect(out.guarded, label).toBe(true);
-        expect(out.reason, label).toBe('bare_greeting');
-        // The invented wellbeing answer/question never survives.
-        expect(out.replyDe, label).not.toContain('Mir geht es gut');
-        expect(out.replyDe, label).not.toContain('Wie geht es');
-        expect(out.replyDe, label).not.toMatch(/Wie geht es Ihnen/);
-        expect(out.replyAr, label).not.toContain('كيف حالك');
-        // The scene's own last question is what the learner gets back.
-        expect(out.replyDe, label).toContain(askOf(opener));
-        // And it stays inside the level, so the guard cannot teach off-spec German.
-        expect(validateGermanAgainstLevel(out.replyDe, level), label).toEqual({ ok: true });
-        checked += 1;
+describe('no deleted persona line survives anywhere in the worker or the client', () => {
+  it('finds none of the removed template sentences', () => {
+    const hits: string[] = [];
+    for (const file of [...workerSources, ...clientSources]) {
+      for (const line of DELETED_AUTHORED_LINES) {
+        if (file.text.includes(line)) hits.push(`${file.path}: ${line}`);
       }
     }
-    expect(checked).toBe(61 * 5);
+    expect(hits).toEqual([]);
   });
-});
 
-/**
- * Cross-scenario isolation (requirement 5).
- *
- * The appended question must come from the CURRENT scenario's own stored opener.
- * A café line («Möchten Sie einen Tee?») in a greetings or doctor scene is the
- * exact defect the owner reported, so the guard is checked against the topics
- * where a stray drink question would be most obviously wrong.
- */
-describe('the appended question comes from the current scene only', () => {
-  const cases = ['first_greetings', 'doctor_visit', 'airport_arrival'] as const;
-
-  it.each(cases)('%s re-asks its own question and never a café line', (id) => {
-    const scenario = scenarioById(id);
-    for (const level of ['A0', 'A1', 'A2'] as const) {
-      const opener = scenario.openers[LEVEL_TO_KEY[level]][0];
-      const out = guardTrailingQuestion({
-        replyDe: 'Gut.',
-        replyAr: 'حسنًا.',
-        sceneOpener: opener,
-        level,
-      });
-      expect(out.guarded, `${id}/${level}`).toBe(true);
-      expect(out.reason, `${id}/${level}`).toBe('appended_scene_question');
-      expect(out.replyDe, `${id}/${level}`).toContain(askOf(opener));
-      // No other scenario's vocabulary leaks into this one.
-      for (const leaked of ['Tee', 'Kaffee', 'Kuchen', 'Gepäck', 'Koffer', 'Rezept']) {
-        if (opener.includes(leaked)) continue;
-        expect(out.replyDe, `${id}/${level} leaked ${leaked}`).not.toContain(leaked);
+  it('no longer imports the removed guards or the level fallback line', () => {
+    const hits: string[] = [];
+    for (const file of workerSources) {
+      for (const symbol of ['guardGreetingReply', 'guardTrailingQuestion', 'levelFallbackLine', 'FALLBACK_LINES']) {
+        if (file.text.includes(symbol)) hits.push(`${file.path}: ${symbol}`);
       }
     }
+    expect(hits).toEqual([]);
   });
 });
 
-describe('the guard leaves real answers alone', () => {
-  it('does not touch a sentence the learner composed', () => {
-    const out = guardGreetingReply({
-      learnerText: 'Ich heiße Ali und komme aus Syrien.',
-      replyDe: 'Freut mich, Ali.',
-      replyAr: 'يسعدني لقاؤك يا علي.',
-      sceneGerman: SCENE,
-      level: 'A1',
+describe('a persona bubble can only be constructed in two places', () => {
+  it('has exactly two KATZU construction sites, both in the conversation hook', () => {
+    const sites = clientSources.flatMap((file) => {
+      const lines = file.text.split('\n');
+      return lines
+        .map((line, index) => ({ file: file.path, lines, number: index + 1, line: line.trim() }))
+        .filter((entry) => entry.line.includes("sender: 'KATZU'"));
     });
-    expect(out.guarded).toBe(false);
-    expect(out.replyDe).toBe('Freut mich, Ali.');
-  });
+    expect(sites).toHaveLength(2);
+    expect(new Set(sites.map((site) => site.file))).toEqual(
+      new Set(['src/features/conversation/useLiveConversation.ts']),
+    );
 
-  it('does not touch a one-word answer that belongs to the scene', () => {
-    const out = guardGreetingReply({
-      learnerText: 'Deutschlernen',
-      replyDe: 'Interessant. Warum ist das leicht für Sie?',
-      replyAr: 'مثير للاهتمام. لماذا هذا سهل لك؟',
-      sceneGerman: SCENE,
-      level: 'A1',
-    });
-    expect(out.guarded).toBe(false);
-  });
-
-  it('does not touch yes/no/filler replies', () => {
-    for (const input of ['ja', 'nein', 'danke', 'ok']) {
-      expect(isBareGreeting(input)).toBe(false);
-      expect(isOffTopicSingleWord(input, SCENE)).toBe(false);
-    }
-  });
-
-  it('does not fire when the greeting carries content', () => {
-    const out = guardGreetingReply({
-      learnerText: 'Hallo, ich möchte einen Kaffee.',
-      replyDe: 'Gerne, kommt sofort.',
-      replyAr: 'بكل سرور، حالاً.',
-      sceneGerman: 'Guten Tag! Was möchten Sie trinken?',
-      level: 'A1',
-    });
-    expect(out.guarded).toBe(false);
-  });
-
-  it('keeps the polite register when the scene uses Sie', () => {
-    const out = guardGreetingReply({
-      learnerText: 'hallo',
-      replyDe: '',
-      replyAr: '',
-      sceneGerman: 'Guten Tag! Wie heißen Sie?',
-      level: 'A1',
-    });
-    expect(out.replyDe).toMatch(/\bSie\b/);
-    expect(out.replyDe).not.toMatch(/\b(du|dir|dich)\b/);
-  });
-
-  it('never falls back to a wellbeing question when no stored opener is known', () => {
-    for (const level of LEVELS) {
-      const out = guardGreetingReply({ learnerText: 'hallo', replyDe: '', replyAr: '', level });
-      expect(out.guarded).toBe(true);
-      expect(out.replyDe).not.toContain('Wie geht es');
-      expect(out.replyAr).not.toContain('كيف حالك');
-      expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
-    }
+    // One is the shipped opener (data from the scenario row); one is the model's
+    // own reply. No third site can appear without this test failing.
+    const contexts = sites.map((site) =>
+      site.lines.slice(Math.max(0, site.number - 12), site.number + 2).join('\n'),
+    );
+    expect(contexts.some((context) => context.includes("id: 'msg_initial'"))).toBe(true);
+    expect(contexts.some((context) => context.includes('germanText: res.germanReply'))).toBe(true);
   });
 });
-
-/**
- * FIX 4: every A0–A2 turn ends with one answerable question.
- *
- * The prompt asks for it, but a model that stops after its answer leaves the
- * learner with nothing to reply. The guard appends the SCENE'S own last question
- * (deterministic, no second model call), never a new topic. These tests pin both
- * the rule and the `/ai/turn` wiring.
- */
-describe('guardTrailingQuestion — the A0–A2 closing question', () => {
-  it('recognises a question even behind a closing quote or trailing space', () => {
-    expect(replyEndsWithQuestion('Was möchten Sie?')).toBe(true);
-    expect(replyEndsWithQuestion('Was möchten Sie?  ')).toBe(true);
-    expect(replyEndsWithQuestion('«Was möchten Sie?»')).toBe(true);
-    expect(replyEndsWithQuestion('Gut.')).toBe(false);
-  });
-
-  it('appends the scene’s own question when the reply stops after an answer', () => {
-    const out = guardTrailingQuestion({
-      replyDe: 'Gut.',
-      replyAr: 'حسنًا.',
-      sceneOpener: LUGGAGE_SCENES.A1,
-      level: 'A1',
-    });
-    expect(out.guarded).toBe(true);
-    expect(out.reason).toBe('appended_scene_question');
-    expect(out.replyDe).toContain(askOf(LUGGAGE_SCENES.A1));
-    expect(out.replyDe.trim().endsWith('?')).toBe(true);
-    expect(out.replyAr).toMatch(/[\u0600-\u06FF]/);
-    expect(out.replyAr.trim().endsWith('؟')).toBe(true);
-  });
-
-  it('leaves a reply that already ends with a question untouched', () => {
-    const out = guardTrailingQuestion({
-      replyDe: 'Gut. Und was möchten Sie?',
-      replyAr: 'حسنًا. وماذا تريد؟',
-      sceneOpener: LUGGAGE_SCENES.A1,
-      level: 'A1',
-    });
-    expect(out.guarded).toBe(false);
-    expect(out.reason).toBe('already_question');
-    expect(out.replyDe).toBe('Gut. Und was möchten Sie?');
-  });
-
-  it('does not add a question to the final exchange', () => {
-    const out = guardTrailingQuestion({
-      replyDe: 'Danke für das Gespräch. Auf Wiedersehen!',
-      replyAr: 'شكراً على المحادثة. إلى اللقاء!',
-      sceneOpener: LUGGAGE_SCENES.A1,
-      level: 'A1',
-      isFinalTurn: true,
-    });
-    expect(out.guarded).toBe(false);
-    expect(out.reason).toBe('not_required');
-    expect(out.replyDe).not.toContain('?');
-  });
-
-  it('does not touch B1 and B2, where a statement turn is allowed', () => {
-    for (const level of ['B1', 'B2'] as const) {
-      const out = guardTrailingQuestion({ replyDe: 'Gut.', replyAr: 'حسنًا.', level });
-      expect(out.guarded).toBe(false);
-      expect(out.replyDe).toBe('Gut.');
-    }
-  });
-
-  it('falls back to a level-safe question when no stored opener exists', () => {
-    const out = guardTrailingQuestion({ replyDe: 'Gut.', replyAr: 'حسنًا.', level: 'A0' });
-    expect(out.guarded).toBe(true);
-    expect(out.reason).toBe('appended_level_question');
-    expect(validateGermanAgainstLevel(out.replyDe, 'A0')).toEqual({ ok: true });
-    expect(out.replyAr).toMatch(/[\u0600-\u06FF]/);
-  });
-});
-
-/**
- * The wiring, not just the rule.
- *
- * The unit tests above prove the guard's logic; this proves `/ai/turn` actually
- * calls it. Without this, a refactor could drop the `guardGreetingReply(...)`
- * line and every test above would still pass while the learner saw
- * «Hallo! Mir geht es gut.» again — the exact failure this batch fixed.
- */
-class MemoryKv {
-  values = new Map<string, string>();
-  async get(key: string) {
-    return this.values.get(key) || null;
-  }
-  async put(key: string, value: string) {
-    this.values.set(key, value);
-  }
-  async delete(key: string) {
-    this.values.delete(key);
-  }
-}
-
-// The route resolves the scenario from D1 before it can answer, so the stub has
-// to serve it. The row is built from the catalogue, so this fixture cannot drift
-// away from what the app ships.
-const LUGGAGE_SCENARIO = scenarioById('airport_arrival');
-const SCENARIO_ROW = {
-  title_de: LUGGAGE_SCENARIO.title_de,
-  ai_persona: LUGGAGE_SCENARIO.ai_persona,
-  category: LUGGAGE_SCENARIO.category,
-  initial_message_a0: LUGGAGE_SCENARIO.openers.a0[0],
-  initial_message_a1: LUGGAGE_SCENARIO.openers.a1[0],
-  initial_message_a2: LUGGAGE_SCENARIO.openers.a2[0],
-  initial_message_b1: LUGGAGE_SCENARIO.openers.b1[0],
-  initial_message_b2: LUGGAGE_SCENARIO.openers.b2[0],
-};
-
-const emptyDb = () => {
-  const first = async (sql: string) => (/FROM scenarios/i.test(sql) ? SCENARIO_ROW : null);
-  return {
-    prepare: (sql: string) => ({
-      bind: () => ({ run: async () => ({ success: true }), all: async () => ({ results: [] }), first: () => first(sql) }),
-      run: async () => ({ success: true }),
-      all: async () => ({ results: [] }),
-      first: () => first(sql),
-    }),
-    batch: async () => [],
-  };
-};

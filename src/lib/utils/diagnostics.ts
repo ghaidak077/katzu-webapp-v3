@@ -71,6 +71,27 @@ function forwardCrash(entry: DiagnosticEntry): void {
   });
 }
 
+/**
+ * «أبلغ عن المشكلة» on a failed turn: sends a diagnostic id and NOTHING else.
+ *
+ * The learner's sentence, the prompt and the model's answer never leave the
+ * device through this path. The id is enough to find the server log line for
+ * that turn (the route logs codes, never text). It fails silently, online or
+ * not: a report is never worth blocking on.
+ */
+export function reportDiagnosticId(id: string): void {
+  if (!WORKER_BASE_URL || typeof fetch !== 'function') return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  void fetch(`${WORKER_BASE_URL}/client-error`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    keepalive: true,
+    body: JSON.stringify({ scope: 'ai_turn_failed', message: id, page: '/conversation' }),
+  }).catch(() => {
+    /* the report is best-effort; the learner already has the retry button */
+  });
+}
+
 export type DiagnosticLevel = 'ERROR' | 'WARN' | 'INFO' | 'NET';
 
 export interface DiagnosticEntry {

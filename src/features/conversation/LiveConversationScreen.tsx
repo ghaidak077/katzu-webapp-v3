@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Languages, MoreHorizontal, Shuffle } from 'lucide-react';
+import { ArrowRight, Languages, MoreHorizontal, RefreshCw, Shuffle } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { db } from '@/lib/db/katzuDb';
@@ -149,8 +149,13 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     setIsHintExpanded,
     isRefreshingHints,
     hintQuotaSpent,
-    turnError,
-    turnNotice,
+    hintFailure,
+    showAiDebug,
+    turnFailure,
+    busySecondsLeft,
+    isOffline,
+    recheckConnection,
+    reportProblem,
     micError,
     isSessionCompleted,
     isGenerating,
@@ -478,7 +483,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         knownWords={knownWords}
         showHelp={!realMode}
         isGenerating={isGenerating}
-        turnError={turnError}
         isSessionCompleted={isSessionCompleted}
         speakingId={speakingId}
         activeCharIndex={activeCharIndex}
@@ -488,7 +492,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         onSlowSpeak={handleSlowSpeak}
         onReportReply={handleReportReply}
         onWordClick={handleWordClick}
-        onRetryFailedTurn={retryFailedTurn}
+        showAiDebug={showAiDebug}
       />
 
       {/* Empty / first state: one line telling the learner what the microphone is
@@ -546,10 +550,12 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       )}
 
       {/* The hint dock: the sentence for THIS question, its Arabic, and the
-          three ways to use it. It never inserts text and never sends. */}
-      {!realMode && !isSessionCompleted && !isClosed && (
+          three ways to use it. It never inserts text and never sends. Hints are
+          AI only, so when a reply carries none the dock asks for one instead of
+          showing a stored line. */}
+      {!realMode && !isSessionCompleted && !isClosed && visibleHints[0] && (
         <HintDock
-          hint={visibleHints[0] ?? null}
+          hint={visibleHints[0]}
           typed={inputText}
           disabled={isGenerating}
           onSpeak={(text) => speakText(text)}
@@ -559,6 +565,27 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             inputRef.current?.focus();
           }}
         />
+      )}
+      {!realMode && !isSessionCompleted && !isClosed && !visibleHints[0] && userTurnsCount > 0 && (
+        <div dir="rtl" data-testid="hint-request" className="mx-3 mb-0.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('light');
+              void refreshHints();
+            }}
+            disabled={isRefreshingHints || hintQuotaSpent || isOffline}
+            className="kz-ar-micro flex min-h-touch items-center gap-1.5 rounded-full border border-kz-lavender/30 bg-white/[0.04] px-3 font-semibold text-kz-lavender transition-colors pointer-hover:bg-white/10 disabled:opacity-40"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingHints ? 'kz-animated animate-spin' : ''}`} />
+            اطلب تلميحاً
+          </button>
+          {hintFailure && (
+            <p role="alert" className="mt-1 kz-ar-micro text-status-error">
+              {hintFailure}
+            </p>
+          )}
+        </div>
       )}
 
       {/* The bottom input bar: hint · field · orb/send. */}
@@ -570,13 +597,19 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         isRefreshingHints={isRefreshingHints}
         hintQuotaSpent={hintQuotaSpent}
         micError={micError}
-        turnNotice={turnNotice}
-        onRetryTurnNotice={retryFailedTurn}
+        turnFailure={turnFailure}
+        busySecondsLeft={busySecondsLeft}
+        isOffline={isOffline}
+        onRecheckConnection={recheckConnection}
+        onRetryTurn={retryFailedTurn}
+        onReportProblem={reportProblem}
+        showAiDebug={showAiDebug}
+        hintFailure={hintFailure}
         orbState={orbState}
         orbTone={orbTone}
         orbLabelAr={orbLabelAr}
         orbReadLevel={voice.read}
-        orbDisabled={!voice.isSupported || live.conversation.status === 'quota_exhausted'}
+        orbDisabled={!voice.isSupported || isOffline || live.conversation.status === 'quota_exhausted'}
         isRecording={voice.isRecording}
         isCoachSpeaking={speakingId !== null}
         interimText={voice.interimText}

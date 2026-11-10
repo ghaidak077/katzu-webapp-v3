@@ -87,6 +87,8 @@ export interface ConversationMessageProps {
    * even though the data rides the reply the worker produced.
    */
   correctionMessage?: ChatMessage;
+  /** Hidden Settings toggle, off by default: «AI · model · ms · attempt n». */
+  showAiDebug?: boolean;
 }
 
 const normalize = (value: string) => value.replace(/[^a-zA-ZäöüÄÖÜß]/g, '').toLowerCase();
@@ -105,6 +107,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   spokenCharIndex = null,
   isSpeaking = false,
   correctionMessage,
+  showAiDebug = false,
 }) => {
   const isKatzu = message.sender === 'KATZU';
 
@@ -285,6 +288,14 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
               <Flag className="h-3.5 w-3.5" />
               أبلغ عن رد سيئ
             </button>
+          )}
+
+          {/* Hidden debug label: who answered, how long it took, which attempt.
+              Off by default; there is no FALLBACK state to report any more. */}
+          {isKatzu && showAiDebug && message.aiDebug && (
+            <code dir="ltr" data-testid="ai-debug" className="mt-1 block font-german text-micro text-kz-inkFaint">
+              {message.aiDebug}
+            </code>
           )}
         </div>
 

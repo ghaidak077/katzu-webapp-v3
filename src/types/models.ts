@@ -482,6 +482,12 @@ export interface ChatMessage {
   translationState?: 'pending' | 'unavailable';
   /** Arabic invitation to continue the conversation (KATZU messages only). */
   followupAr?: string;
+  /**
+   * «AI · model · ms · attempt n» — the hidden debug label (Settings toggle, off
+   * by default). Built from the server's own turn metadata, never rendered
+   * unless the learner turns the toggle on.
+   */
+  aiDebug?: string;
   hasCorrection?: boolean;
   originalMistake?: string;
   correctedGerman?: string;
@@ -616,6 +622,16 @@ export interface TurnAiResponse {
    * it: progress, the learner's corrected sentence, and the next hint.
    */
   roleplay?: RoleplayTurn;
+  /**
+   * Which model actually answered, how long it took and which attempt it was.
+   * The hidden debug label renders it; nothing else reads it.
+   */
+  aiMeta?: {
+    model?: string | null;
+    provider?: string | null;
+    attempts?: number | null;
+    elapsedMs?: number | null;
+  };
 }
 
 /** The roleplay fields of a turn — the server already validated and bounded them. */

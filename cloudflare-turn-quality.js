@@ -153,7 +153,7 @@ export function latestLearnerText(history) {
  */
 export const OBSTACLE_CYCLE = [
   'ask exactly one natural follow-up question about what the learner just said, as a curious real person would',
-  "check one detail you half-caught ('Wie bitte?' or a short paraphrase question) and let the learner restate it before moving on",
+  'check one detail you half-caught by paraphrasing it back as a short question, and let the learner confirm it before moving on',
   'react with a brief natural emotion (surprise, relief, amusement) before you continue, then keep your goal in the scene moving forward',
   "carry the scene's own goal one concrete step forward (time, place, amount, next action) as the counterpart would",
 ];

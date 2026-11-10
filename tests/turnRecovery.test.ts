@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BUSY_RETRY_DELAYS_SECONDS } from '../src/lib/conversation/turnRecovery';
 import {
   isRetryableTransportFailure,
   retryDelayFor,
@@ -39,10 +40,12 @@ describe('turn recovery', () => {
     expect(shouldRestoreDraft({ code: 'UNAUTHENTICATED' })).toBe(false);
   });
 
-  it('spends two backoff delays and then stops', () => {
-    expect(retryDelayFor(0)).toBe(1200);
-    expect(retryDelayFor(1)).toBe(3200);
-    expect(retryDelayFor(2)).toBeNull();
+  it('spends ONE silent backoff and then stops', () => {
+    // 2026-11-10: one silent automatic retry while the typing indicator shows.
+    // A busy service gets two more, and those are VISIBLE (BUSY_RETRY_DELAYS_SECONDS).
+    expect(retryDelayFor(0)).toBe(900);
+    expect(retryDelayFor(1)).toBeNull();
+    expect(BUSY_RETRY_DELAYS_SECONDS).toEqual([3, 5]);
   });
 
   it('has its own Arabic wording for a busy service', () => {

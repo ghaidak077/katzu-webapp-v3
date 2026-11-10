@@ -27,7 +27,6 @@ import {
   MOCK_EXAM_SCENARIO_TITLE,
   normaliseMockPartIndex,
 } from "./cloudflare-mock-exam.js";
-import { guardGreetingReply, guardTrailingQuestion, openerForLevel } from "./cloudflare-turn-guard.js";
 import {
   runRoleplayTurn,
 } from "./cloudflare-roleplay.js";
@@ -253,13 +252,14 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     getProvider,
     getModel,
     validateGermanAgainstLevel,
-    levelFallbackLine,
     levelConstraintLine,
     correctionBudgetFor,
   } = deps;
 
   if (!(await hasUsableProvider(env))) return json({ error: "ai_unavailable" }, 503, cors);
 
+  /** One clock for the turn. The debug label reports it; nothing else uses it. */
+  const turnStartedAt = Date.now();
   const body = await request.json().catch(() => null);
   if (!body || !body.user_message) return json({ error: "user_message required" }, 400, cors);
 
@@ -346,30 +346,42 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       message: entitlement.message
     }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
   }
-  // Consume the free quota once per conversation session (tracked via session_id),
-  // NOT per individual message. Signed-in subscribers skip this entirely.
+  // CHARGE ONLY ON A SUCCESSFUL TURN (2026-11-10).
+  //
+  // The old order consumed the free session BEFORE the model was called, so a
+  // 429, a timeout, an invalid answer or an offline turn cost the learner one of
+  // their three free conversations for a reply they never received. This block
+  // now only READS what is left; the claim happens after the reply exists.
+  // Replays stay idempotent: the D1 ledger row is keyed by (account, session),
+  // so a retried send of the same conversation cannot charge twice.
+  let chargeTrialOnSuccess = false;
   if (!entitlement.isSubscribed) {
-    // Phase 2: with D1 the ledger claim inside consumeTrialQuota is the atomic
-    // idempotency mark (replays return SESSION_ALREADY_CONSUMED and proceed at
-    // zero quota cost). The KV trial-session key remains as a fast-path check.
     const sessionConsumed = session_id ? await isTrialSessionConsumed(account.sub, session_id, env) : false;
-    if (!sessionConsumed) {
-      const quota = await consumeTrialQuota(account.sub, env, session_id || null);
-      if (!quota.allowed && quota.code !== "SESSION_ALREADY_CONSUMED") {
-        const status = quota.code === "QUOTA_UNAVAILABLE" ? 503 : 402;
-        return json({ error: "free_quota_unavailable", code: quota.code, message: quota.message }, status, cors);
-      }
-      if (session_id && env.USER_PROGRESS) {
-        try {
-          await env.USER_PROGRESS.put(
-            trialSessionKey(account.sub, session_id),
-            JSON.stringify({ consumed_at: Date.now() }),
-            { expirationTtl: 6 * 3600 }
-          );
-        } catch {}
-      }
-    }
+    chargeTrialOnSuccess = !sessionConsumed;
   }
+  const chargeTrialOnce = async () => {
+    if (!chargeTrialOnSuccess) return null;
+    chargeTrialOnSuccess = false;
+    const quota = await consumeTrialQuota(account.sub, env, session_id || null);
+    if (!quota.allowed && quota.code !== "SESSION_ALREADY_CONSUMED") return quota;
+    if (session_id && env.USER_PROGRESS) {
+      try {
+        await env.USER_PROGRESS.put(
+          trialSessionKey(account.sub, session_id),
+          JSON.stringify({ consumed_at: Date.now() }),
+          { expirationTtl: 6 * 3600 }
+        );
+      } catch {}
+    }
+    return null;
+  };
+  /** The one place a spent allowance turns into a response. */
+  const quotaFailureResponse = (quota) =>
+    json({
+      error: quota.code === "QUOTA_UNAVAILABLE" ? "free_quota_unavailable" : "free_quota_error",
+      code: quota.code,
+      message: quota.message,
+    }, quota.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
 
   const turnIndex = Number.isFinite(Number(v?.turn_index)) ? Math.max(0, Number(v?.turn_index)) : 0;
 
@@ -433,7 +445,16 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     } catch {
       /* a log line must never fail a learner's turn */
     }
-    const response = { ...turn, provider: getProvider() };
+    const charge = await chargeTrialOnce();
+    if (charge) return quotaFailureResponse(charge);
+    const response = {
+      ...turn,
+      provider: getProvider(),
+      // Debug label data (hidden Settings toggle). Never rendered by default.
+      model: getModel ? getModel() : null,
+      attempts: outcome.attempts,
+      elapsed_ms: Date.now() - turnStartedAt,
+    };
     // A cached pre-rewrite bundle identifies itself with `script_context`.
     if (body && body.script_context && typeof body.script_context === "object") {
       const legacy = legacyScriptTurn(turn);
@@ -553,53 +574,16 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       }),
     });
     let parsed = parseTurnJson(raw);
-    // V30 FIX 3: never answer a question nobody asked. A bare greeting ("hallo")
-    // or a single word that is nowhere in the scene used to be read as an answer
-    // — "Hallo! Mir geht es gut." answered a wellbeing question the opener never
-    // asked. The guard swaps in a short greeting plus a fixed, level-safe re-ask
-    // whose Arabic travels with it. It runs before the level gate so the fixed
-    // line is validated like any other reply, and it never fires when the message
-    // carries content of its own.
-    if (parsed?.reply_de) {
-      // The app's transport rewrites history to { role, text } (workerClient's
-      // formattedHistory); older/hand-written callers send { sender, text }.
-      // Reading only `sender` left sceneGerman empty on every real turn, so the
-      // guard silently fell back to the generic line instead of the scene's own
-      // question. tests/turnGuard.test.ts pins both shapes.
-      const sceneGerman = (Array.isArray(v.history) ? v.history : [])
-        .filter((m) => {
-          if (!m) return false;
-          const role = String(m.role || m.sender || "").toLowerCase();
-          return role === "model" || role === "assistant";
-        })
-        .map((m) => String(m.text ?? m.content ?? ""))
-        .join(" ");
-      const guarded = guardGreetingReply({
-        learnerText: v.user_message,
-        replyDe: parsed.reply_de,
-        replyAr: parsed.reply_ar,
-        sceneGerman,
-        // The re-ask topic comes from the scenario's STORED opener for this
-        // level, not from history: joining every model turn never matches a
-        // stored opener after the first exchange, which is how the fixed
-        // «Wie geht es Ihnen?» fallback returned later in a scene.
-        sceneOpener: inMockExam ? "" : openerForLevel(scenarioIdentity.openers, level),
-        level,
-      });
-      if (guarded.guarded) {
-        parsed = { ...parsed, reply_de: guarded.replyDe, reply_ar: guarded.replyAr };
-        try {
-          console.log(JSON.stringify({ event: "ai_turn_guard", reason: guarded.reason, level }));
-        } catch {
-          /* logging must never fail a turn */
-        }
-      }
-    }
+    // V30 FIX 3 replaced: there is NO authored persona line any more.
+    // The greeting/trailing-question guards used to swap the model's sentence for
+    // a stored per-level template («Hallo! Bitte sagen Sie etwas mehr.»,
+    // «Und Sie?»). The learner must never read a persona bubble the model did
+    // not write, so those tables and guards are gone (cloudflare-turn-guard.js).
+    // Anything the model gets wrong is retried or shown as an honest error.
+    //
     // LEVEL-SPEC gate (V21 Phase 1): the reply's German must obey the level's
-    // caps. One violation -> ONE repair call; still violating -> the
-    // deterministic per-level fallback line (its Arabic travels with it, so the
-    // bubbles never disagree). The evaluation of the LEARNER's sentence is kept
-    // either way — the grade never depends on the model's obedience.
+    // caps. One violation -> ONE repair call. Still violating -> the turn FAILS
+    // (502) and the learner retries; it is never patched with a stored line.
     if (parsed?.reply_de) {
       const levelCheck = validateGermanAgainstLevel(parsed.reply_de, level);
       if (!levelCheck.ok) {
@@ -620,29 +604,15 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
           const candidate = parseTurnJson(repairRaw);
           if (candidate?.reply_de && validateGermanAgainstLevel(candidate.reply_de, level).ok) repaired = candidate;
         } catch {}
-        parsed = repaired || { ...parsed, reply_de: levelFallbackLine(level).de, reply_ar: levelFallbackLine(level).ar };
-      }
-    }
-    // A0–A2 turn guarantee: every reply except the farewell ends with ONE short
-    // answerable question. This is enforced after the level gate so a repaired
-    // or fallback line is covered too. No repair call: the scene's own stored
-    // question (German + Arabic together) is appended deterministically, so the
-    // turn costs nothing extra and cannot drift to a topic nobody introduced.
-    if (parsed?.reply_de) {
-      const trailingGuard = guardTrailingQuestion({
-        replyDe: parsed.reply_de,
-        replyAr: parsed.reply_ar,
-        sceneOpener: inMockExam ? "" : openerForLevel(scenarioIdentity.openers, level),
-        level,
-        isFinalTurn: is_final_turn,
-      });
-      if (trailingGuard.guarded) {
-        parsed = { ...parsed, reply_de: trailingGuard.replyDe, reply_ar: trailingGuard.replyAr };
-        try {
-          console.log(JSON.stringify({ event: "ai_turn_trailing_question", reason: trailingGuard.reason, level }));
-        } catch {
-          /* logging must never fail a turn */
+        if (!repaired) {
+          console.error("[ai/turn] reply outside the level caps after one repair:", levelCheck.reason);
+          return json({
+            error: "ai_level_violation",
+            code: "AI_LEVEL_VIOLATION",
+            message: "تعذّر الرد. أعد المحاولة.",
+          }, 502, cors);
         }
+        parsed = repaired;
       }
     }
     // Sanitize every string field — a model echoing schema labels ("reply_de: ...")
@@ -726,6 +696,8 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     } catch {
       /* a log line must never fail a learner's turn */
     }
+    const charge = await chargeTrialOnce();
+    if (charge) return quotaFailureResponse(charge);
     return json({
       reply_de: replyDe,
       reply_ar: replyAr,
@@ -735,7 +707,10 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       },
       grammar_reference: linkedGrammarId ? grammarReference : null,
       hints,
-      provider: getProvider()
+      provider: getProvider(),
+      model: getModel ? getModel() : null,
+      attempts: 1,
+      elapsed_ms: Date.now() - turnStartedAt,
     }, 200, cors);
   } catch (err) {
     console.error("[ai/turn] failed:", String(err?.message || err).slice(0, 200), "| attempts:", JSON.stringify(routerCounters()));

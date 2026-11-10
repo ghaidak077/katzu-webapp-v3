@@ -10,6 +10,7 @@ import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { LtrCounter } from '@/components/common/LtrCounter';
 import { Card } from '@/components/ui/Card';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import { isDebugLabelEnabled, setDebugLabelEnabled } from '@/lib/conversation/debugLabel';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -81,6 +82,10 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
   const [logCount, setLogCount] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(false);
+  // The hidden debug label: seven taps on the version line reveal the switch.
+  // Off unless the device already has it on — never on by default.
+  const [versionTaps, setVersionTaps] = useState(0);
+  const [debugLabelOn, setDebugLabelOn] = useState(() => isDebugLabelEnabled());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting' | 'success' | 'error'>('idle');
@@ -972,6 +977,48 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           Apple puts Sign Out at the foot of the account list, always visible;
           so does Katzu now. The smoke test that drives the deployed app is the
           thing that proves it is reachable without expanding anything. */}
+      {/* HIDDEN DEBUG TOGGLE (off by default). Seven taps on the version line
+          reveal it; nobody finds it by accident, and a learner never sees an
+          «AI · model · ms» line they did not ask for. */}
+      <button
+        type="button"
+        onClick={() => setVersionTaps((n) => n + 1)}
+        className="mt-4 w-full py-1 text-center font-german text-micro text-kz-inkFaint/70"
+        aria-label="إصدار التطبيق"
+      >
+        Katzu 1.1.0
+      </button>
+      {versionTaps >= 7 && (
+        <Card className="mt-2 p-4 mb-4 space-y-2" data-testid="debug-label-toggle">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-text-secondary">ملصق تصحيح الردود</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={debugLabelOn}
+              onClick={() => {
+                const next = !debugLabelOn;
+                setDebugLabelOn(next);
+                setDebugLabelEnabled(next);
+              }}
+              className={`h-7 w-12 rounded-full border transition-colors ${
+                debugLabelOn ? 'border-primary/60 bg-primary/30' : 'border-border-subtle bg-surface-subtle'
+              }`}
+            >
+              <span
+                className={`block h-5 w-5 rounded-full bg-primary transition-transform ${
+                  debugLabelOn ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+          <p className="text-micro text-text-muted leading-relaxed">
+            يعرض تحت كل رد: النموذج، والزمن بالمللي ثانية، ورقم المحاولة. لا يظهر شيء
+            عندما يكون مغلقاً.
+          </p>
+        </Card>
+      )}
+
       <Button
         variant="danger"
         size="md"

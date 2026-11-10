@@ -61,6 +61,12 @@ export function mapTurnAiResponse(data: any, level: CEFRLevel): TurnAiResponse {
       : undefined,
     hints: hint ? [hint] : [],
     followupAr: typeof data.followup_ar === 'string' ? data.followup_ar : '',
+    aiMeta: {
+      model: typeof data.model === 'string' ? data.model : null,
+      provider: typeof data.provider === 'string' ? data.provider : null,
+      attempts: Number.isFinite(Number(data.attempts)) ? Number(data.attempts) : null,
+      elapsedMs: Number.isFinite(Number(data.elapsed_ms)) ? Number(data.elapsed_ms) : null,
+    },
     grammarId:
       typeof evalData?.grammar_id === 'string' && /^[a-z0-9_]{1,80}$/i.test(evalData.grammar_id)
         ? evalData.grammar_id

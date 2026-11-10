@@ -47,7 +47,7 @@ import { handleHintsRoute } from "./cloudflare-hints.js";
 import { handleWritingRoute } from "./cloudflare-writing.js";
 import { handleAskRoute } from "./cloudflare-ask.js";
 import { handleChatTurnRoute, handleTranslateRoute, handleLexemeRoute } from "./cloudflare-ai-chat.js";
-import { validateGermanAgainstLevel, levelFallbackLine, levelConstraintLine, correctionBudgetFor } from "./cloudflare-level-spec.js";
+import { validateGermanAgainstLevel, levelConstraintLine, correctionBudgetFor } from "./cloudflare-level-spec.js";
 import { handleTranscribeRoute } from "./cloudflare-stt.js";
 import {
   PROVIDER_POOL,
@@ -1599,7 +1599,6 @@ function aiRouteDeps(tel) {
     writeAiCache,
     validLevels: VALID_LEVELS,
     validateGermanAgainstLevel,
-    levelFallbackLine,
     levelConstraintLine,
     correctionBudgetFor,
     // `opts` lets a handler ask for router behaviour it can justify for its own
