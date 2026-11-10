@@ -38,7 +38,9 @@
     "tail:worker": "wrangler tail",
     "test:smoke:token-hygiene": "node scripts/smoke-token-hygiene.cjs",
     "ledger:archive": "node scripts/archive-ledger-rows.mjs",
-    "eval:chat": "node scripts/eval-chat.mjs"
+    "eval:chat": "node scripts/eval-chat.mjs",
+    "qa:chat": "node scripts/qa/run.mjs",
+    "qa:chat:calibrate": "node scripts/qa/calibrate.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.67.1",

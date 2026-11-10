@@ -715,7 +715,13 @@ export async function callProvider(entry, payload, key, { timeoutMs = ATTEMPT_TI
     throw new Error("callProvider: an OpenAI-compatible entry needs opts.toMessages");
   }
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  // A retry inside this call gets its own attempt window instead of inheriting
+  // whatever is left of the first one.
+  const restartTimeout = () => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  };
   try {
     if (entry.format === "gemini") {
       const res = await doFetch(`${GEMINI_BASE_URL}/models/${entry.model}:generateContent?key=${key}`, {
@@ -762,7 +768,19 @@ export async function callProvider(entry, payload, key, { timeoutMs = ATTEMPT_TI
         features.reasoningEffort = false;
         dropped = true;
       }
+      // Groq's structured-output validator fails the whole generation
+      // (`json_validate_failed`) when the model emits JSON it cannot validate —
+      // intermittently, on perfectly ordinary input. The identifier it names is
+      // not the field, so the branch above misses it and the identical retry
+      // fails identically: the learner loses the turn to an error card. Dropping
+      // the enforced format and letting the route's own tolerant parser read the
+      // reply is strictly better than no reply at all.
+      if (features.jsonMode && /json_validate_failed|failed to validate json/i.test(firstBody)) {
+        features.jsonMode = false;
+        dropped = true;
+      }
       if (!dropped) throw new ProviderCallError(entry, 400, firstBody);
+      restartTimeout();
       res = await send(features);
     }
 

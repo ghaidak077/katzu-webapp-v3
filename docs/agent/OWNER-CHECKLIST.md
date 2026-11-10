@@ -22,6 +22,7 @@ Rotate `ADMIN_SECRET` (it was pasted into chat); `grammar` needs one additive `A
 Both key lists are empty, so every turn rides the free fallback. Admin → **AI Providers**
 → paste key(s) → **Save** → **Test**; or `npx wrangler secret put OPENROUTER_API_KEYS` / `NVIDIA_API_KEYS`.
 **Done:** Test answers "OK" fast and a live turn stops naming the fallback.
+**Also:** rotate the free Groq key (it appeared in a log).
 
 ## 5. One address — V18-3
 
@@ -95,12 +96,12 @@ The first button now answers the last question and the sheet is never empty; all
 
 ## 18. Read the 49 roleplay plans — ROLEPLAY (2026-11-09)
 
-Conversations now run on one prompt + a plan per scene (persona, goal, 3–5 goals-to-do), not written lines.
-20 personas worth a look are listed in `docs/OWNER-ROLEPLAY-REVIEW.md`. **Done:** name any wrong line.
+One prompt + a plan per scene (persona, goal, 3–5 goals), not written lines.
+20 personas are listed in `docs/OWNER-ROLEPLAY-REVIEW.md`. **Done:** name any wrong line.
 
 ## 19. Three AI launch choices — ROLEPLAY (2026-11-09)
 
-(1) Approve `openai/gpt-oss-120b` (`docs/agent/ROLEPLAY-EVAL.md`). (2) Add a paid/second provider key
+(1) Approve `openai/gpt-oss-120b` (`ROLEPLAY-EVAL.md`). (2) Add a paid/second provider key
 to survive a free-tier day (item 4). (3) Confirm the AI-provider line on the privacy page. **Done:** yes.
 
 ## Nothing to do — so nobody re-opens them

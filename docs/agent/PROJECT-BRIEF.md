@@ -75,7 +75,7 @@ hint is tap-to-insert only — never sent.
 session at list price (`ROLEPLAY-EVAL.md`); gate **VERIFY OK 16/16** (773 s, `--ci --e2e`); production smoke 2 passed /
 2 skipped.
 **Owner-open:** model approval, a paid/second provider key, the privacy line, the 20 flagged persona lines (§19).
-UNPROVEN: full 60-input corpus (free-tier TPD) and real 3-learner load.
+UNPROVEN: 60-input corpus and v4 chat QA (TPD); see `CHAT-QA-REPORT.md`.
 
 ## Previous snapshot — 2026-11-08 (scripted practice, since replaced by the roleplay turn)
 
