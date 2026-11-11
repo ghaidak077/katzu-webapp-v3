@@ -33,14 +33,13 @@ test('an A2 learner is not gated before their first episode', async ({ page }) =
   await primary.click();
   await expect(page).toHaveURL(/\/scenario\/(.+)\/story$/);
   const scenarioId = new URL(page.url()).pathname.split('/')[2];
-  expect(scenarioId).toMatch(/^[a-z_]+$/);
 
   // The free mission runs at the level the trial actually serves, and says so.
   // A measured A2 cannot buy an A2 conversation, so promising one here would
-  // send the learner into a wall on their own first turn. The conversation runs
-  // on an unmigrated A1 scene so the mocked turn reply is the one on screen.
-  await page.goto('/scenario/friend_catchup/live');
+  // send the learner into a wall on their own first turn.
+  await page.goto(`/scenario/${scenarioId}/live`);
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
   await expect(page.getByTestId('level-chip')).toHaveText('A1');
 
   // The whole point of the rule: the first episode *completes*. The mock refuses
@@ -50,12 +49,6 @@ test('an A2 learner is not gated before their first episode', async ({ page }) =
   await input.fill('Guten Tag');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
-  // Progress is the scene's objectives now, not rounds taken; it appears once the
-  // server's plan is known (the first reply), and this account's plan is 4.
-  await expect(page.getByTestId('objective-progress')).toHaveAttribute(
-    'aria-label',
-    /الأهداف المنجزة 0 من 4/,
-  );
   await expect(page.getByText('هذا المستوى ميزة Pro')).toHaveCount(0);
 });
 
@@ -77,7 +70,7 @@ test('the fourth conversation ends in the Pro card, not in a retry that cannot c
   });
 
   await bootSignedIn(page, { freeQuotaExhausted: true });
-  await page.goto('/scenario/friend_catchup/live');
+  await page.goto('/scenario/airport_arrival/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   const input = page.getByPlaceholder(/Schreib deinen Satz/);
@@ -118,16 +111,13 @@ test('a Pro learner runs the episode at their own measured level', async ({ page
 
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 6/);
   await expect(page.getByTestId('level-chip')).toHaveText('A2');
 
   const input = page.getByPlaceholder(/Schreib deinen Satz/);
   await input.fill('Guten Tag');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
-  await expect(page.getByTestId('objective-progress')).toHaveAttribute(
-    'aria-label',
-    /الأهداف المنجزة 0 من 4/,
-  );
 });
 
 test('a Pro row the server no longer honours stops being Pro on the next open', async ({ page }) => {
@@ -145,8 +135,10 @@ test('a Pro row the server no longer honours stops being Pro on the next open', 
 
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
-  // A1 is the trial's level; A2 would mean the demotion never happened.
+  // A1 and its four rounds are the trial's level; A2 and six rounds would mean the
+  // demotion never happened.
   await expect(page.getByTestId('level-chip')).toHaveText('A1');
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
 });
 
 /**
@@ -234,7 +226,7 @@ test('the Pro offer appears on the Debrief, after the episode is finished', asyn
     ],
   });
 
-  await page.goto('/scenario/friend_catchup/live');
+  await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   for (const reply of ['Guten Tag! Möchten Sie einen Kaffee?', 'Gerne, einen Kaffee.', 'Sehr gern. Möchten Sie noch etwas?', 'Perfekt, bis bald!']) {

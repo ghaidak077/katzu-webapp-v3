@@ -88,7 +88,7 @@ export const CI_ONLY_STEPS = [
   { name: 'served opener coverage', cmd: 'node', args: ['scripts/audit-opener-coverage.mjs'] },
   { name: 'unit coverage', cmd: 'node', args: ['scripts/audit-unit-coverage.mjs'] },
   { name: 'chat quality eval', cmd: 'node', args: ['scripts/eval-chat-quality.mjs'] },
-  { name: 'roleplay eval fixtures', cmd: 'node', args: ['scripts/eval-chat.mjs', '--dry'] },
+  { name: 'turn cost probe', cmd: 'node', args: ['scripts/measure-turn-cost.mjs'] },
   { name: 'simplicity budget', cmd: 'node', args: ['scripts/simplicity-check.mjs'] },
   { name: 'dependency audit', cmd: 'npm', args: ['audit', '--omit=dev', '--audit-level=high'] },
 ];

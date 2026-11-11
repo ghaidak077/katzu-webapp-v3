@@ -32,28 +32,6 @@ export interface ConversationDockProps {
   /** V31: today's AI hint budget is spent. */
   hintQuotaSpent?: boolean;
   micError: string | null;
-  /**
-   * The failed turn's one inline notice. It sits above the sentence the learner
-   * still has — never in the transcript, never in the persona's voice.
-   */
-  turnFailure: {
-    cause: 'offline' | 'busy' | 'other';
-    message: string;
-    diagnosticId?: string;
-    debugLabel: string;
-  } | null;
-  /** Visible countdown before an automatic busy retry; null when none is running. */
-  busySecondsLeft: number | null;
-  /** No connection at all: the composer is disabled and offers a re-check. */
-  isOffline: boolean;
-  onRecheckConnection: () => void;
-  onRetryTurn: () => void;
-  /** Sends the diagnostic id only — never the learner's text. */
-  onReportProblem: () => void;
-  /** Hidden Settings toggle, off by default. */
-  showAiDebug: boolean;
-  /** AI hint request failed: the same clear sentence a failed turn gets. */
-  hintFailure?: string | null;
   orbState: OrbState;
   orbTone: 'lavender' | 'earned';
   orbLabelAr: string;
@@ -90,14 +68,6 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
   isRefreshingHints,
   hintQuotaSpent,
   micError,
-  turnFailure,
-  busySecondsLeft,
-  isOffline,
-  onRecheckConnection,
-  onRetryTurn,
-  onReportProblem,
-  showAiDebug,
-  hintFailure,
   orbState,
   orbTone,
   orbLabelAr,
@@ -152,72 +122,6 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
         </div>
       )}
 
-      {/* OFFLINE: the composer is disabled, the sentence is kept, and the button
-          re-asks the browser. Nothing queues and no answer is cached. */}
-      {isOffline && (
-        <div
-          role="status"
-          data-testid="offline-notice"
-          className="kz-ar-micro mb-2 flex items-center gap-2 rounded-xl border border-status-learning/40 bg-white/5 p-2.5 text-status-learning"
-        >
-          <span className="flex-1">
-            لا يوجد اتصال بالإنترنت. المحادثة تحتاج إنترنت. اتصل ثم اضغط إعادة المحاولة.
-          </span>
-          <button
-            type="button"
-            onClick={onRecheckConnection}
-            className="flex min-h-touch shrink-0 items-center gap-1 rounded-xl border border-primary/50 bg-primary/20 px-3 py-1.5 font-bold text-primary transition-colors pointer-hover:bg-primary/30"
-          >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            تحقق من الاتصال
-          </button>
-        </div>
-      )}
-
-      {/* A failed turn: the only three sentences (offline, busy, other), the
-          sentence still in the field, one retry, and — for an unattributed
-          failure — «أبلغ عن المشكلة», which sends a diagnostic id and no text. */}
-      {!isOffline && turnFailure && !isGenerating && (
-        <div
-          role="status"
-          data-testid="turn-failure"
-          data-cause={turnFailure.cause}
-          className="kz-ar-micro mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 p-2.5 text-kz-ink"
-        >
-          <span className="min-w-0 flex-1">
-            {turnFailure.message}
-            {busySecondsLeft !== null && (
-              <span className="ms-1 font-bold text-primary" data-testid="busy-countdown">
-                ({busySecondsLeft})
-              </span>
-            )}
-          </span>
-          <button
-            type="button"
-            onClick={onRetryTurn}
-            disabled={busySecondsLeft !== null}
-            className="flex min-h-touch shrink-0 items-center gap-1 rounded-xl border border-primary/50 bg-primary/20 px-3 py-1.5 font-bold text-primary transition-colors pointer-hover:bg-primary/30 disabled:opacity-40"
-          >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            أعد المحاولة
-          </button>
-          {turnFailure.diagnosticId && (
-            <button
-              type="button"
-              onClick={onReportProblem}
-              className="kz-ar-micro flex min-h-touch shrink-0 items-center rounded-xl px-2 text-kz-inkDim transition-colors pointer-hover:text-kz-ink"
-            >
-              أبلغ عن المشكلة
-            </button>
-          )}
-          {showAiDebug && (
-            <code dir="ltr" className="w-full font-german text-micro text-kz-inkFaint">
-              {turnFailure.debugLabel}
-            </code>
-          )}
-        </div>
-      )}
-
       {/* The learner's own German while they are still speaking: the live transcript,
           grey and italic, right where the final sentence will land. */}
       {isRecording && interimText && (
@@ -253,9 +157,8 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           rows={1}
           dir="ltr"
           aria-label="اكتب جملتك بالألمانية"
-          placeholder={isOffline ? 'لا يوجد اتصال' : 'Schreib deinen Satz…'}
+          placeholder="Schreib deinen Satz…"
           value={inputText}
-          disabled={isOffline}
           onChange={(e) => onInputTextChange(e.target.value)}
           onKeyDown={(e) => onInputKeyDown(e.key)}
           style={{ fieldSizing: 'content' } as React.CSSProperties}
@@ -332,7 +235,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
             <button
               type="button"
               onClick={onSend}
-              disabled={isGenerating || !hasText || isOffline}
+              disabled={isGenerating || !hasText}
               tabIndex={hasText ? 0 : -1}
               aria-label="أرسل جملتك"
               className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-fill to-fill-pressed text-on-fill shadow-glow-purple transition-colors disabled:opacity-60"
@@ -390,31 +293,12 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
               )}
             </div>
           ) : (
-            <div className="space-y-2">
-              <p className="kz-ar-micro text-kz-inkFaint">
-                لا يوجد اقتراح لهذا الدور بعد. اطلبه من كَاتْزُو.
-              </p>
-              <button
-                type="button"
-                data-testid="request-hint"
-                onClick={onRefreshHints}
-                disabled={isRefreshingHints || hintQuotaSpent}
-                className="kz-ar-micro flex min-h-touch items-center gap-1.5 rounded-xl border border-primary/50 bg-primary/20 px-3 font-bold text-primary transition-colors pointer-hover:bg-primary/30 disabled:opacity-40"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingHints ? 'kz-animated animate-spin' : ''}`} />
-                اطلب تلميحاً
-              </button>
-              {hintFailure && (
-                <p className="kz-ar-micro text-status-error" role="alert">
-                  {hintFailure}
-                </p>
-              )}
-            </div>
+            <p className="kz-ar-micro text-kz-inkFaint">لا توجد اقتراحات لهذه اللحظة.</p>
           )}
 
           {hintQuotaSpent && (
             <p className="kz-ar-micro mt-3 text-kz-inkFaint" role="status">
-              استهلكت اقتراحات اليوم. ستتجدد غداً.
+              استهلكت اقتراحات اليوم. هذه عبارات من الموقف نفسه، وتتجدد غداً.
             </p>
           )}
 
@@ -423,7 +307,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           {isHintRevealed && hintBank.length > 0 && (
             <div data-testid="word-bank" dir="ltr" className="mt-3">
               <span className="kz-ar-micro mb-1 block text-kz-inkFaint">
-                رتّب الكلمات لتبني الجملة
+                هذه كلمات الجملة بالترتيب — اضغط لتبني جملتك بنفسك
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {hintBank.map((word, wordIndex) => (

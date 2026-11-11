@@ -61,29 +61,7 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-09 (normal AI roleplay chat; a stall no longer costs a turn)
-
-**Deployed 2026-11-09** (worker `a73207be-…`, Pages bundle `4b95a34a-…`; gate 16/16). Each of the 49 conversations is one
-bounded model call playing a server-side plan; the client sends progress only, derives
-the correction chip from `understood_de` and sanitises `hint_de`. A 429/timeout/5xx is retried silently (1.2 s, 3.2 s)
-and then restores the sentence with «أعد المحاولة» — no duplicate bubble, no counted turn, no error card;
-`RATE_LIMIT_EXCEEDED` has its own Arabic line. Free learners get 3 AI sessions per `session_id`. A cached pre-rewrite
-bundle still finishes its lesson: a `script_context` request gets its reply under the legacy `script_turn` key. Hints
-are repaired deterministically (spacing, capitals, umlauts), meta/placeholder/personal-data hints are dropped, and a
-hint is tap-to-insert only — never sent.
-**Proof:** eval 12 gate inputs → 10/10 judged pass (2 provider-skipped), p50 1121 ms / p95 4553 ms, ≈$0.0025 per 8-turn
-session at list price (`ROLEPLAY-EVAL.md`); gate **VERIFY OK 16/16** (773 s, `--ci --e2e`); production smoke 2 passed /
-2 skipped.
-**Owner-open:** model approval, a paid/second provider key, the privacy line, the 20 flagged persona lines (§19).
-UNPROVEN: 60-input corpus and v4 chat QA (TPD); see `CHAT-QA-REPORT.md`.
-
-## Previous snapshot — 2026-11-08 (scripted practice, since replaced by the roleplay turn)
-
-The 11 pilot scripts were rebuilt after replaying a real A1 session (fragments/casing, cross-slot guard, greetings arc,
-gendered glosses, name once, no address asks). That engine, `scriptAiTurn` and their tests were deleted on 2026-11-09
-with the roleplay turn; the German checks, hint dock and correction chip remain.
-
-## Previous snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
+## Current snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
 
 **Deployed and verified.** `/app/library` is one guided vertical unit path: the current unit expanded,
 the rest collapsed with «3 من 6», future units dimmed and locked, units below the placement level open and marked «تخطّيتَ»,
@@ -106,7 +84,18 @@ unit coverage **49/49 across 10 units**, gate **VERIFY OK 16/16 (896.5 s)** with
 Both moved verbatim to `docs/agent/ARCHIVE-PROJECT-BRIEF.md` on 2026-11-06 to stay under the 80 KB cap
 (search `2026-11-05 every first message ships its Arabic`, `2026-11-05 the report action is labelled`).
 Nothing was deleted; live deploy ids stay in `docs/agent/APP-MAP.md` §9 and `docs/AGENT-STATE.md`.
-The 2026-10-31 greeting/admin snapshot moved 2026-11-07.
+
+## Previous snapshot — 2026-10-31 (a later «hallo» re-asks the scene's stored opener; Latin isolated in the card)
+
+**Deployed:** worker `862087cb-…` (source `a033b19`, rollback `e3f994ef-…`), panel `e7716e26-…`, Pages
+`bc807292-…` (source `a033b19`, rollback `f4c077c6-…`) serving `index-CfqO0tha.js` →
+`AppShell-CL4Y31Jk.js` → `LiveConversationScreen-CllYR611.js`.
+- **Greeting:** `/ai/turn` now passes the stored `sceneOpener` by id + level, so a later bare `hallo` re-asks
+  the scene instead of «Wie geht es Ihnen?»; Latin runs in the card render inside `<bdi dir="ltr">`.
+- **Admin:** the content studio (drafts/publish/undo/import/backup, five additive tables, old `/admin`
+  untouched) and the Access-gated panel with five telemetry tables went live; the `17 4 * * *` cron fired
+  at 04:17:37 UTC with `outcome: ok`. Proof: `turnGuard` **104**, `adminContentManagement` **51**, gate
+  **14/14** (672.6 s). **Unproven:** signed-in turn/card, `ai_events` until a real AI turn, studio D1 behaviour.
 
 ## Previous snapshot — 2026-10-30 (word cards cost zero AI calls, openers are instant, «hallo» gets a re-ask)
 

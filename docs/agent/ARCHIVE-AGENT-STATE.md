@@ -8,42 +8,6 @@ rows (`blocked`, `todo`, `doing`) stayed in the ledger.
 Read it by search only: `grep -n "<topic>" docs/agent/ARCHIVE-AGENT-STATE.md`, then read ~30 lines around
 the hit. Never load this file whole.
 
-## RESUME entries moved 2026-11-08
-
-- **2026-11-07 — session-replay fixes: no false correction, never-empty hints, no off-topic 💬 line.**
-  `germanChecker.ts` no longer flags `du/dir/dich/dein*` (formal `Sie/Ihnen` always capitalised; only common nouns
-  in context or a person name after heiße/bin/ist/Frau/Herr), and a missing final `.`/`?` is an optional soft note
-  (`softNoteAr`) instead of a silent edit, so «قريب! بقي تصحيح واحد» appears only with ≥1 real error.
-  `answerBank.ts` ships 49 question types × 3 answers + 3 repeat + 4 generic = **154 strings, 0 corrections**;
-  `visibleHints` leads with the direct answer to the last question («Wie heißt du?» → «Ich heiße …» with the name,
-  «Wie geht es dir?» → «Mir geht es gut, danke.»), keeps the repeat family last, and falls back to the generic family
-  so the sheet is never empty. The 💬 `followup_question_ar` line was removed from `cloudflare-ai-chat.js`: only the
-  current scene's own level-validated question is appended. Glosses already read «اسمي …» (no «أنا اسمي» in the repo).
-  Tests: `answerBank` (154 clean, coverage, ordering, name), `shippedGermanStrings` (openers + starter phrases,
-  0 corrections), `germanCheckerGolden` +21 du/Sie, `turnGuard` cross-scenario isolation, `e2e/greetingsReplay.spec.ts`
-  replays the owner's session (no false correction; one capital `G`, no period; non-empty sheet, no café words).
-  Gate **`VERIFY OK 16/16 in 725s`**. Deployed: Pages `7b5995a4-9b08-4fb6-9190-670a6aca10a9` (source
-  `421715a`; rollback `26335c17-a358-444e-a29a-bedd99845690`), worker
-  `aeee3302-f036-47e4-aea6-211043375d60` (rollback `3afaa92c-5d0e-463a-af73-7eaf90d00cde`).
-
-- **2026-11-07 — the path is ten owner-approved units and the day is one composed session (deployed; worker unchanged).**
-  `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
-  dimmed and locked, units below the placement level open and marked «تخطّيتَ», plus the level percent ring and the exact
-  ability lines. The 49 served scenarios are partitioned into the owner's 10 units exactly once, checkpoint last,
-  enforced by `scripts/audit-unit-coverage.mjs` in the gate. Outcome lines are practice-only («في هذه الوحدة تتدرّب
-  على …»); the B2 unit says the exam-style talk is training only and grants no certificate. One move from the owner's
-  draft: `patient_conversation_basics` sits in unit 5 «صحتك ومواعيدك» (the learner speaks as a patient: «Mir ist nicht
-  gut…»), not unit 6. `src/lib/units/{units,progress}.ts` own recommendation (unfinished-started → unit order →
-  checkpoint), stage (study → with help → solo), composition, `nextPlanStep`, the post-session offers, and a `skipped`
-  flag for pre-placement units. One CTA «ابدأ جلسة اليوم»/«تابع»; the report auto-advances after 2 s with «ليس الآن».
-  Signup asks one goal question; placement still sets the start; conversations show 3 unit topic chips + «فاجئني» and no
-  level control. Free line «جلسة مجانية N من 3»; paywall only at a session boundary. Existing learners map by completed
-  ids with level/XP preserved. Evidence: `units` + `trailOrdering` **58**, unit coverage **49/49 across 10 units**, full
-  gate `VERIFY OK — 16/16 steps passed in 896.5s` (browser suite 774.4s, exit 0). **Deployed** Pages
-  `5c63e575-9021-4caa-82de-a2ec6dd7d6c7` (source `19b431a`, entry `assets/index-BnLPxd6G.js`; `/`, `katzuai.com` and
-  `/sw.js` 200; production smoke 2 passed / 2 skipped); rollback `b914e4ba-c296-44eb-8302-f19c5d571c03` (source
-  `58551b9`, docs-only, same bundle). Worker unchanged. Owner review: `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
-
 ## ITEMS — completed
 
 | ID | Status | Evidence / blocker |
@@ -201,7 +165,6 @@ the hit. Never load this file whole.
 | DEPLOY-8. Ship guided refinement to `main` + Pages (`merge`, `pages`) | done | **Deployed 2026-10-23; no worker/D1 change.** Gate `npm run verify -- --ci --e2e` **14/14 in 723 s**, exit 0. Branch `4b581d0`; merge `1e9d09f` (`--no-ff`) → `main`. Staging preview `fedcd115-ba2b-4cf3-9dca-00b70041da6b` (19 routes 200, `VITE_GUIDED_HOME:"1"`, `/demo` 4/4). Production Pages `c89828af-acba-41bd-8514-8eba166d6c0e` from `1e9d09f`, entry `assets/index-DkRAI1BL.js` with `VITE_GUIDED_HOME:"1"` (2×, 0× `"0"`) + worker origin; 15 routes 200, live demo 4/4, production smoke 4 passed/2 skipped/0 failed, SW on `/`. Rollback: `50f30132-0412-417f-95de-8cc0dc545d7b` (source `d216ae8`, `index-BfNVQ58w.js`) via dashboard redeploy or `git revert -m 1 1e9d09f` + push; worker `e1a9a2ca-…` untouched. Signed-in day-0/report/paywall UNPROVEN (owner Google account). |
 | GEO-1. SEO + AI discoverability | done | 18 built pages (17 sitemap URLs, real `lastmod`), 12 guides, ten-crawler `robots.txt`, `/llms.txt`, IndexNow key (`202 Accepted`), app root-only sitemap, referral capture. Shipped site `03ec8a29-…` / app `58455d0e-…`; live: 17/17 URLs 200, 47 links 0 dead, SEO/a11y 100 on five pages. Open: citation evidence (UNPROVEN), Cloudflare `403` for three crawlers (OWNER-OPEN). |
 | UNIT-PATH. Guided vertical unit path + composed sessions + goal-only signup | done | Phases 0–4 shipped: `src/lib/units/units.ts` (9 units, all 49 served ids once, checkpoints last), `progress.ts` (recommendation, stage, ≤3-step composition, test-out/repeat offers), `scripts/audit-unit-coverage.mjs` in the gate, `TrailScreen.tsx` vertical map + one CTA, `SessionReportScreen.tsx` auto-advance/ease/offers, goal-only `OnboardingScreen.tsx`, topic chips in `LiveConversationScreen.tsx`. Full gate `VERIFY OK 16/16` (795 s); six 390×844 screenshots in `.tmp/unit-path/`. Owner review: `docs/OWNER-UNITS-REVIEW.md`, `OWNER-CHECKLIST.md` §16. |
-| ROLEPLAY-1. Normal AI chat hardening (2026-11-09) | done | `turnRecovery.ts` silently retries 429/timeout/5xx (1.2 s, 3.2 s) then restores the sentence with «أعد المحاولة» and no bubble/turn cost; `hintSafety.ts` repairs German and drops meta/placeholder/personal hints; `/ai/turn` answers a legacy `script_context` under `script_turn`; free quota is 3 AI sessions per `session_id`. Eval (12 gate inputs) 10/10 judged pass, 2 provider-skipped; p50 1121 ms / p95 4553 ms; ~$0.0025 per 8-turn session at list price. Gate **VERIFY OK 16/16** (773.4 s, `--ci --e2e`, tree `42e97b1`). Deployed `1a587d7`: worker `a73207be-e4ab-4529-9108-f51d8fbcb82e` (rollback `e89a0fc1-…`), Pages `4b95a34a-5b71-4ac2-a07c-4c298b996c54` (rollback `8b78acc4-…`); `/health` storage ok, `/crypto/health` 200 `ready:false`, admin 401; production smoke 2 passed / 2 skipped. UNPROVEN: full 60-input corpus (TPD), paid/second-provider failover, 3 real simultaneous learners. |
 
 ## RUN-LOG
 

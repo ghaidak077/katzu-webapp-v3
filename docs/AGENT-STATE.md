@@ -1,4 +1,4 @@
-# Katzu Agent State Ledger
+﻿# Katzu Agent State Ledger
 
 ## How to read this file (2026-10-15: a live board, not an archive)
 
@@ -26,22 +26,23 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
-- **2026-11-08 (later) — scripted practice rebuilt into real training; deployed `086d545`.**
-  Fragment/casing slot matching (name/origin/city/age/job) with cross-slot rejection; static guards for repeated
-  slots and re-worded duplicate questions; greetings arc name→origin→city→opinion→farewell on all 11 scripts; every
-  address/street/phone ask removed; persona `gender` with gendered Arabic glosses (`glossLint.ts` gate over shipped
-  glosses); a name appears once per turn; period note deleted; first unclear turn says «Wie bitte?» with the model
-  answer in the hint dock, the second moves on. Header `M` equals the script's real step count (`first_greetings` = 5).
-  `scenarioScript` 84 passed; gate **VERIFY OK 16/16** (729 s, `--ci --e2e`); worker `e89a0fc1`, Pages `b0b066df`,
-  production smoke 2/2. Details and rollback ids in APP-MAP §9.
-
-- **2026-11-08 — script-owned chat: answered questions are never re-asked, every session ends after a farewell.**
-  `src/lib/conversation/script/*` is one pure state machine: 11 pilot scripts (`first_greetings` + units 1–2), ask
-  variants, slots, reactions, farewell last. `useLiveConversation.ts` runs the script step plus one bounded AI call
-  (SCRIPT-AI). `HintDock.tsx` shows blanks, Arabic meaning and «سمّعني»/«ببطء»/«قلها» without sending. Line guards,
-  collapsed correction chip, settings «ما نتذكره عنك» (local only), `TRUST_VERSION 2026-11-08`. Unmigrated scenarios
-  stay on `/ai/turn`; V34 adds the AI half. Earlier tests: `scenarioScript` 39, `scriptAiTurn` 13, `hintMatch` 4.
-  V33 gate **VERIFY OK 16/16** (799.5 s).
+- **2026-11-07 — the path is ten owner-approved units and the day is one composed session (deployed; worker unchanged).**
+  `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
+  dimmed and locked, units below the placement level open and marked «تخطّيتَ», plus the level percent ring and the exact
+  ability lines. The 49 served scenarios are partitioned into the owner's 10 units exactly once, checkpoint last,
+  enforced by `scripts/audit-unit-coverage.mjs` in the gate. Outcome lines are practice-only («في هذه الوحدة تتدرّب
+  على …»); the B2 unit says the exam-style talk is training only and grants no certificate. One move from the owner's
+  draft: `patient_conversation_basics` sits in unit 5 «صحتك ومواعيدك» (the learner speaks as a patient: «Mir ist nicht
+  gut…»), not unit 6. `src/lib/units/{units,progress}.ts` own recommendation (unfinished-started → unit order →
+  checkpoint), stage (study → with help → solo), composition, `nextPlanStep`, the post-session offers, and a `skipped`
+  flag for pre-placement units. One CTA «ابدأ جلسة اليوم»/«تابع»; the report auto-advances after 2 s with «ليس الآن».
+  Signup asks one goal question; placement still sets the start; conversations show 3 unit topic chips + «فاجئني» and no
+  level control. Free line «جلسة مجانية N من 3»; paywall only at a session boundary. Existing learners map by completed
+  ids with level/XP preserved. Evidence: `units` + `trailOrdering` **58**, unit coverage **49/49 across 10 units**, full
+  gate `VERIFY OK — 16/16 steps passed in 896.5s` (browser suite 774.4s, exit 0). **Deployed** Pages
+  `5c63e575-9021-4caa-82de-a2ec6dd7d6c7` (source `19b431a`, entry `assets/index-BnLPxd6G.js`; `/`, `katzuai.com` and
+  `/sw.js` 200; production smoke 2 passed / 2 skipped); rollback `b914e4ba-c296-44eb-8302-f19c5d571c03` (source
+  `58551b9`, docs-only, same bundle). Worker unchanged. Owner review: `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
 
 - **Older RESUME entries moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-01/07 to stay under the
   80 KB cap (search `RESUME moved 2026-11-07 path screen + opener gate`, `RESUME 2026-11-05 first message Arabic`,
@@ -106,12 +107,15 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`17abb92b-bf13-4656-bb02-c9c9c75af41c`** (2026-11-08, tree `4d419d6`; scripted `/ai/turn` early return).
-  Live: `/health` 200 `storage:{d1,kv}`; `/crypto/health` 200 `ready:false`; `/internal/admin/health` **401**.
-  **Rollback target: `5b0635aa-112d-45f8-ab17-093fd9295e69`** (source `09f0b92`), then
-  `aeee3302-f036-47e4-aea6-211043375d60` (2026-11-07, source `421715a`; off-topic 💬
-  `followup_question_ar` removed), then `3afaa92c-5d0e-463a-af73-7eaf90d00cde`, then
-  `dd23b2ac-46b0-4b42-a20b-4a41be0cc739` (first-message opener glosses), then `70daf981-98bf-49eb-9722-a4b533ac017f` (deployment
+  **`e98031d5-9932-4093-a7a9-7ba4ab827b0d`** (100%, deployment `09fa2438-d578-40c8-9076-c52cfa0ba922`,
+  2026-11-04T07:02Z, source `580e522`) — the learner's conversation-review grant plus the per-reply
+  `POST /consent/conversation/report` (one redacted exchange) on top of the content studio, observer-only
+  telemetry and the scene greeting guard. Live: `/health` 200 `storage:{d1,kv}`;
+  `/crypto/health` 200 `ready:false`; `GET /internal/admin/health` and `/admin/api/affiliates` **401**;
+  `POST /ai/turn` and `/ai/lexeme` **401** with a valid body and no token. The five telemetry tables exist and
+  `route_events` held **26** owner-session rows at 02:46 UTC (`ai_events` 0 until a real AI turn); the `17 4 * * *`
+  cron fired at **04:17:37 UTC** with `outcome: ok`.
+  **Rollback target: `70daf981-98bf-49eb-9722-a4b533ac017f`** (deployment
   `798fd12a-1c44-49c0-b13b-cb636b2df49d`, 2026-11-04T05:52Z, the first consent deploy: the review
   grant, withdrawal delete and removal of the bulk export), then `862087cb-eeef-48c0-8467-d0bd721c35c3` (deployment
   `b3c5b2de-2314-488e-aa95-8cc2853b1d27`, source `a033b19`, the scene greeting guard), then
@@ -132,15 +136,10 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   **Rollback target: `e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
   `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or
   delete the Worker; nothing else depends on it.
-- **App Pages production (2026-11-08, source `4d419d6`):** deployment
-  **`eea032dd-ebb1-4636-8381-0ea38e177789`** (script-AI turns; `assets/index-D6Htrqgk.js`, `AppShell` carries
-  `script_turn`; `/` and `katzuai.com` 200, `/sw.js` 200, production smoke 2 passed / 2 skipped).
-  **Rollback: `9ab1f882-0659-4d66-a051-7ef5941cddf7`** (source `48f723b`), then
-  `ecc68c3f-4985-4cff-8a1e-809a43851645` (source `09f0b92`; script-owned chat + hint dock), then `f9261d73-7f96-43ad-a07c-42c099fe6a51` (source `7cedfd0`),
-  then `7b5995a4-9b08-4fb6-9190-670a6aca10a9` (source `421715a`, session-replay fixes), then
-  `eff039c2-4f80-4836-b964-8337d61cdddb` (UNIT-PATH: nine-unit map + composed session + goal-only signup; entry
-  `assets/index-DesAHQkO.js`, production smoke 2 passed / 2 skipped).
-  **Rollback after that: `4e9775c6-40e9-4ebc-aa59-b24c7a4ee1d2`** (source `8e37986`, docs-only, same bundle),
+- **App Pages production (2026-11-07, source `4af08b2`):** deployment
+  **`eff039c2-4f80-4836-b964-8337d61cdddb`** (UNIT-PATH: nine-unit map + composed session + goal-only signup; entry
+  `assets/index-DesAHQkO.js`, `/` and `katzuai.com` 200, `/sw.js` 200; production smoke 2 passed / 2 skipped).
+  **Rollback: `4e9775c6-40e9-4ebc-aa59-b24c7a4ee1d2`** (source `8e37986`, docs-only, same bundle),
   then `a10ab1b7-69a1-4bb8-8870-ecd9c2a50b1e` (source `35a4363`, TRAIL-1; entry `assets/index-BVLRTDPT.js`),
   then `7549eab3-ffb4-4583-9bbe-87061a55eca9` (source `31f65d3`, docs-only, entry `index-BuFoPzZ9.js`),
   then `7bfe14d6-eef2-420a-9164-f853bc8f4f11` (source `87997a4`, docs-only, same entry), then
@@ -252,19 +251,8 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | CONTENT-V2. Scenarios v2 (61 rows, A0–B2) | blocked | **All 61 authored; the 49-row update path is built and proven locally; nothing deployed.** One authoring source `docs/content/catalogue/scenarios-catalogue.json` (49 corrected + 12 new) → `scripts/apply-content-catalogue.mjs` → `build-language-data.mjs`; **0/305** openers off-spec, 0 personas without `katze`, 0 emoji icons, `sequence_order` 1..61; 301 openers / 457 glossed tokens / 0 unresolved; 12 rows + 159 glosses `needs_review`. `scripts/load-content-updates.mjs` corrects the 49 through the new `/admin/api/content-studio/*` bridge (draft → publish-all → audit → undo, studio backup + per-run manifest); `scripts/verify-content-update-local.mjs` **28/28** on a real local D1: 49 rows / **327 fields**, catalogue-exact column by column, the 12 new ids absent, undo restored every field. That run found and fixed a real undo defect (`SELECT *` audit state carried the legacy `sequence_order` → 49/49 `409 restore_invalid`; `contractRow` + regression, `contentStudio` **33**, `loadContentUpdates` **17**). SW update prompt shipped locally (`updatePrompt` **4**). Full gate + e2e green locally; pushed `f7a76f7`, CI **41300425341** green on it. **Blocked on the owner:** §3 is insert-only → needs `CONTENT-LOAD-AUTHORIZED: <file>` plus an amendment for the UPDATE, and the production dry run returns `401 unauthorized` while the environment `ADMIN_SECRET` is set, 64-hex, no whitespace (`docs/CONTENT-AUDIT.md` §9). |
 | SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
-| CHAT-QA. Roleplay QA harness + prompt v4 | blocked | Harness, judge (rubric v2, calibration 14/14) and live UI rig are local; the clean v4 full run is blocked by the Groq 200K TPD wall (reset 07:00). Next: `npm run qa:chat -- --from-kv --pacing 7000`. |
-| SCRIPT-MIGRATE. Remaining 38 scenarios → script engine | todo | 11 pilots run locally (`first_greetings` + units 1–2; `tests/scenarioScript.test.ts` 39 passed); every unmigrated id stays on `/ai/turn` behind `isScriptedScenario`. Order: unit by unit, simulation gate green per batch. |
 
 ## DECISIONS
-
-- **SCRIPT-ENGINE + SCRIPT-AI (2026-11-08) — the app owns the arc; the AI writes the human half.** A migrated scenario is
-  a typed script (`lib/conversation/script/*`) run as one pure state machine: local match → fill slot → exactly one
-  question per turn, never a repeat, farewell last. One bounded `/ai/turn` (`script_context`) returns only how the model
-  read THIS sentence, one question-free in-character reaction and a hint repairing THIS attempt; validators reject
-  invented facts or questions, a strong local match overrules an AI rejection, and an accepted value must appear in the
-  learner's text. Off-topic turns show «reaction + the script's re-ask», never the next step. A 7 s timeout silently
-  falls back to the authored line, so no error card. 11 pilots migrated, 38 legacy; tests `scenarioScript` 39,
-  `scriptAiTurn` 13.
 
 - **UNIT-PATH (2026-11-07) — one guided vertical unit path; the learner never chooses.** The 49 served scenarios are
   partitioned into 9 themed units (5–6 each), ordered level then difficulty, checkpoint last. `units.ts` is the only
@@ -401,9 +389,6 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical claims are in `docs/agent/ARCHIVE-AGENT-STATE.md` under the same heading.
 
-- **ROLEPLAY-1 (2026-11-09) — the gate is free-tier, not production load.** `ROLEPLAY-EVAL.md` measures Groq alone;
-  three simultaneous learners are unit-simulated; paid/second-provider failover is untested (no key).
-
 - **V47 (2026-11-05) — the fixed first bubble is proven in code and data, not in a signed-in production session.** The
   coverage test enumerates the live corpus fixture and the app reads the same generated map, but no owner session exists
   to open a live conversation and see the Arabic on screen; production `https://katzuai.com/scenarios` also answers 404
@@ -514,22 +499,16 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
 
-- **Three AI launch choices (ROLEPLAY-1, 2026-11-09).** Approve `openai/gpt-oss-120b`; add a paid/second provider key;
-  confirm the AI-provider privacy line. Plain copy: `OWNER-CHECKLIST.md` §19.
+- **Two path-screen wording decisions (TRAIL-1, 2026-11-06).** Approve or rewrite the four CEFR level lines
+  («أتدبّر أمري في ألمانيا»، «أتحرّك في يومي بثقة»، «أتعامل مع المواقف الرسمية والعمل»، «أتحدّث بطلاقة في العمل
+  والدراسة») and say whether rank/XP stays on the profile only (current) or returns as a small home line.
+  Done: the lines approved or replaced, and one placement recorded. Plain copy: `OWNER-CHECKLIST.md` §15.
 
-- **Read the 11 pilot scripts' German and Arabic (SCRIPT-ENGINE, 2026-11-08).** Every line a learner sees in
-  `first_greetings` and units 1–2 now comes from `src/lib/conversation/script/scripts.ts` (3 asks, reactions, hints and a
-  farewell per scene). A native read is the only check that matters: report any odd line and it is replaced.
-  Plain copy: `OWNER-CHECKLIST.md` §18.
-
-- **Two path-screen wording decisions (TRAIL-1, 2026-11-06).** Approve or rewrite the four CEFR level lines (copy:
-  `OWNER-CHECKLIST.md` §15) and say whether rank/XP stays on the profile only (current) or returns as a small home line.
-  Done: the lines approved or replaced, and one placement recorded.
-
-- **Turn on the new conversations — production needs your line (CONTENT-V2-1, 2026-11-01).** 61 scenarios are authored
-  and tested; live D1 still serves the old 49. Choose **(a) new only**: `CONTENT-LOAD-AUTHORIZED: scenarios-new.json`
-  inserts the 12 new situations, or **(b) everything**: authorize an update-capable load so the 49 corrected rows
-  replace the old ones. Done: the chosen situations appear at all five levels and
+- **Turn on the new conversations — production needs your line, and today's loader can only add rows (CONTENT-V2-1,
+  2026-11-01).** 61 scenarios are authored and tested locally; live D1 still has the old 49. Choose **(a) new only**:
+  `CONTENT-LOAD-AUTHORIZED: scenarios-new.json` inserts the 12 new situations and leaves the 49 untouched, or
+  **(b) everything**: authorize an update-capable load (loader change written and tested first), so the 49 corrected
+  rows replace the old ones. Done looks like: the chosen situations appear at all five levels and
   `node scripts/check-content-drift.mjs` exits 0.
 
 - **Two owner steps still block any production content write (CONTENT-V2-4, 2026-11-01).** (1) The 49-row correction

@@ -150,7 +150,7 @@ command below stops existing, so this index cannot rot silently.
 | The simplicity budget (29 screens) | `node scripts/simplicity-check.mjs` | part of the design gate; fails when a screen exceeds its element budget |
 | The verification battery (12 checks) | `node scripts/verification-battery.cjs` | the battery whose output the ledger quotes |
 | Quiz content audit | `node scripts/audit-quiz-content.mjs` | CI runs it; fails on a malformed quiz row |
-| AI quality and cost probes | `scripts/eval-chat.mjs` · `scripts/eval-chat-quality.mjs` · `npm run qa:chat` | live model; qa:chat writes the report |
+| AI quality and cost probes | `node scripts/eval-chat-quality.mjs` · `node scripts/measure-turn-cost.mjs` | read-only; model quality and per-turn cost |
 | Deploy / tail the worker | `npm run deploy:worker` · `npm run tail:worker` | **only** when AGENTS §3 authorizes a deploy |
 
 ### Producing a file (screenshot, image, export) — measured 2026-10-15

@@ -59,7 +59,7 @@ export const OWNER_FILL = '{{OWNER_FILL}}';
 export const SUPPORT_ADDRESS_AR = 'support@ghaidak.com';
 
 /** The published version label, so a change is visible without a git log. */
-export const TRUST_VERSION = '2026-11-08';
+export const TRUST_VERSION = '2026-11-05';
 
 /** "3 أشهر و6 أشهر و12 شهراً" — the refundable plans, from the config's id list. */
 const REFUND_PLANS_AR = REFUND_PLAN_IDS.map((id) => PLAN_BY_ID[id as PlanId]?.nameAr)
@@ -75,7 +75,7 @@ export const TRUST_CONTENT: Record<TrustPage, TrustContent> = {
         id: 'device',
         headingAr: 'على جهازك',
         bodyAr:
-          'حسابك، وتقدّمك، والجُمل التي قلتها، وأخطاؤك المصحّحة، ومفرداتك، ومحتوى التعلّم — تُحفظ في متصفحك (IndexedDB) ليعمل التطبيق دون اتصال، وتبقى بعد إغلاقه على الجهاز نفسه. كذلك نحفظ أربع معلومات شخصية لتذكّرك بها في الحديث: اسمك ومدينتك ومهنتك وهدفك. تبقى هذه المعلومات على جهازك فقط، ولا تُرسل إلى خادمنا، ويمكنك رؤيتها وتصحيحها أو حذفها من الإعدادات في أي وقت.',
+          'حسابك، وتقدّمك، والجُمل التي قلتها، وأخطاؤك المصحّحة، ومفرداتك، ومحتوى التعلّم — تُحفظ في متصفحك (IndexedDB) ليعمل التطبيق دون اتصال، وتبقى بعد إغلاقه على الجهاز نفسه.',
       },
       {
         id: 'server',

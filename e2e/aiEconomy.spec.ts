@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { bootSignedIn, turn } from './harness';
+import { bootSignedIn } from './harness';
 
 /**
  * The AI economy of the conversation, asserted as counts (V19 Phase 2).
@@ -49,7 +49,7 @@ test('a typed turn costs exactly one /ai/turn and no other AI call', async ({ pa
   });
 
   await bootSignedIn(page);
-  await page.goto('/scenario/friend_catchup/live');
+  await page.goto('/scenario/airport_arrival/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]').first()).toBeVisible();
 
@@ -60,39 +60,28 @@ test('a typed turn costs exactly one /ai/turn and no other AI call', async ({ pa
   expect(aiCalls, 'one chat call per typed turn').toEqual(['/ai/turn']);
 });
 
-test('hints are AI only: no authored floor is offered before a turn', async ({ page }) => {
+test('the suggestion floor answers the last AI message, not the scenario first phrase', async ({ page }) => {
   await bootSignedIn(page);
   await page.goto('/scenario/airport_arrival/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]').first()).toBeVisible();
 
-  // 2026-11-10: the stored starter-phrase floor is gone. With no model hint for
-  // this turn the sheet offers ONE small AI call («اطلب تلميحاً»), never a
-  // stored sentence dressed as the persona's suggestion.
+  // The opener asks about the suitcase; the floor's first suggestion must
+  // address the luggage (or be a yes/no move), never the passport line the
+  // old sort_order floor opened with.
   await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
-  await expect(page.getByTestId('request-hint')).toBeVisible();
+  // V29: the suggestion pill and its options moved to the control bar under the
+  // header, so the floor's answers are addressed there now.
+  const first = page.locator('[data-testid="conversation-controls"] button').filter({ hasText: /[Gg]epäck|[Kk]offer|^Ja,|^Nein,/ }).first();
+  await expect(first).toBeVisible();
   await expect(page.getByText('Guten Tag. Hier ist mein Pass.')).toHaveCount(0);
-  await expect(page.getByText(/Hier ist mein Pass/)).toHaveCount(0);
 });
 
 test('the suggestion chips offer their words to build the reply', async ({ page }) => {
-  await bootSignedIn(page, {
-    turns: [
-      turn({
-        reply_de: 'Guten Tag! Fehlt Ihr Koffer?',
-        hint_de: 'Ja, mein Koffer fehlt.',
-        hint_ar: 'نعم، حقيبتي مفقودة.',
-      }),
-    ],
-  });
+  await bootSignedIn(page);
   await page.goto('/scenario/airport_arrival/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]').first()).toBeVisible();
-
-  // A hint exists only after a turn that carried one (AI only, no starter floor).
-  await page.getByPlaceholder(/Schreib deinen Satz/).fill('Mein Koffer ist weg.');
-  await page.getByRole('button', { name: 'أرسل جملتك' }).click();
-  await expect(page.getByText('Guten Tag! Fehlt Ihr Koffer?')).toBeVisible();
 
   await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
 

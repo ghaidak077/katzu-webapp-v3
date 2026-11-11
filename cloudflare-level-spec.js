@@ -47,6 +47,21 @@ export const LEVEL_SPECS = {
 };
 
 /**
+ * Deterministic fallback lines, one per level. Chosen so they are safe for any
+ * persona register (no second-person pronoun, no question), inside the tense
+ * and length budget of their level, and honest about being a placeholder.
+ * The Arabic travels with the German so the learner's bubble never shows a
+ * translation of a sentence that is not on screen.
+ */
+export const FALLBACK_LINES = {
+  A0: { de: 'Ich verstehe. Wir üben weiter.', ar: 'فهمت. نكمل التدريب.' },
+  A1: { de: 'Ich verstehe. Sprechen wir weiter.', ar: 'فهمت. لنتابع الحديث.' },
+  A2: { de: 'Das ist gut. Machen wir mit der Übung weiter.', ar: 'كان ذلك جيداً. لنكمل التمرين.' },
+  B1: { de: 'Das war ein guter Versuch. Fahren wir mit dem Gespräch fort.', ar: 'كانت محاولة جيدة. لنكمل الحوار.' },
+  B2: { de: 'Das war ein langer Satz, aber die Übung geht weiter.', ar: 'كانت جملة طويلة، لكن التمرين يستمر.' },
+};
+
+/**
  * Tense markers per group: frequent, distinctive forms only (a floor, not a
  * CEFR examiner — see LEVEL-SPEC.md "Known determinism limits").
  *
@@ -132,6 +147,11 @@ export function validateGermanAgainstLevel(replyDe, level) {
   }
 
   return { ok: true };
+}
+
+/** The deterministic line (German + its Arabic) served when the model will not obey the caps. */
+export function levelFallbackLine(level) {
+  return FALLBACK_LINES[level] || FALLBACK_LINES.A1;
 }
 
 /** How many learner mistakes may be corrected in one turn at this level. */

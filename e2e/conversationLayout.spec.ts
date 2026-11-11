@@ -25,7 +25,7 @@ async function sendTurns(page: Page, count: number): Promise<void> {
     await expect(input).toHaveValue('');
   }
   // The last reply is the signal that the final turn landed.
-  await expect(page.getByText('Die Kaution beträgt drei Monatsmieten. Möchten Sie noch etwas?').last()).toBeVisible();
+  await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?').last()).toBeVisible();
 }
 
 function intersects(a: { x: number; y: number; width: number; height: number }, b: typeof a): boolean {
@@ -90,19 +90,14 @@ test('the transcript ends above the dock, with the suggestion panel open', async
       turn({
         reply_de:
           'Die Miete beträgt 800 Euro kalt, dazu kommen 150 Euro Nebenkosten und die Kaution von drei Monatsmieten.',
-        hint_de: 'Ist die Kaution verhandelbar?',
-        hint_ar: 'هل يمكن التفاوض على مبلغ التأمين؟',
+        hints: [{ german: 'Ist die Kaution verhandelbar?', translation_ar: 'هل يمكن التفاوض على مبلغ التأمين؟' }],
       }),
       turn({ reply_de: 'Sehr gern. Möchten Sie noch etwas?' }),
-      turn({
-        reply_de: 'Die Kaution beträgt drei Monatsmieten. Möchten Sie noch etwas?',
-        hint_de: 'Ich möchte über die Kaution sprechen.',
-        hint_ar: 'أريد التحدث عن مبلغ التأمين.',
-      }),
+      turn({ reply_de: 'Sehr gern. Möchten Sie noch etwas?' }),
     ],
   });
 
-  await page.goto('/scenario/landlord_followup/live');
+  await page.goto('/scenario/cafe_order/live');
   // Three of the A1 session's four turns leave it running, so the layout is
   // measured mid-conversation rather than on the debrief hand-off. Practice mode
   // on purpose: the suggestion panel is part of what has to fit.
@@ -116,7 +111,7 @@ test('the transcript ends above the dock, with the suggestion panel open', async
   // And with the on-demand suggestion revealed — the pill that covered the same
   // bubble in the report.
   await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
-  await expect(page.getByTestId('hint-dock').getByText('Ich möchte über die Kaution sprechen.')).toBeVisible();
+  await expect(page.getByText('Ist die Kaution verhandelbar?')).toBeVisible();
   await assertNothingIsCovered(page);
 });
 
@@ -128,9 +123,7 @@ test('the dock fits a short phone without pushing the transcript off screen', as
   await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
-  // Before the first reply there is no plan on the client yet, so the header shows
-  // no objective bar — it is not an invented "1 of 5".
-  await expect(page.getByTestId('objective-progress')).toHaveCount(0);
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
   await assertNothingIsCovered(page);
 
   const transcript = await page.getByTestId('conversation-transcript').boundingBox();

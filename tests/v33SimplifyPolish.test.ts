@@ -123,7 +123,7 @@ describe('V33 — the chat word bank teaches that you can build a sentence', () 
   const source = read('src/features/conversation/ConversationDock.tsx');
 
   it('the chat bank says it is for building, not only for sending', () => {
-    expect(source).toContain('رتّب الكلمات لتبني الجملة');
+    expect(source).toContain('اضغط لتبني جملتك بنفسك');
   });
 
   it('the other production surfaces keep their plain bank wording', () => {

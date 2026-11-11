@@ -85,12 +85,6 @@ GOOGLE_CLIENT_ID = "754341831948-76f8r0mm3gccco6n4mfr86o6ut0snsum.apps.googleuse
 # ceiling instead of failing loudly.
 AI_RATE_LIMIT_PER_MINUTE = "10"
 AI_RATE_LIMIT_PER_DAY = "200"
-# The model the roleplay turn prefers (cloudflare-roleplay.js). The router still
-# walks the owner-managed pool and keeps failover: this only moves the named
-# entry to the front of its tier. Chosen 2026-11-08 because the production pool's
-# usable key is a Groq one and gpt-oss-120b answers short German/Arabic JSON
-# fast; change it here without touching the code.
-ROLEPLAY_MODEL = "openai/gpt-oss-120b"
 # Set to "0" to disable the Workers AI fallback (Gemini-only mode).
 AI_FALLBACK_ENABLED = "1"
 # GLOBAL daily AI spend cap — a count of AI calls across ALL accounts, free tier

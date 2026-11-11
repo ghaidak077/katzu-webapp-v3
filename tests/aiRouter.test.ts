@@ -365,28 +365,6 @@ describe('transports', () => {
     expect(stub.bodies[1].response_format).toBeUndefined();
   });
 
-  it('retries without json mode when the validator fails the generation itself', async () => {
-    // The real Groq body is `{"code":"json_validate_failed","message":"Failed to
-    // validate JSON..."}` — it names neither response_format nor json_object, so
-    // the ordinary field-rejection branch misses it and the identical retry fails
-    // identically. What the learner saw was an error card on an ordinary turn.
-    let attempt = 0;
-    const stub = fetchStub(() => {
-      attempt += 1;
-      if (attempt === 1)
-        return new Response(
-          JSON.stringify({ error: { message: 'Failed to validate JSON. Please adjust your prompt.', type: 'invalid_request_error', code: 'json_validate_failed' } }),
-          { status: 400 },
-        );
-      return new Response(JSON.stringify({ choices: [{ message: { content: '```json\n{"ok":true}\n```' } }] }), { status: 200 });
-    });
-    const text = await callAiRouter(geminiPayload, { GROQ_API_KEYS: 'groq-key-aaaaaaaaaa' } as any, deps({ fetchImpl: stub.impl, pool: [groqEntry] }));
-
-    expect(text).toContain('{"ok":true}');
-    expect(stub.bodies[0].response_format).toEqual({ type: 'json_object' });
-    expect(stub.bodies[1].response_format).toBeUndefined();
-  });
-
   it('treats an empty 200 as a failure so the next entry is tried', async () => {
     const entry = { ...groqEntry };
     await expect(

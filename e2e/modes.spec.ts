@@ -22,8 +22,11 @@ function countAiTurn(page: Page): string[] {
 
 const CORRECTION_TURN = turn({
   reply_de: 'Verstanden.',
-  understood_de: 'Ich möchte einen Kaffee',
-  fix_reason_ar: 'بعد möchte يأتي الاسم في حالة النصب.',
+  is_correct: false,
+  original_mistake: 'Ich möchte ein Kaffee',
+  corrected_german: 'Ich möchte einen Kaffee',
+  grammar_rule: 'Akkusativ: einen Kaffee',
+  explanation_ar: 'بعد möchte يأتي الاسم في حالة النصب.',
 });
 
 test('PRACTICE mode shows the hint and the live correction, one /ai/turn per turn', async ({ page }) => {
@@ -32,30 +35,25 @@ test('PRACTICE mode shows the hint and the live correction, one /ai/turn per tur
     turns: [
       turn({
         ...CORRECTION_TURN,
-        hint_de: 'Ja, bitte einen Kaffee.',
-        hint_ar: 'نعم، قهوة من فضلك.',
+        hints: [{ german: 'Ja, bitte einen Kaffee.', translation_ar: 'نعم، قهوة من فضلك.' }],
       }),
     ],
   });
 
-  await page.goto('/scenario/friend_catchup/live');
+  await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   await page.getByPlaceholder(/Schreib deinen Satz/).fill('Ich möchte ein Kaffee');
   await page.getByRole('button', { name: 'أرسل جملتك' }).click();
   await expect(page.getByText('Verstanden.')).toBeVisible();
 
-  // The correction is shown live, one tap under the learner's own line. This is
-  // asserted before any sheet opens: a closing sheet's scrim covers the chip.
-  await page.getByText(/تصحيح صغير/).click();
-  await expect(page.getByText('تصحيح كَاتْزُو')).toBeVisible();
-  await expect(page.getByText(/^Ich möchte einen Kaffee\.?$/)).toBeVisible();
-
-  // Help is on: the suggestion pill exists and answers the reply. The hint dock
-  // shows the same sentence, which is the surface that must be visible.
+  // Help is on: the suggestion pill exists and answers the reply.
   await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
-  await expect(page.getByTestId('hint-dock').getByText('Ja, bitte einen Kaffee.')).toBeVisible();
-  await expect(page.getByText(/^Ich möchte einen Kaffee\.?$/)).toBeVisible();
+  await expect(page.getByText('Ja, bitte einen Kaffee.')).toBeVisible();
+
+  // And the correction is shown live.
+  await expect(page.getByText('تصحيح كَاتْزُو')).toBeVisible();
+  await expect(page.getByText('Ich möchte einen Kaffee')).toBeVisible();
 
   expect(aiTurn, 'exactly one chat call per typed turn').toEqual(['/ai/turn']);
 });
@@ -67,8 +65,7 @@ test('REAL mode hides every aid, still reports the mistake, and its correction i
       // A hint is present in the payload but REAL mode must never surface it.
       turn({
         reply_de: 'Guten Tag! Möchten Sie einen Kaffee?',
-        hint_de: 'Ja, bitte einen Kaffee.',
-        hint_ar: 'نعم، قهوة من فضلك.',
+        hints: [{ german: 'Ja, bitte einen Kaffee.', translation_ar: 'نعم، قهوة من فضلك.' }],
       }),
       turn({ reply_de: 'Gerne. Einen Kaffee, bitte schön.' }),
       CORRECTION_TURN,
@@ -76,7 +73,7 @@ test('REAL mode hides every aid, still reports the mistake, and its correction i
     ],
   });
 
-  await page.goto('/scenario/friend_catchup/live');
+  await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'محادثة حقيقية (بدون مساعدة)' }).click();
 
   // No aid is present, anywhere, from the first screen.
@@ -91,9 +88,8 @@ test('REAL mode hides every aid, still reports the mistake, and its correction i
     'Verstanden.',
     'Sehr gern. Möchten Sie noch etwas?',
   ];
-  for (const [index, reply] of replies.entries()) {
-    // The third turn is the one that carries the hidden mistake.
-    await input.fill(index === 2 ? 'Ich möchte ein Kaffee bitte' : 'Ich möchte einen Kaffee bitte');
+  for (const reply of replies) {
+    await input.fill('Ich möchte einen Kaffee bitte');
     await page.getByRole('button', { name: 'أرسل جملتك' }).click();
     await expect(page.getByText(reply)).toBeVisible();
   }
@@ -116,12 +112,12 @@ test('REAL mode hides every aid, still reports the mistake, and its correction i
   await openSessionDetailsIfPresent(page);
 
   await expect(page.getByText('تصحيحات هذه الجلسة', { exact: true })).toBeVisible();
-  await expect(page.getByText('Artikel: richtiger Fall')).toBeVisible();
-  await expect(page.getByText(/^Ich möchte einen Kaffee bitte\.?$/)).toBeVisible();
+  await expect(page.getByText('Akkusativ: einen Kaffee')).toBeVisible();
+  await expect(page.getByText('Ich möchte einen Kaffee')).toBeVisible();
 
   // And the correction is answerable: the report's drill accepts it through the
   // review store (the item was enqueued by the REAL-mode turn).
-  await page.getByPlaceholder('اكتب الجملة الصحيحة').fill('Ich möchte einen Kaffee bitte');
+  await page.getByPlaceholder('اكتب الجملة الصحيحة').fill('Ich möchte einen Kaffee');
   await page.getByRole('button', { name: 'تحقّق' }).click();
   await expect(page.getByText(/ستعود هذه الجملة في مراجعتك/)).toBeVisible();
 });

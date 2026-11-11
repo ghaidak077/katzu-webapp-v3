@@ -23,7 +23,6 @@
  */
 
 import { isEntitlementUnavailable, isEntitlementWall } from '@/lib/entitlement/codes';
-import { RATE_LIMIT_MESSAGE_AR } from './turnRecovery';
 
 export type ConversationStatus =
   | 'idle'
@@ -50,11 +49,6 @@ export interface ConversationError {
   /** Arabic, actionable message shown to the learner. */
   messageAr: string;
   retryable: boolean;
-  /**
-   * The sentence went back into the composer, so no error card and no failed
-   * bubble are shown. The conversation still exposes the text for a retry.
-   */
-  draftRestored?: boolean;
 }
 
 export interface ConversationState {
@@ -312,15 +306,9 @@ export function classifyTurnError(error: unknown): ConversationError {
   if (code === 'UNAUTHENTICATED' || code === 'SESSION_EXPIRED' || code === 'invalid_id_token') {
     return { kind: 'invalid_session', messageAr: SESSION_INVALID_MESSAGE_AR, retryable: false };
   }
-  // A busy service is not the learner's mistake. It gets its own wording so
-  // they do not retype a sentence the server never read.
-  if (code === 'RATE_LIMIT_EXCEEDED') {
-    return { kind: 'network', messageAr: RATE_LIMIT_MESSAGE_AR, retryable: true };
-  }
   if (
     code === 'REQUEST_TIMEOUT' ||
     code === 'NETWORK_ERROR' ||
-    code === 'SERVICE_UNAVAILABLE' ||
     code === 'WORKER_URL_MISSING' ||
     // The Worker could not read the trial ledger. The allowance is unknown, not
     // gone, so this is the one quota code a retry can genuinely clear.

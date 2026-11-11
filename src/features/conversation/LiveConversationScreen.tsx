@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Languages, MoreHorizontal, RefreshCw, Shuffle } from 'lucide-react';
+import { ArrowRight, Languages, MoreHorizontal, Shuffle } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { db } from '@/lib/db/katzuDb';
@@ -23,7 +23,6 @@ import type { CEFRLevel, ChatMessage, ScenarioEntity } from '@/types/models';
 import { ConversationDock } from './ConversationDock';
 import { ConversationTranscript } from './ConversationTranscript';
 import { useLiveConversation } from './useLiveConversation';
-import { HintDock } from './HintDock';
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
@@ -149,13 +148,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     setIsHintExpanded,
     isRefreshingHints,
     hintQuotaSpent,
-    hintFailure,
-    showAiDebug,
-    turnFailure,
-    busySecondsLeft,
-    isOffline,
-    recheckConnection,
-    reportProblem,
+    turnError,
     micError,
     isSessionCompleted,
     isGenerating,
@@ -165,11 +158,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     effectiveLevel,
     targetTurns,
     userTurnsCount,
-    objectivesDone,
-    objectivesTotal,
-    isClosed,
-    canFinishAfterClose,
-    finishAfterClose,
     characterNameAr,
     orbState,
     orbTone,
@@ -196,7 +184,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     handleToggleSaveWord,
     handleSpeak,
     handleSlowSpeak,
-    speakText,
     handleSendMessage,
     retryFailedTurn,
     requestOpenerTranslation,
@@ -423,35 +410,24 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           <div className="min-w-0 flex-1 px-1">
             <p className="kz-ar-caption truncate text-center text-kz-ink">{characterNameAr}</p>
             <div className="mt-1 flex items-center justify-center gap-2">
-              {/* Progress is the SCENE's objectives, not turns taken: a turn is
-                  effort, an objective is something the learner actually did.
-                  Why it is empty before the first reply: the total comes from
-                  the server's plan, which the opener does not need. */}
-              {objectivesTotal > 0 && (
-                <>
-                  <div
-                    data-testid="objective-progress"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={objectivesTotal}
-                    aria-valuenow={objectivesDone.length}
-                    aria-label={`الأهداف المنجزة ${objectivesDone.length} من ${objectivesTotal}`}
-                    className="flex items-center gap-1"
-                  >
-                    {Array.from({ length: objectivesTotal }).map((_, index) => (
-                      <span
-                        key={index}
-                        className={`h-1 w-4 rounded-full transition-colors duration-fast ${
-                          index < objectivesDone.length ? 'bg-primary' : 'bg-white/15'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span data-testid="objective-progress-label" className="kz-ar-micro shrink-0 text-kz-inkFaint">
-                    {objectivesDone.length} من {objectivesTotal}
-                  </span>
-                </>
-              )}
+              <div
+                data-testid="round-progress"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={targetTurns}
+                aria-valuenow={userTurnsCount}
+                aria-label={`الجولة ${Math.min(userTurnsCount + 1, targetTurns)} من ${targetTurns}`}
+                className="flex items-center gap-1"
+              >
+                {Array.from({ length: targetTurns }).map((_, index) => (
+                  <span
+                    key={index}
+                    className={`h-1 w-4 rounded-full transition-colors duration-fast ${
+                      index < userTurnsCount ? 'bg-primary' : 'bg-white/15'
+                    }`}
+                  />
+                ))}
+              </div>
               <span
                 data-testid="level-chip"
                 className="kz-de-caption shrink-0 rounded-full border border-white/10 px-1.5 font-german font-bold text-kz-lavender"
@@ -483,6 +459,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         knownWords={knownWords}
         showHelp={!realMode}
         isGenerating={isGenerating}
+        turnError={turnError}
         isSessionCompleted={isSessionCompleted}
         speakingId={speakingId}
         activeCharIndex={activeCharIndex}
@@ -492,7 +469,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         onSlowSpeak={handleSlowSpeak}
         onReportReply={handleReportReply}
         onWordClick={handleWordClick}
-        showAiDebug={showAiDebug}
+        onRetryFailedTurn={retryFailedTurn}
       />
 
       {/* Empty / first state: one line telling the learner what the microphone is
@@ -523,71 +500,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         </p>
       )}
 
-      {/* Whose turn it is, said once and quietly. The learner should never have
-          to infer it from a typing dot. */}
-      {!realMode && !isSessionCompleted && !isGenerating && messages.length > 1 && (
-        <p data-testid="your-turn-cue" className="shrink-0 px-4 pb-0.5 text-center kz-ar-micro font-semibold text-kz-lavender">
-          دورك
-        </p>
-      )}
-
-      {/* The persona has said goodbye: the learner can answer with their own
-          farewell (the next send closes the session) or finish right here. */}
-      {isClosed && !isSessionCompleted && (
-        <div data-testid="closed-scene" className="mx-3 mb-1 shrink-0 rounded-2xl border border-primary/30 bg-primary/10 px-3 py-2">
-          <p className="kz-ar-micro leading-relaxed text-kz-ink">
-            انتهت المحادثة — يمكنك توديع الطرف الآخر بجملة، أو إغلاقها الآن.
-          </p>
-          <button
-            type="button"
-            onClick={finishAfterClose}
-            disabled={!canFinishAfterClose}
-            className="mt-1.5 flex min-h-touch items-center rounded-full bg-primary px-3 kz-ar-micro font-bold text-on-lavender transition-colors pointer-hover:brightness-110 disabled:opacity-40"
-          >
-            إنهاء الجلسة وعرض الملخص
-          </button>
-        </div>
-      )}
-
-      {/* The hint dock: the sentence for THIS question, its Arabic, and the
-          three ways to use it. It never inserts text and never sends. Hints are
-          AI only, so when a reply carries none the dock asks for one instead of
-          showing a stored line. */}
-      {!realMode && !isSessionCompleted && !isClosed && visibleHints[0] && (
-        <HintDock
-          hint={visibleHints[0]}
-          typed={inputText}
-          disabled={isGenerating}
-          onSpeak={(text) => speakText(text)}
-          onSlowSpeak={(text) => speakText(text, 0.6)}
-          onTypeMyself={() => {
-            triggerHaptic('light');
-            inputRef.current?.focus();
-          }}
-        />
-      )}
-      {!realMode && !isSessionCompleted && !isClosed && !visibleHints[0] && userTurnsCount > 0 && (
-        <div dir="rtl" data-testid="hint-request" className="mx-3 mb-0.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic('light');
-              void refreshHints();
-            }}
-            disabled={isRefreshingHints || hintQuotaSpent || isOffline}
-            className="kz-ar-micro flex min-h-touch items-center gap-1.5 rounded-full border border-kz-lavender/30 bg-white/[0.04] px-3 font-semibold text-kz-lavender transition-colors pointer-hover:bg-white/10 disabled:opacity-40"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingHints ? 'kz-animated animate-spin' : ''}`} />
-            اطلب تلميحاً
-          </button>
-          {hintFailure && (
-            <p role="alert" className="mt-1 kz-ar-micro text-status-error">
-              {hintFailure}
-            </p>
-          )}
-        </div>
-      )}
-
       {/* The bottom input bar: hint · field · orb/send. */}
       <ConversationDock
         showHelp={!realMode}
@@ -597,19 +509,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         isRefreshingHints={isRefreshingHints}
         hintQuotaSpent={hintQuotaSpent}
         micError={micError}
-        turnFailure={turnFailure}
-        busySecondsLeft={busySecondsLeft}
-        isOffline={isOffline}
-        onRecheckConnection={recheckConnection}
-        onRetryTurn={retryFailedTurn}
-        onReportProblem={reportProblem}
-        showAiDebug={showAiDebug}
-        hintFailure={hintFailure}
         orbState={orbState}
         orbTone={orbTone}
         orbLabelAr={orbLabelAr}
         orbReadLevel={voice.read}
-        orbDisabled={!voice.isSupported || isOffline || live.conversation.status === 'quota_exhausted'}
+        orbDisabled={!voice.isSupported || live.conversation.status === 'quota_exhausted'}
         isRecording={voice.isRecording}
         isCoachSpeaking={speakingId !== null}
         interimText={voice.interimText}
@@ -702,11 +606,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             >
               إنهاء الجلسة وعرض الملخص
             </button>
-            {isClosed && (
-              <p className="mt-1 px-3 kz-ar-micro text-kz-inkDim">
-                المحادثة انتهت — هذا الزر يعرض الملخص نفسه.
-              </p>
-            )}
             {!live.canEndSession && (
               <p className="mt-1 px-3 kz-ar-micro text-kz-inkFaint">
                 ابدأ بجملة واحدة على الأقل لتنهي الجلسة وتحصل على الملخص.

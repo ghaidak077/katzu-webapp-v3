@@ -27,10 +27,8 @@ import {
   MOCK_EXAM_SCENARIO_TITLE,
   normaliseMockPartIndex,
 } from "./cloudflare-mock-exam.js";
-import {
-  runRoleplayTurn,
-} from "./cloudflare-roleplay.js";
-import { planForScenario } from "./cloudflare-roleplay-plans.js";
+import { beatsInstruction } from "./cloudflare-conversation-beats.js";
+import { guardGreetingReply, openerForLevel } from "./cloudflare-turn-guard.js";
 import { isEasyTurn, PROVIDER_POOL, estimateTurnCostUsd } from "./cloudflare-ai-router.js";
 
 /** char/4 token estimate — the same estimator `scripts/measure-turn-cost.mjs` uses. */
@@ -82,6 +80,7 @@ export function buildTurnSystemInstruction({
   vocabulary = [],
   grammarReference = null,
   memory = [],
+  beats = [],
   levelConstraint = "",
   correctionBudget = 1,
   mockExamInstruction = "",
@@ -133,14 +132,13 @@ CONVERSATION RULES:
 - The learner's LAST message is the one you are answering. Answer THAT, not an earlier line, and never restate their sentence back as your reply.
 - react to what the learner ACTUALLY just said — answer their question, comment on their statement, build on it. Never reply with a generic pleasance.
 - Keep reply_de to 1-2 short sentences that feel like real spoken German.
-- END WITH ONE QUESTION: at A0–A2 every reply_de must finish with exactly ONE short question the learner can answer using words this conversation has already introduced. Ask it about the scene's own goal (name, drink, luggage, appointment, price) — never about a new topic, and never two questions in one turn. If the learner introduced a topic, follow that topic; do not invent cats, pets or hobbies they did not mention. On the final exchange, give the farewell and no question.
 ${brevity}
 Return:
 - reply_de: your natural German reply, in character, at CEFR level ${level}. Plain sentence only — never prefix it with field labels.
 - reply_ar: its accurate, idiomatic Modern Standard Arabic translation. Never translate secular German greetings as السلام عليكم.
 - next_hint: ONE short German sentence (with its Arabic translation_ar) that the LEARNER could realistically say next in this conversation at their level — a suggestion, not your own line.
-- Do not add a separate follow-up question: the reply's own closing question already carries the conversation forward.
-Respond strictly as JSON with keys: reply_de, reply_ar, next_hint { german, translation_ar }`;
+- followup_question_ar: ONE short Arabic question the person you are playing would naturally ask the learner next, using only the words this situation has already introduced. Empty string when nothing natural fits — a filler question is worse than none. Never introduce a legal or technical term the situation has not used: a rent conversation that suddenly asks about الشفعة reads as a different conversation.
+Respond strictly as JSON with keys: reply_de, reply_ar, next_hint { german, translation_ar }, followup_question_ar`;
   const evaluationInstruction = `You are Katzu, a witty, warm Arabic-speaking German grammar coach who roasts German grammar (not the learner).
 Evaluate ONLY the learner's latest German sentence against CEFR level ${level}. Do not use conversation history, scenario context, or the roleplay persona.
 Sarcasm level for roast_comment (1-5, default 2): ${Math.min(5, Math.max(1, Number(sarcasmLevel) || 2))}. 1 = gentle, 3 = playfully sarcastic, 5 = maximum sass about how absurd German grammar is — never mocking the learner.
@@ -152,7 +150,7 @@ FIELD RULES — the learner reads these, so they have to be short and in the rig
 - grammar_rule: a SHORT ARABIC label of 3-7 words naming the rule (e.g. "ترتيب الكلمات: الفعل في الموضع الثاني"). Never English — it is shown to an Arabic speaker as a chip, not explained.
 - explanation_ar: one or two short Arabic sentences explaining the fix.
 - roast_comment: one playful Arabic line about German grammar; empty when is_correct is true.
-- positive_note_ar: one short encouraging Arabic line, ONLY when is_correct is true; leave it empty when is_correct is false (a wrong sentence gets the neutral correction note, never praise).
+- positive_note_ar: one short encouraging Arabic line, always present.
 ${brevity}
 Keep the whole JSON under ~350 tokens: the learner is waiting, and a longer answer risks being cut off mid-sentence.`;
 
@@ -171,7 +169,7 @@ ${evaluationInstruction}
 Isolation rule for JOB 2: grade ONLY the learner's final sentence. Earlier turns exist as context for JOB 1 and must not change the grade, the corrections, or the roast.
 The conversation history is context, not a topic list: if the learner's last message answers your own previous question, continue from there. Do not change the subject and do not repeat a question you already asked.
 Write the JSON keys in exactly this order:
-{ "reply_de": string, "reply_ar": string, "evaluation": { "is_correct": boolean, "corrected_german": string, "original_mistake": string, "grammar_rule": string, "grammar_id": string, "explanation_ar": string, "roast_comment": string, "positive_note_ar": string }, "next_hint": { "german": string, "translation_ar": string } }`;
+{ "reply_de": string, "reply_ar": string, "evaluation": { "is_correct": boolean, "corrected_german": string, "original_mistake": string, "grammar_rule": string, "grammar_id": string, "explanation_ar": string, "roast_comment": string, "positive_note_ar": string }, "next_hint": { "german": string, "translation_ar": string }, "followup_question_ar": string }`;
 
   // The learner's own recurring errors. The worker has validated this field since
   // the route was written and then thrown it away, so the coach graded a stranger
@@ -190,37 +188,17 @@ How to use it:
   const practiceInstruction = [vocabularyContextInstruction, grammarContextInstruction]
     .filter(Boolean)
     .join("\n\n");
+  // V28 Stage 1: the scenario's deterministic arc, derived server-side from its
+  // starter phrases. Empty for a scenario with no phrases (it adds nothing).
+  const beatsPrompt = beatsInstruction(beats);
   return {
     // The per-turn obstacle behaviour goes last: everything before it is
     // stable per scenario/level/episode, so the provider's prompt prefix
     // cache stays warm and only the short rotation tail re-sends.
-    parts: [fusionInstruction, safetyInstruction, identityInstruction, practiceInstruction, memoryInstruction, obstacleInstruction, mockExamInstruction]
+    parts: [fusionInstruction, safetyInstruction, identityInstruction, practiceInstruction, memoryInstruction, beatsPrompt, obstacleInstruction, mockExamInstruction]
       .filter(Boolean)
       .map((text, index) => ({ text: index === 0 ? text : `\n\n${text}` })),
   };
-}
-
-/**
- * Compatibility for a PWA bundle cached before the roleplay rewrite.
- *
- * The scripted build sends `script_context` and only renders a turn that carries
- * `script_turn` or `evaluation`; anything else throws INVALID_AI_RESPONSE mid
- * lesson. That bundle still owns its authored script and its local answer
- * matcher, so returning the same reply and hint under the legacy key lets an
- * out-of-date client finish the lesson while the service worker fetches the new
- * bundle. A current client ignores these keys entirely.
- */
-export function legacyScriptTurn(turn) {
-  if (!turn || typeof turn.reply_de !== "string" || !turn.reply_de) return null;
-  const scriptTurn = {
-    reply_de: turn.reply_de,
-    reply_ar: typeof turn.reply_ar === "string" ? turn.reply_ar : "",
-  };
-  if (typeof turn.hint_de === "string" && turn.hint_de.trim()) {
-    scriptTurn.hint_de = turn.hint_de;
-    scriptTurn.hint_ar = typeof turn.hint_ar === "string" ? turn.hint_ar : "";
-  }
-  return scriptTurn;
 }
 
 /**
@@ -252,14 +230,13 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     getProvider,
     getModel,
     validateGermanAgainstLevel,
+    levelFallbackLine,
     levelConstraintLine,
     correctionBudgetFor,
   } = deps;
 
   if (!(await hasUsableProvider(env))) return json({ error: "ai_unavailable" }, 503, cors);
 
-  /** One clock for the turn. The debug label reports it; nothing else uses it. */
-  const turnStartedAt = Date.now();
   const body = await request.json().catch(() => null);
   if (!body || !body.user_message) return json({ error: "user_message required" }, 400, cors);
 
@@ -346,127 +323,32 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       message: entitlement.message
     }, entitlement.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
   }
-  // CHARGE ONLY ON A SUCCESSFUL TURN (2026-11-10).
-  //
-  // The old order consumed the free session BEFORE the model was called, so a
-  // 429, a timeout, an invalid answer or an offline turn cost the learner one of
-  // their three free conversations for a reply they never received. This block
-  // now only READS what is left; the claim happens after the reply exists.
-  // Replays stay idempotent: the D1 ledger row is keyed by (account, session),
-  // so a retried send of the same conversation cannot charge twice.
-  let chargeTrialOnSuccess = false;
+  // Consume the free quota once per conversation session (tracked via session_id),
+  // NOT per individual message. Signed-in subscribers skip this entirely.
   if (!entitlement.isSubscribed) {
+    // Phase 2: with D1 the ledger claim inside consumeTrialQuota is the atomic
+    // idempotency mark (replays return SESSION_ALREADY_CONSUMED and proceed at
+    // zero quota cost). The KV trial-session key remains as a fast-path check.
     const sessionConsumed = session_id ? await isTrialSessionConsumed(account.sub, session_id, env) : false;
-    chargeTrialOnSuccess = !sessionConsumed;
-  }
-  const chargeTrialOnce = async () => {
-    if (!chargeTrialOnSuccess) return null;
-    chargeTrialOnSuccess = false;
-    const quota = await consumeTrialQuota(account.sub, env, session_id || null);
-    if (!quota.allowed && quota.code !== "SESSION_ALREADY_CONSUMED") return quota;
-    if (session_id && env.USER_PROGRESS) {
-      try {
-        await env.USER_PROGRESS.put(
-          trialSessionKey(account.sub, session_id),
-          JSON.stringify({ consumed_at: Date.now() }),
-          { expirationTtl: 6 * 3600 }
-        );
-      } catch {}
-    }
-    return null;
-  };
-  /** The one place a spent allowance turns into a response. */
-  const quotaFailureResponse = (quota) =>
-    json({
-      error: quota.code === "QUOTA_UNAVAILABLE" ? "free_quota_unavailable" : "free_quota_error",
-      code: quota.code,
-      message: quota.message,
-    }, quota.code === "QUOTA_UNAVAILABLE" ? 503 : 402, cors);
-
-  const turnIndex = Number.isFinite(Number(v?.turn_index)) ? Math.max(0, Number(v?.turn_index)) : 0;
-
-  // ROLEPLAY TURN (2026-11-08): every ordinary conversation — all 49 scenarios —
-  // is ONE model call that plays the persona from its plan. There is no script,
-  // no step id, no accepted-answer list and no reaction template: the plan's
-  // persona/goal/objectives and the learner's own words are the whole briefing.
-  // It returns before the greeting/trailing-question guards and the level
-  // fallback lines, because those were the source of the template sentences this
-  // replaced («Wie bitte?» for a typo, «Wir schauen uns die nächste Frage an»).
-  if (!inMockExam) {
-    const plan = planForScenario(scenario_id);
-    if (!plan) {
-      return json({ error: "unknown_scenario", code: "UNKNOWN_SCENARIO", message: "هذا الموقف التدريبي غير متاح حالياً." }, 400, cors);
-    }
-    // The model is chosen by env var (ROLEPLAY_MODEL) so the owner can move it
-    // without a code change; the pool still owns keys, quotas and failover.
-    const outcome = await runRoleplayTurn({
-      env,
-      plan,
-      level,
-      learnerText: user_message,
-      history,
-      objectivesDone: body.objectives_done,
-      callAiRouter,
-      preferModel: typeof env.ROLEPLAY_MODEL === "string" ? env.ROLEPLAY_MODEL.trim() : "",
-    });
-    if (!outcome.ok) {
-      // No template line stands in for a real reply: the client keeps the
-      // learner's sentence and offers «أعد المحاولة» instead.
-      console.error("[ai/turn] roleplay unusable after", outcome.attempts, "attempts:", outcome.reason, "| raw:", String(outcome.raw).slice(0, 160));
-      return json({
-        error: "ai_empty_reply",
-        code: "AI_EMPTY_REPLY",
-        message: "تعذر توليد رد واضح. جملتك محفوظة — أعد المحاولة.",
-      }, 502, cors);
-    }
-    const turn = outcome.turn;
-    const raw = outcome.raw;
-    try {
-      // Structured, content-free cost line: no learner text, no prompt.
-      const servedModel = getModel ? getModel() : null;
-      const tier = (servedModel && TIER_BY_MODEL.get(servedModel)) || "unknown";
-      const inputTokens =
-        estimateTokens(outcome.systemInstruction) + estimateTokens(JSON.stringify(outcome.payload.contents));
-      const outputTokens = estimateTokens(raw);
-      console.log(JSON.stringify({
-        event: "ai_turn_roleplay",
-        prompt_version: 1,
-        tier,
-        model: servedModel,
-        provider: getProvider(),
-        level,
-        objectives_done: turn.objectives_done.length,
-        objectives_total: turn.objectives_total,
-        close: turn.close,
-        input_tokens: inputTokens,
-        output_tokens: outputTokens,
-        estimated_cost_usd: Number(estimateTurnCostUsd({ tier, inputTokens, outputTokens }).toFixed(6)),
-      }));
-    } catch {
-      /* a log line must never fail a learner's turn */
-    }
-    const charge = await chargeTrialOnce();
-    if (charge) return quotaFailureResponse(charge);
-    const response = {
-      ...turn,
-      provider: getProvider(),
-      // Debug label data (hidden Settings toggle). Never rendered by default.
-      model: getModel ? getModel() : null,
-      attempts: outcome.attempts,
-      elapsed_ms: Date.now() - turnStartedAt,
-    };
-    // A cached pre-rewrite bundle identifies itself with `script_context`.
-    if (body && body.script_context && typeof body.script_context === "object") {
-      const legacy = legacyScriptTurn(turn);
-      if (legacy) {
-        response.script_turn = legacy;
-        if (legacy.hint_de) {
-          response.hints = [{ german: legacy.hint_de, translation_ar: legacy.hint_ar }];
-        }
+    if (!sessionConsumed) {
+      const quota = await consumeTrialQuota(account.sub, env, session_id || null);
+      if (!quota.allowed && quota.code !== "SESSION_ALREADY_CONSUMED") {
+        const status = quota.code === "QUOTA_UNAVAILABLE" ? 503 : 402;
+        return json({ error: "free_quota_unavailable", code: quota.code, message: quota.message }, status, cors);
+      }
+      if (session_id && env.USER_PROGRESS) {
+        try {
+          await env.USER_PROGRESS.put(
+            trialSessionKey(account.sub, session_id),
+            JSON.stringify({ consumed_at: Date.now() }),
+            { expirationTtl: 6 * 3600 }
+          );
+        } catch {}
       }
     }
-    return json(response, 200, cors);
   }
+
+  const turnIndex = Number.isFinite(Number(v?.turn_index)) ? Math.max(0, Number(v?.turn_index)) : 0;
   // Every prompt word lives in buildTurnSystemInstruction (top of this file), so
   // the exact token cost is measurable offline and the handler decides only WHICH
   // context this turn carries. V28 Stage 1 adds the scenario's deterministic beats
@@ -487,6 +369,7 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     vocabulary: practiceContext.vocabulary,
     grammarReference,
     memory: Array.isArray(v.learner_memory) ? v.learner_memory : [],
+    beats: Array.isArray(scenarioIdentity.beats) ? scenarioIdentity.beats : [],
     levelConstraint: levelConstraintLine(level),
     correctionBudget: correctionBudgetFor(level),
     // Last, so the provider prefix cache stays warm for ordinary turns: an exam
@@ -535,10 +418,11 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
               translation_ar: { type: "STRING" }
             },
             required: ["german", "translation_ar"]
-          }
+          },
+          followup_question_ar: { type: "STRING" }
         },
-        required: ["reply_de", "reply_ar", "evaluation", "next_hint"],
-        propertyOrdering: ["reply_de", "reply_ar", "evaluation", "next_hint"]
+        required: ["reply_de", "reply_ar", "evaluation", "next_hint", "followup_question_ar"],
+        propertyOrdering: ["reply_de", "reply_ar", "evaluation", "next_hint", "followup_question_ar"]
       },
       // One budget for what used to be two calls (700 + 350). Reasoning models
       // spend tokens on thoughts before the JSON answer, and a tight cap is what
@@ -574,16 +458,53 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       }),
     });
     let parsed = parseTurnJson(raw);
-    // V30 FIX 3 replaced: there is NO authored persona line any more.
-    // The greeting/trailing-question guards used to swap the model's sentence for
-    // a stored per-level template («Hallo! Bitte sagen Sie etwas mehr.»,
-    // «Und Sie?»). The learner must never read a persona bubble the model did
-    // not write, so those tables and guards are gone (cloudflare-turn-guard.js).
-    // Anything the model gets wrong is retried or shown as an honest error.
-    //
+    // V30 FIX 3: never answer a question nobody asked. A bare greeting ("hallo")
+    // or a single word that is nowhere in the scene used to be read as an answer
+    // — "Hallo! Mir geht es gut." answered a wellbeing question the opener never
+    // asked. The guard swaps in a short greeting plus a fixed, level-safe re-ask
+    // whose Arabic travels with it. It runs before the level gate so the fixed
+    // line is validated like any other reply, and it never fires when the message
+    // carries content of its own.
+    if (parsed?.reply_de) {
+      // The app's transport rewrites history to { role, text } (workerClient's
+      // formattedHistory); older/hand-written callers send { sender, text }.
+      // Reading only `sender` left sceneGerman empty on every real turn, so the
+      // guard silently fell back to the generic line instead of the scene's own
+      // question. tests/turnGuard.test.ts pins both shapes.
+      const sceneGerman = (Array.isArray(v.history) ? v.history : [])
+        .filter((m) => {
+          if (!m) return false;
+          const role = String(m.role || m.sender || "").toLowerCase();
+          return role === "model" || role === "assistant";
+        })
+        .map((m) => String(m.text ?? m.content ?? ""))
+        .join(" ");
+      const guarded = guardGreetingReply({
+        learnerText: v.user_message,
+        replyDe: parsed.reply_de,
+        replyAr: parsed.reply_ar,
+        sceneGerman,
+        // The re-ask topic comes from the scenario's STORED opener for this
+        // level, not from history: joining every model turn never matches a
+        // stored opener after the first exchange, which is how the fixed
+        // «Wie geht es Ihnen?» fallback returned later in a scene.
+        sceneOpener: inMockExam ? "" : openerForLevel(scenarioIdentity.openers, level),
+        level,
+      });
+      if (guarded.guarded) {
+        parsed = { ...parsed, reply_de: guarded.replyDe, reply_ar: guarded.replyAr };
+        try {
+          console.log(JSON.stringify({ event: "ai_turn_guard", reason: guarded.reason, level }));
+        } catch {
+          /* logging must never fail a turn */
+        }
+      }
+    }
     // LEVEL-SPEC gate (V21 Phase 1): the reply's German must obey the level's
-    // caps. One violation -> ONE repair call. Still violating -> the turn FAILS
-    // (502) and the learner retries; it is never patched with a stored line.
+    // caps. One violation -> ONE repair call; still violating -> the
+    // deterministic per-level fallback line (its Arabic travels with it, so the
+    // bubbles never disagree). The evaluation of the LEARNER's sentence is kept
+    // either way — the grade never depends on the model's obedience.
     if (parsed?.reply_de) {
       const levelCheck = validateGermanAgainstLevel(parsed.reply_de, level);
       if (!levelCheck.ok) {
@@ -604,15 +525,7 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
           const candidate = parseTurnJson(repairRaw);
           if (candidate?.reply_de && validateGermanAgainstLevel(candidate.reply_de, level).ok) repaired = candidate;
         } catch {}
-        if (!repaired) {
-          console.error("[ai/turn] reply outside the level caps after one repair:", levelCheck.reason);
-          return json({
-            error: "ai_level_violation",
-            code: "AI_LEVEL_VIOLATION",
-            message: "تعذّر الرد. أعد المحاولة.",
-          }, 502, cors);
-        }
-        parsed = repaired;
+        parsed = repaired || { ...parsed, reply_de: levelFallbackLine(level).de, reply_ar: levelFallbackLine(level).ar };
       }
     }
     // Sanitize every string field — a model echoing schema labels ("reply_de: ...")
@@ -671,6 +584,7 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     // to show; otherwise drop it and let the client fall back to the validated
     // on-demand /ai/hints floor.
     const hints = nextHint && nextHint.german && hintMatchesQuestion(replyDe, nextHint.german) ? [nextHint] : [];
+    const followupAr = sanitizeFieldLabel(parsed.followup_question_ar) || "";
     const linkedGrammarId = grammarReference && !evaluation.is_correct && evaluation.grammar_id === grammarReference.id
       ? grammarReference.id
       : "";
@@ -696,8 +610,6 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
     } catch {
       /* a log line must never fail a learner's turn */
     }
-    const charge = await chargeTrialOnce();
-    if (charge) return quotaFailureResponse(charge);
     return json({
       reply_de: replyDe,
       reply_ar: replyAr,
@@ -707,10 +619,8 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       },
       grammar_reference: linkedGrammarId ? grammarReference : null,
       hints,
-      provider: getProvider(),
-      model: getModel ? getModel() : null,
-      attempts: 1,
-      elapsed_ms: Date.now() - turnStartedAt,
+      followup_ar: followupAr,
+      provider: getProvider()
     }, 200, cors);
   } catch (err) {
     console.error("[ai/turn] failed:", String(err?.message || err).slice(0, 200), "| attempts:", JSON.stringify(routerCounters()));
@@ -750,10 +660,6 @@ function validatePracticeContext(body) {
   }
   return { ok: errors.length === 0, errors, vocabulary, grammarId };
 }
-
-// ----------------------------------------------------------------------------
-// SCRIPTED TURN MODE
-// ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
 // TURN CONTEXT
@@ -922,7 +828,7 @@ function closeOpenJson(text) {
   if (!inString && stack.length === 0) return null; // balanced — nothing was lost
   let out = body;
   if (inString) out += '"';
-  // A response cut exactly on a key ("...,\"next_hint\":" ) has no
+  // A response cut exactly on a key ("...,\"followup_question_ar\":" ) has no
   // value to keep, so the dangling fragment goes before the closers.
   out = out.replace(/,\s*"[^"]*"\s*:\s*$/, "").replace(/,\s*$/, "");
   let closers = "";

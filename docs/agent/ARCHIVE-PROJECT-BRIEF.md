@@ -87,30 +87,3 @@ mid-progress, 130-review and zero states are in the gitignored `.tmp/trail-redes
 **Owner-open:** the four level descriptions are proposed copy and the rank placement is a choice
 (`OWNER-CHECKLIST.md` §15).
 
-## Previous snapshot — 2026-10-31 (a later «hallo» re-asks the scene's stored opener; Latin isolated in the card)
-
-**Deployed:** worker `862087cb-…` (source `a033b19`, rollback `e3f994ef-…`), panel `e7716e26-…`, Pages
-`bc807292-…` (source `a033b19`, rollback `f4c077c6-…`) serving `index-CfqO0tha.js` →
-`AppShell-CL4Y31Jk.js` → `LiveConversationScreen-CllYR611.js`.
-- **Greeting:** `/ai/turn` now passes the stored `sceneOpener` by id + level, so a later bare `hallo` re-asks
-  the scene instead of «Wie geht es Ihnen?»; Latin runs in the card render inside `<bdi dir="ltr">`.
-- **Admin:** the content studio (drafts/publish/undo/import/backup, five additive tables, old `/admin`
-  untouched) and the Access-gated panel with five telemetry tables went live; the `17 4 * * *` cron fired
-  at 04:17:37 UTC with `outcome: ok`. Proof: `turnGuard` **104**, `adminContentManagement` **51**, gate
-  **14/14** (672.6 s). **Unproven:** signed-in turn/card, `ai_events` until a real AI turn, studio D1 behaviour.
-
-## Current snapshot — 2026-11-07 (session-replay fixes: no false correction, never-empty hints, no off-topic 💬 line)
-
-**Deployed; gate green.** A real A1 session exposed four trust bugs, all fixed on the device. The checker no longer
-touches `du/dir/dich/dein*` (formal `Sie/Ihnen` always capitalised; only common nouns in context or a person name after
-heiße/bin/ist/Frau/Herr), and a missing final `.`/`?` is an optional soft note instead of a silent edit, so the
-«قريب! بقي تصحيح واحد» line appears only with a real error. `answerBank.ts` ships 49 question types × 3 answers
-(+ 3 repeat + 4 generic = 154 strings, 0 corrections): the first hint answers the last question («Wie heißt du?» →
-«Ich heiße …», «Wie geht es dir?» → «Mir geht es gut, danke.»), the repeat family is last, and the sheet is never
-empty. The off-topic 💬 Arabic line was removed from `cloudflare-ai-chat.js`, so only the current scene's own
-level-validated question is appended. The earlier rule-first card (full sentence, red/green diff, Arabic reason,
-model fallback, «أحسنت» only when correct) is unchanged.
-**Deployed:** this batch's Pages/worker ids are recorded in `APP-MAP` after the deploy; before it, live was Pages
-`a1bb59aa` / worker `3afaa92c`.
-**Proof:** gate **VERIFY OK 16/16 in 725 s** (`--ci --e2e`); `answerBank`, `shippedGermanStrings`, `germanCheckerGolden`
-+21 du/Sie, `turnGuard` cross-scenario, `e2e/greetingsReplay` replay. Before/after 390×844 shots in gitignored `.tmp`.

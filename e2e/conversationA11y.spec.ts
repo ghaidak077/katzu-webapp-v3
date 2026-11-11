@@ -42,7 +42,7 @@ async function violations(page: import('@playwright/test').Page) {
 /** Opens the live conversation in Practice mode and waits for the bar to settle. */
 async function openLive(page: import('@playwright/test').Page) {
   await bootSignedIn(page, { turns: [turn(), turn(), turn(), turn(), turn()] });
-  await page.goto('/scenario/friend_catchup/live');
+  await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
   await expect(page.getByRole('button', { name: 'ابدأ التحدث' })).toBeVisible();
 }
@@ -110,31 +110,26 @@ test('the live conversation has no WCAG A/AA violation, at any impact', async ({
   expect(await violations(page)).toEqual([]);
 });
 
-test('the objective bar never claims more than the plan holds', async ({ page }) => {
+test('the round counter never promises a round past the last one', async ({ page }) => {
   await openLive(page);
+  const progress = page.getByTestId('round-progress');
   const input = page.getByPlaceholder(/Schreib deinen Satz/);
 
-  // The bar is server-driven: it appears with the first reply, because the plan's
-  // objective count is what the server sends back, not something the screen guesses.
-  await input.fill('Ich möchte einen Termin am Montag bitte');
-  await page.getByRole('button', { name: 'أرسل جملتك' }).click();
-  const progress = page.getByTestId('objective-progress');
-  await expect(progress).toBeVisible();
-
-  for (let index = 0; index < 4; index += 1) {
+  for (let index = 0; index < 5; index += 1) {
     const state = await progress.evaluate((el) => ({
       now: Number(el.getAttribute('aria-valuenow')),
       max: Number(el.getAttribute('aria-valuemax')),
       label: el.getAttribute('aria-label') ?? '',
       segments: el.children.length,
     }));
-    // One segment per objective, and the count never passes the plan's total.
+    // The bar renders one segment per round, so the count is the plan's, not a
+    // hard-coded four: A1 runs 4 turns, A2 runs 6.
     expect(state.segments).toBe(state.max);
-    expect(state.max).toBeGreaterThan(0);
-    expect(state.now).toBeGreaterThanOrEqual(0);
     expect(state.now).toBeLessThanOrEqual(state.max);
-    const claimed = Number(state.label.match(/المنجزة (\d+)/)?.[1]);
-    expect(claimed).toBe(state.now);
+    // "الجولة N من M" with N clamped: the last round reads "4 من 4", never "5 من 4".
+    const claimed = Number(state.label.match(/الجولة (\d+)/)?.[1]);
+    expect(claimed).toBeGreaterThanOrEqual(1);
+    expect(claimed).toBeLessThanOrEqual(state.max);
 
     if (!(await input.isVisible())) break;
     await input.fill(`Ich möchte einen Termin am Montag bitte ${index}`);

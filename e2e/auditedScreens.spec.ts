@@ -4,9 +4,8 @@
  *
  * `bootSignedIn` seeds the signed-in learner the rest of the suite uses. The
  * harness's mocked backend is left ON for the practice and mock specs, and OFF
- * for the live-failure spec: a live turn against an unreachable worker is retried
- * quietly, then the sentence returns to the composer with one inline retry — no
- * error card in the transcript and no advanced round counter.
+ * for the live-failure spec: a live turn against an unreachable worker must
+ * fail with an honest retry card that does NOT advance the round counter.
  */
 import { test, expect } from '@playwright/test';
 import { bootSignedIn, seedSignedInUser } from './harness';
@@ -20,41 +19,28 @@ test.describe('audited screens: practice, live failure, mock gate', () => {
     await expect(page.getByRole('button', { name: 'أنا جاهز' })).toBeEnabled();
   });
 
-  test('live conversation: a failed send adds no turn and no objectives', async ({ page }) => {
+  test('live conversation: a failed send keeps the round counter honest', async ({ page }) => {
     // Seeded WITHOUT the mocked backend: the worker is genuinely unreachable.
     await page.goto('/');
     await expect(page.locator('#root')).not.toBeEmpty({ timeout: 30_000 });
     await seedSignedInUser(page);
-    await page.goto('/scenario/friend_catchup/live');
+    await page.goto('/scenario/airport_arrival/live');
 
     // mode chooser → training mode
     await page.getByRole('button', { name: /ابدأ «تدريب» الآن/ }).click();
     const opener = page.getByRole('article').first();
     await expect(opener).toBeVisible();
-    // No server plan has arrived yet, so there is no objective bar to advance.
-    await expect(page.locator('[data-testid="objective-progress"]')).toHaveCount(0);
+    const roundLabel = page.getByRole('progressbar');
+    await expect(roundLabel).toHaveAttribute('aria-label', /الجولة 1 /);
 
     // Send a reply; with no worker the turn fails.
     await page.getByRole('textbox', { name: 'اكتب جملتك بالألمانية' }).fill('Ja, mein Koffer ist nicht angekommen.');
     await page.keyboard.press('Enter');
 
-    // The quiet failure: after the automatic retries the sentence is back in the
-    // composer, the transcript has no error card, and the dock offers one inline
-    // retry. The failed turn added nothing.
-    await expect(page.getByRole('textbox', { name: 'اكتب جملتك بالألمانية' })).toHaveValue(
-      'Ja, mein Koffer ist nicht angekommen.',
-      { timeout: 25_000 },
-    );
-    // There is no authored persona fallback any more: with no worker the turn
-    // fails and the learner reads the offline sentence, with their sentence kept
-    // and one retry. The persona bubble count stays at the shipped opener.
-    await expect(page.getByRole('status')).toContainText('لا يوجد اتصال بالإنترنت');
-    await expect(page.getByRole('button', { name: 'أعد المحاولة' })).toBeVisible();
-    // No old-style error card: the sentence itself stays in the composer, so the
-    // offline notice's own wording is the only «…إعادة المحاولة» on screen.
-    await expect(page.getByRole('button', { name: 'إعادة المحاولة' })).toHaveCount(0);
-    await expect(page.locator('article[aria-label="رسالة من كَاتْزُو"]')).toHaveCount(1);
-    await expect(page.locator('[data-testid="objective-progress"]')).toHaveCount(0);
+    // The honest failure: a retry card, and the round did NOT advance to 2.
+    await expect(page.getByText('أعد المحاولة').first()).toBeVisible({ timeout: 20_000 });
+    await expect(roundLabel).toHaveAttribute('aria-label', /الجولة 1 /);
+    await expect(page.getByRole('button', { name: 'إعادة المحاولة' })).toBeVisible();
   });
 
   test('mock gate does not tell a signed-in learner to sign in with Google', async ({ page }) => {
@@ -69,7 +55,7 @@ test.describe('audited screens: practice, live failure, mock gate', () => {
     // timeout in the next, on identical code), and the page it had actually
     // reached showed «الجولة 1 من 9» with the opener. The loading label is
     // accepted only because the gate copy is what the assertion is about.
-    const started = page.getByText(/^الجزء 1 من/);
+    const started = page.getByRole('progressbar', { name: /الجولة 1 من/ });
     const gate = page.getByText(/تسجيل الدخول|تعذّر|تعذر/).first();
     await expect(
       started.or(gate).or(page.getByText('جارٍ تجهيز المحاكاة…')),

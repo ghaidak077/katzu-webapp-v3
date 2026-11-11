@@ -1,138 +1,574 @@
-import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
-import * as turnGuard from '../cloudflare-turn-guard.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import worker, { resetScenarioBeatsCache } from '../cloudflare-unified-worker';
+// @ts-expect-error — the worker is plain JS (no types), imported the way the turn route imports it.
+import { guardGreetingReply, isBareGreeting, isOffTopicSingleWord } from '../cloudflare-turn-guard.js';
+// @ts-expect-error — same: the level spec twin ships as JS.
+import { validateGermanAgainstLevel } from '../cloudflare-level-spec.js';
+import { resetRouterState } from '../cloudflare-ai-router.js';
+import catalogue from '../docs/content/catalogue/scenarios-catalogue.json';
 
 /**
- * THE NO-AUTHORED-PERSONA GATE (2026-11-10).
+ * FIX 3: a reply must never invent a question to answer (V30).
  *
- * The practice chat used to own a script of persona lines: per-level re-asks,
- * acknowledgement prefixes, a trailing-question table, level fallback lines and
- * «Wie bitte?» fallbacks. Those produced bubbles the model never wrote, and a
- * bad turn looked like a worse conversation instead of a visible failure.
- *
- * This file is the structural half of the gate (the behavioural half is
- * `tests/noFallbackPersona.test.ts`): it fails if any of that text or any of
- * the guards that swapped it in comes back. A persona bubble may exist in
- * exactly two places — the shipped opener and a real model reply.
+ * The measured bug: the learner answered an opener with «hallo» and the partner
+ * said «Hallo! Mir geht es gut.» — answering a wellbeing question the opener
+ * never asked. Five bare inputs per level are pinned here, plus the cases the
+ * guard must NOT touch (a one-word answer that belongs to the scene is a real
+ * answer, and rewriting it would be a second bug).
  */
 
-const ROOT = join(__dirname, '..');
+const LEVELS = ['A0', 'A1', 'A2', 'B1', 'B2'] as const;
+type Level = (typeof LEVELS)[number];
 
-function sourceFiles(dir: string, extensions: string[]): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    const stat = statSync(full);
-    if (stat.isDirectory()) {
-      if (entry === 'node_modules' || entry === 'dist' || entry === '.git') continue;
-      out.push(...sourceFiles(full, extensions));
-    } else if (extensions.some((ext) => entry.endsWith(ext))) {
-      out.push(full);
-    }
-  }
-  return out;
-}
+const LEVEL_TO_KEY: Record<Level, 'a0' | 'a1' | 'a2' | 'b1' | 'b2'> = {
+  A0: 'a0', A1: 'a1', A2: 'a2', B1: 'b1', B2: 'b2',
+};
 
-/**
- * Comments are stripped before scanning: a comment may NAME the line that was
- * deleted (that is how the next reader learns what not to re-add), but no
- * executable string may contain it.
- */
-function withoutComments(text: string): string {
-  return text
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .filter((line) => !line.trim().startsWith('//'))
-    .join('\n');
-}
+const SCENARIOS = (catalogue as unknown as {
+  scenarios: Array<{
+    id: string;
+    title_de: string;
+    title_ar: string;
+    ai_persona: string;
+    category: string;
+    openers: Record<string, [string, string]>;
+  }>;
+}).scenarios;
 
-const workerSources = readdirSync(ROOT)
-  .filter((name) => name.startsWith('cloudflare-') && name.endsWith('.js'))
-  .map((name) => ({ path: name, text: withoutComments(readFileSync(join(ROOT, name), 'utf8')) }));
+const scenarioById = (id: string) => {
+  const found = SCENARIOS.find((s) => s.id === id);
+  if (!found) throw new Error(`catalogue has no ${id}`);
+  return found;
+};
 
-const clientSources = sourceFiles(join(ROOT, 'src'), ['.ts', '.tsx']).map((full) => ({
-  path: relative(ROOT, full).replace(/\\/g, '/'),
-  text: withoutComments(readFileSync(full, 'utf8')),
-}));
+const SCENE = 'Guten Tag! Was ist für Sie leicht, was ist schwer beim Deutschlernen?';
 
-/** Every authored persona line this work deleted, verbatim. */
-const DELETED_AUTHORED_LINES = [
-  'Bitte sagen Sie etwas mehr',
-  'Bitte sag etwas mehr',
-  'Bitte sagen Sie mir etwas mehr',
-  'Bitte erzählen Sie mir etwas mehr',
-  'Bitte erzähl mir etwas mehr',
-  'Schön, Sie zu sehen',
-  'Freut mich, Sie zu sehen',
-  'Und was möchten Sie?',
-  'Und was machen Sie jetzt?',
-  'Wir üben weiter',
-  'Sprechen wir weiter',
-  'Machen wir mit der Übung weiter',
-  'Fahren wir mit dem Gespräch fort',
-  'aber die Übung geht weiter',
+const GREETINGS = [
+  'hallo', 'Hallo!', 'guten Morgen', 'hi', 'Hallo hallo',
+  // The variants a phone keyboard actually produces: typos, held keys, English
+  // and regional forms, punctuation and a lone wave. All must still get the
+  // correction card, not an invented answer.
+  'halo', 'hello', 'hiii', 'HEY!!!', 'moin', 'moin moin', 'servus', 'Guten Tag!',
+  'halloooo', '👋', 'Hallo 👋',
 ];
 
-describe('the roleplay guard module authors no persona line', () => {
-  it('exports the opener selector and nothing else', () => {
-    expect(Object.keys(turnGuard).sort()).toEqual(['openerForLevel']);
-  });
+/**
+ * The rule this pins: in a scenario chat, a bare greeting is answered with a
+ * short greeting and then the SCENE'S OWN question — not a generic wellbeing
+ * question the scene never asked. The openers come from the catalogue, the same
+ * source that ships to learners, so editing content changes this fixture with it.
+ */
+const LUGGAGE_SCENES = Object.fromEntries(
+  LEVELS.map((level) => [level, scenarioById('airport_arrival').openers[LEVEL_TO_KEY[level]][0]]),
+) as Record<Level, string>;
 
-  it('has no greeting, trailing-question or re-ask guard', () => {
-    for (const name of ['guardGreetingReply', 'guardTrailingQuestion', 'sceneTopicReAsk', 'RE_ASK', 'ACK', 'TRAILING_QUESTION']) {
-      expect((turnGuard as Record<string, unknown>)[name], name).toBeUndefined();
-    }
-  });
+/** The last sentence of an opener — the question the scene is actually asking. */
+const askOf = (opener: string) => germanSentences(opener).slice(-1)[0];
 
-  it('still selects stored openers — the one allowed persona text', () => {
-    const openers = { a1: 'Hallo! Was möchten Sie trinken?', a2: 'Guten Tag!' };
-    expect(turnGuard.openerForLevel(openers, 'A1')).toBe('Hallo! Was möchten Sie trinken?');
-    expect(turnGuard.openerForLevel(openers, 'B2')).toBe('Guten Tag!');
-  });
-});
+function germanSentences(text: string) {
+  return text.trim().split(/(?<=[.!?])\s+/).filter(Boolean);
+}
 
-describe('no deleted persona line survives anywhere in the worker or the client', () => {
-  it('finds none of the removed template sentences', () => {
-    const hits: string[] = [];
-    for (const file of [...workerSources, ...clientSources]) {
-      for (const line of DELETED_AUTHORED_LINES) {
-        if (file.text.includes(line)) hits.push(`${file.path}: ${line}`);
-      }
-    }
-    expect(hits).toEqual([]);
-  });
-
-  it('no longer imports the removed guards or the level fallback line', () => {
-    const hits: string[] = [];
-    for (const file of workerSources) {
-      for (const symbol of ['guardGreetingReply', 'guardTrailingQuestion', 'levelFallbackLine', 'FALLBACK_LINES']) {
-        if (file.text.includes(symbol)) hits.push(`${file.path}: ${symbol}`);
-      }
-    }
-    expect(hits).toEqual([]);
-  });
-});
-
-describe('a persona bubble can only be constructed in two places', () => {
-  it('has exactly two KATZU construction sites, both in the conversation hook', () => {
-    const sites = clientSources.flatMap((file) => {
-      const lines = file.text.split('\n');
-      return lines
-        .map((line, index) => ({ file: file.path, lines, number: index + 1, line: line.trim() }))
-        .filter((entry) => entry.line.includes("sender: 'KATZU'"));
+describe.each(LEVELS)('a bare greeting in the missing-luggage scene at %s', (level) => {
+  it('greets back briefly and returns to the stored opener’s own question', () => {
+    const sceneOpener = LUGGAGE_SCENES[level];
+    const sceneAsk = askOf(sceneOpener);
+    const out = guardGreetingReply({
+      learnerText: 'hallo',
+      replyDe: 'Hallo! Mir geht es gut.',
+      replyAr: 'أهلاً! أنا بخير.',
+      sceneGerman: sceneOpener,
+      // The stored opener for this scenario+level is the topic source; history
+      // is not, because after the first exchange it joins and never matches.
+      sceneOpener,
+      level,
     });
-    expect(sites).toHaveLength(2);
-    expect(new Set(sites.map((site) => site.file))).toEqual(
-      new Set(['src/features/conversation/useLiveConversation.ts']),
+    expect(out.guarded).toBe(true);
+    expect(out.reason).toBe('bare_greeting');
+    // A short greeting first, then the question the scenario actually asks.
+    expect(out.replyDe).toMatch(/^Hallo! /);
+    expect(out.replyDe).toContain(sceneAsk);
+    // The invented wellbeing answer/question is gone.
+    expect(out.replyDe).not.toContain('Mir geht es gut');
+    expect(out.replyDe).not.toContain('Wie geht es Ihnen');
+    expect(out.replyAr).toMatch(/[\u0600-\u06FF]/);
+    expect(out.replyAr).not.toContain('كيف حالك');
+    // The scene's own line is authored at its level, so the reply stays in caps.
+    expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
+  });
+
+  it('uses the stored opener even when history has many later model turns', () => {
+    const sceneOpener = LUGGAGE_SCENES[level];
+    // What `/ai/turn` used to build and pass as `sceneGerman`: every assistant
+    // turn joined. It is not a stored opener, so the old lookup returned null.
+    const joinedHistory = [
+      sceneOpener,
+      'Gut. Und wie lange sind Sie schon in Deutschland?',
+      'Danke. Möchten Sie noch etwas ergänzen?',
+    ].join(' ');
+    const out = guardGreetingReply({
+      learnerText: 'hallo',
+      replyDe: 'Hallo! Mir geht es gut.',
+      replyAr: 'أهلاً! أنا بخير.',
+      sceneGerman: joinedHistory,
+      sceneOpener,
+      level,
+    });
+    expect(out.reason).toBe('bare_greeting');
+    expect(out.replyDe).toContain(askOf(sceneOpener));
+    expect(out.replyDe).not.toContain('Wie geht es Ihnen');
+    expect(out.replyDe).not.toContain('Mir geht es gut');
+  });
+});
+
+describe.each(LEVELS)('bare greetings at %s', (level) => {
+  it.each(GREETINGS)('answers "%s" with a greeting and a continuation, not an invented answer', (input) => {
+    const out = guardGreetingReply({
+      learnerText: input,
+      replyDe: 'Hallo! Mir geht es gut.',
+      replyAr: 'أهلاً! أنا بخير.',
+      sceneGerman: SCENE,
+      level,
+    });
+    expect(out.guarded).toBe(true);
+    expect(out.reason).toBe('bare_greeting');
+    expect(out.replyDe).toMatch(/^(Hallo|Guten Tag)/);
+    // The invented wellbeing answer is gone, and the fixed continuation never
+    // invents a wellbeing question either: that line must not exist in a scene.
+    expect(out.replyDe).not.toContain('Mir geht es gut');
+    expect(out.replyDe).not.toContain('Wie geht es');
+    expect(out.replyAr).not.toContain('كيف حالك');
+    // German and Arabic travel together, so the two bubbles never disagree.
+    expect(out.replyAr).toMatch(/[\u0600-\u06FF]/);
+    // And the fixed line is inside the level's own caps.
+    expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
+  });
+
+  it('answers an off-topic single word with an acknowledgement and a continuation', () => {
+    const out = guardGreetingReply({
+      learnerText: 'Banane',
+      replyDe: 'Ja, Bananen sind gesund.',
+      replyAr: 'نعم، الموز صحي.',
+      sceneGerman: SCENE,
+      level,
+    });
+    expect(out.guarded).toBe(true);
+    expect(out.reason).toBe('off_topic_single_word');
+    expect(out.replyDe).not.toContain('Wie geht es');
+    expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
+  });
+});
+
+describe('every shipped scene answers a bare greeting with its own question', () => {
+  it('holds for all 61 scenarios at all five levels', () => {
+    let checked = 0;
+    for (const scenario of SCENARIOS) {
+      for (const level of LEVELS) {
+        const opener = scenario.openers[LEVEL_TO_KEY[level]][0];
+        const out = guardGreetingReply({
+          learnerText: 'hallo',
+          replyDe: 'Hallo! Mir geht es gut.',
+          replyAr: 'أهلاً! أنا بخير.',
+          sceneGerman: opener,
+          sceneOpener: opener,
+          level,
+        });
+        const label = `${scenario.id}/${level}`;
+        expect(out.guarded, label).toBe(true);
+        expect(out.reason, label).toBe('bare_greeting');
+        // The invented wellbeing answer/question never survives.
+        expect(out.replyDe, label).not.toContain('Mir geht es gut');
+        expect(out.replyDe, label).not.toContain('Wie geht es');
+        expect(out.replyDe, label).not.toMatch(/Wie geht es Ihnen/);
+        expect(out.replyAr, label).not.toContain('كيف حالك');
+        // The scene's own last question is what the learner gets back.
+        expect(out.replyDe, label).toContain(askOf(opener));
+        // And it stays inside the level, so the guard cannot teach off-spec German.
+        expect(validateGermanAgainstLevel(out.replyDe, level), label).toEqual({ ok: true });
+        checked += 1;
+      }
+    }
+    expect(checked).toBe(61 * 5);
+  });
+});
+
+describe('the guard leaves real answers alone', () => {
+  it('does not touch a sentence the learner composed', () => {
+    const out = guardGreetingReply({
+      learnerText: 'Ich heiße Ali und komme aus Syrien.',
+      replyDe: 'Freut mich, Ali.',
+      replyAr: 'يسعدني لقاؤك يا علي.',
+      sceneGerman: SCENE,
+      level: 'A1',
+    });
+    expect(out.guarded).toBe(false);
+    expect(out.replyDe).toBe('Freut mich, Ali.');
+  });
+
+  it('does not touch a one-word answer that belongs to the scene', () => {
+    const out = guardGreetingReply({
+      learnerText: 'Deutschlernen',
+      replyDe: 'Interessant. Warum ist das leicht für Sie?',
+      replyAr: 'مثير للاهتمام. لماذا هذا سهل لك؟',
+      sceneGerman: SCENE,
+      level: 'A1',
+    });
+    expect(out.guarded).toBe(false);
+  });
+
+  it('does not touch yes/no/filler replies', () => {
+    for (const input of ['ja', 'nein', 'danke', 'ok']) {
+      expect(isBareGreeting(input)).toBe(false);
+      expect(isOffTopicSingleWord(input, SCENE)).toBe(false);
+    }
+  });
+
+  it('does not fire when the greeting carries content', () => {
+    const out = guardGreetingReply({
+      learnerText: 'Hallo, ich möchte einen Kaffee.',
+      replyDe: 'Gerne, kommt sofort.',
+      replyAr: 'بكل سرور، حالاً.',
+      sceneGerman: 'Guten Tag! Was möchten Sie trinken?',
+      level: 'A1',
+    });
+    expect(out.guarded).toBe(false);
+  });
+
+  it('keeps the polite register when the scene uses Sie', () => {
+    const out = guardGreetingReply({
+      learnerText: 'hallo',
+      replyDe: '',
+      replyAr: '',
+      sceneGerman: 'Guten Tag! Wie heißen Sie?',
+      level: 'A1',
+    });
+    expect(out.replyDe).toMatch(/\bSie\b/);
+    expect(out.replyDe).not.toMatch(/\b(du|dir|dich)\b/);
+  });
+
+  it('never falls back to a wellbeing question when no stored opener is known', () => {
+    for (const level of LEVELS) {
+      const out = guardGreetingReply({ learnerText: 'hallo', replyDe: '', replyAr: '', level });
+      expect(out.guarded).toBe(true);
+      expect(out.replyDe).not.toContain('Wie geht es');
+      expect(out.replyAr).not.toContain('كيف حالك');
+      expect(validateGermanAgainstLevel(out.replyDe, level)).toEqual({ ok: true });
+    }
+  });
+});
+
+/**
+ * The wiring, not just the rule.
+ *
+ * The unit tests above prove the guard's logic; this proves `/ai/turn` actually
+ * calls it. Without this, a refactor could drop the `guardGreetingReply(...)`
+ * line and every test above would still pass while the learner saw
+ * «Hallo! Mir geht es gut.» again — the exact failure this batch fixed.
+ */
+class MemoryKv {
+  values = new Map<string, string>();
+  async get(key: string) {
+    return this.values.get(key) || null;
+  }
+  async put(key: string, value: string) {
+    this.values.set(key, value);
+  }
+  async delete(key: string) {
+    this.values.delete(key);
+  }
+}
+
+// The route resolves the scenario from D1 before it can answer, so the stub has
+// to serve it. The row is built from the catalogue, so this fixture cannot drift
+// away from what the app ships.
+const LUGGAGE_SCENARIO = scenarioById('airport_arrival');
+const SCENARIO_ROW = {
+  title_de: LUGGAGE_SCENARIO.title_de,
+  ai_persona: LUGGAGE_SCENARIO.ai_persona,
+  category: LUGGAGE_SCENARIO.category,
+  initial_message_a0: LUGGAGE_SCENARIO.openers.a0[0],
+  initial_message_a1: LUGGAGE_SCENARIO.openers.a1[0],
+  initial_message_a2: LUGGAGE_SCENARIO.openers.a2[0],
+  initial_message_b1: LUGGAGE_SCENARIO.openers.b1[0],
+  initial_message_b2: LUGGAGE_SCENARIO.openers.b2[0],
+};
+
+const emptyDb = () => {
+  const first = async (sql: string) => (/FROM scenarios/i.test(sql) ? SCENARIO_ROW : null);
+  return {
+    prepare: (sql: string) => ({
+      bind: () => ({ run: async () => ({ success: true }), all: async () => ({ results: [] }), first: () => first(sql) }),
+      run: async () => ({ success: true }),
+      all: async () => ({ results: [] }),
+      first: () => first(sql),
+    }),
+    batch: async () => [],
+  };
+};
+
+describe('/ai/turn wires the guard into the reply the learner sees', () => {
+  beforeEach(() => {
+    resetRouterState();
+    resetScenarioBeatsCache();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('replaces «Hallo! Mir geht es gut.» with the re-ask for a bare greeting', async () => {
+    const env: any = {
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      NVIDIA_API_KEYS: 'test-key-aaaaaaaaaa',
+      OPENROUTER_API_KEYS: 'test-key-openrouter-b',
+      USER_PROGRESS: new MemoryKv(),
+      REDEEMED_CODES: new MemoryKv(),
+      DB: emptyDb(),
+    };
+    await env.USER_PROGRESS.put(
+      'session:sess_guard_route',
+      JSON.stringify({ sub: 'guard-learner', email: 'guard@test.dev', created_at: Date.now(), expires_at: Date.now() + 3600_000 }),
     );
 
-    // One is the shipped opener (data from the scenario row); one is the model's
-    // own reply. No third site can appear without this test failing.
-    const contexts = sites.map((site) =>
-      site.lines.slice(Math.max(0, site.number - 12), site.number + 2).join('\n'),
+    // A model that answers the greeting the way the bug did.
+    vi.stubGlobal('fetch', (async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  reply_de: 'Hallo! Mir geht es gut.',
+                  reply_ar: 'أهلاً! أنا بخير.',
+                  evaluation: { is_correct: true, explanation_ar: 'جيد.', positive_note_ar: 'أحسنت!' },
+                  next_hint: { german: 'Danke!', translation_ar: 'شكراً!' },
+                  followup_question_ar: '',
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch);
+
+    const res = await worker.fetch(
+      new Request('https://worker.test/ai/turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_guard_route' },
+        body: JSON.stringify({
+          // The exact shape `workerClient.sendTurn` puts on the wire: it rewrites
+          // history to { role, text } before sending. The old test used { sender },
+          // which the app never sends — so it was green while production was not.
+          scenario_id: 'airport_arrival',
+          scenario_title: 'Am Flughafen',
+          persona: 'friendly conversational partner and native German teacher',
+          cefr_level: 'A1',
+          user_message: 'hallo',
+          session_id: 'sess-guard-route',
+          mode: 'roleplay',
+          is_final_turn: false,
+          sarcasm_level: 'SASSY',
+          turn_index: 0,
+          history: [{ role: 'model', text: 'Guten Tag. Fehlt Ihr Gepäck?' }],
+        }),
+      }),
+      env,
     );
-    expect(contexts.some((context) => context.includes("id: 'msg_initial'"))).toBe(true);
-    expect(contexts.some((context) => context.includes('germanText: res.germanReply'))).toBe(true);
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    // The invented wellbeing answer is gone; the partner re-asks the scene's own
+    // missing-luggage question, which is the live failure this batch fixes.
+    expect(body.reply_de).not.toContain('Mir geht es gut');
+    expect(body.reply_de).toContain(askOf(LUGGAGE_SCENES.A1));
+    expect(body.reply_ar).toMatch(/[\u0600-\u06FF]/);
+  });
+
+  it('re-asks the stored opener after several later turns (multi-turn history)', async () => {
+    const env: any = {
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      NVIDIA_API_KEYS: 'test-key-aaaaaaaaaa',
+      OPENROUTER_API_KEYS: 'test-key-openrouter-b',
+      USER_PROGRESS: new MemoryKv(),
+      REDEEMED_CODES: new MemoryKv(),
+      DB: emptyDb(),
+    };
+    await env.USER_PROGRESS.put(
+      'session:sess_guard_multiturn',
+      JSON.stringify({ sub: 'guard-learner', email: 'guard@test.dev', created_at: Date.now(), expires_at: Date.now() + 3600_000 }),
+    );
+    vi.stubGlobal('fetch', (async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  reply_de: 'Hallo! Mir geht es gut.',
+                  reply_ar: 'أهلاً! أنا بخير.',
+                  evaluation: { is_correct: true, explanation_ar: 'جيد.', positive_note_ar: 'أحسنت!' },
+                  next_hint: { german: 'Danke!', translation_ar: 'شكراً!' },
+                  followup_question_ar: '',
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch);
+
+    const res = await worker.fetch(
+      new Request('https://worker.test/ai/turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_guard_multiturn' },
+        body: JSON.stringify({
+          scenario_id: 'airport_arrival',
+          cefr_level: 'A1',
+          user_message: 'hallo',
+          session_id: 'sess-guard-multiturn',
+          turn_index: 4,
+          // The app's real wire shape: joined assistant history is NOT a stored
+          // opener, so the topic must come from the scenario row, not this text.
+          history: [
+            { role: 'model', text: 'Guten Tag. Fehlt Ihr Gepäck?' },
+            { role: 'user', text: 'Ja, mein Koffer fehlt.' },
+            { role: 'model', text: 'Das tut mir leid. Haben Sie Ihre Bordkarte dabei?' },
+            { role: 'user', text: 'Ja, hier bitte.' },
+            { role: 'model', text: 'Danke. Wie lange sind Sie schon in Deutschland?' },
+            { role: 'user', text: 'Seit zwei Tagen.' },
+          ],
+        }),
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.reply_de).not.toContain('Mir geht es gut');
+    expect(body.reply_de).not.toContain('Wie geht es');
+    expect(body.reply_de).toContain(askOf(LUGGAGE_SCENES.A1));
+    expect(body.reply_ar).not.toContain('كيف حالك');
+  });
+
+  it('still accepts the legacy { sender } shape older callers send', async () => {
+    const env: any = {
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      NVIDIA_API_KEYS: 'test-key-aaaaaaaaaa',
+      OPENROUTER_API_KEYS: 'test-key-openrouter-b',
+      USER_PROGRESS: new MemoryKv(),
+      REDEEMED_CODES: new MemoryKv(),
+      DB: emptyDb(),
+    };
+    await env.USER_PROGRESS.put(
+      'session:sess_guard_legacy',
+      JSON.stringify({ sub: 'guard-learner', email: 'guard@test.dev', created_at: Date.now(), expires_at: Date.now() + 3600_000 }),
+    );
+    vi.stubGlobal('fetch', (async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  reply_de: 'Hallo! Mir geht es gut.',
+                  reply_ar: 'أهلاً! أنا بخير.',
+                  evaluation: { is_correct: true, explanation_ar: 'جيد.', positive_note_ar: 'أحسنت!' },
+                  next_hint: { german: 'Danke!', translation_ar: 'شكراً!' },
+                  followup_question_ar: '',
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch);
+
+    const res = await worker.fetch(
+      new Request('https://worker.test/ai/turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_guard_legacy' },
+        body: JSON.stringify({
+          scenario_id: 'airport_arrival',
+          cefr_level: 'A1',
+          user_message: 'hallo',
+          session_id: 'sess-guard-legacy',
+          history: [{ sender: 'model', text: 'Guten Tag. Fehlt Ihr Gepäck?' }],
+        }),
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.reply_de).toContain(askOf(LUGGAGE_SCENES.A1));
+  });
+
+  it('returns the scene question even when a later greeting is in history', async () => {
+    // The reported failure: after the learner greeted mid-conversation, the
+    // joined history contained a greeting line, so the guard answered that
+    // greeting and never re-asked the scene. The topic must come from the
+    // stored opener, not from whatever the history happens to contain.
+    const env: any = {
+      TEST_MODE: true,
+      GOOGLE_CLIENT_ID: 'client-id',
+      NVIDIA_API_KEYS: 'test-key-aaaaaaaaaa',
+      OPENROUTER_API_KEYS: 'test-key-openrouter-b',
+      USER_PROGRESS: new MemoryKv(),
+      REDEEMED_CODES: new MemoryKv(),
+      DB: emptyDb(),
+    };
+    await env.USER_PROGRESS.put(
+      'session:sess_guard_late_greeting',
+      JSON.stringify({ sub: 'guard-learner', email: 'guard@test.dev', created_at: Date.now(), expires_at: Date.now() + 3600_000 }),
+    );
+    vi.stubGlobal('fetch', (async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  reply_de: 'Hallo! Mir geht es gut.',
+                  reply_ar: 'أهلاً! أنا بخير.',
+                  evaluation: { is_correct: true, explanation_ar: 'جيد.', positive_note_ar: 'أحسنت!' },
+                  next_hint: { german: 'Danke!', translation_ar: 'شكراً!' },
+                  followup_question_ar: '',
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch);
+
+    const res = await worker.fetch(
+      new Request('https://worker.test/ai/turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sess_guard_late_greeting' },
+        body: JSON.stringify({
+          scenario_id: 'airport_arrival',
+          cefr_level: 'A1',
+          user_message: 'hallo',
+          session_id: 'sess-guard-late-greeting',
+          turn_index: 2,
+          history: [
+            { role: 'model', text: LUGGAGE_SCENES.A1 },
+            { role: 'user', text: 'hallo' },
+            { role: 'model', text: 'Hallo! Wie geht es Ihnen?' },
+            { role: 'user', text: 'hallo' },
+          ],
+        }),
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.reply_de).not.toContain('Mir geht es gut');
+    expect(body.reply_de).not.toMatch(/Wie geht es Ihnen/);
+    expect(body.reply_de).toContain(askOf(LUGGAGE_SCENES.A1));
+    expect(body.reply_ar).not.toContain('كيف حالك');
   });
 });

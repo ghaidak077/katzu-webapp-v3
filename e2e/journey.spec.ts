@@ -257,18 +257,13 @@ test('Guided Practice rehearses real lines and grades honestly', async ({ page }
 test('Live Interaction runs a turn with the orb and keeps the typed path open', async ({ page }) => {
   // A real turn takes a moment; the delay is what makes the orb's in-flight
   // state observable at all (an instant reply would skip straight to feedback).
-  // The server owns objective progress; the mock credits one objective on the
-  // first reply so the header has something real to show.
-  await bootSignedIn(page, {
-    turnDelayMs: 900,
-    turns: [turn({ objectives_done: ['say_hallo'], objectives_total: 4 })],
-  });
-  await page.goto('/scenario/friend_catchup/live');
+  await bootSignedIn(page, { turnDelayMs: 900 });
+  await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
-  // The bar appears with the first server reply: one segment per objective, and
-  // the count is the plan's, not a guess made on the screen.
-  await expect(page.getByTestId('objective-progress')).toHaveCount(0);
+  // Turn one of three at A1 — pacing comes from the tested rule, not the screen.
+  // The round now reads as a segmented progress bar instead of a text line.
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 1 من 4/);
 
   // The orb is the microphone control, and says which state it is in.
   await expect(orb(page)).toHaveAttribute('aria-label', 'ابدأ التحدث');
@@ -287,7 +282,7 @@ test('Live Interaction runs a turn with the orb and keeps the typed path open', 
   // In flight the orb says what it is doing rather than showing a spinner.
   await expect(page.getByRole('button', { name: 'كَاتْزُو يعمل على ردّك' })).toBeVisible();
   await expect(page.getByText('Sehr gern. Möchten Sie noch etwas?')).toBeVisible();
-  await expect(page.getByTestId('objective-progress')).toHaveAttribute('aria-label', /المنجزة 1 من 4/);
+  await expect(page.getByTestId('round-progress')).toHaveAttribute('aria-label', /الجولة 2 من 4/);
 
   // The opening plus the first learner turn and reply stay mounted on the live screen.
   const messages = page.locator('article[aria-label="رسالة من كَاتْزُو"], article[aria-label="رسالتك"]');
@@ -308,15 +303,18 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
       turn({ reply_de: 'Guten Tag! Möchten Sie einen Kaffee?' }),
       turn({
         reply_de: 'Gerne. Einen Kaffee, bitte schön.',
-        understood_de: 'Ich möchte einen Kaffee',
-        fix_reason_ar: 'بعد möchte يأتي الاسم في حالة النصب.',
+        is_correct: false,
+        original_mistake: 'Ich möchte ein Kaffee',
+        corrected_german: 'Ich möchte einen Kaffee',
+        grammar_rule: 'Akkusativ: einen Kaffee',
+        explanation_ar: 'بعد möchte يأتي الاسم في حالة النصب.',
       }),
       turn({ reply_de: 'Sehr gern. Möchten Sie noch etwas?' }),
       turn({ reply_de: 'Perfekt. Auf Wiedersehen!' }),
     ],
   });
 
-  await page.goto('/scenario/friend_catchup/live');
+  await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   // Four turns is the A1 session cap (levelSpec.maxSessionTurns); the last one
@@ -328,10 +326,9 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
     'Perfekt. Auf Wiedersehen!',
   ];
 
-  for (const [index, reply] of replies.entries()) {
+  for (const reply of replies) {
     const input = page.getByPlaceholder(/Schreib deinen Satz/);
-    // Turn two carries the one slip the Debrief has to name.
-    await input.fill(index === 1 ? 'Ich möchte ein Kaffee bitte' : 'Ich möchte einen Kaffee bitte');
+    await input.fill('Ich möchte einen Kaffee bitte');
     await page.getByRole('button', { name: 'أرسل جملتك' }).click();
     // Each turn's own reply is the completion signal; the state machine refuses a
     // second submit while a turn is in flight (by design), so this cannot race.
@@ -352,7 +349,7 @@ test('the whole loop ends on a Debrief that states only what was measured', asyn
   await expect(page.getByText('تصحيحات هذه الجلسة', { exact: true })).toBeVisible();
   await expect(page.getByText('أبرز ما يحتاج تثبيتاً')).toBeVisible();
   // The correction from turn two is the one the Debrief names.
-  await expect(page.getByText('Artikel: richtiger Fall')).toBeVisible();
+  await expect(page.getByText('Akkusativ: einen Kaffee')).toBeVisible();
   await expect(page.getByText('إنجاز رائع يا بطل')).toHaveCount(0);
 });
 
@@ -401,7 +398,7 @@ test('the learner sees their own German while they are still speaking', async ({
  */
 test('a browser without a platform recogniser still speaks through the worker', async ({ page }) => {
   await bootSignedIn(page, { nativeSpeech: false });
-  await page.goto('/scenario/friend_catchup/live');
+  await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   await orb(page).click();
@@ -420,7 +417,7 @@ test('a browser without a platform recogniser still speaks through the worker', 
 
 test('a denied microphone is stated in Arabic and never closes the typed path', async ({ page }) => {
   await bootSignedIn(page, { denyMicrophone: true });
-  await page.goto('/scenario/friend_catchup/live');
+  await page.goto('/scenario/cafe_order/live');
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   await orb(page).click();
