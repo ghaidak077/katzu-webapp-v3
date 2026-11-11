@@ -26,6 +26,16 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-11 — this week's chat engine is reverted; production serves the 2026-11-07 pre-chat state.** `4dae8df`
+  reverts `95f327e..ffc6c7d` (27 commits): `src/`, the worker and `wrangler.toml` now equal boundary `a259883`
+  (`ROLEPLAY_MODEL` gone). Script engine, AI roleplay, plans, answer bank, rule-first correction checker, hint dock
+  and the eval/QA harness are gone; the old hint sheet, turn guard and level fallback lines are back. Kept and
+  untouched: consent + endpoint, bad-reply report + route, opener translations + gate, unit path/onboarding/session/
+  report fixes, affiliate, trust text, SEO, website. Gate **VERIFY OK 16/16** (756.9 s, `--ci --e2e`); production
+  smoke 3 passed / 1 skipped. Live Pages `61b78993-5929-45e9-8162-c323b48d9f68` (source `4dae8df`, entry
+  `assets/index-BnLPxd6G.js`) and worker `a57a74ba-0242-4993-802f-549809394c95`. Forward: tag
+  `pre-chat-revert-2026-11-11`, worker `8a82c4a4-…`, Pages `b65b388a-…`.
+
 - **2026-11-07 — the path is ten owner-approved units and the day is one composed session (deployed; worker unchanged).**
   `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
   dimmed and locked, units below the placement level open and marked «تخطّيتَ», plus the level percent ring and the exact
@@ -107,6 +117,9 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
+  **`a57a74ba-0242-4993-802f-549809394c95`** (2026-11-11, source `4dae8df`, the chat-engine revert: `/health` 200
+  `storage:{d1,kv}`, `/crypto/health` 200 `ready:false`, `/internal/admin/health` 401). Rollback target for that
+  deploy: **`8a82c4a4-a359-4188-8c25-95a9289ef2bf`** (2026-11-10, the fallback-free roleplay chat), then
   **`e98031d5-9932-4093-a7a9-7ba4ab827b0d`** (100%, deployment `09fa2438-d578-40c8-9076-c52cfa0ba922`,
   2026-11-04T07:02Z, source `580e522`) — the learner's conversation-review grant plus the per-reply
   `POST /consent/conversation/report` (one redacted exchange) on top of the content studio, observer-only

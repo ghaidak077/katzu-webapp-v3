@@ -378,6 +378,8 @@ Pro status or AI allowance. AI never governs billing/account state.
 
 ## 9. Environments, deploy targets and IDs (volatile — re-verify before quoting)
 
+**Chat-engine revert (2026-11-11).** All 27 chat-engine commits `95f327e..ffc6c7d` are reverted in `4dae8df`; `src/`, the worker and `wrangler.toml` are byte-identical to boundary `a259883` (script engine, AI roleplay, plans, answer bank, rule-first correction checker, hint dock and eval/QA harness gone; `ROLEPLAY_MODEL` removed; the old hint sheet, turn guard and level fallback lines are back). Kept and untouched: consent + endpoint, bad-reply report + route, opener translations + gate, unit path/onboarding/session/report fixes, affiliate, trust text, SEO, website. Live: Pages `61b78993-5929-45e9-8162-c323b48d9f68` (source `4dae8df`, entry `assets/index-BnLPxd6G.js` = the local build except one empty env key) and worker `a57a74ba-0242-4993-802f-549809394c95`. **Go forward again:** `git checkout pre-chat-revert-2026-11-11` (also branch `wip/pre-chat-revert`, source `ffc6c7d`), merge it, redeploy worker `8a82c4a4-a359-4188-8c25-95a9289ef2bf`; Pages rollback target `b65b388a-75cc-43dc-83aa-adc08937c508`.
+
 | Thing | Value |
 |---|---|
 | Repo | `github.com/ghaidak077/katzu-webapp-v3` (SSH/https), branch of record: **`main`** (`launch-hardening` still exists but V27+ merged onward; `origin/HEAD` → `main`) |
