@@ -49,7 +49,7 @@ Workspace root (where shell commands start): `/c/Users/Lenovo/Desktop/k1` (not a
 - `glob` / `list_directory` — find files by pattern / list a directory.
 - `write_todos` — maintain a step-by-step plan.
 - `web_search` / `read_url` — search the web / extract readable text from a URL.
-- `preview_*` — browser tab control (open, snapshot, click, type, screenshot, evaluate, logs) and `register_preview`. **`preview_screenshot` renders a frame for the model only: it takes no path and never writes a file into the workspace.** For an artifact on disk use the Playwright rigs (next section), not this.
+- `preview_*` — browser tab control (open, snapshot, click, type, screenshot, evaluate, logs) and `register_preview`. **`preview_screenshot` takes no path and never writes a file into the workspace.**
 - `ask_questions` / `suggest_prompts` / `end_turn` — user interaction.
 - `search_mcp_tools` / `call_mcp_tool` — reach connected MCP servers (cloudflare, github).
 - `request_elevation` — request OS administrator rights for one exact command.
@@ -96,7 +96,7 @@ Parallelism: FACT: **batched tool calls run sequentially, not concurrently** —
 | `npm ci --dry-run` | "up to date in 1s" (with an `EBADENGINE` warning) | `npm ci --dry-run` |
 | `engines.node` (declared in V17) | **`^22.22.2 \|\| ^24.15.0 \|\| >=26.0.0`** — the intersection of the dependency floors | `node -p "require('./package.json').engines"`; jsdom 30.1.1 declares exactly this, vitest 5.0.1 `^22.12.0 \|\| ^24.0.0 \|\| >=26.0.0`, lighthouse 13.5.0 `>=22.19`, wrangler 4.136.3 `>=22` |
 | **CI Node pin** | **`24.15.0`** in both jobs — the lowest version satisfying `engines.node`, i.e. CI proves the minimum supported environment | `.github/workflows/ci.yml`; checked by `tests/ciWorkflow.test.ts` |
-| **This machine is one patch below that floor** — Node 24.14.0, so `npm ci` reports `EBADENGINE Unsupported engine` naming `engines.node` above | the suite is green on 24.14.0 anyway (74 files / 891 tests, V17), so this is a declaration-vs-machine gap, not a failure | `npm ci` in a fresh clone; fix is an owner action — install Node 24.15.0+ (or 22.22.2+) |
+| **This machine is one patch below that floor** — Node 24.14.0, so `npm ci` reports `EBADENGINE Unsupported engine` naming `engines.node` above | the suite is green on 24.14.0 anyway, so this is a declaration-vs-machine gap, not a filure | `npm ci` in a fresh clone; fix is an owner action — install Node 24.15.0+ (or 22.22.2+) |
 | **TypeScript imports need default type stripping** | `scripts/audit-curriculum.mjs:13` and `scripts/load-curriculum.mjs` do `from '../src/lib/content/curriculumAudit.ts'` — Node **22.18+ / 23+**, or `ERR_UNKNOWN_FILE_EXTENSION` | `node --version`; enforced by `tests/ciWorkflow.test.ts` (`TYPE_STRIPPING_FLOOR`) |
 
 Playwright browsers installed in `%LOCALAPPDATA%/ms-playwright`: `chromium-1243`, `chromium_headless_shell-1243`, `ffmpeg-1011`, `winldd-1007`. **Chromium only** — no firefox, no webkit, and the Playwright config declares a single `chromium` project. **Nothing to install: never run `playwright install *`.**
@@ -150,7 +150,8 @@ command below stops existing, so this index cannot rot silently.
 | The simplicity budget (29 screens) | `node scripts/simplicity-check.mjs` | part of the design gate; fails when a screen exceeds its element budget |
 | The verification battery (12 checks) | `node scripts/verification-battery.cjs` | the battery whose output the ledger quotes |
 | Quiz content audit | `node scripts/audit-quiz-content.mjs` | CI runs it; fails on a malformed quiz row |
-| AI quality and cost probes | `node scripts/eval-chat-quality.mjs` · `node scripts/measure-turn-cost.mjs` | read-only; model quality and per-turn cost |
+| AI quality/cost probes | `scripts/eval-chat.mjs` · `scripts/eval-chat-quality.mjs` · `npm run qa:chat` | live; inputs in `scripts/fixtures/eval-chat-cases.mjs` |
+| Regenerate the goal map | `scripts/build-roleplay-goals.mjs` | writes `scenarioGoals.generated.ts` |
 | Deploy / tail the worker | `npm run deploy:worker` · `npm run tail:worker` | **only** when AGENTS §3 authorizes a deploy |
 
 ### Producing a file (screenshot, image, export) — measured 2026-10-15

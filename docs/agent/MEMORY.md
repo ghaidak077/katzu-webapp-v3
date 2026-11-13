@@ -35,6 +35,7 @@ file is the digest that is short enough to always read.
 | Levels | A0–B2 (`src/lib/levels/levelSpec.ts`) |
 | Content corpora (2026-11-05) | **The served set wins over the authored set.** Authoring: `docs/content/catalogue/scenarios-catalogue.json` (**61** scenarios). Served: the worker's `GET /scenarios` (**49** scenarios, 225 first messages). Never assume authored = production; `scripts/audit-opener-coverage.mjs` fails when any *served* first message has no Arabic gloss. |
 | Unit path (2026-11-07) | `units.ts` splits the **49 served** ids into **9 ordered units** (checkpoint last, 5 goal tags); `progress.ts` owns `recommendScenario` (continue → next → checkpoint), `stageFor`, `composeSession` (review ≤10 → next stage), `nextPlanStep`, `sessionOutcomeOffer`. `/app/library` is the map; `/app/trail` is Journey Home. A new served id must join exactly one unit — `scripts/audit-unit-coverage.mjs` fails otherwise. |
+| Practice chat (2026-11-13) | AI only, ONE call per turn: `cloudflare-roleplay.js` (prompt v6) returns reply+correction+hint+objective credits. Plans `cloudflare-roleplay-plans.js` (49), Arabic goals + anchors in `cloudflare-roleplay-anchors.js`; an objective counts only when the learner's own words contain its anchor, and `close` needs all of them. Chip = `understood_de` only when it is a small edit; «Schreibung» labels gone. Hint rides the response; «اطلب تلميحاً» is the one small `/ai/hints` call. Eval: `node scripts/eval-chat.mjs --from-kv`. |
 | Conversation shape (2026-11-07) | No level selector in any main flow: a conversation runs at `servedLevel`, and the ⋯ sheet offers 3 current-unit topics + «فاجئني» before the first turn. Ease («سهلة/مناسبة/صعبة») is stored on `UserEntity.lastSessionEase` and moves only the next stage. Signup asks one goal question; goal reordering stays inside a level. |
 | Sign-in | Google-only |
 | Payments | NOWPayments **test mode**, `ready:false` |
@@ -49,12 +50,9 @@ file is the digest that is short enough to always read.
 
 ## Current excellence facts (2026-10-04)
 
-- Current status is `docs/agent/EXCELLENCE-STATUS.md`; roadmap is `plans/008-katzu-excellence-master-plan.md`.
-- Shared instructions live in AGENTS.md; CLAUDE.md delegates, never duplicates policies.
-- No automatic commits/pushes/deploys. Keep owner-only §3 unchanged.
-- Offline sync snapshots now carry an owner; legacy unowned snapshots are quarantined, not attributed to the next user. Signing back into the owning account allows replay.
-- Sign-out clears active report/pattern data; progress/review adoption checks the current session inside a Dexie transaction. Broader in-flight conversation lifecycle hardening remains planned.
-- React Query and Zod are declared but unused; do not assume they are architectural dependencies.
+- 
+- 
+- 
 
 ## B. Frozen decisions (do not relitigate)
 
