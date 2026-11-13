@@ -51,9 +51,8 @@ test('PRACTICE mode shows the hint and the live correction, one /ai/turn per tur
   await expect(page.getByText('تصحيح كَاتْزُو')).toBeVisible();
   await expect(page.getByText(/^Ich möchte einen Kaffee\.?$/)).toBeVisible();
 
-  // Help is on: the suggestion pill exists and answers the reply. The hint dock
-  // shows the same sentence, which is the surface that must be visible.
-  await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
+  // Help is on: the reply's own hint is in the dock, which is the surface that
+  // must be visible (no sheet, no pill, nothing to open first).
   await expect(page.getByTestId('hint-dock').getByText('Ja, bitte einen Kaffee.')).toBeVisible();
   await expect(page.getByText(/^Ich möchte einen Kaffee\.?$/)).toBeVisible();
 
@@ -80,7 +79,8 @@ test('REAL mode hides every aid, still reports the mistake, and its correction i
   await page.getByRole('button', { name: 'محادثة حقيقية (بدون مساعدة)' }).click();
 
   // No aid is present, anywhere, from the first screen.
-  await expect(page.getByRole('button', { name: 'اقتراح لردّك' })).toHaveCount(0);
+  await expect(page.getByTestId('hint-dock')).toHaveCount(0);
+  await expect(page.getByTestId('hint-request')).toHaveCount(0);
   await expect(page.getByText('عرض الترجمة')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /الترجمات/ })).toHaveCount(0);
 

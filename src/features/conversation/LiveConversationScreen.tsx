@@ -15,7 +15,7 @@ import { triggerHaptic } from '@/lib/utils/haptics';
 import { NO_GERMAN_VOICE_MESSAGE_AR } from '@/lib/speech/useSpeechOutput';
 import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
 import { freeSessionsCopy } from '@/lib/entitlement/trialCopy';
-import { buildWordBank } from '@/lib/utils/wordBank';
+import { scenarioGoalAr } from '@/lib/conversation/scenarioGoals.generated';
 import { track } from '@/lib/analytics/client';
 import { acquireUpdateHold } from '@/lib/pwa/updatePrompt';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
@@ -305,13 +305,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     if (autoStartMode) setSessionMode(autoStartMode);
   }, [autoStartMode, setSessionMode]);
 
-  // The words behind the currently-offered suggestion, so the learner can build a
-  // reply themselves instead of only sending the canned line.
-  const hintBank = useMemo(
-    () => (visibleHints[0] ? buildWordBank(visibleHints[0].german) : []),
-    [visibleHints],
-  );
-
   if (!sessionMode) {
     return (
       <div className="flex min-h-screen max-w-md mx-auto flex-col justify-center bg-black p-6 text-kz-ink">
@@ -422,6 +415,16 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
           <div className="min-w-0 flex-1 px-1">
             <p className="kz-ar-caption truncate text-center text-kz-ink">{characterNameAr}</p>
+            {/* The scene's goal, one authored Arabic sentence. It is the briefing
+                the practice chat used to hide inside a script. */}
+            {scenarioGoalAr(scenarioId) && (
+              <p
+                data-testid="scenario-goal"
+                className="kz-ar-micro mt-0.5 truncate text-center text-kz-inkDim"
+              >
+                مهمتك: {scenarioGoalAr(scenarioId)}
+              </p>
+            )}
             <div className="mt-1 flex items-center justify-center gap-2">
               {/* Progress is the SCENE's objectives, not turns taken: a turn is
                   effort, an objective is something the learner actually did.
@@ -591,11 +594,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       {/* The bottom input bar: hint · field · orb/send. */}
       <ConversationDock
         showHelp={!realMode}
-        visibleHints={visibleHints}
-        isHintRevealed={isHintRevealed}
-        isHintExpanded={isHintExpanded}
-        isRefreshingHints={isRefreshingHints}
-        hintQuotaSpent={hintQuotaSpent}
         micError={micError}
         turnFailure={turnFailure}
         busySecondsLeft={busySecondsLeft}
@@ -604,7 +602,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         onRetryTurn={retryFailedTurn}
         onReportProblem={reportProblem}
         showAiDebug={showAiDebug}
-        hintFailure={hintFailure}
         orbState={orbState}
         orbTone={orbTone}
         orbLabelAr={orbLabelAr}
@@ -618,22 +615,6 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           // as on the screen, where the platform can.
           triggerHaptic('light');
           void handleOrbPress();
-        }}
-        onRevealHint={() => {
-          setIsHintRevealed(true);
-          triggerHaptic('light');
-        }}
-        onHideHint={() => setIsHintRevealed(false)}
-        onToggleHintExpanded={() => {
-          setIsHintExpanded((v) => !v);
-          triggerHaptic('light');
-        }}
-        onRefreshHints={refreshHints}
-        onUseHint={handleUseHint}
-        hintBank={hintBank}
-        onPickHintWord={(word) => {
-          track('word_bank_tapped', { skill: 'chat' });
-          setInputText((prev) => (prev ? `${prev} ${word}` : word));
         }}
         onDismissError={() => dispatch({ type: 'dismiss_error' })}
         inputRef={inputRef}

@@ -77,14 +77,13 @@ describe('V40 — the conversation action slot shows one control at a time', () 
     expect(orbSource).toContain('tabIndex={disabled ? -1 : 0}');
   });
 
-  it('keeps the hint sheet a sibling of the glass dock', () => {
-    // V40 defect: a `position: fixed` sheet nested inside a `backdrop-filter`
-    // surface is positioned against that surface, not the viewport, so it rendered
-    // inside the dock's own box. The sheet must close before the dock element does.
-    const dockElementCloses = dock.indexOf('</FloatingControl>');
-    const sheetOpens = dock.indexOf('<BottomSheet');
-    expect(dockElementCloses).toBeGreaterThan(-1);
-    expect(sheetOpens).toBeGreaterThan(dockElementCloses);
+  it('has no hint sheet at all: the hint lives in its own dock', () => {
+    // The old «اقتراح لردّك» sheet (suggestions, refresh button, word bank) is
+    // gone. The hint is one sentence with three ways to use it, rendered by
+    // HintDock above the composer — no sheet, and nothing to nest wrongly.
+    expect(dock).not.toContain('<BottomSheet');
+    const screen = read('src/features/conversation/LiveConversationScreen.tsx');
+    expect(screen).toContain('<HintDock');
   });
 });
 

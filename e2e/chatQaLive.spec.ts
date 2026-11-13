@@ -205,25 +205,14 @@ async function converse(page: Page, scenario: Scenario, proxy: LiveProxy) {
 
     if (await page.getByTestId('closed-scene').isVisible().catch(() => false)) break;
 
-    // The suggestion sheet is a separate affordance from the sentence dock: it
-    // must open and close cleanly, because a scrim left behind swallows every
-    // later tap (it covered the dock in the first live run). The word bank
-    // inside it only exists when the persona offered reusable words, so the
-    // sheet itself is what must appear every time.
-    const opener = page.getByRole('button', { name: 'اقتراح لردّك' });
-    if (await opener.isVisible().catch(() => false)) {
-      const requestsBefore = proxy.state.requests;
+    // The suggestion sheet and its word bank are gone (2026-11-13): a turn that
+    // carries no hint offers ONE small call («اطلب تلميحاً») instead, and that
+    // button must never send a turn or open a sheet.
+    const askHint = page.getByTestId('hint-request').getByRole('button');
+    if (await askHint.isVisible().catch(() => false)) {
       const articlesBefore = await page.locator('article').count();
-      await opener.click();
-      const sheet = page.getByRole('dialog');
-      await expect(sheet).toBeVisible();
-      if ((await page.getByTestId('word-bank').count()) > 0) {
-        await expect(page.getByTestId('word-bank')).toBeVisible();
-      }
-      await sheet.getByRole('button', { name: 'إغلاق' }).click();
-      await expect(sheet).toHaveCount(0);
-      expect(proxy.state.requests, 'the suggestion sheet must not call the model').toBe(requestsBefore);
-      expect(await page.locator('article').count(), 'the suggestion sheet must not send a turn').toBe(articlesBefore);
+      expect(await page.getByRole('dialog').count(), 'no sheet is left to open').toBe(0);
+      expect(await page.locator('article').count(), 'asking for a hint must not send a turn').toBe(articlesBefore);
     }
 
     // The hint dock offers the sentence for THIS question, so it exists only

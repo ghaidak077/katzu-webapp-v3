@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Languages, RefreshCw, Snail, Volume2, Flag } from 'lucide-react';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
-import { correctionCardCopy } from '@/lib/conversation/correctionWording';
 import { diffSentences } from '@/lib/conversation/germanDiff';
 import { activeWordIndex, speechSegments } from '@/lib/speech/wordHighlight';
 import type { ChatMessage } from '@/types/models';
@@ -117,20 +116,13 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   const segments = useMemo(() => speechSegments(message.germanText), [message.germanText]);
   const spokenWord = activeWordIndex(segments, spokenCharIndex);
 
-  // The card carries one accent — the corrected word, and the thin edge beside
-  // it. The rule label and the Arabic explanation are derived together from the
-  // two visible strings, so they cannot name different rules (`halo` → `hallo`
-  // is a doubled letter, not capitalisation; `HALO` → `Hallo` is both). The
-  // model's wording is used only when the difference cannot be classified.
-  const correctionCopy = correctionMessage
-    ? correctionCardCopy(
-        correctionMessage.originalMistake,
-        correctionMessage.correctedGerman,
-        correctionMessage.grammarRule,
-        correctionMessage.explanationAr,
-      )
-    : { label: '', explanationAr: '' };
-  const ruleLabel = correctionCopy.label;
+  // ONE correction, ONE author: the model that read the learner's intent. The old
+  // card re-derived a rule chip from the two visible strings
+  // («Schreibung: ein Buchstabe zu viel»), which on real input turned «lebie» into
+  // «lebe» — a different verb — and contradicted its own explanation. Nothing is
+  // re-derived here: the sentence diff is shown, and the reason is the model's own
+  // short Arabic line, empty when there was nothing to fix.
+  const aiFixReason = correctionMessage?.explanationAr ? correctionMessage.explanationAr : '';
   const hasCorrection = Boolean(correctionMessage?.correctedGerman);
   // The full sentence is what the learner must be able to re-read: the old card
   // showed only the broken fragment, so a multi-word or capitalisation error had
@@ -381,12 +373,6 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 </ul>
               )}
 
-              {structuredErrors.length === 0 && ruleLabel && (
-                <span className="kz-ar-micro inline-block max-w-full rounded-chip border border-kz-line bg-white/5 px-2.5 py-0.5 text-kz-inkDim">
-                  <bdi dir="auto">{ruleLabel}</bdi>
-                </span>
-              )}
-
               {correctionMessage.grammarReference && correctionMessage.grammarReference.id === correctionMessage.grammarId && (
                 <div className="rounded-chip border border-kz-line bg-white/5 p-2.5">
                   <span className="kz-ar-micro block text-kz-inkFaint">من قاعدة التدريب الموجّه</span>
@@ -396,8 +382,8 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 </div>
               )}
 
-              {structuredErrors.length === 0 && correctionCopy.explanationAr && (
-                <p className="kz-ar-caption leading-relaxed text-kz-inkDim">{isolateLatin(correctionCopy.explanationAr)}</p>
+              {structuredErrors.length === 0 && aiFixReason && (
+                <p className="kz-ar-caption leading-relaxed text-kz-inkDim">{isolateLatin(aiFixReason)}</p>
               )}
 
               {correctionMessage.positiveNoteAr && (
@@ -408,7 +394,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                   visible strings. The model's own Arabic quote is free text and
                   measured to contradict it («حرف l مضعّف» under a capitalisation
                   chip), so it is only shown when there is no chip. */}
-              {correctionMessage.roastComment && !ruleLabel && structuredErrors.length === 0 && (
+              {correctionMessage.roastComment && !aiFixReason && structuredErrors.length === 0 && (
                 <p className="kz-ar-micro border-s border-kz-line ps-2.5 text-kz-inkFaint">
                   «{correctionMessage.roastComment}»
                 </p>

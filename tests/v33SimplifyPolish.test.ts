@@ -119,11 +119,17 @@ describe('V33 — the preferences prompt no longer outranks today’s mission', 
   });
 });
 
-describe('V33 — the chat word bank teaches that you can build a sentence', () => {
+describe('the chat has no word bank (2026-11-13: the hint is typed, never tapped)', () => {
   const source = read('src/features/conversation/ConversationDock.tsx');
+  const screen = read('src/features/conversation/LiveConversationScreen.tsx');
 
-  it('the chat bank says it is for building, not only for sending', () => {
-    expect(source).toContain('رتّب الكلمات لتبني الجملة');
+  it('the dock carries no word-bank chips: the hint sentence is the only offer', () => {
+    // Tapping chips built the sentence for the learner and one tap sent it, so
+    // the turn was neither produced nor judged as their own. The hint dock shows
+    // one sentence to type or say; nothing inserts it.
+    expect(source).not.toContain('رتّب الكلمات لتبني الجملة');
+    expect(source).not.toContain('data-testid="word-bank"');
+    expect(screen).not.toContain('buildWordBank');
   });
 
   it('the other production surfaces keep their plain bank wording', () => {

@@ -61,11 +61,11 @@ test('the first-words session is corrected and hinted correctly', async ({ page 
   await expect(page.getByText('قريب! بقي تصحيح واحد.')).toBeVisible();
   await expect(page.getByText(/^Ich heiße Ghaidak\.$/)).toHaveCount(0);
 
-  // 3 + 4. After «Wie geht es dir?» the sheet is non-empty, the direct answer is
-  // first, and a greetings scene never offers café lines.
+  // 3 + 4. After «Wie geht es dir?» the dock carries the reply's own hint — a
+  // greeting answer, not a stored starter line — and a greetings scene never
+  // offers café lines.
   await expect(page.getByText('Schön, Ghaidak. Wie geht es dir?')).toBeVisible();
-  await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
-  const chips = page.locator('[data-testid="conversation-controls"] button');
-  await expect(chips.first()).toContainText('Mir geht es gut, danke.');
-  await expect(page.getByText(/Tee|Kaffee|Kuchen|Heizung/i)).toHaveCount(0);
+  await expect(page.getByTestId('hint-dock')).toContainText('Mir geht es gut, danke.');
+  await expect(page.getByTestId('hint-dock')).not.toContainText(/Tee|Kaffee|Kuchen|Heizung/i);
+  await expect(page.getByRole('button', { name: 'اقتراح لردّك' })).toHaveCount(0);
 });

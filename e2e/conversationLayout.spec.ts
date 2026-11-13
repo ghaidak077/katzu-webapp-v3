@@ -84,7 +84,7 @@ async function assertNothingIsCovered(page: Page): Promise<void> {
   }
 }
 
-test('the transcript ends above the dock, with the suggestion panel open', async ({ page }) => {
+test('the transcript ends above the dock, with the hint dock open', async ({ page }) => {
   await bootSignedIn(page, {
     turns: [
       turn({
@@ -105,7 +105,7 @@ test('the transcript ends above the dock, with the suggestion panel open', async
   await page.goto('/scenario/landlord_followup/live');
   // Three of the A1 session's four turns leave it running, so the layout is
   // measured mid-conversation rather than on the debrief hand-off. Practice mode
-  // on purpose: the suggestion panel is part of what has to fit.
+  // on purpose: the hint dock is part of what has to fit.
   await page.getByRole('button', { name: 'تدريب (مع مساعدة)' }).click();
 
   // Three turns overflow the transcript region, which is the state the overlap was
@@ -113,9 +113,8 @@ test('the transcript ends above the dock, with the suggestion panel open', async
   await sendTurns(page, 3);
   await assertNothingIsCovered(page);
 
-  // And with the on-demand suggestion revealed — the pill that covered the same
-  // bubble in the report.
-  await page.getByRole('button', { name: 'اقتراح لردّك' }).click();
+  // With the hint dock revealed — the surface the old pill covered in the
+  // report. It rides the third reply, so it is on screen by now.
   await expect(page.getByTestId('hint-dock').getByText('Ich möchte über die Kaution sprechen.')).toBeVisible();
   await assertNothingIsCovered(page);
 });
