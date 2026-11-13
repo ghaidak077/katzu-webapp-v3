@@ -1,0 +1,86 @@
+# Weekly chat QA — the automated owner review, on a schedule.
+#
+# NOT on pull requests: it calls a paid-by-the-token model and the free tier's
+# daily token cap is shared with production. PRs keep the dry-run fixture check
+# inside `npm run verify -- --ci` (`eval-chat.mjs --dry`), which needs no network.
+#
+# What it proves: 30 real sessions (10 scenarios × 3 profiles) through the same
+# prompt, parser, shaper and checks the Worker runs, plus the whole-transcript
+# judge. It fails on a regression against `scripts/qa/baseline.json` — a session
+# that passed at baseline and fails now — and on any hard-rule failure.
+#
+# Required secret: GROQ_API_KEY (the same value as a pool key). Never printed.
+name: Chat QA
+
+on:
+  schedule:
+    # Mondays 04:17 UTC — before the owner's week starts, far from a deploy.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      max_usd:
+        description: Hard spend cap for this run, in USD
+        required: false
+        default: "2"
+
+jobs:
+  chat-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.15.0"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Exit codes from scripts/qa/run.mjs:
+      #   0 = every session passed      1 = at least one judged/hard failure
+      #   3 = the token quota ran out mid-run (partial, resumable — not a regression)
+      # A partial run is reported as a warning, never silently: the step summary
+      # says how many sessions finished, so a shrinking suite is visible.
+      - name: Weekly chat QA (30 sessions, cost-capped)
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          QA_MAX_USD: ${{ github.event.inputs.max_usd || '2' }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          npm run qa:chat -- --weekly --max-usd "${QA_MAX_USD}" --pacing 7000 | tee qa.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -eq 0 ]; then
+            echo "**Chat QA: all sessions passed.**" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "$code" -eq 3 ]; then
+            {
+              echo "**Chat QA: quota-limited partial run — not a regression, but not full coverage.**"
+              echo '```'
+              grep -E 'resume:|sessions:' qa.log | tail -5 || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "**Chat QA: regression or hard-rule failure.**"
+            echo '```'
+            grep -E 'FAIL|regression' qa.log | tail -20 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+
+      - name: Upload the report and transcripts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat-qa-report
+          path: |
+            docs/agent/CHAT-QA-REPORT.md
+            scripts/qa/baseline.json
+            .tmp/qa/runs/**/session-*.json
+          if-no-files-found: warn
+          retention-days: 30

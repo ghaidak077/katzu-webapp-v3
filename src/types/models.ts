@@ -270,6 +270,11 @@ export interface UserEntity {
   /** Where the learner needs German to actually work: a profession focus inside
    * the goal (medical / tech / other). Optional + non-indexed. */
   profession?: 'medical' | 'tech' | 'other';
+  /** The city the learner names in conversation, remembered locally so the
+   * persona can refer to it again. Visible/deletable in Settings. */
+  city?: string;
+  /** The learner's job, as they describe it. Local-only callback material. */
+  jobTitle?: string;
 }
 
 export interface RedeemedCodeEntity {
@@ -477,9 +482,39 @@ export interface ChatMessage {
   translationState?: 'pending' | 'unavailable';
   /** Arabic invitation to continue the conversation (KATZU messages only). */
   followupAr?: string;
+  /**
+   * «AI · model · ms · attempt n» — the hidden debug label (Settings toggle, off
+   * by default). Built from the server's own turn metadata, never rendered
+   * unless the learner turns the toggle on.
+   */
+  aiDebug?: string;
   hasCorrection?: boolean;
   originalMistake?: string;
   correctedGerman?: string;
+  /**
+   * Every error the LOCAL checker found, in fix order (meaning → grammar →
+   * spelling → capitalisation). Each carries its own German chip label and
+   * Arabic reason, so the card can explain all of them instead of one fragment.
+   */
+  correctionErrors?: Array<{
+    category: 'meaning' | 'grammar' | 'spelling' | 'capitalisation';
+    label: string;
+    reasonAr: string;
+    from: string;
+    to: string;
+  }>;
+  /** The learner's whole sentence after every correction (not just the broken part). */
+  correctedSentence?: string;
+  /**
+   * What the DETERMINISTIC corrector (germanChecker) found on this turn. The
+   * chip may stay closed when the model read the sentence fine, but the report
+   * and the mistake bank still count and store these — the corrector is the
+   * honest, repeatable measure, never the model's opinion.
+   */
+  localErrorCount?: number;
+  localOriginal?: string;
+  localCorrected?: string;
+  localRule?: string;
   roastComment?: string;
   grammarRule?: string;
   /** Exact grammar row Guided Practice selected, when it was part of this episode. */
@@ -581,6 +616,38 @@ export interface TurnAiResponse {
   explanationAr?: string;
   roastComment?: string;
   positiveNoteAr?: string;
+  /**
+   * The roleplay half of one ordinary conversation turn (cloudflare-roleplay.js).
+   * One model call plays the persona; this is everything the screen needs from
+   * it: progress, the learner's corrected sentence, and the next hint.
+   */
+  roleplay?: RoleplayTurn;
+  /**
+   * Which model actually answered, how long it took and which attempt it was.
+   * The hidden debug label renders it; nothing else reads it.
+   */
+  aiMeta?: {
+    model?: string | null;
+    provider?: string | null;
+    attempts?: number | null;
+    elapsedMs?: number | null;
+  };
+}
+
+/** The roleplay fields of a turn — the server already validated and bounded them. */
+export interface RoleplayTurn {
+  /** The learner's intended sentence, corrected; compared before the chip shows. */
+  understoodDe: string;
+  /** Short Arabic reason for the fix; empty when there is nothing to fix. */
+  fixReasonAr: string;
+  /** Objective ids this learner has finished, server-checked against the plan. */
+  objectivesDone: string[];
+  /** Every objective in the scenario plan — the header's denominator. */
+  objectivesTotal: number;
+  /** True only when every objective is done; the AI cannot close earlier. */
+  close: boolean;
+  /** One model answer the learner could give next, at their level. */
+  hint: ContextualHint | null;
 }
 
 /**

@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  FALLBACK_LINES,
-  TENSE_MARKERS,
-  correctionBudgetFor,
-  levelFallbackLine,
-  validateGermanAgainstLevel,
-} from '../cloudflare-level-spec';
+import * as levelSpec from '../cloudflare-level-spec';
+import { TENSE_MARKERS, correctionBudgetFor, validateGermanAgainstLevel } from '../cloudflare-level-spec';
 
 /**
  * The worker's deterministic gate between the model's German and the learner.
@@ -118,22 +113,12 @@ describe('validateGermanAgainstLevel', () => {
     });
   });
 
-  describe('deterministic fallbacks', () => {
-    it('keeps every fallback line inside its own level caps', () => {
-      for (const [level, line] of Object.entries(FALLBACK_LINES) as Array<[keyof typeof FALLBACK_LINES, { de: string; ar: string }]>) {
-        const result = validateGermanAgainstLevel(line.de, level);
-        expect(result.ok, `${level} fallback: ${result.ok ? '' : (result as { reason: string }).reason}`).toBe(true);
-      }
-    });
-
-    it('serves the A1 fallback for an unknown level rather than failing', () => {
-      expect(levelFallbackLine('C1' as never)).toBe(FALLBACK_LINES.A1);
-    });
-
-    it('carries Arabic so the learner never sees an untranslated placeholder', () => {
-      for (const line of Object.values(FALLBACK_LINES)) {
-        expect(line.ar.length).toBeGreaterThan(0);
-      }
+  describe('no authored fallbacks', () => {
+    it('exports no fallback table or line function', () => {
+      // Removed 2026-11-10: a violation after one repair now fails the turn
+      // (502) instead of being patched with a stored sentence.
+      expect((levelSpec as Record<string, unknown>).FALLBACK_LINES).toBeUndefined();
+      expect((levelSpec as Record<string, unknown>).levelFallbackLine).toBeUndefined();
     });
   });
 

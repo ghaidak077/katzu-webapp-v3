@@ -47,9 +47,8 @@ import { handleHintsRoute } from "./cloudflare-hints.js";
 import { handleWritingRoute } from "./cloudflare-writing.js";
 import { handleAskRoute } from "./cloudflare-ask.js";
 import { handleChatTurnRoute, handleTranslateRoute, handleLexemeRoute } from "./cloudflare-ai-chat.js";
-import { validateGermanAgainstLevel, levelFallbackLine, levelConstraintLine, correctionBudgetFor } from "./cloudflare-level-spec.js";
+import { validateGermanAgainstLevel, levelConstraintLine, correctionBudgetFor } from "./cloudflare-level-spec.js";
 import { handleTranscribeRoute } from "./cloudflare-stt.js";
-import { deriveConversationBeats } from "./cloudflare-conversation-beats.js";
 import {
   PROVIDER_POOL,
   PROVIDER_ENV_VARS,
@@ -1600,7 +1599,6 @@ function aiRouteDeps(tel) {
     writeAiCache,
     validLevels: VALID_LEVELS,
     validateGermanAgainstLevel,
-    levelFallbackLine,
     levelConstraintLine,
     correctionBudgetFor,
     // `opts` lets a handler ask for router behaviour it can justify for its own
@@ -2561,39 +2559,6 @@ function validateAiTurnBody(body) {
   return { ok: errors.length === 0, errors, clean };
 }
 
-/**
- * The scenario's deterministic conversation beats (V28 Stage 1), derived from its
- * starter phrases — the one place the intended arc of the conversation is written
- * down. Scenario content is static, so the result is cached per isolate: the first
- * turn of a scenario pays one extra small D1 read, and every later turn pays none.
- * Never throws — a D1 hiccup means "no beats", which degrades to the old prompt.
- */
-const scenarioBeatsCache = new Map();
-const SCENARIO_BEATS_CACHE_MAX = 200;
-
-/** Test-only: isolates must not leak beats between cases. */
-export function resetScenarioBeatsCache() {
-  scenarioBeatsCache.clear();
-}
-
-async function resolveScenarioBeats(env, scenarioId) {
-  const id = String(scenarioId || "");
-  if (!id) return [];
-  if (scenarioBeatsCache.has(id)) return scenarioBeatsCache.get(id);
-  let beats = [];
-  try {
-    if (env?.DB) {
-      const { results } = await env.DB.prepare(
-        "SELECT german, level, sort_order FROM starter_phrases WHERE scenario_id = ? ORDER BY level ASC, sort_order ASC"
-      ).bind(id).all();
-      beats = deriveConversationBeats(results || []);
-    }
-  } catch { beats = []; }
-  if (scenarioBeatsCache.size >= SCENARIO_BEATS_CACHE_MAX) scenarioBeatsCache.clear();
-  scenarioBeatsCache.set(id, beats);
-  return beats;
-}
-
 /** Resolves the scenario's server-authoritative identity. D1 first; fall back to a
  * tiny built-in allowlist (same ids) so the engine works even if D1 hiccups.
  * Returns null for unknown scenario ids — the client is never trusted. */
@@ -2605,9 +2570,8 @@ async function resolveScenarioIdentity(env, scenarioId) {
     job_interview: { title_de: "Vorstellungsgespräch", persona: "German hiring manager in an interview", category: "work" },
     embassy_appointment: { title_de: "Botschaftstermin", persona: "embassy appointment clerk", category: "official" },
   };
-  // Both reads in parallel: on a beats cache miss the first turn of a scenario
-  // pays one concurrent pair of small D1 reads, and every later turn pays only the
-  // identity read. A failed phrases read degrades to no beats, never to an error.
+  // One identity read per turn; the roleplay plan (persona, goal, objectives)
+  // is static code, not a second D1 query.
   const identityLookup = env?.DB
     ? env.DB.prepare(
         "SELECT title_de, ai_persona, category, initial_message_a0, initial_message_a1, initial_message_a2, initial_message_b1, initial_message_b2 FROM scenarios WHERE id = ?",
@@ -2616,7 +2580,7 @@ async function resolveScenarioIdentity(env, scenarioId) {
         .first()
         .catch(() => null)
     : Promise.resolve(null);
-  const [beats, row] = await Promise.all([resolveScenarioBeats(env, scenarioId), identityLookup]);
+  const row = await identityLookup;
   if (row && row.title_de) {
     return {
       title_de: String(row.title_de).slice(0, AI_LIMITS.SCENARIO_TITLE),
@@ -2631,10 +2595,9 @@ async function resolveScenarioIdentity(env, scenarioId) {
         b1: typeof row.initial_message_b1 === "string" ? row.initial_message_b1 : "",
         b2: typeof row.initial_message_b2 === "string" ? row.initial_message_b2 : "",
       },
-      beats,
     };
   }
-  if (FALLBACK_SCENARIOS[scenarioId]) return { ...FALLBACK_SCENARIOS[scenarioId], beats };
+  if (FALLBACK_SCENARIOS[scenarioId]) return { ...FALLBACK_SCENARIOS[scenarioId] };
   return null;
 }
 

@@ -3,6 +3,7 @@ import { Languages, RefreshCw, Snail, Volume2, Flag } from 'lucide-react';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { correctionCardCopy } from '@/lib/conversation/correctionWording';
+import { diffSentences } from '@/lib/conversation/germanDiff';
 import { activeWordIndex, speechSegments } from '@/lib/speech/wordHighlight';
 import type { ChatMessage } from '@/types/models';
 
@@ -86,6 +87,8 @@ export interface ConversationMessageProps {
    * even though the data rides the reply the worker produced.
    */
   correctionMessage?: ChatMessage;
+  /** Hidden Settings toggle, off by default: «AI · model · ms · attempt n». */
+  showAiDebug?: boolean;
 }
 
 const normalize = (value: string) => value.replace(/[^a-zA-ZäöüÄÖÜß]/g, '').toLowerCase();
@@ -104,6 +107,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   spokenCharIndex = null,
   isSpeaking = false,
   correctionMessage,
+  showAiDebug = false,
 }) => {
   const isKatzu = message.sender === 'KATZU';
 
@@ -128,6 +132,17 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
     : { label: '', explanationAr: '' };
   const ruleLabel = correctionCopy.label;
   const hasCorrection = Boolean(correctionMessage?.correctedGerman);
+  // The full sentence is what the learner must be able to re-read: the old card
+  // showed only the broken fragment, so a multi-word or capitalisation error had
+  // no sentence around it. `correctedSentence` is the whole corrected line; the
+  // learner's side is their own bubble text.
+  const learnerSentence = correctionMessage?.originalMistake || message.germanText;
+  const correctedSentence = correctionMessage?.correctedSentence || correctionMessage?.correctedGerman || '';
+  const structuredErrors = correctionMessage?.correctionErrors ?? [];
+  const sentenceDiff = useMemo(
+    () => diffSentences(learnerSentence, correctedSentence),
+    [learnerSentence, correctedSentence],
+  );
 
   return (
     <article
@@ -253,13 +268,9 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
             </div>
           )}
 
-          {/* Katzu's nudge towards the learner's next move. */}
-          {showHelp && isKatzu && message.followupAr && (
-            <p className="kz-ar-micro mt-2 flex items-start gap-1.5 text-kz-lavender/85">
-              <span aria-hidden>💬</span>
-              <span className="min-w-0">{message.followupAr}</span>
-            </p>
-          )}
+          {/* No model-authored 💬 follow-up: a deterministic scene question is
+              already appended to the reply, so a second question here was the
+              off-topic line. */}
 
           {/* Reporting lives on its own line with a written label. It used to be a
               14 px icon sharing the meta row with three others, which was present
@@ -278,6 +289,14 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
               أبلغ عن رد سيئ
             </button>
           )}
+
+          {/* Hidden debug label: who answered, how long it took, which attempt.
+              Off by default; there is no FALLBACK state to report any more. */}
+          {isKatzu && showAiDebug && message.aiDebug && (
+            <code dir="ltr" data-testid="ai-debug" className="mt-1 block font-german text-micro text-kz-inkFaint">
+              {message.aiDebug}
+            </code>
+          )}
         </div>
 
         {/* The correction card: a quiet note under the learner's own bubble, on
@@ -285,40 +304,84 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
             corrected word and the 2px edge beside it — and neutral ink for
             everything else, so it reads as feedback, not a second conversation. */}
         {showHelp && correctionMessage && (
-          <div
+          <details
             data-testid="correction-card"
-            className={`kz-message-in mt-2 rounded-control border-t border-b border-e border-s-2 bg-surface-subtle px-4 py-3 text-start ${
+            className={`kz-message-in group mt-2 rounded-control border-t border-b border-e border-s-2 bg-surface-subtle text-start ${
               hasCorrection ? 'border-s-status-success/60' : 'border-s-kz-line/70'
             }`}
           >
-            <div className="flex items-center gap-2">
+            {/* Collapsed by default: the learner is never interrupted mid-flow.
+                «تصحيح صغير ›» sits under their own line and opens the same card. */}
+            <summary className="kz-ar-micro flex min-h-touch cursor-pointer list-none items-center gap-1.5 px-3 py-2 font-bold text-kz-inkDim [&::-webkit-details-marker]:hidden">
               <KatzuMascot name="avatar" alt="" className="h-4 w-4 rounded-full opacity-80" />
-              <span className="kz-ar-micro font-bold text-kz-ink">تصحيح كَاتْزُو</span>
-            </div>
+              <span>تصحيح صغير</span>
+              <span aria-hidden className="transition-transform group-open:rotate-90">›</span>
+            </summary>
 
-            <div className="mt-2.5 space-y-2.5">
-              {(correctionMessage.originalMistake || correctionMessage.correctedGerman) && (
+            <div className="px-4 pb-3">
+              <span className="kz-ar-micro font-bold text-kz-ink">تصحيح كَاتْزُو</span>
+
+              <div className="mt-2.5 space-y-2.5">
+              {(learnerSentence || correctedSentence) && (
                 <div className="space-y-1.5">
-                  {correctionMessage.originalMistake && (
+                  {learnerSentence && (
                     <div className="flex items-baseline gap-2.5">
                       <span className="kz-ar-micro w-11 shrink-0 text-kz-inkDim">قلت</span>
-                      <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-right text-kz-inkDim line-through">
-                        {correctionMessage.originalMistake}
+                      <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-right text-status-error/80">
+                        {sentenceDiff.from.map((segment, index) =>
+                          segment.changed ? (
+                            <mark
+                              key={`from-${index}`}
+                              className="rounded-sm bg-status-error/15 font-semibold text-status-error underline decoration-status-error/60 decoration-2 underline-offset-2"
+                            >
+                              {segment.text}
+                            </mark>
+                          ) : (
+                            <React.Fragment key={`from-${index}`}>{segment.text}</React.Fragment>
+                          ),
+                        )}
                       </GermanText>
                     </div>
                   )}
-                  {correctionMessage.correctedGerman && (
+                  {correctedSentence && (
                     <div className="flex items-baseline gap-2.5">
                       <span className="kz-ar-micro w-11 shrink-0 text-kz-inkDim">الصحيح</span>
                       <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-right font-semibold text-status-success">
-                        {correctionMessage.correctedGerman}
+                        {sentenceDiff.to.map((segment, index) =>
+                          segment.changed ? (
+                            <mark
+                              key={`to-${index}`}
+                              className="rounded-sm bg-status-success/15 font-bold text-status-success"
+                            >
+                              {segment.text}
+                            </mark>
+                          ) : (
+                            <React.Fragment key={`to-${index}`}>{segment.text}</React.Fragment>
+                          ),
+                        )}
                       </GermanText>
                     </div>
                   )}
                 </div>
               )}
 
-              {ruleLabel && (
+              {/* Every error the local checker found, each with its own rule chip
+                  and one-line Arabic reason. One correction per line, in the order
+                  the learner must fix them (meaning → grammar → spelling → cap.). */}
+              {structuredErrors.length > 0 && (
+                <ul className="space-y-1.5" data-testid="correction-errors">
+                  {structuredErrors.map((error, index) => (
+                    <li key={`${error.category}-${index}`} className="flex flex-wrap items-baseline gap-1.5">
+                      <span className="kz-ar-micro inline-block max-w-full rounded-chip border border-kz-line bg-white/5 px-2.5 py-0.5 font-semibold text-kz-inkDim">
+                        <bdi dir="ltr">{error.label}</bdi>
+                      </span>
+                      <span className="kz-ar-micro min-w-0 flex-1 text-kz-inkDim">{error.reasonAr}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {structuredErrors.length === 0 && ruleLabel && (
                 <span className="kz-ar-micro inline-block max-w-full rounded-chip border border-kz-line bg-white/5 px-2.5 py-0.5 text-kz-inkDim">
                   <bdi dir="auto">{ruleLabel}</bdi>
                 </span>
@@ -333,7 +396,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 </div>
               )}
 
-              {correctionCopy.explanationAr && (
+              {structuredErrors.length === 0 && correctionCopy.explanationAr && (
                 <p className="kz-ar-caption leading-relaxed text-kz-inkDim">{isolateLatin(correctionCopy.explanationAr)}</p>
               )}
 
@@ -345,13 +408,14 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                   visible strings. The model's own Arabic quote is free text and
                   measured to contradict it («حرف l مضعّف» under a capitalisation
                   chip), so it is only shown when there is no chip. */}
-              {correctionMessage.roastComment && !ruleLabel && (
+              {correctionMessage.roastComment && !ruleLabel && structuredErrors.length === 0 && (
                 <p className="kz-ar-micro border-s border-kz-line ps-2.5 text-kz-inkFaint">
                   «{correctionMessage.roastComment}»
                 </p>
               )}
+              </div>
             </div>
-          </div>
+          </details>
         )}
       </div>
     </article>

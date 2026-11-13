@@ -26,6 +26,7 @@ import { completedEpisodeCount, shouldOfferPro } from '@/lib/entitlement/trial';
 import { isProEffective } from '@/lib/utils/subscription';
 import { MASTERED_REPS, countDue, gradeCorrectionRetype, reviewRefId } from '@/lib/srs/engine';
 import { sessionOutcomeOffer } from '@/lib/units/progress';
+import { REVIEW_SESSION_CAP } from '@/lib/mission/scenarioMinutes';
 import { enrolMistake, gradeReviewItem } from '@/lib/srs/store';
 import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
@@ -538,9 +539,10 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         <li className="kz-message-in">
           <div className="flex items-baseline justify-between gap-3">
             <span className="kz-ar-caption text-kz-inkDim">جُمل نطقتها بلا مساعدة</span>
-            <span className="font-german text-sm font-bold text-kz-ink">
-              {independentCount}
-              <span className="text-kz-inkFaint"> / {Math.max(totalTurns, summary.independentSentences)}</span>
+            <span className="font-german text-sm font-bold text-kz-ink" dir="ltr">
+              <bdi dir="ltr">
+                {independentCount} / {Math.max(totalTurns, summary.independentSentences)}
+              </bdi>
             </span>
           </div>
           <ProgressRail
@@ -1099,9 +1101,10 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             <li className="kz-message-in">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="kz-ar-caption text-kz-inkDim">جُمل نطقتها بلا مساعدة</span>
-                <span className="font-german text-sm font-bold text-kz-ink">
-                  {independentCount}
-                  <span className="text-kz-inkFaint"> / {Math.max(totalTurns, summary.independentSentences)}</span>
+                <span className="font-german text-sm font-bold text-kz-ink" dir="ltr">
+                  <bdi dir="ltr">
+                    {independentCount} / {Math.max(totalTurns, summary.independentSentences)}
+                  </bdi>
                 </span>
               </div>
               <ProgressRail
@@ -1428,7 +1431,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         ) : openCorrections > 0 && onOpenReview ? (
           <>
             <PrimaryAction
-              hintAr={`بقي ${openCorrections} تصحيحاً لم تُثبّتها هنا — نفس الجمل ستعود في المراجعة المجدولة.`}
+              hintAr={`بقي ${Math.min(openCorrections, REVIEW_SESSION_CAP)} تصحيحاً لم تُثبّتها هنا — نفس الجمل ستعود في المراجعة المجدولة.`}
               onClick={onOpenReview}
             >
               راجع تصحيحات هذه الجلسة

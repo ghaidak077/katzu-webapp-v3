@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { AlertTriangle, ArrowDown, CheckCircle2, RefreshCw } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 import { ConversationMessage } from './ConversationMessage';
 import { KatzuThinking } from '@/components/effects/KatzuThinking';
 import type { ChatMessage } from '@/types/models';
@@ -28,8 +28,6 @@ export interface ConversationTranscriptProps {
    */
   showHelp: boolean;
   isGenerating: boolean;
-  /** { failedText, message } while a turn failed and its sentence is retryable. */
-  turnError: { failedText: string; message: string } | null;
   isSessionCompleted: boolean;
   speakingId: string | null;
   activeCharIndex: number | null;
@@ -40,7 +38,8 @@ export interface ConversationTranscriptProps {
   /** Reports one Katzu reply; the parent owns the confirmation and the send. */
   onReportReply?: (message: ChatMessage) => void;
   onWordClick: (word: string) => void;
-  onRetryFailedTurn: () => void;
+  /** Hidden Settings toggle, off by default. */
+  showAiDebug?: boolean;
 }
 
 export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
@@ -52,7 +51,6 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
   knownWords,
   showHelp,
   isGenerating,
-  turnError,
   isSessionCompleted,
   speakingId,
   activeCharIndex,
@@ -62,7 +60,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
   onSlowSpeak,
   onReportReply,
   onWordClick,
-  onRetryFailedTurn,
+  showAiDebug = false,
 }) => {
   const localRef = useRef<HTMLDivElement | null>(null);
   const [showJump, setShowJump] = useState(false);
@@ -100,7 +98,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
         ref={setRef}
         onScroll={handleScroll}
         data-testid="conversation-transcript"
-        className="h-full space-y-3 overflow-y-auto px-4 py-3"
+        className="h-full space-y-3 overflow-y-auto px-4 pb-20 pt-3"
       >
         {messages.map((msg, index) => {
           // The correction rides the reply the worker returned, but it belongs to
@@ -136,6 +134,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
               spokenCharIndex={speakingId === msg.id ? activeCharIndex : null}
               isSpeaking={speakingId === msg.id}
               correctionMessage={correctionMessage}
+              showAiDebug={showAiDebug}
             />
           );
         })}
@@ -159,43 +158,21 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
           </div>
         )}
 
-        {/* Failed-turn error card with retry — never a silent hang */}
-        {turnError && !isGenerating && (
-          <div className="space-y-2 rounded-control border border-status-error/40 bg-surface-subtle p-3.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-status-error">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span>تعذر إرسال جملتك:</span>
-            </div>
-            <div dir="ltr" className="font-german text-xs text-kz-inkDim">
-              {turnError.failedText}
-            </div>
-            <p className="kz-ar-micro text-kz-inkDim">{turnError.message}</p>
-            <button
-              onClick={onRetryFailedTurn}
-              className="kz-ar-micro flex items-center gap-1.5 rounded-xl border border-primary/50 bg-primary/20 px-3 py-1.5 font-bold text-primary transition-colors pointer-hover:bg-primary/30"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              إعادة المحاولة
-            </button>
-          </div>
-        )}
+        {/* A failed turn renders NO bubble here: the sentence went back to the
+            composer and the notice lives there. The transcript only ever gains a
+            persona message from a real model reply (or the shipped opener). */}
 
-        {/* Rule 7: Celebration Card on Exchange Completion */}
+        {/* The session ended honestly: no success banner and no «أحسنت!» before
+            the report has judged anything. Just the hand-off to the report. */}
         {isSessionCompleted && (
-          <div className="my-2 flex items-center gap-3 rounded-3xl border border-primary/40 bg-white/5 p-4 shadow-glow-purple">
+          <div className="my-2 flex items-center gap-3 rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex-1">
-              <div className="kz-ar-micro flex items-center gap-1.5 font-bold text-status-success">
-                <CheckCircle2 className="h-4 w-4" />
-                اكتملت محادثة السيناريو بنجاح!
-              </div>
-              <div className="mt-1">
-                <KatzuThinking
-                  size={30}
-                  layout="inline"
-                  labelAr="أحسنت! جاري إعداد تقرير أدائك اللغوي مع كَاتْزُو..."
-                  className="gap-2"
-                />
-              </div>
+              <KatzuThinking
+                size={30}
+                layout="inline"
+                labelAr="جارٍ إعداد تقرير الجلسة…"
+                className="gap-2"
+              />
             </div>
           </div>
         )}

@@ -39,11 +39,8 @@ function episodeTurns() {
     turn({ reply_de: 'Guten Tag! Möchten Sie einen Kaffee?' }),
     turn({
       reply_de: 'Gerne. Einen Kaffee, bitte schön.',
-      is_correct: false,
-      original_mistake: 'Ich möchte ein Kaffee',
-      corrected_german: 'Ich möchte einen Kaffee',
-      grammar_rule: 'Akkusativ: einen Kaffee',
-      explanation_ar: 'بعد möchte يأتي الاسم في حالة النصب.',
+      understood_de: 'Ich möchte einen Kaffee',
+      fix_reason_ar: 'بعد möchte يأتي الاسم في حالة النصب.',
     }),
     turn({ reply_de: 'Sehr gern. Möchten Sie noch etwas?' }),
     turn({ reply_de: 'Perfekt. Auf Wiedersehen!' }),

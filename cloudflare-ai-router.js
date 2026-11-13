@@ -655,7 +655,7 @@ export function classifyFailure(status, bodyText = "", entry = null) {
 
 export class ProviderCallError extends Error {
   constructor(entry, status, bodyText, kind) {
-    super(`${entry.provider}/${entry.model} HTTP ${status}: ${String(bodyText || "").slice(0, 140)}`);
+    super(`${entry.provider}/${entry.model} HTTP ${status}: ${String(bodyText || "").slice(0, 320)}`);
     this.name = "ProviderCallError";
     this.entry = entry;
     this.status = status;
@@ -715,7 +715,13 @@ export async function callProvider(entry, payload, key, { timeoutMs = ATTEMPT_TI
     throw new Error("callProvider: an OpenAI-compatible entry needs opts.toMessages");
   }
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  // A retry inside this call gets its own attempt window instead of inheriting
+  // whatever is left of the first one.
+  const restartTimeout = () => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  };
   try {
     if (entry.format === "gemini") {
       const res = await doFetch(`${GEMINI_BASE_URL}/models/${entry.model}:generateContent?key=${key}`, {
@@ -762,7 +768,19 @@ export async function callProvider(entry, payload, key, { timeoutMs = ATTEMPT_TI
         features.reasoningEffort = false;
         dropped = true;
       }
+      // Groq's structured-output validator fails the whole generation
+      // (`json_validate_failed`) when the model emits JSON it cannot validate —
+      // intermittently, on perfectly ordinary input. The identifier it names is
+      // not the field, so the branch above misses it and the identical retry
+      // fails identically: the learner loses the turn to an error card. Dropping
+      // the enforced format and letting the route's own tolerant parser read the
+      // reply is strictly better than no reply at all.
+      if (features.jsonMode && /json_validate_failed|failed to validate json/i.test(firstBody)) {
+        features.jsonMode = false;
+        dropped = true;
+      }
       if (!dropped) throw new ProviderCallError(entry, 400, firstBody);
+      restartTimeout();
       res = await send(features);
     }
 
@@ -877,7 +895,17 @@ export async function callAiRouter(payload, env, deps = {}) {
     const tierEntries = pool.filter((entry) => entry.tier === tier && isEntryConfigured(entry) && entryKeysFor(entry, env).length > 0);
     if (!tierEntries.length) continue;
     const start = nextRotation(tierRotations, `tier:${tier}`, tierEntries.length);
-    const walk = orderTierEntries(tierEntries, start, deps.preferFast === true);
+    const ordered = orderTierEntries(tierEntries, start, deps.preferFast === true);
+    // A route may name the model it wants (the roleplay turn reads
+    // ROLEPLAY_MODEL): the named entry moves to the front of its tier, and every
+    // other usable entry stays behind it, so a dead model still fails over
+    // exactly as before. No silent model swap, no second pool.
+    const walk = typeof deps.preferModel === "string" && deps.preferModel
+      ? [
+          ...ordered.filter((entry) => entry.model === deps.preferModel),
+          ...ordered.filter((entry) => entry.model !== deps.preferModel),
+        ]
+      : ordered;
 
     for (const entry of walk) {
       const keys = entryKeysFor(entry, env);

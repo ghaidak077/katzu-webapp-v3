@@ -4,64 +4,67 @@ import { expect, test, type Page } from '@playwright/test';
 import { bootSignedIn, turn } from '../harness';
 
 /**
- * Before/after evidence for the correction card at the narrow phone width.
+ * Before/after evidence for the correction card in a real phone viewport.
  *
- * Three cases, chosen because each stresses a different part of the card:
- * a one-letter spelling slip (`halo` → `hallo`), a capitalisation error, and a
- * long German compound that has to wrap inside a 360 px viewport. The same rig
- * produces both sides; `TAG` only changes the file name.
+ * Three cases, chosen because each one exercises a different deterministic local
+ * check (they do not need the AI at all, so the "after" side proves the local
+ * checker even when the worker only ever returns a generic reply):
+ *
+ *   1. spelling        `Ich leibe katze`            -> liebe / Katze
+ *   2. capitalisation  `hallo Frau Meier ich ...`   -> greeting comma + names
+ *   3. false friend    `Ich habe ein Gift für dich` -> Geschenk
+ *
+ * The same rig produces both sides; `TAG` only changes the file name and
+ * `SHOT_OUT` lets a detached HEAD worktree write into the main tree's `.tmp`.
  *
  *   TAG=before E2E_TARGET=preview npx playwright test -c e2e/correctionCardShots.playwright.config.ts
  *   TAG=after  E2E_TARGET=preview npx playwright test -c e2e/correctionCardShots.playwright.config.ts
  */
 
 const TAG = process.env.TAG === 'after' ? 'after' : 'before';
-const OUT_DIR = join(process.cwd(), 'docs', 'agent', 'correction-card');
+const OUT_DIR = process.env.SHOT_OUT || join(process.cwd(), '.tmp');
 
 const CASES = [
   {
-    slug: 'one-letter',
-    original: 'halo',
-    corrected: 'hallo',
-    rule: 'Groß- und Kleinschreibung',
-    explanation: 'كلمة التحية تُكتب بلامين: hallo. اللام المزدوجة هي الفرق الوحيد.',
+    slug: 'spelling',
+    original: 'Ich leibe katze',
+    corrected: 'Ich liebe eine Katze.',
+    rule: 'Rechtschreibung: ie statt ei',
+    explanation: 'اكتب ie بدل ei، والاسم Katze يبدأ بحرف كبير.',
   },
   {
-    slug: 'capitalisation',
-    original: 'ich möchte einen Kaffee',
-    corrected: 'Ich möchte einen Kaffee',
-    rule: 'Groß- und Kleinschreibung',
-    explanation: 'أول كلمة في الجملة الألمانية تبدأ بحرف كبير: Ich.',
+    slug: 'greeting-name',
+    original: 'hallo Frau Meier ich heiße ghaidak',
+    corrected: 'Hallo Frau Meier, ich heiße Ghaidak.',
+    rule: 'Komma nach Anrede',
+    explanation: 'بعد النداء تكتب فاصلة، والأسماء تبدأ بحرف كبير.',
   },
   {
-    slug: 'long-word',
-    original: 'Ich habe die Krankenversicherungsbescheinigung nicht',
-    corrected: 'Ich habe die Krankenversicherungsbescheinigung nicht dabei',
-    rule: 'ترتيب الكلمات: الفعل في الموضع الثاني',
-    explanation: 'أضف dabei في نهاية الجملة لتوضيح أنك لا تحمل الوثيقة معك الآن.',
+    slug: 'false-friend',
+    original: 'Ich habe ein Gift für dich',
+    corrected: 'Ich habe ein Geschenk für dich.',
+    rule: 'Bedeutung: Gift ≠ Geschenk',
+    explanation: 'Gift تعني «سُم»؛ الهدية هي Geschenk.',
   },
 ] as const;
 
 async function shoot(page: Page, slug: string): Promise<void> {
   mkdirSync(OUT_DIR, { recursive: true });
-  const file = join(OUT_DIR, `correction-${slug}-360x740-${TAG}.png`);
+  const file = join(OUT_DIR, `correction-${slug}-390x844-${TAG}.png`);
   await page.screenshot({ path: file });
   console.log(`saved ${file}`);
 }
 
 for (const item of CASES) {
   test(`correction card: ${item.slug} [${TAG}]`, async ({ page }) => {
-    await page.setViewportSize({ width: 360, height: 740 });
+    await page.setViewportSize({ width: 390, height: 844 });
     await bootSignedIn(page, {
       turns: [
         turn({
           reply_de: 'Verstanden. Noch etwas?',
           reply_ar: 'فهمت. هل من شيء آخر؟',
-          is_correct: false,
-          original_mistake: item.original,
-          corrected_german: item.corrected,
-          grammar_rule: item.rule,
-          explanation_ar: item.explanation,
+          understood_de: item.corrected,
+          fix_reason_ar: item.explanation,
         }),
       ],
     });

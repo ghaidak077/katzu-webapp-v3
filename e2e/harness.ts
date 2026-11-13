@@ -60,13 +60,25 @@ const RECORDING_ACTION = /إيقاف التسجيل/;
 export interface ScriptedTurn {
   reply_de: string;
   reply_ar: string;
-  is_correct: boolean;
-  original_mistake?: string;
-  corrected_german?: string;
-  grammar_rule?: string;
-  explanation_ar?: string;
-  /** The on-demand suggestion the turn carries (the dock's 💡 pill). */
-  hints?: Array<{ german: string; translation_ar: string }>;
+  /**
+   * The learner's sentence as the persona understood it, corrected.
+   *
+   * This is the ONLY source of the correction chip: the app compares it with what
+   * the learner typed and shows a card only when the model really fixed it.
+   */
+  understood_de?: string;
+  /** Short Arabic reason for that fix, shown on the card. */
+  fix_reason_ar?: string;
+  /** Objective ids the persona credits after this turn (server-owned ids). */
+  objectives_done?: string[];
+  objectives_total?: number;
+  /** The scene is over: the client hides the dock and offers «إنهاء». */
+  close?: boolean;
+  /** The persona's own next sentence, offered by the hint dock. */
+  hint_de?: string;
+  hint_ar?: string;
+  /** Mock-exam turns only: whether the learner's answer was marked right. */
+  is_correct?: boolean;
 }
 
 /** A well-formed `/ai/turn` payload: the client rejects a reply it cannot parse. */
@@ -74,7 +86,10 @@ export function turn(overrides: Partial<ScriptedTurn> = {}): ScriptedTurn {
   return {
     reply_de: 'Sehr gern. Möchten Sie noch etwas?',
     reply_ar: 'بكل سرور. هل تريد شيئاً آخر؟',
-    is_correct: true,
+    understood_de: '',
+    objectives_done: [],
+    objectives_total: 4,
+    close: false,
     ...overrides,
   };
 }
@@ -341,20 +356,40 @@ export async function mockBackend(page: Page, options: MockOptions = {}): Promis
         const scripted = options.turns?.[turnIndex] ?? turn();
         turnIndex += 1;
         if (options.turnDelayMs) await new Promise((resolve) => setTimeout(resolve, options.turnDelayMs));
+        const body = JSON.parse(route.request().postData() || '{}') as {
+          mockGrant?: unknown;
+          mockPart?: unknown;
+        };
+        // A mock-exam turn keeps the legacy `evaluation` shape; every ordinary
+        // conversation turn is roleplay-only. The worker makes the same split.
+        if (body.mockGrant || typeof body.mockPart === 'number') {
+          return json({
+            reply_de: scripted.reply_de,
+            reply_ar: scripted.reply_ar,
+            evaluation: {
+              is_correct: scripted.is_correct ?? true,
+              original_mistake: '',
+              corrected_german: '',
+              grammar_rule: '',
+              explanation_ar: '',
+              roast_comment: '',
+              positive_note_ar: '',
+            },
+          });
+        }
+        // Every ordinary turn is a roleplay turn: the persona's reply, the
+        // learner's sentence as understood, the server-owned objective flags and
+        // the close flag. No evaluation object is sent for these turns.
         return json({
           reply_de: scripted.reply_de,
           reply_ar: scripted.reply_ar,
-          hints: scripted.hints ?? [],
-          followup_ar: '',
-          evaluation: {
-            is_correct: scripted.is_correct,
-            original_mistake: scripted.original_mistake ?? '',
-            corrected_german: scripted.corrected_german ?? '',
-            grammar_rule: scripted.grammar_rule ?? '',
-            explanation_ar: scripted.explanation_ar ?? '',
-            roast_comment: '',
-            positive_note_ar: '',
-          },
+          understood_de: scripted.understood_de ?? '',
+          fix_reason_ar: scripted.fix_reason_ar ?? '',
+          objectives_done: scripted.objectives_done ?? [],
+          objectives_total: scripted.objectives_total ?? 4,
+          close: scripted.close ?? false,
+          hint_de: scripted.hint_de ?? '',
+          hint_ar: scripted.hint_ar ?? '',
         });
       }
       case url.pathname === '/ai/check-writing': {
