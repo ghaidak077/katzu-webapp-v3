@@ -51,6 +51,28 @@
     { "id": "a20", "scenario": "airport_arrival", "input": "Ja, danke.", "kind": "one-word", "expect": { "correct": false } },
     { "id": "a21", "scenario": "airport_arrival", "input": "Der Koffer ist blau, 20 kilo.", "kind": "no-umlaut", "expect": { "correct": true, "form": ["Kilo"] } },
     { "id": "a22", "scenario": "airport_arrival", "input": "Ich bin am Terminal 2.", "kind": "answer", "expect": { "correct": false }, "holdout": true },
-    { "id": "a23", "scenario": "airport_arrival", "input": "Guten Tag.", "kind": "one-word", "expect": { "correct": false }, "holdout": true }
+    { "id": "a23", "scenario": "airport_arrival", "input": "Guten Tag.", "kind": "one-word", "expect": { "correct": false }, "holdout": true },
+
+    { "id": "g24", "scenario": "first_greetings", "input": "Ich komme aus Syrien seit drei Jahr.", "kind": "wrong-ending", "expect": { "correct": true, "form": ["Jahren"] } },
+    { "id": "g25", "scenario": "first_greetings", "input": "Ich habe einen Bruder und zwei schwester.", "kind": "wrong-plural", "expect": { "correct": true, "form": ["Schwestern"] } },
+    { "id": "g26", "scenario": "first_greetings", "input": "Wie geht es dich?", "kind": "wrong-case", "expect": { "correct": true, "form": ["dir"] }, "holdout": true },
+    { "id": "g27", "scenario": "first_greetings", "input": "Ich spricht ein bisschen Deutsch.", "kind": "wrong-conjugation", "expect": { "correct": true, "form": ["spreche"] } },
+    { "id": "g28", "scenario": "first_greetings", "input": "Ich kann sprechen ein bisschen Deutsch.", "kind": "word-order", "expect": { "correct": true, "form": ["Deutsch sprechen"] } },
+    { "id": "g29", "scenario": "first_greetings", "input": "Ich bin neu hier, ich habe keine freunde.", "kind": "wrong-plural", "expect": { "correct": true, "form": ["Freunde"] } },
+    { "id": "g30", "scenario": "first_greetings", "input": "Meine Mutter ist lehrerin.", "kind": "capitalisation", "expect": { "correct": true, "form": ["Lehrerin"] } },
+    { "id": "g31", "scenario": "first_greetings", "input": "Ich komme aus der Syrien.", "kind": "wrong-article", "expect": { "correct": true, "form": ["aus Syrien"] }, "holdout": true },
+    { "id": "g32", "scenario": "first_greetings", "input": "Ich wohne in Berlin seit zwei Monate.", "kind": "wrong-ending", "expect": { "correct": true, "form": ["Monaten"] } },
+    { "id": "g33", "scenario": "first_greetings", "input": "Ich habe eine frage.", "kind": "capitalisation", "expect": { "correct": true, "form": ["Frage"] } },
+
+    { "id": "a24", "scenario": "airport_arrival", "input": "Ich habe ein koffer verloren.", "kind": "wrong-article", "expect": { "correct": true, "form": ["einen Koffer"] } },
+    { "id": "a25", "scenario": "airport_arrival", "input": "Meine koffer ist schwarz.", "kind": "wrong-gender", "expect": { "correct": true, "form": ["Mein Koffer"] }, "holdout": true },
+    { "id": "a26", "scenario": "airport_arrival", "input": "Die Flug nummer ist AB1234.", "kind": "compound-noun", "expect": { "correct": true, "form": ["Flugnummer"] } },
+    { "id": "a27", "scenario": "airport_arrival", "input": "Ich warte seit eine Stunde.", "kind": "wrong-case", "expect": { "correct": true, "form": ["einer Stunde"] } },
+    { "id": "a28", "scenario": "airport_arrival", "input": "Ich bin am Flughafen gekommen.", "kind": "wrong-verb", "expect": { "correct": true, "form": ["angekommen"] } },
+    { "id": "a29", "scenario": "airport_arrival", "input": "Ich möchte melden einen verlorenen Koffer.", "kind": "word-order", "expect": { "correct": true, "form": ["Koffer melden"] }, "holdout": true },
+    { "id": "a30", "scenario": "airport_arrival", "input": "Mein Koffer wiegt 23 kilo.", "kind": "capitalisation", "expect": { "correct": true, "form": ["Kilo"] } },
+    { "id": "a31", "scenario": "airport_arrival", "input": "Ich habe mein Koffer in der Halle gelassen.", "kind": "wrong-article", "expect": { "correct": true, "form": ["meinen Koffer"] } },
+    { "id": "a32", "scenario": "airport_arrival", "input": "Der Koffer ist nicht hier, ich finde er nicht.", "kind": "wrong-case", "expect": { "correct": true, "form": ["ihn"] } },
+    { "id": "a33", "scenario": "airport_arrival", "input": "Ich fliege nach Berlin uber Frankfurt.", "kind": "no-umlaut", "expect": { "correct": true, "form": ["über"] }, "holdout": true }
   ]
 }

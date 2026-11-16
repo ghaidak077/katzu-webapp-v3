@@ -90,7 +90,18 @@ function checkCase(entry) {
   }
 
   const formHit = (c?.expect?.form || []).every((form) => fold(understood).includes(fold(form)));
-  const changed = fold(understood) !== fold(raw) && understood.trim().length > 0;
+  /**
+   * `changed` compares with case and umlauts INTACT (2026-11-16). Folding first
+   * — as this file did — made «heisse» -> «heiße» and «lehrerin» -> «Lehrerin»
+   * look like no change at all, so a correct fix could never be credited and the
+   * recall number was measuring the scorer, not the model.
+   */
+  const strict = (text) =>
+    String(text || '')
+      .replace(/\s+/g, ' ')
+      .replace(/[.,!;:]+$/, '')
+      .trim();
+  const changed = strict(understood) !== strict(raw) && understood.trim().length > 0;
   const corrected = changed && formHit;
 
   return {
@@ -153,6 +164,46 @@ console.log(`providers        ${JSON.stringify(providers)}  workers-ai fallback:
 console.log(`latency p50/p95  ${quantile(0.5)} / ${quantile(0.95)} ms`);
 console.log(`correction recall ${allRecall.text}  (tune ${tuneRecall.text}, holdout ${holdRecall.text})`);
 console.log(`check failures   tune ${tuneFailures.length}, holdout ${holdFailures.length}, error turns ${errors}, invented facts ${offTopic}`);
+
+// ---------------------------------------------------------------------------
+// Per provider+model quality gate (owner request, 2026-11-16)
+//
+// "Same model first" means every available provider serves the pair that passed
+// the gate. A pair therefore has to pass on its OWN — a good average across a
+// mixed run would let a weak provider hide behind a strong one. Thresholds are
+// the owner's and are never lowered here: 85% correction recall on the sentences
+// that carry a real error, zero invented facts, exactly one question per reply,
+// p95 under 3.5 s.
+// ---------------------------------------------------------------------------
+const groups = new Map();
+for (const row of scored) {
+  const key = `${row.provider || 'unknown'}/${row.model || '-'}`;
+  if (!groups.has(key)) groups.set(key, []);
+  groups.get(key).push(row);
+}
+console.log('');
+console.log('per provider/model');
+console.log('  pair                                 turns  recall   facts  questions  p95ms  gate');
+for (const [key, rows] of [...groups.entries()].sort()) {
+  const need = rows.filter((r) => r.needsCorrection);
+  const hits = need.filter((r) => r.corrected).length;
+  const share = need.length ? hits / need.length : null;
+  const invented = rows.filter((r) => r.failures.includes('invented_fact')).length;
+  const badQuestions = rows.filter((r) => r.failures.some((f) => f.startsWith('questions='))).length;
+  const lat = rows.map((r) => Number(r.ms)).filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
+  const p95 = lat.length ? lat[Math.min(lat.length - 1, Math.floor(0.95 * lat.length))] : null;
+  const pass =
+    rows.length >= 8 &&
+    share !== null &&
+    share >= 0.85 &&
+    invented === 0 &&
+    badQuestions === 0 &&
+    p95 !== null &&
+    p95 < 3500;
+  console.log(
+    `  ${key.padEnd(36)} ${String(rows.length).padStart(5)}  ${(share === null ? 'n/a' : `${hits}/${need.length}`).padStart(6)}  ${String(invented).padStart(5)}  ${String(badQuestions).padStart(9)}  ${String(p95).padStart(5)}  ${pass ? 'PASS' : 'FAIL'}`,
+  );
+}
 
 const gates = [
   ['correction recall >= 90%', withErrors.length ? allRecall.hits / withErrors.length >= 0.9 : false],

@@ -3,11 +3,15 @@
 Two files, one job: replay a fixed set of learner sentences against the real
 `POST /ai/turn` and score the answers with the same rules the product relies on.
 
-- `scenario-replay-cases.json` — 46 learner turns on `first_greetings` and
-  `airport_arrival`. Each case names the wrong-thing-it-tests (`kind`), whether a
-  real error MUST be corrected (`expect.correct`) and which correct form proves it
+- `scenario-replay-cases.json` — 66 learner turns on `first_greetings` and
+  `airport_arrival`, 34 of them carrying a genuine error (spelling, article/gender,
+  word order, conjugation, capitalisation, umlaut) across the kinds the owner
+  named. Each case names the wrong-thing-it-tests (`kind`), whether a real error
+  MUST be corrected (`expect.correct`) and which correct form proves it
   (`expect.form`). `holdout: true` marks the ~24% that are never used to tune the
-  prompt; their score is reported separately.
+  prompt; their score is reported separately. `changed` is compared with case and
+  umlauts intact — folding both sides first hides exactly the fixes a beginner
+  needs credited (`heisse` → `heiße`, `lehrerin` → `Lehrerin`).
 - `score-replay.mjs` — deterministic scoring, no network: one question per reply,
   no meta talk, no «Wie bitte?» on a typo, no repeat of the opener's question, the
   hint answers the question that was just asked (the repo's own
@@ -23,7 +27,8 @@ that is already signed in — the token is read from IndexedDB and never printed
 2. Run the runner in the page console (it reads `users/current_user.sessionToken`,
    POSTs each case with a fresh `session_id`, and keeps `window.__R`).
 3. Pace it: `/ai/turn` allows 10 requests a minute, so the runner waits ~6 s
-   between cases (46 cases ≈ 5 minutes).
+   between cases (66 cases ≈ 7 minutes — and ~a third of the day's 200-turn
+   allowance, so run it once per prompt change, not after every fix).
 4. Copy `window.__R` to `.tmp/replay-<prompt>.json`.
 
 The runner is deliberately not a committed script: it needs a real account and a
