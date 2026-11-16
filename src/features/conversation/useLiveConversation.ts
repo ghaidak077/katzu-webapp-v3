@@ -186,6 +186,8 @@ export function useLiveConversation({
   const busyRetriesRef = useRef(0);
   /** Why the last AI hint request produced nothing (AI only, no starter floor). */
   const [hintFailure, setHintFailure] = useState<string | null>(null);
+  /** The request worked and the scene had nothing to offer — not an error. */
+  const [hintEmpty, setHintEmpty] = useState(false);
   /** Hidden Settings toggle, read once on mount; off by default. */
   const [showAiDebug] = useState(isDebugLabelEnabled);
   const micError =
@@ -1159,6 +1161,7 @@ export function useLiveConversation({
     if (isRefreshingHints || hintQuotaSpent) return;
     setIsRefreshingHints(true);
     setHintFailure(null);
+    setHintEmpty(false);
     try {
       const lastKatzu = [...messages].reverse().find((m) => m.sender === 'KATZU');
       if (!lastKatzu) return;
@@ -1182,7 +1185,10 @@ export function useLiveConversation({
         setCurrentHints(cleaned);
         logEvent('hints', `Hints refreshed manually (${cleaned.length})`);
       } else {
-        setHintFailure(messageForCause('other'));
+        // A 200 with nothing usable is the documented answer when the scene has
+        // no sentence to offer (and the shape the daily scope returns). It is not
+        // a failure, so it must not read like one.
+        setHintEmpty(true);
         logEvent('hints', 'hint request returned no usable sentence');
       }
     } catch (error) {
@@ -1438,6 +1444,7 @@ export function useLiveConversation({
     isRefreshingHints,
     hintQuotaSpent,
     hintFailure,
+    hintEmpty,
     showAiDebug,
     turnFailure,
     busySecondsLeft,

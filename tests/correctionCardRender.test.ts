@@ -92,4 +92,48 @@ describe('the correction card render', () => {
     // Both sides of the diff carry a highlighted run.
     expect(html.split('<mark').length - 1).toBeGreaterThanOrEqual(2);
   });
+
+  /**
+   * 2026-11-15: a learner who wrote «ist nicht gekommen» was shown a collapsed
+   * line reading «تصحيح صغير» — "small correction" — for a wrong verb form.
+   * A grammar or meaning fix now opens the card by itself and says «تصحيح».
+   */
+  it('opens itself and drops "small" for a grammar correction', () => {
+    const html = cardHtml({
+      originalMistake: 'ich bekomme 20 jahre alt',
+      correctedGerman: 'Ich werde 20 Jahre alt.',
+      explanationAr: 'العمر يُقال بـ «werden».',
+      correctionErrors: [
+        {
+          category: 'meaning',
+          label: 'Bedeutung: werden + alt',
+          reasonAr: 'العمر يُقال بـ «werden»: Ich werde 20 Jahre alt.',
+          from: 'bekomme',
+          to: 'werde',
+        },
+      ],
+    });
+    expect(html).toContain('<details open=""');
+    expect(html).toContain('تصحيح');
+    expect(html).not.toContain('تصحيح صغير');
+  });
+
+  it('stays collapsed and small for a spelling-only correction', () => {
+    const html = cardHtml({
+      originalMistake: 'ich lebie katze',
+      correctedGerman: 'Ich liebe Katzen.',
+      explanationAr: 'liebe وليس lebe.',
+      correctionErrors: [
+        {
+          category: 'spelling',
+          label: 'Schreibung',
+          reasonAr: 'حرف واحد زائد.',
+          from: 'lebie',
+          to: 'liebe',
+        },
+      ],
+    });
+    expect(html).not.toContain('<details open');
+    expect(html).toContain('تصحيح صغير');
+  });
 });

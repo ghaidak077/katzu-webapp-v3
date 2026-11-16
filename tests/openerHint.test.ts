@@ -35,12 +35,12 @@ describe('openerForLevel', () => {
 
 describe('storedOpenerArabic', () => {
   it('answers from stored data for the shipped openers (no AI call needed)', () => {
-    expect(storedOpenerArabic('Guten Tag. Fehlt Ihr Koffer?')).toBe('نهارك سعيد. هل ينقصك حقيبتك؟');
+    expect(storedOpenerArabic('Guten Tag. Fehlt Ihr Koffer?')).toBe('نهارك سعيد. هل حقيبتك مفقودة؟');
     expect(storedOpenerArabic('Hallo! Willkommen im Katzu Café. Was möchten Sie trinken?')).toContain('مقهى');
   });
 
   it('normalises whitespace so a D1 row with a stray space still hits', () => {
-    expect(storedOpenerArabic('Guten Tag.  Fehlt Ihr Koffer?')).toBe('نهارك سعيد. هل ينقصك حقيبتك؟');
+    expect(storedOpenerArabic('Guten Tag.  Fehlt Ihr Koffer?')).toBe('نهارك سعيد. هل حقيبتك مفقودة؟');
   });
 
   it('returns null (not a guess) for an opener no review supplied', () => {

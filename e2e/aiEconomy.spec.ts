@@ -32,7 +32,7 @@ test('opening the conversation makes zero AI calls and shows the stored opener g
   // mock's translate answer is 'ترجمة الاختبار', which must NOT be needed).
   const opener = page.locator('article[aria-label="رسالة من كَاتْزُو"]').first();
   await expect(opener).toContainText('Guten Tag. Fehlt Ihr Koffer?');
-  await expect(opener).toContainText('هل ينقصك حقيبتك؟');
+  await expect(opener).toContainText('هل حقيبتك مفقودة؟');
   await expect(opener.getByText('عرض الترجمة')).toHaveCount(0); // nothing pending
 
   // Settle, then count.

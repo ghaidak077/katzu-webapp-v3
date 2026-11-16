@@ -15,6 +15,7 @@ import { triggerHaptic } from '@/lib/utils/haptics';
 import { NO_GERMAN_VOICE_MESSAGE_AR } from '@/lib/speech/useSpeechOutput';
 import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
 import { freeSessionsCopy } from '@/lib/entitlement/trialCopy';
+import { NO_HINT_MESSAGE_AR } from '@/lib/conversation/failureCopy';
 import { scenarioGoalAr } from '@/lib/conversation/scenarioGoals.generated';
 import { track } from '@/lib/analytics/client';
 import { acquireUpdateHold } from '@/lib/pwa/updatePrompt';
@@ -150,6 +151,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     isRefreshingHints,
     hintQuotaSpent,
     hintFailure,
+    hintEmpty,
     showAiDebug,
     turnFailure,
     busySecondsLeft,
@@ -586,6 +588,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           {hintFailure && (
             <p role="alert" className="mt-1 kz-ar-micro text-status-error">
               {hintFailure}
+            </p>
+          )}
+          {hintEmpty && !hintFailure && (
+            <p data-testid="hint-empty" className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
+              {NO_HINT_MESSAGE_AR}
             </p>
           )}
         </div>

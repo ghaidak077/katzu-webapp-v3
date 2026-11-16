@@ -22,6 +22,7 @@ import { triggerHaptic } from '@/lib/utils/haptics';
 import { track } from '@/lib/analytics/client';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { CAPABILITY_LABEL_AR, capabilityFromSession } from '@/lib/capability/model';
+import { sessionOutcomeLine } from '@/lib/report/outcomeLine';
 import { completedEpisodeCount, shouldOfferPro } from '@/lib/entitlement/trial';
 import { isProEffective } from '@/lib/utils/subscription';
 import { MASTERED_REPS, countDue, gradeCorrectionRetype, reviewRefId } from '@/lib/srs/engine';
@@ -464,6 +465,9 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
     assistedSentences: summary.assistedSentences,
   });
   const outcome = OUTCOME[capabilityState];
+  // `PRACTISING` means "no independent session yet", not "hints were used": the
+  // hint sentence is only true when the session actually recorded assisted turns.
+  const outcomeLineAr = sessionOutcomeLine(capabilityState, summary.assistedSentences, outcome.lineAr);
   const totalTurns = summary.independentSentences + summary.assistedSentences;
   const weaknessCounts = new Map<MistakeCategory, number>();
   for (const mistake of summary.mistakes) {
@@ -982,7 +986,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
 
         <div className="relative z-10 mx-auto max-w-md px-5 pb-40 pt-8">
           {/* Header: the finish line replaces the old headline — ONE h1. */}
-          <KatzuPresence state={outcome.pose} lineAr={outcome.lineAr} size="lg" />
+          <KatzuPresence state={outcome.pose} lineAr={outcomeLineAr} size="lg" />
 
           <div className="mt-5 text-center">
             <p className="kz-ar-micro text-kz-inkFaint">

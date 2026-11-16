@@ -36,7 +36,7 @@ test('the opener shows its Arabic with every AI endpoint blocked', async ({ page
   const opener = await openScenario(page);
 
   await expect(opener).toContainText('Guten Tag. Fehlt Ihr Koffer?');
-  await expect(opener).toContainText('هل ينقصك حقيبتك؟');
+  await expect(opener).toContainText('هل حقيبتك مفقودة؟');
   await expect(opener.getByText('تعذرت الترجمة — أعد المحاولة')).toHaveCount(0);
   expect(aiCalls, 'an opener never needs the model, even blocked').toEqual([]);
   console.log(`[ai-calls] opening a conversation: ${aiCalls.length} (was 1 /ai/translate before V30)`);

@@ -19,6 +19,15 @@ export const BUSY_MESSAGE_AR = 'الخدمة مشغولة الآن. سنعيد �
 
 export const OTHER_MESSAGE_AR = 'تعذّر الرد. أعد المحاولة.';
 
+/**
+ * The hint request succeeded but the scene offered nothing to say.
+ *
+ * Not a failure: the service answered, and inventing a stored phrase here would
+ * dress static content as the persona's sentence. It is a short, quiet note, so
+ * the learner knows the request worked and can try again after their next line.
+ */
+export const NO_HINT_MESSAGE_AR = 'لا يوجد تلميح لهذه الجملة الآن — اكتب محاولتك، وسأفهمها وأصحّحها.';
+
 export type TurnFailureCause = 'offline' | 'busy' | 'other';
 
 interface CodedFailure {

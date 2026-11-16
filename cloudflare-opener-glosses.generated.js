@@ -327,7 +327,7 @@ export const OPENER_GLOSSES = {
   "Hallo! Schön, dass Sie da sind. Ich zeige Ihnen die Wohnung.": "أهلاً! سعيد بمجيئك. سأعرض عليك الشقة.",
   "Guten Tag, kommen Sie bitte herein — ich zeige Ihnen zunächst das Wohnzimmer.": "نهارك سعيد، تفضّل بالدخول — سأعرض عليك غرفة المعيشة أولاً.",
   "Guten Tag, bevor wir beginnen, hätten Sie im Voraus schon spezielle Fragen zur Wohnung oder zum Mietvertrag?": "نهارك سعيد، قبل أن نبدأ، هل لديك مسبقاً أسئلة خاصة عن الشقة أو عن عقد الإيجار؟",
-  "Guten Tag. Fehlt Ihr Gepäck?": "نهارك سعيد. هل ينقصك شيء من أمتعتك؟",
+  "Guten Tag. Fehlt Ihr Gepäck?": "نهارك سعيد. هل أمتعتك مفقودة؟",
   "Guten Tag. Willkommen am Flughafen. Fehlt Ihr Gepäck, oder suchen Sie den Gepäckschalter?": "نهارك سعيد. مرحباً بك في المطار. هل أمتعتك مفقودة أم تبحث عن مكتب الأمتعة؟",
   "Guten Tag. Da Ihr Koffer nicht angekommen ist, nehme ich hier die Meldung auf. Haben Sie Ihren Pass und Ihre Bordkarte dabei?": "نهارك سعيد. بما أن حقيبتك لم تصل، سأسجّل البلاغ هنا. هل معك جواز سفرك وبطاقة صعودك؟",
   "Guten Tag. Seit Ihrer Ankunft fehlt also Ihr Gepäck. Beschreiben Sie mir bitte kurz, wie Ihr Koffer aussieht, dann sehe ich nach.": "نهارك سعيد. إذاً حقيبتك مفقودة منذ وصولك. صف لي حقيبتك بإيجاز وسأتحقق من الأمر.",

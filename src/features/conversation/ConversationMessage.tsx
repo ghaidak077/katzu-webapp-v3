@@ -3,6 +3,7 @@ import { Languages, RefreshCw, Snail, Volume2, Flag } from 'lucide-react';
 import { GermanText } from '@/components/common/GermanText';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { diffSentences } from '@/lib/conversation/germanDiff';
+import { correctionNeedsOpening, correctionSummaryLabel } from '@/lib/conversation/correctionPresentation';
 import { activeWordIndex, speechSegments } from '@/lib/speech/wordHighlight';
 import type { ChatMessage } from '@/types/models';
 
@@ -297,6 +298,10 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
             everything else, so it reads as feedback, not a second conversation. */}
         {showHelp && correctionMessage && (
           <details
+            // A grammar or meaning fix is not a "small correction": it opens by
+            // itself so the learner reads the fix without having to guess that
+            // the line is tappable. Spelling-only stays collapsed.
+            open={correctionNeedsOpening(structuredErrors) || undefined}
             data-testid="correction-card"
             className={`kz-message-in group mt-2 rounded-control border-t border-b border-e border-s-2 bg-surface-subtle text-start ${
               hasCorrection ? 'border-s-status-success/60' : 'border-s-kz-line/70'
@@ -306,7 +311,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 «تصحيح صغير ›» sits under their own line and opens the same card. */}
             <summary className="kz-ar-micro flex min-h-touch cursor-pointer list-none items-center gap-1.5 px-3 py-2 font-bold text-kz-inkDim [&::-webkit-details-marker]:hidden">
               <KatzuMascot name="avatar" alt="" className="h-4 w-4 rounded-full opacity-80" />
-              <span>تصحيح صغير</span>
+              <span>{correctionSummaryLabel(structuredErrors)}</span>
               <span aria-hidden className="transition-transform group-open:rotate-90">›</span>
             </summary>
 

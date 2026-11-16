@@ -61,8 +61,8 @@ import { OPENER_GLOSSES as GENERATED_OPENER_GLOSSES } from './openerGlosses.gene
 const OPENER_GLOSSES: Record<string, string> = {
   // airport_arrival — the five openers from the fixture + module2's approved
   // wording (D1's live title "في المطار: الأمتعة").
-  'Guten Tag. Fehlt Ihr Koffer?': 'نهارك سعيد. هل ينقصك حقيبتك؟',
-  'Guten Tag. Fehlt Ihr Gepäck?': 'نهارك سعيد. هل ينقصك أمتعتك؟',
+  'Guten Tag. Fehlt Ihr Koffer?': 'نهارك سعيد. هل حقيبتك مفقودة؟',
+  'Guten Tag. Fehlt Ihr Gepäck?': 'نهارك سعيد. هل أمتعتك مفقودة؟',
   'Guten Tag. Ist Ihr Koffer nicht angekommen? Haben Sie Ihre Bordkarte dabei?':
     'نهارك سعيد. لم تصل حقيبتك؟ هل معك بطاقة صعودك؟',
   'Guten Tag. Wenn Ihr Koffer fehlt, nehme ich Ihre Meldung auf. Können Sie ihn kurz beschreiben?':
