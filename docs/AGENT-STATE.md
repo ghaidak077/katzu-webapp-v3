@@ -178,7 +178,9 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   opener chunk `assets/opener-PkgKJY0G.js` carries «هل حقيبتك مفقودة» / «هل أمتعتك مفقودة» with the old
   «ينقصك» gone, `assets/LiveConversationScreen-CrXuBa-U.js` carries the empty-hint note, and
   `assets/SessionReportScreen-Et3r3ZeX.js` the honest `PRACTISING` line; `katzuai.com` verified in the browser
-  after the PWA «تحديث متاح» prompt: opener reads «نهارك سعيد. هل أمتعتك مفقودة؟»).
+  after the PWA «تحديث متاح» prompt: opener reads «نهارك سعيد. هل أمتعتك مفقودة؟»). A later docs-only build
+  `714dff36-d86a-4db3-acb4-dd125e36d810` (source `f0b958a`) serves the same `assets/index-A4LKpSkN.js`; every
+  docs-only build of this tree does, so only an app-code change moves the bundle.
   **Rollback: `e332291a-6dcc-4887-808b-64da60c8e16d`** (source `46d11d9`).
 - **App Pages production (2026-11-07, source `4af08b2`):** deployment
   **`eff039c2-4f80-4836-b964-8337d61cdddb`** (UNIT-PATH: nine-unit map + composed session + goal-only signup; entry
