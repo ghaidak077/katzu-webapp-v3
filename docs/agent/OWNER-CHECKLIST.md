@@ -89,12 +89,16 @@ Approve or rewrite the four level lines (A1 «أتصرّف في المواقف �
 
 ## 16. The ten units — UNIT-PATH-1 (2026-11-07, owner-approved)
 
-The path is ten units built from the 49 served conversations; titles, practice-only outcome lines and every
-situation are in `docs/OWNER-UNITS-REVIEW.md`. Owner approved the list; agent moved `patient_conversation_basics`
-from unit 6 «العمل والناس» to unit 5 «صحتك ومواعيدك» because the scenario is the learner speaking as a patient
-(«Mir ist nicht gut…»), not a work/small-talk scene. Placement still starts the learner at their measured
-level; earlier units stay open and show «تخطّيتَ». **Done:** applied; owner may still send wording changes.
+Ten units built from the 49 served conversations; titles and situations are in `docs/OWNER-UNITS-REVIEW.md`.
+Owner approved; `patient_conversation_basics` moved from unit 6 to unit 5 (the learner speaks as a patient).
+**Done:** applied; owner may still send wording changes.
 
+
+## 17. A second AI key, or a paid Groq tier (2026-11-16)
+
+One provider (Groq) serves production; when its window closes the weaker Workers AI fallback takes over
+and fails checks. Capped at **200 turns a day**. Add a key (NVIDIA/OpenRouter/Gemini) or raise the Groq
+tier.
 
 ## Nothing to do — so nobody re-opens them
 

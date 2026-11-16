@@ -54,7 +54,12 @@ describe('GET /health privacy', () => {
     expect(res.status).toBe(200);
     expect(body?.status).toBe('healthy');
     expect(typeof body?.ready).toBe('boolean');
-    expect(body?.ready).toBe(true);
+    // 2026-11-16: `ready` means the configured POOL can serve, not "some AI
+    // binding exists". Gemini keys alone configure no pool entry, so this worker
+    // is fallback-only and must say so — the old contract reported ready:true
+    // here while every real turn could only ride the last-resort fallback.
+    expect(body?.ready).toBe(false);
+    expect(body?.fallback_only).toBe(true);
 
     // No part of any configured key appears anywhere in the body.
     for (const fragment of KEY_FRAGMENTS) {
@@ -68,6 +73,19 @@ describe('GET /health privacy', () => {
     for (const field of FORBIDDEN_FIELDS) {
       expect(body).not.toHaveProperty(field);
     }
+  });
+
+  it('reports ready only when a pool provider has a key, and says fallback-only otherwise', async () => {
+    // NVIDIA is the flagship entry in the default pool (a provider key alone is
+    // not enough: Groq is preset-only and configures no entry by itself).
+    const configured = await getHealth('/health', { NVIDIA_API_KEYS: 'nvapi_fake_pool_key', AI: {} });
+    expect(configured.body?.ready).toBe(true);
+    expect(configured.body?.fallback_only).toBe(false);
+
+    // Genes the binding without the provider: still not a working engine.
+    const fallbackOnly = await getHealth('/health', { AI: {} });
+    expect(fallbackOnly.body?.ready).toBe(false);
+    expect(fallbackOnly.body?.fallback_only).toBe(true);
   });
 
   it('never leaks key material even when duplicate keys are configured', async () => {

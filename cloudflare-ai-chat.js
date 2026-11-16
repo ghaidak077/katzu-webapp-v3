@@ -29,6 +29,7 @@ import {
 } from "./cloudflare-mock-exam.js";
 import {
   runRoleplayTurn,
+  ROLEPLAY_PROMPT_VERSION,
 } from "./cloudflare-roleplay.js";
 import { planForScenario } from "./cloudflare-roleplay-plans.js";
 import { isEasyTurn, PROVIDER_POOL, estimateTurnCostUsd } from "./cloudflare-ai-router.js";
@@ -430,7 +431,9 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       const outputTokens = estimateTokens(raw);
       console.log(JSON.stringify({
         event: "ai_turn_roleplay",
-        prompt_version: 1,
+        // The version that actually wrote the reply. It used to be a hardcoded
+        // 1, which made the log useless for telling a v7 turn from a v8 one.
+        prompt_version: ROLEPLAY_PROMPT_VERSION,
         tier,
         model: servedModel,
         provider: getProvider(),
@@ -454,6 +457,16 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       model: getModel ? getModel() : null,
       attempts: outcome.attempts,
       elapsed_ms: Date.now() - turnStartedAt,
+      // Non-secret turn metadata in one place, so an owner or an eval can read
+      // who answered without parsing the flat fields. No key, no prompt, no
+      // learner text: provider, model, the attempt that produced the reply, and
+      // the wall-clock the learner waited.
+      meta: {
+        provider: getProvider() || null,
+        model: getModel ? getModel() : null,
+        attempts: outcome.attempts,
+        ms: Date.now() - turnStartedAt,
+      },
     };
     // A cached pre-rewrite bundle identifies itself with `script_context`.
     if (body && body.script_context && typeof body.script_context === "object") {

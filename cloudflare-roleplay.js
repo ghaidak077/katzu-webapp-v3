@@ -31,7 +31,7 @@ import { objectivesOf, planForScenario, sanitizeObjectivesDone } from "./cloudfl
 import { claimSupportedByText, GOALS_AR } from "./cloudflare-roleplay-anchors.js";
 
 /** Bump when a word of the prompt changes, so an eval result names its prompt. */
-export const ROLEPLAY_PROMPT_VERSION = 7;
+export const ROLEPLAY_PROMPT_VERSION = 8;
 
 /** One reply a beginner has to read; the learner waits on it, so keep it tight. */
 export const ROLEPLAY_TEMPERATURE = 0.3;
@@ -116,9 +116,12 @@ export function buildRoleplaySystemInstruction({ plan, level, objectivesDone = [
     "Never reply with a statement only, and never with a bare acknowledgement («Schön!», «Okay», «Gut»). A reply without a question is allowed only when close=true.",
     "Reacting means naming what they just told you, not jumping on: if they order, confirm the order («Einen Kaffee und ein Stück Kuchen, gern»); if they state a fact, use it. Never answer an order with «Möchten Sie noch etwas?».",
     "Never ask something already answered; use what they told you.",
+    "If they ask about anything outside this scene — the weather, the news, a fact about the world — stay in character: you do not know and you do not look it up, so say so in a few simple words and come back with one question about what is happening here. Never invent a fact, a forecast, a number or a piece of news.",
     "If their answer is one word or unclear, do not repeat the same question: offer a simple choice («Aus Ägypten oder aus Syrien?») or a yes/no question they can answer.",
     "Understand the learner's INTENDED meaning: typos, missing umlauts, casing, punctuation and small grammar errors are never a reason to say «Wie bitte?» (understand «zwie» as «zwei», «kart» as «Karte»). Only ask them to repeat when the meaning is truly unclear, then rephrase more simply.",
     "A fix must NEVER change the meaning: «lebie» in «ich lebie katze» is «liebe» (love), never «lebe» (live); the learner said they love cats, so react to cats. If the closest correct word would change what they meant, leave their word alone.",
+    "Correct EVERY real error you can see, not only spelling: the false perfect («Mein Koffer ist nicht gekommen» → «… ist nicht angekommen»), the wrong auxiliary («Er hat rot und groß» → «Er ist rot und groß»), a wrong verb, word order, article or gender (der/die/das), a missing capital on a noun, and a wrong ending. An error you leave in understood_de is an error the learner will keep making.",
+    "Never repeat the learner's error in reply_de. When their sentence contained one, your reply uses the corrected form — «Er ist rot und groß. Welche Farbe hat er?», never their «hat» — and you may react to the corrected content, but you never quote the mistake back.",
     "Mark an objective done only when the LEARNER'S OWN message satisfies it — never because you said or offered something yourself. Keep the ids already marked done.",
     "Only the learner completes an objective. Never do their part for them: do not order, ask for the bill, state their name or origin for them, or answer your own question. Ask about an unfinished objective; never act it out.",
     "When all objectives are done, say a warm goodbye with no question and set close=true.",

@@ -1511,9 +1511,13 @@ async function handlePublicHealth(env, cors) {
     {
       status: internal?.status || "healthy",
       service: "Katzu Unified Worker",
-      // A boolean only: never how many keys exist, only whether the AI engine can
-      // serve at all (a usable pool entry, or the Workers AI binding attached).
-      ready: internal?.ready === true || poolHealth.active.length > 0,
+      // A boolean only: never how many keys exist, never which provider. `ready`
+      // used to mean "a pool entry OR the Workers AI binding", which reported a
+      // healthy engine while every real turn could only ride the last-resort
+      // fallback — the owner asked for that to stop. It now means the configured
+      // pool can serve; a fallback-only worker says so in one non-secret boolean.
+      ready: poolHealth.active.length > 0,
+      fallback_only: poolHealth.active.length === 0 && internal?.ready === true,
       // Operational state a monitoring check should be able to see.
       maintenance: isMaintenanceMode(env),
       // `ok` / `error` / `unbound`, per store. Never a count, never a key.
@@ -2380,6 +2384,11 @@ async function runWorkersAiFallback(payload, env) {
   aiFallbackMetrics.served += 1;
   aiFallbackMetrics.lastUsedAt = new Date().toISOString();
   lastAiProvider = "workers-ai";
+  // The fallback has its own model. Without this line the turn reported the
+  // model of the LAST pool entry that answered — a live replay showed
+  // `provider: "workers-ai"` next to `model: "openai/gpt-oss-120b"`, i.e. a
+  // label that named a model which never ran.
+  primaryWorkingModel = WORKERS_AI_FALLBACK_MODEL;
   void bumpAiFallbackMetrics(env, "served");
   return text;
 }

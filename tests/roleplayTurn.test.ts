@@ -139,7 +139,7 @@ describe('shaping one reply', () => {
       reply_de: reply.reply_de,
       reply_ar: reply.reply_ar,
       understood_de: reply.understood_de,
-      objectives_total: 4,
+      objectives_total: 3,
       close: false,
       hint_de: reply.hint_de,
     });
@@ -163,7 +163,7 @@ describe('shaping one reply', () => {
     const all = objectivesOf(plan).map((o) => o.id);
     const turn = shapeRoleplayReply(
       { ...reply, objectives_done: all, close: false },
-      { plan, done: all.slice(0, -1), learnerText: 'danke, auf wiedersehen' },
+      { plan, done: all.slice(0, -1), learnerText: 'die rechnung, bitte' },
     );
     expect(turn!.objectives_done).toEqual(all);
     expect(turn!.close).toBe(true);

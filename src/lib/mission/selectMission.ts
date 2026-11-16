@@ -110,6 +110,13 @@ export type MissionKind = 'review' | 'continue' | 'weak_skill' | 'daily' | 'new'
  * from the content (it is not in D1 yet, or the cache is empty), every branch
  * that uses it simply falls through to the normal behaviour.
  */
+// 2026-11-16 (owner direction): the first-run mission should start where the
+// unit path starts — `first_greetings` — but pointing it there broke the shipped
+// browser suite, which encodes the airport as the opening scene
+// (`aiEconomy`, `firstSessionChain`, `journey`: the first episode IS
+// `airport_arrival/story`). The owner allowed the consistency change "unless it
+// breaks a guard", so the constant stays on the airport and the conflict is
+// reported instead of rewriting six specs in the same pass.
 export const INTRO_SCENARIO_ID = 'airport_arrival';
 
 export interface DailyMissionPlan {

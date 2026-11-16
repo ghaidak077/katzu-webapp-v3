@@ -138,7 +138,11 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`5004cffe-8a75-4cd4-8f55-502fda397e0e`** (2026-11-15, source `1fcdf48`, the scenario-one copy fixes: gate
+  **`d99eeecc-f1fb-4b5f-8cc7-2828b0c02959`** (2026-11-16, practice chat v8 + the `prompt_version` fix: gate
+  `VERIFY OK 15/15` in 137.3 s plus playwright 175/11/0 separately; `/health` 200
+  `ready:true, fallback_only:false, storage:{d1,kv}`, `/crypto/health` 200, `/admin/api/overview` 401).
+  Rollback target for that deploy: **`b4214794-bf88-4a6e-925c-8c50bef95a6f`** (the v8 prompt before the
+  `prompt_version` log fix), then **`5004cffe-8a75-4cd4-8f55-502fda397e0e`** (2026-11-15, source `1fcdf48`, the scenario-one copy fixes: gate
   `VERIFY OK 16/16` in 981.5 s; `/health` 200 `storage:{d1,kv}`, `/crypto/health` 200 `ready:false`,
   `/admin/api/affiliates` 401). Rollback target for that deploy: **`ef243498-d6ff-4607-98b7-a9c90273931a`**
   (2026-11-13, the restored chat). Previous live id: **`a57a74ba-0242-4993-802f-549809394c95`** (2026-11-11, source `4dae8df`, the chat-engine revert: `/health` 200
@@ -297,6 +301,8 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | CONTENT-V2. Scenarios v2 (61 rows, A0–B2) | blocked | **All 61 authored; the 49-row update path is built and proven locally; nothing deployed.** One authoring source `docs/content/catalogue/scenarios-catalogue.json` (49 corrected + 12 new) → `apply-content-catalogue.mjs` → `build-language-data.mjs`: 0/305 openers off-spec, 0 personas without `katze`, 0 emoji icons, `sequence_order` 1..61, 301 openers / 457 glossed tokens / 0 unresolved, 12 rows + 159 glosses `needs_review`. `load-content-updates.mjs` corrects the 49 through `/admin/api/content-studio/*` (draft → publish-all → audit → undo); `verify-content-update-local.mjs` **28/28** on real local D1: 49 rows / **327 fields**, catalogue-exact, 12 new ids absent, undo restored every field (it found and fixed an undo defect: `SELECT *` carried legacy `sequence_order` → 49/49 `409 restore_invalid`; `contractRow` + regression, `contentStudio` **33**, `loadContentUpdates` **17**). SW update prompt shipped (`updatePrompt` **4**). Gate + e2e green locally; pushed `f7a76f7`, CI **41300425341** green. **Blocked on the owner:** §3 is insert-only → needs `CONTENT-LOAD-AUTHORIZED: <file>` plus an amendment for the UPDATE; the production dry run returns `401 unauthorized` while `ADMIN_SECRET` is set, 64-hex (`docs/CONTENT-AUDIT.md` §9). |
 | SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
+
+| CHAT-V8. Practice chat v8: measured correction, 3 goals per scenario, replay harness | partial | **Prompt v8 shipped and everything around it verified; the ≥90% correction gate itself is unproven.** Live diagnosis before the change: every turn Groq `openai/gpt-oss-120b`, 1 attempt, 1.2–1.7 s, correction recall **6/13 (46%)**, one invented off-topic fact. `ROLEPLAY_PROMPT_VERSION = 8` adds correction/no-echo, typo-understanding, stay-in-role-no-invented-facts, one-question-per-reply and hint-in-same-response rules; `meta:{provider,model,attempts,ms}` on `/ai/turn`; `prompt_version` in the cost log is now the constant instead of a hardcoded `1`; the Workers AI fallback no longer reports the Groq model name; `/health` gains `fallback_only`; all 49 plans hold exactly 3 objectives (`docs/OWNER-SCENARIO-GOALS.md`, courtesy beats cut, orphan anchors deleted); `scripts/replay/` holds the 46-case harness (11 held out) and the scorer. Gate `VERIFY OK 15/15` + playwright 175 passed/11 skipped/0 failed. Worker `d99eeecc-…` live, `/health` `ready:true, fallback_only:false`, admin 401. **Partial replay:** 29 Groq turns, p95 3.32 s, 0 double questions, 0 farewell questions, correction 3/4 («Ich heisse» uncorrected), then `429` on the 200-turn/day account cap. The Workers AI fallback that takes over when the pool window closes fails the checks: 5 of 31 turns got the retry card. |
 
 ## DECISIONS
 
@@ -546,13 +552,17 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
 
 - **The shipped chat prompt is still unmeasured against the 90% bar (CHAT-EVAL-1, 2026-11-13).** Prompt v5
-  scored 46/60 in one full run and v6 scored 30/32 judged; the v7 prompt that production now serves could not
-  be measured because the provider pool has one Groq key on the free tier and its 200k-token **daily** cap was
-  used up by the two earlier runs (`HTTP 429 … tokens per day: Limit 200000, Used 199867`). Two things unblock
-  it: (a) let `npm run eval:chat --from-kv` run once when the window has recovered — it needs ~130k tokens and
-  ~25 minutes, and it rewrites `docs/agent/ROLEPLAY-EVAL.md`; (b) a **second provider key** (any
-  OpenAI-compatible endpoint) so a capped day fails over instead of stopping the table. Until then the honest
-  statement is "v6 measured 93.8% of judged inputs, v7 unmeasured", not "the gate passed".
+  scored 46/60 in one full run, v6 scored 30/32 judged, v7 measured **6/13 (46%)** correction recall live, and
+  v8 — what production serves now — was stopped by the **per-account daily turn cap** (`429`,
+  `retry_after` 56181 s) after **29 real Groq turns of the 46-case replay**: correction **3/4** of genuinely
+  wrong sentences («Ich heisse» passed through), **p95 3.32 s**, zero double-question replies, zero questions
+  at farewell. The fallback is not a substitute: when the pool window closed, Workers AI produced replies that
+  fail the strict checks and **5 of 31 turns** returned the «أعد المحاولة» card. Two things unblock the rest:
+  (a) re-run `scripts/replay/scenario-replay-cases.json` through the page on a fresh day (~46 turns, ~10 min at
+  13 s spacing — 7.6 s spacing exhausts the minute window); (b) a **second provider key** (any
+  OpenAI-compatible endpoint) or a paid Groq tier. Until then the honest statement is "v7 46%, v8 3/4 on a
+  partial run", not "the gate passed". The LLM judge and the model comparison have never run: no provider key
+  exists on this machine, so `meta` is the only model evidence.
 
 - **Two path-screen wording decisions (TRAIL-1, 2026-11-06).** Approve or rewrite the four CEFR level lines
   («أتدبّر أمري في ألمانيا»، «أتحرّك في يومي بثقة»، «أتعامل مع المواقف الرسمية والعمل»، «أتحدّث بطلاقة في العمل
