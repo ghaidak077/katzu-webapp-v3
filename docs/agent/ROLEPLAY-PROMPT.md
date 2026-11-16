@@ -1,4 +1,4 @@
-# The conversation prompt (roleplay turn, v8)
+# The conversation prompt (roleplay turn, v9)
 
 One prompt, one call, one version. Every ordinary practice conversation — all 49 served
 scenarios — is this prompt plus the scene's plan plus the last six turns. There is no script,
@@ -20,9 +20,9 @@ learner's sentence in the composer, is not counted, and does not consume the fre
   `shapeRoleplayReply`, `checkRoleplayReply`, `runRoleplayTurn`); plans in
   `cloudflare-roleplay-plans.js`; Arabic goals and objective anchors in
   `cloudflare-roleplay-anchors.js`.
-- Version: `ROLEPLAY_PROMPT_VERSION = 8`. Two tuning passes inside v5/v6 (see the eval table in
-  `ROLEPLAY-EVAL.md`); neither changed a check or a threshold. v8 (2026-11-16) adds the three
-  rules below and nothing else, so a replay score names the prompt it measured:
+- Version: `ROLEPLAY_PROMPT_VERSION = 9`. Two tuning passes inside v5/v6 (see the eval table in
+  `ROLEPLAY-EVAL.md`); neither changed a check or a threshold. v8 (2026-11-16) adds the rules
+  below and nothing else; **v9 (2026-11-16) is the token diet** — see the end of this file.
 
 - **Correction is not optional.** Every real error is corrected in `understood_de` — false perfect,
   wrong auxiliary, wrong verb, word order, article/gender, missing noun capital, wrong ending. The
@@ -186,3 +186,28 @@ prompt.
 3. Run `node scripts/eval-chat.mjs --from-kv` and compare with the previous `ROLEPLAY-EVAL.md`.
 4. Read the diff of the eval table, not just the pass rate: a new failure names its input.
 5. At most four tuning passes; never change a check or a threshold to pass.
+
+## v9 — the token diet (2026-11-16)
+
+The prompt was 1782 input tokens per turn before this pass, and every turn pays
+for all of it. Four changes, no rule removed:
+
+1. **Static block first.** Every line that does not depend on the scenario, the
+   level or the learner now precedes the scene block, and the scene block
+   (persona, gender, level, word limit, goal, objectives, ids) is last. A
+   provider that caches a prompt prefix — Groq caches automatically and its
+   cached tokens do not count toward its rate limits — now re-reads the rules
+   from cache on every turn instead of paying for them again.
+2. **Three worked turns, not six.** Kept: the typo that must be understood
+   (`lebie` → `liebe`), «Ich verstehe nicht» (the rephrase case), and a perfect
+   sentence that must come back unchanged with an empty reason. Dropped: the
+   off-topic remark, the different quantity and the learner-asks-a-question
+   turns, each of which is already stated in one rule line and cost ~120 tokens
+   on every single turn.
+3. **Four turns of history, not six** (`ROLEPLAY_HISTORY_TURNS = 4`).
+4. **400 output tokens, not 480** (`ROLEPLAY_MAX_OUTPUT_TOKENS`), and a
+   per-attempt timeout that has not changed.
+
+What this does NOT change: the JSON contract, any safety rule, any check in
+`checkRoleplayReply`, and any threshold in the replay gate. A prompt edit that
+touches a rule must bump the version and re-run the replay.

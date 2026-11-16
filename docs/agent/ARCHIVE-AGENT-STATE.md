@@ -911,3 +911,54 @@ first ENV probe) is unchanged below; the ledger keeps the 2026-10-28/29/30 decis
 
 - **2026-11-03 — one brand graph (local only).** One Organization `@id`, both robots files naming both
   sitemaps, an apex `llms.txt`; gate **6/6**, live UNPROVEN until deploy.
+
+## CURRENT MISSION (moved 2026-11-16, verbatim)
+
+**V46 — a separate, fail-closed admin panel and real telemetry (2026-10-31, deployed).** The admin
+surface is a second Worker behind Cloudflare Access with no database or key binding; the product Worker
+records its own AI/route metrics in `ctx.waitUntil` and exposes a token-gated internal API. The owner's
+session loaded the panel and its APIs (26 authenticated `200` route events), Access intercepts the host,
+and the five tables exist. Conversation text has a master switch that is off and an explicit consent
+grant that nothing sets yet, so the shipped behaviour is metrics only. What remains is not code: the
+owner's decision on a consent control and the 90-day policy text, plus confirmation of retention and
+whether to retire the old `/admin` (OWNER-OPEN V46-1). The `17 4 * * *` cron was observed running on
+2026-10-31 04:17:37 UTC.
+
+**V46 content studio — the owner can now edit content in the panel, and a learner only ever sees a published row
+(2026-10-31, deployed).** Drafts, diff, explicit publish, soft delete with exact restore, one-click undo, dry-run
+import, export, dated backup and bundled-content review notes sit behind the same Access + internal-token door; no
+learner table or query changed, and the old `/admin` stays live. What remains is the owner exercising it with real
+traffic (OWNER-OPEN V46-1) and the D1-only proof a fake cannot give (§UNPROVEN).
+
+**V45 — the conversation surface stops paying for what it already knows (2026-10-30, deployed).** Openers are
+pre-computed German + Arabic, word cards read the shipped glossary first and spend at most one `/ai/lexeme` call
+per lemma (cached fleet-wide and on the device), and a bare greeting gets a re-ask instead of an invented answer.
+What stays open is exactly what a browser without a real account cannot reach: live case C and the authenticated
+1-call-then-0 path (UNPROVEN), plus the owner's opener proofreading and the provider key
+(`docs/OWNER-CHECKLIST.md` §1–§3, §5).
+
+**GEO + `/guides` — the site is built to be crawled and cited (2026-10-29).** Twelve Arabic guides answer real
+questions (A1 visa, Integrationskurs, doctor, flat, Anmeldung, work, recognition, phone), each with one H1, an
+answer-first lead, a table or checklist, FAQs, «آخر تحديث» and official sources. `site-seo.mjs` owns
+sitemap/robots/llms/IndexNow, `site-schema.mjs` the JSON-LD, `seo-agents.mjs` the ten crawlers; the app emits a
+root-only sitemap so one canonical cannot be indexed thirty times.
+
+**AFF-1 — the affiliate programme ships, and the free-tier promise now matches the app (2026-10-28).**
+The Worker that owns the partner ledger is deployed and its three tables exist in production D1
+(`affiliates`, `referrals`, `commissions`, created idempotently by `ensureLedgerTables` on the first
+request). `POST /affiliate/me` mints a partner code for a signed-in account and `/partners` shows the
+link; `POST /affiliate/ref` validates a code; the day-14 approval runs in `scheduled()` and again
+lazily on every admin read. **Two endpoints the owner named do not exist and never did** —
+`/affiliate/enroll` and `/affiliate/me/payout`; the real surface is `/affiliate/me` plus the
+owner-only `/admin/api/affiliates/{create,void,payout}`. What remains is the owner's own two-account
+run (OWNER-OPEN AFF-1). **Free tier:** `MAX_FREE_AI_SESSIONS = 3` is counted once per account, ever,
+so every surface now says «في المجموع» and the word «شهر» is gone from the home page, `/pricing`, the
+paywall and the soft-prompt copy (FREE-1 resolved). **Motion:** the soft Pro prompt that opened 1.2 s
+after the first correction is removed — its scrim covered «أرسل جملتك» until dismissed, which is the
+`dayZeroReport` CI flake; `e2e/dayZeroReport.spec.ts` now watches that window.
+
+NEXT (V44): **SEO-1's code half is done (2026-11-03); the rest is the owner's.** Search Console + Bing +
+`npm run seo:indexnow` (SEO-1); the 12-guide read, 30-prompt panel and `sameAs` URLs (GEO-1) — see
+`docs/agent/GEO-VISIBILITY.md`. Index status stays UNPROVEN until URL Inspection is read on both hosts. V44-1 and
+V44-2 (money and legal fields) still block the paying surfaces. AFF-1's referral test and payout day stay with
+the owner; an agent must not sign in as them or use the admin key.

@@ -26,6 +26,19 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-16 — capacity is honest, the prompt is cheaper, and the replay can finally measure itself (local, deploy ids below).**
+  `cloudflare-ai-router.js` walks providers **by model first** (Groq -> Cerebras -> others, one key per
+  organization) and the roleplay path forbids the weak Workers AI stand-in: when every provider is out the
+  route answers 503 `AI_CAPACITY_EXHAUSTED` with «الخدمة وصلت حدّها اليومي. جرّب لاحقاً», no reply, no hint and
+  **no charge** (`tests/noFallbackPersona.test.ts` sends the turn twice and the counter stays absent). Prompt
+  **v9** puts the static block first (prefix cache), keeps 3 worked turns, 4 history turns and 400 max tokens:
+  measured **8,333 -> 6,884 prompt chars (~2,083 -> 1,721 tokens, -362/turn)**. Replay **46 -> 66 cases**
+  (34 carry a real error, 16 held out) and `score-replay.mjs` now compares `changed` with case and umlauts
+  intact — folding both sides had made «heisse» -> «heiße» invisible and under-reported recall.
+  `tests/introScenarioCoupling.test.ts` turns "flip INTRO_SCENARIO_ID" into one named failure instead of four
+  browser timeouts. **UNPROVEN:** the recall number on 34 real-error sentences (needs one budgeted run of ~66
+  turns from the signed-in browser), the Cerebras pair (no key), and whether Groq caching actually hits.
+
 - **2026-11-13 — the practice chat is back, AI only, ONE call per turn; shipped.** The 2026-11-11 revert
   is undone for the chat stack only (unit path, consent, report button, affiliate, website and the opener
   translations untouched). `cloudflare-roleplay.js` (prompt **v7**) + `cloudflare-roleplay-plans.js` (49
@@ -81,54 +94,15 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## CURRENT MISSION
 
-**V46 — a separate, fail-closed admin panel and real telemetry (2026-10-31, deployed).** The admin
-surface is a second Worker behind Cloudflare Access with no database or key binding; the product Worker
-records its own AI/route metrics in `ctx.waitUntil` and exposes a token-gated internal API. The owner's
-session loaded the panel and its APIs (26 authenticated `200` route events), Access intercepts the host,
-and the five tables exist. Conversation text has a master switch that is off and an explicit consent
-grant that nothing sets yet, so the shipped behaviour is metrics only. What remains is not code: the
-owner's decision on a consent control and the 90-day policy text, plus confirmation of retention and
-whether to retire the old `/admin` (OWNER-OPEN V46-1). The `17 4 * * *` cron was observed running on
-2026-10-31 04:17:37 UTC.
+**Where the work stands (2026-11-16).** The practice chat is the live engine (prompt v9, one AI call per
+turn, 49 scenarios x 3 goals) and its router speaks to one Groq organization only. Older mission
+write-ups — V46 admin panel and content studio, V45 conversation surface, GEO/`/guides`, AFF-1
+affiliates — are deployed history, moved verbatim to `docs/agent/ARCHIVE-AGENT-STATE.md` (search
+`CURRENT MISSION moved 2026-11-16`) to keep this file under its 80 KB cap. Their open owner items still
+live in `## OWNER-OPEN` and `docs/agent/OWNER-CHECKLIST.md`.
 
-**V46 content studio — the owner can now edit content in the panel, and a learner only ever sees a published row
-(2026-10-31, deployed).** Drafts, diff, explicit publish, soft delete with exact restore, one-click undo, dry-run
-import, export, dated backup and bundled-content review notes sit behind the same Access + internal-token door; no
-learner table or query changed, and the old `/admin` stays live. What remains is the owner exercising it with real
-traffic (OWNER-OPEN V46-1) and the D1-only proof a fake cannot give (§UNPROVEN).
-
-**V45 — the conversation surface stops paying for what it already knows (2026-10-30, deployed).** Openers are
-pre-computed German + Arabic, word cards read the shipped glossary first and spend at most one `/ai/lexeme` call
-per lemma (cached fleet-wide and on the device), and a bare greeting gets a re-ask instead of an invented answer.
-What stays open is exactly what a browser without a real account cannot reach: live case C and the authenticated
-1-call-then-0 path (UNPROVEN), plus the owner's opener proofreading and the provider key
-(`docs/OWNER-CHECKLIST.md` §1–§3, §5).
-
-**GEO + `/guides` — the site is built to be crawled and cited (2026-10-29).** Twelve Arabic guides answer real
-questions (A1 visa, Integrationskurs, doctor, flat, Anmeldung, work, recognition, phone), each with one H1, an
-answer-first lead, a table or checklist, FAQs, «آخر تحديث» and official sources. `site-seo.mjs` owns
-sitemap/robots/llms/IndexNow, `site-schema.mjs` the JSON-LD, `seo-agents.mjs` the ten crawlers; the app emits a
-root-only sitemap so one canonical cannot be indexed thirty times.
-
-**AFF-1 — the affiliate programme ships, and the free-tier promise now matches the app (2026-10-28).**
-The Worker that owns the partner ledger is deployed and its three tables exist in production D1
-(`affiliates`, `referrals`, `commissions`, created idempotently by `ensureLedgerTables` on the first
-request). `POST /affiliate/me` mints a partner code for a signed-in account and `/partners` shows the
-link; `POST /affiliate/ref` validates a code; the day-14 approval runs in `scheduled()` and again
-lazily on every admin read. **Two endpoints the owner named do not exist and never did** —
-`/affiliate/enroll` and `/affiliate/me/payout`; the real surface is `/affiliate/me` plus the
-owner-only `/admin/api/affiliates/{create,void,payout}`. What remains is the owner's own two-account
-run (OWNER-OPEN AFF-1). **Free tier:** `MAX_FREE_AI_SESSIONS = 3` is counted once per account, ever,
-so every surface now says «في المجموع» and the word «شهر» is gone from the home page, `/pricing`, the
-paywall and the soft-prompt copy (FREE-1 resolved). **Motion:** the soft Pro prompt that opened 1.2 s
-after the first correction is removed — its scrim covered «أرسل جملتك» until dismissed, which is the
-`dayZeroReport` CI flake; `e2e/dayZeroReport.spec.ts` now watches that window.
-
-NEXT (V44): **SEO-1's code half is done (2026-11-03); the rest is the owner's.** Search Console + Bing +
-`npm run seo:indexnow` (SEO-1); the 12-guide read, 30-prompt panel and `sameAs` URLs (GEO-1) — see
-`docs/agent/GEO-VISIBILITY.md`. Index status stays UNPROVEN until URL Inspection is read on both hosts. V44-1 and
-V44-2 (money and legal fields) still block the paying surfaces. AFF-1's referral test and payout day stay with
-the owner; an agent must not sign in as them or use the admin key.
+NEXT (V48): AI capacity (one Groq org, free tier), the replay quality gate on a real denominator, and the
+paying surfaces' legal/money fields — see `## ITEMS`, `## UNPROVEN`, `## OWNER-OPEN`.
 
 ## SNAPSHOT — current production rollbacks (read before any deploy touch)
 
@@ -309,6 +283,15 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | CHAT-V8. Practice chat v8: measured correction, 3 goals per scenario, replay harness | partial | **Prompt v8 shipped and everything around it verified; the ≥90% correction gate itself is unproven.** Live diagnosis before the change: every turn Groq `openai/gpt-oss-120b`, 1 attempt, 1.2–1.7 s, correction recall **6/13 (46%)**, one invented off-topic fact. `ROLEPLAY_PROMPT_VERSION = 8` adds correction/no-echo, typo-understanding, stay-in-role-no-invented-facts, one-question-per-reply and hint-in-same-response rules; `meta:{provider,model,attempts,ms}` on `/ai/turn`; `prompt_version` in the cost log is now the constant instead of a hardcoded `1`; the Workers AI fallback no longer reports the Groq model name; `/health` gains `fallback_only`; all 49 plans hold exactly 3 objectives (`docs/OWNER-SCENARIO-GOALS.md`, courtesy beats cut, orphan anchors deleted); `scripts/replay/` holds the 46-case harness (11 held out) and the scorer. Gate `VERIFY OK 15/15` + playwright 175 passed/11 skipped/0 failed. Worker `d99eeecc-…` live and Pages `2b0a22d0-…` from `92a0f42`, `/health` `ready:true, fallback_only:false`, admin 401. **Partial replay:** 29 Groq turns, p95 3.32 s, 0 double questions, 0 farewell questions, correction 3/4 («Ich heisse» uncorrected), then `429` on the 200-turn/day account cap. The Workers AI fallback that takes over when the pool window closes fails the checks: 5 of 31 turns got the retry card. |
 
 ## DECISIONS
+
+- **INTRO-SCENARIO (2026-11-16) — the first-run mission stays `airport_arrival`; unit 1 still opens
+  `first_greetings`; the coupling is now guarded, not silent.** Pointing `INTRO_SCENARIO_ID` at
+  `first_greetings` on 2026-11-16 was reverted: four shipped browser specs assert the day-0 hop as
+  `/scenario/airport_arrival/story`, and the day-0 opener, its Arabic gloss and the onboarding path are all
+  built around the airport episode. Flipping it is a content change, not a rename, so it is not done in the
+  same run as a capacity deploy. `tests/introScenarioCoupling.test.ts` now fails by name when the constant
+  and those specs disagree. Next run that touches onboarding: change the specs and the constant together,
+  then re-check the airport-specific openers in `e2e/staticLanguage.spec.ts`.
 
 - **UNIT-PATH (2026-11-07) — one guided vertical unit path; the learner never chooses.** The 49 served scenarios are
   partitioned into 9 themed units (5–6 each), ordered level then difficulty, checkpoint last. `units.ts` is the only

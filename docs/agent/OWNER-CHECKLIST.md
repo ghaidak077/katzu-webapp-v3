@@ -19,11 +19,11 @@ identity and complaint route.
 Rotate `ADMIN_SECRET` (it was pasted into chat); `grammar` needs one additive `ALTER TABLE` adding `rule_de`,
 `rule_ar`, `example_ar`. Set it in Worker → Variables, then ask the agent. **Done:** drift exits 0 and grammar shows.
 
-## 4. Real AI keys — AI-POOL (2026-10-18)
+## 4. AI keys — one organization, nothing to paste twice (AI-POOL, 2026-11-16)
 
-Both key lists are empty, so every turn rides the free fallback (works, weaker, capped). Admin → **AI Providers**
-→ paste key(s) → **Save** → **Test**; or `npx wrangler secret put OPENROUTER_API_KEYS` / `NVIDIA_API_KEYS`.
-**Done:** Test answers "OK" fast and a live turn stops naming the fallback.
+Groq answers every chat turn now. **Do not add a second Groq key or a second Groq account** — the provider's
+policy forbids it and the router treats a second key as a config error. A *different* provider is §17.
+**Done:** nothing to do.
 
 ## 5. One address — V18-3
 
@@ -31,7 +31,7 @@ Both key lists are empty, so every turn rides the free fallback (works, weaker, 
 `VITE_PUBLIC_APP_URL` at build time. **Done:** `https://katzuai.com/sitemap.xml` lists the root.
 ## 6. Real-device voice — V18-3
 
-All voice checks used a simulated microphone. Follow `docs/agent/OWNER-STEPS.md` §2 (14 rows) on iPhone + Android. **Done:** every row marked pass or fail.
+Voice was only ever simulated. Follow `docs/agent/OWNER-STEPS.md` §2 (14 rows) on iPhone + Android. **Done:** every row pass or fail.
 
 ## 7. Node version — V17-1 (not blocking)
 
@@ -65,9 +65,9 @@ Ihnen?». **Done:** both appear, or send what you saw.
 ## 12. Turn on the new conversations — CONTENT-V2-1, CONTENT-V2-4 (2026-11-01)
 
 You chose **everything**: the 49 corrected conversations replace the old ones; the 12 new ones wait until the
-Arabic is checked. Two block it: the line `CONTENT-LOAD-AUTHORIZED: scenarios-catalogue.json` (updates, not just
-adds) and the admin key (set here but the live site answers «unauthorized»). **Done:** a dry run lists 49 rows /
-327 fields, the load lands with a backup, and the app shows the corrected scenes.
+Arabic is checked. Two block it: `CONTENT-LOAD-AUTHORIZED: scenarios-catalogue.json` (updates, not just adds)
+and the admin key (live site answers «unauthorized»). **Done:** a dry run lists 49 rows / 327 fields and the
+load lands with a backup.
 
 ## 13. Native check of the new Arabic — CONTENT-V2-2, V47 (2026-11-01)
 
@@ -94,16 +94,16 @@ Owner approved; `patient_conversation_basics` moved from unit 6 to unit 5 (the l
 **Done:** applied; owner may still send wording changes.
 
 
-## 17. A second AI key, or a paid Groq tier (2026-11-16)
+## 17. A second provider key, or a paid Groq tier (2026-11-16)
 
-One provider (Groq) serves production; when its window closes the weaker Workers AI fallback takes over
-and fails checks. Capped at **200 turns a day**. Add a key (NVIDIA/OpenRouter/Gemini) or raise the Groq
-tier.
+Groq serves chat at about **200 turns a day for all learners**; when it is spent they read «الخدمة وصلت حدّها
+اليومي» and nothing is charged. Add `CEREBRAS_API_KEYS` (**one** key, one Cerebras organization) or buy Groq's
+paid tier (Developer waitlist). Never a second Groq account: that is a policy violation, not capacity.
 
 ## Nothing to do — so nobody re-opens them
 
-- **Free lessons are three, once — FREE-1.** `MAX_FREE_AI_SESSIONS = 3`; every surface says «في المجموع».
-- **Drift check — V15-3.** Run `node scripts/check-content-drift.mjs` after any content change.
-- **Payments stay off for the beta — V18.** `/crypto/health` `ready:false` is correct.
+- **Free lessons are three, once — FREE-1.** `MAX_FREE_AI_SESSIONS = 3`; surfaces say «في المجموع».
+- **Drift check — V15-3.** `node scripts/check-content-drift.mjs` after any content change.
+- **Payments stay off for the beta — V18.** `/crypto/health` `ready:false` is right.
 - **`docs/LAUNCH-CHECKLIST.md` §2 stays untouched.** Those are your items, unchanged.
 - **The two Worker settings are applied.** Emergency stop: `MAINTENANCE_MODE = "on"`; retention runs 04:17 UTC.
