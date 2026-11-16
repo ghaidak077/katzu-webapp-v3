@@ -25,6 +25,16 @@ import {
   resetRouterState,
   unitLedgerKeys,
   writeAiCache,
+  PREFERRED_MODEL,
+  entryKeysFor,
+  orderPoolForChat,
+  passesQualityGate,
+  recordProviderBudget,
+  isBudgetSpent,
+  providerBudgetSnapshot,
+  exceedsContextCap,
+  retryAfterMsFrom,
+  AiCapacityExhaustedError,
 } from '../cloudflare-ai-router.js';
 
 /**
@@ -677,5 +687,121 @@ describe('tierWalkFor — cheap first, failover intact', () => {
   it('returns a copy, so a caller cannot mutate the shared tier list', () => {
     tierWalkFor(false).push('injected');
     expect(PROVIDER_TIERS).toEqual(['flagship', 'mid', 'lite']);
+  });
+});
+
+/**
+ * SAME MODEL FIRST (owner direction, 2026-11-16).
+ *
+ * A learner's turn must be served by the model that passed the quality gate, on
+ * whichever provider still has capacity, and only by another model after THAT
+ * model passed the same gate. One credential per provider organization, budgets
+ * read from the provider's own headers, and a capacity answer instead of a
+ * silent downgrade when nothing is left.
+ */
+describe('same model first', () => {
+  const env = { GROQ_API_KEYS: 'gsk_one', CEREBRAS_API_KEYS: 'csk_one' } as any;
+
+  it('walks the preferred model across providers in quality order', () => {
+    const pool = [
+      { provider: 'openrouter', model: 'thinkingmachines/inkling-small:free', format: 'openai', baseUrl: 'https://openrouter.ai/api/v1', tier: 'mid' },
+      { provider: 'cerebras', model: PREFERRED_MODEL, format: 'openai', baseUrl: 'https://api.cerebras.ai/v1', tier: 'flagship' },
+      { provider: 'groq', model: PREFERRED_MODEL, format: 'openai', baseUrl: 'https://api.groq.com/openai/v1', tier: 'flagship' },
+    ];
+    const order = orderPoolForChat(pool).map((e) => `${e.provider}:${e.model}`);
+    expect(order).toEqual([`groq:${PREFERRED_MODEL}`, `cerebras:${PREFERRED_MODEL}`]);
+  });
+
+  it('never leads with a model that has not passed the gate', () => {
+    const pool = [
+      { provider: 'nvidia', model: 'openai/gpt-oss-20b', format: 'openai', baseUrl: 'https://integrate.api.nvidia.com/v1', tier: 'flagship' },
+    ];
+    expect(orderPoolForChat(pool)).toEqual([]);
+    expect(passesQualityGate(pool[0])).toBe(false);
+  });
+
+  it('puts a gate-passed non-preferred model behind every preferred one', () => {
+    const pool = [
+      { provider: 'nvidia', model: 'vendor/strong-model', format: 'openai', baseUrl: 'https://x.test/v1', tier: 'flagship' },
+      { provider: 'groq', model: PREFERRED_MODEL, format: 'openai', baseUrl: 'https://api.groq.com/openai/v1', tier: 'flagship' },
+    ];
+    const order = orderPoolForChat(pool, [...(([] as string[]).concat([`groq:${PREFERRED_MODEL}`])), 'nvidia:vendor/strong-model']);
+    expect(order.map((e) => e.provider)).toEqual(['groq', 'nvidia']);
+  });
+
+  it('gives a provider exactly one key, however many are configured', () => {
+    const twoKeys = { GROQ_API_KEYS: 'gsk_one,gsk_two' } as any;
+    const entry = { provider: 'groq', model: PREFERRED_MODEL, format: 'openai', baseUrl: 'https://api.groq.com/openai/v1' } as any;
+    expect(entryKeysFor(entry, twoKeys)).toEqual(['gsk_one']);
+  });
+
+  it('skips a unit whose own headers say nothing is left', () => {
+    const entry = { provider: 'groq', model: PREFERRED_MODEL, format: 'openai', baseUrl: 'https://api.groq.com/openai/v1' } as any;
+    const headers = new Headers({ 'x-ratelimit-remaining-requests': '0', 'x-ratelimit-limit-requests': '1000' });
+    recordProviderBudget(entry, headers);
+    expect(isBudgetSpent(entry)).toBe(true);
+    expect(providerBudgetSnapshot().find((row) => row.provider === 'groq')?.remainingRequests).toBe(0);
+  });
+
+  it('respects a hard context cap instead of bumping into it', () => {
+    const entry = { provider: 'cerebras', model: PREFERRED_MODEL, contextCap: 8192 } as any;
+    const small = { contents: [{ role: 'user', parts: [{ text: 'Hallo' }] }] };
+    const big = { contents: [{ role: 'user', parts: [{ text: 'x'.repeat(40000) }] }] };
+    expect(exceedsContextCap(entry, small)).toBe(false);
+    expect(exceedsContextCap(entry, big)).toBe(true);
+  });
+
+  it('reads Retry-After as seconds or as a date', () => {
+    expect(retryAfterMsFrom(new Headers({ 'retry-after': '30' }))).toBe(30000);
+    const at = new Date(Date.now() + 5000).toUTCString();
+    const ms = retryAfterMsFrom(new Headers({ 'retry-after': at }));
+    expect(ms).toBeGreaterThan(3000);
+    expect(ms).toBeLessThanOrEqual(6000);
+  });
+
+  it('answers capacity, not a downgrade, when a learner turn has no provider left', async () => {
+    const entry = { provider: 'groq', model: PREFERRED_MODEL, format: 'openai', baseUrl: 'https://api.groq.com/openai/v1' } as any;
+    const exhausted = { GROQ_API_KEYS: 'gsk_one' } as any;
+    await expect(
+      callAiRouter(geminiPayload, exhausted, {
+        pool: [entry],
+        modelFirst: true,
+        allowWeakFallback: false,
+        toOpenAiMessages,
+        canUseWorkersAiFallback: () => true,
+        fetchImpl: (async () => new Response('{"error":"rate limit"}', { status: 429 })) as any,
+        markKeyCooldown: () => {},
+      }),
+    ).rejects.toBeInstanceOf(AiCapacityExhaustedError);
+  });
+
+  it('keeps a plain 5xx a failure, so the learner gets a retry card and not a quota message', async () => {
+    const entry = { provider: 'groq', model: PREFERRED_MODEL, format: 'openai', baseUrl: 'https://api.groq.com/openai/v1' } as any;
+    const exhausted = { GROQ_API_KEYS: 'gsk_one' } as any;
+    await expect(
+      callAiRouter(geminiPayload, exhausted, {
+        pool: [entry],
+        modelFirst: true,
+        allowWeakFallback: false,
+        toOpenAiMessages,
+        canUseWorkersAiFallback: () => true,
+        fetchImpl: (async () => new Response('boom', { status: 500 })) as any,
+        markKeyCooldown: () => {},
+      }),
+    ).rejects.toThrow(/HTTP 500/);
+  });
+
+  it('still falls back to Workers AI for a route that allows it', async () => {
+    const entry = { provider: 'groq', model: PREFERRED_MODEL, format: 'openai', baseUrl: 'https://api.groq.com/openai/v1' } as any;
+    const env2 = { GROQ_API_KEYS: 'gsk_one' } as any;
+    const text = await callAiRouter(geminiPayload, env2, {
+      pool: [entry],
+      toOpenAiMessages,
+      canUseWorkersAiFallback: () => true,
+      runWorkersAiFallback: async () => '{"ok":true}',
+      fetchImpl: (async () => new Response('{"error":"rate limit"}', { status: 429 })) as any,
+      markKeyCooldown: () => {},
+    });
+    expect(text).toBe('{"ok":true}');
   });
 });

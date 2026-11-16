@@ -233,19 +233,57 @@ afterEach(() => {
 });
 
 describe('/ai/turn charges the free session only when a reply exists', () => {
-  it('a provider failure keeps the allowance untouched and returns no reply', async () => {
+  it('a rate-limited pool answers «الخدمة وصلت حدّها اليومي», no reply, nothing charged', async () => {
     const env = makeEnv();
     await seedSession(env, 'fail-learner', 'sess_fail');
     stubModel(() => new Response(JSON.stringify({ error: 'busy' }), { status: 429 }));
 
     const res = await worker.fetch(postTurn(turnBody('s1'), 'sess_fail'), env as never);
-    expect(res.status).toBe(502);
+    // 503, not 502: the limit is the reason, and the learner is told so in
+    // Arabic rather than getting a generic retry card.
+    expect(res.status).toBe(503);
     const body = (await res.json()) as any;
     expect(body.reply_de).toBeUndefined();
-    expect(body.code).toMatch(/AI_/);
-    expect(body.message).toMatch(/[؀-ۿ]/);
+    expect(body.code).toBe('AI_CAPACITY_EXHAUSTED');
+    expect(body.message).toBe('الخدمة وصلت حدّها اليومي. جرّب لاحقاً');
+    // Nothing a screen could render as a persona line, a correction or a hint.
+    expect(body.hint_de).toBeUndefined();
+    expect(body.understood_de).toBeUndefined();
+    expect(body.objectives_done).toBeUndefined();
+    // Non-secret metadata only: no provider can be named, because none answered.
+    expect(body.meta).toMatchObject({ provider: null, model: null });
+    expect(typeof body.meta.attempts).toBe('number');
     // The free-session counter is unchanged: nothing was spent.
     expect(env.USER_PROGRESS.values.has('ai-quota:fail-learner')).toBe(false);
+  });
+
+  it('a learner who retries a capacity failure still spends nothing and sees one message', async () => {
+    const env = makeEnv();
+    await seedSession(env, 'retry-learner', 'sess_retry');
+    stubModel(() => new Response(JSON.stringify({ error: 'rate limit' }), { status: 429 }));
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const res = await worker.fetch(postTurn(turnBody('s1'), 'sess_retry'), env as never);
+      expect(res.status).toBe(503);
+      const body = (await res.json()) as any;
+      expect(body.code).toBe('AI_CAPACITY_EXHAUSTED');
+      expect(body.message).toBe('الخدمة وصلت حدّها اليومي. جرّب لاحقاً');
+      expect(body.reply_de).toBeUndefined();
+    }
+    // A retry is not a new session: the account still has all three.
+    expect(env.USER_PROGRESS.values.has('ai-quota:retry-learner')).toBe(false);
+  });
+
+  it('a plain provider error is still a failure, not a quota claim', async () => {
+    const env = makeEnv();
+    await seedSession(env, 'boom-learner', 'sess_boom');
+    stubModel(() => new Response('upstream exploded', { status: 500 }));
+
+    const res = await worker.fetch(postTurn(turnBody('s1'), 'sess_boom'), env as never);
+    expect(res.status).toBe(502);
+    const body = (await res.json()) as any;
+    expect(body.code).toBe('AI_EMPTY_REPLY');
+    expect(env.USER_PROGRESS.values.has('ai-quota:boom-learner')).toBe(false);
   });
 
   it('an invalid model answer keeps the allowance untouched', async () => {

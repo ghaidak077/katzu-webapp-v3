@@ -39,8 +39,76 @@ import { recordActivity } from "./cloudflare-admin.js";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+const CEREBRAS_BASE_URL = "https://api.cerebras.ai/v1";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
+
+// ---------------------------------------------------------------------------
+// SAME MODEL FIRST (owner direction, 2026-11-16)
+//
+// The learner's experience must not change because a provider ran out: the same
+// model that passed the quality gate is what every available provider serves,
+// and a different model is only ever reached after IT has passed the same gate.
+// So the walk is ordered by model first, then by provider quality — never by
+// tier, never by who happens to be cheapest this minute.
+//
+// ONE KEY PER PROVIDER ORGANIZATION. Provider acceptable-use policies prohibit
+// spreading one organization's limits across several keys, and Groq's limits are
+// per organization, so a provider contributes exactly one key to the walk. A
+// second configured key is a configuration error, surfaced in `/health`, not
+// extra capacity.
+// ---------------------------------------------------------------------------
+
+export const PREFERRED_MODEL = "openai/gpt-oss-120b";
+
+/**
+ * Provider order for the preferred model: cheapest-and-fastest first, on the
+ * published latency of gpt-oss-120b at each host. A provider absent from this
+ * list keeps its configured position behind every ranked one.
+ */
+export const PROVIDER_QUALITY_ORDER = ["groq", "cerebras", "openrouter", "nvidia", "gemini"];
+
+/**
+ * Which `provider:model` pairs have passed the 46-case quality gate. A model is
+ * never served to a learner before it is in here; adding a provider to the pool
+ * therefore cannot silently downgrade the chat. The owner's KV config may extend
+ * this list (`qualityGatePasses`) once a pair has been measured.
+ */
+export const DEFAULT_QUALITY_GATE_PASSES = Object.freeze([
+  `groq:${PREFERRED_MODEL}`,
+  `cerebras:${PREFERRED_MODEL}`,
+]);
+
+export function qualityGateKey(provider, model) {
+  return `${String(provider || "").toLowerCase()}:${String(model || "").trim()}`;
+}
+
+/** Has this provider+model pair earned the right to answer a learner? */
+export function passesQualityGate(entry, allowed = DEFAULT_QUALITY_GATE_PASSES) {
+  const list = Array.isArray(allowed) && allowed.length ? allowed : DEFAULT_QUALITY_GATE_PASSES;
+  return list.includes(qualityGateKey(entry?.provider, entry?.model));
+}
+
+function providerRank(provider, order = PROVIDER_QUALITY_ORDER) {
+  const at = order.indexOf(String(provider || "").toLowerCase());
+  return at === -1 ? order.length : at;
+}
+
+/**
+ * The walk for a learner turn: preferred model on every gate-passed provider in
+ * quality order, then any other gate-passed pair behind it. Pure, so the order
+ * can be asserted without a network call.
+ */
+export function orderPoolForChat(pool, allowed = DEFAULT_QUALITY_GATE_PASSES) {
+  const usable = (Array.isArray(pool) ? pool : []).filter((entry) => isEntryConfigured(entry));
+  const preferred = usable
+    .filter((entry) => entry.model === PREFERRED_MODEL && passesQualityGate(entry, allowed))
+    .sort((a, b) => providerRank(a.provider) - providerRank(b.provider));
+  const rest = usable
+    .filter((entry) => entry.model !== PREFERRED_MODEL && passesQualityGate(entry, allowed))
+    .sort((a, b) => providerRank(a.provider) - providerRank(b.provider));
+  return [...preferred, ...rest];
+}
 
 /**
  * Secret name per provider. Same comma/semicolon/newline list format for all.
@@ -55,6 +123,7 @@ const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
 export const PROVIDER_ENV_VARS = {
   gemini: "GEMINI_API_KEYS",
   groq: "GROQ_API_KEYS",
+  cerebras: "CEREBRAS_API_KEYS",
   openrouter: "OPENROUTER_API_KEYS",
   nvidia: "NVIDIA_API_KEYS",
 };
@@ -148,6 +217,13 @@ export function tierWalkFor(easyTurn) {
 }
 
 export const PROVIDER_POOL = [
+  // SAME MODEL FIRST: two organizations, one key each, both serving
+  // gpt-oss-120b. Order is provider quality, and the learner never notices which
+  // one answered — the failover is on 429, quota, timeout or 5xx.
+  { provider: "groq", model: PREFERRED_MODEL, format: "openai", baseUrl: GROQ_BASE_URL, tier: "flagship", rpd: 1000 },
+  // Cerebras free tier is request-rich but context-poor: the 8K window is
+  // enforced below (`contextCap`), so a long turn skips it instead of 400ing.
+  { provider: "cerebras", model: PREFERRED_MODEL, format: "openai", baseUrl: CEREBRAS_BASE_URL, tier: "flagship", rpd: 14400, contextCap: 8192 },
   // flagship — NVIDIA has no published per-model daily ceiling, so `rpd: null`
   // is deliberate, not a gap: there is no number to pre-check against. Its
   // limits are the account-wide NIM credit allowance, which the response body
@@ -278,8 +354,25 @@ export function entryKeysFor(entry, env) {
   const own = Array.isArray(entry?.keys)
     ? entry.keys.filter((k) => typeof k === "string" && k.trim()).map((k) => k.trim())
     : [];
-  if (own.length) return own;
-  return providerKeyList(env, entry?.provider);
+  const list = own.length ? own : providerKeyList(env, entry?.provider);
+  // ONE KEY PER PROVIDER ORGANIZATION (owner rule, 2026-11-16).
+  //
+  // Rotating two keys of the same organization to multiply its limits is what
+  // the providers' acceptable-use policies forbid (Groq's limits are per
+  // organization, not per key). A provider therefore contributes exactly one
+  // credential; extra keys are reported as a configuration error, not used.
+  return list.slice(0, 1);
+}
+
+/** Configured key counts per provider — used to flag a second key as a misconfiguration. */
+export function providerKeyCounts(env, pool = PROVIDER_POOL) {
+  const counts = new Map();
+  for (const entry of pool) {
+    if (!entry?.provider || counts.has(entry.provider)) continue;
+    const own = Array.isArray(entry.keys) ? entry.keys.filter((k) => typeof k === "string" && k.trim()) : [];
+    counts.set(entry.provider, own.length || providerKeyList(env, entry.provider).length);
+  }
+  return [...counts.entries()].map(([provider, configured]) => ({ provider, configured }));
 }
 
 /** True when at least one pool entry can actually be called right now. */
@@ -509,6 +602,7 @@ export function resetRouterState() {
   routerCounters.attempts = 0;
   routerCounters.served = 0;
   routerCounters.byProvider = {};
+  providerBudgets.clear();
   Object.keys(cacheL1).forEach((ns) => cacheL1[ns].clear());
 }
 
@@ -654,14 +748,128 @@ export function classifyFailure(status, bodyText = "", entry = null) {
 // ---------------------------------------------------------------------------
 
 export class ProviderCallError extends Error {
-  constructor(entry, status, bodyText, kind) {
+  constructor(entry, status, bodyText, kind, { retryAfterMs = null } = {}) {
     super(`${entry.provider}/${entry.model} HTTP ${status}: ${String(bodyText || "").slice(0, 320)}`);
     this.name = "ProviderCallError";
     this.entry = entry;
     this.status = status;
     this.bodyText = String(bodyText || "");
     this.kind = kind || classifyFailure(status, bodyText, entry);
+    /** The provider's own `Retry-After`, when it names one. */
+    this.retryAfterMs = retryAfterMs;
   }
+}
+
+/**
+ * Every provider is out of budget and no authored line may stand in. Distinct
+ * from a generic failure so the route can answer honestly (503 + the Arabic
+ * "daily limit" message) and charge nothing.
+ */
+export class AiCapacityExhaustedError extends Error {
+  constructor(message = "every configured provider is out of budget for this window") {
+    super(message);
+    this.name = "AiCapacityExhaustedError";
+    this.code = "AI_CAPACITY_EXHAUSTED";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Provider budgets, read from the response headers the provider already sends
+//
+// Groq, Cerebras and OpenRouter all publish `x-ratelimit-*` headers. They are
+// the only trustworthy statement about what is left, so they are recorded per
+// provider+model and surfaced in the admin view — the router itself only skips
+// a unit that reports zero remaining requests or tokens.
+// ---------------------------------------------------------------------------
+
+const providerBudgets = new Map(); // "provider:model" -> budget snapshot
+
+/**
+ * Rough token count of a Gemini-shaped payload: 4 characters per token is the
+ * approximation the cost log already uses, and it only has to be good enough to
+ * keep a request out of a provider's hard context wall.
+ */
+export function estimatePayloadTokens(payload) {
+  const sys = payload?.systemInstruction?.parts?.map((p) => p?.text || "").join("") || "";
+  const body = (Array.isArray(payload?.contents) ? payload.contents : [])
+    .map((c) => (c?.parts || []).map((p) => p?.text || "").join(""))
+    .join("\n");
+  return Math.ceil((sys.length + body.length) / 4);
+}
+
+/** True when a provider's hard context cap would reject this request. */
+export function exceedsContextCap(entry, payload) {
+  const cap = Number(entry?.contextCap);
+  if (!Number.isFinite(cap) || cap <= 0) return false;
+  return estimatePayloadTokens(payload) > cap;
+}
+
+function headerNumber(headers, name) {
+  if (!headers || typeof headers.get !== "function") return null;
+  const raw = headers.get(name);
+  if (raw === null || raw === undefined || raw === "") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+/** `Retry-After` is either seconds or an HTTP date; both become a millisecond wait. */
+export function retryAfterMsFrom(headers, now = Date.now()) {
+  if (!headers || typeof headers.get !== "function") return null;
+  const raw = headers.get("retry-after");
+  if (!raw) return null;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 24 * 3600 * 1000);
+  const at = Date.parse(raw);
+  if (Number.isFinite(at)) return Math.max(0, Math.min(at - now, 24 * 3600 * 1000));
+  return null;
+}
+
+/**
+ * Record what a provider said about its own limits. `unitReset` distinguishes a
+ * per-minute window from the daily one: the daily numbers are what the admin
+ * panel shows and what the <20% alert reads.
+ */
+export function recordProviderBudget(entry, headers) {
+  if (!entry) return null;
+  const id = `${entry.provider}:${entry.model}`;
+  const remainingRequests = headerNumber(headers, "x-ratelimit-remaining-requests");
+  const limitRequests = headerNumber(headers, "x-ratelimit-limit-requests");
+  const remainingTokens = headerNumber(headers, "x-ratelimit-remaining-tokens");
+  const limitTokens = headerNumber(headers, "x-ratelimit-limit-tokens");
+  const reset = headers && typeof headers.get === "function" ? headers.get("x-ratelimit-reset-requests") : null;
+  if (remainingRequests === null && remainingTokens === null && limitRequests === null && limitTokens === null) return null;
+  const snapshot = {
+    provider: entry.provider,
+    model: entry.model,
+    remainingRequests,
+    limitRequests,
+    remainingTokens,
+    limitTokens,
+    reset,
+    seenAt: Date.now(),
+  };
+  providerBudgets.set(id, snapshot);
+  return snapshot;
+}
+
+/** Public-safe budget rows (no keys, no prompts). */
+export function providerBudgetSnapshot() {
+  return [...providerBudgets.values()].map((row) => ({ ...row }));
+}
+
+/**
+ * True when the last header snapshot says this unit has nothing left for the
+ * current window. A zero-remaining answer is treated as a skip, not an attempt:
+ * spending a call to be told 429 is exactly the waste this replaces.
+ */
+export function isBudgetSpent(entry, now = Date.now()) {
+  const row = providerBudgets.get(`${entry?.provider}:${entry?.model}`);
+  if (!row) return false;
+  // A minute-window snapshot older than two minutes says nothing about now.
+  if (now - row.seenAt > 120000) return false;
+  const reqsSpent = row.remainingRequests !== null && row.remainingRequests <= 0;
+  const tokensSpent = row.remainingTokens !== null && row.remainingTokens <= 0;
+  return reqsSpent || tokensSpent;
 }
 
 /** qwen3-family models can emit reasoning blocks before the answer. */
@@ -730,8 +938,13 @@ export async function callProvider(entry, payload, key, { timeoutMs = ATTEMPT_TI
         body: JSON.stringify(geminiBody(payload)),
         signal: controller.signal,
       });
+      recordProviderBudget(entry, res.headers);
       const bodyText = await res.text().catch(() => "");
-      if (!res.ok) throw new ProviderCallError(entry, res.status, bodyText);
+      if (!res.ok) {
+        throw new ProviderCallError(entry, res.status, bodyText, undefined, {
+          retryAfterMs: retryAfterMsFrom(res.headers),
+        });
+      }
       const data = safeJson(bodyText);
       if (data?.error) throw new ProviderCallError(entry, 200, JSON.stringify(data.error));
       const candidate = data?.candidates?.[0];
@@ -784,8 +997,15 @@ export async function callProvider(entry, payload, key, { timeoutMs = ATTEMPT_TI
       res = await send(features);
     }
 
+    // The provider's own limits, before anything else can throw: a 429 body is
+    // the least reliable statement about what is left, the headers are exact.
+    recordProviderBudget(entry, res.headers);
     const bodyText = await res.text().catch(() => "");
-    if (!res.ok) throw new ProviderCallError(entry, res.status, bodyText);
+    if (!res.ok) {
+      throw new ProviderCallError(entry, res.status, bodyText, undefined, {
+        retryAfterMs: retryAfterMsFrom(res.headers),
+      });
+    }
     const data = safeJson(bodyText);
     if (data?.error) {
       const message = typeof data.error === "string" ? data.error : JSON.stringify(data.error);
@@ -890,24 +1110,53 @@ export async function callAiRouter(payload, env, deps = {}) {
   await hydrateLedger(env);
 
   let lastError = null;
+  // Did every attempt fail for a quota/throttle reason? Only then may the route
+  // claim the daily limit is what stopped the turn.
+  let attemptedAny = false;
+  let quotaOnly = true;
 
-  poolWalk: for (const tier of tierWalkFor(deps.easyTurn === true)) {
-    const tierEntries = pool.filter((entry) => entry.tier === tier && isEntryConfigured(entry) && entryKeysFor(entry, env).length > 0);
-    if (!tierEntries.length) continue;
-    const start = nextRotation(tierRotations, `tier:${tier}`, tierEntries.length);
-    const ordered = orderTierEntries(tierEntries, start, deps.preferFast === true);
-    // A route may name the model it wants (the roleplay turn reads
-    // ROLEPLAY_MODEL): the named entry moves to the front of its tier, and every
-    // other usable entry stays behind it, so a dead model still fails over
-    // exactly as before. No silent model swap, no second pool.
-    const walk = typeof deps.preferModel === "string" && deps.preferModel
-      ? [
-          ...ordered.filter((entry) => entry.model === deps.preferModel),
-          ...ordered.filter((entry) => entry.model !== deps.preferModel),
-        ]
-      : ordered;
+  // A learner turn (deps.modelFirst) walks by MODEL, not by tier: the preferred
+  // model on every gate-passed provider in quality order, then any other pair
+  // that has passed the same gate. Every other route keeps the tier walk, which
+  // is what its tests and its latency preference were designed around.
+  // The gate protects the PRODUCTION pool. An explicitly injected pool (tests,
+  // an operator's diagnostic) is a decision the caller already made, so it is
+  // walked as given.
+  const enforceGate = deps.modelFirst === true && !Array.isArray(deps.pool);
+  const allowedPairs = Array.isArray(deps.qualityGatePasses) && deps.qualityGatePasses.length
+    ? deps.qualityGatePasses
+    : enforceGate
+      ? DEFAULT_QUALITY_GATE_PASSES
+      : null;
+  const keyedEntries = (entries) => entries.filter((entry) => entryKeysFor(entry, env).length > 0);
+  const groups = deps.modelFirst === true
+    ? [keyedEntries(allowedPairs ? orderPoolForChat(pool, allowedPairs) : pool.filter(isEntryConfigured))]
+    : tierWalkFor(deps.easyTurn === true).map((tier) => {
+        const tierEntries = keyedEntries(
+          pool.filter((entry) => entry.tier === tier && isEntryConfigured(entry)),
+        );
+        if (!tierEntries.length) return [];
+        const start = nextRotation(tierRotations, `tier:${tier}`, tierEntries.length);
+        const ordered = orderTierEntries(tierEntries, start, deps.preferFast === true);
+        // A route may name the model it wants (the roleplay turn reads
+        // ROLEPLAY_MODEL): the named entry moves to the front of its tier, and
+        // every other usable entry stays behind it, so a dead model still fails
+        // over exactly as before. No silent model swap, no second pool.
+        return typeof deps.preferModel === "string" && deps.preferModel
+          ? [
+              ...ordered.filter((entry) => entry.model === deps.preferModel),
+              ...ordered.filter((entry) => entry.model !== deps.preferModel),
+            ]
+          : ordered;
+      });
+
+  poolWalk: for (const walk of groups) {
+    if (!walk.length) continue;
 
     for (const entry of walk) {
+      // One key per provider organization (owner rule, 2026-11-16): a provider
+      // contributes exactly one credential to the walk. Extra keys are a
+      // configuration error reported in /health, never extra capacity.
       const keys = entryKeysFor(entry, env);
       const keyStart = nextRotation(keyRotations, `keys:${entry.provider}:${entry.model}`, keys.length);
 
@@ -916,11 +1165,17 @@ export async function callAiRouter(payload, env, deps = {}) {
         // Terminal skip: a unit inside its exhausted window is not called at all.
         if (isDayExhausted(entry, key)) continue;
         if (deps.isKeyCoolingDown?.(key)) continue;
+        // The provider itself said nothing is left this window: do not spend a
+        // call to be told 429.
+        if (isBudgetSpent(entry)) continue;
+        // A hard context wall (Cerebras free: 8K) is respected, never bumped into.
+        if (exceedsContextCap(entry, payload)) continue;
 
         const remaining = deadline - Date.now();
         if (remaining < reserveMs) break poolWalk;
 
         countAttempt(entry.provider);
+        attemptedAny = true;
         const startedAt = Date.now();
         try {
           const text = await callProvider(entry, payload, key, {
@@ -940,6 +1195,10 @@ export async function callAiRouter(payload, env, deps = {}) {
         } catch (err) {
           lastError = err;
           const kind = err instanceof ProviderCallError ? err.kind : classifyFailure(0, String(err?.message || err));
+          // A quota/throttle answer is the limit; anything else is a failure.
+          if (kind !== "day" && kind !== "minute" && kind !== "invalid_key" && kind !== "model_missing") {
+            quotaOnly = false;
+          }
           notifyAttempt(entry, key, kind, err?.status ?? null, Date.now() - startedAt);
 
           if (kind === "day" || kind === "model_missing") {
@@ -973,7 +1232,9 @@ export async function callAiRouter(payload, env, deps = {}) {
             continue;
           }
           if (kind === "minute") {
-            deps.markKeyCooldown?.(key, err?.status || 429);
+            // The provider's own `Retry-After` wins over our guess: it is the
+            // only statement about when this window actually reopens.
+            deps.markKeyCooldown?.(key, err?.status || 429, err?.retryAfterMs ?? null);
             continue;
           }
           // Transient (network, 5xx, empty completion): try the next entry
@@ -981,6 +1242,20 @@ export async function callAiRouter(payload, env, deps = {}) {
         }
       }
     }
+  }
+
+  // A learner's conversation is never served from the weak Workers AI fallback:
+  // a worse partner the learner cannot tell apart from a better one is a silent
+  // downgrade (owner direction, 2026-11-16). Interactive roleplay passes
+  // `allowWeakFallback: false` and gets an honest capacity error instead.
+  if (deps.allowWeakFallback === false) {
+    // "Capacity exhausted" is a claim about the limit, so it is only made when
+    // the limit is what stopped us: every attempted unit was parked, throttled
+    // or dead. A 5xx or a timeout is a failure, not a quota, and keeps the
+    // generic error so the learner sees the retry card instead of a message
+    // that says to come back tomorrow.
+    if (quotaOnly) throw new AiCapacityExhaustedError(attemptedAny ? undefined : "no provider can serve this route");
+    throw lastError || new Error("All AI providers are unavailable");
   }
 
   if (deps.canUseWorkersAiFallback?.(env)) {
@@ -1028,6 +1303,18 @@ export function getPoolHealth({ env = {}, pool = PROVIDER_POOL, includeKeyIds = 
     ...(includeKeyIds ? { keyId: unit.keyId } : {}),
   }));
 
+  // The chat pool: what a LEARNER turn would walk. Separate from `active`
+  // because a configured provider whose pair has not passed the quality gate
+  // must never be counted as able to answer a learner.
+  const chat = pool
+    .filter((entry) => isEntryConfigured(entry) && entryKeysFor(entry, env).length > 0 && passesQualityGate(entry))
+    .map((entry) => ({ provider: entry.provider, model: entry.model }));
+
+  // A second key on the same organization is a policy violation, not capacity.
+  const configErrors = providerKeyCounts(env, pool)
+    .filter((row) => row.configured > 1)
+    .map((row) => ({ provider: row.provider, configured: row.configured, error: "one_key_per_provider" }));
+
   return {
     entries: pool.length,
     tiers: PROVIDER_TIERS,
@@ -1036,6 +1323,10 @@ export function getPoolHealth({ env = {}, pool = PROVIDER_POOL, includeKeyIds = 
     exhausted,
     attempts: routerCountersSnapshot(),
     cache: cacheStats(),
+    chat: { ready: chat.length > 0, preferred_model: PREFERRED_MODEL, entries: chat },
+    quality_gate: { passes: [...DEFAULT_QUALITY_GATE_PASSES] },
+    budgets: providerBudgetSnapshot(),
+    config_errors: configErrors,
   };
 }
 

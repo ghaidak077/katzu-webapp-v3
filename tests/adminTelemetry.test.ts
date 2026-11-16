@@ -15,6 +15,9 @@ import {
   buildConversationRow,
   recordRouteEvent,
   recordAiCall,
+  recordProviderUsage,
+  providerUsageToday,
+  PROVIDER_LOW_QUOTA_RATIO,
   conversationLoggingEnabled,
   hasLoggingConsent,
   consentKey,
@@ -446,5 +449,65 @@ describe('sweepConversationText', () => {
 
   it('skips without a database', async () => {
     expect(await sweepConversationText({})).toEqual({ skipped: 'db_unbound' });
+  });
+});
+
+describe('provider capacity (the admin panel’s per provider/model row)', () => {
+  it('writes one row per provider and model, with the day and the token counts', async () => {
+    const db = new StubDB();
+    const { ctx, flush } = collectCtx();
+    recordProviderUsage({ DB: db } as never, ctx as never, {
+      provider: 'groq',
+      model: 'openai/gpt-oss-120b',
+      tokensIn: 1750,
+      tokensOut: 210,
+      quotaRemaining: 640,
+      quotaLimit: 1000,
+    });
+    await flush();
+    const insert = db.statements.find((s) => s.sql.includes('INSERT INTO ai_provider_usage'));
+    expect(insert).toBeTruthy();
+    expect(insert?.sql).toContain('ON CONFLICT(day, provider, model)');
+    expect(insert?.args).toContain('groq');
+    expect(insert?.args).toContain('openai/gpt-oss-120b');
+    expect(insert?.args).toContain(1750);
+    expect(insert?.args).toContain(640);
+  });
+
+  it('never throws when the database is unavailable', async () => {
+    const db = new StubDB();
+    db.fail = true;
+    const { ctx, flush } = collectCtx();
+    expect(() =>
+      recordProviderUsage({ DB: db } as never, ctx as never, {
+        provider: 'cerebras',
+        model: 'openai/gpt-oss-120b',
+        tokensIn: 10,
+        tokensOut: 5,
+      }),
+    ).not.toThrow();
+    await flush();
+  });
+
+  it('flags a provider under a fifth of its published quota', async () => {
+    const db = {
+      prepare: () => ({
+        bind: () => ({
+          all: async () => ({
+            results: [
+              { provider: 'groq', model: 'openai/gpt-oss-120b', turns: 12, tokens_in: 100, tokens_out: 20, errors_429: 1, quota_remaining: 90, quota_limit: 1000, updated_at: 1 },
+              { provider: 'cerebras', model: 'openai/gpt-oss-120b', turns: 3, tokens_in: 30, tokens_out: 6, errors_429: 0, quota_remaining: null, quota_limit: null, updated_at: 2 },
+            ],
+          }),
+        }),
+      }),
+    };
+    const out = await providerUsageToday({ DB: db } as never, '2026-11-16');
+    expect(PROVIDER_LOW_QUOTA_RATIO).toBe(0.2);
+    expect(out.rows[0].alert).toBe(true);
+    expect(out.rows[0].tokens_total).toBe(120);
+    // No published limit is not a guess: it is "cannot be judged".
+    expect(out.rows[1].ratio).toBeNull();
+    expect(out.rows[1].alert).toBe(false);
   });
 });

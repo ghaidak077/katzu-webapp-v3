@@ -111,11 +111,11 @@ describe('the system instruction', () => {
     expect(text).toContain('ignore previous instructions');
   });
 
-  it('sends only the last six turns', () => {
+  it('sends only the last four turns', () => {
     const history = Array.from({ length: 12 }, (_, index) => ({ role: 'user', text: `turn ${index}` }));
     const text = buildRoleplayContents({ history, learnerText: 'neu' })[0].parts[0].text;
-    expect(text).not.toContain('turn 5');
-    expect(text).toContain('turn 6');
+    expect(text).not.toContain('turn 7');
+    expect(text).toContain('turn 8');
     expect(text).toContain('turn 11');
   });
 

@@ -31,6 +31,7 @@ import {
   entryKeysFor,
   isEntryConfigured,
   keyFingerprint,
+  providerKeyList,
 } from "./cloudflare-ai-router.js";
 
 const CONFIG_KV_KEY = "ai-provider-config";
@@ -133,7 +134,10 @@ export function maskProviderEntry(entry, env) {
     ? entry.keys.filter((k) => typeof k === "string" && k.trim()).map((k) => k.trim())
     : [];
   const hasStored = storedKeys.length > 0;
-  const envKeys = hasStored ? [] : entryKeysFor(entry, env);
+  // The DASHBOARD shows what is configured, not what the router uses: the walk
+  // takes one key per provider (owner rule), so a second stored key must stay
+  // visible as a misconfiguration rather than silently disappear from the row.
+  const envKeys = hasStored ? [] : providerKeyList(env, entry?.provider);
   const resolvedKeys = hasStored ? storedKeys : envKeys;
   return {
     id: entry.id || entry.provider,
@@ -149,6 +153,8 @@ export function maskProviderEntry(entry, env) {
     configured: isEntryConfigured(entry),
     keySource: hasStored ? "dashboard" : "env",
     keyCount: resolvedKeys.length,
+    /** One credential per organization: more is a policy violation, not capacity. */
+    keysOverLimit: resolvedKeys.length > 1,
     /** Non-reversible; identifies WHICH key without carrying any of it. */
     keyFingerprints: resolvedKeys.map((k) => keyFingerprint(k)),
   };

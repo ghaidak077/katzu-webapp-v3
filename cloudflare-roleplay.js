@@ -31,17 +31,22 @@ import { objectivesOf, planForScenario, sanitizeObjectivesDone } from "./cloudfl
 import { claimSupportedByText, GOALS_AR } from "./cloudflare-roleplay-anchors.js";
 
 /** Bump when a word of the prompt changes, so an eval result names its prompt. */
-export const ROLEPLAY_PROMPT_VERSION = 8;
+export const ROLEPLAY_PROMPT_VERSION = 9;
 
 /** One reply a beginner has to read; the learner waits on it, so keep it tight. */
 export const ROLEPLAY_TEMPERATURE = 0.3;
-export const ROLEPLAY_MAX_OUTPUT_TOKENS = 480;
+/**
+ * Token diet (2026-11-16): the turn is one small JSON object — 480 let a verbose
+ * model pad Arabic prose the learner never re-reads. 400 still fits every
+ * measured reply with headroom.
+ */
+export const ROLEPLAY_MAX_OUTPUT_TOKENS = 400;
 /** The learner is watching a typing indicator: 3.5 s, then fail over inside the pool. */
 export const ROLEPLAY_ATTEMPT_TIMEOUT_MS = 3500;
 /** One silent retry, second provider included: the whole turn gives up at ~8 s. */
 export const ROLEPLAY_TOTAL_BUDGET_MS = 8000;
 /** How many earlier exchanges the model sees. More is cost without benefit. */
-export const ROLEPLAY_HISTORY_TURNS = 6;
+export const ROLEPLAY_HISTORY_TURNS = 4;
 
 /** Words per reply, by CEFR level — mirrors cloudflare-level-spec.js. */
 const WORD_LIMITS = { A0: 6, A1: 8, A2: 10, B1: 12, B2: 15 };
@@ -67,20 +72,21 @@ const BANNED_META_PHRASES = [
 ];
 
 /**
- * SIX WORKED TURNS (2026-11-13) — the smallest set that covers the failures the
- * owner saw in production: an off-topic remark, a wrong quantity, the learner
- * asking a question, «Ich verstehe nicht», a typo-heavy sentence, and a perfect
- * one. They are examples of the SHAPE (react → one question, meaning preserved),
- * not a script: no id, name or number from them is ever reused.
+ * THREE WORKED TURNS (2026-11-16 token diet) — down from six.
+ *
+ * Kept because they are the three behaviours a weak model gets wrong on its own:
+ * a typo that must be understood rather than "corrected" into another word, «Ich
+ * verstehe nicht» (the rephrase case), and a perfect sentence that must come back
+ * unchanged with an empty reason. Dropped: the off-topic remark, the different
+ * quantity and the learner-asks-a-question turns — the rules above already state
+ * each of those in one sentence, and every example is ~120 tokens on EVERY turn.
+ * Examples are shape only: no id, name or number from them is ever reused.
  */
 const FEW_SHOT_EXAMPLES = [
   "EXAMPLES (shape only — never copy their words into a real turn):",
-  '1) Learner says something off-topic ("mein Hund ist krank") → react to the dog, then ask one question toward an unfinished objective: {"reply_de":"Oh, dein Hund ist krank? Das tut mir leid. Und wie geht es dir?","reply_ar":"أوه، كلبك مريض؟ هذا مؤسف. وكيف حالك أنت؟","understood_de":"Mein Hund ist krank.","fix_reason_ar":"","close":false,"hint_de":"Mir geht es gut, danke.","hint_ar":"أنا بخير، شكراً."}',
-  '2) Learner gives a different quantity than expected ("ich möchte drei brötchen") → confirm THEIR number, then ask the next thing: {"reply_de":"Drei Brötchen, gern. Möchten Sie auch ein Brot?","reply_ar":"ثلاثة قرصان، بكل سرور. هل تريد خبزاً أيضاً؟","understood_de":"Ich möchte drei Brötchen.","fix_reason_ar":"الحرف الأول كبير: Ich، والاسم Brötchen بحرف كبير.","close":false,"hint_de":"Ja, ein Brot bitte.","hint_ar":"نعم، رغيف خبز من فضلك."}',
-  '3) Learner asks a question ("wie viel kostet das?") → answer it in character, then ask one question: {"reply_de":"Das kostet zwei Euro. Möchten Sie es kaufen?","reply_ar":"هذا يكلّف يوروين. هل تريد شراءه؟","understood_de":"Wie viel kostet das?","fix_reason_ar":"","close":false,"hint_de":"Ja, ich nehme es.","hint_ar":"نعم، سآخذه."}',
-  '4) Learner says "Ich verstehe nicht" → rephrase much more simply, one short question: {"reply_de":"Kein Problem. Wie heißen Sie?","reply_ar":"لا مشكلة. ما اسمك؟","understood_de":"Ich verstehe nicht.","fix_reason_ar":"","close":false,"hint_de":"Ich heiße ___.","hint_ar":"اسمي ___."}',
-  '5) Typo-heavy answer ("ich lebie katze") → understand love + plural, never «lebe», react to the cats: {"reply_de":"Du liebst Katzen! Ich auch. Hast du eine Katze zu Hause?","reply_ar":"أنت تحب القطط! وأنا أيضاً. هل لديك قطة في البيت؟","understood_de":"Ich liebe Katzen.","fix_reason_ar":"الكلمة تعني يحب: liebe وليس lebe، والجمع: Katzen.","close":false,"hint_de":"Ja, ich habe eine Katze.","hint_ar":"نعم، لديّ قطة."}',
-  '6) Perfect answer ("Guten Tag, ich heiße Ghaidak.") → react and move on; understood_de is the sentence unchanged and fix_reason_ar is empty: {"reply_de":"Guten Tag, Ghaidak! Freut mich. Woher kommen Sie?","reply_ar":"نهارك سعيد يا غيدق! سعيد بلقائك. من أين أنت؟","understood_de":"Guten Tag, ich heiße Ghaidak.","fix_reason_ar":"","close":false,"hint_de":"Ich komme aus ___.","hint_ar":"أنا من ___."}',
+  '1) Learner says "Ich verstehe nicht" → rephrase much more simply, one short question: {"reply_de":"Kein Problem. Wie heißen Sie?","reply_ar":"لا مشكلة. ما اسمك؟","understood_de":"Ich verstehe nicht.","fix_reason_ar":"","close":false,"hint_de":"Ich heiße ___.","hint_ar":"اسمي ___."}',
+  '2) Typo-heavy answer ("ich lebie katze") → understand love + plural, never «lebe», react to the cats: {"reply_de":"Du liebst Katzen! Ich auch. Hast du eine Katze zu Hause?","reply_ar":"أنت تحب القطط! وأنا أيضاً. هل لديك قطة في البيت؟","understood_de":"Ich liebe Katzen.","fix_reason_ar":"الكلمة تعني يحب: liebe وليس lebe، والجمع: Katzen.","close":false,"hint_de":"Ja, ich habe eine Katze.","hint_ar":"نعم، لديّ قطة."}',
+  '3) Perfect answer ("Guten Tag, ich heiße Ghaidak.") → react and move on; understood_de is the sentence unchanged and fix_reason_ar is empty: {"reply_de":"Guten Tag, Ghaidak! Freut mich. Woher kommen Sie?","reply_ar":"نهارك سعيد يا غيدق! سعيد بلقائك. من أين أنت؟","understood_de":"Guten Tag, ich heiße Ghaidak.","fix_reason_ar":"","close":false,"hint_de":"Ich komme aus ___.","hint_ar":"أنا من ___."}',
 ].join("\n");
 
 function objectiveLines(plan, done) {
@@ -103,13 +109,14 @@ export function buildRoleplaySystemInstruction({ plan, level, objectivesDone = [
   const role = persona.role || "conversation partner";
   const gender = persona.gender === "female" ? "female" : "male";
   const limit = roleplayWordLimit(level);
-  return [
-    `You are ${name}, ${role}, in a roleplay with an Arabic-speaking beginner learning German at level ${level}.`,
-    `Goal: ${plan?.goal || "practise this everyday situation."}`,
-    `Objectives:\n${objectiveLines(plan, done)}`,
-    "Stay in character. Use simple German for {LEVEL}: at most {N} words, familiar words only."
-      .replace("{LEVEL}", level)
-      .replace("{N}", String(limit)),
+  // STATIC FIRST (2026-11-16 token diet): every line before the scene block is
+  // byte-identical for every scenario, level and learner, so a provider that
+  // caches a prompt PREFIX re-reads it from cache instead of paying for it on
+  // each turn (Groq caches automatically and its cached tokens do not count
+  // toward the rate limit). The scene block — persona, gender, level, goal,
+  // objectives, ids — is the only part that changes, and it sits last.
+  const staticLines = [
+    "You are the person in a German roleplay with an Arabic-speaking beginner. Stay in character throughout.",
     "Each reply: react briefly and concretely to what the learner actually said, then ask exactly ONE simple question that moves toward an unfinished objective.",
     "React first, always: name the thing they just told you — their pet, their city, their number, their order. A reaction that would fit any sentence is not a reaction.",
     "The reaction is a STATEMENT, never a question: the only question in your reply is the last sentence. Never echo their words as a question («Du bist neu hier?»).",
@@ -126,7 +133,7 @@ export function buildRoleplaySystemInstruction({ plan, level, objectivesDone = [
     "Only the learner completes an objective. Never do their part for them: do not order, ask for the bill, state their name or origin for them, or answer your own question. Ask about an unfinished objective; never act it out.",
     "When all objectives are done, say a warm goodbye with no question and set close=true.",
     "Never mention objectives, steps, questions, scripts, the app or AI. Never ask for private data (address, phone, ID).",
-    `You are ${gender}: the Arabic translation must use matching ${gender === "female" ? "feminine" : "masculine"} forms, natural Modern Standard Arabic, not literal, learner's name stays in Latin letters and appears at most once per reply.`,
+    "The Arabic translation must use the grammatical gender the scene block gives (masculine or feminine), natural Modern Standard Arabic, not literal; the learner's name stays in Latin letters and appears at most once per reply.",
     "understood_de = the learner's own sentence with your fixes applied (umlauts, capitalisation, plural, agreement) — the same words, the same meaning, the sentence a teacher would write above theirs. Never paraphrase, never swap a word for a different one, never answer their sentence.",
     "fix_reason_ar = one short, correct Arabic reason for exactly the changes in understood_de (for example «الجمع: Katze ← Katzen، والكلمة تعني يحب: liebe وليس lebe»). Leave it empty ONLY when understood_de equals the learner's sentence.",
     "hint_de is the ANSWER the learner could give to your question: a statement in their voice, never a question, and never your line. hint_ar is its Arabic meaning. Use ___ for personal facts.",
@@ -138,9 +145,20 @@ export function buildRoleplaySystemInstruction({ plan, level, objectivesDone = [
     "",
     "Return ONLY this JSON object, no prose and no code fence:",
     '{"reply_de":"","reply_ar":"","understood_de":"","fix_reason_ar":"","objectives_done":[],"close":false,"hint_de":"","hint_ar":""}',
-    `objectives_done = EVERY finished objective id after this turn, from exactly these ids: ${ids.join(", ")}.`,
     "reply_de is what you say in German. reply_ar is its Arabic translation. understood_de is the learner's own sentence with the corrections applied — the text a teacher would write above their sentence, not their raw words. hint_de/hint_ar are the learner's next possible sentence, never your line.",
-  ].join("\n");
+  ];
+  // The scene block: the only part of the prompt that changes between turns.
+  const sceneLines = [
+    "",
+    "SCENE (this is the only part that changes):",
+    `You are ${name}, ${role}. The learner is a beginner at level ${level}.`,
+    `Use at most ${limit} words per reply, familiar words only.`,
+    `Arabic gender for this persona: ${gender === "female" ? "feminine" : "masculine"}.`,
+    `Goal: ${plan?.goal || "practise this everyday situation."}`,
+    `Objectives:\n${objectiveLines(plan, done)}`,
+    `objectives_done = EVERY finished objective id after this turn, from exactly these ids: ${ids.join(", ")}.`,
+  ];
+  return [...staticLines, ...sceneLines].join("\n");
 }
 
 /**
@@ -329,11 +347,21 @@ export async function runRoleplayTurn({
     try {
       raw = await callAiRouter(payload, env, {
         preferFast: true,
+        // A learner's conversation walks the pool by MODEL (same model on every
+        // provider) and never accepts the weak Workers AI stand-in: when every
+        // provider is out, the route answers honestly instead of downgrading.
+        modelFirst: true,
+        allowWeakFallback: false,
         attemptTimeoutMs: ROLEPLAY_ATTEMPT_TIMEOUT_MS,
         budgetMs: attempt === 0 ? ROLEPLAY_ATTEMPT_TIMEOUT_MS + 1200 : ROLEPLAY_TOTAL_BUDGET_MS,
         ...(preferModel ? { preferModel } : {}),
       });
     } catch (err) {
+      // Capacity is terminal, not a bad shape: retrying the same exhausted pool
+      // costs two attempts to learn what the headers already said.
+      if (err?.code === "AI_CAPACITY_EXHAUSTED") {
+        return { ok: false, capacity: true, reason: "capacity", raw: "", attempts: attempt + 1 };
+      }
       reason = `provider:${String(err?.message || err).slice(0, 360)}`;
       continue;
     }

@@ -39,23 +39,22 @@ describe('resolveProviderPool', () => {
     resetProviderConfigState();
   });
 
-  it('returns the two defaults (OpenRouter + NVIDIA) and no Gemini/Groq entry', async () => {
+  it('returns the four defaults, with the preferred model on Groq and Cerebras first', async () => {
     const pool = await resolveProviderPool(makeEnv());
-    expect(pool.map((e) => e.provider).sort()).toEqual(['nvidia', 'openrouter']);
-    const gemini = pool.find((e) => e.provider === 'gemini');
-    const groq = pool.find((e) => e.provider === 'groq');
-    expect(gemini).toBeUndefined();
-    expect(groq).toBeUndefined();
+    expect(pool.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'nvidia', 'openrouter']);
+    expect(pool[0].model).toBe('openai/gpt-oss-120b');
+    expect(pool[1].model).toBe('openai/gpt-oss-120b');
+    expect(pool.find((e) => e.provider === 'gemini')).toBeUndefined();
   });
 
   it('honors a disabled default', async () => {
     const env = makeEnv();
     await setDefaultProviderState(env, 'nvidia', false);
     const pool = await resolveProviderPool(env);
-    expect(pool.map((e) => e.provider)).toEqual(['openrouter']);
+    expect(pool.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'openrouter']);
     await setDefaultProviderState(env, 'nvidia', true);
     const restored = await resolveProviderPool(env);
-    expect(restored.map((e) => e.provider).sort()).toEqual(['nvidia', 'openrouter']);
+    expect(restored.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'nvidia', 'openrouter']);
   });
 
   it('appends enabled custom entries after the defaults, in stored order', async () => {
@@ -67,7 +66,7 @@ describe('resolveProviderPool', () => {
       provider: 'deepseek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-chat', keys: ['custom-key-bbbb2'], enabled: false,
     });
     const pool = await resolveProviderPool(env);
-    expect(pool.map((e) => e.provider)).toEqual(['nvidia', 'openrouter', 'gateway-a']);
+    expect(pool.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'nvidia', 'openrouter', 'gateway-a']);
   });
 
   it('a dashboard key override wins over the env key list', async () => {
@@ -156,7 +155,7 @@ describe('upsert via the owner op', () => {
     });
     await upsertProviderEntry(env, { id: created.body.id, clearKeys: true });
     const pool = await resolveProviderPool(env);
-    expect(pool.length).toBe(2); // defaults only; the keyless custom entry never walks
+    expect(pool.length).toBe(4); // defaults only; the keyless custom entry never walks
   });
 
   it('caps the custom list and reports the cap', async () => {

@@ -25,6 +25,7 @@ import {
   ensureTelemetryTables,
   conversationLoggingEnabled,
   sweepConversationText,
+  providerUsageToday,
   CONVERSATION_RETENTION_DAYS,
   EVENT_RETENTION_DAYS,
 } from "./cloudflare-telemetry.js";
@@ -571,6 +572,14 @@ export async function handleInternalAdminRoutes(url, request, env, cors, ctx, de
     if (segments[0] === "overview" && segments.length === 1) {
       if (method !== "GET") return json({ error: "method_not_allowed" }, 405);
       return json(await handleOverview(env, url), 200);
+    }
+    // Per provider+model capacity for today: turns, tokens, 429s, and how much
+    // of the published quota is left. `/ai-usage?day=YYYY-MM-DD` reads a past
+    // day; the default is today (UTC).
+    if (segments[0] === "ai-usage" && segments.length === 1) {
+      if (method !== "GET") return json({ error: "method_not_allowed" }, 405);
+      const day = String(url.searchParams.get("day") || "").slice(0, 10);
+      return json(await providerUsageToday(env, /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : undefined), 200);
     }
     if (segments[0] === "errors" && segments.length === 1) {
       if (method !== "GET") return json({ error: "method_not_allowed" }, 405);

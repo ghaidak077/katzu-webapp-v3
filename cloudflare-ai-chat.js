@@ -410,6 +410,22 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       callAiRouter,
       preferModel: typeof env.ROLEPLAY_MODEL === "string" ? env.ROLEPLAY_MODEL.trim() : "",
     });
+    if (!outcome.ok && outcome.capacity) {
+      // Every configured provider is out of budget for its window. Say so in
+      // Arabic, invent no reply, and charge nothing: the learner keeps their
+      // sentence and their free session (the charge happens further down).
+      console.warn("[ai/turn] capacity exhausted — no provider can serve this turn");
+      return json(
+        {
+          error: "ai_capacity_exhausted",
+          code: "AI_CAPACITY_EXHAUSTED",
+          message: "الخدمة وصلت حدّها اليومي. جرّب لاحقاً",
+          meta: { provider: null, model: null, attempts: outcome.attempts, ms: Date.now() - turnStartedAt },
+        },
+        503,
+        cors,
+      );
+    }
     if (!outcome.ok) {
       // No template line stands in for a real reply: the client keeps the
       // learner's sentence and offers «أعد المحاولة» instead.
@@ -445,6 +461,27 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
         output_tokens: outputTokens,
         estimated_cost_usd: Number(estimateTurnCostUsd({ tier, inputTokens, outputTokens }).toFixed(6)),
       }));
+      // Capacity bookkeeping for the admin panel: turns, tokens, and how much of
+      // the provider's window is left according to its own headers. Injected by
+      // the worker, best-effort, and never part of this turn's answer.
+      try {
+        const provider = getProvider();
+        const budget = typeof deps.providerBudget === "function" ? deps.providerBudget() : [];
+        const row = (Array.isArray(budget) ? budget : []).find(
+          (b) => b && b.provider === provider && b.model === servedModel,
+        ) || null;
+        deps.onTurnCost?.({
+          env,
+          provider,
+          model: servedModel,
+          tokensIn: inputTokens,
+          tokensOut: outputTokens,
+          quotaRemaining: row?.remainingRequests ?? null,
+          quotaLimit: row?.limitRequests ?? null,
+        });
+      } catch {
+        /* bookkeeping only */
+      }
     } catch {
       /* a log line must never fail a learner's turn */
     }

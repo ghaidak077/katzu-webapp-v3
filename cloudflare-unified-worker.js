@@ -57,6 +57,7 @@ import {
   hasUsableProvider,
   inspectProviderKeys,
   latencySnapshot,
+  providerBudgetSnapshot,
   readAiCache,
   routerCountersSnapshot,
   writeAiCache,
@@ -113,6 +114,7 @@ import {
   consentKey,
   sweepConversationText,
   ensureTelemetryTables,
+  recordProviderUsage,
 } from "./cloudflare-telemetry.js";
 // The internal admin API: reached only over the admin Worker's Service Binding,
 // at /internal/admin/*, and only with the shared internal token.
@@ -192,7 +194,7 @@ function isKeyCoolingDown(key) {
   return true;
 }
 
-function markKeyCooldown(key, status = 429) {
+function markKeyCooldown(key, status = 429, retryAfterMs = null) {
   const fails = (keyConsecutiveFails.get(key) || 0) + 1;
   keyConsecutiveFails.set(key, fails);
 
@@ -207,6 +209,12 @@ function markKeyCooldown(key, status = 429) {
   } else if (fails >= 3) {
     durationMs = 120000;
   }
+
+  // A provider that names its own `Retry-After` is telling us the real window;
+  // honouring it is the difference between failing over once and retrying a
+  // closed door twenty-five seconds later for the rest of the day.
+  const honored = Number(retryAfterMs);
+  if (Number.isFinite(honored) && honored > 0) durationMs = Math.min(honored, 24 * 3600 * 1000);
 
   keyCooldownMap.set(key, Date.now() + durationMs);
 }
@@ -1517,6 +1525,10 @@ async function handlePublicHealth(env, cors) {
       // fallback — the owner asked for that to stop. It now means the configured
       // pool can serve; a fallback-only worker says so in one non-secret boolean.
       ready: poolHealth.active.length > 0,
+      // The CHAT pool specifically: a configured provider whose model has not
+      // passed the quality gate cannot answer a learner, so "the pool is up"
+      // and "the conversation works" are now two different statements.
+      chat_ready: poolHealth.chat?.ready === true,
       fallback_only: poolHealth.active.length === 0 && internal?.ready === true,
       // Operational state a monitoring check should be able to see.
       maintenance: isMaintenanceMode(env),
@@ -1555,6 +1567,17 @@ function aiRouterDeps(tel) {
     // Telemetry only: the router reports each provider attempt to this collector.
     // It is deliberately not read by any decision in the router.
     onAttempt: makeAttemptHook(tel),
+    // Capacity bookkeeping for the admin panel: which provider+model served how
+    // many turns, at what token cost, against the quota its headers published.
+    // Injected (not imported by the chat route) so the AI handlers stay free of
+    // the telemetry layer, exactly like the fallback seam above.
+    onTurnCost: (info) => {
+      try {
+        recordProviderUsage(info?.env, null, info || {});
+      } catch {
+        /* bookkeeping never fails a turn */
+      }
+    },
   };
 }
 
@@ -1620,6 +1643,9 @@ function aiRouteDeps(tel) {
       );
     },
     routerCounters: routerCountersSnapshot,
+    // What each provider's own headers said about its remaining window, so the
+    // turn route can record `remaining/limit` with the usage row it writes.
+    providerBudget: providerBudgetSnapshot,
     getProvider: () => lastAiProvider,
     // The model the pool served last (pinned by the router's onModel hook), read
     // by the turn route for its structured per-turn cost log.

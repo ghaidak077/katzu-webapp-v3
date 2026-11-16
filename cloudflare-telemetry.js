@@ -52,6 +52,24 @@ export const TELEMETRY_DDL = [
   `CREATE INDEX IF NOT EXISTS idx_ai_events_route ON ai_events (route, ts)`,
   `CREATE INDEX IF NOT EXISTS idx_ai_events_turn ON ai_events (turn_id)`,
   `CREATE INDEX IF NOT EXISTS idx_ai_events_key ON ai_events (key_id, ts)`,
+  // Per provider+model budget, one row per UTC day (2026-11-16). `ai_events`
+  // records one row per CALL and has no token columns; the capacity question
+  // ("how much of today's free tier is left?") needs an aggregate, written once
+  // per served turn.
+  `CREATE TABLE IF NOT EXISTS ai_provider_usage (
+    day TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    turns INTEGER NOT NULL DEFAULT 0,
+    tokens_in INTEGER NOT NULL DEFAULT 0,
+    tokens_out INTEGER NOT NULL DEFAULT 0,
+    errors_429 INTEGER NOT NULL DEFAULT 0,
+    quota_remaining INTEGER,
+    quota_limit INTEGER,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (day, provider, model)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_ai_provider_usage_day ON ai_provider_usage (day)`,
   `CREATE TABLE IF NOT EXISTS route_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ts INTEGER NOT NULL,
@@ -684,3 +702,111 @@ export function makeAttemptHook(collector) {
 
 /** Exposed for the key-disable feature: the same fingerprint the router stores. */
 export { keyFingerprint };
+
+// ---------------------------------------------------------------------------
+// Provider capacity (2026-11-16)
+//
+// One row per provider+model per UTC day: how many turns it served, how many
+// tokens they cost, how often it answered 429, and the last quota numbers the
+// provider itself published in its headers. The admin panel reads this to show
+// what is left today and to alert under 20%.
+// ---------------------------------------------------------------------------
+
+/** UTC day key, so a row cannot straddle midnights in two timezones. */
+export function usageDay(now = Date.now()) {
+  return new Date(now).toISOString().slice(0, 10);
+}
+
+/**
+ * Fold one served turn into today's row. Best-effort by design: a bookkeeping
+ * write must never fail a learner's turn, and the numbers are recomputable from
+ * `ai_events` if a write is lost.
+ */
+export function recordProviderUsage(env, ctx, details = {}) {
+  const provider = str(details.provider, 40);
+  const model = str(details.model, 80);
+  if (!provider || !model) return;
+  if (!env?.DB?.prepare) return;
+  const day = str(details.day, 10) || usageDay();
+  const tokensIn = Math.max(0, Math.min(2_000_000, Number(details.tokensIn) || 0));
+  const tokensOut = Math.max(0, Math.min(2_000_000, Number(details.tokensOut) || 0));
+  const is429 = details.status === 429 || details.kind === "minute" || details.kind === "day";
+  const remaining = Number.isFinite(Number(details.quotaRemaining)) ? Math.max(0, Number(details.quotaRemaining)) : null;
+  const limit = Number.isFinite(Number(details.quotaLimit)) ? Math.max(0, Number(details.quotaLimit)) : null;
+  try {
+    const statement = env.DB.prepare(
+      `INSERT INTO ai_provider_usage
+         (day, provider, model, turns, tokens_in, tokens_out, errors_429, quota_remaining, quota_limit, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(day, provider, model) DO UPDATE SET
+         turns = turns + excluded.turns,
+         tokens_in = tokens_in + excluded.tokens_in,
+         tokens_out = tokens_out + excluded.tokens_out,
+         errors_429 = errors_429 + excluded.errors_429,
+         quota_remaining = COALESCE(excluded.quota_remaining, quota_remaining),
+         quota_limit = COALESCE(excluded.quota_limit, quota_limit),
+         updated_at = excluded.updated_at`,
+    ).bind(
+      day,
+      provider,
+      model,
+      details.served === false ? 0 : 1,
+      tokensIn,
+      tokensOut,
+      is429 ? 1 : 0,
+      remaining,
+      limit,
+      Date.now(),
+    );
+    const pending = statement.run();
+    if (ctx?.waitUntil) ctx.waitUntil(Promise.resolve(pending).catch(() => {}));
+  } catch {
+    /* bookkeeping only */
+  }
+}
+
+/** Threshold the panel warns at: less than a fifth of the window left. */
+export const PROVIDER_LOW_QUOTA_RATIO = 0.2;
+
+/**
+ * Today's rows plus the alert flag, for the admin panel. A row without a
+ * published limit cannot be judged and is reported with `ratio: null` instead
+ * of a guess.
+ */
+export async function providerUsageToday(env, day = usageDay()) {
+  const rows = [];
+  if (env?.DB?.prepare) {
+    try {
+      const res = await env.DB.prepare(
+        `SELECT provider, model, turns, tokens_in, tokens_out, errors_429, quota_remaining, quota_limit, updated_at
+           FROM ai_provider_usage WHERE day = ? ORDER BY provider, model`,
+      ).bind(day).all();
+      for (const row of res?.results || []) rows.push(row);
+    } catch {
+      /* an empty table and a missing table look the same to the panel */
+    }
+  }
+  return {
+    day,
+    low_quota_ratio: PROVIDER_LOW_QUOTA_RATIO,
+    rows: rows.map((row) => {
+      const limit = Number(row.quota_limit);
+      const remaining = Number(row.quota_remaining);
+      const ratio = Number.isFinite(limit) && limit > 0 && Number.isFinite(remaining) ? remaining / limit : null;
+      return {
+        provider: row.provider,
+        model: row.model,
+        turns: Number(row.turns) || 0,
+        tokens_in: Number(row.tokens_in) || 0,
+        tokens_out: Number(row.tokens_out) || 0,
+        tokens_total: (Number(row.tokens_in) || 0) + (Number(row.tokens_out) || 0),
+        errors_429: Number(row.errors_429) || 0,
+        quota_remaining: Number.isFinite(remaining) ? remaining : null,
+        quota_limit: Number.isFinite(limit) ? limit : null,
+        ratio,
+        alert: ratio !== null && ratio < PROVIDER_LOW_QUOTA_RATIO,
+        updated_at: Number(row.updated_at) || 0,
+      };
+    }),
+  };
+}

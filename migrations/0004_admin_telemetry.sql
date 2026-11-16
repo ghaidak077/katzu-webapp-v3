@@ -116,3 +116,22 @@ CREATE TABLE IF NOT EXISTS admin_audit (
   meta TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_admin_audit_ts ON admin_audit (ts);
+
+-- 6. Per provider+model capacity for one UTC day (added 2026-11-16).
+--    ai_events is one row per CALL and carries no tokens; the owner's question
+--    ("how much of today's free tier is left, per provider?") needs an
+--    aggregate, written once per served turn and read by /admin/api/ai-usage.
+CREATE TABLE IF NOT EXISTS ai_provider_usage (
+  day TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  turns INTEGER NOT NULL DEFAULT 0,
+  tokens_in INTEGER NOT NULL DEFAULT 0,
+  tokens_out INTEGER NOT NULL DEFAULT 0,
+  errors_429 INTEGER NOT NULL DEFAULT 0,
+  quota_remaining INTEGER,
+  quota_limit INTEGER,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (day, provider, model)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_provider_usage_day ON ai_provider_usage (day);
