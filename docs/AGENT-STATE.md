@@ -138,7 +138,10 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
 - Worker live version id (rollback target for the next deploy):
-  **`a57a74ba-0242-4993-802f-549809394c95`** (2026-11-11, source `4dae8df`, the chat-engine revert: `/health` 200
+  **`5004cffe-8a75-4cd4-8f55-502fda397e0e`** (2026-11-15, source `1fcdf48`, the scenario-one copy fixes: gate
+  `VERIFY OK 16/16` in 981.5 s; `/health` 200 `storage:{d1,kv}`, `/crypto/health` 200 `ready:false`,
+  `/admin/api/affiliates` 401). Rollback target for that deploy: **`ef243498-d6ff-4607-98b7-a9c90273931a`**
+  (2026-11-13, the restored chat). Previous live id: **`a57a74ba-0242-4993-802f-549809394c95`** (2026-11-11, source `4dae8df`, the chat-engine revert: `/health` 200
   `storage:{d1,kv}`, `/crypto/health` 200 `ready:false`, `/internal/admin/health` 401). Rollback target for that
   deploy: **`8a82c4a4-a359-4188-8c25-95a9289ef2bf`** (2026-11-10, the fallback-free roleplay chat), then
   **`e98031d5-9932-4093-a7a9-7ba4ab827b0d`** (100%, deployment `09fa2438-d578-40c8-9076-c52cfa0ba922`,
@@ -170,6 +173,13 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   **Rollback target: `e7716e26-f3b4-478e-8097-106481a3369e`** (deployment
   `adff257d-f3d6-44cc-94f5-6a40514cd455`), then `bc7db8cc-5b4a-4a33-83b8-850e9f4c5b16` (`3692c953-…`), or
   delete the Worker; nothing else depends on it.
+- **App Pages production (2026-11-15, source `1fcdf48`):** deployment
+  **`c1395517-8045-41d4-8a3d-ad005367b1f3`** (the scenario-one copy fixes; entry `assets/index-A4LKpSkN.js`,
+  opener chunk `assets/opener-PkgKJY0G.js` carries «هل حقيبتك مفقودة» / «هل أمتعتك مفقودة» with the old
+  «ينقصك» gone, `assets/LiveConversationScreen-CrXuBa-U.js` carries the empty-hint note, and
+  `assets/SessionReportScreen-Et3r3ZeX.js` the honest `PRACTISING` line; `katzuai.com` verified in the browser
+  after the PWA «تحديث متاح» prompt: opener reads «نهارك سعيد. هل أمتعتك مفقودة؟»).
+  **Rollback: `e332291a-6dcc-4887-808b-64da60c8e16d`** (source `46d11d9`).
 - **App Pages production (2026-11-07, source `4af08b2`):** deployment
   **`eff039c2-4f80-4836-b964-8337d61cdddb`** (UNIT-PATH: nine-unit map + composed session + goal-only signup; entry
   `assets/index-DesAHQkO.js`, `/` and `katzuai.com` 200, `/sw.js` 200; production smoke 2 passed / 2 skipped).
