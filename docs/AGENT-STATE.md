@@ -115,14 +115,14 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `docs/agent/ARCHIVE-AGENT-STATE.md`), whose worker target `315ec953-…` was replaced by `56425f30-…`, then
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
-- **AI capacity + prompt v9 (2026-11-16, source `7c83ffa`):** worker
-  **`05d225ef-d2a2-46bb-a2c1-b6b16e3b2eeb`**, rollback **`d99eeecc-f1fb-4b5f-8cc7-2828b0c02959`**. `/health` 200
-  `ready:true, chat_ready:true, fallback_only:false, storage:{d1:"ok",kv:"ok"}`; `/crypto/health` 200
-  `ready:false`; `/admin/api/affiliates` **401**; `POST /ai/turn` **401** with a valid body and no token. App
-  Pages **`6003683c-91a0-418d-a0cb-44304a8fa3a2`** from `7c83ffa` (rollback
-  `5fe7c22f-79ef-4726-9266-9a7e5252a32d`, source `9259920`); worker + docs only, so the client bundle is
-  unchanged.
-- Worker live version id (rollback target for the next deploy):
+- **Roleplay prompt v10 (2026-11-18, source `0310e88`):** worker
+  **`89a1a55e-783b-4023-92f1-e17db916cf7d`**, rollback **`05d225ef-d2a2-46bb-a2c1-b6b16e3b2eeb`** (v9, source
+  `7c83ffa`). `/health` 200 `ready:true, chat_ready:true, fallback_only:false, storage:{d1:"ok",kv:"ok"}`;
+  `/crypto/health` 200 `ready:false`; `/admin/api/stats` **401**. App Pages
+  **`73943a1c-2735-49e9-b87d-9c241ed0f73f`** from `0310e88` (rollback
+  `83cb8db8-f44b-476d-b862-09522f7a347d`, source `1acc8f8`); lazy `assets/opener-Dm5Tubo0.js` carries both
+  register glosses.
+- Worker version at v8 (2026-11-16):
   **`d99eeecc-f1fb-4b5f-8cc7-2828b0c02959`** (2026-11-16, practice chat v8 + the `prompt_version` fix: gate
   `VERIFY OK 15/15` in 137.3 s plus playwright 175/11/0 separately; `/health` 200
   `ready:true, fallback_only:false, storage:{d1,kv}`, `/crypto/health` 200, `/admin/api/overview` 401).
