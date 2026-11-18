@@ -63,6 +63,9 @@
     { "id": "g31", "scenario": "first_greetings", "input": "Ich komme aus der Syrien.", "kind": "wrong-article", "expect": { "correct": true, "form": ["aus Syrien"] }, "holdout": true },
     { "id": "g32", "scenario": "first_greetings", "input": "Ich wohne in Berlin seit zwei Monate.", "kind": "wrong-ending", "expect": { "correct": true, "form": ["Monaten"] } },
     { "id": "g33", "scenario": "first_greetings", "input": "Ich habe eine frage.", "kind": "capitalisation", "expect": { "correct": true, "form": ["Frage"] } },
+    { "id": "g34", "scenario": "first_greetings", "input": "Hallo ich bin ghaidak", "kind": "capitalisation", "expect": { "correct": true, "form": ["Hallo", "Ghaidak"] } },
+    { "id": "g35", "scenario": "first_greetings", "input": "ich komme aus syria", "kind": "wrong-name", "expect": { "correct": true, "form": ["Syrien"] } },
+    { "id": "g36", "scenario": "first_greetings", "input": "ja ich wohne hier", "kind": "no-correction", "expect": { "correct": false }, "noChange": true },
 
     { "id": "a24", "scenario": "airport_arrival", "input": "Ich habe ein koffer verloren.", "kind": "wrong-article", "expect": { "correct": true, "form": ["einen Koffer"] } },
     { "id": "a25", "scenario": "airport_arrival", "input": "Meine koffer ist schwarz.", "kind": "wrong-gender", "expect": { "correct": true, "form": ["Mein Koffer"] }, "holdout": true },

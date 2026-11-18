@@ -40,11 +40,11 @@
       "ai_persona": "Nachbarin katze",
       "category": "daily_life",
       "icon": "users",
-      "initial_message_a0": "Hallo! Ich bin Frau Meier. Und du?",
-      "initial_message_a1": "Hallo! Ich bin Frau Meier, deine Nachbarin. Wie heißt du?",
-      "initial_message_a2": "Guten Tag! Ich bin Frau Meier und wohne nebenan. Wie heißt du, und woher kommst du?",
-      "initial_message_b1": "Guten Tag, ich bin Frau Meier, deine Nachbarin von nebenan. Schön, dich kennenzulernen — wie heißt du, und woher kommst du?",
-      "initial_message_b2": "Guten Tag, ich bin Frau Meier und wohne seit vielen Jahren nebenan. Es freut mich, dich kennenzulernen — erzähl mir doch ein wenig: Wie heißt du, und woher kommst du?"
+      "initial_message_a0": "Hallo! Ich bin Frau Meier. Wie heißen Sie?",
+      "initial_message_a1": "Hallo! Ich bin Frau Meier, Ihre Nachbarin. Wie heißen Sie?",
+      "initial_message_a2": "Guten Tag! Ich bin Frau Meier und wohne nebenan. Wie heißen Sie, und woher kommen Sie?",
+      "initial_message_b1": "Guten Tag, ich bin Frau Meier, Ihre Nachbarin von nebenan. Schön, Sie kennenzulernen — wie heißen Sie, und woher kommen Sie?",
+      "initial_message_b2": "Guten Tag, ich bin Frau Meier und wohne seit vielen Jahren nebenan. Es freut mich, Sie kennenzulernen — erzählen Sie doch ein wenig: Wie heißen Sie, und woher kommen Sie?"
     },
     {
       "id": "supermarket_checkout",

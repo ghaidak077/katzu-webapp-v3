@@ -75,12 +75,38 @@ export const GOALS_AR = {
 };
 
 /**
+ * Farewell phrases, shared by the universal `end_politely` objective and the
+ * server's "did the learner end the chat?" check. «Ich muss jetzt los» is NOT a
+ * farewell — the persona may say it, the learner has not said goodbye yet.
+ */
+export const FAREWELL_ANCHORS = [
+  'auf wiedersehen',
+  'wiedersehen',
+  'tschuss',
+  'tschus',
+  'tschau',
+  'ciao',
+  'bis bald',
+  'bis dann',
+  'bis spater',
+  'bis morgen',
+  'bis nachher',
+  'gute nacht',
+  'schonen tag',
+  'schonen abend',
+  'mach es gut',
+  'machs gut',
+  'alles gute',
+];
+
+/**
  * German anchors per objective id. One match credits the objective; two or more
  * are never required, because a beginner says the shortest thing that works.
  */
 export const OBJECTIVE_ANCHORS = {
   // ── greetings, identity, politeness ────────────────────────────────────────
   greet_and_name: ['hallo', 'guten tag', 'guten morgen', 'ich heiße', 'mein name', 'ich bin'],
+  end_politely: FAREWELL_ANCHORS,
   say_origin: ['aus ', 'komme', 'komm aus', 'wohne in', 'ursprünglich'],
   say_you_live_here: ['wohne', 'lebe', 'seit', 'hier', 'mieter'],
   answer_about_work: ['ich arbeite', 'arbeit', 'beruf', 'stelle', 'firma', 'als '],
@@ -237,6 +263,17 @@ export function normalizeClaimText(value) {
     .replace(/[^a-z0-9#\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * True when the text contains one of the farewell phrases. Used twice: the
+ * learner's own words are the only way `end_politely` can be credited, and a
+ * persona reply may not use a farewell before the learner did.
+ */
+export function textHasFarewell(value) {
+  const text = normalizeClaimText(value);
+  if (!text) return false;
+  return FAREWELL_ANCHORS.some((anchor) => text.includes(normalizeClaimText(anchor)));
 }
 
 /** The anchors that can credit one objective, objective-level `words` first. */

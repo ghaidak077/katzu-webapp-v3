@@ -97,8 +97,9 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## CURRENT MISSION
 
-**Where the work stands (2026-11-16).** The practice chat is the live engine (prompt v9, one AI call per
-turn, 49 scenarios x 3 goals) and its router speaks to one Groq organization only. Older mission
+**Where the work stands (2026-11-18).** The practice chat is the live engine (prompt v10, one AI call per
+turn, 49 scenarios x 4 objectives: 3 scene goals plus `end_politely`) and its router speaks to one Groq
+organization only. Older mission
 write-ups — V46 admin panel and content studio, V45 conversation surface, GEO/`/guides`, AFF-1
 affiliates — are deployed history, moved verbatim to `docs/agent/ARCHIVE-AGENT-STATE.md` (search
 `CURRENT MISSION moved 2026-11-16`) to keep this file under its 80 KB cap. Their open owner items still
@@ -290,7 +291,8 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
 
-| CHAT-V8. Practice chat v8: measured correction, 3 goals per scenario, replay harness | partial | **Prompt v8 shipped and everything around it verified; the ≥90% correction gate itself is unproven.** Live diagnosis before the change: every turn Groq `openai/gpt-oss-120b`, 1 attempt, 1.2–1.7 s, correction recall **6/13 (46%)**, one invented off-topic fact. `ROLEPLAY_PROMPT_VERSION = 8` adds correction/no-echo, typo-understanding, stay-in-role-no-invented-facts, one-question-per-reply and hint-in-same-response rules; `meta:{provider,model,attempts,ms}` on `/ai/turn`; `prompt_version` in the cost log is now the constant instead of a hardcoded `1`; the Workers AI fallback no longer reports the Groq model name; `/health` gains `fallback_only`; all 49 plans hold exactly 3 objectives (`docs/OWNER-SCENARIO-GOALS.md`, courtesy beats cut, orphan anchors deleted); `scripts/replay/` holds the 46-case harness (11 held out) and the scorer. Gate `VERIFY OK 15/15` + playwright 175 passed/11 skipped/0 failed. Worker `d99eeecc-…` live and Pages `2b0a22d0-…` from `92a0f42`, `/health` `ready:true, fallback_only:false`, admin 401. **Partial replay:** 29 Groq turns, p95 3.32 s, 0 double questions, 0 farewell questions, correction 3/4 («Ich heisse» uncorrected), then `429` on the 200-turn/day account cap. The Workers AI fallback that takes over when the pool window closes fails the checks: 5 of 31 turns got the retry card. |
+| CHAT-V8. Practice chat v8: measured correction, 3 goals per scenario, replay harness | partial | **Superseded by v10 except the open ≥90% correction gate.** v8 added correction/no-echo, typo, no-invented-fact, one-question and hint rules (`ROLEPLAY_PROMPT_VERSION = 8`), `meta:{provider,model,attempts,ms}` on `/ai/turn`, the real `prompt_version` in the cost log, `/health` `fallback_only`, 3 objectives per plan, and the 46-case harness + scorer. Gate `VERIFY OK 15/15` + playwright 175/11/0; worker `d99eeecc-…`, Pages `2b0a22d0-…` from `92a0f42`. Partial replay: 29 Groq turns, p95 3.32 s, 0 double/farewell questions, correction 3/4 («Ich heisse» uncorrected), then `429`; the Workers AI fallback failed 5 of 31 checks. |
+| CHAT-V10. Practice chat v10: register lock, learner-decided farewell, persona gender/detail | partial | **Fixed locally; production keeps the old A1 opener until a content load.** Prompt **v10**: all 49 plans declare `register` (40 `sie` / 9 `du`) and `persona_gender` and gain `end_politely`; the prompt restates the register each turn, uses the persona's Arabic gender, and adds one plan detail per turn instead of echoing the learner. `end_politely` credits only on the learner's farewell, so `close` cannot fire before they end; goodbye-first and register-switch replies fail the check. Header counts goals (`N من 4`). Replay 66→69 (`g34`–`g36`), scorer `--only`/`false_fix`; live **groq/`openai/gpt-oss-120b`**, both corrections credited, `g36` no change, 0 failures. Tests **55/55**; gate/deploy in this batch's report. **Limitation:** production D1 keeps the `du` opener (no `CONTENT-LOAD-AUTHORIZED:`); one reply used feminine `أنتِ` for an unknown-gender learner. |
 
 ## DECISIONS
 
@@ -547,6 +549,11 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 ## OWNER-OPEN
 
 > Resolved and historical owner items are in `docs/agent/ARCHIVE-AGENT-STATE.md`.
+
+- **A teacher must read the new A1 neighbour opener (CHAT-V10, 2026-11-18).**
+  «Hallo! Ich bin Frau Meier, Ihre Nachbarin. Wie heißen Sie?» and its Arabic «أهلاً! أنا السيدة
+  ماير، جارتك. ما اسمك؟» are local-only until a `CONTENT-LOAD-AUTHORIZED:` line allows the
+  production row update. Owner checklist §18.
 
 - **The shipped chat prompt is still unmeasured against the 90% bar (CHAT-EVAL-1, 2026-11-13).** Prompt v5
   scored 46/60 in one full run, v6 scored 30/32 judged, v7 measured **6/13 (46%)** correction recall live, and

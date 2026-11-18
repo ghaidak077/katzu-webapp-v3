@@ -1,4 +1,4 @@
-# The conversation prompt (roleplay turn, v9)
+# The conversation prompt (roleplay turn, v10)
 
 One prompt, one call, one version. Every ordinary practice conversation — all 49 served
 scenarios — is this prompt plus the scene's plan plus the last six turns. There is no script,
@@ -20,9 +20,10 @@ learner's sentence in the composer, is not counted, and does not consume the fre
   `shapeRoleplayReply`, `checkRoleplayReply`, `runRoleplayTurn`); plans in
   `cloudflare-roleplay-plans.js`; Arabic goals and objective anchors in
   `cloudflare-roleplay-anchors.js`.
-- Version: `ROLEPLAY_PROMPT_VERSION = 9`. Two tuning passes inside v5/v6 (see the eval table in
+- Version: `ROLEPLAY_PROMPT_VERSION = 10`. Two tuning passes inside v5/v6 (see the eval table in
   `ROLEPLAY-EVAL.md`); neither changed a check or a threshold. v8 (2026-11-16) adds the rules
-  below and nothing else; **v9 (2026-11-16) is the token diet** — see the end of this file.
+  below and nothing else; **v9 (2026-11-16) is the token diet**; **v10 (2026-11-18) adds
+  register, persona gender/details and the learner-owned farewell** — see the end of this file.
 
 - **Correction is not optional.** Every real error is corrected in `understood_de` — false perfect,
   wrong auxiliary, wrong verb, word order, article/gender, missing noun capital, wrong ending. The
@@ -37,6 +38,10 @@ learner's sentence in the composer, is not counted, and does not consume the fre
   keys, quotas and failover.
 
 ## The prompt, verbatim
+
+> The copy below is the v8 wording kept for review. Since v9 the static block comes first and the
+> scene block last; since v10 the scene block also carries the register, the Arabic gender and
+> PERSONA DETAILS. `buildRoleplaySystemInstruction` in `cloudflare-roleplay.js` is authoritative.
 
 `{name}`, `{role}`, `{goal}`, the objective list, `{level}` and `{N}` (the level's word cap) come
 from the plan and the learner's level. `[x]` marks an objective the server has already credited.
@@ -113,6 +118,11 @@ and the learner's new message at 1000.
 model forgot. The header shows `credits / total`, and the session also ends after the learner's
 reply to the farewell or with «إنهاء», plus a calm turn cap (`levelSpec.maxSessionTurns`).
 
+Since v10 every plan carries the universal `end_politely` objective. It is credited only when the
+learner's own sentence (raw or `understood_de`) contains a farewell — never from the persona's
+words — so `close` cannot fire before the learner ended the chat. The header therefore reads
+`N von 4`; it counts goals, not turns.
+
 ## Generation
 
 | knob | value | why |
@@ -123,14 +133,20 @@ reply to the farewell or with «إنهاء», plus a calm turn cap (`levelSpec.m
 | response type | `application/json` | parsed strictly; a code fence or trailing sentence is tolerated |
 | attempt timeout / budget | 3.5 s / 8 s | one silent retry, second provider included |
 
-## The three pre-display checks
+## The pre-display checks
 
 One retry (two attempts, never more), then an honest `502 AI_EMPTY_REPLY`; the learner keeps their
 sentence and the composer offers «أعد المحاولة». No template line is ever substituted.
 
 1. **Not a near-repeat** of the last three persona lines (token overlap ≥ 0.8).
 2. **At most one `?`**, and none at all when `close` is true.
-3. **No meta words**: «nächste Frage», «nächsten Schritt», «Schritt», «السؤال التالي»,
+3. **No farewell before the learner said one** (`farewell_before_learner`): a reply containing a
+   farewell anchor is rejected while the learner's sentence and `understood_de` have none. «Ich
+   muss jetzt los» is not a farewell, so leaving the scene never closes it.
+4. **Register** (`register_switch`): a `sie` scene rejects du/dich/dir/dein…, and a `du` scene
+   rejects Sie/Ihnen/Ihr… A sentence-initial «Sie» is not counted in a `du` scene because it can
+   mean «she».
+5. **No meta words**: «nächste Frage», «nächsten Schritt», «Schritt», «السؤال التالي»,
    «السؤال القادم», «objective».
 
 ## The correction chip
@@ -211,3 +227,32 @@ for all of it. Four changes, no rule removed:
 What this does NOT change: the JSON contract, any safety rule, any check in
 `checkRoleplayReply`, and any threshold in the replay gate. A prompt edit that
 touches a rule must bump the version and re-run the replay.
+
+## v10 — register, persona truth, learner-owned farewell (2026-11-18)
+
+The owner's transcript of a real A1 `first_greetings` conversation showed six
+defects. Five are prompt/data rules; the sixth is a counting label:
+
+1. **Register is data, not a default.** Every plan carries `register` (`"sie"`
+   or `"du"`; 9 peer-informal scenes use `du`, the rest `sie`). Frau Meier is
+   `sie`, so every level of the scenario opens in Sie-form. The scene block
+   states the register and the rule is on EVERY turn; `checkRoleplayReply`
+   rejects a reply that switches it.
+2. **The persona never closes the chat.** It may say «Ich muss jetzt los», but a
+   farewell is rejected until the learner said goodbye. `end_politely` is a
+   universal fourth objective, credited only from the learner's own farewell.
+3. **Arabic follows the persona's gender.** Plans carry `persona_gender`
+   (`male`/`female`); a female persona uses feminine forms («سعيدة», never
+   «سعيد»).
+4. **One persona detail per turn, never invented.** `persona.details` is the
+   only source (Frau Meier: «Ich wohne im Erdgeschoss des Hauses.», «Ich habe
+   einen kleinen braunen Hund.»). The prompt forbids playing the learner's own
+   facts back as a discovery («Du heißt Ghaidak!»).
+5. **The learner's register drives `hint_de`**, so the suggested sentence matches
+   how the learner is being addressed.
+6. **`N von 4` counts goals.** It was `3 von 3`; the label now matches the four
+   objectives and never implies a turn count.
+
+Replay additions (`scripts/replay/scenario-replay-cases.json`): a capitalisation
+fix (`Hallo ich bin ghaidak`), a name correction (`ich komme aus syria` →
+`Syrien`) and a sentence that must come back unchanged (`ja ich wohne hier`).

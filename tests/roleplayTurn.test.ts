@@ -6,6 +6,7 @@ import {
   buildRoleplaySystemInstruction,
   checkRoleplayReply,
   isNearDuplicateReply,
+  registerSwitchInReply,
   parseRoleplayJson,
   roleplayGenerationConfig,
   roleplayWordLimit,
@@ -139,7 +140,7 @@ describe('shaping one reply', () => {
       reply_de: reply.reply_de,
       reply_ar: reply.reply_ar,
       understood_de: reply.understood_de,
-      objectives_total: 3,
+      objectives_total: 4,
       close: false,
       hint_de: reply.hint_de,
     });
@@ -156,6 +157,24 @@ describe('shaping one reply', () => {
     expect(early!.close).toBe(false);
   });
 
+  it('credits the polite ending only from the learner\'s own farewell', () => {
+    const all = objectivesOf(plan).map((o) => o.id);
+    // The model claims it, but the learner has not said goodbye: refused.
+    const claimed = shapeRoleplayReply(
+      { ...reply, objectives_done: all },
+      { plan, done: all.filter((id) => id !== 'end_politely'), learnerText: 'die rechnung, bitte' },
+    )!;
+    expect(claimed.objectives_done).not.toContain('end_politely');
+    expect(claimed.close).toBe(false);
+    // The learner says goodbye and the model forgets to claim it: credited.
+    const said = shapeRoleplayReply(
+      { ...reply, objectives_done: all.filter((id) => id !== 'end_politely') },
+      { plan, done: all.filter((id) => id !== 'end_politely'), learnerText: 'danke. auf wiedersehen!' },
+    )!;
+    expect(said.objectives_done).toContain('end_politely');
+    expect(said.close).toBe(true);
+  });
+
   it('closes when every objective is done, even if the model forgot the flag', () => {
     // Every objective but the last is already credited; the last one is claimed
     // here and must be supported by the learner's own sentence (the server only
@@ -163,7 +182,7 @@ describe('shaping one reply', () => {
     const all = objectivesOf(plan).map((o) => o.id);
     const turn = shapeRoleplayReply(
       { ...reply, objectives_done: all, close: false },
-      { plan, done: all.slice(0, -1), learnerText: 'die rechnung, bitte' },
+      { plan, done: all.slice(0, -1), learnerText: 'die rechnung, bitte. auf wiedersehen' },
     );
     expect(turn!.objectives_done).toEqual(all);
     expect(turn!.close).toBe(true);
@@ -187,7 +206,34 @@ describe('the three cheap checks', () => {
   it('allows at most one question mark, and none on the goodbye', () => {
     expect(checkRoleplayReply({ ...reply, reply_de: 'A? B?' }).ok).toBe(false);
     expect(checkRoleplayReply({ ...reply, close: true, reply_de: 'Guten Tag. Auf Wiedersehen?' }).ok).toBe(false);
-    expect(checkRoleplayReply({ ...reply, close: true, reply_de: 'Guten Tag. Auf Wiedersehen.' }).ok).toBe(true);
+    expect(
+      checkRoleplayReply({ ...reply, close: true, reply_de: 'Guten Tag. Auf Wiedersehen.' }, { learnerText: 'auf wiedersehen' }).ok,
+    ).toBe(true);
+  });
+
+  it('never lets the persona say goodbye before the learner did', () => {
+    const verdict = checkRoleplayReply(
+      { ...reply, close: false, reply_de: 'Schön. Auf Wiedersehen!' },
+      { learnerText: 'ich heiße ghaidak' },
+    );
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toBe('farewell_before_learner');
+    // «Ich muss jetzt los» leaves the scene without ending it.
+    expect(checkRoleplayReply({ ...reply, reply_de: 'Ich muss jetzt los. Wie heißen Sie?' }, { learnerText: 'hallo' }).ok).toBe(true);
+  });
+
+  it('rejects a reply that switches the register of the scene', () => {
+    // Frau Meier is a Sie scene; the model must not answer with «du».
+    const informal = checkRoleplayReply({ ...reply, reply_de: 'Gerne. Möchtest du auch Kuchen?' }, { register: 'sie' });
+    expect(informal.ok).toBe(false);
+    expect(informal.reason).toBe('register_switch');
+    // A du scene must not drift into Sie.
+    const formal = checkRoleplayReply({ ...reply, reply_de: 'Gerne. Möchtest du ein Stück Kuchen?' }, { register: 'du' });
+    expect(formal.ok).toBe(true);
+    expect(registerSwitchInReply('Gerne. Möchten Sie ein Stück Kuchen?', 'du')).toBe(true);
+    // Lowercase «sie» is «she», not an address.
+    expect(registerSwitchInReply('Sie wohnt im Erdgeschoss. Wie heißt du?', 'du')).toBe(false);
+    expect(registerSwitchInReply('Sie wohnt im Erdgeschoss. Wie heißen Sie?', 'du')).toBe(true);
   });
 
   it('rejects meta lines about the exercise', () => {

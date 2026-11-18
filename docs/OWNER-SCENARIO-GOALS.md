@@ -1,9 +1,28 @@
-# Owner scenario goals — exactly three per scenario
+# Owner scenario goals — three per scenario, plus the universal ending
 
 Created 2026-11-16 from the owner request "every scenario has exactly 3 goals (ids and
 success criteria) in the server plans". The request said the list would follow in this
 file; no per-scenario list was attached, so every goal below is derived from the plan
 that was already serving that scenario, with the ids kept exactly as they were.
+
+## v10 (2026-11-18) — the fourth goal and what the header counts
+
+- Every one of the 49 plans now ends with the same fourth objective, `end_politely`:
+  the learner says goodbye. It is credited only from the learner's own farewell
+  (`auf Wiedersehen`, `Tschüss`, `Bis bald`, …), never from the persona's words.
+- Because `close` is server-decided (`allDone`), the chat can now close only after the
+  learner has ended it. The persona may say «Ich muss jetzt los», but its farewell is
+  rejected until the learner said goodbye first.
+- **The header counts GOALS, not turns.** `N von 4` means four objectives are finished;
+  it never means four messages were exchanged. It was `3 von 3` before this change and
+  is `N von 4` now; a learner can finish the three scene goals in any number of turns.
+- The rows below still list the three scene-specific goals; `end_politely` is common to
+  all of them and is not repeated in every row.
+- **Teacher review flag:** the A1 opener was changed to
+  «Hallo! Ich bin Frau Meier, Ihre Nachbarin. Wie heißen Sie?» (Sie-form, matching the
+  scenario's `register: "sie"`). Please have a teacher confirm that this is the right
+  first sentence for an A1 learner before it becomes the production opener; the Arabic
+  gloss is «أهلاً! أنا السيدة ماير، جارتك. ما اسمك؟».
 
 ## How the third goal was chosen
 

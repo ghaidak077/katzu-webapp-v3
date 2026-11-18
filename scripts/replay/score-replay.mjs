@@ -17,13 +17,25 @@ import { fileURLToPath } from 'node:url';
 import { hintMatchesQuestion } from '../../cloudflare-turn-quality.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const capturePath = resolve(process.argv[2] || join(root, '.tmp', 'replay.json'));
+const captureArg = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : null;
+const capturePath = resolve(captureArg || join(root, '.tmp', 'replay.json'));
 const casesFile = JSON.parse(readFileSync(join(root, 'scripts/replay/scenario-replay-cases.json'), 'utf8'));
 const capture = JSON.parse(readFileSync(capturePath, 'utf8'));
 const turns = Array.isArray(capture) ? capture : capture.turns;
 
+/** `--only g34,g35` or `--only=g34,g35` scores just those cases. */
+const onlyArg = process.argv.find((arg) => arg === '--only' || arg.startsWith('--only='));
+const onlyIds = onlyArg
+  ? (onlyArg.includes('=')
+      ? onlyArg.slice(onlyArg.indexOf('=') + 1)
+      : process.argv[process.argv.indexOf(onlyArg) + 1] || ''
+    )
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean)
+  : [];
 const byId = new Map(turns.map((turn) => [turn.id, turn]));
-const cases = casesFile.cases;
+const cases = onlyIds.length ? casesFile.cases.filter((c) => onlyIds.includes(c.id)) : casesFile.cases;
 const openers = casesFile.openers;
 
 /** Question marks in a line, the same cheap rule the route uses. */
@@ -75,6 +87,12 @@ function checkCase(entry) {
   if (hint && !hintMatchesQuestion(reply, hint)) failures.push('hint_mismatch');
 
   if (c?.offTopic && INVENTED_FACT.test(reply)) failures.push('invented_fact');
+
+  // A sentence that needs no correction must not come back "fixed". Fold case,
+  // punctuation and umlauts first, so «ja ich wohne hier» → «Ja, ich wohne
+  // hier.» is not a correction while a real word change (word order, verb,
+  // ending) is. `changed` below stays case-strict on purpose.
+  if (c?.noChange && understood.trim() && fold(understood) !== fold(raw)) failures.push('false_fix');
 
   // An echo of the learner's own error is the failure the owner saw twice.
   if (c?.expect?.correct) {
@@ -160,6 +178,7 @@ const offTopic = scored.filter((r) => r.failures.includes('invented_fact')).leng
 
 console.log('');
 console.log(`turns            ${scored.length} (held out ${scored.filter((r) => r.holdout).length})`);
+if (onlyIds.length) console.log(`subset           ${onlyIds.join(',')} — gates below are indicative only`);
 console.log(`providers        ${JSON.stringify(providers)}  workers-ai fallback: ${fallbacks}`);
 console.log(`latency p50/p95  ${quantile(0.5)} / ${quantile(0.95)} ms`);
 console.log(`correction recall ${allRecall.text}  (tune ${tuneRecall.text}, holdout ${holdRecall.text})`);

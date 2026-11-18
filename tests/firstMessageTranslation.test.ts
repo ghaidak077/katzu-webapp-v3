@@ -129,7 +129,7 @@ describe('every first message ships its Arabic in every mode', () => {
   });
 
   it('resolves the exact production opener that used to fail', () => {
-    const german = 'Hallo! Ich bin Frau Meier, deine Nachbarin. Wie heißt du?';
+    const german = 'Hallo! Ich bin Frau Meier, Ihre Nachbarin. Wie heißen Sie?';
     const arabic = storedOpenerArabic(german);
     expect(arabic).toBeTruthy();
     expect(arabic).toMatch(ARABIC);

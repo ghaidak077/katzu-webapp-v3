@@ -3,12 +3,14 @@
 Two files, one job: replay a fixed set of learner sentences against the real
 `POST /ai/turn` and score the answers with the same rules the product relies on.
 
-- `scenario-replay-cases.json` — 66 learner turns on `first_greetings` and
-  `airport_arrival`, 34 of them carrying a genuine error (spelling, article/gender,
+- `scenario-replay-cases.json` — 69 learner turns on `first_greetings` and
+  `airport_arrival`, 36 of them carrying a genuine error (spelling, article/gender,
   word order, conjugation, capitalisation, umlaut) across the kinds the owner
   named. Each case names the wrong-thing-it-tests (`kind`), whether a real error
   MUST be corrected (`expect.correct`) and which correct form proves it
-  (`expect.form`). `holdout: true` marks the ~24% that are never used to tune the
+  (`expect.form`). `noChange: true` marks a sentence that needs no correction, so
+  a "fix" that changes real words is a `false_fix`. `holdout: true` marks the
+  ~24% that are never used to tune the
   prompt; their score is reported separately. `changed` is compared with case and
   umlauts intact — folding both sides first hides exactly the fixes a beginner
   needs credited (`heisse` → `heiße`, `lehrerin` → `Lehrerin`).
@@ -27,7 +29,7 @@ that is already signed in — the token is read from IndexedDB and never printed
 2. Run the runner in the page console (it reads `users/current_user.sessionToken`,
    POSTs each case with a fresh `session_id`, and keeps `window.__R`).
 3. Pace it: `/ai/turn` allows 10 requests a minute, so the runner waits ~6 s
-   between cases (66 cases ≈ 7 minutes — and ~a third of the day's 200-turn
+   between cases (69 cases ≈ 7 minutes — and ~a third of the day's 200-turn
    allowance, so run it once per prompt change, not after every fix).
 4. Copy `window.__R` to `.tmp/replay-<prompt>.json`.
 
@@ -39,6 +41,15 @@ real browser, and a committed copy would invite someone to think it can run in C
 ```bash
 node scripts/replay/score-replay.mjs .tmp/replay-v8.json
 ```
+
+To score only some cases (a targeted regression run), pass `--only`:
+
+```bash
+node scripts/replay/score-replay.mjs .tmp/replay-g34.json --only g34,g35,g36
+```
+
+A subset run prints `subset … — gates below are indicative only`, because a
+three-case sample cannot carry the ≥90% and p95 gates.
 
 It prints one line per turn (mark, id, latency, provider, FIX/MISS, failed
 checks) and then the gates:

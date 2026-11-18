@@ -474,11 +474,11 @@ export const OPENER_GLOSSES: Record<string, string> = {
   "Guten Morgen! Ihr Arbeitsplatz ist neben dem Büro der Führungskraft.": "صباح الخير! مكان عملك بجانب مكتب المدير.",
   "Guten Morgen! Heute zeige ich Ihnen das Büro und erkläre, wofür Sie verantwortlich sind.": "صباح الخير! سأعرض عليك المكتب اليوم وأشرح ما أنت مسؤول عنه.",
   "Guten Morgen! Ich bin gespannt: Welche Herausforderung reizen Sie an dieser Stelle, und wie übernehmen Sie gern Verantwortung?": "صباح الخير! متشوّق لمعرفة: أي تحدٍّ يجذبك في هذا العمل، وكيف تحب أن تتحمّل المسؤولية؟",
-  "Hallo! Ich bin Frau Meier. Und du?": "أهلاً! أنا السيدة ماير. وأنت؟",
-  "Hallo! Ich bin Frau Meier, deine Nachbarin. Wie heißt du?": "أهلاً! أنا السيدة ماير، جارتك. ما اسمك؟",
-  "Guten Tag! Ich bin Frau Meier und wohne nebenan. Wie heißt du, und woher kommst du?": "نهارك سعيد! أنا السيدة ماير وأسكن بالجوار. ما اسمك، ومن أين أتيت؟",
-  "Guten Tag, ich bin Frau Meier, deine Nachbarin von nebenan. Schön, dich kennenzulernen — wie heißt du, und woher kommst du?": "نهارك سعيد، أنا السيدة ماير، جارتك المجاورة. سعيد بمعرفتك — ما اسمك، ومن أين أتيت؟",
-  "Guten Tag, ich bin Frau Meier und wohne seit vielen Jahren nebenan. Es freut mich, dich kennenzulernen — erzähl mir doch ein wenig: Wie heißt du, und woher kommst du?": "نهارك سعيد، أنا السيدة ماير وأسكن بالجوار منذ سنوات. سعيد بمعرفتك — حدّثني قليلاً: ما اسمك، ومن أين أتيت؟",
+  "Hallo! Ich bin Frau Meier. Wie heißen Sie?": "أهلاً! أنا السيدة ماير. ما اسمك؟",
+  "Hallo! Ich bin Frau Meier, Ihre Nachbarin. Wie heißen Sie?": "أهلاً! أنا السيدة ماير، جارتك. ما اسمك؟",
+  "Guten Tag! Ich bin Frau Meier und wohne nebenan. Wie heißen Sie, und woher kommen Sie?": "نهارك سعيد! أنا السيدة ماير وأسكن بالجوار. ما اسمك، ومن أين أنت؟",
+  "Guten Tag, ich bin Frau Meier, Ihre Nachbarin von nebenan. Schön, Sie kennenzulernen — wie heißen Sie, und woher kommen Sie?": "نهارك سعيد، أنا السيدة ماير، جارتك المجاورة. يسعدني التعرّف عليك — ما اسمك، ومن أين أنت؟",
+  "Guten Tag, ich bin Frau Meier und wohne seit vielen Jahren nebenan. Es freut mich, Sie kennenzulernen — erzählen Sie doch ein wenig: Wie heißen Sie, und woher kommen Sie?": "نهارك سعيد، أنا السيدة ماير وأسكن بالجوار منذ سنوات. يسعدني التعرّف عليك — حدّثني قليلاً: ما اسمك، ومن أين أنت؟",
   "Hallo! Ich helfe Ihnen. Was brauchen Sie?": "أهلاً! سأساعدك. ماذا تحتاج؟",
   "Hallo, schön dass Sie da sind! Wir haben Kaffee, Tee, Zucker und Milch. Was brauchen Sie heute?": "أهلاً، سعيد بوجودك! لدينا قهوة وشاي وسكر وحليب. ماذا تحتاج اليوم؟",
   "Hallo, schön dass Sie vorbeischauen! Wir haben heute Kaffee, Tee, Zucker und Milch im Angebot. Sagen Sie mir, was Sie brauchen.": "أهلاً، سعيد بمرورك! عندنا اليوم قهوة وشاي وسكر وحليب بعرض خاص. قل لي ماذا تحتاج.",
@@ -532,5 +532,10 @@ export const OPENER_GLOSSES: Record<string, string> = {
   "Guten Tag! Wir haben etwa fünf Minuten Zeit. Erzählen Sie mir bitte zuerst: Was möchten Sie gemeinsam planen?": "نهارك سعيد! لدينا نحو خمس دقائق. أخبرني أولاً من فضلك: ما الذي تريد أن نخطط له معاً؟",
   "Bitte präsentieren Sie jetzt das Thema. Beginnen Sie ruhig — ich höre zu und stelle danach Fragen.": "قدّم الموضوع الآن من فضلك. ابدأ على راحتك — أنا أستمع ثم أطرح الأسئلة بعد ذلك.",
   "Danke, Ihre Präsentation ist zu Ende. Jetzt stelle ich Ihnen einige Fragen.": "شكراً، انتهى عرضك. الآن سأطرح عليك بعض الأسئلة.",
-  "Hallo! Wie kann ich Ihnen helfen?": "أهلاً! كيف يمكنني مساعدتك؟"
+  "Hallo! Wie kann ich Ihnen helfen?": "أهلاً! كيف يمكنني مساعدتك؟",
+  "Hallo! Ich bin Frau Meier. Und du?": "أهلاً! أنا السيدة ماير. وأنت؟",
+  "Hallo! Ich bin Frau Meier, deine Nachbarin. Wie heißt du?": "أهلاً! أنا السيدة ماير، جارتك. ما اسمك؟",
+  "Guten Tag! Ich bin Frau Meier und wohne nebenan. Wie heißt du, und woher kommst du?": "نهارك سعيد! أنا السيدة ماير وأسكن بالجوار. ما اسمك، ومن أين أتيت؟",
+  "Guten Tag, ich bin Frau Meier, deine Nachbarin von nebenan. Schön, dich kennenzulernen — wie heißt du, und woher kommst du?": "نهارك سعيد، أنا السيدة ماير، جارتك المجاورة. سعيد بمعرفتك — ما اسمك، ومن أين أتيت؟",
+  "Guten Tag, ich bin Frau Meier und wohne seit vielen Jahren nebenan. Es freut mich, dich kennenzulernen — erzähl mir doch ein wenig: Wie heißt du, und woher kommst du?": "نهارك سعيد، أنا السيدة ماير وأسكن بالجوار منذ سنوات. سعيد بمعرفتك — حدّثني قليلاً: ما اسمك، ومن أين أتيت؟"
 };

@@ -42,7 +42,24 @@ describe('roleplay plans are complete data', () => {
         expect(objective.id, `${id} has an objective without id`).toMatch(/^[a-z0-9_]+$/);
         expect(objective.description, `${id}/${objective.id} has no description`).toBeTruthy();
       }
+      // v10: every scene states its address form and the persona's Arabic
+      // gender explicitly, and every plan ends on the learner's farewell.
+      expect(['sie', 'du'], `${id} register`).toContain(plan.register);
+      expect(['male', 'female'], `${id} persona_gender`).toContain(plan.persona_gender);
+      expect(
+        objectivesOf(plan).some((objective) => objective.id === 'end_politely'),
+        `${id} has no end_politely objective`,
+      ).toBe(true);
     }
+  });
+
+  it('gives Frau Meier the formal register, a female persona and two details', () => {
+    const plan = planForScenario('first_greetings')!;
+    expect(plan.register).toBe('sie');
+    expect(plan.persona_gender).toBe('female');
+    const details = (plan.persona as { details?: string[] }).details;
+    expect(Array.isArray(details)).toBe(true);
+    expect(details!.length).toBeGreaterThanOrEqual(2);
   });
 
   it('gives every objective at least one German anchor', () => {
@@ -146,7 +163,7 @@ describe('the v8 prompt carries the rules the product depends on', () => {
   });
 
   it('is versioned', () => {
-    expect(ROLEPLAY_PROMPT_VERSION).toBe(9);
+    expect(ROLEPLAY_PROMPT_VERSION).toBe(10);
   });
 
   it('states the meaning rule with the exact production example', () => {
@@ -189,6 +206,18 @@ describe('the v8 prompt carries the rules the product depends on', () => {
 
   it('forbids inventing facts when the learner asks about the world (v8)', () => {
     expect(instruction).toMatch(/Never invent a fact, a forecast, a number or a piece of news/);
+  });
+
+  it('pins the register, the Arabic gender, a persona detail and the farewell rule (v10)', () => {
+    expect(instruction).toMatch(/Register: address the learner as «Sie» \(formal\) on every turn/);
+    expect(instruction).toMatch(/Never switch register, even if the learner does/);
+    expect(instruction).toMatch(/Arabic gender for this persona: feminine/);
+    expect(instruction).toMatch(/سعيدة/);
+    expect(instruction).toMatch(/PERSONA DETAILS/);
+    expect(instruction).toMatch(/Ich habe einen kleinen braunen Hund/);
+    expect(instruction).toMatch(/never play back the learner's name or facts/);
+    expect(instruction).toMatch(/Never end the chat by yourself/);
+    expect(instruction).toMatch(/a farewell .* is allowed only after the LEARNER said goodbye/);
   });
 
   it('is documented in the roleplay prompt page', () => {
