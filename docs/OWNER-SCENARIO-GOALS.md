@@ -18,6 +18,13 @@ that was already serving that scenario, with the ids kept exactly as they were.
   is `N von 4` now; a learner can finish the three scene goals in any number of turns.
 - The rows below still list the three scene-specific goals; `end_politely` is common to
   all of them and is not repeated in every row.
+- **Decision (v10, final): keep four and do not restore three.** The owner wanted three
+  *scene* goals; those three are unchanged, and the fourth is the universal ending the same
+  brief asked for. Removing `end_politely` would have made `close` reachable without a
+  learner goodbye, which is the defect v10 fixed. So the resolution is documentation, not a
+  revert: the three scene goals live in the rows, the fourth is `end_politely`, and
+  `src/features/conversation/LiveConversationScreen.tsx` renders
+  `${objectivesDone.length} من ${objectivesTotal}` — objectives, never turns.
 - **Teacher review flag:** the A1 opener was changed to
   «Hallo! Ich bin Frau Meier, Ihre Nachbarin. Wie heißen Sie?» (Sie-form, matching the
   scenario's `register: "sie"`). Please have a teacher confirm that this is the right

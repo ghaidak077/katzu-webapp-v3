@@ -90,7 +90,6 @@ Ten units from the 49 served conversations; titles and situations are in `docs/O
 approved; `patient_conversation_basics` moved from unit 6 to unit 5.
 **Done:** applied; owner may still send wording changes.
 
-
 ## 17. A second provider key, or a paid Groq tier (2026-11-16)
 
 Groq serves chat at ~**200 turns/day for all learners**; when spent they read «الخدمة وصلت حدّها اليومي» and
@@ -99,14 +98,14 @@ second Groq account: a policy violation, not capacity.
 
 ## 18. A teacher reads the new first sentence — CHAT-V10 (2026-11-18)
 
-The A1 scene now opens «Hallo! Ich bin Frau Meier, Ihre Nachbarin. Wie heißen Sie?» (formal «Sie») with Arabic
-«أهلاً! أنا السيدة ماير، جارتك. ما اسمك؟». Have a German teacher confirm both; production keeps the old «du»
-sentence until a `CONTENT-LOAD-AUTHORIZED:` line. **Done:** the teacher agrees and the opener is replaced.
+The A1 scene should open in formal «Sie»: «Hallo! Ich bin Frau Meier, Ihre Nachbarin. Wie heißen Sie?» /
+«أهلاً! أنا السيدة ماير، جارتك. ما اسمك؟». A German teacher confirms both; production keeps the old «du»
+sentence until `CONTENT-LOAD-AUTHORIZED:`. **Done:** teacher agrees, opener replaced.
 
 ## Nothing to do — so nobody re-opens them
 
 - **FREE-1:** free lessons are three, once (`MAX_FREE_AI_SESSIONS = 3`; «في المجموع»).
 - **V15-3:** `node scripts/check-content-drift.mjs` after any content change.
-- **V18:** payments stay off for the beta; `/crypto/health` `ready:false` is right.
+- **V18:** payments stay off; `ready:false` is right (only the two NowPayments secrets are unset).
 - **`docs/LAUNCH-CHECKLIST.md` §2 stays untouched** — those are your items.
 - **Worker settings applied:** emergency stop `MAINTENANCE_MODE = "on"`; retention 04:17 UTC.

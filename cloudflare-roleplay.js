@@ -31,7 +31,7 @@ import { objectivesOf, planForScenario, sanitizeObjectivesDone } from "./cloudfl
 import { claimSupportedByText, GOALS_AR, textHasFarewell } from "./cloudflare-roleplay-anchors.js";
 
 /** Bump when a word of the prompt changes, so an eval result names its prompt. */
-export const ROLEPLAY_PROMPT_VERSION = 10;
+export const ROLEPLAY_PROMPT_VERSION = 11;
 
 /** One reply a beginner has to read; the learner waits on it, so keep it tight. */
 export const ROLEPLAY_TEMPERATURE = 0.3;
@@ -140,6 +140,7 @@ export function buildRoleplaySystemInstruction({ plan, level, objectivesDone = [
     "Never end the chat by yourself. You may say you have to go («Ich muss jetzt los»), but a farewell («Auf Wiedersehen», «Tschüss», «Bis bald») is allowed only after the LEARNER said goodbye. When every objective is done and the learner has ended the chat, say a warm goodbye with no question and set close=true.",
     "Never mention objectives, steps, questions, scripts, the app or AI. Never ask for private data (address, phone, ID).",
     "The Arabic translation must use the grammatical gender the scene block gives (masculine or feminine) — a female persona says «سعيدة», never «سعيد» — in natural Modern Standard Arabic, not literal; the learner's name stays in Latin letters and appears at most once per reply.",
+    "The LEARNER's gender is unknown, so never address them with a feminine second-person form in Arabic: no «أنتِ», no ـكِ suffix («لديكِ», «عليكِ», «اسمكِ», «بكِ»), no feminine imperative («تفضّلي»). Use the neutral form («أنت», «لديك», «اسمك», «تفضّل») or an impersonal sentence («ما اسمك؟», «هل تحبّ القهوة؟»). Gendered Arabic is only for the persona herself and for a gender the scene block states.",
     "understood_de = the learner's own sentence with your fixes applied (umlauts, capitalisation, plural, agreement) — the same words, the same meaning, the sentence a teacher would write above theirs. Never paraphrase, never swap a word for a different one, never answer their sentence.",
     "fix_reason_ar = one short, correct Arabic reason for exactly the changes in understood_de (for example «الجمع: Katze ← Katzen، والكلمة تعني يحب: liebe وليس lebe»). Leave it empty ONLY when understood_de equals the learner's sentence.",
     "hint_de is the ANSWER the learner could give to your question: a statement in their voice, in the same register the learner uses with you, never a question, and never your line. hint_ar is its Arabic meaning. Use ___ for personal facts.",
@@ -328,6 +329,21 @@ export function registerSwitchInReply(replyDe, register) {
   return INFORMAL_MARKERS.test(text);
 }
 
+/**
+ * The learner's gender is never collected, so any Arabic addressed to them must
+ * stay neutral. A live g35 turn answered «أنتِ»/«لديكِ» and became the v11 defect
+ * this gate closes. Only unambiguous, diacritised forms are matched: the ـكِ
+ * suffix (kaf + kasra) is always second-person feminine, so the persona can
+ * never be speaking about herself, while plain undiacritised imperatives
+ * («تفضلي») are ambiguous in text and stay a prompt rule only.
+ */
+const FEMININE_LEARNER_ADDRESS = /أنتِ|[\u0621-\u064A]كِ/u;
+
+/** True when Arabic text addresses the learner as a woman. */
+export function arabicAddressesLearnerAsFeminine(text) {
+  return FEMININE_LEARNER_ADDRESS.test(String(text || ""));
+}
+
 /** The cheap checks the route runs before any reply reaches the learner. */
 export function checkRoleplayReply(turn, { lastPersonaLines = [], register = "sie", learnerText = "" } = {}) {
   const german = String(turn?.reply_de || "");
@@ -347,6 +363,9 @@ export function checkRoleplayReply(turn, { lastPersonaLines = [], register = "si
     return { ok: false, reason: "farewell_before_learner" };
   }
   if (registerSwitchInReply(german, register)) return { ok: false, reason: "register_switch" };
+  // Every Arabic field the learner reads, not just the translation.
+  const learnerArabic = `${arabic}\n${turn?.hint_ar || ""}\n${turn?.fix_reason_ar || ""}`;
+  if (arabicAddressesLearnerAsFeminine(learnerArabic)) return { ok: false, reason: "arabic_learner_gender" };
   const lowerDe = german.toLowerCase();
   const lowerAr = arabic.toLowerCase();
   for (const phrase of BANNED_META_PHRASES) {

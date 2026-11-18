@@ -962,3 +962,27 @@ NEXT (V44): **SEO-1's code half is done (2026-11-03); the rest is the owner's.**
 `docs/agent/GEO-VISIBILITY.md`. Index status stays UNPROVEN until URL Inspection is read on both hosts. V44-1 and
 V44-2 (money and legal fields) still block the paying surfaces. AFF-1's referral test and payout day stay with
 the owner; an agent must not sign in as them or use the admin key.
+
+## RESUME 2026-11-13 (moved from AGENT-STATE.md, 2026-11-18)
+
+- **2026-11-13 — the practice chat is back, AI only, ONE call per turn; shipped.** The 2026-11-11 revert
+  is undone for the chat stack only (unit path, consent, report button, affiliate, website and the opener
+  translations untouched). `cloudflare-roleplay.js` (prompt **v7**) + `cloudflare-roleplay-plans.js` (49
+  plans) + `cloudflare-roleplay-anchors.js` (`GOALS_AR`, 174 `OBJECTIVE_ANCHORS`) are the whole engine: one
+  JSON response carries `reply_de/-ar`, `understood_de`, `fix_reason_ar`, `objectives_done/total`, `close`,
+  `hint_de/-ar`. An objective is credited only when the learner's own words (or the model's correction of
+  them) hit its German anchor, so a persona line can never credit one and `close` needs all of them. No
+  authored persona text exists: a failed turn is one Arabic sentence with the sentence kept in the composer
+  (`tests/noFallbackPersona.test.ts`). The screen shows «مهمتك: …» and objective progress; the hint dock
+  (🔊 / 🐌 / 🎤 «قلها», never inserts or sends) replaced the word bank and the «اقتراح لردّك» sheet, and a
+  reply without a hint offers «اطلب تلميحاً» (the one small `/ai/hints` call). Gate **VERIFY OK — 16/16
+  steps passed in 942.8s**, browser suite 175 passed / 11 skipped / 0 failed; production smoke 2 passed /
+  2 skipped. **Deployed** worker `e0f16c8d-7bb9-4ef7-bf13-1fa67de23bfd` (rollback `a57a74ba-0242-4993-802f-
+  549809394c95`), Pages `45c05ab2-dbd0-4d77-ac6c-2cbf470e7421` (source `459ef3f`, entry
+  `assets/index-DvLE3Ihx.js`, live chunk `LiveConversationScreen-BM3z436V.js` carrying «مهمتك» and «اطلب
+  تلميحاً»; rollback `e9d0058f-9558-47ad-b7dc-e20c80cf6869`). **Eval, honestly:** prompt v5 measured
+  **46/60 (76.7%)** with p50 1121 ms / p95 1697 ms and $0.0073 per 8-turn session at list price; prompt v6
+  measured **30/32 judged (93.8%)** on the last run the provider allowed (`docs/agent/ROLEPLAY-EVAL.md`);
+  v7 is **unmeasured** — Groq's 200k-token daily cap was exhausted mid-run (HTTP 429 `tokens per day`,
+  Used 199867) and only recovers with the rolling window. The 90% gate is therefore **not met with
+  evidence for the shipped prompt**; see OWNER-OPEN. `npm run eval:chat --from-kv` re-measures tomorrow.

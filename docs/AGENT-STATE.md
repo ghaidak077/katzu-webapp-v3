@@ -26,6 +26,21 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-18 — v10 is live; v11 closes the Arabic-gender defect (local; ids in SNAPSHOT).** v10 (formal
+  register per scene, persona gender, learner-decided farewell, one persona detail per turn) is served by worker
+  `89a1a55e-…`: gate `VERIFY OK 16/16` in 911.3 s, remote CI green on `0310e88` (run `44262616493`) and `9ba7a9c`
+  (`44263707155`). **v11 (local, undeployed):** no learner gender is ever collected, so the prompt now forbids
+  feminine second-person Arabic («أنتِ», ـكِ) and `checkRoleplayReply` rejects it (`arabic_learner_gender`,
+  `arabicAddressesLearnerAsFeminine`) — the live g35 turn wrote «أنتِ»/«لديكِ» to an unknown-gender learner.
+  A fresh 5-turn `first_greetings` run on v11 with a male name passed every turn: no feminine Arabic, `close` only
+  after the learner's «Auf Wiedersehen!», 4/4 objectives credited.
+  **Content load still blocked:** `.env` carries an empty `ADMIN_SECRET`, the process value answers **401** on
+  `/admin/api/stats`, and no worker version newer than `89a1a55e-…` exists — so production still serves the old
+  `du` opener for `first_greetings`. Coarena now lives on `wip/coarena` (`103ccde`, pushed): its Gemini adapter is
+  `UNPROVEN` (no provider key) and the 66-case replay recall is unmeasured. `end_politely` stays the documented
+  fourth objective (`docs/OWNER-SCENARIO-GOALS.md`); `/crypto/health ready:false` is the two unset NOWPayments
+  secrets, measured in `docs/ADMIN.md` §11. Next: rotate `ADMIN_SECRET` on `katzu-test`, then the insert-only
+  content load.
 - **2026-11-16 — capacity is honest, the prompt is cheaper, and the replay can finally measure itself (local, deploy ids below).**
   `cloudflare-ai-router.js` walks providers **by model first** (Groq -> Cerebras -> others, one key per
   organization) and the roleplay path forbids the weak Workers AI stand-in: when every provider is out the
@@ -42,27 +57,6 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   whether Groq caching actually hits. The pre-push hook was bypassed once for that push (the same tree had just
   passed the full gate; `--no-verify`, stated in the report).
 
-- **2026-11-13 — the practice chat is back, AI only, ONE call per turn; shipped.** The 2026-11-11 revert
-  is undone for the chat stack only (unit path, consent, report button, affiliate, website and the opener
-  translations untouched). `cloudflare-roleplay.js` (prompt **v7**) + `cloudflare-roleplay-plans.js` (49
-  plans) + `cloudflare-roleplay-anchors.js` (`GOALS_AR`, 174 `OBJECTIVE_ANCHORS`) are the whole engine: one
-  JSON response carries `reply_de/-ar`, `understood_de`, `fix_reason_ar`, `objectives_done/total`, `close`,
-  `hint_de/-ar`. An objective is credited only when the learner's own words (or the model's correction of
-  them) hit its German anchor, so a persona line can never credit one and `close` needs all of them. No
-  authored persona text exists: a failed turn is one Arabic sentence with the sentence kept in the composer
-  (`tests/noFallbackPersona.test.ts`). The screen shows «مهمتك: …» and objective progress; the hint dock
-  (🔊 / 🐌 / 🎤 «قلها», never inserts or sends) replaced the word bank and the «اقتراح لردّك» sheet, and a
-  reply without a hint offers «اطلب تلميحاً» (the one small `/ai/hints` call). Gate **VERIFY OK — 16/16
-  steps passed in 942.8s**, browser suite 175 passed / 11 skipped / 0 failed; production smoke 2 passed /
-  2 skipped. **Deployed** worker `e0f16c8d-7bb9-4ef7-bf13-1fa67de23bfd` (rollback `a57a74ba-0242-4993-802f-
-  549809394c95`), Pages `45c05ab2-dbd0-4d77-ac6c-2cbf470e7421` (source `459ef3f`, entry
-  `assets/index-DvLE3Ihx.js`, live chunk `LiveConversationScreen-BM3z436V.js` carrying «مهمتك» and «اطلب
-  تلميحاً»; rollback `e9d0058f-9558-47ad-b7dc-e20c80cf6869`). **Eval, honestly:** prompt v5 measured
-  **46/60 (76.7%)** with p50 1121 ms / p95 1697 ms and $0.0073 per 8-turn session at list price; prompt v6
-  measured **30/32 judged (93.8%)** on the last run the provider allowed (`docs/agent/ROLEPLAY-EVAL.md`);
-  v7 is **unmeasured** — Groq's 200k-token daily cap was exhausted mid-run (HTTP 429 `tokens per day`,
-  Used 199867) and only recovers with the rolling window. The 90% gate is therefore **not met with
-  evidence for the shipped prompt**; see OWNER-OPEN. `npm run eval:chat --from-kv` re-measures tomorrow.
 - **2026-11-11 — this week's chat engine is reverted; production serves the 2026-11-07 pre-chat state.** `4dae8df`
   reverts `95f327e..ffc6c7d` (27 commits): `src/`, the worker and `wrangler.toml` now equal boundary `a259883`
   (`ROLEPLAY_MODEL` gone). Script engine, AI roleplay, plans, answer bank, rule-first correction checker, hint dock
@@ -119,9 +113,12 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
   **`89a1a55e-783b-4023-92f1-e17db916cf7d`**, rollback **`05d225ef-d2a2-46bb-a2c1-b6b16e3b2eeb`** (v9, source
   `7c83ffa`). `/health` 200 `ready:true, chat_ready:true, fallback_only:false, storage:{d1:"ok",kv:"ok"}`;
   `/crypto/health` 200 `ready:false`; `/admin/api/stats` **401**. App Pages
-  **`73943a1c-2735-49e9-b87d-9c241ed0f73f`** from `0310e88` (rollback
-  `83cb8db8-f44b-476d-b862-09522f7a347d`, source `1acc8f8`); lazy `assets/opener-Dm5Tubo0.js` carries both
-  register glosses.
+  **`d22c1eab-351f-4cad-a976-8199d600288c`** from `9ba7a9c` — the docs push, a git build, so the id moved with a
+  byte-identical bundle (`npx wrangler pages deployment list --project-name katzu-webapp-v3`); rollback
+  **`73943a1c-2735-49e9-b87d-9c241ed0f73f`** from `0310e88`, then `83cb8db8-f44b-476d-b862-09522f7a347d`
+  (source `1acc8f8`); lazy `assets/opener-Dm5Tubo0.js` carries both register glosses. **Not rotated:**
+  `wrangler versions list --name katzu-test` still ends at `89a1a55e-…`, so the announced `ADMIN_SECRET`
+  rotation never landed on this worker (no new version to record).
 - Worker version at v8 (2026-11-16):
   **`d99eeecc-f1fb-4b5f-8cc7-2828b0c02959`** (2026-11-16, practice chat v8 + the `prompt_version` fix: gate
   `VERIFY OK 15/15` in 137.3 s plus playwright 175/11/0 separately; `/health` 200

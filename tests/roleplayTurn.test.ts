@@ -7,6 +7,7 @@ import {
   checkRoleplayReply,
   isNearDuplicateReply,
   registerSwitchInReply,
+  arabicAddressesLearnerAsFeminine,
   parseRoleplayJson,
   roleplayGenerationConfig,
   roleplayWordLimit,
@@ -234,6 +235,40 @@ describe('the three cheap checks', () => {
     // Lowercase «sie» is «she», not an address.
     expect(registerSwitchInReply('Sie wohnt im Erdgeschoss. Wie heißt du?', 'du')).toBe(false);
     expect(registerSwitchInReply('Sie wohnt im Erdgeschoss. Wie heißen Sie?', 'du')).toBe(true);
+  });
+
+  it('rejects Arabic that addresses an unknown-gender learner as a woman (g35 defect)', () => {
+    // The live g35 turn answered with «أنتِ»/«لديكِ» although no learner gender is collected.
+    const feminine = checkRoleplayReply(
+      { ...reply, reply_ar: 'أهلاً! أنتِ جديدة هنا. لديكِ كلب؟' },
+      { register: 'sie' },
+    );
+    expect(feminine.ok).toBe(false);
+    expect(feminine.reason).toBe('arabic_learner_gender');
+    // The hint is read by the learner too, so it is checked as well.
+    const hint = checkRoleplayReply(
+      { ...reply, hint_ar: 'أنا أسكن في الطابق الأرضي، وعندكِ حديقة؟' },
+      { register: 'sie' },
+    );
+    expect(hint.ok).toBe(false);
+    expect(hint.reason).toBe('arabic_learner_gender');
+    // Neutral MSA and the persona's own feminine forms stay allowed.
+    expect(arabicAddressesLearnerAsFeminine('ما اسمك؟ هل تحبّ القهوة؟')).toBe(false);
+    expect(arabicAddressesLearnerAsFeminine('أنا سعيدة بلقائك. من أين أنت؟')).toBe(false);
+    expect(arabicAddressesLearnerAsFeminine('أنتِ لطيفة')).toBe(true);
+  });
+
+  it('keeps the neutral-Arabic rule in a prompt built for a male learner name', () => {
+    const male = buildRoleplaySystemInstruction({
+      plan: { ...planForScenario('first_greetings')!, persona: { ...planForScenario('first_greetings')!.persona, name: 'Herr Meier' }, persona_gender: 'male' },
+      level: 'A1',
+      objectivesDone: [],
+    });
+    // The learner is Ahmed: the prompt must still forbid gendered address and
+    // must not inherit the persona's gender into the learner's Arabic.
+    expect(male).toMatch(/The LEARNER's gender is unknown/);
+    expect(male).toMatch(/Arabic gender for this persona: masculine/);
+    expect(male).toMatch(/Gendered Arabic is only for the persona herself/);
   });
 
   it('rejects meta lines about the exercise', () => {

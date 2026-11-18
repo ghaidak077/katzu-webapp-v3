@@ -1,4 +1,4 @@
-# The conversation prompt (roleplay turn, v10)
+# The conversation prompt (roleplay turn, v11)
 
 One prompt, one call, one version. Every ordinary practice conversation — all 49 served
 scenarios — is this prompt plus the scene's plan plus the last six turns. There is no script,
@@ -20,10 +20,11 @@ learner's sentence in the composer, is not counted, and does not consume the fre
   `shapeRoleplayReply`, `checkRoleplayReply`, `runRoleplayTurn`); plans in
   `cloudflare-roleplay-plans.js`; Arabic goals and objective anchors in
   `cloudflare-roleplay-anchors.js`.
-- Version: `ROLEPLAY_PROMPT_VERSION = 10`. Two tuning passes inside v5/v6 (see the eval table in
+- Version: `ROLEPLAY_PROMPT_VERSION = 11`. Two tuning passes inside v5/v6 (see the eval table in
   `ROLEPLAY-EVAL.md`); neither changed a check or a threshold. v8 (2026-11-16) adds the rules
   below and nothing else; **v9 (2026-11-16) is the token diet**; **v10 (2026-11-18) adds
-  register, persona gender/details and the learner-owned farewell** — see the end of this file.
+  register, persona gender/details and the learner-owned farewell**; **v11 (2026-11-18) never
+  addresses the learner as a woman** — see the end of this file.
 
 - **Correction is not optional.** Every real error is corrected in `understood_de` — false perfect,
   wrong auxiliary, wrong verb, word order, article/gender, missing noun capital, wrong ending. The
@@ -256,3 +257,29 @@ defects. Five are prompt/data rules; the sixth is a counting label:
 Replay additions (`scripts/replay/scenario-replay-cases.json`): a capitalisation
 fix (`Hallo ich bin ghaidak`), a name correction (`ich komme aus syria` →
 `Syrien`) and a sentence that must come back unchanged (`ja ich wohne hier`).
+
+## v11 — no learner gender, so no feminine Arabic (2026-11-18)
+
+The app never asks the learner's gender and the persona name is the only gendered thing in a
+scene. A live A1 `first_greetings` turn against a learner called Ahmed still answered «أنتِ»
+and «لديكِ» — feminine second person — so v11 makes "address the learner neutrally" a rule
+**and** a check:
+
+1. **Prompt rule (static block).** Arabic that talks *to* the learner avoids second-person
+   gendered forms: prefer «من أين أنت؟» over «من أين أنتِ؟», «هل لديك…» over «هل لديكِ…», and
+   neutral imperatives. Feminine forms stay correct **about the persona** («سعيدة», «جارتك»).
+2. **Code guard.** `arabicAddressesLearnerAsFeminine()` in `cloudflare-roleplay.js` matches
+   `FEMININE_LEARNER_ADDRESS = /أنتِ|[\u0621-\u064A]كِ/u` (the diacritized ـكِ suffix), and
+   `checkRoleplayReply` fails a turn with reason `arabic_learner_gender` when `reply_ar`,
+   `hint_ar` or `fix_reason_ar` matches. Only unambiguous forms are gated — an undiacritized
+   «أنت» is neutral and passes — so the guard cannot reject a correct reply.
+3. **Tests.** `tests/roleplayTurn.test.ts` (g35 regression, male-name turn) and
+   `tests/roleplayPlans.test.ts` (version pin) — 51 passed.
+
+What this does NOT change: the JSON contract, the register rule, the persona-gender rule, the
+learner-owned farewell, and the replay thresholds. A live 5-turn `first_greetings` session
+after the change passed all five turns (no `أنتِ`/`ـكِ`, `close` only on the learner's
+«Auf Wiedersehen!», all four objectives credited).
+
+**Still open (§3 of `AGENTS.md`):** the v11 guard is local and undeployed; production keeps
+worker `89a1a55e-…` (v10) until the owner authorizes a deploy.

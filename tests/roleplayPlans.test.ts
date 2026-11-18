@@ -163,7 +163,7 @@ describe('the v8 prompt carries the rules the product depends on', () => {
   });
 
   it('is versioned', () => {
-    expect(ROLEPLAY_PROMPT_VERSION).toBe(10);
+    expect(ROLEPLAY_PROMPT_VERSION).toBe(11);
   });
 
   it('states the meaning rule with the exact production example', () => {
@@ -217,6 +217,8 @@ describe('the v8 prompt carries the rules the product depends on', () => {
     expect(instruction).toMatch(/Ich habe einen kleinen braunen Hund/);
     expect(instruction).toMatch(/never play back the learner's name or facts/);
     expect(instruction).toMatch(/Never end the chat by yourself/);
+    expect(instruction).toMatch(/The LEARNER's gender is unknown, so never address them with a feminine second-person form in Arabic/);
+    expect(instruction).toMatch(/Gendered Arabic is only for the persona herself/);
     expect(instruction).toMatch(/a farewell .* is allowed only after the LEARNER said goodbye/);
   });
 

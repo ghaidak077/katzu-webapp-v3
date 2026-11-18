@@ -335,24 +335,27 @@ npx wrangler deploy --dry-run --config admin-worker/wrangler.toml
 npm run verify -- --ci
 ```
 
-On 2026-10-31 the pre-deploy gate printed `VERIFY OK — 14/14 steps passed in 759.6s` with
-`--ci --e2e` (the browser suite ran against the built bundle; exit 0). The focused admin suites were
-re-run after the deploy: `npx vitest run tests/adminAccess.test.ts tests/adminWorker.test.ts` →
-**26 passed**. The production probe is the decisive one: `/` and `/api/overview` both answer **302**
-to `https://ghaidakalosh008.cloudflareaccess.com/cdn-cgi/access/login/…?kid=8374079e…`, and the
-login page and team JWKS are reachable. `wrangler deploy` printed version
-`e7716e26-f3b4-478e-8097-106481a3369e` with `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` bound.
+On 2026-10-31 both batches printed `VERIFY OK — 14/14` with `--ci --e2e`, exit 0 (759.6 s access,
+726.8 s content studio, browser suite 616.5 s). Focused: `adminAccess` + `adminWorker` **26 passed**;
+`adminContentManagement` **51**, `adminPanelContentUi` + `agentDocs` **33**. Commit `ed8255c`
+(`c9378dd..ed8255c`) went in after a 6/6 pre-push gate. Production probe: `/` and `/api/overview`
+**302** to `https://ghaidakalosh008.cloudflareaccess.com/cdn-cgi/access/login/…?kid=8374079e…`;
+`wrangler deploy` printed `e7716e26-f3b4-478e-8097-106481a3369e` with
+`ACCESS_TEAM_DOMAIN`/`ACCESS_AUD` bound. Worker
+`625986fd-46da-4c5e-a5ff-67b3925e260c` (`5884fb31-…`), panel `8c383727-85b3-43f2-ac29-efc6126ef869`
+(`95d460dd-…`, 4 assets incl. `/bundled-content.json`). Probes: `/health` 200, `/crypto/health` 200
+`ready:false`, `/scenarios` 200, `/internal/admin/content/meta` **401**, panel routes **302** to Access
+(`kid=8374079e…`). No content write, publish or import has run in production; those are the owner's
+once signed in.
 
-**Content studio batch (2026-10-31).** The pre-deploy gate printed
-`VERIFY OK — 14/14 steps passed in 726.8s` with `--ci --e2e` (the browser suite ran 616.5 s against the built
-bundle; exit 0). Focused: `npx vitest run tests/adminContentManagement.test.ts` → **51 passed**;
-`tests/adminPanelContentUi.test.ts` and `tests/agentDocs.test.ts` (**33**) green. The commit `ed8255c` was pushed
-(`c9378dd..ed8255c`) after a 6/6 pre-push gate. Deployed product Worker version
-`625986fd-46da-4c5e-a5ff-67b3925e260c` (deployment `5884fb31-…`, 13:00:27Z) and panel `8c383727-85b3-43f2-ac29-efc6126ef869`
-(deployment `95d460dd-…`, 13:01:11Z, 4 assets including `/bundled-content.json`). Production probes: `/health` 200,
-`/crypto/health` 200 `ready:false`, `/scenarios` 200, `GET /internal/admin/content/meta` **401**, and the panel's
-`/`, `/api/overview`, `/healthz`, `/bundled-content.json` all **302** to the Access login with `kid=8374079e…`.
-No content write, publish or import has run in production; those are the owner's once signed in.
+**Crypto health + consent (2026-11-18).** `/crypto/health` 200 `ready:false` from
+`apiKeyConfigured:false` + `ipnSecretConfigured:false` (`salesOrigin` set); `ready` is that triple and
+nothing else — a badge, not a gate. What the missing secrets stop is runtime: `POST /crypto/checkout`
+→ **503** `{"error":"crypto_not_configured"}`, and the IPN webhook cannot verify a signature without
+`NOWPAYMENTS_IPN_SECRET` — owner/payments items; no code turns it true.
+`/consent/conversation` is per-account (**401** unauthenticated); grant → status →
+withdraw-and-delete passes `tests/conversationConsent.test.ts` (**17**), a live round-trip is
+`UNPROVEN`, and consent never gates a crypto route.
 
 ## 12. OWNER INPUT NEEDED
 
