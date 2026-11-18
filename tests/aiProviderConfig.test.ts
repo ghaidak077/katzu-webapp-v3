@@ -14,6 +14,11 @@ import {
   upsertProviderEntry,
 } from '../cloudflare-ai-providers.js';
 import { resetRouterState } from '../cloudflare-ai-router.js';
+import {
+  DEFAULT_QUALITY_GATE_PASSES,
+  entryKeysFor,
+  orderPoolForChat,
+} from '../cloudflare-ai-router.js';
 
 function MemoryKv() {
   const store = new Map();
@@ -41,7 +46,7 @@ describe('resolveProviderPool', () => {
 
   it('returns the four defaults, with the preferred model on Groq and Cerebras first', async () => {
     const pool = await resolveProviderPool(makeEnv());
-    expect(pool.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'nvidia', 'openrouter']);
+    expect(pool.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'nvidia', 'openrouter', 'coarena']);
     expect(pool[0].model).toBe('openai/gpt-oss-120b');
     expect(pool[1].model).toBe('openai/gpt-oss-120b');
     expect(pool.find((e) => e.provider === 'gemini')).toBeUndefined();
@@ -51,10 +56,10 @@ describe('resolveProviderPool', () => {
     const env = makeEnv();
     await setDefaultProviderState(env, 'nvidia', false);
     const pool = await resolveProviderPool(env);
-    expect(pool.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'openrouter']);
+    expect(pool.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'openrouter', 'coarena']);
     await setDefaultProviderState(env, 'nvidia', true);
     const restored = await resolveProviderPool(env);
-    expect(restored.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'nvidia', 'openrouter']);
+    expect(restored.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'nvidia', 'openrouter', 'coarena']);
   });
 
   it('appends enabled custom entries after the defaults, in stored order', async () => {
@@ -66,7 +71,7 @@ describe('resolveProviderPool', () => {
       provider: 'deepseek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-chat', keys: ['custom-key-bbbb2'], enabled: false,
     });
     const pool = await resolveProviderPool(env);
-    expect(pool.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'nvidia', 'openrouter', 'gateway-a']);
+    expect(pool.map((e) => e.provider)).toEqual(['groq', 'cerebras', 'nvidia', 'openrouter', 'coarena', 'gateway-a']);
   });
 
   it('a dashboard key override wins over the env key list', async () => {
@@ -81,6 +86,26 @@ describe('resolveProviderPool', () => {
     const attempt = await upsertProviderEntry(env, { id: 'nvidia', model: 'someone-new' });
     expect(attempt.status).toBe(400);
     expect(attempt.body.error).toBe('default_entry_not_shape_editable');
+  });
+
+  it('adds Coarena as an env-keyed gateway that stays out of the learner turn until gate-passed', async () => {
+    const env = makeEnv();
+    const pool = await resolveProviderPool(env);
+    const coarena = pool.find((e) => e.provider === 'coarena');
+    expect(coarena).toMatchObject({
+      model: 'gemini-3-8-flash',
+      format: 'openai',
+      baseUrl: 'https://coarena.ai/api/v1',
+    });
+    // Free tier only: every paid id answers 402, so the pool must never name one.
+    const coarenaIds = [coarena!.model, ...(coarena!.modelFallbacks || [])];
+    expect(coarenaIds).toEqual(['gemini-3-8-flash', 'gpt-6-luna', 'deepseek-v4-1-flash-1017']);
+    expect(coarena!.modelFallbacks).toHaveLength(2);
+    // The env name is what lets one pasted key light the entry up without a KV write.
+    expect(entryKeysFor(coarena, { COARENA_API_KEYS: 'coarena-key-aaaaaaaaaa' })).toEqual(['coarena-key-aaaaaaaaaa']);
+    // Same-model-first: an unmeasured pair is never served to a learner.
+    const learnerWalk = orderPoolForChat(pool, DEFAULT_QUALITY_GATE_PASSES);
+    expect(learnerWalk.some((e) => e.provider === 'coarena')).toBe(false);
   });
 });
 
@@ -155,7 +180,7 @@ describe('upsert via the owner op', () => {
     });
     await upsertProviderEntry(env, { id: created.body.id, clearKeys: true });
     const pool = await resolveProviderPool(env);
-    expect(pool.length).toBe(4); // defaults only; the keyless custom entry never walks
+    expect(pool.length).toBe(5); // defaults only; the keyless custom entry never walks
   });
 
   it('caps the custom list and reports the cap', async () => {

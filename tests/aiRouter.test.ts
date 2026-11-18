@@ -35,6 +35,8 @@ import {
   exceedsContextCap,
   retryAfterMsFrom,
   AiCapacityExhaustedError,
+  COARENA_FREE_MODELS,
+  expandModelFallbacks,
 } from '../cloudflare-ai-router.js';
 
 /**
@@ -803,5 +805,87 @@ describe('same model first', () => {
       markKeyCooldown: () => {},
     });
     expect(text).toBe('{"ok":true}');
+  });
+});
+
+/**
+ * One provider row can carry several free model ids. The dashboard keeps one row
+ * (toggles/keys are per provider); the walk must still try the next id when the
+ * primary is unavailable, because a gateway's free tier rotates which ids answer.
+ */
+describe('free-model failover inside one provider', () => {
+  it('expands a provider into one walk unit per model, primary first', () => {
+    const pool = [
+      { provider: 'coarena', model: 'gemini-3-8-flash', modelFallbacks: ['gpt-6-luna', 'deepseek-v4-1-flash-1017'], tier: 'mid' },
+      { provider: 'groq', model: PREFERRED_MODEL, tier: 'flagship' },
+    ];
+    const units = expandModelFallbacks(pool as any);
+    expect(units.filter((e: any) => e.provider === 'coarena').map((e: any) => e.model)).toEqual([
+      'gemini-3-8-flash',
+      'gpt-6-luna',
+      'deepseek-v4-1-flash-1017',
+    ]);
+    expect(units.map((e: any) => `${e.provider}:${e.model}`)).toEqual([
+      'coarena:gemini-3-8-flash',
+      'coarena:gpt-6-luna',
+      'coarena:deepseek-v4-1-flash-1017',
+      `groq:${PREFERRED_MODEL}`,
+    ]);
+  });
+
+  it('leaves entries without fallbacks and duplicate ids untouched', () => {
+    const single = { provider: 'groq', model: PREFERRED_MODEL, tier: 'flagship' };
+    expect(expandModelFallbacks([single] as any)).toEqual([single]);
+    const dup = { provider: 'coarena', model: 'gpt-6-luna', modelFallbacks: ['gpt-6-luna', '', '  '] };
+    expect(expandModelFallbacks([dup] as any)).toHaveLength(1);
+  });
+
+  it('pins the default pool to the free ids with Gemini 3.8 Flash first', () => {
+    const coarena = PROVIDER_POOL.find((e: any) => e.provider === 'coarena')!;
+    expect(coarena.model).toBe('gemini-3-8-flash');
+    expect(coarena.modelFallbacks).toEqual(['gpt-6-luna', 'deepseek-v4-1-flash-1017']);
+    expect([coarena.model, ...(coarena.modelFallbacks || [])].sort()).toEqual([...COARENA_FREE_MODELS].sort());
+  });
+
+  it('answers from the next free model when the primary is a missing model', async () => {
+    const entry = {
+      provider: 'coarena',
+      model: 'gemini-3-8-flash',
+      modelFallbacks: ['gpt-6-luna', 'deepseek-v4-1-flash-1017'],
+      format: 'openai',
+      baseUrl: 'https://coarena.ai/api/v1',
+      tier: 'mid',
+    } as any;
+    const env = { COARENA_API_KEYS: 'coa_one' } as any;
+    const stub = fetchStub((_url, body) =>
+      body?.model === 'gemini-3-8-flash'
+        ? new Response(JSON.stringify({ error: { message: 'model not found' } }), { status: 404 })
+        : new Response(JSON.stringify({ choices: [{ message: { content: 'Hallo!' } }] }), { status: 200 }),
+    );
+    const text = await callAiRouter(geminiPayload, env, deps({ fetchImpl: stub.impl, pool: [entry] }));
+    expect(text).toBe('Hallo!');
+    expect(stub.bodies.map((b: any) => b.model)).toEqual(['gemini-3-8-flash', 'gpt-6-luna']);
+    // Only the dead model is parked, so the same turn keeps using the fallback.
+    expect(isDayExhausted(entry, 'coa_one')).toBe(true);
+    expect(isDayExhausted({ ...entry, model: 'gpt-6-luna' }, 'coa_one')).toBe(false);
+  });
+
+  it('skips a parked primary on the next turn without calling it again', async () => {
+    const entry = {
+      provider: 'coarena',
+      model: 'gemini-3-8-flash',
+      modelFallbacks: ['gpt-6-luna'],
+      format: 'openai',
+      baseUrl: 'https://coarena.ai/api/v1',
+      tier: 'mid',
+    } as any;
+    const env = { COARENA_API_KEYS: 'coa_one' } as any;
+    markDayExhausted(entry, 'coa_one', 'model_unavailable');
+    const stub = fetchStub(() =>
+      new Response(JSON.stringify({ choices: [{ message: { content: 'weiter' } }] }), { status: 200 }),
+    );
+    const text = await callAiRouter(geminiPayload, env, deps({ fetchImpl: stub.impl, pool: [entry] }));
+    expect(text).toBe('weiter');
+    expect(stub.bodies.map((b: any) => b.model)).toEqual(['gpt-6-luna']);
   });
 });

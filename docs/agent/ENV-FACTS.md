@@ -136,7 +136,7 @@ command below stops existing, so this index cannot rot silently.
 | Load curriculum into D1 | `node scripts/load-curriculum.mjs --file=… --commit` | **only** with `CONTENT-LOAD-AUTHORIZED` (AGENTS §3) |
 | Correct live scenario rows (update-capable) | `node scripts/load-content-updates.mjs` (`--commit`, `--undo=<manifest>`) | dry run by default; needs `CONTENT-LOAD-AUTHORIZED` + an approved update (AGENTS §3); writes via `/admin/api/content-studio/*`, never creates rows |
 | Prove that loader end to end (local) | `node scripts/verify-content-update-local.mjs` | fresh local D1 from `backups/pre-content-v2/content.sql`; 28 checks, ~2 min |
-| What the deployed content tables have | `migrations/0001_content_tables.sql` §1–3 · then `node scripts/load-curriculum.mjs --file=… --dry-run` | §1 is production verbatim; §2 the gap; §3 the pending `ALTER TABLE`s; the loader refuses a draft that needs a missing column (V12-2) |
+| What the deployed content tables have | `migrations/0001_content_tables.sql` §1–3 · then `node scripts/load-curriculum.mjs --file=… --dry-run` | §1 is production verbatim; §2 the gap; §3 the pending `ALTER TABLE`s |
 | Archive ledger history | `npm run ledger:archive` | moves finished rows and closed items out; never deletes; keeps the ledger under 80 KB |
 | Live worker health (read-only) | `curl -s -m 10 https://katzu-test.ghaidakalosh008.workers.dev/health` | no auth needed |
 | **The whole pre-report gate** | `npm run verify` | profiles: default (types + unit + design/contrast + syntax) · `--fast` (pre-commit, ~8 s) · `--ci` (adds build + content + dependency audits) · `--e2e` (browser suite vs `vite preview`); prints what it did **not** run |
@@ -151,6 +151,7 @@ command below stops existing, so this index cannot rot silently.
 | The verification battery (12 checks) | `node scripts/verification-battery.cjs` | the battery whose output the ledger quotes |
 | Quiz content audit | `node scripts/audit-quiz-content.mjs` | CI runs it; fails on a malformed quiz row |
 | AI quality/cost probes | `scripts/eval-chat.mjs` · `scripts/eval-chat-quality.mjs` · `npm run qa:chat` | live; inputs in `scripts/fixtures/eval-chat-cases.mjs` |
+| Coarena smoke | `node scripts/coarena-smoke.mjs` | models, chat, feedback |
 | Regenerate the goal map | `scripts/build-roleplay-goals.mjs` | writes `scenarioGoals.generated.ts` |
 | Deploy / tail the worker | `npm run deploy:worker` · `npm run tail:worker` | **only** when AGENTS §3 authorizes a deploy |
 

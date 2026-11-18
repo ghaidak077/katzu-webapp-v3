@@ -42,6 +42,25 @@ const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 const CEREBRAS_BASE_URL = "https://api.cerebras.ai/v1";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
+// Coarena exposes one free, OpenAI-compatible gateway in front of several model
+// families (owner request, 2026-11-17). It speaks the OpenAI chat shape, so it
+// needs no new transport — only this base URL and the env name below.
+const COARENA_BASE_URL = "https://coarena.ai/api/v1";
+
+/**
+ * The ids Coarena's free tier will actually answer, in fallback order (owner
+ * direction, 2026-11-18): Gemini 3.8 Flash first, then GPT-6 Luna, then
+ * DeepSeek V4.1 Flash. Every other id on that gateway answers 402
+ * `payment_required`, so a paid id in this list would be a bug, not a choice.
+ * Order matters: the first entry is the primary, the rest are the failover the
+ * moment the primary reports `model_missing` (404), a 5xx, a timeout, or a
+ * quota answer. See `expandModelFallbacks`.
+ */
+export const COARENA_FREE_MODELS = Object.freeze([
+  "gemini-3-8-flash",
+  "gpt-6-luna",
+  "deepseek-v4-1-flash-1017",
+]);
 
 // ---------------------------------------------------------------------------
 // SAME MODEL FIRST (owner direction, 2026-11-16)
@@ -66,7 +85,7 @@ export const PREFERRED_MODEL = "openai/gpt-oss-120b";
  * published latency of gpt-oss-120b at each host. A provider absent from this
  * list keeps its configured position behind every ranked one.
  */
-export const PROVIDER_QUALITY_ORDER = ["groq", "cerebras", "openrouter", "nvidia", "gemini"];
+export const PROVIDER_QUALITY_ORDER = ["groq", "cerebras", "openrouter", "nvidia", "gemini", "coarena"];
 
 /**
  * Which `provider:model` pairs have passed the 46-case quality gate. A model is
@@ -126,6 +145,7 @@ export const PROVIDER_ENV_VARS = {
   cerebras: "CEREBRAS_API_KEYS",
   openrouter: "OPENROUTER_API_KEYS",
   nvidia: "NVIDIA_API_KEYS",
+  coarena: "COARENA_API_KEYS",
 };
 
 // Gemini additionally accepted these single/individual secret names before the
@@ -233,12 +253,59 @@ export const PROVIDER_POOL = [
   // mid / overflow — OpenRouter's free cap is account-wide (`sharedAccountCap`),
   // so the ledger scopes it to the account, not to the key.
   { provider: "openrouter", model: "thinkingmachines/inkling-small:free", format: "openai", baseUrl: OPENROUTER_BASE_URL, tier: "mid", rpd: 50, sharedAccountCap: true },
+  // Coarena (owner request, 2026-11-17; free-model failover 2026-11-18): free,
+  // OpenAI-compatible, one key. The free tier serves exactly the three ids in
+  // COARENA_FREE_MODELS; every other id answers 402. The row names the primary
+  // (Gemini 3.8 Flash) and `modelFallbacks` carries the rest, which
+  // `expandModelFallbacks` turns into separate walk units sharing this provider
+  // row — so the admin table still shows one row per provider while routing
+  // fails over between free models. The primary's model is NOT the preferred
+  // one, so `orderPoolForChat` leaves Coarena out of the learner turn until a
+  // Coarena pair passes a measured replay — the same rule as any other pair. It
+  // serves the routes that walk by tier (translate, lexeme, hints, ask, writing)
+  // and is skipped everywhere the gate applies.
+  {
+    provider: "coarena",
+    model: COARENA_FREE_MODELS[0],
+    modelFallbacks: COARENA_FREE_MODELS.slice(1),
+    format: "openai",
+    baseUrl: COARENA_BASE_URL,
+    tier: "mid",
+    rpd: null,
+  },
   // The old Gemini/Groq defaults are gone (owner direction 2026-10-18): a
   // request never reaches them unless the owner deliberately adds such an
   // entry from the admin dashboard — custom base URL, own keys. The OpenAI-
   // and Gemini-format transports below stay, because the owner's presets and
   // custom gateways speak them.
 ];
+
+/**
+ * Free-model failover inside ONE provider.
+ *
+ * A gateway can serve several model ids under a single key and a single provider
+ * row (Coarena's free tier is three). The dashboard keys toggles, stored keys and
+ * its table by PROVIDER, so the pool must stay one row per provider; the walk,
+ * however, needs one unit per (provider, model) so that the ledger parks only the
+ * model that failed and the next free model answers the same turn.
+ *
+ * Pure and order-preserving: the entry itself stays first, then its
+ * `modelFallbacks` in the configured order. Entries without the field are
+ * returned untouched, so custom providers and injected test pools are unchanged.
+ */
+export function expandModelFallbacks(pool) {
+  const out = [];
+  for (const entry of Array.isArray(pool) ? pool : []) {
+    out.push(entry);
+    const fallbacks = Array.isArray(entry?.modelFallbacks) ? entry.modelFallbacks : [];
+    for (const model of fallbacks) {
+      const id = typeof model === "string" ? model.trim() : "";
+      if (!id || id === entry.model) continue;
+      out.push({ ...entry, model: id });
+    }
+  }
+  return out;
+}
 
 /**
  * The pool a request actually walks: the defaults above, minus whatever the
@@ -1080,7 +1147,10 @@ export function routerCountersSnapshot() {
  * @returns {Promise<string>} the model's text
  */
 export async function callAiRouter(payload, env, deps = {}) {
-  const pool = Array.isArray(deps.pool) ? deps.pool : PROVIDER_POOL;
+  // Expanded AFTER the admin pool is resolved (see expandModelFallbacks): the
+  // dashboard keeps one row per provider, while the walk gets one unit per free
+  // model so a dead id fails over to the next instead of ending the turn.
+  const pool = expandModelFallbacks(Array.isArray(deps.pool) ? deps.pool : PROVIDER_POOL);
   const budgetMs = Number(deps.budgetMs) || ROUTER_BUDGET_MS;
   const attemptTimeoutMs = Number(deps.attemptTimeoutMs) || ATTEMPT_TIMEOUT_MS;
   const reserveMs = Number(deps.reserveMs ?? FALLBACK_RESERVE_MS);
@@ -1284,9 +1354,14 @@ export async function callAiRouter(payload, env, deps = {}) {
  * for it explicitly (admin/diagnostics), not to the public projection.
  */
 export function getPoolHealth({ env = {}, pool = PROVIDER_POOL, includeKeyIds = false } = {}) {
+  // Report the units the walk can actually call: one per (provider, model), so
+  // a free-model gateway shows each id and a parked primary is not hidden behind
+  // the row that still has a fallback. `providerKeyCounts` stays on the raw pool
+  // — the one-key rule is per organization, not per model id.
+  const units = expandModelFallbacks(pool);
   const active = [];
   const idle = [];
-  for (const entry of pool) {
+  for (const entry of units) {
     const configured = isEntryConfigured(entry);
     const hasKeys = providerKeyList(env, entry.provider).length > 0;
     const shape = { provider: entry.provider, model: entry.model, tier: entry.tier };
@@ -1306,7 +1381,7 @@ export function getPoolHealth({ env = {}, pool = PROVIDER_POOL, includeKeyIds = 
   // The chat pool: what a LEARNER turn would walk. Separate from `active`
   // because a configured provider whose pair has not passed the quality gate
   // must never be counted as able to answer a learner.
-  const chat = pool
+  const chat = units
     .filter((entry) => isEntryConfigured(entry) && entryKeysFor(entry, env).length > 0 && passesQualityGate(entry))
     .map((entry) => ({ provider: entry.provider, model: entry.model }));
 
