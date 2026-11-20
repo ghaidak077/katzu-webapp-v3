@@ -61,27 +61,24 @@ rewritten in `7b52230` + `2fa5acd` and the delete-screen pair ships with its scr
 = **141 passed / 2 skipped / 0 failed** (see `EXCELLENCE-STATUS.md`). No app code, deploy, secret or
 production data was touched by that vetting run.
 
-## Current snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
+## Current snapshot — 2026-11-20 (the home tab and the tab bar; the ten-unit path stands)
 
-**Deployed and verified.** `/app/library` is one guided vertical unit path: the current unit expanded,
-the rest collapsed with «3 من 6», future units dimmed and locked, units below the placement level open and marked «تخطّيتَ»,
-unit-sized progress («الوحدة 1 · 0 من 6»), the level percent ring and the exact ability lines. The 49 served conversations are
-partitioned into the owner's ten units exactly once, each checkpoint last; `scripts/audit-unit-coverage.mjs` fails the gate if a
-served situation is in no unit or in two. Outcome lines are practice-only («في هذه الوحدة تتدرّب على …»), and the B2 unit says the
-exam-style talk is training only and grants no certificate. One deliberate move: `patient_conversation_basics` is in unit 5
-«صحتك ومواعيدك» (patient-side talk, «Mir ist nicht gut…»), not unit 6. One button runs today's composed session — due review
-(max 10) → the next stage (study → with help → solo) → a short free conversation set, at most three steps with total minutes. The
-report auto-advances after 2 s with a «ليس الآن» escape, repeats with help below 50 % and offers a short test-out above 85 %.
-Signup asks one question (the goal) instead of a level; a conversation offers three current-unit topics plus «فاجئني», never a
-level control. Free sessions read «جلسة مجانية N من 3», and the paywall appears only between sessions. Existing learners are mapped
-by their completed conversation ids; level and XP are untouched. **Proof:** `tsc` clean, `units` + `trailOrdering` **58 passed**,
-unit coverage **49/49 across 10 units**, gate **VERIFY OK 16/16 (896.5 s)** with `--ci --e2e`. **Deployed:** Pages `5c63e575-…` (source `19b431a`, entry
-`assets/index-BnLPxd6G.js`, `/` and `katzuai.com` 200, `/sw.js` 200, smoke 2/2; rollback `b914e4ba-…`); worker unchanged
-`e98031d5-…`. **Owner-open:** the four level lines (§15).
+**Deployed and verified.** This pass is visual: the ten-unit guided path, the composed session and goal-only signup
+described in the 2026-11-07 snapshot (now in `ARCHIVE-PROJECT-BRIEF.md`, search `ten owner-approved units`) are unchanged.
+`/app/trail` opens on «اليوم N · الفصل i من j» above the chapter title, with a thin chapter bar and «0 / 3 مشاهد» under it,
+then one hero: a 160px band reserved from `sceneFor` (a content `banner_url` still wins) with a purple→black fallback, a
+label, a 22/700 title, the LTR German subtitle, minutes and a single 52px filled action. Review is one ghost row
+(`min(due, 10)` items, hidden when nothing is due); the day's tasks are 48px lines with circular checks under a 3-segment
+strip, and the review batch is not listed because grading one item completes it. The tab bar left its floating glass pill for
+a flat full-bleed bar with an accent active tab; `/app/library` unit headers carry a 56px scene thumbnail. **Proof:** gate
+`VERIFY OK — 16/16 steps passed` with `--ci --e2e` in a clean worktree at the commit, `navbarGeometry` 4/4, `banner` 2/2,
+`dailyTasks` 2/2, `guidedHome` 35, `uiPolishShots` 26/26. **Deployed:** Pages `a4e66d34-…` (source `b492812`, entry
+`assets/index-y6fM7fGE.js`, `/` and `/sw.js` 200, production smoke 2 passed / 2 skipped; rollback `9858d43c-…`); worker
+unchanged `89a1a55e-…`. **Owner-open:** the four level lines (§15).
 
-## Previous snapshots — 2026-11-05 (first-message Arabic; labelled report action) moved
+## Previous snapshots — 2026-11-07 and 2026-11-05 moved
 
-Both moved verbatim to `docs/agent/ARCHIVE-PROJECT-BRIEF.md` on 2026-11-06 to stay under the 80 KB cap
+All moved verbatim to `docs/agent/ARCHIVE-PROJECT-BRIEF.md` (2026-11-05 on 2026-11-06; 2026-11-07 on 2026-11-20) to stay under the 80 KB cap
 (search `2026-11-05 every first message ships its Arabic`, `2026-11-05 the report action is labelled`).
 Nothing was deleted; live deploy ids stay in `docs/agent/APP-MAP.md` §9 and `docs/AGENT-STATE.md`.
 
