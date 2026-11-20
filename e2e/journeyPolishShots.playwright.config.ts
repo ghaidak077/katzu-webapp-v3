@@ -17,7 +17,9 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   reporter: [['line']],
-  outputDir: './test-results/journey-polish',
+  // Under `.tmp/` (git-ignored): a shot rig must not leave untracked artifacts
+  // in the repo when it passes.
+  outputDir: '../.tmp/test-results/journey-polish',
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'retain-on-failure',

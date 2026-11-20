@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { bootSignedIn, seedRows } from '../harness';
+import { seedServedContent } from '../servedContent';
 
 /**
  * Acceptance evidence for the Journey (library) screen polish.
@@ -9,7 +10,10 @@ import { bootSignedIn, seedRows } from '../harness';
  * Real-viewport screenshots (never a full-page stitch) of the three states the
  * brief asks for: the top of the screen, the screen scrolled to the path, and
  * the 0-reviews state where the review strip gives way to the scenario mission.
- * `TAG` flips between `before` and `after`.
+ * `TAG` flips between `before` and `after`. Each state seeds the served content
+ * (`seedServedContent`): the path is a unit map, and the offline fallback holds
+ * two rows of one unit, which photographed the layout without the six-row unit
+ * the brief is about.
  *
  *   TAG=before E2E_TARGET=preview npx playwright test -c e2e/journeyPolishShots.playwright.config.ts
  */
@@ -55,6 +59,7 @@ for (const { w, h } of VIEWPORTS) {
   test(`journey-library top ${w}x${h} [${TAG}]`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await bootSignedIn(page);
+    await seedServedContent(page);
     await seedRows(page, 'review_items', [
       reviewRow('موعد', 'der Termin'),
       reviewRow('قهوة', 'der Kaffee'),
@@ -66,7 +71,8 @@ for (const { w, h } of VIEWPORTS) {
       reviewRow('سؤال', 'die Frage'),
     ]);
     await page.goto('/app/library');
-    await expect(page.getByRole('button', { name: /الطلب في المقهى/ }).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('trail-primary-cta')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('trail-scenario-card').first()).toBeVisible();
     await page.waitForTimeout(600);
     await shoot(page, 'journey-library-top');
   });
@@ -74,10 +80,13 @@ for (const { w, h } of VIEWPORTS) {
   test(`journey-library path ${w}x${h} [${TAG}]`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await bootSignedIn(page);
+    await seedServedContent(page);
     await page.goto('/app/library');
-    await expect(page.getByRole('button', { name: /الطلب في المقهى/ }).first()).toBeVisible({ timeout: 30_000 });
-    // Scroll so the path fills the frame.
-    const firstCard = page.getByRole('button', { name: /الطلب في المقهى/ }).first();
+    await expect(page.getByTestId('trail-primary-cta')).toBeVisible({ timeout: 30_000 });
+    // Scroll so the path fills the frame: the row the hero names is the anchor,
+    // whichever unit the device's downloaded content puts it in.
+    const firstCard = page.getByTestId('trail-scenario-card').first();
+    await expect(firstCard).toBeVisible();
     await firstCard.scrollIntoViewIfNeeded();
     await page.mouse.wheel(0, 160);
     await page.waitForTimeout(400);
@@ -87,8 +96,10 @@ for (const { w, h } of VIEWPORTS) {
   test(`journey-library no reviews ${w}x${h} [${TAG}]`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await bootSignedIn(page);
+    await seedServedContent(page);
     await page.goto('/app/library');
-    await expect(page.getByRole('button', { name: /الطلب في المقهى/ }).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('trail-primary-cta')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('trail-scenario-card').first()).toBeVisible();
     await page.waitForTimeout(600);
     await shoot(page, 'journey-library-noreviews');
   });

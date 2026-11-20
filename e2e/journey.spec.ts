@@ -181,9 +181,11 @@ test('the scenario library exposes named, keyboard-reachable cards', async ({ pa
   await expect(card).toBeVisible();
   await card.focus();
   await expect(card).toBeFocused();
+  // The stage stays last so a screen reader hears the action before the status;
+  // the current lesson carries «التالي» between its title and its stage.
   await expect(card).toHaveAttribute(
     'aria-label',
-    /^الطلب في المقهى \(Im Café bestellen\) — (دراسة|مع مساعدة|وحدك)$/,
+    /^الطلب في المقهى \(Im Café bestellen\)( — التالي)? — (دراسة|مع مساعدة|وحدك)$/,
   );
 });
 

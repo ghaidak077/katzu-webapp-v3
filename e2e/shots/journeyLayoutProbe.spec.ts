@@ -111,10 +111,12 @@ test('a row opens its three stages and starts the recommended one', async ({ pag
 
   const firstRow = page.getByTestId('trail-scenario-card').first();
   await expect(firstRow).toBeVisible({ timeout: 30_000 });
-  // The stage the evidence supports is in the row's name, and the visual meter
-  // keeps its three segments without repeating the words.
+  // The stage the evidence supports is in the row's name. The visual meter is
+  // drawn once, on the lesson in progress — a lesson not yet reached never
+  // shows filled stages.
   await expect(firstRow).toHaveAttribute('aria-label', /— (دراسة|مع مساعدة|وحدك)/);
-  await expect(firstRow.getByTestId('trail-stage-segment')).toHaveCount(3);
+  await expect(firstRow).toContainText('قيد التنفيذ');
+  await expect(page.getByTestId('trail-stage-segment')).toHaveCount(3);
 
   await firstRow.click();
   const start = page.getByTestId('trail-sheet-start');
@@ -141,12 +143,13 @@ test('130 due reviews become a ten-item action with the backlog in small text', 
 
   const row = page.getByTestId('trail-review-row');
   await expect(row).toBeVisible({ timeout: 30_000 });
-  // The words the learner hears carry the capped count; the visible row stays
-  // short enough to sit under the hero.
+  // The words the learner hears carry the capped count and the minutes; the
+  // visible row states the backlog in muted text and carries no badge.
   await expect(row).toHaveAttribute('aria-label', /مراجعة سريعة: 10 عناصر · 3 دقائق/);
   await expect(row).toContainText('مراجعة سريعة');
-  await expect(row).toContainText('3 دقائق');
-  await expect(page.getByText('+120 في الانتظار')).toBeVisible();
+  await expect(row).toContainText('130 بانتظار');
+  await expect(row).not.toContainText('دقائق');
+  await expect(page.getByText(/في الانتظار/)).toHaveCount(0);
   // The primary action still leads and still names a situation.
   const cta = page.getByTestId('trail-primary-cta');
   await expect(cta).toHaveText(/ابدأ|حدّث المشاهد/);
@@ -155,19 +158,40 @@ test('130 due reviews become a ten-item action with the backlog in small text', 
   expect(ctaBox!.y).toBeLessThan(rowBox!.y);
 });
 
-test('future units are dimmed, marked, and cannot be opened', async ({ page }) => {
+test('the unit holding the next situation is the only one open; further units stay shut', async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
   await bootSignedIn(page);
   await seedServedContent(page);
+  // One finished sitting makes the whole ladder visible, so the soft lock beyond
+  // the next unit is on screen instead of hypothesised.
+  await seedRows(page, 'sessions', [
+    {
+      id: 'probe-first-greetings',
+      scenarioId: 'first_greetings',
+      scenarioTitle: 'first_greetings',
+      cefrLevel: 'A1',
+      accuracyPercent: 88,
+      independentSentences: 5,
+      hintAssistedSentences: 0,
+      sentencesSpoken: 5,
+      wordsLearned: 12,
+      durationSeconds: 300,
+      xpEarned: 20,
+      timestamp: Date.now() - 86_400_000,
+      updatedAt: Date.now(),
+    },
+  ]);
   await page.goto('/app/library');
 
   const headers = page.getByTestId('trail-unit-header');
   await expect(headers.first()).toBeVisible({ timeout: 30_000 });
-  // The current unit is open; the next one may be opened; everything beyond it
-  // is dimmed and disabled instead of a level picker.
-  await expect(headers.first()).toHaveAttribute('aria-expanded', 'true');
-  await expect(headers.nth(2)).toBeDisabled();
-  await expect(headers.nth(2)).toHaveAttribute('aria-label', /مقفلة/);
+  // The open unit is the one holding the next situation — the row the hero names
+  // must be the row in view, or the path shows no current lesson at all. Units
+  // beyond the next one are disabled rather than a level picker.
+  await expect(page.locator('[data-testid="trail-unit-header"][aria-expanded="true"]')).toHaveCount(1);
+  await expect(page.getByTestId('trail-scenario-card').filter({ hasText: 'قيد التنفيذ' })).toHaveCount(1);
+  await expect(headers.nth(3)).toBeDisabled();
+  await expect(headers.nth(3)).toHaveAttribute('aria-label', /مقفلة/);
 });
 
 test('the profile XP text and its bar share one calculation', async ({ page }) => {

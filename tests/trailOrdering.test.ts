@@ -161,7 +161,7 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     // The unit header is the only place the unit's name and count appear, and
     // the timeline exists only inside the open unit.
     expect(TRAIL).toMatch(/الوحدة \{index \+ 1\} · \{entry\.unit\.titleAr\}/);
-    expect(TRAIL).toMatch(/data-testid="trail-unit-count">\s*\{entry\.done\} من \{entry\.total\}/);
+    expect(TRAIL).toMatch(/data-testid="trail-unit-count"[\s\S]{0,400}<LtrCounter value=\{entry\.done\} total=\{entry\.total\}/);
     expect(TRAIL).toMatch(/\{expanded && !headerLocked && \(/);
     expect(TRAIL.match(/data-testid="trail-timeline"/g)).toHaveLength(1);
   });
@@ -184,10 +184,14 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     expect(TRAIL).toMatch(/data-testid="trail-scenario-card"/);
     const rowAt = TRAIL.indexOf('data-testid="trail-scenario-card"');
     const nodeAt = TRAIL.indexOf('<span aria-hidden className="flex w-7 shrink-0 flex-col items-center">');
-    const germanAt = TRAIL.indexOf('<GermanText className="line-clamp-1 min-w-0');
+    const germanAt = TRAIL.indexOf('<GermanText className="line-clamp-2 min-w-0 flex-1');
     expect(nodeAt, 'every row opens with its timeline node').toBeGreaterThan(rowAt);
     expect(nodeAt, 'the node precedes the title and the German subtitle').toBeLessThan(germanAt);
     expect(TRAIL.match(/className="mt-1 w-px flex-1 bg-border-subtle"/g)).toHaveLength(1);
+    // Rows are separated by a hairline, never by a card: the only filled surface
+    // above the fold is the current row's tint.
+    expect(TRAIL).toMatch(/className=\{last \? '' : 'border-b border-border-subtle'\}/);
+    expect(TRAIL).not.toMatch(/data-testid="trail-unit-header"[\s\S]{0,700}rounded-control border/);
     expect(TRAIL).toMatch(/done \? \(\s*<Check/);
     expect(TRAIL).toMatch(/current \? \(\s*<Play/);
   });
@@ -197,11 +201,11 @@ describe('the Trail uses the rule and keeps its own controls', () => {
       /font-arabic text-sm font-bold leading-snug text-text-primary">\s*\{scenario\.title_ar\}/,
     );
     expect(TRAIL).toMatch(
-      /<GermanText className="line-clamp-1 min-w-0 text-micro leading-snug text-text-secondary">\s*\{scenario\.title_de\}\s*<\/GermanText>/,
+      /<GermanText className="line-clamp-2 min-w-0 flex-1 text-micro leading-snug text-text-secondary">\s*\{scenario\.title_de\}\s*<\/GermanText>/,
     );
   });
 
-  it('shows the three evidence stages as one labelled meter per row', () => {
+  it('shows the three evidence stages as one labelled meter on the current row only', () => {
     expect(TRAIL).toMatch(/const STAGES: SessionStage\[\] = \['study', 'with_help', 'solo'\]/);
     expect(TRAIL).toMatch(/const states = \[studied, withHelp, done\]/);
     expect(TRAIL).toMatch(
@@ -210,6 +214,10 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     expect(TRAIL).toMatch(/data-testid="trail-stage-segment"/);
     expect(TRAIL).toMatch(/key=\{STAGES\[index\]\}/);
     expect(TRAIL).toMatch(/<StageMeter\s+studied=\{studiedSet\.has\(scenario\.id\)\}\s+withHelp=\{practisedSet\.has\(scenario\.id\)\}\s+done=\{done\}/);
+    // A lesson yet to be reached never shows filled stages: the meter and the
+    // minutes live inside the current row's branch only.
+    expect(TRAIL.match(/<StageMeter/g)).toHaveLength(1);
+    expect(TRAIL.indexOf('<StageMeter')).toBeGreaterThan(TRAIL.indexOf('{current && ('));
   });
 });
 
@@ -229,9 +237,13 @@ describe('the path has one primary action and one progression system', () => {
     expect(TRAIL).not.toMatch(/rankFor\(/);
   });
 
-  it('caps the review action at ten items and puts the backlog in plain text', () => {
+  it('caps the review action at ten items and shows the backlog as plain text', () => {
     expect(TRAIL).toMatch(/Math\.min\(dueCount, REVIEW_SESSION_CAP\)/);
-    expect(TRAIL).toMatch(/reviewBacklog\(dueCount\)/);
+    // The row states how much is waiting; the cap and the minutes belong to the
+    // action's accessible name and to the review screen, not to a badge.
+    expect(TRAIL).toMatch(/\{dueCount\} بانتظار/);
+    expect(TRAIL).not.toMatch(/trail-review-badge/);
+    expect(TRAIL).not.toMatch(/في الانتظار/);
     expect(TRAIL).not.toMatch(/راجع \$\{dueCount\}/);
   });
 
@@ -249,10 +261,12 @@ describe('the path has one primary action and one progression system', () => {
     expect(TRAIL).toMatch(/aria-current=\{stage === nextStage \? 'step' : undefined\}/);
   });
 
-  it('states the level and percent on the open unit, not on a fifth card', () => {
+  it('states the level once in the screen header, not on a fifth card', () => {
     expect(TRAIL).not.toMatch(/data-testid="trail-level-card"/);
     expect(TRAIL).toMatch(/data-testid="trail-level-line"/);
-    expect(TRAIL).toMatch(/\{entry\.unit\.level\} · \{levelPercentFor\(entry\.unit\.level as UnitLevel\)\}%/);
+    expect(TRAIL).toMatch(/\{currentUnitEntry\.unit\.level\} · \{currentLevelPercent\}%/);
+    // One level line for the screen; it never repeats inside a unit header.
+    expect(TRAIL.match(/data-testid="trail-level-line"/g)).toHaveLength(1);
     // Rank names belong to the profile; the path carries no rank wording.
     expect(TRAIL).not.toMatch(/رتبتك/);
   });

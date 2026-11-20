@@ -83,7 +83,7 @@ async function bootWithContent(page: Page, doneCount = 0): Promise<void> {
   await expect(page.getByTestId('trail-scenario-card').first()).toBeVisible();
   await expect
     .poll(async () => page.getByTestId('trail-unit-count').first().innerText())
-    .toContain(`من 6`);
+    .toContain(` / 6`);
 }
 
 async function shoot(page: Page, name: string): Promise<void> {
@@ -105,7 +105,7 @@ test('mid-unit — three of six situations finished', async ({ page }) => {
   await bootWithContent(page, 3);
   await expect
     .poll(async () => page.getByTestId('trail-unit-count').first().innerText())
-    .toBe('3 من 6');
+    .toBe('3 / 6');
   await shoot(page, '02-mid-unit');
 });
 
@@ -113,11 +113,11 @@ test('finished unit — all six done, next unit open', async ({ page }) => {
   await bootWithContent(page, 6);
   await expect
     .poll(async () => page.getByTestId('trail-unit-count').first().innerText())
-    .toBe('6 من 6');
+    .toBe('6 / 6');
   await shoot(page, '03-finished-unit');
 });
 
-test('130 due reviews — ten-item action, backlog in small text', async ({ page }) => {
+test('130 due reviews — one ghost row, capped action, backlog in muted text', async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
   await bootSignedIn(page);
   await seedServedContent(page);
@@ -128,7 +128,7 @@ test('130 due reviews — ten-item action, backlog in small text', async ({ page
   );
   await page.goto('/app/library');
   await expect(page.getByTestId('trail-review-row')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('+120 في الانتظار')).toBeVisible();
+  await expect(page.getByTestId('trail-review-row')).toContainText('130 بانتظار');
   await shoot(page, '04-130-reviews');
 });
 
