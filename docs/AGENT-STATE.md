@@ -26,6 +26,19 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-20, second pass — every lesson row is one state, one filled button (deployed; worker unchanged).** The
+  practice-home unit map dropped its cards: each situation is a divider row rendering exactly one state — done (green check,
+  muted title), current (accent title, «قيد التنفيذ», one 3-stage meter, minutes) or upcoming (number plus a lock/Pro note).
+  The hero carries minutes in its top row, a real 3-step bar and the screen's only filled 52px action; the review strip is
+  one ghost row («لا تحتاج مراجعة» when the backlog is empty) so no count over 10 appears on this screen — the full backlog
+  still lives in the review screen. Unit headers are flat text with the progress bar attached, and counters render through
+  `LtrCounter`. Progress rules, routes, tables and dependencies untouched (`progress.ts` not modified). Evidence:
+  `trailOrdering` + `uiPolishLaunch` **48**, `e2e/journey.spec.ts` **14/14**, gate
+  `VERIFY OK — 16/16 steps passed in 802.9s`. **Deployed** Pages `74addfc9-04eb-4366-9add-0d47127ee786`
+  (source `5d19bad`, entry `assets/index-BEaZS6ly.js`, screen chunk `TrailScreen-8PTK5bWS.js` carries
+  `trail-sheet-start`); rollback `45c9b552-c520-4254-8092-e2ffbfc03980` (source `0fa0069`). Before/after at 390x844 and
+  360x640 in `docs/agent/journey-polish/`. **UNPROVEN:** the screen on a real phone.
+
 - **2026-11-20 — the practice home is one hero, a timeline and a stage sheet (deployed; worker unchanged).** `/app/library`
   no longer stacks two continue cards, a level card and per-row chips: the header greets by name (avatar + «أهلاً …»),
   carries `Katzu Pro` only for Pro and **one** streak chip; the «0 / 20» goal ring is gone (that number was today's
