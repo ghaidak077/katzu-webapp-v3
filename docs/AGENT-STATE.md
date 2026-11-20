@@ -26,6 +26,25 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 ## RESUME
 
+- **2026-11-20 — the practice home is one hero, a timeline and a stage sheet (deployed; worker unchanged).** `/app/library`
+  no longer stacks two continue cards, a level card and per-row chips: the header greets by name (avatar + «أهلاً …»),
+  carries `Katzu Pro` only for Pro and **one** streak chip; the «0 / 20» goal ring is gone (that number was today's
+  recorded session minutes against `user.dailyGoalMinutes` — 5/10/20 — not a free-session count, which still reads
+  «جلسة مجانية N من 3» as a pill for free learners only); one hero card names the next situation, its LTR German
+  title, its minutes, «دراسة ← مع مساعدة ← وحدك» and one full-width «ابدأ» that starts the recommended stage; one slim
+  review row carries the capped badge and the backlog in small text; the unit map shows `الوحدة N · name`, `k من n`,
+  a thin bar and `A1 · xx%` with only the current unit open; situations are timeline rows (check / play / number,
+  Arabic title, German subtitle, minutes, 3-segment meter) and tapping one opens a bottom sheet with the three stages
+  (recommended preselected) whose button starts the scene. The hero only announces a scene the device has loaded
+  (recommendation → composed plan → first unfinished row). Evidence: `trailOrdering` **39**, layout probe **5/5**,
+  `unitPathShots` **6/6** (its hardcoded unit-1 ids were stale since the 11-18 content change — fixed, not weakened),
+  `firstRun` **3/3**, gate `VERIFY OK — 16/16 steps passed in 995.7s`. **Deployed** Pages
+  `55a750e1-e9e5-45b7-b6e3-3f47ad69f3f1` (source `a88add8`, entry `assets/index-jEyj3rTh.js`, screen chunk
+  `TrailScreen-XgkifJu_.js` carries the new ids; `/`, `katzuai.com`, `/sw.js` 200); rollback
+  `d85cb744-4580-4f72-b4ae78289a99` (source `3037c4e`). Before/after at 390x844 in
+  `docs/agent/journey-polish/`. **UNPROVEN:** the screen on a real phone and the remote CI of `a88add8` at the time of
+  writing.
+
 - **2026-11-18 — v10 is live; v11 closes the Arabic-gender defect (local; ids in SNAPSHOT).** v10 (formal
   register per scene, persona gender, learner-decided farewell, one persona detail per turn) is served by worker
   `89a1a55e-…`: gate `VERIFY OK 16/16` in 911.3 s, remote CI green on `0310e88` (run `44262616493`) and `9ba7a9c`
@@ -66,24 +85,6 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   smoke 3 passed / 1 skipped. Live Pages `61b78993-5929-45e9-8162-c323b48d9f68` (source `4dae8df`, entry
   `assets/index-BnLPxd6G.js`) and worker `a57a74ba-0242-4993-802f-549809394c95`. Forward: tag
   `pre-chat-revert-2026-11-11`, worker `8a82c4a4-…`, Pages `b65b388a-…`.
-
-- **2026-11-07 — the path is ten owner-approved units and the day is one composed session (deployed; worker unchanged).**
-  `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
-  dimmed and locked, units below the placement level open and marked «تخطّيتَ», plus the level percent ring and the exact
-  ability lines. The 49 served scenarios are partitioned into the owner's 10 units exactly once, checkpoint last,
-  enforced by `scripts/audit-unit-coverage.mjs` in the gate. Outcome lines are practice-only («في هذه الوحدة تتدرّب
-  على …»); the B2 unit says the exam-style talk is training only and grants no certificate. One move from the owner's
-  draft: `patient_conversation_basics` sits in unit 5 «صحتك ومواعيدك» (the learner speaks as a patient: «Mir ist nicht
-  gut…»), not unit 6. `src/lib/units/{units,progress}.ts` own recommendation (unfinished-started → unit order →
-  checkpoint), stage (study → with help → solo), composition, `nextPlanStep`, the post-session offers, and a `skipped`
-  flag for pre-placement units. One CTA «ابدأ جلسة اليوم»/«تابع»; the report auto-advances after 2 s with «ليس الآن».
-  Signup asks one goal question; placement still sets the start; conversations show 3 unit topic chips + «فاجئني» and no
-  level control. Free line «جلسة مجانية N من 3»; paywall only at a session boundary. Existing learners map by completed
-  ids with level/XP preserved. Evidence: `units` + `trailOrdering` **58**, unit coverage **49/49 across 10 units**, full
-  gate `VERIFY OK — 16/16 steps passed in 896.5s` (browser suite 774.4s, exit 0). **Deployed** Pages
-  `5c63e575-9021-4caa-82de-a2ec6dd7d6c7` (source `19b431a`, entry `assets/index-BnLPxd6G.js`; `/`, `katzuai.com` and
-  `/sw.js` 200; production smoke 2 passed / 2 skipped); rollback `b914e4ba-c296-44eb-8302-f19c5d571c03` (source
-  `58551b9`, docs-only, same bundle). Worker unchanged. Owner review: `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
 
 - **Older RESUME entries moved verbatim** to `docs/agent/ARCHIVE-AGENT-STATE.md` on 2026-11-01/07 to stay under the
   80 KB cap (search `RESUME moved 2026-11-07 path screen + opener gate`, `RESUME 2026-11-05 first message Arabic`,

@@ -986,3 +986,23 @@ the owner; an agent must not sign in as them or use the admin key.
   v7 is **unmeasured** — Groq's 200k-token daily cap was exhausted mid-run (HTTP 429 `tokens per day`,
   Used 199867) and only recovers with the rolling window. The 90% gate is therefore **not met with
   evidence for the shipped prompt**; see OWNER-OPEN. `npm run eval:chat --from-kv` re-measures tomorrow.
+
+## RESUME moved 2026-11-20 — the 2026-11-07 path-screen entry (deployed)
+
+- **2026-11-07 — the path is ten owner-approved units and the day is one composed session (deployed; worker unchanged).**
+  `/app/library` renders a vertical unit map: the current unit expanded, others collapsed with «N من M», future units
+  dimmed and locked, units below the placement level open and marked «تخطّيتَ», plus the level percent ring and the exact
+  ability lines. The 49 served scenarios are partitioned into the owner's 10 units exactly once, checkpoint last,
+  enforced by `scripts/audit-unit-coverage.mjs` in the gate. Outcome lines are practice-only («في هذه الوحدة تتدرّب
+  على …»); the B2 unit says the exam-style talk is training only and grants no certificate. One move from the owner's
+  draft: `patient_conversation_basics` sits in unit 5 «صحتك ومواعيدك» (the learner speaks as a patient: «Mir ist nicht
+  gut…»), not unit 6. `src/lib/units/{units,progress}.ts` own recommendation (unfinished-started → unit order →
+  checkpoint), stage (study → with help → solo), composition, `nextPlanStep`, the post-session offers, and a `skipped`
+  flag for pre-placement units. One CTA «ابدأ جلسة اليوم»/«تابع»; the report auto-advances after 2 s with «ليس الآن».
+  Signup asks one goal question; placement still sets the start; conversations show 3 unit topic chips + «فاجئني» and no
+  level control. Free line «جلسة مجانية N من 3»; paywall only at a session boundary. Existing learners map by completed
+  ids with level/XP preserved. Evidence: `units` + `trailOrdering` **58**, unit coverage **49/49 across 10 units**, full
+  gate `VERIFY OK — 16/16 steps passed in 896.5s` (browser suite 774.4s, exit 0). **Deployed** Pages
+  `5c63e575-9021-4caa-82de-a2ec6dd7d6c7` (source `19b431a`, entry `assets/index-BnLPxd6G.js`; `/`, `katzuai.com` and
+  `/sw.js` 200; production smoke 2 passed / 2 skipped); rollback `b914e4ba-c296-44eb-8302-f19c5d571c03` (source
+  `58551b9`, docs-only, same bundle). Worker unchanged. Owner review: `docs/OWNER-UNITS-REVIEW.md`, checklist §16.
