@@ -42,8 +42,8 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   `55a750e1-e9e5-45b7-b6e3-3f47ad69f3f1` (source `a88add8`, entry `assets/index-jEyj3rTh.js`, screen chunk
   `TrailScreen-XgkifJu_.js` carries the new ids; `/`, `katzuai.com`, `/sw.js` 200); rollback
   `d85cb744-4580-4f72-b4ae78289a99` (source `3037c4e`). Before/after at 390x844 in
-  `docs/agent/journey-polish/`. **UNPROVEN:** the screen on a real phone and the remote CI of `a88add8` at the time of
-  writing.
+  `docs/agent/journey-polish/`. **CI:** `a88add8` and `5d15796` both ran green
+  (launch-check, secret-scan, verify, e2e). **UNPROVEN:** the screen on a real phone.
 
 - **2026-11-18 — v10 is live; v11 closes the Arabic-gender defect (local; ids in SNAPSHOT).** v10 (formal
   register per scene, persona gender, learner-decided farewell, one persona detail per turn) is served by worker
