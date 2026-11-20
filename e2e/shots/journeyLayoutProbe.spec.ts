@@ -7,14 +7,17 @@ import { seedServedContent } from '../servedContent';
  * 390×844 instead of trusting an eyeball.
  *
  * The screen this replaces carried four competing stories above the fold (rank,
- * CEFR tabs, mission strip, review chip), three-digit review counts, full-width
- * banners that pushed every situation below the fold, and an empty timeline
- * column. The contract now is the opposite, and each clause below is a number:
+ * CEFR tabs, mission strip, review chip), a «0 / 20» goal ring, three-digit
+ * review counts, full-width banners that pushed every situation below the fold,
+ * and an empty timeline column. The contract now is the opposite, and each
+ * clause below is a number:
  *
- *   - exactly one primary action, always naming a situation;
+ *   - a header that greets and holds one streak, nothing to score;
+ *   - exactly one primary action, on the hero, naming a situation;
  *   - review is a secondary row, capped at ten items, backlog in small text;
  *   - no rank card and no second progression system on the path;
- *   - at least three compact situation cards fully visible without scrolling;
+ *   - at least three timeline rows fully visible without scrolling;
+ *   - a row opens its three stages and starts the recommended one;
  *   - locked levels say why they are locked;
  *   - on the profile, the XP text and the bar come from one calculation.
  */
@@ -52,19 +55,26 @@ test('the path at 390x844 answers "what now" with one primary action', async ({ 
 
   const cta = page.getByTestId('trail-primary-cta');
   await expect(cta).toBeVisible({ timeout: 30_000 });
-  // One primary action, and it names the session rather than "review".
+  // One primary action, and it starts the recommended stage of a situation.
   await expect(cta).toHaveCount(1);
-  await expect(cta).toContainText(/تابع|ابدأ جلسة اليوم/);
+  await expect(cta).toHaveText(/ابدأ|حدّث المشاهد/);
+  await expect(cta).toHaveAttribute('aria-label', /ابدأ .+ — (دراسة|مع مساعدة|وحدك)/);
   await expect(page.getByTestId('trail-session-preview')).toBeVisible();
+
+  // The header greets by name and holds one streak chip; the «0 / 20» ring is
+  // gone because progress lives on the profile.
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('أهلاً');
+  await expect(page.getByTestId('trail-streak-chip')).toHaveCount(1);
+  await expect(page.getByTestId('trail-goal-ring')).toHaveCount(0);
 
   // Rank moved to the profile; the path has one progression system.
   await expect(page.getByTestId('trail-rank-card')).toHaveCount(0);
   await expect(page.getByTestId('trail-rank-pill')).toHaveCount(0);
+  await expect(page.getByTestId('trail-level-card')).toHaveCount(0);
 
-  await expect(page.getByTestId('trail-goal-ring')).toBeVisible();
-  await expect(page.getByTestId('trail-level-card')).toBeVisible();
   await expect(page.getByTestId('trail-unit-map')).toBeVisible();
-  // Wait for the unit's rows, not just the map: the card count is content, and
+  await expect(page.getByTestId('trail-level-line')).toBeVisible();
+  // Wait for the unit's rows, not just the map: the row count is content, and
   // measuring while Dexie is still hydrating is a race, not a layout verdict.
   await expect(page.getByTestId('trail-scenario-card').nth(2)).toBeVisible();
 
@@ -86,25 +96,37 @@ test('the path at 390x844 answers "what now" with one primary action', async ({ 
   });
 
   expect(metrics.scrollWidth, 'no horizontal clipping').toBeLessThanOrEqual(metrics.viewportWidth);
-  expect(metrics.cta!.bottom, 'primary action above the first card').toBeLessThan(metrics.firstCard!.top);
+  expect(metrics.cta!.bottom, 'primary action above the first row').toBeLessThan(metrics.firstCard!.top);
   expect(metrics.cardsAboveFold, 'at least three situations visible without scrolling').toBeGreaterThanOrEqual(3);
   for (const width of metrics.cardWidths) {
-    expect(width, 'cards span the path width').toBeGreaterThanOrEqual(300);
+    expect(width, 'rows span the path width').toBeGreaterThanOrEqual(300);
   }
 });
 
-test('every card carries the three evidence stages', async ({ page }) => {
+test('a row opens its three stages and starts the recommended one', async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
   await bootSignedIn(page);
   await seedServedContent(page);
   await page.goto('/app/library');
 
-  const firstCard = page.getByTestId('trail-scenario-card').first();
-  await expect(firstCard).toBeVisible({ timeout: 30_000 });
-  const mastery = firstCard.getByTestId('trail-mastery');
-  await expect(mastery).toContainText('دراسة');
-  await expect(mastery).toContainText('مع مساعدة');
-  await expect(mastery).toContainText('وحدك');
+  const firstRow = page.getByTestId('trail-scenario-card').first();
+  await expect(firstRow).toBeVisible({ timeout: 30_000 });
+  // The stage the evidence supports is in the row's name, and the visual meter
+  // keeps its three segments without repeating the words.
+  await expect(firstRow).toHaveAttribute('aria-label', /— (دراسة|مع مساعدة|وحدك)/);
+  await expect(firstRow.getByTestId('trail-stage-segment')).toHaveCount(3);
+
+  await firstRow.click();
+  const start = page.getByTestId('trail-sheet-start');
+  await expect(start).toBeVisible();
+  await expect(page.getByRole('dialog')).toContainText('دراسة');
+  await expect(page.getByRole('dialog')).toContainText('مع مساعدة');
+  await expect(page.getByRole('dialog')).toContainText('وحدك');
+  await expect(page.getByRole('dialog')).toContainText('المقترحة');
+  await expect(start).toHaveAttribute('aria-label', /^ابدأ (دراسة|مع مساعدة|وحدك)/);
+
+  await start.click();
+  await expect(page).toHaveURL(/\/scenario\/[^/]+\/story/);
 });
 
 test('130 due reviews become a ten-item action with the backlog in small text', async ({ page }) => {
@@ -119,11 +141,15 @@ test('130 due reviews become a ten-item action with the backlog in small text', 
 
   const row = page.getByTestId('trail-review-row');
   await expect(row).toBeVisible({ timeout: 30_000 });
-  await expect(row).toContainText('مراجعة سريعة: 10 عناصر · 3 دقائق');
+  // The words the learner hears carry the capped count; the visible row stays
+  // short enough to sit under the hero.
+  await expect(row).toHaveAttribute('aria-label', /مراجعة سريعة: 10 عناصر · 3 دقائق/);
+  await expect(row).toContainText('مراجعة سريعة');
+  await expect(row).toContainText('3 دقائق');
   await expect(page.getByText('+120 في الانتظار')).toBeVisible();
   // The primary action still leads and still names a situation.
   const cta = page.getByTestId('trail-primary-cta');
-  await expect(cta).toContainText(/تابع|ابدأ جلسة اليوم/);
+  await expect(cta).toHaveText(/ابدأ|حدّث المشاهد/);
   const ctaBox = await cta.boundingBox();
   const rowBox = await row.boundingBox();
   expect(ctaBox!.y).toBeLessThan(rowBox!.y);

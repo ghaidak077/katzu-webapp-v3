@@ -157,8 +157,13 @@ describe('the Trail uses the rule and keeps its own controls', () => {
   it('renders one vertical unit map with the current unit expanded', () => {
     expect(TRAIL).toMatch(/data-testid="trail-unit-map"/);
     expect(TRAIL).toMatch(/const openUnitId = expandedUnitId \?\? currentUnitId/);
-    expect(TRAIL).toMatch(/data-testid="trail-unit-count"/);
-    expect(TRAIL).toMatch(/الوحدة \{index \+ 1\} · \{entry\.done\} من \{entry\.total\}/);
+    expect(TRAIL).toMatch(/const expanded = entry\.unit\.id === openUnitId/);
+    // The unit header is the only place the unit's name and count appear, and
+    // the timeline exists only inside the open unit.
+    expect(TRAIL).toMatch(/الوحدة \{index \+ 1\} · \{entry\.unit\.titleAr\}/);
+    expect(TRAIL).toMatch(/data-testid="trail-unit-count">\s*\{entry\.done\} من \{entry\.total\}/);
+    expect(TRAIL).toMatch(/\{expanded && !headerLocked && \(/);
+    expect(TRAIL.match(/data-testid="trail-timeline"/g)).toHaveLength(1);
   });
 
   it('never renders a level selector in the main flow', () => {
@@ -169,26 +174,42 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     expect(TRAIL).toMatch(/const episodeLevel = servedLevel\(learnerLevel, isPro\)/);
   });
 
-  it('uses one tinted category glyph per card instead of blurred artwork', () => {
+  it('draws the unit as a timeline instead of tinted category artwork', () => {
+    // The path carries no category glyph and no blurred scene art: a situation
+    // is a node on one line, and the node says done / current / number.
     expect(TRAIL).not.toMatch(/scene\.artUrl &&/);
     expect(TRAIL).not.toMatch(/<ScenarioBanner/);
-    expect(TRAIL).toMatch(/const visual = visualFor\(scenario\.category\)/);
-    expect(TRAIL).toMatch(/const CATEGORY_VISUALS[\s\S]{0,600}Icon: ShieldCheck/);
+    expect(TRAIL).not.toMatch(/CATEGORY_VISUALS/);
+    expect(TRAIL).not.toMatch(/visualFor\(/);
+    expect(TRAIL).toMatch(/data-testid="trail-scenario-card"/);
+    const rowAt = TRAIL.indexOf('data-testid="trail-scenario-card"');
+    const nodeAt = TRAIL.indexOf('<span aria-hidden className="flex w-7 shrink-0 flex-col items-center">');
+    const germanAt = TRAIL.indexOf('<GermanText className="line-clamp-1 min-w-0');
+    expect(nodeAt, 'every row opens with its timeline node').toBeGreaterThan(rowAt);
+    expect(nodeAt, 'the node precedes the title and the German subtitle').toBeLessThan(germanAt);
+    expect(TRAIL.match(/className="mt-1 w-px flex-1 bg-border-subtle"/g)).toHaveLength(1);
+    expect(TRAIL).toMatch(/done \? \(\s*<Check/);
+    expect(TRAIL).toMatch(/current \? \(\s*<Play/);
   });
 
-  it('leads each card with the Arabic title and puts the German underneath', () => {
+  it('leads each row with the Arabic title and puts the German underneath', () => {
     expect(TRAIL).toMatch(
-      /font-arabic text-sm font-bold leading-snug text-text-primary">\s*<bdi dir="rtl">\{scenario\.title_ar\}<\/bdi>/,
+      /font-arabic text-sm font-bold leading-snug text-text-primary">\s*\{scenario\.title_ar\}/,
     );
     expect(TRAIL).toMatch(
-      /<GermanText className="line-clamp-1 block min-w-0 text-micro leading-snug text-text-secondary">\s*\{scenario\.title_de\}\s*<\/GermanText>/,
+      /<GermanText className="line-clamp-1 min-w-0 text-micro leading-snug text-text-secondary">\s*\{scenario\.title_de\}\s*<\/GermanText>/,
     );
   });
 
-  it('shows the three evidence stages on every card', () => {
-    expect(TRAIL).toMatch(/<MasteryStage done=\{studied\} label="دراسة" \/>/);
-    expect(TRAIL).toMatch(/<MasteryStage done=\{withHelp\} label="مع مساعدة" \/>/);
-    expect(TRAIL).toMatch(/<MasteryStage done=\{done\} label="وحدك" \/>/);
+  it('shows the three evidence stages as one labelled meter per row', () => {
+    expect(TRAIL).toMatch(/const STAGES: SessionStage\[\] = \['study', 'with_help', 'solo'\]/);
+    expect(TRAIL).toMatch(/const states = \[studied, withHelp, done\]/);
+    expect(TRAIL).toMatch(
+      /STAGE_LABEL_AR\[stageFor\(scenario\.id, \{ evidence, lastEase: user\?\.lastSessionEase \?\? null \}\)\]/,
+    );
+    expect(TRAIL).toMatch(/data-testid="trail-stage-segment"/);
+    expect(TRAIL).toMatch(/key=\{STAGES\[index\]\}/);
+    expect(TRAIL).toMatch(/<StageMeter\s+studied=\{studiedSet\.has\(scenario\.id\)\}\s+withHelp=\{practisedSet\.has\(scenario\.id\)\}\s+done=\{done\}/);
   });
 });
 
@@ -219,17 +240,56 @@ describe('the path has one primary action and one progression system', () => {
     expect(TRAIL).toMatch(/جلسة مجانية \{freeSessions\} من \{FREE_SESSION_TOTAL\}/);
   });
 
-  it('uses quiet next/new labels instead of a status pill', () => {
+  it('keeps the next marker quiet and drops the duplicate new label', () => {
     expect(TRAIL).not.toMatch(/data-testid="trail-status-pill"/);
     expect(TRAIL).toMatch(/data-testid="trail-next-label"/);
-    expect(TRAIL).toMatch(/data-testid="trail-new-label"/);
+    // The timeline node carries «current», so a second label per row was the
+    // same sentence twice.
+    expect(TRAIL).not.toMatch(/data-testid="trail-new-label"/);
+    expect(TRAIL).toMatch(/aria-current=\{stage === nextStage \? 'step' : undefined\}/);
   });
 
-  it('keeps level and percent in one card and the unit map as the only plan', () => {
-    expect(TRAIL).toMatch(/data-testid="trail-level-card"/);
-    expect(TRAIL).toMatch(/const LEVEL_ABILITY_AR: Record<ShownLevel, string>/);
-    expect(TRAIL).toMatch(/أتصرّف في المواقف اليومية/);
+  it('states the level and percent on the open unit, not on a fifth card', () => {
+    expect(TRAIL).not.toMatch(/data-testid="trail-level-card"/);
+    expect(TRAIL).toMatch(/data-testid="trail-level-line"/);
+    expect(TRAIL).toMatch(/\{entry\.unit\.level\} · \{levelPercentFor\(entry\.unit\.level as UnitLevel\)\}%/);
     // Rank names belong to the profile; the path carries no rank wording.
     expect(TRAIL).not.toMatch(/رتبتك/);
+  });
+});
+
+describe('the path screen is a header, one hero and one timeline', () => {
+  const TRAIL = readFileSync('src/features/trail/TrailScreen.tsx', 'utf8');
+
+  it('greets by name, marks Pro once, and carries a single streak chip', () => {
+    expect(TRAIL).toMatch(/<h1 className="truncate font-arabic text-base font-bold leading-tight">\s*أهلاً \{user\?\.displayName \|\| 'مستكشف كَاتْزُو'\}/);
+    expect(TRAIL).toMatch(/data-testid="trail-pro-label"/);
+    // One chip, two branches of the same slot: a streak, or an invitation to
+    // start one. Never a second chip opposite it.
+    expect(TRAIL.match(/data-testid="trail-streak-chip"/g)).toHaveLength(2);
+    expect(TRAIL.match(/<header className=/g)).toHaveLength(1);
+    expect(TRAIL).toMatch(/<KatzuMascot name="avatar"/);
+  });
+
+  it('removes the «0 / 20» goal ring from a screen that names the next action', () => {
+    // The ring was today's recorded minutes against the daily goal — a
+    // scoreboard, not a plan. Progress lives on the profile.
+    expect(TRAIL).not.toMatch(/trail-goal-ring/);
+    expect(TRAIL).not.toMatch(/todayMinutes/);
+    expect(TRAIL).not.toMatch(/dailyGoalMinutes/);
+  });
+
+  it('puts the German subtitle in an LTR-isolated element', () => {
+    expect(TRAIL).toMatch(/<GermanText className="mt-0\.5 block truncate text-xs text-text-secondary">\s*\{nextScenario\.title_de\}/);
+  });
+
+  it('opens the situation sheet with the three stages and the recommended start', () => {
+    expect(TRAIL).toMatch(/<BottomSheet\s+isOpen=\{Boolean\(sheetScenario\)\}/);
+    expect(TRAIL).toMatch(/const sheetStage: SessionStage = sheetScenario\s*\? stageFor\(sheetScenario\.id, \{ evidence, lastEase: user\?\.lastSessionEase \?\? null \}\)\s*: 'study'/);
+    expect(TRAIL).toMatch(/data-testid="trail-sheet-start"/);
+    expect(TRAIL).toMatch(/المقترحة/);
+    // The row opens the sheet; only the sheet's button starts the scene.
+    expect(TRAIL).toMatch(/setSheetScenarioId\(scenario\.id\)/);
+    expect(TRAIL).toMatch(/const startSheetScenario = \(\) => \{[\s\S]{0,400}handleScenarioClick\(scenarioId, sheetLevel\)/);
   });
 });

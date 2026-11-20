@@ -181,7 +181,10 @@ test('the scenario library exposes named, keyboard-reachable cards', async ({ pa
   await expect(card).toBeVisible();
   await card.focus();
   await expect(card).toBeFocused();
-  await expect(card).toHaveAttribute('aria-label', 'الطلب في المقهى (Im Café bestellen)');
+  await expect(card).toHaveAttribute(
+    'aria-label',
+    /^الطلب في المقهى \(Im Café bestellen\) — (دراسة|مع مساعدة|وحدك)$/,
+  );
 });
 
 test('a scenario that is not on the device says so and keeps a way back', async ({ page }) => {

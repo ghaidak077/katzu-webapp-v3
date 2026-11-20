@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { refreshCurriculumCache } from '@/lib/api/workerClient';
 import { arCount } from '@/lib/i18n/arabicCount';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { isProEffective } from '@/lib/utils/subscription';
 import { FREE_LEVEL, isLevelFree, servedLevel } from '@/lib/entitlement/trial';
 import { journeyOrderedScenarios } from '@/lib/content/scenarioOrder';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { GermanText } from '@/components/common/GermanText';
-import { LtrCounter } from '@/components/common/LtrCounter';
-import { Card } from '@/components/ui/Card';
 import { PaywallModal } from '@/components/sheets/PaywallModal';
 import { track } from '@/lib/analytics/client';
 import type { CEFRLevel, ScenarioEntity } from '@/types/models';
@@ -20,17 +20,10 @@ import {
   Check,
   ChevronDown,
   Clock,
-  Compass,
   Flame,
-  GraduationCap,
-  KeyRound,
   Lock,
-  MessagesSquare,
-  ScrollText,
-  ShieldCheck,
-  ShoppingCart,
+  Play,
   Sparkles,
-  UserCheck,
   X,
 } from 'lucide-react';
 import { countDue } from '@/lib/srs/engine';
@@ -40,7 +33,6 @@ import {
   scenarioMinutes,
   REVIEW_SESSION_CAP,
 } from '@/lib/mission/scenarioMinutes';
-import { isSameLocalDay } from '@/lib/progress/dailyXp';
 import { buildCapabilityModel } from '@/lib/capability/model';
 import { unitForScenario, unitGoalForLearnerGoal, type UnitLevel } from '@/lib/units/units';
 import {
@@ -48,86 +40,47 @@ import {
   buildUnitProgress,
   composeSession,
   recommendScenario,
+  stageFor,
   type LearnerEvidence,
-  type SessionStep,
+  type SessionStage,
 } from '@/lib/units/progress';
 
 /** V31: agreement for the review strip's title. See `arabicCount`. */
 const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
 
-/**
- * The four levels this screen renders. A0 exists in the product (a learner can
- * be measured at A0) and stays served, but it has no bar of its own: an A0
- * learner meets the A1 units, which is where the content starts.
- */
-type ShownLevel = 'A1' | 'A2' | 'B1' | 'B2';
-const SHOWN_LEVELS: ShownLevel[] = ['A1', 'A2', 'B1', 'B2'];
-
-/**
- * One plain-language ability line per level — the owner-approved copy, verbatim.
- * This is the promise the units below deliver on. No fluency, certificate or
- * speed promise is made here.
- */
-const LEVEL_ABILITY_AR: Record<ShownLevel, string> = {
-  A1: 'أتصرّف في المواقف اليومية',
-  A2: 'أتحرّك في يومي بثقة',
-  B1: 'أتعامل مع المواقف الرسمية والعمل',
-  B2: 'أتحدّث عن الدراسة والعمل بثقة',
-};
+/** The three stages, in the order a learner walks them. Never a menu. */
+const STAGES: SessionStage[] = ['study', 'with_help', 'solo'];
 
 /** The free trial's shape, mirrored for display only — the server owns the count. */
 const FREE_SESSION_TOTAL = 3;
 
 /**
- * A category icon tile, tinted from one palette per category.
+ * The three evidence stages, as one compact meter.
  *
- * The old card used the scene's blurred gradient artwork as a thumbnail. At
- * 64px the gradient read as a smudge rather than a place, and two scenarios in
- * different categories could look identical. A flat tinted glyph is the same
- * width, is recognisable before the title is read, and costs no image request.
+ * The path used to print «دراسة · مع مساعدة · وحدك» on every row, which is
+ * twelve words of the same sentence repeated six times. The information is
+ * still there — it is a meter now, and the row's accessible name carries the
+ * stage the evidence supports, while the sheet spells out all three.
  */
-const CATEGORY_VISUALS: Array<{
-  keys: string[];
-  Icon: typeof Compass;
-  tint: string;
-}> = [
-  { keys: ['health', 'arzt', 'doctor', 'apotheke', 'zahn', 'kranken'], Icon: ShieldCheck, tint: 'bg-status-success/10 text-status-success' },
-  { keys: ['travel', 'transport', 'station', 'airport', 'train', 'flight'], Icon: Compass, tint: 'bg-primary/10 text-primary' },
-  { keys: ['housing', 'wohnung', 'apartment', 'home', 'miet'], Icon: KeyRound, tint: 'bg-status-learning/10 text-status-learning' },
-  { keys: ['work', 'job', 'career', 'office', 'interview', 'ausbildung', 'betrieb'], Icon: UserCheck, tint: 'bg-status-info/10 text-status-info' },
-  { keys: ['official', 'document', 'visa', 'behoerde', 'amt', 'anmeldung'], Icon: ScrollText, tint: 'bg-status-info/10 text-status-info' },
-  { keys: ['exam', 'study', 'school', 'university', 'berufsschule', 'pruefung'], Icon: GraduationCap, tint: 'bg-primary/10 text-primary' },
-  { keys: ['food', 'cafe', 'shop', 'bakery', 'supermarket', 'daily'], Icon: ShoppingCart, tint: 'bg-status-learning/10 text-status-learning' },
-];
-
-function visualFor(category: string | undefined) {
-  const value = String(category || '').toLowerCase();
-  for (const entry of CATEGORY_VISUALS) {
-    if (entry.keys.some((key) => value.includes(key))) return entry;
-  }
-  return { keys: [], Icon: MessagesSquare, tint: 'bg-surface-subtle text-text-secondary' };
-}
-
-/** One stage of the three-step mastery marker on a compact card. */
-const MasteryStage: React.FC<{ done: boolean; label: string }> = ({ done, label }) => (
-  <span
-    className={`inline-flex items-center gap-1 ${
-      done ? 'font-bold text-primary' : 'text-text-muted'
-    }`}
-  >
-    {done ? (
-      <Check className="h-3 w-3 shrink-0" aria-hidden />
-    ) : (
-      <span className="h-3 w-3 shrink-0 rounded-full border border-current" aria-hidden />
-    )}
-    {label}
-  </span>
-);
-
-function stepTitle(step: SessionStep): string {
-  if (step.kind === 'review') return step.titleAr;
-  return `${step.titleAr} · ${STAGE_LABEL_AR[step.stage as keyof typeof STAGE_LABEL_AR]}`;
-}
+const StageMeter: React.FC<{
+  studied: boolean;
+  withHelp: boolean;
+  done: boolean;
+  className?: string;
+}> = ({ studied, withHelp, done, className }) => {
+  const states = [studied, withHelp, done];
+  return (
+    <span data-testid="trail-mastery" aria-hidden className={`flex items-center gap-1 ${className || ''}`}>
+      {states.map((reached, index) => (
+        <span
+          key={STAGES[index]}
+          data-testid="trail-stage-segment"
+          className={`h-1 w-5 rounded-full ${reached ? 'bg-primary' : 'bg-border-subtle'}`}
+        />
+      ))}
+    </span>
+  );
+};
 
 export interface TrailScreenProps {
   onSelectScenario: (scenarioId: string) => void;
@@ -145,16 +98,18 @@ export interface TrailScreenProps {
  * current unit is open, finished and next units show «3 من 6», and everything
  * further out is dimmed without becoming a second decision.
  *
- *   header        identity + today's goal ring (streak only when it exists)
- *   ONE CTA       «ابدأ جلسة اليوم» / «تابع» with the composed session preview
- *   free tier     «جلسة مجانية N من 3» — one honest line, never a countdown
- *   review row    secondary, capped at ten items, backlog in small text
- *   level card    one progression system, ability line, percent ring
- *   unit map      current unit expanded, others collapsed, future ones locked
- *   cards         tinted category glyph, Arabic title, German subtitle,
- *                 and a three-stage evidence marker (دراسة · مع مساعدة · وحدك)
+ *   header      identity, the Pro mark when it applies, one streak chip
+ *   hero        the next situation, its stages and ONE «ابدأ» button that
+ *               starts the stage the evidence supports
+ *   review      a slim secondary row with the capped pending count
+ *   unit        «الوحدة N · name» + «k من n» + a thin bar + «A1 · 7%»
+ *   timeline    one node per situation: done check, current play, else number
+ *   sheet       tapping a row opens its three stages and one start button
  *
- * Rank and XP live on the profile; the path carries one progression story.
+ * There is deliberately no daily-minutes ring here: a «0 / 20» in the header
+ * was today's recorded minutes against the learner's goal, which is a
+ * scoreboard on a screen whose job is to name the next action. Progress lives
+ * on the profile; the path carries one plan and one primary button.
  */
 export const TrailScreen: React.FC<TrailScreenProps> = ({
   onSelectScenario,
@@ -163,6 +118,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   onOpenOnboarding,
 }) => {
   const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
+  const [sheetScenarioId, setSheetScenarioId] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallReason, setPaywallReason] = useState({ title: '', description: '' });
 
@@ -179,9 +135,6 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const learnerLevel: CEFRLevel = user?.cefrLevel || 'A1';
   const episodeLevel = servedLevel(learnerLevel, isPro);
   const unitGoal = unitGoalForLearnerGoal(user?.primaryGoal);
-  const shownLevel: ShownLevel = (SHOWN_LEVELS as string[]).includes(episodeLevel)
-    ? (episodeLevel as ShownLevel)
-    : 'A1';
 
   const capability = useMemo(
     () =>
@@ -193,11 +146,6 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         reviewItems,
       }),
     [scenarios, trainingRecords, sessions, mistakes, reviewItems],
-  );
-
-  const sessionScenarioIds = useMemo(
-    () => new Set(sessions.map((session) => session.scenarioId)),
-    [sessions],
   );
 
   /** A completed unaided conversation, per the capability model. */
@@ -254,6 +202,8 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
     return map;
   }, [scenarios]);
 
+  // Stored, not rendered: the report reads it to hand off to the next step
+  // without re-deriving a different plan.
   const sessionPlan = useMemo(
     () =>
       composeSession({
@@ -274,28 +224,20 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
 
   const currentUnitId = unitProgress.find((entry) => entry.current)?.unit.id;
   const openUnitId = expandedUnitId ?? currentUnitId;
-  const hasProgress = [...evidence.completedIds].length > 0 || [...evidence.startedIds].length > 0;
+  const hasProgress =
+    [...evidence.completedIds].length > 0 || [...evidence.startedIds].length > 0;
+
+  // Day one: the path shows the unit the learner is in, the next one, and a
+  // single locked preview. Rendering the whole ladder put a column of padlocks
+  // above the fold, which advertises doors instead of answering «what do I do
+  // now?». Once anything is started the full path is useful context again.
+  const visibleUnitCount = hasProgress ? unitProgress.length : Math.min(unitProgress.length, 3);
+  const hiddenUnitCount = unitProgress.length - visibleUnitCount;
 
   const studiedSet = useMemo(() => new Set(evidence.studiedIds), [evidence.studiedIds]);
   const practisedSet = useMemo(() => new Set(evidence.practisedIds), [evidence.practisedIds]);
 
   const streakDays = user?.streakDays ?? 0;
-  const goalMinutes = user?.dailyGoalMinutes ?? 15;
-
-  // Today's minutes, from recorded sessions only — never a timer that runs
-  // while the app is open.
-  const todayMinutes = useMemo(
-    () =>
-      sessions.reduce(
-        (total, session) =>
-          session?.timestamp && isSameLocalDay(session.timestamp, Date.now())
-            ? total + Math.round((session.durationSeconds || 0) / 60)
-            : total,
-        0,
-      ),
-    [sessions],
-  );
-  const goalPercent = goalMinutes > 0 ? Math.min(100, Math.round((todayMinutes / goalMinutes) * 100)) : 0;
 
   const levelLocked = (lvl: CEFRLevel) => !isLevelFree(lvl, isPro);
 
@@ -314,9 +256,29 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
     onSelectScenario(scenarioId);
   };
 
-  const primaryStep = sessionPlan.steps.find((step) => step.kind === 'scenario');
-  const primaryScenarioId = primaryStep?.scenarioId ?? recommendation?.scenarioId;
-  const totalMinutes = sessionPlan.totalMinutes || scenarioMinutes(episodeLevel);
+  /**
+   * The next situation, its stage, and its level — all from recorded evidence.
+   *
+   * The recommendation is derived from the static unit ladder, so it can name a
+   * scene the device has not loaded yet (a fresh install, a partial download).
+   * The hero may only announce a scene it can actually open, so the order is:
+   * the recommendation when it is present, the composed plan's first scenario
+   * step when that one is present, then the first unfinished row in the unit.
+   */
+  const present = (scenarioId?: string) =>
+    scenarioId && scenarios.some((scenario) => scenario.id === scenarioId) ? scenarioId : undefined;
+  const nextScenarioId =
+    present(recommendation?.scenarioId) ??
+    present(sessionPlan.steps.find((step) => step.kind === 'scenario')?.scenarioId) ??
+    scenarios.find((scenario) => !isDone(scenario.id))?.id ??
+    scenarios[0]?.id;
+  const nextScenario = scenarios.find((scenario) => scenario.id === nextScenarioId);
+  const nextStage: SessionStage = nextScenarioId
+    ? stageFor(nextScenarioId, { evidence, lastEase: user?.lastSessionEase ?? null })
+    : 'study';
+  const nextLevel: CEFRLevel =
+    (nextScenario && unitForScenario(nextScenario.id)?.level) || episodeLevel;
+  const nextMinutes = scenarioMinutes(nextLevel);
 
   const handlePrimary = () => {
     // Phase 2: the composed plan is the session. Persist it so the report can
@@ -326,12 +288,8 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
     } catch {
       /* storage full/blocked: the report simply falls back to its own CTA */
     }
-    if (sessionPlan.steps[0]?.kind === 'review' && dueCount > 0) {
-      onOpenReview();
-      return;
-    }
-    if (primaryScenarioId) {
-      handleScenarioClick(primaryScenarioId, episodeLevel);
+    if (nextScenarioId) {
+      handleScenarioClick(nextScenarioId, nextLevel);
       return;
     }
     void refreshCurriculumCache();
@@ -344,141 +302,156 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         )} دقائق`
       : '';
   const backlog = reviewBacklog(dueCount);
-
-  // Level percent: scenarios that belong to the shown level, and how many have
-  // been produced unaided. A scenario outside the served unit map (older local
-  // content) simply does not count — it is not silently called done.
-  const levelScenarios = scenarios.filter((scenario) => {
-    const unit = unitForScenario(scenario.id);
-    return unit ? unit.level === shownLevel : false;
-  });
-  const levelDone = levelScenarios.filter((scenario) => isDone(scenario.id)).length;
-  const levelPercent = levelScenarios.length
-    ? Math.round((levelDone / levelScenarios.length) * 100)
-    : 0;
+  const reviewCount = Math.min(dueCount, REVIEW_SESSION_CAP);
 
   const freeSessions = Math.max(
     0,
     Math.min(FREE_SESSION_TOTAL, user?.freeSessionsRemaining ?? FREE_SESSION_TOTAL),
   );
 
-  const ringRadius = 18;
-  const ringCircumference = 2 * Math.PI * ringRadius;
+  /** How much of a level the learner has produced unaided. */
+  const levelPercentFor = (level: UnitLevel) => {
+    const rows = scenarios.filter((scenario) => unitForScenario(scenario.id)?.level === level);
+    if (!rows.length) return 0;
+    return Math.round((rows.filter((scenario) => isDone(scenario.id)).length / rows.length) * 100);
+  };
+
+  // The sheet reads evidence; it never writes a stage.
+  const sheetScenario = sheetScenarioId
+    ? scenarios.find((scenario) => scenario.id === sheetScenarioId)
+    : undefined;
+  const sheetLevel: CEFRLevel =
+    (sheetScenario && unitForScenario(sheetScenario.id)?.level) || episodeLevel;
+  const sheetStage: SessionStage = sheetScenario
+    ? stageFor(sheetScenario.id, { evidence, lastEase: user?.lastSessionEase ?? null })
+    : 'study';
+  const sheetStageIndex = STAGES.indexOf(sheetStage);
+  const sheetDone = sheetScenario ? isDone(sheetScenario.id) : false;
+
+  const startSheetScenario = () => {
+    if (!sheetScenario) return;
+    const scenarioId = sheetScenario.id;
+    setSheetScenarioId(null);
+    handleScenarioClick(scenarioId, sheetLevel);
+  };
 
   return (
     <div className="min-h-screen bg-black pb-28 pt-4 px-4 max-w-md mx-auto relative text-text-primary">
       {/* ---------------------------------------------------------------- *
-       * HEADER — who you are, how today is going, nothing else.
+       * HEADER — who you are, and one streak. Nothing to score here.
        * ---------------------------------------------------------------- */}
-      <header className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <KatzuMascot name="avatar" className="h-10 w-10 shrink-0" />
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-bold leading-tight font-arabic">
-              {user?.displayName || 'مستكشف كَاتْزُو'}
-            </h2>
-            {streakDays > 0 ? (
-              <span
-                data-testid="trail-streak-chip"
-                className="mt-0.5 inline-flex items-center gap-1 whitespace-nowrap font-arabic text-micro font-bold text-status-learning"
-              >
-                <Flame className="h-3 w-3 fill-learning text-learning" aria-hidden />
-                {arCount(streakDays, { one: 'يوم واحد', two: 'يومان', few: 'أيام', many: 'يوماً' })} متتابعة
-              </span>
-            ) : (
-              <span
-                data-testid="trail-streak-chip"
-                className="mt-0.5 inline-flex items-center gap-1 whitespace-nowrap font-arabic text-micro text-text-muted"
-              >
-                ابدأ سلسلتك اليوم
-              </span>
-            )}
-          </div>
-        </div>
+      <header className="mb-3 flex items-center gap-3">
+        <KatzuMascot name="avatar" className="h-11 w-11 shrink-0" />
 
-        <div className="flex shrink-0 items-center gap-2">
-          {!isPro ? (
-            <button
-              onClick={onOpenSubscription}
-              aria-label="اكتشف مزايا Pro"
-              className="flex min-h-touch items-center gap-1 rounded-chip border border-border-subtle bg-surface-subtle px-2.5 font-arabic text-micro font-bold text-text-secondary transition-colors"
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate font-arabic text-base font-bold leading-tight">
+            أهلاً {user?.displayName || 'مستكشف كَاتْزُو'}
+          </h1>
+          {isPro && (
+            <span
+              data-testid="trail-pro-label"
+              className="mt-0.5 inline-flex items-center gap-1 whitespace-nowrap font-arabic text-micro font-bold text-status-success"
             >
-              <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              <span className="whitespace-nowrap">Pro</span>
-            </button>
-          ) : (
-            <span className="rounded-chip border border-status-success/30 bg-status-success/10 px-2.5 py-1 font-arabic text-micro font-bold text-status-success">
+              <Sparkles className="h-3 w-3" aria-hidden />
               Katzu Pro
             </span>
           )}
-
-          <div
-            data-testid="trail-goal-ring"
-            role="img"
-            aria-label={`هدف اليوم: ${todayMinutes} من ${goalMinutes} دقيقة`}
-            className="relative h-11 w-11 shrink-0"
-          >
-            <svg viewBox="0 0 44 44" className="h-11 w-11 -rotate-90" aria-hidden>
-              <circle
-                cx="22"
-                cy="22"
-                r={ringRadius}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="4"
-                className="text-surface-subtle"
-              />
-              <circle
-                cx="22"
-                cy="22"
-                r={ringRadius}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="4"
-                strokeLinecap="round"
-                strokeDasharray={ringCircumference}
-                strokeDashoffset={ringCircumference * (1 - goalPercent / 100)}
-                className="text-primary transition-[stroke-dashoffset] duration-panels ease-out motion-reduce:transition-none"
-              />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center font-german text-micro font-bold text-text-primary">
-              <LtrCounter value={todayMinutes} total={goalMinutes} />
-            </span>
-          </div>
         </div>
+
+        {streakDays > 0 ? (
+          <span
+            data-testid="trail-streak-chip"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-chip border border-status-learning/30 bg-status-learning/10 px-2.5 py-1 font-arabic text-micro font-bold text-status-learning"
+          >
+            <Flame className="h-3.5 w-3.5 fill-learning text-learning" aria-hidden />
+            {arCount(streakDays, { one: 'يوم واحد', two: 'يومان', few: 'أيام', many: 'يوماً' })} متتابعة
+          </span>
+        ) : (
+          <span
+            data-testid="trail-streak-chip"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-chip border border-border-subtle bg-surface-subtle px-2.5 py-1 font-arabic text-micro text-text-secondary"
+          >
+            <Flame className="h-3.5 w-3.5" aria-hidden />
+            ابدأ سلسلتك اليوم
+          </span>
+        )}
       </header>
 
       {/* ---------------------------------------------------------------- *
-       * ONE PRIMARY ACTION. Everything else on this screen is secondary.
+       * THE HERO — the next situation and ONE PRIMARY ACTION that starts it.
        * ---------------------------------------------------------------- */}
-      <Button
-        variant="primary"
-        size="md"
-        fullWidth
-        data-testid="trail-primary-cta"
-        onClick={handlePrimary}
-        className="mb-1.5 min-h-[56px] justify-between px-4"
-      >
-        <span className="flex min-w-0 flex-col items-start text-start">
-          <span className="font-arabic text-sm font-bold">
-            {hasProgress ? 'تابع' : 'ابدأ جلسة اليوم'}
-          </span>
-          <span data-testid="trail-session-preview" className="max-w-full truncate font-arabic text-micro opacity-80">
-            {sessionPlan.steps.length
-              ? sessionPlan.steps.map(stepTitle).join(' · ')
-              : 'حدّث المشاهد للمتابعة'}
-          </span>
-        </span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          <span className="font-arabic text-xs font-bold">{totalMinutes} دقائق</span>
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-        </span>
-      </Button>
+      <Card variant="hero" padded={false} className="mb-2" data-testid="trail-hero">
+        <div className="p-4">
+          <p data-testid="trail-next-label" className="font-arabic text-micro font-bold text-primary">
+            التالي
+          </p>
+          <h2 className="mt-0.5 font-arabic text-lg font-bold leading-snug text-text-primary">
+            {nextScenario ? nextScenario.title_ar : 'لا مشهد متبقٍ في هذا المستوى'}
+          </h2>
+          {nextScenario && (
+            <GermanText className="mt-0.5 block truncate text-xs text-text-secondary">
+              {nextScenario.title_de}
+            </GermanText>
+          )}
 
+          {nextScenario && (
+            <div
+              data-testid="trail-session-preview"
+              className="mt-2.5 flex items-center gap-1.5 font-arabic text-micro"
+            >
+              {STAGES.map((stage, index) => (
+                <React.Fragment key={stage}>
+                  {index > 0 && (
+                    <span aria-hidden className="text-text-muted">
+                      ←
+                    </span>
+                  )}
+                  <span
+                    aria-current={stage === nextStage ? 'step' : undefined}
+                    className={stage === nextStage ? 'font-bold text-primary' : 'text-text-muted'}
+                  >
+                    {STAGE_LABEL_AR[stage]}
+                  </span>
+                </React.Fragment>
+              ))}
+              <span className="ms-auto inline-flex shrink-0 items-center gap-1 text-text-muted">
+                <Clock className="h-3 w-3" aria-hidden />
+                {nextMinutes} دقائق
+              </span>
+            </div>
+          )}
+
+          <Button
+            variant="primary"
+            size="md"
+            fullWidth
+            data-testid="trail-primary-cta"
+            onClick={handlePrimary}
+            aria-label={
+              nextScenario
+                ? `ابدأ ${nextScenario.title_ar} — ${STAGE_LABEL_AR[nextStage]}`
+                : 'حدّث المشاهد'
+            }
+            className="mt-3 justify-center gap-2"
+          >
+            {nextScenario ? 'ابدأ' : 'حدّث المشاهد'}
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+          </Button>
+        </div>
+      </Card>
+
+      {/* The free tier's remaining sittings — one small pill, never a countdown. */}
       {!isPro && (
-        <p data-testid="trail-free-sessions" className="mb-3 font-arabic text-micro text-text-muted">
+        <button
+          type="button"
+          data-testid="trail-free-sessions"
+          onClick={onOpenSubscription}
+          aria-label={`جلسة مجانية ${freeSessions} من ${FREE_SESSION_TOTAL} — مزايا Pro`}
+          className="mb-2 inline-flex min-h-touch items-center gap-1.5 rounded-chip border border-border-subtle bg-surface-subtle px-3 font-arabic text-micro font-bold text-text-secondary transition-colors pointer-hover:border-primary/40"
+        >
+          <Sparkles className="h-3.5 w-3.5" aria-hidden />
           جلسة مجانية {freeSessions} من {FREE_SESSION_TOTAL}
-        </p>
+        </button>
       )}
 
       {/* THE SECONDARY REVIEW ROW — capped at ten items. The backlog is context,
@@ -487,17 +460,27 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         <div className="mb-3">
           <Button
             variant="secondary"
-            size="md"
+            size="sm"
             fullWidth
             data-testid="trail-review-row"
             onClick={onOpenReview}
-            className="justify-between px-4"
+            aria-label={reviewLabel}
+            className="justify-between px-3"
           >
             <span className="flex min-w-0 items-center gap-2">
               <Brain className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-              <span className="truncate font-arabic text-xs font-bold">{reviewLabel}</span>
+              <span className="truncate font-arabic text-xs font-bold">مراجعة سريعة</span>
+              <span
+                data-testid="trail-review-badge"
+                className="shrink-0 rounded-chip bg-primary/20 px-1.5 font-german text-micro font-bold text-primary"
+              >
+                {reviewCount}
+              </span>
+              <span className="shrink-0 font-arabic text-micro text-text-secondary">
+                · {reviewMinutes(dueCount)} دقائق
+              </span>
             </span>
-            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+            <ArrowLeft className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
           </Button>
           {backlog > 0 && (
             <p className="mt-1 text-end font-arabic text-micro text-text-muted">
@@ -512,80 +495,37 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
       )}
 
       {/* ---------------------------------------------------------------- *
-       * THE ONE PROGRESSION SYSTEM — a level ring and the unit map below it.
-       * There is no level selector: the level is what the server serves, and
-       * the unit list is the plan.
+       * THE UNIT MAP — one ladder. The current unit is open and carries the
+       * level line; everything further out is a dimmed row.
        * ---------------------------------------------------------------- */}
-      <Card className="mb-3 p-3" data-testid="trail-level-card">
-        <div className="flex items-center gap-3">
-          <div className="relative h-12 w-12 shrink-0">
-            <svg viewBox="0 0 48 48" className="h-12 w-12 -rotate-90" aria-hidden>
-              <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" className="text-surface-subtle" />
-              <circle
-                cx="24"
-                cy="24"
-                r="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="4"
-                strokeLinecap="round"
-                strokeDasharray={2 * Math.PI * 20}
-                strokeDashoffset={2 * Math.PI * 20 * (1 - levelPercent / 100)}
-                className="text-primary transition-[stroke-dashoffset] duration-panels ease-out motion-reduce:transition-none"
-              />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center font-german text-micro font-bold text-text-primary">
-              {levelPercent}%
-            </span>
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <p className="font-arabic text-sm font-bold leading-snug text-text-primary">
-              <span className="font-german">{shownLevel}</span> · {LEVEL_ABILITY_AR[shownLevel]}
-            </p>
-            <p className="mt-0.5 font-arabic text-micro leading-relaxed text-text-secondary">
-              {levelScenarios.length === 0
-                ? 'محتوى هذا المستوى يصل مع أول تحديث.'
-                : `${arCount(levelDone, { one: 'موقف واحد', two: 'موقفان', few: 'مواقف', many: 'موقفاً' })} أتقنتها من ${levelScenarios.length}`}
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* ---------------------------------------------------------------- *
-       * THE UNIT MAP — one ladder. The current unit is expanded; finished and
-       * next units show their count; future units are dimmed and locked.
-       * ---------------------------------------------------------------- */}
-      <ol className="space-y-2" data-testid="trail-unit-map">
-        {unitProgress.map((entry, index) => {
+      <ol className="space-y-1.5" data-testid="trail-unit-map">
+        {unitProgress.slice(0, visibleUnitCount).map((entry, index) => {
           const expanded = entry.unit.id === openUnitId;
           const levelBlocked = levelLocked(entry.unit.level as UnitLevel);
-          const softLocked = entry.locked;
-          const headerLocked = softLocked;
+          const headerLocked = entry.locked;
+          const rows = entry.unit.scenarioIds
+            .map((scenarioId) => scenarios.find((scenario) => scenario.id === scenarioId))
+            .filter((scenario): scenario is ScenarioEntity => Boolean(scenario));
 
           return (
-            <li
-              key={entry.unit.id}
-              className={softLocked ? 'opacity-50' : levelBlocked && !expanded ? 'opacity-80' : ''}
-            >
+            <li key={entry.unit.id}>
               <button
                 type="button"
                 data-testid="trail-unit-header"
                 disabled={headerLocked}
-                aria-expanded={expanded && !softLocked}
+                aria-expanded={expanded && !headerLocked}
                 aria-label={`${entry.unit.titleAr} — ${entry.done} من ${entry.total}${
-                  softLocked ? ' (مقفلة)' : levelBlocked ? ' (تفتح مع Pro)' : entry.skipped ? ' (تخطّيتَ)' : ''
+                  headerLocked ? ' (مقفلة)' : levelBlocked ? ' (تفتح مع Pro)' : entry.skipped ? ' (تخطّيتَ)' : ''
                 }`}
-                onClick={() =>
-                  setExpandedUnitId(expanded ? null : entry.unit.id)
-                }
-                className={`flex w-full min-h-touch items-center gap-2 rounded-control border px-3 py-2.5 text-start transition-colors ${
+                onClick={() => setExpandedUnitId(expanded ? null : entry.unit.id)}
+                className={`flex w-full min-h-touch items-center gap-2 rounded-control border px-3 py-2 text-start transition-colors ${
                   expanded
                     ? 'border-primary/50 bg-surface-card'
                     : 'border-border-subtle bg-surface-card pointer-hover:border-primary/40'
-                } ${headerLocked ? 'cursor-default' : ''}`}
+                } ${headerLocked ? 'cursor-default opacity-50' : levelBlocked && !expanded ? 'opacity-80' : ''}`}
               >
                 <span
+                  aria-hidden
                   className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-chip font-german text-micro font-bold ${
                     entry.finished
                       ? 'bg-status-success/15 text-status-success'
@@ -596,19 +536,20 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 >
                   {entry.finished ? <Check className="h-4 w-4" aria-hidden /> : index + 1}
                 </span>
+
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-arabic text-sm font-bold text-text-primary">
-                    {entry.unit.titleAr}
+                    الوحدة {index + 1} · {entry.unit.titleAr}
                   </span>
-                  <span className="mt-0.5 block font-arabic text-micro text-text-secondary">
+                  <span className="mt-0.5 flex items-center gap-1 font-arabic text-micro text-text-secondary">
                     <span className="font-german">{entry.unit.level}</span>
-                    {' · '}
+                    <span aria-hidden>·</span>
                     <span data-testid="trail-unit-count">
                       {entry.done} من {entry.total}
                     </span>
                     {entry.skipped && (
                       <>
-                        {' · '}
+                        <span aria-hidden>·</span>
                         <span data-testid="trail-unit-skipped" className="text-text-muted">
                           تخطّيتَ
                         </span>
@@ -616,7 +557,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                     )}
                   </span>
                 </span>
-                {levelBlocked && <Lock className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden />}
+
                 {headerLocked ? (
                   <Lock className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden />
                 ) : (
@@ -629,16 +570,10 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 )}
               </button>
 
-              {expanded && !softLocked && (
-                <div className="mt-2 rounded-panel border border-border-subtle bg-surface-card/60 p-3">
-                  <p className="font-arabic text-xs leading-relaxed text-text-secondary">
-                    {entry.unit.outcomeAr}
-                  </p>
-                  <p className="mt-1.5 font-arabic text-micro font-bold text-text-primary">
-                    الوحدة {index + 1} · {entry.done} من {entry.total}
-                  </p>
+              {expanded && !headerLocked && (
+                <>
                   <div
-                    className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-subtle"
+                    className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-subtle"
                     role="progressbar"
                     aria-valuemin={0}
                     aria-valuemax={entry.total}
@@ -650,40 +585,105 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                       style={{ width: `${entry.total ? Math.round((entry.done / entry.total) * 100) : 0}%` }}
                     />
                   </div>
+                  <p className="mt-1 font-arabic text-micro text-text-muted">
+                    <bdi dir="ltr" className="font-german">
+                      <span data-testid="trail-level-line">
+                        {entry.unit.level} · {levelPercentFor(entry.unit.level as UnitLevel)}%
+                      </span>
+                    </bdi>
+                  </p>
 
-                  <ol className="mt-2.5 space-y-1.5">
-                    {entry.unit.scenarioIds.map((scenarioId) => {
-                      const scenario = scenarios.find((row) => row.id === scenarioId);
-                      if (!scenario) return null;
+                  <ol className="mt-1" data-testid="trail-timeline">
+                    {rows.map((scenario, rowIndex) => {
+                      const done = isDone(scenario.id);
+                      const current = scenario.id === nextScenarioId;
+                      const last = rowIndex === rows.length - 1;
                       return (
                         <li key={scenario.id}>
-                          <ScenarioCard
-                            scenario={scenario}
-                            level={entry.unit.level}
-                            done={isDone(scenario.id)}
-                            studied={studiedSet.has(scenario.id)}
-                            withHelp={practisedSet.has(scenario.id)}
-                            current={scenario.id === primaryScenarioId}
-                            locked={levelBlocked}
-                            onOpen={() => handleScenarioClick(scenario.id, entry.unit.level, entry.unit.titleAr)}
-                          />
+                          <button
+                            type="button"
+                            data-testid="trail-scenario-card"
+                            aria-label={`${scenario.title_ar} (${scenario.title_de}) — ${
+                              STAGE_LABEL_AR[stageFor(scenario.id, { evidence, lastEase: user?.lastSessionEase ?? null })]
+                            }${levelBlocked ? ' — تفتح مع Pro' : current ? ' — التالي' : ''}`}
+                            onClick={() => {
+                              if (levelBlocked) {
+                                handleScenarioClick(scenario.id, entry.unit.level, entry.unit.titleAr);
+                                return;
+                              }
+                              setSheetScenarioId(scenario.id);
+                            }}
+                            className={`flex w-full min-h-touch items-stretch gap-2 rounded-control px-2 py-2 text-start transition-colors ${
+                              current ? 'bg-primary/5' : 'pointer-hover:bg-surface-card'
+                            }`}
+                          >
+                            <span aria-hidden className="flex w-7 shrink-0 flex-col items-center">
+                              <span
+                                className={`mt-1 flex h-7 w-7 items-center justify-center rounded-full border font-german text-micro font-bold ${
+                                  done
+                                    ? 'border-status-success/40 bg-status-success/15 text-status-success'
+                                    : current
+                                      ? 'border-primary/60 bg-primary/15 text-primary'
+                                      : 'border-border-subtle bg-surface-subtle text-text-secondary'
+                                }`}
+                              >
+                                {done ? (
+                                  <Check className="h-3.5 w-3.5" />
+                                ) : current ? (
+                                  <Play className="h-3.5 w-3.5" />
+                                ) : (
+                                  rowIndex + 1
+                                )}
+                              </span>
+                              {!last && <span className="mt-1 w-px flex-1 bg-border-subtle" />}
+                            </span>
+
+                            <span className="min-w-0 flex-1 pb-1 pe-1">
+                              <span className="block truncate font-arabic text-sm font-bold leading-snug text-text-primary">
+                                {scenario.title_ar}
+                              </span>
+                              <span className="mt-0.5 flex items-center justify-between gap-2">
+                                <GermanText className="line-clamp-1 min-w-0 text-micro leading-snug text-text-secondary">
+                                  {scenario.title_de}
+                                </GermanText>
+                                <span className="inline-flex shrink-0 items-center gap-1.5 font-arabic text-micro text-text-muted">
+                                  <StageMeter
+                                    studied={studiedSet.has(scenario.id)}
+                                    withHelp={practisedSet.has(scenario.id)}
+                                    done={done}
+                                  />
+                                  {levelBlocked ? (
+                                    <Lock className="h-3 w-3" aria-hidden />
+                                  ) : (
+                                    <Clock className="h-3 w-3" aria-hidden />
+                                  )}
+                                  {scenarioMinutes(entry.unit.level)} دقائق
+                                </span>
+                              </span>
+                            </span>
+                          </button>
                         </li>
                       );
                     })}
                   </ol>
-
-                  {entry.finished && (
-                    <p className="mt-2 flex items-center gap-1 font-arabic text-micro font-bold text-status-success">
-                      <Check className="h-3 w-3" aria-hidden />
-                      أكملت هذه الوحدة
-                    </p>
-                  )}
-                </div>
+                </>
               )}
             </li>
           );
         })}
       </ol>
+
+      {hiddenUnitCount > 0 && (
+        <p className="mt-2 text-center font-arabic text-micro text-text-muted">
+          {arCount(hiddenUnitCount, {
+            one: 'وحدة واحدة',
+            two: 'وحدتان',
+            few: 'وحدات',
+            many: 'وحدة',
+          })}{' '}
+          في الطريق.
+        </p>
+      )}
 
       {/* Learners whose profile predates onboarding are prompted once here —
           after the path, so it never pushes a situation below the fold. The X
@@ -714,6 +714,73 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         </div>
       )}
 
+      {/* ---------------------------------------------------------------- *
+       * THE SITUATION SHEET — its three stages, the one that fits now.
+       * ---------------------------------------------------------------- */}
+      <BottomSheet
+        isOpen={Boolean(sheetScenario)}
+        onClose={() => setSheetScenarioId(null)}
+        title={sheetScenario?.title_ar}
+      >
+        {sheetScenario && (
+          <div>
+            <GermanText className="block text-xs text-text-secondary">
+              {sheetScenario.title_de}
+            </GermanText>
+            <p className="mt-1 flex items-center gap-1.5 font-arabic text-micro text-text-muted">
+              <Clock className="h-3 w-3" aria-hidden />
+              {scenarioMinutes(sheetLevel)} دقائق
+            </p>
+
+            <ol className="mt-3 space-y-1.5">
+              {STAGES.map((stage, index) => {
+                const complete = sheetDone || index < sheetStageIndex;
+                const isCurrent = !sheetDone && index === sheetStageIndex;
+                return (
+                  <li
+                    key={stage}
+                    className={`flex items-center gap-3 rounded-control border px-3 py-2.5 ${
+                      isCurrent ? 'border-primary/60 bg-primary/10' : 'border-border-subtle bg-surface-card'
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border font-german text-micro font-bold ${
+                        complete
+                          ? 'border-status-success/40 bg-status-success/15 text-status-success'
+                          : isCurrent
+                            ? 'border-primary/60 text-primary'
+                            : 'border-border-subtle text-text-muted'
+                      }`}
+                    >
+                      {complete ? <Check className="h-3.5 w-3.5" /> : index + 1}
+                    </span>
+                    <span className="font-arabic text-xs font-bold text-text-primary">
+                      {STAGE_LABEL_AR[stage]}
+                    </span>
+                    {isCurrent && (
+                      <span className="ms-auto font-arabic text-micro font-bold text-primary">المقترحة</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+
+            <Button
+              variant="primary"
+              size="md"
+              fullWidth
+              data-testid="trail-sheet-start"
+              onClick={startSheetScenario}
+              aria-label={`ابدأ ${STAGE_LABEL_AR[sheetStage]} — ${sheetScenario.title_ar}`}
+              className="mt-3 justify-center"
+            >
+              ابدأ · {STAGE_LABEL_AR[sheetStage]}
+            </Button>
+          </div>
+        )}
+      </BottomSheet>
+
       <PaywallModal
         isOpen={showPaywall}
         onClose={() => setShowPaywall(false)}
@@ -722,81 +789,5 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         description={paywallReason.description}
       />
     </div>
-  );
-};
-
-/**
- * One compact situation card.
- *
- * No status pill: «التالي» and «جديد» are quiet inline labels, and progress is
- * the three evidence stages — the same marker on every card, in every unit.
- */
-const ScenarioCard: React.FC<{
-  scenario: ScenarioEntity;
-  level: UnitLevel;
-  done: boolean;
-  studied: boolean;
-  withHelp: boolean;
-  current: boolean;
-  locked: boolean;
-  onOpen: () => void;
-}> = ({ scenario, level, done, studied, withHelp, current, locked, onOpen }) => {
-  const visual = visualFor(scenario.category);
-  const Icon = visual.Icon;
-
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`${scenario.title_ar} (${scenario.title_de})${locked ? ' — تفتح مع Pro' : ''}`}
-      data-testid="trail-scenario-card"
-      className={`flex w-full min-h-touch items-start gap-2.5 rounded-control border bg-surface-card p-2.5 text-start transition-[background-color,border-color] ${
-        current
-          ? 'border-primary/60'
-          : done
-            ? 'border-status-success/40 pointer-hover:border-status-success/60'
-            : 'border-border-subtle pointer-hover:border-primary/50'
-      }`}
-    >
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-control ${visual.tint}`}>
-        <Icon className="h-5 w-5" aria-hidden />
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="flex items-start justify-between gap-2">
-          <span className="min-w-0 font-arabic text-sm font-bold leading-snug text-text-primary">
-            <bdi dir="rtl">{scenario.title_ar}</bdi>
-          </span>
-          {current ? (
-            <span data-testid="trail-next-label" className="shrink-0 font-arabic text-micro font-bold text-primary">
-              التالي
-            </span>
-          ) : !done && !studied && !withHelp ? (
-            <span data-testid="trail-new-label" className="shrink-0 font-arabic text-micro text-text-muted">
-              جديد
-            </span>
-          ) : null}
-        </span>
-
-        <span className="mt-0.5 flex items-center justify-between gap-2">
-          <GermanText className="line-clamp-1 block min-w-0 text-micro leading-snug text-text-secondary">
-            {scenario.title_de}
-          </GermanText>
-          <span className="inline-flex shrink-0 items-center gap-1 font-arabic text-micro text-text-muted">
-            <Clock className="h-3 w-3" aria-hidden />
-            {scenarioMinutes(level)} دقائق
-          </span>
-        </span>
-
-        <span
-          data-testid="trail-mastery"
-          className="mt-1.5 flex items-center gap-2.5 font-arabic text-micro leading-none"
-        >
-          <MasteryStage done={studied} label="دراسة" />
-          <MasteryStage done={withHelp} label="مع مساعدة" />
-          <MasteryStage done={done} label="وحدك" />
-        </span>
-      </span>
-    </button>
   );
 };

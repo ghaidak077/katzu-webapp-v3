@@ -21,10 +21,10 @@ const OUT_DIR = join(process.cwd(), '.tmp', 'unit-path');
 const UNIT_ONE_IDS = [
   'first_greetings',
   'numbers_and_prices',
-  'letters_and_forms',
-  'supermarket_checkout',
-  'bakery_shopping',
   'cafe_order',
+  'bakery_shopping',
+  'supermarket_checkout',
+  'restaurant_besonders',
 ];
 
 function independentSession(scenarioId: string, index: number): Record<string, unknown> {
