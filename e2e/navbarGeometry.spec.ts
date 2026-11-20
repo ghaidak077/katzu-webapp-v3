@@ -2,18 +2,18 @@ import { expect, test, type Page } from '@playwright/test';
 import { bootSignedIn } from './harness';
 
 /**
- * The bottom navbar's active-tab indicator is a measured shape, not a picture.
+ * The bottom tab bar is a BAR, and these assertions are the contract.
  *
- * The pre-V19 bug this pins: the container was a 28px-radius glass rectangle
- * with `overflow: visible`, and the active tab painted its own `rounded-2xl`
- * tint inside it — so the highlight's corners clashed with the container's, at
- * every width, in both directions. The V19 fix renders ONE pill from the
- * container itself (`GlassEffectContainer`), sized by the inner-radius rule
- * (radius 27 = container 28 − the 1px optical edge), clipped by the container.
+ * It used to be a floating glass pill with a travelling indicator
+ * (`GlassEffectContainer`, V19). The home/path redesign moved both main tabs to
+ * one flat language, and the bar went with them: it is now the bottom edge of
+ * the screen — full-bleed inside the app's column, flush with the bottom, one
+ * hairline divider along its top, and blur reading the content that scrolls
+ * under it. Nothing floats and nothing travels.
  *
- * These assertions are geometry, so they cannot be fooled by a screenshot that
- * happens to look right: the pill must sit inside the container, the container
- * must clip, and the pill's radius must equal the container's minus its inset.
+ * Geometry, not pictures: the browser is asked for the real computed box, the
+ * real border, and the two real ink colours, so a screenshot that happens to
+ * look right cannot pass this.
  */
 
 const TABS = [
@@ -22,6 +22,14 @@ const TABS = [
   { label: 'التقدم', name: 'Progress' },
   { label: 'الملف', name: 'Profile' },
 ] as const;
+
+/** Is this computed colour the accent (180 160 255), allowing engine rounding? */
+function isAccent(color: string): boolean {
+  const channels = color.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number);
+  if (!channels || channels.length < 3) return false;
+  const accent = [180, 160, 255];
+  return channels.every((channel, index) => Math.abs(channel - accent[index]) <= 4);
+}
 
 /** Force the guided home on before the app's first load — the flag is cached per load. */
 async function setSwitch(page: Page, value: '1' | '0') {
@@ -34,163 +42,142 @@ async function setSwitch(page: Page, value: '1' | '0') {
   }, value);
 }
 
-interface Geometry {
-  container: { width: number; height: number; overflow: string; radius: number };
-  pill: { width: number; height: number; radius: number; gaps: { left: number; right: number; top: number; bottom: number } } | null;
-  btnAlignsWithPill: boolean | null;
+interface BarShape {
+  nav: {
+    top: number;
+    bottom: number;
+    width: number;
+    radius: number;
+    borderTopWidth: number;
+    borderTopColor: string;
+    background: string;
+    backdrop: string;
+  };
+  targets: Array<{ label: string; width: number; height: number; current: boolean; color: string }>;
+  activeCount: number;
+  pillPresent: boolean;
 }
 
-async function readNavbar(page: Page): Promise<Geometry> {
+async function readBar(page: Page): Promise<BarShape> {
   return page.evaluate(() => {
     const nav = document.querySelector('nav.fixed');
     if (!nav) throw new Error('navbar not mounted');
-    const host = nav.querySelector('[data-glass-container]');
-    if (!host) throw new Error('glass container not mounted');
-    const hostRect = host.getBoundingClientRect();
-    const hostStyle = getComputedStyle(host);
-    const pill = host.querySelector(':scope > div[data-glass-pill]');
-    const pillRect = pill ? pill.getBoundingClientRect() : null;
-    const btn = nav.querySelector('[aria-current="page"]') ?? null;
-    const btnRect = btn ? btn.getBoundingClientRect() : null;
-    const r = (v: number) => Math.round(v * 10) / 10;
+    const navStyle = getComputedStyle(nav);
+    const navRect = nav.getBoundingClientRect();
+    const round = (v: number) => Math.round(v * 10) / 10;
+    const buttons = Array.from(nav.querySelectorAll('button'));
     return {
-      container: {
-        width: r(hostRect.width),
-        height: r(hostRect.height),
-        overflow: hostStyle.overflow,
-        radius: parseFloat(hostStyle.borderRadius),
+      nav: {
+        top: round(navRect.top),
+        bottom: round(navRect.bottom),
+        width: round(navRect.width),
+        radius: parseFloat(navStyle.borderTopLeftRadius),
+        borderTopWidth: parseFloat(navStyle.borderTopWidth),
+        borderTopColor: navStyle.borderTopColor,
+        background: navStyle.backgroundColor,
+        backdrop: navStyle.backdropFilter,
       },
-      pill: pillRect
-        ? {
-            width: r(pillRect.width),
-            height: r(pillRect.height),
-            radius: parseFloat(pill ? getComputedStyle(pill).borderRadius : '0'),
-            gaps: {
-              left: r(pillRect.left - hostRect.left),
-              right: r(hostRect.right - pillRect.right),
-              top: r(pillRect.top - hostRect.top),
-              bottom: r(hostRect.bottom - pillRect.bottom),
-            },
-          }
-        : null,
-      btnAlignsWithPill: pillRect && btnRect
-        ? Math.abs(btnRect.left - pillRect.left) < 0.75 &&
-          Math.abs(btnRect.top - pillRect.top) < 0.75 &&
-          Math.abs(btnRect.width - pillRect.width) < 0.75 &&
-          Math.abs(btnRect.height - pillRect.height) < 0.75
-        : null,
+      targets: buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          label: (button.textContent ?? '').trim(),
+          width: round(rect.width),
+          height: round(rect.height),
+          current: button.getAttribute('aria-current') === 'page',
+          color: getComputedStyle(button).color,
+        };
+      }),
+      activeCount: nav.querySelectorAll('[aria-current="page"]').length,
+      pillPresent: Boolean(nav.querySelector('[data-glass-pill]')),
     };
   });
 }
 
-test.describe('navbar indicator geometry', () => {
+test.describe('tab bar contract', () => {
   for (const width of [390, 360]) {
-    test(`the active pill is concentric with the container at ${width}px (every tab, RTL)`, async ({ page }) => {
+    test(`flat bar at ${width}px: flush, hairline divider, four thumbs, one active tab`, async ({ page }) => {
       await page.setViewportSize({ width, height: 780 });
-      // This measures all four tabs switching, so it needs the finished
-      // conversation that opens Practice and Progress — otherwise tapping them
-      // opens the lock sheet and the pill never leaves Trail, and the loop
-      // would "pass" while measuring nothing (every tab aligned to Trail).
+      // Measures all four tabs switching, so it needs the finished conversation
+      // that opens Practice and Progress — otherwise the taps open the lock
+      // sheet and only Trail is ever measured.
       await bootSignedIn(page, { history: true });
       await page.goto('/app/trail');
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      // The tab's ink animates (`transition-colors`). Measuring a mid-transition
+      // frame would read a blend of the muted ink and the accent — a number that
+      // is neither — so the end state is what this spec measures: transitions
+      // are flattened to zero here, and nowhere else.
+      await page.addStyleTag({
+        content: '*, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }',
+      });
+
+      const shape = await readBar(page);
+
+      // The bar IS the bottom edge: flush with the viewport, not a pill floating
+      // above it. A 1px tolerance covers sub-pixel rounding.
+      expect(Math.abs(shape.nav.bottom - 780), 'flush with the viewport bottom').toBeLessThanOrEqual(1);
+      expect(shape.nav.radius, 'the bar is not a rounded pill').toBeLessThanOrEqual(1);
+      // The divider is one hairline, and it is drawn (a colour, not transparent).
+      expect(shape.nav.borderTopWidth, 'a 1px top divider').toBeGreaterThanOrEqual(0.9);
+      expect(shape.nav.borderTopWidth, 'one pixel, not a frame').toBeLessThanOrEqual(1.1);
+      expect(shape.nav.borderTopColor).not.toContain('rgba(0, 0, 0, 0)');
+      // The material: a translucent canvas with blur behind it, so content
+      // scrolling under the bar reads through instead of vanishing behind a slab.
+      expect(shape.nav.background).not.toBe('rgba(0, 0, 0, 0)');
+      expect(shape.nav.backdrop).toContain('blur');
+      // Four targets, each at least 44px in both directions (WCAG 2.5.8), and no
+      // leftover travelling pill.
+      expect(shape.targets).toHaveLength(TABS.length);
+      for (const target of shape.targets) {
+        expect(target.height, `${target.label} is a thumb target`).toBeGreaterThanOrEqual(44);
+        expect(target.width, `${target.label} is a thumb target`).toBeGreaterThanOrEqual(44);
+      }
+      expect(shape.pillPresent, 'no travelling pill').toBe(false);
 
       for (const tab of TABS) {
         await page.getByRole('button', { name: tab.label }).first().click();
-        await expect(page.locator(`nav.fixed [aria-current="page"]`)).toHaveCount(1);
+        await expect(page.locator('nav.fixed [aria-current="page"]')).toHaveCount(1);
 
-        const g = await readNavbar(page);
-        // The container clips its children — no pill corner can overhang.
-        expect(g.container.overflow, 'the container must clip its children').toBe('hidden');
-        // One highlight: the container's pill, and it covers the active button
-        // exactly (equal inset on all sides would also pass, but the tab bar's
-        // design is a full-height segment, so the pill fills the cell).
-        expect(g.pill, `a pill exists for ${tab.name}`).not.toBeNull();
-        expect(g.btnAlignsWithPill, `the highlight is exactly on ${tab.name}`).toBe(true);
-        // Inner-radius rule: pill radius = container radius − inset. The pill is
-        // a full-height cell (inset 0), so its radius must be within 1px of the
-        // container's — the pre-V19 values (18px pill in a 28px container) were
-        // the visible clash.
-        expect(g.container.radius - g.pill!.radius, `concentric radius for ${tab.name}`).toBeLessThanOrEqual(1.01);
-        expect(g.pill!.radius, `no sharp-cornered pill for ${tab.name}`).toBeGreaterThanOrEqual(20);
-        // No overhang: the pill never leaves the container.
-        expect(g.pill!.gaps.left).toBeGreaterThanOrEqual(-0.01);
-        expect(g.pill!.gaps.right).toBeGreaterThanOrEqual(-0.01);
-        expect(g.pill!.gaps.top).toBeGreaterThanOrEqual(-0.01);
-        expect(g.pill!.gaps.bottom).toBeGreaterThanOrEqual(-0.01);
+        const after = await readBar(page);
+        expect(after.activeCount, `exactly one active tab for ${tab.name}`).toBe(1);
+        // The active tab is the accent, and it is the ONLY accent one: the other
+        // three carry muted ink. `--kz-lavender` is 180 160 255.
+        const active = after.targets.filter((target) => target.current);
+        expect(active, `one accent tab for ${tab.name}`).toHaveLength(1);
+        expect(isAccent(active[0].color), `the active tab is the accent: ${active[0].color}`).toBe(true);
+        for (const target of after.targets.filter((t) => !t.current)) {
+          expect(isAccent(target.color), `inactive tabs are muted, not accent: ${target.color}`).toBe(false);
+        }
+        // Switching tabs never changes the bar's own box: there is no pill to
+        // travel, so nothing about the surface may move.
+        expect(after.nav.top, 'the bar does not move when the tab changes').toBe(shape.nav.top);
+        expect(after.nav.bottom).toBe(shape.nav.bottom);
       }
     });
   }
 
-  test('the indicator mirrors correctly in LTR and stays inside the container', async ({ page }) => {
+  test('every tab keeps a visible label, so the bar is never four bare glyphs', async ({ page }) => {
     await bootSignedIn(page);
     await page.goto('/app/trail');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-    // Force LTR: the app is Arabic-first, but the geometry must not depend on it.
-    await page.evaluate(() => document.documentElement.setAttribute('dir', 'ltr'));
-    await page.getByRole('button', { name: 'الرحلة' }).first().click();
-
-    const g = await readNavbar(page);
-    expect(g.pill).not.toBeNull();
-    expect(g.btnAlignsWithPill).toBe(true);
-    // In LTR the first tab sits at the inline-start edge; in RTL it sits at the
-    // other end. What must hold in both: the pill is flush with one end, inside
-    // the container, and concentric.
-    const flush =
-      Math.min(g.pill!.gaps.left, g.pill!.gaps.right) <= 0.01;
-    expect(flush, 'the pill sits against one end of the container').toBe(true);
-    expect(g.container.radius - g.pill!.radius).toBeLessThanOrEqual(1.01);
+    for (const tab of TABS) {
+      const label = page.locator('nav.fixed').getByText(tab.label, { exact: true });
+      await expect(label, `${tab.name} is named in the bar`).toBeVisible();
+    }
   });
 
-  test('switching tabs does not animate the pill (instant switch)', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 780 });
-    // This test taps التدريب and expects the pill to travel to it, so it needs
-    // the finished conversation that opens the Practice tab.
-    await bootSignedIn(page, { history: true });
-    await page.goto('/app/trail');
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-
-    await page.getByRole('button', { name: 'التدريب' }).first().click();
-    await expect(page.locator('nav.fixed [aria-current="page"]')).toHaveCount(1);
-    // Wait for the pill to reach Practice (the second tab; the page is RTL, so
-    // from the container's right edge that is one tab width in).
-    // This waits out React's commit, not an animation — with the old 320ms FLIP
-    // the pill is already at its final `left` here, offset by a transform.
-    await expect
-      .poll(async () => {
-        const g = await readNavbar(page);
-        return g.pill ? Math.min(g.pill.gaps.left, g.pill.gaps.right) : -1;
-      })
-      .toBe(93.5);
-
-    // The morph proof: a travelling pill offsets its final position with a
-    // transform for MORPH_MS (320ms). The fixed pill never carries one.
-    const transform = await page.evaluate(() => {
-      const pill = document.querySelector('nav.fixed [data-glass-pill]');
-      return pill ? getComputedStyle(pill).transform : 'missing';
-    });
-    expect(transform, 'the pill must not be mid-FLIP').toBe('none');
-
-    // And its position is stable: two reads, same place.
-    const a = await readNavbar(page);
-    const b = await readNavbar(page);
-    expect(b.pill!.gaps).toEqual(a.pill!.gaps);
-  });
-
-  test('day 0: tapping a locked tab opens the sheet and the pill never moves', async ({ page }) => {
+  test('day 0: tapping a locked tab opens the sheet and the bar never moves', async ({ page }) => {
     // No history: this is the "before the first conversation" state the lock is
-    // about. Tapping التدريب must neither navigate nor move the indicator.
+    // about. Tapping التدريب must neither navigate nor change the active tab.
     await setSwitch(page, '1');
     await page.setViewportSize({ width: 390, height: 780 });
     await bootSignedIn(page);
     await page.goto('/app/trail');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-    // Exactly one highlight, and it is on Trail before the tap.
     await expect(page.locator('nav.fixed [aria-current="page"]')).toHaveCount(1);
-
-    const before = await readNavbar(page);
+    const before = await readBar(page);
 
     // The locked tab is `aria-disabled` (never the native disabled attribute, so
     // a tap still opens the sheet), which blocks Playwright's actionability wait
@@ -199,14 +186,12 @@ test.describe('navbar indicator geometry', () => {
 
     // The lock sheet explains why, instead of navigating.
     await expect(page.getByRole('heading', { name: 'هذا القسم يفتح بعد أول محادثة' })).toBeVisible();
-    // The highlight is still exactly one, still on Trail — the pill never left.
+    // Still exactly one active tab, still Trail — the tap was a peek.
     await expect(page.locator('nav.fixed [aria-current="page"]')).toHaveCount(1);
+    expect(page.url()).toContain('/app/trail');
 
-    const after = await readNavbar(page);
-    // Identical geometry before and after: the lock is a peek, not a navigation.
-    expect(after.pill).not.toBeNull();
-    expect(before.pill).not.toBeNull();
-    expect(after.pill!.gaps).toEqual(before.pill!.gaps);
-    expect(after.container).toEqual(before.container);
+    const after = await readBar(page);
+    expect(after.nav).toEqual(before.nav);
+    expect(after.targets.find((target) => target.current)?.label).toBe(before.targets.find((target) => target.current)?.label);
   });
 });

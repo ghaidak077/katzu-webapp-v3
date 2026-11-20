@@ -342,6 +342,12 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({ onBack }) => {
             <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
               كل بطاقة تسألك سؤالاً واحداً واضحاً. الاسترجاع هو ما يثبّت.
             </p>
+            {/* The one offline line in the product, and it lives here: this is
+                the screen that genuinely keeps working without a network, and
+                the place a learner is most likely to wonder. */}
+            <p className="mt-1 kz-ar-micro text-kz-inkFaint" data-testid="review-offline-note">
+              المراجعة محفوظة على جهازك وتعمل بدون اتصال.
+            </p>
           </div>
           <button
             type="button"

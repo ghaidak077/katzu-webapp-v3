@@ -134,6 +134,47 @@ describe('JourneyHomeScreen consults the flag', () => {
     // The entry point is a control, never an automatic open.
     expect(source).not.toMatch(/useEffect\(\(\) => \{\s*setMoreOpen\(true\)/);
   });
+
+  it('the hero reserves its picture box, so a missing banner is not a hole', () => {
+    // 160px is held before the image resolves, and the same box carries the
+    // scene's light when the content has no artwork: the words under it never
+    // move, whether the picture loads, fails, or does not exist.
+    expect(source).toContain('data-testid="journey-hero-banner"');
+    // The banner hook `e2e/banner.spec.ts` reads: a content editor's
+    // `banner_url` must reach the hero, which it only does if this stays the
+    // element that draws `scene.artUrl`.
+    expect(source).toContain('data-testid="scenario-banner"');
+    expect(source).toContain('className="relative h-40 w-full overflow-hidden bg-kz-black"');
+    expect(source).toContain('object-cover');
+    expect(source).toContain('from-kz-black/85');
+    // Fade-in is keyed to the current source, never to a bare boolean: a new
+    // mission must fade its own picture, not inherit the previous one.
+    expect(source).toContain('loadedArt === scene.artUrl');
+  });
+
+  it('one filled action above the fold, and every branch carries the 52px height', () => {
+    const branches = source.split('<PrimaryAction').slice(1);
+    expect(branches, 'one primary per mission branch').toHaveLength(3);
+    for (const branch of branches) {
+      expect(branch.slice(0, 60), 'the mission button is 52px, not the 56px default').toContain(
+        'min-h-[52px]',
+      );
+    }
+    // The review row and «المزيد» are ghost rows: no filled surface, no border.
+    for (const testId of ['journey-review-row', 'journey-more']) {
+      const row = source.slice(source.indexOf(`data-testid="${testId}"`), source.indexOf('</button>', source.indexOf(`data-testid="${testId}"`)));
+      expect(row, `${testId} paints nothing`).not.toMatch(/\bborder\b(?!-0)/);
+      expect(row, `${testId} is not a filled surface`).not.toMatch(/bg-kz-(lavender|ink)"/);
+    }
+  });
+
+  it('the review row caps what it prints, and the review screen keeps the backlog', () => {
+    // A learner with 156 cards due must not read «156» in a CTA on the home
+    // screen: the row is a door, the number is a promise about this sitting.
+    expect(source).toContain('const reviewRowCount = Math.min(dueCount, 10);');
+    expect(source).toContain('arCount(reviewRowCount, REVIEW_ITEM_FORMS)');
+    expect(source).not.toMatch(/arCount\(dueCount, REVIEW_ITEM_FORMS\)/);
+  });
 });
 
 /**
@@ -230,11 +271,12 @@ describe('the Practice/Progress lock (step 3)', () => {
     expect(shell).toContain("import { PracticeLockSheet } from '@/features/journey/PracticeLockSheet'");
   });
 
-  it('the lock sheet is a sibling of the nav, never a child of the glass container', () => {
-    const afterContainer = shell.slice(shell.indexOf('</GlassEffectContainer>'));
-    // The glass container closes, the nav closes, and ONLY then the sheet mounts.
-    expect(afterContainer).toMatch(/<\/GlassEffectContainer>[\s\S]*?<\/nav>[\s\S]*?<PracticeLockSheet/);
-    expect(shell.indexOf('</nav>')).toBeGreaterThan(shell.indexOf('</GlassEffectContainer>'));
+  it('the lock sheet is a sibling of the nav, never a child of the tab bar', () => {
+    const afterNav = shell.slice(shell.indexOf('</nav>'));
+    // The nav closes and ONLY then the sheet mounts: a sheet inside the bar
+    // would be a fifth segment of the flex row, and inside the nav's box it
+    // could be clipped by the safe-area padding.
+    expect(afterNav).toMatch(/<\/nav>[\s\S]*?<PracticeLockSheet/);
   });
 
   it('the lock copy is the exact agreed text, with no bypass', () => {
@@ -254,7 +296,7 @@ describe('the Practice/Progress lock (step 3)', () => {
     expect(shell).toContain("aria-disabled={locked ? 'true' : undefined}");
     expect(shell).toContain("aria-label={locked ? `${label} — مقفل حتى أول محادثة` : undefined}");
     expect(shell).toContain('aria-hidden="true"');
-    expect(shell).toContain('data-testid={`tab-lock-${glassKey}`}');
+    expect(shell).toContain('data-testid={`tab-lock-${tabKey}`}');
     expect(shell).toContain("active ? 'text-kz-lavender' : 'text-kz-inkFaint'");
     expect(shell).not.toContain('opacity-');
   });

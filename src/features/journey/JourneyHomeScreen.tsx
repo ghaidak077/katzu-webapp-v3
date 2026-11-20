@@ -20,8 +20,7 @@ import { GermanText } from '@/components/common/GermanText';
 
 import { GlassCard, FloatingControl } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
-import { GlassWell } from '@/components/glass/GlassSurface';
-import { ScenarioBanner } from '@/components/glass/ScenarioBanner';
+import { LtrCounter } from '@/components/common/LtrCounter';
 import { ProgressStrip } from '@/components/v2/ProgressStrip';
 import { StatusIndicator } from '@/components/v2/StatusIndicator';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
@@ -37,7 +36,7 @@ import { JourneyMoreSheet } from '@/features/journey/JourneyMoreSheet';
 /** V31: counts that reach a learner's eye agree with their noun. See `arabicCount`. */
 const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
 const MINUTE_FORMS = { one: 'دقيقة', two: 'دقيقتان', few: 'دقائق', many: 'دقيقة' } as const;
-import { ArrowLeft, Brain, ChevronDown, RefreshCw, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Brain, ChevronDown, ChevronLeft, RefreshCw, Sparkles, X } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
 
 export interface JourneyHomeScreenProps {
@@ -85,6 +84,15 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   const isOnline = useOnlineStatus();
   /** The «المزيد» sheet. Never auto-opens: a sheet that opens itself is a wall. */
   const [moreOpen, setMoreOpen] = useState(false);
+  /**
+   * Which banner source finished loading.
+   *
+   * Storing the src (not a boolean) is what makes a mission change honest: the
+   * hero fades the new picture in on its own load instead of inheriting the
+   * previous one's opacity, and a source that never arrives leaves the reserved
+   * box showing the scene's light.
+   */
+  const [loadedArt, setLoadedArt] = useState<string | null>(null);
 
   const user = useLiveQuery(() => db.users.get('current_user'));
   // The three daily tasks (V28 Stage 3). One read for the card and the streak;
@@ -357,6 +365,33 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   const totalMinutes = mission.estimatedMinutes || user?.dailyGoalMinutes || 10;
 
   /**
+   * The banner's one label.
+   *
+   * The opening episode keeps its own words («لحظة الوصول · أول موقف في القصة»):
+   * it is not a scene in the rotation, and `e2e/journey.spec.ts` pins that the
+   * first thing a new learner reads names where they are landing. Every other
+   * mission gets the plain name of what the hero is — the next scene — and a
+   * review day says so instead.
+   */
+  const heroLabelAr =
+    mission.scenarioId === INTRO_SCENARIO_ID
+      ? missionTitleBadgeAr(mission.kind, dueCount, mission.scenarioId)
+      : mission.kind === 'review'
+        ? 'مراجعة سريعة'
+        : 'المشهد التالي';
+
+  /**
+   * What the review row promises, in the learner's units.
+   *
+   * Capped at ten: the queue can hold three figures, and a number that size is a
+   * backlog, not a plan a learner can say yes to in one tap. The full count is
+   * on the review screen, where it is the screen's subject. The estimate is the
+   * same arithmetic the review screen uses for its own session length.
+   */
+  const reviewRowCount = Math.min(dueCount, 10);
+  const reviewRowMinutes = Math.max(1, Math.round(reviewRowCount * 0.3));
+
+  /**
    * There is no gate here, on purpose.
    *
    * Today's mission is always startable — on the first run and on the
@@ -431,26 +466,48 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   return (
     <div className="kz-tab-scroll min-h-screen bg-kz-black px-4 pt-5">
       <div className="mx-auto max-w-md">
-        {/* Status line: where am I? Day, chapter, and the situation it belongs to. */}
-        <header className="mb-5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="kz-ar-micro text-kz-inkFaint">
-              اليوم {context.dayNumber} · الفصل {context.chapterIndex} من {context.chapterCount}
-            </p>
-            {/* V35: this heading used to `truncate`, so a chapter title longer than the
-                header clipped its own meaning with no way to read it. Two lines
-                cost nothing here and the title is the one thing this screen
-                states. */}
-            <h1 className="kz-ar-title mt-0.5 text-balance text-kz-ink">{context.chapterTitleAr}</h1>
+        {/* Orientation: where am I, and how far into this chapter. The chapter's
+            steps used to live in a card at the bottom of the screen, under three
+            sections of history; the same fact as one thin bar sits under the
+            title, which is where a learner reads first. */}
+        <header className="mb-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="kz-ar-micro text-kz-inkFaint">
+                اليوم {context.dayNumber} · الفصل {context.chapterIndex} من {context.chapterCount}
+              </p>
+              {/* V35: this heading used to `truncate`, so a chapter title longer than the
+                  header clipped its own meaning with no way to read it. Two lines
+                  cost nothing here and the title is the one thing this screen
+                  states. */}
+              <h1 className="kz-ar-title mt-0.5 text-balance text-kz-ink">{context.chapterTitleAr}</h1>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <StatusIndicator state={isOnline ? 'online' : 'offline'} compact />
+              {!guided && !isPro && (
+                <GlassButton variant="quiet" onClick={onOpenSubscription} className="min-h-touch px-3 text-micro">
+                  <Sparkles className="h-3 w-3" />
+                  Katzu Pro
+                </GlassButton>
+              )}
+            </div>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <StatusIndicator state={isOnline ? 'online' : 'offline'} compact />
-            {!guided && !isPro && (
-              <GlassButton variant="quiet" onClick={onOpenSubscription} className="min-h-touch px-3 text-micro">
-                <Sparkles className="h-3 w-3" />
-                Katzu Pro
-              </GlassButton>
-            )}
+          {/* The chapter's own three steps, as one thin bar: segments, never a
+              percentage, and the count beside it in muted ink. No `labelAr`: the
+              strip would print the chapter title a second time, one line under
+              the heading that already says it. Its accessible name falls back to
+              «تقدم الفصل», which is what the bar is. */}
+          <div className="mt-2.5 flex items-center gap-3" data-testid="chapter-progress">
+            <ProgressStrip
+              className="flex-1"
+              segments={context.chapterSegments}
+              completed={context.chapterSegmentsDone}
+              activeIndex={context.activeSegment}
+              earned={context.chapterSegmentsDone >= context.chapterSegments}
+            />
+            <span className="kz-ar-micro shrink-0 text-kz-inkFaint">
+              <LtrCounter value={context.chapterSegmentsDone} total={context.chapterSegments} /> مشاهد
+            </span>
           </div>
         </header>
 
@@ -481,53 +538,67 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           </div>
         )}
 
-        {/* The mission. Scene art carries the mood; the glass panel carries the
-            Arabic story and the one action. */}
-        {/* The mission card is lit: a lavender edge at rest is the layer that makes
-            the one thing to do today feel alive rather than painted. V34 — the
-            edge is painted once rather than breathed on a timer, so the screen
-            this lives on costs nothing while it is being read. */}
+        {/* The mission. One photograph carries the scene, its words sit on the
+            lower third of that photograph, and the single action sits under them
+            — the same anatomy as the practice home's next-scene hero, so the two
+            tabs describe "what next" the same way. */}
         <BorderBeam role="ambient" className="mb-4">
         <GlassCard
           tier="glass"
           emphasis="none"
           padded={false}
-          className="overflow-hidden"
+          className="overflow-hidden rounded-panel"
         >
-          {/* The scenario's own 16:9 banner: what today's mission looks like, not
-              only what it is called. */}
-          <ScenarioBanner scene={scene} drift loading="eager">
-            <div className="flex h-full flex-col justify-between p-4">
-              <span className="kz-ar-micro self-start rounded-full bg-kz-black/45 px-2.5 py-1 text-kz-inkDim backdrop-blur-sm">
-                {scene.locationAr}
-              </span>
-              {/* G5: the mascot is already on this screen (the Katzu line card
-                  below); the hero keeps the scene art alone, so the one glow
-                  budget stays on the primary action's beam. */}
+          {/* 160px, reserved before the image arrives: the box keeps its height
+              whether the artwork loads, fails, or does not exist, so nothing under
+              it moves while the learner is reading. With no source the same box is
+              the scene's own light (a violet→black wash) rather than an empty
+              frame. `loadedArt` compares against the current src, so a new mission
+              fades its own picture in instead of inheriting the last one. */}
+          <div
+            data-testid="journey-hero-banner"
+            className="relative h-40 w-full overflow-hidden bg-kz-black"
+            style={{ '--kz-scene-rgb': scene.keyRgb, '--kz-scene-warmth': String(scene.warmth) } as React.CSSProperties}
+          >
+            <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-kz-lavender/30 via-kz-black/75 to-kz-black" />
+            {scene.artUrl && (
+              <img
+                /* The day's banner, cropped into the hero band rather than framed
+                   16:9 (that frame belongs to the scenario's own screen). The
+                   content editor's `banner_url` still wins here, because it is
+                   what `sceneFor` resolved into `artUrl`. */
+                data-testid="scenario-banner"
+                src={scene.artUrl}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onLoad={() => setLoadedArt(scene.artUrl ?? null)}
+                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-fast ${
+                  loadedArt === scene.artUrl ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
+            )}
+            {/* Bottom-to-top wash: the words below are the only thing on the
+                picture, so the picture must never be brighter than they are. */}
+            <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-kz-black/85 via-kz-black/35 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 p-4">
+              <p className="kz-ar-micro text-kz-inkDim">{heroLabelAr}</p>
+              {missionScenario ? (
+                <>
+                  <h2 className="kz-ar-title mt-0.5 font-bold text-kz-ink">{missionScenario.title_ar}</h2>
+                  <GermanText className="mt-0.5 block text-caption text-kz-inkDim">{missionScenario.title_de}</GermanText>
+                </>
+              ) : (
+                <h2 className="kz-ar-title mt-0.5 font-bold text-kz-ink">
+                  {mission.kind === 'review' ? 'مراجعة اليوم' : 'مهمتك اليومية قيد التجهيز'}
+                </h2>
+              )}
+              <p className="mt-1 text-micro text-kz-inkDim">{arCount(totalMinutes, MINUTE_FORMS)}</p>
             </div>
-          </ScenarioBanner>
+          </div>
 
           <div className="p-4">
-            <p className="kz-ar-micro mb-1 text-kz-inkFaint">{missionTitleBadgeAr(mission.kind, dueCount, mission.scenarioId)}</p>
-            {missionScenario ? (
-              <>
-                <GermanText className="kz-de-title block text-kz-ink">{missionScenario.title_de}</GermanText>
-                <p className="kz-ar-body mt-1 text-kz-ink">{missionScenario.title_ar}</p>
-              </>
-            ) : (
-              <p className="kz-ar-title text-kz-ink">
-                {mission.kind === 'review'
-                  ? `مراجعة اليوم — ${arCount(dueCount, REVIEW_ITEM_FORMS)}`
-                  : 'مهمتك اليومية قيد التجهيز'}
-              </p>
-            )}
-
-            <p className="kz-ar-caption mt-2 text-kz-inkDim">{reasonAr}</p>
-            <p className="kz-ar-micro mt-2 text-kz-inkFaint">
-              {mission.kind === 'review'
-                ? 'المراجعة محفوظة على جهازك.'
-                : `وقت متوقع: ${arCount(totalMinutes, MINUTE_FORMS)}`}
-            </p>
+            <p className="kz-ar-caption text-kz-inkDim">{reasonAr}</p>
             {/* Said out loud rather than discovered mid-conversation: the episode
                 runs at a level the free tier serves, and that is why it is not
                 the level the placement measured. */}
@@ -550,23 +621,20 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
                   while a scheduled day says "ابدأ مهمة اليوم (10 د)" — one label,
                   chosen where the mission was chosen. */}
               {mission.kind === 'review' ? (
-                <PrimaryAction hintAr="المراجعة محفوظة على جهازك وتعمل بدون اتصال." onClick={onOpenReview}>
+                <PrimaryAction className="min-h-[52px]" onClick={onOpenReview}>
                   {mission.ctaAr}
                 </PrimaryAction>
               ) : mission.kind === 'no_content' ? (
                 // An honest empty state: one useful action, and a real explanation.
                 <PrimaryAction
-                  hintAr="بعد أول اتصال يعمل كل شيء بدون إنترنت لاحقاً."
+                  className="min-h-[52px]"
                   onClick={() => void refreshCurriculumCache()}
                   icon={<RefreshCw className="h-4 w-4" />}
                 >
                   {mission.ctaAr}
                 </PrimaryAction>
               ) : (
-                <PrimaryAction
-                  hintAr="خطوات قصيرة: قصة، تدريب، ثم محادثة."
-                  onClick={handlePrimary}
-                >
+                <PrimaryAction className="min-h-[52px]" onClick={handlePrimary}>
                   {mission.ctaAr}
                 </PrimaryAction>
               )}
@@ -574,6 +642,28 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           </div>
         </GlassCard>
         </BorderBeam>
+
+        {/* Review, as one ghost row: the same shape the practice home uses for
+            the same job, so the two screens do not disagree about how a secondary
+            destination looks. Hidden when nothing is due, and absent when today's
+            mission IS the review — two doors to one room is a choice, and a choice
+            is how neither gets done. The count is capped at ten (see
+            `reviewRowCount`); the whole backlog stays on the review screen. */}
+        {guided && firstSessionDone && reviewRevealed && dueCount > 0 && mission.kind !== 'review' && (
+          <button
+            type="button"
+            data-testid="journey-review-row"
+            onClick={onOpenReview}
+            className="mb-4 flex min-h-touch w-full items-center gap-2.5 rounded-control px-1 text-start transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
+          >
+            <Brain className="h-4 w-4 shrink-0 text-kz-lavender" aria-hidden />
+            <span className="kz-ar-caption flex-1 text-kz-ink">
+              مراجعة سريعة · {arCount(reviewRowCount, REVIEW_ITEM_FORMS)} ·{' '}
+              {arCount(reviewRowMinutes, MINUTE_FORMS)}
+            </span>
+            <ChevronLeft className="h-4 w-4 shrink-0 text-kz-inkFaint" aria-hidden />
+          </button>
+        )}
 
         {/* The three daily tasks: one scenario session, one grammar step, one
             review batch. Quiet on purpose — the mission above is still the one
@@ -597,7 +687,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             data-testid="journey-more"
             aria-haspopup="dialog"
             onClick={() => setMoreOpen(true)}
-            className="mb-4 flex min-h-touch w-full items-center justify-center gap-1 rounded-chip text-kz-inkFaint transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
+            className="mb-4 flex min-h-touch w-full items-center justify-start gap-1 rounded-control px-1 text-kz-inkFaint transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
           >
             <span className="kz-ar-micro">المزيد</span>
             <ChevronDown className="h-3.5 w-3.5" aria-hidden />
@@ -647,22 +737,9 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           </GlassCard>
         ))}
 
-        {/* Chapter progress: segments, never a percentage. */}
-        <GlassWell className="mb-4 p-3.5">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="kz-ar-micro text-kz-inkDim">تقدّم الفصل</span>
-            <span className="kz-ar-micro text-kz-inkFaint">
-              {context.chapterSegmentsDone} من {context.chapterSegments} مشاهد
-            </span>
-          </div>
-          <ProgressStrip
-            segments={context.chapterSegments}
-            completed={context.chapterSegmentsDone}
-            activeIndex={context.activeSegment}
-            earned={context.chapterSegmentsDone >= context.chapterSegments}
-            labelAr={context.chapterTitleAr}
-          />
-        </GlassWell>
+        {/* The chapter's progress moved into the header, under the title it
+            describes: the same fact, read first instead of last. Nothing is lost
+            — the segments, their count and the chapter's name are one row now. */}
 
         {/* B3: the last week of a paid month, said once, where the learner already
             is every day. Nothing said it before: the first news that a

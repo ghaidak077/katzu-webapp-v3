@@ -126,7 +126,6 @@ const DesignSystemScreen = isDevBuild
 
 // Navigation & Icons
 import { Map, Dumbbell, BarChart3, User, ClipboardList, ArrowLeft, Lock } from 'lucide-react';
-import { GlassEffectContainer } from '@/components/glass/GlassEffectContainer';
 import { GlassButton } from '@/components/glass/GlassButton';
 
 export type NavigationTab = 'Trail' | 'Practice' | 'Progress' | 'Profile';
@@ -696,29 +695,28 @@ function MainTabsRoute({ onSignOut, lock }: { onSignOut: () => Promise<void>; lo
           onOpenPreferences={() => navigate('/onboarding?mode=edit')}
         />
       )}
-      {/* Secondary destinations only: glass, muted, and never competing with the
-          mission's single primary action.
-
-          The four tabs sit inside one glass-effect container, so their surfaces
-          blend where they meet and the active shape travels between them instead of
-          cutting. That is the Liquid Glass container behaviour — shared backdrop, one
-          identity morphing — rather than four independent panels in a row. */}
-      <nav className="fixed bottom-0 start-0 end-0 z-40 mx-auto max-w-md px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
-        <GlassEffectContainer
-          spacing={10}
-          activeKey={activeTab}
-          className="kz-surface overflow-hidden flex items-center justify-around"
-        >
-          <TabButton glassKey="Trail" active={activeTab === 'Trail'} onClick={() => setTab('Trail')} icon={<Map />} label="الرحلة" />
-          <TabButton glassKey="Practice" active={activeTab === 'Practice'} onClick={() => setTab('Practice')} icon={<Dumbbell />} label="التدريب" locked={lock.locked} />
-          <TabButton glassKey="Progress" active={activeTab === 'Progress'} onClick={() => setTab('Progress')} icon={<BarChart3 />} label="التقدم" locked={lock.locked} />
-          <TabButton glassKey="Profile" active={activeTab === 'Profile'} onClick={() => setTab('Profile')} icon={<User />} label="الملف" />
-        </GlassEffectContainer>
+      {/* The tab bar is a BAR, not a floating pill: full-bleed along the bottom
+          edge, one hairline divider along its top, and the blur reading the
+          content that scrolls underneath. A floating pill inside a page that is
+          also a stack of cards made the bar compete with the content for the
+          same "card" role; a flat bar is the edge of the screen, which is what a
+          navigation surface is. The active tab is named; the rest keep their
+          icons and a micro label, muted. */}
+      <nav
+        data-testid="app-tabbar"
+        className="fixed bottom-0 start-0 end-0 z-40 mx-auto max-w-md border-t border-kz-line bg-kz-black/85 backdrop-blur-xl"
+      >
+        <div className="flex items-stretch gap-1 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5">
+          <TabButton tabKey="Trail" active={activeTab === 'Trail'} onClick={() => setTab('Trail')} icon={<Map />} label="الرحلة" />
+          <TabButton tabKey="Practice" active={activeTab === 'Practice'} onClick={() => setTab('Practice')} icon={<Dumbbell />} label="التدريب" locked={lock.locked} />
+          <TabButton tabKey="Progress" active={activeTab === 'Progress'} onClick={() => setTab('Progress')} icon={<BarChart3 />} label="التقدم" locked={lock.locked} />
+          <TabButton tabKey="Profile" active={activeTab === 'Profile'} onClick={() => setTab('Profile')} icon={<User />} label="الملف" />
+        </div>
       </nav>
-      {/* The lock sheet is a SIBLING of the nav, never a child of the glass
-          container: a child would be measured as a fifth tab and would move
-          the pill. It is also outside the nav's own box, so it can never be
-          clipped by the tab bar's safe-area padding. */}
+      {/* The lock sheet is a SIBLING of the nav, never a child of the bar: it
+          would be laid out inside the flex row as a fifth segment, and it is
+          outside the nav's own box so it can never be clipped by the tab bar's
+          safe-area padding. */}
       <PracticeLockSheet isOpen={lock.open} onClose={lock.hide} />
     </>
   );
@@ -732,40 +730,37 @@ function MainTabsRoute({ onSignOut, lock }: { onSignOut: () => Promise<void>; lo
  * opens an explanation. The lock is a small badge in the corner, `aria-hidden`
  * (the name says it in words), and the button is `aria-disabled` rather than
  * `disabled`, because it is still operable — it opens the sheet.
+ *
+ * The active tab is the accent, icon and label both; the others keep a muted
+ * icon with their name as a micro label. Labels are never dropped from the DOM:
+ * a bar of four unlabelled glyphs asks a learner to memorise a legend, and this
+ * app's targets are people reading Arabic for the first time in a new country.
  */
-function TabButton({ glassKey, active, onClick, icon, label, locked = false }: { glassKey?: string; active: boolean; onClick: () => void; icon: React.ReactNode; label: string; locked?: boolean }) {
+function TabButton({ tabKey, active, onClick, icon, label, locked = false }: { tabKey: string; active: boolean; onClick: () => void; icon: React.ReactNode; label: string; locked?: boolean }) {
   return (
-    // V19: the active-tab highlight is the container's own concentric pill
-    // (rendered by GlassEffectContainer from the activeBox); the button itself
-    // paints nothing. One shape, not two — the pre-V19 double highlight was a
-    // rounded-2xl tint over a 28px-radius container with no inset or clip, which
-    // is exactly the corner/edge clash this run measured.
-    <div data-glass-key={glassKey} className="flex-1">
-      <button
-        onClick={onClick}
-        aria-current={active ? 'page' : undefined}
-        aria-disabled={locked ? 'true' : undefined}
-        aria-label={locked ? `${label} — مقفل حتى أول محادثة` : undefined}
-        className={`${locked ? 'relative ' : ''}flex min-h-[48px] w-full flex-col items-center justify-center gap-1 rounded-control px-2 ${
-          active ? 'text-kz-lavender' : 'text-kz-inkFaint'
-        }`}
-      >
-        {React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
-          className: `w-5 h-5 ${active ? 'stroke-[2.5]' : ''}`,
-        })
-        }
-        <span className="font-arabic text-micro">{label}</span>
-        {locked && (
-          <span
-            aria-hidden="true"
-            data-testid={`tab-lock-${glassKey}`}
-            className="absolute end-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-kz-black/60 text-kz-inkFaint"
-          >
-            <Lock className="h-2.5 w-2.5" />
-          </span>
-        )}
-      </button>
-    </div>
+    <button
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      aria-disabled={locked ? 'true' : undefined}
+      aria-label={locked ? `${label} — مقفل حتى أول محادثة` : undefined}
+      className={`relative flex min-h-control flex-1 flex-col items-center justify-center gap-1 rounded-chip px-2 transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5 ${
+        active ? 'text-kz-lavender' : 'text-kz-inkFaint'
+      }`}
+    >
+      {React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
+        className: `w-5 h-5 ${active ? 'stroke-[2.5]' : ''}`,
+      })}
+      <span className="font-arabic text-micro leading-none">{label}</span>
+      {locked && (
+        <span
+          aria-hidden="true"
+          data-testid={`tab-lock-${tabKey}`}
+          className="absolute end-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-kz-black/60 text-kz-inkFaint"
+        >
+          <Lock className="h-2.5 w-2.5" />
+        </span>
+      )}
+    </button>
   );
 }
 

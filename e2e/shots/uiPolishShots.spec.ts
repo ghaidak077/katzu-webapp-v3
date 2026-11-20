@@ -57,10 +57,32 @@ function reviewRow(promptAr: string, answerDe: string, overrides: Record<string,
   };
 }
 
+/** One finished session, dated yesterday: the home's habit panel appears with the
+ *  first finished conversation (step 7), and a session today would tick a task. */
+function aSession(): Record<string, unknown> {
+  return {
+    id: 'sess_shot_1',
+    scenarioId: 'airport_arrival',
+    scenarioTitle: 'في المطار: أول موقف في القصة',
+    cefrLevel: 'A1',
+    sentencesSpoken: 4,
+    wordsLearned: 16,
+    accuracyPercent: 90,
+    durationSeconds: 200,
+    timestamp: Date.now() - 86_400_000,
+    wasIndependentOnly: true,
+    independentSentences: 4,
+    hintAssistedSentences: 0,
+    mode: 'practice',
+    mistakesCount: 0,
+  };
+}
+
 for (const { w, h } of VIEWPORTS) {
   test(`journey-home ${w}x${h} [${TAG}]`, async ({ page }) => {
     await setViewport(page, w, h);
     await bootSignedIn(page);
+    await seedRows(page, 'sessions', [aSession()]);
     await page.goto('/app/trail');
     await expect(page.getByTestId('daily-tasks')).toBeVisible({ timeout: 30_000 });
     await page.waitForTimeout(600);

@@ -46,13 +46,16 @@ async function setBanner(page: Page, id: string, url: string): Promise<void> {
  * Laid-out, because the journey route keeps its inactive tab panels mounted — a
  * banner inside one of those is in the DOM with a 0×0 box and says nothing about
  * what the learner sees. `width > 0` is that filter.
+ *
+ * A banner is either a `ScenarioBanner` (a wrapper around the `<img>`) or the
+ * journey hero's own `<img>`, so the source can be the element itself.
  */
 async function bannerGeometry(page: Page) {
   const all = await page.locator(BANNER).evaluateAll((elements) =>
     elements.map((element) => ({
       width: element.clientWidth,
       height: element.clientHeight,
-      src: element.querySelector('img')?.getAttribute('src') ?? '',
+      src: element.querySelector('img')?.getAttribute('src') ?? element.getAttribute('src') ?? '',
     })),
   );
   return all.filter((box) => box.width > 0 && box.height > 0);
@@ -80,13 +83,16 @@ test('a scenario’s own banner reaches every screen that lists it', async ({ pa
   await page.goto('/app');
   await expect(page.getByRole('button', { name: /أكمل من حيث توقفت|ابدأ مهمة اليوم/ })).toBeVisible();
   const home = await bannerGeometry(page);
-  // At least the mission card's — and every laid-out banner on this screen is the
-  // day's scenario, so every one of them carries the patched artwork.
-  expect(home.length).toBeGreaterThanOrEqual(1);
-  for (const box of home) {
-    expect(box.src).toBe(PATCHED_ART);
-    expectSixteenByNine(box);
-  }
+  // The journey home opens with the day's banner cropped into the 160px hero
+  // band, not with a 16:9 frame — that frame is the scenario screen's job, and
+  // the home hero is the top of a card whose words sit on the picture. What the
+  // banner test still owes is the same promise: the patched artwork is what the
+  // learner sees, at a fixed height that cannot leave a hole.
+  expect(home.length, 'the hero carries the day’s banner').toBe(1);
+  expect(home[0].src).toBe(PATCHED_ART);
+  expect(Math.round(home[0].height), 'the hero band is 160px tall').toBe(160);
+  expect(home[0].width, 'and spans the card').toBeGreaterThan(home[0].height);
+  await expect(page.getByTestId('scenario-banner')).toHaveCSS('object-fit', 'cover');
 
   // The scenario's own screen. It reads the scenario before it draws, so the wait
   // is for its own content rather than for a timeout.

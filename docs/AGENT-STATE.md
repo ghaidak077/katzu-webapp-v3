@@ -25,6 +25,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   bullets in UNPROVEN/OWNER-OPEN, no bullet over 8 KB), so growth is a decision someone made, not drift.
 
 ## RESUME
+- 2026-11-20: home tab + flat bar; verified.
 
 - **2026-11-20, second pass — every lesson row is one state, one filled button (deployed; worker unchanged).** The
   practice-home unit map dropped its cards: each situation is a divider row rendering exactly one state — done (green check,

@@ -34,6 +34,7 @@ import {
   REVIEW_SESSION_CAP,
 } from '@/lib/mission/scenarioMinutes';
 import { buildCapabilityModel } from '@/lib/capability/model';
+import { sceneFor } from '@/lib/design/scenes';
 import { unitForScenario, unitGoalForLearnerGoal, type UnitLevel } from '@/lib/units/units';
 import {
   STAGE_LABEL_AR,
@@ -539,6 +540,16 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           const rows = entry.unit.scenarioIds
             .map((scenarioId) => scenarios.find((scenario) => scenario.id === scenarioId))
             .filter((scenario): scenario is ScenarioEntity => Boolean(scenario));
+          /**
+           * The unit's face: the first situation it holds.
+           *
+           * A unit is a place before it is a list of titles, so the header shows
+           * the same 56px artwork the scene cards use — one photograph per unit,
+           * resolved from content, absent when the content has none (then the
+           * box keeps its size and shows the scene's own light instead of an
+           * empty frame).
+           */
+          const unitScene = rows[0] ? sceneFor(rows[0]) : undefined;
 
           return (
             <li key={entry.unit.id}>
@@ -551,7 +562,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                   headerLocked ? ' (مقفلة)' : levelBlocked ? ' (تفتح مع Pro)' : entry.skipped ? ' (تخطّيتَ)' : ''
                 }`}
                 onClick={() => setExpandedUnitId(expanded ? null : entry.unit.id)}
-                className={`flex w-full min-h-touch items-center gap-2 rounded-control py-1.5 text-start transition-colors ${
+                className={`flex w-full min-h-touch items-center gap-2.5 rounded-control py-1.5 text-start transition-colors ${
                   headerLocked
                     ? 'cursor-default'
                     : expanded
@@ -559,6 +570,23 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                       : 'pointer-hover:bg-surface-subtle'
                 }`}
               >
+                <span
+                  aria-hidden
+                  data-testid="trail-unit-thumb"
+                  className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-chip bg-gradient-to-br from-primary/25 to-kz-black ${
+                    headerLocked ? 'opacity-60' : ''
+                  }`}
+                >
+                  {unitScene?.artUrl && (
+                    <img
+                      src={unitScene.artUrl}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                  )}
+                </span>
                 <span
                   className={`min-w-0 flex-1 truncate font-arabic text-sm font-bold ${
                     expanded ? 'text-text-primary' : 'text-text-secondary'

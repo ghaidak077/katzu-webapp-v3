@@ -40,7 +40,7 @@ function aSession(): Record<string, unknown> {
   };
 }
 
-test('Journey Home names the three daily tasks with one action each', async ({ page }) => {
+test('Journey Home names the day\'s tasks, and does not list the review batch', async ({ page }) => {
   await bootSignedIn(page);
   await seedRows(page, 'sessions', [aSession()]);
   await page.reload();
@@ -49,14 +49,18 @@ test('Journey Home names the three daily tasks with one action each', async ({ p
   await expect(panel).toBeVisible();
   await expect(panel.getByText('محادثة مشهد واحدة')).toBeVisible();
   await expect(panel.getByText('خطوة قواعد واحدة')).toBeVisible();
-  await expect(panel.getByText('دفعة مراجعة')).toBeVisible();
+  // The review batch is the third task of the day but not a third row: its door
+  // is the ghost review row above this card, and grading one item completes it
+  // (`markReviewGraded`). Listing it here would be a second entrance to a room
+  // the learner is already standing in. The header's three segments still count
+  // it, so the day's contract stays whole.
+  await expect(panel.getByText('دفعة مراجعة')).toHaveCount(0);
   // Launch polish: the panel is a compact checklist — whole rows are the tap
   // targets now, so the per-task text buttons are gone. The names survive as
   // the row's accessible name; the done state renders as a checklist row, not
   // a removed button.
   await expect(panel.getByRole('button', { name: /محادثة مشهد واحدة/ })).toBeVisible();
   await expect(panel.getByRole('button', { name: /خطوة قواعد واحدة/ })).toBeVisible();
-  await expect(panel.getByRole('button', { name: /دفعة مراجعة/ })).toBeVisible();
   await expect(panel.getByText('0 / 3')).toBeVisible();
 });
 
@@ -85,5 +89,8 @@ test('a completed day renders as done and starts the daily streak', async ({ pag
   // digit in front of the singular. The string below is the correct Arabic, and
   // this assertion is what keeps it that way.
   await expect(panel.getByText('يوم متتالٍ في مهام اليوم')).toBeVisible();
-  await expect(panel.getByText('تم', { exact: true })).toHaveCount(3);
+  // Two listed rows, both done — the done state is in the row's accessible name
+  // (`… — تم`) and painted as the leading check. The review task is counted by
+  // the header strip, not listed: see the test above.
+  await expect(panel.getByRole('button', { name: /— تم$/ })).toHaveCount(2);
 });
