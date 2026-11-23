@@ -15,6 +15,7 @@ import {
 import type { CEFRLevel } from '@/types/models';
 import { BackButton } from '@/components/common/BackButton';
 import { GoogleSignInButton } from '@/components/common/GoogleMark';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface SignInScreenProps {
   initialMode?: 'signin' | 'signup';
@@ -49,6 +50,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   const [noticeMessage, setNoticeMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
+  // Every sentence on this screen is dictionary copy: a learner who chose English
+  // must not meet a Google screen in Arabic (plan 010, batch B1).
+  const { t, uiLanguage } = useLanguage();
+  const arabic = uiLanguage === 'ar' ? 'font-arabic' : '';
 
   const googleClientId: string | undefined = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
 
@@ -85,14 +90,18 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
         // default — label the container in Arabic so a screen-reader user
         // hears what the button actually does.
         container.setAttribute('role', 'group');
-        container.setAttribute('aria-label', mode === 'signup' ? 'التسجيل السريع باستخدام Google' : 'المتابعة باستخدام Google');
+        container.setAttribute(
+          'aria-label',
+          t(mode === 'signup' ? 'signin.googleSignup' : 'welcome.continueWithGoogle'),
+        );
         window.google.accounts.id.renderButton(container, {
           theme: 'filled_black',
           size: 'large',
           shape: 'pill',
           width: 280,
           text: mode === 'signup' ? 'signup_with' : 'signin_with',
-          locale: 'ar',
+          // Google's own button should speak the language the learner chose.
+          locale: uiLanguage,
         });
 
         // GSI injects its iframe asynchronously — a fixed 700ms guess was the
@@ -175,7 +184,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     accountId?: string,
   ) => {
     const cleanEmail = userEmail.trim().toLowerCase();
-    const cleanName = userDisplayName.trim() || cleanEmail.split('@')[0] || 'طالب كَاتْزُو';
+    const cleanName = userDisplayName.trim() || cleanEmail.split('@')[0] || t('signin.defaultStudentName');
 
     // Security (Phase 1.1b): the raw Google ID token is used ONCE here — exchanged
     // for a server session — and is NEVER written to IndexedDB. If the exchange
@@ -192,7 +201,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     }
 
     if (!sessionToken) {
-      setErrorMessage('تعذر تأمين جلسة الدخول. تحقق من اتصالك وحاول تسجيل الدخول مرة أخرى.');
+      setErrorMessage(t('signin.errorSession'));
       setIsLoading(false);
       return;
     }
@@ -245,8 +254,8 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     if (mode === 'signup') track('signup_completed');
     setSuccessMessage(
       mode === 'signup'
-        ? 'تم إنشاء حسابك بنجاح! جاري الدخول...'
-        : 'تم تسجيل الدخول بنجاح! مرحباً بعودتك...'
+        ? t('signin.successSignup')
+        : t('signin.successSignin')
     );
     setTimeout(() => {
       onSuccess();
@@ -256,7 +265,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   const handleGoogleCredentialResponse = async (response: any) => {
     const idToken = response?.credential;
     if (!idToken) {
-      setErrorMessage('تعذر استلام بيانات الاعتماد من Google.');
+      setErrorMessage(t('signin.errorCredential'));
       return;
     }
 
@@ -273,11 +282,11 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       if (!userEmail) {
         throw new Error('Missing email in Google ID token');
       }
-      const userName = payload.name || payload.given_name || 'مستخدم كَاتْزُو';
+      const userName = payload.name || payload.given_name || t('signin.defaultName');
 
       await completeUserAuth(userEmail, userName, idToken, 'A1', typeof payload.sub === 'string' ? payload.sub : undefined);
     } catch (e: any) {
-      setErrorMessage('فشل التحقق من تسجيل الدخول عبر Google، يرجى المحاولة ثانية.');
+      setErrorMessage(t('signin.errorGoogle'));
       triggerHaptic('error');
     } finally {
       setIsLoading(false);
@@ -293,16 +302,16 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       // Say so, so a tap never looks like it did nothing.
       window.google.accounts.id.prompt((notification: any) => {
         if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
-          setErrorMessage('لم تظهر نافذة Google. اسمح بالنوافذ المنبثقة لهذا الموقع أو حاول مرة أخرى.');
+          setErrorMessage(t('signin.errorPopup'));
         }
       });
     } else if (gsiStatus === 'loading') {
       // Still arriving. Saying "Google is broken" here was the regression's
       // visible symptom: the tap happened a moment too early and the screen
       // never recovered. Say what is actually true and keep waiting.
-      setNoticeMessage('جارٍ تجهيز خدمة Google… انتظر لحظة ثم اضغط مرة أخرى.');
+      setNoticeMessage(t('signin.noticePreparing'));
     } else {
-      setErrorMessage('تعذر تحميل خدمة Google الآن. تحقق من الاتصال وحاول مجدداً.');
+      setErrorMessage(t('signin.errorLoad'));
       // Load the script again, so "try again" can actually succeed. The failed
       // element must go first: re-listening to it would never fire again.
       document.getElementById('google-gsi-script')?.remove();
@@ -318,7 +327,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       'VITE_GOOGLE_CLIENT_ID is not set: Google sign-in is unavailable in this build.',
     );
     return (
-      <div className="min-h-screen flex flex-col justify-between p-6 bg-black text-text-primary max-w-md mx-auto relative font-arabic">
+      <div className={`min-h-screen flex flex-col justify-between p-6 bg-black text-text-primary max-w-md mx-auto relative ${arabic}`}>
         <div>
           <BackButton onBack={onBack} className="mb-6" />
         </div>
@@ -327,11 +336,11 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           <KatzuMascot name="avatar" className="w-20 h-20 mb-1 object-contain" />
 
           <h2 className="text-xl font-bold text-text-primary">
-            تسجيل الدخول غير متاح الآن
+            {t('signin.unavailableTitle')}
           </h2>
 
           <p className="text-xs text-text-secondary leading-relaxed max-w-sm">
-            لا يمكن إكمال تسجيل الدخول بحساب Google في هذه النسخة. يمكنك متابعة التعلم بدون حساب الآن، وسنعيد فتح تسجيل الدخول لاحقاً.
+            {t('signin.unavailableBody')}
           </p>
 
           <Button
@@ -340,26 +349,26 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             className="w-full mt-4"
             onClick={onBack}
           >
-            العودة والمتابعة بدون حساب
+            {t('signin.unavailableAction')}
           </Button>
         </div>
 
         <div className="text-center text-xs text-text-muted pt-4 flex items-center justify-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-          <span>حسابك وبياناتك محمية عبر Google Identity Services.</span>
+          <span>{t('signin.privacyShort')}</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-between p-6 bg-black text-text-primary max-w-md mx-auto relative overflow-y-auto font-arabic">
+    <div className={`min-h-screen flex flex-col justify-between p-6 bg-black text-text-primary max-w-md mx-auto relative overflow-y-auto ${arabic}`}>
       {/* Top Bar */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <BackButton onBack={onBack} className="mb-6" />
           <span className="font-bold text-sm text-text-secondary">
-            {mode === 'signin' ? 'تسجيل الدخول' : 'إنشاء حساب جديد'}
+            {t(mode === 'signin' ? 'signin.modeSignin' : 'signin.modeSignup')}
           </span>
           <div className="w-10" />
         </div>
@@ -379,7 +388,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
                 : 'text-text-secondary pointer-hover:text-text-primary'
             }`}
           >
-            تسجيل الدخول
+            {t('signin.modeSignin')}
           </button>
           <button
             type="button"
@@ -395,7 +404,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
                 : 'text-text-secondary pointer-hover:text-text-primary'
             }`}
           >
-            إنشاء حساب جديد
+            {t('signin.modeSignup')}
           </button>
         </div>
       </div>
@@ -409,12 +418,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
         />
 
         <h2 className="text-2xl font-bold mb-1.5 text-text-primary">
-          {mode === 'signin' ? 'مرحباً بك مجدداً في كَاتْزُو' : 'انضم إلى عائلة كَاتْزُو'}
+          {t(mode === 'signin' ? 'signin.welcomeBackTitle' : 'signin.joinTitle')}
         </h2>
         <p className="text-xs text-text-secondary leading-relaxed mb-5 max-w-xs">
-          {mode === 'signin'
-            ? 'سجل دخولك بحساب Google لمزامنة تقدمك السحابي واشتراكك وبنك أخطائك بأمان.'
-            : 'سجل بحساب Google لحفظ كل محادثة، كلمة جديدة، وتقرير تقدم تتقنه عبر كافة أجهزتك.'}
+          {t(mode === 'signin' ? 'signin.welcomeBackBody' : 'signin.joinBody')}
         </p>
 
         {errorMessage && (
@@ -461,16 +468,12 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             <GoogleSignInButton
               onClick={handleTriggerGooglePrompt}
               isLoading={isLoading}
-              label={
-                mode === 'signin'
-                  ? 'المتابعة باستخدام Google'
-                  : 'التسجيل السريع باستخدام Google'
-              }
+              label={t(mode === 'signin' ? 'welcome.continueWithGoogle' : 'signin.googleSignup')}
             />
           )}
           {isLoading && (
             <p className="mt-3 text-caption text-text-secondary" role="status" aria-live="polite">
-              جارٍ التحقق من الحساب...
+              {t('signin.checking')}
             </p>
           )}
         </div>
@@ -479,7 +482,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
       {/* Footer Security Badge */}
       <div className="text-center text-xs text-text-muted pt-4 pb-1 flex items-center justify-center gap-1.5">
         <ShieldCheck className="w-3.5 h-3.5 text-status-success flex-shrink-0" />
-        <span>حسابك وبياناتك محمية ومشفرة عبر Google Identity Services.</span>
+        <span>{t('signin.privacyFull')}</span>
       </div>
     </div>
   );

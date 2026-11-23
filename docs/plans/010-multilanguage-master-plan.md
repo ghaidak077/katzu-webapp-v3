@@ -1,6 +1,7 @@
 # 010 — The language matrix: Arabic/English/Indonesian × German/Dutch
 
-**Status:** Phase 1a executed 2026-11-22 (local, verified). Phases 1b–3 specified here.
+**Status:** Phase 1a executed 2026-11-22. Phase 1b started 2026-11-23: measurement built, `/welcome` and
+`/signin` at zero. Phases 1b (rest) and 2–3 specified here.
 **Owner direction:** the app speaks the learner's native language — **Arabic, English or
 Indonesian** — and teaches **German or Dutch**.
 **Written against:** `main` @ `308f790`, `AGENTS.md` v9, `docs/agent/APP-MAP.md`.
@@ -128,10 +129,17 @@ Order = what a learner meets first, and what a stranger judges:
 | B5 | Practice, progress, grammar, listening, writing, coach, ask | 300 | unit + screen e2e |
 | B6 | Profile/settings, subscription, placement, partners, mock exam | 320 | `accountOps`, `deletionRequest` |
 
-**Measurement, not vibes.** Add `scripts/i18n-coverage.mjs`: for each file under
-`src/features` and `src/app`, count Arabic literals inside JSX text and string props, and
-report per-batch totals; the script exits non-zero when a batch marked complete in a small
-JSON manifest still has untranslated literals. That turns "we think it's done" into a gate.
+**Measurement, not vibes (built 2026-11-23).** `scripts/i18n-coverage.mjs` is in place (`npm run
+i18n:coverage`); its first run measured **1,520 Arabic strings in 54 files**, and its gate reads
+`src/lib/i18n/coverage.json`. State on 2026-11-23: `/welcome` 19 → **0**, `/signin` 31 → **0**
+(verified in the browser: English and Indonesian front doors render with no Arabic at all), so B1 is
+still open on `/onboarding` (48) and `/subscription` (47) — and those two read their option copy from
+`src/lib` tables (`GOAL_COPY`, `ARRIVAL_COPY`, `PREVIOUS_GERMAN_COPY`), which the script does not scan
+yet. **Known measurement gap:** `src/lib` copy tables are outside the scan; widen `SCAN_DIRS` before
+flipping a batch on the strength of a zero.
+
+What it does: per-file counts of Arabic segments in JSX text and string props, grouped into the
+batches below, plus a manifest that turns "marked done but still Arabic" into a failing exit code.
 
 **Turning detection on:** set the language's `UI_COVERAGE_COMPLETE` row to `true` in the
 same commit as its final batch.

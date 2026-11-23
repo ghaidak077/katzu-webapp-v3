@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '@/lib/i18n/LanguageProvider';
 
 /**
  * Google's official brand palette, as published for the "G" mark.
@@ -60,7 +61,9 @@ export const GoogleSignInButton: React.FC<{
   isLoading?: boolean;
   label?: string;
   className?: string;
-}> = ({ onClick, isLoading, label, className }) => (
+}> = ({ onClick, isLoading, label, className }) => {
+  const t = useT();
+  return (
   <button
     type="button"
     onClick={onClick}
@@ -74,6 +77,7 @@ export const GoogleSignInButton: React.FC<{
     }
   >
     <GoogleMark className="w-5 h-5 flex-shrink-0" />
-    <span className="font-arabic text-body">{label ?? 'المتابعة باستخدام Google'}</span>
+    <span className="font-arabic text-body">{label ?? t('welcome.continueWithGoogle')}</span>
   </button>
-);
+  );
+};
