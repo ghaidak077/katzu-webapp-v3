@@ -15,6 +15,21 @@
 
 import type { ArabicCountForms } from './arabicCount';
 
+/**
+ * The review-item noun with no numeral of its own.
+ *
+ * `REVIEW_ITEM_NOM` below is the phrase an Arabic speaker reads standing alone
+ * ("عنصر واحد"); this table is the bare noun the home screen's banner and review
+ * row already shipped with, so it is kept byte-identical rather than improved
+ * inside a language change.
+ */
+export const REVIEW_ITEM_BARE: ArabicCountForms = {
+  one: 'عنصر',
+  two: 'عنصران',
+  few: 'عناصر',
+  many: 'عنصراً',
+};
+
 /** "3 عناصر" — nominative or bare: "مراجعة اليوم · 3 عناصر" */
 export const REVIEW_ITEM_NOM: ArabicCountForms = {
   one: 'عنصر واحد',

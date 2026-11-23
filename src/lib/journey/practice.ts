@@ -4,6 +4,8 @@ import { diffDictation, type DictationResult } from '@/lib/listening/drill';
 import { dayIndexFor } from '@/lib/utils/dailyMission';
 import { vocabularyWithinLevelRadius } from '@/lib/utils/scenarioVocab';
 import { germanNounPhrase } from '@/lib/utils/germanNoun';
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { translate } from '@/lib/i18n/strings';
 
 /**
  * Guided Practice: the short preparation before the real conversation.
@@ -263,19 +265,28 @@ export function buildGuidedPractice(input: {
   };
 }
 
-/** Arabic feedback for a typed/spoken production. Calm correction, never red. */
-export function retrievalFeedback(verdict: AnswerVerdict): { tone: 'earned' | 'neutral'; messageAr: string } {
+/**
+ * Feedback for a typed/spoken production. Calm correction, never red.
+ *
+ * The `language` reaches this function because its sentence is read on Guided
+ * Practice, which is localised — an English learner who produces the right line
+ * must not be praised in Arabic.
+ */
+export function retrievalFeedback(
+  verdict: AnswerVerdict,
+  language: UiLanguage = 'ar',
+): { tone: 'earned' | 'neutral'; messageAr: string } {
   switch (verdict) {
     case 'correct':
-      return { tone: 'earned', messageAr: 'صحيحة تماماً — هذه هي الجملة التي ستقولها هناك.' };
+      return { tone: 'earned', messageAr: translate(language, 'practice.feedback.correct') };
     case 'close':
-      // The article is the mistake Arabic speakers make most; name it precisely.
+      // The article is the mistake most learners make; name it precisely.
       return {
         tone: 'neutral',
-        messageAr: 'الكلمة صحيحة، لكن أداة التعريف مختلفة. الأداة جزء من الكلمة في الألمانية — أعدها مع الأداة الصحيحة.',
+        messageAr: translate(language, 'practice.feedback.article'),
       };
     default:
-      return { tone: 'neutral', messageAr: 'ليست المطلوبة بعد. انظر إلى الجملة الصحيحة ثم قلّدها مرة واحدة.' };
+      return { tone: 'neutral', messageAr: translate(language, 'practice.feedback.wrong') };
   }
 }
 
@@ -293,14 +304,18 @@ export interface RepeatResult {
  * Honest wording on purpose: this reports *word coverage*, never pronunciation
  * quality. The app cannot score an accent and must not imply it can.
  */
-export function gradeRepeat(expected: string, heard: string): RepeatResult {
+export function gradeRepeat(expected: string, heard: string, language: UiLanguage = 'ar'): RepeatResult {
   const result = diffDictation(expected, heard);
   const messageAr =
     result.verdict === 'correct'
-      ? `سمعنا كل الكلمات (${result.total} من ${result.total}).`
+      ? translate(language, 'practice.repeat.all', { matched: result.total, total: result.total })
       : result.total > 0 && result.matched > 0
-        ? `سمعنا ${result.matched} من ${result.total} كلمات — الباقي: ${result.missedWords.join('، ')}.`
-        : 'لم نسمع كلمات واضحة هذه المرة. أعد المحاولة، أو اكتب ما سمعته.';
+        ? translate(language, 'practice.repeat.partial', {
+            matched: result.matched,
+            total: result.total,
+            missed: result.missedWords.join(translate(language, 'practice.listSeparator')),
+          })
+        : translate(language, 'practice.repeat.none');
   return { ...result, messageAr };
 }
 
@@ -308,7 +323,11 @@ export function gradeRepeat(expected: string, heard: string): RepeatResult {
  * Grading for the typed fallback, exposed so the screen does not re-derive
  * "what counts as the same sentence" with its own string logic.
  */
-export function gradeTypedProduction(expected: string, actual: string): ReturnType<typeof retrievalFeedback> & { verdict: AnswerVerdict } {
+export function gradeTypedProduction(
+  expected: string,
+  actual: string,
+  language: UiLanguage = 'ar',
+): ReturnType<typeof retrievalFeedback> & { verdict: AnswerVerdict } {
   const verdict = gradeAnswer(expected, actual);
-  return { verdict, ...retrievalFeedback(verdict) };
+  return { verdict, ...retrievalFeedback(verdict, language) };
 }

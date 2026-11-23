@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { UI_STRINGS } from '../src/lib/i18n/strings';
 
 /**
  * Launch-week UI polish regressions (owner brief, 2026-10-06).
@@ -52,7 +53,11 @@ describe('G1 — Western numerals everywhere (extended scan)', () => {
     // The defective literal came from GuidedPractice's step counter. The file
     // must now derive the Arabic step text from the numeric total.
     const guided = readFileSync('src/features/journey/GuidedPracticeScreen.tsx', 'utf8');
-    expect(guided).toMatch(/totalStepsAr = String\(totalSteps\)/);
+    // Phase 1b moved the sentence into the dictionary: the count is still built
+    // from the numeric total at the call site, and the Arabic wording that
+    // renders «1 من 3» is pinned where it now lives.
+    expect(guided).toContain("t('practice.handled', { done: handled, total: totalSteps })");
+    expect(UI_STRINGS.ar['practice.handled']).toBe('{done} من {total}');
     expect(guided).not.toMatch(/'٣'|'٢'/);
   });
 });
@@ -96,16 +101,18 @@ describe('Screen 1.4 — the achievement card cannot fake a capability', () => {
     expect(journey).toMatch(/\{!guided && \(latestCapability \? \(/);
     expect(earnedBranch).toMatch(/latestCapability\.labelAr/);
     expect(journey).toMatch(/state === 'INDEPENDENT' \|\| value\.state === 'RETAINED'/);
-    expect(more).toMatch(/قدرة مكتسبة · \{capability\.labelAr\}/);
+    expect(more).toContain("t('home.capabilityEarned', { label: capability.labelAr })");
+    expect(UI_STRINGS.ar['home.capabilityEarned']).toBe('قدرة مكتسبة · {label}');
     // One evidence source: the sheet receives the card already decided and has
     // no scenario/capability model of its own to compute a second one.
     expect(more).not.toMatch(/buildCapabilityModel|from '@\/lib\/capability/);
   });
 
   it('shows an honest goal line while nothing is earned yet', () => {
-    expect(journey).toMatch(/هدفك في هذا الفصل/);
+    expect(journey).toContain("t('home.chapterGoalTitle')");
     // …and it moved with the card, so the guided home keeps it too.
-    expect(more).toMatch(/هدفك في هذا الفصل/);
+    expect(more).toContain("t('home.chapterGoalTitle')");
+    expect(UI_STRINGS.ar['home.chapterGoalTitle']).toBe('هدفك في هذا الفصل');
   });
 });
 

@@ -1,3 +1,5 @@
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
 import { localDateKey, shiftDateKey } from '@/lib/utils/streak';
 
 /**
@@ -35,26 +37,33 @@ export interface DailyTaskDefinition {
  */
 export const REVIEW_BATCH_SIZE = 5;
 
-export const DAILY_TASK_DEFS: readonly DailyTaskDefinition[] = [
-  {
-    kind: 'scenario',
-    labelAr: 'محادثة مشهد واحدة',
-    actionAr: 'ابدأ محادثة',
-    hintAr: 'جلسة مشهد واحدة كاملة — تدريب أو محادثة حقيقية.',
-  },
-  {
-    kind: 'grammar',
-    labelAr: 'خطوة قواعد واحدة',
-    actionAr: 'افتح القاعدة',
-    hintAr: 'درس قواعد واحد في مسارك المفتوح.',
-  },
-  {
-    kind: 'review',
-    labelAr: 'دفعة مراجعة',
-    actionAr: 'ابدأ المراجعة',
-    hintAr: `راجع ما حان وقته — ${REVIEW_BATCH_SIZE} عناصر أو إفراغ قائمة اليوم.`,
-  },
-] as const;
+/**
+ * One task's copy, in the language being read.
+ *
+ * The three tasks are drawn on the home screen and in the daily-tasks panel, so
+ * their name, their action and their hint all have to follow the UI language.
+ * The Arabic on the definition below is derived from the same dictionary entries
+ * (`translate('ar', …)`), never typed a second time, so the two can never drift.
+ */
+export function dailyTaskCopy(
+  kind: DailyTaskKind,
+  language: UiLanguage = 'ar',
+): { label: string; action: string; hint: string } {
+  const key = (suffix: 'label' | 'action' | 'hint'): UiStringKey =>
+    `daily.${kind}.${suffix}` as UiStringKey;
+  return {
+    label: translate(language, key('label')),
+    action: translate(language, key('action')),
+    hint: translate(language, key('hint'), { size: REVIEW_BATCH_SIZE }),
+  };
+}
+
+const TASK_KINDS: readonly DailyTaskKind[] = ['scenario', 'grammar', 'review'];
+
+export const DAILY_TASK_DEFS: readonly DailyTaskDefinition[] = TASK_KINDS.map((kind) => {
+  const copy = dailyTaskCopy(kind, 'ar');
+  return { kind, labelAr: copy.label, actionAr: copy.action, hintAr: copy.hint };
+}) as readonly DailyTaskDefinition[];
 
 export interface DailyTaskEvidence {
   /** Finished conversations recorded today. */

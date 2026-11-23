@@ -7,6 +7,8 @@ import type {
   SessionEntity,
   SkillPracticeEntity,
 } from '@/types/models';
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
 
 /**
  * "What can I actually do now?" — answered from recorded evidence only.
@@ -44,20 +46,39 @@ export const RETENTION_GAP_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const CAPABILITY_LABEL_AR: Record<CapabilityState, string> = {
-  NOT_STARTED: 'لم يبدأ',
-  INTRODUCED: 'تعرّفت عليه',
-  PRACTISING: 'قيد التدريب',
-  INDEPENDENT: 'مستقل',
-  RETAINED: 'ثابت في الذاكرة',
+  NOT_STARTED: translate('ar', 'capability.state.NOT_STARTED'),
+  INTRODUCED: translate('ar', 'capability.state.INTRODUCED'),
+  PRACTISING: translate('ar', 'capability.state.PRACTISING'),
+  INDEPENDENT: translate('ar', 'capability.state.INDEPENDENT'),
+  RETAINED: translate('ar', 'capability.state.RETAINED'),
 };
 
 export const CAPABILITY_DESCRIPTION_AR: Record<CapabilityState, string> = {
-  NOT_STARTED: 'لم تفتح هذا المشهد بعد.',
-  INTRODUCED: 'درست المفردات والعبارات، لكن لم تُنتج جملة بعد.',
-  PRACTISING: 'تدرّبت عليه (اختبار أو محادثة) وما زال يحتاج تثبيتاً.',
-  INDEPENDENT: 'أتممت محادثة كاملة بدون تلميحات وبأداء جيد.',
-  RETAINED: 'نجحت فيه مرة أخرى بعد مراجعة مجدولة — المعرفة بقيت.',
+  NOT_STARTED: translate('ar', 'capability.description.NOT_STARTED'),
+  INTRODUCED: translate('ar', 'capability.description.INTRODUCED'),
+  PRACTISING: translate('ar', 'capability.description.PRACTISING'),
+  INDEPENDENT: translate('ar', 'capability.description.INDEPENDENT'),
+  RETAINED: translate('ar', 'capability.description.RETAINED'),
 };
+
+/**
+ * The state's name in the language being read.
+ *
+ * The Arabic table above stays the reference (it is read by the screens that are
+ * not localised yet), but nothing new should index it directly: a chip that says
+ * «مستقل» on an English screen is the failure this dictionary exists to prevent.
+ */
+export function capabilityLabel(state: CapabilityState, language: UiLanguage = 'ar'): string {
+  return CAPABILITY_LABEL_AR[state]
+    ? translate(language, `capability.state.${state}` as UiStringKey)
+    : translate(language, 'capability.state.NOT_STARTED');
+}
+
+export function capabilityDescription(state: CapabilityState, language: UiLanguage = 'ar'): string {
+  return CAPABILITY_DESCRIPTION_AR[state]
+    ? translate(language, `capability.description.${state}` as UiStringKey)
+    : translate(language, 'capability.description.NOT_STARTED');
+}
 
 export interface CapabilityInput {
   scenario: Pick<ScenarioEntity, 'id' | 'title_de' | 'title_ar' | 'category'>;
@@ -183,13 +204,17 @@ export interface CapabilityModel {
 export function canDoStatementAr(
   scenario: Pick<ScenarioEntity, 'title_de' | 'title_ar'>,
   state: CapabilityState,
+  language: UiLanguage = 'ar',
 ): string {
   const title = scenario.title_ar || scenario.title_de;
-  if (state === 'RETAINED') return `تستطيع التعامل مع «${title}» بثقة، وقد ثبّتناها بالمراجعة.`;
-  if (state === 'INDEPENDENT') return `تستطيع التعامل مع «${title}» بالألمانية بدون مساعدة.`;
-  if (state === 'PRACTISING') return `تتدرّب الآن على «${title}» — لم تصبح مستقلة فيه بعد.`;
-  if (state === 'INTRODUCED') return `تعرّفت على «${title}» وما زلت في البداية.`;
-  return `لم تبدأ «${title}» بعد.`;
+  const key: Record<CapabilityState, UiStringKey> = {
+    RETAINED: 'capability.canDo.retained',
+    INDEPENDENT: 'capability.canDo.independent',
+    PRACTISING: 'capability.canDo.practising',
+    INTRODUCED: 'capability.canDo.introduced',
+    NOT_STARTED: 'capability.canDo.notStarted',
+  };
+  return translate(language, key[state], { title });
 }
 
 export function buildCapabilityModel(input: CapabilityModelInput): CapabilityModel {

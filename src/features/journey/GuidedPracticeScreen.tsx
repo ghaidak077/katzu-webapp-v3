@@ -22,6 +22,7 @@ import { ProgressRail } from '@/components/v2/ProgressStrip';
 import { KatzuThinking } from '@/components/effects/KatzuThinking';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
 import { ArrowRight, Volume2, Mic, MicOff, Check, Sparkles, ChevronLeft } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface GuidedPracticeScreenProps {
   scenarioId: string;
@@ -53,6 +54,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
   onDeepPractice,
 }) => {
   const user = useLiveQuery(() => db.users.get('current_user'));
+  const { t, uiLanguage } = useLanguage();
   const scenario = useLiveQuery(() => db.scenarios.get(scenarioId));
   const phrasesQ = useLiveQuery(() => db.starter_phrases.where('scenario_id').equals(scenarioId).toArray());
   const vocabTopic = scenarioToVocabTopic(scenario);
@@ -108,7 +110,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
   const renderBank = (bank: string[], onPick: (word: string) => void) =>
     bank.length > 0 ? (
       <div className="mt-2">
-        <p className="kz-ar-micro text-kz-inkFaint">رتّب الكلمات</p>
+        <p className="kz-ar-micro text-kz-inkFaint">{t('practice.bankOrder')}</p>
         <div className="mt-1.5 flex flex-wrap items-center gap-2" dir="ltr">
           {bank.map((word, wordIndex) => (
             <button
@@ -133,7 +135,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
     onTranscript: (transcript) => {
       setHeardText(transcript);
       if (!practice.listening) return;
-      const result = gradeRepeat(practice.listening.de, transcript);
+      const result = gradeRepeat(practice.listening.de, transcript, uiLanguage);
       setRepeatTone(result.verdict === 'correct' ? 'earned' : 'neutral');
       setRepeatMessage(result.messageAr);
     },
@@ -186,7 +188,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
 
   const handleCheckRetrieval = () => {
     if (!practice.retrieval) return;
-    const outcome = gradeTypedProduction(practice.retrieval.answerDe, retrievalAnswer);
+    const outcome = gradeTypedProduction(practice.retrieval.answerDe, retrievalAnswer, uiLanguage);
     setRetrievalOutcome(outcome);
     triggerHaptic(outcome.verdict === 'correct' ? 'success' : 'light');
   };
@@ -200,7 +202,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
    */
   const handleCheckGrammar = () => {
     if (!practice.grammar) return;
-    const outcome = gradeTypedProduction(practice.grammar.exampleDe, grammarAnswer);
+    const outcome = gradeTypedProduction(practice.grammar.exampleDe, grammarAnswer, uiLanguage);
     setGrammarOutcome(outcome);
     triggerHaptic(outcome.verdict === 'correct' ? 'success' : 'light');
   };
@@ -223,7 +225,6 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
   // Two steps without a rule on this device, three with one — the rail must
   // never promise a step the learner has no way to finish.
   const totalSteps = practice.grammar ? 3 : 2;
-  const totalStepsAr = String(totalSteps);
 
   // The deck comes from local content, so this is usually a single frame on a warm
   // cache — but it is still a load, and it is announced in the app's one processing
@@ -231,7 +232,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
   if (phrasesQ === undefined || vocabQ === undefined || grammarQ === undefined) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black px-4">
-        <KatzuThinking size={64} labelAr="نُجهّز تدريب اليوم…" />
+        <KatzuThinking size={64} labelAr={t('practice.preparing')} />
       </div>
     );
   }
@@ -243,7 +244,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
           <button
             type="button"
             onClick={onBack}
-            aria-label="العودة إلى القصة"
+            aria-label={t('practice.backAria')}
             className="flex h-11 w-11 items-center justify-center rounded-control border border-white/10 bg-white/[0.04]"
           >
             <ArrowRight className="h-5 w-5 text-kz-inkDim" />
@@ -256,7 +257,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                 pixels, a name at last. Screen 2.6: the level lives HERE as a
                 chip; the per-phrase floating level is gone. */}
             <h1 className="kz-ar-micro text-kz-inkFaint">
-              تدريب موجّه · {practice.cards.length} عبارات
+              {t('practice.title', { count: practice.cards.length })}
             </h1>
             <p className="kz-ar-caption text-kz-ink">{scene.locationAr}</p>
             <span
@@ -271,7 +272,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
         {/* A small scene fragment keeps this screen in the same episode. */}
         <SceneBackdrop scene={scene} className="mb-4 h-24 w-full rounded-squircle" readability>
           <div className="flex h-full items-end justify-between p-3">
-            <p className="kz-ar-micro text-kz-inkDim">جهّز لسانك — ثم نتحدث</p>
+            <p className="kz-ar-micro text-kz-inkDim">{t('practice.prepare')}</p>
             <KatzuPresence state="practice" size="sm" className="-mb-1" />
           </div>
         </SceneBackdrop>
@@ -279,10 +280,8 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
         {practice.empty ? (
           <GlassCard tier="glass" className="text-center">
             <KatzuPresence state="blocked" size="md" className="mx-auto mb-2" />
-            <p className="kz-ar-body text-kz-ink">لا توجد عبارات محفوظة لهذا المشهد على جهازك بعد.</p>
-            <p className="kz-ar-caption mt-2 text-kz-inkFaint">
-              يمكنك المتابعة إلى المحادثة الآن؛ ستحتاج اتصالاً بالإنترنت.
-            </p>
+            <p className="kz-ar-body text-kz-ink">{t('practice.emptyTitle')}</p>
+            <p className="kz-ar-caption mt-2 text-kz-inkFaint">{t('practice.emptyBody')}</p>
           </GlassCard>
         ) : (
           <>
@@ -295,7 +294,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                       <button
                         type="button"
                         onClick={() => playCard(card)}
-                        aria-label={`استمع: ${card.de}`}
+                        aria-label={t('practice.listenAria', { text: card.de })}
                         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-colors ${
                           isPlaying && activeCharIndex !== null
                             ? 'border-kz-lavender/50 bg-kz-lavender/15 text-kz-lavender'
@@ -324,7 +323,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
             {practice.grammar && (
               <GlassCard tier="glass" data-testid="grammar-card" className="mt-4">
                 <AccordionHeader
-                  labelAr="قاعدة اليوم"
+                  labelAr={t('practice.grammarTitle')}
                   level={practice.grammar.level}
                   open={openSection === 'grammar'}
                   onToggle={() => setOpenSection(openSection === 'grammar' ? null : 'grammar')}
@@ -340,7 +339,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                 )}
 
                 <p className="kz-ar-caption mt-3 text-kz-ink">
-                  اكتب بالألمانية ما تعنيه:{' '}
+                  {t('practice.grammarInstruction')}
                   <span className="font-bold">{practice.grammar.exampleAr}</span>
                 </p>
                 {renderBank(grammarBank, (word) => {
@@ -351,7 +350,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                     sharing "Schreibe hier auf Deutsch…" left the learner reading
                     upwards to work out where the answer went. */}
                 <label className="kz-ar-micro mt-2 block text-kz-inkDim" htmlFor="grammar-answer">
-                  إجابتك عن القاعدة بالألمانية
+                  {t('practice.answerLabelGrammar')}
                 </label>
                 <input
                   id="grammar-answer"
@@ -360,8 +359,8 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   value={grammarAnswer}
                   onChange={(event) => setGrammarAnswer(event.target.value)}
                   onKeyDown={(event) => event.key === 'Enter' && handleCheckGrammar()}
-                  placeholder="اكتب جملتك بالألمانية هنا…"
-                  aria-label="اكتب جملة القاعدة بالألمانية"
+                  placeholder={t('practice.placeholderGrammar')}
+                  aria-label={t('practice.ariaGrammar')}
                   className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink transition-colors placeholder:font-arabic placeholder:text-micro placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                 />
                 <div className="mt-3 flex items-center gap-2">
@@ -372,7 +371,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                     className="flex-1"
                   >
                     <Check className="h-4 w-4" />
-                    تحقق
+                    {t('practice.check')}
                   </GlassButton>
                   {grammarOutcome?.verdict !== 'correct' && (
                     <GlassButton
@@ -381,11 +380,11 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                         setGrammarOutcome({
                           verdict: 'wrong',
                           tone: 'neutral',
-                          messageAr: `الجملة الصحيحة: ${practice.grammar!.exampleDe}`,
+                          messageAr: t('practice.correctSentence', { sentence: practice.grammar!.exampleDe }),
                         })
                       }
                     >
-                      أرني الصحيحة
+                      {t('practice.showCorrect')}
                     </GlassButton>
                   )}
                 </div>
@@ -417,21 +416,22 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
             {practice.retrieval && (
               <GlassCard tier="glass" data-testid="retrieval-card" className="mt-4">
                 <AccordionHeader
-                  labelAr="استرجاع سريع"
+                  labelAr={t('practice.retrievalTitle')}
                   open={openSection === 'retrieval'}
                   onToggle={() => setOpenSection(openSection === 'retrieval' ? null : 'retrieval')}
                 />
                 {openSection === 'retrieval' && (
                 <div>
                 <p className="kz-ar-body text-kz-ink">
-                  قل أو اكتب بالألمانية: <span className="font-bold">{practice.retrieval.promptAr}</span>
+                  {t('practice.retrievalPrompt')}
+                  <span className="font-bold">{practice.retrieval.promptAr}</span>
                 </p>
                 {renderBank(retrievalBank, (word) => {
                   track('word_bank_tapped', { skill: 'practice', kind: 'retrieval' });
                   setRetrievalAnswer((prev) => (prev ? `${prev} ${word}` : word));
                 })}
                 <label className="kz-ar-micro mt-2 block text-kz-inkDim" htmlFor="retrieval-answer">
-                  جملتك بالألمانية
+                  {t('practice.answerLabelRetrieval')}
                 </label>
                 <input
                   id="retrieval-answer"
@@ -440,8 +440,8 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                   value={retrievalAnswer}
                   onChange={(event) => setRetrievalAnswer(event.target.value)}
                   onKeyDown={(event) => event.key === 'Enter' && handleCheckRetrieval()}
-                  placeholder="اكتب الجملة التي قالها Katzu…"
-                  aria-label="اكتب الجملة بالألمانية"
+                  placeholder={t('practice.placeholderRetrieval')}
+                  aria-label={t('practice.ariaRetrieval')}
                   className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink transition-colors placeholder:font-arabic placeholder:text-micro placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                 />
                 <div className="mt-3 flex items-center gap-2">
@@ -452,7 +452,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                     className="flex-1"
                   >
                     <Check className="h-4 w-4" />
-                    تحقق
+                    {t('practice.check')}
                   </GlassButton>
                   {retrievalOutcome?.verdict !== 'correct' && (
                     <GlassButton
@@ -461,11 +461,11 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                         setRetrievalOutcome({
                           verdict: 'wrong',
                           tone: 'neutral',
-                          messageAr: `الجملة الصحيحة: ${practice.retrieval!.answerDe}`,
+                          messageAr: t('practice.correctSentence', { sentence: practice.retrieval!.answerDe }),
                         })
                       }
                     >
-                      أرني الصحيحة
+                      {t('practice.showCorrect')}
                     </GlassButton>
                   )}
                 </div>
@@ -487,7 +487,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
             {practice.listening && (
               <GlassCard tier="glass" className="mt-4">
                 <AccordionHeader
-                  labelAr="استمع وكرّر"
+                  labelAr={t('practice.listeningTitle')}
                   open={openSection === 'listening'}
                   onToggle={() => setOpenSection(openSection === 'listening' ? null : 'listening')}
                 />
@@ -499,7 +499,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <GlassButton variant="secondary" onClick={() => speak(practice.listening!.de)}>
                     <Volume2 className="h-4 w-4" />
-                    استمع
+                    {t('practice.listen')}
                   </GlassButton>
                   {voice.isSupported ? (
                     <GlassButton
@@ -522,11 +522,11 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                       }}
                     >
                       {voice.isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                      {voice.isRecording ? 'أوقف التسجيل' : 'كرّر بصوتك'}
+                      {voice.isRecording ? t('practice.stopRecording') : t('practice.repeatVoice')}
                     </GlassButton>
                   ) : (
                     <span className="kz-ar-micro text-kz-inkFaint">
-                      الإدخال الصوتي غير متاح في هذا المتصفح — اكتب ما سمعته.
+                      {t('practice.voiceUnavailable')}
                     </span>
                   )}
                 </div>
@@ -535,16 +535,16 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                 <input
                   type="text"
                   dir="ltr"
-                  aria-label="اكتب ما سمعته بالألمانية"
+                  aria-label={t('practice.ariaHeard')}
                   value={heardText}
                   onChange={(event) => setHeardText(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter') return;
-                    const result = gradeRepeat(practice.listening!.de, heardText);
+                    const result = gradeRepeat(practice.listening!.de, heardText, uiLanguage);
                     setRepeatTone(result.verdict === 'correct' ? 'earned' : 'neutral');
                     setRepeatMessage(result.messageAr);
                   }}
-                  placeholder="اكتب ما سمعته…"
+                  placeholder={t('practice.placeholderHeard')}
                   className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 font-german text-sm text-kz-ink transition-colors placeholder:font-arabic placeholder:text-micro placeholder:text-kz-inkFaint focus:border-kz-lavender/50"
                 />
 
@@ -553,7 +553,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                     until the recording ends. */}
                 {voice.isRecording && voice.interimText && (
                   <p data-testid="live-caption" className="mt-2 flex items-baseline gap-2">
-                    <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">أسمع</span>
+                    <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">{t('practice.hearing')}</span>
                     <span dir="ltr" className="min-w-0 flex-1 truncate font-german text-sm text-kz-ink">
                       {voice.interimText}
                     </span>
@@ -581,7 +581,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
                 className="kz-ar-caption mt-4 flex min-h-[44px] w-full items-center justify-center gap-1.5 text-kz-inkFaint transition-colors pointer-hover:text-kz-inkDim"
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                تدريب أعمق على هذا المشهد (اختياري)
+                {t('practice.deep')}
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
             )}
@@ -591,7 +591,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
         {/* Readiness (Screen 2.7): collapsed progress dots + the number — the
             card it used to be spent a whole panel saying what three dots say. */}
         <div className="mt-5 flex items-center justify-between" data-testid="readiness">
-          <span className="kz-ar-micro text-kz-inkDim">جاهزيتك لهذا الموقف</span>
+          <span className="kz-ar-micro text-kz-inkDim">{t('practice.readiness')}</span>
           <span className="flex items-center gap-2">
             <span className="flex items-center gap-1.5" aria-hidden>
               {Array.from({ length: totalSteps }).map((_, i) => (
@@ -602,7 +602,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
               ))}
             </span>
             <span className="kz-ar-micro text-kz-inkFaint">
-              {handled} من {totalStepsAr}
+              {t('practice.handled', { done: handled, total: totalSteps })}
             </span>
           </span>
         </div>
@@ -613,16 +613,16 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
           reserved space below the content that no input is ever covered. */}
       <FloatingControl className="fixed bottom-0 start-0 end-0 z-20 mx-auto max-w-md rounded-t-sheet border-t border-white/[0.06] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <PrimaryAction
-          hintAr="بعدها تبدأ المحادثة الحقيقية — بالصوت أو بالكتابة."
+          hintAr={t('practice.hint')}
           onClick={handleReady}
           disabled={isSaving}
         >
-          أنا جاهز
+          {t('practice.ready')}
         </PrimaryAction>
         {/* The reassurance sits directly under the CTA now, instead of at the
             bottom of the page where it read as fine print about nothing. */}
         <p className="kz-ar-micro mt-2 text-center text-kz-inkFaint">
-          هذا ليس تقييماً — إنه تمرين.
+          {t('practice.reassurance')}
         </p>
       </FloatingControl>
     </div>

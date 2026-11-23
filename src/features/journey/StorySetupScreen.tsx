@@ -13,6 +13,7 @@ import { useOnlineStatus } from '@/lib/utils/onlineStatus';
 import { isProEffective } from '@/lib/utils/subscription';
 import { servedLevel } from '@/lib/entitlement/trial';
 import { logError } from '@/lib/utils/diagnostics';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 import { GermanText } from '@/components/common/GermanText';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
@@ -45,6 +46,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
   const scenario = scenarioRow.row;
   const training = useLiveQuery(() => db.scenario_training.get(scenarioId));
   const isOnline = useOnlineStatus();
+  const { t, uiLanguage } = useLanguage();
 
   // The SAME shared first-session fact the home hero and the Practice/Progress
   // locks read (`lib/journey/firstSession`), so no surface can call this learner
@@ -76,7 +78,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
       scenario,
       level,
       locationAr: scene.locationAr,
-      whyAr: brief?.reasonAr || 'هذا الموقف من المواقف التي ستخوضها فعلاً في ألمانيا.',
+      whyAr: brief?.reasonAr || t('story.whyFallback'),
       taskAr: brief?.taskAr,
       returning: !!training?.studiedAt,
       // The learner is the main character, so the opening addresses them by name
@@ -84,8 +86,9 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
       // are in the move. Both are read from the profile row, never generated.
       displayName: user?.displayName,
       arrivalStatus: user?.arrivalStatus,
+      language: uiLanguage,
     });
-  }, [scenario, level, scene.locationAr, brief, training?.studiedAt, user?.displayName, user?.arrivalStatus]);
+  }, [scenario, level, scene.locationAr, brief, training?.studiedAt, user?.displayName, user?.arrivalStatus, uiLanguage, t]);
 
   const { speak, isPlaying } = useSpeechOutput({ speed: user?.speechSpeed || 1.0 });
 
@@ -128,24 +131,22 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-kz-black px-6">
         <p className="kz-ar-body text-center text-kz-inkDim">
           {scenarioRow.kind === 'missing'
-            ? 'لم نجد هذا المشهد على هذا الجهاز بعد.'
+            ? t('storySetup.missingTitle')
             : stalled
-              ? 'تأخّر تجهيز المشهد — قد يكون التحديث معلّقاً في تبويب آخر.'
-              : 'جارٍ تجهيز المشهد…'}
+              ? t('storySetup.stalled')
+              : t('storySetup.loading')}
         </p>
         {scenarioRow.kind === 'missing' && (
-          <p className="kz-ar-caption text-center text-kz-inkFaint">
-            قد يكون هذا المشهد لم يُنزَّل على الجهاز بعد — يمكنك المتابعة بمشهد آخر من مسارك.
-          </p>
+          <p className="kz-ar-caption text-center text-kz-inkFaint">{t('storySetup.missingBody')}</p>
         )}
         {/* A wedged read is a state with a way out, never a spinner forever. */}
         {stalled && (
           <GlassButton variant="secondary" onClick={scenarioRow.retry}>
-            إعادة المحاولة
+            {t('storySetup.retry')}
           </GlassButton>
         )}
         <GlassButton variant="quiet" onClick={onBack}>
-          العودة
+          {t('storySetup.back')}
         </GlassButton>
       </div>
     );
@@ -166,7 +167,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
           <button
             type="button"
             onClick={onBack}
-            aria-label="العودة"
+            aria-label={t('storySetup.backAria')}
             className="flex h-11 w-11 items-center justify-center rounded-control border border-kz-line bg-kz-black/35 backdrop-blur-md"
           >
             <ArrowRight className="h-5 w-5 text-kz-inkDim" />
@@ -188,12 +189,12 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                   profile actually holds a name. */}
               {story?.learnerName && (
                 <span className="kz-ar-micro rounded-full border border-kz-lavender/30 bg-kz-lavender/10 px-3 py-1.5 text-kz-lavender backdrop-blur-md">
-                  أنت: {story.learnerName}
+                  {t('storySetup.you', { name: story.learnerName })}
                 </span>
               )}
               {training?.studiedAt && (
                 <span className="kz-ar-micro rounded-full border border-kz-line bg-kz-black/35 px-3 py-1.5 text-kz-inkFaint backdrop-blur-md">
-                  عدت إلى هذا المشهد
+                  {t('storySetup.returned')}
                 </span>
               )}
             </div>
@@ -206,11 +207,11 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
 
               <div className="kz-ar-caption mt-3 space-y-1.5 text-kz-inkDim">
                 <p>
-                  <span className="text-kz-inkFaint">لماذا اليوم: </span>
+                  <span className="text-kz-inkFaint">{t('storySetup.why')}</span>
                   {story?.whyAr}
                 </p>
                 <p>
-                  <span className="text-kz-inkFaint">مهمتك: </span>
+                  <span className="text-kz-inkFaint">{t('storySetup.taskLabel')}</span>
                   {story?.taskAr}
                 </p>
               </div>
@@ -223,7 +224,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                   <button
                     type="button"
                     onClick={() => speak(story.openingDe)}
-                    aria-label="استمع للجملة الأولى"
+                    aria-label={t('storySetup.listenAria')}
                     className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control border transition-colors duration-fast ease-out ${
                       isPlaying
                         ? 'border-kz-lavender/50 bg-kz-lavender/15 text-kz-lavender'
@@ -240,7 +241,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                     {translationState === 'pending' && !translationAr && (
                       <p className="kz-ar-micro mt-1.5 flex items-center gap-1.5 text-kz-inkFaint">
                         <Languages className="h-3.5 w-3.5 animate-pulse" />
-                        جارٍ الترجمة…
+                        {t('storySetup.translating')}
                       </p>
                     )}
                     {translationState === 'unavailable' && !translationAr && (
@@ -250,7 +251,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                         className="kz-ar-micro mt-1.5 flex min-h-touch items-center gap-1.5 text-kz-amber"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
-                        تعذرت الترجمة — إعادة المحاولة
+                        {t('storySetup.translateFailed')}
                       </button>
                     )}
                   </div>
@@ -264,7 +265,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                 and it is not a dead end — the phrases are all local. */}
             {!isOnline && (
               <div className="flex items-center gap-2 rounded-panel border border-kz-line bg-kz-black/40 px-3 py-2 backdrop-blur-md">
-                <StatusIndicator state="offline" detailAr="المحادثة الحيّة تحتاج اتصالاً — يمكنك التدريب الآن" />
+                <StatusIndicator state="offline" detailAr={t('storySetup.offline')} />
               </div>
             )}
 
@@ -272,18 +273,14 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
                 everything else new, that one word asks the learner to guess the
                 app's own vocabulary. It now names the step it opens. */}
             <PrimaryAction
-              hintAr={
-                dayZero
-                  ? 'ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم.'
-                  : 'خطوتان قصيرتان ثم تبدأ المحادثة.'
-              }
+              hintAr={dayZero ? t('storySetup.hintDayZero') : t('storySetup.hintReturning')}
               onClick={onStart}
             >
-              ابدأ التدريب
+              {t('storySetup.start')}
             </PrimaryAction>
 
             <GlassButton variant="quiet" fullWidth onClick={onBack}>
-              ليس الآن
+              {t('storySetup.notNow')}
             </GlassButton>
           </div>
         </div>

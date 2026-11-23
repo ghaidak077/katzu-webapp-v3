@@ -1,7 +1,10 @@
 import type { ArrivalStatus, CEFRLevel, LearnerGoal } from '@/types/models';
 import { INTRO_SCENARIO_ID, type DailyMissionPlan, type MissionScenario } from '@/lib/mission/selectMission';
 import { arCount } from '@/lib/i18n/arabicCount';
-import { REVIEW_ITEM_NOM } from '@/lib/i18n/countForms';import { goalMatchScore } from '@/lib/onboarding/preferences';
+import { REVIEW_ITEM_NOM } from '@/lib/i18n/countForms';
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
+import { goalMatchScore } from '@/lib/onboarding/preferences';
 
 /**
  * Journey Home's context: where the learner is, and why today's mission is
@@ -16,12 +19,20 @@ import { REVIEW_ITEM_NOM } from '@/lib/i18n/countForms';import { goalMatchScore 
 /** Scenarios per chapter. Small on purpose: a learner must be able to finish one. */
 export const CHAPTER_SIZE = 3;
 
-const CHAPTER_TITLES_AR = [
-  'الخطوات الأولى في ألمانيا',
-  'الحياة اليومية والمواصلات',
-  'العمل والمكتب',
-  'الجامعة والجهات الرسمية',
-  'الاستقلال باللغة',
+/**
+ * The five chapters the path is cut into, as dictionary keys.
+ *
+ * Keys rather than strings because the same chapter title is read by an
+ * English, Indonesian and Arabic screen, and a list of Arabic literals here is
+ * exactly the kind of copy that stays Arabic after the UI switch — the title is
+ * the largest text on the home screen.
+ */
+const CHAPTER_TITLE_KEYS: UiStringKey[] = [
+  'journey.chapter.steps',
+  'journey.chapter.daily',
+  'journey.chapter.work',
+  'journey.chapter.study',
+  'journey.chapter.independent',
 ];
 
 const DAY_MS = 86_400_000;
@@ -54,6 +65,9 @@ export interface JourneyContext {
   daysSinceLastSession: number;
   chapterIndex: number;
   chapterCount: number;
+  /** The chapter title in the language the caller asked for. */
+  chapterTitle: string;
+  /** The Arabic title, kept for the surfaces that still render Arabic only. */
   chapterTitleAr: string;
   chapterSegments: number;
   chapterSegmentsDone: number;
@@ -96,16 +110,19 @@ function orderedScenarios(input: JourneyInput): MissionScenario[] {
 }
 
 /** The learner's situation, used to explain why a scene matters to *them*. */
-export function situationAr(input: Pick<JourneyInput, 'goal' | 'arrivalStatus'>): string {
-  if (input.arrivalStatus === 'living_in_germany') return 'أنت في ألمانيا بالفعل';
-  if (input.arrivalStatus === 'recently_arrived') return 'وصلت حديثاً';
-  if (input.goal === 'exam') return 'لديك امتحان قادم';
-  if (input.goal === 'work') return 'تستعد للعمل أو Ausbildung';
-  if (input.goal === 'university') return 'تستعد للدراسة';
-  return 'أنت في طريقك إلى ألمانيا';
+export function situationAr(
+  input: Pick<JourneyInput, 'goal' | 'arrivalStatus'>,
+  language: UiLanguage = 'ar',
+): string {
+  if (input.arrivalStatus === 'living_in_germany') return translate(language, 'journey.situation.livingInGermany');
+  if (input.arrivalStatus === 'recently_arrived') return translate(language, 'journey.situation.arrived');
+  if (input.goal === 'exam') return translate(language, 'journey.situation.exam');
+  if (input.goal === 'work') return translate(language, 'journey.situation.work');
+  if (input.goal === 'university') return translate(language, 'journey.situation.university');
+  return translate(language, 'journey.situation.travelling');
 }
 
-export function buildJourneyContext(input: JourneyInput): JourneyContext {
+export function buildJourneyContext(input: JourneyInput, language: UiLanguage = 'ar'): JourneyContext {
   const now = input.now ?? Date.now();
   const sessions = (input.sessions || []).filter((session) => Number(session?.timestamp) > 0);
   const ordered = orderedScenarios(input);
@@ -133,16 +150,26 @@ export function buildJourneyContext(input: JourneyInput): JourneyContext {
   const chapterSegmentsDone = chapterScenarios.filter((scenario) => independent.has(scenario.id)).length;
   const activeSegment = chapterSegmentsDone < chapterSegments ? chapterSegmentsDone : undefined;
 
-  const chapterTitleAr =
-    CHAPTER_TITLES_AR[chapterIndex - 1] ||
-    chapterScenarios[0]?.title_ar ||
-    CHAPTER_TITLES_AR[CHAPTER_TITLES_AR.length - 1];
+  // A scenario's own title is Arabic content until the content layer is
+  // localised (plan 010 §11), so the chapter key wins whenever the chapter has
+  // one; only a chapter past the five named ones falls back to the scene title.
+  const chapterKey = CHAPTER_TITLE_KEYS[chapterIndex - 1];
+  const chapterTitle = chapterKey
+    ? translate(language, chapterKey)
+    : chapterScenarios[0]?.title_ar ||
+      translate(language, CHAPTER_TITLE_KEYS[CHAPTER_TITLE_KEYS.length - 1]);
+  const chapterTitleAr = chapterScenarios[0]?.title_ar
+    ? chapterKey
+      ? translate('ar', chapterKey)
+      : chapterScenarios[0].title_ar
+    : translate('ar', CHAPTER_TITLE_KEYS[CHAPTER_TITLE_KEYS.length - 1]);
 
   return {
     dayNumber,
     daysSinceLastSession,
     chapterIndex,
     chapterCount,
+    chapterTitle,
     chapterTitleAr,
     chapterSegments,
     chapterSegmentsDone,
@@ -154,26 +181,40 @@ export function buildJourneyContext(input: JourneyInput): JourneyContext {
 }
 
 /** Category → the real situation the scene trains, used for the "why" line. */
-function categoryRealityAr(category: string | null | undefined, goal: LearnerGoal | null | undefined): string {
+function categoryReality(
+  category: string | null | undefined,
+  goal: LearnerGoal | null | undefined,
+  language: UiLanguage,
+): string {
   const value = String(category || '').toLowerCase();
-  if (value.includes('health') || value.includes('doctor')) return 'ستحتاج هذه الجُمل في العيادة أو الصيدلية';
-  if (value.includes('housing') || value.includes('apartment')) return 'هذه هي نفس الأسئلة التي سيسألها المالك';
+  if (value.includes('health') || value.includes('doctor')) return translate(language, 'journey.reality.health');
+  if (value.includes('housing') || value.includes('apartment')) return translate(language, 'journey.reality.housing');
   if (value.includes('work') || value.includes('career') || value.includes('job'))
-    return goal === 'exam'
-      ? 'صيغة قريبة مما يظهر في امتحان العمل'
-      : 'هذه محادثة حقيقية في العمل أو المقابلة';
-  if (value.includes('travel') || value.includes('transport')) return 'ستستخدمها في المحطة عندما تحتاج مساعدة';
-  if (value.includes('official') || value.includes('document')) return 'هذه هي اللغة التي تسمعها في الدوائر الرسمية';
+    return translate(language, goal === 'exam' ? 'journey.reality.workExam' : 'journey.reality.work');
+  if (value.includes('travel') || value.includes('transport')) return translate(language, 'journey.reality.travel');
+  if (value.includes('official') || value.includes('document')) return translate(language, 'journey.reality.official');
   if (value.includes('food') || value.includes('cafe') || value.includes('daily'))
-    return 'موقف يومي تتكرر فيه هذه الجُمل';
+    return translate(language, 'journey.reality.daily');
   // V23: the new module categories get their own honest "why" lines.
-  if (value.includes('exam')) return 'تدريب بأسلوب الامتحان — ليس الامتحان الرسمي، لكنه يقيس الشيء نفسه';
-  if (value.includes('study')) return 'لغة الدرس والجامعة التي ستحتاجها في أول أسبوع';
-  if (value.includes('visa')) return 'أسئلة التأشيرة والإقامة بالجمل التي تسمعها فعلاً في السفارة';
-  if (value.includes('services')) return 'مكالمة موفّر خدمة — بالضبط ما ستحتاجه لتصفير موعد';
-  if (value.includes('trades')) return 'لغة الورشة والصيانة التي تصلح كل موقف فني في بيتك';
-  if (value.includes('basics')) return 'الأساسيات التي يتكرر عليها كل يوم';
-  return 'موقف حقيقي ستخوضه بالألمانية';
+  if (value.includes('exam')) return translate(language, 'journey.reality.exam');
+  if (value.includes('study')) return translate(language, 'journey.reality.study');
+  if (value.includes('visa')) return translate(language, 'journey.reality.visa');
+  if (value.includes('services')) return translate(language, 'journey.reality.services');
+  if (value.includes('trades')) return translate(language, 'journey.reality.trades');
+  if (value.includes('basics')) return translate(language, 'journey.reality.basics');
+  return translate(language, 'journey.reality.other');
+}
+
+/**
+ * "3 items" in the language being read.
+ *
+ * Arabic needs its four agreement forms (`arCount`); English needs only a
+ * singular/plural switch; Indonesian does not inflect the noun at all. Doing it
+ * here, once, is what lets one sentence template serve all three.
+ */
+function countItems(language: UiLanguage, count: number): string {
+  if (language === 'ar') return arCount(count, REVIEW_ITEM_NOM);
+  return `${count} ${language === 'en' && count !== 1 ? 'items' : 'item'}`;
 }
 
 /**
@@ -185,29 +226,32 @@ export function missionReasonAr(
   plan: DailyMissionPlan,
   context: Pick<JourneyInput, 'goal' | 'arrivalStatus'>,
   scenario?: { id?: string; category?: string | null } | null,
+  language: UiLanguage = 'ar',
 ): string {
   // The opening scene gets its own reason: it is not "a daily situation", it is
   // the first thing the learner's story asks of them.
   if (plan.kind !== 'review' && plan.kind !== 'continue' && scenario?.id === INTRO_SCENARIO_ID) {
-    return 'أول موقف في القصة — قاعة القدوم في المطار، حيث تبدأ رحلة كل متعلّم.';
+    return translate(language, 'journey.reason.intro');
   }
   switch (plan.kind) {
     case 'review': {
       const count = plan.dueCount || 0;
-      return count === 1
-        ? 'عنصر واحد على وشك أن يُنسى — تثبيته الآن يوفّر عليك إعادة تعلّمه.'
-        : `${arCount(count, REVIEW_ITEM_NOM)} على وشك أن تُنسى — تثبيتها الآن أرخص من إعادة تعلّمها.`;
+      return translate(
+        language,
+        count === 1 ? 'journey.reason.reviewOne' : 'journey.reason.reviewMany',
+        { items: countItems(language, count), count },
+      );
     }
     case 'continue':
-      return 'بدأت هذا المشهد ولم تُكمله — إكماله اليوم هو ما يثبّت ما تعلّمته فيه.';
+      return translate(language, 'journey.reason.continue');
     case 'weak_skill':
-      return 'هذه أضعف مهارة قِسناها عندك — دقائق عليها الآن تغيّر نتيجتك القادمة.';
+      return translate(language, 'journey.reason.weakSkill');
     case 'daily':
-      return categoryRealityAr(scenario?.category, context.goal);
+      return categoryReality(scenario?.category, context.goal, language);
     case 'new':
-      return 'أول مرة تخوض هذا الموقف — أسهل مما يبدو، ولن تُترك وحدك فيه.';
+      return translate(language, 'journey.reason.new');
     default:
-      return 'المحتوى غير محفوظ على هذا الجهاز بعد — نحتاج اتصالاً واحداً لتنزيله.';
+      return translate(language, 'journey.reason.noContent');
   }
 }
 
@@ -227,29 +271,32 @@ export interface KatzuLineInput {
  * something the learner can act on or verify. If none of the specific states
  * apply, Katzu says nothing rather than padding the screen with motivation.
  */
-export function katzuJourneyLineAr(input: KatzuLineInput): string | null {
+export function katzuJourneyLineAr(
+  input: KatzuLineInput,
+  language: UiLanguage = 'ar',
+): string | null {
   const { context, plan, offline, cachedMission } = input;
 
   if (offline && cachedMission) {
-    return 'بدون اتصال الآن — المهمة محفوظة على جهازك وستعمل كما هي.';
+    return translate(language, 'journey.katzu.offlineCached');
   }
   if (offline && !cachedMission) {
-    return 'بدون اتصال، ولا توجد مهمة محفوظة بعد. المراجعة المحفوظة تعمل في كل الأحوال.';
+    return translate(language, 'journey.katzu.offlineNoMission');
   }
   if (context.isFirstRun) {
-    return 'هذه أول مهمة لك. لنبدأ بشيء تخوضه فعلاً في ألمانيا.';
+    return translate(language, 'journey.katzu.firstRun');
   }
   if (context.daysSinceLastSession >= 3) {
-    return `مرّ ${context.daysSinceLastSession} أيام. لنبدأ من شيء تعرفه — بلا ضغط وبلا مقارنة.`;
+    return translate(language, 'journey.katzu.afterBreak', { days: context.daysSinceLastSession });
   }
   if (context.isAllCaughtUp) {
-    return 'لا شيء ينتظرك اليوم: أنهيت ما لديك ومراجعتك نظيفة.';
+    return translate(language, 'journey.katzu.allCaughtUp');
   }
   if (plan.kind === 'review') {
-    return 'قبل أي شيء جديد: عندك ما يستحق التثبيت أولاً.';
+    return translate(language, 'journey.katzu.review');
   }
   if (plan.kind === 'continue') {
-    return 'المشهد المفتوح نصفه جاهز — النصف الثاني أسرع مما تتوقع.';
+    return translate(language, 'journey.katzu.continue');
   }
   return null;
 }

@@ -12,7 +12,7 @@ import { readDailyTasks } from '@/lib/daily/taskStore';
 import type { DailyTaskKind } from '@/lib/daily/tasks';
 import { DailyTasksPanel } from '@/features/journey/DailyTasksPanel';
 import { readJourneyHomeData } from '@/features/journey/journeyHomeData';
-import { buildCapabilityModel, CAPABILITY_LABEL_AR, weakestMeasuredSkill } from '@/lib/capability/model';
+import { buildCapabilityModel, capabilityLabel, weakestMeasuredSkill } from '@/lib/capability/model';
 import { buildJourneyContext, katzuJourneyLineAr, missionReasonAr } from '@/lib/journey/context';
 import { sceneFor } from '@/lib/design/scenes';
 import { track } from '@/lib/analytics/client';
@@ -26,6 +26,9 @@ import { StatusIndicator } from '@/components/v2/StatusIndicator';
 import { KatzuPresence } from '@/components/v2/KatzuPresence';
 import { useOnlineStatus } from '@/lib/utils/onlineStatus';
 import { arCount, arNoun } from '@/lib/i18n/arabicCount';
+import { MINUTE_NOM, REVIEW_ITEM_BARE } from '@/lib/i18n/countForms';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import type { UiStringKey } from '@/lib/i18n/strings';
 import { buildWeeklyRecap } from '@/lib/journey/weeklyRecap';
 import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { shouldOfferPro } from '@/lib/entitlement/trial';
@@ -33,9 +36,9 @@ import { isFirstSessionDone } from '@/lib/journey/firstSession';
 import { isProgressRevealed, isReviewRevealed, sheetReviewCount } from '@/lib/journey/reveal';
 import { JourneyMoreSheet } from '@/features/journey/JourneyMoreSheet';
 
-/** V31: counts that reach a learner's eye agree with their noun. See `arabicCount`. */
-const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
-const MINUTE_FORMS = { one: 'دقيقة', two: 'دقيقتان', few: 'دقائق', many: 'دقيقة' } as const;
+/* V31: counts that reach a learner's eye agree with their noun. The two form
+   tables live in `lib/i18n/countForms` now, because the same nouns are written
+   by the panel, the sheet and the review row — one place, not four. */
 import { ArrowLeft, Brain, ChevronDown, ChevronLeft, RefreshCw, Sparkles, X } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
 
@@ -82,6 +85,23 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   onOpenCoach,
 }) => {
   const isOnline = useOnlineStatus();
+  /**
+   * The UI language this screen is written in.
+   *
+   * Every sentence on this screen goes through `t`, and every count through one
+   * of the two helpers below — Arabic needs its four agreement forms, English a
+   * singular/plural switch and Indonesian no inflection at all, and a template
+   * cannot produce Arabic's. The chapter title and Katzu's line are built in
+   * `lib/journey/context`, which takes the same language.
+   */
+  const { t, uiLanguage } = useLanguage();
+  const reviewItemsLabel = (count: number) =>
+    uiLanguage === 'ar' ? arCount(count, REVIEW_ITEM_BARE) : `${count} ${uiLanguage === 'en' && count !== 1 ? 'items' : 'item'}`;
+  /** The banner's own phrase: the noun alone in Arabic, as it shipped. */
+  const reviewNounLabel = (count: number) =>
+    uiLanguage === 'ar' ? arNoun(count, REVIEW_ITEM_BARE) : `${count} ${uiLanguage === 'en' && count !== 1 ? 'items' : 'item'}`;
+  const minutesLabel = (count: number) =>
+    uiLanguage === 'ar' ? arCount(count, MINUTE_NOM) : `${count} ${uiLanguage === 'id' ? 'menit' : 'min'}`;
   /** The «المزيد» sheet. Never auto-opens: a sheet that opens itself is a wall. */
   const [moreOpen, setMoreOpen] = useState(false);
   /**
@@ -232,8 +252,10 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         goal: user?.primaryGoal,
         arrivalStatus: user?.arrivalStatus,
         level,
-      }),
-    [scenarios, training, data, dueCount, independentScenarioIds, user?.primaryGoal, user?.arrivalStatus, level],
+      },
+      uiLanguage,
+    ),
+    [scenarios, training, data, dueCount, independentScenarioIds, user?.primaryGoal, user?.arrivalStatus, level, uiLanguage],
   );
 
   /**
@@ -358,12 +380,17 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
     [missionScenario],
   );
 
-  const reasonAr = missionReasonAr(heroMission, { goal: user?.primaryGoal, arrivalStatus: user?.arrivalStatus }, missionScenario);
+  const reasonAr = missionReasonAr(
+    heroMission,
+    { goal: user?.primaryGoal, arrivalStatus: user?.arrivalStatus },
+    missionScenario,
+    uiLanguage,
+  );
 
   // A mission whose content is cached works offline; that is what the indicator
   // is allowed to claim. It never claims the AI conversation will work offline.
   const cachedMission = !!missionScenario && dueCount === 0 && mission.kind !== 'no_content' && mission.kind !== 'review';
-  const katzuLineAr = katzuJourneyLineAr({ context, plan: mission, offline: !isOnline, cachedMission });
+  const katzuLineAr = katzuJourneyLineAr({ context, plan: mission, offline: !isOnline, cachedMission }, uiLanguage);
   const katzuState = context.isFirstRun
     ? 'journey'
     : mission.kind === 'review'
@@ -384,8 +411,8 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
     if (!first) return null;
     const scenario = scenarios.find((entry) => entry.id === first[0]);
     if (!scenario) return null;
-    return { titleAr: scenario.title_ar, labelAr: CAPABILITY_LABEL_AR[first[1].state] };
-  }, [capability, scenarios]);
+    return { titleAr: scenario.title_ar, labelAr: capabilityLabel(first[1].state, uiLanguage) };
+  }, [capability, scenarios, uiLanguage]);
 
   const totalMinutes = heroMission.estimatedMinutes || user?.dailyGoalMinutes || 10;
 
@@ -400,10 +427,10 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
    */
   const heroLabelAr =
     heroMission.scenarioId === INTRO_SCENARIO_ID
-      ? missionTitleBadgeAr(heroMission.kind, dueCount, heroMission.scenarioId)
+      ? missionTitleBadge(heroMission.kind, t, dueCount, reviewNounLabel, heroMission.scenarioId)
       : !guided && mission.kind === 'review'
-        ? 'مراجعة سريعة'
-        : 'المشهد التالي';
+        ? t('home.badge.reviewQuick')
+        : t('home.badge.nextScene');
 
   /**
    * What the review row promises, in the learner's units.
@@ -509,13 +536,17 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="kz-ar-micro text-kz-inkDim">
-                اليوم {context.dayNumber} · الفصل {context.chapterIndex} من {context.chapterCount}
+                {t('home.dayChapter', {
+                  day: context.dayNumber,
+                  index: context.chapterIndex,
+                  count: context.chapterCount,
+                })}
               </p>
               {/* V35: this heading used to `truncate`, so a chapter title longer than the
                   header clipped its own meaning with no way to read it. Two lines
                   cost nothing here and the title is the one thing this screen
                   states. */}
-              <h1 className="kz-ar-title mt-0.5 text-balance text-kz-ink">{context.chapterTitleAr}</h1>
+              <h1 className="kz-ar-title mt-0.5 text-balance text-kz-ink">{context.chapterTitle}</h1>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1.5">
               <StatusIndicator state={isOnline ? 'online' : 'offline'} compact />
@@ -541,7 +572,8 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
               earned={context.chapterSegmentsDone >= context.chapterSegments}
             />
             <span className="kz-ar-micro shrink-0 text-kz-inkDim">
-              <LtrCounter value={context.chapterSegmentsDone} total={context.chapterSegments} /> مشاهد
+              <LtrCounter value={context.chapterSegmentsDone} total={context.chapterSegments} />{' '}
+              {t('home.scenesWord')}
             </span>
           </div>
         </header>
@@ -553,16 +585,16 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           <div className="relative mb-4">
             <GlassButton variant="secondary" fullWidth onClick={onOpenOnboarding} className="justify-between">
               <span className="flex flex-col items-start text-start">
-                <span className="kz-ar-caption text-kz-ink">أكمل تفضيلاتك (30 ثانية)</span>
+                <span className="kz-ar-caption text-kz-ink">{t('home.preferencesTitle')}</span>
                 <span className="kz-ar-micro font-normal text-kz-inkFaint">
-                  هدفك ووقتك يجعلان مهمة اليوم أدق
+                  {t('home.preferencesBody')}
                 </span>
               </span>
               <ArrowLeft className="h-4 w-4 shrink-0" />
             </GlassButton>
             <button
               onClick={() => void db.users.update('current_user', { onboardingPromptDismissedAt: Date.now() })}
-              aria-label="إخفاء هذا التنبيه"
+              aria-label={t('home.dismissBanner')}
               // 44px, not the 26px the icon asked for: an icon-only control is
               // still a control, and `e2e/accessibility.spec.ts` measures the box.
               // Same idiom as Modal's and BottomSheet's close buttons.
@@ -629,10 +661,10 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
                 </>
               ) : (
                 <h2 className="kz-hero-title mt-1 text-kz-ink">
-                  {!guided && mission.kind === 'review' ? 'مراجعة اليوم' : 'مهمتك اليومية قيد التجهيز'}
+                  {!guided && mission.kind === 'review' ? t('home.reviewToday') : t('home.missionPreparing')}
                 </h2>
               )}
-              <p className="mt-1 text-micro text-kz-inkDim">{arCount(totalMinutes, MINUTE_FORMS)}</p>
+              <p className="mt-1 text-micro text-kz-inkDim">{minutesLabel(totalMinutes)}</p>
             </div>
           </div>
 
@@ -643,7 +675,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
                 the level the placement measured. */}
             {level !== learnerLevel && (
               <p className="kz-ar-micro mt-1 text-kz-inkFaint">
-                هذه المهمة بمستوى {level} — وهو المتاح في الخطة المجانية.
+                {t('home.levelNote', { level })}
               </p>
             )}
 
@@ -680,7 +712,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
                   onClick={handlePrimary}
                   className="kz-hero-cta flex w-full items-center justify-center px-5 text-body font-semibold"
                 >
-                  {guided ? 'تابع التعلّم' : heroMission.ctaAr}
+                  {guided ? t('home.ctaContinue') : heroMission.ctaAr}
                 </button>
               )}
             </div>
@@ -704,8 +736,10 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           >
             <Brain className="h-4 w-4 shrink-0 text-kz-lavender" aria-hidden />
             <span className="kz-ar-caption flex-1 text-kz-ink">
-              مراجعة سريعة · {arCount(reviewRowCount, REVIEW_ITEM_FORMS)} ·{' '}
-              {arCount(reviewRowMinutes, MINUTE_FORMS)}
+              {t('home.reviewRow', {
+                items: reviewItemsLabel(reviewRowCount),
+                minutes: minutesLabel(reviewRowMinutes),
+              })}
             </span>
             <ChevronLeft className="h-4 w-4 shrink-0 text-kz-inkDim" aria-hidden />
           </button>
@@ -739,7 +773,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             onClick={() => setMoreOpen(true)}
             className="mb-6 flex min-h-touch w-full items-center justify-start gap-1 rounded-control px-1 text-kz-inkDim transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
           >
-            <span className="kz-ar-micro">المزيد</span>
+            <span className="kz-ar-micro">{t('home.more')}</span>
             <ChevronDown className="h-3.5 w-3.5" aria-hidden />
           </button>
         )}
@@ -759,7 +793,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           <GlassButton variant="secondary" fullWidth onClick={onOpenReview} className="mb-4 justify-between">
             <span className="flex items-center gap-2">
               <Brain className="h-4 w-4 text-kz-lavender" />
-              <span className="kz-ar-caption text-kz-ink">مراجعة مستحقة: {dueCount}</span>
+              <span className="kz-ar-caption text-kz-ink">{t('home.reviewDue', { count: dueCount })}</span>
             </span>
             <ArrowLeft className="h-4 w-4 text-kz-inkFaint" />
           </GlassButton>
@@ -773,17 +807,17 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             chapter's goal instead, so the slot motivates rather than lies. */}
         {!guided && (latestCapability ? (
           <GlassCard tier="canvas" className="mb-4">
-            <p className="kz-ar-micro kz-earned-text mb-1">قدرة مكتسبة · {latestCapability.labelAr}</p>
+            <p className="kz-ar-micro kz-earned-text mb-1">
+              {t('home.capabilityEarned', { label: latestCapability.labelAr })}
+            </p>
             <p className="kz-ar-caption text-kz-ink">
-              تستطيع التعامل مع «{latestCapability.titleAr}» بالألمانية بدون مساعدة.
+              {t('home.capabilityLine', { title: latestCapability.titleAr })}
             </p>
           </GlassCard>
         ) : (
           <GlassCard tier="canvas" className="mb-4" data-testid="chapter-goal-card">
-            <p className="kz-ar-micro mb-1 text-kz-inkDim">هدفك في هذا الفصل</p>
-            <p className="kz-ar-caption text-kz-ink">
-              أنهِ مشاهد هذا الفصل لتتقن التعامل مع موقفه بالألمانية بدون مساعدة.
-            </p>
+            <p className="kz-ar-micro mb-1 text-kz-inkDim">{t('home.chapterGoalTitle')}</p>
+            <p className="kz-ar-caption text-kz-ink">{t('home.chapterGoalBody')}</p>
           </GlassCard>
         ))}
 
@@ -808,7 +842,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
                 className="mt-2 min-h-touch rounded-chip px-4 text-micro"
                 onClick={onOpenSubscription}
               >
-                تجديد الاشتراك
+                {t('home.renew')}
               </GlassButton>
             )}
           </GlassCard>
@@ -819,11 +853,11 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             what to do next, not where they are told off for last week. */}
         {!guided && weeklyRecap.episodes > 0 && (
           <GlassCard tier="canvas" className="mb-4" data-testid="weekly-recap-card">
-            <p className="kz-ar-micro mb-1 text-kz-inkDim">أسبوعك في كَاتْزُو</p>
+            <p className="kz-ar-micro mb-1 text-kz-inkDim">{t('home.weeklyTitle')}</p>
             <p className="kz-ar-caption text-kz-ink">{weeklyRecap.headlineAr}</p>
             {weeklyRecap.topScenarioTitle && (
               <p className="mt-1 kz-ar-micro text-kz-inkFaint">
-                أكثر مشهد زرته:{' '}
+                {t('home.weeklyTop')}{' '}
                 <GermanText className="text-kz-inkDim">{weeklyRecap.topScenarioTitle}</GermanText>
               </p>
             )}
@@ -836,17 +870,17 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         {!guided && (<div className="flex flex-wrap items-center gap-2">
           {onOpenGrammar && (
             <GlassButton variant="secondary" className="min-h-touch rounded-chip px-4 text-micro" onClick={onOpenGrammar}>
-              القواعد
+              {t('home.grammarChip')}
             </GlassButton>
           )}
           <GlassButton variant="secondary" className="min-h-touch rounded-chip px-4 text-micro" onClick={onOpenLibrary}>
-            كل المشاهد والمستويات
+            {t('home.libraryChip')}
           </GlassButton>
           <span
             className="kz-ar-micro inline-flex min-h-touch items-center rounded-chip border border-kz-line bg-kz-ink/5 px-4 text-kz-inkDim"
             data-testid="journey-level-chip"
           >
-            المستوى {learnerLevel}
+            {t('home.levelChip', { level: learnerLevel })}
           </span>
         </div>
         )}
@@ -892,21 +926,34 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   );
 };
 
-function missionTitleBadgeAr(kind: string, dueCount: number, scenarioId?: string): string {
+/**
+ * The hero banner's one label.
+ *
+ * Takes the translator and the already-formatted item phrase rather than a
+ * count: Arabic needs `arCount` for «3 عناصر», and a function that formatted it
+ * itself would have to know which language it was writing in.
+ */
+function missionTitleBadge(
+  kind: string,
+  t: (key: UiStringKey, vars?: Record<string, string | number>) => string,
+  dueCount: number,
+  itemsLabel: (count: number) => string,
+  scenarioId?: string,
+): string {
   // The one episode that is not "today's situation": the story's first scene.
-  if (scenarioId === INTRO_SCENARIO_ID) return 'لحظة الوصول · أول موقف في القصة';
+  if (scenarioId === INTRO_SCENARIO_ID) return t('home.badge.arrival');
   switch (kind) {
     case 'review':
-      return `مراجعة اليوم · ${arNoun(dueCount, REVIEW_ITEM_FORMS)}`;
+      return t('home.badge.review', { items: itemsLabel(dueCount) });
     case 'continue':
-      return 'أكمل مشهداً مفتوحاً';
+      return t('home.badge.continue');
     case 'weak_skill':
-      return 'تدريب على أضعف مهارة';
+      return t('home.badge.weakSkill');
     case 'daily':
-      return 'مهمة اليوم';
+      return t('home.badge.daily');
     case 'new':
-      return 'مشهد جديد';
+      return t('home.badge.new');
     default:
-      return 'بانتظار المحتوى';
+      return t('home.badge.waiting');
   }
 }

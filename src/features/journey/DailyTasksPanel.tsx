@@ -4,6 +4,8 @@ import { GlassWell } from '@/components/glass/GlassSurface';
 import type { DailyTasksSnapshot } from '@/lib/daily/taskStore';
 import { arCount } from '@/lib/i18n/arabicCount';
 import { STREAK_DAY_NOM } from '@/lib/i18n/countForms';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { dailyTaskCopy } from '@/lib/daily/tasks';
 import { LtrCounter } from '@/components/common/LtrCounter';
 import type { DailyTaskKind } from '@/lib/daily/tasks';
 
@@ -33,15 +35,24 @@ export interface DailyTasksPanelProps {
  * only draws it.
  */
 export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAction, onMore }) => {
+  // The hook runs before the empty-state return: a conditional hook is a React
+  // error, and this component renders on a screen whose data arrives late.
+  const { t, uiLanguage } = useLanguage();
   if (!snapshot) return null;
   const { statuses, doneCount, streakDays, forgiving } = snapshot;
+  const copyFor = (kind: DailyTaskKind) => dailyTaskCopy(kind, uiLanguage);
+  /** «3 أيام متتالية» in Arabic; "3 days" / "1 day" elsewhere. */
+  const streakLabel =
+    uiLanguage === 'ar'
+      ? arCount(streakDays, STREAK_DAY_NOM)
+      : `${streakDays} ${uiLanguage === 'id' ? 'hari' : streakDays === 1 ? 'day' : 'days'}`;
   const allDone = statuses.length > 0 && doneCount >= statuses.length;
   const firstIncomplete = statuses.find((status) => !status.done)?.kind;
 
   return (
     <GlassWell className="mb-6 p-3.5" data-testid="daily-tasks">
       <div className="flex items-center justify-between gap-3">
-        <span className="kz-ar-caption text-kz-ink">مهام اليوم</span>
+        <span className="kz-ar-caption text-kz-ink">{t('daily.panelTitle')}</span>
         {/* Three segments first, then the number — the shape is read at a
             glance and the count agrees with it. */}
         <span className="flex items-center gap-2">
@@ -64,8 +75,8 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAc
           already looking at. */}
       {streakDays > 0 ? (
         <p className="kz-ar-micro mt-1 text-kz-inkDim">
-          {arCount(streakDays, STREAK_DAY_NOM)} في مهام اليوم
-          {forgiving ? ' — يوم واحد مسموح ومُتجاوَز' : ''}
+          {t('daily.streakLine', { streak: streakLabel })}
+          {forgiving ? t('daily.streakForgiving') : ''}
         </p>
       ) : null}
 
@@ -75,7 +86,7 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAc
           data-testid="daily-tasks-complete"
           className="kz-pop kz-ar-micro mt-2 rounded-xl border border-kz-neon/25 bg-kz-neon/10 px-2.5 py-1.5 text-kz-neon"
         >
-          أتممت مهام اليوم الثلاث — غداً تتجدد خطوتك اليومية لتثبيت ما تدرّبت عليه.
+          {t('daily.allDone')}
         </p>
       ) : null}
 
@@ -89,7 +100,9 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAc
               type="button"
               onClick={() => onAction(status.kind)}
               aria-disabled={status.done || undefined}
-              aria-label={status.done ? `${status.labelAr} — تم` : undefined}
+              aria-label={
+                status.done ? t('daily.doneAria', { label: copyFor(status.kind).label }) : undefined
+              }
               className="flex min-h-control w-full items-center gap-2.5 text-start"
             >
               {/* A 24px circle outline, and a filled green ring with the check
@@ -108,12 +121,14 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAc
               )}
               <span className="min-w-0 flex-1">
                 <span className={`kz-ar-caption block truncate ${status.done ? 'text-kz-inkDim' : 'text-kz-ink'}`}>
-                  {status.labelAr}
+                  {copyFor(status.kind).label}
                 </span>
                 {/* One supporting line, and only where it still changes what the
                     learner does next: the first unfinished task. */}
                 {!status.done && status.kind === firstIncomplete ? (
-                  <span className="kz-ar-micro block truncate text-kz-inkDim">{status.hintAr}</span>
+                  <span className="kz-ar-micro block truncate text-kz-inkDim">
+                    {copyFor(status.kind).hint}
+                  </span>
                 ) : null}
               </span>
             </button>
@@ -131,7 +146,7 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ snapshot, onAc
           onClick={onMore}
           className="mt-1 flex min-h-touch w-full items-center justify-start gap-1 border-t border-kz-line/60 px-1 text-kz-inkDim transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
         >
-          <span className="kz-ar-micro">المزيد</span>
+          <span className="kz-ar-micro">{t('daily.more')}</span>
           <ChevronDown className="h-3.5 w-3.5" aria-hidden />
         </button>
       ) : null}

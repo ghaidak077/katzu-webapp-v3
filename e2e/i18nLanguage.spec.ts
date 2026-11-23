@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { bootSignedIn } from './harness';
 
 /**
  * The language switch, in a browser, in every language that is finished.
@@ -22,9 +23,12 @@ import { expect, test } from '@playwright/test';
  *  4. switching back to Arabic restores RTL, so the reference language cannot be
  *     left in a half-LTR shell.
  *
- * Deliberately NOT here: signed-in screens. They need an account, and a matrix
- * that half-runs is worse than a small matrix that always runs. Those are covered
- * by a per-batch entry when they are finished (see the plan's Phase 1b notes).
+ * The signed-in journey home is pinned at the bottom of this file, now that B2
+ * (the tab bar, the journey home and the app shell) is finished. It asserts the
+ * chrome — the day/chapter line, the chapter heading, the «المزيد» row — because
+ * that is what B2 owns; a scenario's own title is Arabic *content*, which is the
+ * content layer's job (plan 010 §11), and pretending otherwise here would make
+ * this test demand a translation the app does not ship yet.
  */
 
 const ARABIC_WORD = /[\u0600-\u06FF]/;
@@ -111,4 +115,65 @@ test('sign-in is localised too', async ({ page }) => {
   expect(text.match(ARABIC_WORD)?.[0], 'an Arabic word reached the English sign-in screen').toBeUndefined();
   // The Google button is the one control that also carries its own locale.
   await expect(page.getByRole('button', { name: /Google/i }).first()).toBeVisible();
+});
+
+/**
+ * B2, rendered: the journey home — the first signed-in screen, and the one a
+ * learner reads every day — is written in the language they chose.
+ *
+ * The switch is forced on before the first load, and the locale is seeded
+ * before React mounts, so this is the same path a learner takes after choosing
+ * English in the language sheet.
+ */
+test.describe('the journey home in the finished languages', () => {
+  const JOURNEY = {
+    en: {
+      day: /^Day 1 · chapter 1 of \d+$/m,
+      chapter: /^(First steps in Germany|Daily life and getting around|Work and the office|University and official offices|Independent in German)$/m,
+      more: 'More',
+      scenes: /\d+\s*\/\s*\d+ scenes/,
+    },
+    id: {
+      day: /^Hari 1 · Bab 1 dari \d+$/m,
+      chapter: /^(Langkah pertama di Jerman|Kehidupan sehari-hari dan transportasi|Kerja dan kantor|Universitas dan instansi resmi|Mandiri dalam bahasa Jerman)$/m,
+      more: 'Lainnya',
+      scenes: /\d+\s*\/\s*\d+ adegan/,
+    },
+  } as const;
+
+  for (const language of ['en', 'id'] as const) {
+    test(`${language}: the home screen's own chrome is in the chosen language`, async ({ page }) => {
+      await page.addInitScript(() => {
+        try {
+          // The guided home is the shipped shape; forcing it keeps this test
+          // about the language rather than about which flag a build carries.
+          localStorage.setItem('kz.guidedHome', '1');
+        } catch {
+          /* storage blocked: the build default applies */
+        }
+      });
+      await bootSignedIn(page, { uiLanguage: language });
+
+      await expect(page.locator('html')).toHaveAttribute('lang', language);
+      await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+
+      const labels = JOURNEY[language];
+      // Wait for the screen itself, not the shell's boot line.
+      await expect(page.getByText(labels.day)).toBeVisible({ timeout: 30_000 });
+
+      const header = await page.locator('header').first().innerText();
+      expect(header, `the day/chapter line in ${language}`).toMatch(labels.day);
+      expect(header, `the chapter heading in ${language}`).toMatch(labels.chapter);
+      expect(header, `an Arabic word reached the ${language} home header`).not.toMatch(ARABIC_WORD);
+
+      // The count beside the chapter bar, in the learner's units.
+      const progress = await page.getByTestId('chapter-progress').innerText();
+      expect(progress).toMatch(labels.scenes);
+      expect(progress, `an Arabic word reached the ${language} chapter bar`).not.toMatch(ARABIC_WORD);
+
+      // The one secondary entry point — the door to the library, preferences and
+      // Pro — is the most-read control the sheet owns.
+      await expect(page.getByTestId('journey-more')).toHaveText(new RegExp(`^${labels.more}$`));
+    });
+  }
 });

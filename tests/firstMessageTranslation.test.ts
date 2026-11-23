@@ -5,6 +5,7 @@ import liveFixture from './fixtures/live-scenarios.json';
 import catalogue from '../scripts/language-data/content-snapshot.json';
 import { openerForLevel, storedOpenerArabic } from '../src/lib/conversation/opener';
 import { openingFor } from '../src/lib/journey/story';
+import { UI_STRINGS } from '../src/lib/i18n/strings';
 import type { CEFRLevel, ScenarioEntity } from '../src/types/models';
 
 /**
@@ -171,7 +172,8 @@ describe('every first message ships its Arabic in every mode', () => {
     expect(live).toMatch(/setTimeout\(\(\) => \{\s*requestOpenerTranslation/);
     expect(live).toContain('clearTimeout(autoRetryTimer)');
     expect(story).toContain("setTranslationState('pending')");
-    expect(story).toContain('جارٍ الترجمة');
+    expect(story).toContain("t('storySetup.translating')");
+    expect(UI_STRINGS.ar['storySetup.translating']).toBe('جارٍ الترجمة…');
   });
 
   it('ships Arabic for all three mock-exam part openers', () => {

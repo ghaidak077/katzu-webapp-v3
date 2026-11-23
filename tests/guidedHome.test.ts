@@ -166,7 +166,10 @@ describe('JourneyHomeScreen consults the flag', () => {
     // today's mission is: the owner's rule is that the hero continues the story.
     expect(source).toContain('data-testid="journey-primary-action"');
     expect(source).toContain('kz-hero-cta flex w-full items-center justify-center');
-    expect(source).toContain("{guided ? 'تابع التعلّم' : heroMission.ctaAr}");
+    // The label moved into the dictionary in Phase 1b; the Arabic the owner
+    // agreed on is pinned there, so a translation cannot change it silently.
+    expect(source).toContain("{guided ? t('home.ctaContinue') : heroMission.ctaAr}");
+    expect(UI_STRINGS.ar['home.ctaContinue']).toBe('تابع التعلّم');
     // The solid fill lives in the class, so it cannot drift back to the
     // translucent `.kz-primary`, and 52px is stated once, next to the fill.
     const css = readFileSync('src/index.css', 'utf8');
@@ -203,8 +206,9 @@ describe('JourneyHomeScreen consults the flag', () => {
     // screen: the row is a door, the number is a promise about this sitting.
     expect(source).toContain('const reviewRowCount = Math.min(dueCount, 10);');
     expect(source).toContain('const reviewRowMinutes = Math.min(3, Math.max(1, Math.round(reviewRowCount * 0.3)));');
-    expect(source).toContain('arCount(reviewRowCount, REVIEW_ITEM_FORMS)');
-    expect(source).not.toMatch(/arCount\(dueCount, REVIEW_ITEM_FORMS\)/);
+    expect(source).toContain('items: reviewItemsLabel(reviewRowCount),');
+    // Never the whole backlog: the row prints what this sitting is, not the queue.
+    expect(source).not.toContain('reviewItemsLabel(dueCount)');
   });
 
   it('the hero says the next scene, and review is only the ghost row', () => {
@@ -212,7 +216,8 @@ describe('JourneyHomeScreen consults the flag', () => {
     // hero's plan is selected with no due items to consider and its label is
     // fixed; review keeps its own door under it.
     expect(source).toContain('selectDailyMission({ ...missionInput, reviewItems: [] })');
-    expect(source).toContain(": 'المشهد التالي';");
+    expect(source).toContain(": t('home.badge.nextScene');");
+    expect(UI_STRINGS.ar['home.badge.nextScene']).toBe('المشهد التالي');
     // The three tasks are all listed, so `0/3` and the visible rows agree.
     const panel = readFileSync('src/features/journey/DailyTasksPanel.tsx', 'utf8');
     expect(panel).not.toContain("status.kind !== 'review'");
@@ -332,10 +337,16 @@ describe('the Practice/Progress lock (step 3)', () => {
   });
 
   it('the lock copy is the exact agreed text, with no bypass', () => {
-    expect(sheet).toContain('هذا القسم يفتح بعد أول محادثة');
-    expect(sheet).toContain('محادثة واحدة قصيرة تكفي — وبعدها كل ما هنا مفتوح.');
-    expect(sheet).toContain('ابدأ أول محادثة');
-    expect(sheet).toContain('لاحقاً');
+    // The four sentences moved into the dictionary in Phase 1b; the call sites
+    // and the Arabic wording are both pinned, so the agreed copy cannot drift
+    // and cannot go missing from a translation.
+    for (const key of ['lock.title', 'lock.body', 'lock.start', 'lock.later'] as const) {
+      expect(sheet, key).toContain(`t('${key}')`);
+    }
+    expect(UI_STRINGS.ar['lock.title']).toBe('هذا القسم يفتح بعد أول محادثة');
+    expect(UI_STRINGS.ar['lock.body']).toBe('محادثة واحدة قصيرة تكفي — وبعدها كل ما هنا مفتوح.');
+    expect(UI_STRINGS.ar['lock.start']).toBe('ابدأ أول محادثة');
+    expect(UI_STRINGS.ar['lock.later']).toBe('لاحقاً');
     // The primary resolves the SAME opening episode the onboarding hop uses.
     expect(sheet).toContain('resolveOpeningScenarioId(await db.scenarios.toArray())');
     expect(sheet).toContain("navigate(`/scenario/${encodeURIComponent(openingId)}/story`)");
@@ -397,8 +408,12 @@ describe('Story Setup: the day-0 opening copy (step 4b)', () => {
   });
 
   it('still carries the two agreed copy strings', () => {
-    expect(story).toContain('ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم.');
-    expect(story).toContain('خطوتان قصيرتان ثم تبدأ المحادثة.');
+    expect(story).toContain("t('storySetup.hintDayZero')");
+    expect(story).toContain("t('storySetup.hintReturning')");
+    expect(UI_STRINGS.ar['storySetup.hintDayZero']).toBe(
+      'ستستمع أولاً، ثم تتحدث أنت — لا يوجد اختبار ولا حكم.',
+    );
+    expect(UI_STRINGS.ar['storySetup.hintReturning']).toBe('خطوتان قصيرتان ثم تبدأ المحادثة.');
   });
 });
 

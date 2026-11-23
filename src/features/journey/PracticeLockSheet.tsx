@@ -4,6 +4,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button, PrimaryAction } from '@/components/ui/Button';
 import { db } from '@/lib/db/katzuDb';
 import { resolveOpeningScenarioId } from '@/lib/journey/opening';
+import { useT } from '@/lib/i18n/LanguageProvider';
 
 /**
  * The sheet that explains a closed Practice/Progress tab.
@@ -28,6 +29,7 @@ export interface PracticeLockSheetProps {
 
 export const PracticeLockSheet: React.FC<PracticeLockSheetProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
+  const t = useT();
 
   const startFirstConversation = async () => {
     // Close first: the sheet must not still be mounted over the screen it
@@ -49,16 +51,14 @@ export const PracticeLockSheet: React.FC<PracticeLockSheetProps> = ({ isOpen, on
   };
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title="هذا القسم يفتح بعد أول محادثة">
+    <BottomSheet isOpen={isOpen} onClose={onClose} title={t('lock.title')}>
       <div className="pb-2">
-        <p className="kz-ar-body text-kz-inkDim">
-          محادثة واحدة قصيرة تكفي — وبعدها كل ما هنا مفتوح.
-        </p>
+        <p className="kz-ar-body text-kz-inkDim">{t('lock.body')}</p>
         <div className="mt-5">
-          <PrimaryAction onClick={() => void startFirstConversation()}>ابدأ أول محادثة</PrimaryAction>
+          <PrimaryAction onClick={() => void startFirstConversation()}>{t('lock.start')}</PrimaryAction>
         </div>
         <Button variant="quiet" size="md" fullWidth className="mt-1" onClick={onClose}>
-          لاحقاً
+          {t('lock.later')}
         </Button>
       </div>
     </BottomSheet>

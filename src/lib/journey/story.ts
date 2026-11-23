@@ -1,4 +1,6 @@
 import type { ArrivalStatus, CEFRLevel, ScenarioEntity } from '@/types/models';
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
 
 /**
  * The episode opening.
@@ -11,7 +13,15 @@ import type { ArrivalStatus, CEFRLevel, ScenarioEntity } from '@/types/models';
  */
 
 export interface StorySetup {
-  /** Where this happens, in Arabic, e.g. "مقهى في برلين". */
+  /**
+   * Where this happens, e.g. "مقهى في برلين".
+   *
+   * The `*Ar` suffixes below are historical: every one of these fields holds the
+   * text in the language the caller asked for (`BuildStoryInput.language`), which
+   * is Arabic when no language is passed. Renaming them is a separate, mechanical
+   * change; keeping the names is what let the language work land without touching
+   * the tests and docs that already named them.
+   */
   locationAr: string;
   /** What is happening right now. */
   situationAr: string;
@@ -64,31 +74,31 @@ const LEVEL_ORDER: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
 
 /** Persona strings come from the CMS ("Barista katze"); map them to real roles. */
 /** Exported for the test that asserts every known persona maps to a real role. */
-export const PERSONA_ROLES: Array<{ keywords: string[]; roleAr: string }> = [
+export const PERSONA_ROLES: Array<{ keywords: string[]; roleAr: string; roleKey: UiStringKey }> = [
   // Airport first: it is the story's opening scene, and a border officer is not
   // the generic "موظف في الدائرة الرسمية" the `beamte` entry below would give.
-  { keywords: ['grenz', 'zoll', 'passkontrolle', 'flughafen'], roleAr: 'موظف جوازات المطار' },
-  { keywords: ['barista', 'café', 'cafe'], roleAr: 'عامل المقهى' },
-  { keywords: ['bäcker', 'baecker', 'baker'], roleAr: 'الخبّاز' },
-  { keywords: ['doktor', 'arzt', 'doctor'], roleAr: 'الطبيب' },
-  { keywords: ['vermieter', 'landlord'], roleAr: 'صاحب الشقة' },
-  { keywords: ['chef', 'personal', 'hr'], roleAr: 'مسؤول التوظيف' },
-  { keywords: ['bahn', 'schaffner', 'train'], roleAr: 'موظف الاستعلامات في المحطة' },
-  { keywords: ['beamte', 'amt', 'verwaltung'], roleAr: 'موظف في الدائرة الرسمية' },
+  { keywords: ['grenz', 'zoll', 'passkontrolle', 'flughafen'], roleAr: 'موظف جوازات المطار', roleKey: 'story.role.border' },
+  { keywords: ['barista', 'café', 'cafe'], roleAr: 'عامل المقهى', roleKey: 'story.role.cafe' },
+  { keywords: ['bäcker', 'baecker', 'baker'], roleAr: 'الخبّاز', roleKey: 'story.role.baker' },
+  { keywords: ['doktor', 'arzt', 'doctor'], roleAr: 'الطبيب', roleKey: 'story.role.doctor' },
+  { keywords: ['vermieter', 'landlord'], roleAr: 'صاحب الشقة', roleKey: 'story.role.landlord' },
+  { keywords: ['chef', 'personal', 'hr'], roleAr: 'مسؤول التوظيف', roleKey: 'story.role.hiring' },
+  { keywords: ['bahn', 'schaffner', 'train'], roleAr: 'موظف الاستعلامات في المحطة', roleKey: 'story.role.station' },
+  { keywords: ['beamte', 'amt', 'verwaltung'], roleAr: 'موظف في الدائرة الرسمية', roleKey: 'story.role.official' },
   // V23: roles for the new module categories. An examiner plays by exam rules
   // (timing, tasks, no advice) — a label that says "موظف" would misread the scene.
-  { keywords: ['prüfer', 'pruefer', 'prüfungspartner', 'pruefungspartner', 'examiner'], roleAr: 'ممتحن في الامتحان التجريبي' },
-  { keywords: ['dozent', 'lektor', 'professor', 'seminar'], roleAr: 'أستاذ في الدورة اللغوية' },
-  { keywords: ['visum', 'botschaft', 'konsulat'], roleAr: 'موظف شؤون التأشيرات' },
-  { keywords: ['handwerker', 'meister', 'werkstatt'], roleAr: 'حرفي أو فني صيانة' },
-  { keywords: ['nachbar', 'neighbor'], roleAr: 'جارك' },
-  { keywords: ['kollege', 'colleague'], roleAr: 'زميلك في العمل' },
+  { keywords: ['prüfer', 'pruefer', 'prüfungspartner', 'pruefungspartner', 'examiner'], roleAr: 'ممتحن في الامتحان التجريبي', roleKey: 'story.role.examiner' },
+  { keywords: ['dozent', 'lektor', 'professor', 'seminar'], roleAr: 'أستاذ في الدورة اللغوية', roleKey: 'story.role.teacher' },
+  { keywords: ['visum', 'botschaft', 'konsulat'], roleAr: 'موظف شؤون التأشيرات', roleKey: 'story.role.visa' },
+  { keywords: ['handwerker', 'meister', 'werkstatt'], roleAr: 'حرفي أو فني صيانة', roleKey: 'story.role.tradesperson' },
+  { keywords: ['nachbar', 'neighbor'], roleAr: 'جارك', roleKey: 'story.role.neighbour' },
+  { keywords: ['kollege', 'colleague'], roleAr: 'زميلك في العمل', roleKey: 'story.role.colleague' },
 ];
 
-function roleFor(persona: string | undefined): string {
+function roleFor(persona: string | undefined, language: UiLanguage = 'ar'): string {
   const value = String(persona || '').toLowerCase();
   const match = PERSONA_ROLES.find((entry) => entry.keywords.some((keyword) => value.includes(keyword)));
-  return match?.roleAr || 'شخص ألماني في هذا الموقف';
+  return translate(language, match?.roleKey || 'story.role.other');
 }
 
 /**
@@ -126,32 +136,38 @@ export interface BuildStoryInput {
   displayName?: string | null;
   /** Where they are in the move; it decides what Katzu says first. */
   arrivalStatus?: ArrivalStatus | null;
+  /** The UI language every sentence is written in. Arabic by default. */
+  language?: UiLanguage;
 }
 
 export function buildStorySetup(input: BuildStoryInput): StorySetup {
   const { scenario, level, locationAr, whyAr, returning = false } = input;
+  const language = input.language ?? 'ar';
   const opening = openingFor(scenario, level);
-  const who = roleFor(scenario.ai_persona);
+  const who = roleFor(scenario.ai_persona, language);
   const name = learnerName(input.displayName);
-  // "ياسمين، " when the profile holds a real name; nothing at all otherwise, so
-  // the sentence never opens on a stray comma.
-  const vocative = name ? `${name}، ` : '';
-
+  // The comma after the name belongs to the sentence, so it lives in the
+  // dictionary entry (`story.situation.named`), not in a concatenation here.
   const situationAr = returning
-    ? `عاد المشهد إلى صندوق مهمتك: أنت الآن في ${locationAr}، والمحادثة تنتظرك من حيث توقفت تقريباً.`
+    ? translate(language, 'story.situation.returning', { location: locationAr })
     : name
-      ? `${vocative}أنت الآن في ${locationAr}. ${who} يقترب منك ويبدأ الحديث بالألمانية.`
-      : `أنت الآن في ${locationAr}. ${who} يقترب منك ويبدأ الحديث بالألمانية.`;
+      ? translate(language, 'story.situation.named', { name, location: locationAr, who })
+      : translate(language, 'story.situation.plain', { location: locationAr, who });
 
   return {
     locationAr,
     situationAr,
     whoAr: who,
     whyAr,
-    taskAr: input.taskAr || `ستتحدث مع ${who} وتُخرج جُملَك بنفسك — بالألمانية، بصوتك أو بكتابتك.`,
+    taskAr: input.taskAr || translate(language, 'story.task', { who }),
     openingDe: opening.text,
     openingLevel: opening.level,
-    katzuAr: katzuOpeningLineAr({ name, arrivalStatus: input.arrivalStatus, returning }),
+    katzuAr: katzuOpeningLine({
+      name,
+      arrivalStatus: input.arrivalStatus,
+      returning,
+      language,
+    }),
     learnerName: name,
   };
 }
@@ -164,22 +180,34 @@ export function buildStorySetup(input: BuildStoryInput): StorySetup {
  * new episode or a return to one. A learner still packing gets a promise, one who
  * just landed gets the arrival, and one already living here gets the practical
  * framing — which is the difference between a companion and a slogan.
+ *
+ * The name separator and the correction language are interpolated rather than
+ * concatenated: an English sentence does not open on an Arabic comma, and
+ * "سأصحّح لك بالعربية" has to become "I will correct you in English" when that
+ * is the language being read.
  */
-function katzuOpeningLineAr(input: {
+function katzuOpeningLine(input: {
   name: string | null;
   arrivalStatus?: ArrivalStatus | null;
   returning: boolean;
+  language: UiLanguage;
 }): string {
-  if (input.returning) return 'لا نحتاج أن نتذكر كل شيء — سنستمع أولاً، ثم تتحدث أنت.';
+  const { language } = input;
+  if (input.returning) return translate(language, 'story.katzu.returning');
 
-  const vocative = input.name ? `${input.name}، ` : '';
-  const role = vocative ? `أنا كَاتْزُو، رفيقك هنا. ` : 'أنا كَاتْزُو، رفيقك في هذه الرحلة. ';
+  // Arabic writes «ياسمين،» with the Arabic comma; English writes «Yasmin,» with
+  // the Latin one. Concatenating the wrong one is the smallest possible tell
+  // that a screen was translated rather than written.
+  const vocative = input.name ? `${input.name}${language === 'ar' ? '، ' : ', '}` : '';
+  const role = translate(language, input.name ? 'story.katzu.roleWithName' : 'story.katzu.roleGeneric');
+  const correctionLanguage =
+    language === 'ar' ? 'بالعربية' : language === 'id' ? 'dalam bahasa Indonesia' : 'in English';
 
-  if (input.arrivalStatus === 'preparing') {
-    return `${vocative}${role}سنتدرّب على هذا الموقف قبل أن تقف فيه فعلاً — بلا ضغط وبلا حكم.`;
-  }
-  if (input.arrivalStatus === 'recently_arrived') {
-    return `${vocative}${role}وصلت حديثاً، فلنبدأ بأول موقف ستقابله هنا.`;
-  }
-  return `${vocative}${role}استمع للجملة الأولى مرة أو مرتين، ثم تحدّث أنت — سأصحّح لك بالعربية بعدها.`;
+  const body =
+    input.arrivalStatus === 'preparing'
+      ? 'story.katzu.preparing'
+      : input.arrivalStatus === 'recently_arrived'
+        ? 'story.katzu.arrived'
+        : 'story.katzu.default';
+  return translate(language, body, { vocative, role, correctionLanguage });
 }

@@ -3,6 +3,7 @@ import { ChevronLeft, Sparkles } from 'lucide-react';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { KatzuPresence, type KatzuState } from '@/components/v2/KatzuPresence';
 import { freeSessionsCopy } from '@/lib/entitlement/trialCopy';
+import { useT } from '@/lib/i18n/LanguageProvider';
 import type { CEFRLevel } from '@/types/models';
 
 /**
@@ -152,6 +153,7 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
   proOfferVisible,
   preferencesIncomplete,
 }) => {
+  const t = useT();
   // Close first, then navigate: the sheet must not still be mounted over the
   // screen it opened, and the close is what the learner's tap means.
   const go = (action: () => void) => () => {
@@ -160,7 +162,7 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
   };
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title="المزيد">
+    <BottomSheet isOpen={isOpen} onClose={onClose} title={t('more.title')}>
       <div className="pb-2">
         {/* Katzu's line. It was one of the six blocks the guided home removed, so
             it is moved here rather than dropped — the mascot is what makes it
@@ -172,23 +174,48 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
           </div>
         ) : null}
 
-        <Section title="تابع التعلّم">
-          <Row label="كل المشاهد والمستويات" hint="كل المواقف، مرتّبة بالمستوى" testId="more-library" onClick={go(onOpenLibrary)} />
+        <Section title={t('more.learn')}>
+          <Row
+            label={t('more.library')}
+            hint={t('more.libraryHint')}
+            testId="more-library"
+            onClick={go(onOpenLibrary)}
+          />
           {/* Day 0: the scenarios only. The four skills below belong to the
               Practice tab, which is locked until the first conversation is
               finished — so listing them here would be the side door around that
               lock. They appear the moment the tab does, on the same fact. */}
           {firstSessionDone && onOpenGrammar && (
-            <Row label="القواعد" hint="قاعدة واحدة في كل مرة، مع تمرين قصير" testId="more-grammar" onClick={go(onOpenGrammar)} />
+            <Row
+              label={t('more.grammar')}
+              hint={t('more.grammarHint')}
+              testId="more-grammar"
+              onClick={go(onOpenGrammar)}
+            />
           )}
           {firstSessionDone && onOpenListening && (
-            <Row label="الاستماع" hint="تدرّب على فهم الألمانية المنطوقة" testId="more-listening" onClick={go(onOpenListening)} />
+            <Row
+              label={t('more.listening')}
+              hint={t('more.listeningHint')}
+              testId="more-listening"
+              onClick={go(onOpenListening)}
+            />
           )}
           {firstSessionDone && onOpenWriting && (
-            <Row label="الكتابة" hint="اكتب سطوراً قصيرة وتُصحَّح" testId="more-writing" onClick={go(onOpenWriting)} />
+            <Row
+              label={t('more.writing')}
+              hint={t('more.writingHint')}
+              testId="more-writing"
+              onClick={go(onOpenWriting)}
+            />
           )}
           {firstSessionDone && onOpenCoach && (
-            <Row label="المدرّب" hint="اسأل عن أي شيء في الألمانية" testId="more-coach" onClick={go(onOpenCoach)} />
+            <Row
+              label={t('more.coach')}
+              hint={t('more.coachHint')}
+              testId="more-coach"
+              onClick={go(onOpenCoach)}
+            />
           )}
         </Section>
 
@@ -199,10 +226,10 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
             even when the hero is today's review: a menu with a hole in it is
             how a learner concludes the queue is gone. */}
         {reviewDueCount > 0 && (
-          <Section title="المراجعة">
+          <Section title={t('more.reviewSection')}>
             <Row
-              label={`مراجعة مستحقة: ${reviewDueCount}`}
-              hint="البطاقات جاهزة على جهازك وتعمل بدون اتصال"
+              label={t('more.reviewLabel', { count: reviewDueCount })}
+              hint={t('more.reviewHint')}
               testId="more-review"
               onClick={go(onOpenReview)}
             />
@@ -213,57 +240,64 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
             conversations), or for a fact that is already actionable. Until then
             the sheet does not describe a learner it has not seen yet. */}
         {progressVisible && (
-          <Section title="تقدّمك">
+          <Section title={t('more.progressSection')}>
             {/* The evidence gate lives here, not in the wording: `capability` is
                 built from INDEPENDENT/RETAINED states only, so an unearned card
                 cannot reach this slot. With nothing earned the slot shows the
                 chapter's goal instead — motivation, not a claim. */}
             {capability ? (
               <div className="rounded-chip p-3" data-testid="capability-card">
-                <p className="kz-ar-micro kz-earned-text mb-1">قدرة مكتسبة · {capability.labelAr}</p>
+                <p className="kz-ar-micro kz-earned-text mb-1">
+                  {t('home.capabilityEarned', { label: capability.labelAr })}
+                </p>
                 <p className="kz-ar-caption text-kz-ink">
-                  تستطيع التعامل مع «{capability.titleAr}» بالألمانية بدون مساعدة.
+                  {t('home.capabilityLine', { title: capability.titleAr })}
                 </p>
               </div>
             ) : (
               <div className="rounded-chip p-3" data-testid="chapter-goal-card">
-                <p className="kz-ar-micro mb-1 text-kz-inkDim">هدفك في هذا الفصل</p>
-                <p className="kz-ar-caption text-kz-ink">
-                  أنهِ مشاهد هذا الفصل لتتقن التعامل مع موقفه بالألمانية بدون مساعدة.
-                </p>
+                <p className="kz-ar-micro mb-1 text-kz-inkDim">{t('home.chapterGoalTitle')}</p>
+                <p className="kz-ar-caption text-kz-ink">{t('home.chapterGoalBody')}</p>
               </div>
             )}
             {recap && (
               <div className="rounded-chip p-3" data-testid="weekly-recap-card">
-                <p className="kz-ar-micro mb-1 text-kz-inkDim">أسبوعك في كَاتْزُو</p>
+                <p className="kz-ar-micro mb-1 text-kz-inkDim">{t('home.weeklyTitle')}</p>
                 <p className="kz-ar-caption text-kz-ink">{recap.headlineAr}</p>
                 {recap.topScenarioTitle ? (
-                  <p className="kz-ar-micro mt-1 text-kz-inkFaint">أكثر مشهد زرته: {recap.topScenarioTitle}</p>
+                  <p className="kz-ar-micro mt-1 text-kz-inkFaint">
+                    {t('home.weeklyTop')} {recap.topScenarioTitle}
+                  </p>
                 ) : null}
               </div>
             )}
             <div className="flex items-center justify-between gap-3 px-3 py-2" data-testid="journey-level-line">
-              <span className="kz-ar-micro text-kz-inkDim">مستواك الحالي</span>
+              <span className="kz-ar-micro text-kz-inkDim">{t('more.levelLine')}</span>
               <span className="kz-ar-micro text-kz-ink">{learnerLevel}</span>
             </div>
           </Section>
         )}
 
-        <Section title="حسابك وخطتك">
+        <Section title={t('more.accountSection')}>
           {/* Always visible, and only ever the Worker's own number: the free
               conversations are a server ledger, so this says "not known right
               now" rather than printing a local guess as a balance. */}
           <div className="px-3 py-2">
             <p className="kz-ar-micro text-kz-inkDim">
-              {isPro ? 'عضوية Pro نشطة — كل المستويات وجلسات بلا حدود.' : freeSessionsCopy(freeSessionsRemaining)}
+              {isPro ? t('more.proActive') : freeSessionsCopy(freeSessionsRemaining)}
             </p>
           </div>
           {isPro ? (
-            <Row label="إدارة الاشتراك" hint="الفوترة والتجديد" testId="more-manage-plan" onClick={go(onOpenSubscription)} />
+            <Row
+              label={t('more.managePlan')}
+              hint={t('more.managePlanHint')}
+              testId="more-manage-plan"
+              onClick={go(onOpenSubscription)}
+            />
           ) : proOfferVisible ? (
             <Row
-              label="Katzu Pro"
-              hint="يفتح بقية المستويات حتى B2"
+              label={t('more.pro')}
+              hint={t('more.proHint')}
               testId="more-pro"
               onClick={go(onOpenSubscription)}
             />
@@ -271,10 +305,10 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
         </Section>
 
         {onOpenPreferences && (
-          <Section title="تفضيلاتك">
+          <Section title={t('more.preferencesSection')}>
             <Row
-              label={preferencesIncomplete ? 'أكمل تفضيلاتك (30 ثانية)' : 'تفضيلاتي'}
-              hint="هدفك ووقتك ومستواك — تغييرها يغيّر مهمة اليوم"
+              label={preferencesIncomplete ? t('home.preferencesTitle') : t('more.preferences')}
+              hint={t('more.preferencesHint')}
               testId="more-preferences"
               onClick={go(onOpenPreferences)}
             />
@@ -286,7 +320,7 @@ export const JourneyMoreSheet: React.FC<JourneyMoreSheetProps> = ({
             someone would look for it. */}
         <p className="kz-ar-micro mt-4 flex items-center gap-1.5 px-3 text-kz-inkFaint">
           <Sparkles className="h-3 w-3 shrink-0" aria-hidden />
-          كل ما تعلّمته يبقى على جهازك.
+          {t('more.footer')}
         </p>
       </div>
     </BottomSheet>

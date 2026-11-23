@@ -2,7 +2,7 @@
   "what": "Which Phase 1b batches are finished. `scripts/i18n-coverage.mjs --strict` fails when a batch marked true still renders hard-coded Arabic. A batch is flipped here in the same commit as its last screen (plan 010 §4).",
   "batches": {
     "B1": true,
-    "B2": false,
+    "B2": true,
     "B3": false,
     "B4": false,
     "B5": false,
