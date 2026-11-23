@@ -4,6 +4,44 @@ Moved out of `PROJECT-BRIEF.md` section 7 on 2026-10-31, verbatim, so the brief 
 its 80 KB cap with room to grow. Newer changes stay in the brief; grep this file, never load
 it whole.
 
+## 2026-11-23 — B2: the home journey speaks English and Indonesian
+
+- **B2 is finished** — the six files a learner reads every day after sign-in (`JourneyHomeScreen`,
+  `GuidedPracticeScreen`, `JourneyMoreSheet`, `StorySetupScreen`, `DailyTasksPanel`, `PracticeLockSheet`)
+  plus the four copy tables they render (`journey/context`, `journey/story`, `capability/model`,
+  `daily/tasks`) carry **zero hard-coded Arabic**; `coverage.json` flips B2 and `--strict` passes.
+  Remaining: **1,234 strings** across B3–B8.
+- **The copy tables take the language, not the screen.** `missionReasonAr`, `katzuJourneyLineAr`,
+  `situationAr`, `buildJourneyContext`, `buildStorySetup`, `canDoStatementAr`, `gradeRepeat`,
+  `gradeTypedProduction` and `retrievalFeedback` gained an optional `language` (Arabic default), so the
+  rules stay pure and the screens stay free of copy. The `*Ar` field names are documented as historical
+  rather than renamed in the same change.
+- **Arabic stayed byte-identical.** Every shipped sentence moved into `strings.ts` verbatim; the count
+  forms it needs live in `countForms.ts` (`REVIEW_ITEM_BARE`, `MINUTE_NOM`); the name separator and the
+  "I will correct you in Arabic" clause are interpolated, so Arabic keeps its own comma and phrase while
+  English and Indonesian get their own. The new home header, chapter bar and «المزيد» row were checked for
+  **zero Arabic** in the browser in both languages.
+- **Proven, not asserted:** `e2e/i18nLanguage.spec.ts` gained two signed-in tests (English and Indonesian)
+  that read the real journey home — day/chapter line, chapter heading, chapter bar, «المزيد» — and fail on
+  any Arabic in that chrome. Scenario titles are still Arabic *content* (plan 010 §11), so the test
+  deliberately measures the chrome.
+- **Two rendering bugs found by doing it:** the PWA update banner — the one bar that appears *because* a
+  deploy happened — was Arabic on an English screen and hard-coded `dir="rtl"` plus the Arabic font class;
+  it now reads the dictionary and the document direction. And `journey/practice.ts` feedback ("exactly
+  right", the article note, the repeat-coverage line) was Arabic on the English practice screen; it is
+  localised with the screen that shows it.
+- **Gates:** `tsc` clean ×2 · `npm test` **2,907 passed / 208 files** · `design:audit` in budget ·
+  `i18n:coverage --strict` 0 · `i18n:dir --strict` 0 · journey e2e (`journey`, `guidedHome`,
+  `guidedHomeMore`, `firstSessionChain`, `tabLock`) **42 passed** · `i18nLanguage.spec` **7 passed**.
+- **Shipped:** `4a1f6ce` (plus `39a4493`), Pages production deployment `3871f36f-…` and the git build that
+  took the alias, live bundle `index-c2iXJhhp.js` confirmed on `https://katzuai.com/` (a later alias build
+  serves `index-DYLZlMB_.js`). Verified in the browser on the live site: English `lang=en dir=ltr`, **0**
+  Arabic characters; Indonesian `lang=id dir=ltr`, **0** Arabic characters; tab restored to Arabic.
+- **Still open, said plainly:** B3–B8 (1,234 strings), native review of the en/id copy (the mechanism is
+  `/dev/i18n` plus `npm run i18n:strings -- --export`), and the content layer — scene titles, grammar
+  explanations and Indonesian content do not exist yet, which is why a home screen in English still shows
+  an Arabic scene title.
+
 ## 2026-11-23 — the language work became measurable and reviewable
 
 - **B1 finished, and measured honestly.** `/subscription` (the last B1 screen) plus the free-allowance
