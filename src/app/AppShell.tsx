@@ -125,6 +125,11 @@ const PartnersScreen = React.lazy(() =>
 const DesignSystemScreen = isDevBuild
   ? React.lazy(() => import('@/features/dev/DesignSystemScreen').then((m) => ({ default: m.DesignSystemScreen })))
   : null;
+// The reviewer's page for translated copy: every string beside the Arabic it must
+// mean. Registered only in development, like the design system above.
+const I18nReviewScreen = isDevBuild
+  ? React.lazy(() => import('@/features/dev/I18nReviewScreen').then((m) => ({ default: m.I18nReviewScreen })))
+  : null;
 
 // Navigation & Icons
 import { Map, Dumbbell, BarChart3, User, ClipboardList, ArrowLeft, Lock } from 'lucide-react';
@@ -317,6 +322,9 @@ export function AppShell() {
             <Route path="/scenario/:scenarioId/practice" element={<GuidedPracticeRoute />} />
             {isDevBuild && DesignSystemScreen && (
               <Route path="/dev/system" element={<DesignSystemScreen />} />
+            )}
+            {isDevBuild && I18nReviewScreen && (
+              <Route path="/dev/i18n" element={<I18nReviewScreen />} />
             )}
             <Route path="/app/grammar" element={<GrammarRoute />} />
             <Route path="/app/review" element={<ReviewRoute lock={lock} />} />
@@ -958,20 +966,18 @@ function ReportRoute({ summary, onLoadSummary }: { summary: any; onLoadSummary: 
  * rule every empty state in this app already follows: cause, then next step.
  */
 function NoSavedReportScreen({ onReturnToTrail }: { onReturnToTrail: () => void }) {
+  const t = useT();
   return (
     <div className="min-h-screen bg-black text-kz-ink flex flex-col justify-center items-center gap-5 px-6 text-center font-arabic">
       <div className="w-16 h-16 rounded-3xl bg-surface-card border border-border-subtle flex items-center justify-center">
         <ClipboardList className="w-8 h-8 text-kz-lavender" aria-hidden />
       </div>
       <div className="space-y-2 max-w-sm">
-        <h1 className="text-xl font-bold">لا يوجد تقرير محفوظ</h1>
-        <p className="text-sm text-kz-inkFaint leading-relaxed">
-          لم نجد محادثة مكتملة محفوظة على هذا الجهاز — ربما أُغلقت الصفحة قبل حفظ التقرير.
-          المراجعة والأخطاء التي سجّلتها ما زالت هنا.
-        </p>
+        <h1 className="text-xl font-bold">{t('shell.noReportTitle')}</h1>
+        <p className="text-sm text-kz-inkFaint leading-relaxed">{t('shell.noReportBody')}</p>
       </div>
       <GlassButton variant="primary" fullWidth onClick={onReturnToTrail} className="max-w-sm justify-center">
-        <span className="font-arabic">ابدأ مشهداً جديداً</span>
+        <span className="font-arabic">{t('shell.startScene')}</span>
         <ArrowLeft className="w-4 h-4" aria-hidden />
       </GlassButton>
     </div>

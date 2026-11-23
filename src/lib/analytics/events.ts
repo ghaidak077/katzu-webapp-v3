@@ -18,6 +18,16 @@
 
 export const ANALYTICS_EVENTS = [
   'landing_viewed',
+  // Which language pair a learner is actually USING, and which they chose.
+  //
+  // Added because the whole Phase 1b translation programme was about to spend
+  // weeks of copy work on a bet nothing measured: the app knew a learner's
+  // language for rendering purposes and never recorded it, so "is anyone using
+  // English?" had no answer that was not a guess. `language_active` fires once per
+  // open with the pair in force; `language_selected` fires whenever it changes.
+  // Neither carries text, and a language code is not a person.
+  'language_active',
+  'language_selected',
   'demo_started',
   'demo_completed',
   'signup_started',
@@ -113,6 +123,10 @@ export const ALLOWED_PROP_KEYS = [
    */
   'region',
   'cell',
+  /** UI language in force (`ar`/`en`/`id`). A code, never text. */
+  'uiLang',
+  /** Course language (`de`/`nl`). */
+  'targetLang',
 ] as const;
 
 export type AnalyticsPropKey = (typeof ALLOWED_PROP_KEYS)[number];

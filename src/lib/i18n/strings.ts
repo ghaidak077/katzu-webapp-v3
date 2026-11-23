@@ -179,6 +179,61 @@ const AR = {
   'language.dutchSoon':
     'الهولندية قيد الإعداد: المحادثات والقواعد الهولندية لم تُنشر بعد، لذلك لا يمكن اختيارها الآن. اختيارك الحالي بالألمانية وسيبقى محفوظاً.',
   'language.nativeNote': 'تُشرح لك الأخطاء والملاحظات بلغتك هذه.',
+
+  /* B1 — the Pro screen and the free allowance it states. */
+  'sub.title': 'عضوية Katzu Pro',
+  'sub.headline': 'أطلق العنان لقدراتك مع Pro',
+  'sub.statusLabel': 'حالة الاشتراك',
+  'sub.statusPro': 'Pro نشط',
+  'sub.statusFree': 'الحساب المجاني',
+  'sub.expiresOn': 'ينتهي الاشتراك في {date} — يمكنك تفعيل كود جديد في أي وقت لإضافة المدة.',
+  'sub.noExpiry': 'اشتراكك نشط بدون تاريخ انتهاء محدد.',
+  'sub.paymentNote':
+    'الدفع يتم على صفحة الشراء الرسمية، ثم تُفعّل الكود هنا. لا نحتفظ بأي بيانات بطاقة في التطبيق.',
+  'sub.haveCode': 'اشتريت كوداً بالفعل؟ فعّله الآن',
+  'sub.valueLine':
+    'محادثات ذكية بلا حدّ على عدد الجلسات، مع تصحيح فوري للنطق والقواعد لجميع المستويات (A0 - B2).',
+  'sub.feature.voice': 'محادثات صوتية بلا حدّ جلسات مع كَاتْزُو بالذكاء الاصطناعي',
+  'sub.feature.levels': 'فتح كامل مسار المستويات الواقعية من A0 إلى B2',
+  'sub.feature.corrections': 'تحليل وتصحيح فوري للقواعد مع شرح باللغة العربية',
+  'sub.feature.bank': 'بنك مخصص لمراجعة الأخطاء وتثبيت المفردات',
+  'sub.fairUse': 'نطبّق حدّاً عادلاً للاستخدام يحمي الخدمة من الإساءة، ولا يمسّ الاستخدام اليومي العادي.',
+  'sub.connectedAccount': 'الحساب المتصل:',
+  'sub.noCodeQuestion': 'لا تملك كود تفعيل بعد؟',
+  'sub.buyWithPrice':
+    'اشترِ كوداً من صفحة الشراء الرسمية بـ {price} — الدفع بالبطاقة أو العملات الرقمية، وللمقيمين في سوريا خيارات الدفع المحلي (سيرياتيل كاش، MTN كاش، حوالة بنكية). يصل الكود إليك مباشرة ثم تفعّله هنا.',
+  'sub.buyWithoutPrice':
+    'اشترِ كوداً من صفحة الشراء الرسمية — الدفع بالبطاقة أو العملات الرقمية، وللمقيمين في سوريا خيارات الدفع المحلي (سيرياتيل كاش، MTN كاش، حوالة بنكية). يظهر السعر على صفحة الشراء، ويصل الكود إليك مباشرة ثم تفعّله هنا.',
+  'sub.buyCta': 'اشترِ كود تفعيل الآن',
+  'sub.codeQuestion': 'هل لديك كود تفعيل؟ (مثال: DE-1M-...)',
+  'sub.codeAria': 'كود تفعيل الاشتراك',
+  'sub.activate': 'تفعيل',
+  'sub.referralQuestion': 'كود إحالة من صديق؟ (اختياري)',
+  'sub.referralAria': 'كود إحالة من صديق',
+  'sub.referralSignIn': 'يلزم تسجيل الدخول بحساب Google أولاً.',
+  'sub.referralLinked': 'تم ربط حسابك بكود الإحالة ✓ بعد أول اشتراك سيحصل صديقك على شهر Pro.',
+  'sub.referralFailed': 'تعذر تطبيق كود الإحالة.',
+  'sub.link': 'ربط',
+  'sub.seePrices': 'لا يوجد لديك كود؟ اعرف الأسعار',
+  'sub.tryMock': 'جرّب محاكاة B1 مجاناً — محادثة واحدة بثلاثة أجزاء',
+  'sub.continueFree': 'المتابعة بالحساب المجاني',
+  'sub.signInRequired': 'يلزم تسجيل الدخول بحساب Google موثّق قبل تفعيل الكود.',
+  'sub.redeemed': 'تم تفعيل اشتراك Katzu Pro بنجاح لمدة {months} أشهر! مبروك 🎉',
+  'sub.invalidCode': 'كود التفعيل غير صالح أو انتهت صلاحيته.',
+  'sub.networkError': 'حدث خطأ أثناء الاتصال بالخادم، يرجى التحقق من اتصال الإنترنت.',
+
+  /* The free allowance, in one place: the Pro screen and «المزيد» both read it. */
+  'trial.unknown':
+    'رصيد جلساتك التجريبية يُحسب على خوادمنا — لم نتمكن من تحديثه الآن. المراجعة وكل ما تعلّمته مجانيان بلا حد.',
+  'trial.exhausted': 'انتهت جلساتك التجريبية المجانية. المراجعة وكل ما تعلّمته مجانيان بلا حد.',
+  'trial.remainingOne': 'لديك جلسة واحدة محادثة تجريبية متبقية. المراجعة وكل ما تعلّمته مجانيان بلا حد.',
+  'trial.remaining': 'لديك {sessions} محادثة تجريبية متبقية. المراجعة وكل ما تعلّمته مجانيان بلا حد.',
+
+  /* The shell's empty report. */
+  'shell.noReportTitle': 'لا يوجد تقرير محفوظ',
+  'shell.noReportBody':
+    'لم نجد محادثة مكتملة محفوظة على هذا الجهاز — ربما أُغلقت الصفحة قبل حفظ التقرير. المراجعة والأخطاء التي سجّلتها ما زالت هنا.',
+  'shell.startScene': 'ابدأ مشهداً جديداً',
 } as const;
 
 export type UiStringKey = keyof typeof AR;
@@ -338,6 +393,61 @@ const EN: Record<UiStringKey, string> = {
   'language.dutchSoon':
     'Dutch is in preparation: the Dutch conversations and grammar are not published yet, so it cannot be selected today. Your current choice stays German and is kept.',
   'language.nativeNote': 'Corrections and notes are explained to you in this language.',
+
+  'sub.title': 'Katzu Pro membership',
+  'sub.headline': 'Unlock everything Pro gives you',
+  'sub.statusLabel': 'Subscription status',
+  'sub.statusPro': 'Pro active',
+  'sub.statusFree': 'Free account',
+  'sub.expiresOn': 'Your subscription ends on {date} — you can activate a new code at any time to add months.',
+  'sub.noExpiry': 'Your subscription is active with no end date.',
+  'sub.paymentNote':
+    'Payment happens on the official sales page, then you activate the code here. No card details are ever stored in the app.',
+  'sub.haveCode': 'Already bought a code? Activate it now',
+  'sub.valueLine':
+    'Unlimited AI conversations, with immediate correction of pronunciation and grammar at every level (A0 – B2).',
+  'sub.feature.voice': 'Unlimited voice conversations with Katzu, powered by AI',
+  'sub.feature.levels': 'Open the whole real-life path, from A0 to B2',
+  'sub.feature.corrections': 'Grammar checked and corrected as you speak, explained in your language',
+  'sub.feature.bank': 'A personal bank for reviewing your mistakes and fixing vocabulary',
+  'sub.fairUse': 'We apply a fair-use limit that protects the service from abuse and does not touch ordinary daily use.',
+  'sub.connectedAccount': 'Connected account:',
+  'sub.noCodeQuestion': 'No activation code yet?',
+  'sub.buyWithPrice':
+    'Buy a code on the official sales page for {price} — card or crypto, and learners in Syria can pay locally (Syriatel Cash, MTN Cash, bank transfer). The code arrives straight away, then you activate it here.',
+  'sub.buyWithoutPrice':
+    'Buy a code on the official sales page — card or crypto, and learners in Syria can pay locally (Syriatel Cash, MTN Cash, bank transfer). The price is shown there, the code arrives straight away, then you activate it here.',
+  'sub.buyCta': 'Buy an activation code',
+  'sub.codeQuestion': 'Have an activation code? (example: DE-1M-…)',
+  'sub.codeAria': 'Subscription activation code',
+  'sub.activate': 'Activate',
+  'sub.referralQuestion': 'A friend’s referral code? (optional)',
+  'sub.referralAria': 'Referral code from a friend',
+  'sub.referralSignIn': 'Sign in with Google first.',
+  'sub.referralLinked':
+    'Your account is linked to the referral ✓ your friend gets a month of Pro after your first subscription.',
+  'sub.referralFailed': 'That referral code could not be applied.',
+  'sub.link': 'Link',
+  'sub.seePrices': 'No code yet? See the prices',
+  'sub.tryMock': 'Try the B1 mock free — one conversation in three parts',
+  'sub.continueFree': 'Continue with the free account',
+  'sub.signInRequired': 'Sign in with a verified Google account before activating a code.',
+  'sub.redeemed': 'Katzu Pro is active for {months} months. Congratulations 🎉',
+  'sub.invalidCode': 'That activation code is not valid, or it has expired.',
+  'sub.networkError': 'Could not reach the server. Check your internet connection.',
+
+  'trial.unknown':
+    'Your free conversations are counted on our servers — we could not refresh the balance just now. Review and everything you have learned stay free, with no limit.',
+  'trial.exhausted': 'Your free conversations are used up. Review and everything you have learned stay free, with no limit.',
+  'trial.remainingOne':
+    'You have one free conversation left. Review and everything you have learned stay free, with no limit.',
+  'trial.remaining':
+    'You have {sessions} free conversations left. Review and everything you have learned stay free, with no limit.',
+
+  'shell.noReportTitle': 'No saved report',
+  'shell.noReportBody':
+    'We could not find a finished conversation saved on this device — the page may have closed before the report was saved. Your review and the mistakes you recorded are still here.',
+  'shell.startScene': 'Start a new scene',
 };
 
 const ID: Record<UiStringKey, string> = {
@@ -495,6 +605,61 @@ const ID: Record<UiStringKey, string> = {
   'language.dutchSoon':
     'Bahasa Belanda sedang disiapkan: percakapan dan tata bahasanya belum terbit, jadi belum bisa dipilih sekarang. Pilihanmu tetap Jerman dan tetap tersimpan.',
   'language.nativeNote': 'Koreksi dan catatan dijelaskan kepadamu dalam bahasa ini.',
+
+  'sub.title': 'Keanggotaan Katzu Pro',
+  'sub.headline': 'Buka semua yang bisa kamu lakukan dengan Pro',
+  'sub.statusLabel': 'Status langganan',
+  'sub.statusPro': 'Pro aktif',
+  'sub.statusFree': 'Akun gratis',
+  'sub.expiresOn': 'Langgananmu berakhir pada {date} — kamu bisa mengaktifkan kode baru kapan saja untuk menambah bulan.',
+  'sub.noExpiry': 'Langgananmu aktif tanpa tanggal berakhir.',
+  'sub.paymentNote':
+    'Pembayaran dilakukan di halaman penjualan resmi, lalu kode diaktifkan di sini. Tidak ada data kartu yang disimpan di aplikasi.',
+  'sub.haveCode': 'Sudah beli kode? Aktifkan sekarang',
+  'sub.valueLine':
+    'Percakapan AI tanpa batas, dengan koreksi pengucapan dan tata bahasa saat itu juga untuk semua level (A0 – B2).',
+  'sub.feature.voice': 'Percakapan suara tanpa batas dengan Katzu, bertenaga AI',
+  'sub.feature.levels': 'Buka seluruh jalur situasi nyata, dari A0 sampai B2',
+  'sub.feature.corrections': 'Tata bahasa dianalisis dan dikoreksi langsung, dijelaskan dalam bahasamu',
+  'sub.feature.bank': 'Bank pribadi untuk mengulas kesalahan dan menguatkan kosakata',
+  'sub.fairUse': 'Kami menerapkan batas wajar yang melindungi layanan dari penyalahgunaan, tanpa mengganggu pemakaian harian.',
+  'sub.connectedAccount': 'Akun terhubung:',
+  'sub.noCodeQuestion': 'Belum punya kode aktivasi?',
+  'sub.buyWithPrice':
+    'Beli kode di halaman penjualan resmi seharga {price} — kartu atau kripto, dan untuk yang tinggal di Suriah ada pembayaran lokal (Syriatel Cash, MTN Cash, transfer bank). Kode langsung dikirim, lalu kamu aktifkan di sini.',
+  'sub.buyWithoutPrice':
+    'Beli kode di halaman penjualan resmi — kartu atau kripto, dan untuk yang tinggal di Suriah ada pembayaran lokal (Syriatel Cash, MTN Cash, transfer bank). Harga tampil di sana, kode langsung dikirim, lalu kamu aktifkan di sini.',
+  'sub.buyCta': 'Beli kode aktivasi',
+  'sub.codeQuestion': 'Punya kode aktivasi? (contoh: DE-1M-…)',
+  'sub.codeAria': 'Kode aktivasi langganan',
+  'sub.activate': 'Aktifkan',
+  'sub.referralQuestion': 'Kode rujukan dari teman? (opsional)',
+  'sub.referralAria': 'Kode rujukan dari teman',
+  'sub.referralSignIn': 'Masuk dengan Google dulu.',
+  'sub.referralLinked':
+    'Akunmu sudah terhubung ke kode rujukan ✓ temanmu mendapat satu bulan Pro setelah langganan pertamamu.',
+  'sub.referralFailed': 'Kode rujukan tidak bisa diterapkan.',
+  'sub.link': 'Hubungkan',
+  'sub.seePrices': 'Belum punya kode? Lihat harga',
+  'sub.tryMock': 'Coba simulasi B1 gratis — satu percakapan dalam tiga bagian',
+  'sub.continueFree': 'Lanjut dengan akun gratis',
+  'sub.signInRequired': 'Masuk dengan akun Google terverifikasi dulu sebelum mengaktifkan kode.',
+  'sub.redeemed': 'Langganan Katzu Pro aktif untuk {months} bulan. Selamat 🎉',
+  'sub.invalidCode': 'Kode aktivasi ini tidak berlaku atau sudah kedaluwarsa.',
+  'sub.networkError': 'Gagal menghubungi server. Periksa koneksi internetmu.',
+
+  'trial.unknown':
+    'Saldo percakapan gratis dihitung di server kami — kami tidak bisa memperbaruinya sekarang. Ulasan dan semua yang sudah kamu pelajari tetap gratis, tanpa batas.',
+  'trial.exhausted': 'Percakapan gratismu sudah habis. Ulasan dan semua yang sudah kamu pelajari tetap gratis, tanpa batas.',
+  'trial.remainingOne':
+    'Kamu punya satu percakapan gratis tersisa. Ulasan dan semua yang sudah kamu pelajari tetap gratis, tanpa batas.',
+  'trial.remaining':
+    'Kamu punya {sessions} percakapan gratis tersisa. Ulasan dan semua yang sudah kamu pelajari tetap gratis, tanpa batas.',
+
+  'shell.noReportTitle': 'Tidak ada laporan tersimpan',
+  'shell.noReportBody':
+    'Kami tidak menemukan percakapan selesai yang tersimpan di perangkat ini — halaman mungkin tertutup sebelum laporan disimpan. Ulasan dan kesalahan yang kamu catat masih ada di sini.',
+  'shell.startScene': 'Mulai adegan baru',
 };
 
 export const UI_STRINGS: Record<UiLanguage, Record<UiStringKey, string>> = {

@@ -45,6 +45,8 @@
     "docs:budget": "node scripts/docs-budget.mjs",
     "lint:arabic": "node scripts/lint-arabic-gender.mjs",
     "i18n:coverage": "node scripts/i18n-coverage.mjs",
+    "i18n:strings": "node scripts/i18n-strings.mjs",
+    "i18n:dir": "node scripts/i18n-direction-lint.mjs",
     "qa:objectives": "node scripts/qa/objective-completion.mjs",
     "qa:replay": "node scripts/replay/score-replay.mjs",
     "qa:replay:plan": "node scripts/replay/score-replay.mjs --plan"

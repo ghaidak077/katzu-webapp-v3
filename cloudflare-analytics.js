@@ -39,6 +39,10 @@ export const ANALYTICS_TTL_SECONDS = 60 * 60 * 24 * 30;
 /** Kept in lockstep with ANALYTICS_EVENTS in src/lib/analytics/events.ts. */
 export const EVENT_NAMES = [
   "landing_viewed",
+  // Which language pair a learner is using, and which they chose. Added with
+  // Phase 1b so the translation work is measured instead of assumed.
+  "language_active",
+  "language_selected",
   "demo_started",
   "demo_completed",
   "signup_started",
@@ -97,6 +101,9 @@ export const PROP_KEYS = [
   // they are the two dimensions the funnel has to be cut by.
   "region",
   "cell",
+  // Phase 1b: the UI language in force and the course being learned. Codes only.
+  "uiLang",
+  "targetLang",
 ];
 
 const LEVELS = new Set(["A1", "A2", "B1", "B2"]);

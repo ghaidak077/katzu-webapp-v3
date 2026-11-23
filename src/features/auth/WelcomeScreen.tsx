@@ -57,7 +57,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGoToSignIn }) =>
 
   return (
     <div className="min-h-screen flex flex-col items-center p-6 bg-black text-text-primary max-w-md mx-auto relative overflow-hidden">
-      {/* Background glow circle */}
+      {/* Background glow circle. dir-ok: a symmetric decorative glow — `left-1/2`
+          plus `-translate-x-1/2` centres it identically in RTL and LTR, so the
+          logical twin would be the thing that broke it. */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-primary/15 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header Tag */}

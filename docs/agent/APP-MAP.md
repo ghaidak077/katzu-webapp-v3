@@ -208,6 +208,7 @@ The canonical, machine-checked route list is §14 (`appmap-routes`); this sectio
 | `/app/profile` | `settings/ProfileSettingsScreen.tsx` | Profile/settings, sign-out; rank + XP card (one calculation for text and bar), the `REF-` referral card and a separate partner-programme entry |
 | `/partners` | `partners/PartnersScreen.tsx` | The signed-in partner link: `POST /affiliate/me` on mount, then the link + copy/share, three steps, a plain sample message and the fine print. Numbers come from the server, never a constant; loading/error/retry states |
 | `/dev/system` | `dev/DesignSystemScreen.tsx` | Dev-build only design system |
+| `/dev/i18n` | `dev/I18nReviewScreen.tsx` | Dev-build only: every dictionary string beside the Arabic it must mean, grouped and searchable — the surface a native reviewer reads |
 
 - Tab router: `/app/:tab` maps `practice → Practice`, `progress → Progress`,
   `profile → Profile`, anything else → `Trail` (`toNavigationTab` in `App.tsx`).
@@ -592,6 +593,7 @@ the same thing. **Update the block in the same commit as any route/screen/endpoi
 /app/listen
 /app/review
 /app/write
+/dev/i18n
 /dev/system
 /main
 /main/:tab
@@ -621,6 +623,7 @@ src/features/auth/WelcomeScreen.tsx
 src/features/coach/CoachScreen.tsx
 src/features/conversation/LiveConversationScreen.tsx
 src/features/dev/DesignSystemScreen.tsx
+src/features/dev/I18nReviewScreen.tsx
 src/features/grammar/GrammarSectionScreen.tsx
 src/features/journey/GuidedPracticeScreen.tsx
 src/features/journey/JourneyHomeScreen.tsx

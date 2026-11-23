@@ -13,6 +13,18 @@
  * counts them **once per file** so a repeated word does not inflate the total, and it ignores
  * comments — a doc comment may be Arabic prose, and that is not something a learner reads.
  *
+ * It scans the screens AND the shared copy tables in `src/lib` that those screens render, because
+ * a screen can be free of Arabic literals and still show Arabic: `GOAL_COPY`, `status.labelAr` and
+ * `freeSessionsCopy` all live in lib, and a counter that ignored them would report a screen as
+ * done while the learner reads Arabic on it. What is NOT scanned is deliberate: the generated
+ * content bundles (`*.generated.ts`, the openers and the word glossary), the legal pages and the
+ * curriculum tables are learner CONTENT, not UI chrome, and localising them is a separate decision
+ * (plan 010 §5). Counting them here would only make the number bigger, not more actionable.
+ *
+ * Development-only screens (`src/features/dev`) are counted in their own excluded group: they ship
+ * in no production build, so including them would inflate the denominator with strings no learner
+ * can ever see.
+ *
  *   node scripts/i18n-coverage.mjs              # the per-screen table, batches first
  *   node scripts/i18n-coverage.mjs --json       # same numbers, machine-readable
  *   node scripts/i18n-coverage.mjs --strict     # exit 1 if a batch marked done still has Arabic
@@ -28,6 +40,24 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST = join(ROOT, 'src/lib/i18n/coverage.json');
 const SCAN_DIRS = ['src/features', 'src/app', 'src/components'];
 const SCAN_EXT = /\.(tsx|ts)$/;
+
+/**
+ * Shared copy tables outside the screen folders, assigned to batch B8.
+ *
+ * An allowlist, not `src/lib`: most Arabic in lib is generated course content (openers, glosses,
+ * vocabulary) and counting it as "untranslated UI" would be a false debt. These eight are the
+ * files a screen renders as its own words.
+ */
+const SHARED_COPY_TABLES = [
+  'src/lib/onboarding/preferences.ts',
+  'src/lib/entitlement/trialCopy.ts',
+  'src/lib/daily/tasks.ts',
+  'src/lib/journey/story.ts',
+  'src/lib/journey/context.ts',
+  'src/lib/ask/notices.ts',
+  'src/lib/capability/model.ts',
+  'src/lib/offers/paymentInstructions.ts',
+];
 
 /**
  * The batch order is the learner's own path through the product (plan §4). A file's batch is the
@@ -76,10 +106,20 @@ const BATCHES = [
       /^src\/features\/placement\//,
       /^src\/features\/partners\//,
       /^src\/features\/mockexam\//,
-      /^src\/features\/dev\//,
     ],
   },
   { id: 'B7', name: 'Shared components', patterns: [/^src\/components\//] },
+  {
+    id: 'B8',
+    name: 'Shared copy tables in lib (rendered by screens)',
+    patterns: [/^src\/lib\//],
+  },
+  {
+    id: 'DEV',
+    name: 'Development-only screens (never in a production build)',
+    patterns: [/^src\/features\/dev\//],
+    excluded: true,
+  },
 ];
 
 const ARABIC = /[\u0600-\u06FF]/;
@@ -107,7 +147,7 @@ const withoutComments = (source) =>
 const batchFor = (file) => BATCHES.find((batch) => batch.patterns.some((re) => re.test(file))) ?? null;
 
 export const scan = () => {
-  const files = SCAN_DIRS.flatMap(walk).sort();
+  const files = [...SCAN_DIRS.flatMap(walk), ...SHARED_COPY_TABLES.filter((file) => existsSync(join(ROOT, file)))].sort();
   const screens = [];
   for (const file of files) {
     const source = withoutComments(readFileSync(join(ROOT, file), 'utf8'));
@@ -166,7 +206,10 @@ const main = () => {
         console.log(`  ${String(row.strings).padStart(4)}  ${row.file}`);
       }
     }
-    const all = screens.reduce((sum, row) => sum + row.strings, 0);
+    const excludedIds = new Set(BATCHES.filter((batch) => batch.excluded).map((batch) => batch.id));
+    const all = screens
+      .filter((row) => !excludedIds.has(row.batch))
+      .reduce((sum, row) => sum + row.strings, 0);
     console.log(
       `\n${screens.length} screens carry ${all} distinct Arabic strings. ` +
         'A screen is localised only when its count is zero (plan §4).',

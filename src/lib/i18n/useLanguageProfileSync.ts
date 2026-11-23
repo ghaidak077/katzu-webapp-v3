@@ -4,6 +4,7 @@ import { db } from '@/lib/db/katzuDb';
 import { useLanguage } from './LanguageProvider';
 import { isTargetLanguage, isUiLanguage, TARGET_LANGUAGE_META } from './languages';
 import { readStoredUiLanguage } from './languagePreference';
+import { track } from '@/lib/analytics/client';
 
 /**
  * Keeps the signed-in profile and the device's own choice in step.
@@ -25,6 +26,25 @@ export function useLanguageProfileSync(): void {
   const user = useLiveQuery(() => db.users.get('current_user'));
   const adoptedRef = useRef(false);
   const lastWrittenRef = useRef<string>('');
+  const reportedRef = useRef(false);
+
+  /**
+   * Demand, measured.
+   *
+   * The product could say which language it was PAINTING and never which one
+   * anyone was using, so the decision "how much English/Indonesian is worth
+   * translating" had no evidence behind it. One event per open carries the pair;
+   * a change carries one more. Codes only — no text, no account, no route.
+   */
+  useEffect(() => {
+    const props = { uiLang: uiLanguage, targetLang: targetLanguage };
+    if (!reportedRef.current) {
+      reportedRef.current = true;
+      track('language_active', props);
+      return;
+    }
+    track('language_selected', props);
+  }, [uiLanguage, targetLanguage]);
 
   // Adopt a stored profile choice exactly once, and only on a device that has no
   // opinion of its own yet.

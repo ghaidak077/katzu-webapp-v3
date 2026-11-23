@@ -104,7 +104,6 @@ describe('honest marketing copy', () => {
   it('describes the level range as A0–B2 everywhere levels are listed', () => {
     const files = [
       'src/components/sheets/PaywallModal.tsx',
-      'src/features/auth/SubscriptionRedemptionScreen.tsx',
       'src/features/trail/TrailScreen.tsx',
       'src/features/report/SessionReportScreen.tsx',
       'src/features/conversation/useLiveConversation.ts',
@@ -114,11 +113,15 @@ describe('honest marketing copy', () => {
       expect(src, file).toContain('A0');
       expect(src, file).not.toContain('A1 إلى B2');
     }
-    // Onboarding's copy moved into the dictionary in Phase 1b, so the rule is
-    // asserted where the sentence now lives instead of being dropped.
-    const placement = UI_STRINGS.ar['onboarding.placement.body'];
-    expect(placement).toContain('A0');
-    expect(placement).not.toContain('A1 إلى B2');
+    // Screens whose copy moved into the dictionary in Phase 1b are asserted where
+    // the sentence now lives, so the rule survives the move instead of being
+    // dropped from the guard.
+    const moved = ['onboarding.placement.body', 'sub.valueLine'] as const;
+    for (const key of moved) {
+      const sentence = UI_STRINGS.ar[key];
+      expect(sentence, key).toContain('A0');
+      expect(sentence, key).not.toContain('A1 إلى B2');
+    }
   });
 
   it('does not claim writing alone determines the certificate', () => {

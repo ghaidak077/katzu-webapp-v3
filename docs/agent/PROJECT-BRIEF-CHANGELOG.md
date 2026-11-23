@@ -4,6 +4,29 @@ Moved out of `PROJECT-BRIEF.md` section 7 on 2026-10-31, verbatim, so the brief 
 its 80 KB cap with room to grow. Newer changes stay in the brief; grep this file, never load
 it whole.
 
+## 2026-11-23 — the language work became measurable and reviewable
+
+- **B1 finished, and measured honestly.** `/subscription` (the last B1 screen) plus the free-allowance
+  copy moved into the dictionary in all three languages; `freeSessionsCopy` now renders in the learner's
+  UI language while keeping the Arabic sentence byte-identical (Arabic still needs `arCount` morphology).
+  `src/lib/i18n/coverage.json` flips B1 to `true`, and `npm run i18n:coverage -- --strict` passes.
+- **The counter got honest.** Widening it to the eight shared copy tables screens render added **B8
+  (211 strings)**; development-only screens (87) are now excluded from the denominator. Honest total:
+  **1,545 strings** across B2–B8, up from a number that under-reported the job.
+- **Nothing had ever rendered a translated screen.** Every browser test ran Arabic. `e2e/i18nLanguage.spec.ts`
+  (5 tests) now pins `lang`, `dir`, **zero Arabic words**, persistence across reload, and the return to RTL
+  on `/welcome` and `/signin`; `bootSignedIn({ uiLanguage })` lets any spec boot in another language.
+- **Tooling so 1,500 strings stop being a mountain:** `npm run i18n:strings -- --export/--apply` turns a
+  batch into a CSV/Markdown worksheet a translator can be paid for and a reviewer can approve;
+  `npm run i18n:dir` catches physical `left-/ml-/text-left` utilities on localised screens (LTR-only bug
+  class); `/dev/i18n` shows every string beside the Arabic it must mean; `docs/i18n/GLOSSARY.md` fixes the
+  termbase and voice so 25 batches cannot drift apart.
+- **Demand is now measured.** `language_active` / `language_selected` events carry `uiLang`/`targetLang`
+  (codes only) through the client and the worker allowlist — so "is anyone using English?" has an answer.
+- **Decisions recorded** in `docs/plans/010-multilanguage-master-plan.md` §11: v1 promises **UI**
+  localisation only (content has no Indonesian and no English scenes/grammar); **Dutch is deferred** with the
+  reason and the evidence that would reopen it.
+
 ## Moved 2026-10-31 (2026-10-18 and earlier)
 
 - **Haptics + purposeful motion (2026-10-18, local only — not committed, not deployed)** — one semantic haptic API (`tap`/`select`/`success`/`warning`/`error` in `src/lib/utils/haptics.ts`, with the older `triggerHaptic` kept as an alias so ~48 shipped call sites kept their exact feel) that prefers a Capacitor bridge, then `navigator.vibrate`, then silence; a Settings switch (`hapticsEnabled`, absent = ON) plus `prefers-reduced-motion` both override the caller. Two haptics were genuinely missing and added (paywall CTA `select`, destructive delete `warning`/`error`). Motion added with the existing tokens only — `.kz-pop`, `.kz-shake`, `.kz-flip-in`, `.kz-orb-listening` (the mic halo now stays while listening), a 420 ms rAF count-up on the report's unaided-sentence count, a staggered arrival for the daily tasks and the report rows, and `ProgressRail` moved from animating `width` to `transform: scaleX`. Every new class is neutralised under reduced motion with the state still visible. Evidence: `tests/haptics.test.ts` (18) and a new `feedback motion` block in `tests/designSystem.test.ts`; `npm run verify` **6/6**. **UNPROVEN:** real vibration on hardware (no phone here) and therefore the whole iOS story — iOS Safari has no `navigator.vibrate`, so an iPhone is silent by design.

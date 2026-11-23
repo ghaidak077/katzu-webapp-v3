@@ -13,6 +13,7 @@ import { track } from '@/lib/analytics/client';
 import { BackButton } from '@/components/common/BackButton';
 import { useReducedMotion } from '@/components/glass/GlassSurface';
 import { freeSessionsCopy } from '@/lib/entitlement/trialCopy';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface SubscriptionRedemptionScreenProps {
   onBack: () => void;
@@ -38,6 +39,10 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
   onOpenMock,
   onOpenPaywall,
 }) => {
+  // Every word on this screen comes from the dictionary (plan 010 §4): it is the
+  // last B1 screen, and a learner decides whether to pay here — a half-translated
+  // price page is worse than an Arabic one.
+  const { t, uiLanguage } = useLanguage();
   // A6: a redeem link already carries the code (`/subscription?code=DE-...`), so the
   // box starts filled instead of asking the learner to retype what they were sent.
   // Read once on mount; the value is normalised the same way the input is.
@@ -103,7 +108,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
 
     const activeToken = user?.sessionToken?.trim();
     if (!user?.isLoggedIn || !activeToken) {
-      setErrorMessage('يلزم تسجيل الدخول بحساب Google موثّق قبل تفعيل الكود.');
+      setErrorMessage(t('sub.signInRequired'));
       return;
     }
 
@@ -131,7 +136,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
         const grantedMonths = res.months;
         const expiryIso = res.expiresAt;
 
-        setSuccessMessage(`تم تفعيل اشتراك Katzu Pro بنجاح لمدة ${grantedMonths} أشهر! مبروك 🎉`);
+        setSuccessMessage(t('sub.redeemed', { months: grantedMonths }));
 
         await db.users.update('current_user', {
           isSubscriptionActive: true,
@@ -150,10 +155,10 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           onSuccess();
         }, 1500);
       } else {
-        setErrorMessage(res.error || 'كود التفعيل غير صالح أو انتهت صلاحيته.');
+        setErrorMessage(res.error || t('sub.invalidCode'));
       }
     } catch {
-      setErrorMessage('حدث خطأ أثناء الاتصال بالخادم، يرجى التحقق من اتصال الإنترنت.');
+      setErrorMessage(t('sub.networkError'));
     } finally {
       setIsLoading(false);
     }
@@ -164,14 +169,14 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
       {/* Top Bar */}
       <div className="flex items-center justify-between mb-4">
         <BackButton onBack={onBack} />
-        <span className="font-arabic font-bold text-sm text-text-secondary">عضوية Katzu Pro</span>
+        <span className="font-arabic font-bold text-sm text-text-secondary">{t('sub.title')}</span>
         <div className="w-10" />
       </div>
 
       <div className="flex flex-col items-center text-center my-auto">
         <KatzuMascot name="badge" glow className="w-28 h-28 mb-3" />
 
-        <h2 className="text-2xl font-bold font-arabic mb-2">أطلق العنان لقدراتك مع Pro</h2>
+        <h2 className="text-2xl font-bold font-arabic mb-2">{t('sub.headline')}</h2>
 
         {/* Status first: a learner must be able to see what they already have
             before being sold anything. */}
@@ -179,7 +184,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-xs font-arabic font-bold text-text-secondary">
               <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-              حالة الاشتراك
+              {t('sub.statusLabel')}
             </span>
             <span
               className={`text-micro font-arabic font-bold px-2 py-0.5 rounded-full ${
@@ -188,18 +193,20 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
                   : 'bg-surface-subtle text-text-secondary border border-border-subtle'
               }`}
             >
-              {user?.isSubscriptionActive ? 'Pro نشط' : 'الحساب المجاني'}
+              {user?.isSubscriptionActive ? t('sub.statusPro') : t('sub.statusFree')}
             </span>
           </div>
           <p className="mt-2 text-micro font-arabic text-text-secondary leading-relaxed">
             {user?.isSubscriptionActive
               ? user.subscriptionExpiresAt
-                ? `ينتهي الاشتراك في ${new Date(user.subscriptionExpiresAt).toLocaleDateString('ar')} — يمكنك تفعيل كود جديد في أي وقت لإضافة المدة.`
-                : 'اشتراكك نشط بدون تاريخ انتهاء محدد.'
+                ? t('sub.expiresOn', {
+                    date: new Date(user.subscriptionExpiresAt).toLocaleDateString(uiLanguage),
+                  })
+                : t('sub.noExpiry')
               : freeSessionsCopy(freeSessions)}
           </p>
           <p className="mt-2 text-micro font-arabic text-text-muted leading-relaxed">
-            الدفع يتم على صفحة الشراء الرسمية، ثم تُفعّل الكود هنا. لا نحتفظ بأي بيانات بطاقة في التطبيق.
+            {t('sub.paymentNote')}
           </p>
         </Card>
 
@@ -209,19 +216,19 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           className="w-full mb-4 h-11 rounded-2xl border border-primary/40 bg-primary/10 text-primary text-xs font-bold font-arabic flex items-center justify-center gap-2 "
         >
           <KeyRound className="w-3.5 h-3.5" aria-hidden />
-          اشتريت كوداً بالفعل؟ فعّله الآن
+          {t('sub.haveCode')}
         </a>
         <p className="text-xs text-text-secondary font-arabic mb-5 max-w-xs leading-relaxed">
-          محادثات ذكية بلا حدّ على عدد الجلسات، مع تصحيح فوري للنطق والقواعد لجميع المستويات (A0 - B2).
+          {t('sub.valueLine')}
         </p>
 
         {/* Feature Highlights */}
         <div className="w-full space-y-2 mb-5 text-start">
           {[
-            'محادثات صوتية بلا حدّ جلسات مع كَاتْزُو بالذكاء الاصطناعي',
-            'فتح كامل مسار المستويات الواقعية من A0 إلى B2',
-            'تحليل وتصحيح فوري للقواعد مع شرح باللغة العربية',
-            'بنك مخصص لمراجعة الأخطاء وتثبيت المفردات',
+            t('sub.feature.voice'),
+            t('sub.feature.levels'),
+            t('sub.feature.corrections'),
+            t('sub.feature.bank'),
           ].map((feat, i) => (
             <div
               key={i}
@@ -236,7 +243,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
         </div>
 
         <p className="w-full mb-4 text-micro font-arabic text-text-muted leading-relaxed text-center">
-          نطبّق حدّاً عادلاً للاستخدام يحمي الخدمة من الإساءة، ولا يمسّ الاستخدام اليومي العادي.
+          {t('sub.fairUse')}
         </p>
 
         {/* Account Link Status */}
@@ -244,7 +251,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           <div className="w-full p-3 mb-4 rounded-xl bg-surface-card border border-border-subtle text-xs flex items-center justify-between text-start font-arabic">
             <div className="flex items-center gap-2 text-text-secondary">
               <UserCheck className="w-4 h-4 text-status-success flex-shrink-0" />
-              <span>الحساب المتصل: <span className="font-mono text-text-primary font-bold">{user.email}</span></span>
+              <span>{t('sub.connectedAccount')} <span className="font-mono text-text-primary font-bold">{user.email}</span></span>
             </div>
             <span className="text-micro px-2 py-0.5 rounded-full bg-status-success/20 text-status-success font-bold">
               Google ✓
@@ -257,22 +264,10 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
         <Card className="w-full p-4 bg-surface-subtle border-primary/30 text-start mb-4">
           <label className="flex items-center gap-1.5 text-xs font-bold text-text-secondary mb-2 font-arabic">
             <ShoppingCart className="w-3.5 h-3.5 text-primary" />
-            لا تملك كود تفعيل بعد؟
+            {t('sub.noCodeQuestion')}
           </label>
           <p className="text-micro text-text-secondary font-arabic leading-relaxed mb-3">
-            {headline ? (
-              <>
-                اشترِ كوداً من صفحة الشراء الرسمية بـ {headline} — الدفع بالبطاقة أو العملات الرقمية،
-                وللمقيمين في سوريا خيارات الدفع المحلي (سيرياتيل كاش، MTN كاش، حوالة بنكية). يصل الكود
-                إليك مباشرة ثم تفعّله هنا.
-              </>
-            ) : (
-              <>
-                اشترِ كوداً من صفحة الشراء الرسمية — الدفع بالبطاقة أو العملات الرقمية، وللمقيمين في
-                سوريا خيارات الدفع المحلي (سيرياتيل كاش، MTN كاش، حوالة بنكية). يظهر السعر على صفحة
-                الشراء، ويصل الكود إليك مباشرة ثم تفعّله هنا.
-              </>
-            )}
+            {headline ? t('sub.buyWithPrice', { price: headline }) : t('sub.buyWithoutPrice')}
           </p>
           <div className="flex gap-2">
             <a
@@ -283,7 +278,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
               className="flex-1 h-11 rounded-2xl bg-fill text-on-fill text-xs font-bold font-arabic flex items-center justify-center gap-1.5 pointer-hover:opacity-90 transition-opacity"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              اشترِ كود تفعيل الآن
+              {t('sub.buyCta')}
             </a>
           </div>
           <div className="mt-2 text-micro text-text-muted font-mono break-all text-center" dir="ltr">
@@ -295,19 +290,19 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
         <Card id="redeem-code" className="w-full p-4 bg-surface-subtle border-border-subtle text-start mb-4 scroll-mt-24">
           <label className="flex items-center gap-1.5 text-xs font-bold text-text-secondary mb-2 font-arabic">
             <KeyRound className="w-3.5 h-3.5 text-primary" />
-            هل لديك كود تفعيل؟ (مثال: DE-1M-...)
+            {t('sub.codeQuestion')}
           </label>
           <form onSubmit={handleRedeem} className="flex gap-2">
             <input
               type="text"
-              aria-label="كود تفعيل الاشتراك"
+              aria-label={t('sub.codeAria')}
               placeholder="DE-6M-A1B2C3D4-E5F6G7H8"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               className="flex-1 h-11 bg-surface-card border border-border-subtle focus:border-primary rounded-xl px-3 text-xs font-mono font-bold uppercase tracking-wider text-cyan-300"
             />
             <Button type="submit" size="sm" isLoading={isLoading} disabled={!code.trim()}>
-              تفعيل
+              {t('sub.activate')}
             </Button>
           </form>
 
@@ -339,12 +334,12 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
           <Card className="w-full p-4 bg-surface-card border-status-learning/40 text-start mb-4">
             <label className="flex items-center gap-1.5 text-xs font-bold text-text-secondary mb-2 font-arabic">
               <Gift className="w-3.5 h-3.5 text-status-learning" />
-              كود إحالة من صديق؟ (اختياري)
+              {t('sub.referralQuestion')}
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
-                aria-label="كود إحالة من صديق"
+                aria-label={t('sub.referralAria')}
                 placeholder="REF-XXXXXXXX"
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
@@ -360,7 +355,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
                   setReferralMessage(null);
                   const activeToken = user?.sessionToken?.trim();
                   if (!user?.isLoggedIn || !activeToken) {
-                    setReferralMessage({ kind: 'error', text: 'يلزم تسجيل الدخول بحساب Google أولاً.' });
+                    setReferralMessage({ kind: 'error', text: t('sub.referralSignIn') });
                     return;
                   }
                   const result = await workerClient.claimReferral(referralCode, activeToken);
@@ -369,12 +364,12 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
                   }
                   setReferralMessage(
                     result.success
-                      ? { kind: 'success', text: 'تم ربط حسابك بكود الإحالة ✓ بعد أول اشتراك سيحصل صديقك على شهر Pro.' }
-                      : { kind: 'error', text: result.error || 'تعذر تطبيق كود الإحالة.' },
+                      ? { kind: 'success', text: t('sub.referralLinked') }
+                      : { kind: 'error', text: result.error || t('sub.referralFailed') },
                   );
                 }}
               >
-                ربط
+                {t('sub.link')}
               </Button>
             </div>
             {referralMessage && (
@@ -399,7 +394,7 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
             onClick={onOpenPaywall}
             className="mb-2 flex min-h-touch w-full items-center justify-center rounded-lg border border-white/10 p-2.5 text-center font-arabic text-micro text-text-muted"
           >
-            لا يوجد لديك كود؟ اعرف الأسعار
+            {t('sub.seePrices')}
           </button>
         ) : null}
         {onOpenMock ? (
@@ -408,14 +403,14 @@ export const SubscriptionRedemptionScreen: React.FC<SubscriptionRedemptionScreen
             onClick={onOpenMock}
             className="mb-3 w-full rounded-lg border border-primary/40 bg-primary/10 p-3 text-center font-arabic text-micro font-semibold text-primary"
           >
-            جرّب محاكاة B1 مجاناً — محادثة واحدة بثلاثة أجزاء
+            {t('sub.tryMock')}
           </button>
         ) : null}
       </div>
 
       <div className="pt-2 text-center">
         <Button variant="ghost" size="sm" onClick={onBack} className="text-xs text-text-muted">
-          المتابعة بالحساب المجاني
+          {t('sub.continueFree')}
         </Button>
       </div>
     </div>

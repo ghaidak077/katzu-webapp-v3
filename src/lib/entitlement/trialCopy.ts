@@ -7,9 +7,21 @@
  * seeded value, so a learner who had spent all three free conversations was
  * told they still had three, on the one screen whose entire job is to be
  * believed.
+ *
+ * THE LANGUAGE
+ * This function renders on the Pro screen and inside «المزيد», both of which are
+ * now shown in the learner's UI language, so the sentence has to come from the
+ * dictionary. The Arabic count still goes through `arCount` — Arabic needs
+ * «جلسة واحدة / جلستان / 3 جلسات», and a template cannot produce that — while
+ * English and Indonesian use one/many forms, which is all either language needs.
+ * The language is read synchronously from `localStorage` (`languagePreference`),
+ * so a caller never has to thread a parameter through six components, and a
+ * device with no choice still gets the Arabic sentence byte-for-byte.
  */
 
 import { arCount } from '@/lib/i18n/arabicCount';
+import { readStoredUiLanguage } from '@/lib/i18n/languagePreference';
+import { translate } from '@/lib/i18n/strings';
 
 /**
  * The free-conversation allowance, in ONE place on the client.
@@ -52,12 +64,16 @@ function sessionsPhrase(count: number): string {
 
 /** What the paywall says about the free allowance. Never guesses a number. */
 export function freeSessionsCopy(remaining: number | null | undefined): string {
-  const tail = 'المراجعة وكل ما تعلّمته مجانيان بلا حد.';
+  const language = readStoredUiLanguage() ?? 'ar';
   if (remaining === null || remaining === undefined || !Number.isFinite(remaining)) {
-    return `رصيد جلساتك التجريبية يُحسب على خوادمنا — لم نتمكن من تحديثه الآن. ${tail}`;
+    return translate(language, 'trial.unknown');
   }
   if (remaining <= 0) {
-    return 'انتهت جلساتك التجريبية المجانية. المراجعة وكل ما تعلّمته مجانيان بلا حد.';
+    return translate(language, 'trial.exhausted');
   }
-  return `لديك ${sessionsPhrase(remaining)} محادثة تجريبية متبقية. ${tail}`;
+  return translate(language, remaining === 1 ? 'trial.remainingOne' : 'trial.remaining', {
+    // Arabic needs its own morphology; the other two languages print the digit.
+    sessions: language === 'ar' ? sessionsPhrase(remaining) : remaining,
+    count: remaining,
+  });
 }

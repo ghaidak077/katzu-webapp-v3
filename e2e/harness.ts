@@ -1195,6 +1195,16 @@ export interface BootOptions extends MockOptions {
    * Android/Edge builds), so the hand-off to the recorder is exercised.
    */
   zombieNative?: boolean;
+  /**
+   * The device's UI language, seeded into `localStorage` BEFORE the app's first
+   * paint — which is exactly how a learner who chose English on this phone looks
+   * on the next open. The suite had no way to say this, so every browser test in
+   * this repository ran in Arabic and a translated screen could break in English
+   * with the whole gate green (`e2e/i18nLanguage.spec.ts` is where that gap is
+   * closed). Seeding storage rather than clicking the switch also proves the
+   * persistence path, not only the button.
+   */
+  uiLanguage?: 'ar' | 'en' | 'id';
 }
 
 /**
@@ -1258,6 +1268,18 @@ export function collectPageErrors(page: Page): string[] {
 export async function bootSignedIn(page: Page, options: BootOptions = {}): Promise<void> {
   collectPageErrors(page);
   await mockBackend(page, options);
+  if (options.uiLanguage) {
+    const language = options.uiLanguage;
+    // `addInitScript` runs at document start on every navigation, so the choice
+    // exists before React mounts and before `initialUiLanguage()` reads it.
+    await page.addInitScript((value) => {
+      try {
+        window.localStorage.setItem('katzu_ui_language', value);
+      } catch {
+        /* blocked storage: the app falls back to the device language */
+      }
+    }, language);
+  }
   if (options.installVoice !== false) {
     await installVoiceStub(page, {
       native: options.nativeSpeech !== false,

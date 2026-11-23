@@ -273,3 +273,48 @@ and loadable — not live.
   Arabic is the fallback, always.
 - Do not set `available`/`shipped` for Dutch before its content is loadable.
 - Do not give the client's `target_lang` authority: the server resolves it.
+
+---
+
+## 11. Decisions taken 2026-11-23 (after measuring the surface)
+
+Three facts changed the plan, all measured rather than assumed:
+
+1. **The content layer is a second axis, and it is bigger than the UI.** `cloudflare-content-schema.js`
+   carries `title_ar` for scenes, `explanation_ar` for grammar, `initial_message_a0…b2` for openers and
+   `translation_ar`/`translation_en` for vocabulary — but **no Indonesian at all**, and no English for
+   scenes or grammar. So an English-UI learner today reads English chrome over Arabic lessons. The
+   decision is therefore explicit: **v1 promises UI localisation only**, and the picker must say so
+   rather than let the learner discover it inside the first episode. Content localisation is v2 and is
+   scoped separately (it is a content-authoring problem, not a dictionary one).
+2. **The remaining surface is larger than the earlier count.** Widening the count to the shared copy
+   tables in `src/lib` (the files screens render as their own words) adds **B8 — 211 strings in 8 files**,
+   and excluding development-only screens removes 87 that no learner can see. The honest number is in
+   `npm run i18n:coverage`; the batch that was 1,373 strings is ~1,545 across B2–B8.
+3. **Every browser test ran in Arabic.** Nothing had ever rendered a translated screen, so "localised"
+   was a claim about source text. `e2e/i18nLanguage.spec.ts` now pins `lang`, `dir`, zero-Arabic and
+   persistence on the finished B1 screens, and `bootSignedIn({ uiLanguage })` lets any spec boot in
+   another language.
+
+What this adds to the toolchain (one command each):
+
+| Command | Job |
+|---|---|
+| `npm run i18n:coverage` | per-screen/batch Arabic count, `--strict` fails a batch marked done that still has Arabic |
+| `npm run i18n:strings -- --export --batch=B2` | writes `i18n-worksheets/B2.csv` + `.md` for a reviewer |
+| `npm run i18n:strings -- --apply i18n-worksheets/B2.csv` | writes reviewed English/Indonesian back, only those keys |
+| `npm run i18n:dir` | physical direction utilities (`ml-`, `left-`, `text-left`) on localised screens |
+| `/dev/i18n` (dev builds) | every string beside the Arabic it must mean, grouped and searchable |
+| `docs/i18n/GLOSSARY.md` | termbase + voice per language, so 25 batches do not drift apart |
+
+**Dutch is deferred, deliberately.** It is not a language setting: it needs 12 scenarios, ~300 words,
+8 grammar rules, roleplay plans with `je`/`u`, a Dutch checker, `nl-NL` speech verification, 20 QA
+replays, a `target_lang` schema change and an owner `CONTENT-LOAD-AUTHORIZED:` line — more work than all
+remaining UI copy combined, for an audience nothing in the current funnel reaches (Katzu's cohort is
+Arabic speakers in Germany). The `available: false` gate stays, the picker keeps saying «قريباً», and no
+Dutch content is authored until a real cohort asks for it. What would reopen this: signups from the
+Netherlands, or a partner there.
+
+**Order of work, revised by user-visible value:** B2 (journey home + shell) → B3 (story/practice/live) →
+B4 (report) so one whole session can be completed in English before the secondary tabs (B5/B6) are
+touched. B8 is translated alongside the screen that renders each table, not as its own pass.
