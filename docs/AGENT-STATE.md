@@ -29,9 +29,8 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
 
 - **2026-11-20 — the practice home is one hero, a timeline and a stage sheet (deployed; worker unchanged).** `/app/library`
   no longer stacks two continue cards, a level card and per-row chips: the header greets by name (avatar + «أهلاً …»),
-  carries `Katzu Pro` only for Pro and **one** streak chip; the «0 / 20» goal ring is gone (that number was today's
-  recorded session minutes against `user.dailyGoalMinutes` — 5/10/20 — not a free-session count, which still reads
-  «جلسة مجانية N من 3» as a pill for free learners only); one hero card names the next situation, its LTR German
+  carries `Katzu Pro` only for Pro and **one** streak chip; the «0 / 20» goal ring is gone (that was today's recorded
+  minutes against `user.dailyGoalMinutes`, which still reads «جلسة مجانية N من 3» for free learners only); one hero card names the next situation, its LTR German
   title, its minutes, «دراسة ← مع مساعدة ← وحدك» and one full-width «ابدأ» that starts the recommended stage; one slim
   review row carries the capped badge and the backlog in small text; the unit map shows `الوحدة N · name`, `k من n`,
   a thin bar and `A1 · xx%` with only the current unit open; situations are timeline rows (check / play / number,
@@ -111,6 +110,8 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 `docs/agent/ARCHIVE-AGENT-STATE.md`), whose worker target `315ec953-…` was replaced by `56425f30-…`, then
 `66bd8b92-…`, then the secret-only `31149c92-…`, then today's.
 
+- **Languages + prompt v11 (2026-11-23, source `e1519a7`):** worker
+  **`54a61d9a-73a0-44b7-aeee-d3c9c564614d`**, rollback **`89a1a55e-783b-4023-92f1-e17db916cf7d`** Pages **`4333c029-34e3-469f-be04-7554f6f24846`**.
 - **Roleplay prompt v10 (2026-11-18, source `0310e88`):** worker
   **`89a1a55e-783b-4023-92f1-e17db916cf7d`**, rollback **`05d225ef-d2a2-46bb-a2c1-b6b16e3b2eeb`** (v9, source
   `7c83ffa`). `/health` 200 `ready:true, chat_ready:true, fallback_only:false, storage:{d1:"ok",kv:"ok"}`;
@@ -289,7 +290,7 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
 | CHAT-V10. Practice chat v10: register lock, learner-decided farewell, persona gender/detail | partial | **Fixed locally; production keeps the old A1 opener until a content load.** Prompt **v10**: all 49 plans declare `register` (40 `sie` / 9 `du`) and `persona_gender` and gain `end_politely`; the prompt restates the register each turn, uses the persona's Arabic gender, and adds one plan detail per turn instead of echoing the learner. `end_politely` credits only on the learner's farewell, so `close` cannot fire before they end; goodbye-first and register-switch replies fail the check. Header counts goals (`N من 4`). Replay 66→69 (`g34`–`g36`), scorer `--only`/`false_fix`; live **groq/`openai/gpt-oss-120b`**, both corrections credited, `g36` no change, 0 failures. Tests **55/55**; gate/deploy in this batch's report. **Limitation:** production D1 keeps the `du` opener (no `CONTENT-LOAD-AUTHORIZED:`); one reply used feminine `أنتِ` for an unknown-gender learner. |
-| LANG-1. Language matrix (ar/en/id UI × de course; nl defined) | doing | Plan `docs/plans/010-multilanguage-master-plan.md` (Phase 1a executed, 1b–3 specified). Code: `src/lib/i18n/*`, `LanguagePreferences.tsx`, `AppShell` tab bar/gate, `workerClient` `native_lang`/`target_lang`, `cloudflare-ai-chat.js` language tables + `resolveTurnLanguages`. Tests `languages.test.ts` 19 + `turnLanguages.test.ts` 21 + full `npm test` green; `npx tsc --noEmit` clean. **Dutch not selectable** (`available:false` / `shipped:false`): no Dutch content, needs `CONTENT-LOAD-AUTHORIZED:` for any D1 load. Next: Phase 1b per-screen translation batches (measure with a coverage script), then Phase 2 Dutch content. |
+| LANG-1. Language matrix (ar/en/id UI × de course; nl defined) | doing | Plan `docs/plans/010-multilanguage-master-plan.md` (Phase 1a executed, 1b–3 specified). Code: `src/lib/i18n/*`, `LanguagePreferences.tsx`, `AppShell` tab bar/gate, `workerClient` `native_lang`/`target_lang`, `cloudflare-ai-chat.js` language tables + `resolveTurnLanguages`. Tests green (languages, turnLanguages, full `npm test`); `tsc` clean. **Dutch not selectable** (`available:false` / `shipped:false`): no Dutch content, needs `CONTENT-LOAD-AUTHORIZED:` for any D1 load. **Deployed 2026-11-23** (worker `54a61d9a-…`, Pages `4333c029-…`, source `e1519a7`); on `katzuai.com/welcome` «Bahasa Indonesia» sets `lang=id dir=ltr` + `localStorage`. Next: Phase 1b batches, then Phase 2 Dutch content. |
 
 ## DECISIONS
 

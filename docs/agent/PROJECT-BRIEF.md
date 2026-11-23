@@ -1,31 +1,30 @@
 # PROJECT-BRIEF — Katzu snapshot for the owner's advisor
 
+**Latest (2026-11-23, languages — deployed).** UI language (`ar`/`en`/`id`) is now independent of course
+language (`de` shipped; `nl` defined and gated — no Dutch content). Picker on `/welcome` and Profile; device
+copy in `localStorage`, mirrored to `users.*Language`. Live: Indonesian gives `lang=id dir=ltr`. Worker
+`54a61d9a-…`, Pages `4333c029-…`. Screens are Phase 1b, Dutch Phase 2 —
+`docs/plans/010-multilanguage-master-plan.md`.
+
 **Latest (2026-11-03, crawl graph joined — local only, not deployed).** The app (`katzuai.com`) and the
 marketing site (`website.katzuai.com`) now describe one brand: a single Organization `@id`
 (`https://katzuai.com/#organization`), the app's JSON-LD carrying that node beside its own `WebSite`,
 both `robots.txt` files listing both sitemaps, and an apex `llms.txt` that points at the site instead
 of 404ing. The sitemaps stay per-host (17 marketing URLs + the app root) because a sitemap index can
-only name sitemaps, not pages. Rebuilt `website/` and `dist/`; `npm run verify` **VERIFY OK 6/6**
-(81.9 s). Live effect is UNPROVEN until a deploy; index status still needs the owner's Search Console
-URL Inspection.
-
-**Latest (2026-10-24, AI visibility — read this first).** Public marketing and trust pages are now
+only name sitemaps, not pages. **Latest (2026-10-24, AI visibility — read this first).** Public marketing and trust pages are now
 static, crawlable HTML: 21 indexable pages (13 Arabic, 8 English) plus a real 404, with unique
 titles/canonicals, `lang`/`dir`/`hreflang`, JSON-LD, `robots.txt`, `sitemap.xml` with `lastmod`,
 `llms.txt` and `llms-full.txt`; `/app/*` remains the SPA and the Worker is unchanged. Production
 code deployment `fa12556e-924c-4930-878c-1d0f968a5500` (source `072b1c9`) verified all 21 public
 pages `200`, unknown paths `404`, SPA deep links `200`, and Lighthouse **99 performance / 100 SEO**.
-Docs-only commits rebuild the same bundle under new ids. The remaining blocker is Cloudflare:
+The remaining blocker is Cloudflare:
 `PerplexityBot`, `GPTBot` and `ClaudeBot` receive `403`, and the managed `robots.txt` prepends
-training disallows. The 12-prompt tracking sheet is `docs/ai-visibility.md` §9.
-
+training disallows. 
 **Latest (2026-10-19, V43.1 — read this first).** A production bug is fixed and live: the B1 mock exam's
 conversation was re-initialised on every re-render (its opener effect depended on an inline `mockPart`
-object, and the part clock re-renders once a second), so a learner's sentence vanished after ~1 s, the
+object), so a learner's sentence vanished after ~1 s, the
 end-of-part action never enabled, and the three-part debrief could never be reached. The effect now depends
-on the part's own fields. Gate `npm run verify -- --ci --e2e` **14/14 in 773.1 s** (exit 0); new browser
-tests drive all three parts to the debrief and assert 320 px / 200 % zoom reflow on nine routes; the
-production smoke now completes one real demo turn on the live origin. Pages production
+on the part's own fields. Gate `npm run verify -- --ci --e2e` **14/14 in 773.1 s** (exit 0); Pages production
 **`8fe6d07f-fe49-49c9-8369-985a82a9a8f1`** from `8ca290c`, serving `assets/index-BfNVQ58w.js`; worker
 untouched (`66bd8b92-…`). Live smoke **4 passed / 2 skipped / 0 failed**. Rollback: Pages `5722462d-…`
 (source `6841924`).
