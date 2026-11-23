@@ -26,6 +26,9 @@ it whole.
 - **Decisions recorded** in `docs/plans/010-multilanguage-master-plan.md` §11: v1 promises **UI**
   localisation only (content has no Indonesian and no English scenes/grammar); **Dutch is deferred** with the
   reason and the evidence that would reopen it.
+- **Shipped** — worker `0f6be797-513f-493b-bd36-878686ecf178` (rollback: `54a61d9a-73a0-44b7-aeee-d3c9c564614d`),
+  Pages production deployment `e97d1414-a88c-473c-b20e-eaa21256efcc` from `631c257`, bundle `index-M0X9o32d.js`
+  confirmed on `https://katzuai.com/`; `/health` healthy (d1 kv ok), `/admin/api/stats` 401.
 
 ## Moved 2026-10-31 (2026-10-18 and earlier)
 
