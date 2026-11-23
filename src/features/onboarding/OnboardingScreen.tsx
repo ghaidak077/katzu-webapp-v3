@@ -23,6 +23,52 @@ import {
 } from '@/lib/onboarding/preferences';
 import { DAILY_MINUTE_CHOICES, type ArrivalStatus, type DailyMinuteChoice, type LearnerGoal, type PreviousGerman, type TargetDateKind } from '@/types/models';
 import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, CheckCircle2, Clock, Compass, GraduationCap, Heart, Plane, Sparkles, Target } from 'lucide-react';
+import { useLanguage, useT } from '@/lib/i18n/LanguageProvider';
+import type { UiStringKey } from '@/lib/i18n/strings';
+
+/**
+ * Option copy lives in the dictionary, one key per option, so a translator sees
+ * every answer to the question together and a new goal cannot ship with Arabic
+ * only. The tables in `preferences.ts` stay the source of the *order* and the
+ * stored value; the words come from `strings.ts` (plan 010 §4).
+ */
+const GOAL_KEYS: Record<LearnerGoal, { label: UiStringKey; hint: UiStringKey }> = {
+  family: { label: 'onboarding.goal.family.label', hint: 'onboarding.goal.family.hint' },
+  work: { label: 'onboarding.goal.work.label', hint: 'onboarding.goal.work.hint' },
+  study: { label: 'onboarding.goal.study.label', hint: 'onboarding.goal.study.hint' },
+  travel: { label: 'onboarding.goal.travel.label', hint: 'onboarding.goal.travel.hint' },
+  general: { label: 'onboarding.goal.general.label', hint: 'onboarding.goal.general.hint' },
+  daily_life: { label: 'onboarding.goal.daily_life.label', hint: 'onboarding.goal.daily_life.hint' },
+  university: { label: 'onboarding.goal.university.label', hint: 'onboarding.goal.university.hint' },
+  exam: { label: 'onboarding.goal.exam.label', hint: 'onboarding.goal.exam.hint' },
+};
+
+const ARRIVAL_KEYS: Record<ArrivalStatus, UiStringKey> = {
+  preparing: 'onboarding.arrival.preparing',
+  recently_arrived: 'onboarding.arrival.recently_arrived',
+  living_in_germany: 'onboarding.arrival.living_in_germany',
+};
+
+const PREVIOUS_KEYS: Record<PreviousGerman, { label: UiStringKey; hint: UiStringKey }> = {
+  first_time: {
+    label: 'onboarding.previous.first_time.label',
+    hint: 'onboarding.previous.first_time.hint',
+  },
+  some_basics: {
+    label: 'onboarding.previous.some_basics.label',
+    hint: 'onboarding.previous.some_basics.hint',
+  },
+  can_hold: {
+    label: 'onboarding.previous.can_hold.label',
+    hint: 'onboarding.previous.can_hold.hint',
+  },
+};
+
+const TARGET_DATE_KEYS: Record<TargetDateKind, UiStringKey> = {
+  move: 'onboarding.targetDate.move',
+  exam: 'onboarding.targetDate.exam',
+  job: 'onboarding.targetDate.job',
+};
 
 export interface OnboardingScreenProps {
   /** `first_run` ends with the placement choice; `edit` is a profile edit. */
@@ -73,6 +119,16 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
     ...initial,
   }));
   const [isSaving, setIsSaving] = useState(false);
+  const { t, uiLanguage } = useLanguage();
+  // Arabic has its own face; English and Indonesian must not inherit it.
+  const arabic = uiLanguage === 'ar' ? 'font-arabic' : '';
+  /** The recommendation is copy too: one key per case the offer can be in. */
+  const recommendKey: UiStringKey =
+    !answers.previousGerman || answers.previousGerman === 'first_time'
+      ? 'onboarding.recommend.start'
+      : answers.previousGerman === 'can_hold'
+        ? 'onboarding.recommend.canHold'
+        : 'onboarding.recommend.someBasics';
 
   useEffect(() => {
     if (mode === 'first_run') track('onboarding_started');
@@ -147,7 +203,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
             <button
               type="button"
               onClick={onBack}
-              aria-label="رجوع"
+              aria-label={t('onboarding.back')}
               className="kz-surface flex h-11 w-11 items-center justify-center rounded-2xl"
               data-tier="canvas"
             >
@@ -163,10 +219,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
             aria-valuemin={1}
             aria-valuemax={questionSteps.length}
             aria-valuenow={isPlacement ? questionSteps.length : questionIndex + 1}
-            aria-label="تقدم الأسئلة"
+            aria-label={t('onboarding.progress')}
           >
             {mode === 'edit' ? (
-              <span className="kz-ar-micro text-kz-inkDim">تعديل التفضيلات</span>
+              <span className="kz-ar-micro text-kz-inkDim">{t('onboarding.editBadge')}</span>
             ) : (
               questionSteps.map((questionStep, index) => (
                 <span
@@ -188,19 +244,18 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
         {/* One line of orientation on the first run, not a second question: the
             dots already say "two", these words say what the two are for. */}
         {mode === 'first_run' && isGuidedHomeEnabled() && (
-          <p className="mb-4 kz-ar-micro text-kz-inkFaint">سؤال واحد فقط — ثم أفتح لك أول موقف.</p>
+          <p className={`mb-4 kz-ar-micro text-kz-inkFaint ${arabic}`}>{t('onboarding.firstRunNote')}</p>
         )}
 
         {step === 'goal' && (
           <GlassCard emphasis="primary" className="flex flex-1 flex-col">
             <KatzuPresence state="story" size="md" className="self-start" />
-            <h1 className="mt-3 kz-ar-title text-kz-ink">ما هدفك من الألمانية؟</h1>
-            <p className="mt-2 kz-ar-caption leading-relaxed text-kz-inkDim">
-              سؤال واحد فقط. به أرتّب الوحدات التي أضعها أمامك — لا أريد أن أُضيع وقتك في شيء لن
-              تحتاجه.
+            <h1 className={`mt-3 kz-ar-title text-kz-ink ${arabic}`}>{t('onboarding.goal.title')}</h1>
+            <p className={`mt-2 kz-ar-caption leading-relaxed text-kz-inkDim ${arabic}`}>
+              {t('onboarding.goal.body')}
             </p>
-            <p className="mt-5 kz-ar-body font-bold text-kz-ink">لماذا تتعلّم الألمانية؟</p>
-            <p className="mt-1 kz-ar-micro text-kz-inkFaint">هذا يغيّر ترتيب المواقف التي أضعها أمامك أولاً.</p>
+            <p className={`mt-5 kz-ar-body font-bold text-kz-ink ${arabic}`}>{t('onboarding.goal.question')}</p>
+            <p className={`mt-1 kz-ar-micro text-kz-inkFaint ${arabic}`}>{t('onboarding.goal.hint')}</p>
             <div className="mt-3 space-y-2.5">
               {(mode === 'edit' ? (Object.keys(GOAL_COPY) as LearnerGoal[]) : SIGNUP_GOAL_ORDER).map((goal) => (
                 <button
@@ -231,8 +286,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                   <span className="flex items-center gap-2.5">
                     <span className="text-kz-lavender">{GOAL_ICONS[goal]}</span>
                     <span>
-                      <span className="block kz-ar-body font-bold text-kz-ink">{GOAL_COPY[goal].labelAr}</span>
-                      <span className="mt-0.5 block kz-ar-micro text-kz-inkDim">{GOAL_COPY[goal].hintAr}</span>
+                      <span className={`block kz-ar-body font-bold text-kz-ink ${arabic}`}>
+                        {t(GOAL_KEYS[goal].label)}
+                      </span>
+                      <span className={`mt-0.5 block kz-ar-micro text-kz-inkDim ${arabic}`}>
+                        {t(GOAL_KEYS[goal].hint)}
+                      </span>
                     </span>
                   </span>
                 </button>
@@ -255,7 +314,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                 disabled={isSaving}
                 onClick={() => void save('skip', {}, ONBOARDING_SKIP_SOURCE)}
               >
-                تخطَّ الآن وابدأ
+                {t('onboarding.goal.skip')}
               </GlassButton>
             )}
           </GlassCard>
@@ -264,9 +323,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
         {step === 'arrival' && (
           <GlassCard className="flex flex-1 flex-col">
             <KatzuPresence state="practice" size="sm" className="self-start" />
-            <h1 className="mt-3 kz-ar-title text-kz-ink">وأين أنت الآن من ألمانيا؟</h1>
-            <p className="mt-2 kz-ar-caption leading-relaxed text-kz-inkDim">
-              من يستعد للسفر يحتاج الأوراق أولاً، ومن وصل يحتاج السكن والطبيب. هذا يحدد ما أقدّمه لك اليوم.
+            <h1 className={`mt-3 kz-ar-title text-kz-ink ${arabic}`}>{t('onboarding.arrival.title')}</h1>
+            <p className={`mt-2 kz-ar-caption leading-relaxed text-kz-inkDim ${arabic}`}>
+              {t('onboarding.arrival.body')}
             </p>
             <div className="mt-4 space-y-2.5">
               {(Object.keys(ARRIVAL_COPY) as ArrivalStatus[]).map((status) => (
@@ -283,7 +342,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                       : 'border-white/[0.07] bg-white/[0.02]'
                   }`}
                 >
-                  {ARRIVAL_COPY[status]}
+                  {t(ARRIVAL_KEYS[status])}
                 </button>
               ))}
             </div>
@@ -294,10 +353,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
         {step === 'previous' && (
           <GlassCard className="flex flex-1 flex-col">
             <KatzuPresence state="practice" size="sm" className="self-start" />
-            <h1 className="mt-3 kz-ar-title text-kz-ink">هل جرّبت الألمانية قبل اليوم؟</h1>
-            <p className="mt-2 kz-ar-caption leading-relaxed text-kz-inkDim">
-              لا لجعل الأمور أسهل أو أصعب — فقط لأعرف من أين أبدأ معك. لن أفترض أنك تعرف شيئاً لم
-              تخبرني به.
+            <h1 className={`mt-3 kz-ar-title text-kz-ink ${arabic}`}>{t('onboarding.previous.title')}</h1>
+            <p className={`mt-2 kz-ar-caption leading-relaxed text-kz-inkDim ${arabic}`}>
+              {t('onboarding.previous.body')}
             </p>
             <div className="mt-4 space-y-2.5">
               {(Object.keys(PREVIOUS_GERMAN_COPY) as PreviousGerman[]).map((previous) => (
@@ -314,9 +372,11 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                       : 'border-white/[0.07] bg-white/[0.02]'
                   }`}
                 >
-                  <span className="block kz-ar-body text-kz-ink">{PREVIOUS_GERMAN_COPY[previous].labelAr}</span>
-                  <span className="mt-0.5 block kz-ar-micro text-kz-inkDim">
-                    {PREVIOUS_GERMAN_COPY[previous].hintAr}
+                  <span className={`block kz-ar-body text-kz-ink ${arabic}`}>
+                    {t(PREVIOUS_KEYS[previous].label)}
+                  </span>
+                  <span className={`mt-0.5 block kz-ar-micro text-kz-inkDim ${arabic}`}>
+                    {t(PREVIOUS_KEYS[previous].hint)}
                   </span>
                 </button>
               ))}
@@ -328,10 +388,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
         {step === 'time' && (
           <GlassCard className="flex flex-1 flex-col">
             <KatzuPresence state="practice" size="sm" className="self-start" />
-            <h1 className="mt-3 kz-ar-title text-kz-ink">وكم دقيقة تستطيع أن تعطيني يومياً؟</h1>
-            <p className="mt-2 kz-ar-caption leading-relaxed text-kz-inkDim">
-              العادة أهم من المدة. اختر ما تستطيع الالتزام به فعلاً — سأبني مهمة اليوم على هذا
-              الرقم، ويمكنك تغييره لاحقاً.
+            <h1 className={`mt-3 kz-ar-title text-kz-ink ${arabic}`}>{t('onboarding.time.title')}</h1>
+            <p className={`mt-2 kz-ar-caption leading-relaxed text-kz-inkDim ${arabic}`}>
+              {t('onboarding.time.body')}
             </p>
             <div className="mt-4 grid grid-cols-3 gap-2.5">
               {DAILY_MINUTE_CHOICES.map((minutes: DailyMinuteChoice) => (
@@ -352,7 +411,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                   }`}
                 >
                   <span className="block font-german text-2xl font-bold text-kz-lavender">{minutes}</span>
-                  <span className="mt-1 block kz-ar-micro text-kz-inkDim">دقائق</span>
+                  <span className={`mt-1 block kz-ar-micro text-kz-inkDim ${arabic}`}>
+                    {t('onboarding.time.unit')}
+                  </span>
                 </button>
               ))}
             </div>
@@ -368,7 +429,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                 disabled={isSaving}
                 onClick={() => void save('skip')}
               >
-                تخطَّ الأسئلة وابدأ الآن
+                {t('onboarding.skipAll')}
               </GlassButton>
             )}
             {/* First run has two questions, and «previous» is the edit flow's
@@ -382,10 +443,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
         {step === 'target' && (
           <GlassCard className="flex flex-1 flex-col">
             <KatzuPresence state="practice" size="sm" className="self-start" />
-            <h1 className="mt-3 kz-ar-title text-kz-ink">هل هناك تاريخ تنتظره؟ (اختياري)</h1>
-            <p className="mt-2 kz-ar-caption leading-relaxed text-kz-inkDim">
-              امتحان أو مقابلة أو سفر — إن أخبرتني بالتاريخ سأذكّرك بما يتبقى منه داخل التطبيق فقط.
-              لن أرسل لك إشعارات، ولن أضغط عليك.
+            <h1 className={`mt-3 kz-ar-title text-kz-ink ${arabic}`}>{t('onboarding.target.title')}</h1>
+            <p className={`mt-2 kz-ar-caption leading-relaxed text-kz-inkDim ${arabic}`}>
+              {t('onboarding.target.body')}
             </p>
             <div className="mt-4 grid grid-cols-3 gap-2">
               {(Object.keys(TARGET_DATE_COPY) as TargetDateKind[]).map((kind) => (
@@ -405,7 +465,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
                       : 'border-white/[0.07] bg-white/[0.02] text-kz-inkDim'
                   }`}
                 >
-                  {TARGET_DATE_COPY[kind]}
+                  {t(TARGET_DATE_KEYS[kind])}
                 </button>
               ))}
             </div>
@@ -414,7 +474,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
               <label className="mt-4 block">
                 <span className="mb-1.5 flex items-center gap-1.5 kz-ar-micro text-kz-inkDim">
                   <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-                  التاريخ
+                  {t('onboarding.target.dateLabel')}
                 </span>
                 <input
                   type="date"
@@ -437,19 +497,23 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
 
             <div className="mt-4">
               <PrimaryAction
-                hintAr={mode === 'edit' ? undefined : 'سؤال أخير: هل أقيس مستواك الآن؟'}
+                hintAr={mode === 'edit' ? undefined : t('onboarding.target.continueHint')}
                 disabled={mode === 'edit' && isSaving}
                 onClick={() => {
                   if (mode === 'edit') void save('take');
                   else advance('placement');
                 }}
               >
-                {mode === 'edit' ? (isSaving ? 'جارٍ الحفظ…' : 'حفظ التفضيلات') : 'تابع'}
+                {mode === 'edit'
+                  ? isSaving
+                    ? t('onboarding.target.saving')
+                    : t('onboarding.target.save')
+                  : t('onboarding.continue')}
               </PrimaryAction>
             </div>
             {mode === 'first_run' && (
               <GlassButton variant="quiet" fullWidth className="mt-1" onClick={() => advance('placement')}>
-                لا يوجد تاريخ محدد
+                {t('onboarding.target.none')}
               </GlassButton>
             )}
             <BackLink onClick={() => setStep('time')} />
@@ -460,37 +524,36 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ mode, initia
           <GlassCard className="flex flex-1 flex-col">
             <div className="flex items-center gap-2 kz-ar-micro text-kz-inkDim">
               <Clock className="h-3.5 w-3.5" aria-hidden />
-              دقيقتان تقريباً
+              <span className={arabic}>{t('onboarding.placement.minutes')}</span>
             </div>
-            <h1 className="mt-2 kz-ar-title text-kz-ink">هل أقيس مستواك الآن؟</h1>
-            <p className="mt-2 kz-ar-caption leading-relaxed text-kz-inkDim">
-              الاختبار القصير يحدد نقطة البداية الصحيحة (من A0 إلى B2) حتى لا أعلّمك ما تعرفه ولا
-              أتجاوز ما لا تعرفه. يمكنك تخطّيه — وسأترك مستواك «غير مقيس» بصراحة، ولن أدّعي أنك
-              أتقنت شيئاً لم أقسْه.
+            <h1 className={`mt-2 kz-ar-title text-kz-ink ${arabic}`}>{t('onboarding.placement.title')}</h1>
+            <p className={`mt-2 kz-ar-caption leading-relaxed text-kz-inkDim ${arabic}`}>
+              {t('onboarding.placement.body')}
             </p>
-            <p className="mt-3 kz-ar-caption leading-relaxed text-kz-lavender">{placement.recommendAr}</p>
+            <p className={`mt-3 kz-ar-caption leading-relaxed text-kz-lavender ${arabic}`}>
+              {t(recommendKey)}
+            </p>
 
             <div className="mt-5 space-y-2">
               {placement.primary === 'placement' ? (
                 <>
                   <PlacementAction busy={isSaving} onTake={() => void save('take')} />
                   <GlassButton variant="secondary" fullWidth disabled={isSaving} onClick={() => void save('skip')}>
-                    لا الآن — ابدأ من A1 وسجّل مستواي كغير مقيس
+                    {t('onboarding.placement.skip')}
                   </GlassButton>
                 </>
               ) : (
                 <>
                   <GlassButton variant="secondary" fullWidth disabled={isSaving} onClick={() => void save('skip')}>
-                    ابدأ من A1 مباشرة — سنبدأ بأول مشهد اليوم
+                    {t('onboarding.placement.startDirect')}
                   </GlassButton>
                   <PlacementAction busy={isSaving} onTake={() => void save('take')} variant="quiet" />
                 </>
               )}
             </div>
 
-            <p className="mt-4 kz-ar-micro leading-relaxed text-kz-inkFaint">
-              لا أطلب أي بيانات شخصية إضافية، ولا أفعّل إشعارات تلقائياً، ولا أطلب دفعاً. الهدف أن
-              تبدأ أول درس لك بأسرع وقت.
+            <p className={`mt-4 kz-ar-micro leading-relaxed text-kz-inkFaint ${arabic}`}>
+              {t('onboarding.placement.privacy')}
             </p>
           </GlassCard>
         )}
@@ -504,26 +567,29 @@ const PlacementAction: React.FC<{ busy: boolean; onTake: () => void; variant?: '
   busy,
   onTake,
   variant = 'primary',
-}) =>
-  variant === 'primary' ? (
+}) => {
+  const t = useT();
+  return variant === 'primary' ? (
     <PrimaryAction
-      hintAr="يمكنك الخروج منه في أي وقت — تقدّمك محفوظ."
+      hintAr={t('onboarding.placement.takeHint')}
       disabled={busy}
       onClick={onTake}
       icon={<ArrowLeft className="h-4 w-4 rotate-180" aria-hidden />}
     >
-      ابدأ القياس
+      {t('onboarding.placement.take')}
     </PrimaryAction>
   ) : (
     <GlassButton variant="quiet" fullWidth disabled={busy} onClick={onTake}>
-      أمّا القياس فمتاح في أي وقت — ابدأه الآن
+      {t('onboarding.placement.takeLater')}
     </GlassButton>
   );
+};
 
 function BackLink({ onClick }: { onClick: () => void }) {
+  const t = useT();
   return (
     <GlassButton variant="quiet" fullWidth className="mt-4" onClick={onClick}>
-      رجوع للسؤال السابق
+      {t('onboarding.backLink')}
     </GlassButton>
   );
 }

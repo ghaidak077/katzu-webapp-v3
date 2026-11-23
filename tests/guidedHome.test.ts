@@ -264,13 +264,18 @@ describe('the first-run chain', () => {
     // writing a goal for it. The funnel is told this learner walked past it
     // (`source: 'skip_first'`) rather than that they declined the placement check.
     expect(onboarding).toContain('mode === \'first_run\' && guided && (');
-    expect(onboarding).toContain('تخطَّ الآن وابدأ');
+    // Phase 1b moved this copy into the dictionary; the rule follows the string
+    // instead of the screen's source, so the label cannot go missing in a
+    // translation and the Arabic cannot silently change.
+    expect(onboarding).toContain("t('onboarding.goal.skip')");
+    expect(UI_STRINGS.ar['onboarding.goal.skip']).toBe('تخطَّ الآن وابدأ');
     // One shared constant for the first-run skip source, used by the screen and
     // asserted here; its value stays the free-string 'skip_first'.
     expect(onboarding).toContain("onClick={() => void save('skip', {}, ONBOARDING_SKIP_SOURCE)}");
     expect(ONBOARDING_SKIP_SOURCE).toBe('skip_first');
     // The second question keeps its own (plain) skip, source 'skip'.
-    expect(onboarding).toContain('تخطَّ الأسئلة وابدأ الآن');
+    expect(onboarding).toContain("t('onboarding.skipAll')");
+    expect(UI_STRINGS.ar['onboarding.skipAll']).toBe('تخطَّ الأسئلة وابدأ الآن');
     expect(onboarding).toContain("onClick={() => void save('skip')}");
   });
 

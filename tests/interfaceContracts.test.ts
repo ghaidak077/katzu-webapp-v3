@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { UI_STRINGS } from '../src/lib/i18n/strings';
 
 /**
  * The interface contracts this batch repaired, pinned so they cannot silently
@@ -105,7 +106,6 @@ describe('honest marketing copy', () => {
       'src/components/sheets/PaywallModal.tsx',
       'src/features/auth/SubscriptionRedemptionScreen.tsx',
       'src/features/trail/TrailScreen.tsx',
-      'src/features/onboarding/OnboardingScreen.tsx',
       'src/features/report/SessionReportScreen.tsx',
       'src/features/conversation/useLiveConversation.ts',
     ];
@@ -114,6 +114,11 @@ describe('honest marketing copy', () => {
       expect(src, file).toContain('A0');
       expect(src, file).not.toContain('A1 إلى B2');
     }
+    // Onboarding's copy moved into the dictionary in Phase 1b, so the rule is
+    // asserted where the sentence now lives instead of being dropped.
+    const placement = UI_STRINGS.ar['onboarding.placement.body'];
+    expect(placement).toContain('A0');
+    expect(placement).not.toContain('A1 إلى B2');
   });
 
   it('does not claim writing alone determines the certificate', () => {

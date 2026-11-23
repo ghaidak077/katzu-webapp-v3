@@ -34,6 +34,88 @@ const AR = {
   'nav.lockedHint': '{label} — مقفل حتى أول محادثة',
   'shell.checkingAccount': 'جاري التحقق من الحساب...',
 
+  'onboarding.back': 'رجوع',
+  'onboarding.progress': 'تقدم الأسئلة',
+  'onboarding.editBadge': 'تعديل التفضيلات',
+  'onboarding.firstRunNote': 'سؤال واحد فقط — ثم أفتح لك أول موقف.',
+  'onboarding.goal.title': 'ما هدفك من الألمانية؟',
+  'onboarding.goal.body':
+    'سؤال واحد فقط. به أرتّب الوحدات التي أضعها أمامك — لا أريد أن أُضيع وقتك في شيء لن تحتاجه.',
+  'onboarding.goal.question': 'لماذا تتعلّم الألمانية؟',
+  'onboarding.goal.hint': 'هذا يغيّر ترتيب المواقف التي أضعها أمامك أولاً.',
+  'onboarding.goal.skip': 'تخطَّ الآن وابدأ',
+  'onboarding.arrival.title': 'وأين أنت الآن من ألمانيا؟',
+  'onboarding.arrival.body':
+    'من يستعد للسفر يحتاج الأوراق أولاً، ومن وصل يحتاج السكن والطبيب. هذا يحدد ما أقدّمه لك اليوم.',
+  'onboarding.previous.title': 'هل جرّبت الألمانية قبل اليوم؟',
+  'onboarding.previous.body':
+    'لا لجعل الأمور أسهل أو أصعب — فقط لأعرف من أين أبدأ معك. لن أفترض أنك تعرف شيئاً لم تخبرني به.',
+  'onboarding.time.title': 'وكم دقيقة تستطيع أن تعطيني يومياً؟',
+  'onboarding.time.body':
+    'العادة أهم من المدة. اختر ما تستطيع الالتزام به فعلاً — سأبني مهمة اليوم على هذا الرقم، ويمكنك تغييره لاحقاً.',
+  'onboarding.time.unit': 'دقائق',
+  'onboarding.skipAll': 'تخطَّ الأسئلة وابدأ الآن',
+  'onboarding.target.title': 'هل هناك تاريخ تنتظره؟ (اختياري)',
+  'onboarding.target.body':
+    'امتحان أو مقابلة أو سفر — إن أخبرتني بالتاريخ سأذكّرك بما يتبقى منه داخل التطبيق فقط. لن أرسل لك إشعارات، ولن أضغط عليك.',
+  'onboarding.target.dateLabel': 'التاريخ',
+  'onboarding.target.continueHint': 'سؤال أخير: هل أقيس مستواك الآن؟',
+  'onboarding.target.save': 'حفظ التفضيلات',
+  'onboarding.target.saving': 'جارٍ الحفظ…',
+  'onboarding.continue': 'تابع',
+  'onboarding.target.none': 'لا يوجد تاريخ محدد',
+  'onboarding.placement.minutes': 'دقيقتان تقريباً',
+  'onboarding.placement.title': 'هل أقيس مستواك الآن؟',
+  'onboarding.placement.body':
+    'الاختبار القصير يحدد نقطة البداية الصحيحة (من A0 إلى B2) حتى لا أعلّمك ما تعرفه ولا أتجاوز ما لا تعرفه. يمكنك تخطّيه — وسأترك مستواك «غير مقيس» بصراحة، ولن أدّعي أنك أتقنت شيئاً لم أقسْه.',
+  'onboarding.placement.skip': 'لا الآن — ابدأ من A1 وسجّل مستواي كغير مقيس',
+  'onboarding.placement.startDirect': 'ابدأ من A1 مباشرة — سنبدأ بأول مشهد اليوم',
+  'onboarding.placement.privacy':
+    'لا أطلب أي بيانات شخصية إضافية، ولا أفعّل إشعارات تلقائياً، ولا أطلب دفعاً. الهدف أن تبدأ أول درس لك بأسرع وقت.',
+  'onboarding.placement.take': 'ابدأ القياس',
+  'onboarding.placement.takeHint': 'يمكنك الخروج منه في أي وقت — تقدّمك محفوظ.',
+  'onboarding.placement.takeLater': 'أمّا القياس فمتاح في أي وقت — ابدأه الآن',
+  'onboarding.backLink': 'رجوع للسؤال السابق',
+
+  'onboarding.goal.family.label': 'لمّ الشمل',
+  'onboarding.goal.family.hint': 'الأوراق، السكن، الطبيب، حياة العائلة',
+  'onboarding.goal.work.label': 'العمل',
+  'onboarding.goal.work.hint': 'المقابلة، الزملاء، Ausbildung، المكتب',
+  'onboarding.goal.study.label': 'الدراسة',
+  'onboarding.goal.study.hint': 'الجامعة، التسجيل، المحاضرات، الامتحان',
+  'onboarding.goal.travel.label': 'السفر',
+  'onboarding.goal.travel.hint': 'المطار، القطار، الحجز، التنقّل',
+  'onboarding.goal.general.label': 'عام',
+  'onboarding.goal.general.hint': 'أبدأ من الأساسيات وأبني يوماً بيوم',
+  'onboarding.goal.daily_life.label': 'الحياة اليومية في ألمانيا',
+  'onboarding.goal.daily_life.hint': 'السكن، الطبيب، التسوق، المواصلات',
+  'onboarding.goal.university.label': 'الجامعة',
+  'onboarding.goal.university.hint': 'التسجيل، المحاضرات، التواصل مع الإدارة',
+  'onboarding.goal.exam.label': 'التحضير للامتحان',
+  'onboarding.goal.exam.hint': 'تدريب محادثة B1 بأسلوب الامتحان — وليس الصيغة الرسمية',
+
+  'onboarding.arrival.preparing': 'ما زلت أستعد للسفر',
+  'onboarding.arrival.recently_arrived': 'وصلت حديثاً',
+  'onboarding.arrival.living_in_germany': 'أعيش في ألمانيا بالفعل',
+
+  'onboarding.previous.first_time.label': 'لم أجرّب الألمانية قبل',
+  'onboarding.previous.first_time.hint': 'نبدأ من الصفر — وهذا أفضل مكان للبداية',
+  'onboarding.previous.some_basics.label': 'تعلّمت قليلاً في المدرسة أو تطبيق',
+  'onboarding.previous.some_basics.hint': 'تعرف كلمات وجُملاً — سنقيس أين وصلت بالضبط',
+  'onboarding.previous.can_hold.label': 'أستطيع إدارة محادثة بسيطة',
+  'onboarding.previous.can_hold.hint': 'مستواك أعلى من البداية — القياس يوفّر عليك وقتاً كبيراً',
+
+  'onboarding.targetDate.move': 'تاريخ السفر',
+  'onboarding.targetDate.exam': 'تاريخ الامتحان',
+  'onboarding.targetDate.job': 'موعد العمل أو المقابلة',
+
+  'onboarding.recommend.start':
+    'يمكنك أن تبدأ الآن مباشرة — سنختار معاً من أول مشهد، والقياس متاح في أي وقت.',
+  'onboarding.recommend.someBasics':
+    'قلت إنك تعلّمت شيئاً قبلاً — القياس يحدد نقطة البداية الصحيحة بدقة بدل التخمين.',
+  'onboarding.recommend.canHold':
+    'قلت إنك تستطيع إدارة محادثة بسيطة — دقيقتان من القياس قد توفّر عليك شهوراً من البداية الخاطئة.',
+
   'welcome.badge': 'Katzu AI • رفيقك الذكي',
   'welcome.headline': 'تحدث الألمانية بدون خوف',
   'welcome.subline':
@@ -112,6 +194,88 @@ const EN: Record<UiStringKey, string> = {
   'nav.lockedHint': '{label} — locked until your first conversation',
   'shell.checkingAccount': 'Checking your account…',
 
+  'onboarding.back': 'Back',
+  'onboarding.progress': 'Question progress',
+  'onboarding.editBadge': 'Edit preferences',
+  'onboarding.firstRunNote': 'One question only — then I open your first situation.',
+  'onboarding.goal.title': 'What is your goal with German?',
+  'onboarding.goal.body':
+    'One question only. It sets the order of the units I put in front of you — I would rather not waste your time on something you will never need.',
+  'onboarding.goal.question': 'Why are you learning German?',
+  'onboarding.goal.hint': 'This changes which situations I put first.',
+  'onboarding.goal.skip': 'Skip for now and start',
+  'onboarding.arrival.title': 'And where are you with Germany right now?',
+  'onboarding.arrival.body':
+    'Someone preparing to travel needs the paperwork first; someone who has arrived needs housing and a doctor. This decides what I bring you today.',
+  'onboarding.previous.title': 'Have you tried German before today?',
+  'onboarding.previous.body':
+    'Not to make things easier or harder — only so I know where to start with you. I will not assume you know something you have not told me.',
+  'onboarding.time.title': 'How many minutes can you give me each day?',
+  'onboarding.time.body':
+    'The habit matters more than the length. Pick what you can really commit to — today’s mission is built on that number, and you can change it later.',
+  'onboarding.time.unit': 'minutes',
+  'onboarding.skipAll': 'Skip the questions and start now',
+  'onboarding.target.title': 'Is there a date you are waiting for? (optional)',
+  'onboarding.target.body':
+    'An exam, an interview or a trip — if you tell me the date I will remind you how long is left, inside the app only. No notifications, no pressure.',
+  'onboarding.target.dateLabel': 'Date',
+  'onboarding.target.continueHint': 'One last question: shall I measure your level now?',
+  'onboarding.target.save': 'Save preferences',
+  'onboarding.target.saving': 'Saving…',
+  'onboarding.continue': 'Continue',
+  'onboarding.target.none': 'No particular date',
+  'onboarding.placement.minutes': 'About two minutes',
+  'onboarding.placement.title': 'Shall I measure your level now?',
+  'onboarding.placement.body':
+    'The short check finds your real starting point (A0 to B2), so I neither teach you what you already know nor skip what you do not. You can skip it — your level then stays honestly “unmeasured”, and I will not claim you mastered something I never measured.',
+  'onboarding.placement.skip': 'Not now — start at A1 and record my level as unmeasured',
+  'onboarding.placement.startDirect': 'Start straight at A1 — we begin with today’s first scene',
+  'onboarding.placement.privacy':
+    'I ask for no extra personal data, I never switch notifications on for you, and I ask for no payment. The point is that your first lesson starts as soon as possible.',
+  'onboarding.placement.take': 'Start the check',
+  'onboarding.placement.takeHint': 'You can leave it at any time — your progress is saved.',
+  'onboarding.placement.takeLater': 'The check is available at any time — start it now',
+  'onboarding.backLink': 'Back to the previous question',
+
+  'onboarding.goal.family.label': 'Family reunion',
+  'onboarding.goal.family.hint': 'Paperwork, housing, doctor, family life',
+  'onboarding.goal.work.label': 'Work',
+  'onboarding.goal.work.hint': 'Interview, colleagues, Ausbildung, office',
+  'onboarding.goal.study.label': 'Study',
+  'onboarding.goal.study.hint': 'University, enrolment, lectures, exams',
+  'onboarding.goal.travel.label': 'Travel',
+  'onboarding.goal.travel.hint': 'Airport, train, booking, getting around',
+  'onboarding.goal.general.label': 'General',
+  'onboarding.goal.general.hint': 'Start from the basics and build day by day',
+  'onboarding.goal.daily_life.label': 'Daily life in Germany',
+  'onboarding.goal.daily_life.hint': 'Housing, doctor, shopping, transport',
+  'onboarding.goal.university.label': 'University',
+  'onboarding.goal.university.hint': 'Enrolment, lectures, dealing with the administration',
+  'onboarding.goal.exam.label': 'Exam preparation',
+  'onboarding.goal.exam.hint': 'B1 speaking practice in exam style — not the official format',
+
+  'onboarding.arrival.preparing': 'I am still preparing to travel',
+  'onboarding.arrival.recently_arrived': 'I arrived recently',
+  'onboarding.arrival.living_in_germany': 'I already live in Germany',
+
+  'onboarding.previous.first_time.label': 'I have never tried German',
+  'onboarding.previous.first_time.hint': 'We start from zero — and that is the best place to begin',
+  'onboarding.previous.some_basics.label': 'I learned a little at school or in an app',
+  'onboarding.previous.some_basics.hint': 'You know words and sentences — we measure exactly where you are',
+  'onboarding.previous.can_hold.label': 'I can handle a simple conversation',
+  'onboarding.previous.can_hold.hint': 'You are past the beginning — the check saves you a lot of time',
+
+  'onboarding.targetDate.move': 'Travel date',
+  'onboarding.targetDate.exam': 'Exam date',
+  'onboarding.targetDate.job': 'Job or interview date',
+
+  'onboarding.recommend.start':
+    'You can start right now — we pick the first scene together, and the check stays available at any time.',
+  'onboarding.recommend.someBasics':
+    'You said you have learned some before — the check finds the right starting point instead of guessing.',
+  'onboarding.recommend.canHold':
+    'You said you can handle a simple conversation — two minutes of checking can save you months of starting in the wrong place.',
+
   'welcome.badge': 'Katzu AI • your sharp-witted companion',
   'welcome.headline': 'Speak German without fear',
   'welcome.subline':
@@ -186,6 +350,88 @@ const ID: Record<UiStringKey, string> = {
   'nav.profile': 'Profil',
   'nav.lockedHint': '{label} — terkunci sampai percakapan pertamamu',
   'shell.checkingAccount': 'Memeriksa akun…',
+
+  'onboarding.back': 'Kembali',
+  'onboarding.progress': 'Kemajuan pertanyaan',
+  'onboarding.editBadge': 'Ubah preferensi',
+  'onboarding.firstRunNote': 'Satu pertanyaan saja — lalu aku buka situasi pertamamu.',
+  'onboarding.goal.title': 'Apa tujuanmu belajar bahasa Jerman?',
+  'onboarding.goal.body':
+    'Satu pertanyaan saja. Dari jawabanmu aku menyusun urutan unit yang kusiapkan — aku tidak mau membuang waktumu untuk hal yang tidak akan kamu pakai.',
+  'onboarding.goal.question': 'Kenapa kamu belajar bahasa Jerman?',
+  'onboarding.goal.hint': 'Ini mengubah urutan situasi yang kutampilkan lebih dulu.',
+  'onboarding.goal.skip': 'Lewati dulu dan mulai',
+  'onboarding.arrival.title': 'Dan sekarang posisimu dengan Jerman bagaimana?',
+  'onboarding.arrival.body':
+    'Yang masih bersiap berangkat butuh urusan dokumen dulu; yang sudah tiba butuh tempat tinggal dan dokter. Ini menentukan apa yang kusiapkan untukmu hari ini.',
+  'onboarding.previous.title': 'Pernah mencoba bahasa Jerman sebelum hari ini?',
+  'onboarding.previous.body':
+    'Bukan untuk membuatnya lebih mudah atau lebih sulit — hanya supaya aku tahu harus mulai dari mana. Aku tidak akan menganggap kamu tahu sesuatu yang belum kamu bilang.',
+  'onboarding.time.title': 'Berapa menit yang bisa kamu beri setiap hari?',
+  'onboarding.time.body':
+    'Kebiasaan lebih penting daripada durasinya. Pilih yang benar-benar bisa kamu pegang — misi hari ini kubangun dari angka itu, dan nanti bisa kamu ubah.',
+  'onboarding.time.unit': 'menit',
+  'onboarding.skipAll': 'Lewati pertanyaannya dan mulai sekarang',
+  'onboarding.target.title': 'Ada tanggal yang kamu tunggu? (opsional)',
+  'onboarding.target.body':
+    'Ujian, wawancara, atau perjalanan — kalau kamu beri tanggalnya, aku akan mengingatkan sisa waktunya, hanya di dalam aplikasi. Tanpa notifikasi, tanpa menekan.',
+  'onboarding.target.dateLabel': 'Tanggal',
+  'onboarding.target.continueHint': 'Satu pertanyaan terakhir: mau kucek levelmu sekarang?',
+  'onboarding.target.save': 'Simpan preferensi',
+  'onboarding.target.saving': 'Menyimpan…',
+  'onboarding.continue': 'Lanjut',
+  'onboarding.target.none': 'Tidak ada tanggal tertentu',
+  'onboarding.placement.minutes': 'Sekitar dua menit',
+  'onboarding.placement.title': 'Mau kucek levelmu sekarang?',
+  'onboarding.placement.body':
+    'Tes singkat ini menemukan titik awalmu yang sebenarnya (A0 sampai B2), supaya aku tidak mengajarimu hal yang sudah kamu tahu dan tidak melompati yang belum. Kamu boleh melewatinya — levelmu lalu tetap “belum diukur” dengan jujur, dan aku tidak akan bilang kamu sudah menguasai sesuatu yang belum kuukur.',
+  'onboarding.placement.skip': 'Jangan sekarang — mulai dari A1 dan catat levelku belum diukur',
+  'onboarding.placement.startDirect': 'Mulai langsung dari A1 — kita mulai dari adegan pertama hari ini',
+  'onboarding.placement.privacy':
+    'Aku tidak meminta data pribadi tambahan, tidak menyalakan notifikasi sendiri, dan tidak meminta pembayaran. Tujuannya supaya pelajaran pertamamu mulai secepat mungkin.',
+  'onboarding.placement.take': 'Mulai tes',
+  'onboarding.placement.takeHint': 'Kamu bisa keluar kapan saja — kemajuanmu tersimpan.',
+  'onboarding.placement.takeLater': 'Tes ini tersedia kapan saja — mulai sekarang',
+  'onboarding.backLink': 'Kembali ke pertanyaan sebelumnya',
+
+  'onboarding.goal.family.label': 'Menyatukan keluarga',
+  'onboarding.goal.family.hint': 'Dokumen, tempat tinggal, dokter, kehidupan keluarga',
+  'onboarding.goal.work.label': 'Kerja',
+  'onboarding.goal.work.hint': 'Wawancara, rekan kerja, Ausbildung, kantor',
+  'onboarding.goal.study.label': 'Studi',
+  'onboarding.goal.study.hint': 'Universitas, pendaftaran, kuliah, ujian',
+  'onboarding.goal.travel.label': 'Perjalanan',
+  'onboarding.goal.travel.hint': 'Bandara, kereta, pemesanan, transportasi',
+  'onboarding.goal.general.label': 'Umum',
+  'onboarding.goal.general.hint': 'Mulai dari dasar dan bangun hari demi hari',
+  'onboarding.goal.daily_life.label': 'Kehidupan sehari-hari di Jerman',
+  'onboarding.goal.daily_life.hint': 'Tempat tinggal, dokter, belanja, transportasi',
+  'onboarding.goal.university.label': 'Universitas',
+  'onboarding.goal.university.hint': 'Pendaftaran, kuliah, urusan administrasi',
+  'onboarding.goal.exam.label': 'Persiapan ujian',
+  'onboarding.goal.exam.hint': 'Latihan berbicara B1 gaya ujian — bukan format resmi',
+
+  'onboarding.arrival.preparing': 'Aku masih bersiap berangkat',
+  'onboarding.arrival.recently_arrived': 'Aku baru tiba',
+  'onboarding.arrival.living_in_germany': 'Aku sudah tinggal di Jerman',
+
+  'onboarding.previous.first_time.label': 'Aku belum pernah mencoba bahasa Jerman',
+  'onboarding.previous.first_time.hint': 'Kita mulai dari nol — dan itu titik awal terbaik',
+  'onboarding.previous.some_basics.label': 'Aku belajar sedikit di sekolah atau aplikasi',
+  'onboarding.previous.some_basics.hint': 'Kamu tahu kata dan kalimat — kita ukur tepatnya di mana',
+  'onboarding.previous.can_hold.label': 'Aku bisa mengurus percakapan sederhana',
+  'onboarding.previous.can_hold.hint': 'Kamu sudah di atas awal — tes ini menghemat banyak waktu',
+
+  'onboarding.targetDate.move': 'Tanggal berangkat',
+  'onboarding.targetDate.exam': 'Tanggal ujian',
+  'onboarding.targetDate.job': 'Tanggal kerja atau wawancara',
+
+  'onboarding.recommend.start':
+    'Kamu bisa mulai sekarang — kita pilih adegan pertama bersama, dan tes tetap tersedia kapan saja.',
+  'onboarding.recommend.someBasics':
+    'Kamu bilang pernah belajar sedikit — tes ini menemukan titik awal yang tepat, bukan menebak.',
+  'onboarding.recommend.canHold':
+    'Kamu bilang bisa mengurus percakapan sederhana — dua menit tes bisa menghemat berbulan-bulan salah mulai.',
 
   'welcome.badge': 'Katzu AI • teman cerdasmu',
   'welcome.headline': 'Bicara bahasa Jerman tanpa takut',
