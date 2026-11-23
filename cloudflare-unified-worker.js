@@ -47,6 +47,9 @@ import { handleHintsRoute } from "./cloudflare-hints.js";
 import { handleWritingRoute } from "./cloudflare-writing.js";
 import { handleAskRoute } from "./cloudflare-ask.js";
 import { handleChatTurnRoute, handleTranslateRoute, handleLexemeRoute } from "./cloudflare-ai-chat.js";
+// The prompt version the deployed worker actually serves. /health publishes it so
+// a committed-but-undeployed prompt bump is a measured drift, not a memory test.
+import { ROLEPLAY_PROMPT_VERSION } from "./cloudflare-roleplay.js";
 import { validateGermanAgainstLevel, levelConstraintLine, correctionBudgetFor } from "./cloudflare-level-spec.js";
 import { handleTranscribeRoute } from "./cloudflare-stt.js";
 import {
@@ -1534,6 +1537,11 @@ async function handlePublicHealth(env, cors) {
       maintenance: isMaintenanceMode(env),
       // `ok` / `error` / `unbound`, per store. Never a count, never a key.
       storage,
+      // Which roleplay prompt this deployment serves. Public on purpose: a schema
+      // version is not a secret, and it is what scripts/check-deploy-drift.mjs
+      // compares against the repo, so "the fix is committed but not live" fails
+      // loudly instead of being rediscovered by hand.
+      roleplay_prompt_version: ROLEPLAY_PROMPT_VERSION,
     },
     200,
     cors,
@@ -1743,7 +1751,10 @@ function withAiEvent(pending, opts) {
               latencyMs: Date.now() - startedAt,
               turnId,
               outcome: classifyOutcome({ status: response.status, payload, attempts: tel?.attempts || [] }),
-              guard: null,
+              // The guard that rejected the turn, when the route published one.
+              // It used to be hardcoded `null`, so `conversations.guard` and the
+              // admin panel's guard column could never show anything.
+              guard: typeof payload?.guard === "string" ? payload.guard : null,
             });
           }
         }
@@ -1755,6 +1766,10 @@ function withAiEvent(pending, opts) {
           user: user || {},
           payload,
           body,
+          // Every rejection lands in `ai_events.guard`, including turns whose
+          // conversation text was not consented to: the counter must exist even
+          // when the transcript must not.
+          guard: typeof payload?.guard === "string" ? payload.guard : null,
           conversation: row ? { logging: true, row } : null,
         });
       })().catch(() => {});

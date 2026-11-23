@@ -147,6 +147,10 @@
      curve, which is the same inner-radius rule the glass pill follows. */
   --kz-radius-tag: 8px;
   --kz-radius-chip: 12px;
+  /* The hero's one action. 16px is the owner's number for it, and it is a step
+     rather than a private literal so the stylesheet still has exactly one radius
+     vocabulary (a control is 20px; this one reads softer at its 52px height). */
+  --kz-radius-action: 16px;
   --kz-radius-control: 20px;
   --kz-radius-panel: 24px;
   --kz-radius-sheet: 28px;
@@ -509,6 +513,60 @@
     );
   }
 
+  /* The home hero's one action.
+     A solid accent fill, not the translucent glass `.kz-primary`: the hero is a
+     photograph, and its action has to be the brightest thing on the screen. White
+     on `--kz-lavender-deep` is a guarded contrast pair (4.53:1). 52px high and the
+     16px radius the owner specified; the press is a 3% scale so the whole control
+     answers the thumb. */
+  .kz-hero-cta {
+    min-height: 52px;
+    border-radius: var(--kz-radius-action);
+    background-color: rgb(var(--kz-lavender-deep));
+    color: rgb(var(--kz-on-fill));
+    box-shadow:
+      0 10px 28px rgb(var(--kz-lavender-deep) / 0.38),
+      inset 0 1px 0 rgb(255 255 255 / 0.2);
+    transition:
+      transform var(--kz-dur-fast) var(--kz-ease-out),
+      background-color var(--kz-dur-fast) var(--kz-ease-out);
+    touch-action: manipulation;
+  }
+
+  .kz-hero-cta:active {
+    background-color: rgb(var(--kz-lavender-press));
+    transform: scale(0.97);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kz-hero-cta {
+      transition-duration: 0ms;
+    }
+    .kz-hero-cta:active {
+      transform: none;
+    }
+  }
+
+  /* The hero's title step. 22px fixed rather than the responsive `title` clamp:
+     on a phone the clamp resolves to ~18px, and the scene's name — the one fact
+     the hero exists to say — loses to the picture it sits on. */
+  .kz-hero-title {
+    font-size: 1.375rem;
+    line-height: 1.3;
+    font-weight: 700;
+  }
+
+  /* The hero's light when there is no picture (or before it arrives): one soft
+     accent glow over the violet→near-black wash. A reserved box whose image fails
+     is never a black hole. */
+  .kz-hero-glow {
+    background-image: radial-gradient(
+      70% 130% at 82% -18%,
+      rgb(var(--kz-lavender) / 0.32),
+      transparent 68%
+    );
+  }
+
   /* One primary action: a soft lavender light, not a filled neon slab.
      Its radius is the `control` step of the ladder — it used to be a private
      22px, two pixels off the secondary button beside it, which is exactly the
@@ -644,19 +702,12 @@
 }
 
 /* G3 (launch polish): the shared scroll container under the fixed tab bar.
-   The bar is pt-2 (8px) + a 48px button + pb max(8px, safe-area) ≈ 64px plus
-   the safe-area inset, so content reserves nav + inset + 16px of breathing
-   room — the last card and its buttons can never hide behind the glass.
-   Margin-bottom (not only padding) because the app shell is `min-h-screen`
-   flex `justify-between`: padding stretches the page but a SHORT page then
-   centres with the padding inside the flex box and the nav still over the
-   content; reserving space OUTSIDE the last child keeps the gap honest in
-   both the tall and the short case. */
+   The bar is pt-2 (8px) + a 48px button + pb max(8px, safe-area) = 64px plus
+   the safe-area inset, so the content reserves nav + inset + 8px of breathing
+   room, and nothing more. This used to reserve both 80px of padding and a
+   72px last-child margin, i.e. ~150px of dead space at the bottom of every tab. */
 .kz-tab-scroll {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom));
-}
-.kz-tab-scroll > :last-child {
-  margin-bottom: calc(72px + env(safe-area-inset-bottom));
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
 }
 
 /* The V2 equivalent: any German run — phrase, article, single word — is LTR

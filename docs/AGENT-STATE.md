@@ -25,20 +25,7 @@ OWNER LIST, ITEMS (live rows), DECISIONS, UNPROVEN (open claims), OWNER-OPEN (op
   bullets in UNPROVEN/OWNER-OPEN, no bullet over 8 KB), so growth is a decision someone made, not drift.
 
 ## RESUME
-- 2026-11-20: home tab + flat bar; deployed (APP-MAP §9).
-
-- **2026-11-20, second pass — every lesson row is one state, one filled button (deployed; worker unchanged).** The
-  practice-home unit map dropped its cards: each situation is a divider row rendering exactly one state — done (green check,
-  muted title), current (accent title, «قيد التنفيذ», one 3-stage meter, minutes) or upcoming (number plus a lock/Pro note).
-  The hero carries minutes in its top row, a real 3-step bar and the screen's only filled 52px action; the review strip is
-  one ghost row («لا تحتاج مراجعة» when the backlog is empty) so no count over 10 appears on this screen — the full backlog
-  still lives in the review screen. Unit headers are flat text with the progress bar attached, and counters render through
-  `LtrCounter`. Progress rules, routes, tables and dependencies untouched (`progress.ts` not modified). Evidence:
-  `trailOrdering` + `uiPolishLaunch` **48**, `e2e/journey.spec.ts` **14/14**, gate
-  `VERIFY OK — 16/16 steps passed in 802.9s`. **Deployed** Pages `74addfc9-04eb-4366-9add-0d47127ee786`
-  (source `5d19bad`, entry `assets/index-BEaZS6ly.js`, screen chunk `TrailScreen-8PTK5bWS.js` carries
-  `trail-sheet-start`); rollback `45c9b552-c520-4254-8092-e2ffbfc03980` (source `0fa0069`). Before/after at 390x844 and
-  360x640 in `docs/agent/journey-polish/`. **UNPROVEN:** the screen on a real phone.
+- 2026-11-20: home tab + flat bar; verified.
 
 - **2026-11-20 — the practice home is one hero, a timeline and a stage sheet (deployed; worker unchanged).** `/app/library`
   no longer stacks two continue cards, a level card and per-row chips: the header greets by name (avatar + «أهلاً …»),
@@ -127,11 +114,10 @@ live ids are the rollback targets for the **next** deploy. Supersedes the 2026-1
 - **Roleplay prompt v10 (2026-11-18, source `0310e88`):** worker
   **`89a1a55e-783b-4023-92f1-e17db916cf7d`**, rollback **`05d225ef-d2a2-46bb-a2c1-b6b16e3b2eeb`** (v9, source
   `7c83ffa`). `/health` 200 `ready:true, chat_ready:true, fallback_only:false, storage:{d1:"ok",kv:"ok"}`;
-  `/crypto/health` 200 `ready:false`; `/admin/api/stats` **401**. App Pages
-  **`d22c1eab-351f-4cad-a976-8199d600288c`** from `9ba7a9c` — the docs push, a git build, so the id moved with a
-  byte-identical bundle (`npx wrangler pages deployment list --project-name katzu-webapp-v3`); rollback
-  **`73943a1c-2735-49e9-b87d-9c241ed0f73f`** from `0310e88`, then `83cb8db8-f44b-476d-b862-09522f7a347d`
-  (source `1acc8f8`); lazy `assets/opener-Dm5Tubo0.js` carries both register glosses. **Not rotated:**
+  `/crypto/health` 200 `ready:false`; `/admin/api/stats` **401**. App Pages: source `3037c4e` (docs push),
+  entry `assets/index-4slWyIKP.js`, byte-identical since `0310e88`. No Pages id is stored — a git build mints
+  one per push; read it with `npx wrangler pages deployment list --project-name=katzu-webapp-v3` (APP-MAP §9).
+  **Not rotated:**
   `wrangler versions list --name katzu-test` still ends at `89a1a55e-…`, so the announced `ADMIN_SECRET`
   rotation never landed on this worker (no new version to record).
 - Worker version at v8 (2026-11-16):
@@ -302,9 +288,8 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 | CONTENT-V2. Scenarios v2 (61 rows, A0–B2) | blocked | **All 61 authored; the 49-row update path is built and proven locally; nothing deployed.** One authoring source `docs/content/catalogue/scenarios-catalogue.json` (49 corrected + 12 new) → `apply-content-catalogue.mjs` → `build-language-data.mjs`: 0/305 openers off-spec, 0 personas without `katze`, 0 emoji icons, `sequence_order` 1..61, 301 openers / 457 glossed tokens / 0 unresolved, 12 rows + 159 glosses `needs_review`. `load-content-updates.mjs` corrects the 49 through `/admin/api/content-studio/*` (draft → publish-all → audit → undo); `verify-content-update-local.mjs` **28/28** on real local D1: 49 rows / **327 fields**, catalogue-exact, 12 new ids absent, undo restored every field (it found and fixed an undo defect: `SELECT *` carried legacy `sequence_order` → 49/49 `409 restore_invalid`; `contractRow` + regression, `contentStudio` **33**, `loadContentUpdates` **17**). SW update prompt shipped (`updatePrompt` **4**). Gate + e2e green locally; pushed `f7a76f7`, CI **41300425341** green. **Blocked on the owner:** §3 is insert-only → needs `CONTENT-LOAD-AUTHORIZED: <file>` plus an amendment for the UPDATE; the production dry run returns `401 unauthorized` while `ADMIN_SECRET` is set, 64-hex (`docs/CONTENT-AUDIT.md` §9). |
 | SMOKE-1. Production smoke `workerOriginFromPricing` | todo | `E2E_TARGET=production npx playwright test e2e/productionSmoke.spec.ts` → **1 passed / 2 skipped / 1 failed** on 2026-10-31: `e2e/productionSmoke.spec.ts:94` waits 20 s for the app's `/pricing` request after `page.goto('/paywall')` and never sees it, so the admin-401 test that depends on the origin never runs. Not caused by the greeting/card batch (no pricing, paywall or auth code changed); the same admin-401 was verified directly with curl. Fix by observing the request the paywall actually makes (or by driving the anonymous demo) and re-run against production. |
 | V44 Review task contract | doing | Gates green; `docs/agent/review-v41/`; await owner approval before merge/deploy. |
-
-| CHAT-V8. Practice chat v8: measured correction, 3 goals per scenario, replay harness | partial | **Superseded by v10 except the open ≥90% correction gate.** v8 added correction/no-echo, typo, no-invented-fact, one-question and hint rules (`ROLEPLAY_PROMPT_VERSION = 8`), `meta:{provider,model,attempts,ms}` on `/ai/turn`, the real `prompt_version` in the cost log, `/health` `fallback_only`, 3 objectives per plan, and the 46-case harness + scorer. Gate `VERIFY OK 15/15` + playwright 175/11/0; worker `d99eeecc-…`, Pages `2b0a22d0-…` from `92a0f42`. Partial replay: 29 Groq turns, p95 3.32 s, 0 double/farewell questions, correction 3/4 («Ich heisse» uncorrected), then `429`; the Workers AI fallback failed 5 of 31 checks. |
 | CHAT-V10. Practice chat v10: register lock, learner-decided farewell, persona gender/detail | partial | **Fixed locally; production keeps the old A1 opener until a content load.** Prompt **v10**: all 49 plans declare `register` (40 `sie` / 9 `du`) and `persona_gender` and gain `end_politely`; the prompt restates the register each turn, uses the persona's Arabic gender, and adds one plan detail per turn instead of echoing the learner. `end_politely` credits only on the learner's farewell, so `close` cannot fire before they end; goodbye-first and register-switch replies fail the check. Header counts goals (`N من 4`). Replay 66→69 (`g34`–`g36`), scorer `--only`/`false_fix`; live **groq/`openai/gpt-oss-120b`**, both corrections credited, `g36` no change, 0 failures. Tests **55/55**; gate/deploy in this batch's report. **Limitation:** production D1 keeps the `du` opener (no `CONTENT-LOAD-AUTHORIZED:`); one reply used feminine `أنتِ` for an unknown-gender learner. |
+| LANG-1. Language matrix (ar/en/id UI × de course; nl defined) | doing | Plan `docs/plans/010-multilanguage-master-plan.md` (Phase 1a executed, 1b–3 specified). Code: `src/lib/i18n/*`, `LanguagePreferences.tsx`, `AppShell` tab bar/gate, `workerClient` `native_lang`/`target_lang`, `cloudflare-ai-chat.js` language tables + `resolveTurnLanguages`. Tests `languages.test.ts` 19 + `turnLanguages.test.ts` 21 + full `npm test` green; `npx tsc --noEmit` clean. **Dutch not selectable** (`available:false` / `shipped:false`): no Dutch content, needs `CONTENT-LOAD-AUTHORIZED:` for any D1 load. Next: Phase 1b per-screen translation batches (measure with a coverage script), then Phase 2 Dutch content. |
 
 ## DECISIONS
 
@@ -452,6 +437,16 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
 
 > Resolved and historical claims are in `docs/agent/ARCHIVE-AGENT-STATE.md` under the same heading.
 
+- **COARENA (2026-11-17, fallback chain 2026-11-18) — the gateway answers, but no pair has passed the learner quality
+  gate, and the live failover is unproven.** A live smoke (`scripts/coarena-smoke.mjs`) proved `GET /models`,
+  `gpt-6-luna` → `OK` in 1.7 s and `POST /feedback` → 200. The pool row is now `gemini-3-8-flash` with
+  `modelFallbacks: [gpt-6-luna, deepseek-v4-1-flash-1017]` (`COARENA_FREE_MODELS`); `expandModelFallbacks` walks them
+  as separate ledger units, so a parked id does not end the turn. Unit tests prove the expansion, the 404 → next-model
+  path and the parked-primary skip, but no live 402/404 was observed against the real gateway. Every Coarena pair stays
+  absent from `DEFAULT_QUALITY_GATE_PASSES`, so `/ai/turn` still cannot be answered by it. Closing this needs a
+  signed-in 66-case replay against one Coarena model and a score at or above the gate (≥90% correction recall, 0
+  invented facts, p95 < 3.5 s), then adding that pair to the gate list.
+
 - **V47 (2026-11-05) — the fixed first bubble is proven in code and data, not in a signed-in production session.** The
   coverage test enumerates the live corpus fixture and the app reads the same generated map, but no owner session exists
   to open a live conversation and see the Arabic on screen; production `https://katzuai.com/scenarios` also answers 404
@@ -566,6 +561,10 @@ Status for the ledger defined in `AGENTS.md` §8. Rules live in `AGENTS.md`; thi
   «Hallo! Ich bin Frau Meier, Ihre Nachbarin. Wie heißen Sie?» and its Arabic «أهلاً! أنا السيدة
   ماير، جارتك. ما اسمك؟» are local-only until a `CONTENT-LOAD-AUTHORIZED:` line allows the
   production row update. Owner checklist §18.
+
+- **The weekly Chat QA has never run: the repo has no secrets (CI-SECRET-1, 2026-11-19).** `gh secret list --json
+  name` → `[]`; the scheduled run stopped in 32 s at exit `2` ("no provider key"). Done: `gh secret set
+  GROQ_API_KEY` with the pool key. Checklist §17.
 
 - **The shipped chat prompt is still unmeasured against the 90% bar (CHAT-EVAL-1, 2026-11-13).** Prompt v5
   scored 46/60 in one full run, v6 scored 30/32 judged, v7 measured **6/13 (46%)** correction recall live, and

@@ -98,6 +98,10 @@ class FakeD1 {
     };
     void selectCount;
     return {
+      // D1's prepared statement carries `.run()`, and the additive ALTER in
+      // `ensureTelemetryTables` needs it: without it the telemetry tables read as
+      // unusable and account deletion silently skips the conversation tables.
+      run: () => run(),
       bind: (...args: unknown[]) => ({
         run: () => run(...args),
         first: async () => {

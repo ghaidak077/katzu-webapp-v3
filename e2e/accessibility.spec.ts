@@ -46,7 +46,7 @@ function assertClean(violations: Awaited<ReturnType<typeof scan>>, screen: strin
 test('Trail has no critical or serious violations', async ({ page }) => {
   await bootSignedIn(page);
   await page.goto('/app/trail');
-  await expect(page.getByText(/المهمة|مراجعة|ابدأ/).first()).toBeVisible();
+  await expect(page.getByText(/المشهد التالي|تابع التعلّم|المهمة|مراجعة|ابدأ/).first()).toBeVisible();
   assertClean(await scan(page), 'trail');
 });
 
@@ -136,7 +136,7 @@ test('primary actions keep 44px targets at 360px on the Trail', async ({ page })
   await bootSignedIn(page);
   await page.setViewportSize({ width: 360, height: 640 });
   await page.goto('/app/trail');
-  await expect(page.getByText(/المهمة|مراجعة|ابدأ/).first()).toBeVisible();
+  await expect(page.getByText(/المشهد التالي|تابع التعلّم|المهمة|مراجعة|ابدأ/).first()).toBeVisible();
 
   const tooSmall = await undersizedTargets(page);
   expect(tooSmall, tooSmall.join('; ')).toEqual([]);

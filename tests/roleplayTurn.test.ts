@@ -8,7 +8,9 @@ import {
   isNearDuplicateReply,
   registerSwitchInReply,
   arabicAddressesLearnerAsFeminine,
+  telemetryGuardReason,
   parseRoleplayJson,
+  repairInstruction,
   roleplayGenerationConfig,
   roleplayWordLimit,
   runRoleplayTurn,
@@ -315,6 +317,31 @@ describe('one roleplay turn with one retry', () => {
     expect(calls).toHaveLength(2);
   });
 
+  it('tells the retry what was wrong instead of re-rolling the same prompt', async () => {
+    const { fn, calls } = fakeRouter(['not json', JSON.stringify(reply)]);
+    const outcome = await runRoleplayTurn({ env: {}, plan, level: 'A1', learnerText: 'kaffee', callAiRouter: fn });
+    expect(outcome.ok).toBe(true);
+    const first = calls[0].payload.systemInstruction.parts[0].text;
+    const second = calls[1].payload.systemInstruction.parts[0].text;
+    expect(first).not.toContain('CORRECTION FOR THIS ATTEMPT');
+    expect(second).toContain('CORRECTION FOR THIS ATTEMPT');
+    expect(second).toContain('not the required JSON object');
+    // The scene briefing is still there: a repair is appended, never substituted.
+    expect(second).toContain('You are Frau Weber');
+    expect(outcome.systemInstruction).toBe(second);
+    expect(outcome.payload).toBe(calls[1].payload);
+  });
+
+  it('names the guard that fired, per reason', () => {
+    expect(repairInstruction('too_many_questions')).toContain('at most one');
+    expect(repairInstruction('register_switch')).toContain('du and sie');
+    expect(repairInstruction('arabic_learner_gender')).toContain('gendered form');
+    expect(repairInstruction('meta:Als KI')).toContain('mentioned being an AI');
+    // A provider failure is not a model defect: nothing is appended.
+    expect(repairInstruction('provider:timeout')).toBe('');
+    expect(repairInstruction('')).toBe('');
+  });
+
   it('fails honestly after two unusable answers — no template line', async () => {
     const { fn, calls } = fakeRouter(['not json', '{}']);
     const outcome = await runRoleplayTurn({ env: {}, plan, level: 'A1', learnerText: 'kaffee', callAiRouter: fn });
@@ -347,8 +374,7 @@ describe('one roleplay turn with one retry', () => {
   });
 });
 
-describe('a cached pre-rewrite bundle keeps working', () => {
-  it('gets the reply and hint under the legacy script_turn key', () => {
+describe('a cached pre-rewrite bundle keeps working', () => {  it('gets the reply and hint under the legacy script_turn key', () => {
     const legacy = legacyScriptTurn(reply);
     expect(legacy).toEqual({
       reply_de: reply.reply_de,
@@ -367,3 +393,22 @@ describe('a cached pre-rewrite bundle keeps working', () => {
     expect(legacyScriptTurn(null)).toBeNull();
   });
 });
+
+describe('rejections are countable', () => {
+  it('publishes a fixed vocabulary, never the raw provider message', () => {
+    expect(telemetryGuardReason('arabic_learner_gender')).toBe('arabic_learner_gender');
+    expect(telemetryGuardReason('too_many_questions')).toBe('too_many_questions');
+    expect(telemetryGuardReason('shape')).toBe('shape');
+    expect(telemetryGuardReason('capacity')).toBe('capacity');
+    expect(telemetryGuardReason('meta:Als KI')).toBe('meta_phrase');
+    expect(telemetryGuardReason('provider:error connecting to https://x.test/?token=abc')).toBe('provider');
+  });
+
+  it('collapses anything it does not recognise to nothing', () => {
+    expect(telemetryGuardReason('')).toBe('');
+    expect(telemetryGuardReason(undefined)).toBe('');
+    expect(telemetryGuardReason('some future reason')).toBe('');
+    expect(telemetryGuardReason('provider:')).toBe('provider');
+  });
+});
+

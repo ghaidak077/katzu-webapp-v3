@@ -36,6 +36,7 @@ import type { CEFRLevel, MemoryPatternEntity, SarcasmLevel } from '@/types/model
 import { workerClient } from '@/lib/api/workerClient';
 import { clearMemoryPatterns, deleteMemoryPattern, listMemoryPatterns, rebuildMemoryPatterns } from '@/lib/memory/patterns';
 import { PersonalFactsCard } from './PersonalFactsCard';
+import { LanguagePreferences } from './LanguagePreferences';
 import { ARRIVAL_COPY, GOAL_COPY, TARGET_DATE_COPY, describeLearnerLevel } from '@/lib/onboarding/preferences';
 import { isAnalyticsOptedOut, setAnalyticsOptOut } from '@/lib/analytics/client';
 import { track } from '@/lib/analytics/client';
@@ -349,7 +350,11 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
 
       {/* Rank and XP — moved here from the path. Read as one absolute fraction
           of the ladder («900 / 1500 XP») with the bar filled from the same
-          percent, so the number and the line always tell the same story. */}
+          percent, so the number and the line always tell the same story.
+          2026-11-19: hidden at 0 XP. "بذرة كَاتْزُو 0 / 250" and "الرتبة 1 من 6"
+          on a learner who has not spoken yet is a scoreboard with nothing on it —
+          the first session's own report is what should introduce the ladder. */}
+      {(user?.totalXp ?? 0) > 0 && (
       <Card className="p-4 mb-6" data-testid="profile-rank-card">
         <div className="flex items-center gap-3">
           <KatzuMascot name="peace" className="h-10 w-10 shrink-0" />
@@ -383,6 +388,7 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
           </div>
         </div>
       </Card>
+      )}
 
       {/* Subscription Upgrade Card */}
       {!isProEffective(user) && (
@@ -405,6 +411,11 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
       </CollapsibleSection>
 
       <CollapsibleSection title="طريقة تعلّمي" hint="المستوى، الصوت، نبرة Katzu، ومهنتك">
+      {/* The language matrix: app language (Arabic / English / Indonesian) and the
+          course (German today, Dutch once its content ships). First in this
+          section because it changes how every sentence below is read. */}
+      <LanguagePreferences />
+
       {/* Learning preferences — the answers that steer the daily mission. */}
       <Card className="p-4 mb-6 space-y-3">
         <div className="flex items-center justify-between gap-2">
@@ -1020,12 +1031,12 @@ export const ProfileSettingsScreen: React.FC<ProfileSettingsScreenProps> = ({
       )}
 
       <Button
-        variant="danger"
-        size="md"
-        className="mt-4 w-full flex items-center justify-center gap-2"
+        variant="quiet"
+        size="sm"
+        className="mx-auto mt-6 mb-2 flex items-center justify-center gap-2"
         onClick={onSignOut}
       >
-        <LogOut className="w-4 h-4" />
+        <LogOut className="w-3.5 h-3.5" aria-hidden />
         تسجيل الخروج من الحساب
       </Button>
 

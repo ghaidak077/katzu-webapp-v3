@@ -38,6 +38,7 @@ export const TELEMETRY_DDL = [
     model TEXT,
     key_id TEXT,
     kind TEXT,
+    guard TEXT,
     status INTEGER,
     latency_ms INTEGER,
     fallback INTEGER DEFAULT 0,
@@ -152,6 +153,18 @@ export async function ensureTelemetryTables(env) {
   tablesReady = (async () => {
     try {
       await env.DB.batch(TELEMETRY_DDL.map((sql) => env.DB.prepare(sql)));
+      // `ai_events.guard` is an ADDITIVE column (2026-11-19). It runs after the
+      // batch, outside it, because a batch is transactional and the CREATE above
+      // already carries the column on a fresh database: an ALTER inside the
+      // batch would fail "duplicate column name" and roll everything back.
+      // "Already exists" and "table not created yet" are both the expected
+      // steady state — the same rule `ensureRegistryTables` follows.
+      try {
+        await env.DB.prepare(`ALTER TABLE ai_events ADD COLUMN guard TEXT`).run();
+      } catch (error) {
+        const message = String(error?.message || error);
+        if (!/duplicate column name|no such table/i.test(message)) throw error;
+      }
       return true;
     } catch (e) {
       tablesReady = null;
@@ -448,6 +461,7 @@ export function recordAiCall(env, ctx, details) {
       payload = null,
       body = null,
       conversation = null,
+      guard = null,
     } = details || {};
     const now = Date.now();
     const latency = Math.max(0, now - (Number(startedAt) || now));
@@ -462,8 +476,8 @@ export function recordAiCall(env, ctx, details) {
 
     const writes = [
       env.DB.prepare(
-        `INSERT INTO ai_events (ts, route, provider, model, key_id, kind, status, latency_ms, fallback, scenario, level, user_id, release, turn_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO ai_events (ts, route, provider, model, key_id, kind, guard, status, latency_ms, fallback, scenario, level, user_id, release, turn_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
         .bind(
           now,
@@ -472,6 +486,7 @@ export function recordAiCall(env, ctx, details) {
           model,
           keyId,
           kind,
+          str(guard, 60),
           Number.isFinite(status) ? status : null,
           latency,
           provider === "workers-ai" ? 1 : 0,

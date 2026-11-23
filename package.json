@@ -21,6 +21,7 @@
     "build:lexicon": "node scripts/build-german-lexicon.mjs",
     "content:catalogue": "node scripts/apply-content-catalogue.mjs",
     "check:launch": "node scripts/check-launch.mjs",
+    "check:drift": "node scripts/check-deploy-drift.mjs",
     "make:share-image": "node scripts/make-share-image.mjs",
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "measure:perf": "node scripts/measure-lighthouse.mjs",
@@ -40,7 +41,12 @@
     "ledger:archive": "node scripts/archive-ledger-rows.mjs",
     "eval:chat": "node scripts/eval-chat.mjs",
     "qa:chat": "node scripts/qa/run.mjs",
-    "qa:chat:calibrate": "node scripts/qa/calibrate.mjs"
+    "qa:chat:calibrate": "node scripts/qa/calibrate.mjs",
+    "docs:budget": "node scripts/docs-budget.mjs",
+    "lint:arabic": "node scripts/lint-arabic-gender.mjs",
+    "qa:objectives": "node scripts/qa/objective-completion.mjs",
+    "qa:replay": "node scripts/replay/score-replay.mjs",
+    "qa:replay:plan": "node scripts/replay/score-replay.mjs --plan"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.67.1",

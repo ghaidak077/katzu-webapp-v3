@@ -19,24 +19,6 @@ Moved verbatim out of `docs/agent/PROJECT-BRIEF.md` on 2026-10-28 when the brief
 
 `main` reached `b11e66e` at the round-2 merge with `git rev-list --left-right --count main...launch-hardening` → `0 0`, and the branch was pushed both times. The live worker is `255dbeef-faae-476a-b3f5-6d4666099b70`. The V7 deploy was also a fast-forward: `22fe6aa → 6bfe4fd`.
 
-## Previous snapshot — 2026-11-07 (ten owner-approved units; one composed session; goal-only signup)
-
-**Deployed and verified.** `/app/library` is one guided vertical unit path: the current unit expanded,
-the rest collapsed with «3 من 6», future units dimmed and locked, units below the placement level open and marked «تخطّيتَ»,
-unit-sized progress («الوحدة 1 · 0 من 6»), the level percent ring and the exact ability lines. The 49 served conversations are
-partitioned into the owner's ten units exactly once, each checkpoint last; `scripts/audit-unit-coverage.mjs` fails the gate if a
-served situation is in no unit or in two. Outcome lines are practice-only («في هذه الوحدة تتدرّب على …»), and the B2 unit says the
-exam-style talk is training only and grants no certificate. One deliberate move: `patient_conversation_basics` is in unit 5
-«صحتك ومواعيدك» (patient-side talk, «Mir ist nicht gut…»), not unit 6. One button runs today's composed session — due review
-(max 10) → the next stage (study → with help → solo) → a short free conversation set, at most three steps with total minutes. The
-report auto-advances after 2 s with a «ليس الآن» escape, repeats with help below 50 % and offers a short test-out above 85 %.
-Signup asks one question (the goal) instead of a level; a conversation offers three current-unit topics plus «فاجئني», never a
-level control. Free sessions read «جلسة مجانية N من 3», and the paywall appears only between sessions. Existing learners are mapped
-by their completed conversation ids; level and XP are untouched. **Proof:** `tsc` clean, `units` + `trailOrdering` **58 passed**,
-unit coverage **49/49 across 10 units**, gate **VERIFY OK 16/16 (896.5 s)** with `--ci --e2e`. **Deployed:** Pages `5c63e575-…` (source `19b431a`, entry
-`assets/index-BnLPxd6G.js`, `/` and `katzuai.com` 200, `/sw.js` 200, smoke 2/2; rollback `b914e4ba-…`); worker unchanged
-`e98031d5-…`. **Owner-open:** the four level lines (§15).
-
 ## Previous snapshot — 2026-11-05 (every first message ships its Arabic; report buttons share one focus ring)
 
 **Deployed 2026-11-05 (merge + worker + pages).** The A1 «أول الكلمات» first message had shown

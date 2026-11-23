@@ -53,3 +53,5 @@ vitest-verify.txt
 
 # Local scratch: screenshot evidence and probes that must never be committed.
 .tmp/
+
+e2e/test-results/

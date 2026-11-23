@@ -157,9 +157,17 @@ export interface SessionPlan {
 
 export interface ComposeSessionInput extends RecommendationInput {
   dueReviewCount: number;
-  /** Titles by scenario id; a missing title falls back to the id. */
+  /**
+   * Titles by scenario id. A missing title must never surface a database id:
+   * the learner reads `first_greetings` in Latin snake_case on the primary
+   * button, which is the app's own vocabulary leaking into their screen. The
+   * neutral Arabic label keeps the button honest without inventing a title.
+   */
   titles?: Record<string, string>;
 }
+
+/** What the plan calls a scene whose title the catalogue did not provide. */
+export const UNTITLED_SCENE_AR = 'المشهد التالي';
 
 /**
  * Today's session, in one plan: due review (max 10) → the next stage of the
@@ -190,7 +198,7 @@ export function composeSession(input: ComposeSessionInput): SessionPlan {
       kind: 'scenario',
       scenarioId: recommendation.scenarioId,
       stage: recommendation.stage,
-      titleAr: input.titles?.[recommendation.scenarioId] || recommendation.scenarioId,
+      titleAr: input.titles?.[recommendation.scenarioId] || UNTITLED_SCENE_AR,
       minutes,
     });
 
@@ -213,7 +221,7 @@ export function composeSession(input: ComposeSessionInput): SessionPlan {
           kind: 'scenario',
           scenarioId: second,
           stage: stageFor(second, input),
-          titleAr: input.titles?.[second] || second,
+          titleAr: input.titles?.[second] || UNTITLED_SCENE_AR,
           minutes,
         });
       }

@@ -247,7 +247,14 @@ export function useLiveConversation({
   useEffect(() => {
     if (appliedLevelRef.current === currentLevel) return;
     appliedLevelRef.current = currentLevel;
-    setShowAllTranslations(arabicDefaultForLevel === 'always' || arabicDefaultForLevel === 'default');
+    // 2026-11-19: 'default' (A1) used to mean "every reply opens with its Arabic
+    // under it", and a 5-turn A1 session was two languages stacked on every
+    // bubble — the learner read the Arabic first and never had to decode the
+    // German. The spec still says Arabic is available by default at A1; the
+    // opener is where it is now applied automatically (the transcript forces it
+    // on the first message), and later replies are one tap away. A0 keeps the
+    // full always-on support it was written for.
+    setShowAllTranslations(arabicDefaultForLevel === 'always');
   }, [arabicDefaultForLevel, currentLevel]);
   const isSessionCompleted = conversation.status === 'completed';
   const firstIndependentTrackedRef = useRef(false);

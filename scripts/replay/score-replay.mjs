@@ -11,17 +11,34 @@
  * HTTP status and the response body. Scoring here — not in the browser — means
  * the checks are the repo's own pure functions, not a copy.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { hintMatchesQuestion } from '../../cloudflare-turn-quality.js';
+import { ROLEPLAY_PROMPT_VERSION } from '../../cloudflare-roleplay.js';
+import {
+  PACING_MS,
+  mergeCaptures,
+  planRemaining,
+  readResults,
+  recordResult,
+  usableTurn,
+} from './replay-run.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const captureArg = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : null;
-const capturePath = resolve(captureArg || join(root, '.tmp', 'replay.json'));
+
+/** `--flag value` pairs are not capture paths; everything else positional is a capture file. */
+const flagValueIndexes = new Set(
+  process.argv.flatMap((arg, index) =>
+    ['--only', '--dir', '--batch', '--pacing'].includes(arg) ? [index + 1] : [],
+  ),
+);
+/** Every capture file given, merged by id — a run split across sittings scores as one run. */
+const capturePaths = process.argv
+  .slice(2)
+  .filter((arg, index) => !arg.startsWith('--') && !flagValueIndexes.has(index + 2))
+  .map((arg) => resolve(arg));
 const casesFile = JSON.parse(readFileSync(join(root, 'scripts/replay/scenario-replay-cases.json'), 'utf8'));
-const capture = JSON.parse(readFileSync(capturePath, 'utf8'));
-const turns = Array.isArray(capture) ? capture : capture.turns;
 
 /** `--only g34,g35` or `--only=g34,g35` scores just those cases. */
 const onlyArg = process.argv.find((arg) => arg === '--only' || arg.startsWith('--only='));
@@ -34,9 +51,61 @@ const onlyIds = onlyArg
       .map((id) => id.trim())
       .filter(Boolean)
   : [];
-const byId = new Map(turns.map((turn) => [turn.id, turn]));
 const cases = onlyIds.length ? casesFile.cases.filter((c) => onlyIds.includes(c.id)) : casesFile.cases;
 const openers = casesFile.openers;
+
+// ---------------------------------------------------------------------------
+// `--plan`: what is still missing, in batches sized for one sitting.
+// Reads whatever captures were given (none is fine) and exits before scoring.
+// ---------------------------------------------------------------------------
+const flagValue = (name, fallback) => {
+  const at = process.argv.findIndex((arg) => arg === name || arg.startsWith(`${name}=`));
+  if (at < 0) return fallback;
+  const arg = process.argv[at];
+  return arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : process.argv[at + 1] ?? fallback;
+};
+
+if (process.argv.includes('--plan')) {
+  const captures = capturePaths
+    .filter((path) => existsSync(path))
+    .map((path) => JSON.parse(readFileSync(path, 'utf8')));
+  const turns = mergeCaptures(captures);
+  const plan = planRemaining({
+    cases,
+    capturedIds: turns.filter(usableTurn).map((turn) => turn.id),
+    batchSize: Number(flagValue('--batch', 12)) || 12,
+    pacingMs: Number(flagValue('--pacing', PACING_MS)) || PACING_MS,
+  });
+  console.log(
+    `${plan.captured}/${plan.total} captured, ${plan.remaining} left ` +
+      `(≈${plan.estimatedMinutes} min at ${Math.round(plan.pacingMs / 1000)} s/turn)`,
+  );
+  plan.batches.forEach((ids, index) => console.log(`  batch ${index + 1}: ${ids.join(',')}`));
+  if (!plan.remaining) console.log('nothing left — score it with no --plan flag');
+  process.exit(0);
+}
+
+const resultsDir = join(root, '.tmp', 'replay-results');
+
+if (process.argv.includes('--history')) {
+  const runs = readResults(resultsDir);
+  if (!runs.length) console.log('no stored replay results yet — score a capture with --save.');
+  for (const run of runs) {
+    console.log(
+      `${run.file.slice(0, 19).replace(/T/, ' ')}  v${run.promptVersion ?? '?'}  ` +
+        `recall ${run.recall?.hits ?? '?'}/${run.recall?.total ?? '?'}  turns ${run.turns ?? '?'}  ` +
+        `${run.green ? 'OK' : 'RED'}`,
+    );
+  }
+  process.exit(0);
+}
+
+const turns = mergeCaptures(
+  capturePaths
+    .filter((path) => existsSync(path))
+    .map((path) => JSON.parse(readFileSync(path, 'utf8'))),
+);
+const byId = new Map(turns.map((turn) => [turn.id, turn]));
 
 /** Question marks in a line, the same cheap rule the route uses. */
 const questionCount = (text) => (String(text || '').match(/\?/g) || []).length;
@@ -71,6 +140,29 @@ function checkCase(entry) {
   const close = body.close === true;
   const opener = openers[c?.scenario || ''] || '';
   const failures = [];
+  // A case with no capture is missing, not wrong. Counting it as a failure made a partial run
+  // (54 of 69 uncaptured after the 2026-11-16 quota wall) read as 0% recall.
+  const missing = entry.status === 0;
+  if (missing) {
+    return {
+      id: entry.id,
+      scenario: c?.scenario,
+      kind: c?.kind,
+      holdout: c?.holdout === true,
+      missing: true,
+      provider: '',
+      model: '',
+      attempts: null,
+      ms: null,
+      needsCorrection: c?.expect?.correct === true,
+      corrected: false,
+      failures: [],
+      reply: '',
+      understood: '',
+      hint: '',
+      fix: '',
+    };
+  }
 
   if (entry.status !== 200 || !reply) failures.push('no_reply');
   const marks = questionCount(reply);
@@ -127,6 +219,7 @@ function checkCase(entry) {
     scenario: c?.scenario,
     kind: c?.kind,
     holdout: c?.holdout === true,
+    missing: false,
     provider: body.provider || entry.provider || '',
     model: body.model || '',
     attempts: body.attempts ?? null,
@@ -147,23 +240,29 @@ const scored = cases.map((c) => {
 });
 
 const pct = (a, b) => (b === 0 ? 'n/a' : `${Math.round((a / b) * 100)}%`);
-const withErrors = scored.filter((r) => r.needsCorrection);
+const present = scored.filter((r) => !r.missing);
+const missingRows = scored.filter((r) => r.missing);
+const withErrors = present.filter((r) => r.needsCorrection);
 const recall = (rows) => {
   const total = rows.length;
   const hits = rows.filter((r) => r.corrected).length;
   return { hits, total, text: `${pct(hits, total)} (${hits}/${total})` };
 };
-const latencies = scored.map((r) => Number(r.ms)).filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
+const latencies = present.map((r) => Number(r.ms)).filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
 const quantile = (q) => (latencies.length ? latencies[Math.min(latencies.length - 1, Math.floor(q * latencies.length))] : null);
-const providers = scored.reduce((acc, r) => {
+const providers = present.reduce((acc, r) => {
   const key = `${r.provider || 'unknown'}/${r.model || '-'}`;
   acc[key] = (acc[key] || 0) + 1;
   return acc;
 }, {});
-const fallbacks = scored.filter((r) => /workers-ai/i.test(String(r.provider))).length;
-const errors = scored.filter((r) => r.failures.includes('no_reply')).length;
+const fallbacks = present.filter((r) => /workers-ai/i.test(String(r.provider))).length;
+const errors = present.filter((r) => r.failures.includes('no_reply')).length;
 
 for (const row of scored) {
+  if (row.missing) {
+    console.log(`  ${row.id.padEnd(4)} not captured`);
+    continue;
+  }
   console.log(
     `${row.holdout ? 'H' : ' '} ${row.id.padEnd(4)} ${String(row.ms).padStart(5)}ms ${(row.provider || '-').padEnd(11)} ${row.needsCorrection ? (row.corrected ? 'FIX' : 'MISS') : '  - '} ${row.failures.length ? 'FAIL:' + row.failures.join(',') : 'ok'}`,
   );
@@ -172,12 +271,12 @@ for (const row of scored) {
 const allRecall = recall(withErrors);
 const tuneRecall = recall(withErrors.filter((r) => !r.holdout));
 const holdRecall = recall(withErrors.filter((r) => r.holdout));
-const tuneFailures = scored.filter((r) => !r.holdout && r.failures.length);
-const holdFailures = scored.filter((r) => r.holdout && r.failures.length);
-const offTopic = scored.filter((r) => r.failures.includes('invented_fact')).length;
+const tuneFailures = present.filter((r) => !r.holdout && r.failures.length);
+const holdFailures = present.filter((r) => r.holdout && r.failures.length);
+const offTopic = present.filter((r) => r.failures.includes('invented_fact')).length;
 
 console.log('');
-console.log(`turns            ${scored.length} (held out ${scored.filter((r) => r.holdout).length})`);
+console.log(`turns            ${present.length} captured of ${scored.length} (held out ${present.filter((r) => r.holdout).length}, missing ${missingRows.length})`);
 if (onlyIds.length) console.log(`subset           ${onlyIds.join(',')} — gates below are indicative only`);
 console.log(`providers        ${JSON.stringify(providers)}  workers-ai fallback: ${fallbacks}`);
 console.log(`latency p50/p95  ${quantile(0.5)} / ${quantile(0.95)} ms`);
@@ -195,7 +294,7 @@ console.log(`check failures   tune ${tuneFailures.length}, holdout ${holdFailure
 // p95 under 3.5 s.
 // ---------------------------------------------------------------------------
 const groups = new Map();
-for (const row of scored) {
+for (const row of present) {
   const key = `${row.provider || 'unknown'}/${row.model || '-'}`;
   if (!groups.has(key)) groups.set(key, []);
   groups.get(key).push(row);
@@ -229,8 +328,28 @@ const gates = [
   ['zero invented facts on off-topic', offTopic === 0],
   ['p95 latency < 3500 ms', quantile(0.95) !== null && quantile(0.95) < 3500],
   ['zero error cards', errors === 0],
+  [`every case captured (${present.length}/${scored.length})`, missingRows.length === 0],
 ];
 for (const [name, ok] of gates) console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
 const green = gates.every(([, ok]) => ok);
-console.log(green ? 'REPLAY OK' : 'REPLAY RED');
-process.exit(green ? 0 : 1);
+// Exit 2 is "not finished", not "failed": a batch that hit a quota wall is resumable, and calling
+// it RED would teach the next run to ignore the report. 0 green, 1 red with a full denominator.
+const incomplete = missingRows.length > 0;
+console.log(incomplete ? `REPLAY INCOMPLETE — ${missingRows.length} case(s) uncaptured, \`--plan\` shows what is left` : green ? 'REPLAY OK' : 'REPLAY RED');
+
+// `--save` keeps the numbers: the next run compares against them instead of quoting a memory.
+if (process.argv.includes('--save')) {
+  const path = recordResult(resultsDir, {
+    promptVersion: ROLEPLAY_PROMPT_VERSION,
+    captures: capturePaths.map((path) => path.replace(`${root}\\`, '').replace(/\\/g, '/')),
+    turns: present.length,
+    missing: missingRows.length,
+    recall: { hits: allRecall.hits, total: allRecall.total, tune: tuneRecall, holdout: holdRecall },
+    p95Ms: quantile(0.95),
+    errors,
+    inventedFacts: offTopic,
+    green,
+  });
+  console.log(`saved ${path.replace(`${root}\\`, '').replace(/\\/g, '/')} — \`--history\` lists the trend.`);
+}
+process.exit(incomplete ? 2 : green ? 0 : 1);

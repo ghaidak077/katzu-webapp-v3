@@ -5,7 +5,7 @@
 2. Each file: review.status="approved", a review file under `docs/content/`, a passing `audit-curriculum.mjs` and a passing `load-curriculum.mjs --dry-run`.
 3. Read-only collision check on production D1 (`wrangler d1 execute <db> --remote --command "SELECT id FROM <table> WHERE id IN (...)"`): every scenario, vocab, phrase and grammar id in the file must be ABSENT. Any collision → STOP, list in OWNER-OPEN.
 4. `ADMIN_SECRET` reports "set", checked **only** with `[ -n "$ADMIN_SECRET" ] && echo set`. The agent must never print, echo, log, store, commit, or pass the value in a command line or argument. To look for a leaked value, grep the loader log for `Bearer`/`Authorization` — never for the value itself.
-5. *(Added in V11 after a real stall — "set" is not a credential check.)* The value must be the credential the worker actually accepts. V11's first load attempt passed `[ -n ]` and then died on `HTTP 401 unauthorized`, because the variable held the 64-hex secret wrapped in literal **angle brackets** (66 chars; chars 2–65 clean hex). Before loading, check the *shape* without printing it: `printf 'length=%s\n' "${#ADMIN_SECRET}"`, `[[ $ADMIN_SECRET =~ ^[0-9a-f]{64}$ ]]`, and the code points of the first and last characters (`printf '%d' "'${ADMIN_SECRET:0:1}"`). A wrapper character, a length other than the expected one, or any `401` from the loader means **stop** and report the shape (never the value) — an agent must not re-encode, trim or re-derive a secret to make the loader work; that is an owner-side environment fix.
+5. *(Added in V11 after a real stall — "set" is not a credential check.)* The value must be the credential the worker actually accepts. V11's first load attempt passed `[ -n ]` and then died on `HTTP 401 unauthorized`, because the variable held the 64-hex secret wrapped in literal **angle brackets** (66 chars; chars 2–65 clean hex). Before loading, check the *shape* without printing it: `printf 'length=%s\n' "${#ADMIN_SECRET}"`, `[[ $ADMIN_SECRET =~ ^[0-9a-f]{64}$ ]]`, and the code points of the first and last characters (`printf '%d' "'${ADMIN_SECRET:0:1}"`). A wrapper character, a length other than the expected one, or any `401` from the loader means **stop** and report the shape (never the value) — an agent must not re-encode, trim or re-derive a secret to make the loader work; that is an owner-side environment fix. The rotation steps, with the command that proves each one landed, are in `docs/agent/SECRET-ROTATION.md`.
 
 ## Backup
 `wrangler d1 export <db> --remote --output $TMP/pre-load.sql`. Record the path and size in the ledger. Never commit it.
@@ -39,7 +39,12 @@ draft, an audit row, a dated backup and an undo per row.
 node scripts/load-content-updates.mjs                      # dry run: lists every field before → after, writes nothing
 node scripts/load-content-updates.mjs --commit             # drafts → publish-all → verify → manifest in backups/content-load-<stamp>/
 node scripts/load-content-updates.mjs --undo=backups/content-load-<stamp>/manifest.json
+node scripts/load-content-updates.mjs --offline            # reads ONLY the catalogue: no secret, no network, no writes
 ```
+
+`--offline` prints what a commit would author (persona, category, icon, the five German/Arabic
+opener pairs) and fails on an incomplete row, so the catalogue is reviewable before any
+credential exists. Exit 0 = all five openers present on every row; 1 = a row would be refused.
 
 Rules it enforces itself (all covered by `tests/loadContentUpdates.test.ts`):
 

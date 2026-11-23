@@ -11,6 +11,7 @@ import {
   unitForScenario,
 } from '@/lib/units/units';
 import {
+  UNTITLED_SCENE_AR,
   buildUnitProgress,
   composeSession,
   recommendScenario,
@@ -181,6 +182,19 @@ describe('today’s session is composed, not browsed', () => {
     const plan = composeSession({ level: 'A1', evidence: evidence(), dueReviewCount: 0 });
     expect(plan.steps.every((step) => step.kind !== 'review')).toBe(true);
     expect(plan.steps.filter((step) => step.kind === 'scenario').length).toBeLessThanOrEqual(2);
+  });
+
+  it('never puts a raw scenario id on the button when the catalogue has no title', () => {
+    // Measured on the 2026-11-19 visual walk: the primary action read
+    // «دراسة · first_greetings» because the mock catalogue lacked that row and
+    // `composeSession` fell back to the id. An id is not a title.
+    const plan = composeSession({ level: 'A1', evidence: evidence(), dueReviewCount: 0 });
+    const scenarioSteps = plan.steps.filter((step) => step.kind === 'scenario');
+    expect(scenarioSteps.length).toBeGreaterThan(0);
+    for (const step of scenarioSteps) {
+      expect(step.titleAr).not.toMatch(/^[a-z0-9_]+$/);
+      expect(step.titleAr).toBe(UNTITLED_SCENE_AR);
+    }
   });
 });
 

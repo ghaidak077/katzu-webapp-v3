@@ -1,4 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -242,5 +245,50 @@ describe('verification and undo compare against the manifest', () => {
     expect(untouchedProblems([liveRow()], [liveRow(), liveRow({ id: 'new_scene' })], ['first_greetings'])).toEqual([
       'new_scene: appeared in the live table',
     ]);
+  });
+});
+
+describe('--offline review', () => {
+  const repoRoot = fileURLToPath(new URL('..', import.meta.url));
+  const script = join(repoRoot, 'scripts', 'load-content-updates.mjs');
+  // No ADMIN_SECRET, on purpose: the review must work on a machine that has no
+  // credential. This was the wall the 12 new scenes hit for days.
+  const env = { ...process.env };
+  delete env.ADMIN_SECRET;
+
+  it('renders the catalogue with no secret and no network', () => {
+    const run = spawnSync(process.execPath, [script, '--offline'], { cwd: repoRoot, env, encoding: 'utf8' });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.stdout).toContain('Catalogue complete');
+    expect(run.stdout).toContain('first_greetings');
+    expect(run.stderr).not.toContain('ADMIN_SECRET');
+  });
+
+  it('still refuses an incomplete catalogue, and writes nothing', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'katzu-offline-'));
+    const broken = {
+      version: 2,
+      scenarios: [
+        {
+          id: 'first_greetings',
+          title_de: 'Erste Worte',
+          title_ar: 'أول الكلمات',
+          ai_persona: 'Nachbarin katze',
+          category: 'daily_life',
+          icon: 'users',
+          openers: { a0: ['Hallo!', 'أهلاً!'], a1: ['Hallo!', 'أهلاً!'] },
+        },
+      ],
+    };
+    const file = join(dir, 'catalogue.json');
+    writeFileSync(file, JSON.stringify(broken));
+    const run = spawnSync(process.execPath, [script, '--offline', `--catalogue=${file}`], {
+      cwd: repoRoot,
+      env,
+      encoding: 'utf8',
+    });
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain('catalogue problem(s)');
+    expect(run.stdout).not.toContain('Catalogue complete');
   });
 });

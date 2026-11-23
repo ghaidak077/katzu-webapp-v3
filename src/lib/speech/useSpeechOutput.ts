@@ -24,7 +24,7 @@ let voicesDiscovered = false;
  * is not the learner's problem to solve.
  */
 export const NO_GERMAN_VOICE_MESSAGE_AR =
-  'جهازك لا يحتوي على صوت ألماني للنطق — النصوص والتصحيح يعملان كما هما. يمكنك إضافة صوت ألماني من إعدادات الجهاز إن أردت السمع.';
+  'النطق غير متاح على هذا الجهاز — التصحيح يعمل.';
 
 /**
  * The device's own German voice when it has one, otherwise the best available.

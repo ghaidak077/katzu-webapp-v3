@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { captureSourceFromSearch, readShareMarkerFromSearch } from '@/lib/attribution/source';
 import { track } from '@/lib/analytics/client';
 import { RouteFallback } from '@/components/common/RouteFallback';
+import { LanguageProvider } from '@/lib/i18n/LanguageProvider';
 
 /**
  * The entry. The marketing landing lives on its own site (website.katzuai.com),
@@ -33,7 +34,12 @@ const AppShell = React.lazy(() =>
 export function App() {
   return (
     <BrowserRouter>
-      <AppFrame />
+      {/* The language matrix sits above the frame, so the shell's loading gate,
+          the landing and every screen read the same answer. It is DB-free on
+          purpose: the entry bundle must not wait on Dexie (decision A7). */}
+      <LanguageProvider>
+        <AppFrame />
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

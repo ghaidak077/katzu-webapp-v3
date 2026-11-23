@@ -344,6 +344,33 @@ export function arabicAddressesLearnerAsFeminine(text) {
   return FEMININE_LEARNER_ADDRESS.test(String(text || ""));
 }
 
+/**
+ * The guard reason, reduced to a fixed vocabulary that is safe to publish in a
+ * 502 body and to store in `ai_events.guard`. Provider errors carry arbitrary
+ * text (URLs, upstream messages) and never leave the isolate, so they collapse
+ * to `provider`; an unknown reason collapses to "" rather than being copied.
+ * Without this, a guard that over-triggers is invisible: the learner sees
+ * "retry", and nobody can count how often the rule fired.
+ */
+const TELEMETRY_GUARD_REASONS = new Set([
+  "repeated_line",
+  "too_many_questions",
+  "question_on_close",
+  "farewell_before_learner",
+  "register_switch",
+  "arabic_learner_gender",
+  "capacity",
+]);
+
+export function telemetryGuardReason(reason) {
+  const text = String(reason || "");
+  if (TELEMETRY_GUARD_REASONS.has(text)) return text;
+  if (text.startsWith("meta:")) return "meta_phrase";
+  if (text === "shape") return "shape";
+  if (text.startsWith("provider:")) return "provider";
+  return "";
+}
+
 /** The cheap checks the route runs before any reply reaches the learner. */
 export function checkRoleplayReply(turn, { lastPersonaLines = [], register = "sie", learnerText = "" } = {}) {
   const german = String(turn?.reply_de || "");
@@ -396,6 +423,32 @@ export function personaLinesFromHistory(history, limit = 3) {
  * turns a failure into a 502 so the learner keeps their sentence and can retry;
  * no authored line is ever substituted for the model's.
  */
+/**
+ * What the second attempt is told when the first one is unusable.
+ *
+ * One line per failure the guard can name, phrased as a correction the model can
+ * act on. An unknown or provider-level failure returns "" — the prompt is then
+ * resent unchanged, because nothing about the answer was wrong.
+ */
+const REPAIR_LINES = {
+  shape: "Your previous answer was not the required JSON object. Reply with exactly one JSON object: reply_de, reply_ar, hint_de, hint_ar.",
+  repeated_line: "Your previous answer repeated a line from earlier in this conversation. Say something new that moves the scene forward.",
+  too_many_questions: "Your previous answer asked more than one question. Ask at most one.",
+  question_on_close: "Your previous answer closed the scene but still asked a question. A closing reply asks nothing.",
+  farewell_before_learner: "Your previous answer said goodbye before the learner did. Stay in the scene.",
+  register_switch: "Your previous answer changed between du and sie. Keep the register this conversation started with.",
+  arabic_learner_gender: "Your previous Arabic addressed the learner with a gendered form. Address the learner without it.",
+};
+
+export function repairInstruction(reason) {
+  const key = String(reason || "");
+  if (REPAIR_LINES[key]) return `CORRECTION FOR THIS ATTEMPT:\n${REPAIR_LINES[key]}`;
+  if (key.startsWith("meta:")) {
+    return "CORRECTION FOR THIS ATTEMPT:\nYour previous answer mentioned being an AI or a model. Stay in the scene and answer as the person you play.";
+  }
+  return "";
+}
+
 export async function runRoleplayTurn({
   env,
   plan,
@@ -407,19 +460,26 @@ export async function runRoleplayTurn({
   preferModel = "",
 }) {
   const done = sanitizeObjectivesDone(plan, objectivesDone);
-  const systemInstruction = buildRoleplaySystemInstruction({ plan, level, objectivesDone: done });
-  // Gemini-shaped, because every provider in the pool is fed through that shape:
-  // the router converts `systemInstruction.parts` for OpenAI-compatible entries.
-  const payload = {
-    systemInstruction: { parts: [{ text: systemInstruction }] },
-    contents: buildRoleplayContents({ history, learnerText }),
-    generationConfig: roleplayGenerationConfig(),
-  };
+  const baseInstruction = buildRoleplaySystemInstruction({ plan, level, objectivesDone: done });
   const lastPersonaLines = personaLinesFromHistory(history);
   const register = plan?.register === "du" ? "du" : "sie";
   let reason = "";
   let raw = "";
+  let systemInstruction = baseInstruction;
+  let payload = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    // The second attempt is a REPAIR, not a re-roll: it tells the model exactly
+    // what made the first answer unusable. Re-rolling the identical prompt spent
+    // the retry on the same defect and looked like "the AI is flaky".
+    const repair = attempt === 0 ? "" : repairInstruction(reason);
+    systemInstruction = repair ? `${baseInstruction}\n\n${repair}` : baseInstruction;
+    // Gemini-shaped, because every provider in the pool is fed through that shape:
+    // the router converts `systemInstruction.parts` for OpenAI-compatible entries.
+    payload = {
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      contents: buildRoleplayContents({ history, learnerText }),
+      generationConfig: roleplayGenerationConfig(),
+    };
     try {
       raw = await callAiRouter(payload, env, {
         preferFast: true,

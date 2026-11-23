@@ -35,8 +35,13 @@
  *
  * Usage:
  *   node scripts/load-content-updates.mjs [--url=...] [--catalogue=...] [--verbose]
+ *   node scripts/load-content-updates.mjs --offline [--verbose]   (no secret, no network)
  *   node scripts/load-content-updates.mjs --commit --url=... [--out=backups/<dir>]
  *   node scripts/load-content-updates.mjs --undo=backups/content-load-.../manifest.json
+ *
+ * `--offline` reads only the catalogue and prints what a commit would author, so
+ * the catalogue's completeness (five openers per row) is reviewable without an
+ * `ADMIN_SECRET` and without touching the worker.
  *
  * `ADMIN_SECRET` is read from the process environment only. It is never printed,
  * echoed, written or passed as an argument. The dry run also uses it, because the
@@ -66,6 +71,12 @@ import {
   untouchedProblems,
   buildManifest,
 } from './lib/content-updates.mjs';
+import {
+  RunError,
+  fail,
+  describeValue,
+  offlineReport,
+} from './lib/content-offline-report.mjs';
 
 // The pure helpers live in scripts/lib so each file stays inside the 500-line
 // script budget. Re-exported here because tests and callers know this path.
@@ -85,6 +96,10 @@ export {
   manifestMismatches,
   untouchedProblems,
   buildManifest,
+  RunError,
+  fail,
+  describeValue,
+  offlineReport,
 };
 
 const DEFAULT_CATALOGUE = 'docs/content/catalogue/scenarios-catalogue.json';
@@ -93,24 +108,6 @@ const DEFAULT_WORKER_URL = 'https://katzu-test.ghaidakalosh008.workers.dev';
 // ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
-
-class RunError extends Error {}
-
-/**
- * Thrown, never `process.exit()`: on this host an immediate exit right after a
- * write to a piped stdout aborts with `0xC0000409`, which masks the real status
- * and reports a completed load as a crash. `main()` returns a status instead and
- * the entry point below sets `process.exitCode`, letting Node flush the pipes.
- */
-function fail(message) {
-  throw new RunError(message);
-}
-
-function describeValue(value) {
-  if (value === null || value === undefined || value === '') return '(empty)';
-  const text = String(value);
-  return text.length > 72 ? `${text.slice(0, 69)}…` : text;
-}
 
 async function main() {
   const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -130,6 +127,9 @@ async function main() {
   const isLocal = /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/.test(BASE);
 
   const secret = process.env.ADMIN_SECRET;
+  // `--offline` is answered before the secret is required: reviewing the
+  // catalogue must not depend on a credential the reviewer may not hold.
+  if (args.includes('--offline')) return offlineReport({ repoRoot, catalogueFile, verbose });
   if (!secret) {
     console.error('ADMIN_SECRET is not set. Add it to the environment and retry; it is never printed.');
     return 2;

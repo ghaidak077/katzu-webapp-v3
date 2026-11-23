@@ -130,7 +130,7 @@ command below stops existing, so this index cannot rot silently.
 | Secret scan | `npm run scan:secrets` | the same patterns CI runs |
 | Build / serve the bundle locally | `npm run build` · `npm run preview` | `dist/` |
 | Shipped language data (openers, glossary) | `node scripts/build-language-data.mjs --offline` | corpus → the two `*.generated.ts`; fails on a missing gloss; `--offline` stops overwriting the snapshot |
-| Rebuild the marketing site | `node scripts/build-website.mjs` | writes `website/` (pages, guides, `404.html`, `robots.txt`, `sitemap.xml`, `llms.txt`, IndexNow key, `_redirects`, `ref.js`/`ai-ref.js`, `md/` twins) from `scripts/site-content.mjs`, `scripts/site-content-affiliate.mjs`, `scripts/site-pricing.mjs`, `scripts/site-files.mjs`, `scripts/site-markdown.mjs`, `scripts/site-seo.mjs`, `scripts/site-schema.mjs`, `scripts/site-referrer.mjs`, `scripts/seo-agents.mjs`, `scripts/guides/*`, `src/lib/trust/content.ts`; prunes stale files |
+| Rebuild the marketing site | `node scripts/build-website.mjs` | writes `website/` (pages, guides, sitemap, robots, `llms.txt`, `_redirects`, `md/` twins) from `scripts/site-content.mjs`, `scripts/site-content-affiliate.mjs`, `scripts/site-files.mjs`, `scripts/site-markdown.mjs`, `scripts/site-pricing.mjs`, `scripts/site-referrer.mjs`, `scripts/site-schema.mjs`, `scripts/site-seo.mjs`, `scripts/seo-agents.mjs`, `scripts/guides/*`, `src/lib/trust/content.ts`; prunes stale files |
 | Submit the site's URLs to IndexNow (Bing, Yandex, Seznam, Naver) | `npm run seo:indexnow` (`-- --dry-run` prints them) | POSTs the sitemap's 17 URLs; manual, not a deploy hook, and the key file must already be live at the site root |
 | Curriculum audit on a module file | `node scripts/audit-curriculum.mjs --file=docs/content/<module>.json` | dry run, no writes |
 | Load curriculum into D1 | `node scripts/load-curriculum.mjs --file=… --commit` | **only** with `CONTENT-LOAD-AUTHORIZED` (AGENTS §3) |
@@ -139,6 +139,8 @@ command below stops existing, so this index cannot rot silently.
 | What the deployed content tables have | `migrations/0001_content_tables.sql` §1–3 · then `node scripts/load-curriculum.mjs --file=… --dry-run` | §1 is production verbatim; §2 the gap; §3 the pending `ALTER TABLE`s; the loader refuses a draft that needs a missing column (V12-2) |
 | Archive ledger history | `npm run ledger:archive` | moves finished rows and closed items out; never deletes; keeps the ledger under 80 KB |
 | Live worker health (read-only) | `curl -s -m 10 https://katzu-test.ghaidakalosh008.workers.dev/health` | no auth needed |
+| Is the committed prompt live? | `npm run check:drift` | `/health` `roleplay_prompt_version` vs `ROLEPLAY_PROMPT_VERSION`; 1 = committed-not-live (or tree behind), 2 = unreachable |
+| The one-screen deploy packet | `npm run check:drift -- --plan` | target, the rollback version id, the probes, the rollback command; reads only |
 | **The whole pre-report gate** | `npm run verify` | profiles: default (types + unit + design/contrast + syntax) · `--fast` (pre-commit, ~8 s) · `--ci` (adds build + content + dependency audits) · `--e2e` (browser suite vs `vite preview`); prints what it did **not** run |
 | What the gate costs (no flags to remember) | `npm run verify:ci` | the `--ci` profile as its own script; the same command CI runs, for a local reproduction of a CI red |
 | What each gate run cost | `npm run cost:report` | reads the gitignored `.verify-runs.ndjson` from `npm run verify -- --cost` (pre-push): seconds per step + median. Wall-clock, **not** tokens (§A) |
@@ -204,7 +206,7 @@ command below stops existing, so this index cannot rot silently.
 | `wrangler whoami` | FACT logged in via **OAuth Token**, email `ghaidakalosh008@gmail.com`, account `00df3d915626e0a681f4fef98c1c587c`; token scopes include `workers (write)`, `workers_kv (write)`, `workers_scripts (write)` → **this machine can deploy**. Credentials stored at `%APPDATA%/xdg.config/.wrangler/config/default.toml`. |
 | Git remote | FACT `origin` = `https://github.com/ghaidak077/katzu-webapp-v3.git`; `git ls-remote --heads origin` exit 0 |
 | Push permitted? | FACT yes: `git push --dry-run origin launch-hardening` → `22fe6aa..a74014a launch-hardening -> launch-hardening`, exit 0. (Nothing was pushed.) |
-| Live `/health` body | FACT returns `{status,service,ready,maintenance,storage:{d1,kv}}` — the stored-key details are still absent. The pre-hardening disclosure (`aiPool.entries:9`, `tiers`, `active` provider/model names, `strategy`, `cachedTranslationsCount`) is gone. **Re-verified 2026-10-19 after deploy `66bd8b92-…` (V42)**: the `storage` object (`d1:"ok"`, `kv:"ok"`) ships since `9c07b44` (2026-10-16 launch-metrics commit, first deployed 2026-10-19) — health booleans only; `/crypto/health` unchanged (`ready:false`, `environment:test_mode`). |
+| Live `/health` body | `{status,service,ready,maintenance,storage:{d1,kv}}` — no key details, no pool size, no model names. `storage` ships since `9c07b44`; re-verified 2026-10-19 after deploy `66bd8b92-…`. `/crypto/health` unchanged (`ready:false`, `environment:test_mode`). |
 | `wrangler d1 execute … --remote` (read-only SELECT) | FACT works; used for the counts in §F/content state. |
 
 ---

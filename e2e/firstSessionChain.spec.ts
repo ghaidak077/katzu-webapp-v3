@@ -141,7 +141,7 @@ test('a learner with no goal recorded still gets a mission and an honest sheet',
 
   // The hero is a real mission, not an empty card: one enabled primary action.
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
-  const primary = page.getByRole('button', { name: /ابدأ|أكمل/ }).first();
+  const primary = page.getByRole('button', { name: /تابع التعلّم|ابدأ|أكمل/ }).first();
   await expect(primary).toBeEnabled();
 
   // The sheet says something true with no goal to name — and on day 0 it does
@@ -192,7 +192,7 @@ test('quitting after guided practice resumes on the home hero', async ({ page })
   });
   await page.reload();
 
-  await expect(page.getByRole('button', { name: 'أكمل من حيث توقفت' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: /تابع التعلّم|أكمل من حيث توقفت/ })).toBeVisible({ timeout: 30_000 });
 });
 
 test('a finished conversation is not offered again as “continue”', async ({ page }) => {

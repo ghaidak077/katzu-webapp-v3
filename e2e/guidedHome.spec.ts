@@ -16,7 +16,7 @@ import { bootSignedIn, seedRows } from './harness';
  * The one primary action, whatever today's mission is (same shape as
  * `e2e/journey.spec.ts`, which owns the wording).
  */
-const PRIMARY_ACTION = /ابدأ مهمة اليوم|ابدأ من لحظة الوصول|أكمل من حيث توقفت|ابدأ مشهداً جديداً|ابدأ تدريب|راجع \d+ الآن/;
+const PRIMARY_ACTION = /تابع التعلّم|ابدأ مهمة اليوم|ابدأ من لحظة الوصول|أكمل من حيث توقفت|ابدأ مشهداً جديداً|ابدأ تدريب|راجع \d+ الآن/;
 
 /** One completed session — enough for the weekly recap and for `firstSessionDone`. */
 function aSession(): Record<string, unknown> {

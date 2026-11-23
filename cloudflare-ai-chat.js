@@ -30,6 +30,7 @@ import {
 import {
   runRoleplayTurn,
   ROLEPLAY_PROMPT_VERSION,
+  telemetryGuardReason,
 } from "./cloudflare-roleplay.js";
 import { planForScenario } from "./cloudflare-roleplay-plans.js";
 import { isEasyTurn, PROVIDER_POOL, estimateTurnCostUsd } from "./cloudflare-ai-router.js";
@@ -70,6 +71,88 @@ export async function translateCacheKey(text, targetLang = "ar") {
  * is to build the real prompt instead of a description of it. The handler owns
  * the request; this function owns the words.
  */
+/**
+ * The languages one turn can involve. Two independent axes, exactly like the
+ * client's matrix (`src/lib/i18n/languages.ts`):
+ *
+ *   target — the language being practised (the persona's own language).
+ *   native — the language the correction, gloss and hint are explained in.
+ *
+ * `shipped` is the production gate, and it is deliberately separate from the
+ * table itself: Dutch is DEFINED here (so the prompt path, the checks and the
+ * tests can be developed against it) but not SERVED, because the Dutch course
+ * content does not exist yet. A request that asks for an unshipped target is
+ * resolved back to German rather than answered with a Dutch persona over German
+ * scenarios — a learner must never be taught the wrong language by accident.
+ * Flipping Dutch on is: author its content, then set `shipped: true` here and
+ * `available: true` in the client table, in one commit.
+ */
+export const TURN_TARGET_LANGUAGES = {
+  de: { code: "de", name: "German", shipped: true },
+  nl: { code: "nl", name: "Dutch", shipped: false },
+};
+
+/**
+ * The language the app talks TO the learner in. Arabic is the product's first
+ * language; English and Indonesian are peers (owner direction 2026-11-22).
+ *
+ * `example` is the illustration sentence inside the `grammar_rule` rule, and
+ * `chipNote` is the one-line instruction that keeps a model from answering a
+ * label in the wrong language — both are prose, so they live in the table rather
+ * than in a template that would have to be string-spliced per language.
+ */
+export const TURN_NATIVE_LANGUAGES = {
+  ar: {
+    code: "ar",
+    name: "Modern Standard Arabic",
+    adjective: "Arabic",
+    coach: "Arabic-speaking",
+    uppercase: "ARABIC",
+    example: ' (e.g. "ترتيب الكلمات: الفعل في الموضع الثاني")',
+    chipNote: "Never English — it is shown to an Arabic speaker as a chip, not explained.",
+    greetingRule:
+      " Never translate secular German greetings as السلام عليكم.",
+  },
+  en: {
+    code: "en",
+    name: "English",
+    adjective: "English",
+    coach: "English-speaking",
+    uppercase: "ENGLISH",
+    example: ' (e.g. "Word order: the verb goes second")',
+    chipNote: "Never Arabic — it is shown to an English-speaking learner as a chip, not explained.",
+    greetingRule: "",
+  },
+  id: {
+    code: "id",
+    name: "Indonesian",
+    adjective: "Indonesian",
+    coach: "Indonesian-speaking",
+    uppercase: "INDONESIAN",
+    example: ' (e.g. "Urutan kata: kata kerja di posisi kedua")',
+    chipNote:
+      "Never Arabic or English — it is shown to an Indonesian-speaking learner as a chip, not explained.",
+    greetingRule: "",
+  },
+};
+
+/**
+ * Resolves a request's language pair against the two tables. Total: anything
+ * unknown, misspelled or unshipped resolves to the pair the app shipped with
+ * (German course, Arabic explanations), so a hand-written request cannot put the
+ * model into a language the product has no content for.
+ */
+export function resolveTurnLanguages(body) {
+  const rawTarget = body && typeof body.target_lang === "string" ? body.target_lang.trim().toLowerCase() : "";
+  const target = TURN_TARGET_LANGUAGES[rawTarget];
+  const rawNative = body && typeof body.native_lang === "string" ? body.native_lang.trim().toLowerCase() : "";
+  const native = TURN_NATIVE_LANGUAGES[rawNative];
+  return {
+    targetLang: target && target.shipped ? target.code : "de",
+    nativeLang: native ? native.code : "ar",
+  };
+}
+
 export function buildTurnSystemInstruction({
   level,
   scenarioTitle,
@@ -86,7 +169,15 @@ export function buildTurnSystemInstruction({
   levelConstraint = "",
   correctionBudget = 1,
   mockExamInstruction = "",
+  // Both default to the shipped pair, so every existing caller and every test
+  // that builds a German/Arabic prompt gets byte-identical text.
+  targetLang = "de",
+  nativeLang = "ar",
 }) {
+  const T = TURN_TARGET_LANGUAGES[targetLang] || TURN_TARGET_LANGUAGES.de;
+  const N = TURN_NATIVE_LANGUAGES[nativeLang] || TURN_NATIVE_LANGUAGES.ar;
+  const targetName = T.name;
+  const nativeName = N.name;
   const wrapUpInstruction = isFinalTurn
     ? "This is the final exchange. Give a warm realistic farewell and do not ask a new question."
     : `Continue naturally at CEFR level ${level}.`;
@@ -126,34 +217,34 @@ export function buildTurnSystemInstruction({
   const grammarContextInstruction = grammarReference
     ? `GUIDED PRACTICE RULE — the learner just saw this real grammar row: ${JSON.stringify(grammarReference)}. If the current correction directly teaches this same rule, set evaluation.grammar_id to exactly ${JSON.stringify(grammarReference.id)}; otherwise leave it empty. Never invent another ID.`
     : "";
-  const roleplayInstruction = `You are the in-character native German roleplay counterpart in '${scenarioTitle || scenarioId}'.
+  const roleplayInstruction = `You are the in-character native ${targetName} roleplay counterpart in '${scenarioTitle || scenarioId}'.
 Persona: ${persona || "friendly conversational partner"}. Target learner CEFR level: ${level}.
 ${levelConstraint}
 ${wrapUpInstruction}
 CONVERSATION RULES:
 - The learner's LAST message is the one you are answering. Answer THAT, not an earlier line, and never restate their sentence back as your reply.
 - react to what the learner ACTUALLY just said — answer their question, comment on their statement, build on it. Never reply with a generic pleasance.
-- Keep reply_de to 1-2 short sentences that feel like real spoken German.
+- Keep reply_de to 1-2 short sentences that feel like real spoken ${targetName}.
 - END WITH ONE QUESTION: at A0–A2 every reply_de must finish with exactly ONE short question the learner can answer using words this conversation has already introduced. Ask it about the scene's own goal (name, drink, luggage, appointment, price) — never about a new topic, and never two questions in one turn. If the learner introduced a topic, follow that topic; do not invent cats, pets or hobbies they did not mention. On the final exchange, give the farewell and no question.
 ${brevity}
 Return:
-- reply_de: your natural German reply, in character, at CEFR level ${level}. Plain sentence only — never prefix it with field labels.
-- reply_ar: its accurate, idiomatic Modern Standard Arabic translation. Never translate secular German greetings as السلام عليكم.
-- next_hint: ONE short German sentence (with its Arabic translation_ar) that the LEARNER could realistically say next in this conversation at their level — a suggestion, not your own line.
+- reply_de: your natural ${targetName} reply, in character, at CEFR level ${level}. Plain sentence only — never prefix it with field labels.
+- reply_ar: its accurate, idiomatic ${nativeName} translation.${N.greetingRule.replace("German greetings", `${targetName} greetings`)}
+- next_hint: ONE short ${targetName} sentence (with its ${nativeName} translation_ar) that the LEARNER could realistically say next in this conversation at their level — a suggestion, not your own line.
 - Do not add a separate follow-up question: the reply's own closing question already carries the conversation forward.
 Respond strictly as JSON with keys: reply_de, reply_ar, next_hint { german, translation_ar }`;
-  const evaluationInstruction = `You are Katzu, a witty, warm Arabic-speaking German grammar coach who roasts German grammar (not the learner).
-Evaluate ONLY the learner's latest German sentence against CEFR level ${level}. Do not use conversation history, scenario context, or the roleplay persona.
-Sarcasm level for roast_comment (1-5, default 2): ${Math.min(5, Math.max(1, Number(sarcasmLevel) || 2))}. 1 = gentle, 3 = playfully sarcastic, 5 = maximum sass about how absurd German grammar is — never mocking the learner.
-roast_comment must be in Arabic targeting German grammar absurdity (articles, cases, word order), staying encouraging.
+  const evaluationInstruction = `You are Katzu, a witty, warm ${N.coach} ${targetName} grammar coach who roasts ${targetName} grammar (not the learner).
+Evaluate ONLY the learner's latest ${targetName} sentence against CEFR level ${level}. Do not use conversation history, scenario context, or the roleplay persona.
+Sarcasm level for roast_comment (1-5, default 2): ${Math.min(5, Math.max(1, Number(sarcasmLevel) || 2))}. 1 = gentle, 3 = playfully sarcastic, 5 = maximum sass about how absurd ${targetName} grammar is — never mocking the learner.
+roast_comment must be in ${nativeName} targeting ${targetName} grammar absurdity (articles, cases, word order), staying encouraging.
 FIELD RULES — the learner reads these, so they have to be short and in the right language:
 - is_correct: true only when the sentence is grammatically correct at ${level}. A wrong article, case, ending or word order makes it false.
 - Correct at most ${correctionBudget} mistake${correctionBudget === 1 ? "" : "s"} this turn — the most important first; leave the rest for later turns.
 - corrected_german / original_mistake: the broken PART of the sentence only, not the whole sentence, and only when is_correct is false. Leave both empty when the sentence is correct.
-- grammar_rule: a SHORT ARABIC label of 3-7 words naming the rule (e.g. "ترتيب الكلمات: الفعل في الموضع الثاني"). Never English — it is shown to an Arabic speaker as a chip, not explained.
-- explanation_ar: one or two short Arabic sentences explaining the fix.
-- roast_comment: one playful Arabic line about German grammar; empty when is_correct is true.
-- positive_note_ar: one short encouraging Arabic line, ONLY when is_correct is true; leave it empty when is_correct is false (a wrong sentence gets the neutral correction note, never praise).
+- grammar_rule: a SHORT ${N.uppercase} label of 3-7 words naming the rule${N.example}. ${N.chipNote}
+- explanation_ar: one or two short ${N.adjective} sentences explaining the fix.
+- roast_comment: one playful ${N.adjective} line about ${targetName} grammar; empty when is_correct is true.
+- positive_note_ar: one short encouraging ${N.adjective} line, ONLY when is_correct is true; leave it empty when is_correct is false (a wrong sentence gets the neutral correction note, never praise).
 ${brevity}
 Keep the whole JSON under ~350 tokens: the learner is waiting, and a longer answer risks being cut off mid-sentence.`;
 
@@ -419,6 +510,9 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
         {
           error: "ai_capacity_exhausted",
           code: "AI_CAPACITY_EXHAUSTED",
+          // `guard` is telemetry vocabulary, not learner copy: it lets the weekly
+          // report count capacity stops without parsing a provider message.
+          guard: "capacity",
           message: "الخدمة وصلت حدّها اليومي. جرّب لاحقاً",
           meta: { provider: null, model: null, attempts: outcome.attempts, ms: Date.now() - turnStartedAt },
         },
@@ -430,9 +524,13 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
       // No template line stands in for a real reply: the client keeps the
       // learner's sentence and offers «أعد المحاولة» instead.
       console.error("[ai/turn] roleplay unusable after", outcome.attempts, "attempts:", outcome.reason, "| raw:", String(outcome.raw).slice(0, 160));
+      // A fixed-vocabulary reason, so a guard that over-triggers is countable
+      // (`ai_events.guard`) instead of looking like "the AI got slower".
+      const guard = telemetryGuardReason(outcome.reason);
       return json({
         error: "ai_empty_reply",
         code: "AI_EMPTY_REPLY",
+        ...(guard ? { guard } : {}),
         message: "تعذر توليد رد واضح. جملتك محفوظة — أعد المحاولة.",
       }, 502, cors);
     }
@@ -522,7 +620,11 @@ export async function handleChatTurnRoute(request, env, cors, deps) {
   // context this turn carries. V28 Stage 1 adds the scenario's deterministic beats
   // (server-resolved from its starter phrases, never client-supplied) before the
   // rotating obstacle, which must stay last for the provider prefix cache.
+  // The learner's pair, resolved against the shipped tables (unknown → ar/de).
+  const turnLanguages = resolveTurnLanguages(body);
   const systemInstruction = buildTurnSystemInstruction({
+    targetLang: turnLanguages.targetLang,
+    nativeLang: turnLanguages.nativeLang,
     level,
     scenarioTitle: inMockExam ? MOCK_EXAM_SCENARIO_TITLE : scenario_title,
     scenarioId: scenario_id,

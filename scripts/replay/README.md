@@ -36,6 +36,38 @@ that is already signed in — the token is read from IndexedDB and never printed
 The runner is deliberately not a committed script: it needs a real account and a
 real browser, and a committed copy would invite someone to think it can run in CI.
 
+### When a run does not finish (quota wall, closed tab)
+
+A capture may be split. `--plan` reads every capture file given and prints what is
+still missing, in batches sized for one sitting, at the measured ~9 s cadence:
+
+```bash
+node scripts/replay/score-replay.mjs .tmp/replay-a.json --plan
+# 23/69 captured, 46 left (≈6.9 min at 9 s/turn)
+#   batch 1: g06,g09,g13,…
+```
+
+Capture the next batch, save it as a second file, and score both together — turns
+are merged by case id, later files winning:
+
+```bash
+node scripts/replay/score-replay.mjs .tmp/replay-a.json .tmp/replay-b.json
+```
+
+A case with no capture is reported as `not captured`, not as a failure: the
+recall denominator is the cases that actually ran. A run with any case missing
+prints `REPLAY INCOMPLETE` and exits `2` — not finished, not failed. Full
+denominator: `0` green, `1` red.
+
+`--save` stores the scored run under `.tmp/replay-results/` (untracked machine
+state) and `--history` prints the trend, so a number is compared with the last
+one instead of remembered:
+
+```bash
+node scripts/replay/score-replay.mjs .tmp/replay-*.json --save
+node scripts/replay/score-replay.mjs --history
+```
+
 ## Score
 
 ```bash
@@ -61,9 +93,9 @@ checks) and then the gates:
 | p95 latency | < 3500 ms |
 | error turns (no reply) | 0 |
 
-`REPLAY OK` / `REPLAY RED` and the exit status come from those four gates. The
-tune/holdout split is printed next to them, so a prompt that was tuned into the
-corpus is visible rather than flattering.
+`REPLAY OK` / `REPLAY RED` and the exit status come from those four gates, plus a
+fifth that every case was captured. The tune/holdout split is printed next to
+them, so a prompt that was tuned into the corpus is visible rather than flattering.
 
 ## What this cannot prove
 

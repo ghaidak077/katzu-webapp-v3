@@ -28,7 +28,7 @@ test('an A2 learner is not gated before their first episode', async ({ page }) =
   // episode rather than a paywall.
   // `ابدأ تدريب` rather than `تدريب`, so the bottom navigation's "التدريب" tab is
   // not matched as well as the mission's own action.
-  const primary = page.getByRole('button', { name: /ابدأ مهمة اليوم|ابدأ من لحظة الوصول|أكمل من حيث توقفت|ابدأ مشهداً جديداً|ابدأ تدريب/ });
+  const primary = page.getByRole('button', { name: /تابع التعلّم|ابدأ مهمة اليوم|ابدأ من لحظة الوصول|أكمل من حيث توقفت|ابدأ مشهداً جديداً|ابدأ تدريب/ });
   await expect(primary).toBeEnabled();
   await primary.click();
   await expect(page).toHaveURL(/\/scenario\/(.+)\/story$/);

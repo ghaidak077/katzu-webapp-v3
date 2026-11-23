@@ -57,18 +57,25 @@ export const ProgressStrip: React.FC<ProgressStripProps> = ({
               data-state={isComplete ? 'complete' : isActive ? 'active' : 'pending'}
               className="h-[3px] flex-1 rounded-full transition-colors duration-panels"
               style={{
+                /* Today's segment is outlined, not half-filled: at 0.42 the
+                   accent read as "a bit done" beside a `0/3` count, which is
+                   the one thing a progress strip must never say. */
                 background: isComplete
                   ? `rgb(${toneRgb} / 0.85)`
                   : isActive
-                    ? 'rgb(var(--kz-lavender) / 0.42)'
+                    ? 'rgb(var(--kz-lavender) / 0.16)'
                     : 'rgb(255 255 255 / 0.09)',
-                boxShadow: isComplete ? `0 0 9px rgb(${toneRgb} / 0.4)` : 'none',
+                boxShadow: isComplete
+                  ? `0 0 9px rgb(${toneRgb} / 0.4)`
+                  : isActive
+                    ? 'inset 0 0 0 1px rgb(var(--kz-lavender) / 0.7)'
+                    : 'none',
               }}
             />
           );
         })}
       </div>
-      {labelAr && <p className="mt-1.5 font-arabic text-[0.68rem] text-kz-inkFaint">{labelAr}</p>}
+      {labelAr && <p className="mt-1.5 font-arabic text-micro text-kz-inkDim">{labelAr}</p>}
     </div>
   );
 };

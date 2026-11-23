@@ -8,19 +8,19 @@
  *
  *   - the **habit panel** (three daily tasks) appears once one conversation has
  *     actually finished — it is a habit surface, not a first-run one;
- *   - the **review obligation** (the hero's review mission and the sheet's review
- *     row) waits for a finished session AND a day of distance (`dayNumber > 1`),
- *     so review is something the learner returns to, never something the first
- *     screen opens with;
+ *   - the **review obligation** (the ghost review row on the home and the sheet's
+ *     review row) waits for a finished session AND a day of distance
+ *     (`dayNumber > 1`), so review is something the learner returns to, never
+ *     something the first screen opens with;
  *   - the **progress facts** (capability card, weekly recap, level chip) wait for
  *     three finished conversations — two data points are an anecdote, three are a
  *     small history — unless the fact underneath is already actionable, like the
  *     last week of a paid month.
  *
- * One rule, one entry point: review is offered once. When today's mission IS the
- * review, the sheet does not repeat it (a second CTA is how a learner does
- * neither); when the mission is something else, the sheet is where the queue
- * stays reachable.
+ * One review door on each screen. With the flag on the hero is always the next
+ * scene, so the home's door is the ghost row under it and the sheet may list the
+ * queue too. With the flag off the hero can *be* the review, and the sheet yields
+ * to it (two CTAs for one sitting is how a learner does neither).
  *
  * All of it is pure, so `tests/journeyReveal.test.ts` can prove the thresholds
  * without a browser. With the flag off every predicate answers "revealed", which

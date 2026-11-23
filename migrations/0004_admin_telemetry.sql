@@ -11,6 +11,11 @@
 --
 -- ADDITIVE ONLY. Five new tables and their indexes. Nothing existing is renamed,
 -- altered or dropped.
+--
+-- The one later addition is `ai_events.guard` (2026-11-19: the guard that
+-- rejected the turn). It is in the CREATE below and the runtime also applies it
+-- with an isolated ALTER, because a database created before this line already
+-- has the table and `CREATE TABLE IF NOT EXISTS` would not add the column.
 
 -- 1. One row per AI call (attempts, latency, outcome, never text).
 CREATE TABLE IF NOT EXISTS ai_events (
@@ -21,6 +26,7 @@ CREATE TABLE IF NOT EXISTS ai_events (
   model TEXT,
   key_id TEXT,
   kind TEXT,
+  guard TEXT,
   status INTEGER,
   latency_ms INTEGER,
   fallback INTEGER DEFAULT 0,

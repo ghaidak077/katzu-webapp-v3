@@ -208,7 +208,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                   } pointer-hover:text-kz-ink`}
                 >
                   <Languages className="h-3.5 w-3.5" />
-                  ترجمة
+                  {isTranslationVisible ? 'إخفاء' : 'ترجمة'}
                 </button>
               ) : showHelp && message.translationState === 'pending' ? (
                 <span className="kz-ar-micro flex items-center gap-1 text-kz-inkFaint">

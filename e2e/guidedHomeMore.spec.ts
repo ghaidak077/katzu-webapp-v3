@@ -199,7 +199,7 @@ test('day 1 with a due card: the skills unlock, but review and the progress fact
   await expect(page).toHaveURL(/\/subscription$/);
 });
 
-test('day 2 with three sessions: exactly one review entry point, and the progress facts', async ({ page }) => {
+test('day 2 with three sessions: the next scene, one ghost review row, and the progress facts', async ({ page }) => {
   await setSwitch(page, '1');
   await bootSignedIn(page);
   // Three finished conversations, yesterday: a small history (progress) and a
@@ -214,16 +214,17 @@ test('day 2 with three sessions: exactly one review entry point, and the progres
   await page.reload();
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
 
-  // The hero is today's review — and it is the ONE review entry point. (The
-  // agreed CTA spells a single item out: «راجع عنصراً واحداً الآن».)
-  const hero = page.getByRole('button', { name: /^راجع / });
-  await expect(hero).toBeVisible();
-  await expect(hero).toHaveCount(1);
+  // Even on a review day the hero is the next scene, with its one bright action.
+  // Review has its own door on the home: the ghost row under the hero, and it is
+  // the only one there.
+  await expect(page.getByRole('button', { name: 'تابع التعلّم' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^راجع / })).toHaveCount(0);
+  await expect(page.getByTestId('journey-review-row')).toHaveCount(1);
 
   await openMore(page);
-  // The sheet does not repeat the hero's review, and the progress facts are here
-  // because this learner has a history now.
-  await expect(page.getByTestId('more-review')).toHaveCount(0);
+  // The sheet keeps the queue reachable because the hero no longer carries it;
+  // the progress facts are here because this learner has a history now.
+  await expect(page.getByTestId('more-review')).toBeVisible();
   await expect(page.getByTestId('weekly-recap-card')).toBeVisible();
   await expect(page.getByTestId('journey-level-line')).toBeVisible();
   expect(

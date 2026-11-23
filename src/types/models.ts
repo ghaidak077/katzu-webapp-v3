@@ -255,6 +255,18 @@ export interface UserEntity {
   preferredReminderTime?: string;
   /** BCP-47 locale the learner's device reported (e.g. 'ar'). */
   locale?: string;
+  /**
+   * The language the app speaks to this learner in ('ar' | 'en' | 'id').
+   * Additive and optional: a row written before the language matrix existed
+   * simply lacks it, and the device's own choice is used instead. Never indexed,
+   * so this needs no Dexie version bump.
+   */
+  uiLanguage?: 'ar' | 'en' | 'id';
+  /**
+   * The course this learner is on ('de' | 'nl'). Same additive contract as
+   * `uiLanguage`. Only a course whose content is shipped is ever written here.
+   */
+  targetLanguage?: 'de' | 'nl';
   /** IANA timezone the learner's device reported (e.g. 'Europe/Berlin'). */
   timezone?: string;
   /** Server-side progress-sync revision this device last saw (base_rev for the

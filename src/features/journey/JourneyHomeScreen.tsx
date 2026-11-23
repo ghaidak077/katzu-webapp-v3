@@ -269,54 +269,79 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
     [data],
   );
 
-  const mission = useMemo(
-    () =>
-      selectDailyMission({
-        level,
-        goal: user?.primaryGoal,
-        scenarios: scenarios.map((scenario) => ({
-          id: scenario.id,
-          title_de: scenario.title_de,
-          title_ar: scenario.title_ar,
-          category: scenario.category,
-        })),
-        training: training.map((record) => ({
-          scenarioId: record.scenarioId,
-          studiedAt: record.studiedAt,
-          quizAttempted: record.quizAttempted,
-          lastScore: record.lastScore,
-          updatedAt: record.updatedAt,
-        })),
-        // Both corrections are part of the guided home and are gated with it:
-        // the flag's promise is that OFF is the screen that shipped, and a
-        // learner on the old home keeps its exact mission logic (including the
-        // «أكمل» loop, which is only fixed here until the guided shape is
-        // validated).
-        // Step 7: review is deferred until it is *returning* work — a finished
-        // session and a day between it and today (`isReviewRevealed`). With the
-        // flag off the predicate is true, so this is the shipped reviewer.
-        reviewItems:
-          guided && !reviewRevealed
-            ? []
-            : reviewItems.map((item) => ({ dueAt: item.dueAt, kind: item.kind, scenarioId: item.scenarioId })),
-        completedScenarioIds: guided ? completedScenarioIds : [],
-        scenarioLevels,
-        weakestSkill: weakestMeasuredSkill({
-          sessions: data ? Object.values(data.sessionsByScenario).flat() : [],
-          practice: skillPractice,
-        }),
-        dailyMinutes: user?.dailyGoalMinutes,
-        // B6: the learner's own date, as a second fact about today. It never
-        // changes WHICH mission is chosen.
-        targetDate: user?.targetDate,
-        targetDateKind: user?.targetDateKind,
+  /**
+   * The selector's input, built once.
+   *
+   * `mission` is the plan the app commits to (review first while the review is
+   * revealed); `heroMission` is what the hero shows. They differ on purpose: the
+   * hero always describes the next scene, and the review — when it is due — is
+   * the ghost row under it. Building the input once keeps the two selections
+   * from drifting apart.
+   */
+  const missionInput = useMemo(
+    () => ({
+      level,
+      goal: user?.primaryGoal,
+      scenarios: scenarios.map((scenario) => ({
+        id: scenario.id,
+        title_de: scenario.title_de,
+        title_ar: scenario.title_ar,
+        category: scenario.category,
+      })),
+      training: training.map((record) => ({
+        scenarioId: record.scenarioId,
+        studiedAt: record.studiedAt,
+        quizAttempted: record.quizAttempted,
+        lastScore: record.lastScore,
+        updatedAt: record.updatedAt,
+      })),
+      // Both corrections are part of the guided home and are gated with it:
+      // the flag's promise is that OFF is the screen that shipped, and a
+      // learner on the old home keeps its exact mission logic (including the
+      // «أكمل» loop, which is only fixed here until the guided shape is
+      // validated).
+      // Step 7: review is deferred until it is *returning* work — a finished
+      // session and a day between it and today (`isReviewRevealed`). With the
+      // flag off the predicate is true, so this is the shipped reviewer.
+      reviewItems:
+        guided && !reviewRevealed
+          ? []
+          : reviewItems.map((item) => ({ dueAt: item.dueAt, kind: item.kind, scenarioId: item.scenarioId })),
+      completedScenarioIds: guided ? completedScenarioIds : [],
+      scenarioLevels,
+      weakestSkill: weakestMeasuredSkill({
+        sessions: data ? Object.values(data.sessionsByScenario).flat() : [],
+        practice: skillPractice,
       }),
+      dailyMinutes: user?.dailyGoalMinutes,
+      // B6: the learner's own date, as a second fact about today. It never
+      // changes WHICH mission is chosen.
+      targetDate: user?.targetDate,
+      targetDateKind: user?.targetDateKind,
+    }),
     [level, user?.primaryGoal, user?.dailyGoalMinutes, user?.targetDate, user?.targetDateKind, data, scenarios, training, reviewItems, scenarioLevels, skillPractice, reviewRevealed, completedScenarioIds, guided],
   );
 
+  const mission = useMemo(() => selectDailyMission(missionInput), [missionInput]);
+
+  /**
+   * The hero's scene.
+   *
+   * The owner's fix (2026-11-20): the hero shows the next scene even on a review
+   * day. Review wins `selectDailyMission` because ignoring it decays memory, but
+   * it is one row under the hero — never the hero itself. So the hero's plan is
+   * selected with no due items to consider; with the flag off it is the shipped
+   * mission, unchanged.
+   */
+  const heroMission = useMemo(
+    () => (guided ? selectDailyMission({ ...missionInput, reviewItems: [] }) : mission),
+    [guided, mission, missionInput],
+  );
+
+
   const missionScenario = useMemo(
-    () => scenarios.find((scenario) => scenario.id === mission.scenarioId) || null,
-    [scenarios, mission.scenarioId],
+    () => scenarios.find((scenario) => scenario.id === heroMission.scenarioId) || null,
+    [scenarios, heroMission.scenarioId],
   );
 
   const scene = useMemo(
@@ -333,7 +358,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
     [missionScenario],
   );
 
-  const reasonAr = missionReasonAr(mission, { goal: user?.primaryGoal, arrivalStatus: user?.arrivalStatus }, missionScenario);
+  const reasonAr = missionReasonAr(heroMission, { goal: user?.primaryGoal, arrivalStatus: user?.arrivalStatus }, missionScenario);
 
   // A mission whose content is cached works offline; that is what the indicator
   // is allowed to claim. It never claims the AI conversation will work offline.
@@ -362,34 +387,47 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
     return { titleAr: scenario.title_ar, labelAr: CAPABILITY_LABEL_AR[first[1].state] };
   }, [capability, scenarios]);
 
-  const totalMinutes = mission.estimatedMinutes || user?.dailyGoalMinutes || 10;
+  const totalMinutes = heroMission.estimatedMinutes || user?.dailyGoalMinutes || 10;
 
   /**
    * The banner's one label.
    *
-   * The opening episode keeps its own words («لحظة الوصول · أول موقف في القصة»):
-   * it is not a scene in the rotation, and `e2e/journey.spec.ts` pins that the
-   * first thing a new learner reads names where they are landing. Every other
-   * mission gets the plain name of what the hero is — the next scene — and a
-   * review day says so instead.
+   * Guided: always the next scene. The opening episode keeps its own words
+   * («لحظة الوصول · أول موقف في القصة») because it is not a scene in the
+   * rotation, and `e2e/journey.spec.ts` pins that the first thing a new learner
+   * reads names where they are landing. With the flag off the shipped labels
+   * stay, including the review mission's own.
    */
   const heroLabelAr =
-    mission.scenarioId === INTRO_SCENARIO_ID
-      ? missionTitleBadgeAr(mission.kind, dueCount, mission.scenarioId)
-      : mission.kind === 'review'
+    heroMission.scenarioId === INTRO_SCENARIO_ID
+      ? missionTitleBadgeAr(heroMission.kind, dueCount, heroMission.scenarioId)
+      : !guided && mission.kind === 'review'
         ? 'مراجعة سريعة'
         : 'المشهد التالي';
 
   /**
    * What the review row promises, in the learner's units.
    *
-   * Capped at ten: the queue can hold three figures, and a number that size is a
-   * backlog, not a plan a learner can say yes to in one tap. The full count is
-   * on the review screen, where it is the screen's subject. The estimate is the
-   * same arithmetic the review screen uses for its own session length.
+   * Capped: ten items and three minutes. The queue can hold three figures, and a
+   * number that size is a backlog, not a plan a learner can say yes to in one
+   * tap. The full count is on the review screen, where it is the screen's
+   * subject. The estimate is the same arithmetic the review screen uses for its
+   * own session length.
    */
   const reviewRowCount = Math.min(dueCount, 10);
-  const reviewRowMinutes = Math.max(1, Math.round(reviewRowCount * 0.3));
+  const reviewRowMinutes = Math.min(3, Math.max(1, Math.round(reviewRowCount * 0.3)));
+
+  /**
+   * Where «المزيد» lives.
+   *
+   * The tasks card only renders after the first finished conversation (and
+   * always with the flag off), so the entry row is the card's last row while the
+   * card exists and one quiet standalone row when it does not. Exactly one, so
+   * the sheet has a door on every version of the screen — a hidden card must not
+   * hide the only way to the library, preferences and Pro.
+   */
+  const showTasksCard = !guided || firstSessionDone;
+  const moreInTasksCard = showTasksCard && !!dailyTasks;
 
   /**
    * There is no gate here, on purpose.
@@ -402,9 +440,9 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
    * that cannot be defended.
    */
   const handlePrimary = () => {
-    if (!mission.scenarioId) return;
-    track('scenario_started', { scenarioId: mission.scenarioId, source: 'journey_home' });
-    onStartMission(mission.scenarioId);
+    if (!heroMission.scenarioId) return;
+    track('scenario_started', { scenarioId: heroMission.scenarioId, source: 'journey_home' });
+    onStartMission(heroMission.scenarioId);
   };
 
   /**
@@ -417,9 +455,9 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
    */
   const handleDailyTaskAction = (kind: DailyTaskKind) => {
     if (kind === 'scenario') {
-      if (mission.scenarioId) {
-        track('scenario_started', { scenarioId: mission.scenarioId, source: 'daily_task' });
-        onStartMission(mission.scenarioId);
+      if (heroMission.scenarioId) {
+        track('scenario_started', { scenarioId: heroMission.scenarioId, source: 'daily_task' });
+        onStartMission(heroMission.scenarioId);
       } else {
         onOpenLibrary();
       }
@@ -436,17 +474,14 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
    * What «المزيد» lists under «المراجعة»: due items, once review has been
    * revealed — and never while the hero already offers it.
    *
-   * Step 7 changed the second half of this rule. The sheet used to repeat the
-   * review even when the hero *was* the review, on the theory that a menu should
-   * not have a hole. The plan's done-when says the opposite and is right for a
-   * learner: two review entry points on one screen is a choice, and a choice is
-   * how neither gets done. The inline row below keeps its shipped rule
-   * (`mission.kind !== 'review'`) and is flag-off only; the sheet is the guided
-   * home's one secondary entry point, so it yields to the hero.
+   * With the flag on, the hero never offers review any more: it is always the
+   * next scene, and review is the ghost row under it. So the guided sheet may
+   * list review whenever the backlog is real. With the flag off the hero can
+   * *be* the review, and the shipped rule stands: the sheet yields to it.
    */
   const sheetReviewEntryCount = sheetReviewCount({
     dueCount,
-    missionIsReview: mission.kind === 'review',
+    missionIsReview: !guided && mission.kind === 'review',
     reviewRevealed,
   });
   /** The Pro offer, on the one rule every surface shares (`trial.shouldOfferPro`). */
@@ -464,16 +499,16 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   const preferencesIncomplete = !user?.onboardingCompletedAt || !user?.primaryGoal;
 
   return (
-    <div className="kz-tab-scroll min-h-screen bg-kz-black px-4 pt-5">
+    <div className="kz-tab-scroll min-h-screen bg-kz-black px-5 pt-5">
       <div className="mx-auto max-w-md">
         {/* Orientation: where am I, and how far into this chapter. The chapter's
             steps used to live in a card at the bottom of the screen, under three
             sections of history; the same fact as one thin bar sits under the
             title, which is where a learner reads first. */}
-        <header className="mb-4">
+        <header className="mb-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="kz-ar-micro text-kz-inkFaint">
+              <p className="kz-ar-micro text-kz-inkDim">
                 اليوم {context.dayNumber} · الفصل {context.chapterIndex} من {context.chapterCount}
               </p>
               {/* V35: this heading used to `truncate`, so a chapter title longer than the
@@ -505,7 +540,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
               activeIndex={context.activeSegment}
               earned={context.chapterSegmentsDone >= context.chapterSegments}
             />
-            <span className="kz-ar-micro shrink-0 text-kz-inkFaint">
+            <span className="kz-ar-micro shrink-0 text-kz-inkDim">
               <LtrCounter value={context.chapterSegmentsDone} total={context.chapterSegments} /> مشاهد
             </span>
           </div>
@@ -541,26 +576,29 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         {/* The mission. One photograph carries the scene, its words sit on the
             lower third of that photograph, and the single action sits under them
             — the same anatomy as the practice home's next-scene hero, so the two
-            tabs describe "what next" the same way. */}
-        <BorderBeam role="ambient" className="mb-4">
+            tabs describe "what next" the same way. The hero is always the next
+            scene: review, when it is due, is the ghost row below. */}
+        <BorderBeam role="ambient" className="mb-6">
         <GlassCard
           tier="glass"
           emphasis="none"
           padded={false}
           className="overflow-hidden rounded-panel"
         >
-          {/* 160px, reserved before the image arrives: the box keeps its height
+          {/* 140px, reserved before the image arrives: the box keeps its height
               whether the artwork loads, fails, or does not exist, so nothing under
               it moves while the learner is reading. With no source the same box is
-              the scene's own light (a violet→black wash) rather than an empty
-              frame. `loadedArt` compares against the current src, so a new mission
-              fades its own picture in instead of inheriting the last one. */}
+              the scene's own light (a violet→black wash plus one accent glow)
+              rather than an empty black frame. `loadedArt` compares against the
+              current src, so a new mission fades its own picture in instead of
+              inheriting the last one. */}
           <div
             data-testid="journey-hero-banner"
-            className="relative h-40 w-full overflow-hidden bg-kz-black"
+            className="relative h-[140px] w-full overflow-hidden bg-kz-black"
             style={{ '--kz-scene-rgb': scene.keyRgb, '--kz-scene-warmth': String(scene.warmth) } as React.CSSProperties}
           >
             <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-kz-lavender/30 via-kz-black/75 to-kz-black" />
+            <div aria-hidden className="kz-hero-glow absolute inset-0" />
             {scene.artUrl && (
               <img
                 /* The day's banner, cropped into the hero band rather than framed
@@ -573,7 +611,8 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
                 loading="lazy"
                 decoding="async"
                 onLoad={() => setLoadedArt(scene.artUrl ?? null)}
-                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-fast ${
+                style={{ transitionDuration: '200ms' }}
+                className={`absolute inset-0 h-full w-full object-cover transition-opacity ${
                   loadedArt === scene.artUrl ? 'opacity-100' : 'opacity-0'
                 }`}
               />
@@ -585,12 +624,12 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
               <p className="kz-ar-micro text-kz-inkDim">{heroLabelAr}</p>
               {missionScenario ? (
                 <>
-                  <h2 className="kz-ar-title mt-0.5 font-bold text-kz-ink">{missionScenario.title_ar}</h2>
+                  <h2 className="kz-hero-title mt-1 text-kz-ink">{missionScenario.title_ar}</h2>
                   <GermanText className="mt-0.5 block text-caption text-kz-inkDim">{missionScenario.title_de}</GermanText>
                 </>
               ) : (
-                <h2 className="kz-ar-title mt-0.5 font-bold text-kz-ink">
-                  {mission.kind === 'review' ? 'مراجعة اليوم' : 'مهمتك اليومية قيد التجهيز'}
+                <h2 className="kz-hero-title mt-1 text-kz-ink">
+                  {!guided && mission.kind === 'review' ? 'مراجعة اليوم' : 'مهمتك اليومية قيد التجهيز'}
                 </h2>
               )}
               <p className="mt-1 text-micro text-kz-inkDim">{arCount(totalMinutes, MINUTE_FORMS)}</p>
@@ -611,57 +650,64 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             <div className="mt-4">
               {/* B6: the days-left line, only inside the last month of an exam and
                   only beside the mission \u2014 never as a reason to replace it. */}
-              {mission.countdownAr ? (
+              {heroMission.countdownAr ? (
                 <p data-testid="exam-countdown" className="kz-ar-micro mb-3 text-kz-warm">
-                  {mission.countdownAr}
+                  {heroMission.countdownAr}
                 </p>
               ) : null}
-              {/* The plan owns the button's wording, so today's action is named once.
-                  That is what lets the opening episode say "ابدأ من لحظة الوصول"
-                  while a scheduled day says "ابدأ مهمة اليوم (10 د)" — one label,
-                  chosen where the mission was chosen. */}
-              {mission.kind === 'review' ? (
+              {/* Guided: one fixed, bright action. The owner's rule (2026-11-20)
+                  is that the hero's job is "continue the story", so the label does
+                  not change per mission and the review never borrows it. The only
+                  exception is an honest empty state, whose one action is a refresh.
+                  With the flag off the shipped wording and branches stay. */}
+              {!guided && mission.kind === 'review' ? (
                 <PrimaryAction className="min-h-[52px]" onClick={onOpenReview}>
                   {mission.ctaAr}
                 </PrimaryAction>
-              ) : mission.kind === 'no_content' ? (
+              ) : heroMission.kind === 'no_content' ? (
                 // An honest empty state: one useful action, and a real explanation.
                 <PrimaryAction
                   className="min-h-[52px]"
                   onClick={() => void refreshCurriculumCache()}
                   icon={<RefreshCw className="h-4 w-4" />}
                 >
-                  {mission.ctaAr}
+                  {heroMission.ctaAr}
                 </PrimaryAction>
               ) : (
-                <PrimaryAction className="min-h-[52px]" onClick={handlePrimary}>
-                  {mission.ctaAr}
-                </PrimaryAction>
+                <button
+                  type="button"
+                  data-testid="journey-primary-action"
+                  onClick={handlePrimary}
+                  className="kz-hero-cta flex w-full items-center justify-center px-5 text-body font-semibold"
+                >
+                  {guided ? 'تابع التعلّم' : heroMission.ctaAr}
+                </button>
               )}
             </div>
           </div>
         </GlassCard>
         </BorderBeam>
 
-        {/* Review, as one ghost row: the same shape the practice home uses for
-            the same job, so the two screens do not disagree about how a secondary
-            destination looks. Hidden when nothing is due, and absent when today's
-            mission IS the review — two doors to one room is a choice, and a choice
-            is how neither gets done. The count is capped at ten (see
-            `reviewRowCount`); the whole backlog stays on the review screen. */}
-        {guided && firstSessionDone && reviewRevealed && dueCount > 0 && mission.kind !== 'review' && (
+        {/* Review, as one ghost row: flat, no fill, one hairline under it — the
+            same shape the practice home uses for the same job, so the two screens
+            do not disagree about how a secondary destination looks. Hidden when
+            nothing is due. The hero is always the next scene, so on a review day
+            this row is review's only door on the home screen; its count is capped
+            at ten (`reviewRowCount`) and the whole backlog stays on the review
+            screen. */}
+        {guided && firstSessionDone && reviewRevealed && dueCount > 0 && (
           <button
             type="button"
             data-testid="journey-review-row"
             onClick={onOpenReview}
-            className="mb-4 flex min-h-touch w-full items-center gap-2.5 rounded-control px-1 text-start transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
+            className="mb-6 flex min-h-control w-full items-center gap-2.5 border-b border-kz-line px-1 text-start transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
           >
             <Brain className="h-4 w-4 shrink-0 text-kz-lavender" aria-hidden />
             <span className="kz-ar-caption flex-1 text-kz-ink">
               مراجعة سريعة · {arCount(reviewRowCount, REVIEW_ITEM_FORMS)} ·{' '}
               {arCount(reviewRowMinutes, MINUTE_FORMS)}
             </span>
-            <ChevronLeft className="h-4 w-4 shrink-0 text-kz-inkFaint" aria-hidden />
+            <ChevronLeft className="h-4 w-4 shrink-0 text-kz-inkDim" aria-hidden />
           </button>
         )}
 
@@ -672,22 +718,26 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
             learner on day 0 is shown the one thing to start, and the three
             checkboxes arrive with their first finished conversation. Flag off
             keeps the shipped screen, where the panel is unconditional. */}
-        {(!guided || firstSessionDone) && (
-          <DailyTasksPanel snapshot={dailyTasks} onAction={handleDailyTaskAction} />
+        {showTasksCard && (
+          <DailyTasksPanel
+            snapshot={dailyTasks}
+            onAction={handleDailyTaskAction}
+            onMore={guided ? () => setMoreOpen(true) : undefined}
+          />
         )}
 
-        {/* The guided home's one secondary entry point. Quiet on purpose: it sits
-            under the tasks as a 44px text row, so it is reachable without
-            competing with the hero's action (the mistake the old home made six
-            times over). It never auto-opens, and it exists only while the flag
-            is on — off, this screen still carries its own footer. */}
-        {guided && (
+        {/* The guided home's one secondary entry point when the tasks card is not
+            on screen (day 0, or no snapshot yet). Quiet on purpose: a 44px text
+            row under the hero, so it is reachable without competing with the
+            hero's action (the mistake the old home made six times over). It never
+            auto-opens, and it exists only while the flag is on. */}
+        {guided && !moreInTasksCard && (
           <button
             type="button"
             data-testid="journey-more"
             aria-haspopup="dialog"
             onClick={() => setMoreOpen(true)}
-            className="mb-4 flex min-h-touch w-full items-center justify-start gap-1 rounded-control px-1 text-kz-inkFaint transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
+            className="mb-6 flex min-h-touch w-full items-center justify-start gap-1 rounded-control px-1 text-kz-inkDim transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5"
           >
             <span className="kz-ar-micro">المزيد</span>
             <ChevronDown className="h-3.5 w-3.5" aria-hidden />

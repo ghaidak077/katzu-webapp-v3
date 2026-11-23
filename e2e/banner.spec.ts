@@ -81,16 +81,16 @@ test('a scenario’s own banner reaches every screen that lists it', async ({ pa
     { scenarioId: 'cafe_order', userId: 'current_user', studiedAt: 1, quizAttempted: false, lastScore: 0, effectiveLevel: 'A1', updatedAt: 1 },
   ]);
   await page.goto('/app');
-  await expect(page.getByRole('button', { name: /أكمل من حيث توقفت|ابدأ مهمة اليوم/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /تابع التعلّم|أكمل من حيث توقفت|ابدأ مهمة اليوم/ })).toBeVisible();
   const home = await bannerGeometry(page);
-  // The journey home opens with the day's banner cropped into the 160px hero
+  // The journey home opens with the day's banner cropped into the 140px hero
   // band, not with a 16:9 frame — that frame is the scenario screen's job, and
   // the home hero is the top of a card whose words sit on the picture. What the
   // banner test still owes is the same promise: the patched artwork is what the
   // learner sees, at a fixed height that cannot leave a hole.
   expect(home.length, 'the hero carries the day’s banner').toBe(1);
   expect(home[0].src).toBe(PATCHED_ART);
-  expect(Math.round(home[0].height), 'the hero band is 160px tall').toBe(160);
+  expect(Math.round(home[0].height), 'the hero band is 140px tall').toBe(140);
   expect(home[0].width, 'and spans the card').toBeGreaterThan(home[0].height);
   await expect(page.getByTestId('scenario-banner')).toHaveCSS('object-fit', 'cover');
 

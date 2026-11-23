@@ -386,8 +386,25 @@ describe('recordAiCall', () => {
     expect(db.statements.some((s) => s.sql.includes('INSERT OR IGNORE INTO conversations'))).toBe(false);
   });
 
-  it('writes the conversation row and each attempt only when asked', async () => {
+  it('records the guard that rejected a turn, with no learner text attached', async () => {
     const db = new StubDB();
+    const { ctx, flush } = collectCtx();
+    recordAiCall({ DB: db }, ctx, {
+      route: 'ai_turn',
+      status: 502,
+      startedAt: Date.now() - 5,
+      collector: { attempts: [] },
+      payload: { error: 'ai_empty_reply', guard: 'arabic_learner_gender' },
+      guard: 'arabic_learner_gender',
+    });
+    await flush();
+    const insert = db.statements.find((s) => s.sql.includes('INSERT INTO ai_events'));
+    expect(insert?.sql).toContain('guard');
+    expect(insert?.args).toContain('arabic_learner_gender');
+    expect(insert?.args).not.toContain('kaffee');
+  });
+
+  it('writes the conversation row and each attempt only when asked', async () => {    const db = new StubDB();
     const { ctx, flush } = collectCtx();
     const row = buildConversationRow({
       request: new Request('https://katzu.test/ai/turn'),

@@ -98,7 +98,14 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
         ref={setRef}
         onScroll={handleScroll}
         data-testid="conversation-transcript"
-        className="h-full space-y-3 overflow-y-auto px-4 pb-20 pt-3"
+        // 2026-11-19: the transcript used to start at the top, so a session's
+        // first screen was one bubble under the header and ~400px of black
+        // before the composer — the app's most important screen looking
+        // unfinished. A chat reads from the bottom: the opener sits centred
+        // while it is alone, and every later turn stacks upward from the dock.
+        className={`h-full space-y-3 overflow-y-auto px-4 pt-3 ${
+          messages.length <= 1 ? 'flex flex-col justify-center pb-10' : 'flex flex-col justify-end pb-20'
+        }`}
       >
         {messages.map((msg, index) => {
           // The correction rides the reply the worker returned, but it belongs to

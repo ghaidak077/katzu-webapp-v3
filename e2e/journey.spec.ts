@@ -21,7 +21,7 @@ import { bootSignedIn, openSessionDetailsIfPresent, orb, say, silence, turn } fr
  */
 // `ابدأ تدريب` and not `تدريب`: the bottom navigation tab is labelled "التدريب",
 // and a looser pattern matched the tab as well as the mission's action.
-const PRIMARY_ACTION = /ابدأ مهمة اليوم|ابدأ من لحظة الوصول|أكمل من حيث توقفت|ابدأ مشهداً جديداً|ابدأ تدريب|راجع \d+ الآن/;
+const PRIMARY_ACTION = /تابع التعلّم|ابدأ مهمة اليوم|ابدأ من لحظة الوصول|أكمل من حيث توقفت|ابدأ مشهداً جديداً|ابدأ تدريب|راجع \d+ الآن/;
 
 /** Force the guided home on/off before the app's first load — the flag is cached per load. */
 async function setSwitch(page: import('@playwright/test').Page, value: '1' | '0') {
@@ -67,7 +67,7 @@ test('the first episode is the arrival, not a random day', async ({ page }) => {
   // catalogue serves: "في المطار: الأمتعة" (V15 aligned the fixture to D1).
   await expect(page.getByText('في المطار: الأمتعة', { exact: true })).toBeVisible();
   await expect(page.getByText('لحظة الوصول · أول موقف في القصة')).toBeVisible();
-  await page.getByRole('button', { name: 'ابدأ من لحظة الوصول' }).click();
+  await page.getByRole('button', { name: /تابع التعلّم|ابدأ من لحظة الوصول/ }).click();
 
   await expect(page).toHaveURL(/\/scenario\/airport_arrival\/story$/);
 });

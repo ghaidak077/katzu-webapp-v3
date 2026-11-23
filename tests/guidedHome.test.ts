@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolveGuidedHome } from '../src/lib/flags/guidedHome';
 import { ONBOARDING_SKIP_SOURCE } from '../src/lib/analytics/events';
 import { isDayZeroOpening } from '../src/lib/journey/firstSession';
+import { UI_STRINGS } from '../src/lib/i18n/strings';
 
 /**
  * `guidedHome` decides whether a brand-new learner sees the guided home or the
@@ -77,19 +78,22 @@ describe('JourneyHomeScreen consults the flag', () => {
     // (step 7) — with the flag off it is unconditional, as shipped.
     expect(source).toMatch(/<PrimaryAction[\s\S]{0,200}\{mission\.ctaAr\}/);
     expect(source).toContain('<ProgressStrip');
-    expect(source).toContain('{(!guided || firstSessionDone) && (');
-    expect(source).toMatch(/<DailyTasksPanel snapshot=\{dailyTasks\}/);
+    expect(source).toContain('const showTasksCard = !guided || firstSessionDone;');
+    expect(source).toMatch(/\{showTasksCard && \(/);
+    expect(source).toContain('snapshot={dailyTasks}');
   });
 
-  it('keeps exactly one review entry point, and never before day 2', () => {
-    // Step 7 replaced "the sheet repeats the hero's review" with the plan's
-    // done-when: review is offered once. The inline row below keeps its shipped
-    // rule (`mission.kind !== 'review'`) and is flag-off only.
+  it('keeps one review door on the home, and never before day 2', () => {
+    // The hero is always the next scene when the flag is on, so on a review day
+    // the home's one door to the queue is the ghost row. The sheet may list it
+    // too (it is a menu, not a second CTA on this screen); with the flag off the
+    // hero can be the review and the sheet yields to it.
     expect(source).toContain('const reviewRevealed = isReviewRevealed({');
     expect(source).toContain('dayNumber: context.dayNumber,');
     expect(source).toContain('const sheetReviewEntryCount = sheetReviewCount({');
-    expect(source).toContain('missionIsReview: mission.kind === \'review\',');
+    expect(source).toContain("missionIsReview: !guided && mission.kind === 'review',");
     expect(source).toContain('guided && !reviewRevealed');
+    expect(source).toContain('{guided && firstSessionDone && reviewRevealed && dueCount > 0 && (');
     // The shared first-session fact (Decision A): the home hands the sheet the
     // same boolean the tab lock reads, so the two surfaces cannot disagree.
     expect(source).toContain('const firstSessionDone = isFirstSessionDone({');
@@ -136,7 +140,7 @@ describe('JourneyHomeScreen consults the flag', () => {
   });
 
   it('the hero reserves its picture box, so a missing banner is not a hole', () => {
-    // 160px is held before the image resolves, and the same box carries the
+    // 140px is held before the image resolves, and the same box carries the
     // scene's light when the content has no artwork: the words under it never
     // move, whether the picture loads, fails, or does not exist.
     expect(source).toContain('data-testid="journey-hero-banner"');
@@ -144,36 +148,79 @@ describe('JourneyHomeScreen consults the flag', () => {
     // `banner_url` must reach the hero, which it only does if this stays the
     // element that draws `scene.artUrl`.
     expect(source).toContain('data-testid="scenario-banner"');
-    expect(source).toContain('className="relative h-40 w-full overflow-hidden bg-kz-black"');
-    expect(source).toContain('object-cover');
+    expect(source).toContain('className="relative h-[140px] w-full overflow-hidden bg-kz-black"');
+    // No source (or a failed one) still paints: the violet wash plus the
+    // accent glow, never a plain black band.
+    expect(source).toContain('kz-hero-glow');
     expect(source).toContain('from-kz-black/85');
+    expect(source).toContain('object-cover');
     // Fade-in is keyed to the current source, never to a bare boolean: a new
-    // mission must fade its own picture, not inherit the previous one.
+    // mission must fade its own picture, not inherit the previous one. 200ms is
+    // the owner's fade, set inline because it is one number, not a scale.
     expect(source).toContain('loadedArt === scene.artUrl');
+    expect(source).toContain("transitionDuration: '200ms'");
   });
 
-  it('one filled action above the fold, and every branch carries the 52px height', () => {
+  it('one bright action, and every flag-off branch keeps its 52px height', () => {
+    // The guided hero has exactly one action with one fixed label, whatever
+    // today's mission is: the owner's rule is that the hero continues the story.
+    expect(source).toContain('data-testid="journey-primary-action"');
+    expect(source).toContain('kz-hero-cta flex w-full items-center justify-center');
+    expect(source).toContain("{guided ? 'تابع التعلّم' : heroMission.ctaAr}");
+    // The solid fill lives in the class, so it cannot drift back to the
+    // translucent `.kz-primary`, and 52px is stated once, next to the fill.
+    const css = readFileSync('src/index.css', 'utf8');
+    const cta = css.slice(css.indexOf('.kz-hero-cta {'), css.indexOf('.kz-hero-cta:active'));
+    expect(cta).toContain('min-height: 52px');
+    expect(cta).toContain('border-radius: var(--kz-radius-action)');
+    expect(cta).toContain('background-color: rgb(var(--kz-lavender-deep))');
+    expect(css).toContain('transform: scale(0.97)');
+    // The two remaining `PrimaryAction`s are the honest empty state and the
+    // shipped review branch, still on the same 52px height.
     const branches = source.split('<PrimaryAction').slice(1);
-    expect(branches, 'one primary per mission branch').toHaveLength(3);
+    expect(branches, 'the flag-off branches keep one action each').toHaveLength(2);
     for (const branch of branches) {
       expect(branch.slice(0, 60), 'the mission button is 52px, not the 56px default').toContain(
         'min-h-[52px]',
       );
     }
-    // The review row and «المزيد» are ghost rows: no filled surface, no border.
+  });
+
+  it('the review row and «المزيد» are flat rows, not surfaces', () => {
     for (const testId of ['journey-review-row', 'journey-more']) {
-      const row = source.slice(source.indexOf(`data-testid="${testId}"`), source.indexOf('</button>', source.indexOf(`data-testid="${testId}"`)));
-      expect(row, `${testId} paints nothing`).not.toMatch(/\bborder\b(?!-0)/);
-      expect(row, `${testId} is not a filled surface`).not.toMatch(/bg-kz-(lavender|ink)"/);
+      const start = source.indexOf(`data-testid="${testId}"`);
+      const row = source.slice(start, source.indexOf('</button>', start));
+      expect(row, `${testId} is not an accent fill`).not.toContain('bg-kz-lavender');
+      expect(row, `${testId} is not a card`).not.toContain('bg-kz-soft-black');
     }
+    // The review row's only paint is the hairline under it.
+    const review = source.slice(source.indexOf('data-testid="journey-review-row"'));
+    expect(review.slice(0, 400)).toContain('border-b border-kz-line');
   });
 
   it('the review row caps what it prints, and the review screen keeps the backlog', () => {
     // A learner with 156 cards due must not read «156» in a CTA on the home
     // screen: the row is a door, the number is a promise about this sitting.
     expect(source).toContain('const reviewRowCount = Math.min(dueCount, 10);');
+    expect(source).toContain('const reviewRowMinutes = Math.min(3, Math.max(1, Math.round(reviewRowCount * 0.3)));');
     expect(source).toContain('arCount(reviewRowCount, REVIEW_ITEM_FORMS)');
     expect(source).not.toMatch(/arCount\(dueCount, REVIEW_ITEM_FORMS\)/);
+  });
+
+  it('the hero says the next scene, and review is only the ghost row', () => {
+    // The owner's fix (2026-11-20): a review day must not hijack the hero. The
+    // hero's plan is selected with no due items to consider and its label is
+    // fixed; review keeps its own door under it.
+    expect(source).toContain('selectDailyMission({ ...missionInput, reviewItems: [] })');
+    expect(source).toContain(": 'المشهد التالي';");
+    // The three tasks are all listed, so `0/3` and the visible rows agree.
+    const panel = readFileSync('src/features/journey/DailyTasksPanel.tsx', 'utf8');
+    expect(panel).not.toContain("status.kind !== 'review'");
+    expect(panel).toContain('{statuses.map((status, index) => (');
+    // A 24px outline, not a tiny glyph that reads as the letter «C».
+    expect(panel).not.toMatch(/import \{[^}]*\bCircle\b/);
+    expect(panel).toContain('border border-white/25');
+    expect(panel).toContain('text-kz-neon');
   });
 });
 
@@ -294,7 +341,12 @@ describe('the Practice/Progress lock (step 3)', () => {
 
   it('a locked tab keeps its ink and adds only a badge, never opacity or disabled', () => {
     expect(shell).toContain("aria-disabled={locked ? 'true' : undefined}");
-    expect(shell).toContain("aria-label={locked ? `${label} — مقفل حتى أول محادثة` : undefined}");
+    // The accessible name is still a sentence in the learner's language, but it
+    // now comes from the UI dictionary (`nav.lockedHint`) so the tab bar can be
+    // read in English and Indonesian too. Both halves are pinned: the call site,
+    // and the Arabic wording the owner agreed to.
+    expect(shell).toContain("aria-label={locked ? t('nav.lockedHint', { label }) : undefined}");
+    expect(UI_STRINGS.ar['nav.lockedHint']).toBe('{label} — مقفل حتى أول محادثة');
     expect(shell).toContain('aria-hidden="true"');
     expect(shell).toContain('data-testid={`tab-lock-${tabKey}`}');
     expect(shell).toContain("active ? 'text-kz-lavender' : 'text-kz-inkFaint'");

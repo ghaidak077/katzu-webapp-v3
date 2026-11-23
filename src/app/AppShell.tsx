@@ -10,6 +10,8 @@ import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { resolveOpeningScenarioId } from '@/lib/journey/opening';
 import { reconcileEntitlement } from '@/lib/entitlement/reconcile';
 import { useOnlineStatus } from '@/lib/utils/onlineStatus';
+import { useT } from '@/lib/i18n/LanguageProvider';
+import { useLanguageProfileSync } from '@/lib/i18n/useLanguageProfileSync';
 import { legalPageUrl } from '@/lib/utils/links';
 import { setHapticsEnabled } from '@/lib/utils/haptics';
 import { latestRecoverableSession, summaryFromSession, type RecoveredSummary } from '@/features/report/recover';
@@ -140,6 +142,10 @@ export type NavigationTab = 'Trail' | 'Practice' | 'Progress' | 'Profile';
 export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
+  // The app's own language, and the two-way mirror to the signed-in profile.
+  // Nothing else in this shell needs to know: each screen asks `useT()` itself.
+  const t = useT();
+  useLanguageProfileSync();
   const [sessionSummary, setSessionSummary] = useState<any>(() => {
     try {
       const stored = sessionStorage.getItem('katzu_session_summary');
@@ -255,7 +261,7 @@ export function AppShell() {
         role="status"
         aria-live="polite"
       >
-        <span className="font-arabic text-text-secondary">جاري التحقق من الحساب...</span>
+        <span className="font-arabic text-text-secondary">{t('shell.checkingAccount')}</span>
       </div>
     );
   }
@@ -621,6 +627,7 @@ function GrammarRoute() {
 
 function MainTabsRoute({ onSignOut, lock }: { onSignOut: () => Promise<void>; lock: PracticeLock }) {
   const navigate = useNavigate();
+  const t = useT();
   const { tab = 'trail' } = useParams();
   const activeTab = toNavigationTab(tab);
 
@@ -707,10 +714,10 @@ function MainTabsRoute({ onSignOut, lock }: { onSignOut: () => Promise<void>; lo
         className="fixed bottom-0 start-0 end-0 z-40 mx-auto max-w-md border-t border-kz-line bg-kz-black/85 backdrop-blur-xl"
       >
         <div className="flex items-stretch gap-1 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5">
-          <TabButton tabKey="Trail" active={activeTab === 'Trail'} onClick={() => setTab('Trail')} icon={<Map />} label="الرحلة" />
-          <TabButton tabKey="Practice" active={activeTab === 'Practice'} onClick={() => setTab('Practice')} icon={<Dumbbell />} label="التدريب" locked={lock.locked} />
-          <TabButton tabKey="Progress" active={activeTab === 'Progress'} onClick={() => setTab('Progress')} icon={<BarChart3 />} label="التقدم" locked={lock.locked} />
-          <TabButton tabKey="Profile" active={activeTab === 'Profile'} onClick={() => setTab('Profile')} icon={<User />} label="الملف" />
+          <TabButton tabKey="Trail" active={activeTab === 'Trail'} onClick={() => setTab('Trail')} icon={<Map />} label={t('nav.trail')} />
+          <TabButton tabKey="Practice" active={activeTab === 'Practice'} onClick={() => setTab('Practice')} icon={<Dumbbell />} label={t('nav.practice')} locked={lock.locked} />
+          <TabButton tabKey="Progress" active={activeTab === 'Progress'} onClick={() => setTab('Progress')} icon={<BarChart3 />} label={t('nav.progress')} locked={lock.locked} />
+          <TabButton tabKey="Profile" active={activeTab === 'Profile'} onClick={() => setTab('Profile')} icon={<User />} label={t('nav.profile')} />
         </div>
       </nav>
       {/* The lock sheet is a SIBLING of the nav, never a child of the bar: it
@@ -737,12 +744,13 @@ function MainTabsRoute({ onSignOut, lock }: { onSignOut: () => Promise<void>; lo
  * app's targets are people reading Arabic for the first time in a new country.
  */
 function TabButton({ tabKey, active, onClick, icon, label, locked = false }: { tabKey: string; active: boolean; onClick: () => void; icon: React.ReactNode; label: string; locked?: boolean }) {
+  const t = useT();
   return (
     <button
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       aria-disabled={locked ? 'true' : undefined}
-      aria-label={locked ? `${label} — مقفل حتى أول محادثة` : undefined}
+      aria-label={locked ? t('nav.lockedHint', { label }) : undefined}
       className={`relative flex min-h-control flex-1 flex-col items-center justify-center gap-1 rounded-chip px-2 transition-colors duration-fast ease-out pointer-hover:bg-kz-ink/5 ${
         active ? 'text-kz-lavender' : 'text-kz-inkFaint'
       }`}

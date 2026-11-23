@@ -133,7 +133,11 @@ export const PaywallScreen: React.FC = () => {
           </GlassCard>
         ) : null}
 
-        {PLANS.map((plan) => {
+        {/* No price, no plan cards. Rendering four cards with an empty amount and
+            no button is a broken storefront; the honest card above already says
+            why and what still works. */}
+        {pricing
+          ? PLANS.map((plan) => {
           const row = priceRowFor(pricing, plan.id);
           const label = priceFor(plan.id);
           const future = row?.futureCents ?? plan.futureCents;
@@ -237,7 +241,8 @@ export const PaywallScreen: React.FC = () => {
               ) : null}
             </React.Fragment>
           );
-        })}
+        })
+          : null}
 
         <GlassCard>
           <p className="kz-ar-caption font-bold text-kz-ink">قواعد العرض</p>

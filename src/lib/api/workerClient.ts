@@ -2,6 +2,7 @@ import { db } from '../db/katzuDb';
 import { WORKER_BASE_URL } from './workerUrl';
 import { adoptRemoteReviewItems, loadReviewItems } from '@/lib/srs/store';
 import { currentSource, currentAffiliateRef } from '@/lib/attribution/source';
+import { currentLanguagePair } from '@/lib/i18n/languagePreference';
 import { adoptDailyAuthority, buildDailyPayload, clearDailyEvents, readDailyEventQueue } from '@/lib/progress/dailyAuthority';
 import type { DailyAuthority, DailyPayload } from '@/lib/progress/dailyAuthority';
 import { logError, logEvent, logNetwork } from '../utils/diagnostics';
@@ -544,6 +545,13 @@ export class WorkerClient {
       sarcasm_level: params.sarcasmLevel || 'SASSY',
       // Missing/undefined is simply turn 0 — the worker bounds it, the prompt uses it.
       turn_index: Math.max(0, Math.floor(Number(params.turnIndex) || 0)),
+      // The pair the learner chose. Read here, at send time, so no screen can
+      // go stale: the server uses `native_lang` for the words it says TO the
+      // learner (translation, correction, hint gloss) and `target_lang` for the
+      // language being practised. Both are validated server-side; an unknown
+      // value falls back to the Arabic/German pair the app shipped with.
+      native_lang: currentLanguagePair().uiLanguage,
+      target_lang: currentLanguagePair().targetLanguage,
     };
     if (params.learnerMemory && params.learnerMemory.length > 0) {
       payload.learner_memory = params.learnerMemory;

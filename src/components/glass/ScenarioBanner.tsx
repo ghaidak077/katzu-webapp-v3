@@ -54,7 +54,14 @@ export const ScenarioBanner: React.FC<ScenarioBannerProps> = ({
       // (`alt=""`), so no accessibility role exposes it and a layout test needs
       // something to hold on to.
       data-testid="scenario-banner"
-      className={cn('relative isolate aspect-[16/9] w-full overflow-hidden bg-black', className)}
+      // With no artwork the banner is procedural light alone, so it takes a
+      // shorter band: a 16:9 frame of flat gradient reads as an image that
+      // failed to load, while a 21:9 light band reads as the card's header.
+      className={cn(
+        'relative isolate w-full overflow-hidden bg-black',
+        scene.artUrl ? 'aspect-[16/9]' : 'aspect-[21/9]',
+        className,
+      )}
       style={{ '--kz-scene-rgb': scene.keyRgb, '--kz-scene-warmth': String(scene.warmth) } as React.CSSProperties}
     >
       {/* Procedural light first: it is what the artwork, when there is any, sits on. */}

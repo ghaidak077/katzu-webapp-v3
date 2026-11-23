@@ -38,8 +38,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # A missing secret is a configuration gap, not a regression. The scheduled
+      # run of 2026-11-19 finished in 32 s with exit 2 ("no provider key") and the
+      # summary said "regression", which sends the reader to the wrong place.
+      # This step names the fix instead, before a paid call is attempted.
+      - name: Preflight — is the provider secret configured?
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        shell: bash
+        run: |
+          if [ -z "${GROQ_API_KEY:-}" ]; then
+            {
+              echo "**Chat QA did not run: the repository secret \`GROQ_API_KEY\` is not set.**"
+              echo
+              echo "Nothing was tested — this is configuration, not a chat regression."
+              echo
+              echo "Fix (owner): \`gh secret set GROQ_API_KEY\` — see \`docs/agent/OWNER-CHECKLIST.md\` §17."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Chat QA cannot run::GROQ_API_KEY repository secret is not set (see OWNER-CHECKLIST §17)"
+            exit 1
+          fi
+
       # Exit codes from scripts/qa/run.mjs:
       #   0 = every session passed      1 = at least one judged/hard failure
+      #   2 = no provider key (should be unreachable past the preflight)
       #   3 = the token quota ran out mid-run (partial, resumable — not a regression)
       # A partial run is reported as a warning, never silently: the step summary
       # says how many sessions finished, so a shrinking suite is visible.
@@ -53,7 +75,12 @@ jobs:
           npm run qa:chat -- --weekly --max-usd "${QA_MAX_USD}" --pacing 7000 | tee qa.log
           code=${PIPESTATUS[0]}
           if [ "$code" -eq 0 ]; then
-            echo "**Chat QA: all sessions passed.**" >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "**Chat QA: all sessions passed.**"
+              echo '```'
+              grep -E 'sessions:|usd:' qa.log | tail -3 || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           if [ "$code" -eq 3 ]; then
@@ -64,6 +91,19 @@ jobs:
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
+          fi
+          if [ "$code" -eq 2 ]; then
+            {
+              echo "**Chat QA: no provider key was available to the run.**"
+              echo
+              echo "The secret reached the preflight but not the script (or was rejected as empty)."
+              echo "Configuration, not a regression; see \`docs/agent/OWNER-CHECKLIST.md\` §17."
+              echo '```'
+              grep -E 'no provider key|GROQ' qa.log | tail -5 || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Chat QA cannot run::run.mjs exited 2 (no provider key)"
+            exit "$code"
           fi
           {
             echo "**Chat QA: regression or hard-rule failure.**"

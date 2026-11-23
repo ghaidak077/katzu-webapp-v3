@@ -10,13 +10,13 @@ Syriatel/MTN Cash numbers and holder names; bank, holder, IBAN; currencies. **Do
 ## 2. Four legal sentences — V44-2 (2026-10-28)
 
 Privacy, terms and refund need four facts only you may state: governing law, name and address, register
-number, dispute forum. Say each in a sentence; the agent adds it. **Done:** the terms page names your law,
+number, dispute forum. One sentence each; the agent adds it. **Done:** the terms page names your law,
 identity and complaint route.
 
 ## 3. Admin secret and grammar columns — V11, V12, V12-1, V18-2
 
 Rotate `ADMIN_SECRET` (pasted into chat); `grammar` needs one additive `ALTER TABLE` adding `rule_de`, `rule_ar`,
-`example_ar`. Set it in Worker → Variables, then ask the agent. **Done:** drift exits 0, grammar shows.
+`example_ar`. Set it in Worker → Variables. **Done:** drift exits 0, grammar shows.
 
 ## 4. AI keys — one organization, nothing to paste twice (AI-POOL, 2026-11-16)
 
@@ -26,15 +26,15 @@ router treats a second key as a config error. A *different* provider is §17. **
 ## 5. One address — V18-3
 
 `robots.txt`, `sitemap.xml` and hreflang need one origin. Say "use katzuai.com" and the agent sets
-`VITE_PUBLIC_APP_URL` at build time. **Done:** `https://katzuai.com/sitemap.xml` lists the root.
+`VITE_PUBLIC_APP_URL` at build time. **Done:** `https://katzuai.com/sitemap.xml` loads.
 ## 6. Real-device voice — V18-3
 
-Voice was only ever simulated. Follow `docs/agent/OWNER-STEPS.md` §2 (14 rows) on iPhone + Android. **Done:** every row pass or fail.
+Voice was only simulated. Follow `docs/agent/OWNER-STEPS.md` §2 (14 rows) on iPhone + Android. **Done:** every row pass or fail.
 
 ## 7. Node version — V17-1 (not blocking)
 
-This machine runs 24.14.0; the project wants 24.15.0+. Run `nvm install 24.15.0 && nvm use 24.15.0`; done when
-`npm ci` shows no `EBADENGINE`.
+Run `nvm install 24.15.0 && nvm use 24.15.0` (this machine has 24.14.0); done when `npm ci` shows no
+`EBADENGINE`.
 
 ## 8. Partner program first test — AFF-1 (2026-10-28)
 
@@ -47,24 +47,23 @@ redeems; A shows one `pending` row, then ask the agent to delete it. (2) Mondays
 
 Code done. You: URL Inspection on `katzuai.com/` and `/guides/a1-visa`; submit both sitemaps + Bing
 (`GEO-VISIBILITY.md` §5); add the `www` DNS record; read the 12 guides; send LinkedIn/GitHub/X links.
-**Done:** "Success" on both sitemaps; numbers in the monthly table.
+**Done:** "Success" on both; numbers in the monthly table.
 ## 10. Admin panel — decided, nothing to do — V46-1
 
-The panel is live behind Cloudflare Access and cannot touch data or keys; text **off**, retention **90 days
-text / 365 counters**, and `/admin` + `ADMIN_SECRET` stay until traffic confirms them. **Done:** a real turn
-appears and you say whether to retire `/admin`.
+The panel is live behind Cloudflare Access and cannot touch data or keys; text **off**, 90-day text / 365-day
+counters; `/admin` + `ADMIN_SECRET` stay until traffic confirms them. **Done:** a real turn appears and you
+say whether to retire `/admin`.
 
 ## 11. Type «hallo» in one scene — V45 (2026-10-31)
 
 At `katzuai.com` open **Am Flughafen** (A1), type `halo`: the partner asks about luggage and notes
-«Schreibung: Doppel-l». Then `hallo`: the partner stays in the scene, never «Wie geht es Ihnen?».
+«Schreibung: Doppel-l». Then `hallo`: it stays in the scene, never «Wie geht es Ihnen?».
 **Done:** both appear, or send what you saw.
 
 ## 12. Turn on the new conversations — CONTENT-V2-1, CONTENT-V2-4 (2026-11-01)
 
-You chose **everything**: the 49 corrected conversations replace the old ones; the 12 new wait for the
-Arabic check. Two block it: `CONTENT-LOAD-AUTHORIZED: scenarios-catalogue.json` (updates, not adds) and
-the admin key. **Done:** a dry run lists 49 rows / 327 fields and the load lands with a backup.
+You chose **everything**: the 49 corrected rows replace the old ones; the 12 new wait for the Arabic
+check. Two block it: `CONTENT-LOAD-AUTHORIZED: scenarios-catalogue.json` and the admin key. **Done:** a dry run lists 49 rows / 327 fields and the load lands with a backup.
 
 ## 13. Native check of the new Arabic — CONTENT-V2-2, V47 (2026-11-01)
 
@@ -92,15 +91,15 @@ approved; `patient_conversation_basics` moved from unit 6 to unit 5.
 
 ## 17. A second provider key, or a paid Groq tier (2026-11-16)
 
-Groq serves chat at ~**200 turns/day for all learners**; when spent they read «الخدمة وصلت حدّها اليومي» and
-nothing is charged. Add `CEREBRAS_API_KEYS` (**one** key, one organization) or buy Groq's paid tier. Never a
-second Groq account: a policy violation, not capacity.
+Groq serves chat at ~**200 turns/day for all learners**; when spent they read «الخدمة وصلت حدّها اليومي», nothing charged. Add `CEREBRAS_API_KEYS` (**one** key, one organization) or buy Groq's paid tier. Never a
+second Groq account: a policy violation, not capacity. The Monday **Chat QA** also needs the repository secret
+`GROQ_API_KEY` (`gh secret set GROQ_API_KEY`) — CI-SECRET-1; unset, it stops in 30 s and tests nothing.
 
 ## 18. A teacher reads the new first sentence — CHAT-V10 (2026-11-18)
 
 The A1 scene should open in formal «Sie»: «Hallo! Ich bin Frau Meier, Ihre Nachbarin. Wie heißen Sie?» /
-«أهلاً! أنا السيدة ماير، جارتك. ما اسمك؟». A German teacher confirms both; production keeps the old «du»
-sentence until `CONTENT-LOAD-AUTHORIZED:`. **Done:** teacher agrees, opener replaced.
+«أهلاً! أنا السيدة ماير، جارتك. ما اسمك؟». A teacher confirms both; production keeps the «du» sentence
+until `CONTENT-LOAD-AUTHORIZED:`. **Done:** teacher agrees, opener replaced.
 
 ## Nothing to do — so nobody re-opens them
 

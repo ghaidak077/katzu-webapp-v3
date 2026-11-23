@@ -48,12 +48,6 @@ file is the digest that is short enough to always read.
 
 ---
 
-## Current excellence facts (2026-10-04)
-
-- 
-- 
-- 
-
 ## B. Frozen decisions (do not relitigate)
 
 1. **§3 is owner-only** — stack, secrets, deploys, payments, force-push. An agent never edits
