@@ -484,6 +484,14 @@ const AR = {
   'practice.repeat.partial': 'سمعنا {matched} من {total} كلمات — الباقي: {missed}.',
   'practice.repeat.none': 'لم نسمع كلمات واضحة هذه المرة. أعد المحاولة، أو اكتب ما سمعته.',
   'practice.listSeparator': '، ',
+
+  'update.title': 'تحديث متاح',
+  'update.bodyHeld':
+    'نسخة جديدة من كاتزو جاهزة. أنهِ المحادثة الجارية أولاً حتى لا تفقد ما كتبته، ثم حدّث.',
+  'update.body': 'نسخة جديدة من كاتزو جاهزة. حدّث الآن لتصل إلى آخر تحسينات الدروس.',
+  'update.applying': 'جارٍ التحديث…',
+  'update.apply': 'تحديث الآن',
+  'update.later': 'لاحقاً',
 } as const;
 
 export type UiStringKey = keyof typeof AR;
@@ -961,6 +969,14 @@ const EN: Record<UiStringKey, string> = {
   'practice.repeat.partial': 'We heard {matched} of {total} words — the rest: {missed}.',
   'practice.repeat.none': 'We did not hear clear words that time. Try again, or type what you heard.',
   'practice.listSeparator': ', ',
+
+  'update.title': 'Update available',
+  'update.bodyHeld':
+    'A new version of Katzu is ready. Finish the conversation you are in first, so you do not lose what you wrote, then update.',
+  'update.body': 'A new version of Katzu is ready. Update now to get the latest lesson improvements.',
+  'update.applying': 'Updating…',
+  'update.apply': 'Update now',
+  'update.later': 'Later',
 };
 
 const ID: Record<UiStringKey, string> = {
@@ -1438,6 +1454,15 @@ const ID: Record<UiStringKey, string> = {
   'practice.repeat.partial': 'Kami mendengar {matched} dari {total} kata — sisanya: {missed}.',
   'practice.repeat.none': 'Kami tidak mendengar kata yang jelas kali ini. Coba lagi, atau tulis apa yang kamu dengar.',
   'practice.listSeparator': ', ',
+
+  'update.title': 'Pembaruan tersedia',
+  'update.bodyHeld':
+    'Versi baru Katzu sudah siap. Selesaikan dulu percakapan yang sedang berjalan supaya tulisanmu tidak hilang, lalu perbarui.',
+  'update.body':
+    'Versi baru Katzu sudah siap. Perbarui sekarang untuk mendapatkan perbaikan pelajaran terbaru.',
+  'update.applying': 'Memperbarui…',
+  'update.apply': 'Perbarui sekarang',
+  'update.later': 'Nanti',
 };
 
 export const UI_STRINGS: Record<UiLanguage, Record<UiStringKey, string>> = {
