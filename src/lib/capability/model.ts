@@ -292,10 +292,13 @@ export function capabilityFromSession(session: {
  * skill has been measured — "we don't know yet" is a valid answer and must
  * never become "0%".
  */
-export function weakestMeasuredSkill(input: {
-  sessions: Array<Pick<SessionEntity, 'accuracyPercent' | 'independentSentences'>>;
-  practice: Array<Pick<SkillPracticeEntity, 'skill' | 'score'>>;
-}): { skill: 'speaking' | 'listening' | 'writing'; labelAr: string; actionAr: string; score: number } | null {
+export function weakestMeasuredSkill(
+  input: {
+    sessions: Array<Pick<SessionEntity, 'accuracyPercent' | 'independentSentences'>>;
+    practice: Array<Pick<SkillPracticeEntity, 'skill' | 'score'>>;
+  },
+  language: UiLanguage = 'ar',
+): { skill: 'speaking' | 'listening' | 'writing'; labelAr: string; actionAr: string; score: number } | null {
   const speaking = (input.sessions || [])
     .filter((session) => (session.independentSentences || 0) >= 1 && typeof session.accuracyPercent === 'number')
     .map((session) => session.accuracyPercent as number);
@@ -311,9 +314,24 @@ export function weakestMeasuredSkill(input: {
     actionAr: string;
     score: number;
   }> = [
-    { skill: 'speaking', labelAr: 'التحدث', actionAr: 'تدرّب على محادثة قصيرة', score: average(speaking) ?? Infinity },
-    { skill: 'listening', labelAr: 'الاستماع', actionAr: 'ابدأ تدريب الاستماع', score: average(listening) ?? Infinity },
-    { skill: 'writing', labelAr: 'الكتابة', actionAr: 'اكتب رسالة قصيرة', score: average(writing) ?? Infinity },
+    {
+      skill: 'speaking',
+      labelAr: translate(language, 'capability.skill.speaking'),
+      actionAr: translate(language, 'capability.action.speaking'),
+      score: average(speaking) ?? Infinity,
+    },
+    {
+      skill: 'listening',
+      labelAr: translate(language, 'capability.skill.listening'),
+      actionAr: translate(language, 'capability.action.listening'),
+      score: average(listening) ?? Infinity,
+    },
+    {
+      skill: 'writing',
+      labelAr: translate(language, 'capability.skill.writing'),
+      actionAr: translate(language, 'capability.action.writing'),
+      score: average(writing) ?? Infinity,
+    },
   ];
   const candidates = measured.filter((candidate) => Number.isFinite(candidate.score));
 

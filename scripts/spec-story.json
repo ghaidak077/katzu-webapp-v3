@@ -1,0 +1,33 @@
+{
+  "file": "src/lib/journey/story.ts",
+  "entries": [
+    {
+      "key": "story.placeholder.explorer",
+      "ar": "مستكشف كَاتْزُو",
+      "en": "Katzu explorer",
+      "id": "Penjelajah Katzu",
+      "table_only": true
+    },
+    {
+      "key": "story.placeholder.student",
+      "ar": "طالب كَاتْزُو",
+      "en": "Katzu student",
+      "id": "Pelajar Katzu",
+      "table_only": true
+    },
+    {
+      "key": "story.placeholder.learner",
+      "ar": "متعلّم كاتزو",
+      "en": "Katzu learner",
+      "id": "Pembelajar Katzu",
+      "table_only": true
+    },
+    {
+      "key": "story.correctionLanguage",
+      "ar": "بالعربية",
+      "en": "in English",
+      "id": "dalam bahasa Indonesia",
+      "table_only": true
+    }
+  ]
+}

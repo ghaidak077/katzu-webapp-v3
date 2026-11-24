@@ -1,0 +1,47 @@
+{
+  "file": "src/lib/capability/model.ts",
+  "entries": [
+    {
+      "key": "capability.skill.speaking",
+      "ar": "التحدث",
+      "en": "Speaking",
+      "id": "Berbicara",
+      "table_only": true
+    },
+    {
+      "key": "capability.skill.listening",
+      "ar": "الاستماع",
+      "en": "Listening",
+      "id": "Menyimak",
+      "table_only": true
+    },
+    {
+      "key": "capability.skill.writing",
+      "ar": "الكتابة",
+      "en": "Writing",
+      "id": "Menulis",
+      "table_only": true
+    },
+    {
+      "key": "capability.action.speaking",
+      "ar": "تدرّب على محادثة قصيرة",
+      "en": "Practise a short conversation",
+      "id": "Latih percakapan singkat",
+      "table_only": true
+    },
+    {
+      "key": "capability.action.listening",
+      "ar": "ابدأ تدريب الاستماع",
+      "en": "Start a listening drill",
+      "id": "Mulai latihan menyimak",
+      "table_only": true
+    },
+    {
+      "key": "capability.action.writing",
+      "ar": "اكتب رسالة قصيرة",
+      "en": "Write a short message",
+      "id": "Tulis pesan singkat",
+      "table_only": true
+    }
+  ]
+}

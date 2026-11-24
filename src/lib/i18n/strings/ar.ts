@@ -1419,6 +1419,16 @@ export const AR = {
   'paywallModal.legalAria': 'الصفحات القانونية',
   'paywallModal.privacy': 'سياسة الخصوصية',
   'paywallModal.terms': 'شروط الاستخدام',
+  'capability.skill.speaking': 'التحدث',
+  'capability.skill.listening': 'الاستماع',
+  'capability.skill.writing': 'الكتابة',
+  'capability.action.speaking': 'تدرّب على محادثة قصيرة',
+  'capability.action.listening': 'ابدأ تدريب الاستماع',
+  'capability.action.writing': 'اكتب رسالة قصيرة',
+  'story.placeholder.explorer': 'مستكشف كَاتْزُو',
+  'story.placeholder.student': 'طالب كَاتْزُو',
+  'story.placeholder.learner': 'متعلّم كاتزو',
+  'story.correctionLanguage': 'بالعربية',
 } as const;
 
 export type ArKey = keyof typeof AR;

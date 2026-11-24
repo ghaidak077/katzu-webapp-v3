@@ -331,17 +331,20 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
           : reviewItems.map((item) => ({ dueAt: item.dueAt, kind: item.kind, scenarioId: item.scenarioId })),
       completedScenarioIds: guided ? completedScenarioIds : [],
       scenarioLevels,
-      weakestSkill: weakestMeasuredSkill({
-        sessions: data ? Object.values(data.sessionsByScenario).flat() : [],
-        practice: skillPractice,
-      }),
+      weakestSkill: weakestMeasuredSkill(
+        {
+          sessions: data ? Object.values(data.sessionsByScenario).flat() : [],
+          practice: skillPractice,
+        },
+        uiLanguage,
+      ),
       dailyMinutes: user?.dailyGoalMinutes,
       // B6: the learner's own date, as a second fact about today. It never
       // changes WHICH mission is chosen.
       targetDate: user?.targetDate,
       targetDateKind: user?.targetDateKind,
     }),
-    [level, user?.primaryGoal, user?.dailyGoalMinutes, user?.targetDate, user?.targetDateKind, data, scenarios, training, reviewItems, scenarioLevels, skillPractice, reviewRevealed, completedScenarioIds, guided],
+    [level, user?.primaryGoal, user?.dailyGoalMinutes, user?.targetDate, user?.targetDateKind, data, scenarios, training, reviewItems, scenarioLevels, skillPractice, reviewRevealed, completedScenarioIds, guided, uiLanguage],
   );
 
   const mission = useMemo(() => selectDailyMission(missionInput), [missionInput]);

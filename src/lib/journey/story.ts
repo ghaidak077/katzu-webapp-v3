@@ -51,7 +51,14 @@ export interface StorySetup {
  * `كجد` is the row `initializeDatabaseSeed` writes before sign-in; greeting a
  * signed-in learner with it would be the app mistaking a placeholder for a name.
  */
-const PLACEHOLDER_NAMES = new Set(['مستكشف كَاتْزُو', 'طالب كَاتْزُو', 'متعلّم كاتزو', 'Katzu']);
+const PLACEHOLDER_NAMES = new Set([
+  // The seeded row's own strings, read from the dictionary so the seed value and
+  // this filter cannot drift apart by a diacritic.
+  translate('ar', 'story.placeholder.explorer'),
+  translate('ar', 'story.placeholder.student'),
+  translate('ar', 'story.placeholder.learner'),
+  'Katzu',
+]);
 
 /**
  * The learner's name, ready to be addressed by — or `null`.
@@ -74,26 +81,32 @@ const LEVEL_ORDER: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
 
 /** Persona strings come from the CMS ("Barista katze"); map them to real roles. */
 /** Exported for the test that asserts every known persona maps to a real role. */
-export const PERSONA_ROLES: Array<{ keywords: string[]; roleAr: string; roleKey: UiStringKey }> = [
+const PERSONA_ROLE_KEYS: Array<{ keywords: string[]; roleKey: UiStringKey }> = [
   // Airport first: it is the story's opening scene, and a border officer is not
   // the generic "موظف في الدائرة الرسمية" the `beamte` entry below would give.
-  { keywords: ['grenz', 'zoll', 'passkontrolle', 'flughafen'], roleAr: 'موظف جوازات المطار', roleKey: 'story.role.border' },
-  { keywords: ['barista', 'café', 'cafe'], roleAr: 'عامل المقهى', roleKey: 'story.role.cafe' },
-  { keywords: ['bäcker', 'baecker', 'baker'], roleAr: 'الخبّاز', roleKey: 'story.role.baker' },
-  { keywords: ['doktor', 'arzt', 'doctor'], roleAr: 'الطبيب', roleKey: 'story.role.doctor' },
-  { keywords: ['vermieter', 'landlord'], roleAr: 'صاحب الشقة', roleKey: 'story.role.landlord' },
-  { keywords: ['chef', 'personal', 'hr'], roleAr: 'مسؤول التوظيف', roleKey: 'story.role.hiring' },
-  { keywords: ['bahn', 'schaffner', 'train'], roleAr: 'موظف الاستعلامات في المحطة', roleKey: 'story.role.station' },
-  { keywords: ['beamte', 'amt', 'verwaltung'], roleAr: 'موظف في الدائرة الرسمية', roleKey: 'story.role.official' },
+  { keywords: ['grenz', 'zoll', 'passkontrolle', 'flughafen'], roleKey: 'story.role.border' },
+  { keywords: ['barista', 'café', 'cafe'], roleKey: 'story.role.cafe' },
+  { keywords: ['bäcker', 'baecker', 'baker'], roleKey: 'story.role.baker' },
+  { keywords: ['doktor', 'arzt', 'doctor'], roleKey: 'story.role.doctor' },
+  { keywords: ['vermieter', 'landlord'], roleKey: 'story.role.landlord' },
+  { keywords: ['chef', 'personal', 'hr'], roleKey: 'story.role.hiring' },
+  { keywords: ['bahn', 'schaffner', 'train'], roleKey: 'story.role.station' },
+  { keywords: ['beamte', 'amt', 'verwaltung'], roleKey: 'story.role.official' },
   // V23: roles for the new module categories. An examiner plays by exam rules
-  // (timing, tasks, no advice) — a label that says "موظف" would misread the scene.
-  { keywords: ['prüfer', 'pruefer', 'prüfungspartner', 'pruefungspartner', 'examiner'], roleAr: 'ممتحن في الامتحان التجريبي', roleKey: 'story.role.examiner' },
-  { keywords: ['dozent', 'lektor', 'professor', 'seminar'], roleAr: 'أستاذ في الدورة اللغوية', roleKey: 'story.role.teacher' },
-  { keywords: ['visum', 'botschaft', 'konsulat'], roleAr: 'موظف شؤون التأشيرات', roleKey: 'story.role.visa' },
-  { keywords: ['handwerker', 'meister', 'werkstatt'], roleAr: 'حرفي أو فني صيانة', roleKey: 'story.role.tradesperson' },
-  { keywords: ['nachbar', 'neighbor'], roleAr: 'جارك', roleKey: 'story.role.neighbour' },
-  { keywords: ['kollege', 'colleague'], roleAr: 'زميلك في العمل', roleKey: 'story.role.colleague' },
+  // (timing, tasks, no advice) — a label that says «official» would misread the scene.
+  { keywords: ['prüfer', 'pruefer', 'prüfungspartner', 'pruefungspartner', 'examiner'], roleKey: 'story.role.examiner' },
+  { keywords: ['dozent', 'lektor', 'professor', 'seminar'], roleKey: 'story.role.teacher' },
+  { keywords: ['visum', 'botschaft', 'konsulat'], roleKey: 'story.role.visa' },
+  { keywords: ['handwerker', 'meister', 'werkstatt'], roleKey: 'story.role.tradesperson' },
+  { keywords: ['nachbar', 'neighbor'], roleKey: 'story.role.neighbour' },
+  { keywords: ['kollege', 'colleague'], roleKey: 'story.role.colleague' },
 ];
+
+/** The Arabic labels the older tests read, derived from the same keys. */
+export const PERSONA_ROLES = PERSONA_ROLE_KEYS.map((entry) => ({
+  ...entry,
+  roleAr: translate('ar', entry.roleKey),
+}));
 
 function roleFor(persona: string | undefined, language: UiLanguage = 'ar'): string {
   const value = String(persona || '').toLowerCase();
@@ -200,8 +213,7 @@ function katzuOpeningLine(input: {
   // that a screen was translated rather than written.
   const vocative = input.name ? `${input.name}${language === 'ar' ? '، ' : ', '}` : '';
   const role = translate(language, input.name ? 'story.katzu.roleWithName' : 'story.katzu.roleGeneric');
-  const correctionLanguage =
-    language === 'ar' ? 'بالعربية' : language === 'id' ? 'dalam bahasa Indonesia' : 'in English';
+  const correctionLanguage = translate(language, 'story.correctionLanguage');
 
   const body =
     input.arrivalStatus === 'preparing'
