@@ -1,0 +1,22 @@
+{
+ "file": "src/features/listening/ListeningScreen.tsx",
+ "entries": [],
+ "manual": [
+  [
+   "تشغيل بطيء 0.8x",
+   "{t('listening.slow')} 0.8x"
+  ],
+  [
+   "الجملة مخفية — اكتبها من الذاكرة",
+   "{t('listening.hidden')} — {t('listening.fromMemory')}"
+  ],
+  [
+   "بنك الكلمات — اضغط لتضيف الكلمة",
+   "{t('listening.wordBank')} — {t('listening.tapToAdd')}"
+  ],
+  [
+   "الكلمات التي فاتتك:{' '}",
+   "{t('listening.missed')}"
+  ]
+ ]
+}

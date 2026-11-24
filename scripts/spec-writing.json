@@ -1,0 +1,105 @@
+{
+  "file": "src/features/writing/WritingScreen.tsx",
+  "imports_after": "import { GermanText } from '@/components/common/GermanText';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';\nimport { translate } from '@/lib/i18n/strings';\nimport type { UiStringKey } from '@/lib/i18n/strings';\nimport type { UiLanguage } from '@/lib/i18n/languages';",
+  "anchor": "export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubscription }) => {",
+  "hook": "  const { t, uiLanguage } = useLanguage();",
+  "manual": [
+    ["const WRITING_STEPS = ['اقرأ المهمة', 'اكتب', 'اقرأ التصحيح'] as const;", "const WRITING_STEPS = ['writing.step.read', 'writing.step.write', 'writing.step.readCorrection'] as const;"],
+    ["<StepTrail steps={WRITING_STEPS} current={2} />", "<StepTrail steps={WRITING_STEPS.map((key) => t(key))} current={2} />"],
+    ["<StepTrail steps={WRITING_STEPS} current={isSubmitting ? 1 : trimmedLength ? 1 : 0} />", "<StepTrail steps={WRITING_STEPS.map((key) => t(key))} current={isSubmitting ? 1 : trimmedLength ? 1 : 0} />"],
+    ["const DIMENSION_LABELS: Record<string, string> = {\n  task: 'تنفيذ المهمة',\n  coherence: 'الترابط والتنظيم',\n  grammar: 'القواعد',\n  vocabulary: 'المفردات',\n};", "const DIMENSION_LABELS: Record<string, UiStringKey> = {\n  task: 'writing.dim.task',\n  coherence: 'writing.dim.coherence',\n  grammar: 'writing.dim.grammar',\n  vocabulary: 'writing.dim.vocabulary',\n};"],
+    ["{DIMENSION_LABELS[dimension] || dimension}", "{DIMENSION_LABELS[dimension] ? t(DIMENSION_LABELS[dimension]) : dimension}"],
+    ["function verdictAr(percent: number): string {\n  if (percent >= 85) return 'قوي — هذا مستوى رسالة تُفهم من أول قراءة.';\n  if (percent >= 70) return 'جيد — الفكرة واضحة، وبقيت تفاصيل قواعد تحتاج تثبيتاً.';\n  if (percent >= 50) return 'مقبول — وصل المعنى، لكن الأخطاء تعطّل القارئ.';\n  return 'يحتاج عملاً — أعد كتابة نفس المهمة بعد مراجعة الملاحظات.';\n}", "function verdict(percent: number, language: UiLanguage): string {\n  if (percent >= 85) return translate(language, 'writing.verdict.strong');\n  if (percent >= 70) return translate(language, 'writing.verdict.good');\n  if (percent >= 50) return translate(language, 'writing.verdict.ok');\n  return translate(language, 'writing.verdict.work');\n}"],
+    ["{verdictAr(feedback.percent)}", "{verdict(feedback.percent, uiLanguage)}"],
+    ["معايير التقييم — من {feedback.maxScore}", "{t('writing.rubric', { max: feedback.maxScore })}"],
+    ["{MIN_CHARS - trimmedLength} حرفاً على الأقل ليصبح التصحيح مفيداً", "{t('writing.minChars', { count: MIN_CHARS - trimmedLength })}"],
+    ["بنك الكلمات — اضغط لتضيف الكلمة", "{t('writing.wordBank')} — {t('writing.tapToAdd')}"]
+  ],
+  "entries": [
+    { "key": "writing.step.read", "ar": "اقرأ المهمة", "en": "Read the task", "id": "Baca tugasnya" },
+    { "key": "writing.step.write", "ar": "اكتب", "en": "Write", "id": "Tulis" },
+    { "key": "writing.step.readCorrection", "ar": "اقرأ التصحيح", "en": "Read the correction", "id": "Baca koreksinya" },
+    { "key": "writing.dim.task", "ar": "تنفيذ المهمة", "en": "Task completion", "id": "Pemenuhan tugas" },
+    { "key": "writing.dim.coherence", "ar": "الترابط والتنظيم", "en": "Coherence and structure", "id": "Koherensi dan susunan" },
+    { "key": "writing.dim.grammar", "ar": "القواعد", "en": "Grammar", "id": "Tata bahasa" },
+    { "key": "writing.dim.vocabulary", "ar": "المفردات", "en": "Vocabulary", "id": "Kosakata" },
+    {
+      "key": "writing.verdict.strong",
+      "ar": "قوي — هذا مستوى رسالة تُفهم من أول قراءة.",
+      "en": "Strong — this reads like a message understood first time.",
+      "id": "Kuat — ini terbaca seperti pesan yang langsung dipahami."
+    },
+    {
+      "key": "writing.verdict.good",
+      "ar": "جيد — الفكرة واضحة، وبقيت تفاصيل قواعد تحتاج تثبيتاً.",
+      "en": "Good — the idea is clear, and a few grammar details still need to settle.",
+      "id": "Bagus — idenya jelas, tinggal beberapa detail tata bahasa yang perlu dimantapkan."
+    },
+    {
+      "key": "writing.verdict.ok",
+      "ar": "مقبول — وصل المعنى، لكن الأخطاء تعطّل القارئ.",
+      "en": "Passable — the meaning arrives, but the errors trip the reader up.",
+      "id": "Cukup — maknanya sampai, tapi kesalahannya mengganggu pembaca."
+    },
+    {
+      "key": "writing.verdict.work",
+      "ar": "يحتاج عملاً — أعد كتابة نفس المهمة بعد مراجعة الملاحظات.",
+      "en": "Needs work — rewrite the same task after going over the notes.",
+      "id": "Perlu kerja — tulis ulang tugas yang sama setelah meninjau catatannya."
+    },
+    { "key": "writing.grammarFallback", "ar": "صياغة صحيحة", "en": "correct phrasing", "id": "frasa yang benar" },
+    { "key": "writing.title", "ar": "تصحيح الكتابة", "en": "Writing correction", "id": "Koreksi tulisan" },
+    { "key": "writing.rubric", "ar": "معايير التقييم — من {max}", "en": "The rubric — out of {max}", "id": "Rubrik penilaian — dari {max}" },
+    { "key": "writing.teacherNote", "ar": "ملاحظة المعلّم", "en": "The teacher's note", "id": "Catatan pengajar" },
+    { "key": "writing.corrected", "ar": "النسخة المصححة", "en": "The corrected version", "id": "Versi terkoreksi" },
+    { "key": "writing.listenCorrected", "ar": "استمع للنسخة المصححة", "en": "Hear the corrected version", "id": "Dengarkan versi terkoreksi" },
+    {
+      "key": "writing.mistakesBack",
+      "ar": "الأخطاء التي ستعود إليك في المراجعة",
+      "en": "The mistakes that will come back in your review",
+      "id": "Kesalahan yang akan kembali di ulasanmu"
+    },
+    { "key": "writing.writeAgain", "ar": "اكتب من جديد", "en": "Write it again", "id": "Tulis lagi" },
+    { "key": "writing.back", "ar": "عد إلى المسار", "en": "Back to the path", "id": "Kembali ke jalur" },
+    { "key": "writing.screenTitle", "ar": "الكتابة (Schreiben)", "en": "Writing (Schreiben)", "id": "Menulis (Schreiben)" },
+    {
+      "key": "writing.tagline1",
+      "ar": "إحدى المهارات الأربع التي يقيسها الاختبار الحقيقي",
+      "en": "One of the four skills the real exam measures",
+      "id": "Salah satu dari empat keterampilan yang diukur ujian sebenarnya"
+    },
+    { "key": "writing.tagline2", "ar": "اكتب ثم اعرف بالضبط ما يجب إصلاحه.", "en": "Write, then know exactly what to fix.", "id": "Tulis, lalu tahu persis apa yang harus diperbaiki." },
+    { "key": "writing.topic", "ar": "الموضوع:", "en": "Topic:", "id": "Topik:" },
+    { "key": "writing.phrases", "ar": "عبارات من المشهد", "en": "Phrases from the scene", "id": "Frasa dari adegan" },
+    {
+      "key": "writing.phrasesHint",
+      "ar": "استخدم ما تحتاجه فقط، والأفضل استخدامها بشكل صحيح",
+      "en": "use only what you need, and better to use it correctly",
+      "id": "pakai hanya yang kamu butuhkan, dan lebih baik dipakai dengan benar"
+    },
+    { "key": "writing.wordBank", "ar": "بنك الكلمات", "en": "Word bank", "id": "Bank kata" },
+    { "key": "writing.tapToAdd", "ar": "اضغط لتضيف الكلمة", "en": "tap to add the word", "id": "ketuk untuk menambah kata" },
+    {
+      "key": "writing.writeLabel",
+      "ar": "اكتب ما تريد قوله بالألمانية",
+      "en": "Write what you want to say in German",
+      "id": "Tulis apa yang ingin kamu katakan dalam bahasa Jerman"
+    },
+    {
+      "key": "writing.minChars",
+      "ar": "{count} حرفاً على الأقل ليصبح التصحيح مفيداً",
+      "en": "{count} more characters before the correction is useful",
+      "id": "{count} karakter lagi agar koreksinya berguna"
+    },
+    { "key": "writing.upgrade", "ar": "عرض الاشتراك", "en": "See the subscription", "id": "Lihat langganan" },
+    { "key": "writing.correcting", "ar": "جاري التصحيح...", "en": "Correcting…", "id": "Mengoreksi…" },
+    { "key": "writing.submit", "ar": "صحّح نصّي", "en": "Correct my text", "id": "Koreksi teksku" },
+    {
+      "key": "writing.note",
+      "ar": "التصحيح يشرح الأخطاء بالعربية، وكل خطأ يدخل في قائمة مراجعتك حتى لا يتكرر.",
+      "en": "The correction explains each mistake, and every mistake joins your review list so it does not repeat.",
+      "id": "Koreksinya menjelaskan setiap kesalahan, dan tiap kesalahan masuk daftar ulasanmu agar tidak terulang."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+ "file": "src/features/writing/WritingScreen.tsx",
+ "entries": [],
+ "manual": [
+  [
+   "إحدى المهارات الأربع التي يقيسها الاختبار الحقيقي — اكتب ثم اعرف بالضبط ما يجب إصلاحه.",
+   "{t('writing.tagline1')} — {t('writing.tagline2')}"
+  ],
+  [
+   "عبارات من المشهد — استخدم ما تحتاجه فقط، والأفضل استخدامها بشكل صحيح",
+   "{t('writing.phrases')} — {t('writing.phrasesHint')}"
+  ]
+ ]
+}

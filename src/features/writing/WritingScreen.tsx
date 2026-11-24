@@ -5,6 +5,10 @@ import { workerClient } from '@/lib/api/workerClient';
 import { enrolMistake } from '@/lib/srs/store';
 import { WRITING_TASK_COPY, writingTaskForLevel } from '@/lib/writing/task';
 import { GermanText } from '@/components/common/GermanText';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { translate } from '@/lib/i18n/strings';
+import type { UiStringKey } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -34,13 +38,13 @@ const MIN_CHARS = 20;
 const MAX_CHARS = 900;
 
 /** The three moves of a writing task, in order — see `StepTrail`. */
-const WRITING_STEPS = ['اقرأ المهمة', 'اكتب', 'اقرأ التصحيح'] as const;
+const WRITING_STEPS = ['writing.step.read', 'writing.step.write', 'writing.step.readCorrection'] as const;
 
-const DIMENSION_LABELS: Record<string, string> = {
-  task: 'تنفيذ المهمة',
-  coherence: 'الترابط والتنظيم',
-  grammar: 'القواعد',
-  vocabulary: 'المفردات',
+const DIMENSION_LABELS: Record<string, UiStringKey> = {
+  task: 'writing.dim.task',
+  coherence: 'writing.dim.coherence',
+  grammar: 'writing.dim.grammar',
+  vocabulary: 'writing.dim.vocabulary',
 };
 
 // V31: the shared entitlement set, so this screen and the conversation agree.
@@ -49,11 +53,11 @@ const DIMENSION_LABELS: Record<string, string> = {
 // trust for the server's bad morning.
 
 /** Honest verdict wording: the score is a rubric total, not a certificate. */
-function verdictAr(percent: number): string {
-  if (percent >= 85) return 'قوي — هذا مستوى رسالة تُفهم من أول قراءة.';
-  if (percent >= 70) return 'جيد — الفكرة واضحة، وبقيت تفاصيل قواعد تحتاج تثبيتاً.';
-  if (percent >= 50) return 'مقبول — وصل المعنى، لكن الأخطاء تعطّل القارئ.';
-  return 'يحتاج عملاً — أعد كتابة نفس المهمة بعد مراجعة الملاحظات.';
+function verdict(percent: number, language: UiLanguage): string {
+  if (percent >= 85) return translate(language, 'writing.verdict.strong');
+  if (percent >= 70) return translate(language, 'writing.verdict.good');
+  if (percent >= 50) return translate(language, 'writing.verdict.ok');
+  return translate(language, 'writing.verdict.work');
 }
 
 /**
@@ -65,6 +69,7 @@ function verdictAr(percent: number): string {
  * comes back until it is right.
  */
 export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubscription }) => {
+  const { t, uiLanguage } = useLanguage();
   const user = useLiveQuery(() => db.users.get('current_user'));
   const trainings = useLiveQuery(() => db.scenario_training.toArray());
   const scenarios = useLiveQuery(() => db.scenarios.toArray());
@@ -158,7 +163,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         scenarioId: scenario?.id || '',
         original: mistake.original,
         corrected: mistake.corrected,
-        grammarRule: mistake.ruleDe || 'صياغة صحيحة',
+        grammarRule: mistake.ruleDe || t('writing.grammarFallback'),
         roastComment: mistake.explanationAr,
         timestamp: now,
         wasHintUsed: false,
@@ -195,7 +200,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
       <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto pb-10">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-bold font-arabic">تصحيح الكتابة</h2>
+            <h2 className="text-lg font-bold font-arabic">{t('writing.title')}</h2>
             <p className="text-micro text-text-secondary font-arabic">{copy.formatDe}</p>
           </div>
           <Badge variant="subtle" size="sm">
@@ -203,20 +208,20 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
           </Badge>
         </div>
 
-        <StepTrail steps={WRITING_STEPS} current={2} />
+        <StepTrail steps={WRITING_STEPS.map((key) => t(key))} current={2} />
 
         <Card variant="hero" glow className="p-5 mb-4 text-center">
           <div className="text-3xl font-bold font-german text-primary mb-1">{feedback.percent}%</div>
-          <p className="text-xs font-arabic text-text-secondary leading-relaxed">{verdictAr(feedback.percent)}</p>
+          <p className="text-xs font-arabic text-text-secondary leading-relaxed">{verdict(feedback.percent, uiLanguage)}</p>
         </Card>
 
         <Card className="p-4 mb-4">
-          <h3 className="text-xs font-bold font-arabic text-text-secondary mb-3">معايير التقييم — من {feedback.maxScore}</h3>
+          <h3 className="text-xs font-bold font-arabic text-text-secondary mb-3">{t('writing.rubric', { max: feedback.maxScore })}</h3>
           <div className="space-y-2.5">
             {Object.entries(feedback.scores).map(([dimension, score]) => (
               <div key={dimension}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-micro font-arabic">{DIMENSION_LABELS[dimension] || dimension}</span>
+                  <span className="text-micro font-arabic">{DIMENSION_LABELS[dimension] ? t(DIMENSION_LABELS[dimension]) : dimension}</span>
                   <LtrCounter value={score} total={feedback.maxScore} className="text-micro font-german text-text-secondary" />
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
@@ -232,7 +237,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
 
         {feedback.summaryAr && (
           <Card className="p-4 mb-4">
-            <h3 className="text-xs font-bold font-arabic text-text-secondary mb-2">ملاحظة المعلّم</h3>
+            <h3 className="text-xs font-bold font-arabic text-text-secondary mb-2">{t('writing.teacherNote')}</h3>
             <p className="text-xs font-arabic leading-relaxed">{feedback.summaryAr}</p>
           </Card>
         )}
@@ -240,12 +245,12 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         {feedback.correctedDe && (
           <Card className="p-4 mb-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-bold font-arabic text-text-secondary">النسخة المصححة</h3>
+              <h3 className="text-xs font-bold font-arabic text-text-secondary">{t('writing.corrected')}</h3>
               <button
                 type="button"
                 onClick={() => speak(feedback.correctedDe)}
                 className="p-1.5 rounded-lg bg-surface-subtle pointer-hover:bg-primary/20 text-primary transition-colors"
-                aria-label="استمع للنسخة المصححة"
+                aria-label={t('writing.listenCorrected')}
               >
                 <Volume2 className="w-3.5 h-3.5" />
               </button>
@@ -257,7 +262,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         {feedback.mistakes.length > 0 && (
           <Card className="p-4 mb-4">
             <h3 className="text-xs font-bold font-arabic text-text-secondary mb-3">
-              الأخطاء التي ستعود إليك في المراجعة
+              {t('writing.mistakesBack')}
             </h3>
             <ul className="space-y-3">
               {feedback.mistakes.map((mistake, index) => (
@@ -286,10 +291,10 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
 
         <div className="flex gap-2">
           <Button variant="secondary" className="flex-1" onClick={reset}>
-            <PenLine className="w-4 h-4" /> اكتب من جديد
+            <PenLine className="w-4 h-4" /> {t('writing.writeAgain')}
           </Button>
           <Button className="flex-1" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4" /> عد إلى المسار
+            <ArrowLeft className="w-4 h-4" /> {t('writing.back')}
           </Button>
         </div>
       </div>
@@ -300,9 +305,9 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto pb-28">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-bold font-arabic">الكتابة (Schreiben)</h2>
+          <h2 className="text-lg font-bold font-arabic">{t('writing.screenTitle')}</h2>
           <p className="text-micro text-text-secondary font-arabic">
-            إحدى المهارات الأربع التي يقيسها الاختبار الحقيقي — اكتب ثم اعرف بالضبط ما يجب إصلاحه.
+            {t('writing.tagline1')} — {t('writing.tagline2')}
           </p>
         </div>
         <KatzuMascot name="practice" className="w-14 h-14 object-contain" />
@@ -318,7 +323,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         <p className="text-xs font-arabic leading-relaxed mb-2">{copy.briefAr}</p>
         {scenario && (
           <p className="text-micro font-arabic text-text-secondary">
-            الموضوع: <span className="text-text-primary">{scenario.title_ar}</span>
+            {t('writing.topic')} <span className="text-text-primary">{scenario.title_ar}</span>
           </p>
         )}
       </Card>
@@ -326,7 +331,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
       {targetPhrases.length > 0 && (
         <Card className="p-4 mb-4">
           <h3 className="text-micro font-bold font-arabic text-text-secondary mb-2">
-            عبارات من المشهد — استخدم ما تحتاجه فقط، والأفضل استخدامها بشكل صحيح
+            {t('writing.phrases')} — {t('writing.phrasesHint')}
           </h3>
           <ul className="space-y-1">
             {targetPhrases.map((phrase) => (
@@ -339,12 +344,12 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
       )}
 
       <form onSubmit={handleSubmit}>
-        <StepTrail steps={WRITING_STEPS} current={isSubmitting ? 1 : trimmedLength ? 1 : 0} />
+        <StepTrail steps={WRITING_STEPS.map((key) => t(key))} current={isSubmitting ? 1 : trimmedLength ? 1 : 0} />
         <Card className="p-4 mb-4">
           {wordBank.length > 0 && (
             <div data-testid="word-bank" dir="ltr" className="mb-3">
               <span className="mb-1 block text-micro font-arabic text-text-muted">
-                بنك الكلمات — اضغط لتضيف الكلمة
+                {t('writing.wordBank')} — {t('writing.tapToAdd')}
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {wordBank.map((word, wordIndex) => (
@@ -373,7 +378,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
             dir="ltr"
             rows={7}
             maxLength={MAX_CHARS}
-            aria-label="اكتب ما تريد قوله بالألمانية"
+            aria-label={t('writing.writeLabel')}
             placeholder="Schreibe hier auf Deutsch…"
             className="w-full resize-y bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl p-3 text-base font-german leading-relaxed transition-colors"
           />
@@ -381,7 +386,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
             <LtrCounter value={trimmedLength} total={MAX_CHARS} className={`text-micro font-german ${trimmedLength >= MIN_CHARS ? 'text-text-muted' : 'text-status-learning'}`} />
             {trimmedLength < MIN_CHARS && (
               <span className="text-micro font-arabic text-text-muted">
-                {MIN_CHARS - trimmedLength} حرفاً على الأقل ليصبح التصحيح مفيداً
+                {t('writing.minChars', { count: MIN_CHARS - trimmedLength })}
               </span>
             )}
           </div>
@@ -392,7 +397,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
             <p className="text-micro font-arabic text-text-secondary leading-relaxed">{error}</p>
             {paywall && onOpenSubscription && (
               <Button size="sm" className="mt-2" onClick={onOpenSubscription}>
-                <Sparkles className="w-3.5 h-3.5" /> عرض الاشتراك
+                <Sparkles className="w-3.5 h-3.5" /> {t('writing.upgrade')}
               </Button>
             )}
           </div>
@@ -401,18 +406,18 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         <Button type="submit" className="w-full" disabled={!canSubmit}>
           {isSubmitting ? (
             <>
-              <KatzuThinking size={20} layout="inline" /> جاري التصحيح...
+              <KatzuThinking size={20} layout="inline" /> {t('writing.correcting')}
             </>
           ) : (
             <>
-              <PenLine className="w-4 h-4" /> صحّح نصّي
+              <PenLine className="w-4 h-4" /> {t('writing.submit')}
             </>
           )}
         </Button>
       </form>
 
       <p className="mt-3 text-micro font-arabic text-text-muted text-center leading-relaxed">
-        التصحيح يشرح الأخطاء بالعربية، وكل خطأ يدخل في قائمة مراجعتك حتى لا يتكرر.
+        {t('writing.note')}
       </p>
     </div>
   );

@@ -1,0 +1,207 @@
+{
+ "file": "src/features/listening/ListeningScreen.tsx",
+ "imports_after": "import { ArrowLeft, CheckCircle2, Headphones, RotateCcw, Sparkles, Volume2, XCircle } from 'lucide-react';",
+ "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+ "anchor": "export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {",
+ "hook": "  const { t } = useLanguage();",
+ "manual": [
+  [
+   "const LISTENING_STEPS = ['استمع', 'اكتب', 'تحقّق'] as const;",
+   "const LISTENING_STEPS = ['listening.step.listen', 'listening.step.write', 'listening.step.check'] as const;"
+  ],
+  [
+   "<StepTrail steps={LISTENING_STEPS} current={step} />",
+   "<StepTrail steps={LISTENING_STEPS.map((key) => t(key))} current={step} />"
+  ],
+  [
+   "سمعت {index} جملة — {tally.correct} بدقة، و{tally.close} قريبة.",
+   "{t('listening.tally', { total: index, correct: tally.correct, close: tally.close })}"
+  ],
+  [
+   "`أمسكت ${result.matched} من ${result.total} كلمات`",
+   "t('listening.caught', { matched: result.matched, total: result.total })"
+  ]
+ ],
+ "entries": [
+  {
+   "key": "listening.step.listen",
+   "ar": "استمع",
+   "en": "Listen",
+   "id": "Dengarkan"
+  },
+  {
+   "key": "listening.step.write",
+   "ar": "اكتب",
+   "en": "Write",
+   "id": "Tulis"
+  },
+  {
+   "key": "listening.step.check",
+   "ar": "تحقّق",
+   "en": "Check",
+   "id": "Periksa"
+  },
+  {
+   "key": "listening.preparing",
+   "ar": "جاري تحضير تدريب الاستماع...",
+   "en": "Preparing the listening drill…",
+   "id": "Menyiapkan latihan menyimak…"
+  },
+  {
+   "key": "listening.emptyTitle",
+   "ar": "لا يوجد محتوى للاستماع بعد",
+   "en": "No listening content yet",
+   "id": "Belum ada materi menyimak"
+  },
+  {
+   "key": "listening.emptyBody",
+   "ar": "يحتاج هذا التدريب جمل المفردات والعبارات. افتح مشهداً أولاً، وسأجهّز لك تدريباً من محتواه.",
+   "en": "This drill needs sentences and phrases from your vocabulary. Open a scene first, and I will build a drill from its content.",
+   "id": "Latihan ini membutuhkan kalimat dan frasa kosakata. Buka adegan dulu, dan aku akan menyiapkan latihan dari isinya."
+  },
+  {
+   "key": "listening.back",
+   "ar": "عد إلى المسار",
+   "en": "Back to the path",
+   "id": "Kembali ke jalur"
+  },
+  {
+   "key": "listening.finishedTitle",
+   "ar": "انتهى تدريب الاستماع",
+   "en": "The listening drill is over",
+   "id": "Latihan menyimak selesai"
+  },
+  {
+   "key": "listening.tally",
+   "ar": "سمعت {total} جملة — {correct} بدقة، و{close} قريبة.",
+   "en": "You heard {total} sentences — {correct} spot on, and {close} close.",
+   "id": "Kamu mendengar {total} kalimat — {correct} tepat, dan {close} hampir benar."
+  },
+  {
+   "key": "listening.title",
+   "ar": "تدريب الاستماع",
+   "en": "Listening drill",
+   "id": "Latihan menyimak"
+  },
+  {
+   "key": "listening.instruction",
+   "ar": "استمع واكتب ما تسمعه بالألمانية",
+   "en": "Listen and write what you hear in German",
+   "id": "Dengarkan dan tulis apa yang kamu dengar dalam bahasa Jerman"
+  },
+  {
+   "key": "listening.noVoice",
+   "ar": "متصفحك لا يدعم النطق، لذلك ستبقى الجملة ظاهرة أمامك. يمكنك إخفاءها متى أردت لتختبر ذاكرتك.",
+   "en": "Your browser cannot speak, so the sentence stays in front of you. Hide it whenever you want to test your memory.",
+   "id": "Perambanmu tidak mendukung pelafalan, jadi kalimatnya tetap terlihat. Sembunyikan kapan pun kamu ingin menguji ingatanmu."
+  },
+  {
+   "key": "listening.play",
+   "ar": "تشغيل الجملة",
+   "en": "Play the sentence",
+   "id": "Putar kalimatnya"
+  },
+  {
+   "key": "listening.slow",
+   "ar": "تشغيل بطيء",
+   "en": "Play slowly",
+   "id": "Putar pelan"
+  },
+  {
+   "key": "listening.again",
+   "ar": "إعادة",
+   "en": "Again",
+   "id": "Ulangi"
+  },
+  {
+   "key": "listening.hideTry",
+   "ar": "أخفِها وحاول من الذاكرة",
+   "en": "Hide it and try from memory",
+   "id": "Sembunyikan dan coba dari ingatan"
+  },
+  {
+   "key": "listening.hidden",
+   "ar": "الجملة مخفية",
+   "en": "The sentence is hidden",
+   "id": "Kalimatnya disembunyikan"
+  },
+  {
+   "key": "listening.fromMemory",
+   "ar": "اكتبها من الذاكرة",
+   "en": "write it from memory",
+   "id": "tulis dari ingatan"
+  },
+  {
+   "key": "listening.showAgain",
+   "ar": "اعرضها مرة أخرى",
+   "en": "Show it again",
+   "id": "Tampilkan lagi"
+  },
+  {
+   "key": "listening.wordBank",
+   "ar": "بنك الكلمات",
+   "en": "Word bank",
+   "id": "Bank kata"
+  },
+  {
+   "key": "listening.tapToAdd",
+   "ar": "اضغط لتضيف الكلمة",
+   "en": "tap to add the word",
+   "id": "ketuk untuk menambah kata"
+  },
+  {
+   "key": "listening.typing",
+   "ar": "اكتب ما سمعته بالألمانية...",
+   "en": "Write what you heard in German…",
+   "id": "Tulis apa yang kamu dengar dalam bahasa Jerman…"
+  },
+  {
+   "key": "listening.heardLabel",
+   "ar": "ما سمعته بالألمانية",
+   "en": "what you heard in German",
+   "id": "apa yang kamu dengar dalam bahasa Jerman"
+  },
+  {
+   "key": "listening.heardRight",
+   "ar": "سمعتها بدقة",
+   "en": "You heard it exactly",
+   "id": "Kamu mendengarnya tepat"
+  },
+  {
+   "key": "listening.caught",
+   "ar": "أمسكت {matched} من {total} كلمات",
+   "en": "You caught {matched} of {total} words",
+   "id": "Kamu menangkap {matched} dari {total} kata"
+  },
+  {
+   "key": "listening.missed",
+   "ar": "الكلمات التي فاتتك:",
+   "en": "The words you missed:",
+   "id": "Kata yang terlewat:"
+  },
+  {
+   "key": "listening.fullSentence",
+   "ar": "الجملة كاملة",
+   "en": "The whole sentence",
+   "id": "Kalimat utuh"
+  },
+  {
+   "key": "listening.showResult",
+   "ar": "أظهر النتيجة",
+   "en": "Show the result",
+   "id": "Tampilkan hasilnya"
+  },
+  {
+   "key": "listening.nextSentence",
+   "ar": "الجملة التالية",
+   "en": "Next sentence",
+   "id": "Kalimat berikutnya"
+  },
+  {
+   "key": "listening.finish",
+   "ar": "إنهاء التدريب والعودة",
+   "en": "Finish the drill and go back",
+   "id": "Selesaikan latihan dan kembali"
+  }
+ ]
+}

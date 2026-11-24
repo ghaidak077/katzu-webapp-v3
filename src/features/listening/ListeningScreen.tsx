@@ -23,6 +23,7 @@ import { triggerHaptic } from '@/lib/utils/haptics';
 import { buildWordBank } from '@/lib/utils/wordBank';
 import { track } from '@/lib/analytics/client';
 import { ArrowLeft, CheckCircle2, Headphones, RotateCcw, Sparkles, Volume2, XCircle } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface ListeningScreenProps {
   onBack: () => void;
@@ -35,7 +36,7 @@ export interface ListeningScreenProps {
  * listen → type → check from the layout. Numbered, the same screen teaches its
  * own procedure and the next one is never a surprise.
  */
-const LISTENING_STEPS = ['استمع', 'اكتب', 'تحقّق'] as const;
+const LISTENING_STEPS = ['listening.step.listen', 'listening.step.write', 'listening.step.check'] as const;
 
 function speechIsAvailable(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
@@ -48,6 +49,7 @@ function speechIsAvailable(): boolean {
  * still works rather than becoming a dead end.
  */
 export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
+  const { t } = useLanguage();
   const user = useLiveQuery(() => db.users.get('current_user'));
 
   const [queue, setQueue] = useState<DrillItem[] | null>(null);
@@ -157,7 +159,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
   if (queue === null) {
     return (
       <div className="min-h-screen bg-black text-text-primary flex items-center justify-center" role="status" aria-live="polite">
-        <span className="font-arabic text-text-secondary">جاري تحضير تدريب الاستماع...</span>
+        <span className="font-arabic text-text-secondary">{t('listening.preparing')}</span>
       </div>
     );
   }
@@ -166,12 +168,12 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
     return (
       <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col items-center justify-center text-center">
         <KatzuMascot name="peace" className="w-36 h-36 object-contain mb-4" />
-        <h2 className="text-xl font-bold font-arabic mb-2">لا يوجد محتوى للاستماع بعد</h2>
+        <h2 className="text-xl font-bold font-arabic mb-2">{t('listening.emptyTitle')}</h2>
         <p className="text-sm font-arabic text-text-secondary leading-relaxed max-w-xs">
-          يحتاج هذا التدريب جمل المفردات والعبارات. افتح مشهداً أولاً، وسأجهّز لك تدريباً من محتواه.
+          {t('listening.emptyBody')}
         </p>
         <Button className="mt-6" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4" /> عد إلى المسار
+          <ArrowLeft className="w-4 h-4" /> {t('listening.back')}
         </Button>
       </div>
     );
@@ -182,15 +184,15 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
       <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col justify-center">
         <Card variant="hero" glow className="text-center">
           <KatzuMascot name="celebrating" className="w-28 h-28 object-contain mx-auto mb-3" />
-          <h2 className="text-xl font-bold font-arabic mb-1">انتهى تدريب الاستماع</h2>
+          <h2 className="text-xl font-bold font-arabic mb-1">{t('listening.finishedTitle')}</h2>
           <p className="text-xs text-text-secondary font-arabic mb-4">
-            سمعت {index} جملة — {tally.correct} بدقة، و{tally.close} قريبة.
+            {t('listening.tally', { total: index, correct: tally.correct, close: tally.close })}
           </p>
           <p className="text-micro text-text-muted font-arabic mb-4 leading-relaxed">
             {describeDrillResult(tally.correct, index)}
           </p>
           <Button className="w-full" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4" /> عد إلى المسار
+            <ArrowLeft className="w-4 h-4" /> {t('listening.back')}
           </Button>
         </Card>
       </div>
@@ -207,9 +209,9 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto pb-28">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h2 className="text-lg font-bold font-arabic">تدريب الاستماع</h2>
+          <h2 className="text-lg font-bold font-arabic">{t('listening.title')}</h2>
           <p className="text-micro text-text-secondary font-arabic">
-            استمع واكتب ما تسمعه بالألمانية
+            {t('listening.instruction')}
           </p>
         </div>
         <Badge variant="subtle" size="sm">
@@ -222,11 +224,11 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
         <div className="h-full w-full rounded-full bg-primary origin-right transition-transform duration-panels ease-out" style={{ transform: `scaleX(${progressPercent / 100})` }} />
       </div>
 
-      <StepTrail steps={LISTENING_STEPS} current={step} />
+      <StepTrail steps={LISTENING_STEPS.map((key) => t(key))} current={step} />
 
       {!audioAvailable && (
         <p className="mb-3 rounded-2xl border border-status-learning/40 bg-status-learning/10 p-3 text-micro font-arabic text-text-secondary">
-          متصفحك لا يدعم النطق، لذلك ستبقى الجملة ظاهرة أمامك. يمكنك إخفاءها متى أردت لتختبر ذاكرتك.
+          {t('listening.noVoice')}
         </p>
       )}
 
@@ -239,7 +241,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                   type="button"
                   onClick={() => speak(current.german)}
                   className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mx-auto transition-colors"
-                  aria-label="تشغيل الجملة"
+                  aria-label={t('listening.play')}
                 >
                   <Volume2 className="w-8 h-8" />
                 </button>
@@ -252,7 +254,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                     onClick={() => speakSlow(current.german)}
                     className="inline-flex min-h-touch items-center px-3 text-micro font-arabic text-text-secondary pointer-hover:text-primary transition-colors"
                   >
-                    تشغيل بطيء 0.8x
+                    {t('listening.slow')} 0.8x
                   </button>
                   <span className="text-text-muted" aria-hidden>
                     •
@@ -262,7 +264,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                     onClick={() => speak(current.german)}
                     className="inline-flex min-h-touch items-center px-3 text-micro font-arabic text-text-secondary pointer-hover:text-primary transition-colors"
                   >
-                    إعادة
+                    {t('listening.again')}
                   </button>
                 </div>
               </>
@@ -276,18 +278,18 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                       onClick={() => setPeekVisible(false)}
                       className="mt-3 inline-flex min-h-touch items-center px-3 text-micro font-arabic text-primary pointer-hover:underline"
                     >
-                      أخفِها وحاول من الذاكرة
+                      {t('listening.hideTry')}
                     </button>
                   </>
                 ) : (
                   <>
-                    <p className="text-xs font-arabic text-text-muted mb-3">الجملة مخفية — اكتبها من الذاكرة</p>
+                    <p className="text-xs font-arabic text-text-muted mb-3">{t('listening.hidden')} — {t('listening.fromMemory')}</p>
                     <button
                       type="button"
                       onClick={() => setPeekVisible(true)}
                       className="inline-flex min-h-touch items-center px-3 text-micro font-arabic text-primary pointer-hover:underline"
                     >
-                      اعرضها مرة أخرى
+                      {t('listening.showAgain')}
                     </button>
                   </>
                 )}
@@ -300,7 +302,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
               {wordBank.length > 0 && (
                 <div data-testid="word-bank" dir="ltr">
                   <span className="mb-1 block text-micro font-arabic text-text-muted">
-                    بنك الكلمات — اضغط لتضيف الكلمة
+                    {t('listening.wordBank')} — {t('listening.tapToAdd')}
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {wordBank.map((word, wordIndex) => (
@@ -325,12 +327,12 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                 autoFocus
                 value={typed}
                 onChange={(e) => setTyped(e.target.value)}
-                placeholder="اكتب ما سمعته بالألمانية..."
-                aria-label="ما سمعته بالألمانية"
+                placeholder={t('listening.typing')}
+                aria-label={t('listening.heardLabel')}
                 className="w-full h-12 bg-surface-subtle border border-border-subtle focus:border-primary rounded-2xl px-4 text-base font-german transition-colors"
               />
               <Button type="submit" className="w-full" disabled={!typed.trim()}>
-                تحقّق
+                {t('listening.step.check')}
               </Button>
             </form>
           ) : (
@@ -356,12 +358,12 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
                 <div className="min-w-0">
                   <p className="text-xs font-bold font-arabic">
                     {result.verdict === 'correct'
-                      ? 'سمعتها بدقة'
-                      : `أمسكت ${result.matched} من ${result.total} كلمات`}
+                      ? t('listening.heardRight')
+                      : t('listening.caught', { matched: result.matched, total: result.total })}
                   </p>
                   {result.missedWords.length > 0 && (
                     <p className="mt-1 text-micro font-arabic text-text-secondary">
-                      الكلمات التي فاتتك:{' '}
+                      {t('listening.missed')}
                       <GermanText className="font-bold text-status-error">
                         {result.missedWords.join('، ')}
                       </GermanText>
@@ -371,13 +373,13 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
               </div>
 
               <div className="rounded-2xl bg-surface-subtle p-3">
-                <span className="text-micro font-arabic text-text-muted block mb-1">الجملة كاملة</span>
+                <span className="text-micro font-arabic text-text-muted block mb-1">{t('listening.fullSentence')}</span>
                 <GermanText className="text-sm font-bold text-text-primary">{current.german}</GermanText>
                 <p className="mt-1 text-micro font-arabic text-text-secondary">{current.translationAr}</p>
               </div>
 
               <Button className="w-full" onClick={next}>
-                {index + 1 >= queue.length ? 'أظهر النتيجة' : 'الجملة التالية'}
+                {index + 1 >= queue.length ? t('listening.showResult') : t('listening.nextSentence')}
               </Button>
             </div>
           )}
@@ -389,7 +391,7 @@ export const ListeningScreen: React.FC<ListeningScreenProps> = ({ onBack }) => {
         className="inline-flex min-h-touch w-full items-center justify-center text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors"
       >
         <RotateCcw className="w-3 h-3 inline me-1" />
-        إنهاء التدريب والعودة
+        {t('listening.finish')}
       </button>
     </div>
   );
