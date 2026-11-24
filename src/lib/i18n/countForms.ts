@@ -141,3 +141,19 @@ export const SENTENCE_NOM: ArabicCountForms = {
   few: 'جمل',
   many: 'جملة',
 };
+
+/** "12 كلمة" — the word bank's headline count (V32). */
+export const PRACTICE_WORD_NOM: ArabicCountForms = {
+  one: 'كلمة واحدة',
+  two: 'كلمتان',
+  few: 'كلمات',
+  many: 'كلمة',
+};
+
+/** The due-count line on the practice lead card. */
+export const PRACTICE_DUE_NOM: ArabicCountForms = {
+  one: 'عنصر واحد',
+  two: 'عنصران',
+  few: 'عناصر',
+  many: 'عنصراً',
+};

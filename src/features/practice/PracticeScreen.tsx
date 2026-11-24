@@ -29,14 +29,12 @@ import {
   MessagesSquare,
 } from 'lucide-react';
 import { arCount } from '@/lib/i18n/arabicCount';
-import { CORRECTION_NOM } from '@/lib/i18n/countForms';
+import { CORRECTION_NOM, PRACTICE_DUE_NOM, PRACTICE_WORD_NOM } from '@/lib/i18n/countForms';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import type { ArabicCountForms } from '@/lib/i18n/arabicCount';
+import type { UiStringKey } from '@/lib/i18n/strings';
 import { buildWordBankFrom } from '@/lib/utils/wordBank';
 import type { VocabularyEntity, GrammarEntity, MistakeEntity } from '@/types/models';
-
-/** V32: the word-bank headline agrees with its number. */
-const WORD_FORMS = { one: 'كلمة واحدة', two: 'كلمتان', few: 'كلمات', many: 'كلمة' } as const;
-/** Launch polish: the due-count line on the lead card. */
-const REVIEW_NOM = { one: 'عنصر واحد', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
 
 export interface PracticeScreenProps {
   onOpenListening?: () => void;
@@ -50,6 +48,13 @@ export interface PracticeScreenProps {
 }
 
 export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening, onOpenWriting, onOpenCoach, onOpenAsk, onOpenReview, onOpenMock }) => {
+  const { t, uiLanguage } = useLanguage();
+  /**
+   * Arabic picks the agreement form from the count; the other two languages take
+   * a counted noun, so the sentence around it is one template per language.
+   */
+  const phrase = (count: number, forms: ArabicCountForms, unit: UiStringKey) =>
+    uiLanguage === 'ar' ? arCount(count, forms) : t(unit, { count });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   /**
@@ -173,8 +178,8 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
       {/* Top Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-bold font-arabic">مركز التدريب والمراجعة</h2>
-          <p className="text-xs text-text-secondary">ثبّت حصيلتك اللغوية وراجع أخطاءك السابقة</p>
+          <h2 className="text-xl font-bold font-arabic">{t('hub.title')}</h2>
+          <p className="text-xs text-text-secondary">{t('practice.subtitle')}</p>
         </div>
         <KatzuMascot name="practice" className="w-12 h-12 object-contain" />
       </div>
@@ -195,11 +200,11 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             <RotateCcw className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <span className="text-sm font-bold font-arabic block text-text-primary">للمراجعة اليوم</span>
+            <span className="text-sm font-bold font-arabic block text-text-primary">{t('practice.dueToday')}</span>
             <span className="text-micro text-text-secondary font-arabic">
               {dueCount > 0
-                ? `${arCount(dueCount, REVIEW_NOM)} بانتظارك — دقائق قليلة تثبّتها`
-                : 'لا شيء مستحق الآن — ذاكرتك مرتاحة'}
+                ? t('practice.dueLine', { count: phrase(dueCount, PRACTICE_DUE_NOM, 'practice.dueUnit') })
+                : t('practice.dueNone')}
             </span>
           </div>
           <ArrowLeft className="w-4 h-4 text-text-muted shrink-0" />
@@ -210,15 +215,15 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           total moved into the vocabulary section title where it belongs. */}
       <div className="grid grid-cols-3 gap-2 mb-6">
         <Card className="p-3 text-center">
-          <span className="text-micro text-text-secondary block">للمراجعة اليوم</span>
+          <span className="text-micro text-text-secondary block">{t('practice.dueToday')}</span>
           <div className="text-lg font-bold font-german text-primary">{dueCount}</div>
         </Card>
         <Card className="p-3 text-center">
-          <span className="text-micro text-text-secondary block">المحفوظة</span>
+          <span className="text-micro text-text-secondary block">{t('practice.saved')}</span>
           <div className="text-lg font-bold font-german text-status-learning">{savedWords.length}</div>
         </Card>
         <Card className="p-3 text-center">
-          <span className="text-micro text-text-secondary block">أخطاء للتثبيت</span>
+          <span className="text-micro text-text-secondary block">{t('practice.mistakesToFix')}</span>
           <div className="text-lg font-bold font-german text-status-error">{mistakes.length}</div>
         </Card>
       </div>
@@ -236,11 +241,11 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           <Target className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-bold font-arabic block">ملف أخطائك</span>
+          <span className="text-sm font-bold font-arabic block">{t('practice.mistakeProfile')}</span>
           <span className="text-micro text-text-secondary font-arabic">
             {mistakes.length > 0
-              ? `اعرف نمط أخطائك في ${arCount(mistakes.length, CORRECTION_NOM)} سابقة، وتدرّب على الأكثر تكراراً`
-              : 'ابدأ بالحديث وسأجمع أخطاءك هنا وأخبرك بما يتكرر'}
+              ? t('practice.mistakePattern', { count: phrase(mistakes.length, CORRECTION_NOM, 'practice.mistakeUnit') })
+              : t('practice.mistakePatternEmpty')}
           </span>
         </div>
         <ArrowLeft className="w-4 h-4 text-text-muted shrink-0" />
@@ -262,9 +267,9 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             <HelpCircle className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <span className="text-sm font-bold font-arabic block">اسأل كَاتْزُو عن الألمانية</span>
+            <span className="text-sm font-bold font-arabic block">{t('practice.askTitle')}</span>
             <span className="text-micro text-text-secondary font-arabic">
-              ترجمة، قاعدة، كلمة، صحّح جملتك، أو نصّ ألماني رسمي — ثم تمرين قصير يتأكد أنك فهمت
+              {t('practice.askBody')}
             </span>
           </div>
           <ArrowLeft className="w-4 h-4 text-text-muted shrink-0" />
@@ -289,7 +294,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           <div className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center">
             <Sparkles className="w-6 h-6" />
           </div>
-          <span className="text-xs font-bold font-arabic">بطاقات المراجعة</span>
+          <span className="text-xs font-bold font-arabic">{t('practice.flashcards')}</span>
         </button>
 
         <button
@@ -299,7 +304,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           <div className="w-9 h-9 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
             <BookOpen className="w-6 h-6" />
           </div>
-          <span className="text-xs font-bold font-arabic">ملخص القواعد</span>
+          <span className="text-xs font-bold font-arabic">{t('practice.grammar')}</span>
         </button>
 
         <button
@@ -309,7 +314,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           <div className="w-9 h-9 rounded-full bg-status-error/20 text-status-error flex items-center justify-center">
             <AlertCircle className="w-6 h-6" />
           </div>
-          <span className="text-xs font-bold font-arabic">تدريب الأخطاء</span>
+          <span className="text-xs font-bold font-arabic">{t('practice.mistakeDrill')}</span>
         </button>
 
         <button
@@ -319,7 +324,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           <div className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center">
             <Headphones className="w-6 h-6" />
           </div>
-          <span className="text-xs font-bold font-arabic">الاستماع</span>
+          <span className="text-xs font-bold font-arabic">{t('practice.listening')}</span>
         </button>
 
         {onOpenWriting && (
@@ -330,7 +335,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             <div className="w-9 h-9 rounded-full bg-status-learning/20 text-status-learning flex items-center justify-center">
               <PenLine className="w-6 h-6" />
             </div>
-            <span className="text-xs font-bold font-arabic">الكتابة</span>
+            <span className="text-xs font-bold font-arabic">{t('practice.writing')}</span>
           </button>
         )}
 
@@ -346,7 +351,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             <div className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center">
               <MessagesSquare className="w-6 h-6" />
             </div>
-            <span className="text-xs font-bold font-arabic">محاكاة B1</span>
+            <span className="text-xs font-bold font-arabic">{t('practice.mock')}</span>
           </button>
         )}
       </div>
@@ -357,8 +362,8 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           <Search className="w-4 h-4 text-text-muted absolute start-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            aria-label="ابحث عن كلمة ألمانية أو معناها بالعربية"
-            placeholder="ابحث عن كلمة ألمانية أو معناها بالعربية..."
+            aria-label={t('practice.searchLabel')}
+            placeholder={t('practice.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-11 bg-surface-card border border-border-subtle focus:border-primary rounded-2xl ps-10 pe-4 text-base font-arabic"
@@ -380,7 +385,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                 : 'bg-surface-card text-text-secondary border border-border-subtle'
             }`}
           >
-            الكل ({vocabulary.length})
+            {t('practice.filterAll')} ({vocabulary.length})
           </button>
           <button
             onClick={() => {
@@ -393,7 +398,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                 : 'bg-surface-card text-text-secondary border border-border-subtle'
             }`}
           >
-            المحفوظة ({savedWords.length})
+            {t('practice.filterSaved')} ({savedWords.length})
           </button>
         </div>
       </div>
@@ -403,13 +408,13 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
       {!browseWords ? (
         <div className="rounded-2xl border border-border-subtle bg-surface-card p-4 text-center">
           <p className="text-sm font-arabic font-bold text-text-primary">
-            بنك الكلمات ({vocabulary.length})
+            {t('practice.wordBank')} ({vocabulary.length})
           </p>
           <p className="mt-1 text-micro font-arabic leading-relaxed text-text-secondary">
-            {arCount(vocabulary.length, WORD_FORMS)} تبحثها هنا بالألمانية أو العربية.
+            {t('practice.wordCount', { count: phrase(vocabulary.length, PRACTICE_WORD_NOM, 'practice.wordUnit') })}
           </p>
           <Button variant="secondary" size="md" className="mt-2.5" onClick={() => setBrowseWords(true)}>
-            تصفّح الكلمات
+            {t('practice.browseWords')}
           </Button>
         </div>
       ) : (
@@ -421,10 +426,10 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
           <div className="rounded-2xl border border-border-subtle bg-surface-card p-6 text-center">
             <p className="text-sm font-arabic text-text-secondary">
               {searchQuery
-                ? `لا توجد كلمة تطابق «${searchQuery}». جرّب كلمة ألمانية أخرى أو امسح البحث.`
+                ? t('practice.emptySearch', { query: searchQuery })
                 : selectedCategory === 'SAVED'
-                  ? 'لم تحفظ أي كلمة بعد. اضغط أيقونة الحفظ في أي كلمة وستبقى هنا لوحدك.'
-                  : 'لم يصل بعد أي محتوى إلى هذا الجهاز. افتح مشهداً أو تحقق من اتصالك، ثم ستظهر مفرداته هنا.'}
+                  ? t('practice.emptySaved')
+                  : t('practice.emptyNoContent')}
             </p>
             <Button
               variant="secondary"
@@ -436,7 +441,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                 setBrowseWords(false);
               }}
             >
-              {searchQuery || selectedCategory === 'SAVED' ? 'اعرض كل الكلمات' : 'أعد المحاولة'}
+              {searchQuery || selectedCategory === 'SAVED' ? t('practice.showAllWords') : t('practice.retry')}
             </Button>
           </div>
         )}
@@ -494,7 +499,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
       <Modal
         isOpen={showFlashcards}
         onClose={() => setShowFlashcards(false)}
-        title="تدريب البطاقات التفاعلية (Flashcards)"
+        title={t('practice.flashcardsTitle')}
       >
         {currentFlashcard ? (
           <div className="space-y-6 py-2">
@@ -502,7 +507,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
               role="button"
               tabIndex={0}
               aria-pressed={isFlipped}
-              aria-label={isFlipped ? 'المعنى العربي — اضغط للعودة للوجه الألماني' : 'الوجه الألماني — اضغط لكشف المعنى'}
+              aria-label={isFlipped ? t('practice.cardMeaningSide') : t('practice.cardGermanSide')}
               onClick={() => setIsFlipped(!isFlipped)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -520,7 +525,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
               {!isFlipped ? (
                 <>
                   <span className="text-micro text-primary font-bold mb-3 font-arabic">
-                    الوجه الألماني (اضغط للقلب)
+                    {t('practice.cardGermanHint')}
                   </span>
                   {currentFlashcard.article && (
                     <Badge variant="primary" size="md" className="mb-2">
@@ -530,12 +535,12 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                   <GermanText className="text-2xl font-bold text-text-primary">
                     {germanHeadword(currentFlashcard.german)}
                   </GermanText>
-                  <span className="text-xs text-text-muted mt-3">اضغط لكشف المعنى بالعربية 👆</span>
+                  <span className="text-xs text-text-muted mt-3">{t('practice.cardTapToReveal')}</span>
                 </>
               ) : (
                 <>
                   <span className="text-micro text-status-success font-bold mb-3 font-arabic">
-                    المعنى العربي
+                    {t('practice.cardArabicMeaning')}
                   </span>
                   <div className="text-2xl font-bold font-arabic text-text-primary mb-2">
                     {currentFlashcard.translation_ar}
@@ -548,12 +553,12 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
             </div>
 
             <div className="flex items-center justify-between text-xs text-text-muted">
-              <span>البطاقة {flashcardIndex + 1} من {vocabulary.length}</span>
+              <span>{t('practice.cardOf', { index: flashcardIndex + 1, total: vocabulary.length })}</span>
               <button
                 onClick={() => speak(germanNounPhrase(currentFlashcard.article, currentFlashcard.german))}
                 className="flex items-center gap-1 text-primary pointer-hover:underline font-arabic"
               >
-                <Volume2 className="w-4 h-4" /> استمع للنطق
+                <Volume2 className="w-4 h-4" /> {t('hub.listen')}
               </button>
             </div>
 
@@ -563,24 +568,23 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                 className="flex-1"
                 onClick={() => void rateFlashcard(currentFlashcard, 'again')}
               >
-                أحتاج مراجعتها 🔁
+                {t('practice.needReview')}
               </Button>
               <Button
                 className="flex-1"
                 onClick={() => void rateFlashcard(currentFlashcard, 'good')}
               >
-                أعرفها تماماً ✓
+                {t('practice.knowIt')}
               </Button>
             </div>
           </div>
         ) : (
           <div className="space-y-3 py-6 text-center">
             <p className="text-sm font-arabic text-text-secondary">
-              لا توجد بطاقات بعد. بطاقاتك تُبنى تلقائياً من الكلمات التي تحفظها أثناء المشاهد،
-              فاحفظ ما تريد تثبيته وستجده هنا.
+              {t('practice.noCards')}
             </p>
             <Button variant="secondary" size="md" onClick={() => setShowFlashcards(false)}>
-              تصفّح المفردات
+              {t('practice.browseVocab')}
             </Button>
           </div>
         )}
@@ -590,7 +594,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
       <Modal
         isOpen={showGrammarModal}
         onClose={() => setShowGrammarModal(false)}
-        title="ملخص قواعد كَاتْزُو السريعة"
+        title={t('hub.grammarTitle')}
       >
         <div className="space-y-4 py-2">
           {grammarList.map((g: GrammarEntity) => (
@@ -610,17 +614,16 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
       <Modal
         isOpen={showMistakesModal}
         onClose={() => setShowMistakesModal(false)}
-        title="بنك أخطائك والتدريب التفاعلي"
+        title={t('practice.mistakesTitle')}
       >
         <div className="space-y-3 py-2">
           {mistakes.length === 0 ? (
             <div className="space-y-3 py-8 text-center">
               <p className="text-sm font-arabic text-text-muted">
-                بنك أخطائك فارغ الآن. كل خطأ يرصده كاتزو خلال مشهد يُسجَّل هنا، لتعيد كتابته
-                حتى يصبح صحيحاً من أول محاولة.
+                {t('practice.mistakesEmpty')}
               </p>
               <Button variant="secondary" size="md" onClick={() => setShowMistakesModal(false)}>
-                العودة إلى التدريب
+                {t('practice.backToTraining')}
               </Button>
             </div>
           ) : (
@@ -646,7 +649,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                       <button
                         onClick={() => speak(m.corrected)}
                         className="p-1 rounded-lg bg-surface-subtle pointer-hover:bg-primary/20 text-primary transition-colors"
-                        title="استمع للنطق الصحيح"
+                        title={t('practice.listenCorrect')}
                       >
                         <Volume2 className="w-3.5 h-3.5" />
                       </button>
@@ -661,20 +664,20 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                   {isMastered ? (
                     <div className="flex items-center gap-1.5 text-status-success text-xs font-bold font-arabic pt-1 border-t border-border-subtle/40">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      تم إتقان الصواب بنجاح ✓
+                      {t('practice.mastered')}
                     </div>
                   ) : isCorrect ? (
                     <div className="kz-pop flex items-center gap-1.5 text-status-success text-xs font-arabic pt-1 border-t border-border-subtle/40">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      صحيحة. ستعود هذه الجملة في مراجعتك المجدولة حتى تُتقنها.
+                      {t('practice.correctNow')}
                     </div>
                   ) : (
                     <div className="flex gap-2 pt-1">
                       <input
                         type="text"
                         dir="ltr"
-                        aria-label="أعد كتابة الكلمة للتثبيت"
-                        placeholder="أعد كتابة الصواب للتثبيت..."
+                        aria-label={t('practice.retypeLabel')}
+                        placeholder={t('practice.retypePlaceholder')}
                         value={retypedMistakes[mId] || ''}
                         onChange={(e) =>
                           setRetypedMistakes({ ...retypedMistakes, [mId]: e.target.value })
@@ -686,7 +689,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
                         onClick={() => handleValidateMistakeRetype({ ...m, id: mId })}
                         disabled={!(retypedMistakes[mId] || '').trim()}
                       >
-                        تثبيت
+                        {t('practice.fix')}
                       </Button>
                     </div>
                   )}
