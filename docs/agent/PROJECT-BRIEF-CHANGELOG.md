@@ -4,6 +4,36 @@ Moved out of `PROJECT-BRIEF.md` section 7 on 2026-10-31, verbatim, so the brief 
 its 80 KB cap with room to grow. Newer changes stay in the brief; grep this file, never load
 it whole.
 
+## 2026-11-24 (later) — B5 in progress: the practice hub and Ask Katzu
+
+- **Two of B5's seven screens are finished, and B5 is deliberately still `open`.** The practice hub
+  (55 strings) and Ask Katzu (37 strings, plus the `lib/ask/notices` table it renders and its three
+  practice verdicts) read from the dictionary now; `coverage.json` still says `B5: false`, so the gate
+  keeps telling the truth about the five screens that are not done (progress 61, grammar 51, writing 39,
+  listening 35, coach 30).
+- **The hub's own copies live under `hub.*`.** `practice.title`, `.listen` and `.grammarTitle` already
+  belonged to the guided-practice table, so the hub's versions were named rather than the old keys
+  renamed — a rename would have moved copy under a key another screen already renders.
+- **Arabic count agreement moved with the copy:** `PRACTICE_WORD_NOM` and `PRACTICE_DUE_NOM` join
+  `countForms.ts`, and English and Indonesian take a counted noun from three unit keys
+  (`practice.wordUnit`, `.dueUnit`, `.mistakeUnit`), so "12 words" and "3 mistakes" read as sentences in
+  those languages instead of as a number glued to an Arabic noun.
+- **`askSuggestions(language)` replaces the literal table.** `ASK_SUGGESTIONS`, `ASK_EXAMPLE_AR`,
+  `ASK_LEGAL_NOTICE_AR` and `ASK_PRACTICE_NOTE_AR` still exist and are derived from `UI_STRINGS.ar`, so
+  every existing caller and test keeps byte-identical Arabic. `askPracticeFeedbackAr` likewise derives
+  from the new `askPracticeFeedback(verdict, language)`.
+- **A tool caught by its own guard:** a temporary `scripts/dump.mjs` (lists a screen's remaining Arabic)
+  made `tests/registrations.test.ts` fail on the next commit — "reachable from nowhere". Correct call: it
+  is a one-off, so it was deleted rather than allowlisted, and the same listing is done inline.
+- **Checks:** `tsc` clean after each screen · `i18n:coverage --strict` 0 · `i18n:dir --strict` 0 ·
+  `askPractice`/`askRoutes`/`languages` 50 passed · `practiceRetype`/`uiPolishLaunch` 15 passed · pre-push
+  verify `6/6` · design audit in budget.
+- **Shipped:** commits `6d08e00` and `45e0957`, Pages deployment `0a8838d1`, live bundle
+  `index-Cp6VKxdN.js` confirmed to carry both finished screens' English copy.
+- **Still open:** five B5 screens, then B6 (325), B7 (72), B8 (106) and the dev-only screen (87). The
+  remaining B5 screens all render text built in `lib/coach/profile.ts` and the collection helpers, so each
+  one is a screen change *plus* a language parameter in the helper that builds its sentences.
+
 ## 2026-11-24 — B3 and B4: the whole session, from the scene page to the report
 
 - **B3 and B4 are finished** — the fifteen files between "open a scene" and "read the debrief"
