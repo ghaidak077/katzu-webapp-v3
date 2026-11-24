@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export const NetworkStatusBanner: React.FC = () => {
+  const { t } = useLanguage();
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator === 'undefined' ? true : navigator.onLine
   );
@@ -34,8 +36,8 @@ export const NetworkStatusBanner: React.FC = () => {
       }`}
     >
       {isOnline
-        ? 'عاد الاتصال. ستتم مزامنة تقدمك تلقائياً.'
-        : 'أنت غير متصل. يمكنك متابعة الدراسة والمراجعة، أما المحادثة الذكية فتحتاج إلى الإنترنت.'}
+        ? t('network.backOnline')
+        : t('network.offlineBody')}
     </div>
   );
 };

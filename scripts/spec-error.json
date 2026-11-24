@@ -1,0 +1,41 @@
+{
+  "file": "src/components/common/ErrorBoundary.tsx",
+  "imports_after": "import { track } from '@/lib/analytics/client';",
+  "imports": "import { directionFor } from '@/lib/i18n/languages';\nimport { readStoredUiLanguage } from '@/lib/i18n/languagePreference';\nimport { translate } from '@/lib/i18n/strings';",
+  "manual": [
+    [
+      "    if (!this.state.hasError) return this.props.children;",
+      "    if (!this.state.hasError) return this.props.children;\n\n    const language = readStoredUiLanguage() ?? 'ar';"
+    ],
+    [
+      "        dir=\"rtl\"",
+      "        dir={directionFor(language)}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "error.title",
+      "ar": "حدث خطأ غير متوقع",
+      "en": "Something went wrong",
+      "id": "Terjadi kesalahan tak terduga"
+    },
+    {
+      "key": "error.body",
+      "ar": "لم نتمكن من تحميل هذه الصفحة. أعد المحاولة، وستبقى بياناتك المحفوظة على هذا الجهاز سليمة.",
+      "en": "We could not load this page. Try again — your saved data stays safe on this device.",
+      "id": "Kami tidak bisa memuat halaman ini. Coba lagi — data yang tersimpan tetap aman di perangkat ini."
+    },
+    {
+      "key": "error.reload",
+      "ar": "إعادة تحميل التطبيق",
+      "en": "Reload the app",
+      "id": "Muat ulang aplikasi"
+    },
+    {
+      "key": "error.footer",
+      "ar": "يمكنك أيضاً العودة للصفحة الرئيسية. لن نرسل محتوى محادثاتك أو كلماتك في أي تقرير خطأ.",
+      "en": "You can also go back to the home page. We never send your conversation content or your words in an error report.",
+      "id": "Kamu juga bisa kembali ke halaman utama. Kami tidak pernah mengirim isi percakapan atau katamu dalam laporan kesalahan."
+    }
+  ]
+}

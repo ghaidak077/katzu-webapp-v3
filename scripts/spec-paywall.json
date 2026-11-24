@@ -1,0 +1,277 @@
+{
+  "file": "src/features/offers/PaywallScreen.tsx",
+  "imports_after": "import { paymentInstructionsFor } from '@/lib/offers/paymentInstructions';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+  "anchor": "export const PaywallScreen: React.FC = () => {",
+  "hook": "  const { t, uiLanguage } = useLanguage();",
+  "manual": [
+    [
+      "import {\n  BEST_VALUE_AR,\n  FREE_LESSONS_PER_MONTH,\n  PLANS,\n  PRICING_FOOTNOTE_AR,\n  PRICING_HEADLINE_AR,\n  PRICING_RULES_AR,\n  RECOMMENDED_PLAN,\n  REFUND_TEXT,\n  formatUsd,\n  type PlanId,\n} from '@/lib/offers/pricing';",
+      "import {\n  FREE_LESSONS_PER_MONTH,\n  PLANS,\n  RECOMMENDED_PLAN,\n  bestValue,\n  formatUsd,\n  planName,\n  pricingFootnote,\n  pricingHeadline,\n  pricingRules,\n  refundText,\n  type PlanId,\n} from '@/lib/offers/pricing';"
+    ],
+    [
+      "  const instructions = useMemo(() => paymentInstructionsFor(group), [group]);",
+      "  const instructions = useMemo(() => paymentInstructionsFor(group, uiLanguage), [group, uiLanguage]);"
+    ],
+    [
+      "{PRICING_HEADLINE_AR}",
+      "{pricingHeadline(uiLanguage)}"
+    ],
+    [
+      "{plan.nameAr}",
+      "{planName(plan, uiLanguage)}"
+    ],
+    [
+      "{BEST_VALUE_AR}",
+      "{bestValue(uiLanguage)}"
+    ],
+    [
+      "{formatUsd(perMonth)} شهرياً",
+      "{formatUsd(perMonth)} {t('paywall.perMonth')}"
+    ],
+    [
+      "وقت التفعيل: {instructions.timingAr}",
+      "{t('paywall.activationTime', { timing: instructions.timingAr })}"
+    ],
+    [
+      "{PRICING_RULES_AR.map((rule, i) => (",
+      "{pricingRules(uiLanguage).map((rule, i) => ("
+    ],
+    [
+      "{PRICING_FOOTNOTE_AR}",
+      "{pricingFootnote(uiLanguage)}"
+    ],
+    [
+      "{REFUND_TEXT}",
+      "{refundText(uiLanguage)}"
+    ],
+    [
+      "{`المجاني يبقى: ${FREE_LESSONS_PER_MONTH} دروس بالذكاء الاصطناعي في المجموع، والمهمة اليومية، ومراجعة أخطائك.`}",
+      "{t('paywall.freeStays', { count: FREE_LESSONS_PER_MONTH })}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "paywall.title",
+      "ar": "الاشتراك",
+      "en": "Subscription",
+      "id": "Langganan"
+    },
+    {
+      "key": "paywall.close",
+      "ar": "إغلاق",
+      "en": "Close",
+      "id": "Tutup"
+    },
+    {
+      "key": "paywall.mockDone",
+      "ar": "أكملت محاكاة B1 الشفوية",
+      "en": "You finished the B1 speaking mock",
+      "id": "Kamu menyelesaikan simulasi berbicara B1"
+    },
+    {
+      "key": "paywall.mockBody",
+      "ar": "الاشتراك يفتح لك التقرير الكامل بجميع التصحيحات، ومحادثات B1 الواقعية، ومحاكاة جديدة متى شئت لتقارن تقديرك التدريبي قبل موعدك.",
+      "en": "A subscription opens the full report with every correction, real B1 conversations, and a fresh mock whenever you want to compare your practice estimate before your appointment.",
+      "id": "Langganan membuka laporan penuh dengan semua koreksi, percakapan B1 nyata, dan simulasi baru kapan pun kamu mau untuk membandingkan perkiraan latihanmu sebelum jadwalmu."
+    },
+    {
+      "key": "paywall.loadingPrices",
+      "ar": "جارٍ تحميل الأسعار…",
+      "en": "Loading prices…",
+      "id": "Memuat harga…"
+    },
+    {
+      "key": "paywall.pricesFailed",
+      "ar": "تعذّر تحميل الأسعار الآن. لن نعرض رقماً لا نعرفه — أعد المحاولة قليلاً.",
+      "en": "Prices could not be loaded right now. We will not show a number we do not know — try again shortly.",
+      "id": "Harga gagal dimuat sekarang. Kami tidak akan menampilkan angka yang tidak kami ketahui — coba lagi sebentar."
+    },
+    {
+      "key": "paywall.tryMock",
+      "ar": "جرّب محاكاة B1 المجانية بدلاً من ذلك",
+      "en": "Try the free B1 mock instead",
+      "id": "Coba simulasi B1 gratis sebagai gantinya"
+    },
+    {
+      "key": "paywall.afterOffer",
+      "ar": "بعد انتهاء العرض",
+      "en": "after the founding offer",
+      "id": "setelah penawaran berakhir"
+    },
+    {
+      "key": "paywall.perMonth",
+      "ar": "شهرياً",
+      "en": "per month",
+      "id": "per bulan",
+      "table_only": true
+    },
+    {
+      "key": "paywall.choosePlan",
+      "ar": "اختر هذه الباقة",
+      "en": "Choose this plan",
+      "id": "Pilih paket ini"
+    },
+    {
+      "key": "paywall.activationTime",
+      "ar": "وقت التفعيل: {timing}",
+      "en": "Activation time: {timing}",
+      "id": "Waktu aktivasi: {timing}",
+      "table_only": true
+    },
+    {
+      "key": "paywall.buyThenActivate",
+      "ar": "اشترِ الكود من صفحة البيع الرسمية، ثم فعّله هنا.",
+      "en": "Buy the code on the official sales page, then activate it here.",
+      "id": "Beli kodenya di halaman penjualan resmi, lalu aktifkan di sini."
+    },
+    {
+      "key": "paywall.haveCode",
+      "ar": "لديّ كود — فعّله الآن",
+      "en": "I have a code — activate it now",
+      "id": "Aku punya kode — aktifkan sekarang"
+    },
+    {
+      "key": "paywall.later",
+      "ar": "لاحقاً",
+      "en": "Later",
+      "id": "Nanti"
+    },
+    {
+      "key": "paywall.offerRules",
+      "ar": "قواعد العرض",
+      "en": "Offer rules",
+      "id": "Aturan penawaran"
+    },
+    {
+      "key": "paywall.freeStays",
+      "ar": "المجاني يبقى: {count} دروس بالذكاء الاصطناعي في المجموع، والمهمة اليومية، ومراجعة أخطائك.",
+      "en": "Free stays: {count} AI lessons in total, the daily mission and your mistake review.",
+      "id": "Yang gratis tetap ada: total {count} pelajaran AI, misi harian, dan tinjauan kesalahanmu.",
+      "table_only": true
+    },
+    {
+      "key": "paywall.activationNote",
+      "ar": "التفعيل يتم عبر كود مرتبط بحسابك الموثّق — لا تُدخل أي بيانات بطاقة داخل التطبيق.",
+      "en": "Activation is by a code tied to your verified account — never enter card details inside the app.",
+      "id": "Aktivasi memakai kode yang terhubung ke akun terverifikasimu — jangan memasukkan data kartu di dalam aplikasi."
+    },
+    {
+      "key": "paywall.tryMockFree",
+      "ar": "جرّب محاكاة B1 مجاناً أولاً",
+      "en": "Try the B1 mock free first",
+      "id": "Coba simulasi B1 gratis dulu"
+    },
+    {
+      "key": "paywall.continueFree",
+      "ar": "المتابعة بالحساب المجاني",
+      "en": "Continue with the free account",
+      "id": "Lanjutkan dengan akun gratis"
+    },
+    {
+      "key": "payment.timing",
+      "ar": "خلال {hours} ساعة كحد أقصى",
+      "en": "Within {hours} hours at the latest",
+      "id": "Paling lambat dalam {hours} jam",
+      "table_only": true
+    },
+    {
+      "key": "payment.standard.heading",
+      "ar": "كيف تدفع",
+      "en": "How to pay",
+      "id": "Cara membayar",
+      "table_only": true
+    },
+    {
+      "key": "payment.standard.step1",
+      "ar": "اختر الباقة من هذه الشاشة.",
+      "en": "Choose the plan on this screen.",
+      "id": "Pilih paket di layar ini.",
+      "table_only": true
+    },
+    {
+      "key": "payment.standard.step2",
+      "ar": "افتح صفحة الدفع على موقع البيع، وأكمل بياناتك.",
+      "en": "Open the payment page on the sales site and complete your details.",
+      "id": "Buka halaman pembayaran di situs penjualan dan lengkapi datamu.",
+      "table_only": true
+    },
+    {
+      "key": "payment.standard.step3",
+      "ar": "حوّل المبلغ بالطريقة التي يعرضها لك موقع البيع.",
+      "en": "Transfer the amount the way the sales site shows you.",
+      "id": "Transfer jumlahnya dengan cara yang ditunjukkan situs penjualan.",
+      "table_only": true
+    },
+    {
+      "key": "payment.standard.step4",
+      "ar": "سيصلك كود التفعيل على وسائل التواصل التي تُدخلها عند الدفع.",
+      "en": "You will receive the activation code through the contact details you enter at payment.",
+      "id": "Kode aktivasi akan dikirim ke kontak yang kamu isi saat membayar.",
+      "table_only": true
+    },
+    {
+      "key": "payment.standard.step5",
+      "ar": "أدخل الكود في شاشة التفعيل؛ تُضاف المدة إلى حسابك فور وصول الكود.",
+      "en": "Enter the code on the activation screen; the time is added to your account as soon as the code arrives.",
+      "id": "Masukkan kode di layar aktivasi; durasinya langsung ditambahkan ke akunmu begitu kode tiba.",
+      "table_only": true
+    },
+    {
+      "key": "payment.standard.caveat",
+      "ar": "التحويل يمرّ عبر مصرفك، وقد يحتجز البنك المبلغ أياماً قبل وصوله.",
+      "en": "The transfer goes through your bank, which may hold the amount for a few days before it arrives.",
+      "id": "Transfer melewati bankmu, dan bank bisa menahan dana beberapa hari sebelum diterima.",
+      "table_only": true
+    },
+    {
+      "key": "payment.special.heading",
+      "ar": "كيف تدفع من هذه المنطقة",
+      "en": "How to pay from this region",
+      "id": "Cara membayar dari wilayah ini",
+      "table_only": true
+    },
+    {
+      "key": "payment.special.step1",
+      "ar": "اختر الباقة.",
+      "en": "Choose the plan.",
+      "id": "Pilih paket.",
+      "table_only": true
+    },
+    {
+      "key": "payment.special.step2",
+      "ar": "افتح صفحة الدفع على موقع البيع.",
+      "en": "Open the payment page on the sales site.",
+      "id": "Buka halaman pembayaran di situs penjualan.",
+      "table_only": true
+    },
+    {
+      "key": "payment.special.step3",
+      "ar": "حوّل المبلغ عبر الطريقة التي يعرضها الموقع لك.",
+      "en": "Transfer the amount using the method the site shows you.",
+      "id": "Transfer jumlahnya dengan metode yang ditunjukkan situs.",
+      "table_only": true
+    },
+    {
+      "key": "payment.special.step4",
+      "ar": "سيصلك كود التفعيل بعد تأكيد التحويل.",
+      "en": "You will receive the activation code after the transfer is confirmed.",
+      "id": "Kode aktivasi akan dikirim setelah transfer dikonfirmasi.",
+      "table_only": true
+    },
+    {
+      "key": "payment.special.step5",
+      "ar": "أدخل الكود في شاشة التفعيل؛ تُضاف المدة إلى حسابك فور وصول الكود.",
+      "en": "Enter the code on the activation screen; the time is added to your account as soon as the code arrives.",
+      "id": "Masukkan kode di layar aktivasi; durasinya langsung ditambahkan ke akunmu begitu kode tiba.",
+      "table_only": true
+    },
+    {
+      "key": "payment.special.caveat",
+      "ar": "معظم التحويلات تمرّ عبر مصرف وسيط، وقد يتأخر التأكيد ساعات قبل وصول الكود.",
+      "en": "Most transfers pass through an intermediary bank, so confirmation can take hours before the code arrives.",
+      "id": "Kebanyakan transfer melewati bank perantara, jadi konfirmasi bisa memakan waktu berjam-jam sebelum kode tiba.",
+      "table_only": true
+    }
+  ]
+}

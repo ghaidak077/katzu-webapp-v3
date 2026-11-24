@@ -7,19 +7,21 @@ import { track } from '@/lib/analytics/client';
 import { haptic } from '@/lib/utils/haptics';
 import { SubscriptionRedemptionScreen } from '@/features/auth/SubscriptionRedemptionScreen';
 import {
-  BEST_VALUE_AR,
   FREE_LESSONS_PER_MONTH,
   PLANS,
-  PRICING_FOOTNOTE_AR,
-  PRICING_HEADLINE_AR,
-  PRICING_RULES_AR,
   RECOMMENDED_PLAN,
-  REFUND_TEXT,
+  bestValue,
   formatUsd,
+  planName,
+  pricingFootnote,
+  pricingHeadline,
+  pricingRules,
+  refundText,
   type PlanId,
 } from '@/lib/offers/pricing';
 import { priceRowFor, usePricing } from '@/lib/offers/priceSource';
 import { paymentInstructionsFor } from '@/lib/offers/paymentInstructions';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 /**
  * The paywall: four founding-price plans, one offer.
@@ -42,6 +44,7 @@ import { paymentInstructionsFor } from '@/lib/offers/paymentInstructions';
  * different price.
  */
 export const PaywallScreen: React.FC = () => {
+  const { t, uiLanguage } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const fromMock = useMemo(
@@ -57,7 +60,7 @@ export const PaywallScreen: React.FC = () => {
   // screen read, so four surfaces cannot quote four different amounts.
   const { pricing, loaded, group, priceFor } = usePricing();
 
-  const instructions = useMemo(() => paymentInstructionsFor(group), [group]);
+  const instructions = useMemo(() => paymentInstructionsFor(group, uiLanguage), [group, uiLanguage]);
 
   const handleUpgradeClick = useCallback(
     (product: PlanId) => {
@@ -93,29 +96,29 @@ export const PaywallScreen: React.FC = () => {
     <div className="min-h-screen bg-black px-4 py-6 text-kz-ink">
       <div className="mx-auto max-w-md space-y-3">
         <div className="flex items-center justify-between">
-          <h1 className="kz-ar-title font-bold">الاشتراك</h1>
+          <h1 className="kz-ar-title font-bold">{t('paywall.title')}</h1>
           <button
             type="button"
             onClick={() => navigate('/app/trail')}
             className="kz-ar-micro min-h-touch rounded-2xl border border-white/10 px-3 py-2 text-kz-inkDim"
           >
-            إغلاق
+            {t('paywall.close')}
           </button>
         </div>
 
-        <p className="kz-ar-caption font-bold text-primary">{PRICING_HEADLINE_AR}</p>
+        <p className="kz-ar-caption font-bold text-primary">{pricingHeadline(uiLanguage)}</p>
 
         {fromMock ? (
           <GlassCard data-testid="paywall-from-mock">
-            <p className="kz-ar-caption font-bold text-primary">أكملت محاكاة B1 الشفوية</p>
+            <p className="kz-ar-caption font-bold text-primary">{t('paywall.mockDone')}</p>
             <p className="kz-ar-micro mt-1 text-kz-inkDim">
-              الاشتراك يفتح لك التقرير الكامل بجميع التصحيحات، ومحادثات B1 الواقعية، ومحاكاة جديدة متى شئت لتقارن تقديرك التدريبي قبل موعدك.
+              {t('paywall.mockBody')}
             </p>
           </GlassCard>
         ) : null}
 
         {!loaded ? (
-          <p className="kz-ar-caption text-kz-inkDim">جارٍ تحميل الأسعار…</p>
+          <p className="kz-ar-caption text-kz-inkDim">{t('paywall.loadingPrices')}</p>
         ) : null}
 
         {loaded && !pricing ? (
@@ -123,11 +126,11 @@ export const PaywallScreen: React.FC = () => {
              works because it costs nothing to look at. */
           <GlassCard>
             <p className="kz-ar-caption text-kz-inkDim">
-              تعذّر تحميل الأسعار الآن. لن نعرض رقماً لا نعرفه — أعد المحاولة قليلاً.
+              {t('paywall.pricesFailed')}
             </p>
             <div className="mt-3">
               <GlassButton onClick={() => navigate('/mock')}>
-                <span>جرّب محاكاة B1 المجانية بدلاً من ذلك</span>
+                <span>{t('paywall.tryMock')}</span>
               </GlassButton>
             </div>
           </GlassCard>
@@ -159,10 +162,10 @@ export const PaywallScreen: React.FC = () => {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="kz-ar-caption font-bold">{plan.nameAr}</p>
+                    <p className="kz-ar-caption font-bold">{planName(plan, uiLanguage)}</p>
                     {recommended ? (
                       <span className="kz-ar-micro mt-1 inline-block rounded-full bg-primary/15 px-2 py-0.5 font-bold text-primary">
-                        {BEST_VALUE_AR}
+                        {bestValue(uiLanguage)}
                       </span>
                     ) : null}
                   </div>
@@ -175,11 +178,11 @@ export const PaywallScreen: React.FC = () => {
                         {label}
                       </p>
                       <p className="kz-ar-micro text-kz-inkFaint">
-                        <span className="line-through">{formatUsd(future)}</span> بعد انتهاء العرض
+                        <span className="line-through">{formatUsd(future)}</span> {t('paywall.afterOffer')}
                       </p>
                       {plan.months > 1 ? (
                         <p className="kz-ar-micro text-kz-inkDim">
-                          {formatUsd(perMonth)} شهرياً
+                          {formatUsd(perMonth)} {t('paywall.perMonth')}
                         </p>
                       ) : null}
                     </div>
@@ -189,7 +192,7 @@ export const PaywallScreen: React.FC = () => {
                 {label ? (
                   <div className="mt-3">
                     <PrimaryAction onClick={() => handleUpgradeClick(plan.id)}>
-                      <span>اختر هذه الباقة</span>
+                      <span>{t('paywall.choosePlan')}</span>
                     </PrimaryAction>
                   </div>
                 ) : null}
@@ -211,17 +214,17 @@ export const PaywallScreen: React.FC = () => {
                       </ol>
                       {instructions.timingAr ? (
                         <p className="kz-ar-micro mt-3 text-kz-inkFaint">
-                          وقت التفعيل: {instructions.timingAr}
+                          {t('paywall.activationTime', { timing: instructions.timingAr })}
                         </p>
                       ) : null}
                       <p className="kz-ar-micro mt-2 text-kz-inkFaint">{instructions.caveatAr}</p>
-                      <p className="kz-ar-micro mt-3 text-kz-ink">اشترِ الكود من صفحة البيع الرسمية، ثم فعّله هنا.</p>
+                      <p className="kz-ar-micro mt-3 text-kz-ink">{t('paywall.buyThenActivate')}</p>
                       <div className="mt-3 flex flex-col gap-2">
                         <PrimaryAction onClick={() => setOverlay('redeem')}>
-                          <span>لديّ كود — فعّله الآن</span>
+                          <span>{t('paywall.haveCode')}</span>
                         </PrimaryAction>
                         <GlassButton onClick={() => setOverlay(null)}>
-                          <span>لاحقاً</span>
+                          <span>{t('paywall.later')}</span>
                         </GlassButton>
                       </div>
                     </GlassCard>
@@ -245,9 +248,9 @@ export const PaywallScreen: React.FC = () => {
           : null}
 
         <GlassCard>
-          <p className="kz-ar-caption font-bold text-kz-ink">قواعد العرض</p>
+          <p className="kz-ar-caption font-bold text-kz-ink">{t('paywall.offerRules')}</p>
           <ol className="mt-2 space-y-1">
-            {PRICING_RULES_AR.map((rule, i) => (
+            {pricingRules(uiLanguage).map((rule, i) => (
               <li key={rule} className="kz-ar-micro text-kz-inkDim">
                 {`${i + 1}. ${rule}`}
               </li>
@@ -256,29 +259,29 @@ export const PaywallScreen: React.FC = () => {
         </GlassCard>
 
         <GlassCard>
-          <p className="kz-ar-micro text-kz-inkDim">{PRICING_FOOTNOTE_AR}</p>
+          <p className="kz-ar-micro text-kz-inkDim">{pricingFootnote(uiLanguage)}</p>
           <p className="kz-ar-micro mt-2 flex items-start gap-1 text-kz-inkFaint">
             <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-            <span>{REFUND_TEXT}</span>
+            <span>{refundText(uiLanguage)}</span>
           </p>
           <p className="kz-ar-micro mt-2 text-kz-inkFaint">
-            {`المجاني يبقى: ${FREE_LESSONS_PER_MONTH} دروس بالذكاء الاصطناعي في المجموع، والمهمة اليومية، ومراجعة أخطائك.`}
+            {t('paywall.freeStays', { count: FREE_LESSONS_PER_MONTH })}
           </p>
           <p className="kz-ar-micro mt-2 text-kz-inkFaint">
-            التفعيل يتم عبر كود مرتبط بحسابك الموثّق — لا تُدخل أي بيانات بطاقة داخل التطبيق.
+            {t('paywall.activationNote')}
           </p>
         </GlassCard>
 
         <div className="flex flex-col gap-2 pt-1">
           <GlassButton onClick={() => navigate('/mock')}>
-            <span>جرّب محاكاة B1 مجاناً أولاً</span>
+            <span>{t('paywall.tryMockFree')}</span>
           </GlassButton>
           <button
             type="button"
             onClick={() => navigate('/app/trail')}
             className="kz-ar-micro min-h-touch text-kz-inkDim"
           >
-            المتابعة بالحساب المجاني
+            {t('paywall.continueFree')}
           </button>
         </div>
       </div>

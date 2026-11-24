@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Check, Edit2, Sparkles, Trash2, X } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { GOAL_COPY } from '@/lib/onboarding/preferences';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 import type { LearnerGoal } from '@/types/models';
 import {
   clearPersonalFact,
@@ -20,6 +21,7 @@ import {
  * card comes from the server, and nothing leaves the device.
  */
 export const PersonalFactsCard: React.FC = () => {
+  const { t } = useLanguage();
   const facts = useLiveQuery(() => readPersonalFacts(), [], null);
   const [editing, setEditing] = useState<PersonalFactKind | null>(null);
   const [draft, setDraft] = useState('');
@@ -50,11 +52,10 @@ export const PersonalFactsCard: React.FC = () => {
     <Card className="p-4 mb-6 space-y-3" data-testid="personal-facts-card">
       <div className="flex items-center gap-2">
         <Sparkles className="w-4 h-4 text-primary" />
-        <span className="text-xs font-bold text-text-secondary">ما نتذكره عنك</span>
+        <span className="text-xs font-bold text-text-secondary">{t('facts.title')}</span>
       </div>
       <p className="text-micro font-arabic text-text-muted leading-relaxed">
-        الاسم والمدينة والمهنة والهدف — تبقى على جهازك فقط، ويستخدمها كَاتْزُو ليناديك ويشير إليها في
-        الحديث. لا تُرسل إلى خادمنا ولا إلى أي جهة أخرى. يمكنك تصحيح أي قيمة أو حذفها الآن.
+        {t('facts.body')}
       </p>
       <ul className="space-y-2">
         {facts.map((fact) => (
@@ -72,7 +73,7 @@ export const PersonalFactsCard: React.FC = () => {
                     onChange={(event) => setDraft(event.target.value)}
                     className="min-w-0 flex-1 rounded-lg bg-surface-base border border-border-subtle px-2 py-1.5 text-xs font-arabic text-text-primary"
                   >
-                    <option value="">بلا هدف محدد</option>
+                    <option value="">{t('facts.noGoal')}</option>
                     {(Object.keys(GOAL_COPY) as LearnerGoal[]).map((goal) => (
                       <option key={goal} value={goal}>
                         {GOAL_COPY[goal].labelAr}
@@ -91,7 +92,7 @@ export const PersonalFactsCard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => void save(fact.kind)}
-                  aria-label="حفظ"
+                  aria-label={t('facts.save')}
                   className="shrink-0 rounded-full p-1.5 text-status-success"
                 >
                   <Check className="w-4 h-4" />
@@ -99,7 +100,7 @@ export const PersonalFactsCard: React.FC = () => {
                 <button
                   type="button"
                   onClick={cancel}
-                  aria-label="إلغاء"
+                  aria-label={t('facts.cancel')}
                   className="shrink-0 rounded-full p-1.5 text-text-muted"
                 >
                   <X className="w-4 h-4" />
@@ -122,7 +123,7 @@ export const PersonalFactsCard: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => startEdit(fact)}
-                    aria-label={`تعديل ${fact.labelAr}`}
+                    aria-label={t('facts.edit', { label: fact.labelAr })}
                     className="rounded-full p-1.5 text-text-muted pointer-hover:text-primary transition-colors"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
@@ -130,7 +131,7 @@ export const PersonalFactsCard: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => void remove(fact.kind)}
-                    aria-label={`حذف ${fact.labelAr}`}
+                    aria-label={t('facts.remove', { label: fact.labelAr })}
                     disabled={!fact.value}
                     className="rounded-full p-1.5 text-text-muted pointer-hover:text-status-error transition-colors disabled:opacity-30"
                   >

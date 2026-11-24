@@ -1,6 +1,9 @@
 import React from 'react';
 import { logError } from '@/lib/utils/diagnostics';
 import { track } from '@/lib/analytics/client';
+import { directionFor } from '@/lib/i18n/languages';
+import { readStoredUiLanguage } from '@/lib/i18n/languagePreference';
+import { translate } from '@/lib/i18n/strings';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -67,16 +70,18 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   render() {
     if (!this.state.hasError) return this.props.children;
 
+    const language = readStoredUiLanguage() ?? 'ar';
+
     return (
       <main
-        dir="rtl"
+        dir={directionFor(language)}
         role="alert"
         className="min-h-screen bg-black text-text-primary flex items-center justify-center p-6"
       >
         <section className="max-w-sm text-center space-y-4">
-          <h1 className="text-xl font-bold font-arabic">حدث خطأ غير متوقع</h1>
+          <h1 className="text-xl font-bold font-arabic">{translate(language, 'error.title')}</h1>
           <p className="text-sm text-text-secondary font-arabic">
-            لم نتمكن من تحميل هذه الصفحة. أعد المحاولة، وستبقى بياناتك المحفوظة على هذا الجهاز سليمة.
+            {translate(language, 'error.body')}
           </p>
           <button
             type="button"
@@ -88,10 +93,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             }}
             className="w-full min-h-[44px] rounded-2xl bg-fill px-5 py-3 text-sm font-bold text-on-fill"
           >
-            إعادة تحميل التطبيق
+            {translate(language, 'error.reload')}
           </button>
           <p className="text-micro text-text-muted font-arabic">
-            يمكنك أيضاً العودة للصفحة الرئيسية. لن نرسل محتوى محادثاتك أو كلماتك في أي تقرير خطأ.
+            {translate(language, 'error.footer')}
           </p>
         </section>
       </main>

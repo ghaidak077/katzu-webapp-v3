@@ -1,0 +1,68 @@
+{
+  "file": "src/features/settings/PersonalFactsCard.tsx",
+  "imports_after": "import { GOAL_COPY } from '@/lib/onboarding/preferences';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+  "anchor": "export const PersonalFactsCard: React.FC = () => {",
+  "hook": "  const { t } = useLanguage();",
+  "manual": [
+    [
+      "        الاسم والمدينة والمهنة والهدف — تبقى على جهازك فقط، ويستخدمها كَاتْزُو ليناديك ويشير إليها في\n        الحديث. لا تُرسل إلى خادمنا ولا إلى أي جهة أخرى. يمكنك تصحيح أي قيمة أو حذفها الآن.",
+      "        {t('facts.body')}"
+    ],
+    [
+      "aria-label={`تعديل ${fact.labelAr}`}",
+      "aria-label={t('facts.edit', { label: fact.labelAr })}"
+    ],
+    [
+      "aria-label={`حذف ${fact.labelAr}`}",
+      "aria-label={t('facts.remove', { label: fact.labelAr })}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "facts.title",
+      "ar": "ما نتذكره عنك",
+      "en": "What we remember about you",
+      "id": "Apa yang kami ingat tentangmu"
+    },
+    {
+      "key": "facts.body",
+      "ar": "الاسم والمدينة والمهنة والهدف — تبقى على جهازك فقط، ويستخدمها كَاتْزُو ليناديك ويشير إليها في الحديث. لا تُرسل إلى خادمنا ولا إلى أي جهة أخرى. يمكنك تصحيح أي قيمة أو حذفها الآن.",
+      "en": "Name, city, job and goal — they stay only on your device. Katzu uses them to address you and refer to them in conversation. They are never sent to our server or anywhere else. You can correct or delete any value right now.",
+      "id": "Nama, kota, pekerjaan, dan tujuan — semuanya hanya tersimpan di perangkatmu. Katzu memakainya untuk menyapamu dan menyebutnya dalam percakapan. Tidak pernah dikirim ke server kami atau ke mana pun. Kamu bisa membetulkan atau menghapus nilai apa pun sekarang.",
+      "table_only": true
+    },
+    {
+      "key": "facts.noGoal",
+      "ar": "بلا هدف محدد",
+      "en": "No specific goal",
+      "id": "Tanpa tujuan khusus"
+    },
+    {
+      "key": "facts.save",
+      "ar": "حفظ",
+      "en": "Save",
+      "id": "Simpan"
+    },
+    {
+      "key": "facts.cancel",
+      "ar": "إلغاء",
+      "en": "Cancel",
+      "id": "Batal"
+    },
+    {
+      "key": "facts.edit",
+      "ar": "تعديل {label}",
+      "en": "Edit {label}",
+      "id": "Ubah {label}",
+      "table_only": true
+    },
+    {
+      "key": "facts.remove",
+      "ar": "حذف {label}",
+      "en": "Delete {label}",
+      "id": "Hapus {label}",
+      "table_only": true
+    }
+  ]
+}

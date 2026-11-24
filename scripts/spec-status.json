@@ -1,0 +1,48 @@
+{
+  "file": "src/components/v2/StatusIndicator.tsx",
+  "imports_after": "import { cn } from '@/lib/cn';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';\nimport type { UiStringKey } from '@/lib/i18n/strings';",
+  "anchor": "export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ state, detailAr, compact = false, className }) => {",
+  "hook": "  const { t } = useLanguage();",
+  "manual": [
+    [
+      "const STATE_COPY: Record<ConnectionState, { labelAr: string; dotRgb: string }> = {\n  online: { labelAr: 'متصل', dotRgb: 'var(--kz-neon)' },\n  offline: { labelAr: 'بدون اتصال', dotRgb: 'var(--kz-ink-faint)' },\n  syncing: { labelAr: 'جارٍ المزامنة', dotRgb: 'var(--kz-lavender)' },\n  // \"Cached content is still usable\" — the state a learner on a train is in.\n  cached: { labelAr: 'محتوى محفوظ', dotRgb: 'var(--kz-warm)' },\n};",
+      "const STATE_COPY: Record<ConnectionState, { key: UiStringKey; dotRgb: string }> = {\n  online: { key: 'status.online', dotRgb: 'var(--kz-neon)' },\n  offline: { key: 'status.offline', dotRgb: 'var(--kz-ink-faint)' },\n  syncing: { key: 'status.syncing', dotRgb: 'var(--kz-lavender)' },\n  // \"Cached content is still usable\" — the state a learner on a train is in.\n  cached: { key: 'status.cached', dotRgb: 'var(--kz-warm)' },\n};"
+    ],
+    [
+      "copy.labelAr",
+      "t(copy.key)",
+      true
+    ]
+  ],
+  "entries": [
+    {
+      "key": "status.online",
+      "ar": "متصل",
+      "en": "Online",
+      "id": "Terhubung",
+      "table_only": true
+    },
+    {
+      "key": "status.offline",
+      "ar": "بدون اتصال",
+      "en": "Offline",
+      "id": "Tanpa koneksi",
+      "table_only": true
+    },
+    {
+      "key": "status.syncing",
+      "ar": "جارٍ المزامنة",
+      "en": "Syncing",
+      "id": "Menyinkronkan",
+      "table_only": true
+    },
+    {
+      "key": "status.cached",
+      "ar": "محتوى محفوظ",
+      "en": "Cached content",
+      "id": "Konten tersimpan",
+      "table_only": true
+    }
+  ]
+}

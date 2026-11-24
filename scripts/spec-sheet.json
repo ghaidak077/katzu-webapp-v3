@@ -1,0 +1,21 @@
+{
+  "file": "src/components/ui/BottomSheet.tsx",
+  "imports_after": "import { useModalDialog } from '@/components/ui/useModalDialog';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+  "anchor": "}) => {",
+  "hook": "  const { t } = useLanguage();",
+  "entries": [
+    {
+      "key": "a11y.bottomSheet",
+      "ar": "نافذة سفلية",
+      "en": "Bottom sheet",
+      "id": "Panel bawah"
+    },
+    {
+      "key": "a11y.close",
+      "ar": "إغلاق",
+      "en": "Close",
+      "id": "Tutup"
+    }
+  ]
+}

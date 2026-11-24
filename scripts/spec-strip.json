@@ -1,0 +1,20 @@
+{
+  "file": "src/components/v2/ProgressStrip.tsx",
+  "imports_after": "import { cn } from '@/lib/cn';",
+  "imports": "import { readStoredUiLanguage } from '@/lib/i18n/languagePreference';\nimport { translate } from '@/lib/i18n/strings';",
+  "manual": [
+    [
+      "        aria-label={labelAr || 'تقدم الفصل'}",
+      "        aria-label={labelAr || translate(readStoredUiLanguage() ?? 'ar', 'a11y.chapterProgress')}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "a11y.chapterProgress",
+      "ar": "تقدم الفصل",
+      "en": "Chapter progress",
+      "id": "Kemajuan bab",
+      "table_only": true
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import { BackButton } from '@/components/common/BackButton';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { workerClient } from '@/lib/api/workerClient';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 /**
  * `/partners` — the signed-in half of the partner programme.
@@ -41,6 +42,7 @@ function formatUsd(cents: number): string {
 type PartnerInfo = NonNullable<Awaited<ReturnType<typeof workerClient.getPartnerInfo>>>;
 
 export const PartnersScreen: React.FC = () => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [partner, setPartner] = useState<PartnerInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,9 +66,7 @@ export const PartnersScreen: React.FC = () => {
   const ratePct = partner ? Math.round(partner.rate * 100) : 20;
   const approvalDays = partner?.approvalDays ?? 14;
   const minimum = formatUsd(partner?.minPayoutCents ?? 2000);
-  const sample = partner
-    ? `أنا أتعلّم الألمانية على كاتزو: دروس قصيرة وتدريب على الكلام مع تصحيح بالعربية.\nجرّبه إن كان يناسب هدفك: ${link}`
-    : '';
+  const sample = partner ? t('partners.sample', { link }) : '';
 
   const copy = async (text: string, which: 'link' | 'message') => {
     try {
@@ -83,7 +83,7 @@ export const PartnersScreen: React.FC = () => {
     if (!partner) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'Katzu — تعلّم الألمانية', text: sample });
+        await navigator.share({ title: t('partners.shareTitle'), text: sample });
         return;
       } catch {
         // Cancelled or unsupported: fall through to the clipboard.
@@ -95,37 +95,36 @@ export const PartnersScreen: React.FC = () => {
   return (
     <div className="min-h-screen bg-black text-text-primary p-4 pb-10 max-w-md mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <BackButton onBack={() => navigate('/app/profile')} label="العودة" />
+        <BackButton onBack={() => navigate('/app/profile')} label={t('a11y.back')} />
         <h1 className="text-xl font-bold font-arabic leading-snug">
-          ساعد صديقاً على تحقيق هدفه، واربح معه
+          {t('partners.title')}
         </h1>
       </div>
 
       <p className="text-sm leading-7 text-text-secondary font-arabic mb-5">
-        شارك كاتزو مع من يتعلّم الألمانية أو يستعد للسفر. حين يشترك، يخطو هو نحو هدفه، وتحصل أنت
-        على {ratePct}% من أول اشتراك له.
+        {t('partners.intro', { rate: ratePct })}
       </p>
 
       <div className="grid gap-3 mb-6">
         <Card className="p-4 space-y-1 border border-primary/50">
           <div className="flex items-center gap-2">
             <span className="text-2xl font-bold text-primary" dir="ltr">{ratePct}%</span>
-            <span className="text-sm font-bold font-arabic">تربح أنت</span>
+            <span className="text-sm font-bold font-arabic">{t('partners.youEarn')}</span>
           </div>
           <p className="text-micro text-text-secondary leading-relaxed">
-            من أول اشتراك يدفعه صديقك، تُضاف إلى رصيدك بعد {approvalDays} يوماً من التفعيل.
+            {t('partners.youEarnBody', { days: approvalDays })}
           </p>
         </Card>
         <Card variant="subtle" className="p-4 space-y-1">
-          <div className="text-sm font-bold font-arabic">يربح صديقك</div>
+          <div className="text-sm font-bold font-arabic">{t('partners.friendEarns')}</div>
           <p className="text-micro text-text-secondary leading-relaxed">
-            يتعلّم الألمانية بخطة واضحة ودروس قصيرة وتدريب على الكلام، ويقترب من هدفه خطوة كل يوم.
+            {t('partners.friendEarnsBody')}
           </p>
         </Card>
         <Card variant="subtle" className="p-4 space-y-1">
-          <div className="text-sm font-bold font-arabic">يربح كاتزو</div>
+          <div className="text-sm font-bold font-arabic">{t('partners.katzuEarns')}</div>
           <p className="text-micro text-text-secondary leading-relaxed">
-            يصل التطبيق إلى من يحتاجه فعلاً، فنستمر في بناء الدروس والتصحيح والتدريب.
+            {t('partners.katzuEarnsBody')}
           </p>
         </Card>
       </div>
@@ -133,7 +132,7 @@ export const PartnersScreen: React.FC = () => {
       <Card className="p-4 mb-6 space-y-3 border border-primary/40">
         <div className="flex items-center gap-2">
           <Link2 className="w-4 h-4 text-primary" aria-hidden="true" />
-          <span className="text-sm font-bold font-arabic">رابطك</span>
+          <span className="text-sm font-bold font-arabic">{t('partners.yourLink')}</span>
         </div>
 
         {loading ? (
@@ -152,50 +151,50 @@ export const PartnersScreen: React.FC = () => {
                 size="sm"
                 className="flex-1"
                 onClick={() => void copy(link, 'link')}
-                aria-label="انسخ رابط الشراكة"
+                aria-label={t('partners.copyLinkAria')}
               >
                 {copied === 'link' ? <Check className="w-4 h-4 me-1.5" /> : <Copy className="w-4 h-4 me-1.5" />}
-                {copied === 'link' ? 'تم النسخ' : 'انسخ الرابط'}
+                {copied === 'link' ? t('partners.copied') : t('partners.copyLink')}
               </Button>
               <Button
                 variant="secondary"
                 size="sm"
                 className="flex-1"
                 onClick={() => void share()}
-                aria-label="شارك رابط الشراكة"
+                aria-label={t('partners.shareAria')}
               >
                 <Share2 className="w-4 h-4 me-1.5" />
-                شارك
+                {t('partners.share')}
               </Button>
             </div>
             <p role="status" aria-live="polite" className="text-micro text-text-muted font-arabic">
               {copied === 'link'
-                ? 'نُسخ الرابط. أرسله لمن تظن أنه يستفيد.'
-                : 'كل اشتراك يأتي من هذا الرابط يُحسب لك مرة واحدة، على أول اشتراك فقط.'}
+                ? t('partners.copiedHint')
+                : t('partners.linkRule')}
             </p>
           </>
         ) : (
           <div className="space-y-2">
             <p role="alert" className="text-sm font-arabic text-status-error leading-relaxed">
               {failed
-                ? 'تعذّر إنشاء رابطك الآن. تحقق من اتصالك ثم أعد المحاولة.'
-                : 'جارٍ تجهيز رابطك…'}
+                ? t('partners.failed')
+                : t('partners.loading')}
             </p>
             <Button variant="secondary" size="sm" onClick={() => void load()}>
-              أعد المحاولة
+              {t('partners.retry')}
             </Button>
           </div>
         )}
       </Card>
 
-      <h2 className="text-base font-bold font-arabic mb-3">ثلاث خطوات</h2>
+      <h2 className="text-base font-bold font-arabic mb-3">{t('partners.stepsTitle')}</h2>
       <ol className="mb-6 space-y-3">
         {[
-          ['افتح التطبيق', 'ادخل إلى «الشركاء» ويظهر رابطك فوراً.'],
-          ['شارك مع من يهمّه الأمر', 'أصدقاء وأقارب ومجموعات على واتساب وتلغرام وفيسبوك.'],
+          [t('partners.step1Title'), t('partners.step1Body')],
+          [t('partners.step2Title'), t('partners.step2Body')],
           [
-            'اربح معه',
-            `يدخل رصيدك بعد ${approvalDays} يوماً من تفعيل اشتراكه، وندفع أسبوعياً عند بلوغه ${minimum}.`,
+            t('partners.step3Title'),
+            t('partners.step3Body', { days: approvalDays, minimum }),
           ],
         ].map(([title, detail], index) => (
           <li key={title} className="flex items-start gap-3">
@@ -215,23 +214,22 @@ export const PartnersScreen: React.FC = () => {
 
       {partner ? (
         <Card className="p-4 mb-6 space-y-3">
-          <div className="text-sm font-bold font-arabic">رسالة جاهزة</div>
+          <div className="text-sm font-bold font-arabic">{t('partners.sampleTitle')}</div>
           <p className="text-micro text-text-secondary leading-relaxed whitespace-pre-line font-arabic">
             {sample}
           </p>
           <Button variant="secondary" size="sm" onClick={() => void copy(sample, 'message')}>
             {copied === 'message' ? <Check className="w-4 h-4 me-1.5" /> : <Copy className="w-4 h-4 me-1.5" />}
-            {copied === 'message' ? 'تم النسخ' : 'انسخ الرسالة'}
+            {copied === 'message' ? t('partners.copied') : t('partners.copyMessage')}
           </Button>
           <p className="text-micro text-text-muted font-arabic">
-            عدّلها كما تحب: الصدق أهم من أي صياغة.
+            {t('partners.editNote')}
           </p>
         </Card>
       ) : null}
 
       <p className="text-xs leading-6 text-text-muted font-arabic">
-        العمولة على أول اشتراك فقط، وتُلغى عند الاسترداد أو الإحالة الذاتية. الدفع عبر USDT أو
-        Syriatel/MTN Cash أو تحويل بنكي أو Wise. وصِّ بكاتزو بصدق، دون وعود بتأشيرة أو نتيجة امتحان.
+        {t('partners.finePrint')}
       </p>
     </div>
   );

@@ -165,3 +165,11 @@ export const REVIEW_ITEM_ACCUSATIVE: ArabicCountForms = {
   few: 'عناصر',
   many: 'عنصراً',
 };
+
+/** The free-conversation allowance: «جلسة واحدة / جلستان / 3 جلسات». */
+export const TRIAL_SESSION_FORMS: ArabicCountForms = {
+  one: '\u062c\u0644\u0633\u0629 \u0648\u0627\u062d\u062f\u0629',
+  two: '\u062c\u0644\u0633\u062a\u0627\u0646',
+  few: '\u062c\u0644\u0633\u0627\u062a',
+  many: '\u062c\u0644\u0633\u0629',
+};

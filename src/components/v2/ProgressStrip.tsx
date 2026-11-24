@@ -1,5 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/cn';
+import { readStoredUiLanguage } from '@/lib/i18n/languagePreference';
+import { translate } from '@/lib/i18n/strings';
 
 export interface ProgressStripProps {
   /** Total segments in the chapter — one per step the learner can actually finish. */
@@ -43,7 +45,7 @@ export const ProgressStrip: React.FC<ProgressStripProps> = ({
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={done}
-        aria-label={labelAr || 'تقدم الفصل'}
+        aria-label={labelAr || translate(readStoredUiLanguage() ?? 'ar', 'a11y.chapterProgress')}
       >
         {Array.from({ length: total }).map((_, index) => {
           const isComplete = index < done;

@@ -1,6 +1,8 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { readStoredUiLanguage } from '@/lib/i18n/languagePreference';
+import { translate } from '@/lib/i18n/strings';
 
 /**
  * The app's one back button.
@@ -31,7 +33,7 @@ export interface BackButtonProps
 
 export const BackButton: React.FC<BackButtonProps> = ({
   onBack,
-  label = 'العودة',
+  label,
   className,
   ...props
 }) => (
@@ -39,7 +41,7 @@ export const BackButton: React.FC<BackButtonProps> = ({
     variant="secondary"
     size="icon"
     onClick={onBack}
-    aria-label={label}
+    aria-label={label ?? translate(readStoredUiLanguage() ?? 'ar', 'a11y.back')}
     className={className}
     {...props}
   >

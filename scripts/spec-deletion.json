@@ -1,0 +1,176 @@
+{
+  "file": "src/features/settings/DeletionRequestScreen.tsx",
+  "imports_after": "import { db, wipeUserScopedData } from '@/lib/db/katzuDb';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';\nimport { translate } from '@/lib/i18n/strings';\nimport type { UiLanguage } from '@/lib/i18n/languages';",
+  "anchor": "export const DeletionRequestScreen: React.FC = () => {",
+  "hook": "  const { t, uiLanguage } = useLanguage();",
+  "manual": [
+    [
+      "function draftHref(email: string): string {\n  const subject = encodeURIComponent('طلب حذف حساب — كاتزو');\n  const body = encodeURIComponent(\n    `أطلب حذف حسابي وجميع بياناتي في كاتزو.\\nالبريد المرتبط بالحساب: ${email}\\n`,\n  );\n  return `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;\n}",
+      "function draftHref(email: string, language: UiLanguage): string {\n  const subject = encodeURIComponent(translate(language, 'delete.mailSubject'));\n  const body = encodeURIComponent(translate(language, 'delete.mailBody', { email }));\n  return `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;\n}"
+    ],
+    [
+      "      window.location.href = draftHref(value);",
+      "      window.location.href = draftHref(value, uiLanguage);"
+    ],
+    [
+      "            href={draftHref(email.trim())}",
+      "            href={draftHref(email.trim(), uiLanguage)}"
+    ],
+    [
+      "          label=\"العودة\"",
+      "          label={t('a11y.back')}"
+    ],
+    [
+      "            <>\n              إن لم يعد بإمكانك الدخول من هذا الجهاز، اكتب بريدك المرتبط بالحساب واضغط الزر: سنفتح\n              رسالة جاهزة من بريدك إلى\n              <span className=\"font-bold\"> {SUPPORT_EMAIL}</span>. لا يُرسل شيء من هذه الصفحة —\n              أنت ترسل الرسالة بنفسك، وسنحذف الحساب بعد التحقق.\n            </>",
+      "            <>\n              {t('delete.signedOutBody1')}\n              <span className=\"font-bold\"> {SUPPORT_EMAIL}</span>. {t('delete.signedOutBody2')}\n            </>"
+    ],
+    [
+      "            تعذّر إكمال الحذف من هنا. أعد المحاولة، وإن تكرّر أرسل بريدك إلى\n            <span className=\"font-bold\"> {SUPPORT_EMAIL}</span> وسنكمله يدوياً.",
+      "            {t('delete.failedNotice1')}\n            <span className=\"font-bold\"> {SUPPORT_EMAIL}</span> {t('delete.failedNotice2')}"
+    ],
+    [
+      "            اكتب <span className=\"font-bold\">حذف</span> للتأكيد النهائي",
+      "            {t('delete.confirmLabel1')}{' '}\n            <span className=\"font-bold\">{t('delete.confirmWord')}</span>{' '}\n            {t('delete.confirmLabel2')}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "delete.title",
+      "ar": "طلب حذف الحساب",
+      "en": "Account deletion request",
+      "id": "Permintaan hapus akun"
+    },
+    {
+      "key": "delete.intro",
+      "ar": "يمكنك حذف حسابك وكل بياناتك في أي وقت. يشمل الحذف بياناتك على هذا الجهاز وعلى الخادم، ويلغي جلسات الدخول، ولا يمكن استرجاعه.",
+      "en": "You can delete your account and all your data at any time. This covers your data on this device and on the server, ends your sessions, and cannot be undone.",
+      "id": "Kamu bisa menghapus akun dan seluruh datamu kapan saja. Ini mencakup datamu di perangkat ini dan di server, mengakhiri sesimu, dan tidak bisa dibatalkan."
+    },
+    {
+      "key": "delete.signedInBody",
+      "ar": "حسابك يعمل الآن على هذا الجهاز، لذلك اضغط الزر أدناه وسيُحذف فوراً دون انتظار رد.",
+      "en": "Your account is active on this device, so press the button below and it will be deleted immediately, with no waiting for a reply.",
+      "id": "Akunmu aktif di perangkat ini, jadi tekan tombol di bawah dan akun akan langsung dihapus tanpa menunggu balasan."
+    },
+    {
+      "key": "delete.signedOutBody1",
+      "ar": "إن لم يعد بإمكانك الدخول من هذا الجهاز، اكتب بريدك المرتبط بالحساب واضغط الزر: سنفتح رسالة جاهزة من بريدك إلى",
+      "en": "If you can no longer sign in from this device, type the email linked to the account and press the button: we will open a ready-made message from your mailbox to",
+      "id": "Jika kamu tidak bisa lagi masuk dari perangkat ini, tulis email yang terhubung ke akun lalu tekan tombol: kami akan membuka pesan siap kirim dari emailmu ke"
+    },
+    {
+      "key": "delete.signedOutBody2",
+      "ar": "لا يُرسل شيء من هذه الصفحة — أنت ترسل الرسالة بنفسك، وسنحذف الحساب بعد التحقق.",
+      "en": "Nothing is sent from this page — you send the message yourself, and we delete the account after verification.",
+      "id": "Tidak ada yang dikirim dari halaman ini — kamu sendiri yang mengirim pesannya, dan kami menghapus akun setelah verifikasi."
+    },
+    {
+      "key": "delete.draftNotice",
+      "ar": "فتحنا رسالة جاهزة في بريدك. لم يُرسل شيء بعد: أرسلها وسنؤكد الحذف على بريدك. إن لم تُفتح الرسالة، استخدم الرابط أدناه.",
+      "en": "We opened a ready-made message in your mail app. Nothing has been sent yet: send it and we will confirm the deletion by email. If the message did not open, use the link below.",
+      "id": "Kami membuka pesan siap kirim di aplikasi emailmu. Belum ada yang terkirim: kirim pesannya dan kami akan mengonfirmasi penghapusan lewat email. Jika pesan tidak terbuka, pakai tautan di bawah."
+    },
+    {
+      "key": "delete.deletedNotice",
+      "ar": "تم حذف حسابك. يمكنك الآن تسجيل الدخول من جديد.",
+      "en": "Your account has been deleted. You can sign in again now.",
+      "id": "Akunmu sudah dihapus. Kamu bisa masuk lagi sekarang."
+    },
+    {
+      "key": "delete.badEmail",
+      "ar": "اكتب بريداً صحيحاً لنعرف الحساب المطلوب حذفه.",
+      "en": "Enter a valid email so we know which account to delete.",
+      "id": "Masukkan email yang valid agar kami tahu akun mana yang harus dihapus."
+    },
+    {
+      "key": "delete.failedNotice1",
+      "ar": "تعذّر إكمال الحذف من هنا. أعد المحاولة، وإن تكرّر أرسل بريدك إلى",
+      "en": "The deletion could not be completed from here. Try again, and if it repeats, send your email to",
+      "id": "Penghapusan tidak bisa diselesaikan dari sini. Coba lagi, dan bila berulang, kirim emailmu ke"
+    },
+    {
+      "key": "delete.failedNotice2",
+      "ar": "وسنكمله يدوياً.",
+      "en": "and we will finish it by hand.",
+      "id": "dan kami akan menuntaskannya secara manual."
+    },
+    {
+      "key": "delete.confirmLabel1",
+      "ar": "اكتب",
+      "en": "Type",
+      "id": "Tulis",
+      "table_only": true
+    },
+    {
+      "key": "delete.confirmWord",
+      "ar": "حذف",
+      "en": "delete",
+      "id": "hapus"
+    },
+    {
+      "key": "delete.confirmLabel2",
+      "ar": "للتأكيد النهائي",
+      "en": "to confirm for good",
+      "id": "untuk konfirmasi akhir",
+      "table_only": true
+    },
+    {
+      "key": "delete.emailLabel",
+      "ar": "بريدك الإلكتروني",
+      "en": "Your email",
+      "id": "Emailmu"
+    },
+    {
+      "key": "delete.busy",
+      "ar": "جارٍ الحذف…",
+      "en": "Deleting…",
+      "id": "Menghapus…"
+    },
+    {
+      "key": "delete.deleteNow",
+      "ar": "احذف حسابي الآن",
+      "en": "Delete my account now",
+      "id": "Hapus akunku sekarang"
+    },
+    {
+      "key": "delete.openDraft",
+      "ar": "افتح رسالة الحذف في بريدي",
+      "en": "Open the deletion message in my mail app",
+      "id": "Buka pesan penghapusan di emailku"
+    },
+    {
+      "key": "delete.reopen",
+      "ar": "افتح الرسالة مرة أخرى",
+      "en": "Open the message again",
+      "id": "Buka pesannya lagi"
+    },
+    {
+      "key": "delete.noPassword",
+      "ar": "لا نطلب كلمة مرور ولا رمز دخول ولا بيانات بطاقة على هذه الصفحة.",
+      "en": "We ask for no password, no sign-in code and no card details on this page.",
+      "id": "Kami tidak meminta kata sandi, kode masuk, atau data kartu di halaman ini."
+    },
+    {
+      "key": "delete.mailSubject",
+      "ar": "طلب حذف حساب — كاتزو",
+      "en": "Account deletion request — Katzu",
+      "id": "Permintaan hapus akun — Katzu",
+      "table_only": true
+    },
+    {
+      "key": "delete.mailBody",
+      "ar": "أطلب حذف حسابي وجميع بياناتي في كاتزو.\\nالبريد المرتبط بالحساب: {email}\\n",
+      "en": "I request deletion of my Katzu account and all my data.\\nEmail linked to the account: {email}\\n",
+      "id": "Saya meminta penghapusan akun Katzu dan seluruh data saya.\\nEmail yang terhubung ke akun: {email}\\n",
+      "table_only": true
+    },
+    {
+      "key": "delete.signedInBodyStale",
+      "ar": "حسابك يعمل الآن على هذا الجهاز، لذلك اضغط الزر أدناه وسيُحذف فوراً دون انتظار رد.",
+      "en": "Your account is active on this device, so press the button below and it will be deleted immediately.",
+      "id": "Akunmu aktif di perangkat ini, jadi tekan tombol di bawah dan akun akan langsung dihapus.",
+      "table_only": true
+    }
+  ]
+}

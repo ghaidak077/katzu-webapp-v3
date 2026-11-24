@@ -16,6 +16,7 @@
  */
 
 import config from '../../../pricing.config.json';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 export type PlanId = 'monthly' | 'quarterly' | 'halfyear' | 'yearly';
 
@@ -32,6 +33,7 @@ export interface Plan {
   recommended: boolean;
   nameAr: string;
   nameEn: string;
+  nameId: string;
 }
 
 interface RawPlan {
@@ -44,11 +46,11 @@ interface RawPlan {
 
 const toCents = (usd: number): number => Math.round(usd * 100);
 
-const NAMES: Record<PlanId, { ar: string; en: string }> = {
-  monthly: { ar: 'شهر واحد', en: '1 month' },
-  quarterly: { ar: '3 أشهر', en: '3 months' },
-  halfyear: { ar: '6 أشهر', en: '6 months' },
-  yearly: { ar: '12 شهراً', en: '12 months' },
+const NAMES: Record<PlanId, { ar: string; en: string; id: string }> = {
+  monthly: { ar: 'شهر واحد', en: '1 month', id: '1 bulan' },
+  quarterly: { ar: '3 أشهر', en: '3 months', id: '3 bulan' },
+  halfyear: { ar: '6 أشهر', en: '6 months', id: '6 bulan' },
+  yearly: { ar: '12 شهراً', en: '12 months', id: '12 bulan' },
 };
 
 const RAW = (config as { plans: RawPlan[] }).plans;
@@ -66,6 +68,7 @@ export const PLANS: readonly Plan[] = RAW.map((raw) => {
     recommended: raw.recommended === true,
     nameAr: NAMES[id].ar,
     nameEn: NAMES[id].en,
+    nameId: NAMES[id].id,
   };
 });
 
@@ -166,6 +169,67 @@ export const BEST_VALUE_EN = 'Best value';
 
 /** The refund line for one plan, or null when that plan has none. */
 export const REFUND_TEXT = `استرداد كامل خلال ${REFUND_DAYS} أيام على باقات ${REFUND_PLANS_AR}؛ لا استرداد على باقة ${PLAN_BY_ID.monthly.nameAr}.`;
+
+// --- Indonesian twins ------------------------------------------------------
+// The offer is written in three languages now. Every number still comes from
+// `pricing.config.json`; these are the same sentences, never a second policy.
+
+const MONTHS_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+const ENDS_ID = `${ENDS.getUTCDate()} ${MONTHS_ID[ENDS.getUTCMonth()]} ${ENDS.getUTCFullYear()}`;
+const REFUND_MONTHS_ID =
+  refundMonths.length > 1
+    ? `${refundMonths.slice(0, -1).join(', ')}, dan ${refundMonths[refundMonths.length - 1]}`
+    : String(refundMonths[0]);
+const REFUND_PLANS_ID = REFUND_PLAN_IDS.map((id) => PLAN_BY_ID[id as PlanId]?.nameId)
+  .filter(Boolean)
+  .join(', ');
+
+export const PRICING_RULES_ID: readonly string[] = [
+  `Harga perdana berakhir saat ${CAP_AR} anggota membayar terkonfirmasi atau pada ${ENDS_ID} — mana yang lebih dulu; setelah itu harga mendatang berlaku.`,
+  'Anggota perdana mempertahankan harganya pada setiap perpanjangan selama langganan tetap aktif.',
+  `Pengembalian penuh dalam ${REFUND_DAYS} hari pertama untuk paket ${REFUND_PLANS_ID}; tidak ada pengembalian untuk paket ${PLAN_BY_ID.monthly.months} bulan.`,
+  `Akses dan aktivasi paling lambat dalam ${ACTIVATION_HOURS} jam.`,
+];
+
+export const PRICING_HEADLINE_ID = 'Harga perdana. Terkunci selama kamu tetap berlangganan.';
+
+export const PRICING_FOOTNOTE_ID = `Bayar tanpa kartu bank · aktivasi dalam ${ACTIVATION_HOURS} jam · pengembalian penuh dalam ${REFUND_DAYS} hari untuk paket ${REFUND_MONTHS_ID} bulan.`;
+
+export const BEST_VALUE_ID = 'Nilai terbaik';
+
+const REFUND_TEXT_ID = `Pengembalian penuh dalam ${REFUND_DAYS} hari untuk paket ${REFUND_PLANS_ID}; tidak ada pengembalian untuk paket ${PLAN_BY_ID.monthly.months} bulan.`;
+
+/** The plan's name in the UI language. */
+export function planName(plan: Plan, language: UiLanguage = 'ar'): string {
+  return language === 'en' ? plan.nameEn : language === 'id' ? plan.nameId : plan.nameAr;
+}
+
+export function pricingRules(language: UiLanguage = 'ar'): readonly string[] {
+  return language === 'en' ? PRICING_RULES_EN : language === 'id' ? PRICING_RULES_ID : PRICING_RULES_AR;
+}
+
+export function pricingHeadline(language: UiLanguage = 'ar'): string {
+  return language === 'en' ? PRICING_HEADLINE_EN : language === 'id' ? PRICING_HEADLINE_ID : PRICING_HEADLINE_AR;
+}
+
+export function pricingFootnote(language: UiLanguage = 'ar'): string {
+  return language === 'en' ? PRICING_FOOTNOTE_EN : language === 'id' ? PRICING_FOOTNOTE_ID : PRICING_FOOTNOTE_AR;
+}
+
+export function bestValue(language: UiLanguage = 'ar'): string {
+  return language === 'en' ? BEST_VALUE_EN : language === 'id' ? BEST_VALUE_ID : BEST_VALUE_AR;
+}
+
+export function refundText(language: UiLanguage = 'ar'): string {
+  return language === 'en'
+    ? `Full refund within the first ${REFUND_DAYS} days on the ${REFUND_MONTHS_EN} plans; no refund on the ${PLAN_BY_ID.monthly.months}-month plan.`
+    : language === 'id'
+      ? REFUND_TEXT_ID
+      : REFUND_TEXT;
+}
 
 /**
  * The invitation language for a Pro offer shown after a first Arabic correction.

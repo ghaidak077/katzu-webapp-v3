@@ -1,5 +1,7 @@
 import React from 'react';
 import { Check } from 'lucide-react';
+import { readStoredUiLanguage } from '@/lib/i18n/languagePreference';
+import { translate } from '@/lib/i18n/strings';
 
 /**
  * The moves of a drill, in order, with the one being done now marked.
@@ -22,7 +24,7 @@ export interface StepTrailProps {
 export const StepTrail: React.FC<StepTrailProps> = ({ steps, current, className = '' }) => (
   <ol
     className={`mb-4 flex items-center gap-1.5 ${className}`}
-    aria-label="خطوات التدريب"
+    aria-label={translate(readStoredUiLanguage() ?? 'ar', 'a11y.stepTrail')}
     data-testid="step-trail"
   >
     {steps.map((label, index) => {

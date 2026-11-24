@@ -1,0 +1,15 @@
+{
+  "file": "src/components/common/RouteFallback.tsx",
+  "imports_after": "import React from 'react';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+  "anchor": "export function RouteFallback() {",
+  "hook": "  const { t } = useLanguage();",
+  "entries": [
+    {
+      "key": "common.loading",
+      "ar": "جارٍ التحميل…",
+      "en": "Loading…",
+      "id": "Memuat…"
+    }
+  ]
+}

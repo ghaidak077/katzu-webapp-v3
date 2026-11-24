@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { GlassSurface } from '@/components/glass/GlassSurface';
 import { useModalDialog } from '@/components/ui/useModalDialog';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface BottomSheetProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   children,
   className,
 }) => {
+  const { t } = useLanguage();
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -76,7 +78,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           role="dialog"
           aria-modal="true"
           aria-labelledby={title ? titleId : undefined}
-          aria-label={title ? undefined : 'نافذة سفلية'}
+          aria-label={title ? undefined : t('a11y.bottomSheet')}
           tabIndex={-1}
         >
           <div className="w-12 h-1.5 bg-border-subtle rounded-full mx-auto mb-4" />
@@ -84,7 +86,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             {title ? <h3 id={titleId} className="text-lg font-bold font-arabic">{title}</h3> : <div />}
             <button
               onClick={onClose}
-              aria-label="إغلاق"
+              aria-label={t('a11y.close')}
               className="p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-full pointer-hover:bg-surface-highest text-text-secondary pointer-hover:text-text-primary transition-colors duration-fast ease-out"
             >
               <X className="w-5 h-5" aria-hidden="true" />

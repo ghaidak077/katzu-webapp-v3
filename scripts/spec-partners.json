@@ -1,0 +1,237 @@
+{
+  "file": "src/features/partners/PartnersScreen.tsx",
+  "imports_after": "import { workerClient } from '@/lib/api/workerClient';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+  "anchor": "export const PartnersScreen: React.FC = () => {",
+  "hook": "  const { t } = useLanguage();",
+  "manual": [
+    [
+      "  const sample = partner\n    ? `أنا أتعلّم الألمانية على كاتزو: دروس قصيرة وتدريب على الكلام مع تصحيح بالعربية.\\nجرّبه إن كان يناسب هدفك: ${link}`\n    : '';",
+      "  const sample = partner ? t('partners.sample', { link }) : '';"
+    ],
+    [
+      "        await navigator.share({ title: 'Katzu — تعلّم الألمانية', text: sample });",
+      "        await navigator.share({ title: t('partners.shareTitle'), text: sample });"
+    ],
+    [
+      "        <BackButton onBack={() => navigate('/app/profile')} label=\"العودة\" />",
+      "        <BackButton onBack={() => navigate('/app/profile')} label={t('a11y.back')} />"
+    ],
+    [
+      "        شارك كاتزو مع من يتعلّم الألمانية أو يستعد للسفر. حين يشترك، يخطو هو نحو هدفه، وتحصل أنت\n        على {ratePct}% من أول اشتراك له.",
+      "        {t('partners.intro', { rate: ratePct })}"
+    ],
+    [
+      "            من أول اشتراك يدفعه صديقك، تُضاف إلى رصيدك بعد {approvalDays} يوماً من التفعيل.",
+      "            {t('partners.youEarnBody', { days: approvalDays })}"
+    ],
+    [
+      "        {[\n          ['افتح التطبيق', 'ادخل إلى «الشركاء» ويظهر رابطك فوراً.'],\n          ['شارك مع من يهمّه الأمر', 'أصدقاء وأقارب ومجموعات على واتساب وتلغرام وفيسبوك.'],\n          [\n            'اربح معه',\n            `يدخل رصيدك بعد ${approvalDays} يوماً من تفعيل اشتراكه، وندفع أسبوعياً عند بلوغه ${minimum}.`,\n          ],\n        ].map(([title, detail], index) => (",
+      "        {[\n          [t('partners.step1Title'), t('partners.step1Body')],\n          [t('partners.step2Title'), t('partners.step2Body')],\n          [\n            t('partners.step3Title'),\n            t('partners.step3Body', { days: approvalDays, minimum }),\n          ],\n        ].map(([title, detail], index) => ("
+    ]
+  ],
+  "entries": [
+    {
+      "key": "partners.title",
+      "ar": "ساعد صديقاً على تحقيق هدفه، واربح معه",
+      "en": "Help a friend reach their goal, and earn with them",
+      "id": "Bantu teman mencapai tujuannya, dan dapatkan penghasilan bersamanya"
+    },
+    {
+      "key": "partners.intro",
+      "ar": "شارك كاتزو مع من يتعلّم الألمانية أو يستعد للسفر. حين يشترك، يخطو هو نحو هدفه، وتحصل أنت على {rate}% من أول اشتراك له.",
+      "en": "Share Katzu with someone learning German or preparing to travel. When they subscribe, they move toward their goal and you get {rate}% of their first subscription.",
+      "id": "Bagikan Katzu kepada orang yang belajar bahasa Jerman atau bersiap bepergian. Saat mereka berlangganan, mereka maju menuju tujuannya dan kamu mendapat {rate}% dari langganan pertamanya.",
+      "table_only": true
+    },
+    {
+      "key": "partners.youEarn",
+      "ar": "تربح أنت",
+      "en": "You earn",
+      "id": "Kamu dapat"
+    },
+    {
+      "key": "partners.youEarnBody",
+      "ar": "من أول اشتراك يدفعه صديقك، تُضاف إلى رصيدك بعد {days} يوماً من التفعيل.",
+      "en": "From the first subscription your friend pays, it is added to your balance {days} days after activation.",
+      "id": "Dari langganan pertama yang dibayar temanmu, nilainya masuk ke saldomu {days} hari setelah aktivasi.",
+      "table_only": true
+    },
+    {
+      "key": "partners.friendEarns",
+      "ar": "يربح صديقك",
+      "en": "Your friend earns",
+      "id": "Temanmu dapat"
+    },
+    {
+      "key": "partners.friendEarnsBody",
+      "ar": "يتعلّم الألمانية بخطة واضحة ودروس قصيرة وتدريب على الكلام، ويقترب من هدفه خطوة كل يوم.",
+      "en": "They learn German with a clear plan, short lessons and speaking practice, moving one step closer to their goal every day.",
+      "id": "Mereka belajar bahasa Jerman dengan rencana yang jelas, pelajaran singkat, dan latihan berbicara, makin dekat ke tujuannya setiap hari."
+    },
+    {
+      "key": "partners.katzuEarns",
+      "ar": "يربح كاتزو",
+      "en": "Katzu earns",
+      "id": "Katzu dapat"
+    },
+    {
+      "key": "partners.katzuEarnsBody",
+      "ar": "يصل التطبيق إلى من يحتاجه فعلاً، فنستمر في بناء الدروس والتصحيح والتدريب.",
+      "en": "The app reaches the people who actually need it, so we keep building the lessons, the corrections and the practice.",
+      "id": "Aplikasi ini sampai ke orang yang benar-benar membutuhkannya, sehingga kami terus membangun pelajaran, koreksi, dan latihan."
+    },
+    {
+      "key": "partners.yourLink",
+      "ar": "رابطك",
+      "en": "Your link",
+      "id": "Tautanmu"
+    },
+    {
+      "key": "partners.copyLinkAria",
+      "ar": "انسخ رابط الشراكة",
+      "en": "Copy the partner link",
+      "id": "Salin tautan kemitraan"
+    },
+    {
+      "key": "partners.copied",
+      "ar": "تم النسخ",
+      "en": "Copied",
+      "id": "Tersalin"
+    },
+    {
+      "key": "partners.copyLink",
+      "ar": "انسخ الرابط",
+      "en": "Copy link",
+      "id": "Salin tautan"
+    },
+    {
+      "key": "partners.shareAria",
+      "ar": "شارك رابط الشراكة",
+      "en": "Share the partner link",
+      "id": "Bagikan tautan kemitraan"
+    },
+    {
+      "key": "partners.share",
+      "ar": "شارك",
+      "en": "Share",
+      "id": "Bagikan"
+    },
+    {
+      "key": "partners.copiedHint",
+      "ar": "نُسخ الرابط. أرسله لمن تظن أنه يستفيد.",
+      "en": "Link copied. Send it to someone you think would benefit.",
+      "id": "Tautan tersalin. Kirimkan ke orang yang menurutmu akan terbantu."
+    },
+    {
+      "key": "partners.linkRule",
+      "ar": "كل اشتراك يأتي من هذا الرابط يُحسب لك مرة واحدة، على أول اشتراك فقط.",
+      "en": "Every subscription from this link counts for you once, on the first subscription only.",
+      "id": "Setiap langganan dari tautan ini dihitung sekali untukmu, hanya pada langganan pertama."
+    },
+    {
+      "key": "partners.failed",
+      "ar": "تعذّر إنشاء رابطك الآن. تحقق من اتصالك ثم أعد المحاولة.",
+      "en": "Your link could not be created right now. Check your connection and try again.",
+      "id": "Tautanmu gagal dibuat sekarang. Periksa koneksimu lalu coba lagi."
+    },
+    {
+      "key": "partners.loading",
+      "ar": "جارٍ تجهيز رابطك…",
+      "en": "Preparing your link…",
+      "id": "Menyiapkan tautanmu…"
+    },
+    {
+      "key": "partners.retry",
+      "ar": "أعد المحاولة",
+      "en": "Try again",
+      "id": "Coba lagi"
+    },
+    {
+      "key": "partners.stepsTitle",
+      "ar": "ثلاث خطوات",
+      "en": "Three steps",
+      "id": "Tiga langkah"
+    },
+    {
+      "key": "partners.step1Title",
+      "ar": "افتح التطبيق",
+      "en": "Open the app",
+      "id": "Buka aplikasinya",
+      "table_only": true
+    },
+    {
+      "key": "partners.step1Body",
+      "ar": "ادخل إلى «الشركاء» ويظهر رابطك فوراً.",
+      "en": "Go to “Partners” and your link appears immediately.",
+      "id": "Masuk ke “Mitra” dan tautanmu langsung muncul.",
+      "table_only": true
+    },
+    {
+      "key": "partners.step2Title",
+      "ar": "شارك مع من يهمّه الأمر",
+      "en": "Share it with the right people",
+      "id": "Bagikan ke orang yang tepat",
+      "table_only": true
+    },
+    {
+      "key": "partners.step2Body",
+      "ar": "أصدقاء وأقارب ومجموعات على واتساب وتلغرام وفيسبوك.",
+      "en": "Friends, relatives and groups on WhatsApp, Telegram and Facebook.",
+      "id": "Teman, kerabat, dan grup di WhatsApp, Telegram, dan Facebook.",
+      "table_only": true
+    },
+    {
+      "key": "partners.step3Title",
+      "ar": "اربح معه",
+      "en": "Earn with them",
+      "id": "Dapat penghasilan bersamanya",
+      "table_only": true
+    },
+    {
+      "key": "partners.step3Body",
+      "ar": "يدخل رصيدك بعد {days} يوماً من تفعيل اشتراكه، وندفع أسبوعياً عند بلوغه {minimum}.",
+      "en": "Your balance is credited {days} days after their subscription activates, and we pay weekly once it reaches {minimum}.",
+      "id": "Saldomu masuk {days} hari setelah langganan mereka aktif, dan kami membayar mingguan begitu mencapai {minimum}.",
+      "table_only": true
+    },
+    {
+      "key": "partners.sampleTitle",
+      "ar": "رسالة جاهزة",
+      "en": "Ready-made message",
+      "id": "Pesan siap pakai"
+    },
+    {
+      "key": "partners.copyMessage",
+      "ar": "انسخ الرسالة",
+      "en": "Copy the message",
+      "id": "Salin pesannya"
+    },
+    {
+      "key": "partners.editNote",
+      "ar": "عدّلها كما تحب: الصدق أهم من أي صياغة.",
+      "en": "Edit it however you like: honesty matters more than any wording.",
+      "id": "Ubah sesukamu: kejujuran lebih penting daripada susunan kata apa pun."
+    },
+    {
+      "key": "partners.finePrint",
+      "ar": "العمولة على أول اشتراك فقط، وتُلغى عند الاسترداد أو الإحالة الذاتية. الدفع عبر USDT أو Syriatel/MTN Cash أو تحويل بنكي أو Wise. وصِّ بكاتزو بصدق، دون وعود بتأشيرة أو نتيجة امتحان.",
+      "en": "The commission is on the first subscription only, and is cancelled on a refund or a self-referral. Payment by USDT, Syriatel/MTN Cash, bank transfer or Wise. Recommend Katzu honestly, with no promises of a visa or an exam result.",
+      "id": "Komisi hanya untuk langganan pertama, dan dibatalkan bila ada pengembalian dana atau rujukan diri sendiri. Pembayaran lewat USDT, Syriatel/MTN Cash, transfer bank, atau Wise. Rekomendasikan Katzu dengan jujur, tanpa janji visa atau hasil ujian."
+    },
+    {
+      "key": "partners.sample",
+      "ar": "أنا أتعلّم الألمانية على كاتزو: دروس قصيرة وتدريب على الكلام مع تصحيح بالعربية.\\nجرّبه إن كان يناسب هدفك: {link}",
+      "en": "I am learning German on Katzu: short lessons and speaking practice with corrections.\\nTry it if it fits your goal: {link}",
+      "id": "Aku belajar bahasa Jerman di Katzu: pelajaran singkat dan latihan berbicara dengan koreksi.\\nCoba kalau cocok dengan tujuanmu: {link}",
+      "table_only": true
+    },
+    {
+      "key": "partners.shareTitle",
+      "ar": "Katzu — تعلّم الألمانية",
+      "en": "Katzu — learn German",
+      "id": "Katzu — belajar bahasa Jerman",
+      "table_only": true
+    }
+  ]
+}

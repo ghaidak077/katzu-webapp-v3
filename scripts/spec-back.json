@@ -1,0 +1,24 @@
+{
+  "file": "src/components/common/BackButton.tsx",
+  "imports_after": "import { Button } from '@/components/ui/Button';",
+  "imports": "import { readStoredUiLanguage } from '@/lib/i18n/languagePreference';\nimport { translate } from '@/lib/i18n/strings';",
+  "manual": [
+    [
+      "  label = 'العودة',",
+      "  label,"
+    ],
+    [
+      "    aria-label={label}",
+      "    aria-label={label ?? translate(readStoredUiLanguage() ?? 'ar', 'a11y.back')}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "a11y.back",
+      "ar": "العودة",
+      "en": "Back",
+      "id": "Kembali",
+      "table_only": true
+    }
+  ]
+}

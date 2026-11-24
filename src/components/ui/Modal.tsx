@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { GlassSurface } from '@/components/glass/GlassSurface';
 import { useModalDialog } from '@/components/ui/useModalDialog';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   className,
 }) => {
+  const { t } = useLanguage();
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -79,7 +81,7 @@ export const Modal: React.FC<ModalProps> = ({
           role="dialog"
           aria-modal="true"
           aria-labelledby={title ? titleId : undefined}
-          aria-label={title ? undefined : 'نافذة حوار'}
+          aria-label={title ? undefined : t('a11y.dialog')}
           tabIndex={-1}
         >
           <div className="flex items-center justify-between pb-4 border-b border-border-subtle mb-4">
@@ -88,7 +90,7 @@ export const Modal: React.FC<ModalProps> = ({
             ) : <div />}
             <button
               onClick={onClose}
-              aria-label="إغلاق"
+              aria-label={t('a11y.close')}
               className="p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-full pointer-hover:bg-surface-subtle text-text-secondary pointer-hover:text-text-primary transition-colors duration-fast ease-out"
             >
               <X className="w-5 h-5" aria-hidden="true" />

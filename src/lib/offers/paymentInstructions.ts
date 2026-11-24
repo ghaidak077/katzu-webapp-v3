@@ -23,14 +23,16 @@
  */
 
 import { ACTIVATION_HOURS } from './pricing';
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
 
 /** Region groups the payment instructions differ by (price no longer does). */
 export type RegionGroup = 'standard' | 'special';
 
 export interface PaymentInstruction {
-  /** Short Arabic heading: what this region needs to know. */
+  /** Short heading: what this region needs to know. */
   headingAr: string;
-  /** The ordered steps, Arabic, each one thing the learner actually does. */
+  /** The ordered steps, each one thing the learner actually does. */
   stepsAr: string[];
   /**
    * How long activation may take, or null when it is immediate. A string, not a
@@ -46,44 +48,37 @@ export interface PaymentInstruction {
   unproven: boolean;
 }
 
-/**
- * The published activation promise. One number, in both regions, because a
- * learner comparing two screens must not read two deadlines.
- */
-export const ACTIVATION_PROMISE_AR = `خلال ${ACTIVATION_HOURS} ساعة كحد أقصى`;
+const COPY: Record<RegionGroup, { heading: UiStringKey; steps: UiStringKey[]; caveat: UiStringKey }> = {
+  standard: {
+    heading: 'payment.standard.heading',
+    steps: [
+      'payment.standard.step1',
+      'payment.standard.step2',
+      'payment.standard.step3',
+      'payment.standard.step4',
+      'payment.standard.step5',
+    ],
+    caveat: 'payment.standard.caveat',
+  },
+  special: {
+    heading: 'payment.special.heading',
+    steps: [
+      'payment.special.step1',
+      'payment.special.step2',
+      'payment.special.step3',
+      'payment.special.step4',
+      'payment.special.step5',
+    ],
+    caveat: 'payment.special.caveat',
+  },
+};
+
+/** The published activation promise. One number, in both regions. */
+export const ACTIVATION_PROMISE_AR = translate('ar', 'payment.timing', { hours: ACTIVATION_HOURS });
 
 export const ACTIVATION_TIMING_AR: Record<RegionGroup, string | null> = {
   standard: ACTIVATION_PROMISE_AR,
   special: ACTIVATION_PROMISE_AR,
-};
-
-export const PAYMENT_INSTRUCTIONS: Record<RegionGroup, PaymentInstruction> = {
-  standard: {
-    headingAr: 'كيف تدفع',
-    stepsAr: [
-      'اختر الباقة من هذه الشاشة.',
-      'افتح صفحة الدفع على موقع البيع، وأكمل بياناتك.',
-      'حوّل المبلغ بالطريقة التي يعرضها لك موقع البيع.',
-      'سيصلك كود التفعيل على وسائل التواصل التي تُدخلها عند الدفع.',
-      'أدخل الكود في شاشة التفعيل؛ تُضاف المدة إلى حسابك فور وصول الكود.',
-    ],
-    timingAr: ACTIVATION_TIMING_AR.standard,
-    caveatAr: 'التحويل يمرّ عبر مصرفك، وقد يحتجز البنك المبلغ أياماً قبل وصوله.',
-    unproven: true,
-  },
-  special: {
-    headingAr: 'كيف تدفع من هذه المنطقة',
-    stepsAr: [
-      'اختر الباقة.',
-      'افتح صفحة الدفع على موقع البيع.',
-      'حوّل المبلغ عبر الطريقة التي يعرضها الموقع لك.',
-      'سيصلك كود التفعيل بعد تأكيد التحويل.',
-      'أدخل الكود في شاشة التفعيل؛ تُضاف المدة إلى حسابك فور وصول الكود.',
-    ],
-    timingAr: ACTIVATION_TIMING_AR.special,
-    caveatAr: 'معظم التحويلات تمرّ عبر مصرف وسيط، وقد يتأخر التأكيد ساعات قبل وصول الكود.',
-    unproven: true,
-  },
 };
 
 /** The group the server sent, normalised. Anything unknown reads as standard. */
@@ -91,6 +86,19 @@ export function normaliseRegionGroup(group: unknown): RegionGroup {
   return group === 'special' ? 'special' : 'standard';
 }
 
-export function paymentInstructionsFor(group: unknown): PaymentInstruction {
-  return PAYMENT_INSTRUCTIONS[normaliseRegionGroup(group)];
+export function paymentInstructionsFor(group: unknown, language: UiLanguage = 'ar'): PaymentInstruction {
+  const key = normaliseRegionGroup(group);
+  const copy = COPY[key];
+  return {
+    headingAr: translate(language, copy.heading),
+    stepsAr: copy.steps.map((step) => translate(language, step)),
+    timingAr: translate(language, 'payment.timing', { hours: ACTIVATION_HOURS }),
+    caveatAr: translate(language, copy.caveat),
+    unproven: true,
+  };
 }
+
+export const PAYMENT_INSTRUCTIONS: Record<RegionGroup, PaymentInstruction> = {
+  standard: paymentInstructionsFor('standard'),
+  special: paymentInstructionsFor('special'),
+};

@@ -41,8 +41,9 @@ describe('V33 — Listen and Write number their steps', () => {
   it('the shared indicator marks the current step for assistive tech', () => {
     expect(trail).toContain("aria-current={active ? 'step' : undefined}");
     // The list itself is named, so a screen reader announces "steps" rather
-    // than three unlabelled numbers.
-    expect(trail).toContain('aria-label="خطوات التدريب"');
+    // than three unlabelled numbers. The name now comes from the dictionary.
+    expect(trail).toContain("'a11y.stepTrail'");
+    expect(UI_STRINGS.ar['a11y.stepTrail']).toBe('خطوات التدريب');
   });
 
   it('the indicator is a real list, not a row of divs', () => {

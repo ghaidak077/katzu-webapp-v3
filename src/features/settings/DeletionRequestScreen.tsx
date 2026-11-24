@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { BackButton } from '@/components/common/BackButton';
 import { workerClient } from '@/lib/api/workerClient';
 import { db, wipeUserScopedData } from '@/lib/db/katzuDb';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { translate } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * The public deletion-request page.
@@ -34,15 +37,14 @@ import { db, wipeUserScopedData } from '@/lib/db/katzuDb';
 const SUPPORT_EMAIL = 'support@ghaidak.com';
 
 /** The prefilled draft, carrying the email the learner typed as identification. */
-function draftHref(email: string): string {
-  const subject = encodeURIComponent('طلب حذف حساب — كاتزو');
-  const body = encodeURIComponent(
-    `أطلب حذف حسابي وجميع بياناتي في كاتزو.\nالبريد المرتبط بالحساب: ${email}\n`,
-  );
+function draftHref(email: string, language: UiLanguage): string {
+  const subject = encodeURIComponent(translate(language, 'delete.mailSubject'));
+  const body = encodeURIComponent(translate(language, 'delete.mailBody', { email }));
   return `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
 }
 
 export const DeletionRequestScreen: React.FC = () => {
+  const { t, uiLanguage } = useLanguage();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'draft' | 'deleted' | 'badEmail' | 'failed'>('idle');
@@ -86,7 +88,7 @@ export const DeletionRequestScreen: React.FC = () => {
         setStatus('badEmail');
         return;
       }
-      window.location.href = draftHref(value);
+      window.location.href = draftHref(value, uiLanguage);
       setStatus('draft');
       return;
     }
@@ -118,69 +120,67 @@ export const DeletionRequestScreen: React.FC = () => {
             opened. It follows the same rule `TrustRoute` does. */}
         <BackButton
           onBack={() => navigate(signedIn === true ? '/app/profile' : '/')}
-          label="العودة"
+          label={t('a11y.back')}
         />
-        <h1 className="text-xl font-bold font-arabic">طلب حذف الحساب</h1>
+        <h1 className="text-xl font-bold font-arabic">{t('delete.title')}</h1>
       </div>
       <Card className="p-5 space-y-4">
         <Trash2 className="w-7 h-7 text-status-error" />
         <p className="text-sm leading-7 text-text-secondary font-arabic">
-          يمكنك حذف حسابك وكل بياناتك في أي وقت. يشمل الحذف بياناتك على هذا الجهاز وعلى الخادم،
-          ويلغي جلسات الدخول، ولا يمكن استرجاعه.
+          {t('delete.intro')}
         </p>
         <p className="text-sm leading-7 text-text-secondary font-arabic">
           {signedIn === true ? (
             <>
-              حسابك يعمل الآن على هذا الجهاز، لذلك اضغط الزر أدناه وسيُحذف فوراً دون انتظار رد.
+              {t('delete.signedInBody')}
             </>
           ) : (
             <>
-              إن لم يعد بإمكانك الدخول من هذا الجهاز، اكتب بريدك المرتبط بالحساب واضغط الزر: سنفتح
-              رسالة جاهزة من بريدك إلى
-              <span className="font-bold"> {SUPPORT_EMAIL}</span>. لا يُرسل شيء من هذه الصفحة —
-              أنت ترسل الرسالة بنفسك، وسنحذف الحساب بعد التحقق.
+              {t('delete.signedOutBody1')}
+              <span className="font-bold"> {SUPPORT_EMAIL}</span>. {t('delete.signedOutBody2')}
             </>
           )}
         </p>
 
         {status === 'draft' ? (
           <p role="status" className="text-sm font-arabic text-status-success">
-            فتحنا رسالة جاهزة في بريدك. لم يُرسل شيء بعد: أرسلها وسنؤكد الحذف على بريدك. إن لم
-            تُفتح الرسالة، استخدم الرابط أدناه.
+            {t('delete.draftNotice')}
           </p>
         ) : null}
         {status === 'deleted' ? (
           <p role="status" className="text-sm font-arabic text-status-success">
-            تم حذف حسابك. يمكنك الآن تسجيل الدخول من جديد.
+            {t('delete.deletedNotice')}
           </p>
         ) : null}
         {status === 'badEmail' ? (
           <p role="alert" className="text-sm font-arabic text-status-error">
-            اكتب بريداً صحيحاً لنعرف الحساب المطلوب حذفه.
+            {t('delete.badEmail')}
           </p>
         ) : null}
         {status === 'failed' ? (
           <p role="alert" className="text-sm font-arabic text-status-error">
-            تعذّر إكمال الحذف من هنا. أعد المحاولة، وإن تكرّر أرسل بريدك إلى
-            <span className="font-bold"> {SUPPORT_EMAIL}</span> وسنكمله يدوياً.
+            {t('delete.failedNotice1')}
+            <span className="font-bold"> {SUPPORT_EMAIL}</span> {t('delete.failedNotice2')}
           </p>
         ) : null}
 
         {signedIn === true ? (
           <label className="block text-sm font-arabic text-text-secondary">
-            اكتب <span className="font-bold">حذف</span> للتأكيد النهائي
+            {t('delete.confirmLabel1')}{' '}
+            <span className="font-bold">{t('delete.confirmWord')}</span>{' '}
+            {t('delete.confirmLabel2')}
             <input
               type="text"
               value={confirmText}
               onChange={(event) => setConfirmText(event.target.value)}
-              placeholder="حذف"
+              placeholder={t('delete.confirmWord')}
               className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm font-arabic"
               autoComplete="off"
             />
           </label>
         ) : (
         <label className="block text-sm font-arabic text-text-secondary">
-          بريدك الإلكتروني
+          {t('delete.emailLabel')}
           <input
             type="email"
             value={email}
@@ -194,23 +194,23 @@ export const DeletionRequestScreen: React.FC = () => {
 
         <Button
           className="w-full"
-          disabled={busy || !sessionKnown || (signedIn === true && confirmText.trim() !== 'حذف')}
+          disabled={busy || !sessionKnown || (signedIn === true && confirmText.trim() !== t('delete.confirmWord'))}
           onClick={() => void handleRequest()}
         >
-          {busy ? 'جارٍ الحذف…' : signedIn ? 'احذف حسابي الآن' : 'افتح رسالة الحذف في بريدي'}
+          {busy ? t('delete.busy') : signedIn ? t('delete.deleteNow') : t('delete.openDraft')}
         </Button>
 
         {status === 'draft' ? (
           <a
-            href={draftHref(email.trim())}
+            href={draftHref(email.trim(), uiLanguage)}
             className="block text-center text-sm font-arabic text-kz-lavender underline"
           >
-            افتح الرسالة مرة أخرى
+            {t('delete.reopen')}
           </a>
         ) : null}
 
         <p className="text-xs leading-6 text-text-muted font-arabic">
-          لا نطلب كلمة مرور ولا رمز دخول ولا بيانات بطاقة على هذه الصفحة.
+          {t('delete.noPassword')}
         </p>
       </Card>
     </div>

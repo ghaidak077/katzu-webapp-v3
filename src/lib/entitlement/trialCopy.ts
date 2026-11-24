@@ -20,6 +20,7 @@
  */
 
 import { arCount } from '@/lib/i18n/arabicCount';
+import { TRIAL_SESSION_FORMS } from '@/lib/i18n/countForms';
 import { readStoredUiLanguage } from '@/lib/i18n/languagePreference';
 import { translate } from '@/lib/i18n/strings';
 
@@ -40,12 +41,7 @@ import { translate } from '@/lib/i18n/strings';
  */
 export const MAX_FREE_AI_SESSIONS = 3;
 
-const SESSION_FORMS = {
-  one: 'جلسة واحدة',
-  two: 'جلستان',
-  few: 'جلسات',
-  many: 'جلسة',
-} as const;
+const SESSION_FORMS = TRIAL_SESSION_FORMS;
 
 /**
  * The allowance in Arabic, e.g. «3 جلسات».

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 /**
  * Shown while a route's code is still downloading — never a blank screen.
@@ -10,9 +11,10 @@ import React from 'react';
  * one shared piece of markup gets its own module instead.
  */
 export function RouteFallback() {
+  const { t } = useLanguage();
   return (
     <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-live="polite">
-      <span className="font-arabic text-sm text-text-secondary">جارٍ التحميل…</span>
+      <span className="font-arabic text-sm text-text-secondary">{t('common.loading')}</span>
     </div>
   );
 }

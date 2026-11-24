@@ -1,0 +1,21 @@
+{
+  "file": "src/components/common/NetworkStatusBanner.tsx",
+  "imports_after": "import React, { useEffect, useState } from 'react';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+  "anchor": "export const NetworkStatusBanner: React.FC = () => {",
+  "hook": "  const { t } = useLanguage();",
+  "entries": [
+    {
+      "key": "network.backOnline",
+      "ar": "عاد الاتصال. ستتم مزامنة تقدمك تلقائياً.",
+      "en": "Back online. Your progress will sync automatically.",
+      "id": "Kembali terhubung. Kemajuanmu akan disinkronkan otomatis."
+    },
+    {
+      "key": "network.offlineBody",
+      "ar": "أنت غير متصل. يمكنك متابعة الدراسة والمراجعة، أما المحادثة الذكية فتحتاج إلى الإنترنت.",
+      "en": "You are offline. You can keep studying and reviewing; AI conversation needs the internet.",
+      "id": "Kamu sedang offline. Kamu bisa tetap belajar dan meninjau; percakapan AI membutuhkan internet."
+    }
+  ]
+}

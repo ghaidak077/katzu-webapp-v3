@@ -1,0 +1,15 @@
+{
+  "file": "src/components/ui/Modal.tsx",
+  "imports_after": "import { useModalDialog } from '@/components/ui/useModalDialog';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+  "anchor": "}) => {",
+  "hook": "  const { t } = useLanguage();",
+  "entries": [
+    {
+      "key": "a11y.dialog",
+      "ar": "نافذة حوار",
+      "en": "Dialog",
+      "id": "Dialog"
+    }
+  ]
+}
