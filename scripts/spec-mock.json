@@ -1,0 +1,280 @@
+{
+  "file": "src/features/mockexam/MockExamScreen.tsx",
+  "imports_after": "import { track } from '@/lib/analytics/client';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';\nimport { readStoredUiLanguage } from '@/lib/i18n/languagePreference';\nimport { translate } from '@/lib/i18n/strings';",
+  "anchor": "export const MockExamScreen: React.FC = () => {",
+  "hook": "  const { t, uiLanguage } = useLanguage();",
+  "manual": [
+    [
+      "}> = ({ part, partNumber, totalParts, secondsLeft }) => {",
+      "}> = ({ part, partNumber, totalParts, secondsLeft }) => {\n  const { t } = useLanguage();"
+    ],
+    [
+      "}> = ({ claim, summaries, estimate, onExit, onOpenSubscription }) => {",
+      "}> = ({ claim, summaries, estimate, onExit, onOpenSubscription }) => {\n  const { t, uiLanguage } = useLanguage();"
+    ],
+    [
+      "    () => estimatePracticeScore(summaries.map((row) => row.result), parts[0]?.seconds ?? 300),\n    [summaries, parts],",
+      "    () =>\n      estimatePracticeScore(\n        summaries.map((row) => row.result),\n        parts[0]?.seconds ?? 300,\n        uiLanguage,\n      ),\n    [summaries, parts, uiLanguage],"
+    ],
+    [
+      "      <MockShell titleAr=\"محاكاة B1\"",
+      "      <MockShell titleAr={t('mock.title')}",
+      true
+    ],
+    [
+      "    <MockShell titleAr=\"نتيجة المحاكاة\" onExit={onExit}>",
+      "    <MockShell titleAr={t('mock.resultTitle')} onExit={onExit}>"
+    ],
+    [
+      "          الجزء {partNumber} من {totalParts}",
+      "          {t('mock.partOf', { current: partNumber, total: totalParts })}"
+    ],
+    [
+      "                  الجزء {row.result.partIndex}: {row.result.sentencesSpoken} جملة ({row.result.independentSentences} بلا تلميح)",
+      "                  {t('mock.partSummary', {\n                    part: row.result.partIndex,\n                    sentences: row.result.sentencesSpoken,\n                    independent: row.result.independentSentences,\n                  })}"
+    ],
+    [
+      "                  {estimate.totals.independent} من {estimate.totals.sentences}",
+      "                  {t('mock.independentOf', {\n                    independent: estimate.totals.independent,\n                    sentences: estimate.totals.sentences,\n                  })}"
+    ],
+    [
+      "                {view.lockedCount} تصحيحاً آخر في التقرير الكامل — مع شرح كل خطأ وخطوات للتكرار.",
+      "                {t('mock.locked', { count: view.lockedCount })}"
+    ],
+    [
+      "          إغلاق\n",
+      "          {translate(readStoredUiLanguage() ?? 'ar', 'mock.close')}\n"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "mock.title",
+      "ar": "محاكاة B1",
+      "en": "B1 mock exam",
+      "id": "Simulasi B1",
+      "table_only": true
+    },
+    {
+      "key": "mock.resultTitle",
+      "ar": "نتيجة المحاكاة",
+      "en": "Mock result",
+      "id": "Hasil simulasi",
+      "table_only": true
+    },
+    {
+      "key": "mock.close",
+      "ar": "إغلاق",
+      "en": "Close",
+      "id": "Tutup",
+      "table_only": true
+    },
+    {
+      "key": "mock.claimFailed",
+      "ar": "تعذّر بدء المحاكاة الآن.",
+      "en": "The mock could not be started right now.",
+      "id": "Simulasi tidak bisa dimulai sekarang."
+    },
+    {
+      "key": "mock.seeOptions",
+      "ar": "اعرف الخيارات",
+      "en": "See the options",
+      "id": "Lihat pilihannya"
+    },
+    {
+      "key": "mock.tryAgain",
+      "ar": "حاول مرة أخرى",
+      "en": "Try again",
+      "id": "Coba lagi"
+    },
+    {
+      "key": "mock.backToPath",
+      "ar": "العودة إلى المسار",
+      "en": "Back to the path",
+      "id": "Kembali ke jalur"
+    },
+    {
+      "key": "mock.preparing",
+      "ar": "جارٍ تجهيز المحاكاة…",
+      "en": "Preparing the mock…",
+      "id": "Menyiapkan simulasi…"
+    },
+    {
+      "key": "mock.partOf",
+      "ar": "الجزء {current} من {total}",
+      "en": "Part {current} of {total}",
+      "id": "Bagian {current} dari {total}",
+      "table_only": true
+    },
+    {
+      "key": "mock.timeUp",
+      "ar": "انتهى الوقت المقترح لهذا الجزء. أكمل ما بدأت به ثم انتقل للجزء التالي.",
+      "en": "The suggested time for this part is over. Finish what you started, then move to the next part.",
+      "id": "Waktu yang disarankan untuk bagian ini habis. Selesaikan yang sudah kamu mulai, lalu lanjut ke bagian berikutnya."
+    },
+    {
+      "key": "mock.estimate",
+      "ar": "تقدير تدريبي",
+      "en": "Practice estimate",
+      "id": "Perkiraan latihan"
+    },
+    {
+      "key": "mock.outOf",
+      "ar": "من 100",
+      "en": "out of 100",
+      "id": "dari 100"
+    },
+    {
+      "key": "mock.independence",
+      "ar": "الاستقلالية بلا تلميح",
+      "en": "Independence without hints",
+      "id": "Kemandirian tanpa petunjuk"
+    },
+    {
+      "key": "mock.accuracy",
+      "ar": "دقة القواعد",
+      "en": "Grammar accuracy",
+      "id": "Ketepatan tata bahasa"
+    },
+    {
+      "key": "mock.coverage",
+      "ar": "تغطية الأجزاء الثلاثة",
+      "en": "Coverage of the three parts",
+      "id": "Cakupan tiga bagian"
+    },
+    {
+      "key": "mock.independentTotal",
+      "ar": "إجمالي الجمل المستقلة",
+      "en": "Total independent sentences",
+      "id": "Total kalimat mandiri"
+    },
+    {
+      "key": "mock.independentOf",
+      "ar": "{independent} من {sentences}",
+      "en": "{independent} of {sentences}",
+      "id": "{independent} dari {sentences}",
+      "table_only": true
+    },
+    {
+      "key": "mock.partsTitle",
+      "ar": "أجزاء المحاكاة",
+      "en": "Mock parts",
+      "id": "Bagian simulasi"
+    },
+    {
+      "key": "mock.partSummary",
+      "ar": "الجزء {part}: {sentences} جملة ({independent} بلا تلميح)",
+      "en": "Part {part}: {sentences} sentences ({independent} without a hint)",
+      "id": "Bagian {part}: {sentences} kalimat ({independent} tanpa petunjuk)",
+      "table_only": true
+    },
+    {
+      "key": "mock.topMistakes",
+      "ar": "أهم الأخطاء",
+      "en": "Top mistakes",
+      "id": "Kesalahan terpenting"
+    },
+    {
+      "key": "mock.noMistakes",
+      "ar": "لم تُسجَّل أخطاء في هذه المحاكاة.",
+      "en": "No mistakes were recorded in this mock.",
+      "id": "Tidak ada kesalahan tercatat dalam simulasi ini."
+    },
+    {
+      "key": "mock.listenCorrectAria",
+      "ar": "استمع إلى الصيغة الصحيحة",
+      "en": "Listen to the correct form",
+      "id": "Dengarkan bentuk yang benar"
+    },
+    {
+      "key": "mock.locked",
+      "ar": "{count} تصحيحاً آخر في التقرير الكامل — مع شرح كل خطأ وخطوات للتكرار.",
+      "en": "{count} more corrections in the full report — with an explanation of each mistake and steps to repeat it.",
+      "id": "{count} koreksi lagi di laporan penuh — dengan penjelasan tiap kesalahan dan langkah untuk mengulanginya.",
+      "table_only": true
+    },
+    {
+      "key": "mock.examPackBody",
+      "ar": "باقة الامتحان (90 يوماً) تفتح جميع تصحيحات المحاكاة، محاكاة B1 إضافية، ومحادثات B1 الكاملة.",
+      "en": "The exam pack (90 days) opens every mock correction, an extra B1 mock, and the full B1 conversations.",
+      "id": "Paket ujian (90 hari) membuka semua koreksi simulasi, simulasi B1 tambahan, dan percakapan B1 lengkap."
+    },
+    {
+      "key": "mock.openFullReport",
+      "ar": "افتح التقرير الكامل",
+      "en": "Open the full report",
+      "id": "Buka laporan penuh"
+    },
+    {
+      "key": "mock.wantNewMock",
+      "ar": "هل تريد خوض محاكاة B1 جديدة بموضوع مختلف مع التقرير الكامل ومحادثات B1؟",
+      "en": "Want a fresh B1 mock on a different topic, with the full report and the B1 conversations?",
+      "id": "Ingin simulasi B1 baru dengan topik berbeda, lengkap dengan laporan penuh dan percakapan B1?"
+    },
+    {
+      "key": "mock.explorePack",
+      "ar": "استكشف باقة الامتحان",
+      "en": "Explore the exam pack",
+      "id": "Jelajahi paket ujian"
+    },
+    {
+      "key": "mock.bookAnother",
+      "ar": "احجز محاكاة أخرى",
+      "en": "Book another mock",
+      "id": "Pesan simulasi lain"
+    },
+    {
+      "key": "mock.share",
+      "ar": "شارك تقديرك مع صديق",
+      "en": "Share your estimate with a friend",
+      "id": "Bagikan perkiraanmu ke teman"
+    },
+    {
+      "key": "mock.shareCopied",
+      "ar": "نُسخ الرابط — شاركه مع من يستعد للامتحان.",
+      "en": "Link copied — share it with someone preparing for the exam.",
+      "id": "Tautan tersalin — bagikan ke orang yang bersiap ujian."
+    },
+    {
+      "key": "mock.shareFailed",
+      "ar": "تعذّر النسخ الآن. جرّب مرة أخرى.",
+      "en": "Copying failed right now. Try again.",
+      "id": "Penyalinan gagal sekarang. Coba lagi."
+    },
+    {
+      "key": "mock.notice",
+      "ar": "هذا تقدير تدريبي من تدريبك داخل التطبيق فقط — ليس درجة رسمية ولا يتبع نتيجة الامتحان.",
+      "en": "This is a practice estimate from your training inside the app only — not an official score, and not tied to the exam result.",
+      "id": "Ini perkiraan latihan dari latihanmu di dalam aplikasi saja — bukan nilai resmi dan tidak terkait hasil ujian.",
+      "table_only": true
+    },
+    {
+      "key": "mock.headline.empty",
+      "ar": "لم تقل شيئاً يكفي لنقدّر أداءك بعد. ابدأ من جديد واذكر جملة على الأقل.",
+      "en": "You have not said enough for me to estimate your performance yet. Start again and say at least one sentence.",
+      "id": "Kamu belum berbicara cukup untuk kuperkirakan performamu. Mulai lagi dan ucapkan setidaknya satu kalimat.",
+      "table_only": true
+    },
+    {
+      "key": "mock.band.steady",
+      "ar": "أداء ثابت في هذه الجلسة. كرّرها بعد يومين وستقارنها بنفسك.",
+      "en": "Steady performance in this session. Repeat it in two days and compare for yourself.",
+      "id": "Performa stabil di sesi ini. Ulangi dua hari lagi dan bandingkan sendiri.",
+      "table_only": true
+    },
+    {
+      "key": "mock.band.gettingThere",
+      "ar": "أنت في منتصف الطريق — واصل، والجزء الثالث هو الأضعف عادةً.",
+      "en": "You are halfway there — keep going; the third part is usually the weakest.",
+      "id": "Kamu sudah separuh jalan — lanjutkan; bagian ketiga biasanya paling lemah.",
+      "table_only": true
+    },
+    {
+      "key": "mock.band.needsMore",
+      "ar": "ابدأ بالجزء الأول فقط هذه المرة؛ الاستقلال أهم من الطول الآن.",
+      "en": "Start with the first part only this time; independence matters more than length right now.",
+      "id": "Mulai dari bagian pertama saja kali ini; kemandirian lebih penting daripada panjang sekarang.",
+      "table_only": true
+    }
+  ]
+}

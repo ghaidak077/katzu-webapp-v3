@@ -1,0 +1,311 @@
+{
+  "file": "src/features/placement/PlacementScreen.tsx",
+  "imports_after": "import { track } from '@/lib/analytics/client';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';\nimport type { UiStringKey } from '@/lib/i18n/strings';",
+  "anchor": "export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {",
+  "hook": "  const { t, uiLanguage } = useLanguage();",
+  "manual": [
+    [
+      "const LEVEL_LABELS: Record<CEFRLevel, string> = {\n  A0: 'من الصفر تماماً — لا أعرف شيئاً بعد',\n  A1: 'مبتدئ تماماً — أعرف كلمات قليلة',\n  A2: 'أعرف أساسيات يومية',\n  B1: 'أستطيع التعامل مع مواقف الحياة اليومية',\n  B2: 'أفهم النصوص والمحادثات المعقدة',\n};",
+      "const LEVEL_LABEL_KEY: Record<CEFRLevel, UiStringKey> = {\n  A0: 'placement.level.A0',\n  A1: 'placement.level.A1',\n  A2: 'placement.level.A2',\n  B1: 'placement.level.B1',\n  B2: 'placement.level.B2',\n};"
+    ],
+    [
+      "  const result = useMemo(() => describePlacementResult(state), [state]);",
+      "  const result = useMemo(() => describePlacementResult(state, uiLanguage), [state, uiLanguage]);"
+    ],
+    [
+      "{LEVEL_LABELS[level]}",
+      "{t(LEVEL_LABEL_KEY[level])}"
+    ],
+    [
+      "            {askedCount} سؤالاً. ولو شعرت أن المستوى غير مناسب، غيّره من الملف الشخصي في أي وقت.",
+      "            {t('placement.resultCount', { count: askedCount })}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "placement.introTitle",
+      "ar": "أين نقف الآن؟",
+      "en": "Where are we now?",
+      "id": "Di mana kita sekarang?"
+    },
+    {
+      "key": "placement.introBody",
+      "ar": "بضعة أسئلة قصيرة (5–10) لأعرف من أين نبدأ. لا نجاح ولا فشل هنا — المستوى الخطأ يعني وقتاً ضائعاً في ما تعرفه أصلاً.",
+      "en": "A few short questions (5–10) so I know where to start. There is no pass or fail here — the wrong level only wastes time on what you already know.",
+      "id": "Beberapa soal singkat (5–10) agar aku tahu harus mulai dari mana. Tidak ada lulus atau gagal di sini — level yang salah hanya membuang waktu untuk hal yang sudah kamu tahu."
+    },
+    {
+      "key": "placement.introItem1",
+      "ar": "أقرأ كلمة أو جملة ألمانية وأختار معناها بالعربية.",
+      "en": "You read a German word or sentence and choose its meaning.",
+      "id": "Kamu membaca kata atau kalimat Jerman dan memilih artinya."
+    },
+    {
+      "key": "placement.introItem2",
+      "ar": "وبعضها تسمعها فقط — لنقيس أذنك أيضاً.",
+      "en": "Some you only hear — so we measure your ear too.",
+      "id": "Sebagian hanya kamu dengar — agar telingamu juga terukur."
+    },
+    {
+      "key": "placement.introItem3",
+      "ar": "الأسئلة تتغير حسب إجاباتك، ولن تزيد على 10.",
+      "en": "The questions change with your answers, and never exceed 10.",
+      "id": "Soalnya menyesuaikan jawabanmu, dan tidak lebih dari 10."
+    },
+    {
+      "key": "placement.startTest",
+      "ar": "ابدأ الاختبار",
+      "en": "Start the check",
+      "id": "Mulai tes"
+    },
+    {
+      "key": "placement.knowNothing",
+      "ar": "لا أعرف الألمانية بعد — ابدأ من الصفر",
+      "en": "I do not know German yet — start from zero",
+      "id": "Aku belum tahu bahasa Jerman — mulai dari nol"
+    },
+    {
+      "key": "placement.chooseMyself",
+      "ar": "أعرف مستواي — اختره بنفسي",
+      "en": "I know my level — let me choose it",
+      "id": "Aku tahu levelku — biar aku pilih"
+    },
+    {
+      "key": "placement.manualTitle",
+      "ar": "اختر مستواك",
+      "en": "Choose your level",
+      "id": "Pilih levelmu"
+    },
+    {
+      "key": "placement.manualBody",
+      "ar": "يمكنك تغييره لاحقاً من الملف الشخصي.",
+      "en": "You can change it later in your profile.",
+      "id": "Kamu bisa mengubahnya nanti di profil."
+    },
+    {
+      "key": "placement.backToTest",
+      "ar": "عد إلى الاختبار",
+      "en": "Back to the check",
+      "id": "Kembali ke tes"
+    },
+    {
+      "key": "placement.noMeasureTitle",
+      "ar": "لم أستطع قياس مستواك الآن",
+      "en": "I could not measure your level right now",
+      "id": "Aku belum bisa mengukur levelmu sekarang"
+    },
+    {
+      "key": "placement.noMeasureBody",
+      "ar": "لم يصل محتوى التدريب إلى جهازك بعد. اختر مستواك يدوياً، ويمكنك إعادة الاختبار لاحقاً بعد أن يتوفر الاتصال.",
+      "en": "The practice content has not reached your device yet. Choose your level by hand, and you can retake the check once the connection is available.",
+      "id": "Konten latihan belum sampai ke perangkatmu. Pilih levelmu secara manual, dan kamu bisa mengulang tes setelah koneksi tersedia."
+    },
+    {
+      "key": "placement.chooseManually",
+      "ar": "اختر مستواي يدوياً",
+      "en": "Choose my level by hand",
+      "id": "Pilih levelku secara manual"
+    },
+    {
+      "key": "placement.skipNow",
+      "ar": "تخطَّ الآن — عد إلى المسار",
+      "en": "Skip for now — back to the path",
+      "id": "Lewati dulu — kembali ke jalur"
+    },
+    {
+      "key": "placement.resultLabel",
+      "ar": "نتيجة الاختبار",
+      "en": "Check result",
+      "id": "Hasil tes"
+    },
+    {
+      "key": "placement.resultCount",
+      "ar": "{count} سؤالاً. ولو شعرت أن المستوى غير مناسب، غيّره من الملف الشخصي في أي وقت.",
+      "en": "{count} questions. If the level feels wrong, change it in your profile at any time.",
+      "id": "{count} soal. Kalau levelnya terasa tidak pas, ubah di profil kapan saja.",
+      "table_only": true
+    },
+    {
+      "key": "placement.startPractice",
+      "ar": "ابدأ التدريب من هنا",
+      "en": "Start practising here",
+      "id": "Mulai berlatih dari sini"
+    },
+    {
+      "key": "placement.notMyLevel",
+      "ar": "ليس مستواي — أختار بنفسي",
+      "en": "Not my level — I will choose",
+      "id": "Bukan levelku — aku pilih sendiri"
+    },
+    {
+      "key": "placement.preparing",
+      "ar": "جاري تحضير السؤال...",
+      "en": "Preparing the question…",
+      "id": "Menyiapkan soal…"
+    },
+    {
+      "key": "placement.screenTitle",
+      "ar": "اختبار تحديد المستوى",
+      "en": "Level check",
+      "id": "Tes penentuan level"
+    },
+    {
+      "key": "placement.hintListening",
+      "ar": "استمع ثم اختر المعنى الصحيح",
+      "en": "Listen, then choose the right meaning",
+      "id": "Dengarkan, lalu pilih arti yang benar"
+    },
+    {
+      "key": "placement.hintReading",
+      "ar": "اختر المعنى الصحيح",
+      "en": "Choose the right meaning",
+      "id": "Pilih arti yang benar"
+    },
+    {
+      "key": "placement.tagListening",
+      "ar": "استماع",
+      "en": "Listening",
+      "id": "Menyimak"
+    },
+    {
+      "key": "placement.tagWord",
+      "ar": "مفردة",
+      "en": "Word",
+      "id": "Kata"
+    },
+    {
+      "key": "placement.tagSentence",
+      "ar": "جملة",
+      "en": "Sentence",
+      "id": "Kalimat"
+    },
+    {
+      "key": "placement.replayAria",
+      "ar": "إعادة تشغيل المقطع",
+      "en": "Replay the clip",
+      "id": "Putar ulang klip"
+    },
+    {
+      "key": "placement.replayHint",
+      "ar": "اضغط للاستماع مرة أخرى (يمكنك تكرارها كما تريد)",
+      "en": "Tap to listen again (as many times as you like)",
+      "id": "Ketuk untuk mendengar lagi (sesukamu)"
+    },
+    {
+      "key": "placement.correct",
+      "ar": "صحيح ✓ ",
+      "en": "Correct ✓ ",
+      "id": "Benar ✓ "
+    },
+    {
+      "key": "placement.correctAnswer",
+      "ar": "الإجابة الصحيحة: ",
+      "en": "The correct answer: ",
+      "id": "Jawaban yang benar: "
+    },
+    {
+      "key": "placement.showResult",
+      "ar": "أظهر نتيجتي",
+      "en": "Show my result",
+      "id": "Tampilkan hasilku"
+    },
+    {
+      "key": "placement.nextQuestion",
+      "ar": "السؤال التالي",
+      "en": "Next question",
+      "id": "Soal berikutnya"
+    },
+    {
+      "key": "placement.level.A0",
+      "ar": "من الصفر تماماً — لا أعرف شيئاً بعد",
+      "en": "From absolute zero — I know nothing yet",
+      "id": "Dari nol — belum tahu apa-apa",
+      "table_only": true
+    },
+    {
+      "key": "placement.level.A1",
+      "ar": "مبتدئ تماماً — أعرف كلمات قليلة",
+      "en": "Complete beginner — I know a few words",
+      "id": "Pemula total — tahu beberapa kata",
+      "table_only": true
+    },
+    {
+      "key": "placement.level.A2",
+      "ar": "أعرف أساسيات يومية",
+      "en": "I know everyday basics",
+      "id": "Aku tahu dasar-dasar harian",
+      "table_only": true
+    },
+    {
+      "key": "placement.level.B1",
+      "ar": "أستطيع التعامل مع مواقف الحياة اليومية",
+      "en": "I can handle everyday situations",
+      "id": "Aku bisa menghadapi situasi sehari-hari",
+      "table_only": true
+    },
+    {
+      "key": "placement.level.B2",
+      "ar": "أفهم النصوص والمحادثات المعقدة",
+      "en": "I understand complex texts and conversations",
+      "id": "Aku memahami teks dan percakapan yang rumit",
+      "table_only": true
+    },
+    {
+      "key": "placement.result.headline",
+      "ar": "مستواك التقديري: {level}",
+      "en": "Your estimated level: {level}",
+      "id": "Perkiraan levelmu: {level}",
+      "table_only": true
+    },
+    {
+      "key": "placement.result.strengthAll",
+      "ar": "أجبت صحيحاً على كل أسئلة {levels} التي واجهتها",
+      "en": "You answered every {levels} question you met correctly",
+      "id": "Kamu menjawab benar semua soal {levels} yang kamu temui",
+      "table_only": true
+    },
+    {
+      "key": "placement.result.strengthNone",
+      "ar": "لم تُثبت بعد مستوى كاملاً، لذا سنبني من الأساس",
+      "en": "You have not proved a full level yet, so we will build from the basics",
+      "id": "Kamu belum membuktikan satu level penuh, jadi kami mulai dari dasar",
+      "table_only": true
+    },
+    {
+      "key": "placement.result.ceiling",
+      "ar": "، وتوقفت عند {level} — وهناك سنعمل",
+      "en": ", and you stopped at {level} — that is where we will work",
+      "id": ", dan kamu berhenti di {level} — di situlah kami akan bekerja",
+      "table_only": true
+    },
+    {
+      "key": "placement.result.top",
+      "ar": "، وأسئلتنا لم تعد تقيسك — نبدأ من B2",
+      "en": ", and our questions no longer measure you — we start at B2",
+      "id": ", dan soal kami tidak lagi mengukupmu — kami mulai dari B2",
+      "table_only": true
+    },
+    {
+      "key": "placement.result.startHere",
+      "ar": "، وسنبدأ من هنا ونبني صعوداً",
+      "en": ", so we start here and build up",
+      "id": ", jadi kami mulai dari sini dan naik bertahap",
+      "table_only": true
+    },
+    {
+      "key": "placement.result.listeningPerfect",
+      "ar": " وأذنك تلتقط الألمانية المنطوقة جيداً.",
+      "en": " And your ear catches spoken German well.",
+      "id": " Dan telingamu menangkap bahasa Jerman lisan dengan baik.",
+      "table_only": true
+    },
+    {
+      "key": "placement.result.listeningPartial",
+      "ar": " وفهمت {correct} من {total} من الجمل المسموعة — سنتدرب على الاستماع.",
+      "en": " You understood {correct} of {total} spoken sentences — we will practise listening.",
+      "id": " Kamu memahami {correct} dari {total} kalimat yang didengar — kami akan berlatih menyimak.",
+      "table_only": true
+    }
+  ]
+}

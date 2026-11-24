@@ -10,6 +10,9 @@ import { debriefView, estimatePracticeScore, formatPartClock, type MockPartResul
 import { buildShareLink, buildShareText } from '@/lib/offers/share';
 import { LiveConversationScreen } from '@/features/conversation/LiveConversationScreen';
 import { track } from '@/lib/analytics/client';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { readStoredUiLanguage } from '@/lib/i18n/languagePreference';
+import { translate } from '@/lib/i18n/strings';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
 import type { CEFRLevel } from '@/types/models';
 
@@ -44,6 +47,7 @@ interface PartSummary {
 }
 
 export const MockExamScreen: React.FC = () => {
+  const { t, uiLanguage } = useLanguage();
   const navigate = useNavigate();
   // Stable for the life of this screen: it is the idempotency key the server
   // replays, so a re-render or a retry must not look like a second mock.
@@ -70,7 +74,7 @@ export const MockExamScreen: React.FC = () => {
       const answer = await workerClient.startMock(sessionId);
       if (cancelled) return;
       if (!answer.allowed || !answer.brief || !answer.grant) {
-        setClaimError(answer.message || 'تعذّر بدء المحاكاة الآن.');
+        setClaimError(answer.message || t('mock.claimFailed'));
         return;
       }
       setClaim(answer);
@@ -127,19 +131,24 @@ export const MockExamScreen: React.FC = () => {
   );
 
   const estimate = useMemo(
-    () => estimatePracticeScore(summaries.map((row) => row.result), parts[0]?.seconds ?? 300),
-    [summaries, parts],
+    () =>
+      estimatePracticeScore(
+        summaries.map((row) => row.result),
+        parts[0]?.seconds ?? 300,
+        uiLanguage,
+      ),
+    [summaries, parts, uiLanguage],
   );
 
   if (claimError) {
     return (
-      <MockShell titleAr="محاكاة B1" onExit={() => navigate('/paywall?from=mock')}>
+      <MockShell titleAr={t('mock.title')} onExit={() => navigate('/paywall?from=mock')}>
         <GlassCard>
           <p className="kz-ar-body text-kz-ink">{claimError}</p>
           <div className="mt-4 flex flex-col gap-2">
             <PrimaryAction onClick={() => navigate('/paywall?from=mock')}>
               <Sparkles className="h-5 w-5" />
-              <span>اعرف الخيارات</span>
+              <span>{t('mock.seeOptions')}</span>
             </PrimaryAction>
             <GlassButton
               onClick={() => {
@@ -147,10 +156,10 @@ export const MockExamScreen: React.FC = () => {
                 setClaimAttempt((attempt) => attempt + 1);
               }}
             >
-              <span>حاول مرة أخرى</span>
+              <span>{t('mock.tryAgain')}</span>
             </GlassButton>
             <GlassButton onClick={() => navigate('/app/trail')}>
-              <span>العودة إلى المسار</span>
+              <span>{t('mock.backToPath')}</span>
             </GlassButton>
           </div>
         </GlassCard>
@@ -160,8 +169,8 @@ export const MockExamScreen: React.FC = () => {
 
   if (!claim || !claim.grant || !parts.length) {
     return (
-      <MockShell titleAr="محاكاة B1" onExit={() => navigate('/app/trail')}>
-        <p className="kz-ar-caption text-kz-inkDim">جارٍ تجهيز المحاكاة…</p>
+      <MockShell titleAr={t('mock.title')} onExit={() => navigate('/app/trail')}>
+        <p className="kz-ar-caption text-kz-inkDim">{t('mock.preparing')}</p>
       </MockShell>
     );
   }
@@ -215,12 +224,13 @@ const ExamBanner: React.FC<{
   totalParts: number;
   secondsLeft: number | null;
 }> = ({ part, partNumber, totalParts, secondsLeft }) => {
+  const { t } = useLanguage();
   const over = secondsLeft === 0;
   return (
     <div className="relative z-10 shrink-0 border-b border-white/[0.06] bg-kz-soft-black/40 px-4 py-2 backdrop-blur-sm">
       <div className="flex items-center justify-between gap-2">
         <p className="kz-ar-micro text-primary">
-          الجزء {partNumber} من {totalParts}
+          {t('mock.partOf', { current: partNumber, total: totalParts })}
         </p>
         <p
           data-testid="mock-clock"
@@ -234,7 +244,7 @@ const ExamBanner: React.FC<{
       <p className="kz-ar-micro mt-0.5 text-kz-inkDim">{part.briefAr}</p>
       {over ? (
         <p className="kz-ar-micro mt-1 text-primary">
-          انتهى الوقت المقترح لهذا الجزء. أكمل ما بدأت به ثم انتقل للجزء التالي.
+          {t('mock.timeUp')}
         </p>
       ) : null}
     </div>
@@ -256,6 +266,7 @@ const MockResultScreen: React.FC<{
   onExit: () => void;
   onOpenSubscription: () => void;
 }> = ({ claim, summaries, estimate, onExit, onOpenSubscription }) => {
+  const { t, uiLanguage } = useLanguage();
   const [shareNote, setShareNote] = useState<string | null>(null);
   const { speak } = useSpeechOutput();
 
@@ -282,9 +293,9 @@ const MockResultScreen: React.FC<{
         return;
       }
       await navigator.clipboard?.writeText(text);
-      setShareNote('نُسخ الرابط — شاركه مع من يستعد للامتحان.');
+      setShareNote(t('mock.shareCopied'));
     } catch {
-      setShareNote('تعذّر النسخ الآن. جرّب مرة أخرى.');
+      setShareNote(t('mock.shareFailed'));
     }
   }, [estimate.score]);
   const allMistakes = summaries.flatMap((row) =>
@@ -302,14 +313,14 @@ const MockResultScreen: React.FC<{
   }, [claim.source]);
 
   return (
-    <MockShell titleAr="نتيجة المحاكاة" onExit={onExit}>
+    <MockShell titleAr={t('mock.resultTitle')} onExit={onExit}>
       <GlassCard>
-        <p className="kz-ar-title font-bold">تقدير تدريبي</p>
+        <p className="kz-ar-title font-bold">{t('mock.estimate')}</p>
         {estimate.score !== null ? (
           <>
             <p data-testid="mock-score" className="kz-ar-display mt-2 font-bold text-primary">
               {estimate.score}
-              <span className="kz-ar-caption ms-2 text-kz-inkDim">من 100</span>
+              <span className="kz-ar-caption ms-2 text-kz-inkDim">{t('mock.outOf')}</span>
             </p>
             <p className="kz-ar-caption mt-2 text-kz-ink">{estimate.headlineAr}</p>
             <dl
@@ -317,25 +328,28 @@ const MockResultScreen: React.FC<{
               className="mt-3 grid grid-cols-2 gap-2 border-t border-white/[0.06] pt-3"
             >
               <div className="rounded-xl bg-white/[0.03] p-2.5">
-                <dt className="kz-ar-micro text-kz-inkFaint">الاستقلالية بلا تلميح</dt>
+                <dt className="kz-ar-micro text-kz-inkFaint">{t('mock.independence')}</dt>
                 <dd className="kz-de-caption mt-0.5 font-bold text-kz-ink">
                   {estimate.components.independence === null ? '—' : `${estimate.components.independence}%`}
                 </dd>
               </div>
               <div className="rounded-xl bg-white/[0.03] p-2.5">
-                <dt className="kz-ar-micro text-kz-inkFaint">دقة القواعد</dt>
+                <dt className="kz-ar-micro text-kz-inkFaint">{t('mock.accuracy')}</dt>
                 <dd className="kz-de-caption mt-0.5 font-bold text-kz-ink">
                   {estimate.components.accuracy === null ? '—' : `${estimate.components.accuracy}%`}
                 </dd>
               </div>
               <div className="rounded-xl bg-white/[0.03] p-2.5">
-                <dt className="kz-ar-micro text-kz-inkFaint">تغطية الأجزاء الثلاثة</dt>
+                <dt className="kz-ar-micro text-kz-inkFaint">{t('mock.coverage')}</dt>
                 <dd className="kz-de-caption mt-0.5 font-bold text-kz-ink">{estimate.components.coverage}%</dd>
               </div>
               <div className="rounded-xl bg-white/[0.03] p-2.5">
-                <dt className="kz-ar-micro text-kz-inkFaint">إجمالي الجمل المستقلة</dt>
+                <dt className="kz-ar-micro text-kz-inkFaint">{t('mock.independentTotal')}</dt>
                 <dd className="kz-ar-micro mt-0.5 font-bold text-kz-ink">
-                  {estimate.totals.independent} من {estimate.totals.sentences}
+                  {t('mock.independentOf', {
+                    independent: estimate.totals.independent,
+                    sentences: estimate.totals.sentences,
+                  })}
                 </dd>
               </div>
             </dl>
@@ -349,12 +363,16 @@ const MockResultScreen: React.FC<{
 
       {summaries.length > 0 ? (
         <GlassCard data-testid="mock-parts-summary">
-          <p className="kz-ar-caption font-bold">أجزاء المحاكاة</p>
+          <p className="kz-ar-caption font-bold">{t('mock.partsTitle')}</p>
           <ul className="mt-2 space-y-1.5">
             {summaries.map((row) => (
               <li key={row.result.partIndex} className="kz-ar-micro flex items-center justify-between text-kz-inkDim">
                 <span>
-                  الجزء {row.result.partIndex}: {row.result.sentencesSpoken} جملة ({row.result.independentSentences} بلا تلميح)
+                  {t('mock.partSummary', {
+                    part: row.result.partIndex,
+                    sentences: row.result.sentencesSpoken,
+                    independent: row.result.independentSentences,
+                  })}
                 </span>
                 {row.result.accuracyPercent !== null ? (
                   <span className="font-german font-bold text-kz-ink">{row.result.accuracyPercent}%</span>
@@ -366,9 +384,9 @@ const MockResultScreen: React.FC<{
       ) : null}
 
       <GlassCard>
-        <p className="kz-ar-caption font-bold">أهم الأخطاء</p>
+        <p className="kz-ar-caption font-bold">{t('mock.topMistakes')}</p>
         {view.visible.length === 0 ? (
-          <p className="kz-ar-caption mt-2 text-kz-inkDim">لم تُسجَّل أخطاء في هذه المحاكاة.</p>
+          <p className="kz-ar-caption mt-2 text-kz-inkDim">{t('mock.noMistakes')}</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {view.visible.map((mistake, index) => (
@@ -385,7 +403,7 @@ const MockResultScreen: React.FC<{
                   <button
                     type="button"
                     onClick={() => speak(mistake.corrected)}
-                    aria-label="استمع إلى الصيغة الصحيحة"
+                    aria-label={t('mock.listenCorrectAria')}
                     className="flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-full text-kz-lavender transition-colors pointer-hover:bg-white/5"
                   >
                     <Volume2 className="h-4 w-4" aria-hidden />
@@ -403,28 +421,28 @@ const MockResultScreen: React.FC<{
             <p className="kz-ar-micro flex items-center gap-1.5 font-semibold text-primary">
               <Lock className="h-3.5 w-3.5 shrink-0" />
               <span>
-                {view.lockedCount} تصحيحاً آخر في التقرير الكامل — مع شرح كل خطأ وخطوات للتكرار.
+                {t('mock.locked', { count: view.lockedCount })}
               </span>
             </p>
             <p className="kz-ar-micro mt-1.5 text-kz-inkDim">
-              باقة الامتحان (90 يوماً) تفتح جميع تصحيحات المحاكاة، محاكاة B1 إضافية، ومحادثات B1 الكاملة.
+              {t('mock.examPackBody')}
             </p>
             <div className="mt-3">
               <PrimaryAction onClick={onOpenSubscription}>
                 <Sparkles className="h-5 w-5" />
-                <span>افتح التقرير الكامل</span>
+                <span>{t('mock.openFullReport')}</span>
               </PrimaryAction>
             </div>
           </div>
         ) : !view.full ? (
           <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
             <p className="kz-ar-micro text-kz-inkDim">
-              هل تريد خوض محاكاة B1 جديدة بموضوع مختلف مع التقرير الكامل ومحادثات B1؟
+              {t('mock.wantNewMock')}
             </p>
             <div className="mt-3">
               <PrimaryAction onClick={onOpenSubscription}>
                 <Sparkles className="h-5 w-5" />
-                <span>استكشف باقة الامتحان</span>
+                <span>{t('mock.explorePack')}</span>
               </PrimaryAction>
             </div>
           </div>
@@ -432,19 +450,19 @@ const MockResultScreen: React.FC<{
           <div className="mt-3">
             <PrimaryAction onClick={onOpenSubscription}>
               <Sparkles className="h-5 w-5" />
-              <span>احجز محاكاة أخرى</span>
+              <span>{t('mock.bookAnother')}</span>
             </PrimaryAction>
           </div>
         )}
       </GlassCard>
 
       <GlassButton onClick={() => void handleShare()}>
-        <span>شارك تقديرك مع صديق</span>
+        <span>{t('mock.share')}</span>
       </GlassButton>
       {shareNote ? <p className="kz-ar-micro text-kz-inkDim">{shareNote}</p> : null}
 
       <GlassButton onClick={onExit}>
-        <span>العودة إلى المسار</span>
+        <span>{t('mock.backToPath')}</span>
       </GlassButton>
     </MockShell>
   );
@@ -465,7 +483,7 @@ const MockShell: React.FC<{ titleAr: string; onExit: () => void; children: React
           onClick={onExit}
           className="kz-ar-micro min-h-touch rounded-2xl border border-white/10 px-3 py-2 text-kz-inkDim"
         >
-          إغلاق
+          {translate(readStoredUiLanguage() ?? 'ar', 'mock.close')}
         </button>
       </div>
       {children}

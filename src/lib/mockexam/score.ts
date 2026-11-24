@@ -17,6 +17,9 @@
  *    object, so a screen cannot render the number without it.
  */
 
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
+
 /** What one part of the mock produced. Exactly what the live engine measured. */
 export interface MockPartResult {
   /** 1-based part number, matching the server's part list. */
@@ -55,8 +58,7 @@ export interface PracticeEstimate {
 }
 
 /** The one sentence that must travel with the number. */
-export const PRACTICE_ESTIMATE_NOTICE_AR =
-  'هذا تقدير تدريبي من تدريبك داخل التطبيق فقط — ليس درجة رسمية ولا يتبع نتيجة الامتحان.';
+export const PRACTICE_ESTIMATE_NOTICE_AR = translate('ar', 'mock.notice');
 
 /** Below this many sentences the app says nothing rather than inventing a number. */
 const MIN_SENTENCES_FOR_ESTIMATE = 3;
@@ -69,10 +71,10 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-const BAND: Record<Exclude<EstimateBand, null>, { min: number; ar: string }> = {
-  steady: { min: 70, ar: 'أداء ثابت في هذه الجلسة. كرّرها بعد يومين وستقارنها بنفسك.' },
-  getting_there: { min: 45, ar: 'أنت في منتصف الطريق — واصل، والجزء الثالث هو الأضعف عادةً.' },
-  needs_more: { min: 0, ar: 'ابدأ بالجزء الأول فقط هذه المرة؛ الاستقلال أهم من الطول الآن.' },
+const BAND: Record<Exclude<EstimateBand, null>, { min: number; key: UiStringKey }> = {
+  steady: { min: 70, key: 'mock.band.steady' },
+  getting_there: { min: 45, key: 'mock.band.gettingThere' },
+  needs_more: { min: 0, key: 'mock.band.needsMore' },
 };
 
 /**
@@ -88,6 +90,7 @@ const BAND: Record<Exclude<EstimateBand, null>, { min: number; ar: string }> = {
 export function estimatePracticeScore(
   parts: MockPartResult[],
   budgetSeconds = 300,
+  language: UiLanguage = 'ar',
 ): PracticeEstimate {
   const rows = Array.isArray(parts) ? parts.filter((row) => row && Number.isFinite(row.partIndex)) : [];
   const sentences = rows.reduce((sum, row) => sum + Math.max(0, row.sentencesSpoken || 0), 0);
@@ -110,10 +113,10 @@ export function estimatePracticeScore(
   const base: PracticeEstimate = {
     score: null,
     band: null,
-    headlineAr: 'لم تقل شيئاً يكفي لنقدّر أداءك بعد. ابدأ من جديد واذكر جملة على الأقل.',
+    headlineAr: translate(language, 'mock.headline.empty'),
     components: { independence, accuracy, coverage, pacing },
     totals: { sentences, independent, mistakes, seconds },
-    noticeAr: PRACTICE_ESTIMATE_NOTICE_AR,
+    noticeAr: translate(language, 'mock.notice'),
     unproven: true,
   };
 
@@ -139,7 +142,7 @@ export function estimatePracticeScore(
     ...base,
     score,
     band,
-    headlineAr: BAND[band].ar,
+    headlineAr: translate(language, BAND[band].key),
   };
 }
 

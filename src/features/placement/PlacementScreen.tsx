@@ -26,6 +26,8 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { track } from '@/lib/analytics/client';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import type { UiStringKey } from '@/lib/i18n/strings';
 import { Volume2, ArrowLeft, Headphones, Sparkles, SlidersHorizontal } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
 
@@ -37,12 +39,12 @@ type Phase = 'intro' | 'question' | 'result' | 'manual';
 
 const LEVELS: CEFRLevel[] = ['A0', 'A1', 'A2', 'B1', 'B2'];
 
-const LEVEL_LABELS: Record<CEFRLevel, string> = {
-  A0: 'من الصفر تماماً — لا أعرف شيئاً بعد',
-  A1: 'مبتدئ تماماً — أعرف كلمات قليلة',
-  A2: 'أعرف أساسيات يومية',
-  B1: 'أستطيع التعامل مع مواقف الحياة اليومية',
-  B2: 'أفهم النصوص والمحادثات المعقدة',
+const LEVEL_LABEL_KEY: Record<CEFRLevel, UiStringKey> = {
+  A0: 'placement.level.A0',
+  A1: 'placement.level.A1',
+  A2: 'placement.level.A2',
+  B1: 'placement.level.B1',
+  B2: 'placement.level.B2',
 };
 
 /** Best-effort capability check: a listening question on a silent device is a dead end. */
@@ -51,6 +53,7 @@ function speechIsAvailable(): boolean {
 }
 
 export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
+  const { t, uiLanguage } = useLanguage();
   const vocabulary = useLiveQuery(() => db.vocabulary.toArray()) || [];
   const phrases = useLiveQuery(() => db.starter_phrases.toArray()) || [];
 
@@ -62,7 +65,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
   const usedIds = useRef<Set<string>>(new Set());
   const { speak } = useSpeechOutput();
 
-  const result = useMemo(() => describePlacementResult(state), [state]);
+  const result = useMemo(() => describePlacementResult(state, uiLanguage), [state, uiLanguage]);
   const askedCount = state.responses.length;
 
   /** Draws the next question for the level the staircase is currently resting at. */
@@ -181,30 +184,29 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
       <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col justify-center">
         <div className="text-center mb-6">
           <KatzuMascot name="welcome" glow className="w-36 h-36 object-contain mx-auto mb-3" />
-          <h1 className="text-2xl font-bold font-arabic mb-2">أين نقف الآن؟</h1>
+          <h1 className="text-2xl font-bold font-arabic mb-2">{t('placement.introTitle')}</h1>
           <p className="text-sm font-arabic text-text-secondary leading-relaxed">
-            بضعة أسئلة قصيرة (5–10) لأعرف من أين نبدأ. لا نجاح ولا فشل هنا — المستوى الخطأ يعني
-            وقتاً ضائعاً في ما تعرفه أصلاً.
+            {t('placement.introBody')}
           </p>
         </div>
 
         <Card className="p-4 mb-4 space-y-2">
           <div className="flex items-center gap-2 text-xs font-arabic text-text-secondary">
             <GermanText className="font-bold text-text-primary">1.</GermanText>
-            أقرأ كلمة أو جملة ألمانية وأختار معناها بالعربية.
+            {t('placement.introItem1')}
           </div>
           <div className="flex items-center gap-2 text-xs font-arabic text-text-secondary">
             <Headphones className="w-4 h-4 text-primary shrink-0" />
-            وبعضها تسمعها فقط — لنقيس أذنك أيضاً.
+            {t('placement.introItem2')}
           </div>
           <div className="flex items-center gap-2 text-xs font-arabic text-text-secondary">
             <SlidersHorizontal className="w-4 h-4 text-primary shrink-0" />
-            الأسئلة تتغير حسب إجاباتك، ولن تزيد على 10.
+            {t('placement.introItem3')}
           </div>
         </Card>
 
         <Button size="lg" className="w-full" onClick={startQuestioning}>
-          ابدأ الاختبار
+          {t('placement.startTest')}
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <button
@@ -212,13 +214,13 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
           onClick={() => finishWith('A0', 'chosen')}
           className="mt-3 w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
         >
-          لا أعرف الألمانية بعد — ابدأ من الصفر
+          {t('placement.knowNothing')}
         </button>
         <button
           onClick={() => setPhase('manual')}
           className="mt-3 w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
         >
-          أعرف مستواي — اختره بنفسي
+          {t('placement.chooseMyself')}
         </button>
       </div>
     );
@@ -227,9 +229,9 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
   if (phase === 'manual') {
     return (
       <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col justify-center">
-        <h1 className="text-xl font-bold font-arabic mb-1 text-center">اختر مستواك</h1>
+        <h1 className="text-xl font-bold font-arabic mb-1 text-center">{t('placement.manualTitle')}</h1>
         <p className="text-xs font-arabic text-text-secondary text-center mb-6">
-          يمكنك تغييره لاحقاً من الملف الشخصي.
+          {t('placement.manualBody')}
         </p>
         <div className="space-y-2">
           {LEVELS.map((level) => (
@@ -242,7 +244,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
               <Badge variant="primary" size="md" className="shrink-0">
                 {level}
               </Badge>
-              <span className="text-xs font-arabic text-text-secondary">{LEVEL_LABELS[level]}</span>
+              <span className="text-xs font-arabic text-text-secondary">{t(LEVEL_LABEL_KEY[level])}</span>
             </button>
           ))}
         </div>
@@ -250,7 +252,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
           onClick={() => setPhase('intro')}
           className="mt-4 w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
         >
-          عد إلى الاختبار
+          {t('placement.backToTest')}
         </button>
       </div>
     );
@@ -262,19 +264,18 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
     return (
       <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col justify-center text-center">
         <KatzuMascot name="peace" className="w-32 h-32 object-contain mx-auto mb-4" />
-        <h1 className="text-xl font-bold font-arabic mb-2">لم أستطع قياس مستواك الآن</h1>
+        <h1 className="text-xl font-bold font-arabic mb-2">{t('placement.noMeasureTitle')}</h1>
         <p className="text-sm font-arabic text-text-secondary leading-relaxed mb-6">
-          لم يصل محتوى التدريب إلى جهازك بعد. اختر مستواك يدوياً، ويمكنك إعادة الاختبار لاحقاً بعد
-          أن يتوفر الاتصال.
+          {t('placement.noMeasureBody')}
         </p>
         <Button className="w-full" onClick={() => setPhase('manual')}>
-          اختر مستواي يدوياً
+          {t('placement.chooseManually')}
         </Button>
         <button
           onClick={onDone}
           className="mt-3 w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
         >
-          تخطَّ الآن — عد إلى المسار
+          {t('placement.skipNow')}
         </button>
       </div>
     );
@@ -285,11 +286,11 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
       <div className="min-h-screen bg-black text-text-primary p-6 max-w-md mx-auto flex flex-col justify-center">
         <Card variant="hero" glow className="text-center">
           <KatzuMascot name="celebrating" className="w-28 h-28 object-contain mx-auto mb-3" />
-          <p className="text-micro font-arabic text-text-muted mb-1">نتيجة الاختبار</p>
+          <p className="text-micro font-arabic text-text-muted mb-1">{t('placement.resultLabel')}</p>
           <h1 className="text-2xl font-bold font-arabic mb-3">{result.headlineAr}</h1>
           <p className="text-sm font-arabic text-text-secondary leading-relaxed mb-4">{result.detailAr}</p>
           <p className="text-micro font-arabic text-text-muted mb-5">
-            {askedCount} سؤالاً. ولو شعرت أن المستوى غير مناسب، غيّره من الملف الشخصي في أي وقت.
+            {t('placement.resultCount', { count: askedCount })}
           </p>
           <Button
             size="lg"
@@ -299,14 +300,14 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
             onClick={() => finishWith(placementEstimate(state), 'measured', state)}
           >
             <Sparkles className="w-4 h-4" />
-            ابدأ التدريب من هنا
+            {t('placement.startPractice')}
           </Button>
         </Card>
         <button
           onClick={() => setPhase('manual')}
           className="mt-3 w-full text-center text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors py-2"
         >
-          ليس مستواي — أختار بنفسي
+          {t('placement.notMyLevel')}
         </button>
       </div>
     );
@@ -316,7 +317,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
   if (!item) {
     return (
       <div className="min-h-screen bg-black text-text-primary flex items-center justify-center">
-        <span className="font-arabic text-text-secondary">جاري تحضير السؤال...</span>
+        <span className="font-arabic text-text-secondary">{t('placement.preparing')}</span>
       </div>
     );
   }
@@ -328,9 +329,9 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto pb-28">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h2 className="text-lg font-bold font-arabic">اختبار تحديد المستوى</h2>
+          <h2 className="text-lg font-bold font-arabic">{t('placement.screenTitle')}</h2>
           <p className="text-micro text-text-secondary font-arabic">
-            {item.isListening ? 'استمع ثم اختر المعنى الصحيح' : 'اختر المعنى الصحيح'}
+            {item.isListening ? t('placement.hintListening') : t('placement.hintReading')}
           </p>
         </div>
         <Badge variant="subtle" size="sm">
@@ -347,12 +348,12 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
           <Badge variant={item.isListening ? 'learning' : 'primary'} size="sm">
             {item.isListening ? (
               <>
-                <Headphones className="w-3 h-3" /> استماع
+                <Headphones className="w-3 h-3" /> {t('placement.tagListening')}
               </>
             ) : item.kind === 'vocab' ? (
-              'مفردة'
+              t('placement.tagWord')
             ) : (
-              'جملة'
+              t('placement.tagSentence')
             )}
           </Badge>
         </div>
@@ -363,12 +364,12 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
               type="button"
               onClick={() => speak(item.german)}
               className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mx-auto transition-colors"
-              aria-label="إعادة تشغيل المقطع"
+              aria-label={t('placement.replayAria')}
             >
               <Volume2 className="w-8 h-8" />
             </button>
             <p className="mt-3 text-micro font-arabic text-text-muted">
-              اضغط للاستماع مرة أخرى (يمكنك تكرارها كما تريد)
+              {t('placement.replayHint')}
             </p>
           </div>
         ) : (
@@ -405,7 +406,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
       {answered && (
         <Card role="status" aria-live="polite" className="p-4 mb-4">
           <p className="text-xs font-arabic leading-relaxed text-text-secondary">
-            {chosen === item.correctIndex ? 'صحيح ✓ ' : 'الإجابة الصحيحة: '}
+            {chosen === item.correctIndex ? t('placement.correct') : t('placement.correctAnswer')}
             {chosen !== item.correctIndex && <GermanText className="text-text-primary">{item.german}</GermanText>}
             {chosen !== item.correctIndex && ' — '}
             {item.explanationAr}
@@ -414,7 +415,7 @@ export const PlacementScreen: React.FC<PlacementScreenProps> = ({ onDone }) => {
       )}
 
       <Button className="w-full" disabled={!answered} onClick={advance}>
-        {isPlacementFinished(state) ? 'أظهر نتيجتي' : 'السؤال التالي'}
+        {isPlacementFinished(state) ? t('placement.showResult') : t('placement.nextQuestion')}
       </Button>
     </div>
   );

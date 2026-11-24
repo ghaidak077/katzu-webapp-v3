@@ -1,4 +1,6 @@
 import type { CEFRLevel } from '@/types/models';
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { translate } from '@/lib/i18n/strings';
 
 /**
  * Adaptive placement: a 2-up / 1-down staircase.
@@ -125,7 +127,10 @@ export interface PlacementResult {
  * while "you handled everyday sentences but the compound tenses are not there
  * yet" tells them what the app is going to do about it.
  */
-export function describePlacementResult(state: PlacementState): PlacementResult {
+export function describePlacementResult(
+  state: PlacementState,
+  language: UiLanguage = 'ar',
+): PlacementResult {
   const level = placementEstimate(state);
   const index = CEFR_LADDER.indexOf(level);
   const listening = state.responses.filter((response) => response.wasListening);
@@ -141,26 +146,31 @@ export function describePlacementResult(state: PlacementState): PlacementResult 
   const aboveStats = above ? countCorrectAt(state, above) : null;
 
   const strengthAr = solidLevels.length
-    ? `أجبت صحيحاً على كل أسئلة ${solidLevels.join(' و ')} التي واجهتها`
-    : 'لم تُثبت بعد مستوى كاملاً، لذا سنبني من الأساس';
+    ? translate(language, 'placement.result.strengthAll', {
+        levels: solidLevels.join(language === 'ar' ? ' و ' : language === 'id' ? ' dan ' : ' and '),
+      })
+    : translate(language, 'placement.result.strengthNone');
 
   const ceilingAr =
     aboveStats && aboveStats.total > 0
-      ? `، وتوقفت عند ${above} — وهناك سنعمل`
+      ? translate(language, 'placement.result.ceiling', { level: above })
       : index >= CEFR_LADDER.length - 1
-        ? '، وأسئلتنا لم تعد تقيسك — نبدأ من B2'
-        : '، وسنبدأ من هنا ونبني صعوداً';
+        ? translate(language, 'placement.result.top')
+        : translate(language, 'placement.result.startHere');
 
   const listeningAr =
     listening.length === 0
       ? ''
       : listeningCorrect === listening.length
-        ? ' وأذنك تلتقط الألمانية المنطوقة جيداً.'
-        : ` وفهمت ${listeningCorrect} من ${listening.length} من الجمل المسموعة — سنتدرب على الاستماع.`;
+        ? translate(language, 'placement.result.listeningPerfect')
+        : translate(language, 'placement.result.listeningPartial', {
+            correct: listeningCorrect,
+            total: listening.length,
+          });
 
   return {
     level,
-    headlineAr: `مستواك التقديري: ${level}`,
+    headlineAr: translate(language, 'placement.result.headline', { level }),
     detailAr: `${strengthAr}${ceilingAr}.${listeningAr}`,
     listeningCorrect,
     listeningTotal: listening.length,
