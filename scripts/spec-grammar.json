@@ -1,0 +1,327 @@
+{
+ "file": "src/features/grammar/GrammarSectionScreen.tsx",
+ "imports_after": "import { GermanText } from '@/components/common/GermanText';",
+ "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+ "anchor": "const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onOpenScenario }) => {",
+ "hook": "  const { t, uiLanguage } = useLanguage();",
+ "manual": [
+  [
+   "  if (titles.length === 0) return 'الدرس الذي قبله';\n  if (titles.length === 1) return `الدرس ${titles[0]}`;\n  return `الدرسين ${titles.join(' و')}`;",
+   "  if (titles.length === 0) return t('grammar.lockPrevious');\n  if (titles.length === 1) return t('grammar.lockOne', { lesson: titles[0] });\n  const separator = language === 'ar' ? ' و' : ' + ';\n  return t('grammar.lockTwo', { lessons: titles.join(separator) });"
+  ],
+  [
+   "قريبة جداً — القاعدة نفسها لكن بصيغة مختلفة. قارن:",
+   "{t('grammar.close')} — {t('grammar.closeBody')}"
+  ],
+  [
+   "ليست صحيحة بعد. الصواب:",
+   "{t('grammar.wrong')}"
+  ],
+  [
+   "سجّلنا المحاولة في ذاكرتك — سنعيد إليك هذه القاعدة.",
+   "{t('grammar.saved')} — {t('grammar.savedTail')}"
+  ],
+  [
+   "الدرس {openNode.lesson.order} من {path.totalCount}",
+   "{t('grammar.lessonOf', { order: openNode.lesson.order, total: path.totalCount })}"
+  ],
+  [
+   "`محاولة ناجحة (${correctCount} من ${exercises.length}). تحتاج محاولة ناجحة أخرى في جلسة منفصلة لإتمام الدرس — والصواب يبقى معك في المراجعة.`",
+   "t('grammar.passLine', { correct: correctCount, total: exercises.length })"
+  ],
+  [
+   "`نتيجتك ${correctCount} من ${exercises.length}. لم تصل بعد للحد المطلوب (${Math.ceil(\n                      path.passThreshold * exercises.length,\n                    )} من ${exercises.length}) — راجع الشرح وأعد المحاولة.`",
+   "t('grammar.failLine', {\n                      correct: correctCount,\n                      total: exercises.length,\n                      need: Math.ceil(path.passThreshold * exercises.length),\n                    })"
+  ],
+  [
+   "لم تنجح محاولة التجاوز ({correctCount} من {exercises.length}). تدرّب على الدرس أولاً، أو حاول اختبار التجاوز مرة أخرى.",
+   "{t('grammar.checkoutFailed', { correct: correctCount, total: exercises.length })}"
+  ],
+  [
+   "الدرس التالي:{' '}",
+   "{t('grammar.nextLesson')}{' '}"
+  ],
+  [
+   "دروس مرتّبة من الأسهل إلى الأصعب. يُفتح الدرس التالي بعد أن تُتمّ الدرس الذي قبله\n            وكل درس بشرح عربي بسيط وتمارين قصيرة.",
+   "{t('grammar.pathBody1')} {t('grammar.pathBody2')}"
+  ],
+  [
+   "أكملت {path.completedCount} من {path.totalCount}",
+   "{t('grammar.completedCount', { done: path.completedCount, total: path.totalCount })}"
+  ],
+  [
+   "تابع: الدرس {nextLesson.order} —{' '}",
+   "{t('grammar.continueLesson', { order: nextLesson.order })}{' '}"
+  ],
+  [
+   "لا توجد قواعد محمّلة بعد على هذا الجهاز — اتصل بالإنترنت مرة واحدة لتظهر.",
+   "{t('grammar.empty')} — {t('grammar.emptyTail')}"
+  ],
+  [
+   "مقفل — يُفتح بعد إتمام {lockReasonAr(node, path.nodes)}",
+   "{t('grammar.locked', { reason: lockReason(node, path.nodes, t, uiLanguage) })}"
+  ],
+  [
+   "function lockReasonAr(node: GrammarPathNode, nodes: GrammarPathNode[]): string {",
+   "function lockReason(\n  node: GrammarPathNode,\n  nodes: GrammarPathNode[],\n  t: (key: UiStringKey) => string,\n  language: UiLanguage,\n): string {"
+  ],
+  [
+   "import { GermanText } from '@/components/common/GermanText';",
+   "import { GermanText } from '@/components/common/GermanText';\nimport type { UiStringKey } from '@/lib/i18n/strings';\nimport type { UiLanguage } from '@/lib/i18n/languages';"
+  ]
+ ],
+ "entries": [
+  {
+   "key": "grammar.lockPrevious",
+   "ar": "الدرس الذي قبله",
+   "en": "the lesson before it",
+   "id": "pelajaran sebelumnya"
+  },
+  {
+   "key": "grammar.lockOne",
+   "ar": "الدرس {lesson}",
+   "en": "the lesson {lesson}",
+   "id": "pelajaran {lesson}"
+  },
+  {
+   "key": "grammar.lockTwo",
+   "ar": "الدرسين {lessons}",
+   "en": "the lessons {lessons}",
+   "id": "pelajaran {lessons}"
+  },
+  {
+   "key": "grammar.writeLabel",
+   "ar": "اكتب جملة القاعدة بالألمانية",
+   "en": "Write the rule's sentence in German",
+   "id": "Tulis kalimat aturan ini dalam bahasa Jerman"
+  },
+  {
+   "key": "grammar.writePlaceholder",
+   "ar": "اكتب بالألمانية",
+   "en": "Write in German",
+   "id": "Tulis dalam bahasa Jerman"
+  },
+  {
+   "key": "grammar.check",
+   "ar": "تحقّق",
+   "en": "Check",
+   "id": "Periksa"
+  },
+  {
+   "key": "grammar.correct",
+   "ar": "صحيحة.",
+   "en": "Correct.",
+   "id": "Benar."
+  },
+  {
+   "key": "grammar.close",
+   "ar": "قريبة جداً",
+   "en": "Very close",
+   "id": "Hampir tepat"
+  },
+  {
+   "key": "grammar.closeBody",
+   "ar": "القاعدة نفسها لكن بصيغة مختلفة. قارن:",
+   "en": "Same rule in a different form. Compare:",
+   "id": "Aturan yang sama, hanya bentuknya beda. Bandingkan:"
+  },
+  {
+   "key": "grammar.wrong",
+   "ar": "ليست صحيحة بعد. الصواب:",
+   "en": "Not right yet. The correct form:",
+   "id": "Belum benar. Bentuk yang benar:"
+  },
+  {
+   "key": "grammar.saved",
+   "ar": "سجّلنا المحاولة في ذاكرتك",
+   "en": "We saved the attempt to your memory",
+   "id": "Percobaannya kami simpan di ingatanmu"
+  },
+  {
+   "key": "grammar.savedTail",
+   "ar": "سنعيد إليك هذه القاعدة.",
+   "en": "This rule will come back to you.",
+   "id": "Aturan ini akan kembali kepadamu."
+  },
+  {
+   "key": "grammar.retry",
+   "ar": "أعد المحاولة من جديد",
+   "en": "Try again from the start",
+   "id": "Coba lagi dari awal"
+  },
+  {
+   "key": "grammar.allLessons",
+   "ar": "كل الدروس",
+   "en": "All lessons",
+   "id": "Semua pelajaran"
+  },
+  {
+   "key": "grammar.lessonOf",
+   "ar": "الدرس {order} من {total}",
+   "en": "Lesson {order} of {total}",
+   "id": "Pelajaran {order} dari {total}"
+  },
+  {
+   "key": "grammar.arabicSpeaker",
+   "ar": "انتبه كمتحدث عربية:",
+   "en": "Watch out, as an Arabic speaker:",
+   "id": "Perhatikan, sebagai penutur bahasa Arab:"
+  },
+  {
+   "key": "grammar.passed",
+   "ar": "تجاوزت هذا الدرس في اختبار قصير. يمكنك مراجعته في أي وقت.",
+   "en": "You skipped this lesson with a short check. You can review it whenever you like.",
+   "id": "Kamu melewati pelajaran ini dengan pemeriksaan singkat. Kamu bisa meninjaunya kapan saja."
+  },
+  {
+   "key": "grammar.completed",
+   "ar": "أتممت هذا الدرس. الدرس التالي مفتوح.",
+   "en": "You finished this lesson. The next one is open.",
+   "id": "Kamu menyelesaikan pelajaran ini. Pelajaran berikutnya terbuka."
+  },
+  {
+   "key": "grammar.checkoutMode",
+   "ar": "اختبار تجاوز — أجب صحيحاً على كل التمارين",
+   "en": "Skip check — answer every exercise correctly",
+   "id": "Pemeriksaan lewati — jawab semua latihan dengan benar"
+  },
+  {
+   "key": "grammar.practiceMode",
+   "ar": "تدرّب — ثلاثة تمارين، وكل محاولة تُصحَّح فوراً",
+   "en": "Practise — three exercises, each attempt corrected at once",
+   "id": "Latihan — tiga soal, setiap percobaan langsung dikoreksi"
+  },
+  {
+   "key": "grammar.quickReview",
+   "ar": "مراجعة سريعة من دروس سابقة",
+   "en": "A quick review from earlier lessons",
+   "id": "Ulasan singkat dari pelajaran sebelumnya"
+  },
+  {
+   "key": "grammar.reviewLabel",
+   "ar": "من درس سابق",
+   "en": "from an earlier lesson",
+   "id": "dari pelajaran sebelumnya"
+  },
+  {
+   "key": "grammar.submitCheckout",
+   "ar": "إرسال اختبار التجاوز",
+   "en": "Send the skip check",
+   "id": "Kirim pemeriksaan lewati"
+  },
+  {
+   "key": "grammar.submitPractice",
+   "ar": "أنهيت التمارين — احسب محاولتي",
+   "en": "I finished — score my attempt",
+   "id": "Aku selesai — nilai percobaanku"
+  },
+  {
+   "key": "grammar.passLine",
+   "ar": "محاولة ناجحة ({correct} من {total}). تحتاج محاولة ناجحة أخرى في جلسة منفصلة لإتمام الدرس — والصواب يبقى معك في المراجعة.",
+   "en": "Passing attempt ({correct} of {total}). One more passing attempt in a separate session finishes the lesson — and the corrections stay with you in review.",
+   "id": "Percobaan lulus ({correct} dari {total}). Satu percobaan lulus lagi di sesi terpisah menyelesaikan pelajaran ini — dan koreksinya tetap bersamamu di ulasan."
+  },
+  {
+   "key": "grammar.failLine",
+   "ar": "نتيجتك {correct} من {total}. لم تصل بعد للحد المطلوب ({need} من {total}) — راجع الشرح وأعد المحاولة.",
+   "en": "Your score is {correct} of {total}. That is below the pass mark ({need} of {total}) — go over the explanation and try again.",
+   "id": "Skormu {correct} dari {total}. Belum mencapai batas lulus ({need} dari {total}) — tinjau penjelasannya lalu coba lagi."
+  },
+  {
+   "key": "grammar.checkoutFailed",
+   "ar": "لم تنجح محاولة التجاوز ({correct} من {total}). تدرّب على الدرس أولاً، أو حاول اختبار التجاوز مرة أخرى.",
+   "en": "The skip check did not pass ({correct} of {total}). Practise the lesson first, or try the skip check again.",
+   "id": "Pemeriksaan lewati belum lulus ({correct} dari {total}). Latih pelajarannya dulu, atau coba lagi pemeriksaan lewat."
+  },
+  {
+   "key": "grammar.selfCheck",
+   "ar": "أعرف القاعدة؟ اختبر نفسك لتتجاوز الدرس",
+   "en": "Know the rule already? Test yourself to skip the lesson",
+   "id": "Sudah kenal aturannya? Uji dirimu untuk melewati pelajaran ini"
+  },
+  {
+   "key": "grammar.nextLesson",
+   "ar": "الدرس التالي:",
+   "en": "Next lesson:",
+   "id": "Pelajaran berikutnya:"
+  },
+  {
+   "key": "grammar.practiceScene",
+   "ar": "تدرّب القاعدة في موقف حقيقي ←",
+   "en": "Practise the rule in a real situation ←",
+   "id": "Latih aturannya dalam situasi nyata ←"
+  },
+  {
+   "key": "grammar.pathTitle",
+   "ar": "مسار القواعد",
+   "en": "The grammar path",
+   "id": "Jalur tata bahasa"
+  },
+  {
+   "key": "grammar.pathBody1",
+   "ar": "دروس مرتّبة من الأسهل إلى الأصعب. يُفتح الدرس التالي بعد أن تُتمّ الدرس الذي قبله",
+   "en": "Lessons ordered from easiest to hardest. The next lesson opens once you finish the one before it,",
+   "id": "Pelajaran tersusun dari termudah ke tersulit. Pelajaran berikutnya terbuka setelah kamu menyelesaikan yang sebelumnya,"
+  },
+  {
+   "key": "grammar.pathBody2",
+   "ar": "وكل درس بشرح عربي بسيط وتمارين قصيرة.",
+   "en": "and every lesson has a plain explanation and short exercises.",
+   "id": "dan setiap pelajaran punya penjelasan sederhana serta latihan singkat."
+  },
+  {
+   "key": "grammar.completedCount",
+   "ar": "أكملت {done} من {total}",
+   "en": "You finished {done} of {total}",
+   "id": "Kamu menyelesaikan {done} dari {total}"
+  },
+  {
+   "key": "grammar.continueLesson",
+   "ar": "تابع: الدرس {order} —",
+   "en": "Continue: lesson {order} —",
+   "id": "Lanjutkan: pelajaran {order} —"
+  },
+  {
+   "key": "grammar.empty",
+   "ar": "لا توجد قواعد محمّلة بعد على هذا الجهاز",
+   "en": "No grammar is loaded on this device yet",
+   "id": "Belum ada tata bahasa yang termuat di perangkat ini"
+  },
+  {
+   "key": "grammar.emptyTail",
+   "ar": "اتصل بالإنترنت مرة واحدة لتظهر.",
+   "en": "Connect to the internet once and it will appear.",
+   "id": "Sambungkan internet sekali, lalu akan muncul."
+  },
+  {
+   "key": "grammar.locked",
+   "ar": "مقفل — يُفتح بعد إتمام {reason}",
+   "en": "Locked — opens after you finish {reason}",
+   "id": "Terkunci — terbuka setelah kamu menyelesaikan {reason}"
+  },
+  {
+   "key": "grammar.next",
+   "ar": "التالي",
+   "en": "Next",
+   "id": "Berikutnya"
+  },
+  {
+   "key": "grammar.optional",
+   "ar": "مراجعة اختيارية",
+   "en": "Optional review",
+   "id": "Ulasan opsional"
+  },
+  {
+   "key": "grammar.skipped",
+   "ar": "تجاوزته",
+   "en": "You skipped it",
+   "id": "Kamu melewatinya"
+  },
+  {
+   "key": "grammar.inProgress",
+   "ar": "قيد التقدّم",
+   "en": "In progress",
+   "id": "Sedang berjalan"
+  }
+ ]
+}

@@ -2,6 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { GermanText } from '@/components/common/GermanText';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import type { UiStringKey } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -58,14 +61,20 @@ export interface GrammarSectionScreenProps {
  * stuck. So the row names the lesson that is actually holding it — the unmet
  * prerequisite by title — because that is the one action that changes anything.
  */
-function lockReasonAr(node: GrammarPathNode, nodes: GrammarPathNode[]): string {
+function lockReason(
+  node: GrammarPathNode,
+  nodes: GrammarPathNode[],
+  t: (key: UiStringKey, vars?: Record<string, string | number>) => string,
+  language: UiLanguage,
+): string {
   const titles = node.lesson.prerequisites
     .map((id) => nodes.find((candidate) => candidate.lesson.id === id))
     .filter((candidate): candidate is GrammarPathNode => Boolean(candidate))
     .map((candidate) => `«${candidate.lesson.titleAr}»`);
-  if (titles.length === 0) return 'الدرس الذي قبله';
-  if (titles.length === 1) return `الدرس ${titles[0]}`;
-  return `الدرسين ${titles.join(' و')}`;
+  if (titles.length === 0) return t('grammar.lockPrevious');
+  if (titles.length === 1) return t('grammar.lockOne', { lesson: titles[0] });
+  const separator = language === 'ar' ? ' و' : ' + ';
+  return t('grammar.lockTwo', { lessons: titles.join(separator) });
 }
 
 /** The scenario each live grammar row teaches (SCENARIO_GRAMMAR_IDS, inverted). */
@@ -98,7 +107,9 @@ const ExerciseCard: React.FC<{
   onCheck: () => void;
   onRetry: () => void;
   reviewLabel?: string;
-}> = ({ exercise, attempt, onType, onCheck, onRetry, reviewLabel }) => (
+}> = ({ exercise, attempt, onType, onCheck, onRetry, reviewLabel }) => {
+  const { t } = useLanguage();
+  return (
   <Card className="p-4 space-y-2">
     {reviewLabel && (
       <p className="text-micro font-arabic font-bold text-primary">{reviewLabel}</p>
@@ -124,14 +135,14 @@ const ExerciseCard: React.FC<{
       <input
         type="text"
         dir="ltr"
-        aria-label="اكتب جملة القاعدة بالألمانية"
+        aria-label={t('grammar.writeLabel')}
         value={attempt?.text || ''}
         onChange={(event) => onType(event.target.value)}
-        placeholder="اكتب بالألمانية"
+        placeholder={t('grammar.writePlaceholder')}
         className="h-10 min-w-0 flex-1 rounded-xl border border-border-subtle bg-surface-subtle px-3 font-german text-xs text-text-primary placeholder:font-arabic placeholder:text-text-muted focus:border-primary/60"
       />
       <Button size="sm" onClick={onCheck}>
-        تحقّق
+        {t('grammar.check')}
       </Button>
     </div>
     {attempt?.verdict && (
@@ -143,34 +154,36 @@ const ExerciseCard: React.FC<{
         {attempt.verdict === 'correct' ? (
           <p className={`flex items-center gap-1.5 text-micro font-arabic ${verdictStyle.correct}`}>
             <Check className="w-3.5 h-3.5 shrink-0" />
-            صحيحة.
+            {t('grammar.correct')}
           </p>
         ) : attempt.verdict === 'close' ? (
           <p className={`text-micro font-arabic ${verdictStyle.close}`}>
-            قريبة جداً — القاعدة نفسها لكن بصيغة مختلفة. قارن: <GermanText>{exercise.answerDe}</GermanText>
+            {t('grammar.close')} — {t('grammar.closeBody')} <GermanText>{exercise.answerDe}</GermanText>
           </p>
         ) : (
           <div className="space-y-1">
             <p className={`flex items-center gap-1.5 text-micro font-arabic ${verdictStyle.wrong}`}>
               <X className="w-3.5 h-3.5 shrink-0" />
-              ليست صحيحة بعد. الصواب: <GermanText>{exercise.answerDe}</GermanText>
+              {t('grammar.wrong')} <GermanText>{exercise.answerDe}</GermanText>
             </p>
-            <p className="text-micro font-arabic text-text-muted">سجّلنا المحاولة في ذاكرتك — سنعيد إليك هذه القاعدة.</p>
+            <p className="text-micro font-arabic text-text-muted">{t('grammar.saved')} — {t('grammar.savedTail')}</p>
             <button
               onClick={onRetry}
               className="flex items-center gap-1 text-micro font-arabic text-primary pointer-hover:underline"
             >
               <RotateCcw className="w-3 h-3" />
-              أعد المحاولة من جديد
+              {t('grammar.retry')}
             </button>
           </div>
         )}
       </div>
     )}
   </Card>
-);
+  );
+};
 
 const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onOpenScenario }) => {
+  const { t, uiLanguage } = useLanguage();
   const grammar = useLiveQuery(() => db.grammar.toArray()) || [];
   const progressRows = useLiveQuery(() => db.grammar_lessons.toArray()) || [];
   const user = useLiveQuery(() => db.users.get('current_user'));
@@ -311,12 +324,12 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
             className="mb-4 flex items-center gap-2 text-xs font-arabic text-text-muted pointer-hover:text-text-primary transition-colors"
           >
             <ArrowLeft className="w-4 h-4 rotate-180" />
-            كل الدروس
+            {t('grammar.allLessons')}
           </button>
 
           <div className="flex items-center gap-2">
             <Badge variant="primary" size="sm">
-              الدرس {openNode.lesson.order} من {path.totalCount}
+              {t('grammar.lessonOf', { order: openNode.lesson.order, total: path.totalCount })}
             </Badge>
             <Badge variant="primary" size="sm">{openRow.level}</Badge>
             {cleared && <CheckCircle2 className="w-4 h-4 text-status-success" />}
@@ -330,7 +343,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
               <p className="mt-1 text-xs font-arabic text-text-muted">{openRow.example_ar}</p>
             </div>
             <p className="text-xs font-arabic text-text-muted leading-relaxed">
-              <span className="font-bold text-primary">انتبه كمتحدث عربية: </span>
+              <span className="font-bold text-primary">{t('grammar.arabicSpeaker')} </span>
               {openRow.explanation_ar}
             </p>
           </Card>
@@ -340,14 +353,14 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
               <Trophy className="w-5 h-5 shrink-0 text-status-success" />
               <p className="text-xs font-arabic text-text-secondary leading-relaxed">
                 {openState === 'tested_out'
-                  ? 'تجاوزت هذا الدرس في اختبار قصير. يمكنك مراجعته في أي وقت.'
-                  : 'أتممت هذا الدرس. الدرس التالي مفتوح.'}
+                  ? t('grammar.passed')
+                  : t('grammar.completed')}
               </p>
             </Card>
           )}
 
           <h2 className="mt-6 mb-3 text-sm font-bold font-arabic text-text-secondary">
-            {checkingOut ? 'اختبار تجاوز — أجب صحيحاً على كل التمارين' : 'تدرّب — ثلاثة تمارين، وكل محاولة تُصحَّح فوراً'}
+            {checkingOut ? t('grammar.checkoutMode') : t('grammar.practiceMode')}
           </h2>
           <div className="space-y-4">
             {exercises.map((exercise, index) => {
@@ -368,7 +381,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
           {reviewItems.length > 0 && !checkingOut && (
             <>
               <h2 className="mt-6 mb-3 text-sm font-bold font-arabic text-text-secondary">
-                مراجعة سريعة من دروس سابقة
+                {t('grammar.quickReview')}
               </h2>
               <div className="space-y-4">
                 {reviewItems.map(({ row, exercise }, index) => {
@@ -381,7 +394,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                       onType={(text) => setAttempts((prev) => ({ ...prev, [key]: { text, verdict: null } }))}
                       onCheck={() => void handleAttempt(row, exercise, key, attempts[key]?.text || '')}
                       onRetry={() => setAttempts((prev) => ({ ...prev, [key]: { text: '', verdict: null } }))}
-                      reviewLabel="من درس سابق"
+                      reviewLabel={t('grammar.reviewLabel')}
                     />
                   );
                 })}
@@ -396,7 +409,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                 disabled={!allAnswered}
                 onClick={() => void (checkingOut ? submitTestOut() : submitAttempt())}
               >
-                {checkingOut ? 'إرسال اختبار التجاوز' : 'أنهيت التمارين — احسب محاولتي'}
+                {checkingOut ? t('grammar.submitCheckout') : t('grammar.submitPractice')}
               </Button>
             )}
 
@@ -407,15 +420,17 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                 }`}
               >
                 {qualified
-                  ? `محاولة ناجحة (${correctCount} من ${exercises.length}). تحتاج محاولة ناجحة أخرى في جلسة منفصلة لإتمام الدرس — والصواب يبقى معك في المراجعة.`
-                  : `نتيجتك ${correctCount} من ${exercises.length}. لم تصل بعد للحد المطلوب (${Math.ceil(
-                      (exercises.length * 2) / 3,
-                    )} من ${exercises.length}) — راجع الشرح وأعد المحاولة.`}
+                  ? t('grammar.passLine', { correct: correctCount, total: exercises.length })
+                  : t('grammar.failLine', {
+                      correct: correctCount,
+                      total: exercises.length,
+                      need: Math.ceil((exercises.length * 2) / 3),
+                    })}
               </p>
             )}
             {submitted === 'testout_fail' && (
               <p className="text-center text-xs font-arabic text-status-error leading-relaxed">
-                لم تنجح محاولة التجاوز ({correctCount} من {exercises.length}). تدرّب على الدرس أولاً، أو حاول اختبار التجاوز مرة أخرى.
+                {t('grammar.checkoutFailed', { correct: correctCount, total: exercises.length })}
               </p>
             )}
 
@@ -429,7 +444,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                 className="flex w-full items-center justify-center gap-1.5 py-1 text-xs font-arabic text-text-muted pointer-hover:text-primary transition-colors"
               >
                 <FastForward className="w-3.5 h-3.5" />
-                أعرف القاعدة؟ اختبر نفسك لتتجاوز الدرس
+                {t('grammar.selfCheck')}
               </button>
             )}
 
@@ -438,7 +453,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                  unlock moment: the next lesson swells in rather than waiting
                  unnoticed below the fold. */
               <Button className="w-full kz-pop" onClick={() => openLesson(nextNode.lesson.id)}>
-                الدرس التالي:{' '}
+                {t('grammar.nextLesson')}{' '}
                 {nextNode.lesson.titleAr.length > 34
                   ? `${nextNode.lesson.titleAr.slice(0, 34)}…`
                   : nextNode.lesson.titleAr}
@@ -451,7 +466,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
               onClick={() => onOpenScenario(GRAMMAR_SCENARIOS[openRow.id])}
               className="mt-6 w-full text-center text-xs font-arabic text-primary pointer-hover:underline transition-colors py-2"
             >
-              تدرّب القاعدة في موقف حقيقي ←
+              {t('grammar.practiceScene')}
             </button>
           )}
         </div>
@@ -474,9 +489,9 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
         </div>
         <div className="mb-5 text-center">
           <KatzuMascot name="practice" glow className="mx-auto mb-2 h-24 w-24 object-contain" />
-          <h1 className="text-xl font-bold font-arabic">مسار القواعد</h1>
+          <h1 className="text-xl font-bold font-arabic">{t('grammar.pathTitle')}</h1>
           <p className="mt-1 text-xs font-arabic text-text-muted leading-relaxed">
-            دروس مرتّبة من الأسهل إلى الأصعب. يُفتح الدرس التالي بعد أن تُتمّ الدرس الذي قبله — وكل درس بشرح عربي بسيط وتمارين قصيرة.
+            {t('grammar.pathBody1')} — {t('grammar.pathBody2')}
           </p>
         </div>
 
@@ -484,7 +499,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
           <Card className="mb-4 p-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-arabic font-bold text-text-secondary">
-                أكملت {path.completedCount} من {path.totalCount}
+                {t('grammar.completedCount', { done: path.completedCount, total: path.totalCount })}
               </p>
               {path.completedCount === path.totalCount && <Trophy className="w-4 h-4 text-primary" />}
             </div>
@@ -499,14 +514,14 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
 
         {nextLesson && (
           <Button className="mb-5 w-full" onClick={() => openLesson(nextLesson.id)}>
-            تابع: الدرس {nextLesson.order} —{' '}
+            {t('grammar.continueLesson', { order: nextLesson.order })}{' '}
             {nextLesson.titleAr.length > 30 ? `${nextLesson.titleAr.slice(0, 30)}…` : nextLesson.titleAr}
           </Button>
         )}
 
         {path.totalCount === 0 ? (
           <p className="py-10 text-center text-xs font-arabic text-text-muted">
-            لا توجد قواعد محمّلة بعد على هذا الجهاز — اتصل بالإنترنت مرة واحدة لتظهر.
+            {t('grammar.empty')} — {t('grammar.emptyTail')}
           </p>
         ) : (
           <div className="space-y-2">
@@ -539,21 +554,21 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
                   </div>
                   {locked && (
                     <p className="mt-1.5 text-micro font-arabic text-text-secondary">
-                      مقفل — يُفتح بعد إتمام {lockReasonAr(node, path.nodes)}
+                      {t('grammar.locked', { reason: lockReason(node, path.nodes, t, uiLanguage) })}
                     </p>
                   )}
                   <div className="mt-1.5 flex items-center gap-2">
                     {node.isNext && (
-                      <span className="text-micro font-arabic font-bold text-primary">التالي</span>
+                      <span className="text-micro font-arabic font-bold text-primary">{t('grammar.next')}</span>
                     )}
                     {node.optional && node.state !== 'passed' && node.state !== 'tested_out' && (
-                      <span className="text-micro font-arabic text-text-muted">مراجعة اختيارية</span>
+                      <span className="text-micro font-arabic text-text-muted">{t('grammar.optional')}</span>
                     )}
                     {node.state === 'tested_out' && (
-                      <span className="text-micro font-arabic text-status-success">تجاوزته</span>
+                      <span className="text-micro font-arabic text-status-success">{t('grammar.skipped')}</span>
                     )}
                     {node.state === 'in_progress' && (
-                      <span className="text-micro font-arabic text-status-learning">قيد التقدّم</span>
+                      <span className="text-micro font-arabic text-status-learning">{t('grammar.inProgress')}</span>
                     )}
                   </div>
                   <p className="mt-1 line-clamp-2 text-micro font-arabic text-text-muted">{node.lesson.ruleAr}</p>
