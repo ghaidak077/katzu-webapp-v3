@@ -70,6 +70,22 @@ export const MISTAKE_GEN: ArabicCountForms = {
   many: 'خطأ',
 };
 
+/** "3 أيام متتابعة" — the trail chip's own wording, kept byte-identical. */
+export const STREAK_DAY_CHIP: ArabicCountForms = {
+  one: 'يوم واحد',
+  two: 'يومان',
+  few: 'أيام',
+  many: 'يوماً',
+};
+
+/** "{n} في الطريق." — the units still ahead on the path. */
+export const UNIT_AHEAD: ArabicCountForms = {
+  one: 'وحدة واحدة',
+  two: 'وحدتان',
+  few: 'وحدات',
+  many: 'وحدة',
+};
+
 /** "3 أيام متتالية" — nominative. */
 export const STREAK_DAY_NOM: ArabicCountForms = {
   one: 'يوم متتالٍ',

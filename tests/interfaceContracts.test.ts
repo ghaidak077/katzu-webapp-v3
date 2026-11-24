@@ -113,7 +113,10 @@ describe('honest marketing copy', () => {
       // 010 i18n: a localised screen renders the sentence from the dictionary
       // instead of holding it inline, so the guarantee is that EITHER the file
       // still carries the range or it renders the key whose Arabic does.
-      const fromDictionary = /t\('(?:report\.proVoice|conv\.paywall\.body|paywallModal\.description)'\)/.test(src);
+      const fromDictionary =
+        /t\('(?:report\.proVoice|conv\.paywall\.body|paywallModal\.description|trail\.lock\.description)'[,)]/.test(
+          src,
+        );
       expect(fromDictionary || src.includes('A0'), file).toBe(true);
       expect(src, file).not.toContain('A1 إلى B2');
     }
@@ -126,6 +129,7 @@ describe('honest marketing copy', () => {
       'onboarding.placement.body',
       'sub.valueLine',
       'paywallModal.description',
+      'trail.lock.description',
     ] as const;
     for (const key of moved) {
       const sentence = UI_STRINGS.ar[key];

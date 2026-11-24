@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { journeyOrderedScenarios, journeyStageFor } from '../src/lib/content/scenarioOrder';
+import { UI_STRINGS } from '../src/lib/i18n/strings';
 
 /**
  * The Trail is a journey, not a list, and not the alphabet.
@@ -160,7 +161,9 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     expect(TRAIL).toMatch(/const expanded = entry\.unit\.id === openUnitId/);
     // The unit header is the only place the unit's name and count appear, and
     // the timeline exists only inside the open unit.
-    expect(TRAIL).toMatch(/الوحدة \{index \+ 1\} · \{entry\.unit\.titleAr\}/);
+    // 010 i18n: the header renders the key, and the key's Arabic is the sentence.
+    expect(TRAIL).toMatch(/t\('trail\.unit\.index', \{ index: index \+ 1, title: entry\.unit\.titleAr \}\)/);
+    expect(UI_STRINGS.ar['trail.unit.index']).toBe('الوحدة {index} · {title}');
     expect(TRAIL).toMatch(/data-testid="trail-unit-count"[\s\S]{0,400}<LtrCounter value=\{entry\.done\} total=\{entry\.total\}/);
     expect(TRAIL).toMatch(/\{expanded && !headerLocked && \(/);
     expect(TRAIL.match(/data-testid="trail-timeline"/g)).toHaveLength(1);
@@ -241,7 +244,8 @@ describe('the path has one primary action and one progression system', () => {
     expect(TRAIL).toMatch(/Math\.min\(dueCount, REVIEW_SESSION_CAP\)/);
     // The row states how much is waiting; the cap and the minutes belong to the
     // action's accessible name and to the review screen, not to a badge.
-    expect(TRAIL).toMatch(/\{dueCount\} بانتظار/);
+    expect(TRAIL).toMatch(/t\('trail\.review\.waiting', \{ count: dueCount \}\)/);
+    expect(UI_STRINGS.ar['trail.review.waiting']).toBe('{count} بانتظار');
     expect(TRAIL).not.toMatch(/trail-review-badge/);
     expect(TRAIL).not.toMatch(/في الانتظار/);
     expect(TRAIL).not.toMatch(/راجع \$\{dueCount\}/);
@@ -249,7 +253,10 @@ describe('the path has one primary action and one progression system', () => {
 
   it('states the free sessions as one labelled line, never a bare number', () => {
     expect(TRAIL).toMatch(/data-testid="trail-free-sessions"/);
-    expect(TRAIL).toMatch(/جلسة مجانية \{freeSessions\} من \{FREE_SESSION_TOTAL\}/);
+    expect(TRAIL).toMatch(
+      /t\('trail\.freeSessions\.label', \{ left: freeSessions, total: FREE_SESSION_TOTAL \}\)/,
+    );
+    expect(UI_STRINGS.ar['trail.freeSessions.label']).toBe('جلسة مجانية {left} من {total}');
   });
 
   it('keeps the next marker quiet and drops the duplicate new label', () => {
@@ -276,7 +283,10 @@ describe('the path screen is a header, one hero and one timeline', () => {
   const TRAIL = readFileSync('src/features/trail/TrailScreen.tsx', 'utf8');
 
   it('greets by name, marks Pro once, and carries a single streak chip', () => {
-    expect(TRAIL).toMatch(/<h1 className="truncate font-arabic text-base font-bold leading-tight">\s*أهلاً \{user\?\.displayName \|\| 'مستكشف كَاتْزُو'\}/);
+    expect(TRAIL).toMatch(
+      /<h1 className="truncate font-arabic text-base font-bold leading-tight">\s*\{t\('trail\.greeting', \{ name: user\?\.displayName \|\| t\('profile\.defaultName'\) \}\)\}/,
+    );
+    expect(UI_STRINGS.ar['trail.greeting']).toBe('أهلاً {name}');
     expect(TRAIL).toMatch(/data-testid="trail-pro-label"/);
     // One chip, two branches of the same slot: a streak, or an invitation to
     // start one. Never a second chip opposite it.
@@ -301,7 +311,8 @@ describe('the path screen is a header, one hero and one timeline', () => {
     expect(TRAIL).toMatch(/<BottomSheet\s+isOpen=\{Boolean\(sheetScenario\)\}/);
     expect(TRAIL).toMatch(/const sheetStage: SessionStage = sheetScenario\s*\? stageFor\(sheetScenario\.id, \{ evidence, lastEase: user\?\.lastSessionEase \?\? null \}\)\s*: 'study'/);
     expect(TRAIL).toMatch(/data-testid="trail-sheet-start"/);
-    expect(TRAIL).toMatch(/المقترحة/);
+    expect(TRAIL).toMatch(/\{t\('trail\.suggested'\)\}/);
+    expect(UI_STRINGS.ar['trail.suggested']).toBe('المقترحة');
     // The row opens the sheet; only the sheet's button starts the scene.
     expect(TRAIL).toMatch(/setSheetScenarioId\(scenario\.id\)/);
     expect(TRAIL).toMatch(/const startSheetScenario = \(\) => \{[\s\S]{0,400}handleScenarioClick\(scenarioId, sheetLevel\)/);

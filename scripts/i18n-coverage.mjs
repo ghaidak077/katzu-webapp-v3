@@ -194,8 +194,14 @@ const main = () => {
     console.log(JSON.stringify({ screens, totals, doneBatches: manifest.batches ?? {} }, null, 2));
   } else {
     if (!screens.length) {
-      console.error('no Arabic found in any screen — wrong directory?');
-      process.exit(2);
+      // Zero Arabic is the goal, not a broken scan: every string now lives in
+      // the dictionary. A wrong directory shows up as a missing source tree.
+      if (!existsSync(join(ROOT, 'src/features'))) {
+        console.error('no source tree found — wrong directory?');
+        process.exit(2);
+      }
+      console.log('\nAll screens are localised: 0 hard-coded Arabic strings.');
+      return;
     }
     for (const batch of BATCHES) {
       const rows = screens.filter((screen) => screen.batch === batch.id);

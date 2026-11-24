@@ -4,6 +4,31 @@ Moved out of `PROJECT-BRIEF.md` section 7 on 2026-10-31, verbatim, so the brief 
 its 80 KB cap with room to grow. Newer changes stay in the brief; grep this file, never load
 it whole.
 
+## 2026-11-24 (latest) — every screen is localised: 0 hard-coded Arabic
+
+- **The coverage number is now zero, and it is the tool's own number.** `scripts/i18n-coverage.mjs`
+  reports `All screens are localised: 0 hard-coded Arabic strings`, and `coverage.json` says `true`
+  for B1-B8. What closed it: `ProfileSettingsScreen` (B6's last file), the shared copy tables in
+  `lib/onboarding/preferences.ts` (goal, arrival, target-date and previous-German answers plus
+  `placementOffer` and `describeLearnerLevel` now take a language), `lib/journey/story.ts` (persona
+  roles derive from the dictionary instead of a parallel Arabic table), `lib/capability/model.ts`
+  (the weakest-skill prompt), the dev-only design-system page, and — the gap the batches had missed
+  entirely, because `src/features/trail/` matched no batch pattern — **`TrailScreen`, 45 strings**.
+- **The Trail was the real find.** It is mounted from `AppShell`, so an English or Indonesian learner
+  was reading the daily path, its streak chip, its lock reasons and its situation sheet in Arabic.
+  Its copy now lives under `trail.*`; `trail.greeting`, `trail.streak`, `trail.unit.aria` and the lock
+  sentence keep their Arabic byte-for-byte by interpolating the pieces (and `STREAK_DAY_CHIP` /
+  `UNIT_AHEAD` moved into `countForms.ts` so the plural tables have one home).
+- **Arabic output is unchanged, and that is asserted.** The two duplicated count tables in
+  `TrailScreen` were replaced by the existing `REVIEW_ITEM_BARE` and two new exported tables with the
+  same values, not by "improved" wording.
+- **The gate itself was wrong at zero.** `i18n-coverage.mjs` exited 2 with "no Arabic found in any
+  screen — wrong directory?" as soon as the work succeeded; it now fails only when the source tree is
+  missing, and prints the success line instead. Tests that pinned Arabic source text follow the copy
+  into the dictionary (`trailOrdering`, `v33SimplifyPolish`, `interfaceContracts`).
+- **Checks:** `tsc --noEmit` clean, `vitest run` **208 files / 2907 tests**, `i18n-coverage --strict`
+  exit 0, `i18n:dir --strict` clean, `design:audit` within budget, pre-push verify 6/6.
+
 ## 2026-11-24 (later) — B5 in progress: the practice hub and Ask Katzu
 
 - **Two of B5's seven screens are finished, and B5 is deliberately still `open`.** The practice hub

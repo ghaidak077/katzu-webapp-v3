@@ -125,14 +125,18 @@ describe('V33 — the preferences prompt no longer outranks today’s mission', 
 
   it('the prompt is rendered after the mission card, not before it', () => {
     const mission = source.indexOf('ONE PRIMARY ACTION');
-    const nag = source.indexOf('أكمل تفضيلاتك');
+    // The prompt's copy lives in the dictionary now; its key marks the spot.
+    const nag = source.indexOf("trail.onboarding.title");
     expect(mission).toBeGreaterThan(-1);
     expect(nag).toBeGreaterThan(-1);
     expect(nag).toBeGreaterThan(mission);
   });
 
   it('and it is styled as a quiet row rather than a second hero', () => {
-    const block = source.slice(source.indexOf('أكمل تفضيلاتك') - 900, source.indexOf('أكمل تفضيلاتك') + 400);
+    const block = source.slice(
+      source.indexOf('trail.onboarding.title') - 900,
+      source.indexOf('trail.onboarding.title') + 400,
+    );
     expect(block).toContain('border-border-subtle');
     // The old version used border-primary/30 bg-primary/10 — the same weight as
     // the mission, which was the whole problem.

@@ -3,6 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { refreshCurriculumCache } from '@/lib/api/workerClient';
 import { arCount } from '@/lib/i18n/arabicCount';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { REVIEW_ITEM_BARE, STREAK_DAY_CHIP, UNIT_AHEAD } from '@/lib/i18n/countForms';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { BottomSheet } from '@/components/ui/BottomSheet';
@@ -47,7 +49,9 @@ import {
 } from '@/lib/units/progress';
 
 /** V31: agreement for the review strip's title. See `arabicCount`. */
-const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصران', few: 'عناصر', many: 'عنصراً' } as const;
+// The bare count noun lives with the other Arabic count forms, so a language
+// change can never leave two copies of it to drift apart.
+const REVIEW_ITEM_FORMS = REVIEW_ITEM_BARE;
 
 /** The three stages, in the order a learner walks them. Never a menu. */
 const STAGES: SessionStage[] = ['study', 'with_help', 'solo'];
@@ -124,6 +128,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
   const [sheetScenarioId, setSheetScenarioId] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallReason, setPaywallReason] = useState({ title: '', description: '' });
+  const { t, uiLanguage } = useLanguage();
 
   const user = useLiveQuery(() => db.users.get('current_user'));
   const scenarios = journeyOrderedScenarios(useLiveQuery(() => db.scenarios.toArray()) || []);
@@ -246,8 +251,10 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
       // The paywall is shown at a session boundary — the learner tapped a
       // specific scene — and never mid-unit after work has started.
       setPaywallReason({
-        title: unitTitleAr ? `وحدة «${unitTitleAr}» تُفتح مع Pro` : `مستوى ${level} يُفتح مع Pro`,
-        description: `الخطة المجانية تغطي ${FREE_LEVEL} و A0. هذه الوحدة عند ${level} — كل مواقفها ظاهرة هنا، وتُفتح مع Pro.`,
+        title: unitTitleAr
+          ? t('trail.lock.unitTitle', { unit: unitTitleAr })
+          : t('trail.lock.levelTitle', { level }),
+        description: t('trail.lock.description', { free: FREE_LEVEL, level }),
       });
       setShowPaywall(true);
       return;
@@ -322,11 +329,16 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
     void refreshCurriculumCache();
   };
 
+  const reviewItemsLabel =
+    uiLanguage === 'ar'
+      ? arCount(Math.min(dueCount, REVIEW_SESSION_CAP), REVIEW_ITEM_FORMS)
+      : t('trail.review.items', { count: Math.min(dueCount, REVIEW_SESSION_CAP) });
   const reviewLabel =
     dueCount > 0
-      ? `مراجعة سريعة: ${arCount(Math.min(dueCount, REVIEW_SESSION_CAP), REVIEW_ITEM_FORMS)} · ${reviewMinutes(
-          dueCount,
-        )} دقائق`
+      ? t('trail.review.summary', {
+          items: reviewItemsLabel,
+          minutes: reviewMinutes(dueCount),
+        })
       : '';
 
   const freeSessions = Math.max(
@@ -377,7 +389,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
 
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-arabic text-base font-bold leading-tight">
-            أهلاً {user?.displayName || 'مستكشف كَاتْزُو'}
+            {t('trail.greeting', { name: user?.displayName || t('profile.defaultName') })}
           </h1>
           <div className="mt-0.5 flex items-center gap-2">
             {isPro && (
@@ -407,7 +419,12 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-chip border border-status-learning/30 bg-status-learning/10 px-2.5 py-1 font-arabic text-micro font-bold text-status-learning"
           >
             <Flame className="h-3.5 w-3.5 fill-learning text-learning" aria-hidden />
-            {arCount(streakDays, { one: 'يوم واحد', two: 'يومان', few: 'أيام', many: 'يوماً' })} متتابعة
+            {t('trail.streak', {
+              days:
+                uiLanguage === 'ar'
+                  ? arCount(streakDays, STREAK_DAY_CHIP)
+                  : streakDays,
+            })}
           </span>
         ) : (
           <span
@@ -415,7 +432,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-chip border border-border-subtle bg-surface-subtle px-2.5 py-1 font-arabic text-micro text-text-secondary"
           >
             <Flame className="h-3.5 w-3.5" aria-hidden />
-            ابدأ سلسلتك اليوم
+            {t('trail.streakStart')}
           </span>
         )}
       </header>
@@ -427,17 +444,17 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         <div className="p-4">
           <div className="flex items-baseline justify-between gap-3">
             <p data-testid="trail-next-label" className="font-arabic text-micro font-bold text-primary">
-              التالي
+              {t('trail.next')}
             </p>
             {nextScenario && (
               <span className="inline-flex shrink-0 items-center gap-1 font-arabic text-micro text-text-muted">
                 <Clock className="h-3 w-3" aria-hidden />
-                {nextMinutes} دقائق
+                {t('trail.minutes', { count: nextMinutes })}
               </span>
             )}
           </div>
           <h2 className="mt-0.5 font-arabic text-lg font-bold leading-snug text-text-primary">
-            {nextScenario ? nextScenario.title_ar : 'لا مشهد متبقٍ في هذا المستوى'}
+            {nextScenario ? nextScenario.title_ar : t('trail.noneLeft')}
           </h2>
           {nextScenario && (
             <GermanText className="mt-0.5 block truncate text-xs text-text-secondary">
@@ -479,12 +496,15 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             onClick={handlePrimary}
             aria-label={
               nextScenario
-                ? `ابدأ ${nextScenario.title_ar} — ${STAGE_LABEL_AR[nextStage]}`
-                : 'حدّث المشاهد'
+                ? t('trail.cta.start', {
+                    title: nextScenario.title_ar,
+                    stage: STAGE_LABEL_AR[nextStage],
+                  })
+                : t('trail.cta.refresh')
             }
             className="mt-3 h-[52px] justify-center gap-2 text-base"
           >
-            {nextScenario ? 'ابدأ' : 'حدّث المشاهد'}
+            {nextScenario ? t('trail.cta.startShort') : t('trail.cta.refresh')}
             <ArrowLeft className="h-4 w-4" aria-hidden />
           </Button>
         </div>
@@ -498,11 +518,14 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           type="button"
           data-testid="trail-free-sessions"
           onClick={onOpenSubscription}
-          aria-label={`جلسة مجانية ${freeSessions} من ${FREE_SESSION_TOTAL} — مزايا Pro`}
+          aria-label={t('trail.freeSessions.aria', {
+            left: freeSessions,
+            total: FREE_SESSION_TOTAL,
+          })}
           className="mb-2 inline-flex min-h-touch items-center gap-1.5 font-arabic text-micro text-text-muted transition-colors pointer-hover:text-text-secondary"
         >
           <Sparkles className="h-3.5 w-3.5" aria-hidden />
-          جلسة مجانية {freeSessions} من {FREE_SESSION_TOTAL}
+          {t('trail.freeSessions.label', { left: freeSessions, total: FREE_SESSION_TOTAL })}
         </button>
       )}
 
@@ -518,13 +541,15 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           className="mb-3 flex min-h-touch w-full items-center gap-2 py-2 text-start transition-colors pointer-hover:text-text-primary"
         >
           <Brain className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-          <span className="font-arabic text-xs font-bold">مراجعة سريعة</span>
-          <span className="font-arabic text-micro text-text-muted">{dueCount} بانتظار</span>
+          <span className="font-arabic text-xs font-bold">{t('trail.review.title')}</span>
+          <span className="font-arabic text-micro text-text-muted">
+            {t('trail.review.waiting', { count: dueCount })}
+          </span>
           <ArrowLeft className="ms-auto h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
         </button>
       ) : (
         <p className="mb-3 font-arabic text-micro text-text-muted">
-          لا مراجعة مستحقة الآن — وقتك للمشهد التالي.
+          {t('trail.review.none')}
         </p>
       )}
 
@@ -558,9 +583,18 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 data-testid="trail-unit-header"
                 disabled={headerLocked}
                 aria-expanded={expanded && !headerLocked}
-                aria-label={`${entry.unit.titleAr} — ${entry.done} من ${entry.total}${
-                  headerLocked ? ' (مقفلة)' : levelBlocked ? ' (تفتح مع Pro)' : entry.skipped ? ' (تخطّيتَ)' : ''
-                }`}
+                aria-label={t('trail.unit.aria', {
+                  title: entry.unit.titleAr,
+                  done: entry.done,
+                  total: entry.total,
+                  state: headerLocked
+                    ? t('trail.unit.stateLocked')
+                    : levelBlocked
+                      ? t('trail.unit.statePro')
+                      : entry.skipped
+                        ? t('trail.unit.stateSkipped')
+                        : '',
+                })}
                 onClick={() => setExpandedUnitId(expanded ? null : entry.unit.id)}
                 className={`flex w-full min-h-touch items-center gap-2.5 rounded-control py-1.5 text-start transition-colors ${
                   headerLocked
@@ -592,7 +626,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                     expanded ? 'text-text-primary' : 'text-text-secondary'
                   } ${headerLocked ? 'opacity-60' : ''}`}
                 >
-                  الوحدة {index + 1} · {entry.unit.titleAr}
+                  {t('trail.unit.index', { index: index + 1, title: entry.unit.titleAr })}
                 </span>
                 <span
                   data-testid="trail-unit-count"
@@ -623,7 +657,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                     aria-valuemin={0}
                     aria-valuemax={entry.total}
                     aria-valuenow={entry.done}
-                    aria-label={`تقدّم ${entry.unit.titleAr}`}
+                    aria-label={t('trail.unit.progressAria', { title: entry.unit.titleAr })}
                   >
                     <div
                       className="h-full rounded-full bg-primary transition-[width] duration-panels ease-out motion-reduce:transition-none"
@@ -645,10 +679,10 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                             type="button"
                             data-testid="trail-scenario-card"
                             aria-label={`${scenario.title_ar} (${scenario.title_de})${
-                              current ? ' — التالي' : ''
+                              current ? ` — ${t('trail.next')}` : ''
                             } — ${
                               STAGE_LABEL_AR[stageFor(scenario.id, { evidence, lastEase: user?.lastSessionEase ?? null })]
-                            }${levelBlocked ? ' — تفتح مع Pro' : ''}`}
+                            }${levelBlocked ? ` — ${t('trail.unit.stateProBare')}` : ''}`}
                             onClick={() => {
                               if (levelBlocked) {
                                 handleScenarioClick(scenario.id, entry.unit.level, entry.unit.titleAr);
@@ -689,7 +723,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                                 {current && (
                                   <span className="mt-1 inline-flex shrink-0 items-center gap-1 font-arabic text-micro text-primary">
                                     <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                    قيد التنفيذ
+                                    {t('trail.inProgress')}
                                   </span>
                                 )}
                               </span>
@@ -705,7 +739,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                                       done={done}
                                     />
                                     <Clock className="h-3 w-3" aria-hidden />
-                                    {scenarioMinutes(entry.unit.level)} دقائق
+                                    {t('trail.minutes', { count: scenarioMinutes(entry.unit.level) })}
                                   </span>
                                 )}
                               </span>
@@ -724,13 +758,12 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
 
       {hiddenUnitCount > 0 && (
         <p className="mt-2 text-center font-arabic text-micro text-text-muted">
-          {arCount(hiddenUnitCount, {
-            one: 'وحدة واحدة',
-            two: 'وحدتان',
-            few: 'وحدات',
-            many: 'وحدة',
-          })}{' '}
-          في الطريق.
+          {t('trail.unitsAhead', {
+            units:
+              uiLanguage === 'ar'
+                ? arCount(hiddenUnitCount, UNIT_AHEAD)
+                : hiddenUnitCount,
+          })}
         </p>
       )}
 
@@ -745,17 +778,17 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
           >
             <span className="min-w-0">
               <span className="block font-arabic text-sm font-bold text-text-primary">
-                أكمل تفضيلاتك (30 ثانية)
+                {t('trail.onboarding.title')}
               </span>
               <span className="mt-0.5 block font-arabic text-micro leading-relaxed text-text-secondary">
-                يجعل المهمة اليومية أدق — ومستواك غير مقيس حتى تختاره.
+                {t('trail.onboarding.body')}
               </span>
             </span>
             <ArrowLeft className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
           </button>
           <button
             onClick={() => void db.users.update('current_user', { onboardingPromptDismissedAt: Date.now() })}
-            aria-label="إخفاء هذا التنبيه"
+            aria-label={t('trail.onboarding.dismiss')}
             className="absolute top-1.5 end-1.5 flex min-h-touch min-w-touch items-center justify-center rounded-full text-text-secondary pointer-hover:bg-surface-raised"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
@@ -778,7 +811,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             </GermanText>
             <p className="mt-1 flex items-center gap-1.5 font-arabic text-micro text-text-muted">
               <Clock className="h-3 w-3" aria-hidden />
-              {scenarioMinutes(sheetLevel)} دقائق
+              {t('trail.minutes', { count: scenarioMinutes(sheetLevel) })}
             </p>
 
             <ol className="mt-3 space-y-1.5">
@@ -808,7 +841,9 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                       {STAGE_LABEL_AR[stage]}
                     </span>
                     {isCurrent && (
-                      <span className="ms-auto font-arabic text-micro font-bold text-primary">المقترحة</span>
+                      <span className="ms-auto font-arabic text-micro font-bold text-primary">
+                        {t('trail.suggested')}
+                      </span>
                     )}
                   </li>
                 );
@@ -821,10 +856,13 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
               fullWidth
               data-testid="trail-sheet-start"
               onClick={startSheetScenario}
-              aria-label={`ابدأ ${STAGE_LABEL_AR[sheetStage]} — ${sheetScenario.title_ar}`}
+              aria-label={t('trail.cta.start', {
+                title: sheetScenario.title_ar,
+                stage: STAGE_LABEL_AR[sheetStage],
+              })}
               className="mt-3 justify-center"
             >
-              ابدأ · {STAGE_LABEL_AR[sheetStage]}
+              {t('trail.sheetStart', { stage: STAGE_LABEL_AR[sheetStage] })}
             </Button>
           </div>
         )}
