@@ -87,8 +87,12 @@ describe('V33 — Profile is grouped, not a wall of 29 controls', () => {
     const defaults = profile.match(/<CollapsibleSection[^>]*defaultOpen/g) || [];
     expect(defaults).toHaveLength(1);
     // ...and it is the identity/subscription group, which is what people open
-    // this screen for.
-    expect(profile).toMatch(/title="حسابي"[^>]*defaultOpen|defaultOpen[^>]*title="حسابي"/s);
+    // this screen for. The title is a dictionary key now, so the assertion reads
+    // the key: the group is the same group, in every language.
+    expect(profile).toMatch(
+      /title=\{t\('profile\.section\.account\.title'\)\}[^>]*defaultOpen|defaultOpen[^>]*title=\{t\('profile\.section\.account\.title'\)\}/s,
+    );
+    expect(UI_STRINGS.ar['profile.section.account.title']).toBe('حسابي');
   });
 
   it('a folded group says what it contains', () => {
@@ -96,9 +100,17 @@ describe('V33 — Profile is grouped, not a wall of 29 controls', () => {
     // of the screen, so what remains there is privacy, export and deletion. The
     // requirement this test states is unchanged; only the string moved with the copy.
     expect(section).toContain('{!open && hint &&');
-    for (const title of ['حسابي', 'طريقة تعلّمي', 'الحساب والخصوصية']) {
-      expect(profile).toMatch(new RegExp(`title="${title}"[\\s\\S]{0,120}hint=`));
+    for (const key of [
+      'profile.section.account.title',
+      'profile.section.learning.title',
+      'profile.section.privacy.title',
+    ]) {
+      expect(profile).toMatch(new RegExp(`title=\\{t\\('${key.replace(/\./g, '\\.')}'\\)\\}[\\s\\S]{0,120}hint=`));
     }
+    // The copy itself is unchanged in Arabic; only its home moved.
+    expect(UI_STRINGS.ar['profile.section.account.title']).toBe('حسابي');
+    expect(UI_STRINGS.ar['profile.section.learning.title']).toBe('طريقة تعلّمي');
+    expect(UI_STRINGS.ar['profile.section.privacy.title']).toBe('الحساب والخصوصية');
   });
 
   it('the toggle reports its state and controls the panel', () => {
