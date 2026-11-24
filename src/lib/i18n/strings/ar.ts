@@ -1429,6 +1429,10 @@ export const AR = {
   'story.placeholder.student': 'طالب كَاتْزُو',
   'story.placeholder.learner': 'متعلّم كاتزو',
   'story.correctionLanguage': 'بالعربية',
+  'onboarding.level.measured': 'مستواك المقيس: {level}',
+  'onboarding.level.skippedZero': 'لم تقيس مستواك بعد — اخترت البدء من الصفر، وسنبدأ من الأساسيات تماماً.',
+  'onboarding.level.skippedA1': 'لم تقيس مستواك بعد — نعرض A1 كبداية عملية إلى أن تجري الاختبار التحديدي.',
+  'onboarding.level.unmeasured': 'مستواك غير مقيس بعد. ابدأ الاختبار التحديدي (6 دقائق) لنبني مسارك على قياسك الحقيقي.',
 } as const;
 
 export type ArKey = keyof typeof AR;

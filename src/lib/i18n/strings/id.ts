@@ -1441,4 +1441,8 @@ export const ID: Record<ArKey, string> = {
   'story.placeholder.student': 'Pelajar Katzu',
   'story.placeholder.learner': 'Pembelajar Katzu',
   'story.correctionLanguage': 'dalam bahasa Indonesia',
+  'onboarding.level.measured': 'Level terukupmu: {level}',
+  'onboarding.level.skippedZero': 'Kamu belum mengukur levelmu — kamu memilih mulai dari nol, jadi kami mulai dari dasar sekali.',
+  'onboarding.level.skippedA1': 'Kamu belum mengukur levelmu — kami menampilkan A1 sebagai awal praktis sampai kamu mengikuti tes penempatan.',
+  'onboarding.level.unmeasured': 'Levelmu belum terukur. Ikuti tes penempatan (6 menit) agar kami membangun jalurmu dari pengukuran nyata.',
 };

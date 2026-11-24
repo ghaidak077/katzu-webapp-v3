@@ -1,0 +1,33 @@
+{
+  "file": "src/lib/onboarding/preferences.ts",
+  "entries": [
+    {
+      "key": "onboarding.level.measured",
+      "ar": "مستواك المقيس: {level}",
+      "en": "Your measured level: {level}",
+      "id": "Level terukupmu: {level}",
+      "table_only": true
+    },
+    {
+      "key": "onboarding.level.skippedZero",
+      "ar": "لم تقيس مستواك بعد — اخترت البدء من الصفر، وسنبدأ من الأساسيات تماماً.",
+      "en": "You have not measured your level yet — you chose to start from zero, so we begin with the absolute basics.",
+      "id": "Kamu belum mengukur levelmu — kamu memilih mulai dari nol, jadi kami mulai dari dasar sekali.",
+      "table_only": true
+    },
+    {
+      "key": "onboarding.level.skippedA1",
+      "ar": "لم تقيس مستواك بعد — نعرض A1 كبداية عملية إلى أن تجري الاختبار التحديدي.",
+      "en": "You have not measured your level yet — we show A1 as a practical start until you take the placement check.",
+      "id": "Kamu belum mengukur levelmu — kami menampilkan A1 sebagai awal praktis sampai kamu mengikuti tes penempatan.",
+      "table_only": true
+    },
+    {
+      "key": "onboarding.level.unmeasured",
+      "ar": "مستواك غير مقيس بعد. ابدأ الاختبار التحديدي (6 دقائق) لنبني مسارك على قياسك الحقيقي.",
+      "en": "Your level is not measured yet. Take the placement check (6 minutes) so we build your path on a real measurement.",
+      "id": "Levelmu belum terukur. Ikuti tes penempatan (6 menit) agar kami membangun jalurmu dari pengukuran nyata.",
+      "table_only": true
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Check, Edit2, Sparkles, Trash2, X } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
-import { GOAL_COPY } from '@/lib/onboarding/preferences';
+import { GOAL_COPY, goalCopy } from '@/lib/onboarding/preferences';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
 import type { LearnerGoal } from '@/types/models';
 import {
@@ -21,7 +21,7 @@ import {
  * card comes from the server, and nothing leaves the device.
  */
 export const PersonalFactsCard: React.FC = () => {
-  const { t } = useLanguage();
+  const { t, uiLanguage } = useLanguage();
   const facts = useLiveQuery(() => readPersonalFacts(), [], null);
   const [editing, setEditing] = useState<PersonalFactKind | null>(null);
   const [draft, setDraft] = useState('');
@@ -76,7 +76,7 @@ export const PersonalFactsCard: React.FC = () => {
                     <option value="">{t('facts.noGoal')}</option>
                     {(Object.keys(GOAL_COPY) as LearnerGoal[]).map((goal) => (
                       <option key={goal} value={goal}>
-                        {GOAL_COPY[goal].labelAr}
+                        {goalCopy(goal, uiLanguage).labelAr}
                       </option>
                     ))}
                   </select>
@@ -115,7 +115,7 @@ export const PersonalFactsCard: React.FC = () => {
                     className="block truncate text-xs font-arabic text-text-primary"
                   >
                     {fact.kind === 'goal' && fact.value
-                      ? GOAL_COPY[fact.value as LearnerGoal]?.labelAr ?? fact.value
+                      ? goalCopy(fact.value as LearnerGoal, uiLanguage).labelAr
                       : fact.value ?? fact.placeholderAr}
                   </span>
                 </span>

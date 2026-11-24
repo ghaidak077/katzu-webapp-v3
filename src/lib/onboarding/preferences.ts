@@ -8,6 +8,8 @@ import type {
   UserEntity,
 } from '@/types/models';
 import { DAILY_MINUTE_CHOICES } from '@/types/models';
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
 
 /**
  * Onboarding answers and how they become a persisted profile.
@@ -23,45 +25,34 @@ import { DAILY_MINUTE_CHOICES } from '@/types/models';
  * teach — only what it brings forward first.
  */
 
-export const GOAL_COPY: Record<LearnerGoal, { labelAr: string; hintAr: string }> = {
-  // The five answers the signup question shows (Phase 4), in order.
-  family: {
-    labelAr: 'لمّ الشمل',
-    hintAr: 'الأوراق، السكن، الطبيب، حياة العائلة',
-  },
-  work: {
-    labelAr: 'العمل',
-    hintAr: 'المقابلة، الزملاء، Ausbildung، المكتب',
-  },
-  study: {
-    labelAr: 'الدراسة',
-    hintAr: 'الجامعة، التسجيل، المحاضرات، الامتحان',
-  },
-  travel: {
-    labelAr: 'السفر',
-    hintAr: 'المطار، القطار، الحجز، التنقّل',
-  },
-  general: {
-    labelAr: 'عام',
-    hintAr: 'أبدأ من الأساسيات وأبني يوماً بيوم',
-  },
+/** Every goal the app knows, current answers first and legacy ones after them. */
+const GOAL_ORDER: LearnerGoal[] = [
+  'family',
+  'work',
+  'study',
+  'travel',
+  'general',
   // Legacy stored answers, kept so old rows still render their choice.
-  daily_life: {
-    labelAr: 'الحياة اليومية في ألمانيا',
-    hintAr: 'السكن، الطبيب، التسوق، المواصلات',
-  },
-  university: {
-    labelAr: 'الجامعة',
-    hintAr: 'التسجيل، المحاضرات، التواصل مع الإدارة',
-  },
-  exam: {
-    labelAr: 'التحضير للامتحان',
-    // What actually ships is one generic B1 speaking practice in exam style, and
-    // the app deliberately names no exam body anywhere in it. Promising three
-    // named bodies "in their real format" set an expectation nothing could meet.
-    hintAr: 'تدريب محادثة B1 بأسلوب الامتحان — وليس الصيغة الرسمية',
-  },
-};
+  'daily_life',
+  'university',
+  'exam',
+];
+
+/** A goal's label and hint in the reader's language. */
+export function goalCopy(
+  goal: LearnerGoal,
+  language: UiLanguage = 'ar',
+): { labelAr: string; hintAr: string } {
+  return {
+    labelAr: translate(language, `onboarding.goal.${goal}.label` as UiStringKey),
+    hintAr: translate(language, `onboarding.goal.${goal}.hint` as UiStringKey),
+  };
+}
+
+export const GOAL_COPY: Record<LearnerGoal, { labelAr: string; hintAr: string }> = GOAL_ORDER.reduce(
+  (acc, goal) => ({ ...acc, [goal]: goalCopy(goal) }),
+  {} as Record<LearnerGoal, { labelAr: string; hintAr: string }>,
+);
 
 /**
  * The one signup question's answers, in order (Phase 4). Legacy values stay in
@@ -70,17 +61,29 @@ export const GOAL_COPY: Record<LearnerGoal, { labelAr: string; hintAr: string }>
  */
 export const SIGNUP_GOAL_ORDER: LearnerGoal[] = ['family', 'work', 'study', 'travel', 'general'];
 
-export const ARRIVAL_COPY: Record<ArrivalStatus, string> = {
-  preparing: 'ما زلت أستعد للسفر',
-  recently_arrived: 'وصلت حديثاً',
-  living_in_germany: 'أعيش في ألمانيا بالفعل',
-};
+const ARRIVAL_ORDER: ArrivalStatus[] = ['preparing', 'recently_arrived', 'living_in_germany'];
 
-export const TARGET_DATE_COPY: Record<TargetDateKind, string> = {
-  move: 'تاريخ السفر',
-  exam: 'تاريخ الامتحان',
-  job: 'موعد العمل أو المقابلة',
-};
+/** Where the learner is in the move, in their language. */
+export function arrivalCopy(status: ArrivalStatus, language: UiLanguage = 'ar'): string {
+  return translate(language, `onboarding.arrival.${status}` as UiStringKey);
+}
+
+export const ARRIVAL_COPY: Record<ArrivalStatus, string> = ARRIVAL_ORDER.reduce(
+  (acc, status) => ({ ...acc, [status]: arrivalCopy(status) }),
+  {} as Record<ArrivalStatus, string>,
+);
+
+const TARGET_DATE_ORDER: TargetDateKind[] = ['move', 'exam', 'job'];
+
+/** The kind of deadline the learner is counting down to. */
+export function targetDateCopy(kind: TargetDateKind, language: UiLanguage = 'ar'): string {
+  return translate(language, `onboarding.targetDate.${kind}` as UiStringKey);
+}
+
+export const TARGET_DATE_COPY: Record<TargetDateKind, string> = TARGET_DATE_ORDER.reduce(
+  (acc, kind) => ({ ...acc, [kind]: targetDateCopy(kind) }),
+  {} as Record<TargetDateKind, string>,
+);
 
 /**
  * "What have you tried before?" — Katzu asking, not a form field.
@@ -89,20 +92,24 @@ export const TARGET_DATE_COPY: Record<TargetDateKind, string> = {
  * first step or whether the learner can simply start. It never sets a level on
  * its own, because a self-report is not a measurement.
  */
-export const PREVIOUS_GERMAN_COPY: Record<PreviousGerman, { labelAr: string; hintAr: string }> = {
-  first_time: {
-    labelAr: 'لم أجرّب الألمانية قبل',
-    hintAr: 'نبدأ من الصفر — وهذا أفضل مكان للبداية',
-  },
-  some_basics: {
-    labelAr: 'تعلّمت قليلاً في المدرسة أو تطبيق',
-    hintAr: 'تعرف كلمات وجُملاً — سنقيس أين وصلت بالضبط',
-  },
-  can_hold: {
-    labelAr: 'أستطيع إدارة محادثة بسيطة',
-    hintAr: 'مستواك أعلى من البداية — القياس يوفّر عليك وقتاً كبيراً',
-  },
-};
+const PREVIOUS_ORDER: PreviousGerman[] = ['first_time', 'some_basics', 'can_hold'];
+
+/** "What have you tried before?" in the reader's language. */
+export function previousGermanCopy(
+  previous: PreviousGerman,
+  language: UiLanguage = 'ar',
+): { labelAr: string; hintAr: string } {
+  return {
+    labelAr: translate(language, `onboarding.previous.${previous}.label` as UiStringKey),
+    hintAr: translate(language, `onboarding.previous.${previous}.hint` as UiStringKey),
+  };
+}
+
+export const PREVIOUS_GERMAN_COPY: Record<PreviousGerman, { labelAr: string; hintAr: string }> =
+  PREVIOUS_ORDER.reduce(
+    (acc, previous) => ({ ...acc, [previous]: previousGermanCopy(previous) }),
+    {} as Record<PreviousGerman, { labelAr: string; hintAr: string }>,
+  );
 
 /**
  * Which ending the placement question recommends, given what the learner said.
@@ -113,22 +120,25 @@ export const PREVIOUS_GERMAN_COPY: Record<PreviousGerman, { labelAr: string; hin
  * them weeks. Skipping always remains possible — it is a recommendation, not a
  * gate.
  */
-export function placementOffer(previous: PreviousGerman | null | undefined): {
+export function placementOffer(
+  previous: PreviousGerman | null | undefined,
+  language: UiLanguage = 'ar',
+): {
   primary: 'start' | 'placement';
   recommendAr: string;
 } {
   if (!previous || previous === 'first_time') {
     return {
       primary: 'start',
-      recommendAr: 'يمكنك أن تبدأ الآن مباشرة — سنختار معاً من أول مشهد، والقياس متاح في أي وقت.',
+      recommendAr: translate(language, 'onboarding.recommend.start'),
     };
   }
   return {
     primary: 'placement',
-    recommendAr:
-      previous === 'can_hold'
-        ? 'قلت إنك تستطيع إدارة محادثة بسيطة — دقيقتان من القياس قد توفّر عليك شهوراً من البداية الخاطئة.'
-        : 'قلت إنك تعلّمت شيئاً قبلاً — القياس يحدد نقطة البداية الصحيحة بدقة بدل التخمين.',
+    recommendAr: translate(
+      language,
+      previous === 'can_hold' ? 'onboarding.recommend.canHold' : 'onboarding.recommend.someBasics',
+    ),
   };
 }
 
@@ -257,14 +267,21 @@ export function placementSkipPatch(now = Date.now()): Partial<UserEntity> {
 }
 
 /** How a level should be spoken about, including the unmeasured case. */
-export function describeLearnerLevel(user: Pick<UserEntity, 'cefrLevel' | 'placementCompletedAt' | 'placementSkippedAt'> | null | undefined): {
+export function describeLearnerLevel(
+  user: Pick<UserEntity, 'cefrLevel' | 'placementCompletedAt' | 'placementSkippedAt'> | null | undefined,
+  language: UiLanguage = 'ar',
+): {
   levelLabel: string;
   measured: boolean;
   detailAr: string;
 } {
   const level = user?.cefrLevel || 'A1';
   if (user?.placementCompletedAt) {
-    return { levelLabel: level, measured: true, detailAr: `مستواك المقيس: ${level}` };
+    return {
+      levelLabel: level,
+      measured: true,
+      detailAr: translate(language, 'onboarding.level.measured', { level }),
+    };
   }
   if (user?.placementSkippedAt) {
     return {
@@ -272,14 +289,14 @@ export function describeLearnerLevel(user: Pick<UserEntity, 'cefrLevel' | 'place
       measured: false,
       detailAr:
         level === 'A0'
-          ? 'لم تقيس مستواك بعد — اخترت البدء من الصفر، وسنبدأ من الأساسيات تماماً.'
-          : 'لم تقيس مستواك بعد — نعرض A1 كبداية عملية إلى أن تجري الاختبار التحديدي.',
+          ? translate(language, 'onboarding.level.skippedZero')
+          : translate(language, 'onboarding.level.skippedA1'),
     };
   }
   return {
     levelLabel: level,
     measured: false,
-    detailAr: 'مستواك غير مقيس بعد. ابدأ الاختبار التحديدي (6 دقائق) لنبني مسارك على قياسك الحقيقي.',
+    detailAr: translate(language, 'onboarding.level.unmeasured'),
   };
 }
 

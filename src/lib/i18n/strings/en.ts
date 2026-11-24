@@ -1438,4 +1438,8 @@ export const EN: Record<ArKey, string> = {
   'story.placeholder.student': 'Katzu student',
   'story.placeholder.learner': 'Katzu learner',
   'story.correctionLanguage': 'in English',
+  'onboarding.level.measured': 'Your measured level: {level}',
+  'onboarding.level.skippedZero': 'You have not measured your level yet — you chose to start from zero, so we begin with the absolute basics.',
+  'onboarding.level.skippedA1': 'You have not measured your level yet — we show A1 as a practical start until you take the placement check.',
+  'onboarding.level.unmeasured': 'Your level is not measured yet. Take the placement check (6 minutes) so we build your path on a real measurement.',
 };
