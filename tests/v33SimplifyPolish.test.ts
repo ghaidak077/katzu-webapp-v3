@@ -17,18 +17,19 @@ describe('V33 — locked grammar lessons state the reason inline', () => {
   const source = read('src/features/grammar/GrammarSectionScreen.tsx');
 
   it('names the unmet prerequisite instead of only saying "locked"', () => {
-    expect(source).toContain('lockReasonAr');
+    expect(source).toContain('lockReason');
     // The reason must be built from the lesson's own prerequisites — naming the
     // holding lesson by title is the one fact that tells the learner what to do.
     expect(source).toMatch(/node\.lesson\.prerequisites/);
   });
 
   it('renders the reason on the locked row itself', () => {
-    expect(source).toMatch(/\{locked && \([\s\S]{0,320}lockReasonAr\(node, path\.nodes\)/);
+    expect(source).toMatch(/\{locked && \([\s\S]{0,320}lockReason\(node, path\.nodes, t/);
   });
 
   it('falls back to plain wording rather than rendering an empty reason', () => {
-    expect(source).toContain("return 'الدرس الذي قبله'");
+    expect(source).toContain("return t('grammar.lockPrevious')");
+    expect(UI_STRINGS.ar['grammar.lockPrevious']).toBe('الدرس الذي قبله');
   });
 });
 
@@ -50,17 +51,23 @@ describe('V33 — Listen and Write number their steps', () => {
   });
 
   it('both skill screens declare their three moves in order', () => {
-    expect(listening).toContain("LISTENING_STEPS = ['استمع', 'اكتب', 'تحقّق']");
-    expect(writing).toContain("WRITING_STEPS = ['اقرأ المهمة', 'اكتب', 'اقرأ التصحيح']");
+    expect(listening).toContain(
+      "LISTENING_STEPS = ['listening.step.listen', 'listening.step.write', 'listening.step.check']",
+    );
+    expect(writing).toContain(
+      "WRITING_STEPS = ['writing.step.read', 'writing.step.write', 'writing.step.readCorrection']",
+    );
+    expect(UI_STRINGS.ar['listening.step.listen']).toBe('استمع');
+    expect(UI_STRINGS.ar['writing.step.read']).toBe('اقرأ المهمة');
   });
 
   it('both render the indicator on the composing view', () => {
-    expect(listening).toContain('<StepTrail steps={LISTENING_STEPS}');
-    expect(writing).toContain('<StepTrail steps={WRITING_STEPS}');
+    expect(listening).toContain('<StepTrail steps={LISTENING_STEPS.map((key) => t(key))}');
+    expect(writing).toContain('<StepTrail steps={WRITING_STEPS.map((key) => t(key))}');
   });
 
   it('writing also marks the correction step once feedback exists', () => {
-    expect(writing).toContain('<StepTrail steps={WRITING_STEPS} current={2} />');
+    expect(writing).toContain('<StepTrail steps={WRITING_STEPS.map((key) => t(key))} current={2} />');
   });
 });
 
@@ -138,6 +145,11 @@ describe('the chat has no word bank (2026-11-13: the hint is typed, never tapped
     const review = read('src/features/review/ReviewScreen.tsx');
     expect(review).toContain("t('review.hint')");
     expect(UI_STRINGS.ar['review.hint']).toBe('تلميح: أول كلمات الإجابة');
-    expect(read('src/features/writing/WritingScreen.tsx')).toContain('بنك الكلمات — اضغط لتضيف الكلمة');
+    const writing = read('src/features/writing/WritingScreen.tsx');
+    expect(writing).toContain("t('writing.wordBank')");
+    expect(writing).toContain("t('writing.tapToAdd')");
+    expect(`${UI_STRINGS.ar['writing.wordBank']} — ${UI_STRINGS.ar['writing.tapToAdd']}`).toBe(
+      'بنك الكلمات — اضغط لتضيف الكلمة',
+    );
   });
 });
