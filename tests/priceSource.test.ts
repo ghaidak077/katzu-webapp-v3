@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { UI_STRINGS } from '../src/lib/i18n/strings';
 
 /**
  * One price, one source — and the absence of a second.
@@ -253,7 +254,10 @@ describe('the four plans the modal shows', () => {
   it('badges the 6-month plan, not the cheapest or the longest', () => {
     const modal = readFileSync('src/components/sheets/PaywallModal.tsx', 'utf8');
     expect(modal).toContain('recommended');
-    expect(modal).toMatch(/BEST_VALUE_AR/);
+    // The badge still comes from the shared pricing table, now via the
+    // language-aware accessor rather than the Arabic constant.
+    expect(modal).toMatch(/bestValue\(uiLanguage\)/);
+    expect(UI_STRINGS.ar['paywallModal.benefit2']).toContain('A0');
   });
 });
 

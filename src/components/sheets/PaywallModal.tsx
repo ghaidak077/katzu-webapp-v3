@@ -6,20 +6,17 @@ import { Badge } from '@/components/ui/Badge';
 import { Sparkles, Check, KeyRound, ExternalLink } from 'lucide-react';
 import { buildSalesUrl, legalPageUrl } from '@/lib/utils/links';
 import {
-  BEST_VALUE_AR,
-  CONTINUE_FREE_AR,
   PLANS,
-  PRICING_FOOTNOTE_AR,
   RECOMMENDED_PLAN,
+  bestValue,
   formatUsd,
+  planName,
+  pricingFootnote,
+  type Plan,
 } from '@/lib/offers/pricing';
-import {
-  PRICING_NOT_CONFIGURED_AR,
-  PRICING_UNAVAILABLE_AR,
-  priceRowFor,
-  usePricing,
-} from '@/lib/offers/priceSource';
+import { priceRowFor, usePricing } from '@/lib/offers/priceSource';
 import { track } from '@/lib/analytics/client';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 /**
  * The four plans the server actually sells.
@@ -29,9 +26,14 @@ import { track } from '@/lib/analytics/client';
  * `pricing.config.json`, and the recommended one is the 6-month plan the badge
  * points at. The recommendation is display only — it never changes a price.
  */
-const OFFERED_TIERS = PLANS.map((plan) => ({
+const OFFERED_TIERS: Array<{
+  plan: Plan;
+  product: string;
+  months: number;
+  recommended: boolean;
+}> = PLANS.map((plan) => ({
+  plan,
   product: plan.id,
-  nameAr: plan.nameAr,
   months: plan.months,
   recommended: plan.id === RECOMMENDED_PLAN.id,
 }));
@@ -69,9 +71,12 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   isOpen,
   onClose,
   onUpgrade,
-  title = 'ما يفتحه Pro — وما يبقى مجانياً',
-  description = 'محادثات صوتية بلا حدّ جلسات، وكل المستويات من A0 إلى B2. ويبقى كل ما تعلّمته — المراجعة والمهمة اليومية وبنك أخطائك — مجانياً دائماً.',
+  title,
+  description,
 }) => {
+  const { t, uiLanguage } = useLanguage();
+  const heading = title ?? t('paywallModal.title');
+  const detail = description ?? t('paywallModal.description');
   const salesUrl = useMemo(() => buildSalesUrl(referralFromUrl()), []);
   // The one price table. No amount is rendered from anything else, and no buy
   // control appears without one: if the server cannot be reached the learner is
@@ -85,12 +90,12 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
     // every modal paywall (the level gate, the session cap, the mock) was
     // invisible to the funnel, which read as "nobody hits a paywall". The old
     // name keeps firing so nothing that already counts it loses its history.
-    track('paywall_viewed', { source: title.slice(0, 64) });
-    track('paywall_view', { source: 'modal', kind: title.slice(0, 64) });
-  }, [isOpen, title]);
+    track('paywall_viewed', { source: heading.slice(0, 64) });
+    track('paywall_view', { source: 'modal', kind: heading.slice(0, 64) });
+  }, [isOpen, heading]);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="عضوية Katzu Pro">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('paywallModal.modalTitle')}>
       <div className="flex flex-col items-center text-center p-2">
         <KatzuMascot name="badge" glow className="w-24 h-24 mb-3" />
 
@@ -103,10 +108,10 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
               a stale dev server look like a missing price in the paywall. */}
           {headline ??
             (!configured
-              ? PRICING_NOT_CONFIGURED_AR
+              ? t('paywallModal.notConfigured')
               : loaded
-                ? PRICING_UNAVAILABLE_AR
-                : 'جارٍ تحميل السعر…')}
+                ? t('paywallModal.unavailable')
+                : t('paywallModal.loadingPrice'))}
         </Badge>
 
         {/* Four tiers, all priced by the server, 6-month recommended. Each card
@@ -132,10 +137,10 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                 >
                   {tier.recommended && (
                     <span className="absolute -top-2 end-2 px-1.5 py-0.5 rounded-full bg-fill text-on-fill text-micro font-bold font-arabic">
-                      {BEST_VALUE_AR}
+                      {bestValue(uiLanguage)}
                     </span>
                   )}
-                  <span className="text-micro font-bold font-arabic text-center">{tier.nameAr}</span>
+                  <span className="text-micro font-bold font-arabic text-center">{planName(tier.plan, uiLanguage)}</span>
                   {amount ? (
                     <span className="text-sm font-bold text-primary" data-testid={`modal-price-${tier.product}`}>
                       {amount}
@@ -150,7 +155,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                     </span>
                   ) : null}
                   {perMonth ? (
-                    <span className="text-micro font-arabic text-text-muted">{perMonth} شهرياً</span>
+                    <span className="text-micro font-arabic text-text-muted">{perMonth} {t('paywall.perMonth')}</span>
                   ) : null}
                 </a>
               );
@@ -158,16 +163,16 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
           </div>
         ) : null}
 
-        <h3 className="text-xl font-bold font-arabic text-text-primary mb-2">{title}</h3>
-        <p className="text-xs text-text-secondary font-arabic mb-5 leading-relaxed max-w-xs">{description}</p>
+        <h3 className="text-xl font-bold font-arabic text-text-primary mb-2">{heading}</h3>
+        <p className="text-xs text-text-secondary font-arabic mb-5 leading-relaxed max-w-xs">{detail}</p>
 
         {/* A plain comparison, and nothing else: no countdown, no price framing,
             no promise the product cannot keep ("fluent in 30 days"). */}
         <div className="w-full space-y-2 mb-4 text-start">
-          <p className="text-micro font-arabic text-text-muted">ما يفتحه Pro:</p>
+          <p className="text-micro font-arabic text-text-muted">{t('paywallModal.proTitle')}</p>
           {[
-            'محادثات صوتية بلا حد بعد الجلسات التجريبية',
-            'كل المستويات والمشاهد من A0 إلى B2',
+            t('paywallModal.benefit1'),
+            t('paywallModal.benefit2'),
           ].map((benefit) => (
             <div
               key={benefit}
@@ -184,10 +189,9 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
         {/* What stays free: saying this out loud is what keeps the paywall from
             feeling like a bait-and-switch. */}
         <div className="w-full p-3 rounded-2xl bg-status-success/10 border border-status-success/25 text-start mb-5">
-          <p className="text-micro font-arabic text-status-success font-bold mb-1">ويبقى مجانياً دائماً:</p>
+          <p className="text-micro font-arabic text-status-success font-bold mb-1">{t('paywallModal.freeTitle')}</p>
           <p className="text-micro font-arabic text-text-secondary leading-relaxed">
-            مهمة اليوم، ومراجعة كل ما تعلّمته، والاختبار التحديدي، وبنك أخطائك، ودرسك التجريبي.
-            لن نُغلق أمامك ما تعلّمته بالفعل — ولا نطلب منك شيئاً قبل أن تجرّب.
+            {t('paywallModal.freeBody')}
           </p>
         </div>
 
@@ -207,7 +211,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
               className="w-full h-14 rounded-2xl bg-fill text-on-fill font-bold font-arabic flex items-center justify-center gap-2 shadow-glow-purple transition-colors"
             >
               <ExternalLink className="w-4 h-4" aria-hidden />
-              اشترِ كود تفعيل Pro
+              {t('paywallModal.buyCode')}
             </a>
           ) : null}
 
@@ -221,7 +225,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
             }}
           >
             <KeyRound className="w-4 h-4" aria-hidden />
-            لديّ كود بالفعل — فعّله الآن
+            {t('paywallModal.haveCode')}
           </Button>
 
           <button
@@ -229,15 +233,15 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
             onClick={onClose}
             className="w-full py-3 text-xs font-semibold font-arabic text-text-muted pointer-hover:text-text-secondary min-h-[44px]"
           >
-            {CONTINUE_FREE_AR}
+            {t('paywallModal.continueFree')}
           </button>
 
-          <p className="text-micro font-arabic text-text-muted leading-relaxed">{PRICING_FOOTNOTE_AR}</p>
+          <p className="text-micro font-arabic text-text-muted leading-relaxed">{pricingFootnote(uiLanguage)}</p>
 
           {/* Who is selling to you, and on what terms. These are public routes,
               so a new tab keeps the offer on screen while the learner reads. */}
           <nav
-            aria-label="الصفحات القانونية"
+            aria-label={t('paywallModal.legalAria')}
             className="flex items-center justify-center gap-1 pt-1 text-micro font-arabic text-text-muted"
           >
             <a
@@ -246,7 +250,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
               rel="noopener noreferrer"
               className="inline-flex items-center min-h-[44px] px-2 underline underline-offset-2 pointer-hover:text-text-secondary"
             >
-              سياسة الخصوصية
+              {t('paywallModal.privacy')}
             </a>
             <span aria-hidden>·</span>
             <a
@@ -255,7 +259,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
               rel="noopener noreferrer"
               className="inline-flex items-center min-h-[44px] px-2 underline underline-offset-2 pointer-hover:text-text-secondary"
             >
-              شروط الاستخدام
+              {t('paywallModal.terms')}
             </a>
           </nav>
         </div>

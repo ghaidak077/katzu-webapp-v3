@@ -3,6 +3,7 @@ import { BottomSheet } from '../ui/BottomSheet';
 import { Button } from '../ui/Button';
 import { Clock, Calendar, Sparkles } from 'lucide-react';
 import type { CEFRLevel } from '@/types/models';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface GoalSelectionBottomSheetProps {
   isOpen: boolean;
@@ -21,27 +22,28 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
   initialDays = 5,
   initialLevel = 'A1',
 }) => {
+  const { t } = useLanguage();
   const [minutes, setMinutes] = useState(initialMinutes);
   const [days, setDays] = useState(initialDays);
   const [level, setLevel] = useState<CEFRLevel>(initialLevel);
 
   const timeOptions = [
-    { label: 'خفيف (5 دقائق)', value: 5 },
-    { label: 'منتظم (15 دقيقة)', value: 15 },
-    { label: 'مكثف (30 دقيقة)', value: 30 },
+    { label: t('sheet.goal.light'), value: 5 },
+    { label: t('sheet.goal.regular'), value: 15 },
+    { label: t('sheet.goal.intensive'), value: 30 },
   ];
 
   const dayOptions = [3, 5, 7];
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title="حدد خطتك وهدفك التعليمي">
+    <BottomSheet isOpen={isOpen} onClose={onClose} title={t('sheet.goal.title')}>
       <div className="space-y-6 py-2">
         {/* Daily Time Commitment */}
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-text-secondary mb-3">
             <Clock className="w-4 h-4 text-primary" />
-            كم دقيقة تريد التدرب يومياً؟
+            {t('sheet.goal.minutesQuestion')}
           </label>
           <div className="grid grid-cols-3 gap-2">
             {timeOptions.map((opt) => (
@@ -64,7 +66,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-text-secondary mb-3">
             <Calendar className="w-4 h-4 text-primary" />
-            أيام التدريب في الأسبوع
+            {t('sheet.goal.daysQuestion')}
           </label>
           <div className="grid grid-cols-3 gap-2">
             {dayOptions.map((d) => (
@@ -77,7 +79,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
                     : 'bg-surface-subtle border-border-subtle text-text-secondary pointer-hover:text-text-primary'
                 }`}
               >
-                {d} أيام
+                {t('sheet.goal.days', { count: d })}
               </button>
             ))}
           </div>
@@ -87,7 +89,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-text-secondary mb-3">
             <Sparkles className="w-4 h-4 text-primary" />
-            مستواك الحالي في الألمانية
+            {t('sheet.goal.levelQuestion')}
           </label>
           <div className="grid grid-cols-4 gap-2">
             {levels.map((lvl) => (
@@ -114,7 +116,7 @@ export const GoalSelectionBottomSheet: React.FC<GoalSelectionBottomSheetProps> =
             onClose();
           }}
         >
-          حفظ وبدء التعلم
+          {t('sheet.goal.save')}
         </Button>
       </div>
     </BottomSheet>

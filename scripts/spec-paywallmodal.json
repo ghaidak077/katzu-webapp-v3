@@ -1,0 +1,173 @@
+{
+  "file": "src/components/sheets/PaywallModal.tsx",
+  "imports_after": "import { track } from '@/lib/analytics/client';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+  "manual": [
+    [
+      "import {\n  BEST_VALUE_AR,\n  CONTINUE_FREE_AR,\n  PLANS,\n  PRICING_FOOTNOTE_AR,\n  RECOMMENDED_PLAN,\n  formatUsd,\n} from '@/lib/offers/pricing';\nimport {\n  PRICING_NOT_CONFIGURED_AR,\n  PRICING_UNAVAILABLE_AR,\n  priceRowFor,\n  usePricing,\n} from '@/lib/offers/priceSource';",
+      "import {\n  PLANS,\n  RECOMMENDED_PLAN,\n  bestValue,\n  formatUsd,\n  planName,\n  pricingFootnote,\n  type Plan,\n} from '@/lib/offers/pricing';\nimport { priceRowFor, usePricing } from '@/lib/offers/priceSource';"
+    ],
+    [
+      "const OFFERED_TIERS = PLANS.map((plan) => ({\n  product: plan.id,\n  nameAr: plan.nameAr,\n  months: plan.months,\n  recommended: plan.id === RECOMMENDED_PLAN.id,\n}));",
+      "const OFFERED_TIERS: Array<{\n  plan: Plan;\n  product: string;\n  months: number;\n  recommended: boolean;\n}> = PLANS.map((plan) => ({\n  plan,\n  product: plan.id,\n  months: plan.months,\n  recommended: plan.id === RECOMMENDED_PLAN.id,\n}));"
+    ],
+    [
+      "  title = 'ما يفتحه Pro — وما يبقى مجانياً',\n  description = 'محادثات صوتية بلا حدّ جلسات، وكل المستويات من A0 إلى B2. ويبقى كل ما تعلّمته — المراجعة والمهمة اليومية وبنك أخطائك — مجانياً دائماً.',\n}) => {",
+      "  title,\n  description,\n}) => {\n  const { t, uiLanguage } = useLanguage();\n  const heading = title ?? t('paywallModal.title');\n  const detail = description ?? t('paywallModal.description');"
+    ],
+    [
+      "track('paywall_viewed', { source: title.slice(0, 64) });",
+      "track('paywall_viewed', { source: heading.slice(0, 64) });"
+    ],
+    [
+      "track('paywall_view', { source: 'modal', kind: title.slice(0, 64) });",
+      "track('paywall_view', { source: 'modal', kind: heading.slice(0, 64) });"
+    ],
+    [
+      "  }, [isOpen, title]);",
+      "  }, [isOpen, heading]);"
+    ],
+    [
+      "<Modal isOpen={isOpen} onClose={onClose} title=\"عضوية Katzu Pro\">",
+      "<Modal isOpen={isOpen} onClose={onClose} title={t('paywallModal.modalTitle')}>"
+    ],
+    [
+      "          {headline ??\n            (!configured\n              ? PRICING_NOT_CONFIGURED_AR\n              : loaded\n                ? PRICING_UNAVAILABLE_AR\n                : 'جارٍ تحميل السعر…')}",
+      "          {headline ??\n            (!configured\n              ? t('paywallModal.notConfigured')\n              : loaded\n                ? t('paywallModal.unavailable')\n                : t('paywallModal.loadingPrice'))}"
+    ],
+    [
+      "{BEST_VALUE_AR}",
+      "{bestValue(uiLanguage)}"
+    ],
+    [
+      "{tier.nameAr}",
+      "{planName(tier.plan, uiLanguage)}"
+    ],
+    [
+      "{perMonth} شهرياً",
+      "{perMonth} {t('paywall.perMonth')}"
+    ],
+    [
+      "        <h3 className=\"text-xl font-bold font-arabic text-text-primary mb-2\">{title}</h3>\n        <p className=\"text-xs text-text-secondary font-arabic mb-5 leading-relaxed max-w-xs\">{description}</p>",
+      "        <h3 className=\"text-xl font-bold font-arabic text-text-primary mb-2\">{heading}</h3>\n        <p className=\"text-xs text-text-secondary font-arabic mb-5 leading-relaxed max-w-xs\">{detail}</p>"
+    ],
+    [
+      "            مهمة اليوم، ومراجعة كل ما تعلّمته، والاختبار التحديدي، وبنك أخطائك، ودرسك التجريبي.\n            لن نُغلق أمامك ما تعلّمته بالفعل — ولا نطلب منك شيئاً قبل أن تجرّب.",
+      "            {t('paywallModal.freeBody')}"
+    ],
+    [
+      "{CONTINUE_FREE_AR}",
+      "{t('paywallModal.continueFree')}"
+    ],
+    [
+      "{PRICING_FOOTNOTE_AR}",
+      "{pricingFootnote(uiLanguage)}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "paywallModal.title",
+      "ar": "ما يفتحه Pro — وما يبقى مجانياً",
+      "en": "What Pro opens — and what stays free",
+      "id": "Apa yang dibuka Pro — dan apa yang tetap gratis"
+    },
+    {
+      "key": "paywallModal.description",
+      "ar": "محادثات صوتية بلا حدّ جلسات، وكل المستويات من A0 إلى B2. ويبقى كل ما تعلّمته — المراجعة والمهمة اليومية وبنك أخطائك — مجانياً دائماً.",
+      "en": "Voice conversations with no session limit, and every level from A0 to B2. Everything you have learned — review, the daily mission and your mistake bank — always stays free.",
+      "id": "Percakapan suara tanpa batas sesi, dan semua level dari A0 sampai B2. Semua yang sudah kamu pelajari — tinjauan, misi harian, dan bank kesalahanmu — selalu tetap gratis."
+    },
+    {
+      "key": "paywallModal.notConfigured",
+      "ar": "الأسعار غير متاحة في هذا الإصدار",
+      "en": "Prices are not available in this build",
+      "id": "Harga tidak tersedia di versi ini"
+    },
+    {
+      "key": "paywallModal.unavailable",
+      "ar": "السعر غير متاح الآن",
+      "en": "The price is not available right now",
+      "id": "Harga tidak tersedia sekarang"
+    },
+    {
+      "key": "paywallModal.loadingPrice",
+      "ar": "جارٍ تحميل السعر…",
+      "en": "Loading the price…",
+      "id": "Memuat harga…"
+    },
+    {
+      "key": "paywallModal.modalTitle",
+      "ar": "عضوية Katzu Pro",
+      "en": "Katzu Pro membership",
+      "id": "Keanggotaan Katzu Pro"
+    },
+    {
+      "key": "paywallModal.proTitle",
+      "ar": "ما يفتحه Pro:",
+      "en": "What Pro opens:",
+      "id": "Yang dibuka Pro:"
+    },
+    {
+      "key": "paywallModal.benefit1",
+      "ar": "محادثات صوتية بلا حد بعد الجلسات التجريبية",
+      "en": "Unlimited voice conversations after the trial sessions",
+      "id": "Percakapan suara tanpa batas setelah sesi percobaan"
+    },
+    {
+      "key": "paywallModal.benefit2",
+      "ar": "كل المستويات والمشاهد من A0 إلى B2",
+      "en": "Every level and scene from A0 to B2",
+      "id": "Semua level dan adegan dari A0 sampai B2"
+    },
+    {
+      "key": "paywallModal.freeTitle",
+      "ar": "ويبقى مجانياً دائماً:",
+      "en": "And always stays free:",
+      "id": "Dan selalu tetap gratis:"
+    },
+    {
+      "key": "paywallModal.freeBody",
+      "ar": "مهمة اليوم، ومراجعة كل ما تعلّمته، والاختبار التحديدي، وبنك أخطائك، ودرسك التجريبي. لن نُغلق أمامك ما تعلّمته بالفعل — ولا نطلب منك شيئاً قبل أن تجرّب.",
+      "en": "Today's mission, review of everything you have learned, the placement check, your mistake bank and your trial lesson. We will not lock away what you have already learned — and we ask for nothing before you try.",
+      "id": "Misi hari ini, tinjauan semua yang sudah kamu pelajari, tes penempatan, bank kesalahanmu, dan pelajaran percobaanmu. Kami tidak akan mengunci apa yang sudah kamu pelajari — dan tidak meminta apa pun sebelum kamu mencoba.",
+      "table_only": true
+    },
+    {
+      "key": "paywallModal.buyCode",
+      "ar": "اشترِ كود تفعيل Pro",
+      "en": "Buy a Pro activation code",
+      "id": "Beli kode aktivasi Pro"
+    },
+    {
+      "key": "paywallModal.haveCode",
+      "ar": "لديّ كود بالفعل — فعّله الآن",
+      "en": "I already have a code — activate it now",
+      "id": "Aku sudah punya kode — aktifkan sekarang"
+    },
+    {
+      "key": "paywallModal.continueFree",
+      "ar": "تابع مجاناً",
+      "en": "Continue free",
+      "id": "Lanjut gratis",
+      "table_only": true
+    },
+    {
+      "key": "paywallModal.legalAria",
+      "ar": "الصفحات القانونية",
+      "en": "Legal pages",
+      "id": "Halaman legal"
+    },
+    {
+      "key": "paywallModal.privacy",
+      "ar": "سياسة الخصوصية",
+      "en": "Privacy policy",
+      "id": "Kebijakan privasi"
+    },
+    {
+      "key": "paywallModal.terms",
+      "ar": "شروط الاستخدام",
+      "en": "Terms of use",
+      "id": "Ketentuan penggunaan"
+    }
+  ]
+}

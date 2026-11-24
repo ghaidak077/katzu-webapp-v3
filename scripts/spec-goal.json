@@ -1,0 +1,70 @@
+{
+  "file": "src/components/sheets/GoalSelectionBottomSheet.tsx",
+  "imports_after": "import type { CEFRLevel } from '@/types/models';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';",
+  "anchor": "}) => {",
+  "hook": "  const { t } = useLanguage();",
+  "manual": [
+    [
+      "{d} أيام",
+      "{t('sheet.goal.days', { count: d })}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "sheet.goal.title",
+      "ar": "حدد خطتك وهدفك التعليمي",
+      "en": "Set your plan and learning goal",
+      "id": "Atur rencana dan tujuan belajarmu"
+    },
+    {
+      "key": "sheet.goal.minutesQuestion",
+      "ar": "كم دقيقة تريد التدرب يومياً؟",
+      "en": "How many minutes do you want to practise each day?",
+      "id": "Berapa menit kamu ingin berlatih setiap hari?"
+    },
+    {
+      "key": "sheet.goal.light",
+      "ar": "خفيف (5 دقائق)",
+      "en": "Light (5 minutes)",
+      "id": "Ringan (5 menit)"
+    },
+    {
+      "key": "sheet.goal.regular",
+      "ar": "منتظم (15 دقيقة)",
+      "en": "Regular (15 minutes)",
+      "id": "Teratur (15 menit)"
+    },
+    {
+      "key": "sheet.goal.intensive",
+      "ar": "مكثف (30 دقيقة)",
+      "en": "Intensive (30 minutes)",
+      "id": "Intensif (30 menit)"
+    },
+    {
+      "key": "sheet.goal.daysQuestion",
+      "ar": "أيام التدريب في الأسبوع",
+      "en": "Practice days per week",
+      "id": "Hari latihan per minggu"
+    },
+    {
+      "key": "sheet.goal.days",
+      "ar": "{count} أيام",
+      "en": "{count} days",
+      "id": "{count} hari",
+      "table_only": true
+    },
+    {
+      "key": "sheet.goal.levelQuestion",
+      "ar": "مستواك الحالي في الألمانية",
+      "en": "Your current German level",
+      "id": "Level bahasa Jermanmu sekarang"
+    },
+    {
+      "key": "sheet.goal.save",
+      "ar": "حفظ وبدء التعلم",
+      "en": "Save and start learning",
+      "id": "Simpan dan mulai belajar"
+    }
+  ]
+}

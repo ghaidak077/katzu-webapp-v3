@@ -1,0 +1,166 @@
+{
+  "file": "src/components/sheets/WordInsightBottomSheet.tsx",
+  "imports_after": "import { normalizedPartOfSpeech } from '@/lib/utils/scenarioVocab';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';\nimport { translate, type UiStringKey } from '@/lib/i18n/strings';\nimport type { UiLanguage } from '@/lib/i18n/languages';",
+  "anchor": "}) => {",
+  "hook": "  const { t, uiLanguage } = useLanguage();",
+  "manual": [
+    [
+      "const POS_AR: Record<string, string> = {\n  noun: 'اسم',\n  verb: 'فعل',\n  adjective: 'صفة',\n  adverb: 'ظرف',\n  pronoun: 'ضمير',\n  article: 'أداة تعريف',\n  preposition: 'حرف جر',\n  conjunction: 'حرف ربط',\n  numeral: 'عدد',\n  interjection: 'تعجّب',\n  particle: 'أداة',\n  'proper noun': 'علم',\n  phrase: 'تعبير',\n};\n\nconst posArabic = (raw: string | null | undefined): string =>\n  POS_AR[String(raw || '').trim().toLowerCase()] || normalizedPartOfSpeech(raw);",
+      "const POS_KEY: Record<string, UiStringKey> = {\n  noun: 'sheet.word.pos.noun',\n  verb: 'sheet.word.pos.verb',\n  adjective: 'sheet.word.pos.adjective',\n  adverb: 'sheet.word.pos.adverb',\n  pronoun: 'sheet.word.pos.pronoun',\n  article: 'sheet.word.pos.article',\n  preposition: 'sheet.word.pos.preposition',\n  conjunction: 'sheet.word.pos.conjunction',\n  numeral: 'sheet.word.pos.numeral',\n  interjection: 'sheet.word.pos.interjection',\n  particle: 'sheet.word.pos.particle',\n  'proper noun': 'sheet.word.pos.properNoun',\n  phrase: 'sheet.word.pos.phrase',\n};\n\nconst posLabel = (raw: string | null | undefined, language: UiLanguage): string => {\n  const key = POS_KEY[String(raw || '').trim().toLowerCase()];\n  return key ? translate(language, key) : normalizedPartOfSpeech(raw);\n};"
+    ],
+    [
+      "{unresolved ? 'غير معروفة' : posArabic(word.part_of_speech) || 'اسم'}",
+      "{unresolved\n                ? t('sheet.word.unknown')\n                : posLabel(word.part_of_speech, uiLanguage) || t('sheet.word.defaultPos')}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "sheet.word.title",
+      "ar": "تفاصيل الكلمة",
+      "en": "Word details",
+      "id": "Detail kata"
+    },
+    {
+      "key": "sheet.word.unresolved",
+      "ar": "لم نجد معنى هذه الكلمة في بيانات التطبيق بعد.",
+      "en": "We have not found this word's meaning in the app data yet.",
+      "id": "Kami belum menemukan arti kata ini di data aplikasi."
+    },
+    {
+      "key": "sheet.word.retryHint",
+      "ar": "اكتبها في جملة داخل المشهد ثم اضغط إعادة المحاولة، أو استخدمها كما هي — يمكنك سماعها الآن.",
+      "en": "Use it in a sentence in the scene and press retry, or use it as it is — you can hear it now.",
+      "id": "Pakai dalam kalimat di adegan lalu tekan coba lagi, atau pakai apa adanya — kamu bisa mendengarnya sekarang."
+    },
+    {
+      "key": "sheet.word.retry",
+      "ar": "إعادة المحاولة",
+      "en": "Try again",
+      "id": "Coba lagi"
+    },
+    {
+      "key": "sheet.word.example",
+      "ar": "مثال عملي في جملة:",
+      "en": "A real example in a sentence:",
+      "id": "Contoh nyata dalam kalimat:"
+    },
+    {
+      "key": "sheet.word.pos",
+      "ar": "نوع الكلمة",
+      "en": "Word type",
+      "id": "Jenis kata"
+    },
+    {
+      "key": "sheet.word.level",
+      "ar": "المستوى",
+      "en": "Level",
+      "id": "Level"
+    },
+    {
+      "key": "sheet.word.unknown",
+      "ar": "غير معروفة",
+      "en": "Unknown",
+      "id": "Tidak diketahui",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.defaultPos",
+      "ar": "اسم",
+      "en": "noun",
+      "id": "kata benda",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.noun",
+      "ar": "اسم",
+      "en": "noun",
+      "id": "kata benda",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.verb",
+      "ar": "فعل",
+      "en": "verb",
+      "id": "kata kerja",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.adjective",
+      "ar": "صفة",
+      "en": "adjective",
+      "id": "kata sifat",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.adverb",
+      "ar": "ظرف",
+      "en": "adverb",
+      "id": "kata keterangan",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.pronoun",
+      "ar": "ضمير",
+      "en": "pronoun",
+      "id": "pronomina",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.article",
+      "ar": "أداة تعريف",
+      "en": "article",
+      "id": "artikel",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.preposition",
+      "ar": "حرف جر",
+      "en": "preposition",
+      "id": "preposisi",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.conjunction",
+      "ar": "حرف ربط",
+      "en": "conjunction",
+      "id": "konjungsi",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.numeral",
+      "ar": "عدد",
+      "en": "numeral",
+      "id": "numeralia",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.interjection",
+      "ar": "تعجّب",
+      "en": "interjection",
+      "id": "interjeksi",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.particle",
+      "ar": "أداة",
+      "en": "particle",
+      "id": "partikel",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.properNoun",
+      "ar": "علم",
+      "en": "proper noun",
+      "id": "nama diri",
+      "table_only": true
+    },
+    {
+      "key": "sheet.word.pos.phrase",
+      "ar": "تعبير",
+      "en": "phrase",
+      "id": "frasa",
+      "table_only": true
+    }
+  ]
+}

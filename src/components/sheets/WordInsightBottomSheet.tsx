@@ -6,30 +6,35 @@ import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { Volume2, Bookmark, Check } from 'lucide-react';
 import type { VocabularyEntity } from '@/types/models';
 import { normalizedPartOfSpeech } from '@/lib/utils/scenarioVocab';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * The card speaks Arabic; the data stores German/Latin parts of speech. Before
  * this map the card printed «Verb» next to «نوع الكلمة» (or «—» when the word
  * was unknown), which read as a bug in the Arabic UI.
  */
-const POS_AR: Record<string, string> = {
-  noun: 'اسم',
-  verb: 'فعل',
-  adjective: 'صفة',
-  adverb: 'ظرف',
-  pronoun: 'ضمير',
-  article: 'أداة تعريف',
-  preposition: 'حرف جر',
-  conjunction: 'حرف ربط',
-  numeral: 'عدد',
-  interjection: 'تعجّب',
-  particle: 'أداة',
-  'proper noun': 'علم',
-  phrase: 'تعبير',
+const POS_KEY: Record<string, UiStringKey> = {
+  noun: 'sheet.word.pos.noun',
+  verb: 'sheet.word.pos.verb',
+  adjective: 'sheet.word.pos.adjective',
+  adverb: 'sheet.word.pos.adverb',
+  pronoun: 'sheet.word.pos.pronoun',
+  article: 'sheet.word.pos.article',
+  preposition: 'sheet.word.pos.preposition',
+  conjunction: 'sheet.word.pos.conjunction',
+  numeral: 'sheet.word.pos.numeral',
+  interjection: 'sheet.word.pos.interjection',
+  particle: 'sheet.word.pos.particle',
+  'proper noun': 'sheet.word.pos.properNoun',
+  phrase: 'sheet.word.pos.phrase',
 };
 
-const posArabic = (raw: string | null | undefined): string =>
-  POS_AR[String(raw || '').trim().toLowerCase()] || normalizedPartOfSpeech(raw);
+const posLabel = (raw: string | null | undefined, language: UiLanguage): string => {
+  const key = POS_KEY[String(raw || '').trim().toLowerCase()];
+  return key ? translate(language, key) : normalizedPartOfSpeech(raw);
+};
 
 export interface WordInsightBottomSheetProps {
   word: VocabularyEntity | null;
@@ -54,12 +59,13 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
   unresolved = false,
   onRetry,
 }) => {
+  const { t, uiLanguage } = useLanguage();
   const { speak } = useSpeechOutput();
 
   if (!word) return null;
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title="تفاصيل الكلمة">
+    <BottomSheet isOpen={isOpen} onClose={onClose} title={t('sheet.word.title')}>
       <div className="space-y-4 py-2">
         {/* Word Header */}
         <div className="flex items-center justify-between p-4 rounded-3xl bg-surface-card border border-border-subtle">
@@ -85,7 +91,7 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
             </div>
             <div className="text-sm font-arabic font-semibold text-text-secondary">
               {unresolved
-                ? 'لم نجد معنى هذه الكلمة في بيانات التطبيق بعد.'
+                ? t('sheet.word.unresolved')
                 : word.translation_ar}
             </div>
           </div>
@@ -113,14 +119,14 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
         {unresolved && (
           <div className="p-4 rounded-3xl bg-surface-card border border-border-subtle space-y-2">
             <p className="text-xs font-arabic text-text-secondary leading-relaxed">
-              اكتبها في جملة داخل المشهد ثم اضغط إعادة المحاولة، أو استخدمها كما هي — يمكنك سماعها الآن.
+              {t('sheet.word.retryHint')}
             </p>
             {onRetry && (
               <button
                 onClick={onRetry}
                 className="w-full py-2 rounded-2xl bg-primary/20 text-primary font-arabic text-sm font-bold pointer-hover:bg-primary/30 transition-colors"
               >
-                إعادة المحاولة
+                {t('sheet.word.retry')}
               </button>
             )}
           </div>
@@ -130,7 +136,7 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
         {word.example_de && (
           <div className="p-4 rounded-3xl bg-surface-subtle border border-border-subtle space-y-1.5">
             <span className="text-micro font-bold text-primary block font-arabic">
-              مثال عملي في جملة:
+              {t('sheet.word.example')}
             </span>
             <GermanText className="text-sm font-semibold text-text-primary block">
               {word.example_de}
@@ -142,13 +148,15 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
         {/* Word Type / Level Info */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="p-3 rounded-2xl bg-surface-card border border-border-subtle">
-            <span className="text-text-muted block mb-0.5">نوع الكلمة</span>
+            <span className="text-text-muted block mb-0.5">{t('sheet.word.pos')}</span>
             <span className="font-semibold text-text-primary">
-              {unresolved ? 'غير معروفة' : posArabic(word.part_of_speech) || 'اسم'}
+              {unresolved
+                ? t('sheet.word.unknown')
+                : posLabel(word.part_of_speech, uiLanguage) || t('sheet.word.defaultPos')}
             </span>
           </div>
           <div className="p-3 rounded-2xl bg-surface-card border border-border-subtle">
-            <span className="text-text-muted block mb-0.5">المستوى</span>
+            <span className="text-text-muted block mb-0.5">{t('sheet.word.level')}</span>
             <span className="font-semibold font-german text-primary">{word.level}</span>
           </div>
         </div>
