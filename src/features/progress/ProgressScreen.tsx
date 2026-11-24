@@ -9,20 +9,25 @@ import { KatzuPresence, type KatzuState } from '@/components/v2/KatzuPresence';
 import { Modal } from '@/components/ui/Modal';
 import { Flame, Share2, Sparkles, ArrowLeft, ChevronDown, Lock } from 'lucide-react';
 import { buildSkillSummary, type Skill } from '@/lib/skills/summary';
-import { buildCapabilityModel, CAPABILITY_LABEL_AR } from '@/lib/capability/model';
+import { buildCapabilityModel, capabilityLabel } from '@/lib/capability/model';
 import { buildMistakeProfile } from '@/lib/coach/profile';
-import { CATEGORY_COPY } from '@/lib/coach/taxonomy';
+import { categoryLabel } from '@/lib/coach/taxonomy';
 import { countDue } from '@/lib/srs/engine';
 import { buildGrammarEntries, buildVocabularyEntries } from '@/lib/progress/collections';
 import { buildShareCard, buildShareText, isShareTextSafe } from '@/lib/share/card';
 import { publicAppUrl } from '@/lib/utils/links';
 import { arCount } from '@/lib/i18n/arabicCount';
+import { REVIEW_ITEM_ACCUSATIVE } from '@/lib/i18n/countForms';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { UI_LANGUAGE_META, type UiLanguage } from '@/lib/i18n/languages';
+import type { UiStringKey } from '@/lib/i18n/strings';
 
-/** V31: "راجع 3 عناصر الآن" — the count agrees with the noun, in every range. */
-const REVIEW_ITEM_FORMS = { one: 'عنصراً', two: 'عنصرين', few: 'عناصر', many: 'عنصراً' } as const;
 import type { SessionEntity } from '@/types/models';
 
-const WEEKDAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+/** A weekday's short name in the UI language, so the habit grid reads natively. */
+function weekdayLabel(date: Date, language: UiLanguage): string {
+  return new Intl.DateTimeFormat(UI_LANGUAGE_META[language].bcp47, { weekday: 'short' }).format(date);
+}
 
 function toDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
@@ -30,14 +35,14 @@ function toDateKey(date: Date) {
   ).padStart(2, '0')}`;
 }
 
-export function getLastSevenDays(referenceDate = new Date()) {
+export function getLastSevenDays(referenceDate = new Date(), language: UiLanguage = 'ar') {
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date(referenceDate);
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() - (6 - index));
     return {
       dateKey: toDateKey(date),
-      label: WEEKDAY_NAMES[date.getDay()],
+      label: weekdayLabel(date, language),
     };
   });
 }
@@ -51,11 +56,11 @@ export function getActivityDateKeys(sessions: Array<Pick<SessionEntity, 'timesta
   );
 }
 
-const SKILL_LABELS: Record<Skill, string> = {
-  speaking: 'التحدث (المحادثة)',
-  listening: 'الاستماع (الإملاء)',
-  writing: 'الكتابة (Schreiben)',
-  reading: 'القراءة',
+const SKILL_LABEL_KEY: Record<Skill, UiStringKey> = {
+  speaking: 'progress.skill.speaking',
+  listening: 'progress.skill.listening',
+  writing: 'progress.skill.writing',
+  reading: 'progress.skill.reading',
 };
 
 /**
@@ -89,6 +94,7 @@ export interface ProgressScreenProps {
  * total-sentences tile, no invented score, and an unmeasured skill says so.
  */
 export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, onOpenReview }) => {
+  const { t, uiLanguage } = useLanguage();
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [showAllVocabulary, setShowAllVocabulary] = useState(false);
@@ -114,13 +120,22 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
         sessions,
         mistakes: mistakesQuery ?? [],
         reviewItems: reviewQuery ?? [],
-      }),
-    [scenariosQuery, trainingQuery, sessions, mistakesQuery, reviewQuery],
+      }, uiLanguage),
+    [scenariosQuery, trainingQuery, sessions, mistakesQuery, reviewQuery, uiLanguage],
   );
 
-  const mistakeProfile = useMemo(() => buildMistakeProfile(mistakesQuery ?? []), [mistakesQuery]);
+  const mistakeProfile = useMemo(
+    () => buildMistakeProfile(mistakesQuery ?? [], uiLanguage),
+    [mistakesQuery, uiLanguage],
+  );
 
   const dueCount = useMemo(() => countDue(reviewQuery ?? [], Date.now()), [reviewQuery]);
+
+  // The queue's size as the call to action says it, in the reader's own grammar.
+  const dueCountLabel =
+    uiLanguage === 'ar'
+      ? arCount(dueCount, REVIEW_ITEM_ACCUSATIVE)
+      : `${dueCount} ${t(dueCount === 1 ? 'progress.reviewUnitOne' : 'progress.reviewUnitMany')}`;
 
   const skillSummary = useMemo(
     () => buildSkillSummary({ sessions, practice: practiceQuery ?? [] }),
@@ -134,8 +149,8 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
         reviewItems: reviewQuery ?? [],
         savedWords: savedWordsQuery ?? [],
         scenarios: scenariosQuery ?? [],
-      }),
-    [vocabularyQuery, reviewQuery, savedWordsQuery, scenariosQuery],
+      }, uiLanguage),
+    [vocabularyQuery, reviewQuery, savedWordsQuery, scenariosQuery, uiLanguage],
   );
 
   const grammarEntries = useMemo(
@@ -144,8 +159,8 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
         grammar: grammarQuery ?? [],
         mistakes: mistakesQuery ?? [],
         scenarios: scenariosQuery ?? [],
-      }),
-    [grammarQuery, mistakesQuery, scenariosQuery],
+      }, uiLanguage),
+    [grammarQuery, mistakesQuery, scenariosQuery, uiLanguage],
   );
 
   /** Scenarios with recorded work that is not yet independent — the real "next". */
@@ -163,7 +178,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
   );
 
   const activityDateKeys = useMemo(() => getActivityDateKeys(sessions), [sessions]);
-  const days = useMemo(() => getLastSevenDays(), []);
+  const days = useMemo(() => getLastSevenDays(new Date(), uiLanguage), [uiLanguage]);
   const hasProgress = sessions.length > 0;
   const streakDays = hasProgress ? user?.streakDays ?? 0 : 0;
 
@@ -180,8 +195,9 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
           : null,
         streakDays,
         appUrl: publicAppUrl() || undefined,
+        language: uiLanguage,
       }),
-    [user?.displayName, bestCapability, capability.byScenario, streakDays],
+    [user?.displayName, bestCapability, capability.byScenario, streakDays, uiLanguage],
   );
 
   const handleShare = async () => {
@@ -190,12 +206,12 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
     // The card is validated before it can leave the device (no email, no level
     // claim, no transcript-length body).
     if (!isShareTextSafe(text)) {
-      setShareStatus('تعذّر تجهيز البطاقة. جرّب إنجازاً آخر.');
+      setShareStatus(t('progress.shareFailed'));
       return;
     }
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'إنجازي في كَاتْزُو', text, url: shareCard.url });
+        await navigator.share({ title: t('progress.shareNativeTitle'), text, url: shareCard.url });
         return;
       }
     } catch {
@@ -204,9 +220,9 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
     }
     try {
       await navigator.clipboard.writeText(text);
-      setShareStatus('تم نسخ بطاقة إنجازك إلى الحافظة.');
+      setShareStatus(t('progress.shareCopied'));
     } catch {
-      setShareStatus('تعذّر النسخ التلقائي — يمكنك تحديد النص ونسخه يدوياً.');
+      setShareStatus(t('progress.shareCopyFailed'));
     }
   };
 
@@ -222,9 +238,9 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
       <div className="mx-auto max-w-md px-4 pt-6">
         <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="kz-ar-title text-kz-ink">ما أصبحت قادراً عليه</h1>
+            <h1 className="kz-ar-title text-kz-ink">{t('progress.title')}</h1>
             <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
-              كل ما هنا مسجَّل من تدريبك الفعلي — لا نكتب إنجازاً لم نقِسه.
+              {t('progress.subtitle')}
             </p>
           </div>
           <KatzuPresence state={katzuState} size="sm" className="shrink-0" />
@@ -247,7 +263,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                     >
                       <CapabilityRow
                         statementAr={item.statementAr}
-                        labelAr={CAPABILITY_LABEL_AR[item.state]}
+                        labelAr={capabilityLabel(item.state, uiLanguage)}
                         earned
                       />
                     </button>
@@ -255,7 +271,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                     <div className="p-1">
                       <CapabilityRow
                         statementAr={item.statementAr}
-                        labelAr={CAPABILITY_LABEL_AR[item.state]}
+                        labelAr={capabilityLabel(item.state, uiLanguage)}
                         earned
                       />
                     </div>
@@ -267,12 +283,12 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
             <div>
               <p className="kz-ar-body leading-relaxed text-kz-ink">
                 {hasProgress
-                  ? 'لم تُكمل بعد محادثة كاملة بدون تلميحات. أكمل مشهداً واحداً وسيُسجَّل هنا ما أصبحت قادراً عليه.'
-                  : 'لم تبدأ بعد. أول مشهد كامل سيُظهر هنا ما أصبحت قادراً عليه — بالضبط، لا أكثر.'}
+                  ? t('progress.notYetIndependent')
+                  : t('progress.notStarted')}
               </p>
               {practising.length > 0 && (
                 <p className="mt-2 kz-ar-micro text-kz-inkDim">
-                  لديك {capability.practisingCount} مشهد قيد التدريب.
+                  {t('progress.practisingCount', { count: capability.practisingCount })}
                 </p>
               )}
             </div>
@@ -281,21 +297,25 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
           <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3 text-center">
             <GlassWell className="p-2.5">
               <div className="font-german text-base font-bold text-kz-neon">{capability.independentCount}</div>
-              <span className="kz-ar-micro text-kz-inkDim">مشهد مستقل</span>
+              <span className="kz-ar-micro text-kz-inkDim">{t('progress.independentScenes')}</span>
             </GlassWell>
             <GlassWell className="p-2.5">
               <div className="font-german text-base font-bold text-kz-lavender">{dueCount}</div>
-              <span className="kz-ar-micro text-kz-inkDim">مراجعة مستحقة</span>
+              <span className="kz-ar-micro text-kz-inkDim">{t('progress.reviewsDue')}</span>
             </GlassWell>
             <GlassWell className="p-2.5">
               <div className="font-german text-base font-bold text-kz-warm">{mistakeProfile.open}</div>
-              <span className="kz-ar-micro text-kz-inkDim">خطأ مفتوح</span>
+              <span className="kz-ar-micro text-kz-inkDim">{t('progress.openMistakes')}</span>
             </GlassWell>
           </div>
 
           {mistakeProfile.hasEnoughEvidence && mistakeProfile.top.length > 0 && (
             <p className="mt-3 kz-ar-micro leading-relaxed text-kz-inkDim">
-              أكثر ما يتكرر عندك: {mistakeProfile.top.map((stat) => CATEGORY_COPY[stat.category].labelAr).join(' · ')}
+              {t('progress.topPatterns', {
+                categories: mistakeProfile.top
+                  .map((stat) => categoryLabel(stat.category, uiLanguage))
+                  .join(' · '),
+              })}
             </p>
           )}
         </GlassCard>
@@ -303,7 +323,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
         {/* 2. The work in progress — unfinished is a state, not a failure. */}
         {practising.length > 0 && (
           <section className="mt-4">
-            <h2 className="kz-ar-caption text-kz-inkDim">قيد التدريب</h2>
+            <h2 className="kz-ar-caption text-kz-inkDim">{t('progress.inTraining')}</h2>
             <ul className="mt-2 space-y-2">
               {practising.map((entry) => (
                 <li key={entry.scenarioId}>
@@ -313,8 +333,10 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                         {entry.scenario?.title_ar || entry.scenarioId}
                       </p>
                       <p className="mt-0.5 kz-ar-micro text-kz-inkFaint">
-                        {CAPABILITY_LABEL_AR[entry.state]}
-                        {entry.openMistakes > 0 ? ` · ${entry.openMistakes} خطأ مفتوح` : ''}
+                        {capabilityLabel(entry.state, uiLanguage)}
+                        {entry.openMistakes > 0
+                          ? t('progress.openMistakesInline', { count: entry.openMistakes })
+                          : ''}
                       </p>
                     </div>
                     {onOpenScenario && (
@@ -323,7 +345,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                         className="shrink-0"
                         onClick={() => openScenario(entry.scenarioId)}
                       >
-                        أكمل
+                        {t('progress.continuePractice')}
                         <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
                       </GlassButton>
                     )}
@@ -336,17 +358,19 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
 
         {/* 3. Skills: measured or honestly unmeasured, never zeroed. */}
         <GlassCard className="mt-4">
-          <h2 className="kz-ar-caption text-kz-inkDim">المهارات</h2>
-          <p className="mt-1 kz-ar-micro text-kz-inkFaint">لا نعرض إلا ما قِسناه من تدريباتك.</p>
+          <h2 className="kz-ar-caption text-kz-inkDim">{t('progress.skills')}</h2>
+          <p className="mt-1 kz-ar-micro text-kz-inkFaint">{t('progress.skillsNote')}</p>
           <ul className="mt-3 space-y-2.5">
             {skillSummary.stats.filter((stat) => PROGRESS_SKILLS.includes(stat.skill)).map((stat) => (
               <li key={stat.skill} className="flex items-center justify-between gap-3">
-                <span className="kz-ar-caption text-kz-ink">{SKILL_LABELS[stat.skill]}</span>
+                <span className="kz-ar-caption text-kz-ink">{t(SKILL_LABEL_KEY[stat.skill])}</span>
                 {stat.score === null ? (
-                  <span className="kz-ar-micro text-kz-inkFaint">لم تُقس بعد</span>
+                  <span className="kz-ar-micro text-kz-inkFaint">{t('progress.unmeasured')}</span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    <span className="kz-ar-micro text-kz-inkFaint">{stat.attempts} محاولة</span>
+                    <span className="kz-ar-micro text-kz-inkFaint">
+                      {t('progress.attempts', { count: stat.attempts })}
+                    </span>
                     <span className="font-german text-sm font-bold text-kz-lavender">{stat.score}%</span>
                   </span>
                 )}
@@ -358,14 +382,16 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
         {/* 4. Vocabulary: the state the review engine recorded, and where it came from. */}
         <GlassCard className="mt-4">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="kz-ar-caption text-kz-inkDim">المفردات</h2>
+            <h2 className="kz-ar-caption text-kz-inkDim">{t('progress.vocabulary')}</h2>
             <span className="kz-ar-micro text-kz-inkFaint">
-              {vocabularyEntries.filter((entry) => entry.state !== 'unseen').length} في المراجعة
+              {t('progress.inReview', {
+                count: vocabularyEntries.filter((entry) => entry.state !== 'unseen').length,
+              })}
             </span>
           </div>
           {vocabularyEntries.length === 0 ? (
             <p className="mt-2 kz-ar-micro leading-relaxed text-kz-inkFaint">
-              لا توجد مفردات محفوظة على هذا الجهاز بعد — ستظهر هنا بعد أول مشهد.
+              {t('progress.vocabularyEmpty')}
             </p>
           ) : (
             <>
@@ -403,17 +429,17 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                                 onClick={() => openScenario(entry.scenarioId)}
                                 className="underline-offset-2 pointer-hover:underline"
                               >
-                                من {entry.scenarioTitleAr}
+                                {t('progress.fromScenario', { title: entry.scenarioTitleAr })}
                               </button>
                             ) : (
-                              <span className="text-kz-inkFaint">من {entry.scenarioTitleAr}</span>
+                              <span className="text-kz-inkFaint">{t('progress.fromScenario', { title: entry.scenarioTitleAr })}</span>
                             )}
                           </>
                         )}
                         {entry.isSaved && (
                           <>
                             <span className="text-kz-inkFaint">·</span>
-                            <span className="text-kz-lavender">محفوظة بقلمك</span>
+                            <span className="text-kz-lavender">{t('progress.savedByYou')}</span>
                           </>
                         )}
                       </div>
@@ -428,7 +454,9 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                   className="mt-2"
                   onClick={() => setShowAllVocabulary((value) => !value)}
                 >
-                  {showAllVocabulary ? 'إظهار أقل' : `إظهار الكل (${vocabularyEntries.length})`}
+                  {showAllVocabulary
+                    ? t('progress.showLess')
+                    : t('progress.showAll', { count: vocabularyEntries.length })}
                   <ChevronDown className={showAllVocabulary ? 'h-3.5 w-3.5 rotate-180' : 'h-3.5 w-3.5'} aria-hidden />
                 </GlassButton>
               )}
@@ -439,14 +467,16 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
         {/* 5. Grammar: only the rules this learner has actually met. */}
         <GlassCard className="mt-4">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="kz-ar-caption text-kz-inkDim">القواعد</h2>
+            <h2 className="kz-ar-caption text-kz-inkDim">{t('progress.grammar')}</h2>
             <span className="kz-ar-micro text-kz-inkFaint">
-              {grammarEntries.filter((entry) => entry.mistakeCount > 0).length} نمط مرصود
+              {t('progress.patternsSeen', {
+                count: grammarEntries.filter((entry) => entry.mistakeCount > 0).length,
+              })}
             </span>
           </div>
           {grammarEntries.length === 0 ? (
             <p className="mt-2 kz-ar-micro leading-relaxed text-kz-inkFaint">
-              لا توجد قواعد على هذا الجهاز بعد.
+              {t('progress.grammarEmpty')}
             </p>
           ) : (
             <>
@@ -472,7 +502,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                         </span>
                         {entry.mistakeCount > 0 && <span className="text-kz-inkFaint"> ({entry.mistakeCount})</span>}
                         {entry.scenarioTitleAr && (
-                          <span className="text-kz-inkFaint"> · من {entry.scenarioTitleAr}</span>
+                          <span className="text-kz-inkFaint"> · {t('progress.fromScenario', { title: entry.scenarioTitleAr })}</span>
                         )}
                       </p>
                     </GlassWell>
@@ -486,7 +516,9 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                   className="mt-2"
                   onClick={() => setShowAllGrammar((value) => !value)}
                 >
-                  {showAllGrammar ? 'إظهار أقل' : `إظهار الكل (${grammarEntries.length})`}
+                  {showAllGrammar
+                    ? t('progress.showLess')
+                    : t('progress.showAll', { count: grammarEntries.length })}
                   <ChevronDown className={showAllGrammar ? 'h-3.5 w-3.5 rotate-180' : 'h-3.5 w-3.5'} aria-hidden />
                 </GlassButton>
               )}
@@ -499,10 +531,10 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
           <div className="flex items-center gap-2">
             <Flame className="h-4 w-4 text-kz-warm" aria-hidden />
             <span className="kz-ar-caption text-kz-ink">
-              {streakDays} {streakDays === 1 ? 'يوم متتالٍ' : 'أيام متتالية'}
+              {streakDays} {streakDays === 1 ? t('progress.streakOne') : t('progress.streakMany')}
             </span>
             <span className="kz-ar-micro text-kz-inkFaint">
-              {hasProgress ? '· العادة تدعم الحفظ، لكنها ليست دليلاً عليه' : '· لم تُسجَّل جلسات بعد'}
+              {hasProgress ? t('progress.habitNote') : t('progress.noSessions')}
             </span>
           </div>
           <div className="mt-3 grid grid-cols-7 gap-2 text-center">
@@ -537,14 +569,14 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
           disabled={!shareCard}
         >
           <Share2 className="h-4 w-4 text-kz-lavender" aria-hidden />
-          مشاركة بطاقة إنجازك
+          {t('progress.shareCardButton')}
           {/* Color is never the only signal: a locked card also shows a lock icon,
               so the disabled state is readable without relying on the muted tint. */}
           {!shareCard && <Lock className="h-3.5 w-3.5 text-kz-inkFaint" aria-hidden />}
         </GlassButton>
         {!shareCard && (
           <p className="mt-2 text-center kz-ar-micro text-kz-inkFaint">
-            تُفتح مشاركة البطاقة بعد أول مشهد تُكمل محادثته بدون مساعدة، أو بعد أسبوع كامل من الالتزام.
+            {t('progress.shareLocked')}
           </p>
         )}
       </div>
@@ -552,15 +584,15 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
       {/* Today's next action, always one tap from here. */}
       {dueCount > 0 && onOpenReview && (
         <FloatingControl className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md rounded-t-[26px] border-t border-white/[0.06] p-4 pb-6">
-          <PrimaryAction hintAr="المراجعة هي ما يثبّت كل ما تراه في هذه الصفحة." onClick={onOpenReview}>
-            راجع {arCount(dueCount, REVIEW_ITEM_FORMS)} الآن
+          <PrimaryAction hintAr={t('progress.reviewHint')} onClick={onOpenReview}>
+            {t('progress.reviewNow', { count: dueCountLabel })}
           </PrimaryAction>
         </FloatingControl>
       )}
 
       {/* Share Modal — the card contains only what was recorded (no email, no
           private mistakes, no level claim the app did not measure). */}
-      <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title="بطاقة إنجاز Katzu">
+      <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title={t('progress.shareModalTitle')}>
         {shareCard && (
           <>
             <GlassCard emphasis="earned" className="text-center">
@@ -579,7 +611,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
             </GlassCard>
 
             <GlassButton variant="primary" size="lg" fullWidth className="mt-4" onClick={handleShare}>
-              مشاركة الآن
+              {t('progress.shareNow')}
             </GlassButton>
             {shareStatus && (
               <p role="status" className="mt-2 text-center kz-ar-micro text-kz-inkDim">
@@ -587,7 +619,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
               </p>
             )}
             <p className="mt-3 text-center kz-ar-micro leading-relaxed text-kz-inkFaint">
-              لا تتضمن البطاقة بريدك، ولا أخطاءك، ولا نص محادثاتك — فقط إنجازاً سجّله التطبيق.
+              {t('progress.sharePrivacy')}
             </p>
           </>
         )}

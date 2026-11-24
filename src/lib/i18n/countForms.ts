@@ -157,3 +157,11 @@ export const PRACTICE_DUE_NOM: ArabicCountForms = {
   few: 'عناصر',
   many: 'عنصراً',
 };
+
+/** The review queue noun in the "راجع … الآن" call to action (accusative). */
+export const REVIEW_ITEM_ACCUSATIVE: ArabicCountForms = {
+  one: 'عنصراً',
+  two: 'عنصرين',
+  few: 'عناصر',
+  many: 'عنصراً',
+};

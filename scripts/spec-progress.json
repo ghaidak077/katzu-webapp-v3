@@ -1,0 +1,525 @@
+{
+  "file": "src/features/progress/ProgressScreen.tsx",
+  "imports_after": "import { arCount } from '@/lib/i18n/arabicCount';",
+  "imports": "import { REVIEW_ITEM_ACCUSATIVE } from '@/lib/i18n/countForms';\nimport { useLanguage } from '@/lib/i18n/LanguageProvider';\nimport { UI_LANGUAGE_META, type UiLanguage } from '@/lib/i18n/languages';\nimport type { UiStringKey } from '@/lib/i18n/strings';",
+  "anchor": "export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, onOpenReview }) => {",
+  "hook": "  const { t, uiLanguage } = useLanguage();",
+  "manual": [
+    [
+      "import { CATEGORY_COPY } from '@/lib/coach/taxonomy';",
+      "import { categoryLabel } from '@/lib/coach/taxonomy';"
+    ],
+    [
+      "import { buildCapabilityModel, CAPABILITY_LABEL_AR } from '@/lib/capability/model';",
+      "import { buildCapabilityModel, capabilityLabel } from '@/lib/capability/model';"
+    ],
+    [
+      "/** V31: \"راجع 3 عناصر الآن\" — the count agrees with the noun, in every range. */\nconst REVIEW_ITEM_FORMS = { one: 'عنصراً', two: 'عنصرين', few: 'عناصر', many: 'عنصراً' } as const;\n",
+      ""
+    ],
+    [
+      "const WEEKDAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];",
+      "/** A weekday's short name in the UI language, so the habit grid reads natively. */\nfunction weekdayLabel(date: Date, language: UiLanguage): string {\n  return new Intl.DateTimeFormat(UI_LANGUAGE_META[language].bcp47, { weekday: 'short' }).format(date);\n}"
+    ],
+    [
+      "export function getLastSevenDays(referenceDate = new Date()) {",
+      "export function getLastSevenDays(referenceDate = new Date(), language: UiLanguage = 'ar') {"
+    ],
+    [
+      "      label: WEEKDAY_NAMES[date.getDay()],",
+      "      label: weekdayLabel(date, language),"
+    ],
+    [
+      "const SKILL_LABELS: Record<Skill, string> = {\n  speaking: 'التحدث (المحادثة)',\n  listening: 'الاستماع (الإملاء)',\n  writing: 'الكتابة (Schreiben)',\n  reading: 'القراءة',\n};",
+      "const SKILL_LABEL_KEY: Record<Skill, UiStringKey> = {\n  speaking: 'progress.skill.speaking',\n  listening: 'progress.skill.listening',\n  writing: 'progress.skill.writing',\n  reading: 'progress.skill.reading',\n};"
+    ],
+    [
+      "  const mistakeProfile = useMemo(() => buildMistakeProfile(mistakesQuery ?? []), [mistakesQuery]);",
+      "  const mistakeProfile = useMemo(\n    () => buildMistakeProfile(mistakesQuery ?? [], uiLanguage),\n    [mistakesQuery, uiLanguage],\n  );"
+    ],
+    [
+      "        reviewItems: reviewQuery ?? [],\n      }),\n    [scenariosQuery, trainingQuery, sessions, mistakesQuery, reviewQuery],",
+      "        reviewItems: reviewQuery ?? [],\n      }, uiLanguage),\n    [scenariosQuery, trainingQuery, sessions, mistakesQuery, reviewQuery, uiLanguage],"
+    ],
+    [
+      "  const dueCount = useMemo(() => countDue(reviewQuery ?? [], Date.now()), [reviewQuery]);",
+      "  const dueCount = useMemo(() => countDue(reviewQuery ?? [], Date.now()), [reviewQuery]);\n\n  // The queue's size as the call to action says it, in the reader's own grammar.\n  const dueCountLabel =\n    uiLanguage === 'ar'\n      ? arCount(dueCount, REVIEW_ITEM_ACCUSATIVE)\n      : `${dueCount} ${t(dueCount === 1 ? 'progress.reviewUnitOne' : 'progress.reviewUnitMany')}`;"
+    ],
+    [
+      "        scenarios: scenariosQuery ?? [],\n      }),\n    [vocabularyQuery, reviewQuery, savedWordsQuery, scenariosQuery],",
+      "        scenarios: scenariosQuery ?? [],\n      }, uiLanguage),\n    [vocabularyQuery, reviewQuery, savedWordsQuery, scenariosQuery, uiLanguage],"
+    ],
+    [
+      "        scenarios: scenariosQuery ?? [],\n      }),\n    [grammarQuery, mistakesQuery, scenariosQuery],",
+      "        scenarios: scenariosQuery ?? [],\n      }, uiLanguage),\n    [grammarQuery, mistakesQuery, scenariosQuery, uiLanguage],"
+    ],
+    [
+      "        appUrl: publicAppUrl() || undefined,\n      }),\n    [user?.displayName, bestCapability, capability.byScenario, streakDays],",
+      "        appUrl: publicAppUrl() || undefined,\n        language: uiLanguage,\n      }),\n    [user?.displayName, bestCapability, capability.byScenario, streakDays, uiLanguage],"
+    ],
+    [
+      "  const days = useMemo(() => getLastSevenDays(), []);",
+      "  const days = useMemo(() => getLastSevenDays(new Date(), uiLanguage), [uiLanguage]);"
+    ],
+    [
+      "{CAPABILITY_LABEL_AR[item.state]}",
+      "{capabilityLabel(item.state, uiLanguage)}",
+      true
+    ],
+    [
+      "                        {CAPABILITY_LABEL_AR[entry.state]}\n                        {entry.openMistakes > 0 ? ` · ${entry.openMistakes} خطأ مفتوح` : ''}",
+      "                        {capabilityLabel(entry.state, uiLanguage)}\n                        {entry.openMistakes > 0\n                          ? t('progress.openMistakesInline', { count: entry.openMistakes })\n                          : ''}"
+    ],
+    [
+      "              أكثر ما يتكرر عندك: {mistakeProfile.top.map((stat) => CATEGORY_COPY[stat.category].labelAr).join(' · ')}",
+      "              {t('progress.topPatterns', {\n                categories: mistakeProfile.top\n                  .map((stat) => categoryLabel(stat.category, uiLanguage))\n                  .join(' · '),\n              })}"
+    ],
+    [
+      "                  لديك {capability.practisingCount} مشهد قيد التدريب.",
+      "                  {t('progress.practisingCount', { count: capability.practisingCount })}"
+    ],
+    [
+      "                <span className=\"kz-ar-caption text-kz-ink\">{SKILL_LABELS[stat.skill]}</span>",
+      "                <span className=\"kz-ar-caption text-kz-ink\">{t(SKILL_LABEL_KEY[stat.skill])}</span>"
+    ],
+    [
+      "<span className=\"kz-ar-micro text-kz-inkFaint\">{stat.attempts} محاولة</span>",
+      "<span className=\"kz-ar-micro text-kz-inkFaint\">\n                      {t('progress.attempts', { count: stat.attempts })}\n                    </span>"
+    ],
+    [
+      "              {vocabularyEntries.filter((entry) => entry.state !== 'unseen').length} في المراجعة",
+      "              {t('progress.inReview', {\n                count: vocabularyEntries.filter((entry) => entry.state !== 'unseen').length,\n              })}"
+    ],
+    [
+      "من {entry.scenarioTitleAr}",
+      "{t('progress.fromScenario', { title: entry.scenarioTitleAr })}",
+      true
+    ],
+    [
+      "                  {showAllVocabulary ? 'إظهار أقل' : `إظهار الكل (${vocabularyEntries.length})`}",
+      "                  {showAllVocabulary\n                    ? t('progress.showLess')\n                    : t('progress.showAll', { count: vocabularyEntries.length })}"
+    ],
+    [
+      "                  {showAllGrammar ? 'إظهار أقل' : `إظهار الكل (${grammarEntries.length})`}",
+      "                  {showAllGrammar\n                    ? t('progress.showLess')\n                    : t('progress.showAll', { count: grammarEntries.length })}"
+    ],
+    [
+      "              {grammarEntries.filter((entry) => entry.mistakeCount > 0).length} نمط مرصود",
+      "              {t('progress.patternsSeen', {\n                count: grammarEntries.filter((entry) => entry.mistakeCount > 0).length,\n              })}"
+    ],
+    [
+      "              {streakDays} {streakDays === 1 ? 'يوم متتالٍ' : 'أيام متتالية'}",
+      "              {streakDays} {streakDays === 1 ? t('progress.streakOne') : t('progress.streakMany')}"
+    ],
+    [
+      "              {hasProgress ? '· العادة تدعم الحفظ، لكنها ليست دليلاً عليه' : '· لم تُسجَّل جلسات بعد'}",
+      "              {hasProgress ? t('progress.habitNote') : t('progress.noSessions')}"
+    ],
+    [
+      "            راجع {arCount(dueCount, REVIEW_ITEM_FORMS)} الآن",
+      "            {t('progress.reviewNow', { count: dueCountLabel })}"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "progress.title",
+      "ar": "ما أصبحت قادراً عليه",
+      "en": "What you can do now",
+      "id": "Yang kini bisa kamu lakukan"
+    },
+    {
+      "key": "progress.subtitle",
+      "ar": "كل ما هنا مسجَّل من تدريبك الفعلي — لا نكتب إنجازاً لم نقِسه.",
+      "en": "Everything here is recorded from your real practice — we never write an achievement we did not measure.",
+      "id": "Semua di sini tercatat dari latihan nyatamu — kami tidak menulis pencapaian yang tidak kami ukur."
+    },
+    {
+      "key": "progress.notYetIndependent",
+      "ar": "لم تُكمل بعد محادثة كاملة بدون تلميحات. أكمل مشهداً واحداً وسيُسجَّل هنا ما أصبحت قادراً عليه.",
+      "en": "You have not finished a full conversation without hints yet. Complete one scene and what you can do will be recorded here.",
+      "id": "Kamu belum menyelesaikan percakapan penuh tanpa petunjuk. Selesaikan satu adegan, dan kemampuamu akan tercatat di sini."
+    },
+    {
+      "key": "progress.notStarted",
+      "ar": "لم تبدأ بعد. أول مشهد كامل سيُظهر هنا ما أصبحت قادراً عليه — بالضبط، لا أكثر.",
+      "en": "You have not started yet. Your first full scene will show here exactly what you can do — no more than that.",
+      "id": "Kamu belum mulai. Adegan penuh pertamamu akan menunjukkan di sini apa yang benar-benar bisa kamu lakukan — tidak lebih."
+    },
+    {
+      "key": "progress.independentScenes",
+      "ar": "مشهد مستقل",
+      "en": "Independent scene",
+      "id": "Adegan mandiri"
+    },
+    {
+      "key": "progress.reviewsDue",
+      "ar": "مراجعة مستحقة",
+      "en": "Reviews due",
+      "id": "Tinjauan jatuh tempo"
+    },
+    {
+      "key": "progress.openMistakes",
+      "ar": "خطأ مفتوح",
+      "en": "Open mistake",
+      "id": "Kesalahan terbuka"
+    },
+    {
+      "key": "progress.inTraining",
+      "ar": "قيد التدريب",
+      "en": "In training",
+      "id": "Dalam latihan"
+    },
+    {
+      "key": "progress.continuePractice",
+      "ar": "أكمل",
+      "en": "Continue",
+      "id": "Lanjutkan"
+    },
+    {
+      "key": "progress.skills",
+      "ar": "المهارات",
+      "en": "Skills",
+      "id": "Keterampilan"
+    },
+    {
+      "key": "progress.skillsNote",
+      "ar": "لا نعرض إلا ما قِسناه من تدريباتك.",
+      "en": "We only show what your practice has actually measured.",
+      "id": "Kami hanya menampilkan yang benar-benar terukur dari latihanmu."
+    },
+    {
+      "key": "progress.unmeasured",
+      "ar": "لم تُقس بعد",
+      "en": "Not measured yet",
+      "id": "Belum diukur"
+    },
+    {
+      "key": "progress.vocabulary",
+      "ar": "المفردات",
+      "en": "Vocabulary",
+      "id": "Kosakata"
+    },
+    {
+      "key": "progress.vocabularyEmpty",
+      "ar": "لا توجد مفردات محفوظة على هذا الجهاز بعد — ستظهر هنا بعد أول مشهد.",
+      "en": "No vocabulary is saved on this device yet — it will appear here after your first scene.",
+      "id": "Belum ada kosakata tersimpan di perangkat ini — akan muncul setelah adegan pertamamu."
+    },
+    {
+      "key": "progress.savedByYou",
+      "ar": "محفوظة بقلمك",
+      "en": "Saved by you",
+      "id": "Kamu simpan sendiri"
+    },
+    {
+      "key": "progress.grammar",
+      "ar": "القواعد",
+      "en": "Grammar",
+      "id": "Tata bahasa"
+    },
+    {
+      "key": "progress.grammarEmpty",
+      "ar": "لا توجد قواعد على هذا الجهاز بعد.",
+      "en": "No grammar is on this device yet.",
+      "id": "Belum ada tata bahasa di perangkat ini."
+    },
+    {
+      "key": "progress.shareCardButton",
+      "ar": "مشاركة بطاقة إنجازك",
+      "en": "Share your achievement card",
+      "id": "Bagikan kartu pencapaianmu"
+    },
+    {
+      "key": "progress.shareLocked",
+      "ar": "تُفتح مشاركة البطاقة بعد أول مشهد تُكمل محادثته بدون مساعدة، أو بعد أسبوع كامل من الالتزام.",
+      "en": "Card sharing unlocks after your first conversation completed without help, or after a full week of commitment.",
+      "id": "Berbagi kartu terbuka setelah percakapan pertamamu selesai tanpa bantuan, atau setelah sepekan penuh konsistensi."
+    },
+    {
+      "key": "progress.shareNow",
+      "ar": "مشاركة الآن",
+      "en": "Share now",
+      "id": "Bagikan sekarang"
+    },
+    {
+      "key": "progress.sharePrivacy",
+      "ar": "لا تتضمن البطاقة بريدك، ولا أخطاءك، ولا نص محادثاتك — فقط إنجازاً سجّله التطبيق.",
+      "en": "The card does not include your email, your mistakes or your conversation text — only an achievement the app recorded.",
+      "id": "Kartu ini tidak memuat email, kesalahan, atau teks percakapanmu — hanya pencapaian yang dicatat aplikasi."
+    },
+    {
+      "key": "progress.shareModalTitle",
+      "ar": "بطاقة إنجاز Katzu",
+      "en": "Katzu achievement card",
+      "id": "Kartu pencapaian Katzu"
+    },
+    {
+      "key": "progress.shareFailed",
+      "ar": "تعذّر تجهيز البطاقة. جرّب إنجازاً آخر.",
+      "en": "The card could not be prepared. Try another achievement.",
+      "id": "Kartu gagal disiapkan. Coba pencapaian lain."
+    },
+    {
+      "key": "progress.shareNativeTitle",
+      "ar": "إنجازي في كَاتْزُو",
+      "en": "My Katzu achievement",
+      "id": "Pencapaianku di Katzu"
+    },
+    {
+      "key": "progress.shareCopied",
+      "ar": "تم نسخ بطاقة إنجازك إلى الحافظة.",
+      "en": "Your achievement card was copied to the clipboard.",
+      "id": "Kartu pencapaianmu disalin ke papan klip."
+    },
+    {
+      "key": "progress.shareCopyFailed",
+      "ar": "تعذّر النسخ التلقائي — يمكنك تحديد النص ونسخه يدوياً.",
+      "en": "Automatic copying failed — you can select the text and copy it yourself.",
+      "id": "Penyalinan otomatis gagal — kamu bisa memilih teksnya dan menyalinnya sendiri."
+    },
+    {
+      "key": "progress.reviewHint",
+      "ar": "المراجعة هي ما يثبّت كل ما تراه في هذه الصفحة.",
+      "en": "Review is what makes everything on this page stick.",
+      "id": "Tinjauanlah yang membuat semua di halaman ini benar-benar melekat."
+    },
+    {
+      "key": "progress.openMistakesInline",
+      "ar": "· {count} خطأ مفتوح",
+      "en": "· {count} open mistakes",
+      "id": "· {count} kesalahan terbuka",
+      "table_only": true
+    },
+    {
+      "key": "progress.practisingCount",
+      "ar": "لديك {count} مشهد قيد التدريب.",
+      "en": "You have {count} scenes in training.",
+      "id": "Kamu punya {count} adegan dalam latihan.",
+      "table_only": true
+    },
+    {
+      "key": "progress.topPatterns",
+      "ar": "أكثر ما يتكرر عندك: {categories}",
+      "en": "What recurs most: {categories}",
+      "id": "Yang paling sering berulang: {categories}",
+      "table_only": true
+    },
+    {
+      "key": "progress.attempts",
+      "ar": "{count} محاولة",
+      "en": "{count} attempts",
+      "id": "{count} percobaan",
+      "table_only": true
+    },
+    {
+      "key": "progress.inReview",
+      "ar": "{count} في المراجعة",
+      "en": "{count} in review",
+      "id": "{count} dalam tinjauan",
+      "table_only": true
+    },
+    {
+      "key": "progress.fromScenario",
+      "ar": "من {title}",
+      "en": "from {title}",
+      "id": "dari {title}",
+      "table_only": true
+    },
+    {
+      "key": "progress.showLess",
+      "ar": "إظهار أقل",
+      "en": "Show less",
+      "id": "Tampilkan lebih sedikit",
+      "table_only": true
+    },
+    {
+      "key": "progress.showAll",
+      "ar": "إظهار الكل ({count})",
+      "en": "Show all ({count})",
+      "id": "Tampilkan semua ({count})",
+      "table_only": true
+    },
+    {
+      "key": "progress.patternsSeen",
+      "ar": "{count} نمط مرصود",
+      "en": "{count} patterns seen",
+      "id": "{count} pola terdeteksi",
+      "table_only": true
+    },
+    {
+      "key": "progress.streakOne",
+      "ar": "يوم متتالٍ",
+      "en": "day in a row",
+      "id": "hari berturut-turut",
+      "table_only": true
+    },
+    {
+      "key": "progress.streakMany",
+      "ar": "أيام متتالية",
+      "en": "days in a row",
+      "id": "hari berturut-turut",
+      "table_only": true
+    },
+    {
+      "key": "progress.habitNote",
+      "ar": "· العادة تدعم الحفظ، لكنها ليست دليلاً عليه",
+      "en": "· habit supports memory, but is not proof of it",
+      "id": "· kebiasaan mendukung daya ingat, tetapi bukan buktinya",
+      "table_only": true
+    },
+    {
+      "key": "progress.noSessions",
+      "ar": "· لم تُسجَّل جلسات بعد",
+      "en": "· no sessions recorded yet",
+      "id": "· belum ada sesi tercatat",
+      "table_only": true
+    },
+    {
+      "key": "progress.reviewNow",
+      "ar": "راجع {count} الآن",
+      "en": "Review {count} now",
+      "id": "Tinjau {count} sekarang",
+      "table_only": true
+    },
+    {
+      "key": "progress.reviewUnitOne",
+      "ar": "عنصر",
+      "en": "review item",
+      "id": "item tinjauan",
+      "table_only": true
+    },
+    {
+      "key": "progress.reviewUnitMany",
+      "ar": "عناصر",
+      "en": "review items",
+      "id": "item tinjauan",
+      "table_only": true
+    },
+    {
+      "key": "progress.skill.speaking",
+      "ar": "التحدث (المحادثة)",
+      "en": "Speaking (conversation)",
+      "id": "Berbicara (percakapan)",
+      "table_only": true
+    },
+    {
+      "key": "progress.skill.listening",
+      "ar": "الاستماع (الإملاء)",
+      "en": "Listening (dictation)",
+      "id": "Menyimak (dikte)",
+      "table_only": true
+    },
+    {
+      "key": "progress.skill.writing",
+      "ar": "الكتابة (Schreiben)",
+      "en": "Writing (Schreiben)",
+      "id": "Menulis (Schreiben)",
+      "table_only": true
+    },
+    {
+      "key": "progress.skill.reading",
+      "ar": "القراءة",
+      "en": "Reading",
+      "id": "Membaca",
+      "table_only": true
+    },
+    {
+      "key": "progress.vocabState.unseen",
+      "ar": "لم تُراجَع بعد",
+      "en": "Not reviewed yet",
+      "id": "Belum ditinjau",
+      "table_only": true
+    },
+    {
+      "key": "progress.vocabState.learning",
+      "ar": "في المراجعة المجدولة",
+      "en": "In the review schedule",
+      "id": "Dalam jadwal tinjauan",
+      "table_only": true
+    },
+    {
+      "key": "progress.vocabState.retained",
+      "ar": "ثابتة ({count} مراجعات ناجحة)",
+      "en": "Retained ({count} successful reviews)",
+      "id": "Melekat ({count} tinjauan berhasil)",
+      "table_only": true
+    },
+    {
+      "key": "progress.grammarState.notMet",
+      "ar": "لم نرصد أخطاء فيها بعد",
+      "en": "No mistakes recorded in it yet",
+      "id": "Belum ada kesalahan tercatat di sini",
+      "table_only": true
+    },
+    {
+      "key": "progress.grammarState.correcting",
+      "ar": "تكررت مرة أو مرتين",
+      "en": "Came up once or twice",
+      "id": "Muncul sekali atau dua kali",
+      "table_only": true
+    },
+    {
+      "key": "progress.grammarState.repeating",
+      "ar": "نمط متكرر عندك",
+      "en": "A repeating pattern for you",
+      "id": "Pola yang berulang padamu",
+      "table_only": true
+    },
+    {
+      "key": "share.defaultName",
+      "ar": "متعلّم كاتزو",
+      "en": "A Katzu learner",
+      "id": "Pelajar Katzu",
+      "table_only": true
+    },
+    {
+      "key": "share.headline.today",
+      "ar": "اليوم في كاتزو",
+      "en": "Today on Katzu",
+      "id": "Hari ini di Katzu",
+      "table_only": true
+    },
+    {
+      "key": "share.headline.progress",
+      "ar": "تقدّمي في كاتزو",
+      "en": "My progress on Katzu",
+      "id": "Kemajuanku di Katzu",
+      "table_only": true
+    },
+    {
+      "key": "share.line.retained",
+      "ar": "أصبحت أتعامل مع «{title}» بالألمانية بثقة، وثبّتناها بالمراجعة.",
+      "en": "I can now handle “{title}” in German with confidence, and review has made it stick.",
+      "id": "Sekarang aku bisa menghadapi “{title}” dalam bahasa Jerman dengan percaya diri, dan tinjauan membuatnya melekat.",
+      "table_only": true
+    },
+    {
+      "key": "share.line.independent",
+      "ar": "أصبحت أستطيع التعامل مع «{title}» بالألمانية بدون مساعدة.",
+      "en": "I can now handle “{title}” in German without help.",
+      "id": "Sekarang aku bisa menghadapi “{title}” dalam bahasa Jerman tanpa bantuan.",
+      "table_only": true
+    },
+    {
+      "key": "share.line.accuracy",
+      "ar": "أداء مستقل: {percent}٪",
+      "en": "Independent performance: {percent}%",
+      "id": "Performa mandiri: {percent}%",
+      "table_only": true
+    },
+    {
+      "key": "share.line.streak",
+      "ar": "{count} في كاتزو",
+      "en": "{count} days on Katzu",
+      "id": "{count} hari di Katzu",
+      "table_only": true
+    },
+    {
+      "key": "share.brand",
+      "ar": "Katzu — تدرّب على الألمانية في مواقف حقيقية",
+      "en": "Katzu — practise German in real situations",
+      "id": "Katzu — latih bahasa Jerman dalam situasi nyata",
+      "table_only": true
+    }
+  ]
+}

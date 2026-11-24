@@ -1,10 +1,31 @@
-import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from './taxonomy';
+import { categoryLabel, classifyMistake, type MistakeCategory } from './taxonomy';
 import type { MistakeEntity, ReviewItemEntity, SessionEntity } from '@/types/models';
 import { arCount, arNoun } from '@/lib/i18n/arabicCount';
+import { translate } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /** V31: agreement for every count this file puts in front of a learner. */
 const MISTAKE_FORMS = { one: 'خطأ', two: 'خطآن', few: 'أخطاء', many: 'خطأً' } as const;
 const REVIEW_ITEM_FORMS = { one: 'عنصر', two: 'عنصرين', few: 'عناصر', many: 'عنصراً' } as const;
+
+/** A recorded mistake, counted the way the UI language counts it. */
+function countedMistakes(count: number, language: UiLanguage): string {
+  if (language === 'ar') return arCount(count, MISTAKE_FORMS);
+  const unit = translate(language, count === 1 ? 'coach.mistakeUnitOne' : 'coach.mistakeUnitMany');
+  return `${count} ${unit}`;
+}
+
+/** Arabic agrees the noun after a number; English and Indonesian take the number alone. */
+function masteredMistakes(count: number, language: UiLanguage): string {
+  return language === 'ar' ? arNoun(count, MISTAKE_FORMS) : String(count);
+}
+
+/** A due review item, counted the way the UI language counts it. */
+function countedReviewItems(count: number, language: UiLanguage): string {
+  if (language === 'ar') return arCount(count, REVIEW_ITEM_FORMS);
+  const unit = translate(language, count === 1 ? 'coach.reviewUnitOne' : 'coach.reviewUnitMany');
+  return `${count} ${unit}`;
+}
 
 /**
  * The learner's error profile: which mistake classes recur, how often, and how
@@ -41,7 +62,10 @@ export interface MistakeProfile {
   detailAr: string;
 }
 
-export function buildMistakeProfile(mistakes: MistakeEntity[]): MistakeProfile {
+export function buildMistakeProfile(
+  mistakes: MistakeEntity[],
+  language: UiLanguage = 'ar',
+): MistakeProfile {
   const rows = Array.isArray(mistakes) ? mistakes : [];
   const counts = new Map<MistakeCategory, { count: number; mastered: number }>();
 
@@ -78,8 +102,8 @@ export function buildMistakeProfile(mistakes: MistakeEntity[]): MistakeProfile {
       categories,
       top,
       hasEnoughEvidence: false,
-      headlineAr: 'لا توجد أخطاء مسجلة بعد',
-      detailAr: 'تحدث مع كَاتْزُو في مشهد واحد، وسأبدأ بتتبع ما يتكرر عندك.',
+      headlineAr: translate(language, 'coach.profile.emptyHeadline'),
+      detailAr: translate(language, 'coach.profile.emptyDetail'),
     };
   }
 
@@ -91,12 +115,13 @@ export function buildMistakeProfile(mistakes: MistakeEntity[]): MistakeProfile {
       categories,
       top,
       hasEnoughEvidence: false,
-      headlineAr: `${arCount(total, MISTAKE_FORMS)} مسجّل حتى الآن`,
-      detailAr: 'تحدث أكثر قليلاً، وسأستطيع أن أخبرك بنمط أخطائك بدقة بدلاً من التخمين.',
+      headlineAr: translate(language, 'coach.profile.fewHeadline', {
+        count: countedMistakes(total, language),
+      }),
+      detailAr: translate(language, 'coach.profile.fewDetail'),
     };
   }
 
-  const leadCopy = CATEGORY_COPY[lead.category];
   return {
     total,
     mastered,
@@ -104,10 +129,20 @@ export function buildMistakeProfile(mistakes: MistakeEntity[]): MistakeProfile {
     categories,
     top,
     hasEnoughEvidence: true,
-    headlineAr: `أكثر ما يتكرر عندك: ${leadCopy.labelAr}`,
+    headlineAr: translate(language, 'coach.profile.leadHeadline', {
+      category: categoryLabel(lead.category, language),
+    }),
     detailAr:
-      `من ${arCount(total, MISTAKE_FORMS)} مسجّلة، ${lead.sharePercent}% منها في ${leadCopy.labelAr}` +
-      (mastered > 0 ? ` — وقد أتقنت ${arNoun(mastered, MISTAKE_FORMS)} منها بالفعل.` : '.'),
+      translate(language, 'coach.profile.leadDetail', {
+        count: countedMistakes(total, language),
+        percent: lead.sharePercent,
+        category: categoryLabel(lead.category, language),
+      }) +
+      (mastered > 0
+        ? translate(language, 'coach.profile.leadMastered', {
+            mastered: masteredMistakes(mastered, language),
+          })
+        : '.'),
   };
 }
 
@@ -291,6 +326,7 @@ export function buildWeeklyCoachSummary(
     dueReviewCount?: number;
   },
   now = Date.now(),
+  language: UiLanguage = 'ar',
 ): WeeklyCoachSummary {
   const mistakes = Array.isArray(input.mistakes) ? input.mistakes : [];
   const sessions = Array.isArray(input.sessions) ? input.sessions : [];
@@ -301,7 +337,7 @@ export function buildWeeklyCoachSummary(
       hasData: false,
       improvedAr: '',
       repeatedAr: '',
-      nextAr: 'تحتاج أسبوعاً من التدرّب (محادثة أو تدريبين) لأخبرك بما تحسّن فعلاً. لا أريد تخميناً.',
+      nextAr: translate(language, 'coach.weekly.insufficient'),
     };
   }
 
@@ -311,11 +347,16 @@ export function buildWeeklyCoachSummary(
     (mistake) => mistake.isMastered && now - (mistake.timestamp || 0) <= TREND_WINDOW_MS,
   ).length;
 
+  const listSeparator = language === 'ar' ? ' و ' : language === 'id' ? ' dan ' : ' and ';
   const improvedAr = improvedCategories.length
-    ? `تحسّن ${improvedCategories.map((trend) => CATEGORY_COPY[trend.category].labelAr).join(' و ')}: أخطاؤك فيه أقل من الأسبوع الماضي.`
+    ? translate(language, 'coach.weekly.improved', {
+        categories: improvedCategories
+          .map((trend) => categoryLabel(trend.category, language))
+          .join(listSeparator),
+      })
     : masteredRecently > 0
-      ? `أتقنت ${masteredRecently} خطأً كانت تتكرر عليك — أي أنك لم تعد تكررها.`
-      : 'لم يرصد التطبيق تحسّناً قابلاً للقياس هذا الأسبوع بعد. هذا ليس فشلاً؛ فقط لا توجد بعد بيانات تكفي للحكم.';
+      ? translate(language, 'coach.weekly.mastered', { count: masteredRecently })
+      : translate(language, 'coach.weekly.noImprovement');
 
   const repeated = [...trends]
     .filter((trend) => trend.open > 0 && (trend.trend === 'worsening' || trend.recentCount > 0))
@@ -323,14 +364,21 @@ export function buildWeeklyCoachSummary(
   const repeatLead = repeated[0];
 
   const repeatedAr = repeatLead
-    ? `ما زال يتكرر: ${CATEGORY_COPY[repeatLead.category].labelAr} (${repeatLead.open} خطأً مفتوحاً).`
-    : 'لا يوجد نمط يتكرر على أخطائك المفتوحة في هذه الفترة.';
+    ? translate(language, 'coach.weekly.repeated', {
+        category: categoryLabel(repeatLead.category, language),
+        open: repeatLead.open,
+      })
+    : translate(language, 'coach.weekly.noRepeat');
 
   const nextAr = input.dueReviewCount && input.dueReviewCount > 0
-    ? `التالي: ${arCount(input.dueReviewCount, REVIEW_ITEM_FORMS)} مستحق في المراجعة اليوم.`
+    ? translate(language, 'coach.weekly.nextDue', {
+        count: countedReviewItems(input.dueReviewCount, language),
+      })
     : repeatLead
-      ? `التالي: تدرّب على ${CATEGORY_COPY[repeatLead.category].labelAr} — أثره في الأسبوع المقبل سيكون مرئياً.`
-      : 'التالي: أكمل مشهداً جديداً — سنبني عليه بيانات الأسبوع القادم.';
+      ? translate(language, 'coach.weekly.nextPractise', {
+          category: categoryLabel(repeatLead.category, language),
+        })
+      : translate(language, 'coach.weekly.nextNew');
 
   return { hasData: true, improvedAr, repeatedAr, nextAr };
 }

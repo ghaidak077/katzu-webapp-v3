@@ -1,5 +1,8 @@
 import { arCount } from '@/lib/i18n/arabicCount';
-import { STREAK_DAY_NOM } from '@/lib/i18n/countForms';import type { CapabilityState } from '@/types/models';
+import { STREAK_DAY_NOM } from '@/lib/i18n/countForms';
+import type { CapabilityState } from '@/types/models';
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { translate } from '@/lib/i18n/strings';
 
 /**
  * The shareable progress card.
@@ -30,6 +33,8 @@ export interface ShareCardInput {
   /** Real activity date; defaults to now at build time. */
   dateMs?: number;
   appUrl?: string;
+  /** The language the card is written in. Arabic stays the reference. */
+  language?: UiLanguage;
 }
 
 export interface ShareCard {
@@ -43,12 +48,13 @@ export interface ShareCard {
 }
 
 const MAX_NAME_LENGTH = 24;
-const DEFAULT_NAME = 'متعلّم كاتزو';
 
-/** Arabic-Indic-safe date label; Intl handles the locale, we never hand-format. */
-function dateLabel(dateMs: number): string {
+/** Date label in the card's own language; Intl handles the numerals, we never hand-format. */
+function dateLabel(dateMs: number, language: UiLanguage): string {
   try {
-    return new Intl.DateTimeFormat('ar', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(dateMs));
+    return new Intl.DateTimeFormat(language, { day: 'numeric', month: 'long', year: 'numeric' }).format(
+      new Date(dateMs),
+    );
   } catch {
     return '';
   }
@@ -59,18 +65,19 @@ function dateLabel(dateMs: number): string {
  * outright rather than trimmed: a share image is the last place an address
  * should surface, and a "trim" that leaves the local part is still a leak.
  */
-export function sanitizeDisplayName(name: string | null | undefined): string {
+export function sanitizeDisplayName(name: string | null | undefined, language: UiLanguage = 'ar'): string {
+  const fallback = translate(language, 'share.defaultName');
   const raw = String(name || '').trim();
-  if (!raw) return DEFAULT_NAME;
+  if (!raw) return fallback;
   if (raw.includes('@')) {
     // Google display names are not emails, but a login email pasted into the
     // field must never become a card title.
     const beforeAt = raw.split('@')[0].trim();
-    return sanitizeDisplayName(beforeAt);
+    return sanitizeDisplayName(beforeAt, language);
   }
   const first = raw.split(/\s+/)[0] || raw;
   const cleaned = first.replace(/[^\p{L}\p{N}._-]/gu, '').trim();
-  if (!cleaned) return DEFAULT_NAME;
+  if (!cleaned) return fallback;
   return cleaned.slice(0, MAX_NAME_LENGTH);
 }
 
@@ -84,30 +91,42 @@ export function buildShareCard(input: ShareCardInput): ShareCard | null {
   const hasStreak = (input?.streakDays || 0) >= 7;
   if (!hasCapability && !hasStreak) return null;
 
+  const language = input.language || 'ar';
   const dateMs = Number(input.dateMs) || Date.now();
   const lines: string[] = [];
 
   if (hasCapability) {
     lines.push(
-      state === 'RETAINED'
-        ? `أصبحت أتعامل مع «${input.scenarioTitleAr}» بالألمانية بثقة، وثبّتناها بالمراجعة.`
-        : `أصبحت أستطيع التعامل مع «${input.scenarioTitleAr}» بالألمانية بدون مساعدة.`,
+      translate(language, state === 'RETAINED' ? 'share.line.retained' : 'share.line.independent', {
+        title: input.scenarioTitleAr || '',
+      }),
     );
   }
   if (typeof input.independentAccuracy === 'number' && Number.isFinite(input.independentAccuracy)) {
-    lines.push(`أداء مستقل: ${Math.round(input.independentAccuracy)}٪`);
+    lines.push(
+      translate(language, 'share.line.accuracy', {
+        percent: Math.round(input.independentAccuracy),
+      }),
+    );
   }
-  if (hasStreak) lines.push(`${arCount(input.streakDays || 0, STREAK_DAY_NOM)} في كاتزو`);
+  if (hasStreak) {
+    const days = input.streakDays || 0;
+    lines.push(
+      translate(language, 'share.line.streak', {
+        count: language === 'ar' ? arCount(days, STREAK_DAY_NOM) : String(days),
+      }),
+    );
+  }
 
-  const name = sanitizeDisplayName(input.displayName);
-  const headlineAr = hasCapability ? `اليوم في كاتزو` : `تقدّمي في كاتزو`;
+  const name = sanitizeDisplayName(input.displayName, language);
+  const headlineAr = translate(language, hasCapability ? 'share.headline.today' : 'share.headline.progress');
 
   return {
     name,
     headlineAr,
     linesAr: lines,
-    dateLabel: dateLabel(dateMs),
-    brandAr: 'Katzu — تدرّب على الألمانية في مواقف حقيقية',
+    dateLabel: dateLabel(dateMs, language),
+    brandAr: translate(language, 'share.brand'),
     url: input.appUrl || undefined,
   };
 }

@@ -217,7 +217,10 @@ export function canDoStatementAr(
   return translate(language, key[state], { title });
 }
 
-export function buildCapabilityModel(input: CapabilityModelInput): CapabilityModel {
+export function buildCapabilityModel(
+  input: CapabilityModelInput,
+  language: UiLanguage = 'ar',
+): CapabilityModel {
   const byScenario: Record<string, ScenarioCapability> = {};
   const canDo: CanDoStatement[] = [];
   let independentCount = 0;
@@ -247,7 +250,7 @@ export function buildCapabilityModel(input: CapabilityModelInput): CapabilityMod
         titleAr: scenario.title_ar,
         titleDe: scenario.title_de,
         state: capability.state,
-        statementAr: canDoStatementAr(scenario, capability.state),
+        statementAr: canDoStatementAr(scenario, capability.state, language),
       });
     }
   }

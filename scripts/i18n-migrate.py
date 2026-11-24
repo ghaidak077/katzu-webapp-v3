@@ -15,8 +15,10 @@ spec = json.load(io.open(sys.argv[1], encoding='utf-8'))
 path = spec['file']
 src = io.open(path, encoding='utf-8').read()
 
-for old, new in spec.get('manual', []):
-    if src.count(old) != 1:
+for pair in spec.get('manual', []):
+    old, new = pair[0], pair[1]
+    allow_multiple = len(pair) > 2 and pair[2]
+    if src.count(old) != 1 and not allow_multiple:
         print('MANUAL CHECK', src.count(old), old[:60])
     src = src.replace(old, new)
 
@@ -33,6 +35,8 @@ if spec.get('anchor'):
 missing = []
 for entry in spec['entries']:
     ar, key = entry['ar'], entry['key']
+    if entry.get('table_only'):
+        continue
     call = "t('%s')" % key
     if entry.get('vars'):
         call = "t('%s', %s)" % (key, entry['vars'])

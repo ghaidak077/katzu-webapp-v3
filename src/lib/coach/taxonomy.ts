@@ -135,6 +135,14 @@ export function categoryLabel(category: MistakeCategory, language: UiLanguage = 
   return translate(language, `coach.category.${category}` as UiStringKey);
 }
 
+/**
+ * The category's advice in the learner's UI language — still written as
+ * something a person can do in the next five minutes, not "study grammar".
+ */
+export function categoryAdvice(category: MistakeCategory, language: UiLanguage = 'ar'): string {
+  return translate(language, `coach.advice.${category}` as UiStringKey);
+}
+
 export const CATEGORY_COPY: Record<MistakeCategory, CategoryCopy> = {
   articles: {
     labelAr: 'أدوات التعريف (der / die / das)',

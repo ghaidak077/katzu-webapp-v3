@@ -11,9 +11,12 @@ import {
   type CategoryTrend,
   type TrendDirection,
 } from '@/lib/coach/profile';
-import { CATEGORY_COPY } from '@/lib/coach/taxonomy';
+import { categoryAdvice, categoryLabel } from '@/lib/coach/taxonomy';
 import { track } from '@/lib/analytics/client';
 import { GermanText } from '@/components/common/GermanText';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { UI_LANGUAGE_META, type UiLanguage } from '@/lib/i18n/languages';
+import type { UiStringKey } from '@/lib/i18n/strings';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -29,7 +32,7 @@ export interface CoachScreenProps {
 }
 
 /**
- * "ملف أخطائك" — the coach's notebook.
+ * The coach's notebook.
  *
  * A real coach is valuable for one reason above all: they remember what *you*
  * keep getting wrong and come back to it. The conversation engine has always
@@ -42,6 +45,7 @@ export interface CoachScreenProps {
  * them more than showing nothing at all.
  */
 export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview }) => {
+  const { t, uiLanguage } = useLanguage();
   const mistakes = useLiveQuery(() => db.mistakes.toArray(), []);
   const reviewItems = useLiveQuery(() => db.review_items.toArray(), []);
   const sessions = useLiveQuery(() => db.sessions.toArray(), []);
@@ -63,18 +67,19 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
           dueReviewCount: (reviewItems || []).filter((item) => (Number(item.dueAt) || 0) <= now).length,
         },
         now,
+        uiLanguage,
       )
     : null;
 
   if (!mistakes) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black p-4 text-text-primary">
-        <KatzuThinking size={64} labelAr="نراجع أخطاءك مع كَاتْزُو…" />
+        <KatzuThinking size={64} labelAr={t('coach.loading')} />
       </div>
     );
   }
 
-  const profile = buildMistakeProfile(mistakes);
+  const profile = buildMistakeProfile(mistakes, uiLanguage);
 
   const practise = async (stat: CategoryStat) => {
     if (drilling) return;
@@ -88,7 +93,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
       // A correction needs a stored Arabic meaning to be a real task (V41), so
       // the notice must not claim there are no mistakes at all.
       if (focused > 0) onStartReview();
-      else setDrillNotice('لا توجد جمل مصححة قابلة للمراجعة في هذا النمط الآن. تحتاج المراجعة إلى معنى عربي محفوظ مع التصحيح.');
+      else setDrillNotice(t('coach.drillEmpty'));
     } finally {
       setDrilling(null);
     }
@@ -98,9 +103,9 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
     <div className="min-h-screen bg-black text-text-primary p-4 max-w-md mx-auto pb-28">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-bold font-arabic">ملف أخطائك</h2>
+          <h2 className="text-xl font-bold font-arabic">{t('coach.title')}</h2>
           <p className="text-xs text-text-secondary font-arabic">
-            هنا يتذكر كَاتْزُو ما يتكرر عندك — لا ما تقوله القائمة.
+            {t('coach.subtitle')}
           </p>
         </div>
         <KatzuMascot name="progress_mascot" className="w-12 h-12 object-contain" />
@@ -119,7 +124,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
           <p className="text-xs text-text-secondary font-arabic mb-4">{profile.detailAr}</p>
           <Button className="w-full" onClick={onBack}>
             <ArrowLeft className="w-4 h-4" />
-            عد إلى المسار
+            {t('coach.back')}
           </Button>
         </Card>
       ) : (
@@ -142,17 +147,17 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
             <div className="grid grid-cols-3 gap-2 mt-4">
               <div className="rounded-2xl bg-surface-subtle p-3 text-center">
                 <div className="text-lg font-bold font-german text-status-error">{profile.open}</div>
-                <span className="text-micro font-arabic text-text-secondary">تحتاج عملاً</span>
+                <span className="text-micro font-arabic text-text-secondary">{t('coach.openLabel')}</span>
               </div>
               <div className="rounded-2xl bg-surface-subtle p-3 text-center">
                 <div className="text-lg font-bold font-german text-status-success">
                   {profile.mastered}
                 </div>
-                <span className="text-micro font-arabic text-text-secondary">أتقنتها</span>
+                <span className="text-micro font-arabic text-text-secondary">{t('coach.masteredLabel')}</span>
               </div>
               <div className="rounded-2xl bg-surface-subtle p-3 text-center">
                 <div className="text-lg font-bold font-german text-primary">{profile.total}</div>
-                <span className="text-micro font-arabic text-text-secondary">إجمالي الأخطاء</span>
+                <span className="text-micro font-arabic text-text-secondary">{t('coach.totalLabel')}</span>
               </div>
             </div>
           </Card>
@@ -161,7 +166,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
             <div className="mb-4">
               <h3 className="text-sm font-bold font-arabic mb-2 flex items-center gap-1.5">
                 <Flame className="w-3.5 h-3.5 text-status-error" />
-                أكثر ثلاثة أنماط عندك
+                {t('coach.topTitle')}
               </h3>
               <div className="space-y-2">
                 {profile.top.map((stat) => (
@@ -183,21 +188,20 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
             <Card className="p-4 mb-4 text-center">
               <KatzuMascot name="listening" className="w-20 h-20 object-contain mx-auto mb-2" />
               <p className="text-micro text-text-secondary font-arabic leading-relaxed">
-                سجّلت حتى الآن {profile.total} من الأخطاء. تابع الحديث مع كَاتْزُو، وعندما تتضح الصورة
-                سأخبرك بأهم ثلاثة أنماط لديك وطريقة علاج كل واحد.
+                {t('coach.notEnoughBody', { count: profile.total })}
               </p>
             </Card>
           )}
 
           {profile.hasEnoughEvidence && profile.categories.length > profile.top.length && (
             <Card className="p-4 mb-4">
-              <h3 className="text-sm font-bold font-arabic mb-3">بقية الأنماط</h3>
+              <h3 className="text-sm font-bold font-arabic mb-3">{t('coach.restTitle')}</h3>
               <div className="space-y-3">
                 {profile.categories.slice(3).map((stat) => (
                   <div key={stat.category}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-micro font-arabic text-text-secondary">
-                        {CATEGORY_COPY[stat.category].labelAr}
+                        {categoryLabel(stat.category, uiLanguage)}
                       </span>
                       <span className="text-micro font-german text-text-muted">{stat.count}</span>
                     </div>
@@ -215,14 +219,14 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
 
           {weekly && (
             <Card className="p-4 mb-4">
-              <h3 className="text-sm font-bold font-arabic mb-3">هذا الأسبوع</h3>
+              <h3 className="text-sm font-bold font-arabic mb-3">{t('coach.weekTitle')}</h3>
               <ul className="space-y-2.5 text-micro font-arabic leading-relaxed">
                 <li className="flex items-start gap-2">
                   <span className="shrink-0 text-status-success" aria-hidden>
                     ✓
                   </span>
                   <span className="text-text-secondary">
-                    <span className="text-text-primary font-bold">ما تحسّن: </span>
+                    <span className="text-text-primary font-bold">{t('coach.improvedLabel')}</span>
                     {weekly.improvedAr}
                   </span>
                 </li>
@@ -231,7 +235,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
                     ↻
                   </span>
                   <span className="text-text-secondary">
-                    <span className="text-text-primary font-bold">ما تكرّر: </span>
+                    <span className="text-text-primary font-bold">{t('coach.repeatedLabel')}</span>
                     {weekly.repeatedAr}
                   </span>
                 </li>
@@ -240,14 +244,14 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
                     ←
                   </span>
                   <span className="text-text-secondary">
-                    <span className="text-text-primary font-bold">التالي: </span>
+                    <span className="text-text-primary font-bold">{t('coach.nextLabel')}</span>
                     {weekly.nextAr}
                   </span>
                 </li>
               </ul>
               {!weekly.hasData && (
                 <p className="mt-3 text-micro font-arabic text-text-muted leading-relaxed">
-                  نعرض فقط ما نستطيع قياسه — بلا أرقام مزوّفة.
+                  {t('coach.honestNote')}
                 </p>
               )}
             </Card>
@@ -255,7 +259,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview 
 
           <Button variant="secondary" className="w-full" onClick={onBack}>
             <ArrowLeft className="w-4 h-4" />
-            عد إلى المسار
+            {t('coach.back')}
           </Button>
         </>
       )}
@@ -274,16 +278,18 @@ interface CategoryRowProps {
   onPractise: () => void;
 }
 
-/** Arabic wording for a trend, shown only when the evidence supports it. */
-const TREND_COPY: Record<TrendDirection, { labelAr: string; variant: 'success' | 'error' | 'subtle' }> = {
-  improving: { labelAr: 'يتحسّن', variant: 'success' },
-  worsening: { labelAr: 'يزداد', variant: 'error' },
-  steady: { labelAr: 'ثابت', variant: 'subtle' },
-  insufficient: { labelAr: 'بيانات قليلة', variant: 'subtle' },
+/** A trend's wording, shown only when the evidence supports it. */
+const TREND_COPY: Record<TrendDirection, { key: UiStringKey; variant: 'success' | 'error' | 'subtle' }> = {
+  improving: { key: 'coach.trend.improving', variant: 'success' },
+  worsening: { key: 'coach.trend.worsening', variant: 'error' },
+  steady: { key: 'coach.trend.steady', variant: 'subtle' },
+  insufficient: { key: 'coach.trend.insufficient', variant: 'subtle' },
 };
 
-function formatDay(date: number): string {
-  return new Intl.DateTimeFormat('ar', { day: 'numeric', month: 'short' }).format(new Date(date));
+function formatDay(date: number, language: UiLanguage): string {
+  return new Intl.DateTimeFormat(UI_LANGUAGE_META[language].bcp47, { day: 'numeric', month: 'short' }).format(
+    new Date(date),
+  );
 }
 
 const CategoryRow: React.FC<CategoryRowProps> = ({
@@ -294,18 +300,18 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
   disabled,
   onPractise,
 }) => {
-  const copy = CATEGORY_COPY[stat.category];
+  const { t, uiLanguage } = useLanguage();
   const examples = drillForCategory(mistakes, stat.category, 2);
   const trendCopy = trend ? TREND_COPY[trend.trend] : null;
 
   return (
     <Card className="p-4">
       <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-sm font-bold font-arabic leading-snug">{copy.labelAr}</span>
+        <span className="text-sm font-bold font-arabic leading-snug">{categoryLabel(stat.category, uiLanguage)}</span>
         <span className="flex items-center gap-1.5 shrink-0">
           {trendCopy && trend && trend.trend !== 'insufficient' && (
             <Badge variant={trendCopy.variant} size="sm">
-              {trendCopy.labelAr}
+              {t(trendCopy.key)}
             </Badge>
           )}
           <Badge variant="error" size="sm">
@@ -322,8 +328,8 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
       </div>
 
       <p className="text-micro text-text-muted font-arabic mb-2">
-        {stat.sharePercent}% من أخطائك
-        {stat.mastered > 0 ? ` — أتقنت ${stat.mastered} منها` : ''}
+        {t('coach.shareOfMistakes', { percent: stat.sharePercent })}
+        {stat.mastered > 0 ? t('coach.masteredOf', { count: stat.mastered }) : ''}
       </p>
 
       {examples.length > 0 && (
@@ -342,13 +348,17 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
         </div>
       )}
 
-      <p className="text-micro text-text-secondary font-arabic leading-relaxed mb-3">{copy.adviceAr}</p>
+      <p className="text-micro text-text-secondary font-arabic leading-relaxed mb-3">{categoryAdvice(stat.category, uiLanguage)}</p>
 
       {trend && (
         <p className="text-micro font-arabic text-text-muted mb-3 flex flex-wrap gap-x-3 gap-y-1">
-          {trend.lastPracticedAt && <span>آخر تدريب: {formatDay(trend.lastPracticedAt)}</span>}
-          {trend.nextReviewAt && <span>المراجعة القادمة: {formatDay(trend.nextReviewAt)}</span>}
-          {trend.open > 0 && <span>مفتوح: {trend.open}</span>}
+          {trend.lastPracticedAt && (
+            <span>{t('coach.lastPractised', { date: formatDay(trend.lastPracticedAt, uiLanguage) })}</span>
+          )}
+          {trend.nextReviewAt && (
+            <span>{t('coach.nextReview', { date: formatDay(trend.nextReviewAt, uiLanguage) })}</span>
+          )}
+          {trend.open > 0 && <span>{t('coach.openCount', { count: trend.open })}</span>}
         </p>
       )}
 
@@ -360,7 +370,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
         disabled={disabled}
         isLoading={isDrilling}
       >
-        تدرّب على هذا الآن
+        {t('coach.practiseNow')}
         <ArrowRight className="w-3.5 h-3.5" />
       </Button>
     </Card>

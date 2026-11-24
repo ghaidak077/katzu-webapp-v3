@@ -1,0 +1,429 @@
+{
+  "file": "src/features/coach/CoachScreen.tsx",
+  "imports_after": "import { GermanText } from '@/components/common/GermanText';",
+  "imports": "import { useLanguage } from '@/lib/i18n/LanguageProvider';\nimport { UI_LANGUAGE_META, type UiLanguage } from '@/lib/i18n/languages';\nimport type { UiStringKey } from '@/lib/i18n/strings';",
+  "anchor": "export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack, onStartReview }) => {",
+  "hook": "  const { t, uiLanguage } = useLanguage();",
+  "manual": [
+    [
+      "\"ملف أخطائك\" — the coach's notebook.",
+      "The coach's notebook."
+    ],
+    [
+      "  const profile = buildMistakeProfile(mistakes);",
+      "  const profile = buildMistakeProfile(mistakes, uiLanguage);"
+    ],
+    [
+      "        now,\n      )\n    : null;",
+      "        now,\n        uiLanguage,\n      )\n    : null;"
+    ],
+    [
+      "سجّلت حتى الآن {profile.total} من الأخطاء. تابع الحديث مع كَاتْزُو، وعندما تتضح الصورة\n                سأخبرك بأهم ثلاثة أنماط لديك وطريقة علاج كل واحد.",
+      "{t('coach.notEnoughBody', { count: profile.total })}"
+    ],
+    [
+      "{stat.sharePercent}% من أخطائك\n        {stat.mastered > 0 ? ` — أتقنت ${stat.mastered} منها` : ''}",
+      "{t('coach.shareOfMistakes', { percent: stat.sharePercent })}\n        {stat.mastered > 0 ? t('coach.masteredOf', { count: stat.mastered }) : ''}"
+    ],
+    [
+      "{trend.lastPracticedAt && <span>آخر تدريب: {formatDay(trend.lastPracticedAt)}</span>}",
+      "{trend.lastPracticedAt && (\n            <span>{t('coach.lastPractised', { date: formatDay(trend.lastPracticedAt, uiLanguage) })}</span>\n          )}"
+    ],
+    [
+      "{trend.nextReviewAt && <span>المراجعة القادمة: {formatDay(trend.nextReviewAt)}</span>}",
+      "{trend.nextReviewAt && (\n            <span>{t('coach.nextReview', { date: formatDay(trend.nextReviewAt, uiLanguage) })}</span>\n          )}"
+    ],
+    [
+      "{trend.open > 0 && <span>مفتوح: {trend.open}</span>}",
+      "{trend.open > 0 && <span>{t('coach.openCount', { count: trend.open })}</span>}"
+    ],
+    [
+      "/** Arabic wording for a trend, shown only when the evidence supports it. */\nconst TREND_COPY: Record<TrendDirection, { labelAr: string; variant: 'success' | 'error' | 'subtle' }> = {\n  improving: { labelAr: 'يتحسّن', variant: 'success' },\n  worsening: { labelAr: 'يزداد', variant: 'error' },\n  steady: { labelAr: 'ثابت', variant: 'subtle' },\n  insufficient: { labelAr: 'بيانات قليلة', variant: 'subtle' },\n};\n\nfunction formatDay(date: number): string {\n  return new Intl.DateTimeFormat('ar', { day: 'numeric', month: 'short' }).format(new Date(date));\n}",
+      "/** A trend's wording, shown only when the evidence supports it. */\nconst TREND_COPY: Record<TrendDirection, { key: UiStringKey; variant: 'success' | 'error' | 'subtle' }> = {\n  improving: { key: 'coach.trend.improving', variant: 'success' },\n  worsening: { key: 'coach.trend.worsening', variant: 'error' },\n  steady: { key: 'coach.trend.steady', variant: 'subtle' },\n  insufficient: { key: 'coach.trend.insufficient', variant: 'subtle' },\n};\n\nfunction formatDay(date: number, language: UiLanguage): string {\n  return new Intl.DateTimeFormat(UI_LANGUAGE_META[language].bcp47, { day: 'numeric', month: 'short' }).format(\n    new Date(date),\n  );\n}"
+    ],
+    [
+      "              {trendCopy.labelAr}",
+      "              {t(trendCopy.key)}"
+    ],
+    [
+      "  const copy = CATEGORY_COPY[stat.category];\n  const examples = drillForCategory(mistakes, stat.category, 2);",
+      "  const { t, uiLanguage } = useLanguage();\n  const examples = drillForCategory(mistakes, stat.category, 2);"
+    ],
+    [
+      "{copy.labelAr}",
+      "{categoryLabel(stat.category, uiLanguage)}"
+    ],
+    [
+      "{copy.adviceAr}",
+      "{categoryAdvice(stat.category, uiLanguage)}"
+    ],
+    [
+      "import { CATEGORY_COPY } from '@/lib/coach/taxonomy';",
+      "import { categoryAdvice, categoryLabel } from '@/lib/coach/taxonomy';"
+    ]
+  ],
+  "entries": [
+    {
+      "key": "coach.loading",
+      "ar": "نراجع أخطاءك مع كَاتْزُو…",
+      "en": "Reviewing your mistakes with Katzu…",
+      "id": "Meninjau kesalahanmu bersama Katzu…"
+    },
+    {
+      "key": "coach.drillEmpty",
+      "ar": "لا توجد جمل مصححة قابلة للمراجعة في هذا النمط الآن. تحتاج المراجعة إلى معنى عربي محفوظ مع التصحيح.",
+      "en": "There are no corrected sentences in this pattern to review right now. Review needs a saved meaning alongside the correction.",
+      "id": "Belum ada kalimat terkoreksi pada pola ini yang bisa ditinjau sekarang. Peninjauan membutuhkan makna yang tersimpan bersama koreksinya."
+    },
+    {
+      "key": "coach.title",
+      "ar": "ملف أخطائك",
+      "en": "Your mistake file",
+      "id": "Berkas kesalahanmu"
+    },
+    {
+      "key": "coach.subtitle",
+      "ar": "هنا يتذكر كَاتْزُو ما يتكرر عندك — لا ما تقوله القائمة.",
+      "en": "This is where Katzu remembers what keeps coming back — not what a list says.",
+      "id": "Di sini Katzu mengingat apa yang terus berulang — bukan apa kata daftar."
+    },
+    {
+      "key": "coach.back",
+      "ar": "عد إلى المسار",
+      "en": "Back to the path",
+      "id": "Kembali ke jalur"
+    },
+    {
+      "key": "coach.openLabel",
+      "ar": "تحتاج عملاً",
+      "en": "Needs work",
+      "id": "Perlu latihan"
+    },
+    {
+      "key": "coach.masteredLabel",
+      "ar": "أتقنتها",
+      "en": "Mastered",
+      "id": "Sudah dikuasai"
+    },
+    {
+      "key": "coach.totalLabel",
+      "ar": "إجمالي الأخطاء",
+      "en": "Total mistakes",
+      "id": "Total kesalahan"
+    },
+    {
+      "key": "coach.topTitle",
+      "ar": "أكثر ثلاثة أنماط عندك",
+      "en": "Your top three patterns",
+      "id": "Tiga pola teratasmu"
+    },
+    {
+      "key": "coach.restTitle",
+      "ar": "بقية الأنماط",
+      "en": "Other patterns",
+      "id": "Pola lainnya"
+    },
+    {
+      "key": "coach.weekTitle",
+      "ar": "هذا الأسبوع",
+      "en": "This week",
+      "id": "Minggu ini"
+    },
+    {
+      "key": "coach.improvedLabel",
+      "ar": "ما تحسّن: ",
+      "en": "Improved: ",
+      "id": "Membaik: "
+    },
+    {
+      "key": "coach.repeatedLabel",
+      "ar": "ما تكرّر: ",
+      "en": "Repeated: ",
+      "id": "Berulang: "
+    },
+    {
+      "key": "coach.nextLabel",
+      "ar": "التالي: ",
+      "en": "Next: ",
+      "id": "Berikutnya: "
+    },
+    {
+      "key": "coach.honestNote",
+      "ar": "نعرض فقط ما نستطيع قياسه — بلا أرقام مزوّفة.",
+      "en": "We only show what we can measure — no invented numbers.",
+      "id": "Kami hanya menampilkan yang bisa diukur — tanpa angka palsu."
+    },
+    {
+      "key": "coach.practiseNow",
+      "ar": "تدرّب على هذا الآن",
+      "en": "Practise this now",
+      "id": "Latih ini sekarang"
+    },
+    {
+      "key": "coach.notEnoughBody",
+      "ar": "سجّلت حتى الآن {count} من الأخطاء. تابع الحديث مع كَاتْزُو، وعندما تتضح الصورة سأخبرك بأهم ثلاثة أنماط لديك وطريقة علاج كل واحد.",
+      "en": "You have logged {count} mistakes so far. Keep talking with Katzu, and once the picture is clear I will tell you your three biggest patterns and how to fix each one.",
+      "id": "Kamu sudah mencatat {count} kesalahan. Teruslah berbicara dengan Katzu; setelah gambarnya jelas, aku akan menunjukkan tiga pola terbesarmu dan cara memperbaiki masing-masing.",
+      "table_only": true
+    },
+    {
+      "key": "coach.shareOfMistakes",
+      "ar": "{percent}% من أخطائك",
+      "en": "{percent}% of your mistakes",
+      "id": "{percent}% dari kesalahanmu",
+      "table_only": true
+    },
+    {
+      "key": "coach.masteredOf",
+      "ar": " — أتقنت {count} منها",
+      "en": " — you have mastered {count} of them",
+      "id": " — {count} di antaranya sudah dikuasai",
+      "table_only": true
+    },
+    {
+      "key": "coach.lastPractised",
+      "ar": "آخر تدريب: {date}",
+      "en": "Last practised: {date}",
+      "id": "Latihan terakhir: {date}",
+      "table_only": true
+    },
+    {
+      "key": "coach.nextReview",
+      "ar": "المراجعة القادمة: {date}",
+      "en": "Next review: {date}",
+      "id": "Tinjauan berikutnya: {date}",
+      "table_only": true
+    },
+    {
+      "key": "coach.openCount",
+      "ar": "مفتوح: {count}",
+      "en": "Open: {count}",
+      "id": "Terbuka: {count}",
+      "table_only": true
+    },
+    {
+      "key": "coach.trend.improving",
+      "ar": "يتحسّن",
+      "en": "Improving",
+      "id": "Membaik",
+      "table_only": true
+    },
+    {
+      "key": "coach.trend.worsening",
+      "ar": "يزداد",
+      "en": "Rising",
+      "id": "Meningkat",
+      "table_only": true
+    },
+    {
+      "key": "coach.trend.steady",
+      "ar": "ثابت",
+      "en": "Steady",
+      "id": "Stabil",
+      "table_only": true
+    },
+    {
+      "key": "coach.trend.insufficient",
+      "ar": "بيانات قليلة",
+      "en": "Little data",
+      "id": "Data sedikit",
+      "table_only": true
+    },
+    {
+      "key": "coach.mistakeUnitOne",
+      "ar": "خطأ",
+      "en": "mistake",
+      "id": "kesalahan",
+      "table_only": true
+    },
+    {
+      "key": "coach.mistakeUnitMany",
+      "ar": "أخطاء",
+      "en": "mistakes",
+      "id": "kesalahan",
+      "table_only": true
+    },
+    {
+      "key": "coach.reviewUnitOne",
+      "ar": "عنصر",
+      "en": "review item",
+      "id": "item tinjauan",
+      "table_only": true
+    },
+    {
+      "key": "coach.reviewUnitMany",
+      "ar": "عناصر",
+      "en": "review items",
+      "id": "item tinjauan",
+      "table_only": true
+    },
+    {
+      "key": "coach.profile.emptyHeadline",
+      "ar": "لا توجد أخطاء مسجلة بعد",
+      "en": "No mistakes recorded yet",
+      "id": "Belum ada kesalahan tercatat",
+      "table_only": true
+    },
+    {
+      "key": "coach.profile.emptyDetail",
+      "ar": "تحدث مع كَاتْزُو في مشهد واحد، وسأبدأ بتتبع ما يتكرر عندك.",
+      "en": "Talk with Katzu in one scene and I will start tracking what keeps recurring for you.",
+      "id": "Bicaralah dengan Katzu di satu adegan, dan aku akan mulai melacak apa yang berulang pada dirimu.",
+      "table_only": true
+    },
+    {
+      "key": "coach.profile.fewHeadline",
+      "ar": "{count} مسجّل حتى الآن",
+      "en": "{count} recorded so far",
+      "id": "{count} tercatat sejauh ini",
+      "table_only": true
+    },
+    {
+      "key": "coach.profile.fewDetail",
+      "ar": "تحدث أكثر قليلاً، وسأستطيع أن أخبرك بنمط أخطائك بدقة بدلاً من التخمين.",
+      "en": "Talk a little more and I will be able to name your pattern precisely instead of guessing.",
+      "id": "Bicaralah sedikit lagi, dan aku bisa menunjukkan pola kesalahanmu dengan tepat, bukan menebak.",
+      "table_only": true
+    },
+    {
+      "key": "coach.profile.leadHeadline",
+      "ar": "أكثر ما يتكرر عندك: {category}",
+      "en": "What recurs most: {category}",
+      "id": "Yang paling sering berulang: {category}",
+      "table_only": true
+    },
+    {
+      "key": "coach.profile.leadDetail",
+      "ar": "من {count} مسجّلة، {percent}% منها في {category}",
+      "en": "Out of {count} recorded, {percent}% are in {category}",
+      "id": "Dari {count} yang tercatat, {percent}% ada di {category}",
+      "table_only": true
+    },
+    {
+      "key": "coach.profile.leadMastered",
+      "ar": " — وقد أتقنت {mastered} منها بالفعل.",
+      "en": " — and you have already mastered {mastered} of them.",
+      "id": " — dan {mastered} di antaranya sudah kamu kuasai.",
+      "table_only": true
+    },
+    {
+      "key": "coach.weekly.insufficient",
+      "ar": "تحتاج أسبوعاً من التدرّب (محادثة أو تدريبين) لأخبرك بما تحسّن فعلاً. لا أريد تخميناً.",
+      "en": "I need a week of practice (one conversation or two drills) before I can tell you what really improved. I will not guess.",
+      "id": "Aku butuh sepekan latihan (satu percakapan atau dua latihan) sebelum bisa bilang apa yang benar-benar membaik. Aku tidak mau menebak.",
+      "table_only": true
+    },
+    {
+      "key": "coach.weekly.improved",
+      "ar": "تحسّن {categories}: أخطاؤك فيه أقل من الأسبوع الماضي.",
+      "en": "Improving: {categories} — fewer mistakes there than last week.",
+      "id": "Membaik: {categories} — kesalahannya lebih sedikit dari minggu lalu.",
+      "table_only": true
+    },
+    {
+      "key": "coach.weekly.mastered",
+      "ar": "أتقنت {count} خطأً كانت تتكرر عليك — أي أنك لم تعد تكررها.",
+      "en": "You have mastered {count} mistakes that kept coming back — you no longer repeat them.",
+      "id": "Kamu sudah menguasai {count} kesalahan yang dulu berulang — kini tidak lagi kamu ulangi.",
+      "table_only": true
+    },
+    {
+      "key": "coach.weekly.noImprovement",
+      "ar": "لم يرصد التطبيق تحسّناً قابلاً للقياس هذا الأسبوع بعد. هذا ليس فشلاً؛ فقط لا توجد بعد بيانات تكفي للحكم.",
+      "en": "The app has not measured a real improvement this week yet. That is not a failure; there simply is not enough data to judge.",
+      "id": "Aplikasi belum mengukur perbaikan yang nyata minggu ini. Itu bukan kegagalan; datanya saja belum cukup untuk menilai.",
+      "table_only": true
+    },
+    {
+      "key": "coach.weekly.repeated",
+      "ar": "ما زال يتكرر: {category} ({open} خطأً مفتوحاً).",
+      "en": "Still repeating: {category} ({open} open mistakes).",
+      "id": "Masih berulang: {category} ({open} kesalahan terbuka).",
+      "table_only": true
+    },
+    {
+      "key": "coach.weekly.noRepeat",
+      "ar": "لا يوجد نمط يتكرر على أخطائك المفتوحة في هذه الفترة.",
+      "en": "No pattern is repeating across your open mistakes in this period.",
+      "id": "Tidak ada pola yang berulang pada kesalahan terbukamu di periode ini.",
+      "table_only": true
+    },
+    {
+      "key": "coach.weekly.nextDue",
+      "ar": "التالي: {count} مستحق في المراجعة اليوم.",
+      "en": "{count} due for review today.",
+      "id": "{count} jatuh tempo untuk ditinjau hari ini.",
+      "table_only": true
+    },
+    {
+      "key": "coach.weekly.nextPractise",
+      "ar": "التالي: تدرّب على {category} — أثره في الأسبوع المقبل سيكون مرئياً.",
+      "en": "Practise {category} — the effect will show next week.",
+      "id": "Latih {category} — efeknya akan terlihat minggu depan.",
+      "table_only": true
+    },
+    {
+      "key": "coach.weekly.nextNew",
+      "ar": "التالي: أكمل مشهداً جديداً — سنبني عليه بيانات الأسبوع القادم.",
+      "en": "Finish a new scene — we will build next week's data on it.",
+      "id": "Selesaikan satu adegan baru — data minggu depan akan dibangun dari situ.",
+      "table_only": true
+    },
+    {
+      "key": "coach.advice.articles",
+      "ar": "احفظ كل اسم جديد مع أداته من أول مرة — اللون في البطاقة يساعدك.",
+      "en": "Learn every new noun with its article from the first time — the colour on the card helps.",
+      "id": "Hafalkan setiap kata benda baru bersama artikelnya sejak awal — warna di kartu membantumu.",
+      "table_only": true
+    },
+    {
+      "key": "coach.advice.case",
+      "ar": "اسأل نفسك: من يقوم بالفعل؟ ولمن؟ هذا يحدد الحالة.",
+      "en": "Ask yourself: who is doing the action, and for whom? That decides the case.",
+      "id": "Tanyakan pada dirimu: siapa yang melakukan tindakan, dan untuk siapa? Itu menentukan kasusnya.",
+      "table_only": true
+    },
+    {
+      "key": "coach.advice.word_order",
+      "ar": "في الجملة الخبرية الفعل دائماً في المركز الثاني، حتى لو بدأت بالزمان.",
+      "en": "In a statement the verb always sits in second position, even when you start with a time phrase.",
+      "id": "Dalam kalimat berita, kata kerja selalu di posisi kedua, bahkan bila kamu mulai dengan keterangan waktu.",
+      "table_only": true
+    },
+    {
+      "key": "coach.advice.verb_forms",
+      "ar": "راجع تصريف الفعل مع كل ضمير، ثم Perfekt مع sein أو haben.",
+      "en": "Review the verb with each pronoun, then Perfekt with sein or haben.",
+      "id": "Ulangi konjugasi kata kerja untuk setiap pronomina, lalu Perfekt dengan sein atau haben.",
+      "table_only": true
+    },
+    {
+      "key": "coach.advice.prepositions",
+      "ar": "احفظ حرف الجر مع الفعل نفسه، لا منفصلاً عنه.",
+      "en": "Learn the preposition together with its verb, never separately.",
+      "id": "Hafalkan preposisi bersama kata kerjanya, jangan terpisah.",
+      "table_only": true
+    },
+    {
+      "key": "coach.advice.spelling",
+      "ar": "الكلمة صحيحة عندك — تحتاج فقط ضبط الحروف الخاصة.",
+      "en": "The word itself is right — you only need to nail the special characters.",
+      "id": "Katanya sudah benar — kamu hanya perlu memastikan karakter khususnya.",
+      "table_only": true
+    },
+    {
+      "key": "coach.advice.vocabulary",
+      "ar": "الكلمة غير المناسبة تُشعر المستمع بالغموض — راجع المفردات بهذا الموضوع.",
+      "en": "The wrong word leaves the listener guessing — review the vocabulary for this topic.",
+      "id": "Kata yang kurang tepat membuat pendengar menebak — ulangi kosakata topik ini.",
+      "table_only": true
+    },
+    {
+      "key": "coach.advice.other",
+      "ar": "تحدث أكثر، وسأتمكن من تحديد نمط أوضح لأخطائك.",
+      "en": "Talk more and I will be able to name a clearer pattern in your mistakes.",
+      "id": "Teruslah berbicara, dan aku bisa menunjukkan pola kesalahanmu dengan lebih jelas.",
+      "table_only": true
+    }
+  ]
+}

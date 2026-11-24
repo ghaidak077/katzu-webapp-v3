@@ -8,7 +8,9 @@ import type {
 import { MASTERED_REPS, reviewRefId } from '@/lib/srs/engine';
 import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
 import { germanNounPhrase } from '@/lib/utils/germanNoun';
-import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
+import { categoryLabel, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * The Progress screen's two lists.
@@ -55,12 +57,21 @@ export const VOCABULARY_STATE_LABEL_AR: Record<VocabularyMemoryState, string> = 
   retained: `ثابتة (${MASTERED_REPS} مراجعات ناجحة)`,
 };
 
-export function buildVocabularyEntries(input: {
-  vocabulary: VocabularyEntity[];
-  reviewItems: Array<{ refId?: string; reps?: number; dueAt?: number }>;
-  savedWords: Array<{ wordId: number }>;
-  scenarios: Array<Pick<ScenarioEntity, 'id' | 'title_ar' | 'category'>>;
-}): VocabularyEntry[] {
+const VOCABULARY_STATE_KEY: Record<VocabularyMemoryState, UiStringKey> = {
+  unseen: 'progress.vocabState.unseen',
+  learning: 'progress.vocabState.learning',
+  retained: 'progress.vocabState.retained',
+};
+
+export function buildVocabularyEntries(
+  input: {
+    vocabulary: VocabularyEntity[];
+    reviewItems: Array<{ refId?: string; reps?: number; dueAt?: number }>;
+    savedWords: Array<{ wordId: number }>;
+    scenarios: Array<Pick<ScenarioEntity, 'id' | 'title_ar' | 'category'>>;
+  },
+  language: UiLanguage = 'ar',
+): VocabularyEntry[] {
   const { vocabulary = [], reviewItems = [], savedWords = [], scenarios = [] } = input;
 
   // Topic → the first scenario that teaches it, so a word can name its origin.
@@ -91,7 +102,7 @@ export function buildVocabularyEntries(input: {
       level: word.level,
       topic: word.topic || '',
       state,
-      stateLabelAr: VOCABULARY_STATE_LABEL_AR[state],
+      stateLabelAr: translate(language, VOCABULARY_STATE_KEY[state], { count: MASTERED_REPS }),
       reps,
       dueAt: typeof item?.dueAt === 'number' ? item.dueAt : null,
       isSaved: saved.has(word.id),
@@ -135,11 +146,20 @@ export const GRAMMAR_STATE_LABEL_AR: Record<GrammarState, string> = {
 /** Two mistakes is where a pattern starts; one is an accident. */
 const REPEATING_THRESHOLD = 2;
 
-export function buildGrammarEntries(input: {
-  grammar: GrammarEntity[];
-  mistakes: Array<Pick<MistakeEntity, 'grammarRule' | 'original' | 'corrected' | 'scenarioId' | 'timestamp' | 'isMastered'>>;
-  scenarios: Array<Pick<ScenarioEntity, 'id' | 'title_ar'>>;
-}): GrammarEntry[] {
+const GRAMMAR_STATE_KEY: Record<GrammarState, UiStringKey> = {
+  not_met: 'progress.grammarState.notMet',
+  correcting: 'progress.grammarState.correcting',
+  repeating: 'progress.grammarState.repeating',
+};
+
+export function buildGrammarEntries(
+  input: {
+    grammar: GrammarEntity[];
+    mistakes: Array<Pick<MistakeEntity, 'grammarRule' | 'original' | 'corrected' | 'scenarioId' | 'timestamp' | 'isMastered'>>;
+    scenarios: Array<Pick<ScenarioEntity, 'id' | 'title_ar'>>;
+  },
+  language: UiLanguage = 'ar',
+): GrammarEntry[] {
   const { grammar = [], mistakes = [], scenarios = [] } = input;
 
   const scenarioTitles = new Map(scenarios.map((scenario) => [scenario.id, scenario.title_ar]));
@@ -171,11 +191,11 @@ export function buildGrammarEntries(input: {
 
     entries.push({
       id: rule.id,
-      titleAr: rule.title_ar || CATEGORY_COPY[category].labelAr,
+      titleAr: rule.title_ar || categoryLabel(category, language),
       ruleDe: rule.rule_de || '',
       level: rule.level,
       state,
-      stateLabelAr: GRAMMAR_STATE_LABEL_AR[state],
+      stateLabelAr: translate(language, GRAMMAR_STATE_KEY[state]),
       mistakeCount: count,
       scenarioId: latest?.scenarioId,
       scenarioTitleAr: latest ? scenarioTitles.get(latest.scenarioId) : undefined,
