@@ -4,6 +4,51 @@ Moved out of `PROJECT-BRIEF.md` section 7 on 2026-10-31, verbatim, so the brief 
 its 80 KB cap with room to grow. Newer changes stay in the brief; grep this file, never load
 it whole.
 
+## 2026-11-24 — B3 and B4: the whole session, from the scene page to the report
+
+- **B3 and B4 are finished** — the fifteen files between "open a scene" and "read the debrief"
+  (`ScenarioDetailScreen`, `StudyScreen`, `QuizScreen`, `LiveConversationScreen`, `ConversationMessage`,
+  `ConversationTranscript`, `ConversationDock`, `HintDock`, `ReviewScreen`, `SessionReportScreen` + its
+  `ExamResultCard`, and the conversation/report helpers) carry **zero hard-coded Arabic**; `coverage.json`
+  flips B3 and B4 and `--strict` passes. Remaining: **864 strings** across B5–B8 (plus the 87 in the
+  dev-only design-system screen).
+- **The session's helpers take the language, not the screen.** `messageForCause`, `noHintMessage`,
+  `sessionModeCopy`, `correctionSummaryLabel`, `noGermanVoiceMessage`, `buildReviewTask`,
+  `buildSessionDebrief`, `buildTomorrowTeaser`, `buildExamCard`, `buildFollowUpCard`, `outcomeLine`,
+  `categoryLabel`, `dayZeroCelebration`/`dayZeroCorrectionsLine`/`arSentenceCount` and `recover.ts`'s
+  report rebuild each gained an optional `language` (Arabic default). Field names are unchanged, so no
+  caller had to be renamed; `arSentenceCount` keeps its historical name because the language is now a
+  parameter, not a second function.
+- **Arabic stayed byte-identical.** Every Arabic sentence moved into the dictionary verbatim — including
+  the two count tables, which moved to `countForms.ts` (`QUIZ_ANSWER_FORMS`, `REVIEW_ITEM_DUE` with its
+  accusative dual "عنصرين") so the quiz and review scores still agree with their numbers the way they did.
+  The exported `*_AR` constants (`OFFLINE_MESSAGE_AR`, `NO_HINT_MESSAGE_AR`, `MOCK_NOTICE_AR`,
+  `DAY_ZERO_*_LINE_AR`, `PRACTISING_WITHOUT_HINTS_AR`, `NO_GERMAN_VOICE_MESSAGE_AR`) are now derived from
+  `UI_STRINGS.ar`, so their bytes cannot drift. The Arabic e2e still passes unchanged.
+- **The dictionary got its own files.** `strings.ts` had crossed the 1,900-line source budget, so the
+  tables now live in `i18n/strings/{ar,en,id}.ts`; `strings.ts` keeps the types, `UI_STRINGS` and
+  `translate`. `UiStringKey` is derived from the Arabic table and EN/ID are typed against it, so a missing
+  English or Indonesian line is still a compile error rather than an Arabic sentence in an English screen.
+- **Two real defects the direction lint caught.** `ConversationMessage`'s German note and the review
+  input's field were pinned with `text-right`/`text-left`; on an LTR screen that is a wrong-aligned line,
+  so both are now `text-start`, which is what the RTL layout already looked like.
+- **Proven in the browser, against the production bundle:** `e2e/i18nLanguage.spec.ts` gained two signed-in
+  tests that open a scene page in English and Indonesian and read its mastery plan, step 1, starter-phrase
+  heading and training button, failing on any Arabic in that copy. The seven earlier language tests and the
+  whole `journey.spec.ts` session (story → guided practice → live turn → debrief) still pass.
+- **A stale server nearly hid it:** an old `vite preview` from an earlier run was still holding port 3000, so
+  Playwright reused a bundle built before this wave and the new scene test "failed" in Arabic while `lang`
+  was correct. Killed the stale PID and re-ran with `E2E_TARGET=preview`, which builds and serves the real
+  bundle.
+- **Gates:** `tsc` clean · `npm test` **2,907 passed / 208 files** · `lint` 0 · `design:audit` in budget ·
+  `i18n:coverage --strict` 0 · `i18n:dir --strict` 0 · `i18nLanguage.spec` **9 passed** · `journey.spec`
+  **14 passed**, all on the production build.
+- **Shipped:** Pages deployment `4b97e66b`, bundle `index-bc2X1Ryj.js`, confirmed to contain both the
+  English and Indonesian scene-page copy.
+- **Still open, said plainly:** B5–B8 (864 strings) and the dev-only screen; native review of the en/id copy
+  (the mechanism is `/dev/i18n` and the `--export` worksheet); Arabic scene titles, glosses and vocabulary
+  are *content*, still Arabic inside the English UI (plan 010 §11).
+
 ## 2026-11-23 — B2: the home journey speaks English and Indonesian
 
 - **B2 is finished** — the six files a learner reads every day after sign-in (`JourneyHomeScreen`,

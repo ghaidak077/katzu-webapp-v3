@@ -4,6 +4,7 @@ import { FloatingControl } from '@/components/glass/GlassCard';
 import { KatzuOrb, type OrbState } from '@/components/voice/KatzuOrb';
 import type { MicSample } from '@/lib/audio/useMicLevel';
 import type { ContextualHint } from '@/types/models';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 /**
  * The conversation's bottom bar (V40).
@@ -94,6 +95,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
   onInputKeyDown,
   onSend,
 }) => {
+  const { t } = useLanguage();
   const hasText = inputText.trim().length > 0;
   // The orb is "working" for the whole turn it is not the learner's: recognising
   // their words, evaluating them, or composing the reply.
@@ -115,7 +117,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           </span>
           <button
             onClick={onDismissError}
-            aria-label="إخفاء"
+            aria-label={t('conv.hide')}
             className="flex min-h-touch min-w-touch items-center justify-center text-kz-inkFaint pointer-hover:text-kz-ink"
           >
             ✕
@@ -132,7 +134,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           className="kz-ar-micro mb-2 flex items-center gap-2 rounded-xl border border-status-learning/40 bg-white/5 p-2.5 text-status-learning"
         >
           <span className="flex-1">
-            لا يوجد اتصال بالإنترنت. المحادثة تحتاج إنترنت. اتصل ثم اضغط إعادة المحاولة.
+            {t('conv.failure.offline')}
           </span>
           <button
             type="button"
@@ -140,7 +142,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
             className="flex min-h-touch shrink-0 items-center gap-1 rounded-xl border border-primary/50 bg-primary/20 px-3 py-1.5 font-bold text-primary transition-colors pointer-hover:bg-primary/30"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            تحقق من الاتصال
+            {t('conv.recheckConnection')}
           </button>
         </div>
       )}
@@ -170,7 +172,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
             className="flex min-h-touch shrink-0 items-center gap-1 rounded-xl border border-primary/50 bg-primary/20 px-3 py-1.5 font-bold text-primary transition-colors pointer-hover:bg-primary/30 disabled:opacity-40"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            أعد المحاولة
+            {t('conv.retry')}
           </button>
           {turnFailure.diagnosticId && (
             <button
@@ -178,7 +180,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
               onClick={onReportProblem}
               className="kz-ar-micro flex min-h-touch shrink-0 items-center rounded-xl px-2 text-kz-inkDim transition-colors pointer-hover:text-kz-ink"
             >
-              أبلغ عن المشكلة
+              {t('conv.reportProblem')}
             </button>
           )}
           {showAiDebug && (
@@ -193,7 +195,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           grey and italic, right where the final sentence will land. */}
       {isRecording && interimText && (
         <div data-testid="live-caption" className="mb-1.5 flex items-center gap-2 px-1">
-          <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">أسمع</span>
+          <span className="kz-ar-micro shrink-0 font-semibold text-kz-lavender">{t('conv.hearing')}</span>
           <span dir="ltr" className="min-w-0 flex-1 truncate font-german text-base italic text-kz-inkDim">
             {interimText}
           </span>
@@ -206,8 +208,8 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
           ref={inputRef}
           rows={1}
           dir="ltr"
-          aria-label="اكتب جملتك بالألمانية"
-          placeholder={isOffline ? 'لا يوجد اتصال' : 'Schreib deinen Satz…'}
+          aria-label={t('conv.writeSentenceAria')}
+          placeholder={isOffline ? t('conv.noConnection') : 'Schreib deinen Satz…'}
           value={inputText}
           disabled={isOffline}
           onChange={(e) => onInputTextChange(e.target.value)}
@@ -288,7 +290,7 @@ export const ConversationDock: React.FC<ConversationDockProps> = ({
               onClick={onSend}
               disabled={isGenerating || !hasText || isOffline}
               tabIndex={hasText ? 0 : -1}
-              aria-label="أرسل جملتك"
+              aria-label={t('conv.sendAria')}
               className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-fill to-fill-pressed text-on-fill shadow-glow-purple transition-colors disabled:opacity-60"
             >
               <Send className="h-5 w-5 rotate-180" aria-hidden />

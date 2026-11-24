@@ -1,6 +1,8 @@
 import type { ReviewDirection, ReviewItemEntity } from '@/types/models';
 import { gradeAnswer, normalizeGermanAnswer, type AnswerVerdict } from '@/lib/srs/engine';
 import { LEADING_ARTICLE } from '@/lib/utils/germanNoun';
+import { translate } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 // The production word bank is shared with the other production surfaces, so it
 // lives in one place; re-exported here to keep this module's public surface
@@ -177,7 +179,7 @@ export function cleanArabicExplanation(value?: string | null): string | undefine
 }
 
 /** The decided task for a row, or null when no task can be asked honestly. */
-export function buildReviewTask(item: ReviewItemEntity): ReviewTask | null {
+export function buildReviewTask(item: ReviewItemEntity, language: UiLanguage = 'ar'): ReviewTask | null {
   const answer = String(item.answerDe ?? '').trim();
   if (!answer || !normalizeGermanAnswer(answer)) return null;
   const meaning = arabicMeaningFor(item);
@@ -197,8 +199,8 @@ export function buildReviewTask(item: ReviewItemEntity): ReviewTask | null {
       if (!isFullGermanSentence(answer)) return null;
       return {
         kind: 'correction',
-        chipAr: 'تصحيح',
-        headerAr: 'صحّح جملتك السابقة',
+        chipAr: translate(language, 'reviewTask.chipCorrection'),
+        headerAr: translate(language, 'reviewTask.headerCorrection'),
         meaningAr: meaning,
         wrongDe: wrong,
         answerDe: answer,
@@ -212,8 +214,8 @@ export function buildReviewTask(item: ReviewItemEntity): ReviewTask | null {
     if (!isFullGermanSentence(answer)) return null;
     return {
       kind: 'sentence_ar_to_de',
-      chipAr: 'جملة',
-      headerAr: 'اكتب الجملة بالألمانية',
+      chipAr: translate(language, 'reviewTask.chipSentence'),
+      headerAr: translate(language, 'reviewTask.headerTypeSentence'),
       meaningAr: meaning,
       answerDe: answer,
       glossAr: reason,
@@ -224,8 +226,8 @@ export function buildReviewTask(item: ReviewItemEntity): ReviewTask | null {
   if (item.direction === 'de_to_ar') {
     return {
       kind: 'sentence_de_to_ar',
-      chipAr: 'جملة',
-      headerAr: 'اقرأ الجملة ثم اكشف معناها',
+      chipAr: translate(language, 'reviewTask.chipSentence'),
+      headerAr: translate(language, 'reviewTask.headerReadReveal'),
       meaningAr: meaning,
       sourceDe: answer,
       answerDe: answer,
@@ -237,8 +239,8 @@ export function buildReviewTask(item: ReviewItemEntity): ReviewTask | null {
   if (item.kind === 'vocab') {
     return {
       kind: 'vocab',
-      chipAr: 'مفردة',
-      headerAr: 'اكتب الكلمة الألمانية',
+      chipAr: translate(language, 'reviewTask.chipWord'),
+      headerAr: translate(language, 'reviewTask.headerTypeWord'),
       meaningAr: meaning,
       answerDe: answer,
       glossAr: gloss,
@@ -249,8 +251,8 @@ export function buildReviewTask(item: ReviewItemEntity): ReviewTask | null {
 
   return {
     kind: 'sentence_ar_to_de',
-    chipAr: 'جملة',
-    headerAr: 'اكتب الجملة بالألمانية',
+    chipAr: translate(language, 'reviewTask.chipSentence'),
+    headerAr: translate(language, 'reviewTask.headerTypeSentence'),
     meaningAr: meaning,
     answerDe: answer,
     glossAr: gloss,

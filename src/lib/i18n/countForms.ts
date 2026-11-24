@@ -110,6 +110,30 @@ export const LOG_ENTRY_NOM: ArabicCountForms = {
   many: 'سجل',
 };
 
+/**
+ * The quiz score's noun — "1 إجابة صحيحة".
+ *
+ * Kept byte-identical to the table the quiz screen shipped with, so moving it
+ * here is a language change and not a copy change.
+ */
+export const QUIZ_ANSWER_FORMS: ArabicCountForms = {
+  one: 'إجابة واحدة',
+  two: 'إجابتان',
+  few: 'إجابات',
+  many: 'إجابة',
+};
+
+/**
+ * The review queue's noun in the "still due" sentence — accusative dual, which
+ * is the form the review screen shipped ("لا يزال عنصرين مستحقاً").
+ */
+export const REVIEW_ITEM_DUE: ArabicCountForms = {
+  one: 'عنصر',
+  two: 'عنصرين',
+  few: 'عناصر',
+  many: 'عنصراً',
+};
+
 /** "3 جمل" — nominative: "أنتجت 3 جمل في الموقف". */
 export const SENTENCE_NOM: ArabicCountForms = {
   one: 'جملة',

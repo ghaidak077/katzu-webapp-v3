@@ -21,7 +21,7 @@ import { ProgressRail } from '@/components/v2/ProgressStrip';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { track } from '@/lib/analytics/client';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
-import { CAPABILITY_LABEL_AR, capabilityFromSession } from '@/lib/capability/model';
+import { capabilityFromSession, capabilityLabel } from '@/lib/capability/model';
 import { sessionOutcomeLine } from '@/lib/report/outcomeLine';
 import { completedEpisodeCount, shouldOfferPro } from '@/lib/entitlement/trial';
 import { isProEffective } from '@/lib/utils/subscription';
@@ -29,21 +29,22 @@ import { MASTERED_REPS, countDue, gradeCorrectionRetype, reviewRefId } from '@/l
 import { sessionOutcomeOffer } from '@/lib/units/progress';
 import { REVIEW_SESSION_CAP } from '@/lib/mission/scenarioMinutes';
 import { enrolMistake, gradeReviewItem } from '@/lib/srs/store';
-import { CATEGORY_COPY, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
+import { categoryLabel, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
 import type { SessionDebrief } from '@/lib/debrief/debrief';
 import { buildTomorrowTeaser, nextScenarioAfter } from '@/lib/debrief/tomorrow';
 import { buildFollowUpCard, type FollowUpCard } from '@/lib/debrief/followUpCard';
-import { buildExamCard, firstNameOf, MOCK_NOTICE_AR, type ExamCard } from '@/lib/debrief/examCard';
+import { buildExamCard, firstNameOf, type ExamCard } from '@/lib/debrief/examCard';
 import { useExamShareImage } from '@/lib/debrief/examShareImage';
 import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import {
-  DAY_ZERO_STREAK_LINE_AR,
   dayZeroCelebration,
   dayZeroCorrectionsLine,
   isDayZeroFinish,
 } from '@/features/report/dayZeroFinish';
 import { Volume2, Check, TrendingUp, CalendarClock, Sparkles } from 'lucide-react';
 import type { CapabilityState, CEFRLevel, MistakeEntity } from '@/types/models';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import type { UiStringKey } from '@/lib/i18n/strings';
 import {
   getNextPromotionLevel,
   isEligibleForPromotion,
@@ -102,32 +103,32 @@ type DrillState =
  */
 const OUTCOME: Record<
   CapabilityState,
-  { pose: KatzuState; lineAr: string; headlineAr: (title: string) => string }
+  { pose: KatzuState; lineKey: UiStringKey; headlineKey: UiStringKey }
 > = {
   NOT_STARTED: {
     pose: 'incomplete',
-    lineAr: 'لم تُسجَّل جملة بعد في هذا المشهد.',
-    headlineAr: (title) => `لم نبدأ «${title}» فعلياً بعد.`,
+    lineKey: 'report.notStartedLine',
+    headlineKey: 'report.notStartedHeadline',
   },
   INTRODUCED: {
     pose: 'incomplete',
-    lineAr: 'المحاولة الأولى تكون صعبة دائماً — المهم أنك أنتجت جُملًا بالألمانية.',
-    headlineAr: (title) => `تعرّفت على «${title}» وبدأت تنتج جُملك الأولى فيه.`,
+    lineKey: 'report.introducedLine',
+    headlineKey: 'report.introducedHeadline',
   },
   PRACTISING: {
     pose: 'assisted',
-    lineAr: 'أكملنا الجلسة بمساعدة تلميحاتي. المرة القادمة سنحتاج تلميحات أقل — هكذا يُبنى التدريب.',
-    headlineAr: (title) => `تدرّبت على «${title}» — لم تصبح مستقلاً فيه بعد، وهذا طبيعي في هذه المرحلة.`,
+    lineKey: 'report.practisingLine',
+    headlineKey: 'report.practisingHeadline',
   },
   INDEPENDENT: {
     pose: 'independent',
-    lineAr: 'أتممت الموقف بنفسك، بلا تلميحات. هذه هي الحالة التي نريد تكرارها.',
-    headlineAr: (title) => `أصبحت قادراً على التعامل مع «${title}» بالألمانية بدون مساعدة.`,
+    lineKey: 'report.independentLine',
+    headlineKey: 'report.independentHeadline',
   },
   RETAINED: {
     pose: 'independent',
-    lineAr: 'الموقف ثبت في ذاكرتك — نجحت فيه مرة أخرى بعد مراجعة مجدولة.',
-    headlineAr: (title) => `«${title}» ثابت في ذاكرتك.`,
+    lineKey: 'report.retainedLine',
+    headlineKey: 'report.retainedHeadline',
   },
 };
 
@@ -191,6 +192,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   onEaseAnswer,
   fromRecovered = false,
 }) => {
+  const { t, dir, uiLanguage } = useLanguage();
   const user = useLiveQuery(() => db.users.get('current_user'));
   const scenario = useLiveQuery(() => db.scenarios.get(summary.scenarioId));
   // Step 5: keep the RAW session rows so a still-loading count stays `undefined`
@@ -283,8 +285,8 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
     if (!result.ok) {
       setConsentError(
         result.error === 'logging_unavailable'
-          ? 'المراجعة غير متاحة على الخادم الآن. يمكنك المحاولة لاحقاً من الإعدادات.'
-          : 'تعذر تفعيل المراجعة — تحقق من اتصالك وحاول مرة أخرى.',
+          ? t('report.consent.errServer')
+          : t('report.consent.errNetwork'),
       );
       return;
     }
@@ -315,6 +317,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             accuracyPercent: summary.accuracyPercent,
             mistakes: summary.mistakes,
             debrief: summary.debrief,
+            language: uiLanguage,
           })
         : null,
     [isExamScenario, summary],
@@ -328,8 +331,8 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   const nextScenario = useMemo(() => nextScenarioAfter(scenarios, summary.scenarioId), [scenarios, summary.scenarioId]);
   const dueCount = useMemo(() => countDue(reviewItems, Date.now()), [reviewItems]);
   const tomorrowTeaser = useMemo(
-    () => buildTomorrowTeaser({ nextScenarioTitle: nextScenario?.title, dueCount }),
-    [nextScenario?.title, dueCount],
+    () => buildTomorrowTeaser({ nextScenarioTitle: nextScenario?.title, dueCount, language: uiLanguage }),
+    [nextScenario?.title, dueCount, uiLanguage],
   );
 
   // A4 — the one question worth asking after a first real episode, asked once.
@@ -338,8 +341,12 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
     () =>
       followUpSeen
         ? null
-        : buildFollowUpCard({ user, hasCompletedEpisode: sessions.length > 0 || summary.sentencesSpoken > 0 }),
-    [followUpSeen, user, sessions.length, summary.sentencesSpoken],
+        : buildFollowUpCard({
+            user,
+            hasCompletedEpisode: sessions.length > 0 || summary.sentencesSpoken > 0,
+            language: uiLanguage,
+          }),
+    [followUpSeen, user, sessions.length, summary.sentencesSpoken, uiLanguage],
   );
 
   const handleFollowUpAction = useCallback(
@@ -385,7 +392,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         triggerHaptic('error');
         setDrill((prev) => ({
           ...prev,
-          [index]: { ...prev[index], result: { status: 'wrong', messageAr: 'ليست الصيغة الصحيحة بعد — قارنها بالجملة أعلاه ثم أعد الكتابة.' } },
+          [index]: { ...prev[index], result: { status: 'wrong', messageAr: t('report.drillWrong') } },
         }));
         return;
       }
@@ -393,7 +400,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
       triggerHaptic('success');
 
       let mastered = false;
-      let messageAr = 'صحيحة. ستعود هذه الجملة في مراجعتك المجدولة حتى تُتقنها.';
+      let messageAr = t('report.drillCorrect');
       try {
         const stored = await db.mistakes
           .where('scenarioId')
@@ -411,14 +418,14 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           // Older mistakes predate the review queue; enrolling is idempotent.
           await enrolMistake(stored as MistakeEntity);
         }
-        if (mastered) messageAr = 'أتقنتها: تذكّرتها بنجاح في ثلاث مرات متتالية.';
+        if (mastered) messageAr = t('report.drillMastered');
       } catch (err) {
         console.warn('Could not record the retyped correction:', err);
       }
 
       setDrill((prev) => ({ ...prev, [index]: { ...prev[index], result: { status: 'correct', mastered, messageAr } } }));
     },
-    [drill, summary.scenarioId],
+    [drill, summary.scenarioId, t],
   );
 
   const targetPromotionLevel = getNextPromotionLevel(summary.cefrLevel);
@@ -467,7 +474,13 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   const outcome = OUTCOME[capabilityState];
   // `PRACTISING` means "no independent session yet", not "hints were used": the
   // hint sentence is only true when the session actually recorded assisted turns.
-  const outcomeLineAr = sessionOutcomeLine(capabilityState, summary.assistedSentences, outcome.lineAr);
+  const outcomeLineAr = sessionOutcomeLine(
+    capabilityState,
+    summary.assistedSentences,
+    t(outcome.lineKey),
+    uiLanguage,
+  );
+  const outcomeHeadline = t(outcome.headlineKey, { title: summary.scenarioTitle });
   const totalTurns = summary.independentSentences + summary.assistedSentences;
   const weaknessCounts = new Map<MistakeCategory, number>();
   for (const mistake of summary.mistakes) {
@@ -513,13 +526,14 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         completedNaturally: summary.completedNaturally,
         sentencesSpoken: summary.sentencesSpoken,
         independentSentences: summary.independentSentences,
+        language: uiLanguage,
       })
     : null;
   // The streak line claims only that a streak STARTED, and only when the learner
   // row agrees (streakDays === 1) — the gate's single-session check implies it,
   // but belt-and-suspenders: never claim more than both sources prove.
   const showStreakLine = isDayZero && celebration?.sentenceAr != null && user?.streakDays === 1;
-  const correctionsTeaser = isDayZero ? dayZeroCorrectionsLine(summary.mistakes.length) : '';
+  const correctionsTeaser = isDayZero ? dayZeroCorrectionsLine(summary.mistakes.length, uiLanguage) : '';
 
   // Step 5 — the report's cards, extracted into shared elements so the day-0
   // first view (disclosure) and today's full screen render the SAME content,
@@ -537,12 +551,12 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             : 'kz-ar-caption text-kz-lavender'
         }
       >
-        {CAPABILITY_LABEL_AR[capabilityState]}
+        {capabilityLabel(capabilityState, uiLanguage)}
       </p>
       <ul className="mt-3 space-y-3">
         <li className="kz-message-in">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="kz-ar-caption text-kz-inkDim">جُمل نطقتها بلا مساعدة</span>
+            <span className="kz-ar-caption text-kz-inkDim">{t('report.independentSentences')}</span>
             <span className="font-german text-sm font-bold text-kz-ink" dir="ltr">
               <bdi dir="ltr">
                 {independentCount} / {Math.max(totalTurns, summary.independentSentences)}
@@ -560,14 +574,14 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           className="kz-message-in flex items-baseline justify-between gap-3"
           style={{ animationDelay: '60ms' }}
         >
-          <span className="kz-ar-caption text-kz-inkDim">دقة الجُمل المستقلة</span>
+          <span className="kz-ar-caption text-kz-inkDim">{t('report.accuracy')}</span>
           <span className="text-end">
             <span className="font-german text-sm font-bold text-kz-ink">
               {summary.accuracyPercent === null ? '—' : `${summary.accuracyPercent}%`}
             </span>
             {summary.accuracyPercent === null && (
               <span className="mt-0.5 block kz-ar-micro text-kz-inkFaint">
-                لا توجد جُمل مستقلة كافية للحكم بعد
+                {t('report.accuracyUnknown')}
               </span>
             )}
           </span>
@@ -576,9 +590,9 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           className="kz-message-in flex items-baseline justify-between gap-3"
           style={{ animationDelay: '120ms' }}
         >
-          <span className="kz-ar-caption text-kz-inkDim">تصحيحات هذه الجلسة</span>
+          <span className="kz-ar-caption text-kz-inkDim">{t('report.corrections')}</span>
           <span className="font-german text-sm font-bold text-kz-ink">
-            {summary.mistakes.length === 0 ? 'لا شيء' : summary.mistakes.length}
+            {summary.mistakes.length === 0 ? t('report.none') : summary.mistakes.length}
           </span>
         </li>
         {mainWeakness && (
@@ -586,9 +600,9 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             className="kz-message-in flex items-baseline justify-between gap-3"
             style={{ animationDelay: '180ms' }}
           >
-            <span className="kz-ar-caption text-kz-inkDim">أبرز ما يحتاج تثبيتاً</span>
+            <span className="kz-ar-caption text-kz-inkDim">{t('report.topWeakness')}</span>
             <span className="kz-ar-caption text-kz-ink">
-              {CATEGORY_COPY[mainWeakness[0]].labelAr} ({mainWeakness[1]})
+              {categoryLabel(mainWeakness[0], uiLanguage)} ({mainWeakness[1]})
             </span>
           </li>
         )}
@@ -599,8 +613,8 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-kz-neon" aria-hidden />
           <span className="kz-ar-micro leading-relaxed text-kz-inkDim">
             {summary.mistakes.length > 0
-              ? 'أضفنا ما أخطأت فيه إلى مراجعتك المجدولة — أول موعد غداً، ثم تتباعد المواعيد كلما تذكّرتها بنجاح.'
-              : 'لم تدخل جمل جديدة إلى المراجعة من هذه الجلسة — لا تصحيحات.'}
+              ? t('report.reviewAdded')
+              : t('report.reviewEmpty')}
           </span>
         </li>
       </ul>
@@ -615,12 +629,15 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
       <div className="flex items-start gap-3">
         <Sparkles className="mt-0.5 h-5 w-5 shrink-0 kz-earned-text" aria-hidden />
         <div className="min-w-0">
-          <p className="kz-ar-caption kz-earned-text">رتبة جديدة</p>
+          <p className="kz-ar-caption kz-earned-text">{t('report.rankUp')}</p>
           <p className="mt-1 kz-ar-body font-bold leading-relaxed text-kz-ink">
-            أصبحت «{summary.rankUp.rankNameAr}»
+            {t('report.rankUpTitle', { rank: summary.rankUp.rankNameAr })}
           </p>
           <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
-            الرتبة {summary.rankUp.rankNumber} من {summary.rankUp.totalRanks} — تقدّمك محفوظ في حسابك.
+            {t('report.rankUpBody', {
+              n: summary.rankUp.rankNumber,
+              total: summary.rankUp.totalRanks,
+            })}
           </p>
         </div>
       </div>
@@ -644,7 +661,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
       className="mt-2"
       onClick={() => onOpenScenario(nextScenario.id)}
     >
-      مشهد آخر الآن
+      {t('report.anotherScene')}
     </GlassButton>
   ) : null;
 
@@ -652,15 +669,15 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
 
   const easePromptEl = onEaseAnswer && !easeAnswered ? (
     <GlassCard className="mt-4" data-testid="session-ease-prompt">
-      <p className="kz-ar-body font-bold text-kz-ink">كيف كانت الجلسة؟</p>
+      <p className="kz-ar-body font-bold text-kz-ink">{t('report.easeTitle')}</p>
       <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
-        سؤال واحد فقط، أضبط به صعوبة المرة القادمة — ولا أغيّر مستواك.
+        {t('report.easeBody')}
       </p>
-      <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="تقييم صعوبة الجلسة">
+      <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label={t('report.easeGroupAria')}>
         {([
-          ['easy', 'سهلة'],
-          ['ok', 'مناسبة'],
-          ['hard', 'صعبة'],
+          ['easy', t('report.ease.easy')],
+          ['ok', t('report.ease.ok')],
+          ['hard', t('report.ease.hard')],
         ] as const).map(([value, label]) => (
           <button
             key={value}
@@ -681,9 +698,9 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
 
   const outcomeOfferEl = outcomeOffer === 'test_out' && testOutScenarioId && onOpenScenario ? (
     <GlassCard className="mt-4" data-testid="session-test-out">
-      <p className="kz-ar-body font-bold text-kz-ink">أتقنت هذا الموقف بسهولة</p>
+      <p className="kz-ar-body font-bold text-kz-ink">{t('report.testOutTitle')}</p>
       <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
-        يمكنك تخطّي بقية الوحدة باختبار قصير — أو متابعة المشاهد بالترتيب.
+        {t('report.testOutBody')}
       </p>
       <GlassButton
         variant="secondary"
@@ -691,14 +708,14 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         className="mt-3"
         onClick={() => onOpenScenario(testOutScenarioId)}
       >
-        تخطَّ الوحدة باختبار قصير
+        {t('report.testOutAction')}
       </GlassButton>
     </GlassCard>
   ) : outcomeOffer === 'repeat_help' && onOpenScenario ? (
     <GlassCard className="mt-4" data-testid="session-repeat-help">
-      <p className="kz-ar-body font-bold text-kz-ink">نعيد هذا الموقف بمساعدة</p>
+      <p className="kz-ar-body font-bold text-kz-ink">{t('report.repeatTitle')}</p>
       <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
-        المرة القادمة سنبدأ بالدراسة ومع المساعدة قبل أن نجرب وحدك — هذا هو الطريق الطبيعي.
+        {t('report.repeatBody')}
       </p>
       <GlassButton
         variant="secondary"
@@ -706,7 +723,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         className="mt-3"
         onClick={() => onOpenScenario(summary.scenarioId)}
       >
-        أعد الموقف بمساعدة
+        {t('report.repeatAction')}
       </GlassButton>
     </GlassCard>
   ) : null;
@@ -741,7 +758,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
       )}
       {summary.debrief.keepPhrases.length > 0 && (
         <div className="mt-3 border-t border-white/[0.06] pt-2">
-          <p className="kz-ar-micro text-kz-inkDim">عبارات تحتفظ بها من هذه الجلسة:</p>
+          <p className="kz-ar-micro text-kz-inkDim">{t('report.keepPhrases')}</p>
           <ul className="mt-1.5 space-y-1">
             {summary.debrief.keepPhrases.map((phrase, index) => (
               <li key={index} className="flex items-center justify-between gap-2">
@@ -752,7 +769,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                   type="button"
                   onClick={() => speak(phrase.german)}
                   className="shrink-0 rounded-full p-1 text-kz-lavender transition-colors pointer-hover:bg-white/5"
-                  aria-label="استمع إلى العبارة"
+                  aria-label={t('report.listenPhrase')}
                 >
                   <Volume2 className="h-3.5 w-3.5" />
                 </button>
@@ -804,11 +821,14 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
       <div className="flex items-start gap-2.5">
         <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-kz-lavender" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="kz-ar-body font-bold text-kz-ink">أصبحت جاهزاً لمستوى {targetPromotionLevel}</p>
+          <p className="kz-ar-body font-bold text-kz-ink">
+            {t('report.promotionTitle', { level: targetPromotionLevel })}
+          </p>
           <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
-            وصلت إلى دقة {summary.accuracyPercent}% في جلسة مستقلة كاملة. الترقية اختيارك — يمكنك البقاء في
-            {' '}
-            {summary.cefrLevel} إن أردت تثبيتاً أكثر.
+            {t('report.promotionBody', {
+              accuracy: summary.accuracyPercent ?? 0,
+              level: summary.cefrLevel,
+            })}
           </p>
           <GlassButton
             variant="secondary"
@@ -816,7 +836,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             disabled={isLevelPromoted}
             onClick={handlePromoteLevel}
           >
-            {isLevelPromoted ? 'تمت الترقية' : `الترقية إلى ${targetPromotionLevel}`}
+            {isLevelPromoted ? t('report.promoted') : t('report.promote', { level: targetPromotionLevel })}
           </GlassButton>
         </div>
       </div>
@@ -825,23 +845,23 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
 
   const proCardEl = offerPro && onOpenSubscription ? (
     <GlassCard className="mt-4">
-      <p className="kz-ar-caption text-kz-inkDim">ما يفتحه Pro — وما يبقى مجانياً</p>
+      <p className="kz-ar-caption text-kz-inkDim">{t('report.proTitle')}</p>
       <ul className="mt-3 space-y-2">
         <li className="flex items-start gap-2">
           <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-lavender" aria-hidden />
           <span className="kz-ar-micro leading-relaxed text-kz-ink">
-            محادثات صوتية بلا حدّ جلسات، وكل المستويات من A0 إلى B2
+            {t('report.proVoice')}
           </span>
         </li>
         <li className="flex items-start gap-2">
           <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-neon" aria-hidden />
           <span className="kz-ar-micro leading-relaxed text-kz-inkDim">
-            ويبقى مجانياً دائماً: مهمة اليوم، ومراجعة كل ما تعلّمته، وبنك أخطائك
+            {t('report.proFree')}
           </span>
         </li>
       </ul>
       <GlassButton variant="secondary" className="mt-3" onClick={onOpenSubscription}>
-        تفاصيل Pro
+        {t('report.proDetails')}
       </GlassButton>
     </GlassCard>
   ) : null;
@@ -849,7 +869,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
   const correctionsDrillEl = summary.mistakes.length > 0 ? (
     <section id="session-corrections-drill" className="mt-6">
       <h2 className="kz-ar-caption text-kz-inkDim">
-        أثبّت الصيغة الصحيحة — أعد كتابتها مرة واحدة الآن
+        {t('report.drillTitle')}
       </h2>
       <div className="mt-3 space-y-3">
         {summary.mistakes.map((mistake, index) => {
@@ -868,7 +888,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                   type="button"
                   onClick={() => speak(mistake.corrected)}
                   className="shrink-0 rounded-full p-1.5 text-kz-lavender transition-colors pointer-hover:bg-white/5"
-                  aria-label="استمع إلى النطق الصحيح"
+                  aria-label={t('report.listenCorrect')}
                 >
                   <Volume2 className="h-3.5 w-3.5" />
                 </button>
@@ -894,8 +914,8 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                       type="text"
                       dir="ltr"
                       inputMode="text"
-                      aria-label="اكتب الجملة الصحيحة"
-                      placeholder="اكتب الجملة الصحيحة"
+                      aria-label={t('report.drillInputAria')}
+                      placeholder={t('report.drillInputAria')}
                       value={row?.text || ''}
                       onChange={(event) =>
                         setDrill((prev) => ({
@@ -910,7 +930,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                       disabled={!(row?.text || '').trim()}
                       onClick={() => handleValidateRetype(index, mistake)}
                     >
-                      تحقّق
+                      {t('report.drillCheck')}
                     </GlassButton>
                   </div>
                   {result?.status === 'wrong' && (
@@ -932,20 +952,17 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
     <BottomSheet
       isOpen={consentSheetOpen}
       onClose={answerConsentNo}
-      title="هل تساعدنا في تحسين كاتزو؟"
+      title={t('report.consent.title')}
     >
-      <div className="space-y-4" dir="rtl">
+      <div className="space-y-4" dir={dir}>
         <p className="kz-ar-body leading-relaxed text-kz-ink">
-          نحفظ رسالتك وردّ كاتزو من محادثات التمرين — نصاً فقط، بلا صوت — بعد إخفاء البريد
-          والهاتف والروابط، لمدة 90 يوماً كحد أقصى.
+          {t('report.consent.body')}
         </p>
         <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
-          لمراجعة جودة التعليم فقط. لا نستخدم النص لتدريب أي نموذج، ولا نبيعه. يمكنك إيقاف ذلك
-          في أي وقت من الإعدادات، وسيُحذف المحفوظ عند الإيقاف.
+          {t('report.consent.why')}
         </p>
         <p className="rounded-xl bg-white/[0.04] px-3 py-2 kz-ar-micro leading-relaxed text-kz-inkDim">
-          لا تكتب بيانات شخصية حقيقية في جُمل التمرين — الإخفاء يزيل البريد والهاتف والروابط،
-          ولا يميّز الاسم أو العنوان المكتوب بالكلمات.
+          {t('report.consent.warn')}
         </p>
         {consentError && (
           <p role="alert" className="kz-ar-micro leading-relaxed text-kz-warm">
@@ -959,7 +976,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             disabled={consentSaving}
             onClick={answerConsentYes}
           >
-            {consentSaving ? 'جارٍ التفعيل…' : 'نعم، ساعدوا في التحسين'}
+            {consentSaving ? t('report.consent.saving') : t('report.consent.yes')}
           </GlassButton>
           <GlassButton
             variant="quiet"
@@ -967,10 +984,10 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             disabled={consentSaving}
             onClick={answerConsentNo}
           >
-            لا، شكراً
+            {t('report.consent.no')}
           </GlassButton>
         </div>
-        <p className="text-center kz-ar-micro text-kz-inkFaint">الإغلاق يعني «لا».</p>
+        <p className="text-center kz-ar-micro text-kz-inkFaint">{t('report.consent.closeMeansNo')}</p>
       </div>
     </BottomSheet>
   );
@@ -990,7 +1007,8 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
 
           <div className="mt-5 text-center">
             <p className="kz-ar-micro text-kz-inkFaint">
-              ملخّص الجلسة · <GermanText className="text-kz-inkDim">{summary.scenarioTitle}</GermanText>
+              {t('report.sessionSummary')} ·{' '}
+              <GermanText className="text-kz-inkDim">{summary.scenarioTitle}</GermanText>
             </p>
             <h1 className="mt-2 kz-ar-title leading-relaxed text-kz-ink kz-pop">{celebration.headlineAr}</h1>
           </div>
@@ -1001,7 +1019,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             <p className="mt-3 text-center kz-ar-body leading-relaxed text-kz-inkDim">{celebration.zeroLineAr}</p>
           )}
           {showStreakLine && (
-            <p className="mt-1 text-center kz-ar-micro leading-relaxed text-kz-inkDim">{DAY_ZERO_STREAK_LINE_AR}</p>
+            <p className="mt-1 text-center kz-ar-micro leading-relaxed text-kz-inkDim">{t('day0.streak')}</p>
           )}
           {correctionsTeaser !== '' && (
             <p className="mt-1 text-center kz-ar-micro leading-relaxed text-kz-inkDim">{correctionsTeaser}</p>
@@ -1017,14 +1035,14 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             aria-controls={disclosureOpen ? 'day-zero-details' : undefined}
             onClick={() => setDisclosureOpen((v) => !v)}
           >
-            تفاصيل الجلسة
+            {t('report.details')}
           </GlassButton>
 
           {disclosureOpen && (
             <div id="day-zero-details" className="mt-2">
               {capabilityCardEl}
               <GlassCard className="mt-4">
-                <p className="kz-ar-caption text-kz-lavender">خلاصة الجلسة</p>
+                <p className="kz-ar-caption text-kz-lavender">{t('report.summaryCard')}</p>
                 {nextScenarioButtonEl}
                 {debriefDetailsEl}
               </GlassCard>
@@ -1045,21 +1063,21 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           {nextStep && onContinueSession && autoAdvance ? (
             <>
               <PrimaryAction
-                hintAr="يبدأ تلقائياً بعد ثانيتين — أو اضغط للمتابعة الآن."
+                hintAr={t('report.nextHint')}
                 onClick={() => onContinueSession(nextStep.scenarioId)}
               >
-                التالي: {nextStep.titleAr}
+                {t('report.next', { title: nextStep.titleAr })}
               </PrimaryAction>
               <GlassButton variant="quiet" fullWidth className="mt-1" onClick={() => setAutoAdvance(false)}>
-                ليس الآن
+                {t('report.notNow')}
               </GlassButton>
             </>
           ) : (
             <PrimaryAction
-              hintAr="خطوتك الأولى تمت — العودة إلى الرحلة هي الخطوة التالية."
+              hintAr={t('report.firstStepHint')}
               onClick={onReturnToTrail}
             >
-              العودة إلى الرحلة
+              {t('report.backToTrail')}
             </PrimaryAction>
           )}
         </FloatingControl>
@@ -1075,13 +1093,14 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
 
       <div className="relative z-10 mx-auto max-w-md px-5 pb-40 pt-8">
         {/* Header: the outcome first, Katzu present but not performing. */}
-        <KatzuPresence state={outcome.pose} lineAr={outcome.lineAr} size="lg" />
+        <KatzuPresence state={outcome.pose} lineAr={outcomeLineAr} size="lg" />
 
         <div className="mt-5 text-center">
           <p className="kz-ar-micro text-kz-inkFaint">
-            ملخّص الجلسة · <GermanText className="text-kz-inkDim">{summary.scenarioTitle}</GermanText>
+            {t('report.sessionSummary')} ·{' '}
+            <GermanText className="text-kz-inkDim">{summary.scenarioTitle}</GermanText>
           </p>
-          <h1 className="mt-2 kz-ar-title leading-relaxed text-kz-ink">{outcome.headlineAr(summary.scenarioTitle)}</h1>
+          <h1 className="mt-2 kz-ar-title leading-relaxed text-kz-ink">{outcomeHeadline}</h1>
         </div>
 
         {rankUpEl}
@@ -1099,12 +1118,12 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                 : 'kz-ar-caption text-kz-lavender'
             }
           >
-            {CAPABILITY_LABEL_AR[capabilityState]}
+            {capabilityLabel(capabilityState, uiLanguage)}
           </p>
           <ul className="mt-3 space-y-3">
             <li className="kz-message-in">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="kz-ar-caption text-kz-inkDim">جُمل نطقتها بلا مساعدة</span>
+                <span className="kz-ar-caption text-kz-inkDim">{t('report.independentSentences')}</span>
                 <span className="font-german text-sm font-bold text-kz-ink" dir="ltr">
                   <bdi dir="ltr">
                     {independentCount} / {Math.max(totalTurns, summary.independentSentences)}
@@ -1122,14 +1141,14 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
               className="kz-message-in flex items-baseline justify-between gap-3"
               style={{ animationDelay: '60ms' }}
             >
-              <span className="kz-ar-caption text-kz-inkDim">دقة الجُمل المستقلة</span>
+              <span className="kz-ar-caption text-kz-inkDim">{t('report.accuracy')}</span>
               <span className="text-end">
                 <span className="font-german text-sm font-bold text-kz-ink">
                   {summary.accuracyPercent === null ? '—' : `${summary.accuracyPercent}%`}
                 </span>
                 {summary.accuracyPercent === null && (
                   <span className="mt-0.5 block kz-ar-micro text-kz-inkFaint">
-                    لا توجد جُمل مستقلة كافية للحكم بعد
+                    {t('report.accuracyUnknown')}
                   </span>
                 )}
               </span>
@@ -1138,9 +1157,9 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
               className="kz-message-in flex items-baseline justify-between gap-3"
               style={{ animationDelay: '120ms' }}
             >
-              <span className="kz-ar-caption text-kz-inkDim">تصحيحات هذه الجلسة</span>
+              <span className="kz-ar-caption text-kz-inkDim">{t('report.corrections')}</span>
               <span className="font-german text-sm font-bold text-kz-ink">
-                {summary.mistakes.length === 0 ? 'لا شيء' : summary.mistakes.length}
+                {summary.mistakes.length === 0 ? t('report.none') : summary.mistakes.length}
               </span>
             </li>
             {mainWeakness && (
@@ -1148,9 +1167,9 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                 className="kz-message-in flex items-baseline justify-between gap-3"
                 style={{ animationDelay: '180ms' }}
               >
-                <span className="kz-ar-caption text-kz-inkDim">أبرز ما يحتاج تثبيتاً</span>
+                <span className="kz-ar-caption text-kz-inkDim">{t('report.topWeakness')}</span>
                 <span className="kz-ar-caption text-kz-ink">
-                  {CATEGORY_COPY[mainWeakness[0]].labelAr} ({mainWeakness[1]})
+                  {categoryLabel(mainWeakness[0], uiLanguage)} ({mainWeakness[1]})
                 </span>
               </li>
             )}
@@ -1161,8 +1180,8 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
               <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-kz-neon" aria-hidden />
               <span className="kz-ar-micro leading-relaxed text-kz-inkDim">
                 {summary.mistakes.length > 0
-                  ? 'أضفنا ما أخطأت فيه إلى مراجعتك المجدولة — أول موعد غداً، ثم تتباعد المواعيد كلما تذكّرتها بنجاح.'
-                  : 'لم تدخل جمل جديدة إلى المراجعة من هذه الجلسة — لا تصحيحات.'}
+                  ? t('report.reviewAdded')
+                  : t('report.reviewEmpty')}
               </span>
             </li>
           </ul>
@@ -1171,7 +1190,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         {/* The Phase-2 debrief: a deterministic narration of what this episode
             proved — same numbers as this screen, no extra AI call behind it. */}
         <GlassCard className="mt-4">
-          <p className="kz-ar-caption text-kz-lavender">خلاصة الجلسة</p>
+          <p className="kz-ar-caption text-kz-lavender">{t('report.summaryCard')}</p>
           {/* A4: the return line names tomorrow's scene and the real number of
               reviews waiting — a fixed sentence here would be skipped, not read. */}
           <div className="mt-1 flex items-start gap-1.5">
@@ -1186,7 +1205,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
               className="mt-2"
               onClick={() => onOpenScenario(nextScenario.id)}
             >
-              مشهد آخر الآن
+              {t('report.anotherScene')}
             </GlassButton>
           )}
           <p className="mt-1.5 kz-ar-body font-bold leading-relaxed text-kz-ink">{summary.debrief.headlineAr}</p>
@@ -1217,7 +1236,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
           )}
           {summary.debrief.keepPhrases.length > 0 && (
             <div className="mt-3 border-t border-white/[0.06] pt-2">
-              <p className="kz-ar-micro text-kz-inkDim">عبارات تحتفظ بها من هذه الجلسة:</p>
+              <p className="kz-ar-micro text-kz-inkDim">{t('report.keepPhrases')}</p>
               <ul className="mt-1.5 space-y-1">
                 {summary.debrief.keepPhrases.map((phrase, index) => (
                   <li key={index} className="flex items-center justify-between gap-2">
@@ -1228,7 +1247,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                       type="button"
                       onClick={() => speak(phrase.german)}
                       className="shrink-0 rounded-full p-1 text-kz-lavender transition-colors pointer-hover:bg-white/5"
-                      aria-label="استمع إلى العبارة"
+                      aria-label={t('report.listenPhrase')}
                     >
                       <Volume2 className="h-3.5 w-3.5" />
                     </button>
@@ -1286,11 +1305,14 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             <div className="flex items-start gap-2.5">
               <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-kz-lavender" aria-hidden />
               <div className="min-w-0 flex-1">
-                <p className="kz-ar-body font-bold text-kz-ink">أصبحت جاهزاً لمستوى {targetPromotionLevel}</p>
+                <p className="kz-ar-body font-bold text-kz-ink">
+            {t('report.promotionTitle', { level: targetPromotionLevel })}
+          </p>
                 <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
-                  وصلت إلى دقة {summary.accuracyPercent}% في جلسة مستقلة كاملة. الترقية اختيارك — يمكنك البقاء في
-                  {' '}
-                  {summary.cefrLevel} إن أردت تثبيتاً أكثر.
+                  {t('report.promotionBody', {
+                    accuracy: summary.accuracyPercent ?? 0,
+                    level: summary.cefrLevel,
+                  })}
                 </p>
                 <GlassButton
                   variant="secondary"
@@ -1298,7 +1320,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                   disabled={isLevelPromoted}
                   onClick={handlePromoteLevel}
                 >
-                  {isLevelPromoted ? 'تمت الترقية' : `الترقية إلى ${targetPromotionLevel}`}
+                  {isLevelPromoted ? t('report.promoted') : t('report.promote', { level: targetPromotionLevel })}
                 </GlassButton>
               </div>
             </div>
@@ -1310,23 +1332,23 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
             below is about the learner's next step, not about paying. */}
         {offerPro && onOpenSubscription && (
           <GlassCard className="mt-4">
-            <p className="kz-ar-caption text-kz-inkDim">ما يفتحه Pro — وما يبقى مجانياً</p>
+            <p className="kz-ar-caption text-kz-inkDim">{t('report.proTitle')}</p>
             <ul className="mt-3 space-y-2">
               <li className="flex items-start gap-2">
                 <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-lavender" aria-hidden />
                 <span className="kz-ar-micro leading-relaxed text-kz-ink">
-                  محادثات صوتية بلا حدّ جلسات، وكل المستويات من A0 إلى B2
+                  {t('report.proVoice')}
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kz-neon" aria-hidden />
                 <span className="kz-ar-micro leading-relaxed text-kz-inkDim">
-                  ويبقى مجانياً دائماً: مهمة اليوم، ومراجعة كل ما تعلّمته، وبنك أخطائك
+                  {t('report.proFree')}
                 </span>
               </li>
             </ul>
             <GlassButton variant="secondary" className="mt-3" onClick={onOpenSubscription}>
-              تفاصيل Pro
+              {t('report.proDetails')}
             </GlassButton>
           </GlassCard>
         )}
@@ -1336,7 +1358,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         {summary.mistakes.length > 0 && (
           <section id="session-corrections-drill" className="mt-6">
             <h2 className="kz-ar-caption text-kz-inkDim">
-              أثبّت الصيغة الصحيحة — أعد كتابتها مرة واحدة الآن
+              {t('report.drillTitle')}
             </h2>
             <div className="mt-3 space-y-3">
               {summary.mistakes.map((mistake, index) => {
@@ -1358,7 +1380,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                         type="button"
                         onClick={() => speak(mistake.corrected)}
                         className="shrink-0 rounded-full p-1.5 text-kz-lavender transition-colors pointer-hover:bg-white/5"
-                        aria-label="استمع إلى النطق الصحيح"
+                        aria-label={t('report.listenCorrect')}
                       >
                         <Volume2 className="h-3.5 w-3.5" />
                       </button>
@@ -1384,8 +1406,8 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                             type="text"
                             dir="ltr"
                             inputMode="text"
-                            aria-label="اكتب الجملة الصحيحة"
-                            placeholder="اكتب الجملة الصحيحة"
+                            aria-label={t('report.drillInputAria')}
+                            placeholder={t('report.drillInputAria')}
                             value={row?.text || ''}
                             onChange={(event) =>
                               setDrill((prev) => ({
@@ -1400,7 +1422,7 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
                             disabled={!(row?.text || '').trim()}
                             onClick={() => handleValidateRetype(index, mistake)}
                           >
-                            تحقّق
+                            {t('report.drillCheck')}
                           </GlassButton>
                         </div>
                         {result?.status === 'wrong' && (
@@ -1423,37 +1445,37 @@ export const SessionReportScreen: React.FC<SessionReportScreenProps> = ({
         {nextStep && onContinueSession && autoAdvance ? (
           <>
             <PrimaryAction
-              hintAr="يبدأ تلقائياً بعد ثانيتين — أو اضغط للمتابعة الآن."
+              hintAr={t('report.nextHint')}
               onClick={() => onContinueSession(nextStep.scenarioId)}
             >
-              التالي: {nextStep.titleAr}
+              {t('report.next', { title: nextStep.titleAr })}
             </PrimaryAction>
             <GlassButton variant="quiet" fullWidth className="mt-1" onClick={() => setAutoAdvance(false)}>
-              ليس الآن
+              {t('report.notNow')}
             </GlassButton>
           </>
         ) : openCorrections > 0 && onOpenReview ? (
           <>
             <PrimaryAction
-              hintAr={`بقي ${Math.min(openCorrections, REVIEW_SESSION_CAP)} تصحيحاً لم تُثبّتها هنا — نفس الجمل ستعود في المراجعة المجدولة.`}
+              hintAr={t('report.reviewHintMany', { count: Math.min(openCorrections, REVIEW_SESSION_CAP) })}
               onClick={onOpenReview}
             >
-              راجع تصحيحات هذه الجلسة
+              {t('report.reviewAction')}
             </PrimaryAction>
             <GlassButton variant="quiet" fullWidth className="mt-1" onClick={onReturnToTrail}>
-              العودة إلى الرحلة
+              {t('report.backToTrail')}
             </GlassButton>
           </>
         ) : (
           <PrimaryAction
             hintAr={
               capabilityState === 'INDEPENDENT' || capabilityState === 'RETAINED'
-                ? 'المحافظة على الموقف تأتي من تكراره في يوم آخر — وليس من جلسة واحدة.'
-                : 'التكرار في يوم آخر هو ما يثبّت هذا الموقف.'
+                ? t('report.keepHint')
+                : t('report.repeatHint')
             }
             onClick={onReturnToTrail}
           >
-            العودة إلى الرحلة
+            {t('report.backToTrail')}
           </PrimaryAction>
         )}
       </FloatingControl>
@@ -1478,6 +1500,7 @@ const ExamResultCard: React.FC<{ card: ExamCard; firstName?: string; scenarioTit
   sentencesSpoken = 0,
   independentSentences = 0,
 }) => {
+  const { t } = useLanguage();
   const shareUrl = useExamShareImage({ firstName, scenarioTitle, sentencesSpoken, independentSentences });
 
   const handleShare = useCallback(async () => {
@@ -1490,7 +1513,7 @@ const ExamResultCard: React.FC<{ card: ExamCard; firstName?: string; scenarioTit
       const blob = await fetch(shareUrl).then((r) => r.blob());
       const file = new File([blob], 'katzu-mock-exam.png', { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'محاكاة كَاتْزُو' });
+        await navigator.share({ files: [file], title: t('report.examShareTitle') });
       } else {
         const link = document.createElement('a');
         link.href = shareUrl;
@@ -1500,11 +1523,11 @@ const ExamResultCard: React.FC<{ card: ExamCard; firstName?: string; scenarioTit
     } catch {
       // The learner cancelled the share sheet — nothing to recover from.
     }
-  }, [shareUrl]);
+  }, [shareUrl, t]);
 
   return (
     <GlassCard emphasis="primary" className="mt-4">
-      <p className="kz-ar-caption text-kz-lavender">نتيجة المحاكاة</p>
+      <p className="kz-ar-caption text-kz-lavender">{t('report.examResult')}</p>
       <p className="mt-1.5 kz-ar-body font-bold leading-relaxed text-kz-ink">{card.taskDoneAr}</p>
 
       <ul className="mt-3 space-y-1.5">
@@ -1544,11 +1567,11 @@ const ExamResultCard: React.FC<{ card: ExamCard; firstName?: string; scenarioTit
         <div className="mt-3 flex flex-col items-center gap-2">
           <img
             src={shareUrl}
-            alt="صورة مشاركة نتيجة المحاكاة"
+            alt={t('report.examShareAlt')}
             className="h-40 w-40 rounded-2xl border border-white/10"
           />
           <GlassButton variant="quiet" onClick={handleShare}>
-            شارك نتيجة المحاكاة
+            {t('report.examShare')}
           </GlassButton>
         </div>
       )}

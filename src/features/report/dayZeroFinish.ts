@@ -14,13 +14,19 @@
  *  - the streak's *value*. The streak line may claim only that it STARTED, and
  *    only when the caller can additionally show `streakDays === 1`. The
  *    decision to grow it lives in `recalculateStreak` (streak.ts), not here.
+ *
+ * Every line follows the learner's UI language (`language`, Arabic by default).
+ * The `*Ar` names are historical — the finish line shipped Arabic-first and the
+ * report reads these fields by name.
  */
 
-export const DAY_ZERO_COMPLETED_LINE_AR = 'أنجزت محادثتك الأولى!';
-export const DAY_ZERO_EARLY_LINE_AR = 'بدأتَ رحلتك — هذه أول محادثة لك.';
-export const DAY_ZERO_STREAK_LINE_AR = 'بدأت سلسلة تدريبك — يوم واحد.';
-export const DAY_ZERO_ZERO_SENTENCES_LINE_AR =
-  'لم تُسجَّل أي جملة في هذه المحادثة — لا مشكلة، التدرّب كله ما زال في مكانه.';
+import { UI_STRINGS, translate } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
+
+export const DAY_ZERO_COMPLETED_LINE_AR = UI_STRINGS.ar['day0.completed'];
+export const DAY_ZERO_EARLY_LINE_AR = UI_STRINGS.ar['day0.early'];
+export const DAY_ZERO_STREAK_LINE_AR = UI_STRINGS.ar['day0.streak'];
+export const DAY_ZERO_ZERO_SENTENCES_LINE_AR = UI_STRINGS.ar['day0.zero'];
 
 export interface DayZeroFinishGateInput {
   /** Is the guided refinement on? */
@@ -50,12 +56,13 @@ export function isDayZeroFinish(input: DayZeroFinishGateInput): boolean {
 /**
  * The «جمل» agreement this finish line pins (the brief's own rule, Western
  * digits): 1 as a word, 2–10 as the plural, 11+ back to the singular form.
+ * English and Indonesian take the same two shapes: one, or a counted plural. The
+ * name is historical (`arSentenceCount`), the language is a parameter.
  */
-export function arSentenceCount(count: number): string {
+export function arSentenceCount(count: number, language: UiLanguage = 'ar'): string {
   const n = Math.max(0, Math.trunc(Number.isFinite(count) ? count : 0));
-  if (n === 1) return 'جملة واحدة';
-  if (n >= 2 && n <= 10) return `${n} جمل`;
-  return `${n} جملة`;
+  if (n === 1) return translate(language, 'day0.sentencesOne');
+  return translate(language, n >= 2 && n <= 10 ? 'day0.sentencesFew' : 'day0.sentencesMany', { n });
 }
 
 export interface DayZeroCelebrationInput {
@@ -70,6 +77,8 @@ export interface DayZeroCelebrationInput {
   sentencesSpoken: number;
   /** Of those, the ones produced without help — `N` in the copy. */
   independentSentences: number;
+  /** The UI language the celebration is written in. Arabic when omitted. */
+  language?: UiLanguage;
 }
 
 export interface DayZeroCelebrationOutput {
@@ -93,24 +102,29 @@ export interface DayZeroCelebrationOutput {
  * whether the learner stopped early or the summary predates the field.
  */
 export function dayZeroCelebration(input: DayZeroCelebrationInput): DayZeroCelebrationOutput {
+  const language = input.language ?? 'ar';
   // `=== true` on purpose: an old stored summary has no `completedNaturally`,
   // and unknown completion must show the honest «بدأتَ رحلتك» line rather than
   // claim the learner finished the conversation.
-  const headlineAr = input.completedNaturally === true ? DAY_ZERO_COMPLETED_LINE_AR : DAY_ZERO_EARLY_LINE_AR;
+  const headlineAr = translate(language, input.completedNaturally === true ? 'day0.completed' : 'day0.early');
   const spoken = Math.max(0, Math.trunc(Number.isFinite(input.sentencesSpoken) ? input.sentencesSpoken : 0));
   if (spoken <= 0) {
-    return { headlineAr, sentenceAr: null, zeroLineAr: DAY_ZERO_ZERO_SENTENCES_LINE_AR };
+    return { headlineAr, sentenceAr: null, zeroLineAr: translate(language, 'day0.zero') };
   }
   if ((Number(input.independentSentences) || 0) <= 0) {
     return {
       headlineAr,
-      sentenceAr: `قلتَ ${arSentenceCount(spoken)} مع مساعدة — وهذه بدايتك.`,
+      sentenceAr: translate(language, 'day0.sentenceAssisted', {
+        count: arSentenceCount(spoken, language),
+      }),
       zeroLineAr: '',
     };
   }
   return {
     headlineAr,
-    sentenceAr: `أنجزتَ ${arSentenceCount(input.independentSentences)} بنفسك — وهذه بدايتك.`,
+    sentenceAr: translate(language, 'day0.sentenceIndependent', {
+      count: arSentenceCount(input.independentSentences, language),
+    }),
     zeroLineAr: '',
   };
 }
@@ -119,9 +133,12 @@ export function dayZeroCelebration(input: DayZeroCelebrationInput): DayZeroCeleb
  * The one-line corrections teaser on the day-0 first view. Empty when there is
  * nothing to say (k = 0), so the line is not rendered at all.
  */
-export function dayZeroCorrectionsLine(count: number): string {
+export function dayZeroCorrectionsLine(count: number, language: UiLanguage = 'ar'): string {
   const n = Math.max(0, Math.trunc(Number.isFinite(count) ? count : 0));
   if (n === 0) return '';
-  const noun = n === 1 ? 'تصحيح واحد' : n >= 2 && n <= 10 ? `${n} تصحيحات` : `${n} تصحيح`;
-  return `${noun} من هذه الجلسة — ستجدها في تفاصيل الجلسة`;
+  const noun =
+    n === 1
+      ? translate(language, 'day0.correctionsOne')
+      : translate(language, n >= 2 && n <= 10 ? 'day0.correctionsFew' : 'day0.correctionsMany', { n });
+  return translate(language, 'day0.corrections', { noun });
 }

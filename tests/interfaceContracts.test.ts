@@ -110,9 +110,15 @@ describe('honest marketing copy', () => {
     ];
     for (const file of files) {
       const src = read(file);
-      expect(src, file).toContain('A0');
+      // 010 i18n: a localised screen renders the sentence from the dictionary
+      // instead of holding it inline, so the guarantee is that EITHER the file
+      // still carries the range or it renders the key whose Arabic does.
+      const fromDictionary = /t\('(?:report\.proVoice|conv\.paywall\.body)'\)/.test(src);
+      expect(fromDictionary || src.includes('A0'), file).toBe(true);
       expect(src, file).not.toContain('A1 إلى B2');
     }
+    expect(UI_STRINGS.ar['report.proVoice']).toContain('A0 إلى B2');
+    expect(UI_STRINGS.ar['conv.paywall.body']).toContain('A0 حتى B2');
     // Screens whose copy moved into the dictionary in Phase 1b are asserted where
     // the sentence now lives, so the rule survives the move instead of being
     // dropped from the guard.

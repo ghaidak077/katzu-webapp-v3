@@ -1,5 +1,7 @@
 import type { UserEntity } from '@/types/models';
 import { placementOffer } from '@/lib/onboarding/preferences';
+import { translate } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * The one-time follow-up card (A4) — the single question the app asks *after*
@@ -51,9 +53,15 @@ export interface FollowUpCardInput {
     | undefined;
   /** True once at least one episode has been completed on this device. */
   hasCompletedEpisode: boolean;
+  /** The UI language the card is written in. Arabic when omitted. */
+  language?: UiLanguage;
 }
 
-export function buildFollowUpCard({ user, hasCompletedEpisode }: FollowUpCardInput): FollowUpCard | null {
+export function buildFollowUpCard({
+  user,
+  hasCompletedEpisode,
+  language = 'ar',
+}: FollowUpCardInput): FollowUpCard | null {
   if (!user) return null;
   // Asking before the learner has done anything is the front-door tax A3 removed.
   if (!hasCompletedEpisode) return null;
@@ -65,10 +73,13 @@ export function buildFollowUpCard({ user, hasCompletedEpisode }: FollowUpCardInp
   if (needsPlacementOffer(user)) {
     return {
       kind: 'placement',
-      titleAr: 'هل نقيس مستواك الآن؟',
-      bodyAr: placementOffer(user.previousGerman).recommendAr,
-      actionAr: 'ابدأ القياس',
-      skipAr: 'سنتابع من هنا',
+      titleAr: translate(language, 'followup.placement.title'),
+      bodyAr:
+        language === 'ar'
+          ? placementOffer(user.previousGerman).recommendAr
+          : translate(language, 'followup.placement.body'),
+      actionAr: translate(language, 'followup.placement.action'),
+      skipAr: translate(language, 'followup.placement.skip'),
     };
   }
 
@@ -77,10 +88,10 @@ export function buildFollowUpCard({ user, hasCompletedEpisode }: FollowUpCardInp
   if (user.primaryGoal === 'exam' && !user.targetDate) {
     return {
       kind: 'target-date',
-      titleAr: 'ما موعد امتحانك؟',
-      bodyAr: 'قلت إن هدفك الامتحان. بموعدك نبني المراجعة على عدد الأسابيع المتبقية فعلاً بدل وتيرة عامة.',
-      actionAr: 'أضف الموعد',
-      skipAr: 'لا موعد محدّد بعد',
+      titleAr: translate(language, 'followup.exam.title'),
+      bodyAr: translate(language, 'followup.exam.body'),
+      actionAr: translate(language, 'followup.exam.action'),
+      skipAr: translate(language, 'followup.exam.skip'),
     };
   }
 

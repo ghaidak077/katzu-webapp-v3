@@ -1,4 +1,6 @@
 import type { CorrectionCategory, CorrectionError } from './germanChecker';
+import { translate } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * How the correction card presents itself.
@@ -21,6 +23,6 @@ export function correctionNeedsOpening(errors: ReadonlyArray<CategoryOnly>): boo
 }
 
 /** The summary line: honest about size, without a second place to change copy. */
-export function correctionSummaryLabel(errors: ReadonlyArray<CategoryOnly>): string {
-  return correctionNeedsOpening(errors) ? 'تصحيح' : 'تصحيح صغير';
+export function correctionSummaryLabel(errors: ReadonlyArray<CategoryOnly>, language: UiLanguage = 'ar'): string {
+  return correctionNeedsOpening(errors) ? translate(language, 'conv.correction') : translate(language, 'conv.smallCorrection');
 }

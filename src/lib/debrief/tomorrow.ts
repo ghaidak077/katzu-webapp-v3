@@ -1,4 +1,6 @@
 import { arCount } from '@/lib/i18n/arabicCount';
+import { translate } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 import { journeyOrderedScenarios } from '@/lib/content/scenarioOrder';
 
 /**
@@ -30,6 +32,8 @@ export interface TomorrowTeaserInput {
   nextScenarioTitle?: string | null;
   /** Review items due now — the count the review screen will actually serve. */
   dueCount?: number | null;
+  /** The UI language the line is written in. Arabic when omitted. */
+  language?: UiLanguage;
 }
 
 /** The teaser's two halves, so a screen can style or split them. */
@@ -40,16 +44,26 @@ export interface TomorrowTeaser {
   reviewAr: string;
 }
 
-export function buildTomorrowTeaser({ nextScenarioTitle, dueCount }: TomorrowTeaserInput): TomorrowTeaser {
+export function buildTomorrowTeaser({
+  nextScenarioTitle,
+  dueCount,
+  language = 'ar',
+}: TomorrowTeaserInput): TomorrowTeaser {
   const title = typeof nextScenarioTitle === 'string' ? nextScenarioTitle.trim() : '';
   const due = Math.max(0, Math.trunc(Number.isFinite(Number(dueCount)) ? Number(dueCount) : 0));
+  const items =
+    language === 'ar'
+      ? arCount(due, REVIEW_ITEM_NOM)
+      : translate(language, due === 1 ? 'tomorrow.reviewItemOne' : due >= 2 && due <= 10 ? 'tomorrow.reviewItemFew' : 'tomorrow.reviewItemMany');
 
   return {
-    missionAr: title ? `غداً: «${title}»` : 'غداً: مشهد جديد من رحلتك',
+    missionAr: title
+      ? translate(language, 'tomorrow.missionNamed', { title })
+      : translate(language, 'tomorrow.missionGeneric'),
     reviewAr:
       due > 0
-        ? `و${arCount(due, REVIEW_ITEM_NOM)} من جلساتك السابقة في انتظارك — دقيقتان تكفيان.`
-        : 'ولا شيء معلّق في المراجعة — دقيقتان لمشهد جديد تكفيان.',
+        ? translate(language, 'tomorrow.reviewDue', { items })
+        : translate(language, 'tomorrow.reviewClear'),
   };
 }
 

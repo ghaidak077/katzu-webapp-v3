@@ -5,6 +5,7 @@ import { KatzuMascot } from '@/components/common/KatzuMascot';
 import { diffSentences } from '@/lib/conversation/germanDiff';
 import { correctionNeedsOpening, correctionSummaryLabel } from '@/lib/conversation/correctionPresentation';
 import { activeWordIndex, speechSegments } from '@/lib/speech/wordHighlight';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 import type { ChatMessage } from '@/types/models';
 
 /**
@@ -109,6 +110,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
   correctionMessage,
   showAiDebug = false,
 }) => {
+  const { t, uiLanguage } = useLanguage();
   const isKatzu = message.sender === 'KATZU';
 
   // Split once per message, not once per render: the segments are the sentence
@@ -139,7 +141,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
 
   return (
     <article
-      aria-label={isKatzu ? 'رسالة من كَاتْزُو' : 'رسالتك'}
+      aria-label={isKatzu ? t('conv.ariaKatzuMessage') : t('conv.ariaYourMessage')}
       className={`kz-message-in flex items-end gap-2 ${isKatzu ? 'justify-start' : 'justify-end'}`}
     >
       {isKatzu && (
@@ -202,18 +204,18 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 <button
                   type="button"
                   onClick={() => onToggleTranslation(message.id)}
-                  aria-label={isTranslationVisible ? 'إخفاء الترجمة' : 'عرض الترجمة'}
+                  aria-label={isTranslationVisible ? t('conv.hideTranslation') : t('conv.showTranslation')}
                   className={`kz-ar-micro flex h-9 items-center gap-1 rounded-full px-2 transition-colors ${
                     isTranslationVisible ? 'text-kz-inkDim' : 'text-kz-inkFaint'
                   } pointer-hover:text-kz-ink`}
                 >
                   <Languages className="h-3.5 w-3.5" />
-                  {isTranslationVisible ? 'إخفاء' : 'ترجمة'}
+                  {isTranslationVisible ? t('conv.hide') : t('conv.translate')}
                 </button>
               ) : showHelp && message.translationState === 'pending' ? (
                 <span className="kz-ar-micro flex items-center gap-1 text-kz-inkFaint">
                   <Languages className="h-3.5 w-3.5 animate-pulse" />
-                  جارٍ الترجمة…
+                  {t('conv.translating')}
                 </span>
               ) : showHelp && message.translationState === 'unavailable' ? (
                 <button
@@ -222,7 +224,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                   className="kz-ar-micro flex h-9 items-center gap-1 text-status-learning transition-colors pointer-hover:text-status-learning/80"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
-                  تعذرت الترجمة — أعد المحاولة
+                  {t('conv.translationFailed')}
                 </button>
               ) : (
                 <span />
@@ -232,7 +234,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 <button
                   type="button"
                   onClick={() => onSpeak(message)}
-                  aria-label="اسمع الجملة بالألمانية"
+                  aria-label={t('conv.speakSentenceAria')}
                   className="flex h-9 w-9 items-center justify-center rounded-full text-kz-lavender/80 transition-colors pointer-hover:bg-white/10 pointer-hover:text-kz-lavender"
                 >
                   <Volume2 className="h-4 w-4" />
@@ -241,7 +243,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                   <button
                     type="button"
                     onClick={() => onSlowSpeak(message)}
-                    aria-label="اسمع ببطء"
+                    aria-label={t('conv.speakSlowlyAria')}
                     className="flex h-9 w-9 items-center justify-center rounded-full text-kz-lavender/60 transition-colors pointer-hover:bg-white/10 pointer-hover:text-kz-lavender"
                   >
                     <Snail className="h-4 w-4" />
@@ -274,12 +276,12 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
             <button
               type="button"
               onClick={() => onReport(message)}
-              aria-label="أبلغ عن رد سيئ"
-              title="أبلغ عن رد سيئ"
+              aria-label={t('conv.reportReply')}
+              title={t('conv.reportReply')}
               className="kz-ar-micro mt-1 flex h-9 items-center gap-1.5 rounded-full px-2 text-kz-inkDim transition-colors pointer-hover:bg-white/10 pointer-hover:text-kz-warm focus-visible:text-kz-warm"
             >
               <Flag className="h-3.5 w-3.5" />
-              أبلغ عن رد سيئ
+              {t('conv.reportReply')}
             </button>
           )}
 
@@ -311,20 +313,20 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                 «تصحيح صغير ›» sits under their own line and opens the same card. */}
             <summary className="kz-ar-micro flex min-h-touch cursor-pointer list-none items-center gap-1.5 px-3 py-2 font-bold text-kz-inkDim [&::-webkit-details-marker]:hidden">
               <KatzuMascot name="avatar" alt="" className="h-4 w-4 rounded-full opacity-80" />
-              <span>{correctionSummaryLabel(structuredErrors)}</span>
+              <span>{correctionSummaryLabel(structuredErrors, uiLanguage)}</span>
               <span aria-hidden className="transition-transform group-open:rotate-90">›</span>
             </summary>
 
             <div className="px-4 pb-3">
-              <span className="kz-ar-micro font-bold text-kz-ink">تصحيح كَاتْزُو</span>
+              <span className="kz-ar-micro font-bold text-kz-ink">{t('conv.katzuCorrection')}</span>
 
               <div className="mt-2.5 space-y-2.5">
               {(learnerSentence || correctedSentence) && (
                 <div className="space-y-1.5">
                   {learnerSentence && (
                     <div className="flex items-baseline gap-2.5">
-                      <span className="kz-ar-micro w-11 shrink-0 text-kz-inkDim">قلت</span>
-                      <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-right text-status-error/80">
+                      <span className="kz-ar-micro w-11 shrink-0 text-kz-inkDim">{t('conv.youSaid')}</span>
+                      <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-start text-status-error/80">
                         {sentenceDiff.from.map((segment, index) =>
                           segment.changed ? (
                             <mark
@@ -342,8 +344,8 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
                   )}
                   {correctedSentence && (
                     <div className="flex items-baseline gap-2.5">
-                      <span className="kz-ar-micro w-11 shrink-0 text-kz-inkDim">الصحيح</span>
-                      <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-right font-semibold text-status-success">
+                      <span className="kz-ar-micro w-11 shrink-0 text-kz-inkDim">{t('conv.correctForm')}</span>
+                      <GermanText className="min-w-0 flex-1 break-words hyphens-auto text-start font-semibold text-status-success">
                         {sentenceDiff.to.map((segment, index) =>
                           segment.changed ? (
                             <mark
@@ -380,7 +382,7 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
 
               {correctionMessage.grammarReference && correctionMessage.grammarReference.id === correctionMessage.grammarId && (
                 <div className="rounded-chip border border-kz-line bg-white/5 p-2.5">
-                  <span className="kz-ar-micro block text-kz-inkFaint">من قاعدة التدريب الموجّه</span>
+                  <span className="kz-ar-micro block text-kz-inkFaint">{t('conv.fromGrammarRule')}</span>
                   <p className="mt-1 kz-ar-micro font-semibold text-kz-ink">{correctionMessage.grammarReference.titleAr}</p>
                   <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{correctionMessage.grammarReference.ruleAr}</p>
                   <GermanText className="mt-1 block text-xs text-kz-inkDim">{correctionMessage.grammarReference.exampleDe}</GermanText>

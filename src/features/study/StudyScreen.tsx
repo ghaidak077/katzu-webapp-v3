@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ArrowRight, Volume2, Bookmark } from 'lucide-react';
 import { BackButton } from '@/components/common/BackButton';
 import type { VocabularyEntity, GrammarEntity, StarterPhraseEntity } from '@/types/models';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface StudyScreenProps {
   scenarioId: string;
@@ -25,6 +26,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
   onBack,
   onProceedToQuiz,
 }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'phrases' | 'vocab' | 'grammar'>('phrases');
   const [speed, setSpeed] = useState<number>(1.0);
   const [playingText, setPlayingText] = useState<string | null>(null);
@@ -105,17 +107,17 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
           onClick={() => setSpeed((s) => (s === 1.0 ? 0.8 : 1.0))}
           className="px-3 py-1.5 rounded-xl bg-surface-card border border-border-subtle text-xs font-german font-bold text-text-secondary pointer-hover:text-primary transition-colors"
         >
-          سرعة الصوت: {speed === 1.0 ? '1.0x عادية' : '0.8x هادئة'}
+          {t('study.speed', { speed: speed === 1.0 ? t('study.speedNormal') : t('study.speedSlow') })}
         </button>
       </div>
 
-      <h2 className="text-xl font-bold font-arabic mb-1">جلسة الدراسة التمهيدية</h2>
+      <h2 className="text-xl font-bold font-arabic mb-1">{t('study.title')}</h2>
       <p className="text-xs text-text-secondary font-arabic mb-4">
-        {scenario?.title_ar} — استمع وكرر العبارات لتجهيز لسانك للمحادثة
+        {t('study.subtitle', { title: scenario?.title_ar || '' })}
       </p>
 
       {/* Tabs */}
-      <div role="tablist" aria-label="أقسام الدراسة" className="flex bg-surface-card border border-border-subtle rounded-2xl p-1 mb-6">
+      <div role="tablist" aria-label={t('study.tabsAria')} className="flex bg-surface-card border border-border-subtle rounded-2xl p-1 mb-6">
         <button
           role="tab"
           aria-selected={activeTab === 'phrases'}
@@ -124,7 +126,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
             activeTab === 'phrases' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
           }`}
         >
-          العبارات ({phrases.length})
+          {t('study.tab.phrases', { count: phrases.length })}
         </button>
         <button
           role="tab"
@@ -134,7 +136,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
             activeTab === 'vocab' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
           }`}
         >
-          المفردات ({vocabulary.length})
+          {t('study.tab.vocab', { count: vocabulary.length })}
         </button>
         <button
           role="tab"
@@ -144,7 +146,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
             activeTab === 'grammar' ? 'bg-fill text-on-fill shadow-glow-purple' : 'text-text-secondary'
           }`}
         >
-          القواعد
+          {t('study.tab.grammar')}
         </button>
       </div>
 
@@ -153,7 +155,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
         {activeTab === 'phrases' && phrases.length === 0 && (
           <div className="p-6 rounded-3xl bg-surface-card border border-border-subtle text-center">
             <p className="text-xs font-arabic text-text-secondary">
-              لم تُضف عبارات لهذا السيناريو بعد — جرّب تبويب المفردات.
+              {t('study.noPhrases')}
             </p>
           </div>
         )}
@@ -171,7 +173,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
               </div>
               <button
                 onClick={() => handlePlay(p.german)}
-                aria-label={`استمع إلى نطق: ${p.german}`}
+                aria-label={t('study.listenAria', { text: p.german })}
                 className="w-11 h-11 min-h-touch min-w-touch rounded-full bg-primary/20 text-primary pointer-hover:bg-primary/30 flex items-center justify-center flex-shrink-0"
               >
                 {playingText === p.german && isPlaying ? (
@@ -187,8 +189,8 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
           <div className="p-6 rounded-3xl bg-surface-card border border-border-subtle text-center">
             <p className="text-xs font-arabic text-text-secondary">
               {vocabQ === undefined
-                ? 'جاري تحميل المفردات...'
-                : 'لم يتم ربط مفردات هذا السيناريو بعد — سيتم إضافتها قريباً.'}
+                ? t('study.vocabLoading')
+                : t('study.noVocab')}
             </p>
           </div>
         )}
@@ -230,7 +232,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
                   <button
                     onClick={() => toggleSaveWord(v.id)}
                     aria-pressed={isSaved}
-                    aria-label={isSaved ? 'إزالة الكلمة من المحفوظات' : 'حفظ الكلمة'}
+                    aria-label={isSaved ? t('study.savedRemove') : t('study.savedAdd')}
                     className={`p-2 min-h-touch min-w-touch rounded-full border transition-colors ${
                       isSaved
                         ? 'bg-status-learning/20 border-status-learning/40 text-status-learning'
@@ -241,7 +243,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
                   </button>
                   <button
                     onClick={() => handlePlay(germanNounPhrase(v.article, v.german))}
-                    aria-label={`استمع إلى نطق: ${germanNounPhrase(v.article, v.german)}`}
+                    aria-label={t('study.listenAria', { text: germanNounPhrase(v.article, v.german) })}
                     className="w-10 h-10 min-h-touch min-w-touch rounded-full bg-primary/20 text-primary flex items-center justify-center"
                   >
                     <Volume2 className="w-4 h-4" aria-hidden="true" />
@@ -255,7 +257,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
           grammar.map((g: GrammarEntity) => (
             <div key={g.id} className="p-4 rounded-3xl bg-surface-card border border-border-subtle space-y-2">
               <Badge variant="primary" size="sm">
-                قاعدة نحوية
+                {t('study.grammarBadge')}
               </Badge>
               <h4 className="text-sm font-bold font-arabic text-text-primary">{g.title_ar}</h4>
               <p className="text-xs text-text-secondary font-arabic leading-relaxed">{g.explanation_ar}</p>
@@ -270,7 +272,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
       {/* Floating Bottom CTA */}
       <div className="fixed bottom-0 start-0 end-0 p-4 bg-black border-t border-border-subtle max-w-md mx-auto z-20">
         <Button size="lg" className="w-full" onClick={markStudiedAndProceed}>
-          انتقل للاختبار السريع (كويز)
+          {t('study.proceed')}
           <ArrowRight className="w-5 h-5 ms-2 rotate-180" />
         </Button>
       </div>

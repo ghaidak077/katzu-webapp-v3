@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { UI_STRINGS } from '../src/lib/i18n/strings';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -134,7 +135,9 @@ describe('the chat has no word bank (2026-11-13: the hint is typed, never tapped
 
   it('the other production surfaces keep their plain bank wording', () => {
     // Only the chat got the new lesson; changing the others would be churn.
-    expect(read('src/features/review/ReviewScreen.tsx')).toContain('تلميح: أول كلمات الإجابة');
+    const review = read('src/features/review/ReviewScreen.tsx');
+    expect(review).toContain("t('review.hint')");
+    expect(UI_STRINGS.ar['review.hint']).toBe('تلميح: أول كلمات الإجابة');
     expect(read('src/features/writing/WritingScreen.tsx')).toContain('بنك الكلمات — اضغط لتضيف الكلمة');
   });
 });

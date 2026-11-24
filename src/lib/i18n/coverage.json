@@ -3,8 +3,8 @@
   "batches": {
     "B1": true,
     "B2": true,
-    "B3": false,
-    "B4": false,
+    "B3": true,
+    "B4": true,
     "B5": false,
     "B6": false,
     "B7": false,

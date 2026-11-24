@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { chooseGermanVoice } from './voiceChoice';
 import { isSpeechOutputAvailable } from '@/lib/audio/nativeSpeech';
+import { UI_STRINGS, translate } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 interface UseSpeechOutputOptions {
   speed?: number; // 0.8 or 1.0
@@ -23,8 +25,12 @@ let voicesDiscovered = false;
  * that is the app or their device. So the app says which one it is, and says it
  * is not the learner's problem to solve.
  */
-export const NO_GERMAN_VOICE_MESSAGE_AR =
-  'النطق غير متاح على هذا الجهاز — التصحيح يعمل.';
+export const NO_GERMAN_VOICE_MESSAGE_AR = UI_STRINGS.ar['conv.noGermanVoice'];
+
+/** The same line in the learner's UI language. */
+export function noGermanVoiceMessage(language: UiLanguage = 'ar'): string {
+  return translate(language, 'conv.noGermanVoice');
+}
 
 /**
  * The device's own German voice when it has one, otherwise the best available.

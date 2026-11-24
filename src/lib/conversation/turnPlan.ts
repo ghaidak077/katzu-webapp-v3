@@ -1,5 +1,7 @@
 import type { CEFRLevel, SessionMode } from '@/types/models';
 import { LEVEL_SPECS } from '@/lib/levels/levelSpec';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * How long a conversation is, and what the two modes mean.
@@ -26,13 +28,19 @@ export function sessionTurnCap(level: CEFRLevel): number {
 }
 
 /** UI copy per mode, so the picker and the report never disagree. */
+export function sessionModeCopy(
+  mode: SessionMode,
+  language: UiLanguage = 'ar',
+): { labelAr: string; descriptionAr: string } {
+  const suffix = mode === 'real' ? 'real' : 'practice';
+  return {
+    labelAr: translate(language, `conv.mode.${suffix}.label` as UiStringKey),
+    descriptionAr: translate(language, `conv.mode.${suffix}.description` as UiStringKey),
+  };
+}
+
+/** Arabic-only view of the same table, kept for callers that predate the language switch. */
 export const SESSION_MODE_COPY: Record<SessionMode, { labelAr: string; descriptionAr: string }> = {
-  practice: {
-    labelAr: 'تدريب (مع مساعدة)',
-    descriptionAr: 'تلميحات وترجمة وتصحيح مباشر أثناء الحديث — للتعلّم والبناء.',
-  },
-  real: {
-    labelAr: 'محادثة حقيقية (بدون مساعدة)',
-    descriptionAr: 'بلا تلميحات ولا ترجمة ولا تصحيح مباشر — كموقف حقيقي، وتقرير في النهاية.',
-  },
+  practice: sessionModeCopy('practice'),
+  real: sessionModeCopy('real'),
 };

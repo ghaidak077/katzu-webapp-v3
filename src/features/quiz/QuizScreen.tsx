@@ -16,9 +16,8 @@ import { track } from '@/lib/analytics/client';
 import { ArrowRight, Volume2, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
 import { BackButton } from '@/components/common/BackButton';
 import { arCount } from '@/lib/i18n/arabicCount';
-
-/** V32: the score line agreed with its number too — "1 إجابات صحيحة". */
-const CORRECT_FORMS = { one: 'إجابة واحدة', two: 'إجابتان', few: 'إجابات', many: 'إجابة' } as const;
+import { QUIZ_ANSWER_FORMS } from '@/lib/i18n/countForms';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface QuizScreenProps {
   scenarioId: string;
@@ -31,6 +30,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
   onBack,
   onProceedToConversation,
 }) => {
+  const { t, uiLanguage } = useLanguage();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
@@ -198,9 +198,9 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
               told nothing about where they were for every one of the questions.
               The counter already sits here, so the screen's name sits with it. */}
           <div className="text-center">
-            <h1 className="font-arabic text-sm font-bold text-text-primary">اختبار سريع</h1>
+            <h1 className="font-arabic text-sm font-bold text-text-primary">{t('quiz.title')}</h1>
             <p className="font-arabic text-xs text-text-secondary">
-              السؤال {currentIndex + 1} من {questions.length}
+              {t('quiz.counter', { done: currentIndex + 1, total: questions.length })}
             </p>
           </div>
           <div className="w-10" />
@@ -217,14 +217,14 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
 
       {!isQuizCompleted && !currentQ ? (
         <div className="my-auto text-center">
-          <p className="text-sm font-arabic text-text-secondary">جاري تحضير الأسئلة...</p>
+          <p className="text-sm font-arabic text-text-secondary">{t('quiz.preparing')}</p>
         </div>
       ) : !isQuizCompleted ? (
         <div className="my-auto space-y-6">
           {/* Prompt Card */}
           <Card variant="hero" className="p-6 text-center relative border border-primary/30 shadow-glow-purple">
             <span className="text-micro font-semibold text-text-secondary uppercase tracking-wider block mb-2">
-              {currentQ.kind === 'vocab' ? 'ما معنى هذه الكلمة؟' : 'ما معنى هذه الجملة؟'}
+              {currentQ.kind === 'vocab' ? t('quiz.promptWord') : t('quiz.promptSentence')}
             </span>
             <GermanText className="text-xl font-bold text-text-primary mb-3 block">
               {currentQ.germanPrompt}
@@ -233,7 +233,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
                 itself (the prompt above is what the options translate). */}
             {currentQ.kind === 'vocab' && currentQ.exampleSentence && (
               <div className="mb-3">
-                <span className="text-micro text-text-muted font-arabic block mb-1">في جملة:</span>
+                <span className="text-micro text-text-muted font-arabic block mb-1">{t('quiz.inSentence')}</span>
                 <GermanText className="text-sm text-text-secondary italic block">
                   {currentQ.exampleSentence}
                 </GermanText>
@@ -246,7 +246,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
               className="mx-auto"
             >
               <Volume2 className="h-4 w-4" />
-              استمع للنطق
+              {t('quiz.listen')}
             </Button>
           </Card>
 
@@ -294,7 +294,7 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
               onClick={handleReveal}
               className="w-full rounded-2xl px-4 py-3 text-center font-arabic text-xs text-text-muted underline decoration-dotted transition-colors pointer-hover:text-primary min-h-touch"
             >
-              لا أعرف — أرني الإجابة
+              {t('quiz.reveal')}
             </button>
           )}
 
@@ -310,11 +310,11 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
                   green is work. It is now stated in words. */}
               {(didReveal || (selectedOption !== null && selectedOption !== currentQ.correctIndex)) && (
                 <p className="text-text-primary font-semibold mb-2">
-                  الصحيحة: <span className="text-status-success">{currentQ.options[currentQ.correctIndex]}</span>
-                  {didReveal && <span className="text-text-muted font-normal"> — لم تختر، فهذه لا تُحسب صحيحة.</span>}
+                  {t('quiz.correctIs', { option: currentQ.options[currentQ.correctIndex] })}
+                  {didReveal && <span className="text-text-muted font-normal"> {t('quiz.revealNote')}</span>}
                 </p>
               )}
-              <span className="font-bold text-primary block mb-1">ملاحظة كَاتْزُو:</span>
+              <span className="font-bold text-primary block mb-1">{t('quiz.noteLabel')}</span>
               <p className="text-text-secondary">{currentQ.explanation}</p>
             </div>
           )}
@@ -325,13 +325,14 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
           <div className="w-20 h-20 rounded-full bg-status-success/20 text-status-success flex items-center justify-center mx-auto mb-2 shadow-glow-green">
             <Sparkles className="w-10 h-10" />
           </div>
-          <h2 className="text-2xl font-bold font-arabic">أحسنت! أتممت الاختبار</h2>
+          <h2 className="text-2xl font-bold font-arabic">{t('quiz.doneTitle')}</h2>
           <p className="text-sm text-text-secondary font-arabic">
-            نتيجتك: {arCount(score, CORRECT_FORMS)} صحيحة من {questions.length}
+            {t('quiz.score', {
+              correct: uiLanguage === 'ar' ? arCount(score, QUIZ_ANSWER_FORMS) : String(score),
+              total: questions.length,
+            })}
           </p>
-          <div className="text-xs text-text-muted">
-            أنت الآن جاهز تماماً لبدء المحادثة الحية المباشرة مع كَاتْزُو بالصوت!
-          </div>
+          <div className="text-xs text-text-muted">{t('quiz.readyLine')}</div>
         </div>
       )}
 
@@ -344,11 +345,11 @@ export const QuizScreen: React.FC<QuizScreenProps> = ({
             disabled={!isAnswerSubmitted}
             onClick={handleNext}
           >
-            {currentIndex < questions.length - 1 ? 'السؤال التالي' : 'عرض النتيجة'}
+            {currentIndex < questions.length - 1 ? t('quiz.next') : t('quiz.showResult')}
           </Button>
         ) : (
           <Button size="lg" className="w-full" onClick={onProceedToConversation}>
-            ابدأ المحادثة الحية الآن 🎙️
+            {t('quiz.startConversation')}
           </Button>
         )}
       </div>

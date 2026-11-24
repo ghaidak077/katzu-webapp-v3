@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { UI_STRINGS } from '../src/lib/i18n/strings';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -33,8 +34,11 @@ describe('report-button focus is keyboard-only and consistent', () => {
   });
 
   it('renders one report-button treatment for every AI reply', () => {
-    const matches = message.match(/aria-label="أبلغ عن رد سيئ"/g) ?? [];
+    // 010 i18n: the label lives in the dictionary, so the invariant is counted
+    // at the call site and the Arabic it still renders is pinned separately.
+    const matches = message.match(/aria-label=\{t\('conv\.reportReply'\)\}/g) ?? [];
     expect(matches).toHaveLength(1);
-    expect(message).not.toMatch(/aria-label="أبلغ عن رد سيئ"[^>]*className=\{[^}]*\}/);
+    expect(UI_STRINGS.ar['conv.reportReply']).toBe('أبلغ عن رد سيئ');
+    expect(message).not.toMatch(/aria-label=\{t\('conv\.reportReply'\)\}[^>]*className=\{[^}]*\}/);
   });
 });

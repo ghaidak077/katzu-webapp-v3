@@ -12,10 +12,10 @@ import { reportConversationExchange } from '@/lib/api/conversationConsent';
 import { workerClient } from '@/lib/api/workerClient';
 import { buildReportExchange, type ConversationReportExchange } from '@/lib/conversation/reportExchange';
 import { triggerHaptic } from '@/lib/utils/haptics';
-import { NO_GERMAN_VOICE_MESSAGE_AR } from '@/lib/speech/useSpeechOutput';
-import { SESSION_MODE_COPY } from '@/lib/conversation/turnPlan';
+import { noGermanVoiceMessage } from '@/lib/speech/useSpeechOutput';
+import { sessionModeCopy } from '@/lib/conversation/turnPlan';
 import { freeSessionsCopy } from '@/lib/entitlement/trialCopy';
-import { NO_HINT_MESSAGE_AR } from '@/lib/conversation/failureCopy';
+import { noHintMessage } from '@/lib/conversation/failureCopy';
 import { scenarioGoalAr } from '@/lib/conversation/scenarioGoals.generated';
 import { track } from '@/lib/analytics/client';
 import { acquireUpdateHold } from '@/lib/pwa/updatePrompt';
@@ -25,6 +25,7 @@ import { ConversationDock } from './ConversationDock';
 import { ConversationTranscript } from './ConversationTranscript';
 import { useLiveConversation } from './useLiveConversation';
 import { HintDock } from './HintDock';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
@@ -91,6 +92,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
   onOpenSubscription,
   onCompleteSession,
 }) => {
+  const { t, uiLanguage } = useLanguage();
   const [optionsOpen, setOptionsOpen] = useState(false);
   /**
    * A bad-reply report: the exchange waiting for confirmation, and its send
@@ -285,10 +287,10 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     setReportState('error');
     setReportError(
       result.error === 'unauthenticated'
-        ? 'سجّل الدخول أولاً حتى نربط الإبلاغ بحسابك.'
+        ? t('conv.report.errLogin')
         : result.error === 'logging_unavailable'
-          ? 'الإبلاغ غير متاح الآن على الخادم. حاول لاحقاً.'
-          : 'تعذر إرسال الإبلاغ — تحقق من اتصالك وحاول مرة أخرى.',
+          ? t('conv.report.errServer')
+          : t('conv.report.errNetwork'),
     );
   };
 
@@ -315,15 +317,13 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           onClick={onBack}
           // 38px measured: a 20px icon in 8px padding, under the 44px floor.
           className="mb-8 flex min-h-touch min-w-touch items-center justify-center self-start rounded-2xl kz-chip border border-white/10 bg-white/5 p-2"
-          aria-label="العودة"
+          aria-label={t('conv.backAria')}
         >
           <ArrowRight className="h-5 w-5 text-kz-inkDim" />
         </button>
         <div className="mb-6 text-center">
-          <h1 className="kz-ar-title mb-2 font-bold">كيف تريد أن تتحدث؟</h1>
-          <p className="kz-ar-caption text-kz-inkDim">
-            المحادثة نفسها في الحالتين — الفرق في المساعدة التي تريدها الآن.
-          </p>
+          <h1 className="kz-ar-title mb-2 font-bold">{t('conv.modeTitle')}</h1>
+          <p className="kz-ar-caption text-kz-inkDim">{t('conv.modeBody')}</p>
         </div>
         <div className="space-y-3">
           {/* V32: two equal cards asked a learner who has never spoken German to
@@ -337,20 +337,28 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             className="w-full rounded-3xl border border-primary/50 bg-primary/10 p-5 text-start transition-colors pointer-hover:bg-primary/15"
           >
             <span className="mb-1 flex items-center justify-between gap-2">
-              <strong className="kz-ar-caption block text-primary">{SESSION_MODE_COPY.practice.labelAr}</strong>
+              <strong className="kz-ar-caption block text-primary">
+                {sessionModeCopy('practice', uiLanguage).labelAr}
+              </strong>
               <span className="kz-ar-micro shrink-0 rounded-full border border-primary/40 px-2 py-0.5 font-bold text-primary">
-                موصى به
+                {t('conv.modeRecommended')}
               </span>
             </span>
-            <span className="kz-ar-micro block text-kz-inkDim">{SESSION_MODE_COPY.practice.descriptionAr}</span>
+            <span className="kz-ar-micro block text-kz-inkDim">
+              {sessionModeCopy('practice', uiLanguage).descriptionAr}
+            </span>
           </button>
           <button
             type="button"
             onClick={() => setSessionMode('real')}
             className="w-full rounded-3xl kz-chip border border-white/10 bg-white/5 p-5 text-start transition-colors pointer-hover:bg-white/10"
           >
-            <strong className="kz-ar-caption mb-1 block text-kz-inkDim">{SESSION_MODE_COPY.real.labelAr}</strong>
-            <span className="kz-ar-micro text-kz-inkFaint">{SESSION_MODE_COPY.real.descriptionAr}</span>
+            <strong className="kz-ar-caption mb-1 block text-kz-inkDim">
+              {sessionModeCopy('real', uiLanguage).labelAr}
+            </strong>
+            <span className="kz-ar-micro text-kz-inkFaint">
+              {sessionModeCopy('real', uiLanguage).descriptionAr}
+            </span>
           </button>
           {/* B5: the allowance, said HERE — where it is about to be spent — and
               not only at the wall. The learner used to learn how many free
@@ -368,7 +376,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             onClick={() => setSessionMode('practice')}
             className="w-full rounded-2xl px-4 py-3 text-center font-arabic text-xs font-bold text-kz-lavender transition-colors pointer-hover:text-kz-ink min-h-touch"
           >
-            ابدأ «تدريب» الآن
+            {t('conv.startPracticeNow')}
           </button>
         </div>
       </div>
@@ -377,13 +385,13 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
   // A short, honest status line under the chat only while it has something to say.
   const statusLabelAr = voice.isRecording
-    ? 'أنا أستمع إليك… تحدث الآن'
+    ? t('conv.status.listening')
     : voice.mode === 'recorder'
-      ? 'أفتح المايك… اسمح بالوصول إن ظهرت نافذة الإذن'
+      ? t('conv.status.openingMic')
       : live.conversation.status === 'transcribing'
-        ? 'جارٍ التعرف على كلامك…'
+        ? t('conv.status.transcribing')
         : !voice.isSupported
-          ? 'الإدخال الصوتي غير متاح — اكتب بالألمانية'
+          ? t('conv.voiceUnavailable')
           : null;
 
   const showEmptyHint = messages.length <= 1 && !isGenerating && !isSessionCompleted;
@@ -409,7 +417,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={onBack}
-            aria-label="العودة"
+            aria-label={t('conv.backAria')}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-kz-inkDim transition-colors pointer-hover:bg-white/10"
           >
             <ArrowRight className="h-5 w-5" />
@@ -424,7 +432,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                 data-testid="scenario-goal"
                 className="kz-ar-micro mt-0.5 truncate text-center text-kz-inkDim"
               >
-                مهمتك: {scenarioGoalAr(scenarioId)}
+                {t('conv.mission', { goal: scenarioGoalAr(scenarioId) })}
               </p>
             )}
             <div className="mt-1 flex items-center justify-center gap-2">
@@ -440,7 +448,10 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                     aria-valuemin={0}
                     aria-valuemax={objectivesTotal}
                     aria-valuenow={objectivesDone.length}
-                    aria-label={`الأهداف المنجزة ${objectivesDone.length} من ${objectivesTotal}`}
+                    aria-label={t('conv.objectivesAria', {
+                      done: objectivesDone.length,
+                      total: objectivesTotal,
+                    })}
                     className="flex items-center gap-1"
                   >
                     {Array.from({ length: objectivesTotal }).map((_, index) => (
@@ -453,7 +464,10 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                     ))}
                   </div>
                   <span data-testid="objective-progress-label" className="kz-ar-micro shrink-0 text-kz-inkFaint">
-                    {objectivesDone.length} من {objectivesTotal}
+                    {t('conv.objectiveCount', {
+                      done: objectivesDone.length,
+                      total: objectivesTotal,
+                    })}
                   </span>
                 </>
               )}
@@ -468,7 +482,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
 
           <button
             onClick={() => setOptionsOpen(true)}
-            aria-label="خيارات الجلسة"
+            aria-label={t('conv.optionsTitle')}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-kz-inkDim transition-colors pointer-hover:bg-white/10"
           >
             <MoreHorizontal className="h-5 w-5" />
@@ -504,7 +518,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           for. It disappears the moment the conversation has something in it. */}
       {showEmptyHint && (
         <p className="pointer-events-none px-4 pb-1 text-center kz-ar-caption text-kz-inkDim">
-          اضغط على الميكروفون وتحدث
+          {t('conv.emptyHint')}
         </p>
       )}
 
@@ -524,7 +538,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           data-testid="no-german-voice"
           className="shrink-0 px-4 pb-1 text-center kz-ar-micro leading-relaxed text-kz-warm"
         >
-          {NO_GERMAN_VOICE_MESSAGE_AR}
+          {noGermanVoiceMessage(uiLanguage)}
         </p>
       )}
 
@@ -532,7 +546,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           to infer it from a typing dot. */}
       {!realMode && !isSessionCompleted && !isGenerating && messages.length > 1 && (
         <p data-testid="your-turn-cue" className="shrink-0 px-4 pb-0.5 text-center kz-ar-micro font-semibold text-kz-lavender">
-          دورك
+          {t('conv.yourTurn')}
         </p>
       )}
 
@@ -541,7 +555,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       {isClosed && !isSessionCompleted && (
         <div data-testid="closed-scene" className="mx-3 mb-1 shrink-0 rounded-2xl border border-primary/30 bg-primary/10 px-3 py-2">
           <p className="kz-ar-micro leading-relaxed text-kz-ink">
-            انتهت المحادثة — يمكنك توديع الطرف الآخر بجملة، أو إغلاقها الآن.
+            {t('conv.closedBody')}
           </p>
           <button
             type="button"
@@ -549,7 +563,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             disabled={!canFinishAfterClose}
             className="mt-1.5 flex min-h-touch items-center rounded-full bg-primary px-3 kz-ar-micro font-bold text-on-lavender transition-colors pointer-hover:brightness-110 disabled:opacity-40"
           >
-            إنهاء الجلسة وعرض الملخص
+            {t('conv.finishAndSummary')}
           </button>
         </div>
       )}
@@ -583,7 +597,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
             className="kz-ar-micro flex min-h-touch items-center gap-1.5 rounded-full border border-kz-lavender/30 bg-white/[0.04] px-3 font-semibold text-kz-lavender transition-colors pointer-hover:bg-white/10 disabled:opacity-40"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingHints ? 'kz-animated animate-spin' : ''}`} />
-            اطلب تلميحاً
+            {t('conv.requestHint')}
           </button>
           {hintFailure && (
             <p role="alert" className="mt-1 kz-ar-micro text-status-error">
@@ -592,7 +606,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           )}
           {hintEmpty && !hintFailure && (
             <p data-testid="hint-empty" className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">
-              {NO_HINT_MESSAGE_AR}
+              {noHintMessage(uiLanguage)}
             </p>
           )}
         </div>
@@ -633,11 +647,11 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       />
 
       {/* ⋯: the conversation-level controls, out of the header and into a sheet. */}
-      <BottomSheet isOpen={optionsOpen} onClose={() => setOptionsOpen(false)} title="خيارات الجلسة">
+      <BottomSheet isOpen={optionsOpen} onClose={() => setOptionsOpen(false)} title={t('conv.optionsTitle')}>
         <div className="space-y-1">
           {topicChoices.length > 0 && (
             <div data-testid="topic-choices" className="pb-2">
-              <p className="px-3 pb-2 kz-ar-micro font-semibold text-kz-inkDim">موضوع المحادثة</p>
+              <p className="px-3 pb-2 kz-ar-micro font-semibold text-kz-inkDim">{t('conv.topicLabel')}</p>
               <div className="flex flex-wrap gap-2 px-3">
                 {topicChoices.map((topic) => (
                   <button
@@ -654,7 +668,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                     className="flex min-h-touch items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 kz-ar-caption font-semibold text-kz-lavender transition-colors pointer-hover:bg-primary/15"
                   >
                     <Shuffle className="h-3.5 w-3.5" aria-hidden />
-                    فاجئني
+                    {t('conv.surpriseMe')}
                   </button>
                 )}
               </div>
@@ -663,19 +677,19 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
           {!realMode && (
             <button
               onClick={handleToggleAllTranslations}
-              aria-label={showAllTranslations ? 'إخفاء كل الترجمات' : 'إظهار كل الترجمات'}
+              aria-label={showAllTranslations ? t('conv.hideAllAria') : t('conv.showAllAria')}
               className="flex min-h-control w-full items-center justify-between rounded-control px-3 kz-ar-caption text-kz-ink transition-colors pointer-hover:bg-white/5"
             >
               <span className="flex items-center gap-2">
                 <Languages className="h-4 w-4 text-kz-inkDim" />
-                إظهار الترجمة تلقائياً
+                {t('conv.showAllTranslations')}
               </span>
               <span
                 className={`kz-ar-micro rounded-full px-2 py-0.5 font-bold ${
                   showAllTranslations ? 'bg-primary text-on-lavender' : 'bg-white/10 text-kz-inkDim'
                 }`}
               >
-                {showAllTranslations ? 'مفعّل' : 'متوقف'}
+                {showAllTranslations ? t('conv.on') : t('conv.off')}
               </span>
             </button>
           )}
@@ -688,16 +702,16 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
               disabled={!live.canEndSession}
               className="flex min-h-control w-full items-center justify-center rounded-control px-3 kz-ar-caption font-bold text-primary transition-colors pointer-hover:bg-white/5 disabled:opacity-40"
             >
-              إنهاء الجلسة وعرض الملخص
+              {t('conv.finishAndSummary')}
             </button>
             {isClosed && (
               <p className="mt-1 px-3 kz-ar-micro text-kz-inkDim">
-                المحادثة انتهت — هذا الزر يعرض الملخص نفسه.
+                {t('conv.closedNote')}
               </p>
             )}
             {!live.canEndSession && (
               <p className="mt-1 px-3 kz-ar-micro text-kz-inkFaint">
-                ابدأ بجملة واحدة على الأقل لتنهي الجلسة وتحصل على الملخص.
+                {t('conv.needOneSentence')}
               </p>
             )}
           </div>
@@ -710,31 +724,30 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
       <Modal
         isOpen={!!reportTarget}
         onClose={closeReport}
-        title="أبلغ عن رد سيئ"
+        title={t('conv.reportReply')}
       >
         {reportState === 'sent' ? (
           <div className="space-y-4">
             <p className="kz-ar-body leading-relaxed text-kz-ink">
-              شكراً — وصل هذا التبادل إلى فريق كاتزو.
+              {t('conv.report.sent')}
             </p>
             <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
-              سنراجعه لتحسين التعليم. حُذف البريد والهاتف والروابط قبل الحفظ، ويُحفظ 90 يوماً كحد أقصى.
+              {t('conv.report.sentBody')}
             </p>
             <GlassButton variant="secondary" fullWidth onClick={closeReport}>
-              إغلاق
+              {t('common.close')}
             </GlassButton>
           </div>
         ) : (
           <div className="space-y-4">
             <p className="kz-ar-body font-bold leading-relaxed text-kz-ink">
-              إرسال هذا التبادل لفريق كاتزو؟
+              {t('conv.report.confirm')}
             </p>
             <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
-              سيُرسل هذا التبادل فقط: جملتك وردّ كاتزو عليها، بعد إخفاء البريد والهاتف والروابط.
-              يُحفظ 90 يوماً كحد أقصى لمراجعة جودة التعليم، ولا يُستخدم لتدريب أي نموذج ولا يُباع.
+              {t('conv.report.body')}
             </p>
             <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
-              يُرسل حتى لو كانت «مراجعة المحادثات» متوقفة في الإعدادات، لأنك اخترت الإبلاغ عن هذا الرد بنفسك.
+              {t('conv.report.consentNote')}
             </p>
             {reportError && (
               <p role="alert" className="kz-ar-micro leading-relaxed text-kz-warm">
@@ -748,7 +761,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                 disabled={reportState === 'sending'}
                 onClick={sendReport}
               >
-                {reportState === 'sending' ? 'جارٍ الإرسال…' : 'إرسال'}
+                {reportState === 'sending' ? t('conv.report.sending') : t('conv.report.send')}
               </GlassButton>
               <GlassButton
                 variant="quiet"
@@ -756,7 +769,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
                 disabled={reportState === 'sending'}
                 onClick={closeReport}
               >
-                إلغاء
+                {t('common.cancel')}
               </GlassButton>
             </div>
           </div>

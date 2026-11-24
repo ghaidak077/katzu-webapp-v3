@@ -27,6 +27,7 @@
 
 import type { SessionEntity, MistakeEntity, CEFRLevel } from '@/types/models';
 import { buildSessionDebrief, type SessionDebrief } from '@/lib/debrief/debrief';
+import { translate } from '@/lib/i18n/strings';
 
 export interface RecoveredSummary {
   scenarioId: string;
@@ -108,7 +109,7 @@ export function summaryFromSession(
   const mistakeList = scoped.map((mistake) => ({
     original: mistake.original,
     corrected: mistake.corrected,
-    grammarRule: mistake.grammarRule || 'قاعدة نحوية',
+    grammarRule: mistake.grammarRule || translate('ar', 'conv.grammarRuleFallback'),
   }));
 
   return {

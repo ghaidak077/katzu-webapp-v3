@@ -1,4 +1,6 @@
 import type { CapabilityState } from '@/types/models';
+import { UI_STRINGS, translate } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * What the report says when a session was not independent.
@@ -14,8 +16,7 @@ import type { CapabilityState } from '@/types/models';
  * The assisted count is the evidence: above zero the hint line is true, at zero
  * the report says what actually happened and still offers the next step.
  */
-export const PRACTISING_WITHOUT_HINTS_AR =
-  'أكملت الجلسة، وما زال هذا المشهد يحتاج تدريباً — لم تستقل به بعد، وهذا طبيعي في هذه المرحلة.';
+export const PRACTISING_WITHOUT_HINTS_AR = UI_STRINGS.ar['report.practisingNoHints'];
 
 /**
  * The line the report shows for a capability state.
@@ -27,9 +28,10 @@ export function sessionOutcomeLine(
   state: CapabilityState,
   assistedSentences: number,
   fallback: string,
+  language: UiLanguage = 'ar',
 ): string {
   if (state === 'PRACTISING' && Math.max(0, Number(assistedSentences) || 0) === 0) {
-    return PRACTISING_WITHOUT_HINTS_AR;
+    return translate(language, 'report.practisingNoHints');
   }
   return fallback;
 }

@@ -3,6 +3,7 @@ import { ArrowDown } from 'lucide-react';
 import { ConversationMessage } from './ConversationMessage';
 import { KatzuThinking } from '@/components/effects/KatzuThinking';
 import type { ChatMessage } from '@/types/models';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 /**
  * The transcript region of the live conversation.
@@ -62,6 +63,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
   onWordClick,
   showAiDebug = false,
 }) => {
+  const { t } = useLanguage();
   const localRef = useRef<HTMLDivElement | null>(null);
   const [showJump, setShowJump] = useState(false);
 
@@ -156,7 +158,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
               data-tier="canvas"
               className="kz-surface flex items-center gap-1.5 rounded-control rounded-ss-tag px-4 py-3.5"
               role="status"
-              aria-label="كَاتْزُو يفكر في الرد…"
+              aria-label={t('conv.thinkingAria')}
             >
               <span className="kz-typing-dot h-1.5 w-1.5 rounded-full bg-kz-lavender" />
               <span className="kz-typing-dot h-1.5 w-1.5 rounded-full bg-kz-lavender" />
@@ -177,7 +179,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
               <KatzuThinking
                 size={30}
                 layout="inline"
-                labelAr="جارٍ إعداد تقرير الجلسة…"
+                labelAr={t('conv.sessionPreparing')}
                 className="gap-2"
               />
             </div>
@@ -191,7 +193,7 @@ export const ConversationTranscript: React.FC<ConversationTranscriptProps> = ({
         <button
           type="button"
           onClick={jumpToBottom}
-          aria-label="الانتقال إلى أحدث رسالة"
+          aria-label={t('conv.jumpToLatest')}
           className="kz-animated absolute bottom-3 end-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-surface-highest text-kz-ink transition-colors pointer-hover:bg-surface-highest/80"
         >
           <ArrowDown className="h-4 w-4" />

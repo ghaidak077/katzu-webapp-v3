@@ -13,6 +13,7 @@ import { sceneFor } from '@/lib/design/scenes';
 import { safetyDisclaimerFor } from '@/lib/utils/scenarioVocab';
 import { BookOpen, CheckCircle, Lock, MessagesSquare, Sparkles } from 'lucide-react';
 import { BackButton } from '@/components/common/BackButton';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 export interface ScenarioDetailScreenProps {
   scenarioId: string;
@@ -29,6 +30,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
   onStartQuiz,
   onStartConversation,
 }) => {
+  const { t } = useLanguage();
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
 
   // "Still reading" stays distinct from "not on this device", and a wedged read is
@@ -45,20 +47,20 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
       <div className="p-6 text-center">
         <p className="text-text-secondary">
           {scenarioRow.kind === 'missing'
-            ? 'لم نجد هذا المشهد على هذا الجهاز.'
+            ? t('detail.missing')
             : stalled
-              ? 'تأخّر تجهيز المشهد.'
-              : 'جاري التحميل...'}
+              ? t('detail.stalled')
+              : t('detail.loading')}
         </p>
         {/* A missing row and a wedged read are both states with a way out. */}
         {stalled && (
           <Button variant="secondary" className="mt-4" onClick={scenarioRow.retry}>
-            إعادة المحاولة
+            {t('detail.retry')}
           </Button>
         )}
-        <Button variant="ghost" className="mt-4" onClick={onBack}>
-          العودة
-        </Button>
+                  <Button variant="ghost" className="mt-4" onClick={onBack}>
+            {t('detail.back')}
+          </Button>
       </div>
     );
   }
@@ -97,7 +99,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
   };
 
   // One primary action, always the next step of the on-ramp until it is done.
-  const trainingLabel = !isStudied ? 'ابدأ التدريب: دراسة العبارات' : 'أكمل التدريب: الاختبار السريع';
+  const trainingLabel = !isStudied ? t('detail.startTraining') : t('detail.continueTraining');
   const handleTrainingStart = () => (isStudied ? onStartQuiz() : onStartStudy());
 
   return (
@@ -106,7 +108,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
       <div className="flex items-center justify-between mb-6">
         <BackButton onBack={onBack} />
         <Badge variant="primary" size="md">
-          {user?.cefrLevel || 'A1'} • محادثة واقعية
+          {t('detail.badge', { level: user?.cefrLevel || 'A1' })}
         </Badge>
         <div className="w-10" />
       </div>
@@ -144,7 +146,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             {scenario.title_ar}
           </h3>
           <p className="text-xs text-text-muted font-arabic italic">
-            «أنا كاتزو في هذا الموقف، خض التجربة وتحدث بثقة بدون تردد!»
+            {t('detail.hostLine')}
           </p>
         </div>
         <KatzuMascot name="scenario_host" className="w-24 h-24 object-contain" />
@@ -158,8 +160,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             <div className="flex items-start gap-3 mb-3">
               <KatzuMascot name="scenario_host" className="w-12 h-12 object-contain shrink-0" />
               <p className="text-xs font-arabic text-text-secondary leading-relaxed">
-                خطوتان قصيرتان ثم نتحدث: بطاقات الكلمات أولاً، ثم اختبار سريع يعرّفك بالسؤال.
-                يمكنك البدء مباشرة إن كنت جاهزاً.
+                {t('detail.twoSteps')}
               </p>
             </div>
             <Button size="lg" className="w-full" onClick={handleTrainingStart}>
@@ -170,24 +171,24 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
               // The fastest way to the first spoken turn was a 19px text link.
               className="mt-3 flex min-h-touch w-full items-center justify-center text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
             >
-              تخطَّ التدريب وابدأ المحادثة مباشرة
+              {t('detail.skipTraining')}
             </button>
           </Card>
         ) : (
           <Card variant="hero" className="p-4 border border-primary/30">
             <Button size="lg" className="w-full mb-2" onClick={onStartConversation}>
-              ابدأ المحادثة الحية الآن 🎙️
+              {t('detail.startLiveNow')}
             </Button>
             <button
               onClick={isQuizPassed ? onStartStudy : handleTrainingStart}
               className="flex min-h-touch w-full items-center justify-center text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
             >
-              {isQuizPassed ? 'أعد التدريب من بطاقات الكلمات' : 'أكمل التدريب بدلاً من ذلك'}
+              {isQuizPassed ? t('detail.retrainCards') : t('detail.finishTrainingInstead')}
             </button>
           </Card>
         )}
 
-        <h4 className="text-xs font-bold font-arabic text-text-secondary">خطة الإتقان للموقف:</h4>
+        <h4 className="text-xs font-bold font-arabic text-text-secondary">{t('detail.masteryPlan')}</h4>
 
         {/* Step 1: Study */}
         <div
@@ -207,8 +208,8 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-sm font-bold font-arabic">1. دراسة العبارات والمفردات</div>
-              <div className="text-xs text-text-secondary">استمع للنطق الصحيح واحفظ الكلمات الأساسية</div>
+              <div className="text-sm font-bold font-arabic">{t('detail.step1.title')}</div>
+              <div className="text-xs text-text-secondary">{t('detail.step1.body')}</div>
             </div>
           </div>
           {isStudied && <CheckCircle className="w-5 h-5 text-status-success" />}
@@ -232,8 +233,8 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-sm font-bold font-arabic">2. اختبار سريع (كويز)</div>
-              <div className="text-xs text-text-secondary">تأكد من فهمك للمعاني قبل التحدث الحي</div>
+              <div className="text-sm font-bold font-arabic">{t('detail.step2.title')}</div>
+              <div className="text-xs text-text-secondary">{t('detail.step2.body')}</div>
             </div>
           </div>
           {isQuizPassed && <CheckCircle className="w-5 h-5 text-status-success" />}
@@ -261,12 +262,12 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className={`text-sm font-bold font-arabic ${isConversationUnlocked ? 'text-primary' : 'text-text-secondary'}`}>
-                  3. المحادثة الحية مع كَاتْزُو
+                  {t('detail.step3.title')}
                 </span>
-                {!isPro && <span className="text-micro px-2 py-0.5 rounded-full bg-primary/20 text-primary font-bold">تحقق الحصة عند البدء</span>}
+                {!isPro && <span className="text-micro px-2 py-0.5 rounded-full bg-primary/20 text-primary font-bold">{t('detail.quotaCheck')}</span>}
               </div>
               <div className="text-xs text-text-secondary">
-                {isConversationUnlocked ? 'تحدث بصوتك مباشرة وخض الحوار التفاعلي' : 'تُفتح بعد إتمام التدريب — أو تخطَّه صراحةً'}
+                {isConversationUnlocked ? t('detail.step3.ready') : t('detail.step3.locked')}
               </div>
             </div>
           </div>
@@ -276,8 +277,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
         {showSkipPrompt && !isConversationUnlocked && (
           <Card className="p-4 border border-border-subtle">
             <p className="text-xs font-arabic text-text-secondary mb-3">
-              التدريب يجعلك تتحدث بثقة أكبر — لكن القرار قرارك. المحادثة متاحة الآن على أي حال،
-              ومستوى الكلمات والعبارات يبقى كما هو تماماً.
+              {t('detail.skipExplain')}
             </p>
             <Button size="md" className="w-full mb-2" onClick={handleTrainingStart}>
               {trainingLabel}
@@ -286,7 +286,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
               onClick={skipToConversation}
               className="flex min-h-touch w-full items-center justify-center text-center text-micro font-arabic text-text-muted underline decoration-dotted pointer-hover:text-text-secondary transition-colors"
             >
-              تخطَّ إلى المحادثة الآن
+              {t('detail.skipToConversation')}
             </button>
           </Card>
         )}
@@ -295,7 +295,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
       {/* Starter Phrases Preview */}
       {starterPhrases.length > 0 && (
         <div>
-          <h4 className="text-xs font-bold font-arabic text-text-secondary mb-3">عبارات مساعدة للبدء:</h4>
+          <h4 className="text-xs font-bold font-arabic text-text-secondary mb-3">{t('detail.starterPhrases')}</h4>
           <div className="space-y-2">
             {starterPhrases.slice(0, 3).map((sp) => (
               <div key={sp.id} className="p-3 rounded-2xl bg-surface-subtle border border-border-subtle text-xs">

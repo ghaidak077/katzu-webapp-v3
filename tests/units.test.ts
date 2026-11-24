@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { UI_STRINGS } from '../src/lib/i18n/strings';
 import liveFixture from './fixtures/live-scenarios.json';
 import {
   UNITS,
@@ -266,6 +267,7 @@ describe('the conversation offers topics, never a level', () => {
   it('keeps the level out of the main flow and offers unit topics instead', () => {
     expect(SCREEN).not.toMatch(/nudge-difficulty|change-level|level-selector/i);
     expect(SCREEN).toMatch(/data-testid="topic-choices"/);
-    expect(SCREEN).toMatch(/فاجئني/);
+    expect(SCREEN).toMatch(/t\('conv\.surpriseMe'\)/);
+    expect(UI_STRINGS.ar['conv.surpriseMe']).toBe('فاجئني');
   });
 });

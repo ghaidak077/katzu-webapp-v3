@@ -1,4 +1,6 @@
 import { normalizeGermanAnswer } from '@/lib/srs/engine';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * What kind of German is this learner actually getting wrong?
@@ -125,6 +127,14 @@ export interface CategoryCopy {
  * Learner-facing wording. Advice has to be something a person can actually do in
  * the next five minutes — "study grammar" is not advice.
  */
+/**
+ * The category's name in the learner's UI language, for surfaces that show it
+ * as a label (the session report's "what needs reinforcement" row).
+ */
+export function categoryLabel(category: MistakeCategory, language: UiLanguage = 'ar'): string {
+  return translate(language, `coach.category.${category}` as UiStringKey);
+}
+
 export const CATEGORY_COPY: Record<MistakeCategory, CategoryCopy> = {
   articles: {
     labelAr: 'أدوات التعريف (der / die / das)',

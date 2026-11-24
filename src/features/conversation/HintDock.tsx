@@ -1,6 +1,7 @@
 import React from 'react';
 import { Keyboard, Snail, Volume2 } from 'lucide-react';
 import type { ContextualHint } from '@/types/models';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 
 /**
  * The hint dock: one sentence the learner can actually say, its Arabic meaning,
@@ -65,11 +66,12 @@ export const HintDock: React.FC<HintDockProps> = ({
   onSlowSpeak,
   onTypeMyself,
 }) => {
+  const { t, dir } = useLanguage();
   if (!hint) return null;
   return (
     <div
       data-testid="hint-dock"
-      dir="rtl"
+      dir={dir}
       className="mx-3 mb-0.5 shrink-0 rounded-2xl border border-kz-lavender/25 bg-white/[0.04] px-3 py-1"
     >
       <div className="flex items-start gap-2">
@@ -90,7 +92,7 @@ export const HintDock: React.FC<HintDockProps> = ({
           className="flex min-h-touch items-center gap-1 rounded-full px-2 kz-ar-micro font-semibold text-kz-lavender transition-colors pointer-hover:bg-white/10 disabled:opacity-40"
         >
           <Volume2 className="h-3.5 w-3.5" aria-hidden />
-          سمّعني
+          {t('conv.hint.speak')}
         </button>
         <button
           type="button"
@@ -99,7 +101,7 @@ export const HintDock: React.FC<HintDockProps> = ({
           className="flex min-h-touch items-center gap-1 rounded-full px-2 kz-ar-micro font-semibold text-kz-lavender transition-colors pointer-hover:bg-white/10 disabled:opacity-40"
         >
           <Snail className="h-3.5 w-3.5" aria-hidden />
-          ببطء
+          {t('conv.hint.slow')}
         </button>
         <button
           type="button"
@@ -107,7 +109,7 @@ export const HintDock: React.FC<HintDockProps> = ({
           className="flex min-h-touch items-center gap-1 rounded-full px-2 kz-ar-micro font-semibold text-kz-inkDim transition-colors pointer-hover:bg-white/10"
         >
           <Keyboard className="h-3.5 w-3.5" aria-hidden />
-          قلها
+          {t('conv.hint.typeIt')}
         </button>
       </div>
     </div>

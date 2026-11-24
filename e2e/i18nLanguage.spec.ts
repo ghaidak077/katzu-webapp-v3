@@ -33,6 +33,20 @@ import { bootSignedIn } from './harness';
 
 const ARABIC_WORD = /[\u0600-\u06FF]/;
 
+/** The scene page's own copy, per language (B3). */
+const SCENE = {
+  en: {
+    plan: 'The mastery plan for this situation:',
+    step1: '1. Study the phrases and vocabulary',
+    starter: 'Starter phrases to begin with:',
+  },
+  id: {
+    plan: 'Rencana penguasaan untuk situasi ini:',
+    step1: '1. Pelajari frasa dan kosakata',
+    starter: 'Frasa bantu untuk memulai:',
+  },
+} as const;
+
 /** Every visible string the learner can read, without the app's own scripts. */
 async function visibleText(page: import('@playwright/test').Page): Promise<string> {
   return page.evaluate(() => document.body.innerText || '');
@@ -142,6 +156,24 @@ test.describe('the journey home in the finished languages', () => {
   } as const;
 
   for (const language of ['en', 'id'] as const) {
+    test(`${language}: the scene page's plan and buttons are in the chosen language`, async ({ page }) => {
+      // B3: the scene page is where a learner decides what to do next, so its
+      // plan, its button and its heading are the screen's own words — not the
+      // scene's Arabic content, which the content layer owns (plan 010 §11).
+      const copy = SCENE[language];
+      await bootSignedIn(page, { uiLanguage: language });
+      await page.goto('/scenario/cafe_order');
+
+      await expect(page.locator('html')).toHaveAttribute('lang', language);
+      await expect(page.getByText(copy.plan)).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByText(copy.step1)).toBeVisible();
+      await expect(page.getByText(copy.starter)).toBeVisible();
+      await expect(page.getByText(/^(Start the training|Mulai latihan)/)).toBeVisible();
+
+      const plan = await page.getByText(copy.plan).locator('..').innerText();
+      expect(plan, `an Arabic word reached the ${language} scene page`).not.toMatch(ARABIC_WORD);
+    });
+
     test(`${language}: the home screen's own chrome is in the chosen language`, async ({ page }) => {
       await page.addInitScript(() => {
         try {

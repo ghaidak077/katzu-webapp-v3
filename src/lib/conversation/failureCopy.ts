@@ -11,13 +11,14 @@
  * the three sentences is true, and nothing else. It never decides what the
  * persona says — there is nothing authored for the persona to say.
  */
+import { UI_STRINGS, translate } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
-export const OFFLINE_MESSAGE_AR =
-  'لا يوجد اتصال بالإنترنت. المحادثة تحتاج إنترنت. اتصل ثم اضغط إعادة المحاولة.';
+export const OFFLINE_MESSAGE_AR = UI_STRINGS.ar['conv.failure.offline'];
 
-export const BUSY_MESSAGE_AR = 'الخدمة مشغولة الآن. سنعيد المحاولة بعد لحظات.';
+export const BUSY_MESSAGE_AR = UI_STRINGS.ar['conv.failure.busy'];
 
-export const OTHER_MESSAGE_AR = 'تعذّر الرد. أعد المحاولة.';
+export const OTHER_MESSAGE_AR = UI_STRINGS.ar['conv.failure.other'];
 
 /**
  * The hint request succeeded but the scene offered nothing to say.
@@ -26,7 +27,12 @@ export const OTHER_MESSAGE_AR = 'تعذّر الرد. أعد المحاولة.';
  * dress static content as the persona's sentence. It is a short, quiet note, so
  * the learner knows the request worked and can try again after their next line.
  */
-export const NO_HINT_MESSAGE_AR = 'لا يوجد تلميح لهذه الجملة الآن — اكتب محاولتك، وسأفهمها وأصحّحها.';
+export const NO_HINT_MESSAGE_AR = UI_STRINGS.ar['conv.failure.noHint'];
+
+/** The "nothing to suggest this turn" note, in the learner's UI language. */
+export function noHintMessage(language: UiLanguage = 'ar'): string {
+  return translate(language, 'conv.failure.noHint');
+}
 
 export type TurnFailureCause = 'offline' | 'busy' | 'other';
 
@@ -61,13 +67,13 @@ export function failureCauseOf(error: unknown): TurnFailureCause {
 }
 
 /** The one sentence for a cause. */
-export function messageForCause(cause: TurnFailureCause): string {
+export function messageForCause(cause: TurnFailureCause, language: UiLanguage = 'ar'): string {
   switch (cause) {
     case 'offline':
-      return OFFLINE_MESSAGE_AR;
+      return translate(language, 'conv.failure.offline');
     case 'busy':
-      return BUSY_MESSAGE_AR;
+      return translate(language, 'conv.failure.busy');
     default:
-      return OTHER_MESSAGE_AR;
+      return translate(language, 'conv.failure.other');
   }
 }

@@ -38,6 +38,9 @@ import { firstNameOf } from '@/lib/debrief/examCard';
 import { lookupWord } from '@/lib/vocabulary/wordGloss';
 import { logAiCallTotals, resetAiCallMeter } from '@/lib/ai/aiCallMeter';
 import { sessionTurnCap } from '@/lib/conversation/turnPlan';
+import { noHintMessage } from '@/lib/conversation/failureCopy';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { translate } from '@/lib/i18n/strings';
 import { MOCK_EXAM_LEVEL } from '@/lib/mockexam/constants';
 import { MAX_FREE_SESSIONS_AR } from '@/lib/entitlement/trialCopy';
 import type { OrbState } from '@/components/voice/KatzuOrb';
@@ -132,6 +135,7 @@ export function useLiveConversation({
   mockPart,
   onCompleteSession,
 }: UseLiveConversationOptions) {
+  const { t, uiLanguage } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   // One explicit conversation state machine owns every in-between state. The
@@ -331,7 +335,7 @@ export function useLiveConversation({
     },
   });
 
-  const characterNameAr = scenario?.title_ar || 'المحادثة';
+  const characterNameAr = scenario?.title_ar || t('conv.characterFallback');
 
   // The words the app can actually explain. Everything else is plain text: a
   // transcript where every word looks tappable but most taps do nothing teaches
@@ -388,18 +392,18 @@ export function useLiveConversation({
       : 'lavender';
 
   const orbLabelAr = !voice.isSupported
-    ? 'الإدخال الصوتي غير متاح — اكتب بالألمانية'
+    ? t('conv.voiceUnavailable')
     : voice.isRecording
-      ? 'إيقاف التسجيل'
+      ? t('conv.stopRecording')
       : conversation.status === 'transcribing'
-        ? 'جارٍ التعرف على كلامك'
+        ? t('conv.transcribingShort')
         : conversation.status === 'evaluating' || conversation.status === 'generating_reply'
-          ? 'كَاتْزُو يعمل على ردّك'
+          ? t('conv.katzuWorking')
           : conversation.status === 'quota_exhausted'
-            ? 'انتهت الجلسات المجانية'
+            ? t('conv.quotaExhausted')
             : conversation.status === 'offline'
-              ? 'لا يوجد اتصال'
-              : 'ابدأ التحدث';
+              ? t('conv.noConnection')
+              : t('conv.startSpeaking');
 
   /**
    * Tap the orb to speak. The typed path is never closed by a failure: a denied
@@ -911,7 +915,7 @@ export function useLiveConversation({
 
       const roleplay = res.roleplay;
       if (!roleplay) {
-        const error: any = new Error('تعذر التحقق من رد المحادثة. لم يتم احتساب هذه الجملة.');
+        const error: any = new Error(t('conv.turnInvalid'));
         error.code = 'INVALID_AI_RESPONSE';
         throw error;
       }
@@ -932,7 +936,7 @@ export function useLiveConversation({
         correctedGerman: chip?.corrected,
         correctedSentence: chip?.corrected,
         explanationAr: chip?.reasonAr || undefined,
-        positiveNoteAr: hasCorrection ? correctionNoteAr(localErrors.length || 1) : 'أحسنت!',
+        positiveNoteAr: hasCorrection ? correctionNoteAr(localErrors.length || 1) : t('conv.wellDone'),
         // Kept for the report and the mistake bank only — never rendered as a
         // second card: the corrector is the honest, repeatable measure.
         ...(localErrors.length > 0
@@ -940,7 +944,7 @@ export function useLiveConversation({
               localErrorCount: localErrors.length,
               localOriginal: text,
               localCorrected: localCheck.corrected,
-              localRule: localErrors[0]?.label || 'قواعد نحوية',
+              localRule: localErrors[0]?.label || t('conv.grammarRuleFallback'),
             }
           : {}),
         // Hidden Settings toggle, off by default.
@@ -987,7 +991,7 @@ export function useLiveConversation({
           scenarioId,
           original: text,
           corrected: localCheck.corrected,
-          grammarRule: localErrors[0]?.label || 'قواعد نحوية',
+          grammarRule: localErrors[0]?.label || t('conv.grammarRuleFallback'),
           timestamp: Date.now(),
           wasHintUsed: usedHintForThisTurn,
         };
@@ -1028,9 +1032,9 @@ export function useLiveConversation({
           isOpen: true,
           title:
             err?.code === 'FREE_QUOTA_EXHAUSTED'
-              ? `انتهت ${MAX_FREE_SESSIONS_AR} محادثة مجانية`
-              : 'هذا المستوى ميزة Pro',
-          description: err?.message || 'رَقِّ حسابك لفتح كل المستويات من A0 حتى B2 ومحادثات بلا حدّ جلسات.',
+              ? t('conv.paywall.quotaTitle', { sessions: MAX_FREE_SESSIONS_AR })
+              : t('conv.paywall.levelTitle'),
+          description: err?.message || t('conv.paywall.body'),
         });
         if (err?.code === 'FREE_QUOTA_EXHAUSTED') {
           track('free_session_exhausted', { kind: 'trial', state: 'wall' });
@@ -1049,7 +1053,7 @@ export function useLiveConversation({
           type: 'turn_failed',
           error: {
             ...classifyTurnError(e),
-            messageAr: messageForCause(cause),
+            messageAr: messageForCause(cause, uiLanguage),
             draftRestored: true,
           },
         });
@@ -1183,7 +1187,7 @@ export function useLiveConversation({
       });
       if (quotaExceeded) {
         setHintQuotaSpent(true);
-        setHintFailure(messageForCause('busy'));
+        setHintFailure(messageForCause('busy', uiLanguage));
         logEvent('hints', 'daily hint budget spent');
         return;
       }
@@ -1199,7 +1203,7 @@ export function useLiveConversation({
         logEvent('hints', 'hint request returned no usable sentence');
       }
     } catch (error) {
-      setHintFailure(messageForCause(failureCauseOf(error)));
+      setHintFailure(messageForCause(failureCauseOf(error), uiLanguage));
       logError('hints', 'AI hint request failed');
     } finally {
       setIsRefreshingHints(false);
@@ -1242,7 +1246,7 @@ export function useLiveConversation({
       .map((m) => ({
         original: m.localOriginal!,
         corrected: m.localCorrected!,
-        grammarRule: m.localRule || 'قاعدة نحوية',
+        grammarRule: m.localRule || t('conv.grammarRuleFallback'),
       }));
 
     const duration = Math.round((Date.now() - startTime) / 1000);
