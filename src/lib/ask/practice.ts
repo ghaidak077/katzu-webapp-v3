@@ -1,5 +1,7 @@
 import { gradeAnswer, normalizeGermanAnswer, type AnswerVerdict } from '@/lib/srs/engine';
 import type { AskPracticeItem } from '@/types/models';
+import { translate, UI_STRINGS } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * Grading Ask Katzu's practice items (V28 Stage 2A).
@@ -43,9 +45,16 @@ export function shouldEnrolAskMistake(item: AskPracticeItem, verdict: AnswerVerd
   return verdict === 'wrong' && item.type !== 'translate';
 }
 
-/** Arabic feedback per verdict — one line, never a score. */
-export function askPracticeFeedbackAr(verdict: AnswerVerdict): string {
-  if (verdict === 'correct') return 'صحيحة — فهمت الفكرة.';
-  if (verdict === 'close') return 'الصيغة قريبة، لكن الأداة أو الشكل يحتاج ضبطاً.';
-  return 'ليست الصيغة الصحيحة بعد — انظر الجواب ثم أعد الكتابة.';
+/** Feedback per verdict — one line, never a score. */
+export function askPracticeFeedback(verdict: AnswerVerdict, language: UiLanguage = 'ar'): string {
+  if (verdict === 'correct') return translate(language, 'ask.feedback.correct');
+  if (verdict === 'close') return translate(language, 'ask.feedback.close');
+  return translate(language, 'ask.feedback.wrong');
 }
+
+/** Historical name and Arabic default, kept for callers that never localised. */
+export const askPracticeFeedbackAr = (verdict: AnswerVerdict): string =>
+  askPracticeFeedback(verdict, 'ar');
+
+/** Pinned so a copy edit in Arabic cannot silently orphan the constant above. */
+export const ASK_FEEDBACK_AR = UI_STRINGS.ar['ask.feedback.correct'];

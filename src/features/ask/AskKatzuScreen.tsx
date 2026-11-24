@@ -10,8 +10,9 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { triggerHaptic } from '@/lib/utils/haptics';
 import { logError } from '@/lib/utils/diagnostics';
-import { gradeAskPractice, askPracticeFeedbackAr, shouldEnrolAskMistake } from '@/lib/ask/practice';
-import { ASK_EXAMPLE_AR, ASK_LEGAL_NOTICE_AR, ASK_PRACTICE_NOTE_AR, ASK_SUGGESTIONS } from '@/lib/ask/notices';
+import { gradeAskPractice, askPracticeFeedback, shouldEnrolAskMistake } from '@/lib/ask/practice';
+import { askExample, askLegalNotice, askPracticeNote, askSuggestions, ASK_INTENT_KEYS } from '@/lib/ask/notices';
+import { useLanguage } from '@/lib/i18n/LanguageProvider';
 import type { AskAnswer, AskPracticeItem } from '@/types/models';
 
 /**
@@ -38,7 +39,7 @@ export interface AskKatzuScreenProps {
 interface PracticeRow {
   text: string;
   verdict: 'correct' | 'close' | 'wrong' | null;
-  feedbackAr: string;
+  feedback: string;
 }
 
 const NO_RETRY_CODES = new Set(['RATE_LIMIT_EXCEEDED', 'UNAUTHENTICATED']);
@@ -51,15 +52,10 @@ const INTENT_ICON: Record<string, React.ReactNode> = {
   official: <Scale className="h-4 w-4" />,
 };
 
-const INTENT_LABEL_AR: Record<string, string> = {
-  translate: 'ترجمة',
-  grammar: 'قاعدة',
-  word: 'كلمة',
-  check_sentence: 'تصحيح جملة',
-  official: 'ألمانية رسمية',
-};
-
 export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSubscription }) => {
+  const { t, uiLanguage } = useLanguage();
+  const example = askExample(uiLanguage);
+  const suggestions = askSuggestions(uiLanguage);
   const user = useLiveQuery(() => db.users.get('current_user'));
   const [question, setQuestion] = useState('');
   const [isAsking, setIsAsking] = useState(false);
@@ -108,7 +104,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
       const verdict = gradeAskPractice(item, text);
       setPractice((prev) => ({
         ...prev,
-        [index]: { text: row?.text || '', verdict, feedbackAr: askPracticeFeedbackAr(verdict) },
+        [index]: { text: row?.text || '', verdict, feedback: askPracticeFeedback(verdict, uiLanguage) },
       }));
 
       if (verdict === 'correct') {
@@ -128,7 +124,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
           scenarioId: 'ask_katzu',
           original: text,
           corrected: item.answerDe,
-          grammarRule: 'من سؤال كَاتْزُو عن الألمانية',
+          grammarRule: t('ask.mistakeRule'),
           timestamp: Date.now(),
           wasHintUsed: false,
         };
@@ -139,7 +135,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
         logError('ask/practice', `Could not enrol mistake: ${err instanceof Error ? err.message : String(err)}`);
       }
     },
-    [practice],
+    [practice, uiLanguage],
   );
 
   return (
@@ -148,7 +144,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
         <button
           type="button"
           onClick={onBack}
-          aria-label="العودة"
+          aria-label={t('ask.back')}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-kz-inkDim"
         >
           <ArrowRight className="h-5 w-5" />
@@ -156,8 +152,8 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
         <div className="min-w-0 flex-1 text-center">
           {/* V35: `truncate` cut this heading's own words at 320px with nothing to
               reveal the rest. The header row has room for two lines. */}
-          <h1 className="kz-ar-caption text-balance font-bold text-kz-ink">اسأل كَاتْزُو عن الألمانية</h1>
-          <p className="kz-ar-micro text-kz-inkFaint">ترجمة · قواعد · كلمة · تصحيح جملة · ألمانية رسمية</p>
+          <h1 className="kz-ar-caption text-balance font-bold text-kz-ink">{t('ask.title')}</h1>
+          <p className="kz-ar-micro text-kz-inkFaint">{t('ask.subtitle')}</p>
         </div>
         <KatzuMascot name="avatar" className="h-9 w-9 shrink-0" />
       </header>
@@ -174,24 +170,24 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
             <button
               type="button"
               onClick={() => {
-                setQuestion(ASK_EXAMPLE_AR);
+                setQuestion(example);
                 setError(null);
               }}
               className="kz-ar-micro rounded-full border border-kz-lavender/30 bg-kz-lavender/10 px-3 py-1.5 font-semibold text-kz-lavender transition-colors pointer-hover:border-kz-lavender/60 min-h-touch"
             >
-              جرّب مثالاً
+              {t('ask.tryExample')}
             </button>
-            {ASK_SUGGESTIONS.map((suggestion) => (
+            {suggestions.map((suggestion) => (
               <button
-                key={suggestion.labelAr}
+                key={suggestion.label}
                 type="button"
                 onClick={() => {
-                  setQuestion(suggestion.promptAr);
+                  setQuestion(suggestion.prompt);
                   setError(null);
                 }}
                 className="kz-ar-micro rounded-full border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-kz-inkDim transition-colors pointer-hover:border-primary/50 pointer-hover:text-primary"
               >
-                {suggestion.labelAr}
+                {suggestion.label}
               </button>
             ))}
           </div>
@@ -199,7 +195,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
 
         <Card className="p-3.5">
           <label htmlFor="ask-input" className="kz-ar-micro mb-2 block font-semibold text-kz-inkDim">
-            اكتب سؤالك أو جملتك — بالعربية أو بالألمانية
+            {t('ask.inputLabel')}
           </label>
           <textarea
             id="ask-input"
@@ -210,12 +206,14 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
             onKeyDown={(event) => {
               if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void ask();
             }}
-            placeholder={`مثال: ${ASK_EXAMPLE_AR}`}
+            placeholder={t('ask.placeholder', { example })}
             className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-3 py-2.5 font-arabic text-base text-kz-ink transition-colors placeholder:text-kz-inkFaint focus:border-primary/60"
           />
           <div className="mt-2 flex items-center justify-between gap-2">
             <span className="kz-ar-micro text-kz-inkFaint">
-              {quota ? `${quota.dailyLimit} سؤالاً يومياً${quota.isPro ? ' (Pro)' : ''}` : 'الألمانية فقط'}
+              {quota
+                ? `${t('ask.dailyLimit', { limit: quota.dailyLimit })}${quota.isPro ? ' (Pro)' : ''}`
+                : t('ask.germanOnly')}
             </span>
             <Button
               size="md"
@@ -224,7 +222,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
               onClick={() => void ask()}
             >
               <Send className="h-4 w-4 rotate-180" />
-              {isAsking ? 'يسأل…' : 'اسأل'}
+              {isAsking ? t('ask.asking') : t('ask.ask')}
             </Button>
           </div>
         </Card>
@@ -232,19 +230,19 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
         {/* Failure keeps the question and offers the retry — never a dead end. */}
         {error && (
           <Card role="alert" className="border-status-error/40 p-3.5">
-            <p className="kz-ar-caption font-bold text-status-error">تعذّر الحصول على شرح</p>
+            <p className="kz-ar-caption font-bold text-status-error">{t('ask.errorTitle')}</p>
             <p className="kz-ar-micro mt-1 text-kz-inkDim">{error}</p>
             {/* A daily limit or expired session will not clear on retry, so offer no retry. */}
             {!NO_RETRY_CODES.has(errorCode ?? '') && (
               <Button size="sm" variant="secondary" className="mt-2 rounded-xl" onClick={() => void ask()}>
-                أعد المحاولة
+                {t('ask.retry')}
               </Button>
             )}
             {/* The daily limit is the moment Pro is the clear next step; the free
                 parts of the app stay available either way. */}
             {errorCode === 'RATE_LIMIT_EXCEEDED' && onOpenSubscription && (
               <button type="button" onClick={onOpenSubscription} className="kz-ar-micro mt-2 block font-semibold text-primary">
-                تفاصيل Pro — أسئلة أكثر كل يوم
+                {t('ask.upgradeCta')}
               </button>
             )}
           </Card>
@@ -252,7 +250,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
 
         {answer && !answer.inScope && (
           <Card className="p-3.5">
-            <p className="kz-ar-caption font-bold text-kz-lavender">كَاتْزُو هنا لتعليم الألمانية فقط</p>
+            <p className="kz-ar-caption font-bold text-kz-lavender">{t('ask.refusalTitle')}</p>
             <p className="kz-ar-body mt-1.5 leading-relaxed text-kz-ink">{answer.refusalAr}</p>
             <button
               type="button"
@@ -262,7 +260,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
               }}
               className="kz-ar-micro mt-2 font-semibold text-primary"
             >
-              اسأل عن الألمانية
+              {t('ask.askGerman')}
             </button>
           </Card>
         )}
@@ -273,7 +271,9 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
               <div className="mb-2 flex items-center gap-2 text-kz-lavender">
                 {answer.intent && INTENT_ICON[answer.intent]}
                 <span className="kz-ar-micro font-bold">
-                  {answer.intent ? INTENT_LABEL_AR[answer.intent] : 'شرح'}
+                  {answer.intent && ASK_INTENT_KEYS[answer.intent]
+                    ? t(ASK_INTENT_KEYS[answer.intent])
+                    : t('ask.explanationFallback')}
                 </span>
               </div>
               <p className="kz-ar-body leading-relaxed text-kz-ink">{answer.explanationAr}</p>
@@ -296,14 +296,14 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
               <Card className="border-kz-neon/30 p-3">
                 <p className="kz-ar-micro flex items-start gap-2 leading-relaxed text-kz-neon">
                   <ScrollText className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                  <span>{ASK_LEGAL_NOTICE_AR}</span>
+                  <span>{askLegalNotice(uiLanguage)}</span>
                 </p>
               </Card>
             )}
 
             {answer.practice.length > 0 && (
               <section className="space-y-3">
-                <h2 className="kz-ar-caption text-kz-inkDim">تأكّد أنك فهمت</h2>
+                <h2 className="kz-ar-caption text-kz-inkDim">{t('ask.practiceHeading')}</h2>
                 {answer.practice.map((item, index) => {
                   const row = practice[index];
                   const verdict = row?.verdict || null;
@@ -317,13 +317,17 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
                         <input
                           type="text"
                           dir="ltr"
-                          aria-label="اكتب الجواب بالألمانية"
-                          placeholder="اكتب الجواب بالألمانية"
+                          aria-label={t('ask.answerLabel')}
+                          placeholder={t('ask.answerLabel')}
                           value={row?.text || ''}
                           onChange={(event) =>
                             setPractice((prev) => ({
                               ...prev,
-                              [index]: { text: event.target.value, verdict: prev[index]?.verdict || null, feedbackAr: prev[index]?.feedbackAr || '' },
+                              [index]: {
+                                text: event.target.value,
+                                verdict: prev[index]?.verdict || null,
+                                feedback: prev[index]?.feedback || '',
+                              },
                             }))
                           }
                           onKeyDown={(event) => {
@@ -338,7 +342,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
                           disabled={!(row?.text || '').trim()}
                           onClick={() => void checkPractice(index, item)}
                         >
-                          تحقّق
+                          {t('ask.check')}
                         </Button>
                       </div>
                       {verdict && (
@@ -348,7 +352,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
                           }`}
                         >
                           {verdict === 'correct' ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
-                          {row?.feedbackAr}
+                          {row?.feedback}
                         </p>
                       )}
                     </Card>
@@ -356,7 +360,7 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
                 })}
                 <p className="kz-ar-micro flex items-start gap-1.5 leading-relaxed text-kz-inkFaint">
                   <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span>{ASK_PRACTICE_NOTE_AR}</span>
+                  <span>{askPracticeNote(uiLanguage)}</span>
                 </p>
               </section>
             )}
@@ -364,10 +368,10 @@ export const AskKatzuScreen: React.FC<AskKatzuScreenProps> = ({ onBack, onOpenSu
             {!quota?.isPro && onOpenSubscription && (
               <Card className="p-3">
                 <p className="kz-ar-micro leading-relaxed text-kz-inkDim">
-                  خطة Pro تمنحك أسئلة أكثر كل يوم. تبقى المراجعة والمهمة اليومية مجانية دائماً.
+                  {t('ask.proBody')}
                 </p>
                 <button type="button" onClick={onOpenSubscription} className="kz-ar-micro mt-2 font-semibold text-primary">
-                  تفاصيل Pro
+                  {t('ask.proCta')}
                 </button>
               </Card>
             )}
