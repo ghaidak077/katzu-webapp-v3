@@ -4,7 +4,29 @@ Moved out of `PROJECT-BRIEF.md` section 7 on 2026-10-31, verbatim, so the brief 
 its 80 KB cap with room to grow. Newer changes stay in the brief; grep this file, never load
 it whole.
 
-## 2026-11-24 (latest) — every screen is localised: 0 hard-coded Arabic
+## 2026-11-25 (latest) — the whole app walked as a learner in all three languages
+
+- **A browser walkthrough now covers every screen in `ar`, `en` and `id`.** `e2e/languageWalkthrough.spec.ts`
+  boots a signed-in learner per language, visits the 23 routes plus the five episode screens, records every
+  screen's visible text into `language-walkthrough-<lang>.txt`, and fails on a raw dictionary key, an
+  un-interpolated template, `undefined`/`NaN`/`[object Object]`, a wrong `lang`/`dir`, Arabic on a
+  chrome-only screen, or a page error. A second test per language presses the real controls — the goal
+  answer, the story's start, Ask, Review, the paywall, the mock and the language switch — with the
+  dictionary's own copy as the selector, so a translated heading over an Arabic button fails.
+- **It found one real leak: the writing task block.** `WRITING_TASK_COPY` carried `titleAr`/`briefAr`
+  literals, so an English or Indonesian learner read «رسالة قصيرة» and its Arabic instruction at the top of
+  an otherwise translated writing screen. The table now carries `titleKey`/`briefKey` (`writing.task.*` in
+  all three dictionaries) and `WritingScreen` resolves them in render; `tests/writing.test.ts` asserts every
+  task format has a readable label and brief in all three languages.
+- **Arabic is unchanged**: the four briefs moved into `ar.ts` byte-for-byte.
+- **What stays Arabic is content, not chrome.** Scenario, vocabulary and grammar titles/explanations, the
+  mock's topic and part briefs, and AI replies come from the content layer (D1 / bundled), which has no
+  localized columns yet. The walkthrough records them per screen instead of failing, so the remaining gap is
+  written down rather than hidden.
+- **Checks:** `tsc --noEmit` clean, `test:e2e:types` clean, full vitest suite green, `i18n-coverage --strict`
+  exit 0, `i18n:dir --strict` clean, walkthrough 6/6 (three languages × render + flow).
+
+## 2026-11-24 — every screen is localised: 0 hard-coded Arabic
 
 - **The coverage number is now zero, and it is the tool's own number.** `scripts/i18n-coverage.mjs`
   reports `All screens are localised: 0 hard-coded Arabic strings`, and `coverage.json` says `true`

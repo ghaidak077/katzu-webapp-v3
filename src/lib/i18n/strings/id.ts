@@ -1690,4 +1690,12 @@ export const ID: Record<ArKey, string> = {
   'trail.onboarding.dismiss': 'Sembunyikan pengingat ini',
   'trail.suggested': 'Disarankan',
   'trail.sheetStart': 'Mulai · {stage}',
+  'writing.task.shortMessage.title': 'Pesan singkat',
+  'writing.task.shortMessage.brief': 'Tulis pesan singkat tidak resmi dua sampai tiga kalimat tentang topik di bawah ini.',
+  'writing.task.appointment.title': 'Permintaan janji temu',
+  'writing.task.appointment.brief': 'Tulis permintaan janji temu yang sopan dalam empat sampai enam kalimat: alasannya, kapan kamu bisa, dan apa yang kamu butuhkan.',
+  'writing.task.formalEmail.title': 'Email resmi',
+  'writing.task.formalEmail.brief': 'Tulis email resmi enam sampai sepuluh kalimat, dengan salam pembuka dan penutup.',
+  'writing.task.complaint.title': 'Keluhan resmi',
+  'writing.task.complaint.brief': 'Tulis keluhan resmi delapan sampai dua belas kalimat: jelaskan masalahnya, faktanya, apa yang sudah kamu coba, dan apa yang ingin kamu terjadi.',
 };

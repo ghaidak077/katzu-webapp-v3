@@ -12,6 +12,7 @@ import {
   taskTypeForLevel,
 } from '../cloudflare-writing.js';
 import { WRITING_TASK_COPY, writingTaskForLevel } from '@/lib/writing/task';
+import { UI_STRINGS } from '@/lib/i18n/strings';
 import type { CEFRLevel } from '@/types/models';
 
 /**
@@ -77,8 +78,15 @@ describe('task contract between the app and the grader', () => {
 
   it('gives every task format the worker accepts a label the learner can read', () => {
     for (const taskType of WRITING_TASK_TYPES) {
-      expect(WRITING_TASK_COPY[taskType as keyof typeof WRITING_TASK_COPY]).toBeTruthy();
-      expect(WRITING_TASK_COPY[taskType as keyof typeof WRITING_TASK_COPY].briefAr.length).toBeGreaterThan(10);
+      const copy = WRITING_TASK_COPY[taskType as keyof typeof WRITING_TASK_COPY];
+      expect(copy).toBeTruthy();
+      // The table carries keys, not sentences: a literal here would be frozen in
+      // one language and painted into the others. The screen resolves them.
+      expect(copy.briefKey in UI_STRINGS.ar).toBe(true);
+      for (const language of ['ar', 'en', 'id'] as const) {
+        expect(UI_STRINGS[language][copy.titleKey].length).toBeGreaterThan(2);
+        expect(UI_STRINGS[language][copy.briefKey].length).toBeGreaterThan(10);
+      }
     }
   });
 });

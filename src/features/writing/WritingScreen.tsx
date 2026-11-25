@@ -316,11 +316,11 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
       <Card className="p-4 mb-4">
         <div className="flex items-center gap-2 mb-2">
           <Badge variant="primary" size="sm">
-            {copy.titleAr}
+            {t(copy.titleKey)}
           </Badge>
           <span className="text-micro font-german text-text-muted">{copy.formatDe}</span>
         </div>
-        <p className="text-xs font-arabic leading-relaxed mb-2">{copy.briefAr}</p>
+        <p className="text-xs font-arabic leading-relaxed mb-2">{t(copy.briefKey)}</p>
         {scenario && (
           <p className="text-micro font-arabic text-text-secondary">
             {t('writing.topic')} <span className="text-text-primary">{scenario.title_ar}</span>

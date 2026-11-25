@@ -1678,6 +1678,14 @@ export const AR = {
   'trail.onboarding.dismiss': 'إخفاء هذا التنبيه',
   'trail.suggested': 'المقترحة',
   'trail.sheetStart': 'ابدأ · {stage}',
+  'writing.task.shortMessage.title': 'رسالة قصيرة',
+  'writing.task.shortMessage.brief': 'اكتب رسالة قصيرة غير رسمية من جملتين إلى ثلاث عن الموضوع المذكور أدناه.',
+  'writing.task.appointment.title': 'طلب موعد',
+  'writing.task.appointment.brief': 'اكتب طلباً مهذباً لموعد من أربع إلى ست جمل: لماذا، ومتى يناسبك، وماذا تحتاج.',
+  'writing.task.formalEmail.title': 'بريد رسمي',
+  'writing.task.formalEmail.brief': 'اكتب بريداً رسمياً من ست إلى عشر جمل مع تحية البداية والخاتمة.',
+  'writing.task.complaint.title': 'شكوى رسمية',
+  'writing.task.complaint.brief': 'اكتب شكوى رسمية من ثماني إلى اثنتي عشرة جملة: اذكر المشكلة، والوقائع، وما جرّبته سابقاً، وما تريد أن يحدث.',
 } as const;
 
 export type ArKey = keyof typeof AR;

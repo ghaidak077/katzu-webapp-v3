@@ -1,4 +1,5 @@
 import type { CEFRLevel, WritingTaskType } from '@/types/models';
+import type { UiStringKey } from '@/lib/i18n/strings';
 
 /**
  * Which written task a level is ready for — the client half of the contract with
@@ -24,10 +25,18 @@ export function writingTaskForLevel(level: CEFRLevel | string | undefined): Writ
 }
 
 export interface WritingTaskCopy {
-  /** Short Arabic label for the task picker. */
-  titleAr: string;
-  /** The instruction the learner actually reads. */
-  briefAr: string;
+  /**
+   * Dictionary row for the short task label the picker shows.
+   *
+   * A key rather than a sentence: this table is built once at module load, so a
+   * literal here would be frozen in one language and painted into every other
+   * one — which is exactly how the Arabic task block used to survive on the
+   * English writing screen. The screen resolves the key in render, where the
+   * learner's language is known.
+   */
+  titleKey: UiStringKey;
+  /** Dictionary row for the instruction the learner actually reads. */
+  briefKey: UiStringKey;
   /** The German name of the task format, shown as the exam term. */
   formatDe: string;
 }
@@ -40,24 +49,23 @@ export interface WritingTaskCopy {
  */
 export const WRITING_TASK_COPY: Record<WritingTaskType, WritingTaskCopy> = {
   short_message: {
-    titleAr: 'رسالة قصيرة',
-    briefAr: 'اكتب رسالة قصيرة غير رسمية من جملتين إلى ثلاث عن الموضوع المذكور أدناه.',
+    titleKey: 'writing.task.shortMessage.title',
+    briefKey: 'writing.task.shortMessage.brief',
     formatDe: 'Kurze Nachricht',
   },
   appointment_request: {
-    titleAr: 'طلب موعد',
-    briefAr: 'اكتب طلباً مهذباً لموعد من أربع إلى ست جمل: لماذا، ومتى يناسبك، وماذا تحتاج.',
+    titleKey: 'writing.task.appointment.title',
+    briefKey: 'writing.task.appointment.brief',
     formatDe: 'Terminanfrage',
   },
   formal_email: {
-    titleAr: 'بريد رسمي',
-    briefAr: 'اكتب بريداً رسمياً من ست إلى عشر جمل مع تحية البداية والخاتمة.',
+    titleKey: 'writing.task.formalEmail.title',
+    briefKey: 'writing.task.formalEmail.brief',
     formatDe: 'Formelle E-Mail',
   },
   complaint: {
-    titleAr: 'شكوى رسمية',
-    briefAr:
-      'اكتب شكوى رسمية من ثماني إلى اثنتي عشرة جملة: اذكر المشكلة، والوقائع، وما جرّبته سابقاً، وما تريد أن يحدث.',
+    titleKey: 'writing.task.complaint.title',
+    briefKey: 'writing.task.complaint.brief',
     formatDe: 'Beschwerde',
   },
 };

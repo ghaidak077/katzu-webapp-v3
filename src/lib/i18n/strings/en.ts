@@ -1687,4 +1687,12 @@ export const EN: Record<ArKey, string> = {
   'trail.onboarding.dismiss': 'Hide this prompt',
   'trail.suggested': 'Suggested',
   'trail.sheetStart': 'Start · {stage}',
+  'writing.task.shortMessage.title': 'Short message',
+  'writing.task.shortMessage.brief': 'Write a short, informal message of two to three sentences on the topic below.',
+  'writing.task.appointment.title': 'Appointment request',
+  'writing.task.appointment.brief': 'Write a polite appointment request in four to six sentences: why, when suits you, and what you need.',
+  'writing.task.formalEmail.title': 'Formal email',
+  'writing.task.formalEmail.brief': 'Write a formal email of six to ten sentences, with an opening greeting and a closing.',
+  'writing.task.complaint.title': 'Formal complaint',
+  'writing.task.complaint.brief': 'Write a formal complaint of eight to twelve sentences: state the problem, the facts, what you have already tried, and what you want to happen.',
 };
