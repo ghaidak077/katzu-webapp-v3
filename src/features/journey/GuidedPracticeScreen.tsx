@@ -91,7 +91,7 @@ export const GuidedPracticeScreen: React.FC<GuidedPracticeScreenProps> = ({
   );
 
   const practice = useMemo(
-    () => buildGuidedPractice({ phrases: phrasesQ || [], vocabulary: vocabQ || [], grammar: grammarQ || [], level }),
+    () => buildGuidedPractice({ phrases: phrasesQ || [], vocabulary: vocabQ || [], grammar: grammarQ || [], level, language: uiLanguage }),
     [phrasesQ, vocabQ, grammarQ, level],
   );
 

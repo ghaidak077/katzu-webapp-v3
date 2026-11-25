@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/katzuDb';
 import { GermanText } from '@/components/common/GermanText';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { grammarTitle } from '@/lib/content/titles';
 import type { UiStringKey } from '@/lib/i18n/strings';
 import type { UiLanguage } from '@/lib/i18n/languages';
 import { KatzuMascot } from '@/components/common/KatzuMascot';
@@ -193,8 +194,8 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
     [progressRows],
   );
   const path = useMemo(
-    () => buildGrammarPath(grammar, progress, user?.cefrLevel),
-    [grammar, progress, user?.cefrLevel],
+    () => buildGrammarPath(grammar, progress, user?.cefrLevel, uiLanguage),
+    [grammar, progress, user?.cefrLevel, uiLanguage],
   );
 
   const [openId, setOpenId] = useState<string | null>(null);
@@ -334,7 +335,7 @@ const GrammarSectionScreen: React.FC<GrammarSectionScreenProps> = ({ onBack, onO
             <Badge variant="primary" size="sm">{openRow.level}</Badge>
             {cleared && <CheckCircle2 className="w-4 h-4 text-status-success" />}
           </div>
-          <h1 className="mt-2 text-lg font-bold font-arabic leading-relaxed">{openRow.title_ar}</h1>
+          <h1 className="mt-2 text-lg font-bold font-arabic leading-relaxed">{grammarTitle(openRow, uiLanguage)}</h1>
 
           <Card className="mt-4 p-4 space-y-3">
             <p className="text-sm font-arabic text-text-secondary leading-relaxed">{openRow.rule_ar}</p>

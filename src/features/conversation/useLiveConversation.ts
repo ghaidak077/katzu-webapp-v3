@@ -17,6 +17,7 @@ import { isEntitlementUnavailable, isEntitlementWall } from '@/lib/entitlement/c
 import { levelSpecFor } from '@/lib/levels/levelSpec';
 import { calculateIndependentAccuracy } from '@/features/report/metrics';
 import { buildSessionDebrief, type SessionDebrief } from '@/lib/debrief/debrief';
+import { scenarioTitle } from '@/lib/content/titles';
 import { localDateKey, recalculateStreak } from '@/lib/utils/streak';
 import { sessionXp } from '@/lib/progress/sessionXp';
 import { creditXp, xpEarnedToday } from '@/lib/progress/dailyXp';
@@ -335,7 +336,7 @@ export function useLiveConversation({
     },
   });
 
-  const characterNameAr = scenario?.title_ar || t('conv.characterFallback');
+  const characterNameAr = (scenario ? scenarioTitle(scenario, uiLanguage) : '') || t('conv.characterFallback');
 
   // The words the app can actually explain. Everything else is plain text: a
   // transcript where every word looks tappable but most taps do nothing teaches
@@ -1270,7 +1271,7 @@ export function useLiveConversation({
     const sessionRecord: SessionEntity = {
       id: sessionId,
       scenarioId,
-      scenarioTitle: scenario?.title_ar || '',
+      scenarioTitle: scenario ? scenarioTitle(scenario, uiLanguage) : '',
       cefrLevel: effectiveLevel,
       sentencesSpoken: userMsgs.length,
       wordsLearned: userMsgs.length * 4,
@@ -1377,7 +1378,7 @@ export function useLiveConversation({
 
     onCompleteSession({
       scenarioId,
-      scenarioTitle: scenario?.title_ar || '',
+      scenarioTitle: scenario ? scenarioTitle(scenario, uiLanguage) : '',
       cefrLevel: effectiveLevel,
       sentencesSpoken: userMsgs.length,
       accuracyPercent: accuracy,
@@ -1390,7 +1391,8 @@ export function useLiveConversation({
       // Deterministic Phase-2 debrief, built from the same numbers this
       // function just computed — no extra AI call anywhere.
       debrief: buildSessionDebrief({
-        scenarioTitle: scenario?.title_ar || '',
+        scenarioTitle: scenario ? scenarioTitle(scenario, uiLanguage) : '',
+        language: uiLanguage,
         level: effectiveLevel,
         mode: sessionMode || 'practice',
         sentencesSpoken: userMsgs.length,

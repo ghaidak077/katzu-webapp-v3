@@ -14,6 +14,7 @@ import { ArrowRight, Volume2, Bookmark } from 'lucide-react';
 import { BackButton } from '@/components/common/BackButton';
 import type { VocabularyEntity, GrammarEntity, StarterPhraseEntity } from '@/types/models';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { grammarTitle, scenarioTitle } from '@/lib/content/titles';
 
 export interface StudyScreenProps {
   scenarioId: string;
@@ -26,7 +27,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
   onBack,
   onProceedToQuiz,
 }) => {
-  const { t } = useLanguage();
+  const { t, uiLanguage } = useLanguage();
   const [activeTab, setActiveTab] = useState<'phrases' | 'vocab' | 'grammar'>('phrases');
   const [speed, setSpeed] = useState<number>(1.0);
   const [playingText, setPlayingText] = useState<string | null>(null);
@@ -113,7 +114,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
 
       <h2 className="text-xl font-bold font-arabic mb-1">{t('study.title')}</h2>
       <p className="text-xs text-text-secondary font-arabic mb-4">
-        {t('study.subtitle', { title: scenario?.title_ar || '' })}
+        {t('study.subtitle', { title: scenario ? scenarioTitle(scenario, uiLanguage) : '' })}
       </p>
 
       {/* Tabs */}
@@ -259,7 +260,7 @@ export const StudyScreen: React.FC<StudyScreenProps> = ({
               <Badge variant="primary" size="sm">
                 {t('study.grammarBadge')}
               </Badge>
-              <h4 className="text-sm font-bold font-arabic text-text-primary">{g.title_ar}</h4>
+              <h4 className="text-sm font-bold font-arabic text-text-primary">{grammarTitle(g, uiLanguage)}</h4>
               <p className="text-xs text-text-secondary font-arabic leading-relaxed">{g.explanation_ar}</p>
               <div className="p-2.5 rounded-2xl bg-surface-subtle border border-border-subtle text-xs">
                 <GermanText className="font-bold text-primary block mb-0.5">{g.example_de}</GermanText>

@@ -14,6 +14,7 @@ import { isProEffective } from '@/lib/utils/subscription';
 import { servedLevel } from '@/lib/entitlement/trial';
 import { logError } from '@/lib/utils/diagnostics';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { scenarioTitle } from '@/lib/content/titles';
 import { GermanText } from '@/components/common/GermanText';
 import { GlassCard } from '@/components/glass/GlassCard';
 import { GlassButton, PrimaryAction } from '@/components/glass/GlassButton';
@@ -200,7 +201,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
             </div>
 
             <GlassCard tier="glass">
-              <h1 className="kz-ar-title text-kz-ink">{scenario.title_ar}</h1>
+              <h1 className="kz-ar-title text-kz-ink">{scenarioTitle(scenario, uiLanguage)}</h1>
               <GermanText className="mt-1 block kz-de-caption text-kz-inkDim">{scenario.title_de}</GermanText>
 
               <p className="kz-ar-body mt-3 text-kz-ink">{story?.situationAr}</p>

@@ -1,5 +1,7 @@
 import { LEVEL_LADDER } from '@/lib/levels/levelSpec';
 import type { CEFRLevel, GrammarEntity, GrammarLessonAttempt, GrammarLessonProgressEntity } from '@/types/models';
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { grammarTitle } from '@/lib/content/titles';
 
 /**
  * The القواعد PATH (V28 Stage 2B): grammar as a locked course, not a row list.
@@ -104,7 +106,10 @@ export interface GrammarPath {
  * is the lesson before it, so the path is a chain and "lesson N+1 unlocks after
  * lesson N is passed" is a property of the data, not of a screen.
  */
-export function orderGrammarLessons(rows: Array<Pick<GrammarEntity, 'id' | 'title_ar' | 'rule_ar' | 'level'>>): GrammarLesson[] {
+export function orderGrammarLessons(
+  rows: Array<Pick<GrammarEntity, 'id' | 'title_ar' | 'rule_ar' | 'level'>>,
+  language: UiLanguage = 'ar',
+): GrammarLesson[] {
   const hintIndex = new Map(GRAMMAR_ORDER_HINTS.map((id, index) => [id, index]));
   const sorted = [...rows].sort((a, b) => {
     const levelDelta = LEVEL_LADDER.indexOf(a.level) - LEVEL_LADDER.indexOf(b.level);
@@ -117,7 +122,7 @@ export function orderGrammarLessons(rows: Array<Pick<GrammarEntity, 'id' | 'titl
   return sorted.map((row, index) => ({
     id: row.id,
     order: index + 1,
-    titleAr: row.title_ar,
+    titleAr: grammarTitle(row, language),
     ruleAr: row.rule_ar,
     level: row.level,
     prerequisites: index > 0 ? [sorted[index - 1].id] : [],
@@ -186,8 +191,9 @@ export function buildGrammarPath(
   rows: Array<Pick<GrammarEntity, 'id' | 'title_ar' | 'rule_ar' | 'level'>>,
   progress: GrammarProgressMap = {},
   startLevel: CEFRLevel | null | undefined = null,
+  language: UiLanguage = 'ar',
 ): GrammarPath {
-  const lessons = orderGrammarLessons(rows);
+  const lessons = orderGrammarLessons(rows, language);
   const startIndex = placementStartIndex(lessons, startLevel);
   const indexById = new Map(lessons.map((lesson, index) => [lesson.id, index]));
 

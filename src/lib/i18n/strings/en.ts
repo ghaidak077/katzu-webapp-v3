@@ -1694,5 +1694,10 @@ export const EN: Record<ArKey, string> = {
   'writing.task.formalEmail.title': 'Formal email',
   'writing.task.formalEmail.brief': 'Write a formal email of six to ten sentences, with an opening greeting and a closing.',
   'writing.task.complaint.title': 'Formal complaint',
+  'stage.study': 'Study',
+  'stage.withHelp': 'With help',
+  'stage.solo': 'On your own',
+  'stage.reviewQuick': 'Quick review ({count})',
+  'stage.untitledScene': 'The next scene',
   'writing.task.complaint.brief': 'Write a formal complaint of eight to twelve sentences: state the problem, the facts, what you have already tried, and what you want to happen.',
 };

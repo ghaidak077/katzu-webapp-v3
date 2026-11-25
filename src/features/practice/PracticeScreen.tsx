@@ -31,6 +31,7 @@ import {
 import { arCount } from '@/lib/i18n/arabicCount';
 import { CORRECTION_NOM, PRACTICE_DUE_NOM, PRACTICE_WORD_NOM } from '@/lib/i18n/countForms';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { grammarTitle } from '@/lib/content/titles';
 import type { ArabicCountForms } from '@/lib/i18n/arabicCount';
 import type { UiStringKey } from '@/lib/i18n/strings';
 import { buildWordBankFrom } from '@/lib/utils/wordBank';
@@ -599,7 +600,7 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({ onOpenListening,
         <div className="space-y-4 py-2">
           {grammarList.map((g: GrammarEntity) => (
             <div key={g.id} className="p-4 rounded-2xl bg-surface-card border border-border-subtle space-y-1.5">
-              <h4 className="text-sm font-bold font-arabic text-primary">{g.title_ar}</h4>
+              <h4 className="text-sm font-bold font-arabic text-primary">{grammarTitle(g, uiLanguage)}</h4>
               <p className="text-xs text-text-secondary leading-relaxed">{g.explanation_ar}</p>
               <div className="p-2 rounded-xl bg-surface-subtle text-xs">
                 <GermanText className="font-bold text-text-primary block">{g.example_de}</GermanText>

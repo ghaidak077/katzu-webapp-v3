@@ -26,6 +26,7 @@ import { ConversationTranscript } from './ConversationTranscript';
 import { useLiveConversation } from './useLiveConversation';
 import { HintDock } from './HintDock';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { scenarioTitle } from '@/lib/content/titles';
 
 export interface LiveConversationScreenProps {
   scenarioId: string;
@@ -227,7 +228,7 @@ export const LiveConversationScreen: React.FC<LiveConversationScreenProps> = ({
     ) || [];
   const topicChoices = useMemo(() => {
     if (!unit || userTurnsCount > 0) return [];
-    const titles = new Map(unitScenarioRows.map((row) => [row.id, row.title_ar]));
+    const titles = new Map(unitScenarioRows.map((row) => [row.id, scenarioTitle(row, uiLanguage)]));
     return unit.scenarioIds
       .filter((id) => id !== scenarioId && !isCheckpointScenario(id))
       .slice(0, 3)

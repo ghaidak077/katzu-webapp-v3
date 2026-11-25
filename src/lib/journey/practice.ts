@@ -6,6 +6,7 @@ import { vocabularyWithinLevelRadius } from '@/lib/utils/scenarioVocab';
 import { germanNounPhrase } from '@/lib/utils/germanNoun';
 import type { UiLanguage } from '@/lib/i18n/languages';
 import { translate } from '@/lib/i18n/strings';
+import { grammarTitle } from '@/lib/content/titles';
 
 /**
  * Guided Practice: the short preparation before the real conversation.
@@ -123,7 +124,7 @@ function sharedWordCount(example: string, vocabulary: Set<string>): number {
 export function selectGrammarRule(
   grammar: GrammarEntity[],
   level: CEFRLevel,
-  options: { now?: number; excludeGerman?: string[]; scenarioVocabulary?: string[] } = {},
+  options: { now?: number; excludeGerman?: string[]; scenarioVocabulary?: string[]; language?: UiLanguage } = {},
 ): PracticeGrammar | null {
   const learnerRank = levelRank(level);
   const excluded = new Set((options.excludeGerman || []).map((value) => normalizeGermanAnswer(value)));
@@ -169,7 +170,7 @@ export function selectGrammarRule(
 
   return {
     id: rule.id,
-    titleAr: rule.title_ar.trim(),
+    titleAr: grammarTitle(rule, options.language ?? 'ar'),
     ruleAr: rule.rule_ar.trim(),
     ruleDe: (rule.rule_de || '').trim(),
     explanationAr: (rule.explanation_ar || '').trim(),
@@ -194,6 +195,8 @@ export function buildGuidedPractice(input: {
   grammar?: GrammarEntity[];
   /** Injectable clock, so the day-rotated rule is testable. */
   now?: number;
+  /** The language the rule's title is read in (Arabic by default). */
+  language?: UiLanguage;
 }): GuidedPractice {
   const { phrases = [], vocabulary = [], level } = input;
   const learnerRank = levelRank(level);
@@ -239,6 +242,7 @@ export function buildGuidedPractice(input: {
     // Relevance key: the words on today's deck plus the topic pool the following
     // conversation will draw from.
     scenarioVocabulary: [...cards.map((card) => card.de), ...vocabularyContext],
+    language: input.language,
   });
 
   // The empty state is honest, not a placeholder: it means there is nothing on

@@ -39,7 +39,7 @@ import { buildCapabilityModel } from '@/lib/capability/model';
 import { sceneFor } from '@/lib/design/scenes';
 import { unitForScenario, unitGoalForLearnerGoal, type UnitLevel } from '@/lib/units/units';
 import {
-  STAGE_LABEL_AR,
+  stageLabel,
   buildUnitProgress,
   composeSession,
   recommendScenario,
@@ -47,6 +47,7 @@ import {
   type LearnerEvidence,
   type SessionStage,
 } from '@/lib/units/progress';
+import { scenarioTitle, unitTitle } from '@/lib/content/titles';
 
 /** V31: agreement for the review strip's title. See `arabicCount`. */
 // The bare count noun lives with the other Arabic count forms, so a language
@@ -206,9 +207,9 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
 
   const titles = useMemo(() => {
     const map: Record<string, string> = {};
-    for (const scenario of scenarios) map[scenario.id] = scenario.title_ar;
+    for (const scenario of scenarios) map[scenario.id] = scenarioTitle(scenario, uiLanguage);
     return map;
-  }, [scenarios]);
+  }, [scenarios, uiLanguage]);
 
   // Stored, not rendered: the report reads it to hand off to the next step
   // without re-deriving a different plan.
@@ -221,8 +222,9 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
         lastEase: user?.lastSessionEase ?? null,
         dueReviewCount: dueCount,
         titles,
+        language: uiLanguage,
       }),
-    [episodeLevel, unitGoal, evidence, user?.lastSessionEase, dueCount, titles],
+    [episodeLevel, unitGoal, evidence, user?.lastSessionEase, dueCount, titles, uiLanguage],
   );
 
   const unitProgress = useMemo(
@@ -454,7 +456,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             )}
           </div>
           <h2 className="mt-0.5 font-arabic text-lg font-bold leading-snug text-text-primary">
-            {nextScenario ? nextScenario.title_ar : t('trail.noneLeft')}
+            {nextScenario ? scenarioTitle(nextScenario, uiLanguage) : t('trail.noneLeft')}
           </h2>
           {nextScenario && (
             <GermanText className="mt-0.5 block truncate text-xs text-text-secondary">
@@ -480,7 +482,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                         stage === nextStage ? 'font-bold text-primary' : 'text-text-muted'
                       }`}
                     >
-                      {STAGE_LABEL_AR[stage]}
+                      {stageLabel(stage, uiLanguage)}
                     </span>
                   </div>
                 );
@@ -497,8 +499,8 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
             aria-label={
               nextScenario
                 ? t('trail.cta.start', {
-                    title: nextScenario.title_ar,
-                    stage: STAGE_LABEL_AR[nextStage],
+                    title: scenarioTitle(nextScenario, uiLanguage),
+                    stage: stageLabel(nextStage, uiLanguage),
                   })
                 : t('trail.cta.refresh')
             }
@@ -584,7 +586,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                 disabled={headerLocked}
                 aria-expanded={expanded && !headerLocked}
                 aria-label={t('trail.unit.aria', {
-                  title: entry.unit.titleAr,
+                  title: unitTitle(entry.unit, uiLanguage),
                   done: entry.done,
                   total: entry.total,
                   state: headerLocked
@@ -626,7 +628,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                     expanded ? 'text-text-primary' : 'text-text-secondary'
                   } ${headerLocked ? 'opacity-60' : ''}`}
                 >
-                  {t('trail.unit.index', { index: index + 1, title: entry.unit.titleAr })}
+                  {t('trail.unit.index', { index: index + 1, title: unitTitle(entry.unit, uiLanguage) })}
                 </span>
                 <span
                   data-testid="trail-unit-count"
@@ -657,7 +659,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                     aria-valuemin={0}
                     aria-valuemax={entry.total}
                     aria-valuenow={entry.done}
-                    aria-label={t('trail.unit.progressAria', { title: entry.unit.titleAr })}
+                    aria-label={t('trail.unit.progressAria', { title: unitTitle(entry.unit, uiLanguage) })}
                   >
                     <div
                       className="h-full rounded-full bg-primary transition-[width] duration-panels ease-out motion-reduce:transition-none"
@@ -678,14 +680,14 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                           <button
                             type="button"
                             data-testid="trail-scenario-card"
-                            aria-label={`${scenario.title_ar} (${scenario.title_de})${
+                            aria-label={`${scenarioTitle(scenario, uiLanguage)} (${scenario.title_de})${
                               current ? ` — ${t('trail.next')}` : ''
                             } — ${
-                              STAGE_LABEL_AR[stageFor(scenario.id, { evidence, lastEase: user?.lastSessionEase ?? null })]
+                              stageLabel(stageFor(scenario.id, { evidence, lastEase: user?.lastSessionEase ?? null }), uiLanguage)
                             }${levelBlocked ? ` — ${t('trail.unit.stateProBare')}` : ''}`}
                             onClick={() => {
                               if (levelBlocked) {
-                                handleScenarioClick(scenario.id, entry.unit.level, entry.unit.titleAr);
+                                handleScenarioClick(scenario.id, entry.unit.level, unitTitle(entry.unit, uiLanguage));
                                 return;
                               }
                               setSheetScenarioId(scenario.id);
@@ -718,7 +720,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                             <span className="min-w-0 flex-1 pb-1">
                               <span className="flex items-start gap-2">
                                 <span className="min-w-0 flex-1 font-arabic text-sm font-bold leading-snug text-text-primary">
-                                  {scenario.title_ar}
+                                  {scenarioTitle(scenario, uiLanguage)}
                                 </span>
                                 {current && (
                                   <span className="mt-1 inline-flex shrink-0 items-center gap-1 font-arabic text-micro text-primary">
@@ -838,7 +840,7 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
                       {complete ? <Check className="h-3.5 w-3.5" /> : index + 1}
                     </span>
                     <span className="font-arabic text-xs font-bold text-text-primary">
-                      {STAGE_LABEL_AR[stage]}
+                      {stageLabel(stage, uiLanguage)}
                     </span>
                     {isCurrent && (
                       <span className="ms-auto font-arabic text-micro font-bold text-primary">
@@ -857,12 +859,12 @@ export const TrailScreen: React.FC<TrailScreenProps> = ({
               data-testid="trail-sheet-start"
               onClick={startSheetScenario}
               aria-label={t('trail.cta.start', {
-                title: sheetScenario.title_ar,
-                stage: STAGE_LABEL_AR[sheetStage],
+                title: scenarioTitle(sheetScenario, uiLanguage),
+                stage: stageLabel(sheetStage, uiLanguage),
               })}
               className="mt-3 justify-center"
             >
-              {t('trail.sheetStart', { stage: STAGE_LABEL_AR[sheetStage] })}
+              {t('trail.sheetStart', { stage: stageLabel(sheetStage, uiLanguage) })}
             </Button>
           </div>
         )}

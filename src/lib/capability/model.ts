@@ -9,6 +9,7 @@ import type {
 } from '@/types/models';
 import type { UiLanguage } from '@/lib/i18n/languages';
 import { translate, type UiStringKey } from '@/lib/i18n/strings';
+import { scenarioTitle } from '@/lib/content/titles';
 
 /**
  * "What can I actually do now?" — answered from recorded evidence only.
@@ -206,7 +207,7 @@ export function canDoStatementAr(
   state: CapabilityState,
   language: UiLanguage = 'ar',
 ): string {
-  const title = scenario.title_ar || scenario.title_de;
+  const title = scenarioTitle(scenario, language) || scenario.title_de;
   const key: Record<CapabilityState, UiStringKey> = {
     RETAINED: 'capability.canDo.retained',
     INDEPENDENT: 'capability.canDo.independent',
@@ -247,7 +248,7 @@ export function buildCapabilityModel(
     if (capability.state === 'INDEPENDENT' || capability.state === 'RETAINED') {
       canDo.push({
         scenarioId: scenario.id,
-        titleAr: scenario.title_ar,
+        titleAr: scenarioTitle(scenario, language),
         titleDe: scenario.title_de,
         state: capability.state,
         statementAr: canDoStatementAr(scenario, capability.state, language),

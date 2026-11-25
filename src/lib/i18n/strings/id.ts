@@ -1697,5 +1697,10 @@ export const ID: Record<ArKey, string> = {
   'writing.task.formalEmail.title': 'Email resmi',
   'writing.task.formalEmail.brief': 'Tulis email resmi enam sampai sepuluh kalimat, dengan salam pembuka dan penutup.',
   'writing.task.complaint.title': 'Keluhan resmi',
+  'stage.study': 'Belajar',
+  'stage.withHelp': 'Dengan bantuan',
+  'stage.solo': 'Sendiri',
+  'stage.reviewQuick': 'Ulasan singkat ({count})',
+  'stage.untitledScene': 'Adegan berikutnya',
   'writing.task.complaint.brief': 'Tulis keluhan resmi delapan sampai dua belas kalimat: jelaskan masalahnya, faktanya, apa yang sudah kamu coba, dan apa yang ingin kamu terjadi.',
 };

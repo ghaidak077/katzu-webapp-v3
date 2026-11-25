@@ -6,6 +6,7 @@ import { diffSentences } from '@/lib/conversation/germanDiff';
 import { correctionNeedsOpening, correctionSummaryLabel } from '@/lib/conversation/correctionPresentation';
 import { activeWordIndex, speechSegments } from '@/lib/speech/wordHighlight';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { grammarTitle } from '@/lib/content/titles';
 import type { ChatMessage } from '@/types/models';
 
 /**
@@ -383,7 +384,12 @@ const ConversationMessageBase: React.FC<ConversationMessageProps> = ({
               {correctionMessage.grammarReference && correctionMessage.grammarReference.id === correctionMessage.grammarId && (
                 <div className="rounded-chip border border-kz-line bg-white/5 p-2.5">
                   <span className="kz-ar-micro block text-kz-inkFaint">{t('conv.fromGrammarRule')}</span>
-                  <p className="mt-1 kz-ar-micro font-semibold text-kz-ink">{correctionMessage.grammarReference.titleAr}</p>
+                  <p className="mt-1 kz-ar-micro font-semibold text-kz-ink">
+                    {grammarTitle(
+                      { id: correctionMessage.grammarReference.id, title_ar: correctionMessage.grammarReference.titleAr },
+                      uiLanguage,
+                    )}
+                  </p>
                   <p className="mt-1 kz-ar-micro leading-relaxed text-kz-inkDim">{correctionMessage.grammarReference.ruleAr}</p>
                   <GermanText className="mt-1 block text-xs text-kz-inkDim">{correctionMessage.grammarReference.exampleDe}</GermanText>
                 </div>

@@ -1685,6 +1685,11 @@ export const AR = {
   'writing.task.formalEmail.title': 'بريد رسمي',
   'writing.task.formalEmail.brief': 'اكتب بريداً رسمياً من ست إلى عشر جمل مع تحية البداية والخاتمة.',
   'writing.task.complaint.title': 'شكوى رسمية',
+  'stage.study': 'دراسة',
+  'stage.withHelp': 'مع مساعدة',
+  'stage.solo': 'وحدك',
+  'stage.reviewQuick': 'مراجعة سريعة ({count})',
+  'stage.untitledScene': 'المشهد التالي',
   'writing.task.complaint.brief': 'اكتب شكوى رسمية من ثماني إلى اثنتي عشرة جملة: اذكر المشكلة، والوقائع، وما جرّبته سابقاً، وما تريد أن يحدث.',
 } as const;
 

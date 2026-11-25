@@ -8,6 +8,8 @@ import {
   type UnitGoal,
 } from './units';
 import { REVIEW_SESSION_CAP, reviewMinutes, scenarioMinutes } from '@/lib/mission/scenarioMinutes';
+import { translate, type UiStringKey } from '@/lib/i18n/strings';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * What to do next — decided once, in one pure place.
@@ -27,11 +29,22 @@ import { REVIEW_SESSION_CAP, reviewMinutes, scenarioMinutes } from '@/lib/missio
 
 export type SessionStage = 'study' | 'with_help' | 'solo';
 
-export const STAGE_LABEL_AR: Record<SessionStage, string> = {
-  study: 'دراسة',
-  with_help: 'مع مساعدة',
-  solo: 'وحدك',
+/**
+ * The stage name as the learner reads it.
+ *
+ * The Arabic words used to live here as a table of literals, which meant an
+ * English or Indonesian learner read «دراسة · مع مساعدة · وحدك» on the library
+ * cards and in the situation sheet. The keys are resolved in render now.
+ */
+export const STAGE_LABEL_KEY: Record<SessionStage, UiStringKey> = {
+  study: 'stage.study',
+  with_help: 'stage.withHelp',
+  solo: 'stage.solo',
 };
+
+export function stageLabel(stage: SessionStage, language: UiLanguage = 'ar'): string {
+  return translate(language, STAGE_LABEL_KEY[stage]);
+}
 
 /** The evidence needed to choose a stage. All ids are scenario ids. */
 export interface LearnerEvidence {
@@ -157,6 +170,8 @@ export interface SessionPlan {
 
 export interface ComposeSessionInput extends RecommendationInput {
   dueReviewCount: number;
+  /** The language the plan's own labels (review step, untitled scene) speak. */
+  language?: UiLanguage;
   /**
    * Titles by scenario id. A missing title must never surface a database id:
    * the learner reads `first_greetings` in Latin snake_case on the primary
@@ -177,6 +192,8 @@ export const UNTITLED_SCENE_AR = 'المشهد التالي';
  * backlog wearing a plan's clothes; three is the most this returns.
  */
 export function composeSession(input: ComposeSessionInput): SessionPlan {
+  const language = input.language ?? 'ar';
+  const untitled = translate(language, 'stage.untitledScene');
   const steps: SessionStep[] = [];
   const reviewCount = Math.min(
     Math.max(0, Math.floor(Number(input.dueReviewCount) || 0)),
@@ -186,7 +203,7 @@ export function composeSession(input: ComposeSessionInput): SessionPlan {
     steps.push({
       kind: 'review',
       stage: 'review',
-      titleAr: `مراجعة سريعة (${reviewCount})`,
+      titleAr: translate(language, 'stage.reviewQuick', { count: reviewCount }),
       minutes: reviewMinutes(reviewCount),
     });
   }
@@ -198,7 +215,7 @@ export function composeSession(input: ComposeSessionInput): SessionPlan {
       kind: 'scenario',
       scenarioId: recommendation.scenarioId,
       stage: recommendation.stage,
-      titleAr: input.titles?.[recommendation.scenarioId] || UNTITLED_SCENE_AR,
+      titleAr: input.titles?.[recommendation.scenarioId] || untitled,
       minutes,
     });
 
@@ -221,7 +238,7 @@ export function composeSession(input: ComposeSessionInput): SessionPlan {
           kind: 'scenario',
           scenarioId: second,
           stage: stageFor(second, input),
-          titleAr: input.titles?.[second] || UNTITLED_SCENE_AR,
+          titleAr: input.titles?.[second] || untitled,
           minutes,
         });
       }

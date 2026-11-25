@@ -3,6 +3,8 @@ import { countdownLineAr, shouldFeatureCountdown } from '@/lib/mission/examCount
 import { dayIndexFor } from '@/lib/utils/dailyMission';
 import { goalMatchScore } from '@/lib/onboarding/preferences';
 import { arCount } from '@/lib/i18n/arabicCount';
+import type { UiLanguage } from '@/lib/i18n/languages';
+import { scenarioTitle } from '@/lib/content/titles';
 
 /** V31: agreement for the review mission's CTA. See `arabicCount`. */
 const REVIEW_ITEM_ACC_FORMS = { one: 'عنصراً', two: 'عنصرين', few: 'عناصر', many: 'عنصراً' } as const;
@@ -214,15 +216,15 @@ function minutesForPlan(dailyMinutes: number | undefined, totalItems: number): n
  * today, not a reason to change the choice. Wrapping also means one place decides
  * whether the number is shouted (inside the last month, exam only).
  */
-export function selectDailyMission(input: MissionInput): DailyMissionPlan {
-  const plan = selectMissionAction(input);
+export function selectDailyMission(input: MissionInput, language: UiLanguage = 'ar'): DailyMissionPlan {
+  const plan = selectMissionAction(input, language);
   const countdown = countdownLineAr(input?.targetDate, input?.targetDateKind ?? 'exam', input?.now ?? Date.now());
   return shouldFeatureCountdown(input?.targetDate, input?.targetDateKind ?? 'exam', input?.now ?? Date.now())
     ? { ...plan, countdownAr: countdown ?? undefined }
     : plan;
 }
 
-function selectMissionAction(input: MissionInput): DailyMissionPlan {
+function selectMissionAction(input: MissionInput, language: UiLanguage = 'ar'): DailyMissionPlan {
   const {
     level,
     goal,
@@ -283,7 +285,7 @@ function selectMissionAction(input: MissionInput): DailyMissionPlan {
       kind: 'continue',
       scenarioId: nextUnfinished.id,
       titleDe: nextUnfinished.title_de,
-      titleAr: nextUnfinished.title_ar,
+      titleAr: scenarioTitle(nextUnfinished, language),
       subtitleAr: record?.quizAttempted
         ? 'لم تصل بعد إلى حد الإتقان في هذا المشهد — أكمل ما بقي منه.'
         : 'بدأت هذا المشهد ولم تُكمل تدريبه بعد.',
@@ -317,7 +319,7 @@ function selectMissionAction(input: MissionInput): DailyMissionPlan {
         kind: 'daily',
         scenarioId: opening.id,
         titleDe: opening.title_de,
-        titleAr: opening.title_ar,
+        titleAr: scenarioTitle(opening, language),
         subtitleAr: 'هذه بداية القصة — أول موقف تخوضه بعد وصولك.',
         ctaAr: 'ابدأ من لحظة الوصول',
         estimatedMinutes: minutesForPlan(dailyMinutes, 0),
@@ -335,7 +337,7 @@ function selectMissionAction(input: MissionInput): DailyMissionPlan {
       kind: 'daily',
       scenarioId: scenario.id,
       titleDe: scenario.title_de,
-      titleAr: scenario.title_ar,
+      titleAr: scenarioTitle(scenario, language),
       subtitleAr:
         minutesForPlan(dailyMinutes, 0) <= 5
           ? 'مهمة اليوم القصيرة — خمس دقائق تكفي للحفاظ على العادة.'
@@ -354,7 +356,7 @@ function selectMissionAction(input: MissionInput): DailyMissionPlan {
       kind: 'new',
       scenarioId: notStarted.id,
       titleDe: notStarted.title_de,
-      titleAr: notStarted.title_ar,
+      titleAr: scenarioTitle(notStarted, language),
       subtitleAr: 'ابدأ مشهداً جديداً — سنكيّف المحتوى مع مستواك أثناء التدريب.',
       ctaAr: 'ابدأ مشهداً جديداً',
       estimatedMinutes: minutesForPlan(dailyMinutes, 0),

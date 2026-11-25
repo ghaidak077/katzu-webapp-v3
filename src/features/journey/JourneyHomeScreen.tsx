@@ -29,6 +29,7 @@ import { arCount, arNoun } from '@/lib/i18n/arabicCount';
 import { MINUTE_NOM, REVIEW_ITEM_BARE } from '@/lib/i18n/countForms';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
 import type { UiStringKey } from '@/lib/i18n/strings';
+import { scenarioTitle } from '@/lib/content/titles';
 import { buildWeeklyRecap } from '@/lib/journey/weeklyRecap';
 import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { shouldOfferPro } from '@/lib/entitlement/trial';
@@ -182,7 +183,9 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
   // projection stays lean and carries scenario IDS, so the titles the recap
   // shows are resolved from the scenario list this screen already has.
   const weeklySessions = useMemo(() => {
-    const titles = new Map(scenarios.map((scenario) => [scenario.id, scenario.title_ar || scenario.title_de || '']));
+    const titles = new Map(
+      scenarios.map((scenario) => [scenario.id, scenarioTitle(scenario, uiLanguage) || scenario.title_de || '']),
+    );
     return (data ? Object.values(data.sessionsByScenario).flat() : []).map((session) => ({
       scenarioTitle: titles.get(session.scenarioId) || '',
       durationSeconds: session.durationSeconds,
@@ -236,7 +239,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
         scenarios: scenarios.map((scenario) => ({
           id: scenario.id,
           title_de: scenario.title_de,
-          title_ar: scenario.title_ar,
+          title_ar: scenarioTitle(scenario, uiLanguage),
           category: scenario.category,
         })),
         training: training.map((record) => ({
@@ -307,7 +310,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
       scenarios: scenarios.map((scenario) => ({
         id: scenario.id,
         title_de: scenario.title_de,
-        title_ar: scenario.title_ar,
+        title_ar: scenarioTitle(scenario, uiLanguage),
         category: scenario.category,
       })),
       training: training.map((record) => ({
@@ -414,7 +417,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
     if (!first) return null;
     const scenario = scenarios.find((entry) => entry.id === first[0]);
     if (!scenario) return null;
-    return { titleAr: scenario.title_ar, labelAr: capabilityLabel(first[1].state, uiLanguage) };
+    return { titleAr: scenarioTitle(scenario, uiLanguage), labelAr: capabilityLabel(first[1].state, uiLanguage) };
   }, [capability, scenarios, uiLanguage]);
 
   const totalMinutes = heroMission.estimatedMinutes || user?.dailyGoalMinutes || 10;
@@ -659,7 +662,7 @@ export const JourneyHomeScreen: React.FC<JourneyHomeScreenProps> = ({
               <p className="kz-ar-micro text-kz-inkDim">{heroLabelAr}</p>
               {missionScenario ? (
                 <>
-                  <h2 className="kz-hero-title mt-1 text-kz-ink">{missionScenario.title_ar}</h2>
+                  <h2 className="kz-hero-title mt-1 text-kz-ink">{scenarioTitle(missionScenario, uiLanguage)}</h2>
                   <GermanText className="mt-0.5 block text-caption text-kz-inkDim">{missionScenario.title_de}</GermanText>
                 </>
               ) : (

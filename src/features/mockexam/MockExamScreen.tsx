@@ -7,6 +7,7 @@ import { GermanText } from '@/components/common/GermanText';
 import { useSpeechOutput } from '@/lib/speech/useSpeechOutput';
 import { workerClient, type MockExamPart, type MockStartResponse } from '@/lib/api/workerClient';
 import { debriefView, estimatePracticeScore, formatPartClock, type MockPartResult } from '@/lib/mockexam/score';
+import { mockPartBrief, mockPartTitle } from '@/lib/content/titles';
 import { buildShareLink, buildShareText } from '@/lib/offers/share';
 import { LiveConversationScreen } from '@/features/conversation/LiveConversationScreen';
 import { track } from '@/lib/analytics/client';
@@ -224,7 +225,7 @@ const ExamBanner: React.FC<{
   totalParts: number;
   secondsLeft: number | null;
 }> = ({ part, partNumber, totalParts, secondsLeft }) => {
-  const { t } = useLanguage();
+  const { t, uiLanguage } = useLanguage();
   const over = secondsLeft === 0;
   return (
     <div className="relative z-10 shrink-0 border-b border-white/[0.06] bg-kz-soft-black/40 px-4 py-2 backdrop-blur-sm">
@@ -240,8 +241,8 @@ const ExamBanner: React.FC<{
           {formatPartClock(secondsLeft ?? 0)}
         </p>
       </div>
-      <p className="kz-ar-caption mt-1 text-kz-ink">{part.titleAr}</p>
-      <p className="kz-ar-micro mt-0.5 text-kz-inkDim">{part.briefAr}</p>
+      <p className="kz-ar-caption mt-1 text-kz-ink">{mockPartTitle(part, uiLanguage)}</p>
+      <p className="kz-ar-micro mt-0.5 text-kz-inkDim">{mockPartBrief(part, uiLanguage)}</p>
       {over ? (
         <p className="kz-ar-micro mt-1 text-primary">
           {t('mock.timeUp')}
@@ -358,7 +359,7 @@ const MockResultScreen: React.FC<{
           <p className="kz-ar-caption mt-2 text-kz-inkDim">{estimate.headlineAr}</p>
         )}
         <p className="kz-ar-micro mt-3 text-kz-inkDim">{estimate.noticeAr}</p>
-        {noticeAr ? <p className="kz-ar-micro mt-1 text-kz-inkFaint">{noticeAr}</p> : null}
+        {noticeAr ? <p className="kz-ar-micro mt-1 text-kz-inkFaint">{t('mock.notice')}</p> : null}
       </GlassCard>
 
       {summaries.length > 0 ? (

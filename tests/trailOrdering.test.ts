@@ -162,7 +162,9 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     // The unit header is the only place the unit's name and count appear, and
     // the timeline exists only inside the open unit.
     // 010 i18n: the header renders the key, and the key's Arabic is the sentence.
-    expect(TRAIL).toMatch(/t\('trail\.unit\.index', \{ index: index \+ 1, title: entry\.unit\.titleAr \}\)/);
+    expect(TRAIL).toMatch(
+      /t\('trail\.unit\.index', \{ index: index \+ 1, title: unitTitle\(entry\.unit, uiLanguage\) \}\)/,
+    );
     expect(UI_STRINGS.ar['trail.unit.index']).toBe('الوحدة {index} · {title}');
     expect(TRAIL).toMatch(/data-testid="trail-unit-count"[\s\S]{0,400}<LtrCounter value=\{entry\.done\} total=\{entry\.total\}/);
     expect(TRAIL).toMatch(/\{expanded && !headerLocked && \(/);
@@ -199,9 +201,9 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     expect(TRAIL).toMatch(/current \? \(\s*<Play/);
   });
 
-  it('leads each row with the Arabic title and puts the German underneath', () => {
+  it('leads each row with the localized title and puts the German underneath', () => {
     expect(TRAIL).toMatch(
-      /font-arabic text-sm font-bold leading-snug text-text-primary">\s*\{scenario\.title_ar\}/,
+      /font-arabic text-sm font-bold leading-snug text-text-primary">\s*\{scenarioTitle\(scenario, uiLanguage\)\}/,
     );
     expect(TRAIL).toMatch(
       /<GermanText className="line-clamp-2 min-w-0 flex-1 text-micro leading-snug text-text-secondary">\s*\{scenario\.title_de\}\s*<\/GermanText>/,
@@ -212,7 +214,7 @@ describe('the Trail uses the rule and keeps its own controls', () => {
     expect(TRAIL).toMatch(/const STAGES: SessionStage\[\] = \['study', 'with_help', 'solo'\]/);
     expect(TRAIL).toMatch(/const states = \[studied, withHelp, done\]/);
     expect(TRAIL).toMatch(
-      /STAGE_LABEL_AR\[stageFor\(scenario\.id, \{ evidence, lastEase: user\?\.lastSessionEase \?\? null \}\)\]/,
+      /stageLabel\(stageFor\(scenario\.id, \{ evidence, lastEase: user\?\.lastSessionEase \?\? null \}\), uiLanguage\)/,
     );
     expect(TRAIL).toMatch(/data-testid="trail-stage-segment"/);
     expect(TRAIL).toMatch(/key=\{STAGES\[index\]\}/);

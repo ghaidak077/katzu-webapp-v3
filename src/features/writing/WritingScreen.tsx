@@ -6,6 +6,7 @@ import { enrolMistake } from '@/lib/srs/store';
 import { WRITING_TASK_COPY, writingTaskForLevel } from '@/lib/writing/task';
 import { GermanText } from '@/components/common/GermanText';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { scenarioTitle } from '@/lib/content/titles';
 import { translate } from '@/lib/i18n/strings';
 import type { UiStringKey } from '@/lib/i18n/strings';
 import type { UiLanguage } from '@/lib/i18n/languages';
@@ -323,7 +324,7 @@ export const WritingScreen: React.FC<WritingScreenProps> = ({ onBack, onOpenSubs
         <p className="text-xs font-arabic leading-relaxed mb-2">{t(copy.briefKey)}</p>
         {scenario && (
           <p className="text-micro font-arabic text-text-secondary">
-            {t('writing.topic')} <span className="text-text-primary">{scenario.title_ar}</span>
+            {t('writing.topic')} <span className="text-text-primary">{scenarioTitle(scenario, uiLanguage)}</span>
           </p>
         )}
       </Card>

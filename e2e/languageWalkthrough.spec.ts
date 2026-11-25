@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { bootSignedIn, collectPageErrors, seedFinishedEpisode } from './harness';
 import { UI_STRINGS, type UiStringKey } from '../src/lib/i18n/strings';
+import { GRAMMAR_TITLES, MOCK_PARTS, SCENARIO_TITLES, UNIT_TITLES } from '../src/lib/content/titles';
 
 /**
  * The whole app, walked as a learner, in every language the app ships.
@@ -168,7 +169,11 @@ for (const language of ['ar', 'en', 'id'] as const) {
     // the brief itself is what has to be in the learner's language.
     await page.goto('/mock');
     await page.locator('main').first().waitFor({ state: 'attached', timeout: 30_000 });
-    await page.waitForTimeout(1500);
+    // The claim and the first examiner turn arrive after the shell, so wait for
+    // the brief itself rather than for a fixed delay that can sample the shell.
+    await page
+      .waitForFunction(() => (document.body.innerText || '').trim().length >= 60, null, { timeout: 15_000 })
+      .catch(() => undefined);
     const mockText = (await page.evaluate(() => document.body.innerText || '')).trim();
     if (mockText.length < 60) note('/mock: the mock exam entry rendered almost nothing');
     // The topic and task text are content; the exam's own chrome is checked by the
@@ -234,6 +239,26 @@ for (const language of ['ar', 'en', 'id'] as const) {
       }
       if (language !== 'ar' && arabic.length) {
         report.push(`[arabic content present] ${arabic.join(' | ')}`);
+      }
+
+      // Titles are app-owned, so they must be in the learner's language wherever
+      // the app owns the list: a positive check (the learned title is on screen)
+      // rather than a negative one, because the study material on these screens
+      // is still the content layer's Arabic and would drown a line filter.
+      if (language !== 'ar') {
+        const expected: Record<string, string[]> = {
+          '/app/trail': [
+            ...Object.values(SCENARIO_TITLES).map((title) => title[language]),
+            ...Object.values(UNIT_TITLES).map((title) => title[language]),
+          ],
+          '/app/library': Object.values(SCENARIO_TITLES).map((title) => title[language]),
+          '/app/grammar': Object.values(GRAMMAR_TITLES).map((title) => title[language]),
+          '/mock': Object.values(MOCK_PARTS).flatMap((part) => [part.title[language], part.brief[language]]),
+        };
+        const titles = expected[route.path];
+        if (titles && !titles.some((title) => text.includes(title))) {
+          problems.push(`${route.path}: not one localised title reached the ${language} screen`);
+        }
       }
     }
 

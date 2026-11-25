@@ -14,6 +14,7 @@ import { safetyDisclaimerFor } from '@/lib/utils/scenarioVocab';
 import { BookOpen, CheckCircle, Lock, MessagesSquare, Sparkles } from 'lucide-react';
 import { BackButton } from '@/components/common/BackButton';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
+import { scenarioTitle } from '@/lib/content/titles';
 
 export interface ScenarioDetailScreenProps {
   scenarioId: string;
@@ -30,7 +31,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
   onStartQuiz,
   onStartConversation,
 }) => {
-  const { t } = useLanguage();
+  const { t, uiLanguage } = useLanguage();
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
 
   // "Still reading" stays distinct from "not on this device", and a wedged read is
@@ -143,7 +144,7 @@ export const ScenarioDetailScreen: React.FC<ScenarioDetailScreenProps> = ({
             {scenario.title_de}
           </GermanText>
           <h3 className="text-sm font-arabic font-semibold text-text-secondary mb-3">
-            {scenario.title_ar}
+            {scenarioTitle(scenario, uiLanguage)}
           </h3>
           <p className="text-xs text-text-muted font-arabic italic">
             {t('detail.hostLine')}

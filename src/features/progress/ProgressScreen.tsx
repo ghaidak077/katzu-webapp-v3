@@ -21,6 +21,7 @@ import { REVIEW_ITEM_ACCUSATIVE } from '@/lib/i18n/countForms';
 import { useLanguage } from '@/lib/i18n/LanguageProvider';
 import { UI_LANGUAGE_META, type UiLanguage } from '@/lib/i18n/languages';
 import type { UiStringKey } from '@/lib/i18n/strings';
+import { scenarioTitle } from '@/lib/content/titles';
 
 import type { SessionEntity } from '@/types/models';
 
@@ -330,7 +331,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ onOpenScenario, 
                   <GlassWell className="flex items-center justify-between gap-3 p-3">
                     <div className="min-w-0">
                       <p className="kz-ar-caption truncate text-kz-ink">
-                        {entry.scenario?.title_ar || entry.scenarioId}
+                        {entry.scenario ? scenarioTitle(entry.scenario, uiLanguage) : entry.scenarioId}
                       </p>
                       <p className="mt-0.5 kz-ar-micro text-kz-inkFaint">
                         {capabilityLabel(entry.state, uiLanguage)}

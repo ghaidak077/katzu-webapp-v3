@@ -10,6 +10,7 @@ import { scenarioToVocabTopic } from '@/lib/utils/scenarioVocab';
 import { germanNounPhrase } from '@/lib/utils/germanNoun';
 import { categoryLabel, classifyMistake, type MistakeCategory } from '@/lib/coach/taxonomy';
 import { translate, type UiStringKey } from '@/lib/i18n/strings';
+import { grammarTitle, scenarioTitle } from '@/lib/content/titles';
 import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
@@ -79,7 +80,7 @@ export function buildVocabularyEntries(
   for (const scenario of scenarios) {
     const topic = scenarioToVocabTopic(scenario);
     if (topic && !scenarioByTopic.has(topic)) {
-      scenarioByTopic.set(topic, { id: scenario.id, titleAr: scenario.title_ar });
+      scenarioByTopic.set(topic, { id: scenario.id, titleAr: scenarioTitle(scenario, language) });
     }
   }
 
@@ -162,7 +163,9 @@ export function buildGrammarEntries(
 ): GrammarEntry[] {
   const { grammar = [], mistakes = [], scenarios = [] } = input;
 
-  const scenarioTitles = new Map(scenarios.map((scenario) => [scenario.id, scenario.title_ar]));
+  const scenarioTitles = new Map(
+    scenarios.map((scenario) => [scenario.id, scenarioTitle(scenario, language)]),
+  );
 
   // Classify each recorded mistake once, then attribute it to the grammar rows
   // that describe the same category. Both sides read the coach's taxonomy, so a
@@ -191,7 +194,7 @@ export function buildGrammarEntries(
 
     entries.push({
       id: rule.id,
-      titleAr: rule.title_ar || categoryLabel(category, language),
+      titleAr: grammarTitle(rule, language) || categoryLabel(category, language),
       ruleDe: rule.rule_de || '',
       level: rule.level,
       state,
