@@ -4,7 +4,7 @@ import { db } from '@/lib/db/katzuDb';
 import { useLiveRow } from '@/lib/db/useLiveRow';
 import { sceneFor } from '@/lib/design/scenes';
 import { buildStorySetup } from '@/lib/journey/story';
-import { storedOpenerArabic } from '@/lib/conversation/opener';
+import { storedOpenerGloss } from '@/lib/conversation/opener';
 import { loadMissionBrief } from '@/lib/journey/brief';
 import { isGuidedHomeEnabled } from '@/lib/flags/guidedHome';
 import { isDayZeroOpening } from '@/lib/journey/firstSession';
@@ -102,17 +102,22 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
    * read: instant, free, offline, and the retry button re-reads the same data
    * instead of asking a model.
    */
-  const requestTranslation = useCallback((germanText: string) => {
-    if (!germanText.trim()) return;
-    const stored = storedOpenerArabic(germanText);
-    setTranslationAr(stored || '');
-    setTranslationState(stored ? 'idle' : 'unavailable');
-    if (!stored) logError('story/gloss', 'No shipped Arabic for this opener text');
-  }, []);
+  const requestTranslation = useCallback(
+    (germanText: string) => {
+      if (!germanText.trim()) return;
+      // The story opener's gloss ships in the UI language, so an English or
+      // Indonesian reader gets their own language on the preview line.
+      const stored = storedOpenerGloss(germanText, uiLanguage);
+      setTranslationAr(stored || '');
+      setTranslationState(stored ? 'idle' : 'unavailable');
+      if (!stored) logError('story/gloss', `No shipped ${uiLanguage} gloss for this opener text`);
+    },
+    [uiLanguage],
+  );
 
   useEffect(() => {
     if (!story?.openingDe) return;
-    const stored = storedOpenerArabic(story.openingDe);
+    const stored = storedOpenerGloss(story.openingDe, uiLanguage);
     if (stored) {
       setTranslationAr(stored);
       setTranslationState('idle');
@@ -124,7 +129,7 @@ export const StorySetupScreen: React.FC<StorySetupScreenProps> = ({ scenarioId, 
     setTranslationState('pending');
     const timer = setTimeout(() => requestTranslation(story.openingDe), 450);
     return () => clearTimeout(timer);
-  }, [story?.openingDe, requestTranslation]);
+  }, [story?.openingDe, uiLanguage, requestTranslation]);
 
   if (!scenario) {
     const stalled = scenarioRow.kind === 'reading' && scenarioRow.stalled;

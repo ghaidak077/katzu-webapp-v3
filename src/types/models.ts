@@ -104,6 +104,12 @@ export interface VocabularyEntity {
   part_of_speech: string;
   translation_ar: string;
   translation_en: string;
+  /**
+   * Indonesian meaning, when the app has one for this word (the shipped
+   * glossary does; a D1 vocabulary row does not yet). Optional so a content row
+   * needs no migration and the card can fall back honestly.
+   */
+  translation_id?: string;
   example_de: string;
   example_ar: string;
   topic: string;

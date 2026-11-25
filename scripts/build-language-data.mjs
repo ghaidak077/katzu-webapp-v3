@@ -22,7 +22,7 @@
  *   node scripts/build-language-data.mjs --list     # print the German/Arabic pairs for proofreading
  *   node scripts/build-language-data.mjs --check     # validate only, write nothing
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -57,6 +57,31 @@ const glossCorpus = read('word-glosses.json').glosses;
  * erase them again. Authored entries win when the same German appears in both.
  */
 const extraCorpus = read('opener-ar-extra.json').openers || {};
+
+/**
+ * English and Indonesian for the same content.
+ *
+ * Arabic is the source corpus above and stays byte-identical. A learner reading
+ * the app in English or Indonesian used to get the Arabic gloss behind
+ * «translate», and the Arabic meaning on every tapped word — the last place a
+ * non-Arabic learner met a language they cannot read. The translations live in
+ * their own files (`openers-i18n/*.json`, `word-glosses-i18n.json`) so a batch
+ * of them can be added or reviewed without touching the Arabic.
+ *
+ * Openers are index-aligned chunks: each file declares the `range` it covers, so
+ * a missing or duplicated line is a build failure instead of a silent shift. A
+ * word is keyed by its token, which is short and unambiguous.
+ */
+const I18N_LANGS = ['en', 'id'];
+const i18nDir = join(DATA, 'openers-i18n');
+const i18nChunks = existsSync(i18nDir)
+  ? readdirSync(i18nDir).filter((file) => file.endsWith('.json')).sort()
+  : [];
+/** Every opener the app can serve, in the order the i18n chunks are indexed on. */
+const fullOpenerTexts = () => [
+  ...openers.map((opener) => opener.text),
+  ...Object.keys(extraCorpus).map((german) => String(german).trim().replace(/\s+/g, ' ')),
+];
 
 /** Lowercase tokens as they appear in an opener: letters, umlauts and hyphens. */
 export function tokensOf(text) {
@@ -215,6 +240,78 @@ if (stillMissing.length) {
   problems.push(`${stillMissing.length} opener tokens resolve to nothing: ${stillMissing.slice(0, 10).join(', ')}`);
 }
 
+// ---- English and Indonesian, merged onto the same entries ----
+const openerI18n = {};
+const byIndex = [];
+let nextIndex = 1;
+for (const file of i18nChunks) {
+  let chunk = null;
+  try {
+    chunk = JSON.parse(readFileSync(join(i18nDir, file), 'utf8'));
+  } catch (error) {
+    problems.push(`i18n chunk ${file} is not valid JSON: ${error.message}`);
+    continue;
+  }
+  const [start, end] = Array.isArray(chunk.range) ? chunk.range : [NaN, NaN];
+  if (start !== nextIndex) problems.push(`i18n chunk ${file} starts at ${start}, expected ${nextIndex}`);
+  const size = end - start + 1;
+  for (const lang of I18N_LANGS) {
+    const rows = chunk[lang];
+    if (!Array.isArray(rows) || rows.length !== size) {
+      problems.push(`i18n chunk ${file} has ${Array.isArray(rows) ? rows.length : 0} ${lang} rows, expected ${size}`);
+      continue;
+    }
+    rows.forEach((row, offset) => {
+      const index = start + offset;
+      const text = String(row || '').trim();
+      if (!text) problems.push(`i18n ${lang} row ${index} is empty`);
+      else if (ARABIC.test(text)) problems.push(`i18n ${lang} row ${index} carries Arabic: ${text}`);
+      byIndex[index - 1] = { ...(byIndex[index - 1] || {}), [lang]: text };
+    });
+  }
+  nextIndex = end + 1;
+}
+
+const shippedOpenerTexts = fullOpenerTexts();
+if (i18nChunks.length && nextIndex - 1 !== shippedOpenerTexts.length) {
+  problems.push(`opener i18n covers ${nextIndex - 1} openers for ${shippedOpenerTexts.length} shipped openers`);
+}
+shippedOpenerTexts.forEach((text, index) => {
+  const entry = byIndex[index];
+  if (!entry || I18N_LANGS.some((lang) => !entry[lang])) {
+    problems.push(`opener #${index + 1} has no complete English/Indonesian gloss: ${text}`);
+    return;
+  }
+  openerI18n[text.replace(/\s+/g, ' ').trim()] = { en: entry.en, id: entry.id };
+});
+
+const wordI18nFile = join(DATA, 'word-glosses-i18n.json');
+const wordI18n = existsSync(wordI18nFile)
+  ? JSON.parse(readFileSync(wordI18nFile, 'utf8')).glosses || {}
+  : {};
+const wordsWithoutI18n = [];
+for (const [token, gloss] of Object.entries(glossary)) {
+  const entry = wordI18n[token];
+  if (!Array.isArray(entry) || entry.length < 2) {
+    wordsWithoutI18n.push(token);
+    continue;
+  }
+  const [english, indonesian] = entry.map((value) => String(value || '').trim());
+  if (!english || !indonesian) {
+    problems.push(`word i18n for "${token}" is incomplete`);
+    continue;
+  }
+  if (ARABIC.test(english) || ARABIC.test(indonesian)) {
+    problems.push(`word i18n for "${token}" carries Arabic`);
+    continue;
+  }
+  gloss.en = english;
+  gloss.id = indonesian;
+}
+if (wordsWithoutI18n.length) {
+  problems.push(`${wordsWithoutI18n.length} words have no English/Indonesian meaning: ${wordsWithoutI18n.slice(0, 8).join(', ')}`);
+}
+
 const report = {
   distinctOpeners: openers.length,
   scenarios: content.scenarios.length,
@@ -276,13 +373,28 @@ writeFileSync(
 const entries = Object.entries(glossary)
   .map(([token, gloss]) => {
     const parts = gloss.parts ? `, parts: ${JSON.stringify(gloss.parts)}` : '';
-    return `  ${JSON.stringify(token)}: { lemma: ${JSON.stringify(gloss.lemma)}, ar: ${JSON.stringify(gloss.ar)}, pos: ${JSON.stringify(gloss.pos)}, level: ${JSON.stringify(gloss.level)}${parts} }`;
+    return `  ${JSON.stringify(token)}: { lemma: ${JSON.stringify(gloss.lemma)}, ar: ${JSON.stringify(gloss.ar)}, en: ${JSON.stringify(gloss.en)}, id: ${JSON.stringify(gloss.id)}, pos: ${JSON.stringify(gloss.pos)}, level: ${JSON.stringify(gloss.level)}${parts} }`;
   })
   .join(',\n');
 
 writeFileSync(
   join(ROOT, 'src/lib/vocabulary/wordGlossary.generated.ts'),
-  `${header}export interface WordGloss {\n  lemma: string;\n  ar: string;\n  pos: string;\n  level: string;\n  /** The parts of a compound word, when the corpus declares them. */\n  parts?: string[];\n}\n\n/** Lemma, meaning, part of speech and level for every word in a scenario opener. */\nexport const WORD_GLOSSARY: Record<string, WordGloss> = {\n${entries},\n};\n`,
+  `${header}export interface WordGloss {\n  lemma: string;\n  ar: string;\n  /** English meaning, for a learner reading the app in English. */\n  en: string;\n  /** Indonesian meaning, for a learner reading the app in Indonesian. */\n  id: string;\n  pos: string;\n  level: string;\n  /** The parts of a compound word, when the corpus declares them. */\n  parts?: string[];\n}\n\n/** Lemma, meaning, part of speech and level for every word in a scenario opener. */\nexport const WORD_GLOSSARY: Record<string, WordGloss> = {\n${entries},\n};\n`,
+  'utf8',
+);
+
+// The non-Arabic openers ship as their own map beside the Arabic one: the worker
+// imports the Arabic module (its greeting guard speaks Arabic) and must not grow
+// with translations it never reads.
+// One line per opener: the map is ~530 entries, and the repo's file-size guard
+// counts lines (a pretty-printed map of this size crosses it).
+const i18nEntries = Object.entries(openerI18n)
+  .map(([german, entry]) => `  ${JSON.stringify(german)}: { en: ${JSON.stringify(entry.en)}, id: ${JSON.stringify(entry.id)} },`)
+  .join('\n');
+
+writeFileSync(
+  join(ROOT, 'src/lib/conversation/openerGlossesI18n.generated.ts'),
+  `${header}export interface OpenerGlossI18n {\n  en: string;\n  id: string;\n}\n\n/** The same opener keyed to English and Indonesian. */\nexport const OPENER_GLOSSES_I18N: Record<string, OpenerGlossI18n> = {\n${i18nEntries}\n};\n`,
   'utf8',
 );
 
@@ -301,5 +413,6 @@ const review = [
 writeFileSync(join(ROOT, 'docs/OWNER-LANGUAGE-REVIEW.md'), `${review.join('\n')}\n`, 'utf8');
 
 console.log('\nwrote src/lib/conversation/openerGlosses.generated.ts');
+console.log('wrote src/lib/conversation/openerGlossesI18n.generated.ts');
 console.log('wrote src/lib/vocabulary/wordGlossary.generated.ts');
 console.log('wrote docs/OWNER-LANGUAGE-REVIEW.md');

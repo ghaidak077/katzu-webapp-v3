@@ -43,6 +43,8 @@ export function openerForLevel(scenario: ScenarioOpener | null | undefined, leve
 }
 
 import { OPENER_GLOSSES as GENERATED_OPENER_GLOSSES } from './openerGlosses.generated';
+import { OPENER_GLOSSES_I18N } from './openerGlossesI18n.generated';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 /**
  * The stored Arabic gloss for an opener, keyed on the German text itself.
@@ -91,6 +93,28 @@ export function storedOpenerArabic(german: string): string | null {
   if (Object.prototype.hasOwnProperty.call(OPENER_GLOSSES, key)) return OPENER_GLOSSES[key];
   const generated = GENERATED_OPENER_GLOSSES[key];
   return typeof generated === 'string' && generated.trim() ? generated : null;
+}
+
+/**
+ * The stored gloss of an opener in the learner's own language.
+ *
+ * Before this, the bundle carried Arabic only: a learner reading the app in
+ * English or Indonesian met Arabic the moment they opened the «translate» panel
+ * of the first message of every conversation — the one piece of content they
+ * cannot read at all. Every shipped opener now carries its English and Indonesian
+ * text too (`openers-i18n/`, validated by the build), so the same synchronous map
+ * read answers in the UI language.
+ *
+ * `null` for a non-Arabic language is honest, not a fallback: showing Arabic to
+ * an English reader is worse than showing nothing, and the caller already has a
+ * visible "no translation" state.
+ */
+export function storedOpenerGloss(german: string, language: UiLanguage = 'ar'): string | null {
+  const key = german.trim().replace(/\s+/g, ' ');
+  if (language === 'ar') return storedOpenerArabic(key);
+  const entry = OPENER_GLOSSES_I18N[key];
+  const text = entry ? entry[language] : '';
+  return typeof text === 'string' && text.trim() ? text : null;
 }
 
 /** Every opener text that ships with an Arabic gloss (for coverage tests). */

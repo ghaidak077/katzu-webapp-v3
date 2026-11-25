@@ -17,6 +17,7 @@
  */
 
 import { WORD_GLOSSARY, type WordGloss } from './wordGlossary.generated';
+import type { UiLanguage } from '@/lib/i18n/languages';
 
 export type WordLookup = WordGloss & {
   /** The token as it appears in the sentence. */
@@ -25,7 +26,24 @@ export type WordLookup = WordGloss & {
   match: 'exact' | 'inflected' | 'compound';
   /** The resolved lemma, present on every entry (shot from the data). */
   audioText: string;
+  /** The meaning in the learner's own language (Arabic, English or Indonesian). */
+  meaning: string;
 };
+
+/**
+ * The meaning a learner can actually read.
+ *
+ * The glossary ships Arabic, English and Indonesian for every word (the build
+ * refuses a token that is missing either of the last two), so this is a lookup
+ * rather than a translation. The fallbacks only matter for content that predates
+ * the corpus: English before Arabic for an Indonesian reader is still readable,
+ * Arabic is the last resort and never silently replaces a present meaning.
+ */
+export function meaningIn(gloss: WordGloss, language: UiLanguage = 'ar'): string {
+  if (language === 'en') return gloss.en || gloss.ar;
+  if (language === 'id') return gloss.id || gloss.en || gloss.ar;
+  return gloss.ar;
+}
 
 const ARTICLES = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer)\s+/i;
 
@@ -60,12 +78,18 @@ function entryFor(key: string): WordGloss | null {
   return folded ? WORD_GLOSSARY[folded] : null;
 }
 
-function toLookup(word: string, gloss: WordGloss, match: WordLookup['match']): WordLookup {
+function toLookup(
+  word: string,
+  gloss: WordGloss,
+  match: WordLookup['match'],
+  language: UiLanguage = 'ar',
+): WordLookup {
   return {
     ...gloss,
     german: word,
     match,
     audioText: gloss.lemma || word,
+    meaning: meaningIn(gloss, language),
   };
 }
 
@@ -74,19 +98,19 @@ function toLookup(word: string, gloss: WordGloss, match: WordLookup['match']): W
  * outside the shipped content — the caller shows an honest retry state, never a
  * "not in your scene" dead end and never an invented meaning.
  */
-export function lookupWord(rawWord: string): WordLookup | null {
+export function lookupWord(rawWord: string, language: UiLanguage = 'ar'): WordLookup | null {
   const word = String(rawWord || '').trim();
   const key = glossKey(word);
   if (!key) return null;
 
   // 1. The token itself (or its article-stripped form).
   const direct = entryFor(key);
-  if (direct) return toLookup(word, direct, 'exact');
+  if (direct) return toLookup(word, direct, 'exact', language);
 
   // 2. A known compound declared in the corpus (Deutschlernen -> Deutsch + lernen).
   for (const [token, gloss] of Object.entries(WORD_GLOSSARY)) {
     if (!gloss.parts || gloss.parts.length < 2) continue;
-    if (fold(token) === fold(key)) return toLookup(word, gloss, 'compound');
+    if (fold(token) === fold(key)) return toLookup(word, gloss, 'compound', language);
   }
 
   // 3. A compound the corpus does not declare: split it at every boundary and
@@ -100,11 +124,14 @@ export function lookupWord(rawWord: string): WordLookup | null {
       {
         lemma: `${head.lemma} + ${tail.lemma}`,
         ar: `${head.ar} + ${tail.ar}`,
+        en: `${head.en} + ${tail.en}`,
+        id: `${head.id} + ${tail.id}`,
         pos: head.pos === tail.pos ? head.pos : 'phrase',
         level: head.level < tail.level ? head.level : tail.level,
         parts: [head.lemma, tail.lemma],
       },
       'compound',
+      language,
     );
   }
 
@@ -113,11 +140,11 @@ export function lookupWord(rawWord: string): WordLookup | null {
   for (const ending of INFLECTIONS) {
     if (!key.endsWith(ending) || key.length - ending.length < 3) continue;
     const stem = entryFor(key.slice(0, key.length - ending.length));
-    if (stem) return toLookup(word, stem, 'inflected');
+    if (stem) return toLookup(word, stem, 'inflected', language);
   }
   for (const suffix of ['n', 'e', 'en', 's', 'er']) {
     const grown = entryFor(key + suffix);
-    if (grown) return toLookup(word, grown, 'inflected');
+    if (grown) return toLookup(word, grown, 'inflected', language);
   }
 
   return null;

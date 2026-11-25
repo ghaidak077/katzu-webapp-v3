@@ -60,6 +60,21 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
   onRetry,
 }) => {
   const { t, uiLanguage } = useLanguage();
+  /**
+   * The card's meaning in the language the learner is reading.
+   *
+   * Every glossary word ships Arabic, English and Indonesian (the build fails on
+   * a missing one), so an English or Indonesian reader no longer gets an Arabic
+   * meaning on the most-used content surface in the app. A D1 vocabulary row
+   * carries Arabic and English only: Indonesian falls back to English, and Arabic
+   * stays the last resort rather than an empty card.
+   */
+  const meaning =
+    uiLanguage === 'ar'
+      ? word?.translation_ar
+      : uiLanguage === 'id'
+        ? word?.translation_id || word?.translation_en || word?.translation_ar
+        : word?.translation_en || word?.translation_ar;
   const { speak } = useSpeechOutput();
 
   if (!word) return null;
@@ -89,10 +104,11 @@ export const WordInsightBottomSheet: React.FC<WordInsightBottomSheetProps> = ({
                 {word.german}
               </GermanText>
             </div>
-            <div className="text-sm font-arabic font-semibold text-text-secondary">
-              {unresolved
-                ? t('sheet.word.unresolved')
-                : word.translation_ar}
+            <div
+              className={`text-sm font-semibold text-text-secondary ${uiLanguage === 'ar' ? 'font-arabic' : ''}`}
+              dir={uiLanguage === 'ar' ? 'rtl' : 'ltr'}
+            >
+              {unresolved ? t('sheet.word.unresolved') : meaning}
             </div>
           </div>
 

@@ -10,6 +10,10 @@ the two modules the app actually ships (`src/lib/conversation/openerGlosses.gene
 | `content-snapshot.json` | The live content the corpus was validated against (scenarios + vocabulary), so generation and tests work offline | `{ fetchedAt, scenarios: [...], vocabulary: [...] }` |
 | `opener-translations.json` | Modern Standard Arabic for every distinct scenario opener | `{ "<german opener>": "<arabic>" }` |
 | `word-glosses.json` | One entry per German token that appears in an opener | `{ "<token>": ["<lemma>", "<arabic>", "<part of speech>", "<level>"] }`, optional 5th element `["<part>", "<part>"]` for a compound |
+| `openers-i18n/NNNN-NNNN.json` | English and Indonesian for the same openers, in index-aligned chunks | `{ "range": [start, end], "en": [...], "id": [...] }` — rows in corpus order; a wrong count or a gap is a build failure |
+| `word-glosses-i18n.json` | English and Indonesian meaning for every glossary word | `{ "<token>": ["<english>", "<indonesian>"] }` |
+
+The Arabic corpus above is the source of truth and stays as written. The two `i18n` files are what an English or Indonesian learner actually reads, because the content glosses (the opener behind «ترجمة», the meaning on a word card) ship in the UI language rather than in Arabic. Adding a language is a new key in the same two files and one line in `I18N_LANGS`; adding content is one more row in the aligned chunk that covers it. The generator fails on any shipped opener or word with no entry, so the app cannot regress into showing Arabic to a reader who did not choose it.
 
 Token rules: lowercase, as it appears in the opener (inflected forms get their own entry and point
 at the lemma — `ist` → lemma `sein`). Parts of speech use the app's own English vocabulary

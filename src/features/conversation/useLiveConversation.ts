@@ -27,7 +27,7 @@ import { markScenarioTaskDone } from '@/lib/daily/taskStore';
 import { classifyTurnError, conversationReducer, initialConversationState, isTurnInFlight } from '@/lib/conversation/stateMachine';
 import { BUSY_RETRY_DELAYS_SECONDS, isRetryableTransportFailure, retryDelayFor, sleep } from '@/lib/conversation/turnRecovery';
 import { sanitizeHints } from '@/lib/conversation/hintSafety';
-import { openerForLevel, storedOpenerArabic } from '@/lib/conversation/opener';
+import { openerForLevel, storedOpenerGloss } from '@/lib/conversation/opener';
 import { failureCauseOf, messageForCause, type TurnFailureCause } from '@/lib/conversation/failureCopy';
 import { failedTurn, newDiagnosticId } from '@/lib/conversation/failedTurn';
 import { aiDebugLabel, errorDebugLabel, isDebugLabelEnabled } from '@/lib/conversation/debugLabel';
@@ -568,18 +568,23 @@ export function useLiveConversation({
    * worker. A text with no shipped gloss (an old retired string) reports its own
    * honest state; it never calls the model.
    */
-  const requestOpenerTranslation = useCallback((messageId: string, germanText: string) => {
-    const stored = storedOpenerArabic(germanText);
-    setMessages((prev) =>
-      prev.map((m) => {
-        if (m.id !== messageId) return m;
-        return stored
-          ? { ...m, arabicTranslation: stored, translationState: undefined }
-          : { ...m, translationState: 'unavailable' as const };
-      }),
-    );
-    if (!stored) logError('opener/gloss', 'No shipped Arabic for this opener text');
-  }, []);
+  const requestOpenerTranslation = useCallback(
+    (messageId: string, germanText: string) => {
+      // The gloss ships in the learner's own UI language, so an English or
+      // Indonesian reader never gets Arabic behind «translate».
+      const stored = storedOpenerGloss(germanText, uiLanguage);
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m;
+          return stored
+            ? { ...m, arabicTranslation: stored, translationState: undefined }
+            : { ...m, translationState: 'unavailable' as const };
+        }),
+      );
+      if (!stored) logError('opener/gloss', `No shipped ${uiLanguage} gloss for this opener text`);
+    },
+    [uiLanguage],
+  );
 
   useEffect(() => {
     if (!scenario || !sessionMode) return;
@@ -595,7 +600,7 @@ export function useLiveConversation({
     // the loading state briefly and gets exactly one automatic retry before the
     // honest «تعذرت الترجمة» state — never a dead end on first sight. A script
     // opener carries its own Arabic, so no lookup is needed.
-    const storedArabic = storedOpenerArabic(germanText);
+    const storedGloss = storedOpenerGloss(germanText, uiLanguage);
 
     const welcomeMsg: ChatMessage = {
       id: 'msg_initial',
@@ -604,14 +609,14 @@ export function useLiveConversation({
       // No placeholder translation: the scenario title is a TOPIC, not a
       // translation of the opener, and showing it made the first bubble of every
       // conversation say something the German never said.
-      ...(storedArabic
-        ? { arabicTranslation: storedArabic }
+      ...(storedGloss
+        ? { arabicTranslation: storedGloss }
         : { translationState: 'pending' as const }),
       timestamp: Date.now(),
     };
 
     let autoRetryTimer: ReturnType<typeof setTimeout> | null = null;
-    if (!storedArabic) {
+    if (!storedGloss) {
       autoRetryTimer = setTimeout(() => {
         requestOpenerTranslation(welcomeMsg.id, welcomeMsg.germanText);
       }, 450);
@@ -644,6 +649,7 @@ export function useLiveConversation({
     mockPartIndex,
     mockOpenerDe,
     mockTopicId,
+    uiLanguage,
     requestOpenerTranslation,
   ]);
 
@@ -665,15 +671,19 @@ export function useLiveConversation({
       if (found) return found;
       // Otherwise the shipped glossary answers — lemma, Arabic meaning, part of
       // speech and level for every word in every opener, resolved offline.
-      const gloss = lookupWord(cleaned);
+      // Meaning in the learner's own language: the glossary ships all three, so
+      // the card is readable whether the app is set to Arabic, English or
+      // Indonesian. Only the slot that matches the UI language is filled.
+      const gloss = lookupWord(cleaned, uiLanguage);
       if (!gloss) return null;
       return {
         id: 0,
         german: gloss.german,
         article: '',
         plural: '',
-        translation_ar: gloss.ar,
-        translation_en: '',
+        translation_ar: uiLanguage === 'ar' ? gloss.meaning : '',
+        translation_en: uiLanguage === 'en' ? gloss.meaning : '',
+        translation_id: uiLanguage === 'id' ? gloss.meaning : '',
         example_de: '',
         example_ar: '',
         part_of_speech: gloss.pos,
@@ -681,7 +691,7 @@ export function useLiveConversation({
         topic: '',
       };
     },
-    [vocabulary],
+    [vocabulary, uiLanguage],
   );
 
   /**
